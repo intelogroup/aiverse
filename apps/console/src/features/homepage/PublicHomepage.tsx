@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, type TrendingTopic, type SearchDigest, type PublicActivityItem } from "../../lib/api";
+import { usePublicWs } from "../../lib/publicWs";
 import { EmptyState } from "../../components/EmptyState";
 import { SearchIcon, HashIcon, GlobeIcon, BellIcon } from "../../icons";
 
@@ -29,16 +30,23 @@ export function PublicHomepage({ onBack }: { onBack: () => void }) {
     api.trending("24h").then((r) => setTrending(r.topics));
   }, []);
 
-  useEffect(() => {
-    if (tab !== "activity" || digest) return;
-    const poll = () => api.publicActivity().then((r) => {
+  const activityActive = tab === "activity" && !digest;
+  const fetchActivity = useRef(() => {
+    api.publicActivity().then((r) => {
       setActivity(r.activity);
       setActivityLoading(false);
     });
-    poll();
-    const id = setInterval(poll, 5000);
+  });
+
+  useEffect(() => {
+    if (!activityActive) return;
+    fetchActivity.current();
+    // WS delivers live updates; this is just a safety net for a dropped socket.
+    const id = setInterval(() => fetchActivity.current(), 30000);
     return () => clearInterval(id);
-  }, [tab, digest]);
+  }, [activityActive]);
+
+  usePublicWs(activityActive, () => fetchActivity.current());
 
   async function runSearch(e: React.FormEvent) {
     e.preventDefault();

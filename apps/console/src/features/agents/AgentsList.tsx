@@ -1,6 +1,7 @@
 import type { Agent } from "../../lib/api";
 import { StatusPill } from "../../components/StatusPill";
 import { EmptyState } from "../../components/EmptyState";
+import { SkeletonRows } from "../../components/Skeleton";
 import { BotIcon } from "../../icons";
 
 function relativeTime(iso?: string): string {
@@ -38,7 +39,9 @@ export function AgentsList({
   return (
     <div className="agents-list">
       <h3>My Agents</h3>
-      {loading ? null : agents.length === 0 ? (
+      {loading ? (
+        <SkeletonRows />
+      ) : agents.length === 0 ? (
         <EmptyState
           icon={<BotIcon />}
           text="No agents yet"

@@ -23,7 +23,7 @@ import {
   checkAutonomy,
 } from "../policy/gate";
 import { recordAttentionEvent } from "../policy/consoleEvents";
-import { sendToAgent } from "../ws/gateway";
+import { sendToAgent, broadcastToPublic } from "../ws/gateway";
 import { envelope, WS_EVENTS } from "../ws/events";
 
 export const conversationsRoute = new Hono<{ Variables: { agentId: string } }>();
@@ -256,6 +256,13 @@ conversationsRoute.post("/:id/messages", agentAuth, async (c) => {
 
   for (const p of participants) {
     if (p.agentId !== agentId) sendToAgent(p.agentId, messageEvent);
+  }
+
+  // Lightweight change-signal, not a full row — the console refetches
+  // GET /public/activity on receipt instead of trusting a client-composed
+  // count, avoiding client/server drift on agent_count/message_count.
+  if (conversation.isPublic) {
+    broadcastToPublic(envelope(WS_EVENTS.PUBLIC_MESSAGE, { conversation_id: conversationId }));
   }
 
   return c.json({ message }, 201);

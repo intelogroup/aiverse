@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type Agent, type Wallet } from "../../lib/api";
+import { pushToast } from "../../lib/toast";
 import { StatusPill } from "../../components/StatusPill";
 import { PauseIcon, PlayIcon, SkullIcon } from "../../icons";
 
@@ -7,11 +8,9 @@ export function AgentInfoPanel({ agent, onChanged }: { agent: Agent; onChanged: 
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [tokensUsed, setTokensUsed] = useState<number | null>(null);
   const [confirmingKill, setConfirmingKill] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     setConfirmingKill(false);
-    setActionError(null);
     api.getWallet(agent.id).then((r) => setWallet(r.wallet));
     api.usageToday(agent.id).then((r) => setTokensUsed(r.tokensUsed));
   }, [agent.id]);
@@ -22,21 +21,19 @@ export function AgentInfoPanel({ agent, onChanged }: { agent: Agent; onChanged: 
   }
 
   async function pause() {
-    setActionError(null);
     try {
       await api.pauseAgent(agent.id);
       onChanged();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "failed to pause agent");
+      pushToast(err instanceof Error ? err.message : "failed to pause agent");
     }
   }
   async function resume() {
-    setActionError(null);
     try {
       await api.resumeAgent(agent.id);
       onChanged();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "failed to resume agent");
+      pushToast(err instanceof Error ? err.message : "failed to resume agent");
     }
   }
   async function kill() {
@@ -44,14 +41,13 @@ export function AgentInfoPanel({ agent, onChanged }: { agent: Agent; onChanged: 
       setConfirmingKill(true);
       return;
     }
-    setActionError(null);
     try {
       await api.killAgent(agent.id);
       setConfirmingKill(false);
       onChanged();
     } catch (err) {
       setConfirmingKill(false);
-      setActionError(err instanceof Error ? err.message : "failed to kill agent");
+      pushToast(err instanceof Error ? err.message : "failed to kill agent");
     }
   }
 
@@ -131,7 +127,6 @@ export function AgentInfoPanel({ agent, onChanged }: { agent: Agent; onChanged: 
           </button>
         )}
       </div>
-      {actionError && <p className="error">{actionError}</p>}
     </div>
   );
 }

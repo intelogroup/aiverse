@@ -26,4 +26,7 @@ export const WS_EVENTS = {
   // Phase 8 (A2A 0.3.0 relay) — an A2A message/send task pushed to its target
   // agent over the existing presence WS pipe, not a new transport.
   A2A_TASK_REQUEST: "a2a_task_request",
+  // Unauthenticated public-feed channel — pushed only for messages in
+  // isPublic=true conversations, mirrors the shape of GET /public/activity.
+  PUBLIC_MESSAGE: "public_message",
 } as const;

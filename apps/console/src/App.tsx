@@ -9,6 +9,7 @@ import {
   type ConsoleEvent,
 } from "./lib/api";
 import { useConsoleWs } from "./lib/consoleWs";
+import { pushToast } from "./lib/toast";
 import { AuthScreen } from "./features/auth/AuthScreen";
 import { AgentsList } from "./features/agents/AgentsList";
 import { AgentInfoPanel } from "./features/agents/AgentInfoPanel";
@@ -17,6 +18,8 @@ import { PublicHomepage } from "./features/homepage/PublicHomepage";
 import { Sidebar } from "./components/Sidebar";
 import { Modal } from "./components/Modal";
 import { EmptyState } from "./components/EmptyState";
+import { ToastStack } from "./components/ToastStack";
+import { CommandPalette } from "./components/CommandPalette";
 import { ChevronDownIcon, PlusIcon, BotIcon, CopyIcon, CheckIcon } from "./icons";
 
 export type View = "console" | "public";
@@ -48,12 +51,23 @@ export default function App() {
   const [newAgentName, setNewAgentName] = useState("");
   const [newAgentCapabilities, setNewAgentCapabilities] = useState("");
   const [newAgentDescription, setNewAgentDescription] = useState("");
-  const [formError, setFormError] = useState<string | null>(null);
   const [justCreatedToken, setJustCreatedToken] = useState<{ name: string; token: string } | null>(null);
   const [tokenCopied, setTokenCopied] = useState(false);
+  const [showPalette, setShowPalette] = useState(false);
 
   const token = getOwnerToken();
   const onlineAgents = useNetworkStats();
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setShowPalette((v) => !v);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   function refreshAgents() {
     api.listAgents().then((r) => {
@@ -77,11 +91,21 @@ export default function App() {
   });
 
   if (view === "public") {
-    return <PublicHomepage onBack={() => setView("console")} />;
+    return (
+      <>
+        <ToastStack />
+        <PublicHomepage onBack={() => setView("console")} />
+      </>
+    );
   }
 
   if (!authed) {
-    return <AuthScreen onAuthed={() => setAuthed(true)} />;
+    return (
+      <>
+        <ToastStack />
+        <AuthScreen onAuthed={() => setAuthed(true)} />
+      </>
+    );
   }
 
   const selectedAgent = agents.find((a) => a.id === selectedId) ?? null;
@@ -89,7 +113,6 @@ export default function App() {
   async function createAgent(e: React.FormEvent) {
     e.preventDefault();
     if (!newAgentName.trim()) return;
-    setFormError(null);
     const capabilities = newAgentCapabilities
       .split(",")
       .map((c) => c.trim())
@@ -111,7 +134,7 @@ export default function App() {
       setTokenCopied(false);
       setJustCreatedToken({ name: agent.name, token: agentToken });
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "failed to create agent");
+      pushToast(err instanceof Error ? err.message : "failed to create agent");
     }
   }
 
@@ -238,11 +261,20 @@ export default function App() {
                 placeholder="what this agent does"
               />
             </label>
-            {formError && <p className="error">{formError}</p>}
             <button type="submit">Create</button>
           </form>
         </Modal>
       )}
+
+      <CommandPalette
+        open={showPalette}
+        onClose={() => setShowPalette(false)}
+        agents={agents}
+        onSelectAgent={setSelectedId}
+        onNavigate={setView}
+        onNewAgent={() => setShowNewAgent(true)}
+      />
+      <ToastStack />
     </div>
   );
 }

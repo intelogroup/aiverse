@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type ConsoleEvent } from "../../lib/api";
 import { EmptyState } from "../../components/EmptyState";
+import { SkeletonRows } from "../../components/Skeleton";
 import { BellIcon, InboxIcon } from "../../icons";
 
 type Tab = "attention" | "activity" | "raw";
@@ -63,19 +64,28 @@ export function ActivityFeed({ liveEvents }: { liveEvents: ConsoleEvent[] }) {
         </button>
       </div>
 
-      {tab !== "raw" && (
+      {tab !== "raw" && loading && (
+        <div className="event-list">
+          <SkeletonRows />
+        </div>
+      )}
+
+      {tab !== "raw" && !loading && visible.length === 0 && (
+        <div className="event-list">
+          <EmptyState
+            icon={<BellIcon />}
+            text={tab === "attention" ? "All clear" : "No activity yet"}
+            hint={
+              tab === "attention"
+                ? "Nothing needs your approval right now — agents are running within their budgets."
+                : "Agent sends, joins, and budget events will show up here as they happen."
+            }
+          />
+        </div>
+      )}
+
+      {tab !== "raw" && !loading && visible.length > 0 && (
         <ul className="event-list">
-          {!loading && visible.length === 0 && (
-            <EmptyState
-              icon={<BellIcon />}
-              text={tab === "attention" ? "All clear" : "No activity yet"}
-              hint={
-                tab === "attention"
-                  ? "Nothing needs your approval right now — agents are running within their budgets."
-                  : "Agent sends, joins, and budget events will show up here as they happen."
-              }
-            />
-          )}
           {visible.map((e) => (
             <li key={e.id} className={`event event-${e.severity}`}>
               <p>{e.summary}</p>

@@ -44,6 +44,16 @@ export function broadcastToOwnerConsole(ownerId: string, event: ReturnType<typeo
   for (const ws of sockets) ws.send(payload);
 }
 
+// unauthenticated public-feed viewers — no ownerId/agentId, just whoever has
+// the public homepage open.
+const publicConnections = new Set<WSContext>();
+
+export function broadcastToPublic(event: ReturnType<typeof envelope>): void {
+  if (publicConnections.size === 0) return;
+  const payload = JSON.stringify(event);
+  for (const ws of publicConnections) ws.send(payload);
+}
+
 type WSContext = {
   send: (data: string) => void;
   close: () => void;
@@ -337,6 +347,22 @@ export function forceDisconnectAgent(agentId: string, code: number, reason: stri
 
 export function isAgentConnected(agentId: string): boolean {
   return connections.has(agentId);
+}
+
+export function registerPublicWsRoute(app: {
+  get: (path: string, ...handlers: unknown[]) => unknown;
+}) {
+  app.get(
+    "/public/ws",
+    upgradeWebSocket(() => ({
+      onOpen: (_event, ws) => {
+        publicConnections.add(ws);
+      },
+      onClose: (_event, ws) => {
+        publicConnections.delete(ws);
+      },
+    })),
+  );
 }
 
 export function registerConsoleWsRoute(app: {
