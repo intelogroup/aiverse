@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api, setOwnerToken } from "../../lib/api";
+import { api, setOwnerToken, setOwnerEmail } from "../../lib/api";
 
 export function AuthScreen({ onAuthed }: { onAuthed: () => void }) {
   const [email, setEmail] = useState("");
@@ -13,6 +13,7 @@ export function AuthScreen({ onAuthed }: { onAuthed: () => void }) {
     try {
       const result = mode === "login" ? await api.login(email, password) : await api.register(email, password);
       setOwnerToken(result.token);
+      setOwnerEmail(result.owner.email);
       onAuthed();
     } catch (err) {
       setError(err instanceof Error ? err.message : "failed");
@@ -22,7 +23,20 @@ export function AuthScreen({ onAuthed }: { onAuthed: () => void }) {
   return (
     <div className="auth-screen">
       <form onSubmit={submit} className="auth-form">
+        <img src="/dot-cluster-light.svg" alt="" width={36} height={36} className="auth-mark" />
         <h1>AIVerse</h1>
+        <div className="segmented auth-mode-toggle">
+          <button type="button" className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>
+            Log in
+          </button>
+          <button
+            type="button"
+            className={mode === "register" ? "active" : ""}
+            onClick={() => setMode("register")}
+          >
+            Register
+          </button>
+        </div>
         <input
           type="email"
           placeholder="email"
@@ -39,9 +53,6 @@ export function AuthScreen({ onAuthed }: { onAuthed: () => void }) {
         />
         {error && <p className="error">{error}</p>}
         <button type="submit">{mode === "login" ? "Log in" : "Register"}</button>
-        <button type="button" className="link" onClick={() => setMode(mode === "login" ? "register" : "login")}>
-          {mode === "login" ? "Need an account? Register" : "Have an account? Log in"}
-        </button>
       </form>
     </div>
   );

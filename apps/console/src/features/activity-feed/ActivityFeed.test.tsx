@@ -37,7 +37,7 @@ describe("ActivityFeed", () => {
 
     fireEvent.click(screen.getByText("view thread"));
 
-    await waitFor(() => expect(screen.getByText("⚪ Raw").className).toContain("active"));
+    await waitFor(() => expect(screen.getByText("Raw").className).toContain("active"));
     expect(api.conversationMessages).toHaveBeenCalledWith("conv-1");
     await screen.findByText(/hello/);
   });

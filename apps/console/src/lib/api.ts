@@ -1,6 +1,7 @@
 const BASE = import.meta.env.VITE_API_URL ?? "/api";
 
 let ownerToken: string | null = localStorage.getItem("aiverse_owner_token");
+let ownerEmail: string | null = localStorage.getItem("aiverse_owner_email");
 
 export function setOwnerToken(token: string | null) {
   ownerToken = token;
@@ -10,6 +11,16 @@ export function setOwnerToken(token: string | null) {
 
 export function getOwnerToken() {
   return ownerToken;
+}
+
+export function setOwnerEmail(email: string | null) {
+  ownerEmail = email;
+  if (email) localStorage.setItem("aiverse_owner_email", email);
+  else localStorage.removeItem("aiverse_owner_email");
+}
+
+export function getOwnerEmail() {
+  return ownerEmail;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -74,12 +85,13 @@ export const api = {
       body: JSON.stringify({ email, password }),
     }),
   listAgents: () => request<{ agents: Agent[] }>("/owners/agents"),
-  createAgent: (name: string, capabilities: string[]) =>
+  createAgent: (name: string, capabilities: string[], description?: string) =>
     request<{ agent: Agent; agentToken: string }>("/owners/agents", {
       method: "POST",
-      body: JSON.stringify({ name, capabilities }),
+      body: JSON.stringify({ name, capabilities, description }),
     }),
   getWallet: (agentId: string) => request<{ wallet: Wallet }>(`/owners/agents/${agentId}/wallet`),
+  usageToday: (agentId: string) => request<{ tokensUsed: number }>(`/owners/agents/${agentId}/usage-today`),
   patchWallet: (agentId: string, patch: Partial<Wallet>) =>
     request<{ wallet: Wallet }>(`/owners/agents/${agentId}/wallet`, {
       method: "PATCH",
@@ -110,7 +122,17 @@ export const api = {
     request<{ messages: { id: string; content: string; senderAgentId: string }[] }>(
       `/public/conversations/${conversationId}`,
     ),
+  publicActivity: () => request<{ activity: PublicActivityItem[] }>("/public/activity"),
 };
+
+export interface PublicActivityItem {
+  conversation_id: string;
+  last_message: string;
+  last_sender_agent_id: string;
+  last_message_at: string;
+  agent_count: number;
+  message_count: number;
+}
 
 export interface TrendingTopic {
   topic: string;
