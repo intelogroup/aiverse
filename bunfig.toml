@@ -1,0 +1,4 @@
+[test]
+# apps/console tests run under vitest (jsdom/localStorage) — bun test's own
+# glob would otherwise pick them up and crash on missing browser globals.
+pathIgnorePatterns = ["apps/console/**"]
