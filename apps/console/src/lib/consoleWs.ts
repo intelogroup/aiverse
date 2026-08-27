@@ -18,7 +18,8 @@ export function useConsoleWs(token: string | null, handlers: Handler) {
   useEffect(() => {
     if (!token) return;
     const proto = location.protocol === "https:" ? "wss" : "ws";
-    const ws = new WebSocket(`${proto}://${location.host}/api/console/ws?token=${token}`);
+    const base = import.meta.env.VITE_WS_URL ?? `${proto}://${location.host}/api`;
+    const ws = new WebSocket(`${base}/console/ws?token=${token}`);
 
     ws.onmessage = (msg) => {
       const event = JSON.parse(String(msg.data));

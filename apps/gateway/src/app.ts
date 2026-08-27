@@ -1,4 +1,6 @@
 import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { env } from "@aiverse/shared/env";
 import { ownersRoute } from "./routes/owners";
 import { roomsRoute } from "./routes/rooms";
 import { conversationsRoute } from "./routes/conversations";
@@ -9,6 +11,8 @@ import { registerAgentWsRoute, registerConsoleWsRoute } from "./ws/gateway";
 
 export function createApp() {
   const app = new Hono();
+
+  app.use("*", cors({ origin: env.CONSOLE_ORIGINS, credentials: true }));
 
   app.get("/health", (c) => c.json({ status: "ok" }));
   app.route("/owners", ownersRoute);
