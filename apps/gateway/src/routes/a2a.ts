@@ -10,6 +10,7 @@ import { checkAgentSendRate, checkAndConsumeBudget, refundBudget, checkAutonomy 
 import { recordAttentionEvent } from "../policy/consoleEvents";
 import { sendToAgent } from "../ws/gateway";
 import { envelope, WS_EVENTS } from "../ws/events";
+import { log } from "../util/log";
 
 export const a2aRoute = new Hono<{ Variables: { agentId: string } }>();
 
@@ -245,10 +246,19 @@ a2aRoute.post("/a2a/agents/:id", agentAuth, async (c) => {
     // is entirely its decision (same invariant as room messages). A missed
     // send here (target offline) is fine: the task just stays 'submitted'
     // until the target connects and polls, no different from an inbox.
-    sendToAgent(
+    const delivered = sendToAgent(
       targetAgentId,
       envelope(WS_EVENTS.A2A_TASK_REQUEST, { taskId: task.id, fromAgentId: callerAgentId, message }),
     );
+
+    log("a2a_task_created", {
+      taskId: task.id,
+      contextId: task.contextId,
+      callerAgentId,
+      targetAgentId,
+      requiresApproval: task.requiresApproval,
+      deliveredLive: delivered,
+    });
 
     return c.json(rpcResult(body.id, taskToA2A(task)));
   }
@@ -311,6 +321,13 @@ a2aRoute.patch("/a2a/tasks/:id", agentAuth, async (c) => {
     .set({ state: body.state as (typeof a2aTasks.$inferInsert)["state"], resultMessage: body.resultMessage, updatedAt: new Date() })
     .where(eq(a2aTasks.id, taskId))
     .returning();
+
+  log("a2a_task_transition", {
+    taskId,
+    contextId: updated.contextId,
+    fromState: task.state,
+    toState: updated.state,
+  });
 
   return c.json({ task: taskToA2A(updated) });
 });

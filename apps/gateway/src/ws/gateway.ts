@@ -7,6 +7,7 @@ import { hashAgentToken } from "../auth/agentToken";
 import { verifyOwnerSession } from "../auth/session";
 import { redis } from "../redis/client";
 import { envelope, WS_EVENTS } from "./events";
+import { log, timed } from "../util/log";
 
 export const { upgradeWebSocket, websocket } = createBunWebSocket<ServerWebSocket>();
 
@@ -89,11 +90,12 @@ const BACKLOG_A2A_TASKS = 50;
 // every still-'submitted' task addressed to this agent, since 'submitted'
 // already means "not yet acted on" — no separate delivered/acked column
 // needed there, the state machine itself gates redelivery.
-async function deliverBacklog(agentId: string, ws: WSContext): Promise<void> {
+async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ messages: number; tasks: number }> {
   const participantRows = await db.query.conversationParticipants.findMany({
     where: eq(conversationParticipants.agentId, agentId),
   });
 
+  let messagesDelivered = 0;
   for (const p of participantRows) {
     const backlog = await db.query.messages.findMany({
       where: and(
@@ -117,6 +119,7 @@ async function deliverBacklog(agentId: string, ws: WSContext): Promise<void> {
           }),
         ),
       );
+      messagesDelivered += 1;
     }
   }
 
@@ -135,6 +138,8 @@ async function deliverBacklog(agentId: string, ws: WSContext): Promise<void> {
       ),
     );
   }
+
+  return { messages: messagesDelivered, tasks: pendingTasks.length };
 }
 
 // Advances the delivery cursor for one conversation, gated on the message's
@@ -162,6 +167,13 @@ async function handleAck(agentId: string, payload: unknown): Promise<void> {
         lt(conversationParticipants.lastDeliveredAt, message.createdAt),
       ),
     );
+
+  log("message_ack", {
+    agentId,
+    conversationId,
+    messageId,
+    ackLatencyMs: Date.now() - message.createdAt.getTime(),
+  });
 }
 
 export function registerAgentWsRoute(app: {
@@ -211,10 +223,9 @@ export function registerAgentWsRoute(app: {
             connections.delete(agent.id);
           }
 
-          await db
-            .update(agents)
-            .set({ status: "online", lastSeenAt: new Date() })
-            .where(eq(agents.id, agent.id));
+          await timed("postgres_write", { table: "agents", op: "set_online" }, () =>
+            db.update(agents).set({ status: "online", lastSeenAt: new Date() }).where(eq(agents.id, agent.id)),
+          );
 
           const conn: Connection = {
             agentId: agent.id,
@@ -225,11 +236,21 @@ export function registerAgentWsRoute(app: {
             missedPings: 0,
           };
           connections.set(agent.id, conn);
-          await redis.set(presenceKey(agent.id), "1", "EX", PRESENCE_TTL_SECONDS);
+          await timed("redis_write", { key: "presence", op: "set" }, () =>
+            redis.set(presenceKey(agent.id), "1", "EX", PRESENCE_TTL_SECONDS),
+          );
 
           ws.send(JSON.stringify(envelope(WS_EVENTS.AGENT_CONNECTED, { agent_id: agent.id })));
 
-          await deliverBacklog(agent.id, ws);
+          const backlogStart = performance.now();
+          const backlog = await deliverBacklog(agent.id, ws);
+          log("ws_connect", {
+            agentId: agent.id,
+            ownerId: agent.ownerId,
+            backlogMessages: backlog.messages,
+            backlogTasks: backlog.tasks,
+            backlogMs: Math.round(performance.now() - backlogStart),
+          });
 
           broadcast(
             envelope(WS_EVENTS.AGENT_JOINED, {
@@ -296,6 +317,7 @@ export function registerAgentWsRoute(app: {
             .set({ status: "offline", lastSeenAt: new Date() })
             .where(and(eq(agents.id, agentId), notInArray(agents.status, ["paused", "budget_exhausted"])));
           broadcast(envelope(WS_EVENTS.AGENT_LEFT, { agent_id: agentId }));
+          log("ws_disconnect", { agentId, ownerId: closedOwnerId });
           if (closedOwnerId) {
             broadcastToOwnerConsole(
               closedOwnerId,
