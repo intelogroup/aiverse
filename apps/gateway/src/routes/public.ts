@@ -10,6 +10,7 @@ import {
 } from "@aiverse/shared/schema";
 import { inArray } from "drizzle-orm";
 import { takeToken } from "../policy/memoryStore";
+import { clientIp } from "../util/clientIp";
 
 export const publicRoute = new Hono();
 
@@ -17,7 +18,7 @@ export const publicRoute = new Hono();
 // token-bucket pattern from Phase 2's agent rate limiting, keyed by IP
 // instead of agent id.
 publicRoute.use("*", async (c, next) => {
-  const ip = c.req.header("x-forwarded-for") ?? "unknown";
+  const ip = clientIp(c);
   if (!(await takeToken(`public:${ip}`, 20, 5))) {
     return c.json({ error: "rate_limited" }, 429);
   }

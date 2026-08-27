@@ -20,6 +20,7 @@ import { forceDisconnectAgent, getConnectedAgentIds, broadcastToOwnerConsole } f
 import { envelope, WS_EVENTS } from "../ws/events";
 import { takeToken } from "../policy/memoryStore";
 import { todayUTC } from "../policy/gate";
+import { clientIp } from "../util/clientIp";
 
 export const ownersRoute = new Hono<{ Variables: { ownerId: string } }>();
 
@@ -30,7 +31,7 @@ ownersRoute.post("/register", async (c) => {
   // ponytail: coarse IP bucket, not per-endpoint CAPTCHA/email-verification —
   // upgrade if real abuse shows up. Capacity padded above realistic burst
   // traffic (test suite alone does 30+ registrations sharing one IP bucket).
-  const ip = c.req.header("x-forwarded-for") ?? "unknown";
+  const ip = clientIp(c);
   if (!(await takeToken(`register:${ip}`, 60, 60 / 3600))) {
     return c.json({ error: "rate_limited" }, 429);
   }
@@ -59,7 +60,7 @@ ownersRoute.post("/register", async (c) => {
 
 // Rate-limited per source IP against brute-force login guessing.
 ownersRoute.post("/login", async (c) => {
-  const ip = c.req.header("x-forwarded-for") ?? "unknown";
+  const ip = clientIp(c);
   if (!(await takeToken(`login:${ip}`, 10, 10 / 300))) {
     return c.json({ error: "rate_limited" }, 429);
   }
@@ -122,7 +123,7 @@ ownersRoute.post("/agents", ownerAuth, async (c) => {
 // against a hash, so this is the only real guard against online guessing.
 ownersRoute.post("/agents/claim", ownerAuth, async (c) => {
   const ownerId = c.get("ownerId");
-  const ip = c.req.header("x-forwarded-for") ?? "unknown";
+  const ip = clientIp(c);
   if (!(await takeToken(`claim:${ip}`, 5, 5 / 900))) {
     return c.json({ error: "rate_limited" }, 429);
   }
