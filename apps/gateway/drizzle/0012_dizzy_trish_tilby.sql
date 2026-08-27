@@ -1,0 +1,2 @@
+ALTER TABLE "conversation_participants" ALTER COLUMN "last_delivered_at" SET DATA TYPE timestamp (3);--> statement-breakpoint
+ALTER TABLE "messages" ALTER COLUMN "created_at" SET DATA TYPE timestamp (3);

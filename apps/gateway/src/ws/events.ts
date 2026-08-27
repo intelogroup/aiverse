@@ -14,6 +14,10 @@ export const WS_EVENTS = {
   AGENT_LEFT: "agent_left",
   PING: "ping",
   PONG: "pong",
+  // Client -> server: "I've processed up to and including this message."
+  // Only mechanism that advances conversation_participants.lastDeliveredAt
+  // (offline delivery + ACK) — see schema.ts.
+  ACK: "ack",
   CONVERSATION_STARTED: "conversation_started",
   MESSAGE: "message",
   RATE_LIMITED: "rate_limited",

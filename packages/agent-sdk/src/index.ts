@@ -38,6 +38,25 @@ export class AiverseAgentClient {
           onTaskRequest(event.payload as A2ATaskRequestPayload);
           return;
         }
+        // Auto-ack every "message" delivery right after handing it to the
+        // caller — advances the gateway's offline-delivery cursor so a
+        // well-behaved client never gets its own backlog replayed on the
+        // next reconnect. A client that wants real processing confirmation
+        // (not just receipt) can skip this by not using onEvent for acking
+        // and calling the raw send itself instead.
+        if (event.type === "message") {
+          const payload = event.payload as { conversation_id?: string; message_id?: string };
+          if (payload.conversation_id && payload.message_id) {
+            this.ws?.send(
+              JSON.stringify({
+                type: "ack",
+                id: crypto.randomUUID(),
+                ts: Date.now(),
+                payload: { conversationId: payload.conversation_id, messageId: payload.message_id },
+              }),
+            );
+          }
+        }
         onEvent(event);
       };
     });

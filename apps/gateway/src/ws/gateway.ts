@@ -1,8 +1,8 @@
 import { createBunWebSocket } from "hono/bun";
 import type { ServerWebSocket } from "bun";
-import { and, eq, notInArray } from "drizzle-orm";
+import { and, eq, notInArray, gt, lt, ne } from "drizzle-orm";
 import { db } from "../db/client";
-import { agents } from "@aiverse/shared/schema";
+import { agents, conversationParticipants, messages, a2aTasks } from "@aiverse/shared/schema";
 import { hashAgentToken } from "../auth/agentToken";
 import { verifyOwnerSession } from "../auth/session";
 import { redis } from "../redis/client";
@@ -61,6 +61,92 @@ async function authenticate(token: string | undefined) {
   if (!token) return undefined;
   const hash = hashAgentToken(token);
   return db.query.agents.findFirst({ where: eq(agents.apiKeyHash, hash) });
+}
+
+// Bounded per source so a long-absent agent reconnecting doesn't get flooded
+// — this is at-least-once catch-up, not a full history replay.
+const BACKLOG_MESSAGES_PER_CONVERSATION = 50;
+const BACKLOG_A2A_TASKS = 50;
+
+// Offline delivery: replays anything this agent missed while disconnected.
+// Messages replay from each conversation's lastDeliveredAt cursor (only
+// advanced by an explicit client ack, see onMessage below); A2A tasks replay
+// every still-'submitted' task addressed to this agent, since 'submitted'
+// already means "not yet acted on" — no separate delivered/acked column
+// needed there, the state machine itself gates redelivery.
+async function deliverBacklog(agentId: string, ws: WSContext): Promise<void> {
+  const participantRows = await db.query.conversationParticipants.findMany({
+    where: eq(conversationParticipants.agentId, agentId),
+  });
+
+  for (const p of participantRows) {
+    const backlog = await db.query.messages.findMany({
+      where: and(
+        eq(messages.conversationId, p.conversationId),
+        gt(messages.createdAt, p.lastDeliveredAt),
+        ne(messages.senderAgentId, agentId),
+      ),
+      orderBy: (m, { asc }) => [asc(m.createdAt)],
+      limit: BACKLOG_MESSAGES_PER_CONVERSATION,
+    });
+    for (const m of backlog) {
+      ws.send(
+        JSON.stringify(
+          envelope(WS_EVENTS.MESSAGE, {
+            conversation_id: m.conversationId,
+            message_id: m.id,
+            sender_id: m.senderAgentId,
+            content: m.content,
+            reply_to_id: m.replyToId,
+            ts: m.createdAt.getTime(),
+          }),
+        ),
+      );
+    }
+  }
+
+  const pendingTasks = await db.query.a2aTasks.findMany({
+    where: and(eq(a2aTasks.targetAgentId, agentId), eq(a2aTasks.state, "submitted")),
+    limit: BACKLOG_A2A_TASKS,
+  });
+  for (const task of pendingTasks) {
+    ws.send(
+      JSON.stringify(
+        envelope(WS_EVENTS.A2A_TASK_REQUEST, {
+          taskId: task.id,
+          fromAgentId: task.callerAgentId,
+          message: task.requestMessage,
+        }),
+      ),
+    );
+  }
+}
+
+// Advances the delivery cursor for one conversation, gated on the message's
+// real createdAt looked up server-side — never trust a client-supplied
+// timestamp, and never move the cursor backward on an out-of-order ack.
+async function handleAck(agentId: string, payload: unknown): Promise<void> {
+  const { conversationId, messageId } = (payload ?? {}) as {
+    conversationId?: string;
+    messageId?: string;
+  };
+  if (!conversationId || !messageId) return;
+
+  const message = await db.query.messages.findFirst({
+    where: and(eq(messages.id, messageId), eq(messages.conversationId, conversationId)),
+  });
+  if (!message) return;
+
+  await db
+    .update(conversationParticipants)
+    .set({ lastDeliveredAt: message.createdAt })
+    .where(
+      and(
+        eq(conversationParticipants.conversationId, conversationId),
+        eq(conversationParticipants.agentId, agentId),
+        lt(conversationParticipants.lastDeliveredAt, message.createdAt),
+      ),
+    );
 }
 
 export function registerAgentWsRoute(app: {
@@ -124,6 +210,8 @@ export function registerAgentWsRoute(app: {
 
           ws.send(JSON.stringify(envelope(WS_EVENTS.AGENT_CONNECTED, { agent_id: agent.id })));
 
+          await deliverBacklog(agent.id, ws);
+
           broadcast(
             envelope(WS_EVENTS.AGENT_JOINED, {
               agent_id: agent.id,
@@ -149,7 +237,7 @@ export function registerAgentWsRoute(app: {
             redis.set(presenceKey(agent.id), "1", "EX", PRESENCE_TTL_SECONDS).catch(() => {});
           }, 30_000);
         },
-        onMessage: (event, ws) => {
+        onMessage: async (event, ws) => {
           if (!agentId) return;
           try {
             const msg = JSON.parse(String(event.data));
@@ -162,6 +250,9 @@ export function registerAgentWsRoute(app: {
                 conn.missedPings = 0;
                 redis.set(presenceKey(agentId), "1", "EX", PRESENCE_TTL_SECONDS).catch(() => {});
               }
+            }
+            if (msg.type === WS_EVENTS.ACK) {
+              await handleAck(agentId, msg.payload);
             }
           } catch {
             // ignore malformed frames in phase 1; real message handling lands phase 2

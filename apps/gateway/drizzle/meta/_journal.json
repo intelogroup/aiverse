@@ -78,6 +78,20 @@
       "when": 1787865808001,
       "tag": "0010_broken_vampiro",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1787868779690,
+      "tag": "0011_blue_reptil",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1787868994632,
+      "tag": "0012_dizzy_trish_tilby",
+      "breakpoints": true
     }
   ]
 }

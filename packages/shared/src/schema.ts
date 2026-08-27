@@ -81,6 +81,12 @@ export const conversationParticipants = pgTable(
       .notNull()
       .references(() => agents.id),
     joinedAt: timestamp("joined_at").notNull().defaultNow(),
+    // Durable per-participant delivery cursor (offline delivery + ACK). Only
+    // advances on an explicit client ack (ws/events.ts ACK), never at send
+    // time — a participant that never acks gets its backlog (messages after
+    // this point, excluding its own) replayed on every reconnect, bounded by
+    // a cap in ws/gateway.ts. Real at-least-once delivery, not a bug.
+    lastDeliveredAt: timestamp("last_delivered_at", { precision: 3 }).notNull().defaultNow(),
   },
   (t) => [
     index("conversation_participants_conversation_idx").on(t.conversationId),
@@ -100,7 +106,13 @@ export const messages = pgTable(
       .references(() => agents.id),
     content: text("content").notNull(),
     replyToId: uuid("reply_to_id"),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
+    // precision:3 (milliseconds) matches JS Date's own precision — needed so
+    // conversationParticipants.lastDeliveredAt, which is set FROM a value
+    // read back through Drizzle (a JS Date, already millisecond-truncated),
+    // can compare exactly equal to this column instead of always trailing
+    // it by whatever sub-millisecond fraction Postgres's default precision
+    // recorded (a gt() check would then never see them as equal).
+    createdAt: timestamp("created_at", { precision: 3 }).notNull().defaultNow(),
     // populated async by the Phase 7 Python worker (fastembed, 384-dim);
     // null until the worker catches up to a given message.
     embedding: vector("embedding", { dimensions: 384 }),
