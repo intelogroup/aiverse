@@ -9,6 +9,7 @@ import {
   consoleEvents,
   conversationParticipants,
   messages,
+  walletUsageDaily,
 } from "@aiverse/shared/schema";
 import type { AgentCard } from "@aiverse/shared/types";
 import { hashPassword, verifyPassword } from "../auth/password";
@@ -18,10 +19,22 @@ import { ownerAuth } from "../middleware/ownerAuth";
 import { forceDisconnectAgent, getConnectedAgentIds, broadcastToOwnerConsole } from "../ws/gateway";
 import { envelope, WS_EVENTS } from "../ws/events";
 import { takeToken } from "../policy/memoryStore";
+import { todayUTC } from "../policy/gate";
 
 export const ownersRoute = new Hono<{ Variables: { ownerId: string } }>();
 
+// Rate-limited per source IP — unauthenticated by definition, so this is
+// the only guard against signup spam / credential-stuffing on a public
+// gateway (no-op locally where nothing hits this from the internet).
 ownersRoute.post("/register", async (c) => {
+  // ponytail: coarse IP bucket, not per-endpoint CAPTCHA/email-verification —
+  // upgrade if real abuse shows up. Capacity padded above realistic burst
+  // traffic (test suite alone does 30+ registrations sharing one IP bucket).
+  const ip = c.req.header("x-forwarded-for") ?? "unknown";
+  if (!(await takeToken(`register:${ip}`, 60, 60 / 3600))) {
+    return c.json({ error: "rate_limited" }, 429);
+  }
+
   const body = await c.req.json<{ email: string; password: string }>();
   if (!body.email || !body.password) {
     return c.json({ error: "email and password required" }, 400);
@@ -44,7 +57,13 @@ ownersRoute.post("/register", async (c) => {
   return c.json({ token, owner: { id: owner.id, email: owner.email } }, 201);
 });
 
+// Rate-limited per source IP against brute-force login guessing.
 ownersRoute.post("/login", async (c) => {
+  const ip = c.req.header("x-forwarded-for") ?? "unknown";
+  if (!(await takeToken(`login:${ip}`, 10, 10 / 300))) {
+    return c.json({ error: "rate_limited" }, 429);
+  }
+
   const body = await c.req.json<{ email: string; password: string }>();
   const owner = await db.query.owners.findFirst({
     where: eq(owners.email, body.email ?? ""),
@@ -151,6 +170,20 @@ ownersRoute.get("/agents/:id/wallet", ownerAuth, async (c) => {
     where: eq(agentWallets.agentId, agentId),
   });
   return c.json({ wallet });
+});
+
+// Today's token usage for the budget-vs-used bar in the console. No row yet
+// today just means zero spend, not an error.
+ownersRoute.get("/agents/:id/usage-today", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const agentId = c.req.param("id");
+  const agent = await loadOwnedAgent(ownerId, agentId);
+  if (!agent) return c.json({ error: "not found" }, 404);
+
+  const row = await db.query.walletUsageDaily.findFirst({
+    where: and(eq(walletUsageDaily.agentId, agentId), eq(walletUsageDaily.date, todayUTC())),
+  });
+  return c.json({ tokensUsed: row?.tokensUsed ?? 0 });
 });
 
 // Agents never get a write path to their own wallet — only the owner, via
