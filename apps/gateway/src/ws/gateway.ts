@@ -47,6 +47,11 @@ export function broadcastToOwnerConsole(ownerId: string, event: ReturnType<typeo
 type WSContext = {
   send: (data: string) => void;
   close: () => void;
+  // The underlying Bun ServerWebSocket — Hono's Bun adapter constructs a
+  // brand-new WSContext wrapper on every single event, so `raw` (stable for
+  // the connection's whole lifetime) is the only thing safe to compare for
+  // identity, never the WSContext object itself.
+  raw: unknown;
 };
 
 function broadcast(event: ReturnType<typeof envelope>, exceptAgentId?: string) {
@@ -183,9 +188,13 @@ export function registerAgentWsRoute(app: {
           // socket as a silent zombie (it was previously just overwritten in
           // the Map, orphaned but still open). Explicitly replace: close the
           // old one, then register the new one. The old socket's own onClose
-          // will still fire async — the `connections.get(agentId) === conn`
-          // identity check there is what stops it from clobbering this
-          // (the new) connection's state once it runs.
+          // will still fire async — the `conn.ws.raw === ws.raw` identity
+          // check there is what stops it from clobbering this (the new)
+          // connection's state once it runs. Compare `.raw` (the underlying
+          // Bun socket), not the WSContext wrapper itself — Hono's Bun
+          // adapter constructs a brand-new WSContext on every single event
+          // (open/message/close), so `conn.ws === ws` is false by
+          // construction on every call, not just during a real replace race.
           const existing = connections.get(agent.id);
           if (existing) {
             existing.ws.close(4006, "replaced by a new connection for the same agent");
@@ -246,7 +255,7 @@ export function registerAgentWsRoute(app: {
               // Same identity guard as onClose: a frame from a socket that's
               // already been replaced (see onOpen's close-and-replace logic)
               // must not touch the new connection's state.
-              if (conn && conn.ws === ws) {
+              if (conn && conn.ws.raw === ws.raw) {
                 conn.missedPings = 0;
                 redis.set(presenceKey(agentId), "1", "EX", PRESENCE_TTL_SECONDS).catch(() => {});
               }
@@ -265,7 +274,7 @@ export function registerAgentWsRoute(app: {
           // A newer connection for this same agent already replaced us
           // (see the `existing` replace-on-connect logic above) — this
           // socket's own cleanup is a no-op, the new one owns presence now.
-          if (!conn || conn.ws !== ws) return;
+          if (!conn || conn.ws.raw !== ws.raw) return;
           const closedOwnerId = conn.ownerId;
           connections.delete(agentId);
           await redis.del(presenceKey(agentId));

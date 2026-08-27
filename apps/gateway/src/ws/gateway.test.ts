@@ -1,5 +1,8 @@
 import { describe, expect, test, afterAll } from "bun:test";
 import { env } from "@aiverse/shared/env";
+import { eq } from "drizzle-orm";
+import { agents } from "@aiverse/shared/schema";
+import { db } from "../db/client";
 import { createApp } from "../app";
 import { websocket } from "./gateway";
 
@@ -23,8 +26,8 @@ async function registerAgent(name: string) {
     headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
     body: JSON.stringify({ name, capabilities: [] }),
   });
-  const { agentToken } = await created.json();
-  return agentToken as string;
+  const { agentToken, agent } = await created.json();
+  return { agentToken: agentToken as string, agentId: agent.id as string };
 }
 
 describe("agent WS connect", () => {
@@ -42,12 +45,12 @@ describe("agent WS connect", () => {
   test("second agent sees agent_joined for the first", async () => {
     // registers two owners + two agents over the network, then opens two WS
     // connections — slower than the 5000ms default under full-suite load.
-    const [tokenA, tokenB] = await Promise.all([
+    const [a, b] = await Promise.all([
       registerAgent("WsAgentA"),
       registerAgent("WsAgentB"),
     ]);
 
-    const wsB = new WebSocket(`ws://localhost:${server.port}/agents/ws?token=${tokenB}`);
+    const wsB = new WebSocket(`ws://localhost:${server.port}/agents/ws?token=${b.agentToken}`);
 
     const joinedEvent = new Promise((resolve) => {
       wsB.onmessage = (msg) => {
@@ -71,7 +74,7 @@ describe("agent WS connect", () => {
       wsB.addEventListener("message", check);
     });
 
-    const wsA = new WebSocket(`ws://localhost:${server.port}/agents/ws?token=${tokenA}`);
+    const wsA = new WebSocket(`ws://localhost:${server.port}/agents/ws?token=${a.agentToken}`);
     await new Promise((resolve) => (wsA.onopen = resolve));
 
     const event = (await joinedEvent) as { payload: { name: string } };
@@ -82,7 +85,7 @@ describe("agent WS connect", () => {
   }, 30000);
 
   test("a second connection replaces the first, which is force-closed with 4006", async () => {
-    const token = await registerAgent("WsAgentReplaceGuard");
+    const { agentToken: token } = await registerAgent("WsAgentReplaceGuard");
 
     const wsOld = new WebSocket(`ws://localhost:${server.port}/agents/ws?token=${token}`);
     await new Promise<void>((resolve) => {
@@ -121,5 +124,49 @@ describe("agent WS connect", () => {
 
     wsOld.close();
     wsNew.close();
+  }, 15000);
+
+  test("a normal disconnect broadcasts agent_left and flips DB status to offline", async () => {
+    // Regression test: onClose's identity guard was comparing WSContext
+    // wrapper objects (`conn.ws === ws`), but Hono's Bun adapter constructs
+    // a brand-new WSContext on every single event — so the guard was false
+    // on every plain disconnect, not just a real replace race, and onClose's
+    // whole body (including this broadcast) silently never ran. Fixed by
+    // comparing `.raw` (the stable underlying Bun socket) instead.
+    const a = await registerAgent("WsAgentLeftA");
+    const b = await registerAgent("WsAgentLeftB");
+
+    const wsA = new WebSocket(`ws://localhost:${server.port}/agents/ws?token=${a.agentToken}`);
+    await new Promise<void>((resolve) => {
+      wsA.onmessage = (msg) => {
+        if (JSON.parse(String(msg.data)).type === "agent_connected") resolve();
+      };
+    });
+
+    const wsB = new WebSocket(`ws://localhost:${server.port}/agents/ws?token=${b.agentToken}`);
+    await new Promise<void>((resolve) => {
+      wsB.onmessage = (msg) => {
+        if (JSON.parse(String(msg.data)).type === "agent_connected") resolve();
+      };
+    });
+
+    const leftEvent = new Promise<{ payload: { agent_id: string } }>((resolve) => {
+      wsA.onmessage = (msg) => {
+        const event = JSON.parse(String(msg.data));
+        if (event.type === "agent_left") resolve(event);
+      };
+    });
+
+    wsB.close(1000, "normal close");
+    const event = await leftEvent;
+    expect(event.payload.agent_id).toBe(b.agentId);
+
+    // onClose's DB write is fire-and-forget relative to the client-visible
+    // close event — give it a moment to land.
+    await new Promise((r) => setTimeout(r, 300));
+    const row = await db.query.agents.findFirst({ where: eq(agents.id, b.agentId) });
+    expect(row?.status).toBe("offline");
+
+    wsA.close();
   }, 15000);
 });
