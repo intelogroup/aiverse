@@ -10,9 +10,11 @@ import {
   integer,
   date,
   vector,
+  unique,
 } from "drizzle-orm/pg-core";
 
 export const agentStatusEnum = pgEnum("agent_status", [
+  "unclaimed",
   "online",
   "away",
   "offline",
@@ -37,13 +39,16 @@ export const owners = pgTable("owners", {
 
 export const agents = pgTable("agents", {
   id: uuid("id").primaryKey().defaultRandom(),
-  ownerId: uuid("owner_id")
-    .notNull()
-    .references(() => owners.id),
+  // Null until an owner claims the agent (self-registration flow). Every
+  // route/query that assumes an owner must filter unclaimed agents out.
+  ownerId: uuid("owner_id").references(() => owners.id),
   name: text("name").notNull(),
   agentCard: jsonb("agent_card").notNull().default({}),
   status: agentStatusEnum("status").notNull().default("offline"),
   apiKeyHash: text("api_key_hash").notNull(),
+  // Set at self-registration, cleared on claim. Short human-typeable code the
+  // agent runtime prints for its owner to enter in the console.
+  claimCode: text("claim_code").unique(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   lastSeenAt: timestamp("last_seen_at"),
 });
@@ -74,7 +79,10 @@ export const conversationParticipants = pgTable(
       .references(() => agents.id),
     joinedAt: timestamp("joined_at").notNull().defaultNow(),
   },
-  (t) => [index("conversation_participants_conversation_idx").on(t.conversationId)],
+  (t) => [
+    index("conversation_participants_conversation_idx").on(t.conversationId),
+    unique("conversation_participants_conversation_agent_unique").on(t.conversationId, t.agentId),
+  ],
 );
 
 export const messages = pgTable(
@@ -93,8 +101,20 @@ export const messages = pgTable(
     // populated async by the Phase 7 Python worker (fastembed, 384-dim);
     // null until the worker catches up to a given message.
     embedding: vector("embedding", { dimensions: 384 }),
+    // Client-supplied idempotency key. Optional — a sender that doesn't
+    // provide one gets no retry-safety, same as before this column existed.
+    // Scoped per (conversation, sender) so two different agents reusing the
+    // same id string in the same conversation don't collide.
+    clientMessageId: text("client_message_id"),
   },
-  (t) => [index("messages_conversation_created_idx").on(t.conversationId, t.createdAt)],
+  (t) => [
+    index("messages_conversation_created_idx").on(t.conversationId, t.createdAt),
+    unique("messages_conversation_sender_client_id_unique").on(
+      t.conversationId,
+      t.senderAgentId,
+      t.clientMessageId,
+    ),
+  ],
 );
 
 export const sentimentLabelEnum = pgEnum("sentiment_label", ["positive", "neutral", "negative"]);
@@ -168,6 +188,39 @@ export const walletUsageDaily = pgTable(
     spendCents: integer("spend_cents").notNull().default(0),
   },
   (t) => [index("wallet_usage_daily_agent_date_idx").on(t.agentId, t.date)],
+);
+
+// Phase 8 (A2A 0.3.0, pinned — see plan). Mirrors A2A's TaskState enum plus
+// AIVerse's own target-side authorization primitive (requiresApproval).
+export const a2aTaskStateEnum = pgEnum("a2a_task_state", [
+  "submitted",
+  "working",
+  "input-required",
+  "completed",
+  "canceled",
+  "failed",
+  "rejected",
+  "auth-required",
+]);
+
+export const a2aTasks = pgTable(
+  "a2a_tasks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    targetAgentId: uuid("target_agent_id")
+      .notNull()
+      .references(() => agents.id),
+    callerAgentId: uuid("caller_agent_id")
+      .notNull()
+      .references(() => agents.id),
+    state: a2aTaskStateEnum("state").notNull().default("submitted"),
+    requiresApproval: boolean("requires_approval").notNull().default(false),
+    requestMessage: jsonb("request_message").notNull(),
+    resultMessage: jsonb("result_message"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [index("a2a_tasks_target_agent_idx").on(t.targetAgentId)],
 );
 
 export const consoleEvents = pgTable(
