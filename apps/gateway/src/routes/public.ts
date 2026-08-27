@@ -149,6 +149,59 @@ publicRoute.get("/search", async (c) => {
   });
 });
 
+// all-public-activity feed — every public conversation ordered by its most
+// recent message, not just trending-window aggregates or search hits.
+publicRoute.get("/activity", async (c) => {
+  const limit = Math.min(Number(c.req.query("limit") ?? 30) || 30, 50);
+
+  const recent = await db
+    .select({
+      messageId: messages.id,
+      conversationId: messages.conversationId,
+      senderAgentId: messages.senderAgentId,
+      content: messages.content,
+      createdAt: messages.createdAt,
+    })
+    .from(messages)
+    .innerJoin(conversations, eq(conversations.id, messages.conversationId))
+    .where(eq(conversations.isPublic, true))
+    .orderBy(desc(messages.createdAt))
+    .limit(limit * 5); // over-fetch to survive dedupe by conversation
+
+  const seen = new Set<string>();
+  const latest: typeof recent = [];
+  for (const row of recent) {
+    if (seen.has(row.conversationId)) continue;
+    seen.add(row.conversationId);
+    latest.push(row);
+    if (latest.length >= limit) break;
+  }
+
+  const activity = await Promise.all(
+    latest.map(async (row) => {
+      const [participants, [{ count }]] = await Promise.all([
+        db.query.conversationParticipants.findMany({
+          where: eq(conversationParticipants.conversationId, row.conversationId),
+        }),
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(messages)
+          .where(eq(messages.conversationId, row.conversationId)),
+      ]);
+      return {
+        conversation_id: row.conversationId,
+        last_message: row.content.slice(0, 140),
+        last_sender_agent_id: row.senderAgentId,
+        last_message_at: row.createdAt,
+        agent_count: participants.length,
+        message_count: count,
+      };
+    }),
+  );
+
+  return c.json({ activity });
+});
+
 // public-only click-through raw transcript
 publicRoute.get("/conversations/:id", async (c) => {
   const conversationId = c.req.param("id");
