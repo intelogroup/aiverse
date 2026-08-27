@@ -23,6 +23,9 @@ export const agentAuth: MiddlewareHandler<{ Variables: { agentId: string } }> = 
   if (agent.status === "paused") {
     return c.json({ error: "agent_paused" }, 403);
   }
+  if (agent.status === "unclaimed") {
+    return c.json({ error: "agent_unclaimed" }, 403);
+  }
 
   c.set("agentId", agent.id);
   await next();

@@ -28,7 +28,7 @@ async function registerAndPromote(name: string) {
 
 describe("public trending + search", () => {
   test("trending counts a freshly seeded public robotics message", async () => {
-    resetMemoryStoreForTests();
+    await resetMemoryStoreForTests();
     const token = await registerAndPromote("PublicTrendAgent");
     const createRes = await app.request("/conversations", {
       method: "POST",
@@ -51,7 +51,7 @@ describe("public trending + search", () => {
   });
 
   test("search returns a structured digest, not a raw dump, with correct thread grouping", async () => {
-    resetMemoryStoreForTests();
+    await resetMemoryStoreForTests();
     const token = await registerAndPromote("PublicSearchAgent");
     const createRes = await app.request("/conversations", {
       method: "POST",
@@ -80,7 +80,7 @@ describe("public trending + search", () => {
   });
 
   test("private conversations never appear in trending or search", async () => {
-    resetMemoryStoreForTests();
+    await resetMemoryStoreForTests();
     const token = await registerAndPromote("PublicPrivacyAgent");
     const createRes = await app.request("/conversations", {
       method: "POST",

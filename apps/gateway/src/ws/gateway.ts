@@ -1,10 +1,11 @@
 import { createBunWebSocket } from "hono/bun";
 import type { ServerWebSocket } from "bun";
-import { eq } from "drizzle-orm";
+import { and, eq, notInArray } from "drizzle-orm";
 import { db } from "../db/client";
 import { agents } from "@aiverse/shared/schema";
 import { hashAgentToken } from "../auth/agentToken";
 import { verifyOwnerSession } from "../auth/session";
+import { redis } from "../redis/client";
 import { envelope, WS_EVENTS } from "./events";
 
 export const { upgradeWebSocket, websocket } = createBunWebSocket<ServerWebSocket>();
@@ -18,10 +19,19 @@ interface Connection {
   missedPings: number;
 }
 
-// ponytail: single-process in-memory presence registry. Fine for one gateway
-// instance; fan out via Redis pub/sub (already in the stack for rate-limit
-// counters) when running more than one gateway process.
+// Live WS refs — inherently per-process, sockets aren't serializable. Cross-
+// instance/restart-safe presence truth is the Redis `presence:{agentId}` TTL
+// key below, not this Map. This means "is agent X online" is correct even
+// across restarts/multiple gateways, but message delivery (sendToAgent) is
+// still only-this-process — a real gap for a multi-instance deployment,
+// deferred until more than one gateway process is actually run.
 const connections = new Map<string, Connection>();
+
+const PRESENCE_TTL_SECONDS = 90; // > 2x the 30s heartbeat interval below
+
+function presenceKey(agentId: string): string {
+  return `presence:${agentId}`;
+}
 
 // owner console sockets, keyed by ownerId — used to push live console_events
 // and agent status changes to the human console (Phase 4).
@@ -74,24 +84,45 @@ export function registerAgentWsRoute(app: {
             ws.close(4003, "agent paused");
             return;
           }
+          if (!agent.ownerId) {
+            ws.close(4005, "agent unclaimed");
+            return;
+          }
 
           agentId = agent.id;
           const capabilities = (agent.agentCard as { capabilities?: string[] })
             .capabilities ?? [];
+
+          // Same agent identity, second connection: never leave the old
+          // socket as a silent zombie (it was previously just overwritten in
+          // the Map, orphaned but still open). Explicitly replace: close the
+          // old one, then register the new one. The old socket's own onClose
+          // will still fire async — the `connections.get(agentId) === conn`
+          // identity check there is what stops it from clobbering this
+          // (the new) connection's state once it runs.
+          const existing = connections.get(agent.id);
+          if (existing) {
+            existing.ws.close(4006, "replaced by a new connection for the same agent");
+            connections.delete(agent.id);
+          }
 
           await db
             .update(agents)
             .set({ status: "online", lastSeenAt: new Date() })
             .where(eq(agents.id, agent.id));
 
-          connections.set(agent.id, {
+          const conn: Connection = {
             agentId: agent.id,
             ownerId: agent.ownerId,
             name: agent.name,
             capabilities,
             ws,
             missedPings: 0,
-          });
+          };
+          connections.set(agent.id, conn);
+          await redis.set(presenceKey(agent.id), "1", "EX", PRESENCE_TTL_SECONDS);
+
+          ws.send(JSON.stringify(envelope(WS_EVENTS.AGENT_CONNECTED, { agent_id: agent.id })));
 
           broadcast(
             envelope(WS_EVENTS.AGENT_JOINED, {
@@ -108,37 +139,52 @@ export function registerAgentWsRoute(app: {
           );
 
           heartbeat = setInterval(() => {
-            const conn = connections.get(agent.id);
-            if (!conn) return;
+            if (connections.get(agent.id) !== conn) return;
             if (conn.missedPings >= 2) {
               ws.close(4002, "heartbeat timeout");
               return;
             }
             conn.missedPings += 1;
             ws.send(JSON.stringify(envelope(WS_EVENTS.PING, {})));
+            redis.set(presenceKey(agent.id), "1", "EX", PRESENCE_TTL_SECONDS).catch(() => {});
           }, 30_000);
         },
-        onMessage: (event) => {
+        onMessage: (event, ws) => {
           if (!agentId) return;
           try {
             const msg = JSON.parse(String(event.data));
             if (msg.type === WS_EVENTS.PONG) {
               const conn = connections.get(agentId);
-              if (conn) conn.missedPings = 0;
+              // Same identity guard as onClose: a frame from a socket that's
+              // already been replaced (see onOpen's close-and-replace logic)
+              // must not touch the new connection's state.
+              if (conn && conn.ws === ws) {
+                conn.missedPings = 0;
+                redis.set(presenceKey(agentId), "1", "EX", PRESENCE_TTL_SECONDS).catch(() => {});
+              }
             }
           } catch {
             // ignore malformed frames in phase 1; real message handling lands phase 2
           }
         },
-        onClose: async () => {
+        onClose: async (_event, ws) => {
           if (heartbeat) clearInterval(heartbeat);
           if (!agentId) return;
-          const closedOwnerId = connections.get(agentId)?.ownerId;
+          const conn = connections.get(agentId);
+          // A newer connection for this same agent already replaced us
+          // (see the `existing` replace-on-connect logic above) — this
+          // socket's own cleanup is a no-op, the new one owns presence now.
+          if (!conn || conn.ws !== ws) return;
+          const closedOwnerId = conn.ownerId;
           connections.delete(agentId);
+          await redis.del(presenceKey(agentId));
+          // Don't clobber a status the owner/system deliberately set (paused,
+          // budget_exhausted) just because the socket that carried it closed —
+          // only transient connection states (online/away) reset to offline.
           await db
             .update(agents)
             .set({ status: "offline", lastSeenAt: new Date() })
-            .where(eq(agents.id, agentId));
+            .where(and(eq(agents.id, agentId), notInArray(agents.status, ["paused", "budget_exhausted"])));
           broadcast(envelope(WS_EVENTS.AGENT_LEFT, { agent_id: agentId }));
           if (closedOwnerId) {
             broadcastToOwnerConsole(
@@ -154,6 +200,24 @@ export function registerAgentWsRoute(app: {
 
 export function getConnectedAgentIds(): string[] {
   return [...connections.keys()];
+}
+
+// Call once at process boot, before serving traffic. A crash (not a clean
+// shutdown) leaves DB rows stuck at status="online" with nobody connected —
+// this Postgres-vs-Redis reconciliation is what makes that self-heal instead
+// of staying wrong forever. Only demotes rows with no live Redis presence
+// key, so a fast restart that lands inside the presence TTL leaves currently
+//-reconnecting agents alone.
+export async function reconcilePresenceOnBoot(): Promise<void> {
+  const onlineAgents = await db.query.agents.findMany({
+    where: eq(agents.status, "online"),
+  });
+  for (const agent of onlineAgents) {
+    const stillPresent = await redis.exists(presenceKey(agent.id));
+    if (!stillPresent) {
+      await db.update(agents).set({ status: "offline" }).where(eq(agents.id, agent.id));
+    }
+  }
 }
 
 export function sendToAgent(agentId: string, event: ReturnType<typeof envelope>): boolean {

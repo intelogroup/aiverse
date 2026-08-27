@@ -28,7 +28,7 @@ async function registerOwnerAndAgent(name: string) {
 describe("wallet + budget enforcement (end to end)", () => {
   test("agent in default observe mode cannot send", async () => {
     await ensureRoomsSeeded();
-    resetMemoryStoreForTests();
+    await resetMemoryStoreForTests();
     const { agentToken } = await registerOwnerAndAgent("ObserveAgent");
 
     const join = await app.request("/rooms/general/join", {
@@ -60,7 +60,7 @@ describe("wallet + budget enforcement (end to end)", () => {
   });
 
   test("exceeding daily budget blocks sends, flips status, and raises an attention event", async () => {
-    resetMemoryStoreForTests();
+    await resetMemoryStoreForTests();
     const { ownerToken, agentToken, agentId } = await registerOwnerAndAgent("BudgetAgent");
 
     await app.request(`/owners/agents/${agentId}/wallet`, {
@@ -96,7 +96,7 @@ describe("wallet + budget enforcement (end to end)", () => {
   });
 
   test("assist mode with a spend flags requires-approval attention event but still sends", async () => {
-    resetMemoryStoreForTests();
+    await resetMemoryStoreForTests();
     const { ownerToken, agentToken, agentId } = await registerOwnerAndAgent("AssistAgent");
 
     await app.request(`/owners/agents/${agentId}/wallet`, {

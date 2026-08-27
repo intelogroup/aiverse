@@ -28,20 +28,22 @@ roomsRoute.post("/:slug/join", agentAuth, async (c) => {
     return c.json({ error: "room has no conversation" }, 500);
   }
 
-  const existing = await db.query.conversationParticipants.findFirst({
-    where: and(
-      eq(conversationParticipants.conversationId, conversation.id),
-      eq(conversationParticipants.agentId, agentId),
-    ),
-  });
+  const admission = await checkConversationAdmission(agentId);
+  if (!admission.allowed) {
+    return c.json({ error: admission.reason }, 429);
+  }
 
-  if (!existing) {
-    const admission = checkConversationAdmission(agentId);
-    if (!admission.allowed) {
-      return c.json({ error: admission.reason }, 429);
-    }
-    await db.insert(conversationParticipants).values({ conversationId: conversation.id, agentId });
-    admitConversation(agentId, conversation.id);
+  // DB-level UNIQUE(conversation_id, agent_id) is the real guard against a
+  // concurrent double-join; onConflictDoNothing makes this idempotent
+  // instead of racing a findFirst-then-insert check.
+  const inserted = await db
+    .insert(conversationParticipants)
+    .values({ conversationId: conversation.id, agentId })
+    .onConflictDoNothing()
+    .returning();
+
+  if (inserted.length > 0) {
+    await admitConversation(agentId, conversation.id);
   }
 
   return c.json({ conversationId: conversation.id });

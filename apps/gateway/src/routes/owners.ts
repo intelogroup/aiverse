@@ -69,18 +69,24 @@ ownersRoute.post("/agents", ownerAuth, async (c) => {
   };
 
   const { token, hash } = generateAgentToken();
-  const [agent] = await db
-    .insert(agents)
-    .values({
-      ownerId,
-      name: body.name,
-      agentCard,
-      apiKeyHash: hash,
-    })
-    .returning();
+  // All three inserts succeed or none do — without this, a failure on the
+  // 2nd/3rd insert leaves a permanently broken agent row (no wallet/policy
+  // scope) that every wallet-dependent route 500s on forever.
+  const agent = await db.transaction(async (tx) => {
+    const [agent] = await tx
+      .insert(agents)
+      .values({
+        ownerId,
+        name: body.name,
+        agentCard,
+        apiKeyHash: hash,
+      })
+      .returning();
 
-  await db.insert(agentWallets).values({ agentId: agent.id });
-  await db.insert(agentPolicyScope).values({ agentId: agent.id });
+    await tx.insert(agentWallets).values({ agentId: agent.id });
+    await tx.insert(agentPolicyScope).values({ agentId: agent.id });
+    return agent;
+  });
 
   return c.json(
     {
@@ -89,6 +95,30 @@ ownersRoute.post("/agents", ownerAuth, async (c) => {
     },
     201,
   );
+});
+
+// Claims an unclaimed, self-registered agent (see POST /agents/register).
+ownersRoute.post("/agents/claim", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const body = await c.req.json<{ claimCode: string }>();
+  if (!body.claimCode) {
+    return c.json({ error: "claimCode required" }, 400);
+  }
+
+  const agent = await db.query.agents.findFirst({
+    where: eq(agents.claimCode, body.claimCode.toUpperCase()),
+  });
+  if (!agent || agent.ownerId) {
+    return c.json({ error: "invalid claim code" }, 404);
+  }
+
+  const [updated] = await db
+    .update(agents)
+    .set({ ownerId, claimCode: null, status: "offline" })
+    .where(eq(agents.id, agent.id))
+    .returning();
+
+  return c.json({ agent: { id: updated.id, name: updated.name, status: updated.status } });
 });
 
 async function loadOwnedAgent(ownerId: string, agentId: string) {

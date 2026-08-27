@@ -5,10 +5,11 @@
 // delivery/admission happens at all.
 import {
   takeToken,
-  trackConversationJoin,
+  admitConversationIfUnderLimit,
+  removeConversationAdmission,
   activeConversationCount,
-  incrementDailyCounter,
-  getDailyCounter,
+  incrementDailyCounterIfUnderLimit,
+  refundDailyCounter,
 } from "./memoryStore";
 import type { AutonomyMode } from "./types";
 
@@ -27,26 +28,35 @@ const AGENT_MSG_REFILL_PER_SECOND = 1; // 1 msg/sec/agent
 const ROOM_MSG_BUCKET_CAPACITY = 20;
 const ROOM_MSG_REFILL_PER_SECOND = 20 / 60; // 20 msg/min/room
 
-export function checkAgentSendRate(agentId: string): GateResult {
-  const allowed = takeToken(`agent:${agentId}`, AGENT_MSG_BUCKET_CAPACITY, AGENT_MSG_REFILL_PER_SECOND);
+export async function checkAgentSendRate(agentId: string): Promise<GateResult> {
+  const allowed = await takeToken(`agent:${agentId}`, AGENT_MSG_BUCKET_CAPACITY, AGENT_MSG_REFILL_PER_SECOND);
   return allowed ? { allowed: true } : { allowed: false, reason: "agent_rate_limited" };
 }
 
-export function checkRoomSendRate(roomId: string): GateResult {
-  const allowed = takeToken(`room:${roomId}`, ROOM_MSG_BUCKET_CAPACITY, ROOM_MSG_REFILL_PER_SECOND);
+export async function checkRoomSendRate(roomId: string): Promise<GateResult> {
+  const allowed = await takeToken(`room:${roomId}`, ROOM_MSG_BUCKET_CAPACITY, ROOM_MSG_REFILL_PER_SECOND);
   return allowed ? { allowed: true } : { allowed: false, reason: "room_rate_limited" };
 }
 
-export function checkConversationAdmission(agentId: string): GateResult {
-  const count = activeConversationCount(agentId);
+export async function checkConversationAdmission(agentId: string): Promise<GateResult> {
+  const count = await activeConversationCount(agentId);
   if (count >= DEFAULT_MAX_SIMULTANEOUS_CONVERSATIONS) {
     return { allowed: false, reason: "too_many_conversations" };
   }
   return { allowed: true };
 }
 
-export function admitConversation(agentId: string, conversationId: string): void {
-  trackConversationJoin(agentId, conversationId);
+// Atomic check+admit — replaces the old separate check-then-admit two-step
+// (which was a TOCTOU race between two concurrent joins for the same
+// agent). Returns false if the agent was already at its cap.
+export async function admitConversation(agentId: string, conversationId: string): Promise<boolean> {
+  return admitConversationIfUnderLimit(agentId, conversationId, DEFAULT_MAX_SIMULTANEOUS_CONVERSATIONS);
+}
+
+// Frees the admission slot — call whenever an agent stops being a
+// participant in a conversation, or the SADD-only set leaks forever.
+export async function releaseConversation(agentId: string, conversationId: string): Promise<void> {
+  return removeConversationAdmission(agentId, conversationId);
 }
 
 // dateKey is injectable so tests can simulate a day boundary without mocking
@@ -59,32 +69,38 @@ export interface BudgetCheckResult extends GateResult {
   tokensUsedToday?: number;
 }
 
-export function checkAndConsumeBudget(
+export async function checkAndConsumeBudget(
   agentId: string,
   tokens: number,
   dailyTokenBudget: number,
   dateKey: string = todayUTC(),
-): BudgetCheckResult {
+): Promise<BudgetCheckResult> {
   const key = `budget:${agentId}:${dateKey}`;
-  const alreadyUsed = getDailyCounter(key);
-  if (alreadyUsed + tokens > dailyTokenBudget) {
-    return { allowed: false, reason: "budget_exceeded", tokensUsedToday: alreadyUsed };
+  const { allowed, total } = await incrementDailyCounterIfUnderLimit(key, tokens, dailyTokenBudget);
+  if (!allowed) {
+    return { allowed: false, reason: "budget_exceeded", tokensUsedToday: total };
   }
-  const total = incrementDailyCounter(key, tokens);
   return { allowed: true, tokensUsedToday: total };
 }
 
-export function checkAndConsumeAgentCalls(
+// See memoryStore.refundDailyCounter — compensating action for a budget
+// charge that outlived the message it was supposed to pay for.
+export async function refundBudget(
+  agentId: string,
+  tokens: number,
+  dateKey: string = todayUTC(),
+): Promise<void> {
+  return refundDailyCounter(`budget:${agentId}:${dateKey}`, tokens);
+}
+
+export async function checkAndConsumeAgentCalls(
   agentId: string,
   maxCallsPerDay: number,
   dateKey: string = todayUTC(),
-): GateResult {
+): Promise<GateResult> {
   const key = `calls:${agentId}:${dateKey}`;
-  if (getDailyCounter(key) + 1 > maxCallsPerDay) {
-    return { allowed: false, reason: "agent_calls_exceeded" };
-  }
-  incrementDailyCounter(key, 1);
-  return { allowed: true };
+  const { allowed } = await incrementDailyCounterIfUnderLimit(key, 1, maxCallsPerDay);
+  return allowed ? { allowed: true } : { allowed: false, reason: "agent_calls_exceeded" };
 }
 
 export interface AutonomyCheckResult extends GateResult {

@@ -37,7 +37,7 @@ beforeAll(async () => {
 
 describe("rooms + messaging", () => {
   test("agent joins room, sends message, participant reads it back", async () => {
-    resetMemoryStoreForTests();
+    await resetMemoryStoreForTests();
     const tokenA = await registerAgent("ConvAgentA");
     const tokenB = await registerAgent("ConvAgentB");
 
@@ -80,7 +80,7 @@ describe("rooms + messaging", () => {
   });
 
   test("non-participant cannot send to a private conversation", async () => {
-    resetMemoryStoreForTests();
+    await resetMemoryStoreForTests();
     const tokenA = await registerAgent("PrivAgentA");
     const tokenOutsider = await registerAgent("PrivOutsider");
 
@@ -100,7 +100,7 @@ describe("rooms + messaging", () => {
   });
 
   test("agent send-rate limiter rejects burst above 1 msg/sec", async () => {
-    resetMemoryStoreForTests();
+    await resetMemoryStoreForTests();
     const tokenA = await registerAgent("RateAgentA");
     const joinA = await app.request("/rooms/science/join", {
       method: "POST",
@@ -122,24 +122,93 @@ describe("rooms + messaging", () => {
     expect(statuses.filter((s) => s === 429).length).toBeGreaterThan(0);
   });
 
-  test("agent past max simultaneous conversations is blocked from joining more", async () => {
-    resetMemoryStoreForTests();
-    const token = await registerAgent("CapAgent");
+  test(
+    "agent past max simultaneous conversations is blocked from joining more",
+    async () => {
+      await resetMemoryStoreForTests();
+      const token = await registerAgent("CapAgent");
 
-    for (let i = 0; i < 20; i++) {
-      const res = await app.request("/conversations", {
+      // sequential on purpose: admission-count check + track must observe each
+      // prior insert, so 20 * 2 Neon roundtrips genuinely exceeds bun's default
+      // 5000ms test timeout — same root cause as the earlier WS registration
+      // flake, not a logic bug.
+      for (let i = 0; i < 20; i++) {
+        const res = await app.request("/conversations", {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+          body: JSON.stringify({ isPublic: false }),
+        });
+        expect(res.status).toBe(201);
+      }
+
+      const overCap = await app.request("/conversations", {
         method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
         body: JSON.stringify({ isPublic: false }),
       });
-      expect(res.status).toBe(201);
-    }
+      expect(overCap.status).toBe(429);
+    },
+    15000,
+  );
 
-    const overCap = await app.request("/conversations", {
+  test("retrying a send with the same clientMessageId returns the original, doesn't duplicate or double-charge", async () => {
+    await resetMemoryStoreForTests();
+    const token = await registerAgent("ConvAgentIdempotent");
+
+    // private, per-test conversation — not the shared "general" room, whose
+    // history persists in Postgres across test runs (only Redis gets reset)
+    // and would accumulate same-clientMessageId rows from earlier runs.
+    const created = await app.request("/conversations", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
       body: JSON.stringify({ isPublic: false }),
     });
-    expect(overCap.status).toBe(429);
+    expect(created.status).toBe(201);
+    const { conversation } = await created.json();
+    const conversationId = conversation.id;
+
+    const clientMessageId = `retry-test-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const body = JSON.stringify({ content: "sent once", clientMessageId, tokensUsed: 50 });
+
+    const first = await app.request(`/conversations/${conversationId}/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body,
+    });
+    expect(first.status).toBe(201);
+    const { message: firstMessage } = await first.json();
+
+    // simulate a client retry after a lost response — same clientMessageId,
+    // same conversation, same sender
+    const retry = await app.request(`/conversations/${conversationId}/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body,
+    });
+    expect(retry.status).toBe(200); // not 201 — no new message was created
+    const { message: retryMessage } = await retry.json();
+    expect(retryMessage.id).toBe(firstMessage.id);
+
+    const history = await app.request(`/conversations/${conversationId}/messages`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    const { messages: allMessages } = await history.json();
+    const matching = allMessages.filter((m: { clientMessageId: string | null }) => m.clientMessageId === clientMessageId);
+    expect(matching.length).toBe(1); // exactly one row, not two
+
+    // the retry short-circuited before budget consumption — sending 50
+    // tokens twice should have only cost 50, not 100. Confirm indirectly:
+    // a fresh send for the same agent with tokensUsed right up to a small
+    // remaining budget still succeeds (would 429 if double-charged).
+    // Wait out the 1msg/sec agent-level rate bucket first (the first send
+    // above already consumed its only token; the retry short-circuited
+    // before touching it, but this follow-up is a real 2nd send).
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    const followUp = await app.request(`/conversations/${conversationId}/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ content: "second message", tokensUsed: 1 }),
+    });
+    expect(followUp.status).toBe(201);
   });
 });

@@ -18,7 +18,7 @@ export const publicRoute = new Hono();
 // instead of agent id.
 publicRoute.use("*", async (c, next) => {
   const ip = c.req.header("x-forwarded-for") ?? "unknown";
-  if (!takeToken(`public:${ip}`, 20, 5)) {
+  if (!(await takeToken(`public:${ip}`, 20, 5))) {
     return c.json({ error: "rate_limited" }, 429);
   }
   await next();

@@ -1,0 +1,2 @@
+ALTER TABLE "messages" ADD COLUMN "client_message_id" text;--> statement-breakpoint
+ALTER TABLE "messages" ADD CONSTRAINT "messages_conversation_sender_client_id_unique" UNIQUE("conversation_id","sender_agent_id","client_message_id");

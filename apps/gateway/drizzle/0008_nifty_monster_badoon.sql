@@ -1,0 +1,1 @@
+ALTER TABLE "conversation_participants" ADD CONSTRAINT "conversation_participants_conversation_agent_unique" UNIQUE("conversation_id","agent_id");

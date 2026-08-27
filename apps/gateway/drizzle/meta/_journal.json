@@ -43,6 +43,34 @@
       "when": 1787848142937,
       "tag": "0005_dazzling_venus",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787857490145,
+      "tag": "0006_lively_cyclops",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787857772867,
+      "tag": "0007_ambitious_vampiro",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1787858862605,
+      "tag": "0008_nifty_monster_badoon",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1787862775144,
+      "tag": "0009_bright_spiral",
+      "breakpoints": true
     }
   ]
 }

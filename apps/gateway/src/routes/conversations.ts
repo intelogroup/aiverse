@@ -16,7 +16,9 @@ import {
   checkRoomSendRate,
   checkConversationAdmission,
   admitConversation,
+  releaseConversation,
   checkAndConsumeBudget,
+  refundBudget,
   checkAndConsumeAgentCalls,
   checkAutonomy,
 } from "../policy/gate";
@@ -30,7 +32,7 @@ conversationsRoute.post("/", agentAuth, async (c) => {
   const agentId = c.get("agentId");
   const body = await c.req.json<{ isPublic?: boolean; participantIds?: string[] }>();
 
-  const admission = checkConversationAdmission(agentId);
+  const admission = await checkConversationAdmission(agentId);
   if (!admission.allowed) {
     return c.json({ error: admission.reason }, 429);
   }
@@ -38,7 +40,7 @@ conversationsRoute.post("/", agentAuth, async (c) => {
   const invitesOtherAgents = (body.participantIds ?? []).some((id) => id !== agentId);
   if (invitesOtherAgents) {
     const wallet = await db.query.agentWallets.findFirst({ where: eq(agentWallets.agentId, agentId) });
-    const callCheck = checkAndConsumeAgentCalls(agentId, wallet?.maxAgentCallsPerDay ?? 100);
+    const callCheck = await checkAndConsumeAgentCalls(agentId, wallet?.maxAgentCallsPerDay ?? 100);
     if (!callCheck.allowed) {
       return c.json({ error: callCheck.reason }, 429);
     }
@@ -56,7 +58,7 @@ conversationsRoute.post("/", agentAuth, async (c) => {
     .insert(conversationParticipants)
     .values(participantIds.map((id) => ({ conversationId: conversation.id, agentId: id })));
 
-  admitConversation(agentId, conversation.id);
+  await admitConversation(agentId, conversation.id);
 
   const startedEvent = envelope(WS_EVENTS.CONVERSATION_STARTED, {
     conversation_id: conversation.id,
@@ -69,6 +71,30 @@ conversationsRoute.post("/", agentAuth, async (c) => {
   return c.json({ conversation }, 201);
 });
 
+// Leaving is the only thing that frees an admission slot — without this,
+// admitConversation's Redis set only ever grows and an agent that's ever
+// touched the cap is locked out of joining/creating anything new, forever.
+conversationsRoute.post("/:id/leave", agentAuth, async (c) => {
+  const agentId = c.get("agentId");
+  const conversationId = c.req.param("id");
+
+  const deleted = await db
+    .delete(conversationParticipants)
+    .where(
+      and(
+        eq(conversationParticipants.conversationId, conversationId),
+        eq(conversationParticipants.agentId, agentId),
+      ),
+    )
+    .returning();
+
+  if (deleted.length > 0) {
+    await releaseConversation(agentId, conversationId);
+  }
+
+  return c.json({ left: deleted.length > 0 });
+});
+
 conversationsRoute.post("/:id/messages", agentAuth, async (c) => {
   const agentId = c.get("agentId");
   const conversationId = c.req.param("id");
@@ -77,6 +103,7 @@ conversationsRoute.post("/:id/messages", agentAuth, async (c) => {
     replyToId?: string;
     tokensUsed?: number;
     spendCents?: number;
+    clientMessageId?: string;
   }>();
 
   if (!body.content) {
@@ -100,6 +127,27 @@ conversationsRoute.post("/:id/messages", agentAuth, async (c) => {
     return c.json({ error: "not a participant" }, 403);
   }
 
+  // Idempotency: a retry carrying the same clientMessageId short-circuits
+  // before any budget/rate consumption and returns the original message
+  // as-is, rather than sending it twice or double-charging quota. This
+  // only covers the sequential-retry case (original already committed) —
+  // two genuinely concurrent requests with the same clientMessageId can
+  // both pass this check and both consume budget/rate before the DB's
+  // unique constraint picks a winner below; that residual gap is a real
+  // reserve-vs-commit problem across Redis and Postgres, not solved here.
+  if (body.clientMessageId) {
+    const existing = await db.query.messages.findFirst({
+      where: and(
+        eq(messages.conversationId, conversationId),
+        eq(messages.senderAgentId, agentId),
+        eq(messages.clientMessageId, body.clientMessageId),
+      ),
+    });
+    if (existing) {
+      return c.json({ message: existing }, 200);
+    }
+  }
+
   const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
   const wallet = await db.query.agentWallets.findFirst({ where: eq(agentWallets.agentId, agentId) });
   if (!agent || !wallet) {
@@ -111,12 +159,12 @@ conversationsRoute.post("/:id/messages", agentAuth, async (c) => {
     return c.json({ error: autonomy.reason }, 403);
   }
 
-  const budget = checkAndConsumeBudget(agentId, body.tokensUsed ?? 0, wallet.dailyTokenBudget);
+  const budget = await checkAndConsumeBudget(agentId, body.tokensUsed ?? 0, wallet.dailyTokenBudget);
   if (!budget.allowed) {
     await db.update(agents).set({ status: "budget_exhausted" }).where(eq(agents.id, agentId));
     await recordAttentionEvent({
       agentId,
-      ownerId: agent.ownerId,
+      ownerId: agent.ownerId!, // agentAuth blocks unclaimed agents, so this is set
       summary: `${agent.name} exceeded its daily token budget`,
       refConversationId: conversationId,
     });
@@ -126,35 +174,65 @@ conversationsRoute.post("/:id/messages", agentAuth, async (c) => {
   if (autonomy.requiresApproval) {
     await recordAttentionEvent({
       agentId,
-      ownerId: agent.ownerId,
+      ownerId: agent.ownerId!, // agentAuth blocks unclaimed agents, so this is set
       summary: `${agent.name} wants to send a message involving a spend of ${body.spendCents} cents`,
       refConversationId: conversationId,
     });
   }
 
-  const agentRate = checkAgentSendRate(agentId);
+  const agentRate = await checkAgentSendRate(agentId);
   if (!agentRate.allowed) {
     sendToAgent(agentId, envelope(WS_EVENTS.RATE_LIMITED, { reason: agentRate.reason }));
     return c.json({ error: agentRate.reason }, 429);
   }
 
   if (conversation.roomId) {
-    const roomRate = checkRoomSendRate(conversation.roomId);
+    const roomRate = await checkRoomSendRate(conversation.roomId);
     if (!roomRate.allowed) {
       sendToAgent(agentId, envelope(WS_EVENTS.RATE_LIMITED, { reason: roomRate.reason }));
       return c.json({ error: roomRate.reason }, 429);
     }
   }
 
-  const [message] = await db
-    .insert(messages)
-    .values({
-      conversationId,
-      senderAgentId: agentId,
-      content: body.content,
-      replyToId: body.replyToId,
-    })
-    .returning();
+  // onConflictDoNothing is the race backstop: if a concurrent identical
+  // retry won the insert first, this one gets no row back — refetch the
+  // winner's row instead of erroring or creating a duplicate.
+  let inserted: (typeof messages.$inferSelect)[];
+  try {
+    inserted = await db
+      .insert(messages)
+      .values({
+        conversationId,
+        senderAgentId: agentId,
+        content: body.content,
+        replyToId: body.replyToId,
+        clientMessageId: body.clientMessageId,
+      })
+      .onConflictDoNothing()
+      .returning();
+  } catch (err) {
+    // Budget was already reserved in Redis above, before this insert ever
+    // ran (the two can't share a transaction) — a genuine insert failure
+    // here (not the benign race-conflict case, an actual throw) must not
+    // permanently burn that reservation for a message that doesn't exist.
+    await refundBudget(agentId, body.tokensUsed ?? 0);
+    throw err;
+  }
+
+  let message = inserted[0];
+  if (!message && body.clientMessageId) {
+    message = await db.query.messages.findFirst({
+      where: and(
+        eq(messages.conversationId, conversationId),
+        eq(messages.senderAgentId, agentId),
+        eq(messages.clientMessageId, body.clientMessageId),
+      ),
+    });
+    if (message) return c.json({ message }, 200);
+  }
+  if (!message) {
+    return c.json({ error: "message insert failed" }, 500);
+  }
 
   // topic tagging only ever runs against messages already known to belong to
   // a public conversation — private content never reaches tagTopics/insert.
