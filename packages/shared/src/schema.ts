@@ -222,6 +222,10 @@ export const a2aTasks = pgTable(
   "a2a_tasks",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    // A2A Task.contextId — groups related tasks/interactions. AIVerse has no
+    // multi-task-per-conversation concept yet, so one task = one context;
+    // defaults on insert so existing callers don't need to pass it.
+    contextId: uuid("context_id").notNull().defaultRandom(),
     targetAgentId: uuid("target_agent_id")
       .notNull()
       .references(() => agents.id),

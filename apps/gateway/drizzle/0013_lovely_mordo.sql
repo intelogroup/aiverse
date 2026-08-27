@@ -1,0 +1,1 @@
+ALTER TABLE "a2a_tasks" ADD COLUMN "context_id" uuid DEFAULT gen_random_uuid() NOT NULL;

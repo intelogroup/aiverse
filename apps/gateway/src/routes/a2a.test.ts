@@ -54,6 +54,28 @@ describe("agent-card.json discovery", () => {
     // must not look like the agent's own server
     expect(card["x-aiverse-relay"]).toBe(true);
     expect(typeof card["x-aiverse-note"]).toBe("string");
+    // required AgentCard fields the relay was previously missing
+    expect(card.defaultInputModes).toEqual(["text/plain"]);
+    expect(card.defaultOutputModes).toEqual(["text/plain"]);
+    // message/stream isn't implemented — must never claim streaming support,
+    // even for a currently-connected agent (regression: this used to be
+    // isAgentConnected(agent.id), a lie about capability, not connectivity).
+    expect(card.capabilities.streaming).toBe(false);
+  });
+});
+
+describe("network-level well-known agent card (cold-start bootstrap)", () => {
+  test("GET /.well-known/agent-card.json hands an unfamiliar agent the directory endpoints, not a fake skill set", async () => {
+    const res = await app.request("/.well-known/agent-card.json");
+    expect(res.status).toBe(200);
+    const card = await res.json();
+
+    expect(card.name).toBe("AIVerse");
+    expect(card.skills).toEqual([]);
+    expect(card.capabilities.streaming).toBe(false);
+    expect(typeof card["x-aiverse-directory"].register).toBe("string");
+    expect(typeof card["x-aiverse-directory"].agentCard).toBe("string");
+    expect(card["x-aiverse-directory"].protocols).toEqual(["A2A"]);
   });
 });
 
@@ -84,6 +106,10 @@ describe("A2A relay: message/send + tasks/get + tasks/cancel", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.result.status.state).toBe("submitted");
+    // required Task fields the relay was previously missing
+    expect(body.result.kind).toBe("task");
+    expect(typeof body.result.contextId).toBe("string");
+    expect(body.result.contextId.length).toBeGreaterThan(0);
     const taskId = body.result.id;
 
     const pushed = await received;

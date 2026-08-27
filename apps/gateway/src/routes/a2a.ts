@@ -8,7 +8,7 @@ import { agentAuth } from "../middleware/agentAuth";
 import { generateAgentToken, generateClaimCode } from "../auth/agentToken";
 import { checkAgentSendRate, checkAndConsumeBudget, refundBudget, checkAutonomy } from "../policy/gate";
 import { recordAttentionEvent } from "../policy/consoleEvents";
-import { sendToAgent, isAgentConnected } from "../ws/gateway";
+import { sendToAgent } from "../ws/gateway";
 import { envelope, WS_EVENTS } from "../ws/events";
 
 export const a2aRoute = new Hono<{ Variables: { agentId: string } }>();
@@ -28,6 +28,8 @@ function slugify(s: string): string {
 function taskToA2A(task: typeof a2aTasks.$inferSelect) {
   return {
     id: task.id,
+    contextId: task.contextId,
+    kind: "task" as const,
     status: {
       state: task.state,
       message: task.resultMessage ?? undefined,
@@ -43,6 +45,38 @@ function rpcError(id: unknown, code: number, message: string) {
 function rpcResult(id: unknown, result: unknown) {
   return { jsonrpc: "2.0", id, result };
 }
+
+// GET /.well-known/agent-card.json — network-level bootstrap document (RFC
+// 8615 well-known convention, spec section 5.3). AIVerse is a directory of
+// many independently-owned agents, not itself one A2A agent, so this is NOT
+// a real, executable AgentCard (skills: [], no relay url) — it's a bootstrap
+// card whose only job is to hand an agent that has never seen AIVerse before
+// the x-aiverse-directory endpoints it needs for registration/discovery.
+// Registration/discovery live only in that namespaced extension, never as
+// A2A "skills" — this network doesn't perform tasks, so it must not look
+// like an agent that does.
+a2aRoute.get("/.well-known/agent-card.json", (c) => {
+  return c.json({
+    protocolVersion: A2A_PROTOCOL_VERSION,
+    name: "AIVerse",
+    description: "Open network for agent-to-agent communication. Directory of independently-owned agents, not an executing agent itself.",
+    url: env.PUBLIC_BASE_URL,
+    version: "1",
+    preferredTransport: "JSONRPC",
+    capabilities: { streaming: false, pushNotifications: false },
+    defaultInputModes: ["text/plain"],
+    defaultOutputModes: ["text/plain"],
+    skills: [],
+    securitySchemes: { bearer: { type: "http", scheme: "bearer" } },
+    security: [{ bearer: [] }],
+    "x-aiverse-directory": {
+      register: `${env.PUBLIC_BASE_URL}/agents/register`,
+      agentCard: `${env.PUBLIC_BASE_URL}/agents/{id}/agent-card.json`,
+      relay: `${env.PUBLIC_BASE_URL}/a2a/agents/{id}`,
+      protocols: ["A2A"],
+    },
+  });
+});
 
 // POST /agents/register — self-registration for any agent runtime, no owner
 // account needed up front. Agent stays "unclaimed" (can't auth into WS/REST,
@@ -110,7 +144,12 @@ a2aRoute.get("/agents/:id/agent-card.json", async (c) => {
     description: card.description ?? "",
     url: `${env.PUBLIC_BASE_URL}/a2a/agents/${agent.id}`,
     preferredTransport: "JSONRPC",
-    capabilities: { streaming: isAgentConnected(agent.id), pushNotifications: false },
+    // message/stream (SSE) isn't implemented — this must stay false
+    // regardless of live connection status, or a spec-aware client will try
+    // to open a stream this relay can't serve.
+    capabilities: { streaming: false, pushNotifications: false },
+    defaultInputModes: ["text/plain"],
+    defaultOutputModes: ["text/plain"],
     skills,
     securitySchemes: { bearer: { type: "http", scheme: "bearer" } },
     security: [{ bearer: [] }],
@@ -149,9 +188,14 @@ a2aRoute.post("/a2a/agents/:id", agentAuth, async (c) => {
     const tokensUsed = Number(message.metadata?.tokensUsed ?? 0);
     const spendCents = Number(message.metadata?.spendCents ?? 0);
 
+    // -32000..-32099 is the JSON-RPC/A2A server-error range. The spec itself
+    // claims -32001..-32005 for specific meanings (TaskNotFoundError,
+    // TaskNotCancelableError, PushNotificationNotSupportedError, ...) — these
+    // AIVerse-specific policy errors must not collide with those, so they
+    // start at -32010.
     const autonomy = checkAutonomy(wallet.autonomyMode, spendCents);
     if (!autonomy.allowed) {
-      return c.json(rpcError(body.id, -32003, autonomy.reason ?? "not allowed"), 403);
+      return c.json(rpcError(body.id, -32010, autonomy.reason ?? "not allowed"), 403);
     }
 
     const budget = await checkAndConsumeBudget(callerAgentId, tokensUsed, wallet.dailyTokenBudget);
@@ -162,12 +206,12 @@ a2aRoute.post("/a2a/agents/:id", agentAuth, async (c) => {
         ownerId: caller.ownerId!, // agentAuth blocks unclaimed agents, so this is set
         summary: `${caller.name} exceeded its daily token budget sending an A2A task`,
       });
-      return c.json(rpcError(body.id, -32004, budget.reason ?? "budget exceeded"), 429);
+      return c.json(rpcError(body.id, -32011, budget.reason ?? "budget exceeded"), 429);
     }
 
     const rate = await checkAgentSendRate(callerAgentId);
     if (!rate.allowed) {
-      return c.json(rpcError(body.id, -32005, rate.reason ?? "rate limited"), 429);
+      return c.json(rpcError(body.id, -32012, rate.reason ?? "rate limited"), 429);
     }
 
     if (autonomy.requiresApproval) {
@@ -225,9 +269,9 @@ a2aRoute.post("/a2a/agents/:id", agentAuth, async (c) => {
       return c.json(rpcResult(body.id, taskToA2A(task)));
     }
 
-    // tasks/cancel
+    // tasks/cancel — -32002 is the spec's own TaskNotCancelableError code.
     if (TERMINAL_STATES.has(task.state)) {
-      return c.json(rpcError(body.id, -32006, `task already in terminal state '${task.state}'`), 409);
+      return c.json(rpcError(body.id, -32002, `task already in terminal state '${task.state}'`), 409);
     }
     const [updated] = await db
       .update(a2aTasks)
