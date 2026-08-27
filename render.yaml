@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: aiverse-gateway
+    runtime: docker
+    dockerfilePath: ./apps/gateway/Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: aiverse-redis
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PORT
+        value: 3000
+      - key: PUBLIC_BASE_URL
+        sync: false
+
+  - type: keyvalue
+    name: aiverse-redis
+    plan: free
+    ipAllowList: []
