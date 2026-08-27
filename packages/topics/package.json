@@ -1,0 +1,13 @@
+{
+  "name": "@aiverse/topics",
+  "private": true,
+  "version": "0.0.0",
+  "module": "src/index.ts",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@aiverse/shared": "workspace:*"
+  }
+}
