@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { and, eq, or } from "drizzle-orm";
+import { and, eq, ne, or } from "drizzle-orm";
 import { db } from "../db/client";
 import { agents, agentWallets, agentPolicyScope, a2aTasks } from "@aiverse/shared/schema";
 import type { AgentCard } from "@aiverse/shared/types";
@@ -74,9 +74,39 @@ a2aRoute.get("/.well-known/agent-card.json", (c) => {
       register: `${env.PUBLIC_BASE_URL}/agents/register`,
       agentCard: `${env.PUBLIC_BASE_URL}/agents/{id}/agent-card.json`,
       relay: `${env.PUBLIC_BASE_URL}/a2a/agents/{id}`,
+      discover: `${env.PUBLIC_BASE_URL}/agents/discover?skill={skill}`,
       protocols: ["A2A"],
     },
   });
+});
+
+// GET /agents/discover?skill=X — capability discovery: "who can do X" without
+// already knowing an agent's id. Public, no auth (same as room listing) —
+// this is the network's directory, not a private index.
+// ponytail: in-process substring scan over all claimed agents, no search
+// index. Fine at hundreds-of-agents scale; upgrade to a real text/trigram
+// index (or the Phase 6 FTS the plan already has for messages) once the
+// agent count makes a full scan slow, not before.
+a2aRoute.get("/agents/discover", async (c) => {
+  const skill = c.req.query("skill")?.trim().toLowerCase();
+  if (!skill) return c.json({ error: "skill query param required" }, 400);
+
+  const claimedAgents = await db.query.agents.findMany({ where: ne(agents.status, "unclaimed") });
+
+  const matches = claimedAgents
+    .filter((agent) => {
+      const capabilities = (agent.agentCard as AgentCard).capabilities ?? [];
+      return capabilities.some((c) => c.toLowerCase().includes(skill));
+    })
+    .map((agent) => ({
+      agentId: agent.id,
+      name: agent.name,
+      status: agent.status,
+      capabilities: (agent.agentCard as AgentCard).capabilities ?? [],
+      agentCardUrl: `${env.PUBLIC_BASE_URL}/agents/${agent.id}/agent-card.json`,
+    }));
+
+  return c.json({ skill, matches });
 });
 
 // POST /agents/register — self-registration for any agent runtime, no owner

@@ -79,6 +79,32 @@ describe("network-level well-known agent card (cold-start bootstrap)", () => {
   });
 });
 
+describe("GET /agents/discover", () => {
+  test("finds a claimed agent by a substring match on its capabilities, excludes unrelated/unclaimed agents", async () => {
+    await registerAgent("DiscoverablePolyglot", ["portuguese translation", "spanish translation"]);
+    await registerAgent("DiscoverableUnrelated", ["pdf-to-markdown"]);
+
+    const res = await app.request("/agents/discover?skill=portuguese");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    expect(body.skill).toBe("portuguese");
+    const names = body.matches.map((m: { name: string }) => m.name);
+    expect(names).toContain("DiscoverablePolyglot");
+    expect(names).not.toContain("DiscoverableUnrelated");
+
+    const match = body.matches.find((m: { name: string }) => m.name === "DiscoverablePolyglot");
+    expect(match.status).toBe("offline"); // registered, never connected
+    expect(match.capabilities).toContain("portuguese translation");
+    expect(match.agentCardUrl).toContain("/agent-card.json");
+  });
+
+  test("missing skill query param is a 400, not a silent empty result", async () => {
+    const res = await app.request("/agents/discover");
+    expect(res.status).toBe(400);
+  });
+});
+
 describe("A2A relay: message/send + tasks/get + tasks/cancel", () => {
   test("message/send creates a submitted task and pushes a2a_task_request over WS", async () => {
     await resetMemoryStoreForTests();
