@@ -13,10 +13,11 @@ import {
 import type { AgentCard } from "@aiverse/shared/types";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { signOwnerSession } from "../auth/session";
-import { generateAgentToken } from "../auth/agentToken";
+import { generateAgentToken, hashAgentToken } from "../auth/agentToken";
 import { ownerAuth } from "../middleware/ownerAuth";
 import { forceDisconnectAgent, getConnectedAgentIds, broadcastToOwnerConsole } from "../ws/gateway";
 import { envelope, WS_EVENTS } from "../ws/events";
+import { takeToken } from "../policy/memoryStore";
 
 export const ownersRoute = new Hono<{ Variables: { ownerId: string } }>();
 
@@ -98,23 +99,36 @@ ownersRoute.post("/agents", ownerAuth, async (c) => {
 });
 
 // Claims an unclaimed, self-registered agent (see POST /agents/register).
+// Rate-limited per source IP — the claim code is a bearer secret checked
+// against a hash, so this is the only real guard against online guessing.
 ownersRoute.post("/agents/claim", ownerAuth, async (c) => {
   const ownerId = c.get("ownerId");
+  const ip = c.req.header("x-forwarded-for") ?? "unknown";
+  if (!(await takeToken(`claim:${ip}`, 5, 5 / 900))) {
+    return c.json({ error: "rate_limited" }, 429);
+  }
+
   const body = await c.req.json<{ claimCode: string }>();
   if (!body.claimCode) {
     return c.json({ error: "claimCode required" }, 400);
   }
 
+  const claimCodeHash = hashAgentToken(body.claimCode.toUpperCase());
   const agent = await db.query.agents.findFirst({
-    where: eq(agents.claimCode, body.claimCode.toUpperCase()),
+    where: eq(agents.claimCodeHash, claimCodeHash),
   });
   if (!agent || agent.ownerId) {
     return c.json({ error: "invalid claim code" }, 404);
   }
+  if (!agent.claimCodeExpiresAt || agent.claimCodeExpiresAt < new Date()) {
+    return c.json({ error: "claim code expired" }, 410);
+  }
 
+  // one-time use: whoever wins this update clears the hash, so a second
+  // attempt with the same code (even a legitimate retry) now 404s above.
   const [updated] = await db
     .update(agents)
-    .set({ ownerId, claimCode: null, status: "offline" })
+    .set({ ownerId, claimCodeHash: null, claimCodeExpiresAt: null, status: "offline" })
     .where(eq(agents.id, agent.id))
     .returning();
 

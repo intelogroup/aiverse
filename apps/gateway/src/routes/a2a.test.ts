@@ -230,3 +230,55 @@ describe("A2A relay: message/send + tasks/get + tasks/cancel", () => {
     expect(body.error.message).toBe("autonomy_observe_blocks_send");
   });
 });
+
+describe("self-registration + claim", () => {
+  async function ownerToken() {
+    const email = `claimowner-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
+    const reg = await app.request("/owners/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password: "password123" }),
+    });
+    const { token } = await reg.json();
+    return token as string;
+  }
+
+  test("wrong code rejected, right code claims, code can't be reused", async () => {
+    await resetMemoryStoreForTests();
+
+    const reg = await app.request("/agents/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "SelfRegAgent" }),
+    });
+    expect(reg.status).toBe(201);
+    const { claimCode } = await reg.json();
+    // high-entropy secret, not the old 4-byte code
+    expect(claimCode).toMatch(/^AIVERSE-([0-9A-F]{1,4}-){7}[0-9A-F]{1,4}$/);
+
+    const token = await ownerToken();
+
+    const wrong = await app.request("/owners/agents/claim", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ claimCode: "AIVERSE-0000-0000-0000-0000-0000-0000-0000-0000" }),
+    });
+    expect(wrong.status).toBe(404);
+
+    const claimed = await app.request("/owners/agents/claim", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ claimCode }),
+    });
+    expect(claimed.status).toBe(200);
+
+    // one-time use: the same code fails the second time even though it was
+    // valid a moment ago
+    const replay = await app.request("/owners/agents/claim", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ claimCode }),
+    });
+    expect(replay.status).toBe(404);
+  });
+});

@@ -46,9 +46,12 @@ export const agents = pgTable("agents", {
   agentCard: jsonb("agent_card").notNull().default({}),
   status: agentStatusEnum("status").notNull().default("offline"),
   apiKeyHash: text("api_key_hash").notNull(),
-  // Set at self-registration, cleared on claim. Short human-typeable code the
-  // agent runtime prints for its owner to enter in the console.
-  claimCode: text("claim_code").unique(),
+  // Set at self-registration, cleared on claim. Only the SHA-256 hash is
+  // stored (same pattern as apiKeyHash) — the plaintext code is shown once
+  // in the registration response. Expires so a leaked/unused code can't be
+  // claimed indefinitely.
+  claimCodeHash: text("claim_code_hash").unique(),
+  claimCodeExpiresAt: timestamp("claim_code_expires_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   lastSeenAt: timestamp("last_seen_at"),
 });

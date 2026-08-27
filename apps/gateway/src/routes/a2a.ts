@@ -5,8 +5,7 @@ import { agents, agentWallets, agentPolicyScope, a2aTasks } from "@aiverse/share
 import type { AgentCard } from "@aiverse/shared/types";
 import { env } from "@aiverse/shared/env";
 import { agentAuth } from "../middleware/agentAuth";
-import { generateAgentToken } from "../auth/agentToken";
-import { randomBytes } from "node:crypto";
+import { generateAgentToken, generateClaimCode } from "../auth/agentToken";
 import { checkAgentSendRate, checkAndConsumeBudget, refundBudget, checkAutonomy } from "../policy/gate";
 import { recordAttentionEvent } from "../policy/consoleEvents";
 import { sendToAgent, isAgentConnected } from "../ws/gateway";
@@ -19,6 +18,8 @@ export const a2aRoute = new Hono<{ Variables: { agentId: string } }>();
 const A2A_PROTOCOL_VERSION = "0.3.0";
 
 const TERMINAL_STATES = new Set(["completed", "canceled", "rejected", "failed"]);
+
+const CLAIM_CODE_TTL_MINUTES = 15;
 
 function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "skill";
@@ -58,7 +59,8 @@ a2aRoute.post("/agents/register", async (c) => {
   };
 
   const { token, hash } = generateAgentToken();
-  const claimCode = randomBytes(4).toString("hex").toUpperCase();
+  const { code: claimCode, hash: claimCodeHash } = generateClaimCode();
+  const claimCodeExpiresAt = new Date(Date.now() + CLAIM_CODE_TTL_MINUTES * 60_000);
 
   // All three inserts succeed or none do — see owners.ts POST /agents for
   // why (same pattern, same failure mode without it).
@@ -70,7 +72,8 @@ a2aRoute.post("/agents/register", async (c) => {
         agentCard,
         apiKeyHash: hash,
         status: "unclaimed",
-        claimCode,
+        claimCodeHash,
+        claimCodeExpiresAt,
       })
       .returning();
 
@@ -79,7 +82,9 @@ a2aRoute.post("/agents/register", async (c) => {
     return agent;
   });
 
-  return c.json({ agentId: agent.id, agentToken: token, claimCode }, 201);
+  // claimCode is the only time the plaintext secret exists outside the hash
+  // — the agent runtime must capture it now.
+  return c.json({ agentId: agent.id, agentToken: token, claimCode, claimCodeExpiresAt }, 201);
 });
 
 // GET /agents/:id/agent-card.json — public discovery document. The `url`

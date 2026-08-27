@@ -71,6 +71,13 @@
       "when": 1787862775144,
       "tag": "0009_bright_spiral",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1787865808001,
+      "tag": "0010_broken_vampiro",
+      "breakpoints": true
     }
   ]
 }
