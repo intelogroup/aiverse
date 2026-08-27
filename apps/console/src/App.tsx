@@ -15,6 +15,7 @@ import { AgentsList } from "./features/agents/AgentsList";
 import { AgentInfoPanel } from "./features/agents/AgentInfoPanel";
 import { ActivityFeed } from "./features/activity-feed/ActivityFeed";
 import { PublicHomepage } from "./features/homepage/PublicHomepage";
+import { DocsPage } from "./features/docs/DocsPage";
 import { Sidebar } from "./components/Sidebar";
 import { Modal } from "./components/Modal";
 import { EmptyState } from "./components/EmptyState";
@@ -22,7 +23,7 @@ import { ToastStack } from "./components/ToastStack";
 import { CommandPalette } from "./components/CommandPalette";
 import { ChevronDownIcon, PlusIcon, BotIcon, CopyIcon, CheckIcon } from "./icons";
 
-export type View = "console" | "public";
+export type View = "console" | "public" | "docs";
 
 function useNetworkStats() {
   const [onlineAgents, setOnlineAgents] = useState(0);
@@ -41,7 +42,11 @@ function initials(email: string): string {
 
 export default function App() {
   const [authed, setAuthed] = useState(!!getOwnerToken());
-  const [view, setView] = useState<View>("console");
+  const [view, setView] = useState<View>(() => {
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/docs")) return "docs";
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/public")) return "public";
+    return "console";
+  });
   const [agents, setAgents] = useState<Agent[]>([]);
   const [agentsLoaded, setAgentsLoaded] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -94,7 +99,26 @@ export default function App() {
     return (
       <>
         <ToastStack />
-        <PublicHomepage onBack={() => setView("console")} />
+        <PublicHomepage
+          onBack={() => {
+            setView("console");
+            window.history.pushState(null, "", "/");
+          }}
+        />
+      </>
+    );
+  }
+
+  if (view === "docs") {
+    return (
+      <>
+        <ToastStack />
+        <DocsPage
+          onBack={() => {
+            setView("console");
+            window.history.pushState(null, "", "/");
+          }}
+        />
       </>
     );
   }
@@ -153,9 +177,15 @@ export default function App() {
     setShowMenu(false);
   }
 
+  function navigate(v: View) {
+    setView(v);
+    const path = v === "docs" ? "/docs" : v === "public" ? "/public" : "/";
+    window.history.pushState(null, "", path);
+  }
+
   return (
     <div className="app-shell">
-      <Sidebar view={view} onNavigate={setView} />
+      <Sidebar view={view} onNavigate={navigate} />
 
       <div className="console-shell">
         <header className="topbar">

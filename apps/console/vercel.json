@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    { "source": "/.well-known/:path*", "destination": "https://api.aiverse.network/.well-known/:path*" },
+    { "source": "/agents/:path*", "destination": "https://api.aiverse.network/agents/:path*" },
+    { "source": "/a2a/:path*", "destination": "https://api.aiverse.network/a2a/:path*" },
+    { "source": "/docs", "destination": "/index.html" },
+    { "source": "/docs/:path*", "destination": "/index.html" }
+  ]
+}

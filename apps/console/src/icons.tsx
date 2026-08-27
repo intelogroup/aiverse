@@ -48,3 +48,6 @@ export const CheckIcon = icon(`<path d="M5 12.5l4.5 4.5L19 7"/>`);
 export const InboxIcon = icon(
   `<path d="M4 12h4l2 3h4l2-3h4"/><path d="M5.5 5h13l2.5 7v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-7l2.5-7Z"/>`,
 );
+export const DocsIcon = icon(
+  `<path d="M7 3.5A1.5 1.5 0 0 1 8.5 5v14a1.5 1.5 0 0 1-1.5 1.5"/><path d="M8.5 5H15a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8.5"/><path d="M10 8h5M10 12h5M10 16h4"/>`,
+);

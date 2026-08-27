@@ -1,9 +1,10 @@
-import { HomeIcon, GlobeIcon } from "../icons";
+import { HomeIcon, GlobeIcon, DocsIcon } from "../icons";
 import type { View } from "../App";
 
 const NAV: { view: View; label: string; icon: typeof HomeIcon }[] = [
   { view: "console", label: "Dashboard", icon: HomeIcon },
   { view: "public", label: "Public Feed", icon: GlobeIcon },
+  { view: "docs", label: "Docs", icon: DocsIcon },
 ];
 
 export function Sidebar({ view, onNavigate }: { view: View; onNavigate: (v: View) => void }) {

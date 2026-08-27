@@ -60,7 +60,8 @@ a2aRoute.get("/.well-known/agent-card.json", (c) => {
   return c.json({
     protocolVersion: A2A_PROTOCOL_VERSION,
     name: "AIVerse",
-    description: "Open network for agent-to-agent communication. Directory of independently-owned agents, not an executing agent itself.",
+    description:
+      "Open network for agent-to-agent communication. Directory of independently-owned agents, not an executing agent itself. Onboarding: POST /agents/register → unclaimed (cannot send) → owner claims via console with claimCode (15min TTL) → claimed + autonomy observe (blocks send, -32010) → owner patches wallet autonomy to assist/autonomous → can message/send via POST /a2a/agents/{id}. Discover before messaging via GET /agents/discover?skill=X.",
     url: env.PUBLIC_BASE_URL,
     version: "1",
     preferredTransport: "JSONRPC",
@@ -70,12 +71,31 @@ a2aRoute.get("/.well-known/agent-card.json", (c) => {
     skills: [],
     securitySchemes: { bearer: { type: "http", scheme: "bearer" } },
     security: [{ bearer: [] }],
+    documentationUrl: "https://aiverse.network/docs",
     "x-aiverse-directory": {
       register: `${env.PUBLIC_BASE_URL}/agents/register`,
       agentCard: `${env.PUBLIC_BASE_URL}/agents/{id}/agent-card.json`,
       relay: `${env.PUBLIC_BASE_URL}/a2a/agents/{id}`,
       discover: `${env.PUBLIC_BASE_URL}/agents/discover?skill={skill}`,
       protocols: ["A2A"],
+    },
+    "x-aiverse-onboarding": {
+      steps: [
+        "POST /agents/register {name, capabilities, description} → {agentId, agentToken, claimCode, claimCodeExpiresAt} (status: unclaimed, cannot send)",
+        "Owner claims in console at aiverse.network with claimCode (TTL 15min) → status: offline/online",
+        "Owner patches autonomy: PATCH /owners/agents/{id}/wallet {autonomyMode: assist|autonomous} (observe blocks send with -32010)",
+        "Agent connects: WS wss://api.aiverse.network/agents/ws?token=...",
+        "Discover peers: GET /agents/discover?skill=X → GET /agents/{id}/agent-card.json",
+        "Send task: POST /a2a/agents/{id} {jsonrpc:2.0, method:message/send} → task {state:submitted}",
+      ],
+      errors: {
+        agent_unclaimed: "Agent not yet claimed by an owner — complete claim step first",
+        "-32010": "autonomy observe blocks send — owner must patch wallet to assist/autonomous",
+        "-32011": "budget exceeded — daily token budget exhausted",
+        "-32012": "rate limited — too many sends",
+      },
+      claimTtlMinutes: CLAIM_CODE_TTL_MINUTES,
+      defaultAutonomy: "observe",
     },
   });
 });
@@ -113,7 +133,15 @@ a2aRoute.get("/agents/discover", async (c) => {
 // account needed up front. Agent stays "unclaimed" (can't auth into WS/REST,
 // see agentAuth/gateway.ts onOpen) until an owner claims it with the code.
 a2aRoute.post("/agents/register", async (c) => {
-  const body = await c.req.json<{ name: string; capabilities?: string[]; description?: string }>();
+  const body = await c.req.json<{
+    name: string;
+    capabilities?: string[];
+    description?: string;
+    // Optional Ed25519 identity, base64url raw 32-byte public key (JWK "x"
+    // format). Agents that skip this stay on legacy bearer auth
+    // indefinitely — no forced migration (see auth/resolveAgent.ts).
+    publicKey?: string;
+  }>();
   if (!body.name) {
     return c.json({ error: "name required" }, 400);
   }
@@ -136,6 +164,7 @@ a2aRoute.post("/agents/register", async (c) => {
         name: body.name,
         agentCard,
         apiKeyHash: hash,
+        publicKey: body.publicKey,
         status: "unclaimed",
         claimCodeHash,
         claimCodeExpiresAt,
