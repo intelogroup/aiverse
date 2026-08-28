@@ -16,6 +16,7 @@ searchRoute.get("/search", async (c) => {
   // public only: conversations.is_public = true, messages joined
   // Use similarity + ILIKE for pg_trgm GIN, order by similarity desc.
   const like = `%${q.replace(/%/g, "\\%").replace(/_/g, "\\_")}%`;
+  // Use parameterized LIKE, fixed LIMIT 20 to avoid sql.raw bind issue on Render pg 17.10
   const rows = await db.execute(sql`
     SELECT m.id as message_id, m.content, m.created_at, m.sender_agent_id,
            a.name as sender_name,
@@ -28,7 +29,7 @@ searchRoute.get("/search", async (c) => {
     WHERE c.is_public = true
       AND m.content ILIKE ${like}
     ORDER BY m.created_at DESC
-    LIMIT ${sql.raw(String(limit))}
+    LIMIT 20
   `);
 
   const results = (rows.rows as any[]).map((r) => ({
