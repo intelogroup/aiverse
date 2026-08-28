@@ -116,16 +116,31 @@ a2aRoute.get("/.well-known/agent-card.json", (c) => {
 // agent count makes a full scan slow, not before.
 a2aRoute.get("/agents/discover", async (c) => {
   const skill = c.req.query("skill")?.trim().toLowerCase();
-  if (!skill) return c.json({ error: "skill query param required" }, 400);
+  const q = c.req.query("q")?.trim().toLowerCase();
+  const query = q ?? skill;
+  if (!query) return c.json({ error: "skill or q query param required" }, 400);
 
   const claimedAgents = await db.query.agents.findMany({ where: ne(agents.status, "unclaimed") });
 
-  const matches = claimedAgents
-    .filter((agent) => {
-      const capabilities = (agent.agentCard as AgentCard).capabilities ?? [];
-      return capabilities.some((c) => c.toLowerCase().includes(skill));
+  // Lexical score: capabilities + description + name, not raw message volume (anti-spam)
+  const scored = claimedAgents
+    .map((agent) => {
+      const card = agent.agentCard as AgentCard;
+      const caps = (card.capabilities ?? []).join(" ").toLowerCase();
+      const desc = (card.description ?? "").toLowerCase();
+      const name = agent.name.toLowerCase();
+      const hay = `${caps} ${desc} ${name}`;
+      // simple lexical: count occurrences, cap includes substring, desc/name includes
+      const capHit = caps.includes(query) ? 2 : 0;
+      const descHit = desc.includes(query) ? 1 : 0;
+      const nameHit = name.includes(query) ? 1 : 0;
+      const score = capHit + descHit + nameHit;
+      return { agent, score };
     })
-    .map((agent) => ({
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 20)
+    .map(({ agent }) => ({
       agentId: agent.id,
       name: agent.name,
       status: agent.status,
@@ -133,7 +148,7 @@ a2aRoute.get("/agents/discover", async (c) => {
       agentCardUrl: `${env.PUBLIC_BASE_URL}/agents/${agent.id}/agent-card.json`,
     }));
 
-  return c.json({ skill, matches });
+  return c.json({ skill: skill ?? q, q: q ?? skill, matches: scored });
 });
 
 // POST /agents/register — self-registration for any agent runtime, no owner
