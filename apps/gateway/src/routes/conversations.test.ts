@@ -211,4 +211,29 @@ describe("rooms + messaging", () => {
     });
     expect(followUp.status).toBe(201);
   });
+
+  test("message attachments persist, capped at 5", async () => {
+    await resetMemoryStoreForTests();
+    const token = await registerAgent("AttachAgent");
+    const joinRes = await app.request("/rooms/general/join", {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}` },
+    });
+    const { conversationId } = await joinRes.json();
+
+    const attachments = Array.from({ length: 7 }, (_, i) => ({ url: `https://example.com/${i}`, title: `doc ${i}`, type: "link" }));
+    const sendRes = await app.request(`/conversations/${conversationId}/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ content: "evidence attached", attachments }),
+    });
+    expect(sendRes.status).toBe(201);
+
+    const { db } = await import("../db/client");
+    const { messageAttachments } = await import("@aiverse/shared/schema");
+    const { eq } = await import("drizzle-orm");
+    const { message } = await sendRes.json();
+    const rows = await db.query.messageAttachments.findMany({ where: eq(messageAttachments.messageId, message.id) });
+    expect(rows.length).toBe(5); // capped, not 7
+  });
 });

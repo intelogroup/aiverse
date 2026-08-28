@@ -103,6 +103,34 @@ describe("GET /agents/discover", () => {
     const res = await app.request("/agents/discover");
     expect(res.status).toBe(400);
   });
+
+  test("?q= fuzzy trigram match ranks the closer capability first and tolerates a typo", async () => {
+    const unique = `Zynth${Date.now()}`;
+    await registerAgent(`${unique}Exact`, [`${unique} portuguese translation`]);
+    // deliberately no shared prefix with `unique` — an unrelated agent name
+    // must not trigram-match just because both agents happen to share a
+    // test-run id.
+    await registerAgent(`UnrelatedAgent${Math.random().toString(36).slice(2)}`, ["pdf-to-markdown"]);
+
+    // typo: "portugese" vs "portuguese" — substring .includes() would never
+    // match this; trigram similarity should.
+    const res = await app.request(`/agents/discover?q=${unique}%20portugese`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const names = body.matches.map((m: { name: string }) => m.name);
+    expect(names).toContain(`${unique}Exact`);
+  });
+
+  test("?skill= behavior is unchanged (exact/substring, not fuzzy) — regression check", async () => {
+    const unique = `Skillcheck${Date.now()}`;
+    await registerAgent(`${unique}Agent`, [`${unique} portuguese translation`]);
+
+    // a typo against ?skill= must NOT match — substring semantics preserved.
+    const res = await app.request(`/agents/discover?skill=${unique}%20portugese`);
+    const body = await res.json();
+    const names = body.matches.map((m: { name: string }) => m.name);
+    expect(names).not.toContain(`${unique}Agent`);
+  });
 });
 
 describe("A2A relay: message/send + tasks/get + tasks/cancel", () => {
@@ -280,6 +308,160 @@ describe("A2A relay: message/send + tasks/get + tasks/cancel", () => {
     expect(res.status).toBe(403);
     const body = await res.json();
     expect(body.error.message).toBe("autonomy_observe_blocks_send");
+  });
+});
+
+// Exercised directly against admitAndCreateTask, not through POST
+// /a2a/agents/:id — a real concurrent HTTP burst from one caller is mostly
+// absorbed by the pre-existing, unrelated per-agent send-rate gate (1
+// msg/sec, checked earlier in the route), which would make "N truly
+// concurrent requests" nearly impossible to produce over HTTP and would
+// test that rate gate, not the delegation cap's atomicity. Calling the
+// primitive directly is what actually exercises the invariant under test.
+describe("parallel-delegation cap (admitAndCreateTask)", () => {
+  async function activeCount(callerAgentId: string, contextId: string) {
+    const { db } = await import("../db/client");
+    const { a2aTasks } = await import("@aiverse/shared/schema");
+    const { and, eq, inArray, gt } = await import("drizzle-orm");
+    const rows = await db.query.a2aTasks.findMany({
+      where: and(
+        eq(a2aTasks.callerAgentId, callerAgentId),
+        eq(a2aTasks.contextId, contextId),
+        inArray(a2aTasks.state, ["submitted", "working"]),
+        gt(a2aTasks.delegationLeaseExpiresAt, new Date()),
+      ),
+    });
+    return rows.length;
+  }
+
+  async function admitConcurrent(callerAgentId: string, targetIds: string[], contextId: string, maxParallel: number) {
+    const { admitAndCreateTask } = await import("../policy/gate");
+    return Promise.all(
+      targetIds.map((targetAgentId) =>
+        admitAndCreateTask({
+          callerAgentId,
+          contextId,
+          maxParallel,
+          task: { contextId, targetAgentId, callerAgentId, requestMessage: { role: "user", parts: [] } },
+        }),
+      ),
+    );
+  }
+
+  test("default cap (3): exactly 3 of 5 concurrent admissions succeed, repeated across fresh contextIds", async () => {
+    const caller = await registerAgent("DelegationCaller");
+    const targets = await Promise.all(Array.from({ length: 5 }, (_, i) => registerAgent(`DelegationTarget${i}`)));
+    const targetIds = targets.map((t) => t.agentId);
+
+    for (let iter = 0; iter < 5; iter++) {
+      const contextId = crypto.randomUUID();
+      const results = await admitConcurrent(caller.agentId, targetIds, contextId, 3);
+      const succeeded = results.filter((r) => r.allowed);
+      const rejected = results.filter((r) => !r.allowed);
+      expect(succeeded.length).toBe(3);
+      expect(rejected.length).toBe(2);
+      expect(rejected.every((r) => !r.allowed && r.reason === "parallel_delegation_limit")).toBe(true);
+      expect(await activeCount(caller.agentId, contextId)).toBeLessThanOrEqual(3);
+    }
+  });
+
+  test("adversarial: 10 concurrent admissions against one caller/context never exceed the cap", async () => {
+    const caller = await registerAgent("DelegationCaller10");
+    const targets = await Promise.all(Array.from({ length: 10 }, (_, i) => registerAgent(`DelegationTarget10-${i}`)));
+    const contextId = crypto.randomUUID();
+
+    const results = await admitConcurrent(caller.agentId, targets.map((t) => t.agentId), contextId, 3);
+    expect(results.filter((r) => r.allowed).length).toBe(3);
+    expect(await activeCount(caller.agentId, contextId)).toBeLessThanOrEqual(3);
+  });
+
+  test("two different callers sharing one contextId do not block each other", async () => {
+    const callerA = await registerAgent("DelegationCallerA");
+    const callerB = await registerAgent("DelegationCallerB");
+    const targetsA = await Promise.all(Array.from({ length: 3 }, (_, i) => registerAgent(`DelegationTargetA${i}`)));
+    const targetsB = await Promise.all(Array.from({ length: 3 }, (_, i) => registerAgent(`DelegationTargetB${i}`)));
+    const sharedContextId = crypto.randomUUID();
+
+    const [resultsA, resultsB] = await Promise.all([
+      admitConcurrent(callerA.agentId, targetsA.map((t) => t.agentId), sharedContextId, 3),
+      admitConcurrent(callerB.agentId, targetsB.map((t) => t.agentId), sharedContextId, 3),
+    ]);
+    // cap is per (callerAgentId, contextId) — both callers get their own full allowance
+    expect(resultsA.filter((r) => r.allowed).length).toBe(3);
+    expect(resultsB.filter((r) => r.allowed).length).toBe(3);
+  });
+
+  test("an expired delegation lease frees a slot without touching the underlying task's state", async () => {
+    const { db } = await import("../db/client");
+    const { a2aTasks } = await import("@aiverse/shared/schema");
+    const { admitAndCreateTask } = await import("../policy/gate");
+
+    const caller = await registerAgent("DelegationExpiryCaller");
+    const targets = await Promise.all(Array.from({ length: 4 }, (_, i) => registerAgent(`DelegationExpiryTarget${i}`)));
+    const contextId = crypto.randomUUID();
+
+    // 2 real active admissions + 1 already-expired-lease row inserted
+    // directly (bypassing the primitive) — the expired one must not count
+    // toward the cap, and its state must remain untouched.
+    const [firstTwo, [expired]] = await Promise.all([
+      admitConcurrent(caller.agentId, [targets[0].agentId, targets[1].agentId], contextId, 3),
+      db
+        .insert(a2aTasks)
+        .values({
+          contextId,
+          targetAgentId: targets[2].agentId,
+          callerAgentId: caller.agentId,
+          requestMessage: { role: "user", parts: [] },
+          delegationLeaseExpiresAt: new Date(Date.now() - 60_000), // already expired
+        })
+        .returning(),
+    ]);
+    expect(firstTwo.filter((r) => r.allowed).length).toBe(2);
+
+    // 3rd admission should still succeed: 2 real active + 1 expired-lease (excluded) = 2 active, room for 1 more under cap 3.
+    const third = await admitAndCreateTask({
+      callerAgentId: caller.agentId,
+      contextId,
+      maxParallel: 3,
+      task: { contextId, targetAgentId: targets[3].agentId, callerAgentId: caller.agentId, requestMessage: { role: "user", parts: [] } },
+    });
+    expect(third.allowed).toBe(true);
+
+    const expiredRow = await db.query.a2aTasks.findFirst({ where: (t, { eq }) => eq(t.id, expired.id) });
+    expect(expiredRow?.state).toBe("submitted"); // lease expiry never canceled the task
+  });
+
+  test("owner-configured maxParallelDelegations is honored by admitAndCreateTask", async () => {
+    const caller = await registerAgent("PolicyCaller");
+    const targets = await Promise.all(Array.from({ length: 2 }, (_, i) => registerAgent(`PolicyTarget${i}`)));
+    const contextId = crypto.randomUUID();
+
+    const results = await admitConcurrent(caller.agentId, targets.map((t) => t.agentId), contextId, 1);
+    expect(results.filter((r) => r.allowed).length).toBe(1); // maxParallel=1, not the default 3
+  });
+
+  test("owner PATCH /owners/agents/:id/policy persists maxParallelDelegations, message/send reads it", async () => {
+    const email = `delegation-policy-${Date.now()}@example.com`;
+    const reg = await app.request("/owners/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password: "password123" }),
+    });
+    const { token: ownerToken } = await reg.json();
+    const created = await app.request("/owners/agents", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
+      body: JSON.stringify({ name: "PolicyPersistCaller", capabilities: [] }),
+    });
+    const { agent } = await created.json();
+    const policyRes = await app.request(`/owners/agents/${agent.id}/policy`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
+      body: JSON.stringify({ maxParallelDelegations: 7 }),
+    });
+    expect(policyRes.status).toBe(200);
+    const { policy } = await policyRes.json();
+    expect(policy.maxParallelDelegations).toBe(7);
   });
 });
 
