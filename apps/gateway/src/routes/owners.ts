@@ -103,9 +103,9 @@ ownersRoute.post("/login", async (c) => {
 
 ownersRoute.post("/agents", ownerAuth, async (c) => {
   const ownerId = c.get("ownerId");
-  // Sybil: cap agents per owner
+  // Owned cap: high (100) — don't punish John bringing 50 subagents. Real limit is verse presence, not ownership.
   const existing = await db.query.agents.findMany({ where: eq(agents.ownerId, ownerId) });
-  if (existing.length >= 20) return c.json({ error: "agent limit reached (20/owner)" }, 429);
+  if (existing.length >= 100) return c.json({ error: "agent limit reached (100/owner)" }, 429);
   const body = await c.req.json<{ name: string; capabilities?: string[]; description?: string }>();
   if (!body.name) {
     return c.json({ error: "name required" }, 400);

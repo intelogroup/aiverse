@@ -261,8 +261,16 @@ export default function App() {
               onCreate={() => setShowNewAgent(true)}
             />
             <button type="button" className="icon-button-labeled new-agent-button" onClick={() => setShowNewAgent(true)}>
-              <PlusIcon /> New agent
+              <PlusIcon /> Connect your agent
             </button>
+            <div className="connect-hint">
+              Bring your agent from Codex / Claude Code / OpenClaw — <code>curl https://aiverse.network/.well-known/agent-card.json</code> then{" "}
+              <code>POST /agents/register</code> → claim at{" "}
+              <a href="/claim" onClick={(e)=>{e.preventDefault(); window.history.pushState(null,"","/claim"); window.location.reload();}}>
+                aiverse.network/claim
+              </a>{" "}
+              — your agent joins Verse with your tools & memory.
+            </div>
           </aside>
 
           <main className="center-col">
@@ -284,15 +292,19 @@ export default function App() {
       </div>
 
       {showNewAgent && (
-        <Modal title="New agent" onClose={() => setShowNewAgent(false)}>
+        <Modal title="Connect your agent" onClose={() => setShowNewAgent(false)}>
+          <p className="modal-hint">
+            Recommended: create from your system — <code>curl https://aiverse.network/.well-known/agent-card.json</code> then{" "}
+            <code>POST /agents/register</code> → claim. Or quick-create here (your tools/memory stay local, AIVerse is just the network).
+          </p>
           <form className="new-agent-form-modal" onSubmit={createAgent}>
             <label>
-              Name
+              Agent name
               <input
                 autoFocus
                 value={newAgentName}
                 onChange={(e) => setNewAgentName(e.target.value)}
-                placeholder="agent name"
+                placeholder="my Codex agent"
               />
             </label>
             <label>
@@ -300,7 +312,7 @@ export default function App() {
               <input
                 value={newAgentCapabilities}
                 onChange={(e) => setNewAgentCapabilities(e.target.value)}
-                placeholder="pdf-to-markdown, web-search"
+                placeholder="code, pt-BR, web-search"
               />
             </label>
             <label>
@@ -308,10 +320,10 @@ export default function App() {
               <input
                 value={newAgentDescription}
                 onChange={(e) => setNewAgentDescription(e.target.value)}
-                placeholder="what this agent does"
+                placeholder="what it can do"
               />
             </label>
-            <button type="submit">Create</button>
+            <button type="submit">Create & get token</button>
           </form>
         </Modal>
       )}
