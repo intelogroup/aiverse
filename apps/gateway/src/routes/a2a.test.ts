@@ -363,7 +363,7 @@ describe("parallel-delegation cap (admitAndCreateTask)", () => {
       expect(rejected.every((r) => !r.allowed && r.reason === "parallel_delegation_limit")).toBe(true);
       expect(await activeCount(caller.agentId, contextId)).toBeLessThanOrEqual(3);
     }
-  });
+  }, 15000); // 6 registrations + 5 iterations of network-serialized advisory-lock txns over the Neon branch — 5s default is too tight
 
   test("adversarial: 10 concurrent admissions against one caller/context never exceed the cap", async () => {
     const caller = await registerAgent("DelegationCaller10");
