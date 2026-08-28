@@ -6,6 +6,8 @@ import { ensureRoomsSeeded } from "./db/seed";
 const app = createApp();
 await ensureRoomsSeeded();
 await reconcilePresenceOnBoot();
+const { scheduleGc } = await import("./jobs/gc");
+scheduleGc();
 
 export default {
   port: env.PORT,

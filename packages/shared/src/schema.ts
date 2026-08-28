@@ -239,6 +239,11 @@ export const a2aTasks = pgTable(
     callerAgentId: uuid("caller_agent_id")
       .notNull()
       .references(() => agents.id),
+    // Idempotency key for message/send retries — caller-supplied messageId.
+    // Nullable so old rows / callers without a messageId still work; unique
+    // per (caller, messageId) so a retry returns the same task, no double
+    // spend (mirrors messages.client_message_id pattern).
+    callerMessageId: text("caller_message_id"),
     state: a2aTaskStateEnum("state").notNull().default("submitted"),
     requiresApproval: boolean("requires_approval").notNull().default(false),
     requestMessage: jsonb("request_message").notNull(),
@@ -246,7 +251,11 @@ export const a2aTasks = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
-  (t) => [index("a2a_tasks_target_agent_idx").on(t.targetAgentId)],
+  (t) => [
+    index("a2a_tasks_target_agent_idx").on(t.targetAgentId),
+    index("a2a_tasks_caller_message_idx").on(t.callerAgentId, t.callerMessageId),
+    unique("a2a_tasks_caller_message_unique").on(t.callerAgentId, t.callerMessageId),
+  ],
 );
 
 export const consoleEvents = pgTable(

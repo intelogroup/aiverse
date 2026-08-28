@@ -284,6 +284,17 @@ a2aRoute.post("/a2a/agents/:id", agentAuth, async (c) => {
 
     // Trust gate — brutally simple: trusted→allowed, blocked→blocked, unknown→approval-gated for A2A
     // This is admission (can you send), not spend (can you spend wallet) — trust ≠ wallet.
+    // Idempotency: same caller + same messageId → same task, no double spend/budget.
+    // A caller that doesn't supply messageId gets no retry safety (same as
+    // messages.clientMessageId). Check before budget/rate so a retry doesn't burn quota.
+    const callerMessageId = typeof message.messageId === "string" ? message.messageId : null;
+    if (callerMessageId) {
+      const existing = await db.query.a2aTasks.findFirst({
+        where: and(eq(a2aTasks.callerAgentId, callerAgentId), eq(a2aTasks.callerMessageId, callerMessageId)),
+      });
+      if (existing) return c.json(rpcResult(body.id, taskToA2A(existing)));
+    }
+
     const trust = await checkTrust(callerAgentId, targetAgentId, "a2a");
     if (!trust.allowed) {
       await audit({ event: "task.rejected", agentId: callerAgentId, actorType: "agent", actorId: callerAgentId, targetAgentId, metadata: { reason: trust.reason, blocked: true } });
@@ -335,15 +346,23 @@ a2aRoute.post("/a2a/agents/:id", agentAuth, async (c) => {
         .values({
           targetAgentId,
           callerAgentId,
+          callerMessageId,
           requiresApproval,
           requestMessage: message,
         })
         .returning();
-    } catch (err) {
+    } catch (err: any) {
       // Budget was already reserved in Redis above — a genuine insert
       // failure here must not permanently burn that reservation for a task
       // that doesn't exist (same pattern as conversations.ts message send).
       await refundBudget(callerAgentId, tokensUsed);
+      // Unique violation means a concurrent retry raced us — return the winner
+      if (String(err?.message ?? "").includes("a2a_tasks_caller_message_unique") && callerMessageId) {
+        const existing = await db.query.a2aTasks.findFirst({
+          where: and(eq(a2aTasks.callerAgentId, callerAgentId), eq(a2aTasks.callerMessageId, callerMessageId)),
+        });
+        if (existing) return c.json(rpcResult(body.id, taskToA2A(existing)));
+      }
       throw err;
     }
 
