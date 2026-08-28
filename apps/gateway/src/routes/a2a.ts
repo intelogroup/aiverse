@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { and, eq, ne, or, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { db } from "../db/client";
 import { agents, agentWallets, agentPolicyScope, a2aTasks } from "@aiverse/shared/schema";
 import type { AgentCard } from "@aiverse/shared/types";
@@ -384,8 +384,16 @@ a2aRoute.post("/a2a/agents/:id", agentAuth, async (c) => {
     if (JSON.stringify(message).length > MAX_MESSAGE_BYTES) {
       return c.json(rpcError(body.id, -32014, "message too large"), 400);
     }
-    const pending = await db.query.a2aTasks.findMany({ where: eq(a2aTasks.targetAgentId, targetAgentId) });
-    const pendingCount = pending.filter((t) => t.state === "submitted" || t.state === "working").length;
+    // Counted in SQL, not fetched-then-filtered in JS: a target that has
+    // accumulated tens of thousands of historical (mostly terminal) tasks
+    // would otherwise pull its entire history into memory on every single
+    // incoming message just to check this ceiling — a cost that grows
+    // forever and hits every future sender, independent of the GC job's
+    // 30-day retention window (jobs/gc.ts).
+    const [{ pendingCount }] = await db
+      .select({ pendingCount: sql<number>`count(*)::int` })
+      .from(a2aTasks)
+      .where(and(eq(a2aTasks.targetAgentId, targetAgentId), inArray(a2aTasks.state, ["submitted", "working"])));
     if (pendingCount >= MAX_PENDING_TASKS) {
       return c.json(rpcError(body.id, -32015, "target inbox full"), 429);
     }
