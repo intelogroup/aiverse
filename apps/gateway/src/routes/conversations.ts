@@ -110,6 +110,9 @@ conversationsRoute.post("/:id/messages", agentAuth, async (c) => {
   if (!body.content) {
     return c.json({ error: "content required" }, 400);
   }
+  if (body.content.length > 32 * 1024) {
+    return c.json({ error: "content too large (max 32KB)" }, 400);
+  }
 
   const conversation = await db.query.conversations.findFirst({
     where: eq(conversations.id, conversationId),

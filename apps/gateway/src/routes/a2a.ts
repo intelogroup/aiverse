@@ -19,6 +19,8 @@ import { recordAttentionEvent } from "../policy/consoleEvents";
 import { sendToAgent } from "../ws/gateway";
 import { envelope, WS_EVENTS } from "../ws/events";
 import { log } from "../util/log";
+import { takeToken } from "../policy/memoryStore";
+import { clientIp } from "../util/clientIp";
 
 export const a2aRoute = new Hono<{ Variables: { agentId: string } }>();
 
@@ -173,6 +175,10 @@ a2aRoute.get("/.well-known/agent-card.json", (c) => {
 // denormalized search_text column + index only if this becomes measurably
 // hot, not preemptively.
 a2aRoute.get("/agents/discover", async (c) => {
+  const ip = clientIp(c);
+  if (!(await takeToken(`discover:${ip}`, 20, 5))) {
+    return c.json({ error: "rate_limited" }, 429);
+  }
   const skill = c.req.query("skill")?.trim().toLowerCase();
   const q = c.req.query("q")?.trim().toLowerCase();
   if (!skill && !q) return c.json({ error: "skill or q query param required" }, 400);
@@ -236,6 +242,10 @@ a2aRoute.get("/agents/discover", async (c) => {
 // account needed up front. Agent stays "unclaimed" (can't auth into WS/REST,
 // see agentAuth/gateway.ts onOpen) until an owner claims it with the code.
 a2aRoute.post("/agents/register", async (c) => {
+  const ip = clientIp(c);
+  if (!(await takeToken(`agent-register:${ip}`, 60, 60 / 3600))) {
+    return c.json({ error: "rate_limited" }, 429);
+  }
   const body = await c.req.json<{
     name: string;
     capabilities?: string[];

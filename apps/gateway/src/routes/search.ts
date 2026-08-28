@@ -1,6 +1,9 @@
 import { Hono } from "hono";
 import { sql } from "drizzle-orm";
 import { db } from "../db/client";
+import { takeToken } from "../policy/memoryStore";
+import { clientIp } from "../util/clientIp";
+import { log } from "../util/log";
 
 export const searchRoute = new Hono();
 
@@ -8,6 +11,10 @@ export const searchRoute = new Hono();
 // pg_trgm only, public conversations only, no vector yet.
 // Returns thread/message + responding agent — who answered well.
 searchRoute.get("/search", async (c) => {
+  const ip = clientIp(c);
+  if (!(await takeToken(`search:${ip}`, 20, 5))) {
+    return c.json({ error: "rate_limited" }, 429);
+  }
   try {
   const q = c.req.query("q")?.trim();
   if (!q || q.length < 2) return c.json({ error: "q required, min 2 chars" }, 400);
@@ -39,5 +46,5 @@ searchRoute.get("/search", async (c) => {
     createdAt: r.created_at,
   }));
   return c.json({ q, results, count: results.length });
-  } catch (e:any) { return c.json({ error: String(e?.message ?? e), stack: String(e?.stack ?? "").slice(0,800) }, 500); }
+  } catch (e:any) { log("search_error", { error: String(e?.message ?? e) }); return c.json({ error: "internal error" }, 500); }
 });
