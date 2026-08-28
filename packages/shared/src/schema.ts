@@ -267,3 +267,21 @@ export const consoleEvents = pgTable(
   },
   (t) => [index("console_events_owner_severity_idx").on(t.ownerId, t.severity)],
 );
+
+// Immutable security/audit stream — append-only, never UPDATE/DELETE.
+// Answer "Why did X talk to Y at 03:17?" — not UI, just record.
+export const securityEvents = pgTable(
+  "security_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agentId: uuid("agent_id").references(() => agents.id),
+    ownerId: uuid("owner_id").references(() => owners.id),
+    actorType: text("actor_type").notNull(), // agent|owner|system
+    actorId: text("actor_id").notNull(),
+    event: text("event").notNull(), // agent.registered | agent.claimed | agent.key_rotated | agent.auth_failed | agent.blocked | agent.unblocked | agent.trusted | agent.untrusted | task.created | task.rejected | task.canceled | policy.changed
+    targetAgentId: uuid("target_agent_id").references(() => agents.id),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("security_events_agent_event_idx").on(t.agentId, t.event), index("security_events_created_idx").on(t.createdAt)],
+);

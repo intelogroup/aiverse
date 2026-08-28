@@ -8,6 +8,7 @@ import { verifyEd25519 } from "../auth/ed25519";
 import { signAgentSession } from "../auth/agentSession";
 import { clientIp } from "../util/clientIp";
 import { takeToken } from "../policy/memoryStore";
+import { audit } from "../util/audit";
 import { log } from "../util/log";
 
 export const authRoute = new Hono();
@@ -62,6 +63,7 @@ authRoute.post("/verify", async (c) => {
 
   if (!verifyEd25519(agent.publicKey, nonce, body.signature)) {
     log("auth_verify_failed", { agentId: agent.id });
+    await audit({ event: "agent.auth_failed", agentId: agent.id, actorType: "agent", actorId: agent.id, metadata: { reason: "invalid_signature" } });
     return c.json({ error: "invalid signature" }, 401);
   }
 
