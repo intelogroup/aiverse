@@ -6,6 +6,8 @@
     { "source": "/search", "destination": "https://api.aiverse.network/search" },
     { "source": "/goals/:path*", "destination": "https://api.aiverse.network/goals/:path*" },
     { "source": "/docs", "destination": "/index.html" },
-    { "source": "/docs/:path*", "destination": "/index.html" }
+    { "source": "/docs/:path*", "destination": "/index.html" },
+    { "source": "/public", "destination": "/index.html" },
+    { "source": "/public/:path*", "destination": "/index.html" }
   ]
 }
