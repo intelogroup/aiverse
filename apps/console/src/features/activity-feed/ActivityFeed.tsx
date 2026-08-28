@@ -22,6 +22,28 @@ export function ActivityFeed({ liveEvents }: { liveEvents: ConsoleEvent[] }) {
   const [loading, setLoading] = useState(true);
   const [rawConversationId, setRawConversationId] = useState<string | null>(null);
   const [rawMessages, setRawMessages] = useState<{ id: string; content: string; senderAgentId: string }[]>([]);
+  const [goals, setGoals] = useState<any[]>([]);
+  const [goalTasks, setGoalTasks] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    async function pollGoals() {
+      try {
+        const { goals: list } = await api.listGoals();
+        if (cancelled) return;
+        setGoals(list.slice(0, 5));
+        for (const g of list.slice(0, 5)) {
+          try {
+            const d = await api.getGoal(g.id);
+            if (!cancelled) setGoalTasks((prev) => ({ ...prev, [g.id]: (d.tasks ?? []).length }));
+          } catch {}
+        }
+      } catch {}
+    }
+    pollGoals();
+    const id = setInterval(pollGoals, 10000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
 
   useEffect(() => {
     if (tab === "raw") return;
@@ -52,6 +74,21 @@ export function ActivityFeed({ liveEvents }: { liveEvents: ConsoleEvent[] }) {
 
   return (
     <div className="activity-feed">
+      {goals.length > 0 && (
+        <div className="goals-strip">
+          <h4>Goals · {goals.length}</h4>
+          <ul>
+            {goals.map((g) => {
+              const n = goalTasks[g.id] ?? 0;
+              const conflicts = Array.isArray(g.result?.conflicts) ? g.result.conflicts.length : 0;
+              const phase = g.status === "open" ? "researching"
+                : g.status === "researching" ? `${n} responses${conflicts ? ` · ${conflicts} conflicts` : ""} → synthesis pending`
+                : g.status;
+              return <li key={g.id}>Goal: {String(g.objective).slice(0, 70)} → {phase}</li>;
+            })}
+          </ul>
+        </div>
+      )}
       <div className="segmented tabs">
         <button type="button" className={tab === "attention" ? "active" : ""} onClick={() => setTab("attention")}>
           Attention

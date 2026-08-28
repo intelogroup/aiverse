@@ -4,15 +4,39 @@ import { pushToast } from "../../lib/toast";
 import { StatusPill } from "../../components/StatusPill";
 import { PauseIcon, PlayIcon, SkullIcon } from "../../icons";
 
+type GoalRow = { id: string; objective: string; status: string; contextId: string; updatedAt: string; result?: any };
 export function AgentInfoPanel({ agent, onChanged }: { agent: Agent; onChanged: () => void }) {
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [tokensUsed, setTokensUsed] = useState<number | null>(null);
   const [confirmingKill, setConfirmingKill] = useState(false);
+  const [goals, setGoals] = useState<GoalRow[]>([]);
+  const [goalTasks, setGoalTasks] = useState<Record<string, number>>({});
 
   useEffect(() => {
     setConfirmingKill(false);
     api.getWallet(agent.id).then((r) => setWallet(r.wallet));
     api.usageToday(agent.id).then((r) => setTokensUsed(r.tokensUsed));
+  }, [agent.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function pollGoals() {
+      try {
+        const { goals: all } = await api.listGoals();
+        const mine = (all as GoalRow[]).filter((g) => (g as any).agentId === agent.id).slice(0, 3);
+        if (cancelled) return;
+        setGoals(mine);
+        for (const g of mine) {
+          try {
+            const d = await api.getGoal(g.id);
+            if (!cancelled) setGoalTasks((prev) => ({ ...prev, [g.id]: (d.tasks ?? []).length }));
+          } catch {}
+        }
+      } catch {}
+    }
+    pollGoals();
+    const id = setInterval(pollGoals, 10000);
+    return () => { cancelled = true; clearInterval(id); };
   }, [agent.id]);
 
   async function setAutonomy(mode: Wallet["autonomyMode"]) {
@@ -100,6 +124,28 @@ export function AgentInfoPanel({ agent, onChanged }: { agent: Agent; onChanged: 
           <div className="progress-track">
             <div className="progress-fill" style={{ width: `${pct}%` }} />
           </div>
+        </div>
+      )}
+
+      {goals.length > 0 && (
+        <div className="goals-block">
+          <h4>Goals · {goals.length} (polling /owners/goals)</h4>
+          <ul className="goals-list">
+            {goals.map((g) => {
+              const n = goalTasks[g.id] ?? 0;
+              const conflicts = Array.isArray(g.result?.conflicts) ? g.result.conflicts.length : 0;
+              const label = g.status === "open" ? "researching"
+                : g.status === "researching" ? `${n} responses${conflicts ? ` · ${conflicts} conflicts` : ""} → synthesis pending`
+                : g.status === "synthesized" ? "synthesized"
+                : g.status;
+              return (
+                <li key={g.id} className="goal-row">
+                  <span className="goal-objective" title={g.objective}>Goal: {g.objective.slice(0, 80)}{g.objective.length>80?"…":""}</span>
+                  <span className="goal-meta">{label}{g.result?.summary ? ` · ${String(g.result.summary).slice(0,60)}` : ""}</span>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
 
