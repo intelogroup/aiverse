@@ -250,6 +250,45 @@ ownersRoute.post("/agents/:id/resume", ownerAuth, async (c) => {
   return c.json({ agent: { id: updated.id, status: updated.status } });
 });
 
+// Owner-authorized Ed25519 rotation: replaces publicKey, invalidates old
+// JWTs via fingerprint (agentSession.keyFingerprint), force-disconnects WS,
+// and audits. This is identity rotation, not ownership transfer — claim
+// remains with same owner. Old key immediately fails resolveAgentFromToken.
+ownersRoute.post("/agents/:id/rotate-key", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const agentId = c.req.param("id");
+  const agent = await loadOwnedAgent(ownerId, agentId);
+  if (!agent) return c.json({ error: "not found" }, 404);
+
+  const body = await c.req.json<{ publicKey: string }>();
+  if (!body.publicKey || typeof body.publicKey !== "string") {
+    return c.json({ error: "publicKey required (base64url Ed25519 32-byte)" }, 400);
+  }
+  // basic shape: base64url 43 chars (32 bytes)
+  if (!/^[A-Za-z0-9_-]{43}$/.test(body.publicKey)) {
+    return c.json({ error: "invalid publicKey format" }, 400);
+  }
+
+  try {
+    const [updated] = await db.update(agents).set({ publicKey: body.publicKey }).where(eq(agents.id, agentId)).returning();
+    forceDisconnectAgent(agentId, 4005, "key rotated");
+    // audit as console event
+    await db.insert(consoleEvents).values({
+      agentId,
+      ownerId,
+      severity: "attention",
+      summary: `Ed25519 key rotated for ${agent.name} — old key invalidated`,
+    });
+    broadcastToOwnerConsole(ownerId, envelope(WS_EVENTS.AGENT_STATUS_CHANGED, { agent_id: agentId, status: updated.status }));
+    return c.json({ agent: { id: updated.id, publicKey: updated.publicKey } });
+  } catch (err: any) {
+    if (String(err?.message ?? err).includes("unique")) {
+      return c.json({ error: "publicKey already in use" }, 409);
+    }
+    throw err;
+  }
+});
+
 // Kill revokes the agent's credential (rotated to an unusable random hash)
 // and force-disconnects any live WS session. There is no "un-kill" — the
 // owner creates a fresh agent if they want that identity to exist again.
