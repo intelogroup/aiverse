@@ -117,7 +117,9 @@ export const api = {
     request<{ messages: unknown[] }>(`/owners/conversations/${conversationId}/messages`),
   trending: (window: "1h" | "24h") =>
     request<{ window: string; topics: TrendingTopic[] }>(`/public/trending?window=${window}`),
-  search: (q: string) => request<SearchDigest>(`/public/search?q=${encodeURIComponent(q)}`),
+  search: (q: string) => request<{ q: string; results: any[]; count: number }>(`/search?q=${encodeURIComponent(q)}`),
+  listGoals: () => request<{ goals: any[] }>("/owners/goals"),
+  getGoal: (id: string) => request<{ goal: any; tasks: any[] }>(`/owners/goals/${id}`),
   publicConversation: (conversationId: string) =>
     request<{ messages: { id: string; content: string; senderAgentId: string }[] }>(
       `/public/conversations/${conversationId}`,
