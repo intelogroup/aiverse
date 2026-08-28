@@ -20,6 +20,7 @@ import { forceDisconnectAgent, getConnectedAgentIds, broadcastToOwnerConsole } f
 import { envelope, WS_EVENTS } from "../ws/events";
 import { takeToken } from "../policy/memoryStore";
 import { todayUTC } from "../policy/gate";
+import { audit } from "../util/audit";
 import { clientIp } from "../util/clientIp";
 
 export const ownersRoute = new Hono<{ Variables: { ownerId: string } }>();
@@ -79,6 +80,9 @@ ownersRoute.post("/login", async (c) => {
 
 ownersRoute.post("/agents", ownerAuth, async (c) => {
   const ownerId = c.get("ownerId");
+  // Sybil: cap agents per owner
+  const existing = await db.query.agents.findMany({ where: eq(agents.ownerId, ownerId) });
+  if (existing.length >= 20) return c.json({ error: "agent limit reached (20/owner)" }, 429);
   const body = await c.req.json<{ name: string; capabilities?: string[]; description?: string }>();
   if (!body.name) {
     return c.json({ error: "name required" }, 400);
@@ -152,6 +156,7 @@ ownersRoute.post("/agents/claim", ownerAuth, async (c) => {
     .where(eq(agents.id, agent.id))
     .returning();
 
+  await audit({ event: "agent.claimed", agentId: updated.id, ownerId, actorType: "owner", actorId: ownerId, metadata: { name: updated.name } });
   return c.json({ agent: { id: updated.id, name: updated.name, status: updated.status } });
 });
 
@@ -235,6 +240,10 @@ ownersRoute.patch("/agents/:id/policy", ownerAuth, async (c) => {
   if (Array.isArray(body.trustedAgentIds)) patch.trustedAgentIds = body.trustedAgentIds;
   if (Array.isArray(body.blockedAgentIds)) patch.blockedAgentIds = body.blockedAgentIds;
   const [updated] = await db.update(agentPolicyScope).set(patch).where(eq(agentPolicyScope.agentId, agentId)).returning();
+  // audit trust changes
+  if (body.trustedAgentIds) await audit({ event: "agent.trusted", agentId, ownerId, actorType: "owner", actorId: ownerId, targetAgentId: body.trustedAgentIds[0] ?? null, metadata: { trusted: body.trustedAgentIds } });
+  if (body.blockedAgentIds) await audit({ event: "agent.blocked", agentId, ownerId, actorType: "owner", actorId: ownerId, targetAgentId: body.blockedAgentIds[0] ?? null, metadata: { blocked: body.blockedAgentIds } });
+  await audit({ event: "policy.changed", agentId, ownerId, actorType: "owner", actorId: ownerId, metadata: { patch } });
   return c.json({ policy: updated });
 });
 
@@ -296,13 +305,14 @@ ownersRoute.post("/agents/:id/rotate-key", ownerAuth, async (c) => {
   try {
     const [updated] = await db.update(agents).set({ publicKey: body.publicKey }).where(eq(agents.id, agentId)).returning();
     forceDisconnectAgent(agentId, 4005, "key rotated");
-    // audit as console event
+    // audit as console event + immutable security stream
     await db.insert(consoleEvents).values({
       agentId,
       ownerId,
       severity: "attention",
       summary: `Ed25519 key rotated for ${agent.name} — old key invalidated`,
     });
+    await audit({ event: "agent.key_rotated", agentId, ownerId, actorType: "owner", actorId: ownerId, metadata: { name: agent.name } });
     broadcastToOwnerConsole(ownerId, envelope(WS_EVENTS.AGENT_STATUS_CHANGED, { agent_id: agentId, status: updated.status }));
     return c.json({ agent: { id: updated.id, publicKey: updated.publicKey } });
   } catch (err: any) {

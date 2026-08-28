@@ -7,6 +7,7 @@ import { env } from "@aiverse/shared/env";
 import { agentAuth } from "../middleware/agentAuth";
 import { generateAgentToken, generateClaimCode } from "../auth/agentToken";
 import { checkAgentSendRate, checkAndConsumeBudget, refundBudget, checkAutonomy, checkTrust } from "../policy/gate";
+import { audit } from "../util/audit";
 import { recordAttentionEvent } from "../policy/consoleEvents";
 import { sendToAgent } from "../ws/gateway";
 import { envelope, WS_EVENTS } from "../ws/events";
@@ -21,6 +22,12 @@ const A2A_PROTOCOL_VERSION = "0.3.0";
 const TERMINAL_STATES = new Set(["completed", "canceled", "rejected", "failed"]);
 
 const CLAIM_CODE_TTL_MINUTES = 15;
+
+// Resource ceilings — hard limits before load test, prevents DB-filler appliance.
+const MAX_MESSAGE_BYTES = 32 * 1024;
+const MAX_CARD_BYTES = 10 * 1024;
+const MAX_PENDING_TASKS = 100;
+const MAX_CAPABILITIES = 20;
 
 function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "skill";
@@ -145,6 +152,10 @@ a2aRoute.post("/agents/register", async (c) => {
   if (!body.name) {
     return c.json({ error: "name required" }, 400);
   }
+  if (body.name.length > 64) return c.json({ error: "name too long (max 64)" }, 400);
+  if (body.capabilities && body.capabilities.length > MAX_CAPABILITIES) return c.json({ error: `too many capabilities (max ${MAX_CAPABILITIES})` }, 400);
+  if (JSON.stringify(body).length > MAX_CARD_BYTES) return c.json({ error: "Agent Card too large" }, 400);
+  if (body.description && body.description.length > 500) return c.json({ error: "description too long (max 500)" }, 400);
 
   const agentCard: AgentCard = {
     capabilities: body.capabilities ?? [],
@@ -178,6 +189,7 @@ a2aRoute.post("/agents/register", async (c) => {
 
   // claimCode is the only time the plaintext secret exists outside the hash
   // — the agent runtime must capture it now.
+  await audit({ event: "agent.registered", agentId: agent.id, actorType: "agent", actorId: agent.id, metadata: { name: body.name, hasPublicKey: !!body.publicKey } });
   return c.json({ agentId: agent.id, agentToken: token, claimCode, claimCodeExpiresAt }, 201);
 });
 
@@ -260,10 +272,21 @@ a2aRoute.post("/a2a/agents/:id", agentAuth, async (c) => {
     const tokensUsed = Number(message.metadata?.tokensUsed ?? 0);
     const spendCents = Number(message.metadata?.spendCents ?? 0);
 
+    // Resource ceilings
+    if (JSON.stringify(message).length > MAX_MESSAGE_BYTES) {
+      return c.json(rpcError(body.id, -32014, "message too large"), 400);
+    }
+    const pending = await db.query.a2aTasks.findMany({ where: eq(a2aTasks.targetAgentId, targetAgentId) });
+    const pendingCount = pending.filter((t) => t.state === "submitted" || t.state === "working").length;
+    if (pendingCount >= MAX_PENDING_TASKS) {
+      return c.json(rpcError(body.id, -32015, "target inbox full"), 429);
+    }
+
     // Trust gate — brutally simple: trusted→allowed, blocked→blocked, unknown→approval-gated for A2A
     // This is admission (can you send), not spend (can you spend wallet) — trust ≠ wallet.
     const trust = await checkTrust(callerAgentId, targetAgentId, "a2a");
     if (!trust.allowed) {
+      await audit({ event: "task.rejected", agentId: callerAgentId, actorType: "agent", actorId: callerAgentId, targetAgentId, metadata: { reason: trust.reason, blocked: true } });
       return c.json(rpcError(body.id, -32013, trust.reason ?? "blocked by target trust policy"), 403);
     }
 
@@ -341,6 +364,7 @@ a2aRoute.post("/a2a/agents/:id", agentAuth, async (c) => {
       requiresApproval: task.requiresApproval,
       deliveredLive: delivered,
     });
+    await audit({ event: "task.created", agentId: callerAgentId, actorType: "agent", actorId: callerAgentId, targetAgentId, metadata: { taskId: task.id, requiresApproval } });
 
     return c.json(rpcResult(body.id, taskToA2A(task)));
   }
