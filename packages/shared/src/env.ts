@@ -6,8 +6,22 @@ function required(name: string): string {
   return value;
 }
 
+// Prod Neon endpoint id — tests must never touch this DB. bun test sets
+// NODE_ENV=test automatically and loads .env.test over .env, but a missing
+// .env.test would silently fall back to prod; this makes that fatal instead.
+const PROD_DB_HOST_MARKER = "ep-empty-dream-avd81iii";
+function requiredDatabaseUrl(): string {
+  const value = required("DATABASE_URL");
+  if (process.env.NODE_ENV === "test" && value.includes(PROD_DB_HOST_MARKER)) {
+    throw new Error(
+      "Refusing to run tests against the production database. Set DATABASE_URL in apps/gateway/.env.test to an isolated DB.",
+    );
+  }
+  return value;
+}
+
 export const env = {
-  DATABASE_URL: required("DATABASE_URL"),
+  DATABASE_URL: requiredDatabaseUrl(),
   REDIS_URL: required("REDIS_URL"),
   JWT_SECRET: required("JWT_SECRET"),
   PORT: Number(process.env.PORT ?? 3000),

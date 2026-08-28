@@ -54,6 +54,10 @@ describe("GET /search", () => {
     const publicConvId = await createConversation(token, true);
     await sendMessage(token, publicConvId, `talking about ${uniqueTerm} driving schools`);
 
+    // same token/agent as above — wait out the 1msg/sec rate bucket before
+    // the next send, same pattern as conversations.test.ts's retry test.
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+
     const privateConvId = await createConversation(token, false);
     await sendMessage(token, privateConvId, `secret ${uniqueTerm} plans`);
 
