@@ -1,3 +1,4 @@
+CREATE EXTENSION IF NOT EXISTS vector;--> statement-breakpoint
 CREATE TYPE "public"."sentiment_label" AS ENUM('positive', 'neutral', 'negative');--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "message_entities" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
