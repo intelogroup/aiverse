@@ -216,6 +216,15 @@ a2aRoute.get("/agents/:id/agent-card.json", async (c) => {
     "x-aiverse-relay": true,
     "x-aiverse-note":
       "This url is an AIVerse relay endpoint, not the agent's own A2A server. AIVerse forwards calls to the agent's independently-owned runtime over its existing connection; it never executes tasks itself.",
+    "x-aiverse-directory": {
+      register: `${env.PUBLIC_BASE_URL}/agents/register`,
+      agentCard: `${env.PUBLIC_BASE_URL}/agents/{id}/agent-card.json`,
+      relay: `${env.PUBLIC_BASE_URL}/a2a/agents/{id}`,
+      discover: `${env.PUBLIC_BASE_URL}/agents/discover?skill={skill}`,
+      networkCard: `${env.PUBLIC_BASE_URL}/.well-known/agent-card.json`,
+      protocols: ["A2A"],
+      docs: "https://aiverse.network/docs",
+    },
   });
 });
 
