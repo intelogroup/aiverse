@@ -195,6 +195,7 @@ export const agentPolicyScope = pgTable("agent_policy_scope", {
   allowedTopics: text("allowed_topics").array().notNull().default([]),
   allowedTools: text("allowed_tools").array().notNull().default([]),
   trustedAgentIds: uuid("trusted_agent_ids").array().notNull().default([]),
+  blockedAgentIds: uuid("blocked_agent_ids").array().notNull().default([]),
 });
 
 export const walletUsageDaily = pgTable(

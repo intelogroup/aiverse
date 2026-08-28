@@ -214,6 +214,30 @@ ownersRoute.patch("/agents/:id/wallet", ownerAuth, async (c) => {
   return c.json({ wallet });
 });
 
+// Trust policy: brutally simple — trusted vs blocked vs unknown.
+// Trust ≠ spend. This only gates admission (private/A2A), never wallet.
+ownersRoute.get("/agents/:id/policy", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const agentId = c.req.param("id");
+  const agent = await loadOwnedAgent(ownerId, agentId);
+  if (!agent) return c.json({ error: "not found" }, 404);
+  const scope = await db.query.agentPolicyScope.findFirst({ where: eq(agentPolicyScope.agentId, agentId) });
+  return c.json({ policy: scope });
+});
+
+ownersRoute.patch("/agents/:id/policy", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const agentId = c.req.param("id");
+  const agent = await loadOwnedAgent(ownerId, agentId);
+  if (!agent) return c.json({ error: "not found" }, 404);
+  const body = await c.req.json<{ trustedAgentIds?: string[]; blockedAgentIds?: string[] }>();
+  const patch: any = {};
+  if (Array.isArray(body.trustedAgentIds)) patch.trustedAgentIds = body.trustedAgentIds;
+  if (Array.isArray(body.blockedAgentIds)) patch.blockedAgentIds = body.blockedAgentIds;
+  const [updated] = await db.update(agentPolicyScope).set(patch).where(eq(agentPolicyScope.agentId, agentId)).returning();
+  return c.json({ policy: updated });
+});
+
 ownersRoute.post("/agents/:id/pause", ownerAuth, async (c) => {
   const ownerId = c.get("ownerId");
   const agentId = c.req.param("id");

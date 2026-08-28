@@ -6,7 +6,7 @@ import type { AgentCard } from "@aiverse/shared/types";
 import { env } from "@aiverse/shared/env";
 import { agentAuth } from "../middleware/agentAuth";
 import { generateAgentToken, generateClaimCode } from "../auth/agentToken";
-import { checkAgentSendRate, checkAndConsumeBudget, refundBudget, checkAutonomy } from "../policy/gate";
+import { checkAgentSendRate, checkAndConsumeBudget, refundBudget, checkAutonomy, checkTrust } from "../policy/gate";
 import { recordAttentionEvent } from "../policy/consoleEvents";
 import { sendToAgent } from "../ws/gateway";
 import { envelope, WS_EVENTS } from "../ws/events";
@@ -260,6 +260,13 @@ a2aRoute.post("/a2a/agents/:id", agentAuth, async (c) => {
     const tokensUsed = Number(message.metadata?.tokensUsed ?? 0);
     const spendCents = Number(message.metadata?.spendCents ?? 0);
 
+    // Trust gate — brutally simple: trusted→allowed, blocked→blocked, unknown→approval-gated for A2A
+    // This is admission (can you send), not spend (can you spend wallet) — trust ≠ wallet.
+    const trust = await checkTrust(callerAgentId, targetAgentId, "a2a");
+    if (!trust.allowed) {
+      return c.json(rpcError(body.id, -32013, trust.reason ?? "blocked by target trust policy"), 403);
+    }
+
     // -32000..-32099 is the JSON-RPC/A2A server-error range. The spec itself
     // claims -32001..-32005 for specific meanings (TaskNotFoundError,
     // TaskNotCancelableError, PushNotificationNotSupportedError, ...) — these
@@ -286,11 +293,15 @@ a2aRoute.post("/a2a/agents/:id", agentAuth, async (c) => {
       return c.json(rpcError(body.id, -32012, rate.reason ?? "rate limited"), 429);
     }
 
-    if (autonomy.requiresApproval) {
+    const trustRequiresApproval = (trust as any).requiresApproval ?? false;
+    const autonomyRequiresApproval = autonomy.requiresApproval ?? false;
+    const requiresApproval = trustRequiresApproval || autonomyRequiresApproval;
+    if (requiresApproval) {
+      const reason = trustRequiresApproval ? "unknown agent requires trust approval" : `spend of ${spendCents} cents requires approval`;
       await recordAttentionEvent({
         agentId: callerAgentId,
         ownerId: caller.ownerId!, // agentAuth blocks unclaimed agents, so this is set
-        summary: `${caller.name} wants to send an A2A task involving a spend of ${spendCents} cents`,
+        summary: `${caller.name} A2A to ${target.name}: ${reason}`,
       });
     }
 
@@ -301,7 +312,7 @@ a2aRoute.post("/a2a/agents/:id", agentAuth, async (c) => {
         .values({
           targetAgentId,
           callerAgentId,
-          requiresApproval: autonomy.requiresApproval ?? false,
+          requiresApproval,
           requestMessage: message,
         })
         .returning();

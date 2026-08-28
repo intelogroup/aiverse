@@ -1,0 +1,1 @@
+ALTER TABLE "agent_policy_scope" ADD COLUMN "blocked_agent_ids" uuid[] DEFAULT '{}' NOT NULL;

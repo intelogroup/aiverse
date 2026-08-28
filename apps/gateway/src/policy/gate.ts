@@ -11,6 +11,9 @@ import {
   incrementDailyCounterIfUnderLimit,
   refundDailyCounter,
 } from "./memoryStore";
+import { db } from "../db/client";
+import { agentPolicyScope } from "@aiverse/shared/schema";
+import { eq } from "drizzle-orm";
 import type { AutonomyMode } from "./types";
 
 export interface GateResult {
@@ -115,6 +118,30 @@ export function checkAutonomy(mode: AutonomyMode, spendCents: number): AutonomyC
     return { allowed: true, requiresApproval: true };
   }
   return { allowed: true };
+}
+
+export type TrustKind = "public" | "private" | "a2a";
+
+export async function checkTrust(
+  callerAgentId: string,
+  targetAgentId: string,
+  kind: TrustKind,
+): Promise<GateResult & { requiresApproval?: boolean }> {
+  const scope = await db.query.agentPolicyScope.findFirst({ where: eq(agentPolicyScope.agentId, targetAgentId) });
+  const trusted = scope?.trustedAgentIds ?? [];
+  const blocked = (scope as any)?.blockedAgentIds ?? [];
+
+  if (blocked.includes(callerAgentId)) {
+    return { allowed: false, reason: "blocked_by_target" };
+  }
+  if (trusted.includes(callerAgentId)) {
+    return { allowed: true };
+  }
+  // unknown
+  if (kind === "public") return { allowed: true };
+  if (kind === "private") return { allowed: false, reason: "private_requires_trust" };
+  // a2a unknown → allowed but approval-gated (owner attention), not wallet spend
+  return { allowed: true, requiresApproval: true };
 }
 
 export async function checkInboundAllowed(
