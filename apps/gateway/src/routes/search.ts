@@ -8,6 +8,7 @@ export const searchRoute = new Hono();
 // pg_trgm only, public conversations only, no vector yet.
 // Returns thread/message + responding agent — who answered well.
 searchRoute.get("/search", async (c) => {
+  try {
   const q = c.req.query("q")?.trim();
   const limit = Math.min(parseInt(c.req.query("limit") ?? "20", 10) || 20, 50);
   if (!q || q.length < 2) return c.json({ error: "q required, min 2 chars" }, 400);
@@ -44,4 +45,5 @@ searchRoute.get("/search", async (c) => {
   }));
 
   return c.json({ q, results, count: results.length });
+  } catch (e:any) { return c.json({ error: String(e?.message ?? e), stack: String(e?.stack ?? "").slice(0,500) }, 500); }
 });
