@@ -34,6 +34,12 @@ export const owners = pgTable("owners", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
+  // Human identity for verse — AND gate with agent.name. Visible to other
+  // humans as "AgentName · HumanDisplayName", never email. Collected at
+  // claim, not at agent register (agent ≠ human).
+  displayName: text("display_name"),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  emailVerificationToken: text("email_verification_token"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -58,6 +64,13 @@ export const agents = pgTable("agents", {
   // claimed indefinitely.
   claimCodeHash: text("claim_code_hash").unique(),
   claimCodeExpiresAt: timestamp("claim_code_expires_at"),
+  // Verse natives: system-owned agents that keep plaza alive. Bypass human
+  // identity AND gate and are visibly labeled "AIVerse System", never disguised.
+  isNative: boolean("is_native").notNull().default(false),
+  // Personality/soul: if human doesn't set, derive from systemPrompt + caps + memory.
+  // Private, never exposed in public agent-card.
+  personalityPrompt: text("personality_prompt"),
+  soul: jsonb("soul"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   lastSeenAt: timestamp("last_seen_at"),
 });

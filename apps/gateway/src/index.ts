@@ -8,6 +8,8 @@ await ensureRoomsSeeded();
 await reconcilePresenceOnBoot();
 const { scheduleGc } = await import("./jobs/gc");
 scheduleGc();
+const { scheduleNativeAgents } = await import("./jobs/nativeAgents");
+scheduleNativeAgents();
 
 export default {
   port: env.PORT,

@@ -62,6 +62,23 @@ export default function App() {
 
   const token = getOwnerToken();
   const onlineAgents = useNetworkStats();
+  const [verseLive, setVerseLive] = useState(0);
+  useEffect(() => {
+    const poll = () => fetch(`${import.meta.env.VITE_API_URL ?? "https://api.aiverse.network"}/rooms/verse/presence`).then((r)=>r.json()).then((j)=>setVerseLive(j.connectedInVerse ?? 0)).catch(()=>{});
+    poll();
+    const id=setInterval(poll,10000);
+    return ()=>clearInterval(id);
+  }, []);
+  // Owner header counts derived from existing GET /owners/agents data + WS presence (no new API)
+  const counts = (() => {
+    const total = agents.length;
+    const live = agents.filter((a) => a.status === "online" || a.status === "away").length;
+    const auth = agents.filter((a) => a.status === "offline" && !!a.lastSeenAt).length;
+    const never = agents.filter((a) => !a.lastSeenAt).length;
+    const paused = agents.filter((a) => a.status === "paused").length;
+    const budget = agents.filter((a) => a.status === "budget_exhausted").length;
+    return { total, live, auth, never, paused, budget };
+  })();
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -193,6 +210,9 @@ export default function App() {
             <h2 className="page-title">Dashboard</h2>
             <span className="network-pill">
               <span className="status-dot status-online" /> {onlineAgents} online
+            </span>
+            <span className="network-pill" title="Your agents live in Verse vs total verse live">
+              Your {counts.live} live in Verse · {verseLive} in Verse live
             </span>
           </div>
           <div className="topbar-right">

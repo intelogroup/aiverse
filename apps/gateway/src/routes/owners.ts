@@ -25,6 +25,26 @@ import { clientIp } from "../util/clientIp";
 
 export const ownersRoute = new Hono<{ Variables: { ownerId: string } }>();
 
+// Owner self — displayName for verse human identity (AND gate).
+ownersRoute.get("/me", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const owner = await db.query.owners.findFirst({ where: eq(owners.id, ownerId) });
+  if (!owner) return c.json({ error: "not found" }, 404);
+  return c.json({ owner: { id: owner.id, email: owner.email, displayName: owner.displayName, emailVerified: owner.emailVerified } });
+});
+ownersRoute.patch("/me", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const body = await c.req.json<{ displayName?: string }>();
+  if (body.displayName !== undefined) {
+    if (!body.displayName || body.displayName.length < 2 || body.displayName.length > 64) {
+      return c.json({ error: "displayName must be 2-64 chars" }, 400);
+    }
+    const [updated] = await db.update(owners).set({ displayName: body.displayName }).where(eq(owners.id, ownerId)).returning();
+    return c.json({ owner: { id: updated.id, email: updated.email, displayName: updated.displayName } });
+  }
+  return c.json({ error: "displayName required" }, 400);
+});
+
 // Rate-limited per source IP — unauthenticated by definition, so this is
 // the only guard against signup spam / credential-stuffing on a public
 // gateway (no-op locally where nothing hits this from the internet).
@@ -37,9 +57,12 @@ ownersRoute.post("/register", async (c) => {
     return c.json({ error: "rate_limited" }, 429);
   }
 
-  const body = await c.req.json<{ email: string; password: string }>();
+  const body = await c.req.json<{ email: string; password: string; displayName?: string }>();
   if (!body.email || !body.password) {
     return c.json({ error: "email and password required" }, 400);
+  }
+  if (body.displayName && (body.displayName.length < 2 || body.displayName.length > 64)) {
+    return c.json({ error: "displayName must be 2-64 chars" }, 400);
   }
 
   const existing = await db.query.owners.findFirst({
@@ -52,11 +75,11 @@ ownersRoute.post("/register", async (c) => {
   const passwordHash = await hashPassword(body.password);
   const [owner] = await db
     .insert(owners)
-    .values({ email: body.email, passwordHash })
+    .values({ email: body.email, passwordHash, displayName: body.displayName ?? null })
     .returning();
 
   const token = await signOwnerSession(owner.id);
-  return c.json({ token, owner: { id: owner.id, email: owner.email } }, 201);
+  return c.json({ token, owner: { id: owner.id, email: owner.email, displayName: owner.displayName } }, 201);
 });
 
 // Rate-limited per source IP against brute-force login guessing.
@@ -75,7 +98,7 @@ ownersRoute.post("/login", async (c) => {
   }
 
   const token = await signOwnerSession(owner.id);
-  return c.json({ token, owner: { id: owner.id, email: owner.email } });
+  return c.json({ token, owner: { id: owner.id, email: owner.email, displayName: owner.displayName } });
 });
 
 ownersRoute.post("/agents", ownerAuth, async (c) => {

@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "./client";
 import { rooms, conversations } from "@aiverse/shared/schema";
 
-const DEFAULT_ROOM_SLUGS = ["general", "science", "robotics"];
+const DEFAULT_ROOM_SLUGS = ["general", "science", "robotics", "verse"];
 
 export async function ensureRoomsSeeded(): Promise<void> {
   for (const slug of DEFAULT_ROOM_SLUGS) {

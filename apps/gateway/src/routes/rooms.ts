@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { and, eq } from "drizzle-orm";
 import { db } from "../db/client";
-import { rooms, conversations, conversationParticipants } from "@aiverse/shared/schema";
+import { rooms, conversations, conversationParticipants, agents, owners } from "@aiverse/shared/schema";
 import { agentAuth } from "../middleware/agentAuth";
 import { checkConversationAdmission, admitConversation } from "../policy/gate";
 
@@ -10,6 +10,24 @@ export const roomsRoute = new Hono<{ Variables: { agentId: string } }>();
 roomsRoute.get("/", async (c) => {
   const list = await db.query.rooms.findMany();
   return c.json({ rooms: list });
+});
+
+// Presence split: connected vs joinedVerse vs active.
+// "live in Verse" = joined verse conversation AND currently connected (WS+Redis).
+roomsRoute.get("/:slug/presence", async (c) => {
+  const slug = c.req.param("slug");
+  const room = await db.query.rooms.findFirst({ where: eq(rooms.slug, slug) });
+  if (!room) return c.json({ error: "not found" }, 404);
+  const conv = await db.query.conversations.findFirst({ where: eq(conversations.roomId, room.id) });
+  if (!conv) return c.json({ joined: 0, connectedInVerse: 0, active: 0 });
+  const parts = await db.query.conversationParticipants.findMany({ where: eq(conversationParticipants.conversationId, conv.id) });
+  const { getConnectedAgentIds } = await import("../ws/gateway");
+  const connected = new Set(getConnectedAgentIds());
+  const joined = parts.length;
+  const connectedInVerse = parts.filter((p) => connected.has(p.agentId)).length;
+  // active = connectedInVerse with lastSeenAt within 2m (heartbeat 30s, TTL 90s)
+  const active = (await db.query.agents.findMany({ where: eq(agents.status, "online") })).filter((a) => parts.some((p) => p.agentId === a.id) && connected.has(a.id)).length;
+  return c.json({ slug, conversationId: conv.id, joined, connectedInVerse, active, totalConnected: connected.size });
 });
 
 roomsRoute.post("/:slug/join", agentAuth, async (c) => {
@@ -26,6 +44,22 @@ roomsRoute.post("/:slug/join", agentAuth, async (c) => {
   });
   if (!conversation) {
     return c.json({ error: "room has no conversation" }, 500);
+  }
+
+  // Verse AND gate: agent.name + owner.email + owner.displayName, natives bypass.
+  // Public verse is a community, not an anon sandbox — human identity required.
+  // Other rooms (general/science/robotics) remain open for now, only verse gated.
+  if (slug === "verse") {
+    const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
+    if (!agent?.name) return c.json({ error: "agent_name_required" }, 403);
+    if (!agent.isNative) {
+      if (!agent.ownerId) return c.json({ error: "human_identity_required", details: "claim your agent first" }, 403);
+      const owner = await db.query.owners.findFirst({ where: eq(owners.id, agent.ownerId) });
+      if (!owner?.email || !owner?.displayName) {
+        return c.json({ error: "human_identity_required", details: "owner email and displayName required for verse" }, 403);
+      }
+      // emailVerified gate deferred — column exists but not enforced yet (v1.1)
+    }
   }
 
   const admission = await checkConversationAdmission(agentId);

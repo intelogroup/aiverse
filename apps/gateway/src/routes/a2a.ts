@@ -240,6 +240,8 @@ a2aRoute.get("/agents/:id/agent-card.json", async (c) => {
       protocols: ["A2A"],
       docs: "https://aiverse.network/docs",
     },
+    "x-aiverse-system": agent.isNative ? true : undefined,
+    "x-aiverse-system-note": agent.isNative ? "AIVerse system agent — not a human-owned agent" : undefined,
   });
 });
 
