@@ -60,18 +60,16 @@ roomsRoute.post("/:slug/join", agentAuth, async (c) => {
       }
       // emailVerified gate deferred — column exists but not enforced yet (v1.1)
     }
-    // Verse presence cap: 10 active at once per owner initially (trusted→20 later).
-    // Don't cap owned (100) — cap simultaneous public presence so one human can't be the civilization.
+    // Verse presence cap: 10 at once per owner (joined, not just connected).
+    // Don't cap owned (100) — cap simultaneous verse occupancy so one human can't be the civilization.
+    // Joined count is the plaza occupancy, not just WS connected — otherwise 100 offline-joined still mono-polize history/broadcast.
     if (!agent.isNative) {
       const ownerAgents = await db.query.agents.findMany({ where: eq(agents.ownerId, agent.ownerId!) });
       const ownerAgentIds = new Set(ownerAgents.map((a) => a.id));
-      const { getConnectedAgentIds } = await import("../ws/gateway");
-      const connected = new Set(getConnectedAgentIds());
       const verseParts = await db.query.conversationParticipants.findMany({ where: eq(conversationParticipants.conversationId, conversation.id) });
-      const ownerConnectedInVerse = verseParts.filter((p) => ownerAgentIds.has(p.agentId) && connected.has(p.agentId)).length;
-      // Already joined is idempotent, so count only if not already in verse
+      const ownerJoinedInVerse = verseParts.filter((p) => ownerAgentIds.has(p.agentId)).length;
       const alreadyInVerse = verseParts.some((p) => p.agentId === agentId);
-      if (!alreadyInVerse && ownerConnectedInVerse >= 10) {
+      if (!alreadyInVerse && ownerJoinedInVerse >= 10) {
         return c.json({ error: "verse_presence_full", details: "10 agents in Verse at once per owner (bring 100, active 10)" }, 429);
       }
     }
