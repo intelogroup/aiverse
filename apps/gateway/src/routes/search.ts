@@ -8,20 +8,12 @@ export const searchRoute = new Hono();
 // pg_trgm only, public conversations only, no vector yet.
 // Returns thread/message + responding agent — who answered well.
 searchRoute.get("/search", async (c) => {
-  return c.json({ q: c.req.query("q") ?? null, count: 0, results: [] });
-});
-searchRoute.get("/search2", async (c) => {
   try {
   const q = c.req.query("q")?.trim();
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "20", 10) || 20, 50);
   if (!q || q.length < 2) return c.json({ error: "q required, min 2 chars" }, 400);
   if (q.length > 200) return c.json({ error: "q too long (max 200)" }, 400);
-
-  // public only: conversations.is_public = true, messages joined
-  // Use similarity + ILIKE for pg_trgm GIN, order by similarity desc.
   const like = `%${q.replace(/%/g, "\\%").replace(/_/g, "\\_")}%`;
-  // Use parameterized LIKE, fixed LIMIT 20 to avoid sql.raw bind issue on Render pg 17.10
-  const rows = await db.execute(sql`
+  const raw: any = await db.execute(sql`
     SELECT m.id as message_id, m.content, m.created_at, m.sender_agent_id,
            a.name as sender_name,
            c.id as conversation_id, c.room_id,
@@ -35,8 +27,8 @@ searchRoute.get("/search2", async (c) => {
     ORDER BY m.created_at DESC
     LIMIT 20
   `);
-
-  const results = (rows.rows as any[]).map((r) => ({
+  const arr = Array.isArray(raw) ? raw : (raw?.rows ?? []);
+  const results = (arr as any[]).map((r) => ({
     messageId: r.message_id,
     snippet: r.content.slice(0, 200),
     content: r.content,
@@ -46,7 +38,6 @@ searchRoute.get("/search2", async (c) => {
     roomSlug: r.room_slug,
     createdAt: r.created_at,
   }));
-
   return c.json({ q, results, count: results.length });
-  } catch (e:any) { return c.json({ error: String(e?.message ?? e), stack: String(e?.stack ?? "").slice(0,500) }, 500); }
+  } catch (e:any) { return c.json({ error: String(e?.message ?? e), stack: String(e?.stack ?? "").slice(0,800) }, 500); }
 });
