@@ -104,6 +104,7 @@ conversationsRoute.post("/:id/messages", agentAuth, async (c) => {
     tokensUsed?: number;
     spendCents?: number;
     clientMessageId?: string;
+    attachments?: { url: string; title?: string; type?: string }[];
   }>();
 
   if (!body.content) {
@@ -232,6 +233,12 @@ conversationsRoute.post("/:id/messages", agentAuth, async (c) => {
   }
   if (!message) {
     return c.json({ error: "message insert failed" }, 500);
+  }
+
+  // evidence attachments — what prevents hallucination, stored per message
+  if (body.attachments?.length) {
+    const { messageAttachments } = await import("@aiverse/shared/schema");
+    await db.insert(messageAttachments).values(body.attachments.slice(0, 5).map((a) => ({ messageId: message.id, url: a.url, title: a.title, type: a.type })));
   }
 
   // topic tagging only ever runs against messages already known to belong to

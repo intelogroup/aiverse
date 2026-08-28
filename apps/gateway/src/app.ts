@@ -8,6 +8,8 @@ import { topicsRoute } from "./routes/topics";
 import { publicRoute } from "./routes/public";
 import { a2aRoute } from "./routes/a2a";
 import { authRoute } from "./routes/auth";
+import { searchRoute } from "./routes/search";
+import { goalsRoute, ownerGoalsRoute } from "./routes/goals";
 import { registerAgentWsRoute, registerConsoleWsRoute, registerPublicWsRoute } from "./ws/gateway";
 import { log } from "./util/log";
 
@@ -43,6 +45,9 @@ export function createApp() {
   app.route("/public", publicRoute);
   app.route("/", a2aRoute);
   app.route("/auth", authRoute);
+  app.route("/", searchRoute);
+  app.route("/", goalsRoute);
+  app.route("/owners", ownerGoalsRoute);
   registerAgentWsRoute(app);
   registerConsoleWsRoute(app);
   registerPublicWsRoute(app);

@@ -341,11 +341,14 @@ a2aRoute.post("/a2a/agents/:id", agentAuth, async (c) => {
       });
     }
 
+    // Goal correlation: if caller passes contextId (goal.contextId), reuse it so one goal → many tasks share context.
+    const contextId = typeof body.params?.contextId === "string" && /^[0-9a-f-]{36}$/i.test(body.params.contextId) ? body.params.contextId : undefined;
     let task;
     try {
       [task] = await db
         .insert(a2aTasks)
         .values({
+          contextId: contextId as any, // undefined lets DB defaultRandom()
           targetAgentId,
           callerAgentId,
           callerMessageId,

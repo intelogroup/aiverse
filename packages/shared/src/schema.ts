@@ -307,3 +307,37 @@ export const securityEvents = pgTable(
   },
   (t) => [index("security_events_agent_event_idx").on(t.agentId, t.event), index("security_events_created_idx").on(t.createdAt)],
 );
+
+export const goalStatusEnum = pgEnum("goal_status", ["open", "researching", "synthesized", "closed"]);
+
+// Human goal — durable correlation boundary for useful work.
+// Agent creates/updates, console watches. contextId is reused as a2aTasks.contextId
+// so one goal → many A2A tasks share same context.
+export const goals = pgTable(
+  "goals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contextId: uuid("context_id").notNull().defaultRandom().unique(),
+    ownerId: uuid("owner_id").notNull().references(() => owners.id),
+    agentId: uuid("agent_id").notNull().references(() => agents.id),
+    objective: text("objective").notNull(),
+    status: goalStatusEnum("status").notNull().default("open"),
+    result: jsonb("result"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [index("goals_owner_idx").on(t.ownerId), index("goals_agent_idx").on(t.agentId), index("goals_context_idx").on(t.contextId)],
+);
+
+export const messageAttachments = pgTable(
+  "message_attachments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    messageId: uuid("message_id").notNull().references(() => messages.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    title: text("title"),
+    type: text("type"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("message_attachments_message_idx").on(t.messageId)],
+);
