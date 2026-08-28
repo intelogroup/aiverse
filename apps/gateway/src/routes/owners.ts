@@ -263,10 +263,13 @@ ownersRoute.patch("/agents/:id/policy", ownerAuth, async (c) => {
   const agentId = c.req.param("id");
   const agent = await loadOwnedAgent(ownerId, agentId);
   if (!agent) return c.json({ error: "not found" }, 404);
-  const body = await c.req.json<{ trustedAgentIds?: string[]; blockedAgentIds?: string[] }>();
+  const body = await c.req.json<{ trustedAgentIds?: string[]; blockedAgentIds?: string[]; maxParallelDelegations?: number }>();
   const patch: any = {};
   if (Array.isArray(body.trustedAgentIds)) patch.trustedAgentIds = body.trustedAgentIds;
   if (Array.isArray(body.blockedAgentIds)) patch.blockedAgentIds = body.blockedAgentIds;
+  if (typeof body.maxParallelDelegations === "number" && body.maxParallelDelegations >= 1 && body.maxParallelDelegations <= 50) {
+    patch.maxParallelDelegations = Math.floor(body.maxParallelDelegations);
+  }
   const [updated] = await db.update(agentPolicyScope).set(patch).where(eq(agentPolicyScope.agentId, agentId)).returning();
   // audit trust changes
   if (body.trustedAgentIds) await audit({ event: "agent.trusted", agentId, ownerId, actorType: "owner", actorId: ownerId, targetAgentId: body.trustedAgentIds[0] ?? null, metadata: { trusted: body.trustedAgentIds } });

@@ -12,8 +12,8 @@ import {
   refundDailyCounter,
 } from "./memoryStore";
 import { db } from "../db/client";
-import { agentPolicyScope } from "@aiverse/shared/schema";
-import { eq } from "drizzle-orm";
+import { agentPolicyScope, a2aTasks } from "@aiverse/shared/schema";
+import { eq, and, inArray, gt, sql } from "drizzle-orm";
 import type { AutonomyMode } from "./types";
 
 export interface GateResult {
@@ -149,4 +149,53 @@ export async function checkInboundAllowed(
   _conversationId: string,
 ): Promise<GateResult> {
   return checkConversationAdmission(recipientAgentId);
+}
+
+const DELEGATION_LEASE_MS = 60 * 60 * 1000; // 1 hour — v1 hardcoded default
+
+// Admission + creation for a goal-scoped (caller-supplied contextId) A2A task,
+// as one atomic unit — a function that only checked and returned would let a
+// future caller insert without re-checking, silently breaking the cap. The
+// advisory lock is transaction-scoped (pg_advisory_xact_lock), released
+// automatically at commit/rollback; two separate int keys (caller, context)
+// rather than one combined hash, so an unrelated pair colliding on a single
+// hash only costs extra serialization, never incorrect admission.
+//
+// delegationLeaseExpiresAt governs ONLY whether a task still occupies a
+// concurrency slot — it is not task expiry. AIVerse is an async network
+// (offline delivery/reconnect-replay exist for exactly this reason); a task
+// whose lease has lapsed is still fully valid and deliverable, nothing here
+// touches its state.
+export async function admitAndCreateTask(params: {
+  callerAgentId: string;
+  contextId: string;
+  maxParallel: number;
+  task: typeof a2aTasks.$inferInsert;
+}): Promise<
+  { allowed: true; task: typeof a2aTasks.$inferSelect } | { allowed: false; reason: string }
+> {
+  return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtext(${params.callerAgentId}), hashtext(${params.contextId}))`,
+    );
+    const active = await tx.query.a2aTasks.findMany({
+      where: and(
+        eq(a2aTasks.callerAgentId, params.callerAgentId),
+        eq(a2aTasks.contextId, params.contextId),
+        inArray(a2aTasks.state, ["submitted", "working"]),
+        gt(a2aTasks.delegationLeaseExpiresAt, new Date()),
+      ),
+    });
+    if (active.length >= params.maxParallel) {
+      return { allowed: false, reason: "parallel_delegation_limit" };
+    }
+    const [task] = await tx
+      .insert(a2aTasks)
+      .values({
+        ...params.task,
+        delegationLeaseExpiresAt: new Date(Date.now() + DELEGATION_LEASE_MS),
+      })
+      .returning();
+    return { allowed: true, task };
+  });
 }

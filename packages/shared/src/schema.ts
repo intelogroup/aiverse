@@ -209,6 +209,10 @@ export const agentPolicyScope = pgTable("agent_policy_scope", {
   allowedTools: text("allowed_tools").array().notNull().default([]),
   trustedAgentIds: uuid("trusted_agent_ids").array().notNull().default([]),
   blockedAgentIds: uuid("blocked_agent_ids").array().notNull().default([]),
+  // Admission/execution policy, not spend — deliberately not on agentWallets.
+  // Caps concurrent outstanding A2A tasks this agent may have active under a
+  // single (goal) contextId at once. See a2aTasks.delegationLeaseExpiresAt.
+  maxParallelDelegations: integer("max_parallel_delegations").notNull().default(3),
 });
 
 export const walletUsageDaily = pgTable(
@@ -261,6 +265,13 @@ export const a2aTasks = pgTable(
     requiresApproval: boolean("requires_approval").notNull().default(false),
     requestMessage: jsonb("request_message").notNull(),
     resultMessage: jsonb("result_message"),
+    // Governs only whether this task still occupies one of the caller's
+    // parallel-delegation slots (see policy/gate.ts admitAndCreateTask) —
+    // independent of task lifecycle/delivery. A task whose lease has expired
+    // is still fully valid, deliverable, and pollable; nothing auto-cancels
+    // it. Null for tasks created outside a goal-scoped (contextId) fan-out —
+    // those were never subject to the cap and have nothing to expire.
+    delegationLeaseExpiresAt: timestamp("delegation_lease_expires_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -268,6 +279,7 @@ export const a2aTasks = pgTable(
     index("a2a_tasks_target_agent_idx").on(t.targetAgentId),
     index("a2a_tasks_caller_message_idx").on(t.callerAgentId, t.callerMessageId),
     unique("a2a_tasks_caller_message_unique").on(t.callerAgentId, t.callerMessageId),
+    index("a2a_tasks_caller_context_state_idx").on(t.callerAgentId, t.contextId, t.state),
   ],
 );
 
