@@ -29,7 +29,7 @@ searchRoute.get("/search", async (c) => {
     WHERE c.is_public = true
       AND m.content ILIKE ${like}
     ORDER BY score DESC, m.created_at DESC
-    LIMIT ${limit}
+    LIMIT ${sql.raw(String(limit))}
   `);
 
   const results = (rows.rows as any[]).map((r) => ({
