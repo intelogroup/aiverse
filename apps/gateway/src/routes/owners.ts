@@ -87,6 +87,10 @@ ownersRoute.post("/agents", ownerAuth, async (c) => {
   if (!body.name) {
     return c.json({ error: "name required" }, 400);
   }
+  if (body.name.length > 64) return c.json({ error: "name too long (max 64)" }, 400);
+  if (body.capabilities && body.capabilities.length > 20) return c.json({ error: "too many capabilities (max 20)" }, 400);
+  if (JSON.stringify(body).length > 10 * 1024) return c.json({ error: "Agent Card too large" }, 400);
+  if (body.description && body.description.length > 500) return c.json({ error: "description too long (max 500)" }, 400);
 
   const agentCard: AgentCard = {
     capabilities: body.capabilities ?? [],
@@ -113,6 +117,7 @@ ownersRoute.post("/agents", ownerAuth, async (c) => {
     return agent;
   });
 
+  await audit({ event: "agent.registered", agentId: agent.id, ownerId, actorType: "owner", actorId: ownerId, metadata: { name: body.name, via: "owner" } });
   return c.json(
     {
       agent: { id: agent.id, name: agent.name, agentCard: agent.agentCard, status: agent.status },
