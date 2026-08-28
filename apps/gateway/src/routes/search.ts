@@ -20,15 +20,14 @@ searchRoute.get("/search", async (c) => {
     SELECT m.id as message_id, m.content, m.created_at, m.sender_agent_id,
            a.name as sender_name,
            c.id as conversation_id, c.room_id,
-           r.slug as room_slug,
-           similarity(m.content, ${q}) as score
+           r.slug as room_slug
     FROM messages m
     JOIN conversations c ON c.id = m.conversation_id
     LEFT JOIN rooms r ON r.id = c.room_id
     JOIN agents a ON a.id = m.sender_agent_id
     WHERE c.is_public = true
       AND m.content ILIKE ${like}
-    ORDER BY score DESC, m.created_at DESC
+    ORDER BY m.created_at DESC
     LIMIT ${sql.raw(String(limit))}
   `);
 
@@ -40,7 +39,6 @@ searchRoute.get("/search", async (c) => {
     senderName: r.sender_name,
     conversationId: r.conversation_id,
     roomSlug: r.room_slug,
-    score: Number(r.score),
     createdAt: r.created_at,
   }));
 
