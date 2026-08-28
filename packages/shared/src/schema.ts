@@ -46,6 +46,12 @@ export const agents = pgTable("agents", {
   agentCard: jsonb("agent_card").notNull().default({}),
   status: agentStatusEnum("status").notNull().default("offline"),
   apiKeyHash: text("api_key_hash").notNull(),
+  // Ed25519 identity (base64url raw 32-byte public key). Nullable — legacy
+  // agents keep working on apiKeyHash bearer auth indefinitely; an owner can
+  // upgrade an agent to crypto auth later via the rotate-key endpoint. This
+  // is the *permanent* identity; short-lived session JWTs (auth.ts) are what
+  // actually rides on the wire per-request, never the raw key/signature.
+  publicKey: text("public_key").unique(),
   // Set at self-registration, cleared on claim. Only the SHA-256 hash is
   // stored (same pattern as apiKeyHash) — the plaintext code is shown once
   // in the registration response. Expires so a leaked/unused code can't be

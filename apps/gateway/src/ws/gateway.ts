@@ -3,7 +3,7 @@ import type { ServerWebSocket } from "bun";
 import { and, eq, notInArray, gt, lt, ne } from "drizzle-orm";
 import { db } from "../db/client";
 import { agents, conversationParticipants, messages, a2aTasks } from "@aiverse/shared/schema";
-import { hashAgentToken } from "../auth/agentToken";
+import { resolveAgentFromToken } from "../auth/resolveAgent";
 import { verifyOwnerSession } from "../auth/session";
 import { redis } from "../redis/client";
 import { envelope, WS_EVENTS } from "./events";
@@ -75,8 +75,7 @@ function broadcast(event: ReturnType<typeof envelope>, exceptAgentId?: string) {
 
 async function authenticate(token: string | undefined) {
   if (!token) return undefined;
-  const hash = hashAgentToken(token);
-  return db.query.agents.findFirst({ where: eq(agents.apiKeyHash, hash) });
+  return resolveAgentFromToken(token);
 }
 
 // Bounded per source so a long-absent agent reconnecting doesn't get flooded

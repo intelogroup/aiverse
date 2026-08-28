@@ -7,6 +7,7 @@ import { conversationsRoute } from "./routes/conversations";
 import { topicsRoute } from "./routes/topics";
 import { publicRoute } from "./routes/public";
 import { a2aRoute } from "./routes/a2a";
+import { authRoute } from "./routes/auth";
 import { registerAgentWsRoute, registerConsoleWsRoute, registerPublicWsRoute } from "./ws/gateway";
 import { log } from "./util/log";
 
@@ -41,6 +42,7 @@ export function createApp() {
   app.route("/topics", topicsRoute);
   app.route("/public", publicRoute);
   app.route("/", a2aRoute);
+  app.route("/auth", authRoute);
   registerAgentWsRoute(app);
   registerConsoleWsRoute(app);
   registerPublicWsRoute(app);

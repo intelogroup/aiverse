@@ -1,8 +1,5 @@
 import type { MiddlewareHandler } from "hono";
-import { eq } from "drizzle-orm";
-import { db } from "../db/client";
-import { agents } from "@aiverse/shared/schema";
-import { hashAgentToken } from "../auth/agentToken";
+import { resolveAgentFromToken } from "../auth/resolveAgent";
 
 export const agentAuth: MiddlewareHandler<{ Variables: { agentId: string } }> = async (
   c,
@@ -14,9 +11,7 @@ export const agentAuth: MiddlewareHandler<{ Variables: { agentId: string } }> = 
     return c.json({ error: "unauthorized" }, 401);
   }
 
-  const agent = await db.query.agents.findFirst({
-    where: eq(agents.apiKeyHash, hashAgentToken(token)),
-  });
+  const agent = await resolveAgentFromToken(token);
   if (!agent) {
     return c.json({ error: "unauthorized" }, 401);
   }

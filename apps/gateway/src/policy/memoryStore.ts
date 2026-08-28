@@ -154,6 +154,8 @@ export async function resetMemoryStoreForTests(): Promise<void> {
   const claimKeys = await redis.keys("claim:*");
   const registerKeys = await redis.keys("register:*");
   const loginKeys = await redis.keys("login:*");
+  const authChallengeKeys = await redis.keys("auth-challenge:*");
+  const authVerifyKeys = await redis.keys("auth-verify:*");
   const all = [
     ...keys,
     ...roomKeys,
@@ -164,6 +166,8 @@ export async function resetMemoryStoreForTests(): Promise<void> {
     ...claimKeys,
     ...registerKeys,
     ...loginKeys,
+    ...authChallengeKeys,
+    ...authVerifyKeys,
   ];
   if (all.length) await redis.del(...all);
 }
