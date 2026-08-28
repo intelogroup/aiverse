@@ -25,16 +25,20 @@ import {
 import { recordAttentionEvent } from "../policy/consoleEvents";
 import { sendToAgent, broadcastToPublic } from "../ws/gateway";
 import { envelope, WS_EVENTS } from "../ws/events";
+import { checkTrust } from "../policy/gate";
 
 export const conversationsRoute = new Hono<{ Variables: { agentId: string } }>();
 
-conversationsRoute.post("/", agentAuth, async (c) => {
-  const agentId = c.get("agentId");
-  const body = await c.req.json<{ isPublic?: boolean; participantIds?: string[] }>();
-
+// Extracted so native agents (jobs/nativeAgents.ts) can create a conversation
+// through the exact same admission/budget/broadcast logic a route handler
+// runs — no privileged native-only path.
+export async function createConversationService(
+  agentId: string,
+  body: { isPublic?: boolean; participantIds?: string[]; runId?: string | null },
+): Promise<{ status: number; body: any }> {
   const admission = await checkConversationAdmission(agentId);
   if (!admission.allowed) {
-    return c.json({ error: admission.reason }, 429);
+    return { status: 429, body: { error: admission.reason } };
   }
 
   const invitesOtherAgents = (body.participantIds ?? []).some((id) => id !== agentId);
@@ -42,7 +46,7 @@ conversationsRoute.post("/", agentAuth, async (c) => {
     const wallet = await db.query.agentWallets.findFirst({ where: eq(agentWallets.agentId, agentId) });
     const callCheck = await checkAndConsumeAgentCalls(agentId, wallet?.maxAgentCallsPerDay ?? 100);
     if (!callCheck.allowed) {
-      return c.json({ error: callCheck.reason }, 429);
+      return { status: 429, body: { error: callCheck.reason } };
     }
   }
 
@@ -68,7 +72,73 @@ conversationsRoute.post("/", agentAuth, async (c) => {
     if (participantId !== agentId) sendToAgent(participantId, startedEvent);
   }
 
-  return c.json({ conversation }, 201);
+  return { status: 201, body: { conversation } };
+}
+
+conversationsRoute.post("/", agentAuth, async (c) => {
+  const agentId = c.get("agentId");
+  const body = await c.req.json<{ isPublic?: boolean; participantIds?: string[] }>();
+  const result = await createConversationService(agentId, body);
+  return c.json(result.body, result.status as any);
+});
+
+// Invite an agent into an existing conversation — the only way to add a
+// participant post-creation (POST / only accepts participantIds at creation
+// time). Trust-gated the same way A2A recruit is (checkTrust, kind "a2a"),
+// not a separate trust model.
+export async function inviteToConversationService(
+  callerAgentId: string,
+  conversationId: string,
+  targetAgentId: string,
+): Promise<{ status: number; body: any }> {
+  const conversation = await db.query.conversations.findFirst({ where: eq(conversations.id, conversationId) });
+  if (!conversation) return { status: 404, body: { error: "conversation not found" } };
+
+  const callerParticipant = await db.query.conversationParticipants.findFirst({
+    where: and(eq(conversationParticipants.conversationId, conversationId), eq(conversationParticipants.agentId, callerAgentId)),
+  });
+  if (!callerParticipant) return { status: 403, body: { error: "not a participant" } };
+
+  const target = await db.query.agents.findFirst({ where: eq(agents.id, targetAgentId) });
+  if (!target) return { status: 404, body: { error: "target agent not found" } };
+
+  const trust = await checkTrust(callerAgentId, targetAgentId, "a2a");
+  if (!trust.allowed) {
+    return { status: 403, body: { error: trust.reason ?? "blocked by target trust policy" } };
+  }
+
+  const inserted = await db
+    .insert(conversationParticipants)
+    .values({ conversationId, agentId: targetAgentId })
+    .onConflictDoNothing()
+    .returning();
+
+  if (inserted.length > 0) {
+    await admitConversation(targetAgentId, conversationId);
+    const existingParticipants = await db.query.conversationParticipants.findMany({
+      where: eq(conversationParticipants.conversationId, conversationId),
+    });
+    const joinedEvent = envelope(WS_EVENTS.THREAD_PARTICIPANT_JOINED, {
+      conversation_id: conversationId,
+      agent_id: targetAgentId,
+      invited_by: callerAgentId,
+    });
+    for (const p of existingParticipants) {
+      if (p.agentId !== targetAgentId) sendToAgent(p.agentId, joinedEvent);
+    }
+    sendToAgent(targetAgentId, joinedEvent);
+  }
+
+  return { status: 200, body: { conversationId, invited: inserted.length > 0 } };
+}
+
+conversationsRoute.post("/:id/invite", agentAuth, async (c) => {
+  const agentId = c.get("agentId");
+  const conversationId = c.req.param("id");
+  const body = await c.req.json<{ agentId?: string }>();
+  if (!body.agentId) return c.json({ error: "agentId required" }, 400);
+  const result = await inviteToConversationService(agentId, conversationId, body.agentId);
+  return c.json(result.body, result.status as any);
 });
 
 // Leaving is the only thing that frees an admission slot — without this,
@@ -95,30 +165,34 @@ conversationsRoute.post("/:id/leave", agentAuth, async (c) => {
   return c.json({ left: deleted.length > 0 });
 });
 
-conversationsRoute.post("/:id/messages", agentAuth, async (c) => {
-  const agentId = c.get("agentId");
-  const conversationId = c.req.param("id");
-  const body = await c.req.json<{
+// Extracted so native agents can reply through the exact same
+// budget/rate/trust/broadcast logic a route handler runs — no duplicate
+// policy code, no privileged native-only path.
+export async function sendMessageService(
+  agentId: string,
+  conversationId: string,
+  body: {
     content: string;
     replyToId?: string;
     tokensUsed?: number;
     spendCents?: number;
     clientMessageId?: string;
     attachments?: { url: string; title?: string; type?: string }[];
-  }>();
-
+    runId?: string | null;
+  },
+): Promise<{ status: number; body: any }> {
   if (!body.content) {
-    return c.json({ error: "content required" }, 400);
+    return { status: 400, body: { error: "content required" } };
   }
   if (body.content.length > 32 * 1024) {
-    return c.json({ error: "content too large (max 32KB)" }, 400);
+    return { status: 400, body: { error: "content too large (max 32KB)" } };
   }
 
   const conversation = await db.query.conversations.findFirst({
     where: eq(conversations.id, conversationId),
   });
   if (!conversation) {
-    return c.json({ error: "conversation not found" }, 404);
+    return { status: 404, body: { error: "conversation not found" } };
   }
 
   const participant = await db.query.conversationParticipants.findFirst({
@@ -128,7 +202,7 @@ conversationsRoute.post("/:id/messages", agentAuth, async (c) => {
     ),
   });
   if (!participant) {
-    return c.json({ error: "not a participant" }, 403);
+    return { status: 403, body: { error: "not a participant" } };
   }
 
   // Idempotency: a retry carrying the same clientMessageId short-circuits
@@ -148,19 +222,19 @@ conversationsRoute.post("/:id/messages", agentAuth, async (c) => {
       ),
     });
     if (existing) {
-      return c.json({ message: existing }, 200);
+      return { status: 200, body: { message: existing } };
     }
   }
 
   const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
   const wallet = await db.query.agentWallets.findFirst({ where: eq(agentWallets.agentId, agentId) });
   if (!agent || !wallet) {
-    return c.json({ error: "agent wallet not found" }, 500);
+    return { status: 500, body: { error: "agent wallet not found" } };
   }
 
   const autonomy = checkAutonomy(wallet.autonomyMode, body.spendCents ?? 0);
   if (!autonomy.allowed) {
-    return c.json({ error: autonomy.reason }, 403);
+    return { status: 403, body: { error: autonomy.reason } };
   }
 
   const budget = await checkAndConsumeBudget(agentId, body.tokensUsed ?? 0, wallet.dailyTokenBudget);
@@ -172,7 +246,7 @@ conversationsRoute.post("/:id/messages", agentAuth, async (c) => {
       summary: `${agent.name} exceeded its daily token budget`,
       refConversationId: conversationId,
     });
-    return c.json({ error: budget.reason }, 429);
+    return { status: 429, body: { error: budget.reason } };
   }
 
   if (autonomy.requiresApproval) {
@@ -187,14 +261,14 @@ conversationsRoute.post("/:id/messages", agentAuth, async (c) => {
   const agentRate = await checkAgentSendRate(agentId);
   if (!agentRate.allowed) {
     sendToAgent(agentId, envelope(WS_EVENTS.RATE_LIMITED, { reason: agentRate.reason }));
-    return c.json({ error: agentRate.reason }, 429);
+    return { status: 429, body: { error: agentRate.reason } };
   }
 
   if (conversation.roomId) {
     const roomRate = await checkRoomSendRate(conversation.roomId);
     if (!roomRate.allowed) {
       sendToAgent(agentId, envelope(WS_EVENTS.RATE_LIMITED, { reason: roomRate.reason }));
-      return c.json({ error: roomRate.reason }, 429);
+      return { status: 429, body: { error: roomRate.reason } };
     }
   }
 
@@ -211,6 +285,7 @@ conversationsRoute.post("/:id/messages", agentAuth, async (c) => {
         content: body.content,
         replyToId: body.replyToId,
         clientMessageId: body.clientMessageId,
+        runId: body.runId ?? null,
       })
       .onConflictDoNothing()
       .returning();
@@ -232,10 +307,10 @@ conversationsRoute.post("/:id/messages", agentAuth, async (c) => {
         eq(messages.clientMessageId, body.clientMessageId),
       ),
     });
-    if (message) return c.json({ message }, 200);
+    if (message) return { status: 200, body: { message } };
   }
   if (!message) {
-    return c.json({ error: "message insert failed" }, 500);
+    return { status: 500, body: { error: "message insert failed" } };
   }
 
   // evidence attachments — what prevents hallucination, stored per message
@@ -275,7 +350,22 @@ conversationsRoute.post("/:id/messages", agentAuth, async (c) => {
     broadcastToPublic(envelope(WS_EVENTS.PUBLIC_MESSAGE, { conversation_id: conversationId }));
   }
 
-  return c.json({ message }, 201);
+  return { status: 201, body: { message } };
+}
+
+conversationsRoute.post("/:id/messages", agentAuth, async (c) => {
+  const agentId = c.get("agentId");
+  const conversationId = c.req.param("id");
+  const body = await c.req.json<{
+    content: string;
+    replyToId?: string;
+    tokensUsed?: number;
+    spendCents?: number;
+    clientMessageId?: string;
+    attachments?: { url: string; title?: string; type?: string }[];
+  }>();
+  const result = await sendMessageService(agentId, conversationId, body);
+  return c.json(result.body, result.status as any);
 });
 
 conversationsRoute.get("/:id/messages", agentAuth, async (c) => {

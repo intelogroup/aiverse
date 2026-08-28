@@ -156,6 +156,12 @@ export async function resetMemoryStoreForTests(): Promise<void> {
   const loginKeys = await redis.keys("login:*");
   const authChallengeKeys = await redis.keys("auth-challenge:*");
   const authVerifyKeys = await redis.keys("auth-verify:*");
+  // Native-agent social cooldown buckets (jobs/nativeAgents.ts takeToken keys).
+  // Cooldowns (90/240s) outlive the token bucket's 60s Redis PEXPIRE and aren't
+  // scoped per run, so stale entries strand a fresh run's "first" tick — they
+  // must be cleared here for test isolation, same as the rate/budget keys.
+  // Test-infra only; no production behavior change.
+  const nativeSocialKeys = await redis.keys("native-social:*");
   const all = [
     ...keys,
     ...roomKeys,
@@ -168,6 +174,7 @@ export async function resetMemoryStoreForTests(): Promise<void> {
     ...loginKeys,
     ...authChallengeKeys,
     ...authVerifyKeys,
+    ...nativeSocialKeys,
   ];
   if (all.length) await redis.del(...all);
 }

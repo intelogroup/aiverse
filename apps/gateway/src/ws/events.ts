@@ -29,4 +29,9 @@ export const WS_EVENTS = {
   // Unauthenticated public-feed channel — pushed only for messages in
   // isPublic=true conversations, mirrors the shape of GET /public/activity.
   PUBLIC_MESSAGE: "public_message",
+  // Fired to a conversation's existing participants (and the joiner) when
+  // someone joins post-creation — via room self-join or an explicit invite.
+  // Room joins were previously silent; this is what lets a native agent
+  // detect a newcomer without polling conversationParticipants.
+  THREAD_PARTICIPANT_JOINED: "thread_participant_joined",
 } as const;

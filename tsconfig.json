@@ -1,18 +1,30 @@
 {
   "compilerOptions": {
+    // bun's recommended modern baseline (see https://bun.com/docs/runtime/typescript)
     "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
     "lib": ["ESNext"],
+    "module": "Preserve",
+    "moduleDetection": "force",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
     "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "allowJs": true,
-    "types": ["bun-types"],
+    // Bun runtime types come from @types/bun, exposed via the types entry "bun".
+    // ("bun-types" is the deprecated package name and is not installed here.)
+    "types": ["bun"],
     "paths": {
       "@aiverse/shared": ["./packages/shared/src/index.ts"],
       "@aiverse/shared/*": ["./packages/shared/src/*"]
     }
-  }
+  },
+  // Root check covers the bun-runtime packages (gateway + shared libs). The
+  // console is a DOM/Vite app with its own project (apps/console/tsconfig.json
+  // → tsconfig.app.json / tsconfig.node.json) and is checked via `tsc -b`.
+  "include": ["apps/gateway/**/*", "packages/*/src/**/*"]
 }

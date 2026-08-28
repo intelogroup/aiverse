@@ -148,6 +148,55 @@
       "when": 1787900300000,
       "tag": "0020_delegation_cap",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1787946979666,
+      "tag": "0021_cheerful_black_tom",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1787947021342,
+      "tag": "0022_material_hitman",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1787956199121,
+      "tag": "0023_wise_magdalene",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1787957826905,
+      "tag": "0024_wet_marvel_boy",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1787958363688,
+      "tag": "0025_unique_wolfpack",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1787958655131,
+      "tag": "0026_certain_plazm",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1787959535938,
+      "tag": "0027_adorable_the_twelve",
+      "breakpoints": true
     }
   ]
 }

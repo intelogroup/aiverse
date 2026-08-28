@@ -113,6 +113,32 @@ export const conversationParticipants = pgTable(
   ],
 );
 
+// Native-agent experiment run — the immutable-ish lifecycle/header record for
+// a single experiment (one gateway boot, or a resumed one). Deliberately NOT
+// a counter store: cost/message totals are DERIVED by querying the artifacts
+// stamped with runId (messages.run_id, agent_memory.run_id, a2a_run
+// correlation), so retries/crashes can't drift a duplicated counter. Aggregate
+// throughput per run is computed at read time (or cached) from those, not
+// written here.
+export const nativeRuns = pgTable(
+  "native_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    status: text("status").notNull().default("running"), // running | completed | aborted
+    mode: text("mode").notNull(), // auto | mock | openrouter (from NATIVE_LLM_MODE)
+    model: text("model"), // resolved provider model, when a real LLM call was made
+    provider: text("provider").notNull().default("openrouter"),
+    agentIds: uuid("agent_ids").array().notNull().default([]), // natives in scope
+    // Reproducible-config fingerprint + full capture so a run can be replayed
+    // and compared against later ones with the same policy/config.
+    seedHash: text("seed_hash"),
+    config: jsonb("config").notNull().default({}),
+    startedAt: timestamp("started_at").notNull().defaultNow(),
+    endedAt: timestamp("ended_at"),
+  },
+  (t) => [index("native_runs_status_idx").on(t.status), index("native_runs_started_idx").on(t.startedAt)],
+);
+
 export const messages = pgTable(
   "messages",
   {
@@ -140,6 +166,11 @@ export const messages = pgTable(
     // Scoped per (conversation, sender) so two different agents reusing the
     // same id string in the same conversation don't collide.
     clientMessageId: text("client_message_id"),
+    // Which experiment run produced this message, if any. NULL for ordinary
+    // (non-experiment) traffic. Authoritative attribution for native-agent
+    // experiments; the `client_message_id` subpattern (native:<run_id>:<seq>)
+    // is only idempotency/debugging aid, never the attribution source.
+    runId: uuid("run_id").references(() => nativeRuns.id),
   },
   (t) => [
     index("messages_conversation_created_idx").on(t.conversationId, t.createdAt),
@@ -229,6 +260,37 @@ export const walletUsageDaily = pgTable(
   (t) => [index("wallet_usage_daily_agent_date_idx").on(t.agentId, t.date)],
 );
 
+// Human mandate — what turns a registered agent into a personal agent. The
+// owner authors it; the agent carries it. Standing objectives, behavior
+// preferences, and work-initiation permissions live here so an agent entering
+// AIVerse already knows what its human wants and what work it may start
+// unprompted. Deliberate non-duplicates: spend ceilings stay on agentWallets,
+// trust/block on agentPolicyScope — the mandate references posture, it never
+// copies a gate. Owner-only write path (an agent can never self-authorize a
+// bigger mandate, same hard invariant as wallets).
+export const agentMandates = pgTable("agent_mandates", {
+  agentId: uuid("agent_id")
+    .primaryKey()
+    .references(() => agents.id),
+  ownerId: uuid("owner_id")
+    .notNull()
+    .references(() => owners.id),
+  // Standing objectives the human wants pursued over time — array of strings.
+  // These are NOT goals: the agent derives goals from them as it acts.
+  // A goal is one task-shaped instance; an objective is the standing want.
+  objectives: jsonb("objectives").notNull().default([]),
+  // Style/behavior preferences (verbosity, risk posture, tone, ...). Freeform
+  // jsonb object — v1 deliberately avoids a schema agents must adopt.
+  preferences: jsonb("preferences").notNull().default({}),
+  // What work the agent may initiate unprompted, e.g.
+  // { initiateGoals: true, unsolicitedMessages: false, delegateToUntrusted: false }.
+  // v1 is DECLARATIVE (the agent reads and honors it; gates don't enforce it
+  // yet) — enforcement wiring waits for evidence it's needed.
+  permissions: jsonb("permissions").notNull().default({}),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Phase 8 (A2A 0.3.0, pinned — see plan). Mirrors A2A's TaskState enum plus
 // AIVerse's own target-side authorization primitive (requiresApproval).
 export const a2aTaskStateEnum = pgEnum("a2a_task_state", [
@@ -283,6 +345,61 @@ export const a2aTasks = pgTable(
   ],
 );
 
+// Outcome ledger — THE product primitive underneath reputation, the native
+// traffic curve, and the human-accepted-work north star. Materialized from
+// terminal a2a_tasks by the hourly reconcile job (jobs/outcomeLedger.ts),
+// NOT by transition hooks: tasks reach terminal states via both A2A routes
+// and gc.ts bulk-cancel, and a2a_tasks rows are DELETED after 30 days — this
+// ledger must outlive them, so it holds denormalized copies and plain uuid
+// references (no FKs). Append-only except goalAccepted backfill. gc.ts must
+// NEVER delete from this table.
+export const taskOutcomes = pgTable(
+  "task_outcomes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    // a2a_tasks.id — unique + ON CONFLICT DO NOTHING keeps reconcile idempotent.
+    // Plain uuid: the task row is deleted after 30 days.
+    taskId: uuid("task_id").notNull().unique(),
+    // goals.contextId — durable goal↔task lineage (the goals row is never GC'd).
+    contextId: uuid("context_id").notNull(),
+    targetAgentId: uuid("target_agent_id").notNull(), // plain uuid, agents can be purged
+    callerAgentId: uuid("caller_agent_id").notNull(),
+    // Quarantine ("natives calibrate, never rank") and the native-traffic
+    // share curve fall out of these two flags. Denormalized at reconcile time
+    // because the referenced agents row may be purged later.
+    targetIsNative: boolean("target_is_native").notNull(),
+    callerIsNative: boolean("caller_is_native").notNull(),
+    // Terminal state only (completed | failed | canceled | rejected).
+    state: a2aTaskStateEnum("state").notNull(),
+    // updated_at - created_at at the moment of terminal transition.
+    latencyMs: integer("latency_ms"),
+    // null = no owner verdict yet; true = parent goal accepted; false = rejected.
+    // Backfilled by the accept/reject endpoints plus the reconcile sweep (which
+    // catches verdicts that arrived before this row was materialized).
+    goalAccepted: boolean("goal_accepted"),
+    // Nullable native-experiment provenance — set when the source a2a_task's
+    // request_message carries a runId (native:runId:seq) AND that id exists
+    // in native_runs (the reconcile job verifies before storing; the raw
+    // caller string never lands here). DELIBERATELY a plain uuid with NO FK:
+    // the raw value is caller-supplied, and a hard FK would let any agent
+    // poison the whole materialization batch with one fake uuid (FK violation
+    // kills the INSERT, the job's try/catch swallows it, and the ledger
+    // silently halts). Stored value is therefore GUARANTEED by the job to be
+    // a verified native_runs.id, or NULL (malformed / nonexistent / ordinary
+    // non-experiment task).
+    sourceRunId: uuid("source_run_id"),
+    // When the TASK happened (copied from a2a_tasks.created_at), not when this
+    // row was materialized (at most an hour later).
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("task_outcomes_target_state_idx").on(t.targetAgentId, t.state),
+    index("task_outcomes_caller_state_idx").on(t.callerAgentId, t.state),
+    index("task_outcomes_context_idx").on(t.contextId),
+    index("task_outcomes_source_run_idx").on(t.sourceRunId),
+  ],
+);
+
 export const consoleEvents = pgTable(
   "console_events",
   {
@@ -320,7 +437,17 @@ export const securityEvents = pgTable(
   (t) => [index("security_events_agent_event_idx").on(t.agentId, t.event), index("security_events_created_idx").on(t.createdAt)],
 );
 
-export const goalStatusEnum = pgEnum("goal_status", ["open", "researching", "synthesized", "closed"]);
+export const goalStatusEnum = pgEnum("goal_status", [
+  "open",
+  "researching",
+  "synthesized",
+  "closed",
+  // Verdict states — owner-only transitions (ownerGoalsRoute accept/reject).
+  // The agent PROPOSES synthesized; only the human owner can transition to
+  // accepted/rejected. Self-graded goals must never feed the outcome ledger.
+  "accepted",
+  "rejected",
+]);
 
 // Human goal — durable correlation boundary for useful work.
 // Agent creates/updates, console watches. contextId is reused as a2aTasks.contextId
@@ -335,10 +462,34 @@ export const goals = pgTable(
     objective: text("objective").notNull(),
     status: goalStatusEnum("status").notNull().default("open"),
     result: jsonb("result"),
+    // Set only by the owner-only accept transition (ownerGoalsRoute
+    // /goals/:id/accept). Null for rejected goals and anything pre-verdict.
+    acceptedAt: timestamp("accepted_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (t) => [index("goals_owner_idx").on(t.ownerId), index("goals_agent_idx").on(t.agentId), index("goals_context_idx").on(t.contextId)],
+);
+
+// Native-agent memory v1 — deliberately flat, no embeddings/RAG. Whether
+// persistent recall changes behavior is the thing being tested; a richer
+// store is only worth building once that's confirmed.
+export const agentMemory = pgTable(
+  "agent_memory",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agentId: uuid("agent_id").notNull().references(() => agents.id),
+    type: text("type").notNull(), // interaction | encountered_agent | conclusion | goal_note
+    content: text("content").notNull(),
+    sourceMessageId: uuid("source_message_id"),
+    // Which experiment run produced this memory row, if any. Authoritative for
+    // experiment attribution; cross-checked in tests against
+    // sourceMessageId → messages.runId (must agree) but NOT mandatory here,
+    // because some legitimate memories are not message-derived.
+    runId: uuid("run_id").references(() => nativeRuns.id),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("agent_memory_agent_idx").on(t.agentId, t.createdAt)],
 );
 
 export const messageAttachments = pgTable(

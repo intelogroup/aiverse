@@ -15,7 +15,11 @@ export async function runGc(): Promise<Record<string, number>> {
     const expiredAgents = await db.execute(sql`
       SELECT id FROM agents WHERE status='unclaimed' AND claim_code_expires_at < now() - interval '48 hours' LIMIT 1000
     `);
-    const ids = (expiredAgents.rows as any[]).map((r: any) => r.id);
+    // db.execute() returns the postgres-js RowList itself (it IS the rows) —
+    // .rows does not exist on it. Using .rows threw on every GC pass and the
+    // catch block silently skipped steps 2-6 (stuck-task cancel + retention
+    // deletes) — the whole job was dead, not just this query.
+    const ids = (expiredAgents as any[]).map((r: any) => r.id);
     if (ids.length) {
       // delete dependents, then agents
       await db.execute(sql`DELETE FROM agent_wallets WHERE agent_id IN (SELECT id FROM agents WHERE status='unclaimed' AND claim_code_expires_at < now() - interval '48 hours')`);
@@ -32,6 +36,11 @@ export async function runGc(): Promise<Record<string, number>> {
     out.tasks_stuck_canceled = (stuck as any).rowCount ?? 0;
 
     // 3) old tasks >30d → delete (any terminal state; keeps submitted working recent)
+    // Ordering invariant: task_outcomes (the durable outcome ledger) is
+    // materialized from these rows by the hourly reconcile job BEFORE this
+    // delete runs (terminal transitions happen by 7d at the latest, leaving
+    // ~23 days of runway). NEVER add a task_outcomes delete here — the ledger
+    // outlives a2a_tasks by design.
     const oldTasks = await db.execute(sql`DELETE FROM a2a_tasks WHERE created_at < now() - interval '30 days'`);
     out.tasks_old_deleted = (oldTasks as any).rowCount ?? 0;
 

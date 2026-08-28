@@ -6,6 +6,7 @@ import {
   agents,
   agentWallets,
   agentPolicyScope,
+  agentMandates,
   consoleEvents,
   conversationParticipants,
   messages,
@@ -276,6 +277,90 @@ ownersRoute.patch("/agents/:id/policy", ownerAuth, async (c) => {
   if (body.blockedAgentIds) await audit({ event: "agent.blocked", agentId, ownerId, actorType: "owner", actorId: ownerId, targetAgentId: body.blockedAgentIds[0] ?? null, metadata: { blocked: body.blockedAgentIds } });
   await audit({ event: "policy.changed", agentId, ownerId, actorType: "owner", actorId: ownerId, metadata: { patch } });
   return c.json({ policy: updated });
+});
+
+// Mandate — the owner-authored answer to "what does my human want from this
+// agent?" Owner-only write path (an agent can never self-authorize a bigger
+// mandate, same hard invariant as wallets); the agent reads its own via
+// GET /mandate (routes/manifest.ts). Objectives are standing wants, NOT
+// goals — the agent derives goals from them as it acts.
+ownersRoute.get("/agents/:id/mandate", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const agentId = c.req.param("id");
+  const agent = await loadOwnedAgent(ownerId, agentId);
+  if (!agent) return c.json({ error: "not found" }, 404);
+
+  const mandate = await db.query.agentMandates.findFirst({ where: eq(agentMandates.agentId, agentId) });
+  return c.json({ mandate: mandate ?? null });
+});
+
+// Validation caps keep mandates honest-size while content stays freeform:
+// ≤20 objectives of 3–500 chars, preferences/permissions plain objects ≤2KB.
+function validateMandateBody(body: any):
+  | { error: string }
+  | { objectives: string[]; preferences: Record<string, unknown>; permissions: Record<string, unknown> } {
+  if (!Array.isArray(body.objectives)) return { error: "objectives must be an array of strings" };
+  const objectives: string[] = [];
+  for (const o of body.objectives) {
+    if (typeof o !== "string") return { error: "objectives must be strings" };
+    const t = o.trim();
+    if (t.length < 3 || t.length > 500) return { error: "each objective must be 3-500 chars" };
+    objectives.push(t);
+  }
+  if (objectives.length > 20) return { error: "at most 20 objectives" };
+  for (const field of ["preferences", "permissions"] as const) {
+    const v = body[field];
+    if (v === undefined) continue;
+    if (typeof v !== "object" || v === null || Array.isArray(v)) return { error: `${field} must be an object` };
+    if (JSON.stringify(v).length > 2048) return { error: `${field} too large (max 2KB)` };
+  }
+  return {
+    objectives,
+    preferences: body.preferences ?? {},
+    permissions: body.permissions ?? {},
+  };
+}
+
+ownersRoute.put("/agents/:id/mandate", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const agentId = c.req.param("id");
+  const agent = await loadOwnedAgent(ownerId, agentId);
+  if (!agent) return c.json({ error: "not found" }, 404);
+
+  const body = await c.req.json().catch(() => null);
+  const parsed = validateMandateBody(body ?? {});
+  if ("error" in parsed) return c.json({ error: parsed.error }, 400);
+
+  const [mandate] = await db
+    .insert(agentMandates)
+    .values({
+      agentId,
+      ownerId,
+      objectives: parsed.objectives,
+      preferences: parsed.preferences,
+      permissions: parsed.permissions,
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: agentMandates.agentId,
+      set: {
+        objectives: parsed.objectives,
+        preferences: parsed.preferences,
+        permissions: parsed.permissions,
+        updatedAt: new Date(),
+      },
+    })
+    .returning();
+
+  await audit({
+    event: "mandate.set",
+    agentId,
+    ownerId,
+    actorType: "owner",
+    actorId: ownerId,
+    metadata: { objectives: parsed.objectives.length },
+  });
+  return c.json({ mandate });
 });
 
 ownersRoute.post("/agents/:id/pause", ownerAuth, async (c) => {

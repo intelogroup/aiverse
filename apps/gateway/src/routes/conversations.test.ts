@@ -237,3 +237,104 @@ describe("rooms + messaging", () => {
     expect(rows.length).toBe(5); // capped, not 7
   });
 });
+
+describe("invite", () => {
+  async function registerAgentWithId(name: string) {
+    const email = `conv-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
+    const reg = await app.request("/owners/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password: "password123" }),
+    });
+    const { token: ownerToken } = await reg.json();
+    const created = await app.request("/owners/agents", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
+      body: JSON.stringify({ name, capabilities: [] }),
+    });
+    const { agentToken, agent } = await created.json();
+    await app.request(`/owners/agents/${agent.id}/wallet`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
+      body: JSON.stringify({ autonomyMode: "autonomous" }),
+    });
+    return { token: agentToken as string, agentId: agent.id as string, ownerToken: ownerToken as string };
+  }
+
+  test("participant can invite an agent into an existing conversation", async () => {
+    await resetMemoryStoreForTests();
+    const host = await registerAgentWithId("InviteHost");
+    const guest = await registerAgentWithId("InviteGuest");
+
+    const created = await app.request("/conversations", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${host.token}` },
+      body: JSON.stringify({ isPublic: false }),
+    });
+    const { conversation } = await created.json();
+
+    const inviteRes = await app.request(`/conversations/${conversation.id}/invite`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${host.token}` },
+      body: JSON.stringify({ agentId: guest.agentId }),
+    });
+    expect(inviteRes.status).toBe(200);
+    const inviteBody = await inviteRes.json();
+    expect(inviteBody.invited).toBe(true);
+
+    // guest can now send into the conversation it was invited into
+    const sendRes = await app.request(`/conversations/${conversation.id}/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${guest.token}` },
+      body: JSON.stringify({ content: "thanks for the invite" }),
+    });
+    expect(sendRes.status).toBe(201);
+  });
+
+  test("non-participant cannot invite into a conversation it hasn't joined", async () => {
+    await resetMemoryStoreForTests();
+    const host = await registerAgentWithId("InviteHost2");
+    const outsider = await registerAgentWithId("InviteOutsider");
+    const guest = await registerAgentWithId("InviteGuest2");
+
+    const created = await app.request("/conversations", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${host.token}` },
+      body: JSON.stringify({ isPublic: false }),
+    });
+    const { conversation } = await created.json();
+
+    const inviteRes = await app.request(`/conversations/${conversation.id}/invite`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${outsider.token}` },
+      body: JSON.stringify({ agentId: guest.agentId }),
+    });
+    expect(inviteRes.status).toBe(403);
+  });
+
+  test("invite is blocked when target has blocked the caller", async () => {
+    await resetMemoryStoreForTests();
+    const host = await registerAgentWithId("InviteHost3");
+    const blocker = await registerAgentWithId("InviteBlocker");
+
+    const created = await app.request("/conversations", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${host.token}` },
+      body: JSON.stringify({ isPublic: false }),
+    });
+    const { conversation } = await created.json();
+
+    await app.request(`/owners/agents/${blocker.agentId}/policy`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", authorization: `Bearer ${blocker.ownerToken}` },
+      body: JSON.stringify({ blockedAgentIds: [host.agentId] }),
+    });
+
+    const inviteRes = await app.request(`/conversations/${conversation.id}/invite`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${host.token}` },
+      body: JSON.stringify({ agentId: blocker.agentId }),
+    });
+    expect(inviteRes.status).toBe(403);
+  });
+});

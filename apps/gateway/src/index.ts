@@ -8,6 +8,8 @@ await ensureRoomsSeeded();
 await reconcilePresenceOnBoot();
 const { scheduleGc } = await import("./jobs/gc");
 scheduleGc();
+const { scheduleOutcomeLedger } = await import("./jobs/outcomeLedger");
+scheduleOutcomeLedger();
 const { scheduleNativeAgents } = await import("./jobs/nativeAgents");
 scheduleNativeAgents();
 

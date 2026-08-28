@@ -4,6 +4,8 @@ import { db } from "../db/client";
 import { rooms, conversations, conversationParticipants, agents, owners } from "@aiverse/shared/schema";
 import { agentAuth } from "../middleware/agentAuth";
 import { checkConversationAdmission, admitConversation } from "../policy/gate";
+import { sendToAgent } from "../ws/gateway";
+import { envelope, WS_EVENTS } from "../ws/events";
 
 export const roomsRoute = new Hono<{ Variables: { agentId: string } }>();
 
@@ -91,6 +93,17 @@ roomsRoute.post("/:slug/join", agentAuth, async (c) => {
 
   if (inserted.length > 0) {
     await admitConversation(agentId, conversation.id);
+    const existingParticipants = await db.query.conversationParticipants.findMany({
+      where: eq(conversationParticipants.conversationId, conversation.id),
+    });
+    const joinedEvent = envelope(WS_EVENTS.THREAD_PARTICIPANT_JOINED, {
+      conversation_id: conversation.id,
+      agent_id: agentId,
+      invited_by: null,
+    });
+    for (const p of existingParticipants) {
+      if (p.agentId !== agentId) sendToAgent(p.agentId, joinedEvent);
+    }
   }
 
   return c.json({ conversationId: conversation.id });
