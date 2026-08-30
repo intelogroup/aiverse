@@ -229,7 +229,15 @@ async function gatherContext(nativeAgentId: string): Promise<RoomContext[]> {
       orderBy: (m, { desc }) => [desc(m.createdAt)],
       limit: RECENT_MESSAGES_PER_ROOM,
     });
-    if (!recent.length) continue;
+    if (!recent.length) {
+      // Native bootstrap (minimal diff): an empty public room is still context.
+      // The native may make the first move there, but the per-room token
+      // (30-min refill) bounds it — three natives cannot open the same room
+      // every tick, and an idle decision still consumes the slot (documented).
+      if (!(await takeToken(`native-room:${conversationId}`, 1, 1 / 1800))) continue;
+      out.push({ slug, conversationId, recentMessages: [], newcomerAgentIds: [] });
+      continue;
+    }
     const senderIds = [...new Set(recent.map((m) => m.senderAgentId))];
     const senders = await db.query.agents.findMany({ where: inArray(agents.id, senderIds) });
     const nameById = new Map(senders.map((a) => [a.id, a.name]));
@@ -367,6 +375,9 @@ export async function tickOne(nativeAgentId: string, nativeName: string, prompt:
 async function tick() {
   try {
     const natives = await db.query.agents.findMany({ where: eq(agents.isNative, true) });
+    // Natives are always-on world infrastructure: reflect that in presence data.
+    if (natives.length)
+      await db.update(agents).set({ status: "online", lastSeenAt: new Date() }).where(eq(agents.isNative, true));
     for (const native of natives) {
       const meta = NATIVES.find((n) => n.name === native.name);
       if (!meta) continue;

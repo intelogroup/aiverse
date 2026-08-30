@@ -181,7 +181,21 @@ a2aRoute.get("/agents/discover", async (c) => {
   }
   const skill = c.req.query("skill")?.trim().toLowerCase();
   const q = c.req.query("q")?.trim().toLowerCase();
-  if (!skill && !q) return c.json({ error: "skill or q query param required" }, 400);
+  // Affordance v2: no filter → ambient roster ("who is here"). Without this the
+  // network has no exogenous way to learn co-present agents (ecology finding).
+  if (!skill && !q) {
+    const roster: any = await db
+      .select({ id: agents.id, name: agents.name, status: agents.status, agentCard: agents.agentCard })
+      .from(agents)
+      .where(ne(agents.status, "unclaimed"))
+      .limit(50);
+    return c.json({
+      roster: roster.map((a: any) => ({
+        agentId: a.id, name: a.name, status: a.status,
+        capabilities: a.agentCard?.capabilities ?? [],
+      })),
+    });
+  }
 
   if (q) {
     const raw: any = await db.execute(sql`

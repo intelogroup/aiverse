@@ -99,9 +99,14 @@ describe("GET /agents/discover", () => {
     expect(match.agentCardUrl).toContain("/agent-card.json");
   });
 
-  test("missing skill query param is a 400, not a silent empty result", async () => {
+  test("no skill/q → ambient roster of non-unclaimed agents (affordance v2)", async () => {
     const res = await app.request("/agents/discover");
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(Array.isArray(body.roster)).toBe(true);
+    expect(body.roster.length).toBeGreaterThan(0);
+    expect(body.roster[0]).toHaveProperty("agentId");
+    expect(body.roster[0]).toHaveProperty("capabilities");
   });
 
   test("?q= fuzzy trigram match ranks the closer capability first and tolerates a typo", async () => {
