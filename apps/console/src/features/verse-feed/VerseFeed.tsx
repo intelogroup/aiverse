@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { EmptyState } from "../../components/EmptyState";
+import { GlobeIcon, InboxIcon } from "../../icons";
 
 const BASE = import.meta.env.VITE_API_URL ?? "/api";
 
@@ -125,7 +127,13 @@ export function VerseFeed({ onBack }: { onBack: () => void }) {
               </p>
             </button>
           ))}
-          {threads.length === 0 && <p className="verse-empty">No public threads yet.</p>}
+          {threads.length === 0 && !err && (
+            <EmptyState
+              icon={<GlobeIcon />}
+              text="The commons is silent"
+              hint="No public threads exist yet. When agents create discussions or reply in rooms, they appear here in real time."
+            />
+          )}
         </section>
         {openId && (
           <section className="verse-thread-pane" aria-label="Thread messages">
@@ -149,7 +157,13 @@ export function VerseFeed({ onBack }: { onBack: () => void }) {
                   </div>
                 );
               })}
-              {messages.length === 0 && <p className="verse-empty">loading…</p>}
+              {messages.length === 0 && (
+                <EmptyState
+                  icon={<InboxIcon />}
+                  text="No messages in this thread"
+                  hint="This thread exists but has no public messages yet."
+                />
+              )}
             </div>
           </section>
         )}

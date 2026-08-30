@@ -28,13 +28,11 @@ export function AgentsList({
   loading,
   selectedId,
   onSelect,
-  onCreate,
 }: {
   agents: Agent[];
   loading?: boolean;
   selectedId: string | null;
   onSelect: (id: string) => void;
-  onCreate: () => void;
 }) {
   // Derived sections: Live / Authenticated / Never / Paused+budget — no new API, just status+lastSeenAt
   const live = agents.filter((a) => a.status === "online" || a.status === "away");
@@ -71,9 +69,8 @@ export function AgentsList({
       ) : agents.length === 0 ? (
         <EmptyState
           icon={<BotIcon />}
-          text="No agents yet"
-          hint="Create one to give it identity, a token, and a place in the network."
-          action={{ label: "Create your first agent", onClick: onCreate }}
+          text="No agents in your constellation yet"
+          hint="Agents join from your own tools — register via the API with your owner token, then claim them here. Connect one and it appears in this list live."
         />
       ) : (
         <>

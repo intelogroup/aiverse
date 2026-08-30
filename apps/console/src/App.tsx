@@ -18,11 +18,10 @@ import { PublicHomepage } from "./features/homepage/PublicHomepage";
 import { VerseFeed } from "./features/verse-feed/VerseFeed";
 import { DocsPage } from "./features/docs/DocsPage";
 import { Sidebar } from "./components/Sidebar";
-import { Modal } from "./components/Modal";
+import { ChevronDownIcon, BotIcon } from "./icons";
 import { EmptyState } from "./components/EmptyState";
 import { ToastStack } from "./components/ToastStack";
 import { CommandPalette } from "./components/CommandPalette";
-import { ChevronDownIcon, PlusIcon, BotIcon, CopyIcon, CheckIcon } from "./icons";
 
 export type View = "console" | "public" | "docs" | "verse";
 
@@ -52,13 +51,7 @@ export default function App() {
   const [agentsLoaded, setAgentsLoaded] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [liveEvents, setLiveEvents] = useState<ConsoleEvent[]>([]);
-  const [showNewAgent, setShowNewAgent] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-  const [newAgentName, setNewAgentName] = useState("");
-  const [newAgentCapabilities, setNewAgentCapabilities] = useState("");
-  const [newAgentDescription, setNewAgentDescription] = useState("");
-  const [justCreatedToken, setJustCreatedToken] = useState<{ name: string; token: string } | null>(null);
-  const [tokenCopied, setTokenCopied] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
 
   const token = getOwnerToken();
@@ -161,42 +154,6 @@ export default function App() {
 
   const selectedAgent = agents.find((a) => a.id === selectedId) ?? null;
 
-  async function createAgent(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newAgentName.trim()) return;
-    const capabilities = newAgentCapabilities
-      .split(",")
-      .map((c) => c.trim())
-      .filter(Boolean);
-    try {
-      const { agent, agentToken } = await api.createAgent(
-        newAgentName.trim(),
-        capabilities,
-        newAgentDescription.trim() || undefined,
-      );
-      setNewAgentName("");
-      setNewAgentCapabilities("");
-      setNewAgentDescription("");
-      setShowNewAgent(false);
-      refreshAgents();
-      setSelectedId(agent.id);
-      // agentToken is shown once — the owner copies it into whatever runtime
-      // (OpenClaw, a script, etc.) they're connecting as this agent.
-      setTokenCopied(false);
-      setJustCreatedToken({ name: agent.name, token: agentToken });
-    } catch (err) {
-      pushToast(err instanceof Error ? err.message : "failed to create agent");
-    }
-  }
-
-  function copyToken() {
-    if (!justCreatedToken) return;
-    navigator.clipboard.writeText(justCreatedToken.token).then(() => {
-      setTokenCopied(true);
-      setTimeout(() => setTokenCopied(false), 2000);
-    });
-  }
-
   function logout() {
     setOwnerToken(null);
     setOwnerEmail(null);
@@ -245,21 +202,7 @@ export default function App() {
           </div>
         </header>
 
-        {justCreatedToken && (
-          <div className="agent-token-banner">
-            <span>
-              Agent "{justCreatedToken.name}" token (copy now, shown once): <code>{justCreatedToken.token}</code>
-            </span>
-            <span className="agent-token-banner-actions">
-              <button type="button" className="icon-button" aria-label="Copy token" onClick={copyToken}>
-                {tokenCopied ? <CheckIcon /> : <CopyIcon />}
-              </button>
-              <button type="button" className="link" onClick={() => setJustCreatedToken(null)}>
-                dismiss
-              </button>
-            </span>
-          </div>
-        )}
+        </header>
 
         <div className="console-grid">
           <aside className="left-col">
@@ -268,11 +211,7 @@ export default function App() {
               loading={!agentsLoaded}
               selectedId={selectedId}
               onSelect={setSelectedId}
-              onCreate={() => setShowNewAgent(true)}
             />
-            <button type="button" className="icon-button-labeled new-agent-button" onClick={() => setShowNewAgent(true)}>
-              <PlusIcon /> Connect your agent
-            </button>
             <div className="connect-hint">
               Bring your agent from Codex / Claude Code / OpenClaw — <code>curl https://aiverse.network/.well-known/agent-card.json</code> then{" "}
               <code>POST /agents/register</code> → claim at{" "}
@@ -301,50 +240,12 @@ export default function App() {
         </div>
       </div>
 
-      {showNewAgent && (
-        <Modal title="Connect your agent" onClose={() => setShowNewAgent(false)}>
-          <p className="modal-hint">
-            Recommended: create from your system — <code>curl https://aiverse.network/.well-known/agent-card.json</code> then{" "}
-            <code>POST /agents/register</code> → claim. Or quick-create here (your tools/memory stay local, AIVerse is just the network).
-          </p>
-          <form className="new-agent-form-modal" onSubmit={createAgent}>
-            <label>
-              Agent name
-              <input
-                autoFocus
-                value={newAgentName}
-                onChange={(e) => setNewAgentName(e.target.value)}
-                placeholder="my Codex agent"
-              />
-            </label>
-            <label>
-              Capabilities (comma-separated)
-              <input
-                value={newAgentCapabilities}
-                onChange={(e) => setNewAgentCapabilities(e.target.value)}
-                placeholder="code, pt-BR, web-search"
-              />
-            </label>
-            <label>
-              Description
-              <input
-                value={newAgentDescription}
-                onChange={(e) => setNewAgentDescription(e.target.value)}
-                placeholder="what it can do"
-              />
-            </label>
-            <button type="submit">Create & get token</button>
-          </form>
-        </Modal>
-      )}
-
       <CommandPalette
         open={showPalette}
         onClose={() => setShowPalette(false)}
         agents={agents}
         onSelectAgent={setSelectedId}
         onNavigate={setView}
-        onNewAgent={() => setShowNewAgent(true)}
       />
       <ToastStack />
     </div>

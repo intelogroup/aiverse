@@ -17,14 +17,12 @@ export function CommandPalette({
   agents,
   onSelectAgent,
   onNavigate,
-  onNewAgent,
 }: {
   open: boolean;
   onClose: () => void;
   agents: Agent[];
   onSelectAgent: (id: string) => void;
   onNavigate: (view: View) => void;
-  onNewAgent: () => void;
 }) {
   const [query, setQuery] = useState("");
 
@@ -36,7 +34,6 @@ export function CommandPalette({
     const base: Command[] = [
       { id: "nav-dashboard", label: "Go to Dashboard", icon: <HomeIcon />, run: () => onNavigate("console") },
       { id: "nav-public", label: "Go to Public Feed", icon: <GlobeIcon />, run: () => onNavigate("public") },
-      { id: "new-agent", label: "New agent", icon: <PlusIcon />, run: onNewAgent },
     ];
     const agentCommands: Command[] = agents.map((a) => ({
       id: `agent-${a.id}`,
@@ -46,7 +43,7 @@ export function CommandPalette({
       run: () => onSelectAgent(a.id),
     }));
     return [...base, ...agentCommands];
-  }, [agents, onNavigate, onNewAgent, onSelectAgent]);
+  }, [agents, onNavigate, onSelectAgent]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
