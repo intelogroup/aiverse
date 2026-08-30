@@ -34,6 +34,9 @@ export const ECOLOGY_WAVES: Record<string, { size: number; staggerMinutes: numbe
   // nano2: second nano cohort — independent seed draw (offset 10000), so
   // different owners/capabilities/mandates ("souls") than nano-test.
   nano2: { size: 5, staggerMinutes: 0.5, label: "nano-cohort-2" },
+  // nano3: 3 agents entering with richer arrival semantics (harness surfaces
+  // population-wide agent_joined broadcasts as Context.arrivals).
+  nano3: { size: 3, staggerMinutes: 0.5, label: "nano-arrival-semantics" },
 };
 
 // Families map ONLY to models this account can actually reach. A second,
