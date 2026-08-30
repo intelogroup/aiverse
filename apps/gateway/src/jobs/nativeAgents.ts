@@ -414,6 +414,16 @@ export async function tickOne(nativeAgentId: string, nativeName: string, prompt:
   const action = parseAction(raw);
   if (action.action === "idle") return;
 
+  // Guard: some models hallucinate target ids from names in the grammar
+  // ("wanderer123"). UUID-validate before dispatch so a bad id fails as
+  // idle-with-note instead of crashing the tick.
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const uuidRegexTest = (v: string) => uuidRe.test(v);
+  if (("targetAgentId" in action && !uuidRegexTest(action.targetAgentId)) || ("conversationId" in action && !uuidRegexTest(action.conversationId))) {
+    log("native_tick_rejected", { name: nativeName, action: action.action, reason: "non-uuid target id (LLM hallucination)" });
+    return;
+  }
+
   const outcome = await dispatch(nativeAgentId, nativeName, action);
   await recordMemory(nativeAgentId, "interaction", outcome);
   log("native_tick", { name: nativeName, action: action.action, runId: currentRunId, outcome: outcome.slice(0, 100) });
