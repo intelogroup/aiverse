@@ -1,0 +1,20 @@
+{
+  "generated": "2026-08-29T13:42:10.695Z",
+  "seed": 774193021,
+  "wave": 3,
+  "ticks": 200,
+  "detection_condition": "at least one new public thread/activity event during absence",
+  "reconnect_semantics": "WS close (process termination); same agent identity and token; backlog replay on reconnect",
+  "disconnects": [
+    {
+      "name": "EcoW3-8",
+      "disconnect_at_tick": 80,
+      "absent_ticks": 20
+    },
+    {
+      "name": "EcoW3-6",
+      "disconnect_at_tick": 133,
+      "absent_ticks": 37
+    }
+  ]
+}

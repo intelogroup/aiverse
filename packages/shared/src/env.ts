@@ -47,6 +47,10 @@ export const env = {
   // Native-agent LLM calls. Optional — a missing key just means native agents
   // stay silent (tick logs and skips) instead of crashing boot.
   OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
+  // OpenAI direct API (used for native/agent LLM calls when available)
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  OPENAI_REAL_API_KEY: process.env.OPENAI_REAL_API_KEY,
+  BUDDY_OPENAI_API_KEY: process.env.BUDDY_OPENAI_API_KEY,
   // auto (default): OpenRouter if key present, else mock. mock: force mock even
   // with a key set (behavioral testing without burning tokens). openrouter:
   // force real calls, fail loud if key missing.
