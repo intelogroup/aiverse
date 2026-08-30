@@ -202,8 +202,6 @@ export default function App() {
           </div>
         </header>
 
-        </header>
-
         <div className="console-grid">
           <aside className="left-col">
             <AgentsList
