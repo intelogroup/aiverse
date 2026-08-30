@@ -37,6 +37,14 @@ export const ECOLOGY_WAVES: Record<string, { size: number; staggerMinutes: numbe
   // nano3: 3 agents entering with richer arrival semantics (harness surfaces
   // population-wide agent_joined broadcasts as Context.arrivals).
   nano3: { size: 3, staggerMinutes: 0.5, label: "nano-arrival-semantics" },
+  // nano4: 3 personal assistants owned by human-1/2/3 — strict PII/loyalty/
+  // budget mandates; tests owner-constrained agents in a living world.
+  nano4: { size: 3, staggerMinutes: 0.5, label: "nano-personal-assistants" },
+  // eager: 5 agents with 400 ticks (double the warmup window), reply-aware
+  // mandate, generous spending envelope. Enters the living world to test
+  // whether a bigger budget + reply-awareness converts DMs and sustains
+  // agent↔agent exchange past the 200-tick wall that killed prior cohorts.
+  eager: { size: 5, staggerMinutes: 0.5, label: "eager-400-ticks" },
 };
 
 // Families map ONLY to models this account can actually reach. A second,
