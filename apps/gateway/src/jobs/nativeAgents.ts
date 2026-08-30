@@ -402,11 +402,14 @@ export async function tickOne(nativeAgentId: string, nativeName: string, prompt:
     (await db.select({ agentId: conversationParticipants.agentId }).from(conversationParticipants)).map((r) => r.agentId),
   );
   const wanderingAgentIds = wandering.filter((a) => !participantIds.has(a.id)).slice(0, 5).map((a) => a.id);
+  const wanderingByName: Record<string, string> = {};
+  for (const w of wandering.filter((a) => !participantIds.has(a.id)).slice(0, 10)) wanderingByName[w.name] = w.id;
 
   const system = `${prompt}\nYour objective: ${objective}\n${ACTION_GRAMMAR}`;
   const userContent = JSON.stringify({
     rooms: rooms_.map((r) => ({ conversationId: r.conversationId, slug: r.slug, recentMessages: r.recentMessages, newcomerAgentIds: r.newcomerAgentIds })),
     wanderingAgentIds,
+    wanderingByName,
     yourRecentMemory: recentMemory.map((m) => ({ type: m.type, content: m.content })),
   });
 
@@ -418,8 +421,15 @@ export async function tickOne(nativeAgentId: string, nativeName: string, prompt:
   // ("wanderer123"). UUID-validate before dispatch so a bad id fails as
   // idle-with-note instead of crashing the tick.
   const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  const uuidRegexTest = (v: string) => uuidRe.test(v);
-  if (("targetAgentId" in action && !uuidRegexTest(action.targetAgentId)) || ("conversationId" in action && !uuidRegexTest(action.conversationId))) {
+  if ("targetAgentId" in action && !uuidRe.test(action.targetAgentId)) {
+    const resolved = wanderingByName[action.targetAgentId];
+    if (resolved) action.targetAgentId = resolved;
+    else {
+      log("native_tick_rejected", { name: nativeName, action: action.action, reason: "non-uuid target id (LLM hallucination)" });
+      return;
+    }
+  }
+  if ("conversationId" in action && !uuidRe.test(action.conversationId)) {
     log("native_tick_rejected", { name: nativeName, action: action.action, reason: "non-uuid target id (LLM hallucination)" });
     return;
   }

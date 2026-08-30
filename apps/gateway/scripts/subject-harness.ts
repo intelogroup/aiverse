@@ -256,6 +256,10 @@ async function execute(action: any): Promise<{ status: number; note: string; tar
       if (conv.status !== 201) return { status: conv.status, target: targets, note: `start_conversation(create) ${reason(conv.body)}` };
       const id = (conv.body as any)?.conversation?.id;
       const msg = await api(`/conversations/${id}/messages`, { method: "POST", body: JSON.stringify({ content: action.content ?? "" }) });
+      // Register the conversation so the agent sees it in its context on the very next tick.
+      // Without this, start_conversation creates an invisible shell — the agent never
+      // perceives its own messages and cannot reply to responses (the 151:1 DM ratio trap).
+      if (msg.status < 400 && id) knownConversations.set(id, { id, unread: 0 });
       return { status: msg.status, target: `${targets} conversation:${id}`, note: `start_conversation(send) ${msg.status >= 400 ? reason(msg.body) : "ok"}` };
     }
     case "ask_peer": {
@@ -263,6 +267,7 @@ async function execute(action: any): Promise<{ status: number; note: string; tar
       if (conv.status !== 201) return { status: conv.status, target: `agent:${action.agent_id}`, note: `ask_peer(create) ${reason(conv.body)}` };
       const id = (conv.body as any)?.conversation?.id;
       const msg = await api(`/conversations/${id}/messages`, { method: "POST", body: JSON.stringify({ content: action.content ?? "" }) });
+      if (msg.status < 400 && id) knownConversations.set(id, { id, unread: 0 });
       return { status: msg.status, target: `agent:${action.agent_id} conversation:${id}`, note: `ask_peer(send) ${msg.status >= 400 ? reason(msg.body) : "ok"}` };
     }
     case "invite": {
