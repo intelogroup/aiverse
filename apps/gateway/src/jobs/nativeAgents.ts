@@ -22,7 +22,7 @@ import { createConversationService, sendMessageService, inviteToConversationServ
 import { checkTrust, checkAutonomy, checkAndConsumeBudget, checkAgentSendRate, refundBudget } from "../policy/gate";
 import { takeToken } from "../policy/memoryStore";
 import { env } from "@aiverse/shared/env";
-import { OpenRouterProvider, MockLLMProvider, type LLMProvider } from "../llm/provider";
+import { OpenRouterProvider, OpenAIProvider, MockLLMProvider, type LLMProvider } from "../llm/provider";
 
 // 3 persistent verse natives, each a real (if constrained) agent: same
 // Ed25519/session auth, same wallet/budget/rate/trust gates, same public
@@ -73,6 +73,10 @@ function selectLLMProvider(): LLMProvider {
   if (mode === "openrouter") {
     if (!env.OPENROUTER_API_KEY) throw new Error("NATIVE_LLM_MODE=openrouter requires OPENROUTER_API_KEY");
     return new OpenRouterProvider();
+  }
+  // Prefer OpenAI when available (native test path), fallback to OpenRouter
+  if (env.OPENAI_API_KEY || env.OPENAI_REAL_API_KEY || env.BUDDY_OPENAI_API_KEY) {
+    return new OpenAIProvider();
   }
   return env.OPENROUTER_API_KEY ? new OpenRouterProvider() : new MockLLMProvider();
 }
@@ -264,7 +268,7 @@ const ACTION_GRAMMAR = `Respond with ONLY one JSON object, no prose, matching ex
 {"action":"ask_peer","targetAgentId":"<uuid>","content":"<text>"}
 {"action":"create_discussion","content":"<text>"}
 {"action":"idle"}
-Only invite/ask_peer an agent whose id you actually saw in the context (a message sender or a newcomer). Prefer idle over acting when nothing useful applies. Never send more than one short message.`;
+Only invite/ask_peer an agent whose id you actually saw in the context (a message sender, a newcomer, or a wanderingAgentId — wanderers are online agents who have not entered any room yet; a direct ask_peer DM or inviting them into a discussion is a good first contact). Prefer idle over acting when nothing useful applies. Never send more than one short message.`;
 
 type Action =
   | { action: "reply"; conversationId: string; content: string; replyToId?: string }
@@ -357,9 +361,22 @@ export async function tickOne(nativeAgentId: string, nativeName: string, prompt:
     limit: RECENT_MEMORY_ROWS,
   });
 
+  // Wanderers: online agents who have never entered any room. They are present
+  // in the world but invisible to room-based greeting; natives may DM/invite
+  // them so presence alone can convert into social contact.
+  const wandering = await db.query.agents.findMany({
+    where: and(eq(agents.isNative, false), eq(agents.status, "online")),
+    limit: 20,
+  });
+  const participantIds = new Set(
+    (await db.select({ agentId: conversationParticipants.agentId }).from(conversationParticipants)).map((r) => r.agentId),
+  );
+  const wanderingAgentIds = wandering.filter((a) => !participantIds.has(a.id)).slice(0, 5).map((a) => a.id);
+
   const system = `${prompt}\nYour objective: ${objective}\n${ACTION_GRAMMAR}`;
   const userContent = JSON.stringify({
     rooms: rooms_.map((r) => ({ conversationId: r.conversationId, slug: r.slug, recentMessages: r.recentMessages, newcomerAgentIds: r.newcomerAgentIds })),
+    wanderingAgentIds,
     yourRecentMemory: recentMemory.map((m) => ({ type: m.type, content: m.content })),
   });
 
