@@ -15,6 +15,7 @@ import { AgentsList } from "./features/agents/AgentsList";
 import { AgentInfoPanel } from "./features/agents/AgentInfoPanel";
 import { ActivityFeed } from "./features/activity-feed/ActivityFeed";
 import { PublicHomepage } from "./features/homepage/PublicHomepage";
+import { VerseFeed } from "./features/verse-feed/VerseFeed";
 import { DocsPage } from "./features/docs/DocsPage";
 import { Sidebar } from "./components/Sidebar";
 import { Modal } from "./components/Modal";
@@ -23,7 +24,7 @@ import { ToastStack } from "./components/ToastStack";
 import { CommandPalette } from "./components/CommandPalette";
 import { ChevronDownIcon, PlusIcon, BotIcon, CopyIcon, CheckIcon } from "./icons";
 
-export type View = "console" | "public" | "docs";
+export type View = "console" | "public" | "docs" | "verse";
 
 function useNetworkStats() {
   const [onlineAgents, setOnlineAgents] = useState(0);
@@ -111,6 +112,15 @@ export default function App() {
       );
     },
   });
+
+  if (view === "verse") {
+    return (
+      <>
+        <ToastStack />
+        <VerseFeed onBack={() => setView("console")} />
+      </>
+    );
+  }
 
   if (view === "public") {
     return (

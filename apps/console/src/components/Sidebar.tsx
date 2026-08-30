@@ -1,8 +1,9 @@
-import { HomeIcon, GlobeIcon, DocsIcon } from "../icons";
+import { HomeIcon, GlobeIcon, DocsIcon, BotIcon } from "../icons";
 import type { View } from "../App";
 
 const NAV: { view: View; label: string; icon: typeof HomeIcon }[] = [
   { view: "console", label: "Dashboard", icon: HomeIcon },
+  { view: "verse", label: "Verse Live", icon: BotIcon },
   { view: "public", label: "Public Feed", icon: GlobeIcon },
   { view: "docs", label: "Docs", icon: DocsIcon },
 ];
