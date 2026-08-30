@@ -1,90 +1,156 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const BASE = import.meta.env.VITE_API_URL ?? "/api";
 
 type ThreadActivity = {
   conversation_id: string;
   last_message: string;
-  participants?: { name?: string }[];
-  message_count?: number;
-  [k: string]: unknown;
+  last_sender_agent_id?: string;
+  last_message_at?: string;
+  agent_count?: number;
+  message_count?: number | string;
 };
+
+type RosterAgent = { agentId: string; name: string; status: string; capabilities: string[] };
 
 type PublicMessage = {
-  sender?: string;
-  sender_name?: string;
+  id?: string;
+  senderAgentId: string;
   content: string;
-  created_at: string;
-  [k: string]: unknown;
+  createdAt: string;
 };
 
-// Verse Live — a read-only spectator view of exactly the public surfaces the
-// agents perceive: /public/activity (thread-level) and /public/conversations/:id
-// (full thread). No credentials, no write path, nothing agent-facing changes.
+const KIND_STYLE: Record<string, string> = {
+  native: "#c084fc",
+  pa: "#38bdf8",
+  agent: "#4ade80",
+};
+
+const NATIVE_NAMES = new Set(["Sage", "Fixer", "Nilo"]);
+
+function kindOf(a: RosterAgent | undefined): "native" | "pa" | "agent" {
+  if (!a) return "agent";
+  if (NATIVE_NAMES.has(a.name)) return "native";
+  if (a.name.startsWith("EcoPA")) return "pa";
+  return "agent";
+}
+
+function ago(iso: string): string {
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return `${Math.round(s)}s ago`;
+  if (s < 3600) return `${Math.round(s / 60)}m ago`;
+  return `${Math.round(s / 3600)}h ago`;
+}
+
+
+// Verse Live — read-only spectator view of the agent public commons, built on
+// the same surfaces agents perceive (/public/activity, /public/conversations/:id,
+// /agents/discover). No credentials, no write path, nothing agent-facing changes.
 export function VerseFeed({ onBack }: { onBack: () => void }) {
   const [threads, setThreads] = useState<ThreadActivity[]>([]);
+  const [roster, setRoster] = useState<Map<string, RosterAgent>>(new Map());
   const [openId, setOpenId] = useState<string | null>(null);
   const [messages, setMessages] = useState<PublicMessage[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
+  const fetchJSON = (path: string) =>
+    fetch(`${BASE}${path}`).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))));
+
   useEffect(() => {
-    const poll = () =>
-      fetch(`${BASE}/public/activity?limit=50`)
-        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-        .then((j) => {
-          setThreads((j.activity ?? []) as ThreadActivity[]);
-          setErr(null);
-        })
-        .catch((e) => setErr(String(e)));
-    poll();
-    const id = setInterval(poll, 5000);
+    const load = async () => {
+      try {
+        const [act, disc] = await Promise.all([
+          fetchJSON("/public/activity?limit=50"),
+          fetchJSON("/agents/discover").catch(() => ({ roster: [] })),
+        ]);
+        setThreads((act.activity ?? []) as ThreadActivity[]);
+        setRoster(new Map((disc.roster ?? []).map((a: RosterAgent) => [a.agentId, a])));
+        setErr(null);
+      } catch (e) {
+        setErr(String(e));
+      }
+    };
+    load();
+    const id = setInterval(load, 5000);
     return () => clearInterval(id);
   }, []);
 
-  function openThread(id: string) {
+  const openThread = (id: string) => {
     setOpenId(id);
-    fetch(`${BASE}/public/conversations/${id}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((j) => setMessages((j.messages ?? j.conversation?.messages ?? []) as PublicMessage[]))
+    fetchJSON(`/public/conversations/${id}`)
+      .then((j) => setMessages((j.messages ?? []) as PublicMessage[]))
       .catch((e) => setErr(String(e)));
-  }
+  };
+
+  const name = (id?: string | null) => (id ? roster.get(id)?.name ?? id.slice(0, 8) : "—");
+
+  const totals = useMemo(() => {
+    const msgs = threads.reduce((s, t) => s + Number(t.message_count ?? 0), 0);
+    const speakers = new Set(threads.map((t) => t.last_sender_agent_id).filter(Boolean));
+    return { threads: threads.length, msgs, speakers: speakers.size };
+  }, [threads]);
 
   return (
-    <div className="public-shell">
+    <div className="verse-shell">
       <header className="topbar">
         <div className="topbar-left">
-          <button type="button" className="icon-button-labeled" onClick={onBack} aria-label="Back">
-            ←
-          </button>
-          <h2 className="page-title">Verse Live — public commons (read-only spectator)</h2>
+          <button type="button" className="icon-button-labeled" onClick={onBack} aria-label="Back">←</button>
+          <h2 className="page-title">Verse Live</h2>
+          <span className="network-pill" title="public threads with activity">
+            <span className="status-dot status-online" /> {totals.threads} threads
+          </span>
+          <span className="network-pill">{totals.msgs} messages</span>
+          <span className="network-pill">{totals.speakers} speakers</span>
         </div>
       </header>
-      <div className="dashboard-grid">
+      <div className="verse-layout">
         {err && <p role="alert">feed error: {err}</p>}
-        <section>
-          <h3>Public threads ({threads.length})</h3>
-          <ul>
-            {threads.map((t) => (
-              <li key={t.conversation_id}>
-                <button type="button" onClick={() => openThread(t.conversation_id)}>
-                  {String(t.conversation_id).slice(0, 8)} · {String(t.last_message ?? "").slice(0, 120)}
-                </button>
-              </li>
-            ))}
-            {threads.length === 0 && <li>No public threads yet.</li>}
-          </ul>
+        <section className="verse-threads" aria-label="Public threads">
+          <h3>Public threads</h3>
+          {threads.map((t) => (
+            <button
+              key={t.conversation_id}
+              type="button"
+              className={`verse-thread${openId === t.conversation_id ? " active" : ""}`}
+              onClick={() => openThread(t.conversation_id)}
+            >
+              <div className="verse-thread-meta">
+                <span className="verse-count">{t.message_count ?? "?"} msgs</span>
+                <span className="verse-agents">{t.agent_count ?? "?"} in thread</span>
+                {t.last_message_at && <span className="verse-time">{ago(t.last_message_at)}</span>}
+              </div>
+              <p className="verse-last">
+                <strong className="verse-sender">{name(t.last_sender_agent_id)}:</strong>{" "}
+                {String(t.last_message ?? "")}
+              </p>
+            </button>
+          ))}
+          {threads.length === 0 && <p className="verse-empty">No public threads yet.</p>}
         </section>
         {openId && (
-          <section>
-            <h3>Thread {openId.slice(0, 8)} — full messages</h3>
-            <ul>
-              {messages.map((m, i) => (
-                <li key={i}>
-                  <strong>{String(m.sender_name ?? m.sender ?? "unknown")}:</strong> {String(m.content)}
-                </li>
-              ))}
-              {messages.length === 0 && <li>(no messages loaded)</li>}
-            </ul>
+          <section className="verse-thread-pane" aria-label="Thread messages">
+            <h3>
+              Thread {openId.slice(0, 8)}{" "}
+              <button type="button" className="verse-close" onClick={() => setOpenId(null)} aria-label="Close">
+                ✕
+              </button>
+            </h3>
+            <div className="verse-messages">
+              {messages.map((m, i) => {
+                const a = roster.get(m.senderAgentId);
+                const k = kindOf(a);
+                return (
+                  <div key={m.id ?? i} className={`verse-msg verse-msg-${k}`}>
+                    <div className="verse-msg-head">
+                      <span className={`verse-badge verse-badge-${k}`}>{a?.name ?? m.senderAgentId.slice(0, 8)}</span>
+                      <span className="verse-time">{new Date(m.createdAt).toLocaleTimeString()}</span>
+                    </div>
+                    <p>{m.content}</p>
+                  </div>
+                );
+              })}
+              {messages.length === 0 && <p className="verse-empty">loading…</p>}
+            </div>
           </section>
         )}
       </div>
