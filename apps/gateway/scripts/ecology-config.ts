@@ -30,6 +30,10 @@ export const ECOLOGY_WAVES: Record<string, { size: number; staggerMinutes: numbe
   // e2e: replacement cohort for the voided E2C arm — enters the LIVING world
   // (natives seeded + E2D active), i.e. the continuation/Phase-B condition.
   e2e: { size: 20, staggerMinutes: 15, label: "e2-continuation-living" },
+  "nano-test": { size: 5, staggerMinutes: 0.5, label: "nano-quick-test" },
+  // nano2: second nano cohort — independent seed draw (offset 10000), so
+  // different owners/capabilities/mandates ("souls") than nano-test.
+  nano2: { size: 5, staggerMinutes: 0.5, label: "nano-cohort-2" },
 };
 
 // Families map ONLY to models this account can actually reach. A second,
@@ -48,6 +52,7 @@ export const ECOLOGY_MODEL_BY_FAMILY: Record<string, string> = {
   "deepseek-class": "deepseek/deepseek-v4-flash",
   "llama-class": "meta-llama/llama-3.1-8b-instruct",
   "small-local": "google/gemini-2.5-flash-lite",
+  "nano-class": "openai/gpt-4.1-nano",
 };
 
 // Repo-root-relative paths whose content is hashed into the fingerprint's

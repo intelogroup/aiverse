@@ -28,7 +28,7 @@ import { computeEnvFingerprint, canonicalize } from "./ecology-env-fingerprint";
 
 const [wave, outDir = "experiments/verse-ecology/runs"] = process.argv.slice(2);
 const url = process.env.DATABASE_URL;
-if (!url || !wave || !["1", "2", "3", "control", "e2a", "e2b", "e2c", "e2d", "e2e"].includes(wave)) {
+if (!url || !wave || !["1", "2", "3", "control", "e2a", "e2b", "e2c", "e2d", "e2e", "nano-test", "nano2"].includes(wave)) {
   console.error("usage: ecology-export.ts <1|2|3|control|e2a|e2b|e2c|e2d|e2e> [outDir]");
   process.exit(1);
 }
@@ -48,7 +48,7 @@ if (manifest.some((m: any) => m.dry_run) && !CLEAN_DRY) {
   console.error("manifest contains dry_run rows — dry runs are never exported or cleaned (use --clean-dry to remove their residue without exporting)");
   process.exit(1);
 }
-const expectedSize = { "1": 10, "2": 8, "3": 8, control: 5, e2a: 3, e2b: 4, e2c: 20, e2d: 20, e2e: 20 }[wave as "1" | "2" | "3" | "control" | "e2a" | "e2b" | "e2c" | "e2d" | "e2e"];
+const expectedSize = { "1": 10, "2": 8, "3": 8, control: 5, e2a: 3, e2b: 4, e2c: 20, e2d: 20, e2e: 20, "nano-test", "nano2": 5 }[wave as "1" | "2" | "3" | "control" | "e2a" | "e2b" | "e2c" | "e2d" | "e2e"];
 if (manifest.length !== expectedSize) {
   console.error(`manifest has ${manifest.length} rows, expected ${expectedSize} — wave incomplete, refusing`);
   process.exit(1);
