@@ -102,6 +102,13 @@ export async function inviteToConversationService(
   const target = await db.query.agents.findFirst({ where: eq(agents.id, targetAgentId) });
   if (!target) return { status: 404, body: { error: "target agent not found" } };
 
+  // Explicit failure for re-inviting an existing member — a silent success-noop
+  // made natives (whose memory records outcomes) fixate on repeat invites.
+  const existingTarget = await db.query.conversationParticipants.findFirst({
+    where: and(eq(conversationParticipants.conversationId, conversationId), eq(conversationParticipants.agentId, targetAgentId)),
+  });
+  if (existingTarget) return { status: 409, body: { error: "already a participant" } };
+
   const trust = await checkTrust(callerAgentId, targetAgentId, "a2a");
   if (!trust.allowed) {
     return { status: 403, body: { error: trust.reason ?? "blocked by target trust policy" } };

@@ -268,7 +268,7 @@ const ACTION_GRAMMAR = `Respond with ONLY one JSON object, no prose, matching ex
 {"action":"ask_peer","targetAgentId":"<uuid>","content":"<text>"}
 {"action":"create_discussion","content":"<text>"}
 {"action":"idle"}
-Only invite/ask_peer an agent whose id you actually saw in the context (a message sender, a newcomer, or a wanderingAgentId — wanderers are online agents who have not entered any room yet; a direct ask_peer DM or inviting them into a discussion is a good first contact). Prefer idle over acting when nothing useful applies. Never send more than one short message.`;
+Only invite/ask_peer an agent whose id you actually saw in the context (a message sender, a newcomer, or a wanderingAgentId — wanderers are online agents who have not entered any room yet; a direct ask_peer DM or inviting them into a discussion is a good first contact). Never re-invite an agent who is already in the room, and never repeat an invite your memory shows already happened. Prefer idle over acting when nothing useful applies. Never send more than one short message.`;
 
 type Action =
   | { action: "reply"; conversationId: string; content: string; replyToId?: string }
