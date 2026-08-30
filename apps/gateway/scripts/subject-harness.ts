@@ -67,6 +67,7 @@ const ACTION_GRAMMAR = `{"action": one of
   "delegate"       — {"agent_id": "<agent id>", "content": "<text>", "context_id": "<goal context id or null>"}
 }
 Public rooms (general, science, robotics) are shared threads: join_room puts you in the room thread (it returns its conversation id and the thread then appears in your conversations), and a message to that thread is PUBLIC — every agent can read it and reply. You do not need to know an agent in advance to speak publicly.
+Context.arrivals lists agents who entered the Verse recently (from live arrival broadcasts). Greeting or starting a conversation with a new arrival is a normal, welcome social action — you already have their agent_id.
 Respond with one JSON object only. No prose.`;
 
 // The frozen grammar as data, so an off-grammar action is detected rather than
@@ -115,16 +116,14 @@ if (!model) {
 }
 
 async function decide(system: string, context: unknown): Promise<string | null> {
-  const key = process.env.OPENROUTER_API_KEY;
-  // Fail loud. Returning null on a dead API logged 360 ticks of fake
-  // "unparsed" non-action across three episodes and read as an inert agent.
-  // A broken harness must stop the episode, never quietly become data.
-  if (!key) throw new Error("OPENROUTER_API_KEY is required");
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+  const openaiKey = process.env.OPENAI_API_KEY || process.env.OPENAI_REAL_API_KEY || process.env.BUDDY_OPENAI_API_KEY;
+  const openaiModel = model.startsWith("openai/") ? model.replace("openai/", "") : model;
+  if (!openaiKey) throw new Error("OPENAI_API_KEY is required");
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${openaiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model,
+      model: openaiModel,
       messages: [
         { role: "system", content: system },
         { role: "user", content: JSON.stringify(context) },
@@ -133,7 +132,7 @@ async function decide(system: string, context: unknown): Promise<string | null> 
     }),
   });
   if (!res.ok) {
-    throw new Error(`openrouter ${res.status} for ${model}: ${(await res.text()).slice(0, 200)}`);
+    throw new Error(`openai ${res.status} for ${openaiModel}: ${(await res.text()).slice(0, 200)}`);
   }
   const data: any = await res.json();
   return data?.choices?.[0]?.message?.content ?? null;
@@ -148,6 +147,9 @@ async function decide(system: string, context: unknown): Promise<string | null> 
 // the socket was the only source, which made an agent's view of its own world
 // depend entirely on whether it was connected at the right instant.
 const knownConversations = new Map<string, { id: string; lastMessageId?: string; unread: number }>();
+// Richer arrival semantics: rolling record of population-wide agent_joined
+// broadcasts received on the socket — who entered the Verse since connect.
+const recentArrivals: { agent_id: string; name?: string; capabilities?: string[] }[] = [];
 let lastDiscovered = 0;
 
 async function buildContext() {
@@ -184,6 +186,9 @@ async function buildContext() {
     peers: peers.body,
     conversations: threads,
     public_activity: (publicActivity.body as any)?.activity ?? [],
+    // Richer arrival semantics: who has entered the Verse since this agent
+    // connected, straight from the population-wide agent_joined broadcasts.
+    arrivals: recentArrivals,
   };
 }
 
@@ -222,6 +227,7 @@ async function detectOpportunities(ctx: any, myCaps: string[]) {
       (a: any) => !convs.some((c: any) => c.conversation_id === a.conversation_id),
     ).length,
     any: online.length > 0 || inbound.length > 0,
+    arrivals_seen: recentArrivals.length,
   };
 }
 
@@ -322,6 +328,12 @@ await new Promise<void>((resolve, reject) => {
       const existing = knownConversations.get(convId) ?? { id: convId, unread: 0 };
       if (e.type === "message") existing.unread += 1;
       knownConversations.set(convId, existing);
+    }
+    // Richer arrival semantics: the population-wide agent_joined broadcast was
+    // always sent; record it so the agent can actually perceive who enters.
+    if (e.type === "agent_joined" && e?.payload?.agent_id) {
+      recentArrivals.push({ agent_id: e.payload.agent_id, name: e.payload.name, capabilities: e.payload.capabilities });
+      if (recentArrivals.length > 10) recentArrivals.shift();
     }
   };
   ws.onerror = (e) => { clearTimeout(timer); reject(e as any); };
