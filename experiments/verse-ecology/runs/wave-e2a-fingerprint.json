@@ -1,12 +1,12 @@
 {
-  "git_sha": "b8fa4f90caea74903cbc57084fbca10173fcd460",
+  "git_sha": "67d7f20f480599c9ee3b1665dbd88db627cb312a",
   "git_dirty": true,
   "bun_version": "1.4.0",
   "node_version": "26.3.0",
   "postgres_version": "PostgreSQL 17.10 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.1.1.101), 64-bit",
   "pgvector_version": "0.8.6",
   "redis_version": "8.10.1",
-  "provider": "openai-direct",
+  "provider": "openrouter",
   "resolved_models": {
     "deepseek-class": "openai/gpt-4.1-nano",
     "llama-class": "openai/gpt-4.1-nano",
@@ -25,14 +25,14 @@
     "staggerMinutes": 0.25,
     "label": "e2-bootstrap"
   },
-  "frozen_config_sha256": "d92cc5cf11049610cb579d91880d23e829f7d4330e15e5efe28db5580e427d59",
+  "frozen_config_sha256": "8a1404e953f8b064d995df2632851ab90e4896465791d35533ecd19582dbc1f8",
   "frozen_files": {
-    "apps/gateway/scripts/ecology-wave.ts": "cc1e4df5aca3de964d8c4d25680c3c9d92b227a406252d24cf97730e4de1b4bb",
-    "apps/gateway/scripts/subject-harness.ts": "a2104db0a8e4f1a2f1ee509863ad8c9e053591d527ceb1d0caaa812cbc4074d5",
+    "apps/gateway/scripts/ecology-wave.ts": "2378e12da0783984b82f14ae153c6ec912ea743611337c927d89ee38d8f14c54",
+    "apps/gateway/scripts/subject-harness.ts": "b1f035ca9aaf5920c9e1eb78c6b790835dab9fb3b87bb3f7d3179f00b94f8405",
     "apps/gateway/scripts/ecology-wave3-schedule.ts": "8f37651a39272b597078c4b272a753049f7fe6cde6e4791978fd0e488b6ea72d",
     "apps/gateway/scripts/ecology-config.ts": "e7617d944d798df8051c31e0016280cef3e97518850ec46a5343bb3e3729b639",
     "experiments/verse-ecology/wave-3-disconnects.json": "bd888380c6107b64f711ee6f5d50d9e0ed7da888903117979cc4cb7dd8faef20",
-    "experiments/verse-ecology/preregistration.md": "f724ba8594989c27ddf739b8294d24720d13f890f950ac27ccc32a8d56476a60"
+    "experiments/verse-ecology/preregistration.md": "fb5001106d55dabf20c448b4a5ef8c47ac6e9f9af7a9b6024afe70c337012e0d"
   },
   "migration_identifier": {
     "last_migration_tag": "0027_adorable_the_twelve",
@@ -40,7 +40,7 @@
     "db_migrations": 0
   },
   "aiverse_disable_natives": "unset",
-  "run_id": "eco-wave-e2a-2026-08-31T16-01-34-137Z",
+  "run_id": "eco-wave-e2a-2026-08-31T18-12-54-692Z",
   "ecology_wave": "wave-e2a",
-  "fingerprint_sha256": "efe27dccfe369250ffb6ca3e6c6da4880fe81b753a2c362b9efe0dc66f0e7e7d"
+  "fingerprint_sha256": "058cf6af613e7f8591b7c4b77c616dcc3f0046c18c1be27e3da15e486c877ce6"
 }
