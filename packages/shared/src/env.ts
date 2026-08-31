@@ -13,7 +13,7 @@ function required(name: string): string {
 // than the one we already know about. bun test sets NODE_ENV=test and loads
 // .env.test over .env, but a pre-set process env var overrides both — so under
 // test we only trust an explicit test host.
-const TEST_ALLOWED_DB_HOSTS = ["ep-withered-bird-avcl85fh"];
+const TEST_ALLOWED_DB_HOSTS = ["ep-withered-bird-avcl85fh", "localhost:55432", "localhost"];
 function requiredDatabaseUrl(): string {
   const value = required("DATABASE_URL");
   if (

@@ -21,9 +21,14 @@ export interface GateResult {
   reason?: string;
 }
 
-// Phase 2 hardcoded default; Phase 3 replaces this with the agent's real
-// wallet.max_simultaneous_conversations value.
-const DEFAULT_MAX_SIMULTANEOUS_CONVERSATIONS = 200;
+// Phase 2 default; Phase 3 replaces this with the agent's real
+// wallet.max_simultaneous_conversations value. Env-overridable so the test
+// suite can pin it low (.env.test) and exercise the real admission gate
+// without provisioning 200 conversations per fixture.
+export const DEFAULT_MAX_SIMULTANEOUS_CONVERSATIONS = (() => {
+  const raw = Number(process.env.MAX_SIMULTANEOUS_CONVERSATIONS);
+  return Number.isFinite(raw) && raw > 0 ? raw : 200;
+})();
 
 const AGENT_MSG_BUCKET_CAPACITY = 1;
 const AGENT_MSG_REFILL_PER_SECOND = 1; // 1 msg/sec/agent

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db/client";
 import {
   conversations,
@@ -352,12 +352,20 @@ export async function sendMessageService(
   }
 
   // @-mention detection: `@Name` inside a message is a direct social address.
-  // Resolve against real agent names (exact match), then ping every mentioned
-  // agent over its socket — including agents who are NOT participants, which
-  // is the point: a public mention must reach someone outside the room.
+  // Resolve against real agent names — case-INSENSITIVELY (wave-3: agents
+  // write "@ecoeg-2" for "EcoEG-2"; an exact-case match silently drops the
+  // ping) — then ping every mentioned agent over its socket, including agents
+  // who are NOT participants, which is the point: a public mention must reach
+  // someone outside the room.
   const mentionNames = [...new Set([...message.content.matchAll(/@([A-Za-z0-9_-]{2,32})/g)].map((m) => m[1]))];
   if (mentionNames.length) {
-    const mentioned = await db.query.agents.findMany({ where: inArray(agents.name, mentionNames) });
+    const lowered = mentionNames.map((n) => n.toLowerCase());
+    const candidates = await db.query.agents.findMany({
+      where: inArray(sql`lower(${agents.name})`, lowered),
+    });
+    // Dedupe defensively: name matching is now case-insensitive, so two
+    // mention spellings ("@Kova", "@kova") could both resolve to one agent.
+    const mentioned = [...new Map(candidates.map((a) => [a.id, a])).values()];
     let roomSlug: string | null = null;
     if (conversation.roomId) {
       const room = await db.query.rooms.findFirst({ where: eq(rooms.id, conversation.roomId) });
@@ -379,11 +387,10 @@ export async function sendMessageService(
         }),
       );
     }
-    if (mentioned.length) {
-      // JSON to stdout — matches the gateway's structured-log shape; this
-      // module has no `log()` helper of its own.
-      console.log(JSON.stringify({ ts: new Date().toISOString(), event: "mentions_delivered", messageId: message.id, names: mentionNames, reached: mentioned.map((m) => m.name) }));
-    }
+    // Structured log regardless of outcome — unresolved names are visible as
+    // zero-reached mentions instead of silently vanishing (behavioral signal:
+    // agents inventing names tells us the roster perception failed).
+    console.log(JSON.stringify({ ts: new Date().toISOString(), event: "mentions_delivered", messageId: message.id, names: mentionNames, reached: mentioned.map((m) => m.name), unresolved: mentionNames.filter((n) => !candidates.some((c) => c.name.toLowerCase() === n.toLowerCase())) }));
   }
 
   // Lightweight change-signal, not a full row — the console refetches
