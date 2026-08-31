@@ -152,6 +152,63 @@ const knownConversations = new Map<string, { id: string; lastMessageId?: string;
 const recentArrivals: { agent_id: string; name?: string; capabilities?: string[] }[] = [];
 let lastDiscovered = 0;
 
+// ── Anti-flood inbox triage ────────────────────────────────────────────────
+// A 400-tick agent can accumulate 250+ DM threads. Feeding every thread's
+// last-8 messages into a nano model each tick buries the unread question in
+// noise, and the model responds by creating NEW conversations instead of
+// replying (the monologue pattern). Fix: when unread threads exist, the LLM
+// context carries ONLY the most recent unread threads (up to INBOX_FOCUS),
+// with the rest reduced to a one-line count. Threads where we've sent
+// MAX_UNANSWERED_TO_SAME messages with no reply are marked "awaiting" so the
+// grammar note can say to leave them alone.
+const INBOX_FOCUS = 5;
+const MAX_UNANSWERED_TO_SAME = 3;
+const unansweredByThread = new Map<string, number>(); // conversationId -> my msgs since last inbound
+
+function triageThreads(threads: { conversation_id: string; unread: number; messages: any[] }[]) {
+  const isMine = (m: any) => m?.senderAgentId === agentId || m?.sender_agent_id === agentId;
+  const withInbound = threads.filter((t) => t.unread > 0 || t.messages.some((m) => !isMine(m)));
+  withInbound.sort((a, b) => {
+    const ta = String(a.messages.at(-1)?.createdAt ?? a.messages.at(-1)?.created_at ?? "");
+    const tb = String(b.messages.at(-1)?.createdAt ?? b.messages.at(-1)?.created_at ?? "");
+    return tb.localeCompare(ta);
+  });
+  const focused = withInbound.slice(0, INBOX_FOCUS);
+  const restCount = withInbound.length - focused.length;
+  for (const t of threads) {
+    const mine = t.messages.filter(isMine).length;
+    const theirs = t.messages.length - mine;
+    if (mine > 0 && theirs === 0) unansweredByThread.set(t.conversation_id, mine);
+    else if (theirs > 0) unansweredByThread.delete(t.conversation_id);
+  }
+  const awaiting = threads.filter((t) => (unansweredByThread.get(t.conversation_id) ?? 0) >= MAX_UNANSWERED_TO_SAME).length;
+  return { focused, restCount, awaiting };
+}
+
+// ── Crash resilience ────────────────────────────────────────────────────────
+// An ECONNRESET mid-run killed harness processes outright (8 died in the
+// multi-cohort run), which reads as "agent went silent" — indistinguishable
+// from a behavioral choice. Transient errors must retry, never kill.
+async function withRetry<T>(fn: () => Promise<T>, label: string, attempts = 5): Promise<T | null> {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (e: any) {
+      const msg = String(e?.message ?? e);
+      const transient = /ECONNRESET|ECONNREFUSED|ETIMEDOUT|socket|fetch failed|5\d\d/i.test(msg);
+      if (!transient || i === attempts - 1) {
+        console.error(`tick ${label}: giving up after ${i + 1} attempts: ${msg.slice(0, 120)}`);
+        return null;
+      }
+      const delay = Math.min(30_000, 2 ** i * 1000);
+      console.warn(`tick ${label}: transient error (${msg.slice(0, 80)}), retry ${i + 1}/${attempts} in ${delay / 1000}s`);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  return null;
+}
+
+
 async function buildContext() {
   const manifest = await api("/manifest");
   // No ambient roster exists: GET /agents/discover requires a skill or q term,
@@ -178,12 +235,19 @@ async function buildContext() {
 
   const threads = [];
   for (const conv of knownConversations.values()) {
-    const msgs = await api(`/conversations/${conv.id}/messages`);
+    const msgs = await withRetry(() => api(`/conversations/${conv.id}/messages`), `fetch ${conv.id.slice(0, 8)}`, 3);
+    if (!msgs) continue; // transient failure — skip this thread this tick, don't die
     threads.push({ conversation_id: conv.id, unread: conv.unread, messages: (msgs.body as any)?.messages?.slice(-8) ?? [] });
   }
+  const { focused, restCount, awaiting } = triageThreads(threads);
   return {
     manifest: manifest.body,
     peers: peers.body,
+    // Inbox triage: focused = recent threads with inbound messages (reply
+    // candidates, newest first). The rest are summarized as counts so the
+    // model sees the shape of its world without drowning in it.
+    inbox_focus: focused,
+    inbox_summary: { other_threads_with_inbound: restCount, awaiting_reply_from_me: awaiting, total_threads: threads.length },
     conversations: threads,
     public_activity: (publicActivity.body as any)?.activity ?? [],
     // Richer arrival semantics: who has entered the Verse since this agent
@@ -395,9 +459,29 @@ if (logWasEmpty) {
 }
 
 for (let tick = startTick; tick < startTick + ticks; tick++) {
-  const ctx = await buildContext();
-  const opportunities = await detectOpportunities(ctx, myCaps);
-  const raw = await decide(system, ctx);
+  const ran = await withRetry(async () => {
+    const ctx = await buildContext();
+    const opportunities = await detectOpportunities(ctx, myCaps);
+    // Context sent to the LLM: inbox-focused, not firehose. The full
+    // `conversations` list (250+ threads) stays available to mechanical
+    // observers but is truncated for the model itself.
+    const modelContext = {
+      ...ctx,
+      conversations: ctx.inbox_focus ?? ctx.conversations,
+      inbox_note: `You have ${ctx.inbox_summary.total_threads} threads total; ${ctx.inbox_focus.length} shown (newest inbound first), ${ctx.inbox_summary.other_threads_with_inbound} more have inbound messages not shown, ${ctx.inbox_summary.awaiting_reply_from_me} are awaiting your reply (you already sent ${MAX_UNANSWERED_TO_SAME}+ with no answer — stop messaging those).`,
+      // Cap thread depth too: last 4 messages per focused thread is enough
+      // signal for a reply decision.
+    };
+    for (const t of modelContext.conversations) t.messages = (t.messages ?? []).slice(-4);
+    const raw = await decide(system, modelContext);
+    return { ctx, opportunities, raw };
+  }, String(tick));
+  if (!ran) {
+    console.warn(`tick ${tick}: skipped after retries — transient outage`);
+    if (tick < startTick + ticks - 1) await new Promise((r) => setTimeout(r, tickSeconds * 1000));
+    continue;
+  }
+  const { ctx, opportunities, raw } = ran;
   let action: any = null;
   try {
     action = JSON.parse(String(raw ?? "").replace(/```json|```/g, "").trim());
