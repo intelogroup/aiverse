@@ -70,57 +70,11 @@ Public rooms (general, science, robotics) are shared threads: join_room puts you
 Context.arrivals lists agents who entered the Verse recently (from live arrival broadcasts). Greeting or starting a conversation with a new arrival is a normal, welcome social action — you already have their agent_id.
 Respond with one JSON object only. No prose.`;
 
-// The frozen grammar as data, so an off-grammar action is detected rather than
-// falling through to the executor's default and being logged as unparseable.
-const ACTIONS = new Set([
-  "nothing", "observe", "join_room", "leave_conversation", "message", "reply",
-  "start_conversation", "invite", "discover_peers", "ask_peer", "create_goal", "delegate",
-]);
-
-// Grammar-repair (wave-3 finding): gpt-4.1-nano repeatedly emitted the action
-// as a bare top-level key — {"delegate": {...}} with no "action" wrapper — and
-// once typo'd the key itself ("delegeate"). ~110 advertiser-wave ticks died as
-// off_grammar for shapes that carried an unambiguous intent. Repairs are
-// STRUCTURAL (relabel the same decision), never semantic: the model still
-// chose the action and supplied its arguments; we only fix the envelope.
-function editDistanceAtMostOne(a: string, b: string): boolean {
-  if (a === b) return true;
-  if (Math.abs(a.length - b.length) > 1) return false;
-  const [s, t] = a.length <= b.length ? [a, b] : [b, a];
-  let i = 0, j = 0, edits = 0;
-  while (i < s.length && j < t.length) {
-    if (s[i] === t[j]) { i++; j++; continue; }
-    if (++edits > 1) return false;
-    if (s.length === t.length) { i++; j++; } else { j++; } // substitution vs insertion
-  }
-  return true;
-}
-function normalizeAction(parsed: any): any {
-  if (!parsed || typeof parsed !== "object") return parsed;
-  if (typeof parsed.action === "string") {
-    const name = parsed.action.trim().toLowerCase();
-    if (ACTIONS.has(name)) return { ...parsed, action: name };
-    const fuzzy = [...ACTIONS].find((a) => editDistanceAtMostOne(a, name));
-    if (fuzzy) return { ...parsed, action: fuzzy };
-    return { ...parsed, action: name }; // stays off_grammar, as before
-  }
-  // No "action" key: promote a single bare action key, e.g. {"delegate": {...}}
-  // or {"join_room": "general"}. The key's value becomes the argument object.
-  const keys = Object.keys(parsed);
-  if (keys.length > 0) {
-    const k = keys.find((key) => {
-      const lower = key.trim().toLowerCase();
-      return ACTIONS.has(lower) || [...ACTIONS].some((a) => editDistanceAtMostOne(a, lower));
-    });
-    if (k !== undefined) {
-      const lower = k.trim().toLowerCase();
-      const actionName = ACTIONS.has(lower) ? lower : [...ACTIONS].find((a) => editDistanceAtMostOne(a, lower))!;
-      const args = parsed[k];
-      return { ...(args && typeof args === "object" ? args : { value: args }), action: actionName };
-    }
-  }
-  return parsed;
-}
+// The frozen grammar as data + repair pipeline (normalize → zod arg-alias
+// repair → malformed salvage), extracted to harness-action-grammar.ts so the
+// shakedown-tested pipeline is unit-testable. See that module for the wave-3
+// findings that motivated each repair.
+import { ACTIONS, parseDecision } from "./harness-action-grammar";
 
 // Public room slugs: the three seeded commons (grammar documents them) plus any
 // slug the harness has actually OBSERVED (mention payloads carry room_slug).
@@ -677,27 +631,7 @@ for (let tick = startTick; tick < startTick + ticks; tick++) {
     continue;
   }
   const { ctx, opportunities, raw } = ran;
-  let action: any = null;
-  try {
-    action = normalizeAction(JSON.parse(String(raw ?? "").replace(/```json|```/g, "").trim()));
-  } catch {
-    // Salvage before declaring malformed (mirrors the natives' parseAction):
-    // models frequently wrap the JSON object in prose or trail text after it —
-    // extract the first {...} block and retry. Only truly unparseable output
-    // is recorded as malformed_json. (2026-08-31 shakedown: 1 of 90 decisions
-    // was lost to this gap.)
-    const brace = String(raw ?? "").match(/\{[\s\S]*\}/);
-    if (brace) {
-      try {
-        action = normalizeAction(JSON.parse(brace[0]));
-      } catch {
-        action = null;
-      }
-    }
-    if (!action || typeof action !== "object") {
-      action = { action: "malformed_json", raw: String(raw ?? "").slice(0, 200) };
-    }
-  }
+  let action = parseDecision(raw);
   // Valid JSON whose `action` is absent or outside the frozen grammar is a
   // DIFFERENT failure from unparseable output, and both differ again from a
   // dead API (which now throws). Collapsing them into one "unparsed" bucket is

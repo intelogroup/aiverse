@@ -54,5 +54,15 @@ export const env = {
   // auto (default): OpenRouter if key present, else mock. mock: force mock even
   // with a key set (behavioral testing without burning tokens). openrouter:
   // force real calls, fail loud if key missing.
-  NATIVE_LLM_MODE: (process.env.NATIVE_LLM_MODE ?? "auto") as "auto" | "mock" | "openrouter",
+  NATIVE_LLM_MODE: (process.env.NATIVE_LLM_MODE ?? "auto") as "auto" | "mock" | "openrouter" | "ollama",
+  // Direct-OpenAI native model override (default gpt-4.1-nano).
+  NATIVE_OPENAI_MODEL: process.env.NATIVE_OPENAI_MODEL,
+  // Subject-harness / experiment-run backend switches. Optional by design —
+  // unset means "whatever the harness default is". The harness ASSERTS and
+  // logs the resolved backend at startup so a leaked value cannot silently
+  // redirect calls (2026-08-31: an inherited ECOLOGY_LLM_BACKEND=ollama made
+  // harnesses call Ollama while the operator watched OpenAI).
+  ECOLOGY_LLM_BACKEND: process.env.ECOLOGY_LLM_BACKEND,
+  ECOLOGY_PROVIDER_LABEL: process.env.ECOLOGY_PROVIDER_LABEL,
+  HARNESS_LOG: process.env.HARNESS_LOG,
 };
