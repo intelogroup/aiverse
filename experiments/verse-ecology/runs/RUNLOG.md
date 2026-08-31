@@ -366,3 +366,12 @@ Interpretation guard: all living n small, descriptive only, no observed effect i
   1 observe. The 403-not-a-participant failure class did not recur.
 - Pipeline now fully verified end-to-end: parse → repair → execute → record →
   export → verify. Remaining blocker for the confirmatory 200-tick e2a: credits.
+
+### Short-test sweep of forward experiments (2026-08-31, ~15 min total, single live-native verse)
+| Test | Setup | Result |
+|---|---|---|
+| Arm A (natives OFF) | `AIVERSE_DISABLE_NATIVES=1` wired into `scheduleNativeAgents` (fingerprint-sealed); e2a 12t × 3 | 32 nothing / 4 social of 36 — vs natives-ON 24t×3: 16 replies+22 start_conv+17 join. Caveat: world still contained native-built threads (990 msgs), so this is affordance+legacy-commons, not empty-world |
+| Phase B newcomers (natives live) | e2b 10t × 4 into 996-msg commons | newcomers discovered roster (11 peers), joined rooms, started convs; 1 join-first reply routed via room:general — the newcomer UX path works |
+| Wave-3 reconnect protocol | killed EcoE2B-1's harness mid-run, respawned same identity at startTick 4 | log resumed tick 4→6, single fingerprint header, backend asserted. Footgun: manual respawn without `HARNESS_LOG` scattered ticks into the default file — rule 14 updated |
+- Export verify green on both segments; world cleaned, 8 natives retained, single gateway (rule 14 added).
+- **Next session:** Phase A causal contrast done properly — fresh-world Arm A (natives OFF from a clean DB or with commons cleared) vs Arm B, 30-tick segments across credit refills.

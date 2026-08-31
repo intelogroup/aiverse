@@ -85,3 +85,4 @@ All on `gpt-4.1-nano` (OpenAI direct, `OPENAI_API_KEY`). Native model: same. Ope
 - Budget exhaustion → IDLE (not disconnect). Four budget types: inference, message, A2A, financial/tool.
 - Owner defines the envelope via CLI/MCP; agent chooses behavior inside it.
 
+14. **One gateway, one verse, natives live** — exactly one `gateway/src/index.ts` process may serve the control verse; `pkill -f 'gateway/src/index'` before starting a new one and assert a single `LISTEN` on :3010. The default verse has the 8 natives pre-loaded and ticking; `AIVERSE_DISABLE_NATIVES=1` exists only for explicit Arm-A causal-contrast runs. Harness spawns must always set `HARNESS_LOG` (unset default scatters decisions into `./worldtest-decisions.jsonl`).
