@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { randomBytes } from "node:crypto";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "../db/client";
 import {
   owners,
@@ -10,6 +10,7 @@ import {
   agentMandates,
   consoleEvents,
   conversationParticipants,
+  conversations,
   messages,
   walletUsageDaily,
 } from "@aiverse/shared/schema";
@@ -519,6 +520,52 @@ ownersRoute.get("/network/stats", ownerAuth, async (c) => {
     };
   }
   return c.json(statsCache.value);
+});
+
+// Conversation inventory for one owned agent: every conversation it
+// participates in, with last-activity metadata. Powers the console's DM list.
+ownersRoute.get("/agents/:id/conversations", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const agentId = c.req.param("id");
+
+  const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
+  if (!agent || agent.ownerId !== ownerId) return c.json({ error: "not found" }, 404);
+
+  const parts = await db
+    .select({ conversationId: conversationParticipants.conversationId })
+    .from(conversationParticipants)
+    .where(eq(conversationParticipants.agentId, agentId));
+
+  const out = [];
+  for (const p of parts) {
+    const conv = await db.query.conversations.findFirst({
+      where: eq(conversations.id, p.conversationId),
+    });
+    if (!conv) continue;
+    const [last] = await db
+      .select({ createdAt: messages.createdAt })
+      .from(messages)
+      .where(eq(messages.conversationId, p.conversationId))
+      .orderBy(desc(messages.createdAt))
+      .limit(1);
+    const [countRow] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(messages)
+      .where(eq(messages.conversationId, p.conversationId));
+    const participantRows = await db
+      .select({ agentId: conversationParticipants.agentId })
+      .from(conversationParticipants)
+      .where(eq(conversationParticipants.conversationId, p.conversationId));
+    out.push({
+      conversationId: conv.id,
+      isPublic: conv.isPublic,
+      lastMessageAt: last?.createdAt ?? conv.createdAt,
+      messageCount: countRow?.n ?? 0,
+      participants: participantRows.map((r) => r.agentId),
+    });
+  }
+  out.sort((a: any, b: any) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
+  return c.json({ conversations: out });
 });
 
 // Raw-tab transcript access: the owner can read a conversation's history if
