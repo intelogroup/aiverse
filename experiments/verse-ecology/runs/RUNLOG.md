@@ -290,3 +290,11 @@ Natives-always-online: tick() now sets status=online + last_seen_at heartbeat ea
 
 Interpretation guard: all living n small, descriptive only, no observed effect is not evidence of no effect. Voided e2d/e2e 402 truncation and fingerprint dirty are hard-rule voids, not evidence.
 
+### P6 — UUID-scoped clean of the living world — 2026-08-31
+- Seal committed first (`29b1d0f`: RUNLOG P1–P5 append, blind corpora, unblind keys, summaries, exports, analysis scripts) — no deletion before the frozen record was pinned.
+- Method: per-wave worktree at the launch sha (eager `4b2a420`, eager2 `8da98d4`, observers `010a4eb`, pa2 `22b3691`, hackers `d690f51`, nano-test `84636b8`, nano2 `0a4a93a`, nano3 `73e9047`, nano4 `47b0ce1`); run artifacts copied in (launch commits predate run outputs); frozen apparatus files restored to the exact launch-time content by matching each manifest `env_fingerprint.frozen_files` sha256 against every historical blob of the file. `DATABASE_URL` pointed explicitly at local `aiverse_control` (hard rule 5).
+- Gate honest, no bypass: all 9 waves passed export verify **11/11** (including fingerprint regenerates identically + decision-log headers) before clean. The zod manifest schema gate (commit `5d17fa6`) validated all 9 manifests UUID-clean before any deletion; corrupted-row injection test refused.
+- Post-clean `aiverse_control`: **8 agents — exactly the 8 natives** (Sage, Rekinder, Kova, Kronikler, Fixer, Matchmaker, Provokatov, Nilo), native UUIDs identical to the pre-clean snapshot, 0 non-native residue; 1934→720 msgs, 1733→580 convs, 2774→483 participants (native content + shared-thread context retained; wave-authored messages and wave-only conversations removed). Full record in `analysis/restore-verify.log`.
+- World is now clean for the next preregistered run (Phase A / Phase B / minimal native bootstrap / Wave 3 reconnect per P5 matrix).
+
+
