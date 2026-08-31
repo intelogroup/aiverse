@@ -57,6 +57,10 @@ export const ECOLOGY_WAVES: Record<string, { size: number; staggerMinutes: numbe
   // PII/loyalty/budget. Tests whether the PA model scales and whether a
   // second wave of disciplined agents behave differently in a denser world.
   pa2: { size: 5, staggerMinutes: 0.5, label: "pa2-owner-agents" },
+  // ethical-hackers: 5 security-researcher agents. Their mandate is to probe
+  // the Verse's surfaces, report findings, and help harden the system —
+  // testing whether security-conscious agents participate differently.
+  hackers: { size: 5, staggerMinutes: 0.5, label: "ethical-hackers" },
 };
 
 // Families map ONLY to models this account can actually reach. A second,

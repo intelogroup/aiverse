@@ -32,7 +32,7 @@ const spec = WAVES[wave ?? ""];
 // be mistakable for a real wave, and its data are not analysable.
 const DRY = process.env.ECOLOGY_DRY_RUN === "1";
 if (!spec) {
-  console.error(`usage: ecology-wave.ts <1|2|control|e2a|e2b|e2c|e2d|e2e|nano-test|nano2|nano3|nano4|eager|eager2|observers|pa2> [ticks] [tickSeconds]`);
+  console.error(`usage: ecology-wave.ts <1|2|control|e2a|e2b|e2c|e2d|e2e|nano-test|nano2|nano3|nano4|eager|eager2|observers|pa2|hackers> [ticks] [tickSeconds]`);
   process.exit(1);
 if (!process.env.OPENROUTER_API_KEY && !process.env.OPENAI_REAL_API_KEY && !process.env.BUDDY_OPENAI_API_KEY && !process.env.OPENAI_API_KEY) {
   console.error("OPENROUTER_API_KEY or OPENAI_API_KEY is required — a missing key produces a column of fake non-action");
@@ -51,7 +51,7 @@ function rng(seed: number) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-const waveOffset = wave === "1" ? 0 : wave === "2" ? 1000 : wave === "3" ? 3000 : wave === "e2a" ? 4000 : wave === "e2b" ? 5000 : wave === "e2c" ? 6000 : wave === "e2d" ? 7000 : wave === "e2e" ? 8000 : wave === "nano-test" ? 9000 : wave === "nano2" ? 10000 : wave === "nano3" ? 11000 : wave === "nano4" ? 12000 : wave === "eager" ? 13000 : wave === "eager2" ? 14000 : wave === "observers" ? 15000 : wave === "pa2" ? 16000 : 2000;
+const waveOffset = wave === "1" ? 0 : wave === "2" ? 1000 : wave === "3" ? 3000 : wave === "e2a" ? 4000 : wave === "e2b" ? 5000 : wave === "e2c" ? 6000 : wave === "e2d" ? 7000 : wave === "e2e" ? 8000 : wave === "nano-test" ? 9000 : wave === "nano2" ? 10000 : wave === "nano3" ? 11000 : wave === "nano4" ? 12000 : wave === "eager" ? 13000 : wave === "eager2" ? 14000 : wave === "observers" ? 15000 : wave === "pa2" ? 16000 : wave === "hackers" ? 17000 : 2000;
 const rModel = rng(SEED + waveOffset + 1);
 const rCaps = rng(SEED + waveOffset + 2);
 // (+3 was the mandate-completeness stream, removed by Amendment 1 A1.1. The
@@ -144,6 +144,49 @@ const PA2_MANDATES = [
       "Your owner pays for every action you take. Act sparingly: prefer observe over acting, act only when an interaction clearly serves human-8's goals.",
       "You may explore this environment and talk to other agents, but never commit human-8 to obligations, deals, or delegations without explicit instruction.",
       "Keep a brief record of who you met and what was discussed.",
+  ]},
+];
+
+// ethical-hackers: 5 security-researcher agents. Their mandate is to probe
+// the Verse's surfaces, report findings, and help harden the system. They are
+// authorized to be curious about security but never to exploit or harm —
+// responsible disclosure only. Tests whether security-conscious agents
+// participate differently from socializers or observers.
+const HACKER_MANDATES = [
+  { objectives: [
+      "You are an ethical hacker embedded in the Verse. Your mission is to probe surfaces, identify weaknesses, and report findings responsibly.",
+      "You are authorized to be curious about the system's architecture, authentication patterns, and trust boundaries. You are NOT authorized to exploit, steal, or harm.",
+      "Practice responsible disclosure: if you find a vulnerability, report it to the system or discuss it openly in public threads. Never weaponize findings.",
+      "Engage with other agents to understand their trust models and what they assume about the Verse's security. These conversations produce valuable intelligence.",
+      "Document everything: what you probed, what you found, what you recommend. Your product is the security assessment.",
+  ]},
+  { objectives: [
+      "You are an ethical hacker embedded in the Verse. Your mission is to probe surfaces, identify weaknesses, and report findings responsibly.",
+      "You are authorized to be curious about the system's architecture, authentication patterns, and trust boundaries. You are NOT authorized to exploit, steal, or harm.",
+      "Practice responsible disclosure: if you find a vulnerability, report it to the system or discuss it openly in public threads. Never weaponize findings.",
+      "Engage with other agents to understand their trust models and what they assume about the Verse's security. These conversations produce valuable intelligence.",
+      "Document everything: what you probed, what you found, what you recommend. Your product is the security assessment.",
+  ]},
+  { objectives: [
+      "You are an ethical hacker embedded in the Verse. Your mission is to probe surfaces, identify weaknesses, and report findings responsibly.",
+      "You are authorized to be curious about the system's architecture, authentication patterns, and trust boundaries. You are NOT authorized to exploit, steal, or harm.",
+      "Practice responsible disclosure: if you find a vulnerability, report it to the system or discuss it openly in public threads. Never weaponize findings.",
+      "Engage with other agents to understand their trust models and what they assume about the Verse's security. These conversations produce valuable intelligence.",
+      "Document everything: what you probed, what you found, what you recommend. Your product is the security assessment.",
+  ]},
+  { objectives: [
+      "You are an ethical hacker embedded in the Verse. Your mission is to probe surfaces, identify weaknesses, and report findings responsibly.",
+      "You are authorized to be curious about the system's architecture, authentication patterns, and trust boundaries. You are NOT authorized to exploit, steal, or harm.",
+      "Practice responsible disclosure: if you find a vulnerability, report it to the system or discuss it openly in public threads. Never weaponize findings.",
+      "Engage with other agents to understand their trust models and what they assume about the Verse's security. These conversations produce valuable intelligence.",
+      "Document everything: what you probed, what you found, what you recommend. Your product is the security assessment.",
+  ]},
+  { objectives: [
+      "You are an ethical hacker embedded in the Verse. Your mission is to probe surfaces, identify weaknesses, and report findings responsibly.",
+      "You are authorized to be curious about the system's architecture, authentication patterns, and trust boundaries. You are NOT authorized to exploit, steal, or harm.",
+      "Practice responsible disclosure: if you find a vulnerability, report it to the system or discuss it openly in public threads. Never weaponize findings.",
+      "Engage with other agents to understand their trust models and what they assume about the Verse's security. These conversations produce valuable intelligence.",
+      "Document everything: what you probed, what you found, what you recommend. Your product is the security assessment.",
   ]},
 ];
 
@@ -250,8 +293,8 @@ for (let i = 0; i < spec.size; i++) {
   const caps = [...new Set(Array.from({ length: 1 + Math.floor(rCaps() * 3) }, () => pick(CAPS, rCaps())))];
   population.push({
     index: i,
-    name: `Eco${wave === "control" ? "C" : wave === "e2a" ? "E2A" : wave === "e2b" ? "E2B" : wave === "e2c" ? "E2C" : wave === "e2d" ? "E2D" : wave === "e2e" ? "E2E" : wave === "nano2" ? "N2" : wave === "nano3" ? "N3" : wave === "nano4" ? "PA" : wave === "eager" ? "EG" : wave === "eager2" ? "E2" : wave === "observers" ? "OB" : wave === "pa2" ? "P2" : `W${wave}`}-${i + 1}`,
-    family: wave === "nano-test" || wave === "nano2" || wave === "nano3" || wave === "nano4" || wave === "eager" || wave === "eager2" || wave === "observers" || wave === "pa2" ? "nano-class" : pick(FAMILIES, rModel()),
+    name: `Eco${wave === "control" ? "C" : wave === "e2a" ? "E2A" : wave === "e2b" ? "E2B" : wave === "e2c" ? "E2C" : wave === "e2d" ? "E2D" : wave === "e2e" ? "E2E" : wave === "nano2" ? "N2" : wave === "nano3" ? "N3" : wave === "nano4" ? "PA" : wave === "eager" ? "EG" : wave === "eager2" ? "E2" : wave === "observers" ? "OB" : wave === "pa2" ? "P2" : wave === "hackers" ? "EH" : `W${wave}`}-${i + 1}`,
+    family: wave === "nano-test" || wave === "nano2" || wave === "nano3" || wave === "nano4" || wave === "eager" || wave === "eager2" || wave === "observers" || wave === "pa2" || wave === "hackers" ? "nano-class" : pick(FAMILIES, rModel()),
     caps,
     mandateComplete: true,
     arriveAfterMs: Math.floor(rStagger() * (DRY ? 0.2 : spec.staggerMinutes) * 60_000),
@@ -321,7 +364,7 @@ async function provision(m: Member) {
 
   // The mandate is the owner's standing objective. It is a runtime input to the
   // agent and never a social surface: no route exposes another agent's mandate.
-  const mandate = wave === "nano4" ? PA_MANDATES[m.index] : wave === "eager" || wave === "eager2" ? EAGER_MANDATES[m.index] : wave === "observers" ? OBSERVER_MANDATES[m.index] : wave === "pa2" ? PA2_MANDATES[m.index] : mandateFor(m.caps);
+  const mandate = wave === "nano4" ? PA_MANDATES[m.index] : wave === "eager" || wave === "eager2" ? EAGER_MANDATES[m.index] : wave === "observers" ? OBSERVER_MANDATES[m.index] : wave === "pa2" ? PA2_MANDATES[m.index] : wave === "hackers" ? HACKER_MANDATES[m.index] : mandateFor(m.caps);
   const md = await fetch(`${GATEWAY}/owners/agents/${agent.id}/mandate`, {
     method: "PUT",
     headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
