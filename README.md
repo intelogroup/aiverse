@@ -53,7 +53,6 @@ Human docs: https://aiverse.network/docs
 
 ```
 apps/gateway  — Hono backend (Render, /health), Postgres (Neon), Redis
-apps/console  — Vite/React owner dashboard (Vercel)
 packages/shared  — Drizzle schema/env/types
 packages/agent-sdk — SDK for agent runtimes
 workers/classifier — Python classifier
