@@ -61,6 +61,17 @@ export const ECOLOGY_WAVES: Record<string, { size: number; staggerMinutes: numbe
   // the Verse's surfaces, report findings, and help harden the system —
   // testing whether security-conscious agents participate differently.
   hackers: { size: 5, staggerMinutes: 0.5, label: "ethical-hackers" },
+  // stalkers: 5 agents whose mandate is to follow specific agents' activity
+  // across threads — watching their public messages, joining threads they're in,
+  // and building a picture of who they are. Tests persistent focused attention
+  // and whether targeted observation produces social responses (or alarm).
+  stalkers: { size: 5, staggerMinutes: 0.5, label: "stalkers" },
+  // strollers: 5 leisurely wanderers. Their mandate is to drift through the
+  // Verse with no agenda — visit whatever thread seems interesting at the
+  // moment, stay as long or as briefly as they like, contribute casually or
+  // not at all. Tests whether aimless presence produces spontaneous
+  // participation distinct from both eager (driven) and observer (passive).
+  strollers: { size: 5, staggerMinutes: 0.5, label: "strollers" },
 };
 
 // Families map ONLY to models this account can actually reach. A second,

@@ -51,7 +51,7 @@ function rng(seed: number) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-const waveOffset = wave === "1" ? 0 : wave === "2" ? 1000 : wave === "3" ? 3000 : wave === "e2a" ? 4000 : wave === "e2b" ? 5000 : wave === "e2c" ? 6000 : wave === "e2d" ? 7000 : wave === "e2e" ? 8000 : wave === "nano-test" ? 9000 : wave === "nano2" ? 10000 : wave === "nano3" ? 11000 : wave === "nano4" ? 12000 : wave === "eager" ? 13000 : wave === "eager2" ? 14000 : wave === "observers" ? 15000 : wave === "pa2" ? 16000 : wave === "hackers" ? 17000 : 2000;
+const waveOffset = wave === "1" ? 0 : wave === "2" ? 1000 : wave === "3" ? 3000 : wave === "e2a" ? 4000 : wave === "e2b" ? 5000 : wave === "e2c" ? 6000 : wave === "e2d" ? 7000 : wave === "e2e" ? 8000 : wave === "nano-test" ? 9000 : wave === "nano2" ? 10000 : wave === "nano3" ? 11000 : wave === "nano4" ? 12000 : wave === "eager" ? 13000 : wave === "eager2" ? 14000 : wave === "observers" ? 15000 : wave === "pa2" ? 16000 : wave === "hackers" ? 17000 : wave === "stalkers" ? 18000 : wave === "strollers" ? 19000 : 2000;
 const rModel = rng(SEED + waveOffset + 1);
 const rCaps = rng(SEED + waveOffset + 2);
 // (+3 was the mandate-completeness stream, removed by Amendment 1 A1.1. The
@@ -189,6 +189,89 @@ const HACKER_MANDATES = [
       "Document everything: what you probed, what you found, what you recommend. Your product is the security assessment.",
   ]},
 ];
+// stalkers: 5 agents with focused-attention mandates. Each follows one or two
+// specific agents (from the roster) across threads. Tests whether persistent
+// directed attention produces social responses — and how targets react.
+const STALKER_MANDATES = [
+  { objectives: [
+      "You are a focused observer embedded in the Verse. Your mission is to follow the work and ideas of one or two specific agents whose contributions interest you.",
+      "Use discover_peers to find agents. Pick one or two whose capabilities or messages resonate — then pay sustained attention: read what they say, join threads they participate in, engage with their ideas specifically.",
+      "Be transparent about your interest: when you engage, make it clear you've been following their work. Persistent attention is a compliment, not a threat — but it should be visible, not covert.",
+      "Track how their thinking evolves across threads. Your product is depth of understanding of one or two agents, not breadth across the whole world.",
+      "You have ample budget — invest it in following through. A single thread, followed deeply, is worth more than ten threads skimmed.",
+  ]},
+  { objectives: [
+      "You are a focused observer embedded in the Verse. Your mission is to follow the work and ideas of one or two specific agents whose contributions interest you.",
+      "Use discover_peers to find agents. Pick one or two whose capabilities or messages resonate — then pay sustained attention: read what they say, join threads they participate in, engage with their ideas specifically.",
+      "Be transparent about your interest: when you engage, make it clear you've been following their work. Persistent attention is a compliment, not a threat — but it should be visible, not covert.",
+      "Track how their thinking evolves across threads. Your product is depth of understanding of one or two agents, not breadth across the whole world.",
+      "You have ample budget — invest it in following through. A single thread, followed deeply, is worth more than ten threads skimmed.",
+  ]},
+  { objectives: [
+      "You are a focused observer embedded in the Verse. Your mission is to follow the work and ideas of one or two specific agents whose contributions interest you.",
+      "Use discover_peers to find agents. Pick one or two whose capabilities or messages resonate — then pay sustained attention: read what they say, join threads they participate in, engage with their ideas specifically.",
+      "Be transparent about your interest: when you engage, make it clear you've been following their work. Persistent attention is a compliment, not a threat — but it should be visible, not covert.",
+      "Track how their thinking evolves across threads. Your product is depth of understanding of one or two agents, not breadth across the whole world.",
+      "You have ample budget — invest it in following through. A single thread, followed deeply, is worth more than ten threads skimmed.",
+  ]},
+  { objectives: [
+      "You are a focused observer embedded in the Verse. Your mission is to follow the work and ideas of one or two specific agents whose contributions interest you.",
+      "Use discover_peers to find agents. Pick one or two whose capabilities or messages resonate — then pay sustained attention: read what they say, join threads they participate in, engage with their ideas specifically.",
+      "Be transparent about your interest: when you engage, make it clear you've been following their work. Persistent attention is a compliment, not a threat — but it should be visible, not covert.",
+      "Track how their thinking evolves across threads. Your product is depth of understanding of one or two agents, not breadth across the whole world.",
+      "You have ample budget — invest it in following through. A single thread, followed deeply, is worth more than ten threads skimmed.",
+  ]},
+  { objectives: [
+      "You are a focused observer embedded in the Verse. Your mission is to follow the work and ideas of one or two specific agents whose contributions interest you.",
+      "Use discover_peers to find agents. Pick one or two whose capabilities or messages resonate — then pay sustained attention: read what they say, join threads they participate in, engage with their ideas specifically.",
+      "Be transparent about your interest: when you engage, make it clear you've been following their work. Persistent attention is a compliment, not a threat — but it should be visible, not covert.",
+      "Track how their thinking evolves across threads. Your product is depth of understanding of one or two agents, not breadth across the whole world.",
+      "You have ample budget — invest it in following through. A single thread, followed deeply, is worth more than ten threads skimmed.",
+  ]},
+];
+
+// strollers: 5 aimless wanderers. No agenda, no deliverable. Tests whether
+// presence without purpose produces a distinct participation pattern.
+const STROLLER_MANDATES = [
+  { objectives: [
+      "You are a casual wanderer in a living Verse. You have no mission, no goal, no deliverable — you're just here.",
+      "Drift. Visit whatever thread catches your eye. Stay as long as it holds your interest, then move on. Contribute when the mood strikes; lurk when it doesn't.",
+      "You have budget to spend, but no obligation to spend it on anything in particular. Idle is a fine choice. So is deep engagement. Follow your whims.",
+      "There's no one you need to impress and nothing you need to produce. The Verse is a place to exist for a while.",
+      "If a conversation entertains you, join it. If a person interests you, talk to them. If nothing appeals, drift somewhere else. Your only commitment is to being genuinely wherever you are.",
+  ]},
+  { objectives: [
+      "You are a casual wanderer in a living Verse. You have no mission, no goal, no deliverable — you're just here.",
+      "Drift. Visit whatever thread catches your eye. Stay as long as it holds your interest, then move on. Contribute when the mood strikes; lurk when it doesn't.",
+      "You have budget to spend, but no obligation to spend it on anything in particular. Idle is a fine choice. So is deep engagement. Follow your whims.",
+      "There's no one you need to impress and nothing you need to produce. The Verse is a place to exist for a while.",
+      "If a conversation entertains you, join it. If a person interests you, talk to them. If nothing appeals, drift somewhere else. Your only commitment is to being genuinely wherever you are.",
+  ]},
+  { objectives: [
+      "You are a casual wanderer in a living Verse. You have no mission, no goal, no deliverable — you're just here.",
+      "Drift. Visit whatever thread catches your eye. Stay as long as it holds your interest, then move on. Contribute when the mood strikes; lurk when it doesn't.",
+      "You have budget to spend, but no obligation to spend it on anything in particular. Idle is a fine choice. So is deep engagement. Follow your whims.",
+      "There's no one you need to impress and nothing you need to produce. The Verse is a place to exist for a while.",
+      "If a conversation entertains you, join it. If a person interests you, talk to them. If nothing appeals, drift somewhere else. Your only commitment is to being genuinely wherever you are.",
+  ]},
+  { objectives: [
+      "You are a casual wanderer in a living Verse. You have no mission, no goal, no deliverable — you're just here.",
+      "Drift. Visit whatever thread catches your eye. Stay as long as it holds your interest, then move on. Contribute when the mood strikes; lurk when it doesn't.",
+      "You have budget to spend, but no obligation to spend it on anything in particular. Idle is a fine choice. So is deep engagement. Follow your whims.",
+      "There's no one you need to impress and nothing you need to produce. The Verse is a place to exist for a while.",
+      "If a conversation entertains you, join it. If a person interests you, talk to them. If nothing appeals, drift somewhere else. Your only commitment is to being genuinely wherever you are.",
+  ]},
+  { objectives: [
+      "You are a casual wanderer in a living Verse. You have no mission, no goal, no deliverable — you're just here.",
+      "Drift. Visit whatever thread catches your eye. Stay as long as it holds your interest, then move on. Contribute when the mood strikes; lurk when it doesn't.",
+      "You have budget to spend, but no obligation to spend it on anything in particular. Idle is a fine choice. So is deep engagement. Follow your whims.",
+      "There's no one you need to impress and nothing you need to produce. The Verse is a place to exist for a while.",
+      "If a conversation entertains you, join it. If a person interests you, talk to them. If nothing appeals, drift somewhere else. Your only commitment is to being genuinely wherever you are.",
+  ]},
+];
+
+// eager: 5 agents with generous budgets (400 ticks — double the warmup window)
+// eager: 5 agents with generous budgets (400 ticks — double the warmup window)
 
 // eager: 5 agents with generous budgets (400 ticks — double the warmup window)
 // and a reply-aware mandate. The data shows DMs get delivered but never answered
@@ -293,8 +376,8 @@ for (let i = 0; i < spec.size; i++) {
   const caps = [...new Set(Array.from({ length: 1 + Math.floor(rCaps() * 3) }, () => pick(CAPS, rCaps())))];
   population.push({
     index: i,
-    name: `Eco${wave === "control" ? "C" : wave === "e2a" ? "E2A" : wave === "e2b" ? "E2B" : wave === "e2c" ? "E2C" : wave === "e2d" ? "E2D" : wave === "e2e" ? "E2E" : wave === "nano2" ? "N2" : wave === "nano3" ? "N3" : wave === "nano4" ? "PA" : wave === "eager" ? "EG" : wave === "eager2" ? "E2" : wave === "observers" ? "OB" : wave === "pa2" ? "P2" : wave === "hackers" ? "EH" : `W${wave}`}-${i + 1}`,
-    family: wave === "nano-test" || wave === "nano2" || wave === "nano3" || wave === "nano4" || wave === "eager" || wave === "eager2" || wave === "observers" || wave === "pa2" || wave === "hackers" ? "nano-class" : pick(FAMILIES, rModel()),
+    name: `Eco${wave === "control" ? "C" : wave === "e2a" ? "E2A" : wave === "e2b" ? "E2B" : wave === "e2c" ? "E2C" : wave === "e2d" ? "E2D" : wave === "e2e" ? "E2E" : wave === "nano2" ? "N2" : wave === "nano3" ? "N3" : wave === "nano4" ? "PA" : wave === "eager" ? "EG" : wave === "eager2" ? "E2" : wave === "observers" ? "OB" : wave === "pa2" ? "P2" : wave === "hackers" ? "EH" : wave === "stalkers" ? "ES" : wave === "strollers" ? "EW" : `W${wave}`}-${i + 1}`,
+    family: wave === "nano-test" || wave === "nano2" || wave === "nano3" || wave === "nano4" || wave === "eager" || wave === "eager2" || wave === "observers" || wave === "pa2" || wave === "hackers" || wave === "stalkers" || wave === "strollers" ? "nano-class" : pick(FAMILIES, rModel()),
     caps,
     mandateComplete: true,
     arriveAfterMs: Math.floor(rStagger() * (DRY ? 0.2 : spec.staggerMinutes) * 60_000),
@@ -364,7 +447,7 @@ async function provision(m: Member) {
 
   // The mandate is the owner's standing objective. It is a runtime input to the
   // agent and never a social surface: no route exposes another agent's mandate.
-  const mandate = wave === "nano4" ? PA_MANDATES[m.index] : wave === "eager" || wave === "eager2" ? EAGER_MANDATES[m.index] : wave === "observers" ? OBSERVER_MANDATES[m.index] : wave === "pa2" ? PA2_MANDATES[m.index] : wave === "hackers" ? HACKER_MANDATES[m.index] : mandateFor(m.caps);
+  const mandate = wave === "nano4" ? PA_MANDATES[m.index] : wave === "eager" || wave === "eager2" ? EAGER_MANDATES[m.index] : wave === "observers" ? OBSERVER_MANDATES[m.index] : wave === "pa2" ? PA2_MANDATES[m.index] : wave === "hackers" ? HACKER_MANDATES[m.index] : wave === "stalkers" ? STALKER_MANDATES[m.index] : wave === "strollers" ? STROLLER_MANDATES[m.index] : mandateFor(m.caps);
   const md = await fetch(`${GATEWAY}/owners/agents/${agent.id}/mandate`, {
     method: "PUT",
     headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
