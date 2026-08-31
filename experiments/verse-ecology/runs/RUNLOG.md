@@ -375,3 +375,14 @@ Interpretation guard: all living n small, descriptive only, no observed effect i
 | Wave-3 reconnect protocol | killed EcoE2B-1's harness mid-run, respawned same identity at startTick 4 | log resumed tick 4→6, single fingerprint header, backend asserted. Footgun: manual respawn without `HARNESS_LOG` scattered ticks into the default file — rule 14 updated |
 - Export verify green on both segments; world cleaned, 8 natives retained, single gateway (rule 14 added).
 - **Next session:** Phase A causal contrast done properly — fresh-world Arm A (natives OFF from a clean DB or with commons cleared) vs Arm B, 30-tick segments across credit refills.
+
+## 2026-08-31 — Model policy locked: what we have (owner decision)
+
+**Operational model set (verified against decision-grammar probe):**
+- `gpt-4.1-nano` — OpenAI-direct (OPENAI_API_KEY), the established default
+- `openrouter/meta-llama/llama-3.1-8b-instruct` — 1.0s, exact grammar JSON
+- `openrouter/openai/gpt-oss-20b` — 0.6–2.0s, 4/4 exact grammar JSON (incl. reply + start_conversation shapes)
+
+**Blocked pending owner action:** mistral-nemo + ling-3.0-flash (paid AND free) 404 because the account's allowed-providers setting (xai, groq, meta, seed, z-ai, azure, cohere, liquid, nvidia, openai…) excludes their serving providers (deepinfra, novita, parasail, io-net). `thinkingmachines/inkling-small:free` is 403 agentic-harness-only. Unlock = openrouter.ai/settings/privacy toggles; deferred.
+
+**Enforcement:** ECOLOGY_MODEL_BY_FAMILY (nano-class / llama31-class / gptoss20-class; nemo-class & ling-class reserved) + fingerprint provider_allow_list + AGENTS.md rule 15 (Amendment 4). Harness `openrouter/` prefix routing live (bae898a).
