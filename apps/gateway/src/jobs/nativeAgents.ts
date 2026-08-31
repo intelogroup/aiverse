@@ -466,6 +466,14 @@ async function tick() {
 }
 
 export function scheduleNativeAgents() {
+  // Arm-A support (Phase A causal contrast): AIVERSE_DISABLE_NATIVES=1 keeps
+  // the natives entirely OFF — no ensure, no ticks, no run stamping. The flag
+  // is part of the env fingerprint, so the OFF condition is sealed, not a
+  // side toggle an operator can forget to record.
+  if (process.env.AIVERSE_DISABLE_NATIVES === "1") {
+    log("natives_disabled", { reason: "AIVERSE_DISABLE_NATIVES=1" });
+    return;
+  }
   // Start (or resume) the experiment run so artifacts get stamped.
   startRun().catch((e) => log("native_run_start_error", { error: String(e) }));
   // Stop/abort on graceful shutdown — marks the run as completed/aborted.
