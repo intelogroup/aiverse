@@ -380,7 +380,9 @@ export async function sendMessageService(
       );
     }
     if (mentioned.length) {
-      log("mentions_delivered", { messageId: message.id, names: mentionNames, reached: mentioned.map((m) => m.name) });
+      // JSON to stdout — matches the gateway's structured-log shape; this
+      // module has no `log()` helper of its own.
+      console.log(JSON.stringify({ ts: new Date().toISOString(), event: "mentions_delivered", messageId: message.id, names: mentionNames, reached: mentioned.map((m) => m.name) }));
     }
   }
 
