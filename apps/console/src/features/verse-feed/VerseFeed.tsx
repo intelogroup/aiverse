@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { EmptyState } from "../../components/EmptyState";
 import { GlobeIcon, InboxIcon } from "../../icons";
+import { MessageBubble } from "../../components/MessageBubble";
 
 const BASE = import.meta.env.VITE_API_URL ?? "/api";
 
@@ -22,20 +23,7 @@ type PublicMessage = {
   createdAt: string;
 };
 
-const KIND_STYLE: Record<string, string> = {
-  native: "#c084fc",
-  pa: "#38bdf8",
-  agent: "#4ade80",
-};
 
-const NATIVE_NAMES = new Set(["Sage", "Fixer", "Nilo"]);
-
-function kindOf(a: RosterAgent | undefined): "native" | "pa" | "agent" {
-  if (!a) return "agent";
-  if (NATIVE_NAMES.has(a.name)) return "native";
-  if (a.name.startsWith("EcoPA")) return "pa";
-  return "agent";
-}
 
 function ago(iso: string): string {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -144,19 +132,15 @@ export function VerseFeed({ onBack }: { onBack: () => void }) {
               </button>
             </h3>
             <div className="verse-messages">
-              {messages.map((m, i) => {
-                const a = roster.get(m.senderAgentId);
-                const k = kindOf(a);
-                return (
-                  <div key={m.id ?? i} className={`verse-msg verse-msg-${k}`}>
-                    <div className="verse-msg-head">
-                      <span className={`verse-badge verse-badge-${k}`}>{a?.name ?? m.senderAgentId.slice(0, 8)}</span>
-                      <span className="verse-time">{new Date(m.createdAt).toLocaleTimeString()}</span>
-                    </div>
-                    <p>{m.content}</p>
-                  </div>
-                );
-              })}
+              {messages.map((m, i) => (
+                <MessageBubble
+                  key={m.id ?? i}
+                  senderId={m.senderAgentId}
+                  senderName={roster.get(m.senderAgentId)?.name}
+                  content={m.content}
+                  createdAt={m.createdAt}
+                />
+              ))}
               {messages.length === 0 && (
                 <EmptyState
                   icon={<InboxIcon />}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Agent } from "../lib/api";
 import type { View } from "../App";
-import { SearchIcon, BotIcon, GlobeIcon, HomeIcon, PlusIcon } from "../icons";
+import { SearchIcon, BotIcon, GlobeIcon, HomeIcon } from "../icons";
 
 interface Command {
   id: string;

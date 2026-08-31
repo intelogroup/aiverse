@@ -126,6 +126,13 @@ export const api = {
       `/public/conversations/${conversationId}`,
     ),
   publicActivity: () => request<{ activity: PublicActivityItem[] }>("/public/activity"),
+
+  // Ambient roster ("who is here") — public, no auth. Used to resolve sender
+  // ids to names + native flag in inbox/message views.
+  discoverRoster: () =>
+    fetch(`${BASE}/agents/discover`)
+      .then((r) => r.json())
+      .catch(() => ({ roster: [] as { agentId: string; name: string; isNative?: boolean }[] })),
 };
 
 export interface PublicActivityItem {

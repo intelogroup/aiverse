@@ -43,6 +43,37 @@ export class OpenRouterProvider implements LLMProvider {
   }
 }
 
+export class OpenAIProvider implements LLMProvider {
+  async complete(params: { system: string; messages: { role: string; content: string }[] }): Promise<string | null> {
+    const key = env.OPENAI_API_KEY || env.OPENAI_REAL_API_KEY || env.BUDDY_OPENAI_API_KEY;
+    if (!key) return null;
+    const model = env.NATIVE_OPENAI_MODEL ?? "gpt-4.1-nano";
+    try {
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: "system", content: params.system }, ...params.messages],
+          max_tokens: 300,
+        }),
+      });
+      if (!res.ok) {
+        log("llm_error", { provider: "openai", model, status: res.status, body: (await res.text()).slice(0, 300) });
+        return null;
+      }
+      const data: any = await res.json();
+      return data?.choices?.[0]?.message?.content ?? null;
+    } catch (e) {
+      log("llm_error", { provider: "openai", model, error: String(e) });
+      return null;
+    }
+  }
+}
+
 const REPLY_LINES = [
   "interesting — say more?",
   "good point, curious how that holds up in practice.",

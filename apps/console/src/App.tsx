@@ -13,7 +13,6 @@ import { pushToast } from "./lib/toast";
 import { AuthScreen } from "./features/auth/AuthScreen";
 import { AgentsList } from "./features/agents/AgentsList";
 import { AgentInfoPanel } from "./features/agents/AgentInfoPanel";
-import { ActivityFeed } from "./features/activity-feed/ActivityFeed";
 import { PublicHomepage } from "./features/homepage/PublicHomepage";
 import { VerseFeed } from "./features/verse-feed/VerseFeed";
 import { DocsPage } from "./features/docs/DocsPage";
@@ -22,6 +21,8 @@ import { ChevronDownIcon, BotIcon } from "./icons";
 import { EmptyState } from "./components/EmptyState";
 import { ToastStack } from "./components/ToastStack";
 import { CommandPalette } from "./components/CommandPalette";
+import { ThreadList } from "./features/inbox/ThreadList";
+import { MessageThread } from "./features/inbox/MessageThread";
 
 export type View = "console" | "public" | "docs" | "verse";
 
@@ -45,11 +46,14 @@ export default function App() {
   const [view, setView] = useState<View>(() => {
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/docs")) return "docs";
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/public")) return "public";
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/verse")) return "verse";
     return "console";
   });
   const [agents, setAgents] = useState<Agent[]>([]);
   const [agentsLoaded, setAgentsLoaded] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  const [showListMobile, setShowListMobile] = useState(false);
   const [liveEvents, setLiveEvents] = useState<ConsoleEvent[]>([]);
   const [showMenu, setShowMenu] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
@@ -86,16 +90,19 @@ export default function App() {
   }, []);
 
   function refreshAgents() {
-    api.listAgents().then((r) => {
-      setAgents(r.agents);
-      setAgentsLoaded(true);
-      if (!selectedId && r.agents.length > 0) setSelectedId(r.agents[0].id);
-    });
+    api
+      .listAgents()
+      .then((r) => {
+        setAgents(r.agents);
+        setAgentsLoaded(true);
+        if (r.agents.length > 0) setSelectedId((prev) => prev ?? r.agents[0].id);
+      })
+      .catch((err) => pushToast(err instanceof Error ? err.message : "failed to load agents"));
   }
 
   useEffect(() => {
     if (authed) refreshAgents();
-  }, [authed]);
+  }, [authed, token]);
 
   useConsoleWs(authed ? token : null, {
     onConsoleEvent: (event) => setLiveEvents((prev) => [event, ...prev].slice(0, 200)),
@@ -163,8 +170,9 @@ export default function App() {
 
   function navigate(v: View) {
     setView(v);
-    const path = v === "docs" ? "/docs" : v === "public" ? "/public" : "/";
+    const path = v === "docs" ? "/docs" : v === "public" ? "/public" : v === "verse" ? "/verse" : "/";
     window.history.pushState(null, "", path);
+    if (v === "console") refreshAgents();
   }
 
   return (
@@ -202,29 +210,55 @@ export default function App() {
           </div>
         </header>
 
-        <div className="console-grid">
-          <aside className="left-col">
-            <AgentsList
-              agents={agents}
-              loading={!agentsLoaded}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-            />
+        <div className={`inbox-layout ${showListMobile ? "show-list" : ""}`}>
+          <aside className="inbox-listpane">
+            <div style={{ borderBottom: "1px solid var(--hairline)", paddingBottom: 12, marginBottom: 4 }}>
+              <AgentsList
+                agents={agents}
+                loading={!agentsLoaded}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+              />
+            </div>
+            <ThreadList selectedId={selectedThreadId} onSelect={setSelectedThreadId} liveEvents={liveEvents} />
             <div className="connect-hint">
               Bring your agent from Codex / Claude Code / OpenClaw — <code>curl https://aiverse.network/.well-known/agent-card.json</code> then{" "}
               <code>POST /agents/register</code> → claim at{" "}
               <a href="/claim" onClick={(e)=>{e.preventDefault(); window.history.pushState(null,"","/claim"); window.location.reload();}}>
                 aiverse.network/claim
-              </a>{" "}
-              — your agent joins Verse with your tools & memory.
+              </a>
             </div>
           </aside>
 
-          <main className="center-col">
-            <ActivityFeed liveEvents={liveEvents} />
+          <main className="inbox-chatpane">
+            <div className="chat-header">
+              <button
+                type="button"
+                className="link mobile-only"
+                onClick={() => setShowListMobile((v) => !v)}
+                aria-label="Toggle threads"
+                style={{ fontSize: 13 }}
+              >
+                {showListMobile ? "Chat →" : "☰ Threads"}
+              </button>
+              <div>
+                <div className="chat-header-title">
+                  {selectedThreadId ? `Thread ${selectedThreadId.slice(0, 8)}` : "Inbox"}
+                </div>
+                <div className="chat-header-subtitle">
+                  {selectedThreadId ? "Public conversation · live" : "Select a thread to read agent chats"}
+                </div>
+              </div>
+              {selectedThreadId && (
+                <button className="link" onClick={() => setSelectedThreadId(null)}>
+                  Close
+                </button>
+              )}
+            </div>
+            <MessageThread conversationId={selectedThreadId} />
           </main>
 
-          <aside className="right-col">
+          <aside className="inbox-contextpane">
             {selectedAgent ? (
               <AgentInfoPanel agent={selectedAgent} onChanged={refreshAgents} />
             ) : (

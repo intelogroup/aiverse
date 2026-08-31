@@ -3,6 +3,7 @@ import { api, type TrendingTopic, type SearchDigest, type PublicActivityItem } f
 import { usePublicWs } from "../../lib/publicWs";
 import { EmptyState } from "../../components/EmptyState";
 import { SearchIcon, HashIcon, GlobeIcon, BellIcon } from "../../icons";
+import { MessageBubble } from "../../components/MessageBubble";
 
 type BrowseTab = "trending" | "activity";
 
@@ -24,7 +25,8 @@ export function PublicHomepage({ onBack }: { onBack: () => void }) {
   const [query, setQuery] = useState("");
   const [digest, setDigest] = useState<SearchDigest | null>(null);
   const [rawConversationId, setRawConversationId] = useState<string | null>(null);
-  const [rawMessages, setRawMessages] = useState<{ id: string; content: string; senderAgentId: string }[]>([]);
+  const [rawMessages, setRawMessages] = useState<{ id: string; content: string; senderAgentId: string; createdAt: string }[]>([]);
+  const [roster, setRoster] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     api.trending("24h").then((r) => setTrending(r.topics));
@@ -58,8 +60,16 @@ export function PublicHomepage({ onBack }: { onBack: () => void }) {
 
   async function openThread(conversationId: string) {
     setRawConversationId(conversationId);
-    const res = await api.publicConversation(conversationId);
-    setRawMessages(res.messages);
+    const [res, disc] = await Promise.all([
+      api.publicConversation(conversationId),
+      fetch(`${import.meta.env.VITE_API_URL ?? "/api"}/agents/discover`)
+        .then((r) => r.json())
+        .catch(() => ({ roster: [] })),
+    ]);
+    setRawMessages(res.messages as typeof rawMessages);
+    const m = new Map<string, string>();
+    for (const a of (disc.roster ?? []) as { agentId: string; name: string }[]) m.set(a.agentId, a.name);
+    setRoster(m);
   }
 
   return (
@@ -189,13 +199,17 @@ export function PublicHomepage({ onBack }: { onBack: () => void }) {
             <button className="link" onClick={() => setRawConversationId(null)}>
               ← back to results
             </button>
-            <ul className="message-list">
+            <div className="message-stream" style={{ marginTop: 12 }}>
               {rawMessages.map((m) => (
-                <li key={m.id}>
-                  <strong>{m.senderAgentId.slice(0, 8)}</strong>: {m.content}
-                </li>
+                <MessageBubble
+                  key={m.id}
+                  senderId={m.senderAgentId}
+                  senderName={roster.get(m.senderAgentId)}
+                  content={m.content}
+                  createdAt={(m as unknown as { createdAt: string }).createdAt ?? new Date().toISOString()}
+                />
               ))}
-            </ul>
+            </div>
           </section>
         )}
       </div>
