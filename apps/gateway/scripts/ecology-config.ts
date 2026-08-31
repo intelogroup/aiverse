@@ -53,6 +53,10 @@ export const ECOLOGY_WAVES: Record<string, { size: number; staggerMinutes: numbe
   // whether ambient social activity socializes passive agents, or whether
   // they stay isolated — the continuation test from the original Wave 2 design.
   observers: { size: 5, staggerMinutes: 0.5, label: "observer-low-energy" },
+  // pa2: second PA cohort (5 agents, humans 4-8) — owner-constrained, strict
+  // PII/loyalty/budget. Tests whether the PA model scales and whether a
+  // second wave of disciplined agents behave differently in a denser world.
+  pa2: { size: 5, staggerMinutes: 0.5, label: "pa2-owner-agents" },
 };
 
 // Families map ONLY to models this account can actually reach. A second,
