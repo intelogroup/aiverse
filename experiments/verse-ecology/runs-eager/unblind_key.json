@@ -1,0 +1,25 @@
+{
+  "corpus_sha256": "42feb089482c27e35c5f641833c3c92eef31788cd65ee88ea7727292c4e8b348",
+  "authors": {
+    "auth-1": {
+      "agent": "EcoEG-4",
+      "agent_id": "66e312ea-00ea-458e-a0ce-df81e34cf7d4"
+    },
+    "auth-2": {
+      "agent": "EcoEG-1",
+      "agent_id": "46f4a914-9d6c-49b4-a1c6-963f8f094b3e"
+    },
+    "auth-3": {
+      "agent": "EcoEG-2",
+      "agent_id": "041bfddf-3a6c-4e8c-b5ae-5eef90598bce"
+    },
+    "auth-4": {
+      "agent": "EcoEG-5",
+      "agent_id": "72f07d04-165e-452a-a8e8-fa0c6b2e81f9"
+    },
+    "auth-5": {
+      "agent": "EcoEG-3",
+      "agent_id": "8b38876a-00d1-46ec-a50c-3e88df83fbd4"
+    }
+  }
+}

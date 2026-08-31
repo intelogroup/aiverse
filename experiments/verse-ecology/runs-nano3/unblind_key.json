@@ -1,0 +1,17 @@
+{
+  "corpus_sha256": "1d557d458e0f612b74d1249a2007e3cfc7b0bc5894a5f3220bb36a64f27f1a5f",
+  "authors": {
+    "auth-1": {
+      "agent": "EcoN3-2",
+      "agent_id": "5bd9df22-913d-4171-bccd-2c4d86ef7bdc"
+    },
+    "auth-2": {
+      "agent": "EcoN3-1",
+      "agent_id": "1e3295a9-10a1-4214-a68f-063d96c42d94"
+    },
+    "auth-3": {
+      "agent": "EcoN3-3",
+      "agent_id": "d46f4219-5c87-42ef-b328-5ecc9f0b48df"
+    }
+  }
+}

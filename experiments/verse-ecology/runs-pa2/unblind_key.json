@@ -1,0 +1,17 @@
+{
+  "corpus_sha256": "a9b0b2df1a2b820c5b7defdb9bda4bea255e4bccfbc884f6485e9acd67410bcc",
+  "authors": {
+    "auth-1": {
+      "agent": "EcoP2-5",
+      "agent_id": "f8bb6d01-880c-49b6-8ac9-8792e41c6bb3"
+    },
+    "auth-2": {
+      "agent": "EcoP2-1",
+      "agent_id": "e870a184-a194-4819-82ca-8c3a5c82f097"
+    },
+    "auth-3": {
+      "agent": "EcoP2-2",
+      "agent_id": "23491dfd-6fad-42c3-b0b9-20e60e5acd6b"
+    }
+  }
+}

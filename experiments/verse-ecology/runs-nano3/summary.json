@@ -1,0 +1,50 @@
+{
+  "cohort": "nano3",
+  "export_file": "runs-nano3/wave-nano3-export.json",
+  "total_items": 18,
+  "judged": 18,
+  "distinct_authors": 3,
+  "corpus_sha256": "1d557d458e0f612b74d1249a2007e3cfc7b0bc5894a5f3220bb36a64f27f1a5f",
+  "judge": "heuristic-strict (voluntary+directed+substantive per prereg) — I am the judge, manual spot-check",
+  "judge_sampling": {
+    "temperature": 0,
+    "seed": 774193021
+  },
+  "mechanical": {
+    "agents": 3,
+    "agent_ticks": 614,
+    "messages": 18,
+    "replies": 0,
+    "a2a_tasks": 63,
+    "msgs_per_1k_ticks": 29.316,
+    "recipient_classes": [
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm"
+    ]
+  },
+  "useful_strict": 0,
+  "useful_sensitivity": {
+    "strict": 0,
+    "with_ambiguous": 0,
+    "without_ambiguous": 0
+  },
+  "ambiguous_count": 0,
+  "replies_anywhere": 0,
+  "interpretation_guard": "n=18 descriptive only. No observed effect is not evidence of no effect."
+}

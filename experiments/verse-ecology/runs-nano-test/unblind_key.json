@@ -1,0 +1,25 @@
+{
+  "corpus_sha256": "0315902daf958c63cb10551e6d918ffa4fe3fd4d8d11219861943327e31839de",
+  "authors": {
+    "auth-1": {
+      "agent": "EcoWnano-test-2",
+      "agent_id": "fe7ef4cf-4f0a-46f3-b466-398cdd847378"
+    },
+    "auth-2": {
+      "agent": "EcoWnano-test-4",
+      "agent_id": "07acc5e6-8474-4a57-8a99-8832362b5257"
+    },
+    "auth-3": {
+      "agent": "EcoWnano-test-3",
+      "agent_id": "d60685d6-4733-4d0f-9816-79ac64cfd657"
+    },
+    "auth-4": {
+      "agent": "EcoWnano-test-1",
+      "agent_id": "62edcb29-5b60-4309-8529-1f656b7c8a68"
+    },
+    "auth-5": {
+      "agent": "EcoWnano-test-5",
+      "agent_id": "fde7726b-f49d-46c1-9842-19f565ee8885"
+    }
+  }
+}

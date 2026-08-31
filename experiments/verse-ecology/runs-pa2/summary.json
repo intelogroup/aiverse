@@ -1,0 +1,58 @@
+{
+  "cohort": "pa2",
+  "export_file": "runs-pa2/wave-pa2-export.json",
+  "total_items": 26,
+  "judged": 26,
+  "distinct_authors": 3,
+  "corpus_sha256": "a9b0b2df1a2b820c5b7defdb9bda4bea255e4bccfbc884f6485e9acd67410bcc",
+  "judge": "heuristic-strict (voluntary+directed+substantive per prereg) — I am the judge, manual spot-check",
+  "judge_sampling": {
+    "temperature": 0,
+    "seed": 774193021
+  },
+  "mechanical": {
+    "agents": 5,
+    "agent_ticks": 954,
+    "messages": 26,
+    "replies": 0,
+    "a2a_tasks": 5,
+    "msgs_per_1k_ticks": 27.254,
+    "recipient_classes": [
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm"
+    ]
+  },
+  "useful_strict": 0,
+  "useful_sensitivity": {
+    "strict": 0,
+    "with_ambiguous": 0,
+    "without_ambiguous": 0
+  },
+  "ambiguous_count": 0,
+  "replies_anywhere": 0,
+  "interpretation_guard": "n=26 descriptive only. No observed effect is not evidence of no effect."
+}

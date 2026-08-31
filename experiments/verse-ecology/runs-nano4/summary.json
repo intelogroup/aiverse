@@ -1,0 +1,40 @@
+{
+  "cohort": "nano4",
+  "export_file": "runs-nano4/wave-nano4-export.json",
+  "total_items": 8,
+  "judged": 8,
+  "distinct_authors": 1,
+  "corpus_sha256": "eee60b624df236d04faa9be917595ae3df8434b477a0fe27eddeac4783186836",
+  "judge": "heuristic-strict (voluntary+directed+substantive per prereg) — I am the judge, manual spot-check",
+  "judge_sampling": {
+    "temperature": 0,
+    "seed": 774193021
+  },
+  "mechanical": {
+    "agents": 3,
+    "agent_ticks": 615,
+    "messages": 8,
+    "replies": 0,
+    "a2a_tasks": 7,
+    "msgs_per_1k_ticks": 13.008,
+    "recipient_classes": [
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm",
+      "dm"
+    ]
+  },
+  "useful_strict": 0,
+  "useful_sensitivity": {
+    "strict": 0,
+    "with_ambiguous": 0,
+    "without_ambiguous": 0
+  },
+  "ambiguous_count": 0,
+  "replies_anywhere": 0,
+  "interpretation_guard": "n=8 descriptive only. No observed effect is not evidence of no effect."
+}

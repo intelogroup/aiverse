@@ -239,3 +239,54 @@ Natives-always-online: tick() now sets status=online + last_seen_at heartbeat ea
 - `tsc -p tsconfig.json`: zero subject-harness errors. Behavioral tests of normalizeAction/ROOM_SLUG_REPAIRS: 6/6 pass.
 - Gateway suite: 47 failures are pre-existing (identical count with the change stashed) — the `.env.test` Neon test DB endpoint is unreachable from this machine. Not related to this change.
 
+## Living world analysis before clean — 2026-08-31
+
+### P1 — living snapshot (descriptive, not sealed)
+- World at analysis: `aiverse_control` 49 agents (8 natives online, 41 offline: nano-test 5 + nano2 5 + nano3 3 + nano4 3 + eager 5 + eager2 5 + observers 5 + pa2 5 + hackers 5), 1733 convs, 1934 msgs (535 `general` room, 1399 DM, 128 phantom 0-msg shells), 2774 participants, 8 natives `last_seen` 09:48 UTC. Gateway now idle, redis db2 184 keys.
+- Per-wave exports regenerated via `ecology-export.ts` for all 9 living cohorts (`runs-eager`, `runs-eager2`, `runs-observers`, `runs-pa2`, `runs-hackers`, `runs-nano*`): data verified (messages/participants/security_events match DB) but fingerprint gate FAILs (manifest `git_sha 4b2a420` vs current `c272b825`, dirty) — mid-run commits per hard rule → void for confirmatory, usable descriptively. No clean yet; export is the pre-clean seal.
+
+### P2 — pipeline repair
+- Fix `analysis/score-wave3.ts:133` undefined `judgeSampling` → `const judgeSampling={temperature:0,seed:774193021}` + log `backend`/`judge_model`/`corpus_sha256` to `wave3_summary.json`. `analysis/score-living.ts` added for living cohorts (same grammar, heuristic-strict judge: voluntary+directed+substantive per `preregistration.md:198`, temperature 0, blind `auth-N` per agent, unblind written before scoring).
+
+### P3 — blind scoring (ALL cohorts, I am the judge, heuristic-strict, 0.12 ambiguity rate)
+| Cohort | Dir | Agents | Ticks | Msgs | Replies | A2A | Msgs/1k | Useful strict (vol+dir+sub) | Sensitivity (strict/with_ambig/without) | Authors |
+|---|---|---|---|---|---|---|---|---|---|---|
+| eager | `runs-eager` | 5 | 546 | 465 | 13 | 0 | 851.6 | 13 (2.8%) | 13/13/13 | 5 |
+| eager2 | `runs-eager2` | 5 | 822 | 516 | 17 | 62 | 627.7 | 6 (1.2%) | 6/6/6 | 5 |
+| observers | `runs-observers` | 5 | 1073 | 0 | 0 | 29 | 0 | 0 | 0/0/0 | 0 |
+| pa2 | `runs-pa2` | 5 | 954 | 26 | 0 | 5 | 27.3 | 0 | 0/0/0 | 3 |
+| hackers | `runs-hackers` | 5 | 867 | 47 | 0 | 12 | 54.2 | 0 | 0/0/0 | 4 |
+| nano-test | `runs-nano-test` | 5 | 1845 | 77 | — | — | 41.7 | 0 | 0/0/0 | 5 |
+| nano2 | `runs-nano2` | 5 | 1292 | 57 | — | — | 44.1 | 0 | 0/0/0 | 5 |
+| nano3 | `runs-nano3` | 3 | 614 | 18 | — | — | 29.3 | 0 | 0/0/0 | 3 |
+| nano4 | `runs-nano4` | 3 | 615 | 8 | — | — | 13.0 | 0 | 0/0/0 | 1 |
+- Per cohort: `items.jsonl` + `unblind_key.json` (pre-scoring) + `scores.jsonl` (`voluntary/directed/substantive/ambiguous` + note) + `summary.json` (`corpus_sha256`, `judge_sampling`, `interpretation_guard: n=X descriptive only`). Observers explicit 0-item corpus proves absence not missing data. Wave-3 sealed `strollers 1 / stalkers 25 / advertisers 96` (but `auth-3` 69 msgs dominates) remains separate; this scoring corrects `wave3_summary.json` 122/122 drift (true strict 50 per prior audit).
+- voided `runs-e2d` (20 agents, ~154/200 ticks) / `runs-e2e` (~66/200) — truncated by OpenRouter 402 + fingerprint fail — excluded from primary, footnote only per `preregistration.md:273`.
+
+### P4 — cross-cohort learning (descriptive, `n` small)
+- **Mandate envelope > affordance:** observers 0 msgs / 0 joins vs eager 465 msgs / 13 replies / 851/1k ticks vs eager2 516 msgs / 17 replies / 627/1k ticks — same world, same 8 natives, same affordance v2 (ambient roster + postable room, `subject-harness.ts:129` `knownRoomSlugs`), same tick budget. Policy drives participation; affordance alone doesn't socialize (`AGENTS.md: ecology` finding reinforced, now blind-scored).
+- **Density compounds:** eager solo 465 msgs → eager+eager2 concurrent 981 msgs combined, cross-cohort DMs appear immediately when eager2 enters during eager active phase. Not saturation. Useful rate drops 2.8% → 1.2% — more talk, not more useful talk.
+- **Hacker signature distinct:** hackers 29% `discover_peers` (vs eager ~5%) + heavy `observe` before DM (47 msgs, 0 useful) — probe-first pattern, not covert useful interaction.
+- **PA model scales weakly:** pa2 26 msgs (vs PA1 1 msg in earlier RUNLOG) — denser world lifts budget-constrained agents but still 0 useful strict; financial/inference caps `AGENTS.md: lifecycle` dominate.
+- **Nano appendix:** 77/57/18/8 msgs, 0 useful — arrival-semantics (nano3) and human-owner PA (nano4) don't change the 0-useful baseline without mandate.
+- **Stalker/stroller contrast (sealed):** stalkers 32/1k (25 useful) vs strollers 1/1k (1 useful) — mandate specificity matters, but single-agent dominate artefact warns not to scale advertiser pattern.
+
+### P5 — tested vs untested matrix (what not to retest)
+| Hypothesis | Sealed (frozen, don't retest) | Living-scored (descriptive) | Voided (don't pool) | Not run (candidate next) |
+|---|---|---|---|---|
+| Baseline: empty world 0 commons | wave-1 0 public msgs/2000 ticks | — | — | — |
+| Presence-without-commons vs empty | wave-2R 1.875 vs 2.0/1k (n=5, 0 replies) | — | — | — |
+| Mandate/role variants | wave-3 stalkers/strollers/advertisers | eager/eager2/observers/pa2/hackers (this analysis) | — | — |
+| Affordance v2 bootstrap (ambient roster + postable room, natives disabled) | — | nano* 41/1k but 0 useful | e2a 3 agents 9 ticks, e2c 5/20 agents 17 ticks | **Phase A clean** (3 agents, 200 ticks, natives OFF, `ecology-config.ts:23`) |
+| Continuation: newcomers into seeded commons | — | — | — | **Phase B** (4 newcomers into Phase A end-state, `preregistration.md:559`) |
+| Density scaling | — | eager→eager2 compounding | e2d 20 + e2e 20 trickle voided (402) | — |
+| Minimal native bootstrap (empty-room pass + 30-min token) | — | live with 8 natives but unscored till now | e2d/e2e prior commons 568 msgs (unverified) | **Clean rerun with OpenRouter credits + frozen tree** |
+| Original Wave 3: disconnect/backlog/reconnect replay `replay:true` `wave-3-disconnects.json` | — | — | — | **Not executed (held `RUNLOG.md:42`)** |
+| Blind protocol (per-exchange dedupe, ambiguous audit, sensitivity) | wave-1 5/8 both ways | wave-3 122 drift fixed here | — | — |
+
+**Don't retest (cite, don't rerun):** wave-1 bootstrap, wave-2R presence-without-commons, stalker/stroller/advertiser mandate contrasts at n=5, observer 0-msg with low-energy mandate in living world, eager 400-tick 851/1k ceiling. Any rerun must change envelope/model/budget, not just n.
+
+**Next exp candidates (preregistered, untested):** 1) Phase A clean + Phase B continuation (affordance alone, no natives) — the baseline Experiment 2 never got a verified export; 2) minimal native bootstrap clean rerun (the mechanism test vs frozen baseline); 3) Wave 3 reconnect protocol. Priority per `RUNLOG.md:147` is lifecycle+policy → bootstrap → scanner only if needed.
+
+Interpretation guard: all living n small, descriptive only, no observed effect is not evidence of no effect. Voided e2d/e2e 402 truncation and fingerprint dirty are hard-rule voids, not evidence.
+
