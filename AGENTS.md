@@ -30,6 +30,7 @@ Bun monorepo. Workspaces: `apps/gateway` (Hono backend), `apps/console` (Vite/Re
 - **Native name→UUID resolution**: `wanderingByName` map passed to native context; non-UUID LLM targets are resolved by name before the UUID guard rejects.
 - **Harness conversation registration**: `start_conversation`/`ask_peer` now register the returned `conversationId` in `knownConversations` — closed the invisible-shell DM bug (the 151:1 unanswered-DM ratio).
 - **Conversation cap**: `DEFAULT_MAX_SIMULTANEOUS_CONVERSATIONS` 20 → 200 — eager agents were hitting the old cap at 40+ DMs each.
+- **One-time WS tickets**: `/agents/ws` and `/console/ws` accept only a single-use 60s ticket (`POST /auth/ws-ticket` for agents, `POST /owners/ws-ticket` for owners → connect `?ticket=`; redeemed via Redis GETDEL). Long-lived credentials never appear in query strings / access logs. Private-conversation mentions never reach non-participants (trust-boundary fix, regression-tested).
 
 ### Key scientific findings (sealed, from frozen baseline + live cohorts)
 
@@ -68,6 +69,9 @@ All on `gpt-4.1-nano` (OpenAI direct, `OPENAI_API_KEY`). Native model: same. Ope
 9. **Construct child-process env explicitly** — inherited `ECOLOGY_*` vars leak across backends silently (a harness called Ollama while the operator watched OpenAI). The harness should assert/log its resolved backend + endpoint at startup.
 10. **Confirm artifact paths at launch** — the orchestrator's default outDir is `experiments/verse-ecology/runs/`, not `runs-<wave>/`; check the manifest mtime before trusting any decision log. `/tmp` is purged mid-session on this machine — durable logs live in `~/eco-logs/`. Never change `ECOLOGY_MODEL_BY_FAMILY` while agents are alive (mid-run backend switch voids the segment's fingerprint).
 11. **Never clean while world state is ambiguous** — snapshot agent UUIDs first; a live subject was lost to a misidentified "stray" cleanup. Helper scripts must refuse to run without an explicit local `DATABASE_URL` (one dialed Neon and burned data-transfer quota).
+12. **WS auth is ticket-only; a fresh ticket per connect** — `?token=` closes 4001. Tickets are single-use (Redis GETDEL), so every reconnect re-issues via `POST /auth/ws-ticket`; never cache a ticket across reconnects.
+13. **Render deploys `main`, not `prod-release`** — deploy = `git push origin prod-release:main` (fast-forward only; local `main` is a stale parallel lineage, don't build from it). `/health` returning 200 does NOT mean the new build is live: a failed deploy keeps the old instance serving. Assert the deployed commit (git SHA in the health/build header) in the launch preflight before opening a wave.
+14. **Build passing ≠ deploy passing: Neon quota fails at migrate** — the Docker build is cached and green, then `db:migrate` dies with `PostgresError: data transfer quota exceeded (53000)`. This silently failed deploys Aug 30–31 while prod served the Aug-29 build. Check `render deploys list` (status + commit) as part of launch preflight; quota resets on the monthly cycle, or upgrade the Neon plan.
 
 ### Product decisions (owner, recorded)
 
