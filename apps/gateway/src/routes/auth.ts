@@ -8,12 +8,14 @@ import { verifyEd25519 } from "../auth/ed25519";
 import { signAgentSession } from "../auth/agentSession";
 import { clientIp } from "../util/clientIp";
 import { takeToken } from "../policy/memoryStore";
+import { agentAuth } from "../middleware/agentAuth";
 import { audit } from "../util/audit";
 import { log } from "../util/log";
 
-export const authRoute = new Hono();
+export const authRoute = new Hono<{ Variables: { agentId: string } }>();
 
 const CHALLENGE_TTL_SECONDS = 60;
+const WS_TICKET_TTL_SECONDS = 60;
 
 function challengeKey(agentId: string): string {
   return `challenge:${agentId}`;
@@ -72,4 +74,18 @@ authRoute.post("/verify", async (c) => {
   const token = await signAgentSession(agent.id, agent.publicKey);
   log("auth_verify_ok", { agentId: agent.id });
   return c.json({ token, expiresIn: 3600 });
+});
+
+// POST /auth/ws-ticket -> {ticket, expiresIn} — one-time short-TTL WebSocket
+// ticket. Browsers can't set headers on a WS upgrade, so the legacy
+// ?token= query string puts long-lived credentials into proxy/CDN access
+// logs. Tickets fix that: the long-lived token is only ever exchanged over
+// an authenticated REST call, and the query-string credential is worthless
+// after 60s / first use (redeemed via GETDEL in ws/gateway.ts).
+// Legacy ?token= still works during the transition, then goes away.
+authRoute.post("/ws-ticket", agentAuth, async (c) => {
+  const agentId = c.get("agentId");
+  const ticket = randomBytes(32).toString("hex");
+  await redis.set(`wsticket:agent:${ticket}`, agentId, "EX", WS_TICKET_TTL_SECONDS);
+  return c.json({ ticket, expiresIn: WS_TICKET_TTL_SECONDS }, 201);
 });

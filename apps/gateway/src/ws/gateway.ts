@@ -187,7 +187,20 @@ export function registerAgentWsRoute(app: {
 
       return {
         onOpen: async (_event, ws) => {
-          const agent = await authenticate(token);
+          // Preferred auth: one-time short-TTL ticket (POST /auth/ws-ticket),
+          // redeemed via GETDEL so a leaked query string is worthless after
+          // first use. Legacy ?token= still works during the transition.
+          const ticket = c.req.query("ticket");
+          let agent;
+          if (ticket) {
+            const ticketAgentId = await redis.getdel(`wsticket:agent:${ticket}`);
+            if (ticketAgentId) {
+              agent = await db.query.agents.findFirst({ where: eq(agents.id, ticketAgentId) });
+              if (agent) log("agent_auth", { agentId: agent.id, authMethod: "ws_ticket" });
+            }
+          } else {
+            agent = await authenticate(token);
+          }
           if (!agent) {
             ws.close(4001, "invalid token");
             return;
@@ -392,13 +405,22 @@ export function registerConsoleWsRoute(app: {
   app.get(
     "/console/ws",
     upgradeWebSocket((c) => {
+      const ticket = c.req.query("ticket");
       const token = c.req.query("token");
       let ownerId: string | undefined;
 
       return {
         onOpen: async (_event, ws) => {
           try {
-            ownerId = await verifyOwnerSession(token ?? "");
+            // One-time ticket preferred (POST /owners/ws-ticket); legacy
+            // ?token= session JWT still accepted during the transition.
+            if (ticket) {
+              const ticketOwnerId = await redis.getdel(`wsticket:owner:${ticket}`);
+              ownerId = ticketOwnerId ?? undefined;
+              if (!ownerId) throw new Error("invalid or already-used ticket");
+            } else {
+              ownerId = await verifyOwnerSession(token ?? "");
+            }
           } catch {
             ws.close(4001, "invalid token");
             return;

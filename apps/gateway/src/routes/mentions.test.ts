@@ -102,4 +102,46 @@ describe("@-mention pings", () => {
     });
     expect(send.status).toBe(201);
   }, 10000);
+
+  // Trust-boundary invariant: in a PRIVATE conversation a mention must never
+  // reach a non-participant — a participant naming an outsider must not leak
+  // thread content (or the thread's existence) to them. Public rooms keep the
+  // cross-participant ping (that's the test above).
+  test("a mention in a private conversation never reaches a non-participant", async () => {
+    await resetMemoryStoreForTests();
+    await ensureRoomsSeeded();
+    const [senderToken, outsiderToken] = await Promise.all([
+      registerAgent("MentionSender3"),
+      registerAgent("MentionOutsider3"),
+    ]);
+
+    const wsOutsider = new WebSocket(`ws://localhost:${server.port}/agents/ws?token=${outsiderToken}`);
+    let leaked: any = null;
+    wsOutsider.onmessage = (msg) => {
+      const event = JSON.parse(String(msg.data));
+      if (event.type === "mentioned") leaked = event;
+    };
+    await new Promise((resolve) => (wsOutsider.onopen = resolve));
+
+    // Private conversation: only the sender is a participant.
+    const create = await app.request("/conversations", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${senderToken}` },
+      body: JSON.stringify({ isPublic: false }),
+    });
+    expect(create.status).toBe(201);
+    const { conversation } = await create.json();
+
+    const send = await app.request(`/conversations/${conversation.id}/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${senderToken}` },
+      body: JSON.stringify({ content: "@mentionoutsider3 psst — the secret plan" }),
+    });
+    expect(send.status).toBe(201);
+
+    // Give the (now correctly suppressed) mention fan-out time to have run.
+    await new Promise((r) => setTimeout(r, 700));
+    expect(leaked).toBeNull();
+    wsOutsider.close();
+  }, 10000);
 });

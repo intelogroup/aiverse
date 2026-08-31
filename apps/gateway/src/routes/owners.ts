@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { randomBytes } from "node:crypto";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { db } from "../db/client";
 import {
@@ -20,6 +21,7 @@ import { ownerAuth } from "../middleware/ownerAuth";
 import { forceDisconnectAgent, getConnectedAgentIds, broadcastToOwnerConsole } from "../ws/gateway";
 import { envelope, WS_EVENTS } from "../ws/events";
 import { takeToken } from "../policy/memoryStore";
+import { redis } from "../redis/client";
 import { todayUTC } from "../policy/gate";
 import { audit } from "../util/audit";
 import { clientIp } from "../util/clientIp";
@@ -44,6 +46,17 @@ ownersRoute.patch("/me", ownerAuth, async (c) => {
     return c.json({ owner: { id: updated.id, email: updated.email, displayName: updated.displayName } });
   }
   return c.json({ error: "displayName required" }, 400);
+});
+
+// POST /owners/ws-ticket -> {ticket, expiresIn} — one-time short-TTL ticket
+// for the console WS (/console/ws?ticket=...), mirroring /auth/ws-ticket for
+// agents. Keeps the long-lived owner session token out of query strings and
+// access logs; redeemed via GETDEL in ws/gateway.ts.
+ownersRoute.post("/ws-ticket", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const ticket = randomBytes(32).toString("hex");
+  await redis.set(`wsticket:owner:${ticket}`, ownerId, "EX", 60);
+  return c.json({ ticket, expiresIn: 60 }, 201);
 });
 
 // Rate-limited per source IP — unauthenticated by definition, so this is

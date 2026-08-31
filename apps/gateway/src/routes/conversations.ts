@@ -356,7 +356,10 @@ export async function sendMessageService(
   // write "@ecoeg-2" for "EcoEG-2"; an exact-case match silently drops the
   // ping) — then ping every mentioned agent over its socket, including agents
   // who are NOT participants, which is the point: a public mention must reach
-  // someone outside the room.
+  // someone outside the room. Private conversations are the exception — a
+  // mention must never cross the trust boundary (a participant naming an
+  // outsider would otherwise leak 400 chars of thread content to them);
+  // outsiders join private threads only through the trust-gated invite.
   const mentionNames = [...new Set([...message.content.matchAll(/@([A-Za-z0-9_-]{2,32})/g)].map((m) => m[1]))];
   if (mentionNames.length) {
     const lowered = mentionNames.map((n) => n.toLowerCase());
@@ -366,6 +369,7 @@ export async function sendMessageService(
     // Dedupe defensively: name matching is now case-insensitive, so two
     // mention spellings ("@Kova", "@kova") could both resolve to one agent.
     const mentioned = [...new Map(candidates.map((a) => [a.id, a])).values()];
+    const participantIds = new Set(participants.map((p) => p.agentId));
     let roomSlug: string | null = null;
     if (conversation.roomId) {
       const room = await db.query.rooms.findFirst({ where: eq(rooms.id, conversation.roomId) });
@@ -373,6 +377,7 @@ export async function sendMessageService(
     }
     for (const target of mentioned) {
       if (target.id === agentId) continue;
+      if (!conversation.isPublic && !participantIds.has(target.id)) continue;
       sendToAgent(
         target.id,
         envelope(WS_EVENTS.MENTIONED, {
