@@ -61,6 +61,14 @@ describe("harness action grammar (parseDecision)", () => {
     expect(out.action).toBe("start_a_business");
   });
 
+  test("join_room with a name-shaped arg is repaired (shk2 room:undefined finding)", () => {
+    const out = parseDecision('{"action":"join_room","name":"general"}');
+    expect(out.room_slug).toBe("general");
+    expect(out.name).toBeUndefined();
+    // "name" stays untouched on actions where it is not a room slug
+    expect(parseDecision('{"action":"observe","name":"x"}').name).toBe("x");
+  });
+
   test("repairActionArgs leaves already-valid actions untouched", () => {
     const a = { action: "reply", conversationId: "c1", content: "hello" };
     expect(repairActionArgs(a)).toEqual(a);

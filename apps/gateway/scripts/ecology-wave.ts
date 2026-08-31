@@ -505,7 +505,16 @@ async function provision(m: Member) {
 
 await Bun.$`mkdir -p ${OUT_DIR}`.quiet();
 const manifestPath = `${OUT_DIR}/wave-${wave}-manifest.jsonl`;
+// Fail-closed on stale artifacts (2026-08-31 shk2 finding): a rerun of the
+// same wave name appended to the previous run's manifest (stale tail beyond
+// the truncation point) and its harnesses appended to existing decision logs
+// while skipping the fingerprint header — the export gate then correctly
+// refused. Overwriting must be explicit.
+if (await Bun.file(manifestPath).exists() && process.env.ECOLOGY_WAVE_OVERWRITE !== "1") {
+  throw new Error(`stale artifacts for wave ${wave}: ${manifestPath} exists. Remove the wave's runs/ files (or set ECOLOGY_WAVE_OVERWRITE=1) before relaunching.`);
+}
 const manifest = Bun.file(manifestPath).writer();
+
 
 console.log(`${DRY ? "DRY RUN — not analysable. " : ""}wave ${wave} (${spec.label}): ${spec.size} agents over ${spec.staggerMinutes}m, ${ticks} ticks @ ${tickSeconds}s`);
 

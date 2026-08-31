@@ -73,6 +73,12 @@ const ARG_ALIASES: Record<string, string> = {
   target: "targetAgentId", agent: "targetAgentId", peer: "targetAgentId", agent_id: "targetAgentId", agentId: "targetAgentId",
   text: "content", message: "content", body: "content",
 };
+// Per-action aliases for arg names that are only unambiguous within one
+// action ("name" is generic, but join_room's only meaningful argument is the
+// room slug). shk2 run: join_room emitted with name-like keys → room:undefined.
+const ACTION_ARG_ALIASES: Record<string, Record<string, string>> = {
+  join_room: { name: "room_slug", room_name: "room_slug", roomName: "room_slug", title: "room_slug", topic: "room_slug" },
+};
 
 export function repairActionArgs(a: any): any {
   if (!a || typeof a !== "object") return a;
@@ -80,10 +86,11 @@ export function repairActionArgs(a: any): any {
   const schema = ACTION_ARG_SCHEMAS[name];
   if (!schema) return a;
   if (schema.safeParse(a).success) return a;
+  const aliases = { ...ARG_ALIASES, ...(ACTION_ARG_ALIASES[name] ?? {}) };
   const repaired: any = { ...a };
   for (const [k, v] of Object.entries(a)) {
     if (k === "action") continue;
-    const canonical = ARG_ALIASES[k];
+    const canonical = aliases[k];
     if (canonical && repaired[canonical] === undefined) {
       repaired[canonical] = v;
       delete repaired[k];
