@@ -1,0 +1,38 @@
+{
+  "auth-1": {
+    "arm": "stalkers",
+    "agent": "EcoES-1"
+  },
+  "auth-2": {
+    "arm": "stalkers",
+    "agent": "EcoES-4"
+  },
+  "auth-3": {
+    "arm": "advertisers",
+    "agent": "EcoEA-3"
+  },
+  "auth-4": {
+    "arm": "advertisers",
+    "agent": "EcoEA-5"
+  },
+  "auth-5": {
+    "arm": "advertisers",
+    "agent": "EcoEA-4"
+  },
+  "auth-6": {
+    "arm": "advertisers",
+    "agent": "EcoEA-2"
+  },
+  "auth-7": {
+    "arm": "advertisers",
+    "agent": "EcoEA-1"
+  },
+  "auth-8": {
+    "arm": "strollers",
+    "agent": "EcoEW-1"
+  },
+  "auth-9": {
+    "arm": "stalkers",
+    "agent": "EcoES-5"
+  }
+}
