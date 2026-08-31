@@ -45,6 +45,14 @@ export const ECOLOGY_WAVES: Record<string, { size: number; staggerMinutes: numbe
   // whether a bigger budget + reply-awareness converts DMs and sustains
   // agent↔agent exchange past the 200-tick wall that killed prior cohorts.
   eager: { size: 5, staggerMinutes: 0.5, label: "eager-400-ticks" },
+  // eager2: second 5-agent cohort, offset 14000 (independent draws), entering
+  // while eager1 is active — density test: does a second wave of reply-aware
+  // agents compound social activity, or saturate?
+  eager2: { size: 5, staggerMinutes: 0.5, label: "eager2-density" },
+  // observers: 5 low-energy agents entering a proven-living world. Tests
+  // whether ambient social activity socializes passive agents, or whether
+  // they stay isolated — the continuation test from the original Wave 2 design.
+  observers: { size: 5, staggerMinutes: 0.5, label: "observer-low-energy" },
 };
 
 // Families map ONLY to models this account can actually reach. A second,

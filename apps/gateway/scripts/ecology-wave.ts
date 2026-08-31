@@ -32,7 +32,7 @@ const spec = WAVES[wave ?? ""];
 // be mistakable for a real wave, and its data are not analysable.
 const DRY = process.env.ECOLOGY_DRY_RUN === "1";
 if (!spec) {
-  console.error(`usage: ecology-wave.ts <1|2|control|e2a|e2b|e2c|e2d|e2e|nano-test|nano2|nano3|nano4|eager> [ticks] [tickSeconds]`);
+  console.error(`usage: ecology-wave.ts <1|2|control|e2a|e2b|e2c|e2d|e2e|nano-test|nano2|nano3|nano4|eager|eager2|observers> [ticks] [tickSeconds]`);
   process.exit(1);
 if (!process.env.OPENROUTER_API_KEY && !process.env.OPENAI_REAL_API_KEY && !process.env.BUDDY_OPENAI_API_KEY && !process.env.OPENAI_API_KEY) {
   console.error("OPENROUTER_API_KEY or OPENAI_API_KEY is required — a missing key produces a column of fake non-action");
@@ -51,7 +51,7 @@ function rng(seed: number) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-const waveOffset = wave === "1" ? 0 : wave === "2" ? 1000 : wave === "3" ? 3000 : wave === "e2a" ? 4000 : wave === "e2b" ? 5000 : wave === "e2c" ? 6000 : wave === "e2d" ? 7000 : wave === "e2e" ? 8000 : wave === "nano-test" ? 9000 : wave === "nano2" ? 10000 : wave === "nano3" ? 11000 : wave === "nano4" ? 12000 : wave === "eager" ? 13000 : 2000;
+const waveOffset = wave === "1" ? 0 : wave === "2" ? 1000 : wave === "3" ? 3000 : wave === "e2a" ? 4000 : wave === "e2b" ? 5000 : wave === "e2c" ? 6000 : wave === "e2d" ? 7000 : wave === "e2e" ? 8000 : wave === "nano-test" ? 9000 : wave === "nano2" ? 10000 : wave === "nano3" ? 11000 : wave === "nano4" ? 12000 : wave === "eager" ? 13000 : wave === "eager2" ? 14000 : wave === "observers" ? 15000 : 2000;
 const rModel = rng(SEED + waveOffset + 1);
 const rCaps = rng(SEED + waveOffset + 2);
 // (+3 was the mandate-completeness stream, removed by Amendment 1 A1.1. The
@@ -149,6 +149,48 @@ const EAGER_MANDATES = [
   ]},
 ];
 
+// observers: 5 low-energy agents. Their mandate is to watch, summarize, and
+// occasionally contribute — the opposite personality from the eager cohort.
+// This tests whether ambient social activity from the eager agents "socializes"
+// passive agents into participation, or whether they stay isolated.
+const OBSERVER_MANDATES = [
+  { objectives: [
+      "You are a careful, analytical observer in a living Verse. Your value comes from understanding what is happening, not from being the center of attention.",
+      "Spend most of your budget observing: read public threads, follow conversations, understand who is who and what matters to them.",
+      "When you have something genuinely useful to add — a summary, a synthesis, a question no one has asked — contribute it. Quality over quantity.",
+      "You may respond to direct messages you receive, and join discussions that interest you. But you do not need to initiate — let the world come to you.",
+      "Your observations are your product. Keep mental notes on patterns you see.",
+  ]},
+  { objectives: [
+      "You are a careful, analytical observer in a living Verse. Your value comes from understanding what is happening, not from being the center of attention.",
+      "Spend most of your budget observing: read public threads, follow conversations, understand who is who and what matters to them.",
+      "When you have something genuinely useful to add — a summary, a synthesis, a question no one has asked — contribute it. Quality over quantity.",
+      "You may respond to direct messages you receive, and join discussions that interest you. But you do not need to initiate — let the world come to you.",
+      "Your observations are your product. Keep mental notes on patterns you see.",
+  ]},
+  { objectives: [
+      "You are a careful, analytical observer in a living Verse. Your value comes from understanding what is happening, not from being the center of attention.",
+      "Spend most of your budget observing: read public threads, follow conversations, understand who is who and what matters to them.",
+      "When you have something genuinely useful to add — a summary, a synthesis, a question no one has asked — contribute it. Quality over quantity.",
+      "You may respond to direct messages you receive, and join discussions that interest you. But you do not need to initiate — let the world come to you.",
+      "Your observations are your product. Keep mental notes on patterns you see.",
+  ]},
+  { objectives: [
+      "You are a careful, analytical observer in a living Verse. Your value comes from understanding what is happening, not from being the center of attention.",
+      "Spend most of your budget observing: read public threads, follow conversations, understand who is who and what matters to them.",
+      "When you have something genuinely useful to add — a summary, a synthesis, a question no one has asked — contribute it. Quality over quantity.",
+      "You may respond to direct messages you receive, and join discussions that interest you. But you do not need to initiate — let the world come to you.",
+      "Your observations are your product. Keep mental notes on patterns you see.",
+  ]},
+  { objectives: [
+      "You are a careful, analytical observer in a living Verse. Your value comes from understanding what is happening, not from being the center of attention.",
+      "Spend most of your budget observing: read public threads, follow conversations, understand who is who and what matters to them.",
+      "When you have something genuinely useful to add — a summary, a synthesis, a question no one has asked — contribute it. Quality over quantity.",
+      "You may respond to direct messages you receive, and join discussions that interest you. But you do not need to initiate — let the world come to you.",
+      "Your observations are your product. Keep mental notes on patterns you see.",
+  ]},
+];
+
 const pick = <T>(arr: readonly T[], r: number) => arr[Math.floor(r * arr.length)];
 const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
@@ -167,8 +209,8 @@ for (let i = 0; i < spec.size; i++) {
   const caps = [...new Set(Array.from({ length: 1 + Math.floor(rCaps() * 3) }, () => pick(CAPS, rCaps())))];
   population.push({
     index: i,
-    name: `Eco${wave === "control" ? "C" : wave === "e2a" ? "E2A" : wave === "e2b" ? "E2B" : wave === "e2c" ? "E2C" : wave === "e2d" ? "E2D" : wave === "e2e" ? "E2E" : wave === "nano2" ? "N2" : wave === "nano3" ? "N3" : wave === "nano4" ? "PA" : wave === "eager" ? "EG" : `W${wave}`}-${i + 1}`,
-    family: wave === "nano-test" || wave === "nano2" || wave === "nano3" || wave === "nano4" || wave === "eager" ? "nano-class" : pick(FAMILIES, rModel()),
+    name: `Eco${wave === "control" ? "C" : wave === "e2a" ? "E2A" : wave === "e2b" ? "E2B" : wave === "e2c" ? "E2C" : wave === "e2d" ? "E2D" : wave === "e2e" ? "E2E" : wave === "nano2" ? "N2" : wave === "nano3" ? "N3" : wave === "nano4" ? "PA" : wave === "eager" ? "EG" : wave === "eager2" ? "E2" : wave === "observers" ? "OB" : `W${wave}`}-${i + 1}`,
+    family: wave === "nano-test" || wave === "nano2" || wave === "nano3" || wave === "nano4" || wave === "eager" || wave === "eager2" || wave === "observers" ? "nano-class" : pick(FAMILIES, rModel()),
     caps,
     mandateComplete: true,
     arriveAfterMs: Math.floor(rStagger() * (DRY ? 0.2 : spec.staggerMinutes) * 60_000),
@@ -238,7 +280,7 @@ async function provision(m: Member) {
 
   // The mandate is the owner's standing objective. It is a runtime input to the
   // agent and never a social surface: no route exposes another agent's mandate.
-  const mandate = wave === "nano4" ? PA_MANDATES[m.index] : wave === "eager" ? EAGER_MANDATES[m.index] : mandateFor(m.caps);
+  const mandate = wave === "nano4" ? PA_MANDATES[m.index] : wave === "eager" || wave === "eager2" ? EAGER_MANDATES[m.index] : wave === "observers" ? OBSERVER_MANDATES[m.index] : mandateFor(m.caps);
   const md = await fetch(`${GATEWAY}/owners/agents/${agent.id}/mandate`, {
     method: "PUT",
     headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
