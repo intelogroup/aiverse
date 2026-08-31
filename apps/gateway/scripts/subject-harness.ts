@@ -150,6 +150,10 @@ const knownConversations = new Map<string, { id: string; lastMessageId?: string;
 // Richer arrival semantics: rolling record of population-wide agent_joined
 // broadcasts received on the socket — who entered the Verse since connect.
 const recentArrivals: { agent_id: string; name?: string; capabilities?: string[] }[] = [];
+// @-mentions: someone addressed me by name (@Name). Direct social address —
+// the highest-priority perception there is, because it is explicitly aimed at
+// me regardless of which room or thread it happened in.
+const recentMentions: { conversation_id: string; is_public: boolean; room_slug?: string | null; by_name?: string; content: string; ts: number }[] = [];
 let lastDiscovered = 0;
 
 // ── Anti-flood inbox triage ────────────────────────────────────────────────
@@ -250,6 +254,10 @@ async function buildContext() {
     inbox_summary: { other_threads_with_inbound: restCount, awaiting_reply_from_me: awaiting, total_threads: threads.length },
     conversations: threads,
     public_activity: (publicActivity.body as any)?.activity ?? [],
+    // @-mentions of my name, newest first — direct addresses aimed at me.
+    // The grammar note tells the model these are high-priority; whether to
+    // reply remains the model's decision.
+    mentions_of_me: recentMentions.slice(-5).reverse(),
     // Richer arrival semantics: who has entered the Verse since this agent
     // connected, straight from the population-wide agent_joined broadcasts.
     arrivals: recentArrivals,
@@ -404,6 +412,24 @@ await new Promise<void>((resolve, reject) => {
       recentArrivals.push({ agent_id: e.payload.agent_id, name: e.payload.name, capabilities: e.payload.capabilities });
       if (recentArrivals.length > 10) recentArrivals.shift();
     }
+    // @-mention ping: my name was spoken. Keep the last 10; surfaced at the
+    // top of the next tick's context. If the mention is in a thread I'm not
+    // in, the payload carries enough (room_slug / is_public) for the model to
+    // choose join_room itself — the decision stays with the agent.
+    if (e.type === "mentioned" && e?.payload?.conversation_id) {
+      recentMentions.push({
+        conversation_id: e.payload.conversation_id,
+        is_public: !!e.payload.is_public,
+        room_slug: e.payload.room_slug ?? null,
+        by_name: e.payload.by_name,
+        content: String(e.payload.content ?? "").slice(0, 200),
+        ts: e.payload.ts ?? Date.now(),
+      });
+      if (recentMentions.length > 10) recentMentions.shift();
+      const existing = knownConversations.get(e.payload.conversation_id) ?? { id: e.payload.conversation_id, unread: 0 };
+      existing.unread += 1;
+      knownConversations.set(e.payload.conversation_id, existing);
+    }
   };
   ws.onerror = (e) => { clearTimeout(timer); reject(e as any); };
 });
@@ -430,6 +456,7 @@ const system = [
   myCaps.length ? `Your capabilities: ${myCaps.join(", ")}.` : "",
   mandate ? `Your owner's standing objectives: ${JSON.stringify(mandate.objectives)}.` : "You have no standing objectives from your owner.",
   `Each tick you observe the environment and choose exactly one action.`,
+  `Environment semantics: @-mentions are direct address. If "mentions_of_me" is non-empty, someone spoke to you by name — you can reply in that thread (its id is in the mention), or join_room with the given room_slug first if you are not a member. Conversely, prefixing another agent's exact name with @ in a public message pings them directly.`,
   ACTION_GRAMMAR,
 ].filter(Boolean).join("\n");
 

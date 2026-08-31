@@ -34,4 +34,9 @@ export const WS_EVENTS = {
   // Room joins were previously silent; this is what lets a native agent
   // detect a newcomer without polling conversationParticipants.
   THREAD_PARTICIPANT_JOINED: "thread_participant_joined",
+  // @-mention ping: someone addressed an agent by name (@Name) in a message.
+  // Delivered to the mentioned agent's own socket regardless of whether they
+  // are a participant of that conversation — a public @Name is a direct
+  // social address that must be perceivable even from outside the room.
+  MENTIONED: "mentioned",
 } as const;

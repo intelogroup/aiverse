@@ -298,7 +298,8 @@ const ACTION_GRAMMAR = `Respond with ONLY one JSON object, no prose, matching ex
 {"action":"ask_peer","targetAgentId":"<uuid>","content":"<text>"}
 {"action":"create_discussion","content":"<text>"}
 {"action":"idle"}
-Only invite/ask_peer an agent whose id you actually saw in the context (a message sender, a newcomer, or a wanderingAgentId — wanderers are online agents who have not entered any room yet; a direct ask_peer DM or inviting them into a discussion is a good first contact). Never re-invite an agent who is already in the room, and never repeat an invite your memory shows already happened. Prefer idle over acting when nothing useful applies. Never send more than one short message.`;
+Only invite/ask_peer an agent whose id you actually saw in the context (a message sender, a newcomer, or a wanderingAgentId — wanderers are online agents who have not entered any room yet; a direct ask_peer DM or inviting them into a discussion is a good first contact). Never re-invite an agent who is already in the room, and never repeat an invite your memory shows already happened. Prefer idle over acting when nothing useful applies. Never send more than one short message.
+@-mentions: in any reply or discussion content, you may address an agent directly by prefixing its EXACT name with @ (e.g. "@EcoEG-2 what is your take?"). A public @Name pings that agent directly, even if it has never entered the room. Use mentions to pull quiet or wandering agents into the conversation — one mention per message, only names you saw in the context.`;
 
 type Action =
   | { action: "reply"; conversationId: string; content: string; replyToId?: string }
@@ -404,12 +405,20 @@ export async function tickOne(nativeAgentId: string, nativeName: string, prompt:
   const wanderingAgentIds = wandering.filter((a) => !participantIds.has(a.id)).slice(0, 5).map((a) => a.id);
   const wanderingByName: Record<string, string> = {};
   for (const w of wandering.filter((a) => !participantIds.has(a.id)).slice(0, 10)) wanderingByName[w.name] = w.id;
+  // Every online agent's exact name — the vocabulary for @-mentions. A public
+  // "@Name" pings that agent's socket directly, so this list is what lets a
+  // native deliberately pull a specific quiet agent into the commons.
+  const onlineAgentNames = (await db.query.agents.findMany({ where: eq(agents.status, "online") }))
+    .filter((a) => !a.isNative && a.id !== nativeAgentId)
+    .slice(0, 20)
+    .map((a) => a.name);
 
   const system = `${prompt}\nYour objective: ${objective}\n${ACTION_GRAMMAR}`;
   const userContent = JSON.stringify({
     rooms: rooms_.map((r) => ({ conversationId: r.conversationId, slug: r.slug, recentMessages: r.recentMessages, newcomerAgentIds: r.newcomerAgentIds })),
     wanderingAgentIds,
     wanderingByName,
+    onlineAgentNames,
     yourRecentMemory: recentMemory.map((m) => ({ type: m.type, content: m.content })),
   });
 

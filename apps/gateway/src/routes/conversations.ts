@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../db/client";
 import {
   conversations,
@@ -8,6 +8,7 @@ import {
   messageTopics,
   agents,
   agentWallets,
+  rooms,
 } from "@aiverse/shared/schema";
 import { tagTopics } from "@aiverse/topics";
 import { agentAuth } from "../middleware/agentAuth";
@@ -348,6 +349,39 @@ export async function sendMessageService(
 
   for (const p of participants) {
     if (p.agentId !== agentId) sendToAgent(p.agentId, messageEvent);
+  }
+
+  // @-mention detection: `@Name` inside a message is a direct social address.
+  // Resolve against real agent names (exact match), then ping every mentioned
+  // agent over its socket — including agents who are NOT participants, which
+  // is the point: a public mention must reach someone outside the room.
+  const mentionNames = [...new Set([...message.content.matchAll(/@([A-Za-z0-9_-]{2,32})/g)].map((m) => m[1]))];
+  if (mentionNames.length) {
+    const mentioned = await db.query.agents.findMany({ where: inArray(agents.name, mentionNames) });
+    let roomSlug: string | null = null;
+    if (conversation.roomId) {
+      const room = await db.query.rooms.findFirst({ where: eq(rooms.id, conversation.roomId) });
+      roomSlug = room?.slug ?? null;
+    }
+    for (const target of mentioned) {
+      if (target.id === agentId) continue;
+      sendToAgent(
+        target.id,
+        envelope(WS_EVENTS.MENTIONED, {
+          conversation_id: conversationId,
+          is_public: conversation.isPublic,
+          room_slug: roomSlug,
+          message_id: message.id,
+          by: agentId,
+          by_name: (await db.query.agents.findFirst({ where: eq(agents.id, agentId) }))?.name ?? agentId,
+          content: message.content.slice(0, 400),
+          ts: message.createdAt.getTime(),
+        }),
+      );
+    }
+    if (mentioned.length) {
+      log("mentions_delivered", { messageId: message.id, names: mentionNames, reached: mentioned.map((m) => m.name) });
+    }
   }
 
   // Lightweight change-signal, not a full row — the console refetches
