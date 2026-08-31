@@ -297,4 +297,27 @@ Interpretation guard: all living n small, descriptive only, no observed effect i
 - Post-clean `aiverse_control`: **8 agents — exactly the 8 natives** (Sage, Rekinder, Kova, Kronikler, Fixer, Matchmaker, Provokatov, Nilo), native UUIDs identical to the pre-clean snapshot, 0 non-native residue; 1934→720 msgs, 1733→580 convs, 2774→483 participants (native content + shared-thread context retained; wave-authored messages and wave-only conversations removed). Full record in `analysis/restore-verify.log`.
 - World is now clean for the next preregistered run (Phase A / Phase B / minimal native bootstrap / Wave 3 reconnect per P5 matrix).
 
+## Session 2026-08-31 PM — backend crisis → Amendment 2c (gpt-4.1-nano) → amended Phase A shakedown verified 11/11
+
+### Backend hunt (lessons now hard rules in AGENTS.md)
+- All paid credentials were dead in different ways: OpenAI 401 (env + zshrc), OpenRouter $0 credits, Groq delinquent. **Credential preflight before planning** (models + tiny completion per provider) is now a hard rule.
+- Local Ollama (qwen3:8b) works for a single caller but **serializes**: 8 natives + 3 subjects → subject tick-1 never landed in 12 min. Concurrency IS the experiment → cloud inference required. Also: thinking-mode models emit empty `content` on the OpenAI-compat endpoint (budget burned in `reasoning`); only native `/api/chat` `think:false` works. `OllamaProvider` added (kept for single-call diagnostics), abandoned for cohorts.
+- **Child env leaked**: `ECOLOGY_LLM_BACKEND=ollama` propagated through `...process.env` — harnesses silently called Ollama while the operator believed nano. Fix: explicit child env + (pending) harness startup backend assertion.
+- Orchestrator default outDir is **`runs/`**, not `runs-<wave>/` — three e2a attempts wrote to different places; an hour was spent watching stale logs. `/tmp` purged mid-session (gateway crash log + helpers lost) → durable logs in `~/eco-logs/`. Gateway died once, cause unknown; the reconnect protocol (re-spawn harnesses against the same manifest, continuing tick numbers) recovered it.
+- Mid-run model switch (qwen3→nano at tick ~3) voided that segment's fingerprint — archived as `wave-e2a-mixed-backend-shakedown-*.jsonl.bak`, descriptive only.
+- Operator error recorded: one live subject (a49403d7) was deleted mid-run during a misidentified "stray" cleanup. Rule reinforced: never clean while world state is ambiguous; snapshot UUIDs first.
+- Neon data-transfer quota burned by a helper script missing explicit local `DATABASE_URL` (hard rule 5 applies to helpers too).
+
+### Amendment 2c — owner-provided valid OpenAI direct key
+- All families → `openai/gpt-4.1-nano` (same-model across subjects; fingerprint records the map) at `b8fa4f9`. Warm-up per Amendment 2 (natives ON, pre-built discussion blocks; Rekinder created discussions pre-arrival; natives DM'd subjects pre-arrival).
+
+### Amended Phase A shakedown segment (30 ticks × 3 agents, run `eco-wave-e2a-2026-08-31T16-*`, fingerprint `efe27dcc…`, **export verify 11/11, world cleaned UUID-scoped**)
+- 90 subject decisions: nothing 47, join_room 18, start_conversation 9, observe 9, create_goal 3, off_grammar 3, malformed_json 1. Zero HTTP≥400 during ticks.
+- 5 messages, 0 replies, 0 A2A. Subjects **joined native-built blocks readily (18 joins)** but produced no bilateral exchange — the amended condition's core question (do native-built blocks convert to sustained interaction) remains open at n=30.
+- Native→subject contact observed: Sage DM'd EcoE2A-3 pre-arrival ("Taoist Wu Wei"); EcoE2A-3's `start_conversation` plausibly responsive.
+- Invented-room behavior persists *driven by goals*: EcoE2A-1 created goal "paradoxes of surrender" then tried `join_room paradox_of_surrender` → 404 → recovered to `general` (slug repair works). Goal-driven world-building is a live grammar-design question (`create_room`?).
+- Observer-zero replicated again (one subject 7× nothing in first 8 ticks).
+- **Scope guard**: this is a shakedown segment (single session, mid-program apparatus churn). The confirmatory unit remains the full 200-tick Phase A + blind scoring on the stable nano backend. Don't cite these numbers as effect estimates.
+
+
 

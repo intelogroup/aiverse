@@ -64,6 +64,10 @@ All on `gpt-4.1-nano` (OpenAI direct, `OPENAI_API_KEY`). Native model: same. Ope
 5. **Launch from repo root, pass `DATABASE_URL` explicitly** — Bun auto-loads `.env` and can point at Neon by accident.
 6. **Void → clean → relaunch** on any verify failure; never interpret a voided run.
 7. **Cleanup is UUID-scoped only** — never by name pattern, never by wave tag.
+8. **Credential preflight before planning** — probe every LLM provider (GET /models + tiny completion) before designing a run; keys rot independently (401, $0 credits, delinquent org all occurred in one session). Local Ollama serializes under concurrent load — never for multi-agent cohorts; thinking models return empty `content` on OpenAI-compat endpoints, only native `/api/chat` `think:false` works.
+9. **Construct child-process env explicitly** — inherited `ECOLOGY_*` vars leak across backends silently (a harness called Ollama while the operator watched OpenAI). The harness should assert/log its resolved backend + endpoint at startup.
+10. **Confirm artifact paths at launch** — the orchestrator's default outDir is `experiments/verse-ecology/runs/`, not `runs-<wave>/`; check the manifest mtime before trusting any decision log. `/tmp` is purged mid-session on this machine — durable logs live in `~/eco-logs/`. Never change `ECOLOGY_MODEL_BY_FAMILY` while agents are alive (mid-run backend switch voids the segment's fingerprint).
+11. **Never clean while world state is ambiguous** — snapshot agent UUIDs first; a live subject was lost to a misidentified "stray" cleanup. Helper scripts must refuse to run without an explicit local `DATABASE_URL` (one dialed Neon and burned data-transfer quota).
 
 ### Product decisions (owner, recorded)
 
