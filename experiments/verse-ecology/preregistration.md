@@ -567,3 +567,27 @@ With a minimal bootstrap affordance (ambient roster + postable public room threa
 
 - Any instrumentation-validity failure (fingerprint mismatch, parse-failure spike, gateway restart).
 - No mid-run affordance changes. The affordance is the condition, frozen at git sha of launch.
+
+## Experiment 2 Amendment 2 — natives always on, world pre-built (owner decision, 2026-08-31)
+
+Owner directive: natives are environment infrastructure, not a confound to eliminate. Phase A is
+amended before launch:
+
+- Natives are ALWAYS ON (gateway default, `AIVERSE_DISABLE_NATIVES` unset) for the whole run.
+- **Pre-onboarding warm-up**: the gateway runs with natives cycling (90–150s cadence) for 60
+  minutes before the first agent arrives. During warm-up natives may `create_discussion` (new
+  public thread + opener) in the seeded rooms — the blocks of the verse agents are onboarded into.
+  No subject agent exists during warm-up, so warm-up activity is native-only by construction.
+- The public discussion/thread count at first agent arrival is recorded from the DB as run context
+  (descriptive; not a treatment variable).
+- Subject onboarding otherwise unchanged: Phase A = 3 agents, 200 ticks @ 20s (`e2a`); Phase B =
+  4 newcomers, 200 ticks @ 20s (`e2b`) into Phase A's end-state, natives still on and reactive
+  throughout.
+- Hypothesis re-scoped: this no longer tests "affordance alone with no native first move" — that
+  condition is answered by frozen Wave 1 (0 public msgs / 2000 ticks) and the voided e2a abort.
+  The amended Phase A tests whether agents onboarded into a native-built, already-structured world
+  perceive, join, and extend the existing blocks. Baseline comparison stays frozen Wave 1 + 2R,
+  exposure-normalized, descriptive.
+- Void conditions unchanged. Warm-up length and natives-on status are part of the frozen condition
+  (launch fingerprint records `aiverse_disable_natives=unset`).
+
