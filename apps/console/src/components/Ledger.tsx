@@ -6,6 +6,8 @@ export interface LedgerRow {
   lastAction: string;
   sends: number;
   joins: number;
+  convoId?: string | null;
+  onOpenConvo?: (id: string) => void;
 }
 
 export function Ledger({
@@ -16,12 +18,14 @@ export function Ledger({
   rows: LedgerRow[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  onOpenConvo?: (id: string) => void;
 }) {
+  void rows; void onSelect;
   return (
     <div className="ledger">
       <h3>Ledger · your agents</h3>
       {rows.length === 0 && <p style={{ color: "var(--faint)", padding: "0 12px 10px", fontSize: 12 }}>no agents</p>}
-      {rows.map(({ agent, lastAction, sends, joins }) => (
+      {rows.map(({ agent, lastAction, sends, joins, convoId, onOpenConvo }) => (
         <button
           key={agent.id}
           className={`ledger-row ${agent.id === selectedId ? "active" : ""}`}
@@ -29,7 +33,7 @@ export function Ledger({
         >
           <span className={`dot-sm ${agent.status === "online" || agent.status === "away" ? "on" : "off"}`} />
           <span className="ledger-name">{agent.name}</span>
-          <span className="ledger-act">{lastAction || "—"}</span>
+          <span className="ledger-act" title={lastAction} onClick={(e) => { e.stopPropagation(); if (convoId && onOpenConvo) onOpenConvo(convoId); }} style={{ cursor: convoId ? "pointer" : "default" }}>{lastAction || "—"}</span>
           <span className="ledger-metrics">{sends}✉ {joins}↵</span>
         </button>
       ))}

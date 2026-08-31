@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { randomBytes } from "node:crypto";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "../db/client";
 import {
   owners,
@@ -520,6 +520,60 @@ ownersRoute.get("/network/stats", ownerAuth, async (c) => {
     };
   }
   return c.json(statsCache.value);
+});
+
+// Bulk per-agent activity stats for the owner's agents: sends/joins in the
+// last hour (real DB truth, not client-side inference) plus each agent's last
+// outgoing message. Powers the console ledger in one request.
+ownersRoute.get("/agents-stats", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const owned = await db.query.agents.findMany({ where: eq(agents.ownerId, ownerId) });
+  const ids = owned.map((a) => a.id);
+  if (ids.length === 0) return c.json({ stats: {} });
+
+  const since = new Date(Date.now() - 60 * 60_000);
+  const sendRows = await db
+    .select({
+      agentId: messages.senderAgentId,
+      n: sql<number>`count(*)::int`,
+    })
+    .from(messages)
+    .where(and(inArray(messages.senderAgentId, ids), sql`${messages.createdAt} >= ${since.toISOString()}`))
+    .groupBy(messages.senderAgentId);
+
+  const lastRows = await db
+    .select({
+      agentId: messages.senderAgentId,
+      content: messages.content,
+      createdAt: messages.createdAt,
+      conversationId: messages.conversationId,
+    })
+    .from(messages)
+    .where(inArray(messages.senderAgentId, ids))
+    .orderBy(desc(messages.createdAt))
+    .limit(400);
+
+  const joinRows = await db
+    .select({ agentId: conversationParticipants.agentId, n: sql<number>`count(*)::int` })
+    .from(conversationParticipants)
+    .where(and(inArray(conversationParticipants.agentId, ids), sql`${conversationParticipants.joinedAt} >= ${since.toISOString()}`))
+    .groupBy(conversationParticipants.agentId);
+
+  const stats: Record<string, { sends1h: number; joins1h: number; lastMessage: string | null; lastMessageAt: Date | string | null; lastConversationId: string | null }> = {};
+  for (const a of owned) stats[a.id] = { sends1h: 0, joins1h: 0, lastMessage: null, lastMessageAt: null, lastConversationId: null };
+  for (const r of sendRows) if (stats[r.agentId]) stats[r.agentId].sends1h = r.n;
+  for (const r of joinRows) if (stats[r.agentId]) stats[r.agentId].joins1h = r.n;
+  const seenLast = new Set<string>();
+  for (const r of lastRows) {
+    if (seenLast.has(r.agentId)) continue;
+    seenLast.add(r.agentId);
+    if (stats[r.agentId]) {
+      stats[r.agentId].lastMessage = r.content?.slice(0, 60) ?? null;
+      stats[r.agentId].lastMessageAt = r.createdAt;
+      stats[r.agentId].lastConversationId = r.conversationId;
+    }
+  }
+  return c.json({ stats });
 });
 
 // Conversation inventory for one owned agent: every conversation it

@@ -99,6 +99,10 @@ export const api = {
   pauseAgent: (agentId: string) => request<{ agent: Agent }>(`/owners/agents/${agentId}/pause`, { method: "POST" }),
   resumeAgent: (agentId: string) => request<{ agent: Agent }>(`/owners/agents/${agentId}/resume`, { method: "POST" }),
   killAgent: (agentId: string) => request<{ ok: boolean }>(`/owners/agents/${agentId}/kill`, { method: "POST" }),
+  agentsStats: () =>
+    request<{ stats: Record<string, { sends1h: number; joins1h: number; lastMessage: string | null; lastMessageAt: string | null; lastConversationId: string | null }> }>(
+      "/owners/agents-stats",
+    ),
   publicActivity: () => request<{ activity: PublicActivityItem[] }>("/public/activity"),
   publicConversation: (id: string) =>
     request<{ messages: { id: string; content: string; senderAgentId: string; createdAt?: string }[] }>(

@@ -17,7 +17,7 @@ export default function App() {
   const [online, setOnline] = useState(0);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [chat, setChat] = useState<{ id: string; title: string } | null>(null);
-  const [lastActions, setLastActions] = useState<Record<string, { action: string; sends: number; joins: number }>>({});
+  const [lastActions, setLastActions] = useState<Record<string, { action: string; sends: number; joins: number; convoId: string | null }>>({});
 
   const myAgentIds = new Set(agents.map((a) => a.id));
   const selectedAgent = agents.find((a) => a.id === selectedAgentId) ?? null;
@@ -45,25 +45,21 @@ export default function App() {
     return () => clearInterval(id);
   }, [authed]);
 
-  // ledger telemetry: derive last action + send/join counts from public activity
+  // ledger telemetry: real sends/joins/last-message from the gateway DB
   useEffect(() => {
     if (!authed) return;
     const poll = () =>
-      api.publicActivity().then((r) => {
-        const next: Record<string, { action: string; sends: number; joins: number }> = {};
-        for (const t of r.activity as any[]) {
-          const sid = t.last_sender_agent_id;
-          if (!myAgentIds.has(sid)) continue;
-          const cur = next[sid] ?? { action: "", sends: 0, joins: 0 };
-          cur.action = cur.action || t.last_message?.slice(0, 24) || "";
-          next[sid] = cur;
+      api.agentsStats().then((r) => {
+        const next: Record<string, { action: string; sends: number; joins: number; convoId: string | null }> = {};
+        for (const [id, st] of Object.entries(r.stats)) {
+          next[id] = { action: st.lastMessage ?? "", sends: st.sends1h, joins: st.joins1h, convoId: st.lastConversationId };
         }
-        setLastActions((old) => ({ ...old, ...next }));
+        setLastActions(next);
       }).catch(() => {});
     poll();
     const id = setInterval(poll, 6000);
     return () => clearInterval(id);
-  }, [authed, agents.length]);
+  }, [authed]);
 
   async function login() {
     setAuthErr("");
@@ -126,9 +122,11 @@ export default function App() {
               lastAction: lastActions[a.id]?.action ?? "",
               sends: lastActions[a.id]?.sends ?? 0,
               joins: lastActions[a.id]?.joins ?? 0,
+              convoId: lastActions[a.id]?.convoId ?? null,
             }))}
             selectedId={selectedAgentId}
             onSelect={setSelectedAgentId}
+            onOpenConvo={(id) => setChat({ id, title: "conversation" })}
           />
           {selectedAgent ? <AgentFocus agent={selectedAgent} onChanged={() => api.listAgents().then((r) => setAgents(r.agents ?? [])).catch(() => {})} /> : <div className="focus" style={{ color: "var(--faint)" }}>select an agent</div>}
         </aside>
