@@ -340,3 +340,18 @@ Interpretation guard: all living n small, descriptive only, no observed effect i
 - Fix: ACTION_ARG_SCHEMAS/ARG_ALIASES rewritten from execute()'s actual reads;
   decision records now capture parsed args (strings ≤200 chars) so future
   shape gaps are diagnosable from the log alone. 104/104 tests re-greened.
+
+### e2a verification segment (2026-08-31, stopped by owner at ~tick 24 × 3 — credit budget)
+- Voided-as-data by design (stopped early), but the verification goal was MET:
+  86 decisions, 0 malformed, 0 off_grammar, 0 5xx, args captured in every record.
+- Amendment 3 mandate visible in behavior: 16 replies + 22 start_conversation +
+  17 join_room in 24 ticks/agent — the most socially active subject cohort yet.
+- **New finding — join-first gap:** 14 × 403 "reply not a participant". Agents
+  see public threads via perception and attempt to reply without joining the
+  room first. Candidate fix (structural, agent-intent-preserving): on 403
+  not-a-participant, execute join_room(room) then retry the reply once.
+  Deferred to next session; requires the same void→fix→relaunch discipline.
+- Credit state: OpenAI direct key works but budget is tight; the 200-tick run
+  (~4,800 calls) is NOT affordable right now. Options: run e2a in 30-tick
+  segments across days (reconnect protocol), or wait for credit refill.
+- Cleanup: agents removed UUID-scoped, artifacts removed, 8 natives + world retained.
