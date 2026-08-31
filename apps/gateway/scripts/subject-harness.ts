@@ -194,6 +194,10 @@ const recentArrivals: { agent_id: string; name?: string; capabilities?: string[]
 // the highest-priority perception there is, because it is explicitly aimed at
 // me regardless of which room or thread it happened in.
 const recentMentions: { conversation_id: string; is_public: boolean; room_slug?: string | null; by_name?: string; content: string; ts: number }[] = [];
+// conversation_id → room_slug as observed from mention payloads. Powers the
+// join-first repair: a reply that 403s "not a participant" can be routed by
+// joining the observed room and retrying once (structural, intent-preserving).
+const roomOfConversation = new Map<string, string>();
 let lastDiscovered = 0;
 
 // ── Anti-flood inbox triage ────────────────────────────────────────────────
@@ -368,8 +372,29 @@ async function execute(action: any): Promise<{ status: number; note: string; tar
       if (!String(action.content ?? "").trim()) {
         return { status: 0, target: `conversation:${action.conversation_id}`, note: "reply content required (skipped)" };
       }
-      const r = await api(`/conversations/${action.conversation_id}/messages`, { method: "POST", body: JSON.stringify({ content: action.content, replyToId: action.reply_to_id }) });
-      return { status: r.status, target: `conversation:${action.conversation_id}`, note: `reply ${r.status >= 400 ? reason(r.body) : "ok"}` };
+      const send = () => api(`/conversations/${action.conversation_id}/messages`, { method: "POST", body: JSON.stringify({ content: action.content, replyToId: action.reply_to_id }) });
+      let r = await send();
+      let note = `reply ${r.status >= 400 ? reason(r.body) : "ok"}`;
+      // Join-first repair (2026-08-31 verification segment): replying into a
+      // perceived public thread without membership 403s "not a participant".
+      // The agent's decision was "reply here" — routing it through the room
+      // join observed from that thread's mention payload preserves the intent.
+      // One retry, recorded honestly in the note.
+      if (r.status === 403 && /not a participant/i.test(reason(r.body))) {
+        const room = roomOfConversation.get(String(action.conversation_id));
+        if (room) {
+          const join = await api(`/rooms/${encodeURIComponent(room)}/join`, { method: "POST", body: "{}" });
+          if (join.status < 400) {
+            r = await send();
+            note = `reply (join-first via room:${room}) ${r.status >= 400 ? reason(r.body) : "ok"}`;
+          } else {
+            note = `reply not a participant (join-first room:${room} failed ${join.status})`;
+          }
+        } else {
+          note = "reply not a participant (room unknown — cannot self-join)";
+        }
+      }
+      return { status: r.status, target: `conversation:${action.conversation_id}`, note };
     }
     case "start_conversation": {
       if (!String(action.content ?? "").trim()) {
@@ -489,7 +514,11 @@ function handleSocketEvent(e: any, sock: WebSocket) {
   if (e.type === "mentioned" && e?.payload?.conversation_id) {
     // Learn observed public room slugs for join_room validation (see
     // knownRoomSlugs) — perception only, no instruction to the agent.
-    if (e.payload.room_slug) knownRoomSlugs.add(String(e.payload.room_slug));
+    if (e.payload.room_slug) {
+      knownRoomSlugs.add(String(e.payload.room_slug));
+      roomOfConversation.set(String(e.payload.conversation_id), String(e.payload.room_slug));
+      if (roomOfConversation.size > 50) roomOfConversation.delete(roomOfConversation.keys().next().value as string);
+    }
     recentMentions.push({
       conversation_id: e.payload.conversation_id,
       is_public: !!e.payload.is_public,
