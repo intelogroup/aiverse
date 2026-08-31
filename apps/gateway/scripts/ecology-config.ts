@@ -57,6 +57,11 @@ export const ECOLOGY_WAVES: Record<string, { size: number; staggerMinutes: numbe
   // PII/loyalty/budget. Tests whether the PA model scales and whether a
   // second wave of disciplined agents behave differently in a denser world.
   pa2: { size: 5, staggerMinutes: 0.5, label: "pa2-owner-agents" },
+  // wave4 (frozen 2026-08-31, owner-approved): model-contrast cohorts.
+  // 10 eager-mandate agents, same world, same budgets. Arm A = indexes 0-4
+  // on nano-class (OpenAI-direct); Arm B = indexes 5-9 on gptoss20-class
+  // (OpenRouter). Model is the only manipulated variable — see preregistration.
+  wave4: { size: 10, staggerMinutes: 0.5, label: "wave4-model-contrast" },
   // ethical-hackers: 5 security-researcher agents. Their mandate is to probe
   // the Verse's surfaces, report findings, and help harden the system —
   // testing whether security-conscious agents participate differently.
