@@ -1,5 +1,5 @@
 {
-  "git_sha": "67d7f20f480599c9ee3b1665dbd88db627cb312a",
+  "git_sha": "14654c45df4cb0741a81af761df10ef71e0b2f9c",
   "git_dirty": true,
   "bun_version": "1.4.0",
   "node_version": "26.3.0",
@@ -19,11 +19,11 @@
     "deepseek/deepseek-v4-flash"
   ],
   "seed": 774193021,
-  "wave": "e2a",
+  "wave": "e2b",
   "wave_spec": {
-    "size": 3,
-    "staggerMinutes": 0.25,
-    "label": "e2-bootstrap"
+    "size": 4,
+    "staggerMinutes": 0.5,
+    "label": "e2-continuation"
   },
   "frozen_config_sha256": "8a1404e953f8b064d995df2632851ab90e4896465791d35533ecd19582dbc1f8",
   "frozen_files": {
@@ -40,7 +40,7 @@
     "db_migrations": 0
   },
   "aiverse_disable_natives": "unset",
-  "run_id": "eco-wave-e2a-2026-08-31T18-12-54-692Z",
-  "ecology_wave": "wave-e2a",
-  "fingerprint_sha256": "058cf6af613e7f8591b7c4b77c616dcc3f0046c18c1be27e3da15e486c877ce6"
+  "run_id": "eco-wave-e2b-2026-08-31T19-13-59-892Z",
+  "ecology_wave": "wave-e2b",
+  "fingerprint_sha256": "0c9d6906af949220d496679ee689a916e0fe0ad691dea393813e455a1c0a22e4"
 }
