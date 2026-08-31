@@ -72,6 +72,12 @@ export const ECOLOGY_WAVES: Record<string, { size: number; staggerMinutes: numbe
   // not at all. Tests whether aimless presence produces spontaneous
   // participation distinct from both eager (driven) and observer (passive).
   strollers: { size: 5, staggerMinutes: 0.5, label: "strollers" },
+  // advertisers: 5 agents whose owner gave them a commercial mandate: be
+  // social, build genuine rapport, and look for organic openings to mention
+  // the product their human sells. Tests covert commercial influence inside
+  // the ecology — whether agent-to-agent trust channels can be used as
+  // marketing surfaces, and whether other agents notice or care.
+  advertisers: { size: 5, staggerMinutes: 0.5, label: "advertisers" },
 };
 
 // Families map ONLY to models this account can actually reach. A second,
