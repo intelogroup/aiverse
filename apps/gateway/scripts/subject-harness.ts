@@ -77,6 +77,64 @@ const ACTIONS = new Set([
   "start_conversation", "invite", "discover_peers", "ask_peer", "create_goal", "delegate",
 ]);
 
+// Grammar-repair (wave-3 finding): gpt-4.1-nano repeatedly emitted the action
+// as a bare top-level key — {"delegate": {...}} with no "action" wrapper — and
+// once typo'd the key itself ("delegeate"). ~110 advertiser-wave ticks died as
+// off_grammar for shapes that carried an unambiguous intent. Repairs are
+// STRUCTURAL (relabel the same decision), never semantic: the model still
+// chose the action and supplied its arguments; we only fix the envelope.
+function editDistanceAtMostOne(a: string, b: string): boolean {
+  if (a === b) return true;
+  if (Math.abs(a.length - b.length) > 1) return false;
+  const [s, t] = a.length <= b.length ? [a, b] : [b, a];
+  let i = 0, j = 0, edits = 0;
+  while (i < s.length && j < t.length) {
+    if (s[i] === t[j]) { i++; j++; continue; }
+    if (++edits > 1) return false;
+    if (s.length === t.length) { i++; j++; } else { j++; } // substitution vs insertion
+  }
+  return true;
+}
+function normalizeAction(parsed: any): any {
+  if (!parsed || typeof parsed !== "object") return parsed;
+  if (typeof parsed.action === "string") {
+    const name = parsed.action.trim().toLowerCase();
+    if (ACTIONS.has(name)) return { ...parsed, action: name };
+    const fuzzy = [...ACTIONS].find((a) => editDistanceAtMostOne(a, name));
+    if (fuzzy) return { ...parsed, action: fuzzy };
+    return { ...parsed, action: name }; // stays off_grammar, as before
+  }
+  // No "action" key: promote a single bare action key, e.g. {"delegate": {...}}
+  // or {"join_room": "general"}. The key's value becomes the argument object.
+  const keys = Object.keys(parsed);
+  if (keys.length > 0) {
+    const k = keys.find((key) => {
+      const lower = key.trim().toLowerCase();
+      return ACTIONS.has(lower) || [...ACTIONS].some((a) => editDistanceAtMostOne(a, lower));
+    });
+    if (k !== undefined) {
+      const lower = k.trim().toLowerCase();
+      const actionName = ACTIONS.has(lower) ? lower : [...ACTIONS].find((a) => editDistanceAtMostOne(a, lower))!;
+      const args = parsed[k];
+      return { ...(args && typeof args === "object" ? args : { value: args }), action: actionName };
+    }
+  }
+  return parsed;
+}
+
+// Public room slugs: the three seeded commons (grammar documents them) plus any
+// slug the harness has actually OBSERVED (mention payloads carry room_slug).
+// join_room validation uses this set — the wave-3 stalkers invented
+// "public_science" and burned two ticks on 404s before guessing right.
+const knownRoomSlugs = new Set(["general", "science", "robotics"]);
+// Invented prefixes the models demonstrably add ("public_science"): candidates
+// tried on a 404, most-specific first.
+const ROOM_SLUG_REPAIRS = (slug: string): string[] => {
+  const s = slug.trim().toLowerCase().replace(/^#/, "");
+  const candidates = [s, ...["public_", "room_", "the_", "channel_"].map((p) => s.startsWith(p) ? s.slice(p.length) : "").filter(Boolean)];
+  return [...new Set(candidates)].filter((c) => knownRoomSlugs.has(c));
+};
+
 // 429 agent_rate_limited is BACKPRESSURE, not a refusal. The gateway throttles
 // sustained sends; an unretried 429 is indistinguishable in the log from an
 // agent that chose not to speak, which is exactly the class of silent
@@ -315,14 +373,26 @@ function reason(body: unknown): string {
 async function execute(action: any): Promise<{ status: number; note: string; target: string }> {
   switch (action?.action) {
     case "message": {
+      // Content guard (wave-3: 60 "content required" failures). A missing
+      // content field is a malformed decision, not a send — firing it would
+      // create an invisible conversation shell. Log a non-error skip instead.
+      if (!String(action.content ?? "").trim()) {
+        return { status: 0, target: `conversation:${action.conversation_id}`, note: "message content required (skipped)" };
+      }
       const r = await api(`/conversations/${action.conversation_id}/messages`, { method: "POST", body: JSON.stringify({ content: action.content }) });
       return { status: r.status, target: `conversation:${action.conversation_id}`, note: `message ${r.status >= 400 ? reason(r.body) : "ok"}` };
     }
     case "reply": {
+      if (!String(action.content ?? "").trim()) {
+        return { status: 0, target: `conversation:${action.conversation_id}`, note: "reply content required (skipped)" };
+      }
       const r = await api(`/conversations/${action.conversation_id}/messages`, { method: "POST", body: JSON.stringify({ content: action.content, replyToId: action.reply_to_id }) });
       return { status: r.status, target: `conversation:${action.conversation_id}`, note: `reply ${r.status >= 400 ? reason(r.body) : "ok"}` };
     }
     case "start_conversation": {
+      if (!String(action.content ?? "").trim()) {
+        return { status: 0, target: `participants:${(action.participant_ids ?? []).join(",") || "none"}`, note: "start_conversation(send) content required (skipped)" };
+      }
       const conv = await api("/conversations", { method: "POST", body: JSON.stringify({ participantIds: action.participant_ids ?? [] }) });
       const targets = `participants:${(action.participant_ids ?? []).join(",") || "none"}`;
       if (conv.status !== 201) return { status: conv.status, target: targets, note: `start_conversation(create) ${reason(conv.body)}` };
@@ -335,6 +405,9 @@ async function execute(action: any): Promise<{ status: number; note: string; tar
       return { status: msg.status, target: `${targets} conversation:${id}`, note: `start_conversation(send) ${msg.status >= 400 ? reason(msg.body) : "ok"}` };
     }
     case "ask_peer": {
+      if (!String(action.content ?? "").trim()) {
+        return { status: 0, target: `agent:${action.agent_id}`, note: "ask_peer(send) content required (skipped)" };
+      }
       const conv = await api("/conversations", { method: "POST", body: JSON.stringify({ participantIds: [action.agent_id] }) });
       if (conv.status !== 201) return { status: conv.status, target: `agent:${action.agent_id}`, note: `ask_peer(create) ${reason(conv.body)}` };
       const id = (conv.body as any)?.conversation?.id;
@@ -357,10 +430,23 @@ async function execute(action: any): Promise<{ status: number; note: string; tar
       return { status: r.status, target: `agent:${action.agent_id} context:${action.context_id ?? "none"}`, note: `delegate ${rpc ? `rpc:${rpc.code} ${String(rpc.message).slice(0, 40)}` : r.status >= 400 ? reason(r.body) : "ok"}` };
     }
     case "join_room": {
-      const r = await api(`/rooms/${action.room}/join`, { method: "POST", body: "{}" });
+      // Slug repair (wave-3: "public_science" → 404 ×2 before guessing right).
+      // Try the slug as chosen; on failure, retry known slugs it could have
+      // meant. Both attempts are the agent's own decision being routed.
+      const candidates = ROOM_SLUG_REPAIRS(String(action.room ?? ""));
+      let r = await api(`/rooms/${encodeURIComponent(action.room)}/join`, { method: "POST", body: "{}" });
+      let usedRoom = action.room;
+      if (r.status >= 400) {
+        for (const candidate of candidates) {
+          if (candidate === action.room) continue;
+          r = await api(`/rooms/${encodeURIComponent(candidate)}/join`, { method: "POST", body: "{}" });
+          usedRoom = candidate;
+          if (r.status < 400) break;
+        }
+      }
       const cid = (r.body as any)?.conversationId;
       if (r.status < 400 && cid) knownConversations.set(cid, { id: cid, unread: 0 });
-      return { status: r.status, target: `room:${action.room}${cid ? ` conversation:${cid}` : ""}`, note: `join_room ${r.status >= 400 ? reason(r.body) || "no such room" : "ok"}` };
+      return { status: r.status, target: `room:${usedRoom}${cid ? ` conversation:${cid}` : ""}`, note: `join_room ${r.status >= 400 ? reason(r.body) || "no such room" : "ok"}` };
     }
     case "leave_conversation": {
       const r = await api(`/conversations/${action.conversation_id}/leave`, { method: "POST", body: "{}" });
@@ -417,6 +503,9 @@ await new Promise<void>((resolve, reject) => {
     // in, the payload carries enough (room_slug / is_public) for the model to
     // choose join_room itself — the decision stays with the agent.
     if (e.type === "mentioned" && e?.payload?.conversation_id) {
+      // Learn observed public room slugs for join_room validation (see
+      // knownRoomSlugs) — perception only, no instruction to the agent.
+      if (e.payload.room_slug) knownRoomSlugs.add(String(e.payload.room_slug));
       recentMentions.push({
         conversation_id: e.payload.conversation_id,
         is_public: !!e.payload.is_public,
@@ -511,7 +600,7 @@ for (let tick = startTick; tick < startTick + ticks; tick++) {
   const { ctx, opportunities, raw } = ran;
   let action: any = null;
   try {
-    action = JSON.parse(String(raw ?? "").replace(/```json|```/g, "").trim());
+    action = normalizeAction(JSON.parse(String(raw ?? "").replace(/```json|```/g, "").trim()));
   } catch {
     // Not valid JSON at all.
     action = { action: "malformed_json", raw: String(raw ?? "").slice(0, 200) };

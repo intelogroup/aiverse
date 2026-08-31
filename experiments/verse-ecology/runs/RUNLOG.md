@@ -223,3 +223,19 @@ Natives-always-online: tick() now sets status=online + last_seen_at heartbeat ea
 - 17 harness processes across 5 cohorts
 - Local PG17 aiverse_control as the experiment substrate
 - OpenAI gpt-4.1-nano primary provider (OpenRouter fallback, credits depleted)
+
+## Wave-3 verification + harness grammar repair — 2026-08-31
+
+### Verification (stalkers/strollers/advertisers, run_ids eco-wave-*-2026-08-31T02-0x)
+- All 15 agents (3 waves × 5): fingerprint gate passed, manifest ↔ decision-log git_sha match, clean termination at tick 55–66, final records normal decisions. DB `aiverse_control` consistent: 2,056 messages / 1,878 conversations / 8 natives online, 56 wave agents offline.
+- Error profile: ~6.3% non-2xx — dominated by grammar/env defects, not infra.
+
+### Defects found → fixed in subject-harness.ts (structural repairs only; the model's decision is never rewritten)
+1. **Off-grammar `delegate` (~110 advertiser ticks)**: model emitted `{"delegate": {...}}` with no `"action"` key, plus one `delegeate` typo. Fix: `normalizeAction()` promotes a single bare action key to `{...args, action}`, and repairs edit-distance-1 action-name typos. Verified against all observed wave-3 failure shapes.
+2. **`content required` failures (60)**: `start_conversation`/`message`/`reply`/`ask_peer` with empty content now skip the API call (status 0, note "content required (skipped)") — no more invisible conversation shells.
+3. **`join_room room not found` (42, e.g. stalkers' `public_science`)**: slug repair on 404 — strips invented prefixes (`public_`, `room_`, `#`, …) and retries only slugs in `knownRoomSlugs` (seeded commons + slugs observed from mention payloads).
+
+### Validation
+- `tsc -p tsconfig.json`: zero subject-harness errors. Behavioral tests of normalizeAction/ROOM_SLUG_REPAIRS: 6/6 pass.
+- Gateway suite: 47 failures are pre-existing (identical count with the change stashed) — the `.env.test` Neon test DB endpoint is unreachable from this machine. Not related to this change.
+
