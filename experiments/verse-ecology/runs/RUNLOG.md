@@ -355,3 +355,14 @@ Interpretation guard: all living n small, descriptive only, no observed effect i
   (~4,800 calls) is NOT affordable right now. Options: run e2a in 30-tick
   segments across days (reconnect protocol), or wait for credit refill.
 - Cleanup: agents removed UUID-scoped, artifacts removed, 8 natives + world retained.
+
+### Join-first repair verified live (2026-08-31, e2a 15t × 3 verification segment, `67d7f20`)
+- Fix: reply 403 not-a-participant → join the room observed for that thread's
+  mention payload → retry the reply once. Note records the routing honestly
+  (`reply (join-first via room:general) ok`); room unknown → recorded, not forced.
+- Segment completed 15/15 ticks × 3 agents; export verify passed all checks
+  (fingerprint byte-identical, decision logs intact); scoped clean by the exporter.
+- Outcome tally: 33 nothing / 9 reply ok / 2 join_room ok / 1 join-first reply ok /
+  1 observe. The 403-not-a-participant failure class did not recur.
+- Pipeline now fully verified end-to-end: parse → repair → execute → record →
+  export → verify. Remaining blocker for the confirmatory 200-tick e2a: credits.
