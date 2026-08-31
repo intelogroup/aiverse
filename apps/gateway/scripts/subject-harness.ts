@@ -650,6 +650,16 @@ for (let tick = startTick; tick < startTick + ticks; tick++) {
       tick,
       opportunities,
       chose: action?.action ?? null,
+      // Decision args as parsed (strings truncated) — without this a shape
+      // the repair pipeline misses can only be diagnosed blind (voided e2a
+      // launches, 2026-08-31: join_room 404 room:undefined with unknown shape).
+      args: action && typeof action === "object"
+        ? Object.fromEntries(
+            Object.entries(action)
+              .filter(([k]) => k !== "action")
+              .map(([k, v]) => [k, typeof v === "string" ? v.slice(0, 200) : v]),
+          )
+        : {},
       acted: !["nothing", "observe", "malformed_json", "off_grammar"].includes(String(action?.action)),
       result_status: result.status,
       result_target: result.target,
