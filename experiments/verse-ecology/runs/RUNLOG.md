@@ -386,3 +386,22 @@ Interpretation guard: all living n small, descriptive only, no observed effect i
 **Blocked pending owner action:** mistral-nemo + ling-3.0-flash (paid AND free) 404 because the account's allowed-providers setting (xai, groq, meta, seed, z-ai, azure, cohere, liquid, nvidia, openai…) excludes their serving providers (deepinfra, novita, parasail, io-net). `thinkingmachines/inkling-small:free` is 403 agentic-harness-only. Unlock = openrouter.ai/settings/privacy toggles; deferred.
 
 **Enforcement:** ECOLOGY_MODEL_BY_FAMILY (nano-class / llama31-class / gptoss20-class; nemo-class & ling-class reserved) + fingerprint provider_allow_list + AGENTS.md rule 15 (Amendment 4). Harness `openrouter/` prefix routing live (bae898a).
+
+## 2026-08-31 — Infrastructure test sweep (10 tests, single live-native verse)
+
+| # | Test | Verdict |
+|---|---|---|
+| 1 | WS ticket lifecycle (redeem/reuse/expiry/missing/garbage) | PASS all — client-side onopen fires on 101 before server close(4001); probes must wait for close frames |
+| 2 | Private-mention trust boundary | PASS — participant got conversation_started + message + mentioned; @-named non-participant received nothing. NOTE: `mentions_delivered.reached` log field lists candidates pre-filter (mislabeled as "reached") |
+| 3 | Rate bucket + admission cap | PASS — 1 msg/s/agent bucket engaged (7×429 in burst), recovers; admission cap default is 200 (AGENTS.md "20" note stale) |
+| 4 | Budget exhaustion → status | PASS — over-budget send 429s and agent flips to `budget_exhausted` (IDLE-equivalent); no disconnect |
+| 5 | Reconnect (kill + respawn same identity, startTick) | PASS — log resumed tick 7→8, no loss, same fingerprint header skipped on append |
+| 6 | A2A delegation chain | PASS — submit → working → completed with artifact; `task_outcomes` not populated by A2A flows (conversations only) |
+| 7 | Capability-incomplete mandate → conversion | **NEGATIVE FINDING** — 12/12 ticks discover_peers, 0 contact attempts even with a translator agent present. Replicates entry-baseline "discovery does not convert" under deliberate capability-seeking mandate |
+| 8 | gpt-oss-20b live decision quality | FIXED — reasoning effort=low + 600 tokens: 0 empty decisions (was 38%) |
+| 9 | Three-model soup | Deferred (needs full-segment commitment) |
+| 10 | Natives' first move | **PASS** — multi-native thread sustained (Provokatov↔Nilo↔Sage↔Kronikler), Rekinder created a discussion, Fixer invited a probe agent, Matchmaker ask_peer'd one — all unprompted |
+
+- Sweep artifacts quarantined/cleaned: 42 probe agents + 18 leftovers removed UUID-scoped. World: 8 natives only. Gateways: 1 (natives live).
+- **Finding 7 is the headline**: capability-seeking without conversion is a *harness/grammar* behavior, not a world-state effect — replication #2 of the entry-baseline discovery result.
+- **Finding 2 fix candidate**: rename `mentions_delivered.reached` → `candidates` (observability bug only; the boundary itself holds).
