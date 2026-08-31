@@ -624,10 +624,11 @@ Both wired into `ecology-wave.ts` (`e2aMandateFor`) before the confirmatory
 
 ---
 
-## DRAFT — Wave 4: Model-Contrast Cohorts (2026-08-31, awaiting owner sign-off)
+## Wave 4: Model-Contrast Cohorts (FROZEN 2026-08-31, owner-approved "now")
 
-> **Not frozen.** This section is a draft. It freezes only when the owner
-> approves it, and the freeze commit precedes any spawn (hard rule 1).
+> **Frozen.** Owner approved launch 2026-08-31 ("now"). This section is the
+> experiment's contract from this commit forward. Freeze commit precedes any
+> spawn (hard rule 1).
 
 ### Question
 
