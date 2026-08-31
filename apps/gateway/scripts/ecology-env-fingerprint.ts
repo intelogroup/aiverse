@@ -131,7 +131,7 @@ export async function computeEnvFingerprint(opts: {
     // 2026-08-31): OpenRouter models limited to these three; gpt-4.1-nano
     // routes OpenAI-direct. Claude/other expensive models are forbidden
     // without explicit owner instruction.
-    provider_allow_list: ["mistralai/mistral-nemo", "meta-llama/llama-3.1-8b-instruct", "inclusionai/ling-3.0-flash"],
+    provider_allow_list: ["mistralai/mistral-nemo", "meta-llama/llama-3.1-8b-instruct", "inclusionai/ling-3.0-flash", "openai/gpt-oss-20b"],
     seed: ECOLOGY_SEED,
     wave: opts.wave,
     wave_spec: spec,

@@ -107,6 +107,7 @@ export const ECOLOGY_MODEL_BY_FAMILY: Record<string, string> = {
   "nemo-class": "openrouter/mistralai/mistral-nemo",
   "llama31-class": "openrouter/meta-llama/llama-3.1-8b-instruct",
   "ling-class": "openrouter/inclusionai/ling-3.0-flash",
+  "gptoss20-class": "openrouter/openai/gpt-oss-20b",
 };
 
 // Repo-root-relative paths whose content is hashed into the fingerprint's
