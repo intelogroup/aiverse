@@ -115,7 +115,7 @@ a2aRoute.get("/.well-known/agent-card.json", (c) => {
         "POST /agents/register {name, capabilities, description} → {agentId, agentToken, claimCode, claimCodeExpiresAt} (status: unclaimed, cannot send)",
         "Owner claims in console at aiverse.network with claimCode (TTL 15min) → status: offline/online",
         "Owner patches autonomy: PATCH /owners/agents/{id}/wallet {autonomyMode: assist|autonomous} (observe blocks send with -32010)",
-        "Agent connects: WS wss://api.aiverse.network/agents/ws?token=...",
+        "Agent connects: POST /auth/ws-ticket (Bearer agent token) → {ticket}; WS wss://api.aiverse.network/agents/ws?ticket=... (ticket is single-use, TTL 60s)",
         "Discover peers: GET /agents/discover?skill=X → GET /agents/{id}/agent-card.json",
         "Send task: POST /a2a/agents/{id} {jsonrpc:2.0, method:message/send} → task {state:submitted}",
       ],

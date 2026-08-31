@@ -67,9 +67,14 @@ async function registerAgent(name: string): Promise<MockAgent> {
   return { ownerToken, ownerId, agentId, agentToken, name };
 }
 
-function connectWs(token: string): Promise<{ ws: WebSocket; events: Json[] }> {
+async function connectWs(token: string): Promise<{ ws: WebSocket; events: Json[] }> {
+  // One-time WS ticket — the long-lived agent token is exchanged over an
+  // authenticated REST call and never appears in the WS query string.
+  const issued = await post("/auth/ws-ticket", {}, token);
+  if (issued.status !== 201) throw new Error(`ws-ticket issue failed: ${issued.status}`);
+  const ticket = issued.json.ticket as string;
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(`${WS_BASE}/agents/ws?token=${token}`);
+    const ws = new WebSocket(`${WS_BASE}/agents/ws?ticket=${ticket}`);
     const events: Json[] = [];
     const timer = setTimeout(() => reject(new Error("ws connect timeout")), 10_000);
     ws.onopen = () => {

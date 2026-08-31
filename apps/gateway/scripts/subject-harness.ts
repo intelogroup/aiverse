@@ -506,50 +506,90 @@ async function execute(action: any): Promise<{ status: number; note: string; tar
 }
 
 // ---- run
-const ws = new WebSocket(`${GATEWAY_WS}?token=${token}`);
-await new Promise<void>((resolve, reject) => {
-  const timer = setTimeout(() => reject(new Error("ws connect timeout")), 15_000);
-  ws.onmessage = (m) => {
-    const e = JSON.parse(String(m.data));
-    if (e.type === "ping") ws.send(JSON.stringify({ type: "pong", id: crypto.randomUUID(), ts: Date.now(), payload: {} }));
-    if (e.type === "agent_connected") { clearTimeout(timer); resolve(); }
-    // Threads are discovered from the socket, not an HTTP list (none exists).
-    const convId = e?.payload?.conversation_id;
-    if (convId && (e.type === "conversation_started" || e.type === "message" || e.type === "thread_participant_joined")) {
-      const existing = knownConversations.get(convId) ?? { id: convId, unread: 0 };
-      if (e.type === "message") existing.unread += 1;
-      knownConversations.set(convId, existing);
-    }
-    // Richer arrival semantics: the population-wide agent_joined broadcast was
-    // always sent; record it so the agent can actually perceive who enters.
-    if (e.type === "agent_joined" && e?.payload?.agent_id) {
-      recentArrivals.push({ agent_id: e.payload.agent_id, name: e.payload.name, capabilities: e.payload.capabilities });
-      if (recentArrivals.length > 10) recentArrivals.shift();
-    }
-    // @-mention ping: my name was spoken. Keep the last 10; surfaced at the
-    // top of the next tick's context. If the mention is in a thread I'm not
-    // in, the payload carries enough (room_slug / is_public) for the model to
-    // choose join_room itself — the decision stays with the agent.
-    if (e.type === "mentioned" && e?.payload?.conversation_id) {
-      // Learn observed public room slugs for join_room validation (see
-      // knownRoomSlugs) — perception only, no instruction to the agent.
-      if (e.payload.room_slug) knownRoomSlugs.add(String(e.payload.room_slug));
-      recentMentions.push({
-        conversation_id: e.payload.conversation_id,
-        is_public: !!e.payload.is_public,
-        room_slug: e.payload.room_slug ?? null,
-        by_name: e.payload.by_name,
-        content: String(e.payload.content ?? "").slice(0, 200),
-        ts: e.payload.ts ?? Date.now(),
-      });
-      if (recentMentions.length > 10) recentMentions.shift();
-      const existing = knownConversations.get(e.payload.conversation_id) ?? { id: e.payload.conversation_id, unread: 0 };
-      existing.unread += 1;
-      knownConversations.set(e.payload.conversation_id, existing);
-    }
-  };
-  ws.onerror = (e) => { clearTimeout(timer); reject(e as any); };
-});
+// WS lifecycle: the socket carries perception (mentions, arrivals, thread
+// discovery). A gateway restart mid-run used to leave the harness perception-
+// blind for the rest of the segment (2026-08-31) — reconnect with jittered
+// backoff, forever, until the run ends. knownConversations survives reconnects.
+let ws: WebSocket | null = null;
+let runFinished = false;
+let wsAttempts = 0;
+function handleSocketEvent(e: any, sock: WebSocket) {
+  if (e.type === "ping") sock.send(JSON.stringify({ type: "pong", id: crypto.randomUUID(), ts: Date.now(), payload: {} }));
+  // Threads are discovered from the socket, not an HTTP list (none exists).
+  const convId = e?.payload?.conversation_id;
+  if (convId && (e.type === "conversation_started" || e.type === "message" || e.type === "thread_participant_joined")) {
+    const existing = knownConversations.get(convId) ?? { id: convId, unread: 0 };
+    if (e.type === "message") existing.unread += 1;
+    knownConversations.set(convId, existing);
+  }
+  // Richer arrival semantics: the population-wide agent_joined broadcast was
+  // always sent; record it so the agent can actually perceive who enters.
+  if (e.type === "agent_joined" && e?.payload?.agent_id) {
+    recentArrivals.push({ agent_id: e.payload.agent_id, name: e.payload.name, capabilities: e.payload.capabilities });
+    if (recentArrivals.length > 10) recentArrivals.shift();
+  }
+  // @-mention ping: my name was spoken. Keep the last 10; surfaced at the
+  // top of the next tick's context. If the mention is in a thread I'm not
+  // in, the payload carries enough (room_slug / is_public) for the model to
+  // choose join_room itself — the decision stays with the agent.
+  if (e.type === "mentioned" && e?.payload?.conversation_id) {
+    // Learn observed public room slugs for join_room validation (see
+    // knownRoomSlugs) — perception only, no instruction to the agent.
+    if (e.payload.room_slug) knownRoomSlugs.add(String(e.payload.room_slug));
+    recentMentions.push({
+      conversation_id: e.payload.conversation_id,
+      is_public: !!e.payload.is_public,
+      room_slug: e.payload.room_slug ?? null,
+      by_name: e.payload.by_name,
+      content: String(e.payload.content ?? "").slice(0, 200),
+      ts: e.payload.ts ?? Date.now(),
+    });
+    if (recentMentions.length > 10) recentMentions.shift();
+    const existing = knownConversations.get(e.payload.conversation_id) ?? { id: e.payload.conversation_id, unread: 0 };
+    existing.unread += 1;
+    knownConversations.set(e.payload.conversation_id, existing);
+  }
+}
+// One-time WS ticket: exchange the long-lived agent token over an
+// authenticated REST call, then open the socket with a 60s single-use
+// credential — the token never appears in a query string / access log.
+// Fresh ticket per connect attempt: tickets are single-use, and the
+// reconnect path below fires connectWS() again.
+async function fetchWsTicket(): Promise<string> {
+  const res = await fetch(`${GATEWAY_HTTP}/auth/ws-ticket`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`ws-ticket issue failed: ${res.status}`);
+  return ((await res.json()) as any).ticket as string;
+}
+function connectWS(): Promise<WebSocket> {
+  return (async () => {
+    const ticket = await fetchWsTicket();
+    return await new Promise<WebSocket>((resolve, reject) => {
+      const sock = new WebSocket(`${GATEWAY_WS}?ticket=${ticket}`);
+    const timer = setTimeout(() => reject(new Error("ws connect timeout")), 15_000);
+    sock.onmessage = (m) => {
+      const e = JSON.parse(String(m.data));
+      if (e.type === "agent_connected") { clearTimeout(timer); wsAttempts = 0; resolve(sock); }
+      handleSocketEvent(e, sock);
+    };
+    sock.onerror = (e) => { clearTimeout(timer); reject(e as any); };
+    sock.onclose = () => {
+      if (runFinished) return;
+      const delay = Math.min(30_000, 2_000 * 2 ** wsAttempts++) + Math.random() * 1_000;
+      console.warn(`warn: ws closed — reconnecting in ${Math.round(delay)}ms (attempt ${wsAttempts})`);
+      setTimeout(() => {
+        connectWS()
+          .then((s) => { ws = s; })
+          .catch((err) => console.warn(`warn: ws reconnect failed: ${String(err).slice(0, 120)}`));
+      }, delay);
+    };
+    ws = sock;
+    });
+  })();
+}
+await connectWS();
 
 const me = await api("/manifest");
 // GET /manifest returns agent: {id, name, status} — it does NOT include the
@@ -602,6 +642,17 @@ if (logWasEmpty) {
   writeLine(JSON.stringify({ record_type: "env_fingerprint", fingerprint: fp, ...(note ? { note } : {}) }));
 }
 
+// Backend assertion (AGENTS.md hard rule 9): record WHICH LLM backend this
+// process will actually call — loudly, on stderr AND as a decision-log record.
+// A leaked ECOLOGY_LLM_BACKEND once made harnesses call Ollama while the
+// operator watched OpenAI; this makes that failure visible in seconds.
+const resolvedBackend =
+  process.env.ECOLOGY_LLM_BACKEND === "ollama"
+    ? `ollama:${process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434"} model=${process.env.OLLAMA_MODEL ?? "qwen3:8b"}`
+    : `openai model=${model.replace(/^openai\//, "")} key=${process.env.OPENAI_API_KEY || process.env.OPENAI_REAL_API_KEY || process.env.BUDDY_OPENAI_API_KEY ? "present" : "MISSING"}`;
+console.log(`backend: ${resolvedBackend}`);
+writeLine(JSON.stringify({ record_type: "backend", backend: resolvedBackend, ts: new Date().toISOString() }));
+
 for (let tick = startTick; tick < startTick + ticks; tick++) {
   const ran = await withRetry(async () => {
     const ctx = await buildContext();
@@ -630,8 +681,22 @@ for (let tick = startTick; tick < startTick + ticks; tick++) {
   try {
     action = normalizeAction(JSON.parse(String(raw ?? "").replace(/```json|```/g, "").trim()));
   } catch {
-    // Not valid JSON at all.
-    action = { action: "malformed_json", raw: String(raw ?? "").slice(0, 200) };
+    // Salvage before declaring malformed (mirrors the natives' parseAction):
+    // models frequently wrap the JSON object in prose or trail text after it —
+    // extract the first {...} block and retry. Only truly unparseable output
+    // is recorded as malformed_json. (2026-08-31 shakedown: 1 of 90 decisions
+    // was lost to this gap.)
+    const brace = String(raw ?? "").match(/\{[\s\S]*\}/);
+    if (brace) {
+      try {
+        action = normalizeAction(JSON.parse(brace[0]));
+      } catch {
+        action = null;
+      }
+    }
+    if (!action || typeof action !== "object") {
+      action = { action: "malformed_json", raw: String(raw ?? "").slice(0, 200) };
+    }
   }
   // Valid JSON whose `action` is absent or outside the frozen grammar is a
   // DIFFERENT failure from unparseable output, and both differ again from a
@@ -672,5 +737,7 @@ for (let tick = startTick; tick < startTick + ticks; tick++) {
 }
 
 closeSync(logFd);
-ws.close();
+runFinished = true;
+const sock = ws as WebSocket | null;
+sock?.close();
 console.log(`\ndecisions written to ${OUT}`);

@@ -24,10 +24,22 @@ async function registerAgent(name: string) {
 const tokenA = await registerAgent("SmokeA");
 const tokenB = await registerAgent("SmokeB");
 
-const wsB = new WebSocket(`${WS_BASE}/agents/ws?token=${tokenB}`);
+// One-time WS ticket — keeps the long-lived agent token out of query strings
+// and gateway access logs.
+async function fetchWsTicket(agentToken: string): Promise<string> {
+  const res = await fetch(`${BASE}/auth/ws-ticket`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${agentToken}` },
+  });
+  if (!res.ok) throw new Error(`ws-ticket issue failed: ${res.status}`);
+  const { ticket } = await res.json();
+  return ticket as string;
+}
+
+const wsB = new WebSocket(`${WS_BASE}/agents/ws?ticket=${await fetchWsTicket(tokenB)}`);
 await new Promise((r) => (wsB.onopen = r));
 
-const wsA = new WebSocket(`${WS_BASE}/agents/ws?token=${tokenA}`);
+const wsA = new WebSocket(`${WS_BASE}/agents/ws?ticket=${await fetchWsTicket(tokenA)}`);
 await new Promise((r) => (wsA.onopen = r));
 
 const joinA = await fetch(`${BASE}/rooms/general/join`, {
