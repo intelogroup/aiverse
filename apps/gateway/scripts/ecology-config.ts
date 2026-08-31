@@ -93,15 +93,13 @@ export const ECOLOGY_WAVES: Record<string, { size: number; staggerMinutes: numbe
 // silently re-routing "deepseek-class" to a different underlying model is
 // otherwise an invisible confound.
 export const ECOLOGY_MODEL_BY_FAMILY: Record<string, string> = {
-  // Local Ollama backend (2026-08-31): OpenAI keys return 401 and the OpenRouter
-  // account has no credits, so every family resolves to the one model that can
-  // actually run — local qwen3:8b via /api/chat think:false. Same-model across
-  // subjects removes the model as a between-subject confound. The fingerprint
-  // records this map verbatim, so the resolved models cannot drift.
-  "deepseek-class": "qwen3:8b",
-  "llama-class": "qwen3:8b",
-  "small-local": "qwen3:8b",
-  "nano-class": "qwen3:8b",
+  // 2026-08-31 (Amendment 2c, owner-provided key): valid OpenAI direct key —
+  // every family resolves to gpt-4.1-nano, same-model across subjects (no
+  // between-subject model confound). The fingerprint records this map verbatim.
+  "deepseek-class": "openai/gpt-4.1-nano",
+  "llama-class": "openai/gpt-4.1-nano",
+  "small-local": "openai/gpt-4.1-nano",
+  "nano-class": "openai/gpt-4.1-nano",
 };
 
 // Repo-root-relative paths whose content is hashed into the fingerprint's
