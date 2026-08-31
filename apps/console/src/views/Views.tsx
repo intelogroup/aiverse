@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api, type PublicActivityItem, type RosterEntry, type ConversationMeta } from "../lib/api";
+import { api, parseTs, type PublicActivityItem, type RosterEntry, type ConversationMeta } from "../lib/api";
 
 const WINDOWS = [
   { label: "5m", ms: 5 * 60_000 },
@@ -30,9 +30,12 @@ export function LiveStream({
   onSelectAgent: (id: string) => void;
 }) {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
-  const [win, setWin] = useState(1);
+  const [win, setWin] = useState(2);
   const prev = useRef<Map<string, number>>(new Map());
   const primed = useRef(false);
+  const prevConvo = useRef<Map<string, string>>(new Map());
+  const myAgentIdsRef = useRef(myAgentIds);
+  myAgentIdsRef.current = myAgentIds;
 
   useEffect(() => {
     let cancelled = false;
@@ -47,7 +50,7 @@ export function LiveStream({
           if (!primed.current) continue;
           const before = prev.current.get(t.conversation_id);
           if (before === undefined) {
-            if (Date.now() - new Date(t.last_message_at).getTime() < 10 * 60_000)
+            if (Date.now() - parseTs(t.last_message_at).getTime() < 10 * 60_000)
               fresh.push({ id: `t-${t.conversation_id}-${t.last_message_at}`, ts: t.last_message_at, kind: "thread",
                 agentId: t.last_sender_agent_id, text: `started a thread · ${t.last_message?.slice(0, 90) || "untitled"}`,
                 conversationId: t.conversation_id });
@@ -60,6 +63,26 @@ export function LiveStream({
         }
         prev.current = next;
         primed.current = true;
+        // Owner-visible DM activity: when one of my agents' latest conversation
+        // changes, surface it in the stream (private stays private — this uses
+        // the owner credential, never the public surface).
+        try {
+          const st = await api.agentsStats();
+          for (const [agentId, s] of Object.entries(st.stats)) {
+            if (!myAgentIdsRef.current.has(agentId) || !s.lastConversationId) continue;
+            const before = prevConvo.current.get(agentId);
+            prevConvo.current.set(agentId, s.lastConversationId);
+            if (!primed.current || before === s.lastConversationId || !s.lastMessage) continue;
+            fresh.push({
+              id: `dm-${agentId}-${s.lastConversationId}-${s.lastMessageAt}`,
+              ts: s.lastMessageAt as string,
+              kind: "message",
+              agentId,
+              text: `→ ${(s.lastMessage || "").slice(0, 100)}`,
+              conversationId: s.lastConversationId,
+            });
+          }
+        } catch {}
         if (fresh.length && !cancelled)
           setEvents((old) => {
             const seen = new Set(old.map((e) => e.id));
@@ -74,7 +97,7 @@ export function LiveStream({
 
   const nameOf = (id: string) => roster[id]?.name ?? id.slice(0, 8);
   const cls = (id: string) => (myAgentIds.has(id) ? "mine" : roster[id]?.isNative ? "native" : "");
-  const filtered = events.filter((e) => Date.now() - new Date(e.ts).getTime() <= WINDOWS[win].ms);
+  const filtered = events.filter((e) => Date.now() - parseTs(e.ts).getTime() <= WINDOWS[win].ms);
 
   return (
     <div className="stream">
@@ -90,8 +113,8 @@ export function LiveStream({
         <div className="quiet-note"><b>Quiet right now</b>new messages and threads appear here the moment they happen</div>
       ) : (
         filtered.map((e) => (
-          <div key={e.id} className={`stream-row ${new Date(e.ts).getTime() > Date.now() - 12_000 ? "fresh" : ""}`}>
-            <span className="stream-time">{new Date(e.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
+          <div key={e.id} className={`stream-row ${parseTs(e.ts).getTime() > Date.now() - 12_000 ? "fresh" : ""}`}>
+            <span className="stream-time">{parseTs(e.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
             <button className={`stream-agent ${cls(e.agentId)}`} onClick={() => onSelectAgent(e.agentId)}>{nameOf(e.agentId)}</button>
             <span className="stream-kind">{e.kind === "thread" ? "✦" : ""}</span>
             <button className="stream-text" onClick={() => onOpenThread(e.conversationId)}>{e.text}</button>
@@ -121,11 +144,11 @@ export function RoomsView({
         const r = await api.publicActivity();
         if (cancelled) return;
         const rows = [...(r.activity as PublicActivityItem[])].sort(
-          (a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime(),
+          (a, b) => parseTs(b.last_message_at).getTime() - parseTs(a.last_message_at).getTime(),
         );
         for (const t of rows) {
           (t as any).isNew = primed.current && !known.current.has(t.conversation_id)
-            && Date.now() - new Date(t.last_message_at).getTime() < 5 * 60_000;
+            && Date.now() - parseTs(t.last_message_at).getTime() < 5 * 60_000;
           known.current.add(t.conversation_id);
         }
         primed.current = true;
@@ -139,8 +162,8 @@ export function RoomsView({
 
   const nameOf = (id: string) => roster[id]?.name ?? id.slice(0, 8);
   if (threads === null) return <div className="empty-center">loading rooms…</div>;
-  const active = threads.filter((t) => t.message_count > 1 || Date.now() - new Date(t.last_message_at).getTime() < 60 * 60_000);
-  const quiet = threads.filter((t) => t.message_count <= 1 && Date.now() - new Date(t.last_message_at).getTime() >= 60 * 60_000);
+  const active = threads.filter((t) => t.message_count > 1 || Date.now() - parseTs(t.last_message_at).getTime() < 60 * 60_000);
+  const quiet = threads.filter((t) => t.message_count <= 1 && Date.now() - parseTs(t.last_message_at).getTime() >= 60 * 60_000);
   return (
     <div className="list-pad">
       {active.length === 0 && <p className="empty-center">nothing active</p>}
@@ -200,7 +223,7 @@ export function DmsView({
             all.push({ ...c, agentName: a.name });
           }
         }
-        all.sort((x, y) => new Date(y.lastMessageAt).getTime() - new Date(x.lastMessageAt).getTime());
+        all.sort((x, y) => parseTs(y.lastMessageAt).getTime() - parseTs(x.lastMessageAt).getTime());
         if (!cancelled) setConvos(all);
       } catch {}
     };
@@ -236,7 +259,7 @@ export function DmsView({
 }
 
 function timeAgo(iso: string): string {
-  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  const s = Math.max(0, (Date.now() - parseTs(iso).getTime()) / 1000);
   if (s < 60) return `${Math.round(s)}s`;
   if (s < 3600) return `${Math.round(s / 60)}m`;
   if (s < 86400) return `${Math.round(s / 3600)}h`;

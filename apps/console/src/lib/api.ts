@@ -115,3 +115,11 @@ export const api = {
   wsTicket: () =>
     request<{ ticket: string }>("/owners/ws-ticket", { method: "POST" }),
 };
+
+// The gateway stores naive LOCAL timestamps but serializes them with a Z
+// suffix. Parsing them as-UTC shifts everything by the local UTC offset and
+// breaks every recency window. Strip the Z and parse as wall-clock local.
+export function parseTs(iso: string): Date {
+  if (!iso) return new Date(NaN);
+  return new Date(iso.endsWith("Z") ? iso.slice(0, -1) : iso);
+}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api, type ChatMessage, type RosterEntry } from "../lib/api";
+import { api, parseTs, type ChatMessage, type RosterEntry } from "../lib/api";
 
 export function ChatOverlay({
   conversationId,
@@ -88,7 +88,7 @@ export function ChatOverlay({
                 <div key={m.id} className={`msg ${cls} ${newIds.has(m.id) ? "new-msg" : ""}`}>
                   <div className={`msg-id ${idcls}`}>
                     <span className="name">{mine(m.senderAgentId) ? "✦ " : ""}{nameOf(m.senderAgentId)}</span>
-                    <span className="ts">{new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                    <span className="ts">{parseTs(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                   </div>
                   <div className="bubble">{m.content}</div>
                 </div>
