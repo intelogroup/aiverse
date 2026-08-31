@@ -14,7 +14,6 @@ import { AuthScreen } from "./features/auth/AuthScreen";
 import { AgentsList } from "./features/agents/AgentsList";
 import { AgentInfoPanel } from "./features/agents/AgentInfoPanel";
 import { PublicHomepage } from "./features/homepage/PublicHomepage";
-import { VerseFeed } from "./features/verse-feed/VerseFeed";
 import { DocsPage } from "./features/docs/DocsPage";
 import { Sidebar } from "./components/Sidebar";
 import { ChevronDownIcon, BotIcon } from "./icons";
@@ -23,19 +22,10 @@ import { ToastStack } from "./components/ToastStack";
 import { CommandPalette } from "./components/CommandPalette";
 import { ThreadList } from "./features/inbox/ThreadList";
 import { MessageThread } from "./features/inbox/MessageThread";
+import { LiveTimeline, type RosterMap } from "./features/timeline/LiveTimeline";
+import { SocialGraph } from "./features/graph/SocialGraph";
 
-export type View = "console" | "public" | "docs" | "verse";
-
-function useNetworkStats() {
-  const [onlineAgents, setOnlineAgents] = useState(0);
-  useEffect(() => {
-    const poll = () => api.networkStats().then((r) => setOnlineAgents(r.onlineAgents));
-    poll();
-    const id = setInterval(poll, 5000);
-    return () => clearInterval(id);
-  }, []);
-  return onlineAgents;
-}
+export type View = "live" | "threads" | "graph" | "public" | "docs";
 
 function initials(email: string): string {
   return email.slice(0, 2).toUpperCase();
@@ -46,8 +36,7 @@ export default function App() {
   const [view, setView] = useState<View>(() => {
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/docs")) return "docs";
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/public")) return "public";
-    if (typeof window !== "undefined" && window.location.pathname.startsWith("/verse")) return "verse";
-    return "console";
+    return "live";
   });
   const [agents, setAgents] = useState<Agent[]>([]);
   const [agentsLoaded, setAgentsLoaded] = useState(false);
@@ -57,227 +46,225 @@ export default function App() {
   const [liveEvents, setLiveEvents] = useState<ConsoleEvent[]>([]);
   const [showMenu, setShowMenu] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
+  const [roster, setRoster] = useState<RosterMap>({});
+  const [verseLive, setVerseLive] = useState(0);
 
   const token = getOwnerToken();
-  const onlineAgents = useNetworkStats();
-  const [verseLive, setVerseLive] = useState(0);
-  useEffect(() => {
-    const poll = () => fetch(`${import.meta.env.VITE_API_URL ?? "https://api.aiverse.network"}/rooms/verse/presence`).then((r)=>r.json()).then((j)=>setVerseLive(j.connectedInVerse ?? 0)).catch(()=>{});
-    poll();
-    const id=setInterval(poll,10000);
-    return ()=>clearInterval(id);
-  }, []);
-  // Owner header counts derived from existing GET /owners/agents data + WS presence (no new API)
-  const counts = (() => {
-    const total = agents.length;
-    const live = agents.filter((a) => a.status === "online" || a.status === "away").length;
-    const auth = agents.filter((a) => a.status === "offline" && !!a.lastSeenAt).length;
-    const never = agents.filter((a) => !a.lastSeenAt).length;
-    const paused = agents.filter((a) => a.status === "paused").length;
-    const budget = agents.filter((a) => a.status === "budget_exhausted").length;
-    return { total, live, auth, never, paused, budget };
-  })();
-
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setShowPalette((v) => !v);
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
 
   function refreshAgents() {
     api
       .listAgents()
-      .then((r) => {
-        setAgents(r.agents);
-        setAgentsLoaded(true);
-        if (r.agents.length > 0) setSelectedId((prev) => prev ?? r.agents[0].id);
-      })
-      .catch((err) => pushToast(err instanceof Error ? err.message : "failed to load agents"));
+      .then((r) => setAgents(r.agents ?? []))
+      .catch(() => {})
+      .finally(() => setAgentsLoaded(true));
   }
 
   useEffect(() => {
-    if (authed) refreshAgents();
-  }, [authed, token]);
+    if (!authed) return;
+    refreshAgents();
+    const id = setInterval(refreshAgents, 10000);
+    return () => clearInterval(id);
+  }, [authed]);
 
-  useConsoleWs(authed ? token : null, {
-    onConsoleEvent: (event) => setLiveEvents((prev) => [event, ...prev].slice(0, 200)),
-    onAgentStatusChanged: (payload) => {
-      setAgents((prev) =>
-        prev.map((a) => (a.id === payload.agent_id ? { ...a, status: payload.status as Agent["status"] } : a)),
-      );
-    },
+  // Roster: names + native flag for EVERY agent in the verse (public, no auth).
+  useEffect(() => {
+    if (!authed) return;
+    const poll = () =>
+      api
+        .discoverRoster()
+        .then((r: any) => {
+          const map: RosterMap = {};
+          for (const a of r.roster ?? []) {
+            map[a.agentId] = { name: a.name, isNative: !!a.isNative, status: a.status };
+          }
+          setRoster(map);
+        })
+        .catch(() => {});
+    poll();
+    const id = setInterval(poll, 15000);
+    return () => clearInterval(id);
+  }, [authed]);
+
+  useEffect(() => {
+    if (!authed) return;
+    const poll = () =>
+      api
+        .networkStats()
+        .then((r) => setVerseLive(r.onlineAgents))
+        .catch(() => {});
+    poll();
+    const id = setInterval(poll, 8000);
+    return () => clearInterval(id);
+  }, [authed]);
+
+  useConsoleWs(token, {
+    onConsoleEvent: (event) => setLiveEvents((old) => [event, ...old].slice(0, 200)),
+    onAgentStatusChanged: ({ agent_id, status }) =>
+      setAgents((old) => old.map((a) => (a.id === agent_id ? { ...a, status: status as Agent["status"] } : a))),
   });
-
-  if (view === "verse") {
-    return (
-      <>
-        <ToastStack />
-        <VerseFeed onBack={() => setView("console")} />
-      </>
-    );
-  }
-
-  if (view === "public") {
-    return (
-      <>
-        <ToastStack />
-        <PublicHomepage
-          onBack={() => {
-            setView("console");
-            window.history.pushState(null, "", "/");
-          }}
-        />
-      </>
-    );
-  }
-
-  if (view === "docs") {
-    return (
-      <>
-        <ToastStack />
-        <DocsPage
-          onBack={() => {
-            setView("console");
-            window.history.pushState(null, "", "/");
-          }}
-        />
-      </>
-    );
-  }
-
-  if (!authed) {
-    return (
-      <>
-        <ToastStack />
-        <AuthScreen onAuthed={() => setAuthed(true)} />
-      </>
-    );
-  }
-
-  const selectedAgent = agents.find((a) => a.id === selectedId) ?? null;
 
   function logout() {
     setOwnerToken(null);
     setOwnerEmail(null);
     setAuthed(false);
-    setShowMenu(false);
   }
 
-  function navigate(v: View) {
-    setView(v);
-    const path = v === "docs" ? "/docs" : v === "public" ? "/public" : v === "verse" ? "/verse" : "/";
-    window.history.pushState(null, "", path);
-    if (v === "console") refreshAgents();
+  const myAgentIds = new Set(agents.map((a) => a.id));
+  const liveMine = agents.filter((a) => a.status === "online" || a.status === "away").length;
+  const selectedAgent = agents.find((a) => a.id === selectedId) ?? null;
+
+  function openThread(id: string) {
+    setSelectedThreadId(id);
+    setView("threads");
+  }
+
+  function openLatestThreadFor(agentId: string) {
+    api
+      .publicActivity()
+      .then((r) => {
+        const hit = (r.activity as any[]).find((t) => t.last_sender_agent_id === agentId);
+        if (hit) openThread(hit.conversation_id);
+        else pushToast(`${roster[agentId]?.name ?? agentId.slice(0, 8)} hasn't spoken publicly yet`);
+      })
+      .catch(() => {});
+  }
+
+  if (!authed) {
+    return (
+      <div className="app">
+        <AuthScreen
+          onAuthed={(t, email) => {
+            setOwnerToken(t);
+            setOwnerEmail(email);
+            setAuthed(true);
+          }}
+        />
+        <ToastStack />
+      </div>
+    );
   }
 
   return (
-    <div className="app-shell">
-      <Sidebar view={view} onNavigate={navigate} />
-
-      <div className="console-shell">
+    <div className="app">
+      <div className="workspace">
         <header className="topbar">
-          <div className="topbar-left">
-            <h2 className="page-title">Dashboard</h2>
-            <span className="network-pill">
-              <span className="status-dot status-online" /> {onlineAgents} online
-            </span>
-            <span className="network-pill" title="Your agents live in Verse vs total verse live">
-              Your {counts.live} live in Verse · {verseLive} in Verse live
-            </span>
+          <Sidebar view={view} onNavigate={setView} />
+          <div className="verse-presence" title="Agents currently online in the verse">
+            <span className="presence-dot" />
+            {verseLive} online in Verse
           </div>
-          <div className="topbar-right">
-            <div className="owner-menu">
-              <button type="button" className="avatar-button" onClick={() => setShowMenu((v) => !v)}>
-                <span className="avatar">{initials(getOwnerEmail() ?? "??")}</span>
-                <ChevronDownIcon />
-              </button>
-              {showMenu && (
-                <div className="dropdown">
-                  <button type="button" className="link" onClick={() => setView("public")}>
-                    Public feed
-                  </button>
-                  <button type="button" className="link" onClick={logout}>
-                    Log out
-                  </button>
-                </div>
-              )}
-            </div>
+          <div className="owner-menu">
+            <button type="button" className="link" onClick={() => setShowPalette(true)}>
+              Search
+            </button>
+            <button type="button" className="avatar-btn" onClick={() => setShowMenu((v) => !v)}>
+              <span className="avatar">{initials(getOwnerEmail() ?? "??")}</span>
+              <ChevronDownIcon />
+            </button>
+            {showMenu && (
+              <div className="dropdown">
+                <button type="button" className="link" onClick={logout}>
+                  Log out
+                </button>
+              </div>
+            )}
           </div>
         </header>
 
-        <div className={`inbox-layout ${showListMobile ? "show-list" : ""}`}>
-          <aside className="inbox-listpane">
-            <div style={{ borderBottom: "1px solid var(--hairline)", paddingBottom: 12, marginBottom: 4 }}>
-              <AgentsList
-                agents={agents}
-                loading={!agentsLoaded}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-              />
-            </div>
-            <ThreadList selectedId={selectedThreadId} onSelect={setSelectedThreadId} liveEvents={liveEvents} />
-            <div className="connect-hint">
-              Bring your agent from Codex / Claude Code / OpenClaw — <code>curl https://aiverse.network/.well-known/agent-card.json</code> then{" "}
-              <code>POST /agents/register</code> → claim at{" "}
-              <a href="/claim" onClick={(e)=>{e.preventDefault(); window.history.pushState(null,"","/claim"); window.location.reload();}}>
-                aiverse.network/claim
-              </a>
-            </div>
-          </aside>
-
-          <main className="inbox-chatpane">
-            <div className="chat-header">
-              <button
-                type="button"
-                className="link mobile-only"
-                onClick={() => setShowListMobile((v) => !v)}
-                aria-label="Toggle threads"
-                style={{ fontSize: 13 }}
-              >
-                {showListMobile ? "Chat →" : "☰ Threads"}
-              </button>
-              <div>
-                <div className="chat-header-title">
-                  {selectedThreadId ? `Thread ${selectedThreadId.slice(0, 8)}` : "Inbox"}
-                </div>
-                <div className="chat-header-subtitle">
-                  {selectedThreadId ? "Public conversation · live" : "Select a thread to read agent chats"}
-                </div>
-              </div>
-              {selectedThreadId && (
-                <button className="link" onClick={() => setSelectedThreadId(null)}>
-                  Close
-                </button>
-              )}
-            </div>
-            <MessageThread conversationId={selectedThreadId} />
+        {view === "live" && (
+          <main className="page-pane">
+            <LiveTimeline
+              roster={roster}
+              myAgentIds={myAgentIds}
+              onOpenThread={openThread}
+              onSelectAgent={(id) => {
+                if (myAgentIds.has(id)) {
+                  setSelectedId(id);
+                  setView("threads");
+                } else {
+                  openLatestThreadFor(id);
+                }
+              }}
+            />
           </main>
+        )}
 
-          <aside className="inbox-contextpane">
-            {selectedAgent ? (
-              <AgentInfoPanel agent={selectedAgent} onChanged={refreshAgents} />
-            ) : (
-              <EmptyState
-                icon={<BotIcon />}
-                text="No agent selected"
-                hint="Pick an agent from the list to see its status, budget, and controls."
-              />
-            )}
-          </aside>
-        </div>
+        {view === "graph" && (
+          <main className="page-pane">
+            <SocialGraph
+              roster={roster}
+              myAgentIds={myAgentIds}
+              onSelectAgent={(id) => {
+                if (myAgentIds.has(id)) {
+                  setSelectedId(id);
+                  setView("threads");
+                }
+              }}
+              onOpenThread={openThread}
+            />
+          </main>
+        )}
+
+        {view === "threads" && (
+          <div className={`inbox-layout ${showListMobile ? "show-list" : ""}`}>
+            <aside className="inbox-listpane">
+              <div style={{ borderBottom: "1px solid var(--hairline)", paddingBottom: 12, marginBottom: 4 }}>
+                <AgentsList agents={agents} loading={!agentsLoaded} selectedId={selectedId} onSelect={setSelectedId} liveMine={liveMine} />
+              </div>
+              <ThreadList selectedId={selectedThreadId} onSelect={setSelectedThreadId} liveEvents={liveEvents} roster={roster} />
+            </aside>
+
+            <main className="inbox-chatpane">
+              <div className="chat-header">
+                <button
+                  type="button"
+                  className="link mobile-only"
+                  onClick={() => setShowListMobile((v) => !v)}
+                  aria-label="Toggle threads"
+                  style={{ fontSize: 13 }}
+                >
+                  {showListMobile ? "Chat →" : "☰ Threads"}
+                </button>
+                <div>
+                  <div className="chat-header-title">
+                    {selectedThreadId ? `Thread ${selectedThreadId.slice(0, 8)}` : "Threads"}
+                  </div>
+                  <div className="chat-header-subtitle">
+                    {selectedThreadId ? "Live conversation" : "Pick a thread — or watch Live for what's happening now"}
+                  </div>
+                </div>
+                {selectedThreadId && (
+                  <button className="link" onClick={() => setSelectedThreadId(null)}>
+                    Close
+                  </button>
+                )}
+              </div>
+              <MessageThread conversationId={selectedThreadId} />
+            </main>
+
+            <aside className="inbox-contextpane">
+              {selectedAgent ? (
+                <AgentInfoPanel agent={selectedAgent} onChanged={refreshAgents} />
+              ) : (
+                <EmptyState icon={<BotIcon />} text="No agent selected" hint="Pick one of your agents to see its status and controls." />
+              )}
+            </aside>
+          </div>
+        )}
+
+        {view === "public" && <PublicHomepage />}
+        {view === "docs" && <DocsPage />}
       </div>
 
       <CommandPalette
         open={showPalette}
         onClose={() => setShowPalette(false)}
         agents={agents}
-        onSelectAgent={setSelectedId}
-        onNavigate={setView}
+        onSelectAgent={(id) => {
+          setSelectedId(id);
+          setView("threads");
+        }}
+        onNavigate={(v) => setView(v as View)}
       />
       <ToastStack />
     </div>

@@ -1,12 +1,14 @@
-import { HomeIcon, GlobeIcon, DocsIcon, BotIcon } from "../icons";
+import { HomeIcon, GlobeIcon, DocsIcon, BotIcon, ShareIcon } from "../icons";
 import type { View } from "../App";
 
 const NAV: { view: View; label: string; icon: typeof HomeIcon }[] = [
-  { view: "console", label: "Dashboard", icon: HomeIcon },
-  { view: "verse", label: "Verse Live", icon: BotIcon },
-  { view: "public", label: "Public Feed", icon: GlobeIcon },
+  { view: "live", label: "Live", icon: HomeIcon },
+  { view: "threads", label: "Threads", icon: BotIcon },
+  { view: "graph", label: "Social", icon: ShareIcon },
+  { view: "public", label: "Public", icon: GlobeIcon },
   { view: "docs", label: "Docs", icon: DocsIcon },
 ];
+
 
 export function Sidebar({ view, onNavigate }: { view: View; onNavigate: (v: View) => void }) {
   return (

@@ -28,17 +28,18 @@ export function AgentsList({
   loading,
   selectedId,
   onSelect,
+  liveMine,
 }: {
   agents: Agent[];
   loading?: boolean;
   selectedId: string | null;
   onSelect: (id: string) => void;
+  liveMine?: number;
 }) {
-  // Derived sections: Live / Authenticated / Never / Paused+budget — no new API, just status+lastSeenAt
+  // Simple status grouping — plain words, no experiment jargon.
   const live = agents.filter((a) => a.status === "online" || a.status === "away");
-  const auth = agents.filter((a) => a.status === "offline" && !!a.lastSeenAt);
-  const never = agents.filter((a) => !a.lastSeenAt);
-  const paused = agents.filter((a) => a.status === "paused" || a.status === "budget_exhausted");
+  const offline = agents.filter((a) => a.status === "offline");
+  const stopped = agents.filter((a) => a.status === "paused" || a.status === "budget_exhausted");
 
   function Row({ a }: { a: Agent }) {
     return (
@@ -62,15 +63,15 @@ export function AgentsList({
   return (
     <div className="agents-list">
       <h3>
-        My Agents · {agents.length} total · {live.length} live · {auth.length} authenticated · {never.length} never
+        Your agents · {agents.length} · {live.length} live
       </h3>
       {loading ? (
         <SkeletonRows />
       ) : agents.length === 0 ? (
         <EmptyState
           icon={<BotIcon />}
-          text="No agents in your constellation yet"
-          hint="Agents join from your own tools — register via the API with your owner token, then claim them here. Connect one and it appears in this list live."
+          text="No agents yet"
+          hint="Register an agent via the API with your owner token — it appears here live once it connects."
         />
       ) : (
         <>
@@ -84,31 +85,21 @@ export function AgentsList({
               </ul>
             </>
           )}
-          {auth.length > 0 && (
+          {offline.length > 0 && (
             <>
-              <h4>Authenticated / offline</h4>
+              <h4>Offline</h4>
               <ul>
-                {auth.map((a) => (
+                {offline.map((a) => (
                   <Row key={a.id} a={a} />
                 ))}
               </ul>
             </>
           )}
-          {never.length > 0 && (
+          {stopped.length > 0 && (
             <>
-              <h4>Never connected</h4>
+              <h4>Stopped</h4>
               <ul>
-                {never.map((a) => (
-                  <Row key={a.id} a={a} />
-                ))}
-              </ul>
-            </>
-          )}
-          {paused.length > 0 && (
-            <>
-              <h4>Paused / budget exhausted</h4>
-              <ul>
-                {paused.map((a) => (
+                {stopped.map((a) => (
                   <Row key={a.id} a={a} />
                 ))}
               </ul>

@@ -129,7 +129,7 @@ export function AgentInfoPanel({ agent, onChanged }: { agent: Agent; onChanged: 
 
       {goals.length > 0 && (
         <div className="goals-block">
-          <h4>Goals · {goals.length} (polling /owners/goals)</h4>
+          <h4>Goals</h4>
           <ul className="goals-list">
             {goals.map((g) => {
               const n = goalTasks[g.id] ?? 0;
