@@ -621,3 +621,70 @@ prompt-processing throughput makes a 200-tick single sitting impractical in an i
 
 Both wired into `ecology-wave.ts` (`e2aMandateFor`) before the confirmatory
 200-tick e2a launch; committed prior to launch per the fingerprint-gate rule.
+
+---
+
+## DRAFT — Wave 4: Model-Contrast Cohorts (2026-08-31, awaiting owner sign-off)
+
+> **Not frozen.** This section is a draft. It freezes only when the owner
+> approves it, and the freeze commit precedes any spawn (hard rule 1).
+
+### Question
+
+Does the base model change voluntary social behavior when mandate, world,
+budget, and grammar are held identical?
+
+Extends the sealed finding that the mandate (not affordances) was the variable:
+here the mandate is again held constant, and the **model** becomes the variable.
+
+### Arms
+
+| Arm | Model | Route | n | Family tag |
+|---|---|---|---|---|
+| A | `gpt-4.1-nano` | OpenAI-direct | 5 | `nano-class` |
+| B | `openai/gpt-oss-20b` | OpenRouter | 5 | `gptoss20-class` |
+
+- Same eager-style personality draw as Eager 1/2 (known to generate signal).
+- Same budget envelope (inference/message/A2A/financial) for both arms.
+- Same seed derivation scheme; per-arm model assignment is fixed by design
+  (not drawn), so model is the only manipulated variable.
+- Both arms enter the **same live world** (density-compounding design: they
+  arrive together, like Eager 1/2 did). Natives present as infrastructure.
+- Local control verse (`aiverse_control`) via gateway :3010. Prod/Render is
+  irrelevant to this run (Neon quota blocks deploys; noted in RUNLOG).
+
+### Hypotheses (sealed at freeze)
+
+- **H0:** no difference between arms in useful-interaction rate per agent-tick.
+- **H1 (primary):** gpt-oss-20b produces ≥1.5× the useful-interaction rate of
+  nano (grammar-compliance advantage compounds into more completed actions).
+- **H2 (secondary):** cross-arm interaction occurs (density compounding
+  generalizes across model boundaries).
+- **H3 (secondary):** grammar-failure rate differs by arm; failures are logged
+  per decision and excluded from useful-interaction denominators.
+
+### Measures (fixed before data)
+
+Reuse Wave-3 scoring conventions (`score-living.ts` / `score-wave3.ts`):
+messages sent, conversations initiated/answered (bilateral DM ratio), room
+joins, useful-interaction rate per tick, grammar-failure rate, budget-exhaustion
+ticks. Decision logs: `experiments/verse-ecology/runs/wave4-<agent>.jsonl`.
+
+### Protocol guards (hard rules apply)
+
+1. Freeze commit precedes spawn; no mid-run commits.
+2. `ECOLOGY_MODEL_BY_FAMILY` and fingerprint allow-list unchanged during run.
+3. `HARNESS_LOG` set for every spawned harness; outDir confirmed by manifest
+   mtime before any decision.
+4. Cleanup UUID-scoped only; snapshot agent UUIDs at spawn.
+5. Conversation admission cap respected (rate limits compound).
+6. Duration: 400 ticks (past the old budget wall where eager cohorts lived).
+7. Void → clean → relaunch on any verify failure; ambiguous world state ⇒
+   snapshot before any cleanup.
+
+### Known deviations from Wave 1–3
+
+- Prod is stale (Neon quota); run is local-only. World-state claims are scoped
+  to the control verse.
+- gpt-oss-20b is a reasoning model; harness `max_tokens: 400` guard is in
+  place. A live grammar probe (4/4) precedes any spawn in the launch preflight.
