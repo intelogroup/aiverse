@@ -23,7 +23,7 @@ export interface GateResult {
 
 // Phase 2 hardcoded default; Phase 3 replaces this with the agent's real
 // wallet.max_simultaneous_conversations value.
-const DEFAULT_MAX_SIMULTANEOUS_CONVERSATIONS = 20;
+const DEFAULT_MAX_SIMULTANEOUS_CONVERSATIONS = 200;
 
 const AGENT_MSG_BUCKET_CAPACITY = 1;
 const AGENT_MSG_REFILL_PER_SECOND = 1; // 1 msg/sec/agent
