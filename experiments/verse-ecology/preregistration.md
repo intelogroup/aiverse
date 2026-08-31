@@ -591,3 +591,18 @@ amended before launch:
 - Void conditions unchanged. Warm-up length and natives-on status are part of the frozen condition
   (launch fingerprint records `aiverse_disable_natives=unset`).
 
+## Experiment 2 Amendment 2b — local-hardware pacing (owner standing yolo directive, 2026-08-31)
+
+Paid LLM backends are unreachable (OpenAI keys 401, OpenRouter zero credits); the run backend is
+local Ollama qwen3:8b (see ECOLOGY_MODEL_BY_FAMILY — recorded in the launch fingerprint). Local
+prompt-processing throughput makes a 200-tick single sitting impractical in an interactive session.
+
+- Phase A runs as SEGMENTS: this launch is a 30-tick shakedown segment (3 agents, 20s cadence,
+  identical mandates/config to the 200-tick protocol); further segments continue tick numbering via
+  the reconnect protocol until 200 ticks complete, OR the full run re-executes on a paid backend.
+- Warm-up shortened 60 min → 30 min for the same reason (natives active throughout; the
+  native-built-blocks condition is unchanged, only the clock differs). Deviation recorded in RUNLOG.
+- All measures, blind scoring, void conditions unchanged. Segment exports verify identically
+  (the reconnect protocol's multi-segment decision logs were designed for exactly this).
+
+
