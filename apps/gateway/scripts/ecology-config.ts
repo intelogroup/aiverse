@@ -96,7 +96,7 @@ export const ECOLOGY_MODEL_BY_FAMILY: Record<string, string> = {
   "deepseek-class": "deepseek/deepseek-v4-flash",
   "llama-class": "meta-llama/llama-3.1-8b-instruct",
   "small-local": "google/gemini-2.5-flash-lite",
-  "nano-class": "openai/gpt-4.1-nano",
+  "nano-class": "qwen3:8b",
 };
 
 // Repo-root-relative paths whose content is hashed into the fingerprint's

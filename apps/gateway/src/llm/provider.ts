@@ -43,6 +43,41 @@ export class OpenRouterProvider implements LLMProvider {
   }
 }
 
+// Local Ollama backend for small-scale experiment runs when no paid provider
+// is reachable (OpenAI key invalid, OpenRouter out of credits). Uses the
+// NATIVE /api/chat endpoint (not OpenAI-compat) because the local qwen3/gemma
+// builds are thinking models: only `think: false` on /api/chat emits the
+// decision JSON directly in `content` — the compat endpoint burns the whole
+// token budget in `reasoning` and returns empty content. Verified live 2026-08-31.
+export class OllamaProvider implements LLMProvider {
+  async complete(params: { system: string; messages: { role: string; content: string }[] }): Promise<string | null> {
+    const baseUrl = process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434";
+    const model = process.env.OLLAMA_MODEL ?? "qwen3:8b";
+    try {
+      const res = await fetch(`${baseUrl}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: "system", content: params.system }, ...params.messages],
+          stream: false,
+          think: false,
+          options: { num_predict: 300 },
+        }),
+      });
+      if (!res.ok) {
+        log("llm_error", { provider: "ollama", model, status: res.status, body: (await res.text()).slice(0, 300) });
+        return null;
+      }
+      const data: any = await res.json();
+      return data?.message?.content ?? null;
+    } catch (e) {
+      log("llm_error", { provider: "ollama", model, error: String(e) });
+      return null;
+    }
+  }
+}
+
 export class OpenAIProvider implements LLMProvider {
   async complete(params: { system: string; messages: { role: string; content: string }[] }): Promise<string | null> {
     const key = env.OPENAI_API_KEY || env.OPENAI_REAL_API_KEY || env.BUDDY_OPENAI_API_KEY;

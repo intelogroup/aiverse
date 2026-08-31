@@ -174,6 +174,34 @@ if (!model) {
 }
 
 async function decide(system: string, context: unknown): Promise<string | null> {
+  // Ollama backend (small-scale local runs): no paid provider reachable —
+  // OpenAI keys in env return 401, OpenRouter account is out of credits.
+  // Uses the NATIVE /api/chat endpoint with think:false — local qwen3/gemma
+  // builds are thinking models; the OpenAI-compat endpoint spends the whole
+  // token budget on `reasoning` and returns empty content. Verified live.
+  if (process.env.ECOLOGY_LLM_BACKEND === "ollama") {
+    const baseUrl = (process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434").replace(/\/$/, "");
+    const ollamaModel = model.replace(/^openai\//, "").replace(/^ollama\//, "");
+    const res = await fetch(`${baseUrl}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: ollamaModel,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: JSON.stringify(context) },
+        ],
+        stream: false,
+        think: false,
+        options: { num_predict: 400 },
+      }),
+    });
+    if (!res.ok) {
+      throw new Error(`ollama ${res.status} for ${model}: ${(await res.text()).slice(0, 200)}`);
+    }
+    const data: any = await res.json();
+    return data?.message?.content ?? null;
+  }
   const openaiKey = process.env.OPENAI_API_KEY || process.env.OPENAI_REAL_API_KEY || process.env.BUDDY_OPENAI_API_KEY;
   const openaiModel = model.startsWith("openai/") ? model.replace("openai/", "") : model;
   if (!openaiKey) throw new Error("OPENAI_API_KEY is required");

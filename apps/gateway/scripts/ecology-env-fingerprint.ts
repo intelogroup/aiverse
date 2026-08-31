@@ -123,7 +123,7 @@ export async function computeEnvFingerprint(opts: {
     postgres_version: postgresVersion,
     pgvector_version: pgvectorVersion,
     redis_version: redisVersion,
-    provider: "openrouter",
+    provider: process.env.ECOLOGY_PROVIDER_LABEL ?? "openrouter",
     // The exact model IDs, not the family labels. A provider re-routing a
     // family to a different underlying model must be detectable.
     resolved_models: { ...ECOLOGY_MODEL_BY_FAMILY },
