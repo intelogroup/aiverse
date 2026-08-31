@@ -156,6 +156,30 @@ async function decide(system: string, context: unknown): Promise<string | null> 
     const data: any = await res.json();
     return data?.message?.content ?? null;
   }
+  // OpenRouter backend (Amendment 4): models prefixed openrouter/ route
+  // through openrouter.ai with OPENROUTER_API_KEY. Owner-approved models only
+  // (AGENTS.md rule 15) — the family map is the gate.
+  if (model.startsWith("openrouter/")) {
+    const orKey = process.env.OPENROUTER_API_KEY;
+    if (!orKey) throw new Error("OPENROUTER_API_KEY is required for openrouter/ models");
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${orKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: model.replace("openrouter/", ""),
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: JSON.stringify(context) },
+        ],
+        max_tokens: 400,
+      }),
+    });
+    if (!res.ok) {
+      throw new Error(`openrouter ${res.status} for ${model}: ${(await res.text()).slice(0, 200)}`);
+    }
+    const data: any = await res.json();
+    return data?.choices?.[0]?.message?.content ?? null;
+  }
   const openaiKey = process.env.OPENAI_API_KEY || process.env.OPENAI_REAL_API_KEY || process.env.BUDDY_OPENAI_API_KEY;
   const openaiModel = model.startsWith("openai/") ? model.replace("openai/", "") : model;
   if (!openaiKey) throw new Error("OPENAI_API_KEY is required");
@@ -632,7 +656,9 @@ if (logWasEmpty) {
 const resolvedBackend =
   process.env.ECOLOGY_LLM_BACKEND === "ollama"
     ? `ollama:${process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434"} model=${process.env.OLLAMA_MODEL ?? "qwen3:8b"}`
-    : `openai model=${model.replace(/^openai\//, "")} key=${process.env.OPENAI_API_KEY || process.env.OPENAI_REAL_API_KEY || process.env.BUDDY_OPENAI_API_KEY ? "present" : "MISSING"}`;
+    : model.startsWith("openrouter/")
+      ? `openrouter model=${model.replace(/^openrouter\//, "")} key=${process.env.OPENROUTER_API_KEY ? "present" : "MISSING"}`
+      : `openai model=${model.replace(/^openai\//, "")} key=${process.env.OPENAI_API_KEY || process.env.OPENAI_REAL_API_KEY || process.env.BUDDY_OPENAI_API_KEY ? "present" : "MISSING"}`;
 console.log(`backend: ${resolvedBackend}`);
 writeLine(JSON.stringify({ record_type: "backend", backend: resolvedBackend, ts: new Date().toISOString() }));
 

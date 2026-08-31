@@ -6,11 +6,11 @@ export interface LLMProvider {
 }
 
 // One cheap model shared by every native agent — personality/objective comes
-// from the system prompt, not the model, so behavior differences measure
-// personality/memory, not model capability. Fallback tried in order on
-// non-2xx (rate limit, provider-not-allowed, upstream outage) — both entries
-// verified live against this account's provider allow-list before wiring.
-const MODELS = ["google/gemini-2.5-flash-lite", "meta-llama/llama-3.1-8b-instruct", "deepseek/deepseek-v4-flash"];
+// from the system prompt, not the model. MODELS are the OWNER-APPROVED
+// OpenRouter list (AGENTS.md rule 15, 2026-08-31): strictly mistral-nemo,
+// llama-3.1-8b-instruct, ling-3.0-flash. Claude and other expensive models
+// are forbidden without explicit owner instruction. Tried in order.
+const MODELS = ["mistralai/mistral-nemo", "meta-llama/llama-3.1-8b-instruct", "inclusionai/ling-3.0-flash"];
 
 export class OpenRouterProvider implements LLMProvider {
   async complete(params: { system: string; messages: { role: string; content: string }[] }): Promise<string | null> {

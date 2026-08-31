@@ -100,6 +100,13 @@ export const ECOLOGY_MODEL_BY_FAMILY: Record<string, string> = {
   "llama-class": "openai/gpt-4.1-nano",
   "small-local": "openai/gpt-4.1-nano",
   "nano-class": "openai/gpt-4.1-nano",
+  // Owner-approved OpenRouter models (Amendment 4, 2026-08-31 — AGENTS.md rule
+  // 15: Claude and other expensive models are forbidden without explicit owner
+  // instruction). The openrouter/ prefix routes the subject harness through
+  // openrouter.ai with OPENROUTER_API_KEY.
+  "nemo-class": "openrouter/mistralai/mistral-nemo",
+  "llama31-class": "openrouter/meta-llama/llama-3.1-8b-instruct",
+  "ling-class": "openrouter/inclusionai/ling-3.0-flash",
 };
 
 // Repo-root-relative paths whose content is hashed into the fingerprint's

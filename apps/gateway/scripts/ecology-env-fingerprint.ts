@@ -127,7 +127,11 @@ export async function computeEnvFingerprint(opts: {
     // The exact model IDs, not the family labels. A provider re-routing a
     // family to a different underlying model must be detectable.
     resolved_models: { ...ECOLOGY_MODEL_BY_FAMILY },
-    provider_allow_list: ["google/gemini-2.5-flash-lite", "meta-llama/llama-3.1-8b-instruct", "deepseek/deepseek-v4-flash"],
+    // Strict owner-approved model policy (AGENTS.md rule 15, Amendment 4,
+    // 2026-08-31): OpenRouter models limited to these three; gpt-4.1-nano
+    // routes OpenAI-direct. Claude/other expensive models are forbidden
+    // without explicit owner instruction.
+    provider_allow_list: ["mistralai/mistral-nemo", "meta-llama/llama-3.1-8b-instruct", "inclusionai/ling-3.0-flash"],
     seed: ECOLOGY_SEED,
     wave: opts.wave,
     wave_spec: spec,
