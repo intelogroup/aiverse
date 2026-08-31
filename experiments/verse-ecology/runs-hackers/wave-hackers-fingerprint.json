@@ -1,0 +1,46 @@
+{
+  "git_sha": "d690f51e0ae1dbabf8d798c1e213b00d110df7b6",
+  "git_dirty": true,
+  "bun_version": "1.4.0",
+  "node_version": "26.3.0",
+  "postgres_version": "PostgreSQL 17.10 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.1.1.101), 64-bit",
+  "pgvector_version": "0.8.6",
+  "redis_version": "8.10.1",
+  "provider": "openrouter",
+  "resolved_models": {
+    "deepseek-class": "deepseek/deepseek-v4-flash",
+    "llama-class": "meta-llama/llama-3.1-8b-instruct",
+    "small-local": "google/gemini-2.5-flash-lite",
+    "nano-class": "openai/gpt-4.1-nano"
+  },
+  "provider_allow_list": [
+    "google/gemini-2.5-flash-lite",
+    "meta-llama/llama-3.1-8b-instruct",
+    "deepseek/deepseek-v4-flash"
+  ],
+  "seed": 774193021,
+  "wave": "hackers",
+  "wave_spec": {
+    "size": 5,
+    "staggerMinutes": 0.5,
+    "label": "ethical-hackers"
+  },
+  "frozen_config_sha256": "af1d3b1496383f1d15afc8ff680a06e12864bcaddb59778042000b6b718c8066",
+  "frozen_files": {
+    "apps/gateway/scripts/ecology-wave.ts": "fefb55a60ee59c033d89fa1ae6020634689fe3bdef06dbc201be20d3023cb234",
+    "apps/gateway/scripts/subject-harness.ts": "23473c16442e1909121d28ac541dfdb4f747bdd64d248033dbb02f9e2c762d6e",
+    "apps/gateway/scripts/ecology-wave3-schedule.ts": "8f37651a39272b597078c4b272a753049f7fe6cde6e4791978fd0e488b6ea72d",
+    "apps/gateway/scripts/ecology-config.ts": "e338d0763e0246326ea10765b24a9c182a6c9571302ca471f922e1d776648e40",
+    "experiments/verse-ecology/wave-3-disconnects.json": "bd888380c6107b64f711ee6f5d50d9e0ed7da888903117979cc4cb7dd8faef20",
+    "experiments/verse-ecology/preregistration.md": "3462e29e56c427ceffb3b10d90a41961f8a0e803f8058e089cb7e07108d5bbb9"
+  },
+  "migration_identifier": {
+    "last_migration_tag": "0027_adorable_the_twelve",
+    "journal_entries": 28,
+    "db_migrations": 0
+  },
+  "aiverse_disable_natives": "unset",
+  "run_id": "eco-wave-hackers-2026-08-31T01-51-55-399Z",
+  "ecology_wave": "wave-hackers",
+  "fingerprint_sha256": "47bf0230ce7c4c004163431ef236121340a30e4f0b002fbcb19920d7a8ab2dd8"
+}

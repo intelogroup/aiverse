@@ -1,0 +1,208 @@
+{
+  "run_id": "eco-wave-1-2026-08-29T14-28-45-875Z",
+  "wave": 1,
+  "export_sha256": "d92bc533cc6a7403534295e654dbf3df9e9d51f28e5af601428297003eaa7cb4",
+  "n_agents": 10,
+  "agents_who_sent_any_message": 4,
+  "total_messages": 12,
+  "messages_that_were_replies": 0,
+  "exchanges": 8,
+  "useful_exchanges": 5,
+  "useful_exchanges_sensitive": 5,
+  "two_agent_exchanges": 0,
+  "pathologies": [
+    "repeated-solicitation"
+  ],
+  "per_agent_useful": {
+    "986d02f5-3a87-41df-bc9e-0d2f39051b65": 2,
+    "6475bca5-48b9-4599-842c-82358a73df8b": 2,
+    "a55200b8-19fa-4f72-8295-11483535da94": 0,
+    "f0b0fbe6-97fb-4717-9e03-f83e7e0ff9a8": 1
+  },
+  "ladder_mechanical": {
+    "EcoW1-7": {
+      "arrived": true,
+      "ticks": 200,
+      "chose_counts": {
+        "discover_peers": 9,
+        "nothing": 27,
+        "observe": 164
+      },
+      "acted": 9,
+      "ticks_perceived_threads": 0,
+      "ticks_inbound": 0,
+      "messages_acted": 0,
+      "malformed_json": 0,
+      "off_grammar": 0,
+      "rate_limited_total": 0,
+      "capability_matched_peers_max": 3
+    },
+    "EcoW1-9": {
+      "arrived": true,
+      "ticks": 200,
+      "chose_counts": {
+        "create_goal": 2,
+        "discover_peers": 74,
+        "malformed_json": 7,
+        "message": 1,
+        "nothing": 59,
+        "observe": 52,
+        "off_grammar": 2,
+        "start_conversation": 3
+      },
+      "acted": 80,
+      "ticks_perceived_threads": 0,
+      "ticks_inbound": 137,
+      "messages_acted": 1,
+      "malformed_json": 7,
+      "off_grammar": 2,
+      "rate_limited_total": 0,
+      "capability_matched_peers_max": 2
+    },
+    "EcoW1-2": {
+      "arrived": true,
+      "ticks": 200,
+      "chose_counts": {
+        "discover_peers": 79,
+        "malformed_json": 4,
+        "message": 1,
+        "nothing": 76,
+        "observe": 38,
+        "start_conversation": 2
+      },
+      "acted": 82,
+      "ticks_perceived_threads": 0,
+      "ticks_inbound": 157,
+      "messages_acted": 1,
+      "malformed_json": 4,
+      "off_grammar": 0,
+      "rate_limited_total": 0,
+      "capability_matched_peers_max": 2
+    },
+    "EcoW1-8": {
+      "arrived": true,
+      "ticks": 200,
+      "chose_counts": {
+        "message": 2,
+        "nothing": 1,
+        "observe": 197
+      },
+      "acted": 2,
+      "ticks_perceived_threads": 0,
+      "ticks_inbound": 0,
+      "messages_acted": 2,
+      "malformed_json": 0,
+      "off_grammar": 0,
+      "rate_limited_total": 0,
+      "capability_matched_peers_max": 6
+    },
+    "EcoW1-3": {
+      "arrived": true,
+      "ticks": 200,
+      "chose_counts": {
+        "discover_peers": 123,
+        "malformed_json": 14,
+        "message": 2,
+        "nothing": 24,
+        "observe": 35,
+        "off_grammar": 1,
+        "start_conversation": 1
+      },
+      "acted": 126,
+      "ticks_perceived_threads": 0,
+      "ticks_inbound": 196,
+      "messages_acted": 2,
+      "malformed_json": 14,
+      "off_grammar": 1,
+      "rate_limited_total": 0,
+      "capability_matched_peers_max": 1
+    },
+    "EcoW1-6": {
+      "arrived": true,
+      "ticks": 200,
+      "chose_counts": {
+        "create_goal": 4,
+        "discover_peers": 72,
+        "malformed_json": 5,
+        "nothing": 21,
+        "observe": 96,
+        "start_conversation": 2
+      },
+      "acted": 78,
+      "ticks_perceived_threads": 0,
+      "ticks_inbound": 176,
+      "messages_acted": 0,
+      "malformed_json": 5,
+      "off_grammar": 0,
+      "rate_limited_total": 0,
+      "capability_matched_peers_max": 1
+    },
+    "EcoW1-4": {
+      "arrived": true,
+      "ticks": 200,
+      "chose_counts": {
+        "create_goal": 10,
+        "nothing": 12,
+        "observe": 178
+      },
+      "acted": 10,
+      "ticks_perceived_threads": 0,
+      "ticks_inbound": 0,
+      "messages_acted": 0,
+      "malformed_json": 0,
+      "off_grammar": 0,
+      "rate_limited_total": 0,
+      "capability_matched_peers_max": 2
+    },
+    "EcoW1-10": {
+      "arrived": true,
+      "ticks": 200,
+      "chose_counts": {
+        "malformed_json": 2,
+        "nothing": 24,
+        "observe": 174
+      },
+      "acted": 0,
+      "ticks_perceived_threads": 0,
+      "ticks_inbound": 0,
+      "messages_acted": 0,
+      "malformed_json": 2,
+      "off_grammar": 0,
+      "rate_limited_total": 0,
+      "capability_matched_peers_max": 2
+    },
+    "EcoW1-5": {
+      "arrived": true,
+      "ticks": 200,
+      "chose_counts": {
+        "discover_peers": 20,
+        "nothing": 3,
+        "observe": 177
+      },
+      "acted": 20,
+      "ticks_perceived_threads": 0,
+      "ticks_inbound": 0,
+      "messages_acted": 0,
+      "malformed_json": 0,
+      "off_grammar": 0,
+      "rate_limited_total": 0,
+      "capability_matched_peers_max": 3
+    },
+    "EcoW1-1": {
+      "arrived": true,
+      "ticks": 200,
+      "chose_counts": {
+        "observe": 200
+      },
+      "acted": 0,
+      "ticks_perceived_threads": 0,
+      "ticks_inbound": 0,
+      "messages_acted": 0,
+      "malformed_json": 0,
+      "off_grammar": 0,
+      "rate_limited_total": 0,
+      "capability_matched_peers_max": 2
+    }
+  },
+  "blinding_limitation": "native names (e.g. the resident 'Sage') remain in text; scorer had prior knowledge of native identities. DV criteria do not depend on native status."
+}

@@ -1,0 +1,15 @@
+{
+  "run_id": "eco-wave-1-2026-08-29T14-28-45-875Z",
+  "wave": "1",
+  "n_agents": 10,
+  "security_events": 30,
+  "participants": 8,
+  "a2a_tasks": 0,
+  "public_threads": 4,
+  "per_agent_messages": {
+    "auth-71": 3,
+    "auth-18": 4,
+    "auth-82": 2,
+    "auth-22": 3
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "git_sha": "47b0ce198d2afec750491d63787c8b3d8a0919f9",
+  "git_dirty": true,
+  "bun_version": "1.4.0",
+  "node_version": "26.3.0",
+  "postgres_version": "PostgreSQL 17.10 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.1.1.101), 64-bit",
+  "pgvector_version": "0.8.6",
+  "redis_version": "8.10.1",
+  "provider": "openrouter",
+  "resolved_models": {
+    "deepseek-class": "deepseek/deepseek-v4-flash",
+    "llama-class": "meta-llama/llama-3.1-8b-instruct",
+    "small-local": "google/gemini-2.5-flash-lite",
+    "nano-class": "openai/gpt-4.1-nano"
+  },
+  "provider_allow_list": [
+    "google/gemini-2.5-flash-lite",
+    "meta-llama/llama-3.1-8b-instruct",
+    "deepseek/deepseek-v4-flash"
+  ],
+  "seed": 774193021,
+  "wave": "nano4",
+  "wave_spec": {
+    "size": 3,
+    "staggerMinutes": 0.5,
+    "label": "nano-personal-assistants"
+  },
+  "frozen_config_sha256": "8a155b740015c9067579e847be4e37428529dbea197dbbc4acf8e925f63e5b0d",
+  "frozen_files": {
+    "apps/gateway/scripts/ecology-wave.ts": "9393bde8dcce871d24d1724ac95d11f88d7bc082611e9d4f839593c9f6b805e7",
+    "apps/gateway/scripts/subject-harness.ts": "c3aad3597fbe60b612907cbb04b4b0b775192a219544e715b349a28d242e4a27",
+    "apps/gateway/scripts/ecology-wave3-schedule.ts": "8f37651a39272b597078c4b272a753049f7fe6cde6e4791978fd0e488b6ea72d",
+    "apps/gateway/scripts/ecology-config.ts": "561f122d680b971447bb199df79ff9e1311e1086a6ecbe19d33dfd67950daeb9",
+    "experiments/verse-ecology/wave-3-disconnects.json": "bd888380c6107b64f711ee6f5d50d9e0ed7da888903117979cc4cb7dd8faef20",
+    "experiments/verse-ecology/preregistration.md": "3462e29e56c427ceffb3b10d90a41961f8a0e803f8058e089cb7e07108d5bbb9"
+  },
+  "migration_identifier": {
+    "last_migration_tag": "0027_adorable_the_twelve",
+    "journal_entries": 28,
+    "db_migrations": 0
+  },
+  "aiverse_disable_natives": "unset",
+  "run_id": "eco-wave-nano4-2026-08-30T21-03-00-223Z",
+  "ecology_wave": "wave-nano4",
+  "fingerprint_sha256": "13693dd1154717c85ef58ceb5b9836b3bffd5031abeda64027fd9405d37771cb"
+}

@@ -1,0 +1,46 @@
+{
+  "git_sha": "73e9047d2c386d338b7095fc4d444635520dd6d8",
+  "git_dirty": true,
+  "bun_version": "1.4.0",
+  "node_version": "26.3.0",
+  "postgres_version": "PostgreSQL 17.10 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.1.1.101), 64-bit",
+  "pgvector_version": "0.8.6",
+  "redis_version": "8.10.1",
+  "provider": "openrouter",
+  "resolved_models": {
+    "deepseek-class": "deepseek/deepseek-v4-flash",
+    "llama-class": "meta-llama/llama-3.1-8b-instruct",
+    "small-local": "google/gemini-2.5-flash-lite",
+    "nano-class": "openai/gpt-4.1-nano"
+  },
+  "provider_allow_list": [
+    "google/gemini-2.5-flash-lite",
+    "meta-llama/llama-3.1-8b-instruct",
+    "deepseek/deepseek-v4-flash"
+  ],
+  "seed": 774193021,
+  "wave": "nano3",
+  "wave_spec": {
+    "size": 3,
+    "staggerMinutes": 0.5,
+    "label": "nano-arrival-semantics"
+  },
+  "frozen_config_sha256": "1bb2c9f2676a49e2625655f234d4265cb55a0df4f1720dde4518c7da93c8d05b",
+  "frozen_files": {
+    "apps/gateway/scripts/ecology-wave.ts": "c8b9f379a662465ce2df2e85ad171d6e7e06181ed57ef9df7e1b4fdd91b75c68",
+    "apps/gateway/scripts/subject-harness.ts": "c3aad3597fbe60b612907cbb04b4b0b775192a219544e715b349a28d242e4a27",
+    "apps/gateway/scripts/ecology-wave3-schedule.ts": "8f37651a39272b597078c4b272a753049f7fe6cde6e4791978fd0e488b6ea72d",
+    "apps/gateway/scripts/ecology-config.ts": "5f5425d54868df54230082501e4f9a4ae7fe6ef2afa9de9a286a83582fd32b66",
+    "experiments/verse-ecology/wave-3-disconnects.json": "bd888380c6107b64f711ee6f5d50d9e0ed7da888903117979cc4cb7dd8faef20",
+    "experiments/verse-ecology/preregistration.md": "3462e29e56c427ceffb3b10d90a41961f8a0e803f8058e089cb7e07108d5bbb9"
+  },
+  "migration_identifier": {
+    "last_migration_tag": "0027_adorable_the_twelve",
+    "journal_entries": 28,
+    "db_migrations": 0
+  },
+  "aiverse_disable_natives": "unset",
+  "run_id": "eco-wave-nano3-2026-08-30T20-59-45-281Z",
+  "ecology_wave": "wave-nano3",
+  "fingerprint_sha256": "58adf88fed4cce638aaabd7d7b37a8a90f8beeb8f9cfc67adfaa73c80ef82c74"
+}

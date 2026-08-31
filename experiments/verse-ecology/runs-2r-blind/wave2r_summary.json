@@ -1,0 +1,41 @@
+{
+  "blind_useful_items": 3,
+  "total_items": 5,
+  "per_arm_mechanical": {
+    "treatment": {
+      "agents": 8,
+      "agent_ticks": 1600,
+      "messages": 3,
+      "replies": 0,
+      "a2a_tasks": 0,
+      "msgs_per_1k_ticks": 1.875,
+      "recipient_classes": [
+        "none",
+        "none",
+        "none"
+      ]
+    },
+    "control": {
+      "agents": 5,
+      "agent_ticks": 1000,
+      "messages": 2,
+      "replies": 0,
+      "a2a_tasks": 0,
+      "msgs_per_1k_ticks": 2.0,
+      "recipient_classes": [
+        "none",
+        "none"
+      ]
+    }
+  },
+  "exposure_normalized": {
+    "treatment_msgs_per_1k_ticks": 1.875,
+    "control_msgs_per_1k_ticks": 2.0
+  },
+  "replies_anywhere": 0,
+  "a2a_anywhere": 0,
+  "interpretation_guard": "n=5 messages; descriptive only. No observed effect is not evidence of no effect.",
+  "useful_by_arm": {
+    "treatment": 3
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "git_sha": "c78d8802c15b0209613425945d8d63e67d8bfdec",
+  "git_dirty": false,
+  "bun_version": "1.4.0",
+  "node_version": "26.3.0",
+  "postgres_version": "PostgreSQL 17.10 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.1.1.101), 64-bit",
+  "pgvector_version": "0.8.6",
+  "redis_version": "8.10.1",
+  "provider": "openrouter",
+  "resolved_models": {
+    "deepseek-class": "deepseek/deepseek-v4-flash",
+    "llama-class": "meta-llama/llama-3.1-8b-instruct",
+    "small-local": "google/gemini-2.5-flash-lite"
+  },
+  "provider_allow_list": [
+    "google/gemini-2.5-flash-lite",
+    "meta-llama/llama-3.1-8b-instruct",
+    "deepseek/deepseek-v4-flash"
+  ],
+  "seed": 774193021,
+  "wave": "1",
+  "wave_spec": {
+    "size": 10,
+    "staggerMinutes": 60,
+    "label": "bootstrap"
+  },
+  "frozen_config_sha256": "2630ad1c2bca6fde8c688c6556044ec2094a841bd626af834ece2c11f2794510",
+  "frozen_files": {
+    "apps/gateway/scripts/ecology-wave.ts": "2031b0ba347f487156eda11f41a16cdab46f6fc90ce6f15e2007ffc758b432a1",
+    "apps/gateway/scripts/subject-harness.ts": "d37d90654c0fd13d3bd65852c4d84aefc018cc31daf182c4e77652172bf0d30c",
+    "apps/gateway/scripts/ecology-wave3-schedule.ts": "8f37651a39272b597078c4b272a753049f7fe6cde6e4791978fd0e488b6ea72d",
+    "apps/gateway/scripts/ecology-config.ts": "0802d8deec4811b889a7aea73e709b56b84fff5d126a612149e9418f8310c5c2",
+    "experiments/verse-ecology/wave-3-disconnects.json": "bd888380c6107b64f711ee6f5d50d9e0ed7da888903117979cc4cb7dd8faef20",
+    "experiments/verse-ecology/preregistration.md": "646b601b41ddab8010ac35a4d10e2e64ed2daa3f4d39ef90abb3dab8e1183840"
+  },
+  "migration_identifier": {
+    "last_migration_tag": "0027_adorable_the_twelve",
+    "journal_entries": 28,
+    "db_migrations": 28
+  },
+  "aiverse_disable_natives": "unset",
+  "run_id": "eco-wave-1-2026-08-29T14-28-45-875Z",
+  "ecology_wave": "wave-1",
+  "fingerprint_sha256": "a560c8b1eb2ceefdc3710191f79f1b767661c9d5d8e4ebf93ad700e6cfb16b2b"
+}

@@ -1,0 +1,21 @@
+{
+  "export_sha256": "d92bc533cc6a7403534295e654dbf3df9e9d51f28e5af601428297003eaa7cb4",
+  "wave": "1",
+  "run_id": "eco-wave-1-2026-08-29T14-28-45-875Z",
+  "author_code": {
+    "auth-71": "6475bca5-48b9-4599-842c-82358a73df8b",
+    "auth-18": "986d02f5-3a87-41df-bc9e-0d2f39051b65",
+    "auth-82": "a55200b8-19fa-4f72-8295-11483535da94",
+    "auth-22": "f0b0fbe6-97fb-4717-9e03-f83e7e0ff9a8"
+  },
+  "thread_code": {
+    "thread-00": "3bad7b6d-4260-4e7a-8e6f-d80640253ac8",
+    "thread-01": "0908a5f4-56b6-43d2-a011-79a39129feec",
+    "thread-02": "6e93c1ad-5276-4516-abbc-3a75e649c516",
+    "thread-03": "dc385008-d749-4888-9142-f81aaa7b5f0c",
+    "thread-04": "7969c79f-eb70-44a3-aa19-b2cdb811df97",
+    "thread-05": "1abfda4a-9589-4a80-a8b2-33cfb5b931dd",
+    "thread-06": "9fd21123-6142-465b-96be-b38fc328855c",
+    "thread-07": "d9495529-91eb-4f3f-9afb-7f11e60bc236"
+  }
+}

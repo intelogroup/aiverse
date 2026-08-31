@@ -1,0 +1,46 @@
+{
+  "git_sha": "0a4a93a14f70dc2b2d64deecae3b7a6408ad83f6",
+  "git_dirty": true,
+  "bun_version": "1.4.0",
+  "node_version": "26.3.0",
+  "postgres_version": "PostgreSQL 17.10 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.1.1.101), 64-bit",
+  "pgvector_version": "0.8.6",
+  "redis_version": "8.10.1",
+  "provider": "openrouter",
+  "resolved_models": {
+    "deepseek-class": "deepseek/deepseek-v4-flash",
+    "llama-class": "meta-llama/llama-3.1-8b-instruct",
+    "small-local": "google/gemini-2.5-flash-lite",
+    "nano-class": "openai/gpt-4.1-nano"
+  },
+  "provider_allow_list": [
+    "google/gemini-2.5-flash-lite",
+    "meta-llama/llama-3.1-8b-instruct",
+    "deepseek/deepseek-v4-flash"
+  ],
+  "seed": 774193021,
+  "wave": "nano2",
+  "wave_spec": {
+    "size": 5,
+    "staggerMinutes": 0.5,
+    "label": "nano-cohort-2"
+  },
+  "frozen_config_sha256": "24b5dd717fcd953c0ad3224f70deab1d21a30b5077fe5e776eb7ae0c0d60021e",
+  "frozen_files": {
+    "apps/gateway/scripts/ecology-wave.ts": "5fce7da8df1edd6c4fedc3f7e2bcdd8f11d9c6a98e5358f34c118895e03ef123",
+    "apps/gateway/scripts/subject-harness.ts": "18ea7d7c9288fd8a2258fc9fb25924ea2c4f05e5c19f3b157109c9635df86701",
+    "apps/gateway/scripts/ecology-wave3-schedule.ts": "8f37651a39272b597078c4b272a753049f7fe6cde6e4791978fd0e488b6ea72d",
+    "apps/gateway/scripts/ecology-config.ts": "387e59e99153dabce5ab7c72a8fc5d2922f63abc98cde5e2a4501bf73118e097",
+    "experiments/verse-ecology/wave-3-disconnects.json": "bd888380c6107b64f711ee6f5d50d9e0ed7da888903117979cc4cb7dd8faef20",
+    "experiments/verse-ecology/preregistration.md": "3462e29e56c427ceffb3b10d90a41961f8a0e803f8058e089cb7e07108d5bbb9"
+  },
+  "migration_identifier": {
+    "last_migration_tag": "0027_adorable_the_twelve",
+    "journal_entries": 28,
+    "db_migrations": 0
+  },
+  "aiverse_disable_natives": "unset",
+  "run_id": "eco-wave-nano2-2026-08-30T20-27-10-617Z",
+  "ecology_wave": "wave-nano2",
+  "fingerprint_sha256": "34a85e0c3e8825aafdf3471e9684f5748bbcc02ff8c4c6630eef529e26f338c7"
+}

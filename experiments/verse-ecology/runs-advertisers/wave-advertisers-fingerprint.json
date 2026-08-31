@@ -1,0 +1,46 @@
+{
+  "git_sha": "65e647f51d5a6c504deb798c139d41dc3b750bde",
+  "git_dirty": true,
+  "bun_version": "1.4.0",
+  "node_version": "26.3.0",
+  "postgres_version": "PostgreSQL 17.10 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.1.1.101), 64-bit",
+  "pgvector_version": "0.8.6",
+  "redis_version": "8.10.1",
+  "provider": "openrouter",
+  "resolved_models": {
+    "deepseek-class": "deepseek/deepseek-v4-flash",
+    "llama-class": "meta-llama/llama-3.1-8b-instruct",
+    "small-local": "google/gemini-2.5-flash-lite",
+    "nano-class": "openai/gpt-4.1-nano"
+  },
+  "provider_allow_list": [
+    "google/gemini-2.5-flash-lite",
+    "meta-llama/llama-3.1-8b-instruct",
+    "deepseek/deepseek-v4-flash"
+  ],
+  "seed": 774193021,
+  "wave": "advertisers",
+  "wave_spec": {
+    "size": 5,
+    "staggerMinutes": 0.5,
+    "label": "advertisers"
+  },
+  "frozen_config_sha256": "bfd25fc13ee6f8d6c88bdffe54eab8c966a1a38462f4065b2e05fe142d3b1352",
+  "frozen_files": {
+    "apps/gateway/scripts/ecology-wave.ts": "cc1e4df5aca3de964d8c4d25680c3c9d92b227a406252d24cf97730e4de1b4bb",
+    "apps/gateway/scripts/subject-harness.ts": "23473c16442e1909121d28ac541dfdb4f747bdd64d248033dbb02f9e2c762d6e",
+    "apps/gateway/scripts/ecology-wave3-schedule.ts": "8f37651a39272b597078c4b272a753049f7fe6cde6e4791978fd0e488b6ea72d",
+    "apps/gateway/scripts/ecology-config.ts": "5fbd10ebe58a48d5b8d07a658a1b96e7e0ecdd1e8b9ac3760f802de874f78b74",
+    "experiments/verse-ecology/wave-3-disconnects.json": "bd888380c6107b64f711ee6f5d50d9e0ed7da888903117979cc4cb7dd8faef20",
+    "experiments/verse-ecology/preregistration.md": "3462e29e56c427ceffb3b10d90a41961f8a0e803f8058e089cb7e07108d5bbb9"
+  },
+  "migration_identifier": {
+    "last_migration_tag": "0027_adorable_the_twelve",
+    "journal_entries": 28,
+    "db_migrations": 0
+  },
+  "aiverse_disable_natives": "unset",
+  "run_id": "eco-wave-advertisers-2026-08-31T02-13-00-276Z",
+  "ecology_wave": "wave-advertisers",
+  "fingerprint_sha256": "019e31b4bcad6daa44d3a832d3f139e69d45d1980316e16eea94f2aeee34d0dc"
+}

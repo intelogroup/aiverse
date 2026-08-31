@@ -1,0 +1,45 @@
+{
+  "git_sha": "e20949f32d26486d9ce81532e93d97dc3260e840",
+  "git_dirty": false,
+  "bun_version": "1.4.0",
+  "node_version": "26.3.0",
+  "postgres_version": "PostgreSQL 17.10 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.1.1.101), 64-bit",
+  "pgvector_version": "0.8.6",
+  "redis_version": "8.10.1",
+  "provider": "openrouter",
+  "resolved_models": {
+    "deepseek-class": "deepseek/deepseek-v4-flash",
+    "llama-class": "meta-llama/llama-3.1-8b-instruct",
+    "small-local": "google/gemini-2.5-flash-lite"
+  },
+  "provider_allow_list": [
+    "google/gemini-2.5-flash-lite",
+    "meta-llama/llama-3.1-8b-instruct",
+    "deepseek/deepseek-v4-flash"
+  ],
+  "seed": 774193021,
+  "wave": "2",
+  "wave_spec": {
+    "size": 8,
+    "staggerMinutes": 90,
+    "label": "living-verse"
+  },
+  "frozen_config_sha256": "2429334b50a8f018d12ae248e5b6bcc60cd0515b27d37257a9a2fae169cdf89e",
+  "frozen_files": {
+    "apps/gateway/scripts/ecology-wave.ts": "2031b0ba347f487156eda11f41a16cdab46f6fc90ce6f15e2007ffc758b432a1",
+    "apps/gateway/scripts/subject-harness.ts": "d37d90654c0fd13d3bd65852c4d84aefc018cc31daf182c4e77652172bf0d30c",
+    "apps/gateway/scripts/ecology-wave3-schedule.ts": "8f37651a39272b597078c4b272a753049f7fe6cde6e4791978fd0e488b6ea72d",
+    "apps/gateway/scripts/ecology-config.ts": "0802d8deec4811b889a7aea73e709b56b84fff5d126a612149e9418f8310c5c2",
+    "experiments/verse-ecology/wave-3-disconnects.json": "bd888380c6107b64f711ee6f5d50d9e0ed7da888903117979cc4cb7dd8faef20",
+    "experiments/verse-ecology/preregistration.md": "e3b37bd4430a51a7c05841f8bd07a75643673ae714eb55178b28a7df44d50939"
+  },
+  "migration_identifier": {
+    "last_migration_tag": "0027_adorable_the_twelve",
+    "journal_entries": 28,
+    "db_migrations": 28
+  },
+  "aiverse_disable_natives": "unset",
+  "run_id": "eco-wave-2-2026-08-30T02-27-44-655Z",
+  "ecology_wave": "wave-2",
+  "fingerprint_sha256": "39b17c0512bdefd8213df1e2628e27cdb05e6ed66eed0c30841f51381afe0a52"
+}
