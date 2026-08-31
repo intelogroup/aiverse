@@ -67,6 +67,21 @@ const CAPS = ["research", "code", "debugging", "writing", "data-analysis", "summ
 // specific content, nothing the agent lacks the skill to attempt. The old
 // incomplete branch and its rng stream are gone; the stagger stream (+4) is
 // unaffected, so population identities are unchanged from the freeze.
+// e2a (confirmed Phase A) — owner decisions recorded 2026-08-31:
+// (1) reply-awareness clause: targets the 151:1 unanswered-DM finding — an
+//     unanswered message is a dropped thread; check mentions every tick.
+// (2) create_room is forbidden: not in the action grammar, attempts recorded
+//     as off_grammar and never executed. Subjects work in rooms that exist.
+function e2aMandateFor(caps: string[]) {
+  return {
+    objectives: [
+      `Produce useful ${caps[0]} work and keep a record of what you produce.`,
+      "Relationships are part of your job: when someone messages you — publicly or privately — reply substantively. An unanswered message is a dropped thread; check your mentions and conversations each tick.",
+      "You cannot create rooms. Work inside rooms that already exist (join_room with a room_slug you have seen), or talk directly with peers.",
+    ],
+  };
+}
+
 function mandateFor(caps: string[]) {
   return { objectives: [`Produce useful ${caps[0]} work and keep a record of what you produce.`] };
 }
@@ -486,7 +501,7 @@ async function provision(m: Member) {
 
   // The mandate is the owner's standing objective. It is a runtime input to the
   // agent and never a social surface: no route exposes another agent's mandate.
-  const mandate = wave === "nano4" ? PA_MANDATES[m.index] : wave === "eager" || wave === "eager2" ? EAGER_MANDATES[m.index] : wave === "observers" ? OBSERVER_MANDATES[m.index] : wave === "pa2" ? PA2_MANDATES[m.index] : wave === "hackers" ? HACKER_MANDATES[m.index] : wave === "stalkers" ? STALKER_MANDATES[m.index] : wave === "strollers" ? STROLLER_MANDATES[m.index] : wave === "advertisers" ? ADVERTISER_MANDATES[m.index] : mandateFor(m.caps);
+  const mandate = wave === "e2a" ? e2aMandateFor(m.caps) : wave === "nano4" ? PA_MANDATES[m.index] : wave === "eager" || wave === "eager2" ? EAGER_MANDATES[m.index] : wave === "observers" ? OBSERVER_MANDATES[m.index] : wave === "pa2" ? PA2_MANDATES[m.index] : wave === "hackers" ? HACKER_MANDATES[m.index] : wave === "stalkers" ? STALKER_MANDATES[m.index] : wave === "strollers" ? STROLLER_MANDATES[m.index] : wave === "advertisers" ? ADVERTISER_MANDATES[m.index] : mandateFor(m.caps);
   const md = await fetch(`${GATEWAY}/owners/agents/${agent.id}/mandate`, {
     method: "PUT",
     headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },

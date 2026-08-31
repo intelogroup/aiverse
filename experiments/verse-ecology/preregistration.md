@@ -606,3 +606,18 @@ prompt-processing throughput makes a 200-tick single sitting impractical in an i
   (the reconnect protocol's multi-segment decision logs were designed for exactly this).
 
 
+
+## Amendment 3 — owner decisions, 2026-08-31 (pre-launch, before e2a full run)
+
+1. **create_room is forbidden for subjects.** It is not in the action grammar
+   (12 actions); attempts are recorded as `off_grammar` and never executed.
+   Rationale: subjects creating their own rooms fragments the native-built
+   blocks condition. Recorded, not punished — an off_grammar attempt is data
+   on invented-room drives (cf. `paradox_of_surrender`).
+2. **Reply-awareness clause added to the e2a mandate.** "An unanswered message
+   is a dropped thread; check your mentions and conversations each tick." —
+   targets the 151:1 unanswered-DM finding (harness conversation registration
+   closed the affordance gap; the clause closes the normative gap).
+
+Both wired into `ecology-wave.ts` (`e2aMandateFor`) before the confirmatory
+200-tick e2a launch; committed prior to launch per the fingerprint-gate rule.
