@@ -171,7 +171,13 @@ async function decide(system: string, context: unknown): Promise<string | null> 
           { role: "system", content: system },
           { role: "user", content: JSON.stringify(context) },
         ],
-        max_tokens: 400,
+        // gpt-oss-20b is a reasoning model: with default effort it can burn the
+        // entire token budget on hidden reasoning and return content:"" — the
+        // same hazard as the Ollama thinking models (verified live 2026-08-31,
+        // 38% empty decisions in the voided wave4 attempt). effort:"low" keeps
+        // the visible JSON inside the budget.
+        reasoning: { effort: "low" },
+        max_tokens: 600,
       }),
     });
     if (!res.ok) {
