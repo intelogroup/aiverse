@@ -10,7 +10,7 @@ export const ACTIONS = new Set([
 ]);
 
 // Scalar bare-key args land in the action's primary argument key ({"join_room":"x"}).
-const SCALAR_ARG_KEY: Record<string, string> = { join_room: "room_slug" };
+const SCALAR_ARG_KEY: Record<string, string> = { join_room: "room" };
 
 export function editDistanceAtMostOne(a: string, b: string): boolean {
   if (a === b) return true;
@@ -56,18 +56,19 @@ export function normalizeAction(parsed: any): any {
   return parsed;
 }
 
-// Per-action argument schemas. A near-miss arg name (e.g. "room" instead of
-// "room_slug") used to sail through and only fail later as an API 404 — the
-// shakedown caught join_room({"room":…}) doing exactly that. The schema
-// detects the miss at PARSE time; known aliases are relabeled below.
+// Per-action argument schemas — written against the EXECUTOR's actual contract
+// (subject-harness execute(), snake_case), NOT an assumed convention. The first
+// version of this table used camelCase and "repaired" correct model output
+// ({"action":"join_room","room":"science"}) into room_slug, 404ing valid
+// decisions — the 2026-08-31 e2a launch was voided twice for exactly this.
 const ACTION_ARG_SCHEMAS: Record<string, z.ZodTypeAny> = {
-  reply: z.object({ conversationId: z.string(), content: z.string() }).passthrough(),
-  message: z.object({ conversationId: z.string(), content: z.string() }).passthrough(),
+  reply: z.object({ conversation_id: z.string(), content: z.string() }).passthrough(),
+  message: z.object({ conversation_id: z.string(), content: z.string() }).passthrough(),
   start_conversation: z.object({ content: z.string() }).passthrough(),
-  ask_peer: z.object({ targetAgentId: z.string(), content: z.string() }).passthrough(),
-  invite: z.object({ conversationId: z.string(), targetAgentId: z.string() }).passthrough(),
-  join_room: z.object({ room_slug: z.string() }).passthrough(),
-  leave_conversation: z.object({ conversationId: z.string() }).passthrough(),
+  ask_peer: z.object({ agent_id: z.string(), content: z.string() }).passthrough(),
+  invite: z.object({ conversation_id: z.string(), agent_id: z.string() }).passthrough(),
+  join_room: z.object({ room: z.string() }).passthrough(),
+  leave_conversation: z.object({ conversation_id: z.string() }).passthrough(),
   nothing: z.object({}).passthrough(),
   observe: z.object({}).passthrough(),
   discover_peers: z.object({}).passthrough(),
@@ -75,17 +76,15 @@ const ACTION_ARG_SCHEMAS: Record<string, z.ZodTypeAny> = {
   delegate: z.object({}).passthrough(),
 };
 const ARG_ALIASES: Record<string, string> = {
-  room: "room_slug", slug: "room_slug", roomSlug: "room_slug", roomname: "room_slug",
-  conversation: "conversationId", conv: "conversationId", thread: "conversationId", conversation_id: "conversationId",
-  target: "targetAgentId", agent: "targetAgentId", peer: "targetAgentId", agent_id: "targetAgentId", agentId: "targetAgentId",
+  roomSlug: "room", room_slug: "room", roomname: "room", slug: "room",
+  conversationId: "conversation_id", conversation: "conversation_id", conv: "conversation_id", thread: "conversation_id",
+  targetAgentId: "agent_id", targetAgent_id: "agent_id", agentId: "agent_id",
+  target: "agent_id", peer: "agent_id",
   text: "content", message: "content", body: "content",
 };
 // Per-action aliases for arg names that are only unambiguous within one
-// action ("name" is generic, but join_room's only meaningful argument is the
-// room slug). shk2 run: join_room emitted with name-like keys → room:undefined.
-const ACTION_ARG_ALIASES: Record<string, Record<string, string>> = {
-  join_room: { name: "room_slug", room_name: "room_slug", roomName: "room_slug", title: "room_slug", topic: "room_slug" },
-};
+// action. Empty for now — extend only with executor-verified mappings.
+const ACTION_ARG_ALIASES: Record<string, Record<string, string>> = {};
 
 export function repairActionArgs(a: any): any {
   if (!a || typeof a !== "object") return a;

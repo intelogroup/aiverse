@@ -8,7 +8,7 @@ describe("harness action grammar (parseDecision)", () => {
 
   test("bare-key promotion: join_room as top-level key (wave-3 shape)", () => {
     // Scalar arg maps to the action's primary argument (voided-e2a fix)
-    expect(parseDecision('{"join_room":"general"}')).toEqual({ room_slug: "general", action: "join_room" });
+    expect(parseDecision('{"join_room":"general"}')).toEqual({ room: "general", action: "join_room" });
   });
 
   test("bare-key promotion with object args: delegate", () => {
@@ -22,8 +22,8 @@ describe("harness action grammar (parseDecision)", () => {
   });
 
   test("malformed salvage: JSON wrapped in prose", () => {
-    const out = parseDecision('I will join the room now {"action":"join_room","room_slug":"general"} thanks');
-    expect(out).toEqual({ action: "join_room", room_slug: "general" });
+    const out = parseDecision('I will join the room now {"action":"join_room","room":"general"} thanks');
+    expect(out).toEqual({ action: "join_room", room: "general" });
   });
 
   test("malformed salvage: fenced json + trailing text", () => {
@@ -37,24 +37,27 @@ describe("harness action grammar (parseDecision)", () => {
     expect(out.raw).toContain("absolutely nothing");
   });
 
-  test("near-miss arg name repaired at parse time: join_room room → room_slug", () => {
-    // The 2026-08-31 shakedown shape: {"action":"join_room","room":"paradox_of_surrender"}
+  test("executor-contract args pass untouched: join_room {room} (was 'repaired' wrongly before)", () => {
+    // The executor reads action.room; {"room":…} is CORRECT output and must
+    // never be rewritten (the original camelCase schema destroyed it).
     const out = parseDecision('{"action":"join_room","room":"paradox_of_surrender"}');
     expect(out.action).toBe("join_room");
-    expect(out.room_slug).toBe("paradox_of_surrender");
-    expect(out.room).toBeUndefined();
+    expect(out.room).toBe("paradox_of_surrender");
+    expect(out.room_slug).toBeUndefined();
   });
 
-  test("near-miss arg aliases: content/message, targetAgentId/target", () => {
+  test("near-miss aliases to executor contract: room_slug → room, conv → conversation_id", () => {
+    expect(parseDecision('{"action":"join_room","room_slug":"general"}').room).toBe("general");
+    expect(parseDecision('{"action":"reply","conv":"c1","text":"yo"}').conversation_id).toBe("c1");
+    expect(parseDecision('{"action":"ask_peer","target":"84a4eb7b-0000","message":"hi"}').agent_id).toBe("84a4eb7b-0000");
     expect(parseDecision('{"action":"ask_peer","target":"84a4eb7b-0000","message":"hi"}').content).toBe("hi");
-    expect(parseDecision('{"action":"reply","conv":"c1","text":"yo"}').conversationId).toBe("c1");
   });
 
   test("unrepaired near-misses stay untouched (executor reports the real API error)", () => {
     const out = parseDecision('{"action":"join_room","destination":"nowhere"}');
     expect(out.action).toBe("join_room");
     expect(out.destination).toBe("nowhere");
-    expect(out.room_slug).toBeUndefined();
+    expect(out.room).toBeUndefined();
   });
 
   test("off-grammar action is preserved as-is for the off_grammar bucket", () => {
@@ -62,16 +65,8 @@ describe("harness action grammar (parseDecision)", () => {
     expect(out.action).toBe("start_a_business");
   });
 
-  test("join_room with a name-shaped arg is repaired (shk2 room:undefined finding)", () => {
-    const out = parseDecision('{"action":"join_room","name":"general"}');
-    expect(out.room_slug).toBe("general");
-    expect(out.name).toBeUndefined();
-    // "name" stays untouched on actions where it is not a room slug
-    expect(parseDecision('{"action":"observe","name":"x"}').name).toBe("x");
-  });
-
   test("repairActionArgs leaves already-valid actions untouched", () => {
-    const a = { action: "reply", conversationId: "c1", content: "hello" };
+    const a = { action: "reply", conversation_id: "c1", content: "hello" };
     expect(repairActionArgs(a)).toEqual(a);
     expect(normalizeAction({ action: "NOTHING" }).action).toBe("nothing");
   });

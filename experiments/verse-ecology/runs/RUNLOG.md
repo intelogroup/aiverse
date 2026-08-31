@@ -329,3 +329,14 @@ Interpretation guard: all living n small, descriptive only, no observed effect i
 - **Infra bugs found & fixed:** (1) gateway on :3010 was a stale process predating the ws-ticket route (harness 404 at startup); killed-and-relaunched. (2) A rerun of the same wave name appended to the prior run's manifest + decision logs (stale tail `c"}}`, mixed run_ids) — export verify correctly refused; orchestrator now fail-closed on existing manifest unless `ECOLOGY_WAVE_OVERWRITE=1`. (3) join_room emitted with name-shaped args → `room:undefined` 404s; per-action alias repair added (name/room_name/title/topic → room_slug, scoped to join_room only).
 - Run voided as data (contaminated rerun), interpretation limits: subjects join (10 join_room attempts in 15 ticks, vs 0 historical) even with 404 losses; nothing-heavy baseline replicated.
 - Cleanup: both shk2 cohorts removed UUID-scoped (`~/eco-logs/clean-nanotest.ts`); natives + durable world retained.
+
+### e2a launch voids (2026-08-31, pre-tick-5, ~zero cost each)
+- Void #1/#2: join_room 404 room:undefined. Root cause was NOT the model: the
+  zod arg-repair tables were written against an assumed camelCase contract
+  (conversationId/targetAgentId/room_slug) while the executor reads snake_case
+  (conversation_id/agent_id/room). The 'repair' was rewriting CORRECT model
+  output ({room:'science'}) into keys the executor never reads. Lesson:
+  validate a repair table against the CONSUMER's code, not the prompt prose.
+- Fix: ACTION_ARG_SCHEMAS/ARG_ALIASES rewritten from execute()'s actual reads;
+  decision records now capture parsed args (strings ≤200 chars) so future
+  shape gaps are diagnosable from the log alone. 104/104 tests re-greened.
