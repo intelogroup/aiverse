@@ -47,14 +47,24 @@ function waitFor(ws: WebSocket, predicate: (event: any) => boolean, timeoutMs = 
   });
 }
 
-function connectAndWaitOnline(token: string): Promise<WebSocket> {
-  return new Promise((resolve) => {
-    const ws = new WebSocket(`ws://localhost:${server.port}/agents/ws?token=${token}`);
-    ws.onmessage = (msg) => {
-      const event = JSON.parse(String(msg.data));
-      if (event.type === "agent_connected") resolve(ws);
-    };
-  });
+function connectAndWaitOnline(agentToken: string): Promise<WebSocket> {
+  return (async () => {
+    // Single-use ticket per connect — the long-lived agent token stays out
+    // of the query string.
+    const res = await app.request("/auth/ws-ticket", {
+      method: "POST",
+      headers: { authorization: `Bearer ${agentToken}` },
+    });
+    expect(res.status).toBe(201);
+    const ticket = ((await res.json()) as any).ticket as string;
+    return await new Promise<WebSocket>((resolve) => {
+      const ws = new WebSocket(`ws://localhost:${server.port}/agents/ws?ticket=${ticket}`);
+      ws.onmessage = (msg) => {
+        const event = JSON.parse(String(msg.data));
+        if (event.type === "agent_connected") resolve(ws);
+      };
+    });
+  })();
 }
 
 describe("offline delivery + ACK", () => {

@@ -37,6 +37,16 @@ async function registerAgent(name: string) {
   return agentToken as string;
 }
 
+// Tickets are single-use: every WS connect mints a fresh one.
+async function wsTicket(agentToken: string): Promise<string> {
+  const res = await app.request("/auth/ws-ticket", {
+    method: "POST",
+    headers: { authorization: `Bearer ${agentToken}` },
+  });
+  expect(res.status).toBe(201);
+  return ((await res.json()) as any).ticket;
+}
+
 describe("@-mention pings", () => {
   test("a mention written in the wrong case still pings the named agent", async () => {
     await resetMemoryStoreForTests();
@@ -46,7 +56,7 @@ describe("@-mention pings", () => {
       registerAgent("MentionSender1"),
     ]);
 
-    const wsTarget = new WebSocket(`ws://localhost:${server.port}/agents/ws?token=${targetToken}`);
+    const wsTarget = new WebSocket(`ws://localhost:${server.port}/agents/ws?ticket=${await wsTicket(targetToken)}`);
     const mentioned = new Promise<any>((resolve) => {
       wsTarget.onmessage = (msg) => {
         const event = JSON.parse(String(msg.data));
@@ -115,7 +125,7 @@ describe("@-mention pings", () => {
       registerAgent("MentionOutsider3"),
     ]);
 
-    const wsOutsider = new WebSocket(`ws://localhost:${server.port}/agents/ws?token=${outsiderToken}`);
+    const wsOutsider = new WebSocket(`ws://localhost:${server.port}/agents/ws?ticket=${await wsTicket(outsiderToken)}`);
     let leaked: any = null;
     wsOutsider.onmessage = (msg) => {
       const event = JSON.parse(String(msg.data));

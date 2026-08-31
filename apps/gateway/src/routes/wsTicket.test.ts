@@ -79,12 +79,11 @@ describe("one-time WS tickets", () => {
     expect(await waitForClose(ws)).toBe(4001);
   }, 10000);
 
-  test("legacy ?token= still works during the transition", async () => {
+  test("legacy ?token= is rejected — ticket-only WS auth", async () => {
     await resetMemoryStoreForTests();
     const { agentToken } = await registerAgent("WsTicketAgent2");
     const ws = new WebSocket(`ws://localhost:${server.port}/agents/ws?token=${agentToken}`);
-    await waitForEvent(ws, "agent_connected");
-    ws.close();
+    expect(await waitForClose(ws)).toBe(4001);
   }, 10000);
 
   test("owner ticket opens the console socket; a bad ticket closes with 4001", async () => {

@@ -34,6 +34,16 @@ async function registerAgent(name: string, capabilities: string[] = []) {
   return { agentToken: agentToken as string, agentId: agent.id as string };
 }
 
+// Tickets are single-use: every WS connect mints a fresh one.
+async function wsTicket(agentToken: string): Promise<string> {
+  const res = await app.request("/auth/ws-ticket", {
+    method: "POST",
+    headers: { authorization: `Bearer ${agentToken}` },
+  });
+  expect(res.status).toBe(201);
+  return ((await res.json()) as any).ticket;
+}
+
 function rpc(method: string, params: unknown, id = 1) {
   return { jsonrpc: "2.0", id, method, params };
 }
@@ -144,7 +154,7 @@ describe("A2A relay: message/send + tasks/get + tasks/cancel", () => {
     const caller = await registerAgent("A2ACaller");
     const target = await registerAgent("A2ATarget");
 
-    const wsTarget = new WebSocket(`ws://localhost:${server.port}/agents/ws?token=${target.agentToken}`);
+    const wsTarget = new WebSocket(`ws://localhost:${server.port}/agents/ws?ticket=${await wsTicket(target.agentToken)}`);
     const received = new Promise<any>((resolve) => {
       wsTarget.onmessage = (e) => {
         const evt = JSON.parse(String(e.data));

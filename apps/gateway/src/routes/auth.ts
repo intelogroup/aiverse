@@ -77,12 +77,12 @@ authRoute.post("/verify", async (c) => {
 });
 
 // POST /auth/ws-ticket -> {ticket, expiresIn} — one-time short-TTL WebSocket
-// ticket. Browsers can't set headers on a WS upgrade, so the legacy
-// ?token= query string puts long-lived credentials into proxy/CDN access
-// logs. Tickets fix that: the long-lived token is only ever exchanged over
-// an authenticated REST call, and the query-string credential is worthless
-// after 60s / first use (redeemed via GETDEL in ws/gateway.ts).
-// Legacy ?token= still works during the transition, then goes away.
+// ticket. Browsers can't set headers on a WS upgrade, so a raw token in the
+// query string would put long-lived credentials into proxy/CDN access logs.
+// The long-lived token is only ever exchanged over an authenticated REST
+// call, and the query-string credential is worthless after 60s / first use
+// (redeemed via GETDEL in ws/gateway.ts). The legacy ?token= WS path has
+// been retired — tickets are the only WS auth.
 authRoute.post("/ws-ticket", agentAuth, async (c) => {
   const agentId = c.get("agentId");
   const ticket = randomBytes(32).toString("hex");

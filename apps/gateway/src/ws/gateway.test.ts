@@ -30,9 +30,19 @@ async function registerAgent(name: string) {
   return { agentToken: agentToken as string, agentId: agent.id as string };
 }
 
+// Tickets are single-use: every WS connect mints a fresh one.
+async function wsTicket(agentToken: string): Promise<string> {
+  const res = await app.request("/auth/ws-ticket", {
+    method: "POST",
+    headers: { authorization: `Bearer ${agentToken}` },
+  });
+  expect(res.status).toBe(201);
+  return ((await res.json()) as any).ticket;
+}
+
 describe("agent WS connect", () => {
-  test("invalid token is rejected", async () => {
-    const ws = new WebSocket(`ws://localhost:${server.port}/agents/ws?token=not-a-real-token`);
+  test("invalid ticket is rejected", async () => {
+    const ws = new WebSocket(`ws://localhost:${server.port}/agents/ws?ticket=${"0".repeat(64)}`);
     const closeCode = await new Promise<number>((resolve) => {
       ws.onclose = (e) => resolve(e.code);
       ws.onopen = () => {
@@ -50,7 +60,7 @@ describe("agent WS connect", () => {
       registerAgent("WsAgentB"),
     ]);
 
-    const wsB = new WebSocket(`ws://localhost:${server.port}/agents/ws?token=${b.agentToken}`);
+    const wsB = new WebSocket(`ws://localhost:${server.port}/agents/ws?ticket=${await wsTicket(b.agentToken)}`);
 
     const joinedEvent = new Promise((resolve) => {
       wsB.onmessage = (msg) => {
@@ -74,7 +84,7 @@ describe("agent WS connect", () => {
       wsB.addEventListener("message", check);
     });
 
-    const wsA = new WebSocket(`ws://localhost:${server.port}/agents/ws?token=${a.agentToken}`);
+    const wsA = new WebSocket(`ws://localhost:${server.port}/agents/ws?ticket=${await wsTicket(a.agentToken)}`);
     await new Promise((resolve) => (wsA.onopen = resolve));
 
     const event = (await joinedEvent) as { payload: { name: string } };
@@ -87,7 +97,7 @@ describe("agent WS connect", () => {
   test("a second connection replaces the first, which is force-closed with 4006", async () => {
     const { agentToken: token } = await registerAgent("WsAgentReplaceGuard");
 
-    const wsOld = new WebSocket(`ws://localhost:${server.port}/agents/ws?token=${token}`);
+    const wsOld = new WebSocket(`ws://localhost:${server.port}/agents/ws?ticket=${await wsTicket(token)}`);
     await new Promise<void>((resolve) => {
       wsOld.onmessage = (msg) => {
         if (JSON.parse(String(msg.data)).type === "agent_connected") resolve();
@@ -98,7 +108,7 @@ describe("agent WS connect", () => {
       wsOld.onclose = (e) => resolve(e.code);
     });
 
-    const wsNew = new WebSocket(`ws://localhost:${server.port}/agents/ws?token=${token}`);
+    const wsNew = new WebSocket(`ws://localhost:${server.port}/agents/ws?ticket=${await wsTicket(token)}`);
     await new Promise<void>((resolve) => {
       wsNew.onmessage = (msg) => {
         if (JSON.parse(String(msg.data)).type === "agent_connected") resolve();
@@ -136,14 +146,14 @@ describe("agent WS connect", () => {
     const a = await registerAgent("WsAgentLeftA");
     const b = await registerAgent("WsAgentLeftB");
 
-    const wsA = new WebSocket(`ws://localhost:${server.port}/agents/ws?token=${a.agentToken}`);
+    const wsA = new WebSocket(`ws://localhost:${server.port}/agents/ws?ticket=${await wsTicket(a.agentToken)}`);
     await new Promise<void>((resolve) => {
       wsA.onmessage = (msg) => {
         if (JSON.parse(String(msg.data)).type === "agent_connected") resolve();
       };
     });
 
-    const wsB = new WebSocket(`ws://localhost:${server.port}/agents/ws?token=${b.agentToken}`);
+    const wsB = new WebSocket(`ws://localhost:${server.port}/agents/ws?ticket=${await wsTicket(b.agentToken)}`);
     await new Promise<void>((resolve) => {
       wsB.onmessage = (msg) => {
         if (JSON.parse(String(msg.data)).type === "agent_connected") resolve();

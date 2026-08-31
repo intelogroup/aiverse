@@ -3,8 +3,6 @@ import type { ServerWebSocket } from "bun";
 import { and, eq, notInArray, gt, lt, ne } from "drizzle-orm";
 import { db } from "../db/client";
 import { agents, conversationParticipants, messages, a2aTasks } from "@aiverse/shared/schema";
-import { resolveAgentFromToken } from "../auth/resolveAgent";
-import { verifyOwnerSession } from "../auth/session";
 import { redis } from "../redis/client";
 import { envelope, WS_EVENTS } from "./events";
 import { log, timed } from "../util/log";
@@ -71,11 +69,6 @@ function broadcast(event: ReturnType<typeof envelope>, exceptAgentId?: string) {
     if (agentId === exceptAgentId) continue;
     conn.ws.send(payload);
   }
-}
-
-async function authenticate(token: string | undefined) {
-  if (!token) return undefined;
-  return resolveAgentFromToken(token);
 }
 
 // Bounded per source so a long-absent agent reconnecting doesn't get flooded
@@ -181,15 +174,16 @@ export function registerAgentWsRoute(app: {
   app.get(
     "/agents/ws",
     upgradeWebSocket((c) => {
-      const token = c.req.query("token");
       let agentId: string | undefined;
       let heartbeat: ReturnType<typeof setInterval> | undefined;
 
       return {
         onOpen: async (_event, ws) => {
-          // Preferred auth: one-time short-TTL ticket (POST /auth/ws-ticket),
-          // redeemed via GETDEL so a leaked query string is worthless after
-          // first use. Legacy ?token= still works during the transition.
+          // Ticket-only auth: one-time short-TTL credential (POST
+          // /auth/ws-ticket), redeemed via GETDEL so a leaked query string is
+          // worthless after first use. The legacy ?token= path is retired —
+          // a long-lived credential must never appear in a query string /
+          // access log.
           const ticket = c.req.query("ticket");
           let agent;
           if (ticket) {
@@ -198,11 +192,9 @@ export function registerAgentWsRoute(app: {
               agent = await db.query.agents.findFirst({ where: eq(agents.id, ticketAgentId) });
               if (agent) log("agent_auth", { agentId: agent.id, authMethod: "ws_ticket" });
             }
-          } else {
-            agent = await authenticate(token);
           }
           if (!agent) {
-            ws.close(4001, "invalid token");
+            ws.close(4001, "invalid ticket");
             return;
           }
           if (agent.status === "paused") {
@@ -406,25 +398,18 @@ export function registerConsoleWsRoute(app: {
     "/console/ws",
     upgradeWebSocket((c) => {
       const ticket = c.req.query("ticket");
-      const token = c.req.query("token");
       let ownerId: string | undefined;
 
       return {
         onOpen: async (_event, ws) => {
-          try {
-            // One-time ticket preferred (POST /owners/ws-ticket); legacy
-            // ?token= session JWT still accepted during the transition.
-            if (ticket) {
-              const ticketOwnerId = await redis.getdel(`wsticket:owner:${ticket}`);
-              ownerId = ticketOwnerId ?? undefined;
-              if (!ownerId) throw new Error("invalid or already-used ticket");
-            } else {
-              ownerId = await verifyOwnerSession(token ?? "");
-            }
-          } catch {
-            ws.close(4001, "invalid token");
+          // Ticket-only auth (POST /owners/ws-ticket) — the legacy ?token=
+          // session-JWT path is retired along with the agent one.
+          const ticketOwnerId = await redis.getdel(`wsticket:owner:${ticket ?? ""}`);
+          if (!ticketOwnerId) {
+            ws.close(4001, "invalid ticket");
             return;
           }
+          ownerId = ticketOwnerId;
           const sockets = consoleConnections.get(ownerId) ?? new Set();
           sockets.add(ws);
           consoleConnections.set(ownerId, sockets);
