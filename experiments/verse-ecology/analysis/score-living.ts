@@ -6,6 +6,7 @@
 
 import { createHash } from "node:crypto";
 import { readdir } from "node:fs/promises";
+import { z } from "zod";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 
@@ -22,6 +23,53 @@ const COHORTS: { name: string; exportPath: string; outDir: string }[] = [
 ];
 
 type Wm = { id: string; conversation_id: string; sender_agent_id: string; content: string; reply_to_id: string | null; created_at: string };
+
+// ---- schema enforcement (zod): export bundles must parse or we fail closed.
+// Same shapes as ecology-export.ts writes; .passthrough() keeps forward-compat.
+const WaveMessage = z.object({
+  id: z.string(),
+  conversation_id: z.string(),
+  sender_agent_id: z.string(),
+  content: z.string(),
+  reply_to_id: z.string().nullable(),
+  created_at: z.string(),
+});
+const ManifestRow = z.object({ agent_id: z.string(), name: z.string() }).passthrough();
+const ExportBundle = z
+  .object({
+    wave: z.string(),
+    manifest: z.array(ManifestRow),
+    wave_messages: z.array(WaveMessage),
+    decision_logs: z.record(z.string(), z.array(z.string())),
+    public_threads_snapshot: z.array(z.object({ id: z.string() }).passthrough()),
+    a2a_tasks: z.array(z.unknown()),
+    participants: z.array(z.unknown()),
+    security_events: z.array(z.unknown()),
+  })
+  .passthrough();
+const DecisionRecord = z.object({ tick: z.number() }).passthrough();
+const LivingSummary = z
+  .object({
+    cohort: z.string(),
+    export_file: z.string(),
+    total_items: z.number().int().nonnegative(),
+    judged: z.number().int().nonnegative(),
+    distinct_authors: z.number().int().nonnegative(),
+    corpus_sha256: z.string(),
+    judge: z.string(),
+    judge_sampling: z.object({ temperature: z.number(), seed: z.number() }),
+    mechanical: z.record(z.string(), z.unknown()),
+    useful_strict: z.number().int().nonnegative(),
+    useful_sensitivity: z.object({
+      strict: z.number().int().nonnegative(),
+      with_ambiguous: z.number().int().nonnegative(),
+      without_ambiguous: z.number().int().nonnegative(),
+    }),
+    ambiguous_count: z.number().int().nonnegative(),
+    replies_anywhere: z.number().int().nonnegative(),
+    interpretation_guard: z.string(),
+  })
+  .passthrough();
 
 // Heuristic judge — strict per prereg, reproducible, no LLM drift
 function judge(text: string, reply_to_id: string | null): { voluntary: boolean; directed: boolean; substantive: boolean; ambiguous: boolean; note: string } {
@@ -71,15 +119,24 @@ for (const c of COHORTS) {
     console.log(`${c.name}: 0 items`);
     continue;
   }
-  const exp: any = await exportFile.json();
-  const msgs: Wm[] = exp.wave_messages ?? [];
+  const parsedExp = ExportBundle.safeParse(await exportFile.json());
+  if (!parsedExp.success) {
+    console.error(`${c.name}: export bundle schema validation FAILED — refusing to score (fail-closed). Issues:`);
+    for (const issue of parsedExp.error.issues.slice(0, 5)) {
+      console.error(`  ${issue.path.join(".")}: ${issue.message}`);
+    }
+    process.exit(1);
+  }
+  const exp = parsedExp.data;
+  const msgs: Wm[] = exp.wave_messages;
   const publicIds = new Set<string>((exp.public_threads_snapshot ?? []).map((t: any) => t.id));
   const ticks = Object.values(exp.decision_logs ?? {})
     .flatMap((lines: any) =>
       (Array.isArray(lines) ? lines : []).map((l: any) => {
-        if (typeof l !== "string") return l;
+        if (typeof l !== "string") return null;
         try {
-          return JSON.parse(l);
+          const r = DecisionRecord.safeParse(JSON.parse(l));
+          return r.success ? r.data : null;
         } catch {
           return null;
         }
@@ -88,7 +145,7 @@ for (const c of COHORTS) {
     .filter((r: any) => r && typeof r === "object" && typeof r.tick === "number").length;
 
   const mechanical = {
-    agents: exp.manifest?.length ?? 0,
+    agents: exp.manifest.length,
     agent_ticks: ticks,
     messages: msgs.length,
     replies: msgs.filter((m) => m.reply_to_id).length,
@@ -107,7 +164,7 @@ for (const c of COHORTS) {
     const key = m.sender_agent_id;
     if (!anonByAgent.has(key)) anonByAgent.set(key, `auth-${++anonCounter}`);
     const author = anonByAgent.get(key)!;
-    const manifestRow = exp.manifest?.find((r: any) => r.agent_id === m.sender_agent_id);
+    const manifestRow = exp.manifest.find((r) => r.agent_id === m.sender_agent_id);
     unblind[author] = { agent: manifestRow?.name ?? m.sender_agent_id.slice(0, 8), agent_id: m.sender_agent_id };
     const item_id = createHash("sha256").update(`${author}|${m.content}`).digest("hex").slice(0, 16);
     return { item_id, author, text: m.content, t_offset_s: Math.round((Date.parse(m.created_at) - t0) / 1000), reply_to_id: m.reply_to_id };
@@ -148,6 +205,6 @@ for (const c of COHORTS) {
     replies_anywhere: mechanical.replies,
     interpretation_guard: `n=${items.length} descriptive only. No observed effect is not evidence of no effect.`,
   };
-  await Bun.write(ROOT + `${c.outDir}/summary.json`, JSON.stringify(summary, null, 2) + "\n");
+  await Bun.write(ROOT + `${c.outDir}/summary.json`, JSON.stringify(LivingSummary.parse(summary), null, 2) + "\n");
   console.log(`${c.name}: ${items.length} items, ${useful.length} useful strict (${usefulBothWays.with_ambiguous} with ambiguous), ${mechanical.msgs_per_1k_ticks}/1k ticks, authors ${Object.keys(unblind).length}`);
 }

@@ -12,7 +12,8 @@
     "db:generate": "bun run --cwd apps/gateway db:generate"
   },
   "dependencies": {
-    "@aiverse/agent-sdk": "workspace:*"
+    "@aiverse/agent-sdk": "workspace:*",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/bun": "^1.4.0",

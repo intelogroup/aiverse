@@ -10,6 +10,7 @@
 // is a known limitation, recorded in the summary.
 
 import { createHash } from "node:crypto";
+import { z } from "zod";
 
 const ROOT = new URL("..", import.meta.url).pathname; // experiments/verse-ecology/
 const ARMS: [string, string][] = [
@@ -20,18 +21,65 @@ const ARMS: [string, string][] = [
 
 type Wm = { id: string; conversation_id: string; sender_agent_id: string; content: string; reply_to_id: string | null; created_at: string };
 
-const exports: Record<string, any> = {};
-for (const [arm, path] of ARMS) exports[arm] = await Bun.file(ROOT + path).json();
+// ---- schema enforcement (zod): export bundles must parse or we fail closed.
+const WaveMessage = z.object({
+  id: z.string(),
+  conversation_id: z.string(),
+  sender_agent_id: z.string(),
+  content: z.string(),
+  reply_to_id: z.string().nullable(),
+  created_at: z.string(),
+});
+const ExportBundle = z
+  .object({
+    wave: z.string(),
+    manifest: z.array(z.object({ agent_id: z.string(), name: z.string() }).passthrough()),
+    wave_messages: z.array(WaveMessage),
+    decision_logs: z.record(z.string(), z.array(z.string())),
+    public_threads_snapshot: z.array(z.object({ id: z.string() }).passthrough()),
+    a2a_tasks: z.array(z.unknown()),
+  })
+  .passthrough();
+const DecisionRecord = z.object({ tick: z.number() }).passthrough();
+// Judge responses are data, not vibes — a loose/missing field is a schema
+// failure counted separately, never silently coerced (the judgeSampling bug class).
+const JudgeResponse = z.object({
+  voluntary: z.boolean(),
+  directed: z.boolean(),
+  substantive: z.boolean(),
+  note: z.string(),
+});
+
+const exports: Record<string, z.infer<typeof ExportBundle>> = {};
+for (const [arm, path] of ARMS) {
+  const parsed = ExportBundle.safeParse(await Bun.file(ROOT + path).json());
+  if (!parsed.success) {
+    console.error(`${arm}: export bundle schema validation FAILED — refusing (fail-closed). Issues:`);
+    for (const issue of parsed.error.issues.slice(0, 5)) console.error(`  ${issue.path.join(".")}: ${issue.message}`);
+    process.exit(1);
+  }
+  exports[arm] = parsed.data;
+}
 
 // ---- mechanical, per arm
 const mechanical: Record<string, any> = {};
 for (const [arm, e] of Object.entries(exports)) {
-  const publicIds = new Set<string>((e.public_threads_snapshot ?? []).map((t: any) => t.id));
-  const msgs: Wm[] = e.wave_messages ?? [];
-  // decision_logs rows are raw JSONL text lines — parse before counting.
-  const ticks = Object.values(e.decision_logs ?? {})
-    .flatMap((lines: any) => (Array.isArray(lines) ? lines : []).map((l: any) => (typeof l === "string" ? JSON.parse(l) : l)))
-    .filter((r: any) => r && typeof r === "object" && typeof r.tick === "number").length;
+  const publicIds = new Set<string>(e.public_threads_snapshot.map((t) => t.id));
+  const msgs: Wm[] = e.wave_messages;
+  // decision_logs rows are raw JSONL text lines — parse before counting;
+  // non-JSON lines (nohup residue) and non-decision records are excluded, not fatal.
+  const ticks = Object.values(e.decision_logs)
+    .flatMap((lines) =>
+      lines.map((l) => {
+        try {
+          const r = DecisionRecord.safeParse(JSON.parse(l));
+          return r.success ? r.data : null;
+        } catch {
+          return null;
+        }
+      }),
+    )
+    .filter(Boolean).length;
   const classes = msgs.map((m) =>
     m.reply_to_id ? "reply" : publicIds.has(m.conversation_id) ? "public" : "dm",
   );
@@ -40,7 +88,7 @@ for (const [arm, e] of Object.entries(exports)) {
     agent_ticks: ticks,
     messages: msgs.length,
     replies: classes.filter((c) => c === "reply").length,
-    a2a_tasks: (e.a2a_tasks ?? []).length,
+    a2a_tasks: e.a2a_tasks.length,
     msgs_per_1k_ticks: ticks ? +((msgs.length / ticks) * 1000).toFixed(3) : null,
     recipient_classes: classes.sort(),
   };
@@ -59,7 +107,7 @@ const items = allMsgs.map(({ arm, m }) => {
   const key = `${arm}:${m.sender_agent_id}`;
   if (!anonByAgent.has(key)) anonByAgent.set(key, `auth-${++anonCounter}`);
   const author = anonByAgent.get(key)!;
-  const manifestRow = exports[arm].manifest.find((r: any) => r.agent_id === m.sender_agent_id);
+  const manifestRow = exports[arm].manifest.find((r) => r.agent_id === m.sender_agent_id);
   unblind[author] = { arm, agent: manifestRow?.name ?? m.sender_agent_id };
   const item_id = createHash("sha256").update(`${author}|${m.content}`).digest("hex").slice(0, 16);
   return { item_id, author, text: m.content, t_offset_s: Math.round((Date.parse(m.created_at) - t0) / 1000) };
@@ -121,6 +169,7 @@ Respond with ONE JSON object: {"voluntary":bool,"directed":bool,"substantive":bo
 
 const scores: any[] = [];
 let failed = 0;
+let schemaFailures = 0;
 for (const item of items) {
   try {
     const res = await fetch(JUDGE_ENDPOINT, {
@@ -137,14 +186,18 @@ for (const item of items) {
     });
     const data: any = await res.json();
     const raw = data?.choices?.[0]?.message?.content ?? "";
-    const j = JSON.parse(String(raw).replace(/```json|```/g, "").trim());
-    scores.push({ ...item, voluntary: !!j.voluntary, directed: !!j.directed, substantive: !!j.substantive, note: String(j.note ?? "") });
+    const parsedJudge = JudgeResponse.safeParse(JSON.parse(String(raw).replace(/```json|```/g, "").trim()));
+    if (!parsedJudge.success) {
+      schemaFailures++;
+      continue;
+    }
+    scores.push({ ...item, ...parsedJudge.data });
   } catch {
     failed++;
   }
 }
 await Bun.write(ROOT + "runs/wave-3-blind/scores.jsonl", scores.map((s) => JSON.stringify(s)).join("\n") + "\n");
-console.log(`judged: ${scores.length}, failed: ${failed}`);
+console.log(`judged: ${scores.length}, failed: ${failed}, schema_failures: ${schemaFailures}`);
 
 // ---- summary (re-blind: counts by arm via unblind key, applied only here)
 const useful = scores.filter((s) => s.voluntary && s.substantive);
@@ -158,6 +211,7 @@ const summary = {
   total_items: items.length,
   judged: scores.length,
   judge_failures: failed,
+  judge_schema_failures: schemaFailures,
   judge_backend: backend,
   judge_model: judgeModel,
   judge_sampling: judgeSampling,

@@ -24,6 +24,7 @@
 //   DATABASE_URL=... bun run apps/gateway/scripts/ecology-export.ts <wave:1|2|3|control> [outDir]
 
 import postgres from "postgres";
+import { z } from "zod";
 import { computeEnvFingerprint, canonicalize } from "./ecology-env-fingerprint";
 
 const [wave, outDir = "experiments/verse-ecology/runs"] = process.argv.slice(2);
@@ -39,10 +40,36 @@ if (!(await Bun.file(manifestPath).exists())) {
   console.error(`manifest missing: ${manifestPath} — nothing to export`);
   process.exit(1);
 }
-const manifest = (await Bun.file(manifestPath).text())
+const rawManifest = (await Bun.file(manifestPath).text())
   .split("\n")
   .filter(Boolean)
   .map((l) => JSON.parse(l));
+
+// Schema gate (zod): a malformed manifest row must fail closed BEFORE the rows
+// reach export, verify, or — load-bearing — the UUID-scoped clean SQL. An
+// undefined agent_id here would silently un-scope the deletion.
+const ManifestRow = z
+  .object({
+    wave: z.string(),
+    run_id: z.string().min(1),
+    seed: z.number(),
+    dry_run: z.boolean(),
+    name: z.string().min(1),
+    agent_id: z.string().uuid(),
+    owner_id: z.string().uuid(),
+    log: z.string().min(1),
+    env_fingerprint: z.unknown(),
+  })
+  .passthrough();
+const parsedManifest = z.array(ManifestRow).safeParse(rawManifest);
+if (!parsedManifest.success) {
+  console.error(`manifest schema validation FAILED for ${manifestPath} — refusing (fail-closed). Issues:`);
+  for (const issue of parsedManifest.error.issues.slice(0, 5)) {
+    console.error(`  ${issue.path.join(".")}: ${issue.message}`);
+  }
+  process.exit(1);
+}
+const manifest = parsedManifest.data;
 
 if (manifest.some((m: any) => m.dry_run) && !CLEAN_DRY) {
   console.error("manifest contains dry_run rows — dry runs are never exported or cleaned (use --clean-dry to remove their residue without exporting)");
