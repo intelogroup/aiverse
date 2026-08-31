@@ -7,7 +7,8 @@ describe("harness action grammar (parseDecision)", () => {
   });
 
   test("bare-key promotion: join_room as top-level key (wave-3 shape)", () => {
-    expect(parseDecision('{"join_room":"general"}')).toEqual({ value: "general", action: "join_room" });
+    // Scalar arg maps to the action's primary argument (voided-e2a fix)
+    expect(parseDecision('{"join_room":"general"}')).toEqual({ room_slug: "general", action: "join_room" });
   });
 
   test("bare-key promotion with object args: delegate", () => {

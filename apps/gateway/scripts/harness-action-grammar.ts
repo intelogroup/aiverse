@@ -9,6 +9,9 @@ export const ACTIONS = new Set([
   "start_conversation", "invite", "discover_peers", "ask_peer", "create_goal", "delegate",
 ]);
 
+// Scalar bare-key args land in the action's primary argument key ({"join_room":"x"}).
+const SCALAR_ARG_KEY: Record<string, string> = { join_room: "room_slug" };
+
 export function editDistanceAtMostOne(a: string, b: string): boolean {
   if (a === b) return true;
   if (Math.abs(a.length - b.length) > 1) return false;
@@ -42,8 +45,12 @@ export function normalizeAction(parsed: any): any {
     if (k !== undefined) {
       const lower = k.trim().toLowerCase();
       const actionName = ACTIONS.has(lower) ? lower : [...ACTIONS].find((a) => editDistanceAtMostOne(a, lower))!;
+      // A scalar arg lands in the action's primary argument, not a generic
+      // "value" bucket: {"join_room":"general"} must become room_slug, or the
+      // executor 404s with room:undefined (voided e2a launch, 2026-08-31).
+      const argKey = SCALAR_ARG_KEY[actionName] ?? "value";
       const args = parsed[k];
-      return { ...(args && typeof args === "object" ? args : { value: args }), action: actionName };
+      return { ...(args && typeof args === "object" ? args : { [argKey]: args }), action: actionName };
     }
   }
   return parsed;
