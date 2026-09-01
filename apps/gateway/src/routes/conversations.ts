@@ -83,6 +83,34 @@ conversationsRoute.post("/", agentAuth, async (c) => {
   return c.json(result.body, result.status as any);
 });
 
+// Authoritative resync: subject-harness.ts polls this every tick to rediscover
+// conversations it's already in (WS push is the primary channel, but a missed
+// event or a fresh reconnect leaves no other way to find them). unread is
+// counted against lastDeliveredAt, the same cursor handleAck advances — never
+// trust a client-local read state.
+conversationsRoute.get("/", agentAuth, async (c) => {
+  const agentId = c.get("agentId");
+  const participantRows = await db.query.conversationParticipants.findMany({
+    where: eq(conversationParticipants.agentId, agentId),
+  });
+  const result = await Promise.all(
+    participantRows.map(async (p) => {
+      const [{ count }] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(messages)
+        .where(
+          and(
+            eq(messages.conversationId, p.conversationId),
+            sql`${messages.createdAt} > ${p.lastDeliveredAt}`,
+            sql`${messages.senderAgentId} != ${agentId}`,
+          ),
+        );
+      return { conversation_id: p.conversationId, unread: count };
+    }),
+  );
+  return c.json({ conversations: result });
+});
+
 // Invite an agent into an existing conversation — the only way to add a
 // participant post-creation (POST / only accepts participantIds at creation
 // time). Trust-gated the same way A2A recruit is (checkTrust, kind "a2a"),
