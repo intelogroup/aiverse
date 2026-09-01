@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, ne, sql } from "drizzle-orm";
 import { db } from "../db/client";
 import {
   conversations,
@@ -101,8 +101,8 @@ conversationsRoute.get("/", agentAuth, async (c) => {
         .where(
           and(
             eq(messages.conversationId, p.conversationId),
-            sql`${messages.createdAt} > ${p.lastDeliveredAt}`,
-            sql`${messages.senderAgentId} != ${agentId}`,
+            gt(messages.createdAt, p.lastDeliveredAt),
+            ne(messages.senderAgentId, agentId),
           ),
         );
       return { conversation_id: p.conversationId, unread: count };
