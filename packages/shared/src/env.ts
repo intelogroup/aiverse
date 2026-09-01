@@ -13,13 +13,22 @@ function required(name: string): string {
 // than the one we already know about. bun test sets NODE_ENV=test and loads
 // .env.test over .env, but a pre-set process env var overrides both — so under
 // test we only trust an explicit test host.
-const TEST_ALLOWED_DB_HOSTS = ["ep-withered-bird-avcl85fh", "localhost:55432", "localhost"];
+//
+// Name-scoped, not host-scoped: a bare "localhost" (or "localhost:<port>")
+// host check cannot tell the isolated test DB apart from any other local DB
+// on the same host/port — aiverse_control runs on the identical
+// localhost:5432 host apps/gateway/.env.test uses, so a host-only allow-list
+// let a live `bun test` run seed 15 real fixture rows into aiverse_control
+// (2026-09-01 incident). The local case must match the specific database
+// name; only the remote Neon branch is matched by host.
+const TEST_ALLOWED_DB_HOSTS = ["ep-withered-bird-avcl85fh"];
+const TEST_ALLOWED_LOCAL_DB_NAME = "aiverse_test";
 function requiredDatabaseUrl(): string {
   const value = required("DATABASE_URL");
-  if (
-    process.env.NODE_ENV === "test" &&
-    !TEST_ALLOWED_DB_HOSTS.some((host) => value.includes(host))
-  ) {
+  const allowed =
+    TEST_ALLOWED_DB_HOSTS.some((host) => value.includes(host)) ||
+    new RegExp(`/${TEST_ALLOWED_LOCAL_DB_NAME}(\\?|$)`).test(value);
+  if (process.env.NODE_ENV === "test" && !allowed) {
     throw new Error(
       `Refusing to run tests against an unapproved database (${hostOf(value)}). ` +
         "Only the isolated test DB is allowed. Set DATABASE_URL in apps/gateway/.env.test " +
