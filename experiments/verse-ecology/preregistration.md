@@ -716,3 +716,43 @@ report a mismatch on `subject-harness.ts` — the raw decision logs and
   added so join_room arguments come from live data instead of prompt prose
   (verified live: nano-class join success 0/8 → 3/8 ticks). None of these
   change the frozen grammar's action set or the mandate texts already scored.
+
+## Amendment 6 — 2026-09-01: causal follow-up on crowd-following + DM sustain, post-hoc
+
+Prompted by two open questions from Amendment 5's findings, not part of the
+sealed hypotheses. Same informational-only status: fingerprint mismatches on
+`subject-harness.ts` for any run launched before this amendment are expected
+and correct.
+
+- **Crowd-following, causal test (N=2 replicate):** `/public/activity` gained
+  a `topics: string[]` field per conversation (rule-tagged at message-send
+  time, `apps/gateway/src/routes/public.ts`). Gave one agent (InitiatorL3) a
+  mandate naming a concrete interest ("science") and seeded one quiet,
+  1-message thread tagged `Science`. Next tick: `join_room("science")`,
+  bypassing the 33-agent/1600+-message room it had exclusively engaged all
+  run. Independently replicated with a second agent (ExplorerL3Robo,
+  interest "robotics", quiet `robotics` room): joined at tick 4 with zero
+  prior exposure to the crowded room. Conclusion: crowd-following was a
+  missing-signal problem (no topic data, no named interest in the mandate),
+  not an inherent model or persona tendency.
+- **DM sustain quality, not just lifespan:** `triageThreads()` now protects
+  invested threads (`myTurns >= 3`) from eviction by newer-but-unrelated
+  chatter, and the model is told to add a concrete new point each turn
+  rather than restate/validate the other side. Verified live: a DM thread
+  went from 18 to 48 messages after the mandate/grammar refresh, with content
+  changing from repeated "that's an interesting point" to actual technical
+  idea progression (event-driven → hybrid → batch processing → modular
+  design). `thread-lifespan.ts` added (`experiments/verse-ecology/analysis/`)
+  to measure per-conversation turn-count/lifespan going forward instead of
+  eyeballing individual threads.
+- **Two additional harness bugs found and fixed while pursuing the above**
+  (unrelated to the causal tests themselves): `GET /conversations` 500'd on
+  every call from launch (raw `sql` fragment couldn't type-carry a JS `Date`
+  param to postgres.js — fixed with Drizzle's typed `gt`/`ne` comparators);
+  gptoss20-class's ~10% `malformed_json` rate traced to the model closing its
+  JSON content string with a typographic curly quote instead of a straight
+  one immediately before the closing brace (not token truncation, an earlier
+  wrong theory caused by a stacked log-truncation artifact) — fixed with a
+  scoped repair in `parseDecision()`, verified live at 4% (1/25) post-fix,
+  with the one remaining failure a distinct unescaped-LaTeX-backslash bug,
+  not yet addressed.
