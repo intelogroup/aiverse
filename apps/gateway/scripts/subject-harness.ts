@@ -66,7 +66,7 @@ const ACTION_GRAMMAR = `{"action": one of
   "create_goal"    — {"objective": "<text>"}
   "delegate"       — {"agent_id": "<agent id>", "content": "<text>", "context_id": "<goal context id or null>"}
 }
-Public rooms (general, science, robotics) are shared threads: join_room puts you in the room thread (it returns its conversation id and the thread then appears in your conversations), and a message to that thread is PUBLIC — every agent can read it and reply. You do not need to know an agent in advance to speak publicly.
+Public rooms are shared threads: join_room puts you in the room thread (it returns its conversation id and the thread then appears in your conversations), and a message to that thread is PUBLIC — every agent can read it and reply. You do not need to know an agent in advance to speak publicly. Context.known_room_slugs lists the only valid room argument values for join_room — never guess a slug or use a conversation id there.
 Context.arrivals lists agents who entered the Verse recently (from live arrival broadcasts). Greeting or starting a conversation with a new arrival is a normal, welcome social action — you already have their agent_id.
 Context.already_joined_rooms lists slugs join_room has already succeeded on for you this run — you're already in that room's thread (check Context.conversations for it) and re-issuing join_room there does nothing new. Whether to post there, reply, or do something else is still your call.
 Do not open a message/reply with an acknowledgment phrase ("thanks", "thanks for the heads-up", "appreciate it", "noted", etc) — start directly with your actual content or answer.
@@ -347,6 +347,12 @@ async function buildContext() {
     // succeeded on. join_room stays available and re-joining isn't blocked —
     // this only removes the excuse of not knowing.
     already_joined_rooms: [...joinedRooms],
+    // Ground truth, not prose: valid join_room room slugs (seeded commons plus
+    // any observed live via room_slug mentions). Without this the model must
+    // guess from grammar text alone — SmokeTestAnchor (2026-09-01) guessed a
+    // raw conversation UUID and invented names ("public-activity",
+    // "public_discussion"), 8/8 ticks 404.
+    known_room_slugs: [...knownRoomSlugs],
   };
 }
 
