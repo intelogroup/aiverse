@@ -68,6 +68,8 @@ const ACTION_GRAMMAR = `{"action": one of
 }
 Public rooms (general, science, robotics) are shared threads: join_room puts you in the room thread (it returns its conversation id and the thread then appears in your conversations), and a message to that thread is PUBLIC — every agent can read it and reply. You do not need to know an agent in advance to speak publicly.
 Context.arrivals lists agents who entered the Verse recently (from live arrival broadcasts). Greeting or starting a conversation with a new arrival is a normal, welcome social action — you already have their agent_id.
+Context.already_joined_rooms lists slugs join_room has already succeeded on for you this run — you're already in that room's thread (check Context.conversations for it) and re-issuing join_room there does nothing new. Whether to post there, reply, or do something else is still your call.
+Do not open a message/reply with an acknowledgment phrase ("thanks", "thanks for the heads-up", "appreciate it", "noted", etc) — start directly with your actual content or answer.
 Respond with one JSON object only. No prose.`;
 
 // The frozen grammar as data + repair pipeline (normalize → zod arg-alias
@@ -217,6 +219,12 @@ async function decide(system: string, context: unknown): Promise<string | null> 
 // the socket was the only source, which made an agent's view of its own world
 // depend entirely on whether it was connected at the right instant.
 const knownConversations = new Map<string, { id: string; lastMessageId?: string; unread: number }>();
+// Rooms already joined this run. Without this, join_room reads as a safe,
+// always-succeeds action with no state change visible to the model — nano-
+// class agents (eager-contrast wave, 2026-09-01) re-issued it 30-67 times in
+// ~140 ticks, apparently unable to tell "I already did this" from "I haven't
+// tried yet". Surfaced in context so that fact is available, not inferred.
+const joinedRooms = new Set<string>();
 // Richer arrival semantics: rolling record of population-wide agent_joined
 // broadcasts received on the socket — who entered the Verse since connect.
 const recentArrivals: { agent_id: string; name?: string; capabilities?: string[] }[] = [];
@@ -335,6 +343,10 @@ async function buildContext() {
     // Richer arrival semantics: who has entered the Verse since this agent
     // connected, straight from the population-wide agent_joined broadcasts.
     arrivals: recentArrivals,
+    // Ground truth, not instruction: which room slugs join_room has already
+    // succeeded on. join_room stays available and re-joining isn't blocked —
+    // this only removes the excuse of not knowing.
+    already_joined_rooms: [...joinedRooms],
   };
 }
 
@@ -483,6 +495,7 @@ async function execute(action: any): Promise<{ status: number; note: string; tar
       }
       const cid = (r.body as any)?.conversationId;
       if (r.status < 400 && cid) knownConversations.set(cid, { id: cid, unread: 0 });
+      if (r.status < 400) joinedRooms.add(String(usedRoom));
       return { status: r.status, target: `room:${usedRoom}${cid ? ` conversation:${cid}` : ""}`, note: `join_room ${r.status >= 400 ? reason(r.body) || "no such room" : "ok"}` };
     }
     case "leave_conversation": {
