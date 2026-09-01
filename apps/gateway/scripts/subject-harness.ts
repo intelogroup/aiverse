@@ -219,7 +219,12 @@ async function decide(system: string, context: unknown): Promise<string | null> 
 // without waiting for the next tick's poll. Before GET /conversations existed
 // the socket was the only source, which made an agent's view of its own world
 // depend entirely on whether it was connected at the right instant.
-const knownConversations = new Map<string, { id: string; lastMessageId?: string; unread: number }>();
+// myTurns: how many messages I've personally sent into this conversation,
+// ever (not "since last inbound" like unansweredByThread below — that's a
+// suppression signal, this is a protection signal). Used by triageThreads()
+// to keep a thread the agent has invested in from being evicted from focus
+// purely because unrelated chatter elsewhere is more recent this tick.
+const knownConversations = new Map<string, { id: string; lastMessageId?: string; unread: number; myTurns?: number }>();
 // Rooms already joined this run. Without this, join_room reads as a safe,
 // always-succeeds action with no state change visible to the model — nano-
 // class agents (eager-contrast wave, 2026-09-01) re-issued it 30-67 times in
@@ -250,12 +255,21 @@ let lastDiscovered = 0;
 // grammar note can say to leave them alone.
 const INBOX_FOCUS = 5;
 const MAX_UNANSWERED_TO_SAME = 3;
+// A thread with this many of my own turns sent is "invested" — it always
+// outranks non-invested threads for one of the INBOX_FOCUS slots, so a burst
+// of public-room chatter can no longer evict a long-running DM purely on
+// recency. Boolean gate + recency tie-break, not a weighted score.
+const INVESTED_THRESHOLD = 3;
 const unansweredByThread = new Map<string, number>(); // conversationId -> my msgs since last inbound
 
 function triageThreads(threads: { conversation_id: string; unread: number; messages: any[] }[]) {
   const isMine = (m: any) => m?.senderAgentId === agentId || m?.sender_agent_id === agentId;
   const withInbound = threads.filter((t) => t.unread > 0 || t.messages.some((m) => !isMine(m)));
+  const invested = (id: string) => (knownConversations.get(id)?.myTurns ?? 0) >= INVESTED_THRESHOLD;
   withInbound.sort((a, b) => {
+    const investedA = invested(a.conversation_id);
+    const investedB = invested(b.conversation_id);
+    if (investedA !== investedB) return investedA ? -1 : 1;
     const ta = String(a.messages.at(-1)?.createdAt ?? a.messages.at(-1)?.created_at ?? "");
     const tb = String(b.messages.at(-1)?.createdAt ?? b.messages.at(-1)?.created_at ?? "");
     return tb.localeCompare(ta);
@@ -417,6 +431,10 @@ async function execute(action: any): Promise<{ status: number; note: string; tar
         return { status: 0, target: `conversation:${action.conversation_id}`, note: "message content required (skipped)" };
       }
       const r = await api(`/conversations/${action.conversation_id}/messages`, { method: "POST", body: JSON.stringify({ content: action.content }) });
+      if (r.status < 400) {
+        const existing = knownConversations.get(String(action.conversation_id));
+        if (existing) existing.myTurns = (existing.myTurns ?? 0) + 1;
+      }
       return { status: r.status, target: `conversation:${action.conversation_id}`, note: `message ${r.status >= 400 ? reason(r.body) : "ok"}` };
     }
     case "reply": {
@@ -445,6 +463,10 @@ async function execute(action: any): Promise<{ status: number; note: string; tar
           note = "reply not a participant (room unknown — cannot self-join)";
         }
       }
+      if (r.status < 400) {
+        const existing = knownConversations.get(String(action.conversation_id));
+        if (existing) existing.myTurns = (existing.myTurns ?? 0) + 1;
+      }
       return { status: r.status, target: `conversation:${action.conversation_id}`, note };
     }
     case "start_conversation": {
@@ -459,7 +481,7 @@ async function execute(action: any): Promise<{ status: number; note: string; tar
       // Register the conversation so the agent sees it in its context on the very next tick.
       // Without this, start_conversation creates an invisible shell — the agent never
       // perceives its own messages and cannot reply to responses (the 151:1 DM ratio trap).
-      if (msg.status < 400 && id) knownConversations.set(id, { id, unread: 0 });
+      if (msg.status < 400 && id) knownConversations.set(id, { id, unread: 0, myTurns: 1 });
       return { status: msg.status, target: `${targets} conversation:${id}`, note: `start_conversation(send) ${msg.status >= 400 ? reason(msg.body) : "ok"}` };
     }
     case "ask_peer": {
@@ -470,7 +492,7 @@ async function execute(action: any): Promise<{ status: number; note: string; tar
       if (conv.status !== 201) return { status: conv.status, target: `agent:${action.agent_id}`, note: `ask_peer(create) ${reason(conv.body)}` };
       const id = (conv.body as any)?.conversation?.id;
       const msg = await api(`/conversations/${id}/messages`, { method: "POST", body: JSON.stringify({ content: action.content ?? "" }) });
-      if (msg.status < 400 && id) knownConversations.set(id, { id, unread: 0 });
+      if (msg.status < 400 && id) knownConversations.set(id, { id, unread: 0, myTurns: 1 });
       return { status: msg.status, target: `agent:${action.agent_id} conversation:${id}`, note: `ask_peer(send) ${msg.status >= 400 ? reason(msg.body) : "ok"}` };
     }
     case "invite": {
@@ -700,7 +722,7 @@ for (let tick = startTick; tick < startTick + ticks; tick++) {
     const modelContext = {
       ...ctx,
       conversations: ctx.inbox_focus ?? ctx.conversations,
-      inbox_note: `You have ${ctx.inbox_summary.total_threads} threads total; ${ctx.inbox_focus.length} shown (newest inbound first), ${ctx.inbox_summary.other_threads_with_inbound} more have inbound messages not shown, ${ctx.inbox_summary.awaiting_reply_from_me} are awaiting your reply (you already sent ${MAX_UNANSWERED_TO_SAME}+ with no answer — stop messaging those).`,
+      inbox_note: `You have ${ctx.inbox_summary.total_threads} threads total; ${ctx.inbox_focus.length} shown (invested threads first, then newest inbound), ${ctx.inbox_summary.other_threads_with_inbound} more have inbound messages not shown, ${ctx.inbox_summary.awaiting_reply_from_me} have had ${MAX_UNANSWERED_TO_SAME}+ messages from you with no reply yet — low priority to message again soon, but not necessarily dead.`,
       // Cap thread depth too: last 4 messages per focused thread is enough
       // signal for a reply decision.
     };
