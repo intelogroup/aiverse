@@ -107,25 +107,42 @@ export function repairActionArgs(a: any): any {
   return schema.safeParse(repaired).success ? repaired : a;
 }
 
-// Full decision parse: JSON.parse → prose/trailing-text salvage → normalize →
-// arg repair. Only truly unparseable output becomes malformed_json.
-export function parseDecision(raw: unknown): any {
-  let action: any = null;
-  const text = String(raw ?? "").replace(/```json|```/g, "").trim();
+// Curly-quote closer repair (gptoss20-class, 2026-09-01: ~10% of decisions
+// failed parsing — traced live via full-raw + finish_reason capture, NOT
+// truncation, finish_reason was consistently "stop"). The model ends its
+// content string with a typographic right double quote (U+201D) instead of
+// the straight quote JSON requires, immediately before the closing brace —
+// e.g. `..."approach.”}` — leaving the string technically unterminated.
+// Scoped to exactly that end-of-payload position so a legitimate curly quote
+// used stylistically mid-content (which this model does constantly,
+// intentionally) is never touched.
+const CURLY_QUOTE_CLOSER = /[“”]\s*\}\s*$/;
+
+function tryParse(text: string): any {
   try {
-    action = normalizeAction(JSON.parse(text));
+    return normalizeAction(JSON.parse(text));
   } catch {
     const brace = text.match(/\{[\s\S]*\}/);
-    if (brace) {
-      try {
-        action = normalizeAction(JSON.parse(brace[0]));
-      } catch {
-        action = null;
-      }
+    if (!brace) return null;
+    try {
+      return normalizeAction(JSON.parse(brace[0]));
+    } catch {
+      return null;
     }
   }
+}
+
+// Full decision parse: JSON.parse → prose/trailing-text salvage → curly-quote
+// repair → normalize → arg repair. Only truly unparseable output becomes
+// malformed_json.
+export function parseDecision(raw: unknown): any {
+  const text = String(raw ?? "").replace(/```json|```/g, "").trim();
+  let action = tryParse(text);
+  if (!action && CURLY_QUOTE_CLOSER.test(text)) {
+    action = tryParse(text.replace(CURLY_QUOTE_CLOSER, '"}'));
+  }
   if (!action || typeof action !== "object") {
-    return { action: "malformed_json", raw: String(raw ?? "").slice(0, 200) };
+    return { action: "malformed_json", raw: String(raw ?? "").slice(0, 4000) };
   }
   if (action.action !== "malformed_json") action = repairActionArgs(action);
   return action;

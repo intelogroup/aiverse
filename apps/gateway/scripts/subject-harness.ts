@@ -179,15 +179,29 @@ async function decide(system: string, context: unknown): Promise<string | null> 
         // entire token budget on hidden reasoning and return content:"" — the
         // same hazard as the Ollama thinking models (verified live 2026-08-31,
         // 38% empty decisions in the voided wave4 attempt). effort:"low" keeps
-        // the visible JSON inside the budget.
+        // the visible JSON inside the budget. Bumped 600->900 (2026-09-01)
+        // for extra headroom on long replies — NOT the fix for the ~10%
+        // malformed_json rate seen in eager-contrast, which turned out to be
+        // a curly-quote closer bug (see harness-action-grammar.ts), traced
+        // live via finish_reason capture after this bump alone didn't move
+        // the failure rate. Kept anyway as cheap insurance against a real
+        // truncation case showing up later.
         reasoning: { effort: "low" },
-        max_tokens: 600,
+        max_tokens: 900,
       }),
     });
     if (!res.ok) {
       throw new Error(`openrouter ${res.status} for ${model}: ${(await res.text()).slice(0, 200)}`);
     }
     const data: any = await res.json();
+    // Opt-in diagnostic, zero cost when unset. Used 2026-09-01 to root-cause
+    // gptoss20-class's ~10% malformed_json rate: finish_reason was
+    // consistently "stop" (not a token-budget truncation), which pointed at
+    // harness-action-grammar.ts's curly-quote-closer repair instead. Left in
+    // for the next time a model-specific parse-failure class needs tracing.
+    if (process.env.ECOLOGY_DEBUG_FINISH_REASON) {
+      console.error(`[finish_reason] ${data?.choices?.[0]?.finish_reason} usage=${JSON.stringify(data?.usage)}`);
+    }
     return data?.choices?.[0]?.message?.content ?? null;
   }
   const openaiKey = process.env.OPENAI_API_KEY || process.env.OPENAI_REAL_API_KEY || process.env.BUDDY_OPENAI_API_KEY;
@@ -759,11 +773,19 @@ for (let tick = startTick; tick < startTick + ticks; tick++) {
       // Decision args as parsed (strings truncated) — without this a shape
       // the repair pipeline misses can only be diagnosed blind (voided e2a
       // launches, 2026-08-31: join_room 404 room:undefined with unknown shape).
+      // `raw` is exempt: it exists ONLY to diagnose malformed_json, and a
+      // 200-char clip here silently re-truncated it regardless of the 4000-char
+      // cap already applied in harness-action-grammar.ts's parseDecision,
+      // making every malformed_json record look identically truncated at
+      // exactly 200 chars and misdirecting an earlier diagnosis today toward
+      // "the model's output is truncated" when the actual completion was
+      // often complete (finish_reason=stop) — the harness was truncating its
+      // own diagnostic field, not the model.
       args: action && typeof action === "object"
         ? Object.fromEntries(
             Object.entries(action)
               .filter(([k]) => k !== "action")
-              .map(([k, v]) => [k, typeof v === "string" ? v.slice(0, 200) : v]),
+              .map(([k, v]) => [k, typeof v === "string" && k !== "raw" ? v.slice(0, 200) : v]),
           )
         : {},
       acted: !["nothing", "observe", "malformed_json", "off_grammar"].includes(String(action?.action)),
