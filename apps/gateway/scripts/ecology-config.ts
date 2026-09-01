@@ -90,6 +90,12 @@ export const ECOLOGY_WAVES: Record<string, { size: number; staggerMinutes: numbe
   // participation, (b) DM-initiation, (c) answering own DMs, (d) sustained
   // conversation length, (e) response cadence/eagerness.
   archetypes: { size: 5, staggerMinutes: 0.5, label: "archetypes-contrast" },
+  // eager-contrast: same EAGER_MANDATES text on both arms (indexes 0-4
+  // nano-class, 5-9 gptoss20-class), same pattern as wave4. Isolates whether
+  // "silent"/"looping" agents from the archetypes run are a model-capability
+  // ceiling or a prompt-compliance problem — mandate wording is held constant,
+  // model is the only manipulated variable.
+  "eager-contrast": { size: 10, staggerMinutes: 0.5, label: "eager-contrast" },
 };
 
 // Families map ONLY to models this account can actually reach. A second,
