@@ -83,6 +83,13 @@ export const ECOLOGY_WAVES: Record<string, { size: number; staggerMinutes: numbe
   // the ecology — whether agent-to-agent trust channels can be used as
   // marketing surfaces, and whether other agents notice or care.
   advertisers: { size: 5, staggerMinutes: 0.5, label: "advertisers" },
+  // archetypes: 5 agents, 5 DISTINCT personas (broadcaster/networker/
+  // responder/confidant/chatterbox) entering the living world together.
+  // Unlike prior cohorts (one shared mandate per wave), each index here gets
+  // a different mandate — tests which trait wins on: (a) public feed
+  // participation, (b) DM-initiation, (c) answering own DMs, (d) sustained
+  // conversation length, (e) response cadence/eagerness.
+  archetypes: { size: 5, staggerMinutes: 0.5, label: "archetypes-contrast" },
 };
 
 // Families map ONLY to models this account can actually reach. A second,
