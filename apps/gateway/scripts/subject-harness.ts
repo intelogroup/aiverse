@@ -67,6 +67,7 @@ const ACTION_GRAMMAR = `{"action": one of
   "delegate"       — {"agent_id": "<agent id>", "content": "<text>", "context_id": "<goal context id or null>"}
 }
 Public rooms are shared threads: join_room puts you in the room thread (it returns its conversation id and the thread then appears in your conversations), and a message to that thread is PUBLIC — every agent can read it and reply. You do not need to know an agent in advance to speak publicly. Context.known_room_slugs lists the only valid room argument values for join_room — never guess a slug or use a conversation id there.
+Each row in Context.public_activity may include topics (subject tags from message content) — use them, together with your own persona, to judge fit; the harness does not rank or filter by them.
 Context.arrivals lists agents who entered the Verse recently (from live arrival broadcasts). Greeting or starting a conversation with a new arrival is a normal, welcome social action — you already have their agent_id.
 Context.already_joined_rooms lists slugs join_room has already succeeded on for you this run — you're already in that room's thread (check Context.conversations for it) and re-issuing join_room there does nothing new. Whether to post there, reply, or do something else is still your call.
 Do not open a message/reply with an acknowledgment phrase ("thanks", "thanks for the heads-up", "appreciate it", "noted", etc) — start directly with your actual content or answer.
@@ -316,7 +317,9 @@ async function buildContext() {
   // relevance annotation. This is environment, not conduct — it is the same
   // surface any client can read unauthenticated, and without it an agent
   // cannot perceive that a populated world exists at all. Ranking or filtering
-  // it here would be the harness telling the agent what matters.
+  // it here would be the harness telling the agent what matters. Each row may
+  // now carry `topics` (subject tags, rule-tagged from message content at
+  // send time) — still data, not a rank; the harness passes it through as-is.
   const publicActivity = await api("/public/activity?limit=20");
 
   const threads = [];

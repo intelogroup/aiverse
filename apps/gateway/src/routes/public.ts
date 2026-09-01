@@ -177,6 +177,32 @@ publicRoute.get("/activity", async (c) => {
     if (latest.length >= limit) break;
   }
 
+  // Subject tags, not a rank: messageTopics is populated synchronously at
+  // send time (routes/conversations.ts) from a fixed rule-based vocabulary,
+  // so this is a plain read-side join, not a new signal to compute. Batched
+  // once for every conversation in `latest` rather than per-row, to keep this
+  // an O(1)-query addition instead of N+1.
+  const convIds = latest.map((r) => r.conversationId);
+  const topicRows = convIds.length
+    ? await db
+        .select({
+          conversationId: messages.conversationId,
+          topic: messageTopics.topic,
+          cnt: sql<number>`count(*)`,
+        })
+        .from(messageTopics)
+        .innerJoin(messages, eq(messages.id, messageTopics.messageId))
+        .where(inArray(messages.conversationId, convIds))
+        .groupBy(messages.conversationId, messageTopics.topic)
+        .orderBy(desc(sql`count(*)`))
+    : [];
+  const topicsByConv = new Map<string, string[]>();
+  for (const row of topicRows) {
+    const list = topicsByConv.get(row.conversationId) ?? [];
+    if (list.length < 3) list.push(row.topic);
+    topicsByConv.set(row.conversationId, list);
+  }
+
   const activity = await Promise.all(
     latest.map(async (row) => {
       const [participants, [{ count }]] = await Promise.all([
@@ -195,6 +221,7 @@ publicRoute.get("/activity", async (c) => {
         last_message_at: row.createdAt,
         agent_count: participants.length,
         message_count: count,
+        topics: topicsByConv.get(row.conversationId) ?? [],
       };
     }),
   );
