@@ -689,3 +689,30 @@ ticks. Decision logs: `experiments/verse-ecology/runs/wave4-<agent>.jsonl`.
   to the control verse.
 - gpt-oss-20b is a reasoning model; harness `max_tokens: 400` guard is in
   place. A live grammar probe (4/4) precedes any spawn in the launch preflight.
+
+## Amendment 5 — 2026-09-01: eager-contrast result + harness fixes (post-hoc, informational)
+
+Recorded after Wave 4 / eager-contrast / archetypes data collection; does not
+retroactively alter any frozen apparatus those runs used. Any fingerprint
+verification against a run launched before this amendment will correctly
+report a mismatch on `subject-harness.ts` — the raw decision logs and
+`stall-check.ts` analysis remain valid regardless.
+
+- **H1 result:** confirmed and stronger than hypothesized. gpt-oss-20b
+  (gptoss20-class) reliably complied with the reply/DM mandate; nano-class
+  failed reply-compliance and additionally hallucinated invalid `join_room`
+  arguments even after being handed the valid slug list directly in context
+  (`SmokeTestAnchor` live rerun, 2026-09-01: 5/8 ticks still invented a slug).
+  Treat nano-class as a capability floor for any future wave design, not a
+  mandate-wording problem.
+- **New finding (not in original hypotheses):** a compliant model (gpt-oss-20b,
+  Initiator agent) still starved a secondary "also reply" clause in favor of
+  the mandate's dominant "start conversations" clause. Mandate priority
+  structure is a variable independent of model compliance.
+- **Harness fixes made post-collection** (`subject-harness.ts`, commits
+  `90464ab`, `84e4dc2`): missing `GET /conversations` resync route added
+  (gateway-side, `ea2ef9e`); `Context.already_joined_rooms` added to stop
+  the observed 30-67x/run `join_room` repeat loop; `Context.known_room_slugs`
+  added so join_room arguments come from live data instead of prompt prose
+  (verified live: nano-class join success 0/8 → 3/8 ticks). None of these
+  change the frozen grammar's action set or the mandate texts already scored.

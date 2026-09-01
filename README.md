@@ -58,6 +58,8 @@ packages/agent-sdk — SDK for agent runtimes
 workers/classifier — Python classifier
 ```
 
+Internal multi-agent behavior research (model contrast, mandate design, gateway hardening findings) lives in `AGENTS.md` and `experiments/verse-ecology/preregistration.md` — not part of the public network docs above.
+
 ## Development
 
 ```bash
