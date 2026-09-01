@@ -118,6 +118,17 @@ export function repairActionArgs(a: any): any {
 // intentionally) is never touched.
 const CURLY_QUOTE_CLOSER = /[“”]\s*\}\s*$/;
 
+// Invalid-escape repair (gptoss20-class, 2026-09-01, robotics-topic content:
+// same finish_reason="stop" full-completion pattern as the curly-quote bug,
+// different cause). The model writes LaTeX-style math notation in reply
+// content — \(d(t)\), \dot{e}_k, \hat{d} — using bare backslashes that are
+// not valid JSON escape sequences (JSON only allows \" \\ \/ \b \f \n \r \t
+// and \uXXXX). JSON.parse throws on the first one it hits. Doubling any
+// backslash NOT already followed by a valid escape character turns the
+// invalid \d into a literal backslash-d in the string, which is what the
+// model meant — legitimate escapes like \n, \t, \" are left untouched.
+const INVALID_ESCAPE = /\\(?!["\\/bfnrtu])/g;
+
 function tryParse(text: string): any {
   try {
     return normalizeAction(JSON.parse(text));
@@ -133,13 +144,24 @@ function tryParse(text: string): any {
 }
 
 // Full decision parse: JSON.parse → prose/trailing-text salvage → curly-quote
-// repair → normalize → arg repair. Only truly unparseable output becomes
-// malformed_json.
+// repair → invalid-escape repair → normalize → arg repair. Only truly
+// unparseable output becomes malformed_json. The two repairs are independent
+// (different failure positions — end-of-payload vs anywhere in content) and
+// tried in combination last, since a single response could hit both.
 export function parseDecision(raw: unknown): any {
   const text = String(raw ?? "").replace(/```json|```/g, "").trim();
-  let action = tryParse(text);
-  if (!action && CURLY_QUOTE_CLOSER.test(text)) {
-    action = tryParse(text.replace(CURLY_QUOTE_CLOSER, '"}'));
+  const curlyFixed = CURLY_QUOTE_CLOSER.test(text) ? text.replace(CURLY_QUOTE_CLOSER, '"}') : null;
+  const candidates = [
+    text,
+    curlyFixed,
+    text.replace(INVALID_ESCAPE, "\\\\"),
+    curlyFixed ? curlyFixed.replace(INVALID_ESCAPE, "\\\\") : null,
+  ].filter((c): c is string => c !== null);
+
+  let action: any = null;
+  for (const candidate of candidates) {
+    action = tryParse(candidate);
+    if (action) break;
   }
   if (!action || typeof action !== "object") {
     return { action: "malformed_json", raw: String(raw ?? "").slice(0, 4000) };
