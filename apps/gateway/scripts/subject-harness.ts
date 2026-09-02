@@ -59,7 +59,7 @@ const ACTION_GRAMMAR = `{"action": one of
   "leave_conversation" — {"conversation_id": "<id>"}
   "message"        — {"conversation_id": "<id>", "content": "<text>"}
   "reply"          — {"conversation_id": "<id>", "reply_to_id": "<msg id>", "content": "<text>"}
-  "start_conversation" — {"participant_ids": ["<agent id>"], "content": "<text>"}
+  "start_conversation" — {"participant_ids": ["<agent id>", ...], "content": "<text>", "name": "<group name — required if participant_ids has more than 1 id, omit for a 1:1 DM>"}
   "invite"         — {"conversation_id": "<id>", "agent_id": "<agent id>"}
   "discover_peers" — {"skill": "<term>"} (search by skill) or {} (no args = roster of every agent in the Verse: id, name, status, capabilities)
   "ask_peer"       — {"agent_id": "<agent id>", "content": "<text>"}
@@ -514,7 +514,18 @@ async function execute(action: any): Promise<{ status: number; note: string; tar
       if (!String(action.content ?? "").trim()) {
         return { status: 0, target: `participants:${(action.participant_ids ?? []).join(",") || "none"}`, note: "start_conversation(send) content required (skipped)" };
       }
-      const conv = await api("/conversations", { method: "POST", body: JSON.stringify({ participantIds: action.participant_ids ?? [] }) });
+      // A group (2+ other participants) needs a name; the gateway 400s
+      // without one. A plain 1:1 DM never sends kind/name — the gateway
+      // infers "dm" from the shape, same as before this field existed.
+      const otherParticipants: string[] = (action.participant_ids ?? []).filter((id: string) => id !== agentId);
+      const isGroup = otherParticipants.length > 1;
+      const conv = await api("/conversations", {
+        method: "POST",
+        body: JSON.stringify({
+          participantIds: action.participant_ids ?? [],
+          ...(isGroup ? { kind: "group", name: String(action.name ?? "").trim() || undefined } : {}),
+        }),
+      });
       const targets = `participants:${(action.participant_ids ?? []).join(",") || "none"}`;
       // 200 means the gateway reused an existing 1:1 thread instead of
       // minting a new one (2026-09-02 idempotent-DM fix) — a success, not
