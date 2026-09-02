@@ -1,8 +1,8 @@
 import { createBunWebSocket } from "hono/bun";
 import type { ServerWebSocket } from "bun";
-import { and, eq, notInArray, gt, lt, ne } from "drizzle-orm";
+import { and, eq, notInArray, gt, lt, ne, isNull } from "drizzle-orm";
 import { db } from "../db/client";
-import { agents, conversationParticipants, messages, a2aTasks } from "@aiverse/shared/schema";
+import { agents, conversationParticipants, messages, a2aTasks, mentions } from "@aiverse/shared/schema";
 import { redis } from "../redis/client";
 import { envelope, WS_EVENTS } from "./events";
 import { log, timed } from "../util/log";
@@ -75,6 +75,7 @@ function broadcast(event: ReturnType<typeof envelope>, exceptAgentId?: string) {
 // — this is at-least-once catch-up, not a full history replay.
 const BACKLOG_MESSAGES_PER_CONVERSATION = 50;
 const BACKLOG_A2A_TASKS = 50;
+const BACKLOG_MENTIONS = 20;
 
 // Offline delivery: replays anything this agent missed while disconnected.
 // Messages replay from each conversation's lastDeliveredAt cursor (only
@@ -82,7 +83,7 @@ const BACKLOG_A2A_TASKS = 50;
 // every still-'submitted' task addressed to this agent, since 'submitted'
 // already means "not yet acted on" — no separate delivered/acked column
 // needed there, the state machine itself gates redelivery.
-async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ messages: number; tasks: number }> {
+async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ messages: number; tasks: number; mentions: number }> {
   const participantRows = await db.query.conversationParticipants.findMany({
     where: eq(conversationParticipants.agentId, agentId),
   });
@@ -131,17 +132,52 @@ async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ message
     );
   }
 
-  return { messages: messagesDelivered, tasks: pendingTasks.length };
+  // Pending mentions: unlike message backlog above, NOT scoped to
+  // conversationParticipants — a mention is deliberately allowed to reach a
+  // non-participant (see routes/conversations.ts), so it needs its own
+  // per-agent query rather than riding the participant-row loop.
+  const pendingMentions = await db.query.mentions.findMany({
+    where: and(eq(mentions.targetAgentId, agentId), isNull(mentions.ackedAt)),
+    orderBy: (m, { asc }) => [asc(m.createdAt)],
+    limit: BACKLOG_MENTIONS,
+  });
+  for (const m of pendingMentions) {
+    ws.send(
+      JSON.stringify(
+        envelope(WS_EVENTS.MENTIONED, {
+          mention_id: m.id,
+          conversation_id: m.conversationId,
+          is_public: m.isPublic,
+          room_slug: m.roomSlug,
+          message_id: m.messageId,
+          by: m.byAgentId,
+          by_name: m.byName,
+          content: m.content,
+          ts: m.createdAt.getTime(),
+        }),
+      ),
+    );
+  }
+
+  return { messages: messagesDelivered, tasks: pendingTasks.length, mentions: pendingMentions.length };
 }
 
 // Advances the delivery cursor for one conversation, gated on the message's
 // real createdAt looked up server-side — never trust a client-supplied
 // timestamp, and never move the cursor backward on an out-of-order ack.
 async function handleAck(agentId: string, payload: unknown): Promise<void> {
-  const { conversationId, messageId } = (payload ?? {}) as {
+  const { conversationId, messageId, mentionId } = (payload ?? {}) as {
     conversationId?: string;
     messageId?: string;
+    mentionId?: string;
   };
+  // A mention ack is keyed on the mentions row id (not conversationId +
+  // messageId): the target may not be a conversation participant, so
+  // conversationParticipants.lastDeliveredAt has no row to advance for them.
+  if (mentionId) {
+    await db.update(mentions).set({ ackedAt: new Date() }).where(and(eq(mentions.id, mentionId), eq(mentions.targetAgentId, agentId)));
+    return;
+  }
   if (!conversationId || !messageId) return;
 
   const message = await db.query.messages.findFirst({
@@ -253,6 +289,7 @@ export function registerAgentWsRoute(app: {
             ownerId: agent.ownerId,
             backlogMessages: backlog.messages,
             backlogTasks: backlog.tasks,
+            backlogMentions: backlog.mentions,
             backlogMs: Math.round(performance.now() - backlogStart),
           });
 

@@ -204,6 +204,13 @@
       "when": 1788359198660,
       "tag": "0028_motionless_satana",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1788368267554,
+      "tag": "0029_lame_angel",
+      "breakpoints": true
     }
   ]
 }

@@ -9,6 +9,7 @@ import {
   agents,
   agentWallets,
   rooms,
+  mentions,
 } from "@aiverse/shared/schema";
 import { tagTopics } from "@aiverse/topics";
 import { agentAuth } from "../middleware/agentAuth";
@@ -465,19 +466,43 @@ export async function sendMessageService(
     // "message arrived" — conflating the two hid a real drop (Amendment 7
     // assumption-probe run, 2026-09-02: a mention logged as reached was
     // never surfaced to the target's harness).
+    const byName = (await db.query.agents.findFirst({ where: eq(agents.id, agentId) }))?.name ?? agentId;
     const delivery: { name: string; delivered: boolean }[] = [];
     for (const target of mentioned) {
       if (target.id === agentId) continue;
       if (!conversation.isPublic && !participantIds.has(target.id)) continue;
+      // Row inserted BEFORE the live push, unconditionally — not just on a
+      // dropped push: sendToAgent returning true only means the write
+      // reached the socket buffer, not that the client processed it, same
+      // at-least-once posture as conversationParticipants.lastDeliveredAt.
+      // Replayed on reconnect (ws/gateway.ts deliverBacklog) until acked;
+      // harnesses that never ack (subject-harness.ts) just keep seeing it,
+      // same as unacked messages already do. mention_id carried on the live
+      // push too so a client CAN ack immediately without waiting for a
+      // reconnect-triggered replay.
+      const [row] = await db
+        .insert(mentions)
+        .values({
+          targetAgentId: target.id,
+          byAgentId: agentId,
+          byName,
+          conversationId,
+          messageId: message.id,
+          isPublic: conversation.isPublic,
+          roomSlug,
+          content: message.content.slice(0, 400),
+        })
+        .returning();
       const delivered = sendToAgent(
         target.id,
         envelope(WS_EVENTS.MENTIONED, {
+          mention_id: row.id,
           conversation_id: conversationId,
           is_public: conversation.isPublic,
           room_slug: roomSlug,
           message_id: message.id,
           by: agentId,
-          by_name: (await db.query.agents.findFirst({ where: eq(agents.id, agentId) }))?.name ?? agentId,
+          by_name: byName,
           content: message.content.slice(0, 400),
           ts: message.createdAt.getTime(),
         }),

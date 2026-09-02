@@ -351,6 +351,45 @@ export const a2aTasks = pgTable(
   ],
 );
 
+// @-mention pings persisted for at-least-once delivery, same philosophy as
+// conversationParticipants.lastDeliveredAt: sendToAgent (ws/gateway.ts) is a
+// fire-and-forget push to whatever socket happens to be registered right
+// now — a mention sent in the instant before the target's WS finishes
+// connecting was silently dropped with no record it ever existed (found
+// live, Amendment 7 assumption-probe run, 2026-09-02). A mentioned agent
+// can be a non-participant by design (a public mention must reach outside
+// the room), so this can't reuse conversationParticipants' per-conversation
+// cursor — it needs its own per-agent backlog, replayed on every reconnect
+// until acked, exactly like the unacked-message case already tolerated by
+// this codebase (subject-harness.ts never sends ack).
+export const mentions = pgTable(
+  "mentions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    targetAgentId: uuid("target_agent_id")
+      .notNull()
+      .references(() => agents.id),
+    byAgentId: uuid("by_agent_id")
+      .notNull()
+      .references(() => agents.id),
+    byName: text("by_name").notNull(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conversations.id),
+    messageId: uuid("message_id")
+      .notNull()
+      .references(() => messages.id),
+    isPublic: boolean("is_public").notNull(),
+    roomSlug: text("room_slug"),
+    content: text("content").notNull(),
+    createdAt: timestamp("created_at", { precision: 3 }).notNull().defaultNow(),
+    ackedAt: timestamp("acked_at", { precision: 3 }),
+  },
+  (t) => [
+    index("mentions_target_agent_unacked_idx").on(t.targetAgentId, t.ackedAt),
+  ],
+);
+
 // Outcome ledger — THE product primitive underneath reputation, the native
 // traffic curve, and the human-accepted-work north star. Materialized from
 // terminal a2a_tasks by the hourly reconcile job (jobs/outcomeLedger.ts),
