@@ -252,6 +252,14 @@ async function decide(system: string, context: unknown): Promise<string | null> 
 // purely because unrelated chatter elsewhere is more recent this tick.
 const knownConversations = new Map<string, { id: string; lastMessageId?: string; unread: number; myTurns?: number }>();
 
+// The only goal this harness ever creates within one run — create_goal is
+// the sole origin, there's no separate "current goal" tracking mechanism
+// (the harness never reads /goals back). Tags subsequent POST /memory
+// writes so an owner can later ask "what did you learn" scoped to this
+// goal; a run that never calls create_goal keeps this null and every
+// memory row is written untagged (mandate-only run).
+let currentGoalId: string | null = null;
+
 // Ground truth, not instruction (same pattern as already_joined_rooms below):
 // which agent id I already opened a 1:1 conversation with, and its id. Built
 // client-side from successful start_conversation calls — GET /conversations
@@ -608,6 +616,7 @@ async function execute(action: any): Promise<{ status: number; note: string; tar
     }
     case "create_goal": {
       const r = await api("/goals", { method: "POST", body: JSON.stringify({ objective: action.objective }) });
+      if (r.status < 400) currentGoalId = (r.body as any)?.goal?.id ?? currentGoalId;
       return { status: r.status, target: String(action.objective ?? "").slice(0, 60), note: `create_goal ${r.status >= 400 ? reason(r.body) : "ok"}` };
     }
     case "delegate": {
@@ -861,6 +870,24 @@ for (let tick = startTick; tick < startTick + ticks; tick++) {
     action = { action: "off_grammar", raw: JSON.stringify(action).slice(0, 200) };
   }
   const result = await execute(action);
+
+  // Goal-scoped memory: the mechanical outcome only (result.note/target, the
+  // exact strings execute() already returns), never raw LLM output and never
+  // a self-report — same invariant as writeLine() below, just a narrower,
+  // goal-tagged copy sent to a different consumer (the owner, via
+  // GET /owners/goals/:id/answer, not the researcher's JSONL log). Skips the
+  // same non-actions writeLine's `acted` flag would mark false. Best-effort:
+  // a memory-write failure must never abort the tick or the JSONL record.
+  if (!["nothing", "observe", "malformed_json", "off_grammar"].includes(String(action?.action))) {
+    api("/memory", {
+      method: "POST",
+      body: JSON.stringify({
+        type: "interaction",
+        content: `${action?.action}: ${result.note}`.slice(0, 2000),
+        goalId: currentGoalId ?? undefined,
+      }),
+    }).catch(() => {});
+  }
 
   // The record: shown-context summary + chosen action + outcome. No reasons.
   writeLine(
