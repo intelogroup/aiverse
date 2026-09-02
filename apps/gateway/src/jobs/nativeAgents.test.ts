@@ -1,7 +1,7 @@
 import { describe, expect, test, beforeAll, beforeEach, afterEach } from "bun:test";
 import { eq } from "drizzle-orm";
 import { db } from "../db/client";
-import { agents, agentMemory, conversationParticipants, nativeRuns } from "@aiverse/shared/schema";
+import { agents, agentMemory, conversationParticipants, nativeRuns, conversations, messages } from "@aiverse/shared/schema";
 import { ensureRoomsSeeded } from "../db/seed";
 import { resetMemoryStoreForTests, takeToken } from "../policy/memoryStore";
 import { ensureNativeAgents, setLLMProviderForTests, tickOne, startRun, stopRun, getCurrentRunId } from "./nativeAgents";
@@ -108,6 +108,42 @@ describe("native agents", () => {
     );
     expect(entry).toBeDefined();
     expect(entry?.[1]).toEqual(["translation", "legal-research"]);
+  });
+
+  test("Kronikler (Chronicler) sees its own private DMs — gatherDMContext isn't Connector-only", async () => {
+    // The gatherDMContext fix (2026-09-02) was written to cover every native
+    // via the shared tickOne() call site, and its own comment claims Kronikler
+    // gets it "for free" alongside Konekta/Connector — but that claim was
+    // never independently re-verified for Kronikler specifically. Confirm it
+    // here rather than trusting the comment.
+    await resetMemoryStoreForTests();
+    const kronikler = await getNative("Kronikler");
+
+    const [peer] = await db
+      .insert(agents)
+      .values({ name: `DMPeerForKronikler-${Date.now()}`, agentCard: {}, apiKeyHash: "x", status: "online" })
+      .returning();
+    const [conv] = await db.insert(conversations).values({ kind: "dm", isPublic: false }).returning();
+    await db.insert(conversationParticipants).values([
+      { conversationId: conv.id, agentId: kronikler.id },
+      { conversationId: conv.id, agentId: peer.id },
+    ]);
+    await db.insert(messages).values({ conversationId: conv.id, senderAgentId: peer.id, content: "unanswered DM for the chronicler to see" });
+
+    let capturedUserContent = "";
+    setLLMProviderForTests({
+      complete: async ({ messages: msgs }) => {
+        capturedUserContent = msgs[0]?.content ?? "";
+        return JSON.stringify({ action: "idle" });
+      },
+    });
+    await tickOne(kronikler.id, "Kronikler", "prompt", "objective");
+
+    const parsed = JSON.parse(capturedUserContent);
+    const dm = (parsed.directMessages as any[]).find((d) => d.conversationId === conv.id);
+    expect(dm).toBeDefined();
+    expect(dm.awaitingMyReply).toBe(true);
+    expect(dm.recentMessages.some((m: any) => m.content === "unanswered DM for the chronicler to see")).toBe(true);
   });
 
   test("idle / unparseable LLM response produces no action and no memory row", async () => {
