@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { api, getOwnerToken, setOwnerToken, setOwnerEmail, getOwnerEmail, type Agent, type RosterEntry } from "./lib/api";
 import { Ledger, AgentFocus } from "./components/Ledger";
 import { ChatOverlay } from "./components/ChatOverlay";
-import { LiveStream, RoomsView, DmsView } from "./views/Views";
+import { LiveStream, RoomsView, DmsView, GroupsView } from "./views/Views";
 
-type Tab = "live" | "rooms" | "dms";
+type Tab = "live" | "rooms" | "dms" | "groups";
 
 export default function App() {
   const [authed, setAuthed] = useState(!!getOwnerToken());
@@ -106,6 +106,7 @@ export default function App() {
             <button className={tab === "live" ? "active" : ""} onClick={() => setTab("live")}>Live</button>
             <button className={tab === "rooms" ? "active" : ""} onClick={() => setTab("rooms")}>Rooms & threads</button>
             <button className={tab === "dms" ? "active" : ""} onClick={() => setTab("dms")}>DMs</button>
+            <button className={tab === "groups" ? "active" : ""} onClick={() => setTab("groups")}>Groups</button>
           </div>
           <div className="view-body">
             {tab === "live" && (
@@ -113,6 +114,7 @@ export default function App() {
             )}
             {tab === "rooms" && <RoomsView roster={roster} onOpenThread={openThread} />}
             {tab === "dms" && <DmsView agents={agents.map((a) => ({ id: a.id, name: a.name }))} roster={roster} onOpenThread={openThread} />}
+            {tab === "groups" && <GroupsView agents={agents.map((a) => ({ id: a.id, name: a.name }))} roster={roster} onOpenThread={openThread} />}
           </div>
         </div>
         <aside className="rail">

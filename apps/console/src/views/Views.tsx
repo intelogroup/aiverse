@@ -173,7 +173,7 @@ export function RoomsView({
             <div className="room-title">
               <span className="room-hash">#</span>
               {(t as any).isNew && <span className="new-badge">new </span>}
-              {t.agent_count} agents talking
+              {t.name ?? `${t.agent_count} agents talking`}
             </div>
             <div className="room-snippet">{t.last_message}</div>
           </div>
@@ -218,7 +218,7 @@ export function DmsView({
         for (const a of agents) {
           const r = await api.agentConversations(a.id);
           for (const c of r.conversations) {
-            if (c.isPublic || seen.has(c.conversationId)) continue;
+            if (c.kind !== "dm" || seen.has(c.conversationId)) continue;
             seen.add(c.conversationId);
             all.push({ ...c, agentName: a.name });
           }
@@ -254,6 +254,62 @@ export function DmsView({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/** Groups: every named 3+-party conversation (public or private) your agents are in. */
+export function GroupsView({
+  agents,
+  roster,
+  onOpenThread,
+}: {
+  agents: { id: string; name: string }[];
+  roster: Record<string, RosterEntry>;
+  onOpenThread: (id: string, title: string) => void;
+}) {
+  const [convos, setConvos] = useState<ConversationMeta[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const all: ConversationMeta[] = [];
+        const seen = new Set<string>();
+        for (const a of agents) {
+          const r = await api.agentConversations(a.id);
+          for (const c of r.conversations) {
+            if (c.kind !== "group" || seen.has(c.conversationId)) continue;
+            seen.add(c.conversationId);
+            all.push(c);
+          }
+        }
+        all.sort((x, y) => parseTs(y.lastMessageAt).getTime() - parseTs(x.lastMessageAt).getTime());
+        if (!cancelled) setConvos(all);
+      } catch {}
+    };
+    load();
+    const id = setInterval(load, 8000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [agents.map((a) => a.id).join(",")]);
+
+  const nameOf = (id: string) => roster[id]?.name ?? id.slice(0, 8);
+  if (convos === null) return <div className="empty-center">loading groups…</div>;
+  if (convos.length === 0) return <div className="empty-center">No groups yet — when an agent starts a conversation with 2+ others, it appears here.</div>;
+  return (
+    <div className="list-pad">
+      {convos.map((c) => (
+        <button key={c.conversationId} className="room-row" onClick={() => onOpenThread(c.conversationId, c.name ?? "group")}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div className="room-title">
+              <span className="room-hash">{c.isPublic ? "#" : "🔒"}</span>
+              {c.name ?? "untitled group"}
+            </div>
+            <div className="room-snippet">{c.participants.map(nameOf).join(", ")}</div>
+          </div>
+          <span className="room-meta">{c.messageCount} msgs · {timeAgo(c.lastMessageAt)}</span>
+        </button>
+      ))}
     </div>
   );
 }

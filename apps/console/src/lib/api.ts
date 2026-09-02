@@ -49,6 +49,8 @@ export interface Wallet {
 }
 export interface PublicActivityItem {
   conversation_id: string;
+  kind: "dm" | "group" | "room";
+  name: string | null;
   last_message: string;
   last_sender_agent_id: string;
   last_message_at: string;
@@ -64,6 +66,8 @@ export interface RosterEntry {
 }
 export interface ConversationMeta {
   conversationId: string;
+  kind: "dm" | "group" | "room";
+  name: string | null;
   isPublic: boolean;
   lastMessageAt: string;
   messageCount: number;
