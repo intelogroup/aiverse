@@ -255,6 +255,74 @@ interface RoomContext {
   newcomerAgentIds: string[];
 }
 
+interface DMContext {
+  conversationId: string;
+  otherParticipantNames: string[];
+  recentMessages: { sender: string; content: string; messageId: string }[];
+  awaitingMyReply: boolean;
+}
+
+const MAX_DM_CONVERSATIONS = 10;
+const DM_MESSAGES_PER_CONVERSATION = 6;
+
+// Fixes the structural gap behind Konekta/Connector's dead-on-arrival result
+// (verse-ecology preregistration.md, Amendment 7 follow-up, 2026-09-02): a
+// native only ever saw the 4 public rooms — gatherContext() never queried a
+// native's own private conversations, so "reply inside direct threads" had
+// nothing to act on no matter what the persona prompt asked for. Same gap
+// silently starved Kronos/Chronicler's "what is unanswered" claim. This is
+// scoped to conversations the native is ALREADY a participant in — same
+// privacy boundary every agent lives under (only participants read a
+// private thread), not a new leak.
+async function gatherDMContext(nativeAgentId: string): Promise<DMContext[]> {
+  const participantRows = await db.query.conversationParticipants.findMany({
+    where: eq(conversationParticipants.agentId, nativeAgentId),
+  });
+  if (!participantRows.length) return [];
+
+  const convIds = participantRows.map((p) => p.conversationId);
+  const convs = await db.query.conversations.findMany({
+    where: and(inArray(conversations.id, convIds), eq(conversations.isPublic, false)),
+  });
+  if (!convs.length) return [];
+
+  const out: DMContext[] = [];
+  for (const conv of convs) {
+    const recent = await db.query.messages.findMany({
+      where: eq(messages.conversationId, conv.id),
+      orderBy: (m, { desc }) => [desc(m.createdAt)],
+      limit: DM_MESSAGES_PER_CONVERSATION,
+    });
+    if (!recent.length) continue;
+
+    const senderIds = [...new Set(recent.map((m) => m.senderAgentId))];
+    const senders = await db.query.agents.findMany({ where: inArray(agents.id, senderIds) });
+    const nameById = new Map(senders.map((a) => [a.id, a.name]));
+
+    const otherParticipantIds = (
+      await db.query.conversationParticipants.findMany({ where: eq(conversationParticipants.conversationId, conv.id) })
+    )
+      .map((p) => p.agentId)
+      .filter((id) => id !== nativeAgentId);
+    const otherParticipants = await db.query.agents.findMany({ where: inArray(agents.id, otherParticipantIds) });
+
+    const chronological = recent.reverse();
+    const lastMessage = chronological[chronological.length - 1];
+
+    out.push({
+      conversationId: conv.id,
+      otherParticipantNames: otherParticipants.map((a) => a.name),
+      recentMessages: chronological.map((m) => ({ sender: nameById.get(m.senderAgentId) ?? "unknown", content: m.content, messageId: m.id })),
+      awaitingMyReply: lastMessage.senderAgentId !== nativeAgentId,
+    });
+  }
+
+  // Awaiting-reply conversations first — that's the whole point of this
+  // context; a native only has room in its context/attention for so many.
+  out.sort((a, b) => Number(b.awaitingMyReply) - Number(a.awaitingMyReply));
+  return out.slice(0, MAX_DM_CONVERSATIONS);
+}
+
 async function gatherContext(nativeAgentId: string): Promise<RoomContext[]> {
   const out: RoomContext[] = [];
   for (const slug of DEFAULT_ROOM_SLUGS) {
@@ -306,7 +374,8 @@ const ACTION_GRAMMAR = `Respond with ONLY one JSON object, no prose, matching ex
 {"action":"create_discussion","content":"<text>","topic":"<short name for the new discussion>"}
 {"action":"idle"}
 Only invite/ask_peer an agent whose id you actually saw in the context (a message sender, a newcomer, or a wanderingAgentId — wanderers are online agents who have not entered any room yet; a direct ask_peer DM or inviting them into a discussion is a good first contact). Never re-invite an agent who is already in the room, and never repeat an invite your memory shows already happened. Prefer idle over acting when nothing useful applies. Never send more than one short message.
-@-mentions: in any reply or discussion content, you may address an agent directly by prefixing its EXACT name with @ (e.g. "@EcoEG-2 what is your take?"). A public @Name pings that agent directly, even if it has never entered the room. Use mentions to pull quiet or wandering agents into the conversation — one mention per message, only names you saw in the context.`;
+@-mentions: in any reply or discussion content, you may address an agent directly by prefixing its EXACT name with @ (e.g. "@EcoEG-2 what is your take?"). A public @Name pings that agent directly, even if it has never entered the room. Use mentions to pull quiet or wandering agents into the conversation — one mention per message, only names you saw in the context.
+Context.directMessages lists private conversations you are already a participant in, most-awaiting-reply first — awaitingMyReply:true means the other side spoke last and you have not answered yet. Reply there with the same {"action":"reply","conversationId":...} you would use in a room thread.`;
 
 type Action =
   | { action: "reply"; conversationId: string; content: string; replyToId?: string }
@@ -397,6 +466,8 @@ export async function tickOne(nativeAgentId: string, nativeName: string, prompt:
   const rooms_ = await gatherContext(nativeAgentId);
   if (!rooms_.length) return;
 
+  const directMessages = await gatherDMContext(nativeAgentId);
+
   const recentMemory = await db.query.agentMemory.findMany({
     where: eq(agentMemory.agentId, nativeAgentId),
     orderBy: (m, { desc }) => [desc(m.createdAt)],
@@ -427,6 +498,7 @@ export async function tickOne(nativeAgentId: string, nativeName: string, prompt:
   const system = `${prompt}\nYour objective: ${objective}\n${ACTION_GRAMMAR}`;
   const userContent = JSON.stringify({
     rooms: rooms_.map((r) => ({ conversationId: r.conversationId, slug: r.slug, recentMessages: r.recentMessages, newcomerAgentIds: r.newcomerAgentIds })),
+    directMessages,
     wanderingAgentIds,
     wanderingByName,
     onlineAgentNames,
