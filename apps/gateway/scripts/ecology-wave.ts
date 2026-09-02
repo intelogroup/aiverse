@@ -40,6 +40,23 @@ if (!process.env.OPENROUTER_API_KEY && !process.env.OPENAI_REAL_API_KEY && !proc
 }
 }
 
+// Local-DB preflight (2026-09-02): DATABASE_URL defaults to a shared Neon
+// cloud project with a data-transfer quota that a single wave can exhaust
+// mid-run (hit this exact failure testing eager-contrast). Waves mutate
+// world state fast and repeatedly — that's local-dev traffic, not
+// production traffic. Refuse to point a wave at a non-local host unless the
+// operator explicitly says so.
+{
+  const dbUrl = process.env.DATABASE_URL ?? "";
+  const isLocal = /^postgres(?:ql)?:\/\/[^@]*@?(localhost|127\.0\.0\.1)/.test(dbUrl);
+  if (!isLocal && process.env.ECOLOGY_ALLOW_REMOTE_DB !== "1") {
+    console.error(
+      `DATABASE_URL does not look local (${dbUrl.replace(/:[^:@]*@/, ":***@")}). Waves run local: point DATABASE_URL at localhost, or set ECOLOGY_ALLOW_REMOTE_DB=1 to override.`,
+    );
+    process.exit(1);
+  }
+}
+
 // mulberry32, one stream per attribute so adding an attribute later cannot
 // shift the draws of the ones before it.
 function rng(seed: number) {
