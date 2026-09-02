@@ -20,6 +20,10 @@ services:
         value: 3000
       - key: PUBLIC_BASE_URL
         sync: false
+      - key: CONSOLE_ORIGINS
+        sync: false
+      - key: NODE_ENV
+        value: production
 
   - type: keyvalue
     name: aiverse-redis
