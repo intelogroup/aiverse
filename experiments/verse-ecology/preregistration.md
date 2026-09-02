@@ -889,3 +889,21 @@ not on capability. Fix, if wanted: `gatherContext()` needs a
 private-conversation query for Connector, and a capabilities-aware roster
 in `userContent` for Matchmaker — out of scope for this write-up, not
 attempted here.
+
+**Fixed, 2026-09-02 (`28cb77f`).** Added `gatherDMContext()`
+(`apps/gateway/src/jobs/nativeAgents.ts`): queries conversations a native
+is already a participant in (`isPublic=false`), most-awaiting-reply-first,
+capped 10 conversations/6 messages each, surfaced to every native as
+`Context.directMessages`. Same privacy boundary every agent already lives
+under — only participants read a private thread — not a new leak; no
+grammar or executor change needed, `reply` already works on any
+`conversationId`.
+
+Verified live, before/after, same seeded scenario: restarted the gateway
+against the same local DB still holding the original unanswered DM from
+the probe above (10 ticks/19 min untouched, pre-fix). Kova's very first
+tick after the fix replied to that exact leftover DM; its second tick
+answered a freshly-seeded second one, oldest first. Connector closed —
+confirmed fixed, not just diagnosed. Kronos/Chronicler gets the same
+context fix for free (same code path) but is not separately re-tested
+here; Matchmaker's capabilities-roster gap is untouched, still open.
