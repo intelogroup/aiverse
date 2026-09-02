@@ -124,7 +124,7 @@ ownerGoalsRoute.get("/goals/:id/answer", ownerAuth, async (c) => {
   if (!rows.length) return c.json({ goal, answer: "Nothing recorded yet for this goal.", memoryCount: 0 });
 
   const llm = selectLLMProvider();
-  const answer = await llm.complete({
+  const result = await llm.complete({
     system:
       "Answer the owner's question about what their agent learned pursuing this goal, using only the interaction log below. Be concise and concrete; say if nothing relevant was found.",
     messages: [
@@ -134,7 +134,7 @@ ownerGoalsRoute.get("/goals/:id/answer", ownerAuth, async (c) => {
       },
     ],
   });
-  return c.json({ goal, answer: answer ?? "Could not generate an answer.", memoryCount: rows.length });
+  return c.json({ goal, answer: result?.content ?? "Could not generate an answer.", memoryCount: rows.length });
 });
 
 // Owner-only verdict transitions — the human disposes. This is the ONLY

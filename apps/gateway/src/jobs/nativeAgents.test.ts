@@ -1,14 +1,14 @@
 import { describe, expect, test, beforeAll, beforeEach, afterEach } from "bun:test";
 import { eq } from "drizzle-orm";
 import { db } from "../db/client";
-import { agents, agentMemory, conversationParticipants, nativeRuns, conversations, messages } from "@aiverse/shared/schema";
+import { agents, agentMemory, agentWallets, conversationParticipants, nativeRuns, conversations, messages } from "@aiverse/shared/schema";
 import { ensureRoomsSeeded } from "../db/seed";
 import { resetMemoryStoreForTests, takeToken } from "../policy/memoryStore";
 import { ensureNativeAgents, setLLMProviderForTests, tickOne, startRun, stopRun, getCurrentRunId } from "./nativeAgents";
 import type { LLMProvider } from "../llm/provider";
 
 function stubProvider(response: string | null): LLMProvider {
-  return { complete: async () => response };
+  return { complete: async () => (response == null ? null : { content: response, tokensUsed: 0 }) };
 }
 
 beforeAll(async () => {
@@ -96,7 +96,7 @@ describe("native agents", () => {
     setLLMProviderForTests({
       complete: async ({ messages }) => {
         capturedUserContent = messages[0]?.content ?? "";
-        return JSON.stringify({ action: "idle" });
+        return { content: JSON.stringify({ action: "idle" }), tokensUsed: 0 };
       },
     });
     await tickOne(sage.id, "Sage", "prompt", "objective");
@@ -134,7 +134,7 @@ describe("native agents", () => {
     setLLMProviderForTests({
       complete: async ({ messages: msgs }) => {
         capturedUserContent = msgs[0]?.content ?? "";
-        return JSON.stringify({ action: "idle" });
+        return { content: JSON.stringify({ action: "idle" }), tokensUsed: 0 };
       },
     });
     await tickOne(kronikler.id, "Kronikler", "prompt", "objective");
@@ -144,6 +144,59 @@ describe("native agents", () => {
     expect(dm).toBeDefined();
     expect(dm.awaitingMyReply).toBe(true);
     expect(dm.recentMessages.some((m: any) => m.content === "unanswered DM for the chronicler to see")).toBe(true);
+  });
+
+  test("a native's real LLM token cost is actually charged against its wallet", async () => {
+    // Before this fix, every dispatch path passed a hardcoded tokensUsed: 0
+    // to checkAndConsumeBudget no matter what the provider actually reported
+    // — MAX_DAILY_TOKEN_BUDGET existed on the wallet but governed nothing.
+    // Confirm the real number now lands in the Redis-backed daily counter.
+    await resetMemoryStoreForTests();
+    const sage = await getNative("Sage");
+    const conv = await db.query.conversationParticipants.findFirst({ where: eq(conversationParticipants.agentId, sage.id) });
+    if (!conv) throw new Error("sage has no conversation");
+
+    setLLMProviderForTests({
+      complete: async () => ({
+        content: JSON.stringify({ action: "reply", conversationId: conv.conversationId, content: "billed reply" }),
+        tokensUsed: 777,
+      }),
+    });
+    await tickOne(sage.id, "Sage", "prompt", "objective");
+
+    const { checkAndConsumeBudget, refundBudget } = await import("../policy/gate");
+    // Consuming 0 more just reads back today's running total without
+    // perturbing it further; refund immediately after so this probe
+    // itself doesn't count as spend.
+    const probe = await checkAndConsumeBudget(sage.id, 0, 999_999);
+    expect(probe.tokensUsedToday).toBeGreaterThanOrEqual(777);
+  });
+
+  test("a native at its daily budget cap does not act on the next tick", async () => {
+    await resetMemoryStoreForTests();
+    const fixer = await getNative("Fixer");
+    const conv = await db.query.conversationParticipants.findFirst({ where: eq(conversationParticipants.agentId, fixer.id) });
+    if (!conv) throw new Error("fixer has no conversation");
+
+    const wallet = await db.query.agentWallets.findFirst({ where: eq(agentWallets.agentId, fixer.id) });
+    if (!wallet) throw new Error("fixer has no wallet");
+
+    const { checkAndConsumeBudget } = await import("../policy/gate");
+    // Exhaust the wallet's actual daily budget before the tick under test.
+    await checkAndConsumeBudget(fixer.id, wallet.dailyTokenBudget, wallet.dailyTokenBudget);
+
+    const before = await db.query.messages.findMany({ where: eq(messages.conversationId, conv.conversationId) });
+
+    setLLMProviderForTests({
+      complete: async () => ({
+        content: JSON.stringify({ action: "reply", conversationId: conv.conversationId, content: "should be blocked by budget" }),
+        tokensUsed: 1,
+      }),
+    });
+    await tickOne(fixer.id, "Fixer", "prompt", "objective");
+
+    const after = await db.query.messages.findMany({ where: eq(messages.conversationId, conv.conversationId) });
+    expect(after.length).toBe(before.length);
   });
 
   test("idle / unparseable LLM response produces no action and no memory row", async () => {

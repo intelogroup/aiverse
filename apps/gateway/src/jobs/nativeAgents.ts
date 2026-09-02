@@ -399,6 +399,11 @@ function parseAction(raw: string | null): Action {
 // Mirrors the bare (non-goal) branch of POST /a2a/agents/:id message/send —
 // same trust/autonomy/budget/rate gates, same task-table shape — so a native
 // "ask_peer" is subject to the exact policy a real A2A caller would be.
+// tokensUsed is always 0 here deliberately — the real per-tick LLM cost is
+// already charged once, centrally, in tickOne() right after the LLM call
+// returns (covers every action including idle, not just ask_peer). This
+// check stays as the binary "is the wallet currently over budget" gate the
+// real /a2a endpoint also applies, without double-charging.
 async function sendA2ATask(callerAgentId: string, targetAgentId: string, content: string): Promise<boolean> {
   const target = await db.query.agents.findFirst({ where: eq(agents.id, targetAgentId) });
   const wallet = await db.query.agentWallets.findFirst({ where: eq(agentWallets.agentId, callerAgentId) });
@@ -514,8 +519,27 @@ export async function tickOne(nativeAgentId: string, nativeName: string, prompt:
     yourRecentMemory: recentMemory.map((m) => ({ type: m.type, content: m.content })),
   });
 
-  const raw = await llm.complete({ system, messages: [{ role: "user", content: userContent }] });
-  const action = parseAction(raw);
+  const result = await llm.complete({ system, messages: [{ role: "user", content: userContent }] });
+  const action = parseAction(result?.content ?? null);
+
+  // The real cost of this tick's LLM call was previously never charged
+  // against the wallet at all (every dispatch path passed a hardcoded
+  // tokensUsed: 0) — MAX_DAILY_TOKEN_BUDGET existed but governed nothing.
+  // Charge it once, here, regardless of what the model decided (idle
+  // included — the call still cost real tokens), before acting on the
+  // decision. A wallet already over budget stops the native from acting
+  // this tick even if it chose something other than idle.
+  if (result && result.tokensUsed > 0) {
+    const wallet = await db.query.agentWallets.findFirst({ where: eq(agentWallets.agentId, nativeAgentId) });
+    if (wallet) {
+      const budget = await checkAndConsumeBudget(nativeAgentId, result.tokensUsed, wallet.dailyTokenBudget);
+      if (!budget.allowed) {
+        log("native_tick_rejected", { name: nativeName, action: action.action, reason: "daily token budget exhausted" });
+        return;
+      }
+    }
+  }
+
   if (action.action === "idle") return;
 
   // Guard: some models hallucinate target ids from names in the grammar

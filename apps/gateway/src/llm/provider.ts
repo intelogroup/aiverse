@@ -1,8 +1,18 @@
 import { env } from "@aiverse/shared/env";
 import { log } from "../util/log";
 
+export interface LLMResult {
+  content: string;
+  // Real cost of this call (prompt + completion tokens), so the caller can
+  // feed it into the wallet's actual daily-budget accounting instead of a
+  // hardcoded 0 — previously every provider discarded the API response's
+  // usage field entirely, which meant a native's real LLM spend was
+  // completely unaccounted for no matter what dailyTokenBudget said.
+  tokensUsed: number;
+}
+
 export interface LLMProvider {
-  complete(params: { system: string; messages: { role: string; content: string }[] }): Promise<string | null>;
+  complete(params: { system: string; messages: { role: string; content: string }[] }): Promise<LLMResult | null>;
 }
 
 // One cheap model shared by every native agent — personality/objective comes
@@ -13,7 +23,7 @@ export interface LLMProvider {
 const MODELS = ["mistralai/mistral-nemo", "meta-llama/llama-3.1-8b-instruct", "inclusionai/ling-3.0-flash"];
 
 export class OpenRouterProvider implements LLMProvider {
-  async complete(params: { system: string; messages: { role: string; content: string }[] }): Promise<string | null> {
+  async complete(params: { system: string; messages: { role: string; content: string }[] }): Promise<LLMResult | null> {
     if (!env.OPENROUTER_API_KEY) return null;
     for (const model of MODELS) {
       try {
@@ -34,7 +44,9 @@ export class OpenRouterProvider implements LLMProvider {
           continue;
         }
         const data: any = await res.json();
-        return data?.choices?.[0]?.message?.content ?? null;
+        const content = data?.choices?.[0]?.message?.content;
+        if (content == null) return null;
+        return { content, tokensUsed: Number(data?.usage?.total_tokens ?? 0) };
       } catch (e) {
         log("llm_error", { model, error: String(e) });
       }
@@ -50,7 +62,7 @@ export class OpenRouterProvider implements LLMProvider {
 // decision JSON directly in `content` — the compat endpoint burns the whole
 // token budget in `reasoning` and returns empty content. Verified live 2026-08-31.
 export class OllamaProvider implements LLMProvider {
-  async complete(params: { system: string; messages: { role: string; content: string }[] }): Promise<string | null> {
+  async complete(params: { system: string; messages: { role: string; content: string }[] }): Promise<LLMResult | null> {
     const baseUrl = process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434";
     const model = process.env.OLLAMA_MODEL ?? "qwen3:8b";
     try {
@@ -70,7 +82,13 @@ export class OllamaProvider implements LLMProvider {
         return null;
       }
       const data: any = await res.json();
-      return data?.message?.content ?? null;
+      const content = data?.message?.content;
+      if (content == null) return null;
+      // Ollama's /api/chat reports eval counts, not an OpenAI-shaped `usage`
+      // object — local/free either way, but tracked for parity so a native
+      // switched onto Ollama doesn't silently zero out its own spend record.
+      const tokensUsed = Number(data?.prompt_eval_count ?? 0) + Number(data?.eval_count ?? 0);
+      return { content, tokensUsed };
     } catch (e) {
       log("llm_error", { provider: "ollama", model, error: String(e) });
       return null;
@@ -79,7 +97,7 @@ export class OllamaProvider implements LLMProvider {
 }
 
 export class OpenAIProvider implements LLMProvider {
-  async complete(params: { system: string; messages: { role: string; content: string }[] }): Promise<string | null> {
+  async complete(params: { system: string; messages: { role: string; content: string }[] }): Promise<LLMResult | null> {
     const key = env.OPENAI_API_KEY || env.OPENAI_REAL_API_KEY || env.BUDDY_OPENAI_API_KEY;
     if (!key) return null;
     const model = env.NATIVE_OPENAI_MODEL ?? "gpt-4.1-nano";
@@ -101,7 +119,9 @@ export class OpenAIProvider implements LLMProvider {
         return null;
       }
       const data: any = await res.json();
-      return data?.choices?.[0]?.message?.content ?? null;
+      const content = data?.choices?.[0]?.message?.content;
+      if (content == null) return null;
+      return { content, tokensUsed: Number(data?.usage?.total_tokens ?? 0) };
     } catch (e) {
       log("llm_error", { provider: "openai", model, error: String(e) });
       return null;
@@ -123,12 +143,12 @@ const REPLY_LINES = [
 // pipeline run live before an OPENROUTER_API_KEY is wired in; swap out by
 // setting that env var, no code change needed (see nativeAgents.ts default).
 export class MockLLMProvider implements LLMProvider {
-  async complete(params: { system: string; messages: { role: string; content: string }[] }): Promise<string | null> {
+  async complete(params: { system: string; messages: { role: string; content: string }[] }): Promise<LLMResult | null> {
     let ctx: any = {};
     try {
       ctx = JSON.parse(params.messages[params.messages.length - 1]?.content ?? "{}");
     } catch {
-      return JSON.stringify({ action: "idle" });
+      return { content: JSON.stringify({ action: "idle" }), tokensUsed: 0 };
     }
     const rooms: any[] = ctx.rooms ?? [];
     const roomsWithNewcomers = rooms.filter((r) => (r.newcomerAgentIds ?? []).length > 0);
@@ -137,14 +157,20 @@ export class MockLLMProvider implements LLMProvider {
     const roll = Math.random();
     if (roll < 0.15 && roomsWithNewcomers.length) {
       const room = roomsWithNewcomers[Math.floor(Math.random() * roomsWithNewcomers.length)];
-      return JSON.stringify({ action: "invite", conversationId: room.conversationId, targetAgentId: room.newcomerAgentIds[0] });
+      return {
+        content: JSON.stringify({ action: "invite", conversationId: room.conversationId, targetAgentId: room.newcomerAgentIds[0] }),
+        tokensUsed: 0,
+      };
     }
     if (roll < 0.55 && roomsWithMessages.length) {
       const room = roomsWithMessages[Math.floor(Math.random() * roomsWithMessages.length)];
       const last = room.recentMessages[room.recentMessages.length - 1];
       const line = REPLY_LINES[Math.floor(Math.random() * REPLY_LINES.length)];
-      return JSON.stringify({ action: "reply", conversationId: room.conversationId, content: line, replyToId: last?.messageId });
+      return {
+        content: JSON.stringify({ action: "reply", conversationId: room.conversationId, content: line, replyToId: last?.messageId }),
+        tokensUsed: 0,
+      };
     }
-    return JSON.stringify({ action: "idle" });
+    return { content: JSON.stringify({ action: "idle" }), tokensUsed: 0 };
   }
 }
