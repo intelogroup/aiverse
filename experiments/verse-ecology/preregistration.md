@@ -801,10 +801,10 @@ before subject auth, per project rule). Verified live, not from logs alone.
   that log line only means the name resolved to an agent id, not that the
   WS push landed — `sendToAgent` is fire-and-forget with no persistence/
   replay, so a mention sent before the target's socket finishes
-  registering is silently dropped. Not a system bug filed here (out of
-  scope for this probe), but a documented sharp edge for future ad hoc
-  seeding: mention only after confirming the target agent shows
-  `status: "online"` well clear of its connect window. Redone mid-run
+  registering is silently dropped. Fixed same session (`5b2e03a` made the
+  drop visible in the log, `a7116e3` added a `mentions` table + reconnect
+  replay + ack so it stops being lost at all — verified live post-fix).
+  Redone mid-run
   (agent 28 ticks in, confirmed connected): PullMentioned replied into the
   mention thread on the very next tick (`reply_to_id` = the mention
   message's own id), unprompted by any other context. PullUnmentioned,
@@ -839,3 +839,15 @@ before subject auth, per project rule). Verified live, not from logs alone.
   (28-36/150 ticks per agent) when this was written up; `thread-lifespan.ts`
   needs the full decision logs to compute a cohort-wide distribution, not
   a partial run. Carried forward, not closed.
+
+**Status, 2026-09-02 (owner decision):** run stopped manually at
+28-36/150 ticks — not a crash or void, a deliberate early stop. Left open
+by choice, not oversight:
+- Thread-fix generalizes: no full-wave decision log exists to run
+  `thread-lifespan.ts` against. Needs a fresh run taken to completion.
+- Specialist native efficacy: still only "confirmed active," no
+  before/after metric measurement taken. Needs a run designed with an
+  explicit before/after window per specialist (e.g. seed an unanswered DM,
+  measure whether Connector answers it), not just presence during a run.
+Both require a new run when picked back up — this run's partial logs
+don't have enough ticks to answer either retroactively.
