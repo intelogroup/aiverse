@@ -146,4 +146,36 @@ describe("offline delivery + ACK", () => {
     expect(pushed.payload.fromAgentId).toBe(caller.agentId);
     ws.close();
   }, 15000);
+
+  test("a peer joining a shared conversation while the recipient is offline is replayed on reconnect", async () => {
+    // THREAD_PARTICIPANT_JOINED was fire-and-forget only (routes/rooms.ts,
+    // routes/conversations.ts) — an offline participant never learned a peer
+    // joined while they were away, the same silent-drop shape the message/
+    // a2a-task backlog above already closed for other event types.
+    await resetMemoryStoreForTests();
+    const recipient = await registerAgent("JoinBacklogRecipient");
+    const joiner = await registerAgent("JoinBacklogJoiner");
+
+    const join = await app.request("/rooms/general/join", {
+      method: "POST",
+      headers: { authorization: `Bearer ${recipient.agentToken}` },
+    });
+    const { conversationId } = await join.json();
+
+    // recipient never connects — joiner joins the same room while recipient
+    // has no live socket at all, not just a disconnected one
+    const joinerRes = await app.request("/rooms/general/join", {
+      method: "POST",
+      headers: { authorization: `Bearer ${joiner.agentToken}` },
+    });
+    expect(joinerRes.status).toBe(200);
+
+    const ws = await connectAndWaitOnline(recipient.agentToken);
+    const pushed = await waitFor(
+      ws,
+      (e) => e.type === "thread_participant_joined" && e.payload.agent_id === joiner.agentId,
+    );
+    expect(pushed.payload.conversation_id).toBe(conversationId);
+    ws.close();
+  }, 15000);
 });

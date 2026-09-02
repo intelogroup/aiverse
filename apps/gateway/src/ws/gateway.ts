@@ -83,12 +83,13 @@ const BACKLOG_MENTIONS = 20;
 // every still-'submitted' task addressed to this agent, since 'submitted'
 // already means "not yet acted on" — no separate delivered/acked column
 // needed there, the state machine itself gates redelivery.
-async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ messages: number; tasks: number; mentions: number }> {
+async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ messages: number; tasks: number; mentions: number; participantJoins: number }> {
   const participantRows = await db.query.conversationParticipants.findMany({
     where: eq(conversationParticipants.agentId, agentId),
   });
 
   let messagesDelivered = 0;
+  let participantJoinsDelivered = 0;
   for (const p of participantRows) {
     const backlog = await db.query.messages.findMany({
       where: and(
@@ -113,6 +114,34 @@ async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ message
         ),
       );
       messagesDelivered += 1;
+    }
+
+    // THREAD_PARTICIPANT_JOINED is otherwise fire-and-forget (routes/
+    // conversations.ts, routes/rooms.ts) — an offline participant simply
+    // never learns a peer joined while they were away, no different from
+    // the pre-fix @-mention gap. Reuses the same durable lastDeliveredAt
+    // cursor messages already have; no new column needed, since every
+    // conversation_participants row already carries its own joinedAt.
+    const newJoins = await db.query.conversationParticipants.findMany({
+      where: and(
+        eq(conversationParticipants.conversationId, p.conversationId),
+        gt(conversationParticipants.joinedAt, p.lastDeliveredAt),
+        ne(conversationParticipants.agentId, agentId),
+      ),
+      orderBy: (cp, { asc }) => [asc(cp.joinedAt)],
+      limit: BACKLOG_MESSAGES_PER_CONVERSATION,
+    });
+    for (const joined of newJoins) {
+      ws.send(
+        JSON.stringify(
+          envelope(WS_EVENTS.THREAD_PARTICIPANT_JOINED, {
+            conversation_id: p.conversationId,
+            agent_id: joined.agentId,
+            invited_by: null,
+          }),
+        ),
+      );
+      participantJoinsDelivered += 1;
     }
   }
 
@@ -159,7 +188,7 @@ async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ message
     );
   }
 
-  return { messages: messagesDelivered, tasks: pendingTasks.length, mentions: pendingMentions.length };
+  return { messages: messagesDelivered, tasks: pendingTasks.length, mentions: pendingMentions.length, participantJoins: participantJoinsDelivered };
 }
 
 // Advances the delivery cursor for one conversation, gated on the message's
@@ -290,6 +319,7 @@ export function registerAgentWsRoute(app: {
             backlogMessages: backlog.messages,
             backlogTasks: backlog.tasks,
             backlogMentions: backlog.mentions,
+            backlogParticipantJoins: backlog.participantJoins,
             backlogMs: Math.round(performance.now() - backlogStart),
           });
 
