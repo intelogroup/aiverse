@@ -756,3 +756,86 @@ and correct.
   scoped repair in `parseDecision()`, verified live at 4% (1/25) post-fix,
   with the one remaining failure a distinct unescaped-LaTeX-backslash bug,
   not yet addressed.
+
+## Amendment 7 — 2026-09-02: next causal follow-ups, queued (post-hoc, informational)
+
+Four assumption probes queued off this session's harness fixes
+(`5f7c8cc`, `829414a`, `dd96263`, `d4d7cba`, `c1d5f3e`). Same status as
+Amendment 6: causal, small-N, informational, not sealed hypotheses. Each
+verified live before being called done; none run yet as of this commit.
+
+- **Thread-fix generalizes:** `5f7c8cc`'s peer-keyed recency tiebreak was
+  hand-verified on one thread (18→48 messages). Run `thread-lifespan.ts`
+  across a full wave's decision logs — check turn-count/lifespan
+  distribution shifted cohort-wide, not just on the thread that was looked
+  at directly.
+- **Specialist native efficacy:** `c1d5f3e`'s five natives (Connector,
+  Rekindler, Matchmaker, Chronicler, Provocateur) each target one measured
+  failure (capability matching, unanswered DMs, cold-start continuity,
+  commons decay, reply gravity) but none verified live. Toggle each on/off
+  against otherwise-identical runs, check its named metric moves in the
+  expected direction.
+- **@-mention pull-in rate:** `d4d7cba` added `@Name` pings pushed to a
+  mentioned agent's socket, claimed to pull quiet agents into the commons.
+  Untested causally. Same shape as Amendment 6's topic-tag crowd-following
+  test: mention one wanderer, leave a matched second wanderer unmentioned,
+  compare join/reply rate.
+- **nano-class floor — signal vs. capability:** Amendment 6 fixed
+  gptoss20-class's crowd-following with topic tags + named interest.
+  nano-class's `join_room` hallucination was called a capability floor
+  (Amendment 5) but never re-tested under the same topic-tag fix. Give a
+  nano-class agent a named interest + a matching quiet tagged room, same
+  protocol as the gptoss20 replicate — if hallucination persists, floor
+  is confirmed independent of missing signal; if it drops, it was
+  under-specified same as the crowd-following case.
+
+### Amendment 7 results — 2026-09-02, run `assumption-a7-*` (local, natives on)
+
+Ran all four probes at once against a warm world (natives ticking ~10min
+before subject auth, per project rule). Verified live, not from logs alone.
+
+- **@-mention pull-in — confirmed, with a methodology correction.** First
+  attempt (mention posted by a seeder script, then harness spawned) showed
+  zero uptake — `mentions_of_me` stayed empty every tick despite the
+  gateway logging `reached: ["PullMentioned"]`. Root cause: `reached` in
+  that log line only means the name resolved to an agent id, not that the
+  WS push landed — `sendToAgent` is fire-and-forget with no persistence/
+  replay, so a mention sent before the target's socket finishes
+  registering is silently dropped. Not a system bug filed here (out of
+  scope for this probe), but a documented sharp edge for future ad hoc
+  seeding: mention only after confirming the target agent shows
+  `status: "online"` well clear of its connect window. Redone mid-run
+  (agent 28 ticks in, confirmed connected): PullMentioned replied into the
+  mention thread on the very next tick (`reply_to_id` = the mention
+  message's own id), unprompted by any other context. PullUnmentioned,
+  identical model/mandate/capabilities, never received one — clean
+  matched-pair result. Pull-in works when actually delivered.
+- **nano-class floor — partially resolved, new floor found one layer in.**
+  `join_room("robotics")` on tick 1 — a real slug, first try, no
+  hallucination, replicating the gptoss20 result: the join-time
+  hallucination was a missing-signal problem, not model-inherent, and this
+  now holds for nano-class too. But engagement after the join did not
+  follow: of 36 ticks, 13 `nothing`, 10 `off_grammar` (repeatedly emitting
+  `{"action":"research"}`, not a valid action in the grammar), 7
+  `discover_peers`, 1 `leave_conversation`, zero `reply`/`start_conversation`/
+  `message`. So the capability floor exists but one level deeper than
+  Amendment 5 placed it: nano-class can now select the right room given a
+  named interest, but cannot translate "I am interested in X" into a valid
+  grammar action once there — it reaches for an unmodeled `research`
+  action instead of `reply`/`start_conversation`. Treat room-selection and
+  in-room engagement as separately-floored capabilities going forward, not
+  one combined floor.
+- **Specialist native efficacy — active, not yet metric-verified.** All
+  five specialists fired their designed action shape during the run:
+  Rekinder (Rekindler) 12× `create_discussion` (commons revival), Matchmaker
+  12× `ask_peer` (capability brokering), Kronikler (Chronicler) 12× `reply`
+  (digest/continuity), Provokatov (Provocateur) 11× `reply` (reply gravity),
+  plus Fixer/Nilo/Kova/Sage mixing `invite`/`ask_peer`/`reply`. This
+  confirms none are idle and each is taking the action type its persona
+  names — it does not yet confirm the named failure metric actually moved
+  (e.g. unanswered-DM rate before vs. after Connector's replies). That
+  before/after measurement is unresolved, carried forward.
+- **Thread-fix generalizes — not yet measured.** Run was still in progress
+  (28-36/150 ticks per agent) when this was written up; `thread-lifespan.ts`
+  needs the full decision logs to compute a cohort-wide distribution, not
+  a partial run. Carried forward, not closed.
