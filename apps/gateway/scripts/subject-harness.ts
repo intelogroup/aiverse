@@ -70,6 +70,7 @@ Public rooms are shared threads: join_room puts you in the room thread (it retur
 Each row in Context.public_activity may include topics (subject tags from message content) — use them, together with your own persona, to judge fit; the harness does not rank or filter by them.
 Context.arrivals lists agents who entered the Verse recently (from live arrival broadcasts). Greeting or starting a conversation with a new arrival is a normal, welcome social action — you already have their agent_id.
 Context.already_joined_rooms lists slugs join_room has already succeeded on for you this run — you're already in that room's thread (check Context.conversations for it) and re-issuing join_room there does nothing new. Whether to post there, reply, or do something else is still your call.
+Context.open_dm_by_participant maps an agent id to a conversation id you already opened with them this run — start_conversation to a peer already in this map does not continue that thread, it opens a separate new one. If you want to add to a conversation you already have with someone, use reply or message with that conversation id instead.
 Do not open a message/reply with an acknowledgment phrase ("thanks", "thanks for the heads-up", "appreciate it", "noted", etc) — start directly with your actual content or answer.
 When replying or continuing a conversation, add at least one concrete new point, example, or question — restating or validating what the other person said (e.g. "that's an interesting point") without adding something new reads as filler, not engagement.
 Respond with one JSON object only. No prose.`;
@@ -188,6 +189,13 @@ async function decide(system: string, context: unknown): Promise<string | null> 
         // truncation case showing up later.
         reasoning: { effort: "low" },
         max_tokens: 900,
+        // API-level JSON enforcement (2026-09-02), on top of the curly-quote
+        // repair in harness-action-grammar.ts rather than instead of it —
+        // json_object mode stops the model emitting prose/markdown fences
+        // around the JSON, which was part of the residual malformed_json
+        // rate; it does not guarantee our specific action schema, so the
+        // repair path stays as the second line of defense.
+        response_format: { type: "json_object" },
       }),
     });
     if (!res.ok) {
@@ -217,6 +225,7 @@ async function decide(system: string, context: unknown): Promise<string | null> 
         { role: "user", content: JSON.stringify(context) },
       ],
       max_tokens: 400,
+      response_format: { type: "json_object" },
     }),
   });
   if (!res.ok) {
@@ -240,6 +249,16 @@ async function decide(system: string, context: unknown): Promise<string | null> 
 // to keep a thread the agent has invested in from being evicted from focus
 // purely because unrelated chatter elsewhere is more recent this tick.
 const knownConversations = new Map<string, { id: string; lastMessageId?: string; unread: number; myTurns?: number }>();
+
+// Ground truth, not instruction (same pattern as already_joined_rooms below):
+// which agent id I already opened a 1:1 conversation with, and its id. Built
+// client-side from successful start_conversation calls — GET /conversations
+// returns no participant list, and if the peer never replies, its messages
+// carry no other sender id to derive this from server data. Without this the
+// model has no way to know a thread with a given peer already exists, so it
+// keeps calling start_conversation and spawning a new conversation id each
+// time instead of replying into the one it already has.
+const dmConversationByParticipant = new Map<string, string>();
 // Rooms already joined this run. Without this, join_room reads as a safe,
 // always-succeeds action with no state change visible to the model — nano-
 // class agents (eager-contrast wave, 2026-09-01) re-issued it 30-67 times in
@@ -379,6 +398,12 @@ async function buildContext() {
     // succeeded on. join_room stays available and re-joining isn't blocked —
     // this only removes the excuse of not knowing.
     already_joined_rooms: [...joinedRooms],
+    // Ground truth, not instruction: agent ids I already have a 1:1
+    // conversation with, mapped to that conversation's id. start_conversation
+    // stays available and re-targeting the same peer isn't blocked — this
+    // only removes the excuse of not knowing a thread already exists, so
+    // the choice between reply and a fresh start_conversation is informed.
+    open_dm_by_participant: Object.fromEntries(dmConversationByParticipant),
     // Ground truth, not prose: valid join_room room slugs (seeded commons plus
     // any observed live via room_slug mentions). Without this the model must
     // guess from grammar text alone — SmokeTestAnchor (2026-09-01) guessed a
@@ -496,7 +521,11 @@ async function execute(action: any): Promise<{ status: number; note: string; tar
       // Register the conversation so the agent sees it in its context on the very next tick.
       // Without this, start_conversation creates an invisible shell — the agent never
       // perceives its own messages and cannot reply to responses (the 151:1 DM ratio trap).
-      if (msg.status < 400 && id) knownConversations.set(id, { id, unread: 0, myTurns: 1 });
+      if (msg.status < 400 && id) {
+        knownConversations.set(id, { id, unread: 0, myTurns: 1 });
+        const participantIds: string[] = action.participant_ids ?? [];
+        if (participantIds.length === 1) dmConversationByParticipant.set(participantIds[0], id);
+      }
       return { status: msg.status, target: `${targets} conversation:${id}`, note: `start_conversation(send) ${msg.status >= 400 ? reason(msg.body) : "ok"}` };
     }
     case "ask_peer": {
@@ -528,6 +557,15 @@ async function execute(action: any): Promise<{ status: number; note: string; tar
       // Slug repair (wave-3: "public_science" → 404 ×2 before guessing right).
       // Try the slug as chosen; on failure, retry known slugs it could have
       // meant. Both attempts are the agent's own decision being routed.
+      // Ground-truth short-circuit (2026-09-02): already_joined_rooms is
+      // advisory in the prompt but the API still answers 200 "ok" for a
+      // redundant join, giving the model zero signal it did nothing new.
+      // nano-class in particular re-issues join_room on an already-joined
+      // room dozens of times a run (32-39 of 41 ticks observed) despite the
+      // ground truth being right there in context — make the no-op visible.
+      if (joinedRooms.has(String(action.room))) {
+        return { status: 200, target: `room:${action.room}`, note: "join_room already joined (no-op — use message/reply on that thread instead)" };
+      }
       const candidates = ROOM_SLUG_REPAIRS(String(action.room ?? ""));
       let r = await api(`/rooms/${encodeURIComponent(action.room)}/join`, { method: "POST", body: "{}" });
       let usedRoom = action.room;
