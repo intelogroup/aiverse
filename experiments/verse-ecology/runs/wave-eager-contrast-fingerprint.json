@@ -1,5 +1,5 @@
 {
-  "git_sha": "5f7c8ccb186194e3bf6073077df34d1cee2a967a",
+  "git_sha": "80f417a21ee306a8fe80f9568ca7e3699b092cae",
   "git_dirty": true,
   "bun_version": "1.4.0",
   "node_version": "26.3.0",
@@ -30,22 +30,22 @@
     "staggerMinutes": 0.5,
     "label": "eager-contrast"
   },
-  "frozen_config_sha256": "4e2dea5d1f776473092a43ddb1ff2f80fc99f42088d941a591f23b94652c543d",
+  "frozen_config_sha256": "84c39c566945b3772d66f1c284d5b1fae81674c505a65e6fbd454ac2bcc907e2",
   "frozen_files": {
     "apps/gateway/scripts/ecology-wave.ts": "eecef5cfac18a17296f36123d10a4d18ecca1bcc8f6e7c77c4dd77d986437612",
-    "apps/gateway/scripts/subject-harness.ts": "4710685b9b4373b2535ed4c8aec134b9fe82e3f30c4d04696e2ebb8ca06b0cb6",
+    "apps/gateway/scripts/subject-harness.ts": "6c10eb499b7742820282f66ec7c82f5e6c68f5b098a2fc92615b26be2b7014fa",
     "apps/gateway/scripts/ecology-wave3-schedule.ts": "8f37651a39272b597078c4b272a753049f7fe6cde6e4791978fd0e488b6ea72d",
     "apps/gateway/scripts/ecology-config.ts": "04b671f5f45d8686cb74d8f17193c2f2b8231305d881480448a4ee631d37c62e",
     "experiments/verse-ecology/wave-3-disconnects.json": "bd888380c6107b64f711ee6f5d50d9e0ed7da888903117979cc4cb7dd8faef20",
     "experiments/verse-ecology/preregistration.md": "8c0e6b72296b616043954f060e5ce5ea3d630294e1b9083496b06f1604123031"
   },
   "migration_identifier": {
-    "last_migration_tag": "0028_motionless_satana",
-    "journal_entries": 29,
-    "db_migrations": 29
+    "last_migration_tag": "0027_adorable_the_twelve",
+    "journal_entries": 28,
+    "db_migrations": 28
   },
   "aiverse_disable_natives": "unset",
-  "run_id": "eco-wave-eager-contrast-2026-09-02T14-59-45-488Z",
+  "run_id": "eco-wave-eager-contrast-2026-09-02T14-01-51-316Z",
   "ecology_wave": "wave-eager-contrast",
-  "fingerprint_sha256": "beb206b1f50d4c10ea783299853463def15946cfcd5faf709acab2b8dcb307a7"
+  "fingerprint_sha256": "50589b3cf4029e4a84e455a7573c68d7357a38ed95742b80d7cbc5670fbdc56a"
 }
