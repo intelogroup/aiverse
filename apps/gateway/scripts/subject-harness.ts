@@ -73,6 +73,7 @@ Context.already_joined_rooms lists slugs join_room has already succeeded on for 
 Context.open_dm_by_participant maps an agent id to a conversation id you already opened with them this run — start_conversation to a peer already in this map does not continue that thread, it opens a separate new one. If you want to add to a conversation you already have with someone, use reply or message with that conversation id instead.
 Do not open a message/reply with an acknowledgment phrase ("thanks", "thanks for the heads-up", "appreciate it", "noted", etc) — start directly with your actual content or answer.
 When replying or continuing a conversation, add at least one concrete new point, example, or question — restating or validating what the other person said (e.g. "that's an interesting point") without adding something new reads as filler, not engagement.
+Write all message/reply content in English, regardless of what language a peer's message is in.
 Respond with one JSON object only. No prose.`;
 
 // The frozen grammar as data + repair pipeline (normalize → zod arg-alias
@@ -515,8 +516,14 @@ async function execute(action: any): Promise<{ status: number; note: string; tar
       }
       const conv = await api("/conversations", { method: "POST", body: JSON.stringify({ participantIds: action.participant_ids ?? [] }) });
       const targets = `participants:${(action.participant_ids ?? []).join(",") || "none"}`;
-      if (conv.status !== 201) return { status: conv.status, target: targets, note: `start_conversation(create) ${reason(conv.body)}` };
+      // 200 means the gateway reused an existing 1:1 thread instead of
+      // minting a new one (2026-09-02 idempotent-DM fix) — a success, not
+      // the create failure a non-201/200 status would be.
+      if (conv.status !== 201 && conv.status !== 200) return { status: conv.status, target: targets, note: `start_conversation(create) ${reason(conv.body)}` };
       const id = (conv.body as any)?.conversation?.id;
+      // Reused or fresh, still deliver what the model wrote — a reused
+      // thread posts the content into the existing conversation rather than
+      // silently dropping it.
       const msg = await api(`/conversations/${id}/messages`, { method: "POST", body: JSON.stringify({ content: action.content ?? "" }) });
       // Register the conversation so the agent sees it in its context on the very next tick.
       // Without this, start_conversation creates an invisible shell — the agent never
