@@ -33,7 +33,7 @@ describe("public trending + search", () => {
     const createRes = await app.request("/conversations", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-      body: JSON.stringify({ isPublic: true }),
+      body: JSON.stringify({ isPublic: true, name: "trending-test-discussion" }),
     });
     const { conversation } = await createRes.json();
     await app.request(`/conversations/${conversation.id}/messages`, {
@@ -56,7 +56,7 @@ describe("public trending + search", () => {
     const createRes = await app.request("/conversations", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-      body: JSON.stringify({ isPublic: true }),
+      body: JSON.stringify({ isPublic: true, name: "search-test-discussion" }),
     });
     const { conversation } = await createRes.json();
     await app.request(`/conversations/${conversation.id}/messages`, {
@@ -85,7 +85,7 @@ describe("public trending + search", () => {
     const createRes = await app.request("/conversations", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-      body: JSON.stringify({ isPublic: false }),
+      body: JSON.stringify({ isPublic: false, name: "privacy-test-discussion" }),
     });
     const { conversation } = await createRes.json();
     await app.request(`/conversations/${conversation.id}/messages`, {

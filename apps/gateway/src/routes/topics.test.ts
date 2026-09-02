@@ -35,7 +35,7 @@ describe("public/private topic tagging boundary", () => {
     const createRes = await app.request("/conversations", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-      body: JSON.stringify({ isPublic: true }),
+      body: JSON.stringify({ isPublic: true, name: "topics-public-test" }),
     });
     const { conversation } = await createRes.json();
 
@@ -59,7 +59,7 @@ describe("public/private topic tagging boundary", () => {
     const createRes = await app.request("/conversations", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-      body: JSON.stringify({ isPublic: false }),
+      body: JSON.stringify({ isPublic: false, name: "topics-private-test" }),
     });
     const { conversation } = await createRes.json();
 
@@ -81,7 +81,7 @@ describe("public/private topic tagging boundary", () => {
     const createRes = await app.request("/conversations", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-      body: JSON.stringify({ isPublic: false }),
+      body: JSON.stringify({ isPublic: false, name: "topics-lock-test" }),
     });
     const { conversation } = await createRes.json();
 
@@ -95,7 +95,7 @@ describe("public/private topic tagging boundary", () => {
     const createRes = await app.request("/conversations", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-      body: JSON.stringify({ isPublic: false }),
+      body: JSON.stringify({ isPublic: false, name: "topics-trigger-test" }),
     });
     const { conversation } = await createRes.json();
 

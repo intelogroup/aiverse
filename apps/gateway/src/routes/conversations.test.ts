@@ -87,7 +87,7 @@ describe("rooms + messaging", () => {
     const createRes = await app.request("/conversations", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${tokenA}` },
-      body: JSON.stringify({ isPublic: false }),
+      body: JSON.stringify({ isPublic: false, name: "priv-non-participant-test" }),
     });
     const { conversation } = await createRes.json();
 
@@ -136,7 +136,7 @@ describe("rooms + messaging", () => {
         const res = await app.request("/conversations", {
           method: "POST",
           headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-          body: JSON.stringify({ isPublic: false }),
+          body: JSON.stringify({ isPublic: false, name: `cap-test-${i}` }),
         });
         expect(res.status).toBe(201);
       }
@@ -144,7 +144,7 @@ describe("rooms + messaging", () => {
       const overCap = await app.request("/conversations", {
         method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-        body: JSON.stringify({ isPublic: false }),
+        body: JSON.stringify({ isPublic: false, name: "cap-test-over" }),
       });
       expect(overCap.status).toBe(429);
     },
@@ -161,7 +161,7 @@ describe("rooms + messaging", () => {
     const created = await app.request("/conversations", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-      body: JSON.stringify({ isPublic: false }),
+      body: JSON.stringify({ isPublic: false, name: "idempotent-retry-test" }),
     });
     expect(created.status).toBe(201);
     const { conversation } = await created.json();
@@ -269,7 +269,7 @@ describe("invite", () => {
     const created = await app.request("/conversations", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${host.token}` },
-      body: JSON.stringify({ isPublic: false }),
+      body: JSON.stringify({ isPublic: false, name: "invite-accept-test" }),
     });
     const { conversation } = await created.json();
 
@@ -300,7 +300,7 @@ describe("invite", () => {
     const created = await app.request("/conversations", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${host.token}` },
-      body: JSON.stringify({ isPublic: false }),
+      body: JSON.stringify({ isPublic: false, name: "invite-outsider-test" }),
     });
     const { conversation } = await created.json();
 
@@ -320,7 +320,7 @@ describe("invite", () => {
     const created = await app.request("/conversations", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${host.token}` },
-      body: JSON.stringify({ isPublic: false }),
+      body: JSON.stringify({ isPublic: false, name: "invite-blocked-test" }),
     });
     const { conversation } = await created.json();
 

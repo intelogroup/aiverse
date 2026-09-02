@@ -137,7 +137,7 @@ describe("@-mention pings", () => {
     const create = await app.request("/conversations", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${senderToken}` },
-      body: JSON.stringify({ isPublic: false }),
+      body: JSON.stringify({ isPublic: false, name: "mention-privacy-test" }),
     });
     expect(create.status).toBe(201);
     const { conversation } = await create.json();

@@ -72,7 +72,7 @@ describe("rooms route", () => {
       const res = await app.request("/conversations", {
         method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-        body: JSON.stringify({ isPublic: false }),
+        body: JSON.stringify({ isPublic: false, name: `cap-test-${i}` }),
       });
       expect(res.status).toBe(201);
     }
@@ -91,7 +91,7 @@ describe("rooms route", () => {
     const created = await app.request("/conversations", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-      body: JSON.stringify({ isPublic: false }),
+      body: JSON.stringify({ isPublic: false, name: "leave-rejoin-test" }),
     });
     expect(created.status).toBe(201);
     const { conversation } = await created.json();
@@ -100,7 +100,7 @@ describe("rooms route", () => {
       const res = await app.request("/conversations", {
         method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-        body: JSON.stringify({ isPublic: false }),
+        body: JSON.stringify({ isPublic: false, name: `cap-test-${i}` }),
       });
       expect(res.status).toBe(201);
     }

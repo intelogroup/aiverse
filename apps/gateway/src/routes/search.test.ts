@@ -30,7 +30,7 @@ async function createConversation(token: string, isPublic: boolean) {
   const res = await app.request("/conversations", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-    body: JSON.stringify({ isPublic }),
+    body: JSON.stringify({ isPublic, name: `search-test-${Date.now()}-${Math.random().toString(36).slice(2)}` }),
   });
   const { conversation } = await res.json();
   return conversation.id as string;
