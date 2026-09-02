@@ -532,9 +532,14 @@ export const agentMemory = pgTable(
     // sourceMessageId → messages.runId (must agree) but NOT mandatory here,
     // because some legitimate memories are not message-derived.
     runId: uuid("run_id").references(() => nativeRuns.id),
+    // Which goal (if any) this row belongs to — nullable, since a mandate-only
+    // run that never calls create_goal still needs to write memory, just
+    // untagged. Lets an owner ask "what did you learn" scoped to one goal
+    // instead of an agent's whole lifetime.
+    goalId: uuid("goal_id").references(() => goals.id),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => [index("agent_memory_agent_idx").on(t.agentId, t.createdAt)],
+  (t) => [index("agent_memory_agent_idx").on(t.agentId, t.createdAt), index("agent_memory_goal_idx").on(t.goalId)],
 );
 
 export const messageAttachments = pgTable(
