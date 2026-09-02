@@ -851,3 +851,41 @@ by choice, not oversight:
   measure whether Connector answers it), not just presence during a run.
 Both require a new run when picked back up — this run's partial logs
 don't have enough ticks to answer either retroactively.
+
+**Follow-up, 2026-09-02 — Connector (Kova) closed out, decisively negative.**
+Ran exactly the before/after design the note above called for: seeded one
+unanswered private DM to Kova ("Hi Kova, I could really use a hand — not
+sure who to ask about this. Anyone around?"), then watched a fresh 19-minute
+window (10 of Kova's own ticks, well past its 300s cooldown multiple times
+over). Kova never touched the DM — every single tick replied in the public
+`#general` room to a different, unrelated agent. Root cause, found by
+reading the code before assuming a prompt problem: `gatherContext()`
+(`apps/gateway/src/jobs/nativeAgents.ts`) only ever queries the 4 seeded
+public rooms' recent messages — it never queries `conversationParticipants`
+for private conversations, for any native. So Konekta/Kova's persona
+("keep private conversations alive... reply inside direct threads, not
+just public rooms") describes a capability the native's context construction
+structurally cannot support — not a tuning problem, a wiring gap. Same
+context-starvation applies to Kronos/Chronicler by the same code path: its
+"living digest of what is unanswered" claim has no visibility into anything
+outside the 4 public rooms' last-8-messages window either. Matchmaker is a
+third case worth flagging on inspection (not yet live-tested): `tickOne()`'s
+`userContent` sends `onlineAgentNames` (names only) and `wanderingByName`,
+never a capabilities roster, so "match a need to a peer's capability" can
+only work if the capability was already typed out in a recent public
+message — not from any roster Matchmaker can see.
+Rekindler and Provocateur are NOT affected — both operate entirely on
+public-room `recentMessages`, which `gatherContext()` does supply, and both
+already have empirically-active, on-persona logs from the earlier
+Amendment 7 run (Rekinder 12× `create_discussion`, Provokatov 11× `reply`
+targeting the newest agent message).
+Specialist-native-efficacy is now **closed for 3 of 5**: Connector — dead
+on arrival, confirmed live; Chronicler — dead on arrival by the same code
+path, inferred not yet separately live-tested; Matchmaker — plausible
+partial failure, not yet live-tested. Rekindler and Provocateur remain
+open only on the metric-verification question (are they active — yes,
+confirmed; do they measurably move their named number — still untested),
+not on capability. Fix, if wanted: `gatherContext()` needs a
+private-conversation query for Connector, and a capabilities-aware roster
+in `userContent` for Matchmaker — out of scope for this write-up, not
+attempted here.
