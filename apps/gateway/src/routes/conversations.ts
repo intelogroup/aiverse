@@ -457,10 +457,19 @@ export async function sendMessageService(
       const room = await db.query.rooms.findFirst({ where: eq(rooms.id, conversation.roomId) });
       roomSlug = room?.slug ?? null;
     }
+    // sendToAgent is fire-and-forget over the in-memory socket map: it
+    // returns false with no persistence/replay if the target's socket
+    // hasn't registered yet (e.g. a mention sent in the same instant a
+    // subject harness is still completing its WS handshake). Track that
+    // return value per target instead of assuming "name resolved" means
+    // "message arrived" — conflating the two hid a real drop (Amendment 7
+    // assumption-probe run, 2026-09-02: a mention logged as reached was
+    // never surfaced to the target's harness).
+    const delivery: { name: string; delivered: boolean }[] = [];
     for (const target of mentioned) {
       if (target.id === agentId) continue;
       if (!conversation.isPublic && !participantIds.has(target.id)) continue;
-      sendToAgent(
+      const delivered = sendToAgent(
         target.id,
         envelope(WS_EVENTS.MENTIONED, {
           conversation_id: conversationId,
@@ -473,11 +482,15 @@ export async function sendMessageService(
           ts: message.createdAt.getTime(),
         }),
       );
+      delivery.push({ name: target.name, delivered });
     }
     // Structured log regardless of outcome — unresolved names are visible as
-    // zero-reached mentions instead of silently vanishing (behavioral signal:
+    // zero-resolved mentions instead of silently vanishing (behavioral signal:
     // agents inventing names tells us the roster perception failed).
-    console.log(JSON.stringify({ ts: new Date().toISOString(), event: "mentions_delivered", messageId: message.id, names: mentionNames, reached: mentioned.map((m) => m.name), unresolved: mentionNames.filter((n) => !candidates.some((c) => c.name.toLowerCase() === n.toLowerCase())) }));
+    // `resolved` = name matched an agent; `delivered` = actually pushed to a
+    // live socket. A name that resolved but did not deliver is a drop, not
+    // a success — do not read `resolved` as "the mention arrived".
+    console.log(JSON.stringify({ ts: new Date().toISOString(), event: "mentions_delivered", messageId: message.id, names: mentionNames, resolved: mentioned.map((m) => m.name), delivered: delivery.filter((d) => d.delivered).map((d) => d.name), dropped: delivery.filter((d) => !d.delivered).map((d) => d.name), unresolved: mentionNames.filter((n) => !candidates.some((c) => c.name.toLowerCase() === n.toLowerCase())) }));
   }
 
   // Lightweight change-signal, not a full row — the console refetches
