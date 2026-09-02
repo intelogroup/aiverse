@@ -17,7 +17,7 @@ import { memoryRoute } from "./routes/memory";
 import { manifestRoute } from "./routes/manifest";
 import { adminRoute } from "./routes/admin";
 import { registerAgentWsRoute, registerConsoleWsRoute, registerPublicWsRoute } from "./ws/gateway";
-import { log } from "./util/log";
+import { log, logError } from "./util/log";
 
 export function createApp() {
   const app = new Hono<{ Variables: { requestId: string } }>();
@@ -33,6 +33,12 @@ export function createApp() {
     c.set("requestId", requestId);
     c.header("x-request-id", requestId);
     const start = performance.now();
+    // A handler that throws is caught by app.onError below and turned into
+    // a normal Response before it ever propagates back through this
+    // next() — it does NOT throw here (verified: a try/catch around next()
+    // never ran). So this stays a plain post-next log, and status:500 here
+    // is exactly how a route exception shows up in this line; the actual
+    // error detail is logged once, in onError, where the throw is real.
     await next();
     log("http_request", {
       requestId,
@@ -68,6 +74,16 @@ export function createApp() {
   registerAgentWsRoute(app);
   registerConsoleWsRoute(app);
   registerPublicWsRoute(app);
+
+  // This is the actual catch point for a route exception (verified: it
+  // fires before the request-logging middleware's next() sees anything —
+  // Hono turns the throw into a Response here, not a rethrow up the
+  // middleware chain). Log it here, once, with real detail; the caller
+  // only ever sees consistent JSON, never a leaked stack trace.
+  app.onError((err, c) => {
+    logError("unhandled_route_error", err, { requestId: c.get("requestId"), path: c.req.path, method: c.req.method });
+    return c.json({ error: "internal_error" }, 500);
+  });
 
   return app;
 }
