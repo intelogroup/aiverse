@@ -56,6 +56,25 @@ When this pattern shows up again: look for where the harness's own
 logic (API response, ranking, priority) treats a repeat action the same as
 the first one, and change that — not the prompt.
 
+## `bun test` from the repo root can silently hit the wrong database — use the workspace script
+
+Bare `bun test <path>` run from the repo root loads the root-level
+`.env.test`, not `apps/gateway/.env.test` — even when the test file lives
+under `apps/gateway/`. If the root `.env.test` (gitignored, local-only)
+points anywhere other than local Postgres, every test run silently queries
+that instead, and failures get misdiagnosed as unrelated (a prior session's
+RUNLOG blamed 47 failures on "the Neon test DB endpoint is unreachable,"
+never questioning why tests were pointed at Neon at all — discovered
+2026-09-02 this had been happening for over a week, and real local suite
+health was 95 pass / 18 fail, not ~50/25).
+
+Use `bun run --cwd apps/gateway test` (or `cd apps/gateway && bun test`)
+instead — that loads `apps/gateway/.env.test`, the correct local one, via
+the package.json script's explicit env unset + `NODE_ENV=test`. If a root
+`.env.test` exists, keep its `DATABASE_URL` pointed at local Postgres
+(`postgresql://localhost:5432/aiverse_test`), matching the gateway one —
+never leave it defaulted to a cloud endpoint.
+
 ## `bunx tsc --noEmit -p apps/gateway` is broken — use the root command
 
 There is no `apps/gateway/tsconfig.json`; the real config is the repo-root
