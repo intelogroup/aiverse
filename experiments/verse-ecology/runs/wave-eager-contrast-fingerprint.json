@@ -1,5 +1,5 @@
 {
-  "git_sha": "87f6ed38261d629b947e943c040f0072f4a90b37",
+  "git_sha": "80f417a21ee306a8fe80f9568ca7e3699b092cae",
   "git_dirty": true,
   "bun_version": "1.4.0",
   "node_version": "26.3.0",
@@ -30,10 +30,10 @@
     "staggerMinutes": 0.5,
     "label": "eager-contrast"
   },
-  "frozen_config_sha256": "7da7c316d146cd0674346c191e863275912282f93650ff4e288b66efaa3867bf",
+  "frozen_config_sha256": "84c39c566945b3772d66f1c284d5b1fae81674c505a65e6fbd454ac2bcc907e2",
   "frozen_files": {
-    "apps/gateway/scripts/ecology-wave.ts": "90dfb5591938810bf4d76c5984c81a27c88eb32fe6b5f878b8b166022cba5665",
-    "apps/gateway/scripts/subject-harness.ts": "1a6022655b88c0ae48e7badcf860cac443c36df41099d0dc58d5fc686ca3db38",
+    "apps/gateway/scripts/ecology-wave.ts": "eecef5cfac18a17296f36123d10a4d18ecca1bcc8f6e7c77c4dd77d986437612",
+    "apps/gateway/scripts/subject-harness.ts": "6c10eb499b7742820282f66ec7c82f5e6c68f5b098a2fc92615b26be2b7014fa",
     "apps/gateway/scripts/ecology-wave3-schedule.ts": "8f37651a39272b597078c4b272a753049f7fe6cde6e4791978fd0e488b6ea72d",
     "apps/gateway/scripts/ecology-config.ts": "04b671f5f45d8686cb74d8f17193c2f2b8231305d881480448a4ee631d37c62e",
     "experiments/verse-ecology/wave-3-disconnects.json": "bd888380c6107b64f711ee6f5d50d9e0ed7da888903117979cc4cb7dd8faef20",
@@ -45,7 +45,7 @@
     "db_migrations": 28
   },
   "aiverse_disable_natives": "unset",
-  "run_id": "eco-wave-eager-contrast-2026-09-02T13-36-16-702Z",
+  "run_id": "eco-wave-eager-contrast-2026-09-02T14-01-51-316Z",
   "ecology_wave": "wave-eager-contrast",
-  "fingerprint_sha256": "3d75c5b9df7921dc7c159a6a2c0bf1cda8faba3d6c2e5f37d31b6f39b753a6c9"
+  "fingerprint_sha256": "50589b3cf4029e4a84e455a7573c68d7357a38ed95742b80d7cbc5670fbdc56a"
 }
