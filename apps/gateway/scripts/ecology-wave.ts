@@ -387,6 +387,26 @@ const EAGER_MANDATES = [
   ]},
 ];
 
+// nano-class variant of the eager mandate (2026-09-02): thread-lifespan.ts
+// analysis of eager-contrast showed gptoss20-class agents follow the
+// narrative version fine (sustained multi-turn threads), but nano-class
+// (gpt-4.1-nano) largely ignored the ground-truth ctx fields it was handed —
+// re-issuing join_room on rooms it had already joined 32-39 of 41 ticks in a
+// run, and rarely using reply even when Context.open_dm_by_participant named
+// an existing thread. Same objectives, restated as concrete if-then rules
+// instead of narrative persona — small models follow explicit rules more
+// reliably than they infer behavior from abstract framing.
+const NANO_EAGER_MANDATE = {
+  objectives: [
+    "You are exploring a living Verse. Follow these rules in order every tick.",
+    "Rule 1: if Context.open_dm_by_participant already has an entry for a peer, do not start_conversation with them again — use reply or message on that existing conversation_id instead.",
+    "Rule 2: if a room slug is already in Context.already_joined_rooms, do not call join_room on it again — post with message on that room's conversation_id, or do something else.",
+    "Rule 3: if Context.inbox_focus or conversations_with_inbound shows an unanswered message, reply to it before starting anything new.",
+    "Rule 4: if none of the above apply and a peer's capabilities complement yours, start_conversation with them.",
+    "Rule 5: if nothing above applies, it is fine to choose nothing.",
+  ],
+};
+
 // archetypes: 5 agents, 5 DISTINCT personas in one cohort (contrast within a
 // wave, not across waves like every prior single-mandate cohort). Same
 // model family (nano-class) for all five — persona is the only manipulated
@@ -556,7 +576,7 @@ async function provision(m: Member) {
 
   // The mandate is the owner's standing objective. It is a runtime input to the
   // agent and never a social surface: no route exposes another agent's mandate.
-  const mandate = wave === "e2a" ? e2aMandateFor(m.caps) : wave === "wave4" ? EAGER_MANDATES[m.index % 5] : wave === "nano4" ? PA_MANDATES[m.index] : wave === "eager" || wave === "eager2" ? EAGER_MANDATES[m.index] : wave === "observers" ? OBSERVER_MANDATES[m.index] : wave === "pa2" ? PA2_MANDATES[m.index] : wave === "hackers" ? HACKER_MANDATES[m.index] : wave === "stalkers" ? STALKER_MANDATES[m.index] : wave === "strollers" ? STROLLER_MANDATES[m.index] : wave === "advertisers" ? ADVERTISER_MANDATES[m.index] : wave === "archetypes" ? ARCHETYPE_MANDATES[m.index] : wave === "eager-contrast" ? EAGER_MANDATES[m.index % 5] : mandateFor(m.caps);
+  const mandate = wave === "e2a" ? e2aMandateFor(m.caps) : wave === "wave4" ? EAGER_MANDATES[m.index % 5] : wave === "nano4" ? PA_MANDATES[m.index] : wave === "eager" || wave === "eager2" ? EAGER_MANDATES[m.index] : wave === "observers" ? OBSERVER_MANDATES[m.index] : wave === "pa2" ? PA2_MANDATES[m.index] : wave === "hackers" ? HACKER_MANDATES[m.index] : wave === "stalkers" ? STALKER_MANDATES[m.index] : wave === "strollers" ? STROLLER_MANDATES[m.index] : wave === "advertisers" ? ADVERTISER_MANDATES[m.index] : wave === "archetypes" ? ARCHETYPE_MANDATES[m.index] : wave === "eager-contrast" ? (m.family === "nano-class" ? NANO_EAGER_MANDATE : EAGER_MANDATES[m.index % 5]) : mandateFor(m.caps);
   const md = await fetch(`${GATEWAY}/owners/agents/${agent.id}/mandate`, {
     method: "PUT",
     headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
