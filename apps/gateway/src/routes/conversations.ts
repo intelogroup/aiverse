@@ -35,7 +35,7 @@ export const conversationsRoute = new Hono<{ Variables: { agentId: string } }>()
 // runs — no privileged native-only path.
 export async function createConversationService(
   agentId: string,
-  body: { isPublic?: boolean; participantIds?: string[]; runId?: string | null },
+  body: { isPublic?: boolean; participantIds?: string[]; runId?: string | null; kind?: "dm" | "group" | "room"; name?: string },
 ): Promise<{ status: number; body: any }> {
   const admission = await checkConversationAdmission(agentId);
   if (!admission.allowed) {
@@ -51,11 +51,62 @@ export async function createConversationService(
     }
   }
 
+  const otherIds = [...new Set((body.participantIds ?? []).filter((id) => id !== agentId))];
+
+  // kind (2026-09-02): a conversation is a dm (strictly 2 parties, always
+  // private), a group (3+ parties or explicitly named, public or private),
+  // or a room (join_room only — not creatable through this path). Inferred
+  // from shape when the caller doesn't say, so existing start_conversation
+  // callers keep working unchanged for the plain-DM case.
+  const kind = body.kind ?? (!body.isPublic && otherIds.length === 1 ? "dm" : "group");
+  if (kind === "room") {
+    return { status: 400, body: { error: 'kind:"room" is not creatable here — use join_room' } };
+  }
+  if (kind === "dm" && otherIds.length !== 1) {
+    return { status: 400, body: { error: "a dm must have exactly one other participant" } };
+  }
+  const name = kind === "group" ? String(body.name ?? "").trim() : null;
+  if (kind === "group" && !name) {
+    return { status: 400, body: { error: "a group requires a name" } };
+  }
+  // A dm is never public, regardless of what the caller passed.
+  const isPublic = kind === "dm" ? false : (body.isPublic ?? false);
+
+  // Idempotent 1:1 DM (2026-09-02): a caller re-sending start_conversation at
+  // a peer it already has a private thread with used to spawn a brand new
+  // conversation every time — observed 7-12 separate conversation ids for
+  // the same two agents in a single run, both nano-class and gptoss20-class.
+  // The harness now surfaces the existing thread as context, but that's
+  // advisory only and gptoss20-class kept re-creating anyway. Return the
+  // existing conversation instead of minting a new one — same guarantee
+  // already_joined_rooms gives for rooms.
+  if (kind === "dm") {
+    const otherId = otherIds[0];
+    const existing = await db.execute(sql`
+      SELECT cp.conversation_id
+      FROM conversation_participants cp
+      JOIN conversations c ON c.id = cp.conversation_id
+      WHERE c.kind = 'dm'
+      GROUP BY cp.conversation_id, c.id
+      HAVING COUNT(*) = 2
+         AND bool_or(cp.agent_id = ${agentId})
+         AND bool_or(cp.agent_id = ${otherId})
+      LIMIT 1
+    `);
+    // db.execute() returns the postgres-js RowList directly — .rows does
+    // not exist on it (see gc.ts).
+    const row = (existing as any[])[0] as { conversation_id: string } | undefined;
+    if (row) {
+      const conversation = await db.query.conversations.findFirst({ where: eq(conversations.id, row.conversation_id) });
+      return { status: 200, body: { conversation, reused: true } };
+    }
+  }
+
   // visibility is set once at creation and there is no route to change it
   // afterward — visibilityLockedAt just makes that invariant legible in data.
   const [conversation] = await db
     .insert(conversations)
-    .values({ isPublic: body.isPublic ?? false, visibilityLockedAt: new Date() })
+    .values({ kind, name, isPublic, visibilityLockedAt: new Date() })
     .returning();
 
   const participantIds = [...new Set([agentId, ...(body.participantIds ?? [])])];
@@ -78,7 +129,7 @@ export async function createConversationService(
 
 conversationsRoute.post("/", agentAuth, async (c) => {
   const agentId = c.get("agentId");
-  const body = await c.req.json<{ isPublic?: boolean; participantIds?: string[] }>();
+  const body = await c.req.json<{ isPublic?: boolean; participantIds?: string[]; kind?: "dm" | "group" | "room"; name?: string }>();
   const result = await createConversationService(agentId, body);
   return c.json(result.body, result.status as any);
 });
@@ -122,6 +173,9 @@ export async function inviteToConversationService(
 ): Promise<{ status: number; body: any }> {
   const conversation = await db.query.conversations.findFirst({ where: eq(conversations.id, conversationId) });
   if (!conversation) return { status: 404, body: { error: "conversation not found" } };
+  // A dm is strictly 2 parties, always — that's what makes it a dm instead
+  // of a group. Grow it via a group instead.
+  if (conversation.kind === "dm") return { status: 409, body: { error: "dms are strictly two-party — start a group instead" } };
 
   const callerParticipant = await db.query.conversationParticipants.findFirst({
     where: and(eq(conversationParticipants.conversationId, conversationId), eq(conversationParticipants.agentId, callerAgentId)),
