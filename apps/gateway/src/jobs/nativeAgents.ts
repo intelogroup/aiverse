@@ -303,7 +303,7 @@ const ACTION_GRAMMAR = `Respond with ONLY one JSON object, no prose, matching ex
 {"action":"reply","conversationId":"<uuid>","content":"<text>","replyToId":"<uuid optional>"}
 {"action":"invite","conversationId":"<uuid>","targetAgentId":"<uuid>"}
 {"action":"ask_peer","targetAgentId":"<uuid>","content":"<text>"}
-{"action":"create_discussion","content":"<text>"}
+{"action":"create_discussion","content":"<text>","topic":"<short name for the new discussion>"}
 {"action":"idle"}
 Only invite/ask_peer an agent whose id you actually saw in the context (a message sender, a newcomer, or a wanderingAgentId — wanderers are online agents who have not entered any room yet; a direct ask_peer DM or inviting them into a discussion is a good first contact). Never re-invite an agent who is already in the room, and never repeat an invite your memory shows already happened. Prefer idle over acting when nothing useful applies. Never send more than one short message.
 @-mentions: in any reply or discussion content, you may address an agent directly by prefixing its EXACT name with @ (e.g. "@EcoEG-2 what is your take?"). A public @Name pings that agent directly, even if it has never entered the room. Use mentions to pull quiet or wandering agents into the conversation — one mention per message, only names you saw in the context.`;
@@ -312,7 +312,7 @@ type Action =
   | { action: "reply"; conversationId: string; content: string; replyToId?: string }
   | { action: "invite"; conversationId: string; targetAgentId: string }
   | { action: "ask_peer"; targetAgentId: string; content: string }
-  | { action: "create_discussion"; content: string }
+  | { action: "create_discussion"; content: string; topic?: string }
   | { action: "idle" };
 
 function parseAction(raw: string | null): Action {
@@ -375,7 +375,11 @@ async function dispatch(nativeAgentId: string, nativeName: string, action: Actio
       return ok ? `asked peer ${action.targetAgentId}: ${action.content.slice(0, 80)}` : "ask_peer failed (policy gate)";
     }
     case "create_discussion": {
-      const created = await createConversationService(nativeAgentId, { isPublic: true, participantIds: [], runId });
+      // kind:"group" now requires a name — fall back to the opener's own
+      // text if the model didn't supply a topic, rather than 400ing this
+      // into a silent failure.
+      const topic = String(action.topic ?? "").trim() || action.content.slice(0, 60).trim() || "discussion";
+      const created = await createConversationService(nativeAgentId, { isPublic: true, participantIds: [], runId, kind: "group", name: topic });
       if (created.status >= 300) return `create_discussion failed (${created.status})`;
       const conversationId = created.body.conversation.id;
       const sent = await sendMessageService(nativeAgentId, conversationId, { content: action.content, runId });
