@@ -92,4 +92,8 @@ export const env = {
   ECOLOGY_LLM_BACKEND: process.env.ECOLOGY_LLM_BACKEND,
   ECOLOGY_PROVIDER_LABEL: process.env.ECOLOGY_PROVIDER_LABEL,
   HARNESS_LOG: process.env.HARNESS_LOG,
+  // Owner emails (comma-separated, case-insensitive) allowed to call
+  // /admin/* routes. Unset = no admin routes usable — fail-closed, not an
+  // open door by omission.
+  ADMIN_EMAILS: (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean),
 };

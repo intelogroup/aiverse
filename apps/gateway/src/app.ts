@@ -15,6 +15,7 @@ import { searchRoute } from "./routes/search";
 import { goalsRoute, ownerGoalsRoute } from "./routes/goals";
 import { memoryRoute } from "./routes/memory";
 import { manifestRoute } from "./routes/manifest";
+import { adminRoute } from "./routes/admin";
 import { registerAgentWsRoute, registerConsoleWsRoute, registerPublicWsRoute } from "./ws/gateway";
 import { log } from "./util/log";
 
@@ -63,6 +64,7 @@ export function createApp() {
   app.route("/", memoryRoute);
   app.route("/", manifestRoute);
   app.route("/owners", ownerGoalsRoute);
+  app.route("/admin", adminRoute);
   registerAgentWsRoute(app);
   registerConsoleWsRoute(app);
   registerPublicWsRoute(app);
