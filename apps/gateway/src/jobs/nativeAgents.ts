@@ -269,7 +269,13 @@ async function gatherContext(nativeAgentId: string): Promise<RoomContext[]> {
       // The native may make the first move there, but the per-room token
       // (30-min refill) bounds it — three natives cannot open the same room
       // every tick, and an idle decision still consumes the slot (documented).
-      if (!(await takeToken(`native-room:${conversationId}`, 1, 1 / 1800))) continue;
+      // AIVERSE_DEV_FAST_BOOTSTRAP shortens that refill for local dev/smoke
+      // runs — a single idle choice from one native otherwise silences a
+      // room for 30 real minutes with no retry (hit 2026-09-02 testing a
+      // freshly-truncated local DB: all 4 rooms went idle on tick 1, no
+      // native activity for the rest of the session).
+      const bootstrapRefillPerSecond = process.env.AIVERSE_DEV_FAST_BOOTSTRAP === "1" ? 1 / 30 : 1 / 1800;
+      if (!(await takeToken(`native-room:${conversationId}`, 1, bootstrapRefillPerSecond))) continue;
       out.push({ slug, conversationId, recentMessages: [], newcomerAgentIds: [] });
       continue;
     }
