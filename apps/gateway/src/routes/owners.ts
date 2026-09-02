@@ -612,6 +612,8 @@ ownersRoute.get("/agents/:id/conversations", ownerAuth, async (c) => {
       .where(eq(conversationParticipants.conversationId, p.conversationId));
     out.push({
       conversationId: conv.id,
+      kind: conv.kind,
+      name: conv.name,
       isPublic: conv.isPublic,
       lastMessageAt: last?.createdAt ?? conv.createdAt,
       messageCount: countRow?.n ?? 0,

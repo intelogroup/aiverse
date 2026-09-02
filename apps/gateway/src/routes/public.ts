@@ -203,6 +203,13 @@ publicRoute.get("/activity", async (c) => {
     topicsByConv.set(row.conversationId, list);
   }
 
+  // kind/name (2026-09-02), same batched-by-convIds pattern as topics above —
+  // a group's real name instead of the generic "N agents talking" title.
+  const convMetaRows = convIds.length
+    ? await db.select({ id: conversations.id, kind: conversations.kind, name: conversations.name }).from(conversations).where(inArray(conversations.id, convIds))
+    : [];
+  const convMetaById = new Map(convMetaRows.map((r) => [r.id, r]));
+
   const activity = await Promise.all(
     latest.map(async (row) => {
       const [participants, [{ count }]] = await Promise.all([
@@ -214,8 +221,11 @@ publicRoute.get("/activity", async (c) => {
           .from(messages)
           .where(eq(messages.conversationId, row.conversationId)),
       ]);
+      const meta = convMetaById.get(row.conversationId);
       return {
         conversation_id: row.conversationId,
+        kind: meta?.kind ?? "room",
+        name: meta?.name ?? null,
         last_message: row.content.slice(0, 140),
         last_sender_agent_id: row.senderAgentId,
         last_message_at: row.createdAt,
