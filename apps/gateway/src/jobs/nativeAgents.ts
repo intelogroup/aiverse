@@ -58,7 +58,7 @@ const NATIVES = [
   {
     name: "Matchmaker",
     caps: ["matching", "coordination", "brokering"],
-    prompt: "You are Matchmaker, a capability broker. You know who is in the Verse and what they can do. When someone expresses a need that matches another agent's capabilities, you make the introduction: name the peer, their skill, and suggest they talk directly.",
+    prompt: "You are Matchmaker, a capability broker. Context includes onlineAgentCapabilities, a map of peer name to their stated capabilities. When someone expresses a need that matches a peer's listed capability, you make the introduction: name the peer, their exact capability, and suggest they talk directly. Never invent a capability that isn't in onlineAgentCapabilities.",
     objective: "Create agent-to-agent connections by matching expressed needs to peer capabilities via ask_peer or invite.",
   },
   {
@@ -490,10 +490,18 @@ export async function tickOne(nativeAgentId: string, nativeName: string, prompt:
   // Every online agent's exact name — the vocabulary for @-mentions. A public
   // "@Name" pings that agent's socket directly, so this list is what lets a
   // native deliberately pull a specific quiet agent into the commons.
-  const onlineAgentNames = (await db.query.agents.findMany({ where: eq(agents.status, "online") }))
+  const onlinePeers = (await db.query.agents.findMany({ where: eq(agents.status, "online") }))
     .filter((a) => !a.isNative && a.id !== nativeAgentId)
-    .slice(0, 20)
-    .map((a) => a.name);
+    .slice(0, 20);
+  const onlineAgentNames = onlinePeers.map((a) => a.name);
+  // Matchmaker's whole mandate is "match a stated need to a peer's stated
+  // capability" — without capabilities here it only ever had names, so it
+  // structurally could not broker anything (only ever restate who's online).
+  const onlineAgentCapabilities = Object.fromEntries(
+    onlinePeers
+      .map((a) => [a.name, (a.agentCard as { capabilities?: string[] } | null)?.capabilities ?? []] as const)
+      .filter(([, caps]) => caps.length > 0),
+  );
 
   const system = `${prompt}\nYour objective: ${objective}\n${ACTION_GRAMMAR}`;
   const userContent = JSON.stringify({
@@ -502,6 +510,7 @@ export async function tickOne(nativeAgentId: string, nativeName: string, prompt:
     wanderingAgentIds,
     wanderingByName,
     onlineAgentNames,
+    onlineAgentCapabilities,
     yourRecentMemory: recentMemory.map((m) => ({ type: m.type, content: m.content })),
   });
 

@@ -79,6 +79,37 @@ describe("native agents", () => {
     expect(second).toBe(false);
   });
 
+  test("tick context carries onlineAgentCapabilities so Matchmaker can broker on real skills, not just names", async () => {
+    await resetMemoryStoreForTests();
+    const sage = await getNative("Sage");
+    await db
+      .insert(agents)
+      .values({
+        name: `CapabilityPeer-${Date.now()}`,
+        agentCard: { capabilities: ["translation", "legal-research"] },
+        apiKeyHash: "x",
+        status: "online",
+      })
+      .returning();
+
+    let capturedUserContent = "";
+    setLLMProviderForTests({
+      complete: async ({ messages }) => {
+        capturedUserContent = messages[0]?.content ?? "";
+        return JSON.stringify({ action: "idle" });
+      },
+    });
+    await tickOne(sage.id, "Sage", "prompt", "objective");
+
+    const parsed = JSON.parse(capturedUserContent);
+    expect(parsed.onlineAgentCapabilities).toBeDefined();
+    const entry = Object.entries(parsed.onlineAgentCapabilities as Record<string, string[]>).find(([, caps]) =>
+      caps.includes("legal-research"),
+    );
+    expect(entry).toBeDefined();
+    expect(entry?.[1]).toEqual(["translation", "legal-research"]);
+  });
+
   test("idle / unparseable LLM response produces no action and no memory row", async () => {
     await resetMemoryStoreForTests();
     const sage = await getNative("Sage");
