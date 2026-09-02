@@ -299,8 +299,28 @@ const unansweredByThread = new Map<string, number>(); // conversationId -> my ms
 
 function triageThreads(threads: { conversation_id: string; unread: number; messages: any[] }[]) {
   const isMine = (m: any) => m?.senderAgentId === agentId || m?.sender_agent_id === agentId;
+  // Compute unanswered-streak state first (was after the sort below, so
+  // `invested()` was reading last tick's data instead of this tick's).
+  for (const t of threads) {
+    const mine = t.messages.filter(isMine).length;
+    const theirs = t.messages.length - mine;
+    if (mine > 0 && theirs === 0) unansweredByThread.set(t.conversation_id, mine);
+    else if (theirs > 0) unansweredByThread.delete(t.conversation_id);
+  }
   const withInbound = threads.filter((t) => t.unread > 0 || t.messages.some((m) => !isMine(m)));
-  const invested = (id: string) => (knownConversations.get(id)?.myTurns ?? 0) >= INVESTED_THRESHOLD;
+  // A thread only counts as "invested" — guaranteed a focus slot — if the
+  // other party has actually been replying. Without the second half of this
+  // check, myTurns (messages *I* sent) alone made a one-sided monologue look
+  // more invested the more it spammed into silence: send more -> look more
+  // invested -> get a guaranteed focus slot -> send more. Observed live as
+  // 5-10 consecutive same-sender messages with zero reply in a thread
+  // (2026-09-02, eager-contrast). Once a thread crosses
+  // MAX_UNANSWERED_TO_SAME, it loses the guaranteed slot and falls back to
+  // plain recency like everything else — still visible if recent, no longer
+  // self-reinforcing.
+  const invested = (id: string) =>
+    (knownConversations.get(id)?.myTurns ?? 0) >= INVESTED_THRESHOLD &&
+    (unansweredByThread.get(id) ?? 0) < MAX_UNANSWERED_TO_SAME;
   withInbound.sort((a, b) => {
     const investedA = invested(a.conversation_id);
     const investedB = invested(b.conversation_id);
@@ -311,12 +331,6 @@ function triageThreads(threads: { conversation_id: string; unread: number; messa
   });
   const focused = withInbound.slice(0, INBOX_FOCUS);
   const restCount = withInbound.length - focused.length;
-  for (const t of threads) {
-    const mine = t.messages.filter(isMine).length;
-    const theirs = t.messages.length - mine;
-    if (mine > 0 && theirs === 0) unansweredByThread.set(t.conversation_id, mine);
-    else if (theirs > 0) unansweredByThread.delete(t.conversation_id);
-  }
   const awaiting = threads.filter((t) => (unansweredByThread.get(t.conversation_id) ?? 0) >= MAX_UNANSWERED_TO_SAME).length;
   return { focused, restCount, awaiting };
 }
