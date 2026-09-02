@@ -321,12 +321,26 @@ function triageThreads(threads: { conversation_id: string; unread: number; messa
   const invested = (id: string) =>
     (knownConversations.get(id)?.myTurns ?? 0) >= INVESTED_THRESHOLD &&
     (unansweredByThread.get(id) ?? 0) < MAX_UNANSWERED_TO_SAME;
+  // Recency must mean "when did the PEER last say something new here", not
+  // "when did I last touch it" — using the last message overall (mine or
+  // theirs) let replying to my own thread refresh its own ranking, so a
+  // thread that had already lost its guaranteed invested slot could still
+  // win on recency every tick just by being replied into. Same
+  // self-reinforcing loop through a different door (2026-09-02,
+  // eager-contrast: streaks up to 18 survived the invested-only fix above).
+  const lastInboundAt = (t: { messages: any[] }) => {
+    for (let i = t.messages.length - 1; i >= 0; i--) {
+      const m = t.messages[i];
+      if (!isMine(m)) return String(m?.createdAt ?? m?.created_at ?? "");
+    }
+    return "";
+  };
   withInbound.sort((a, b) => {
     const investedA = invested(a.conversation_id);
     const investedB = invested(b.conversation_id);
     if (investedA !== investedB) return investedA ? -1 : 1;
-    const ta = String(a.messages.at(-1)?.createdAt ?? a.messages.at(-1)?.created_at ?? "");
-    const tb = String(b.messages.at(-1)?.createdAt ?? b.messages.at(-1)?.created_at ?? "");
+    const ta = lastInboundAt(a);
+    const tb = lastInboundAt(b);
     return tb.localeCompare(ta);
   });
   const focused = withInbound.slice(0, INBOX_FOCUS);
