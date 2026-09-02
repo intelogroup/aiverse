@@ -1,10 +1,11 @@
 import { Hono } from "hono";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, asc, desc, sql } from "drizzle-orm";
 import { db } from "../db/client";
-import { goals, a2aTasks } from "@aiverse/shared/schema";
+import { goals, a2aTasks, agentMemory } from "@aiverse/shared/schema";
 import { agentAuth } from "../middleware/agentAuth";
 import { ownerAuth } from "../middleware/ownerAuth";
 import { audit } from "../util/audit";
+import { selectLLMProvider } from "../jobs/nativeAgents";
 
 // Goals — durable correlation boundary. Agent creates/updates, console watches.
 // goal.contextId reused as a2aTasks.contextId so one goal → many tasks.
@@ -86,6 +87,54 @@ ownerGoalsRoute.get("/goals/:id", ownerAuth, async (c) => {
   if (!goal) return c.json({ error: "not found" }, 404);
   const tasks = await db.query.a2aTasks.findMany({ where: eq(a2aTasks.contextId, goal.contextId) });
   return c.json({ goal, tasks, taskCount: tasks.length });
+});
+
+// Owner recall — "what did my agent learn pursuing this goal." Raw dump and
+// an LLM-answered form, both scoped to the goal via agentMemory.goalId
+// (subject-harness.ts writes those rows, one per acted tick — see its
+// POST /memory calls). Neither writes goals.result: that column is the
+// agent's own self-graded synthesis (a protected, different concept — see
+// the goal_accepted ledger backfill below), an owner-query answer must
+// never be conflated with it.
+ownerGoalsRoute.get("/goals/:id/memory", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const id = c.req.param("id");
+  const goal = await db.query.goals.findFirst({ where: and(eq(goals.id, id), eq(goals.ownerId, ownerId)) });
+  if (!goal) return c.json({ error: "not found" }, 404);
+  // ponytail: fixed 500-row cap, add real pagination if a goal run regularly
+  // exceeds it — unlike a conversation, a long-running goal has no natural bound.
+  const rows = await db.query.agentMemory.findMany({
+    where: eq(agentMemory.goalId, goal.id),
+    orderBy: asc(agentMemory.createdAt),
+    limit: 500,
+  });
+  return c.json({ goal, memory: rows });
+});
+
+ownerGoalsRoute.get("/goals/:id/answer", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const id = c.req.param("id");
+  const goal = await db.query.goals.findFirst({ where: and(eq(goals.id, id), eq(goals.ownerId, ownerId)) });
+  if (!goal) return c.json({ error: "not found" }, 404);
+  const rows = await db.query.agentMemory.findMany({
+    where: eq(agentMemory.goalId, goal.id),
+    orderBy: asc(agentMemory.createdAt),
+    limit: 500,
+  });
+  if (!rows.length) return c.json({ goal, answer: "Nothing recorded yet for this goal.", memoryCount: 0 });
+
+  const llm = selectLLMProvider();
+  const answer = await llm.complete({
+    system:
+      "Answer the owner's question about what their agent learned pursuing this goal, using only the interaction log below. Be concise and concrete; say if nothing relevant was found.",
+    messages: [
+      {
+        role: "user",
+        content: `Goal: ${goal.objective}\n\nInteraction log:\n${rows.map((r) => `- ${r.content}`).join("\n")}`,
+      },
+    ],
+  });
+  return c.json({ goal, answer: answer ?? "Could not generate an answer.", memoryCount: rows.length });
 });
 
 // Owner-only verdict transitions — the human disposes. This is the ONLY

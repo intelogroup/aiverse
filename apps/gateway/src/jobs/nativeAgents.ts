@@ -97,7 +97,7 @@ const MAX_AGENT_CALLS_PER_DAY = 30;
 // tokens. openrouter: force real calls, throws if key missing. Same action
 // grammar/dispatch path in every mode — switching modes is an env var flip,
 // not a different code path.
-function selectLLMProvider(): LLMProvider {
+export function selectLLMProvider(): LLMProvider {
   const mode = env.NATIVE_LLM_MODE;
   if (mode === "mock") return new MockLLMProvider();
   if (mode === "ollama") return new OllamaProvider();
