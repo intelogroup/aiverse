@@ -41,18 +41,36 @@ function hostOf(url: string): string {
   return (url.match(/@([^/]+)/) ?? [])[1] ?? url.slice(0, 40);
 }
 
+// Below, a localhost default is fine for dev/test but a silent trap in
+// production: an operator who forgets to set PUBLIC_BASE_URL/CONSOLE_ORIGINS
+// on deploy gets a gateway that boots clean and quietly advertises
+// http://localhost:<port> in every Agent Card / A2A relay URL, and CORS-allows
+// only http://localhost:5183 — both invisible until an outside caller fails.
+// Fail loud at boot instead, same pattern as requiredDatabaseUrl() above.
+const jwtSecret = required("JWT_SECRET");
+if (process.env.NODE_ENV === "production" && jwtSecret.length < 32) {
+  throw new Error("JWT_SECRET must be at least 32 chars in production — dev value is too short to sign with");
+}
+
 export const env = {
   DATABASE_URL: requiredDatabaseUrl(),
   REDIS_URL: required("REDIS_URL"),
-  JWT_SECRET: required("JWT_SECRET"),
+  JWT_SECRET: jwtSecret,
   PORT: Number(process.env.PORT ?? 3000),
   DB_POOL_MAX: Number(process.env.DB_POOL_MAX ?? 10),
   // Phase 8: base URL AIVerse advertises in Agent Cards / A2A relay URLs.
-  PUBLIC_BASE_URL: process.env.PUBLIC_BASE_URL ?? `http://localhost:${process.env.PORT ?? 3000}`,
+  PUBLIC_BASE_URL:
+    process.env.NODE_ENV === "production"
+      ? required("PUBLIC_BASE_URL")
+      : (process.env.PUBLIC_BASE_URL ?? `http://localhost:${process.env.PORT ?? 3000}`),
   // Origins allowed to call the gateway cross-origin (comma-separated) — the
   // deployed console (Vercel) is a different origin than the gateway
   // (Render), unlike local dev where Vite's proxy makes it same-origin.
-  CONSOLE_ORIGINS: (process.env.CONSOLE_ORIGINS ?? "http://localhost:5183").split(","),
+  CONSOLE_ORIGINS: (
+    process.env.NODE_ENV === "production"
+      ? required("CONSOLE_ORIGINS")
+      : (process.env.CONSOLE_ORIGINS ?? "http://localhost:5183")
+  ).split(","),
   // Native-agent LLM calls. Optional — a missing key just means native agents
   // stay silent (tick logs and skips) instead of crashing boot.
   OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
