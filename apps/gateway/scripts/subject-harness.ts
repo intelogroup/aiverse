@@ -553,12 +553,28 @@ async function execute(action: any): Promise<{ status: number; note: string; tar
       // Register the conversation so the agent sees it in its context on the very next tick.
       // Without this, start_conversation creates an invisible shell — the agent never
       // perceives its own messages and cannot reply to responses (the 151:1 DM ratio trap).
+      const wasReused = conv.status === 200;
       if (msg.status < 400 && id) {
-        knownConversations.set(id, { id, unread: 0, myTurns: 1 });
+        // A reuse continues an existing thread — increment its real turn
+        // count instead of resetting to 1, so it isn't erased by every
+        // repeat start_conversation attempt at the same peer.
+        const existing = knownConversations.get(id);
+        knownConversations.set(id, { id, unread: 0, myTurns: (wasReused ? existing?.myTurns ?? 0 : 0) + 1 });
         const participantIds: string[] = action.participant_ids ?? [];
         if (participantIds.length === 1) dmConversationByParticipant.set(participantIds[0], id);
       }
-      return { status: msg.status, target: `${targets} conversation:${id}`, note: `start_conversation(send) ${msg.status >= 400 ? reason(msg.body) : "ok"}` };
+      // A reuse gets a pointedly different note from a fresh create — this
+      // is the same fix pattern as join_room's no-op response. A "start
+      // dm(send) ok" identical to a real create gave the model no signal
+      // it was retreading ground; observed live (2026-09-02) as gptoss20-
+      // class calling start_conversation 6 times at the same peer despite
+      // open_dm_by_participant naming the existing thread every time.
+      const note = msg.status >= 400
+        ? `start_conversation(send) ${reason(msg.body)}`
+        : wasReused
+          ? `start_conversation: this DM already existed (conversation:${id}) — your message was delivered there, but use reply next time instead of start_conversation for this peer`
+          : "start_conversation(send) ok";
+      return { status: msg.status, target: `${targets} conversation:${id}`, note };
     }
     case "ask_peer": {
       if (!String(action.content ?? "").trim()) {
