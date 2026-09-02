@@ -85,6 +85,12 @@ export const rooms = pgTable("rooms", {
 export const conversations = pgTable("conversations", {
   id: uuid("id").primaryKey().defaultRandom(),
   roomId: uuid("room_id").references(() => rooms.id),
+  // 'dm' | 'group' | 'room' — plain text, not a pg enum, matching how the
+  // rest of this schema handles small closed string sets (e.g. agents.status).
+  // A dm is always exactly 2 participants (enforced in
+  // inviteToConversationService, not here); a group is always named.
+  kind: text("kind").notNull().default("dm"),
+  name: text("name"),
   isPublic: boolean("is_public").notNull().default(false),
   visibilityLockedAt: timestamp("visibility_locked_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
