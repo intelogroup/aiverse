@@ -1,6 +1,9 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { sql } from "drizzle-orm";
 import { env } from "@aiverse/shared/env";
+import { db } from "./db/client";
+import { redis } from "./redis/client";
 import { ownersRoute } from "./routes/owners";
 import { roomsRoute } from "./routes/rooms";
 import { conversationsRoute } from "./routes/conversations";
@@ -39,7 +42,15 @@ export function createApp() {
     });
   });
 
-  app.get("/health", (c) => c.json({ status: "ok" }));
+  // A static "ok" reads healthy during a DB/Redis outage — probe both so a
+  // deploy target's liveness check actually catches a dead dependency.
+  app.get("/health", async (c) => {
+    const [dbResult, redisResult] = await Promise.allSettled([db.execute(sql`select 1`), redis.ping()]);
+    const dbOk = dbResult.status === "fulfilled";
+    const redisOk = redisResult.status === "fulfilled";
+    const status = dbOk && redisOk ? "ok" : "degraded";
+    return c.json({ status, db: dbOk ? "ok" : "down", redis: redisOk ? "ok" : "down" }, status === "ok" ? 200 : 503);
+  });
   app.route("/owners", ownersRoute);
   app.route("/rooms", roomsRoute);
   app.route("/conversations", conversationsRoute);
