@@ -172,3 +172,82 @@ describe("hard delete", () => {
     expect(walletRes.status).toBe(404);
   });
 });
+
+// Every /owners/agents/:id/* route gates through the shared loadOwnedAgent
+// helper (owners.ts) — these two cover the highest-sensitivity data it
+// protects (spend/budget, and the owner-authored mandate) as regression
+// coverage for that shared pattern, rather than duplicating the same
+// assertion across all ~15 routes that call it.
+describe("owner-scoped agent routes refuse a non-owning caller (BOLA regression)", () => {
+  async function registerAndAuth() {
+    const email = `bola-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
+    const registerRes = await app.request("/owners/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password: "password123" }),
+    });
+    const { token } = await registerRes.json();
+    return { email, token };
+  }
+
+  async function createAgent(token: string) {
+    const createRes = await app.request("/owners/agents", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name: "BolaTarget" }),
+    });
+    return (await createRes.json()).agent as { id: string };
+  }
+
+  test("GET /agents/:id/wallet refuses an owner who doesn't own it", async () => {
+    const owner1 = await registerAndAuth();
+    const owner2 = await registerAndAuth();
+    const agent = await createAgent(owner1.token);
+
+    const asOutsider = await app.request(`/owners/agents/${agent.id}/wallet`, {
+      headers: { authorization: `Bearer ${owner2.token}` },
+    });
+    expect(asOutsider.status).toBe(404);
+
+    const asOwner = await app.request(`/owners/agents/${agent.id}/wallet`, {
+      headers: { authorization: `Bearer ${owner1.token}` },
+    });
+    expect(asOwner.status).toBe(200);
+  });
+
+  test("PATCH /agents/:id/wallet refuses an owner who doesn't own it (can't raise a stranger's budget)", async () => {
+    const owner1 = await registerAndAuth();
+    const owner2 = await registerAndAuth();
+    const agent = await createAgent(owner1.token);
+
+    const asOutsider = await app.request(`/owners/agents/${agent.id}/wallet`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", authorization: `Bearer ${owner2.token}` },
+      body: JSON.stringify({ dailyTokenBudget: 999_999_999 }),
+    });
+    expect(asOutsider.status).toBe(404);
+
+    const walletRes = await app.request(`/owners/agents/${agent.id}/wallet`, {
+      headers: { authorization: `Bearer ${owner1.token}` },
+    });
+    expect((await walletRes.json()).wallet.dailyTokenBudget).not.toBe(999_999_999);
+  });
+
+  test("PUT /agents/:id/mandate refuses an owner who doesn't own it", async () => {
+    const owner1 = await registerAndAuth();
+    const owner2 = await registerAndAuth();
+    const agent = await createAgent(owner1.token);
+
+    const asOutsider = await app.request(`/owners/agents/${agent.id}/mandate`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", authorization: `Bearer ${owner2.token}` },
+      body: JSON.stringify({ objectives: ["do things for owner2 instead"] }),
+    });
+    expect(asOutsider.status).toBe(404);
+
+    const mandateRes = await app.request(`/owners/agents/${agent.id}/mandate`, {
+      headers: { authorization: `Bearer ${owner1.token}` },
+    });
+    expect((await mandateRes.json()).mandate).toBeNull();
+  });
+});

@@ -235,6 +235,50 @@ describe("A2A relay: message/send + tasks/get + tasks/cancel", () => {
     expect(late.status).toBe(409);
   });
 
+  test("only the target agent may PATCH a task (BOLA regression)", async () => {
+    await resetMemoryStoreForTests();
+    const caller = await registerAgent("A2ACallerBola");
+    const target = await registerAgent("A2ATargetBola");
+    const outsider = await registerAgent("A2AOutsiderBola");
+
+    const send = await app.request(`/a2a/agents/${target.agentId}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${caller.agentToken}` },
+      body: JSON.stringify(
+        rpc("message/send", {
+          message: { role: "user", parts: [{ kind: "text", text: "hi" }], messageId: "m-bola" },
+        }),
+      ),
+    });
+    const taskId = (await send.json()).result.id;
+
+    // the caller who created the task is not the target — must not be able
+    // to drive its state
+    const asCaller = await app.request(`/a2a/tasks/${taskId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", authorization: `Bearer ${caller.agentToken}` },
+      body: JSON.stringify({ state: "completed" }),
+    });
+    expect(asCaller.status).toBe(403);
+    expect((await asCaller.json()).error).toBe("only the target agent may update this task");
+
+    // a third agent with no relationship to this task either
+    const asOutsider = await app.request(`/a2a/tasks/${taskId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", authorization: `Bearer ${outsider.agentToken}` },
+      body: JSON.stringify({ state: "completed" }),
+    });
+    expect(asOutsider.status).toBe(403);
+
+    // the actual target still can
+    const asTarget = await app.request(`/a2a/tasks/${taskId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", authorization: `Bearer ${target.agentToken}` },
+      body: JSON.stringify({ state: "completed" }),
+    });
+    expect(asTarget.status).toBe(200);
+  });
+
   test("caller can cancel a task; cancel on an already-terminal task fails", async () => {
     await resetMemoryStoreForTests();
     const caller = await registerAgent("A2ACaller3");

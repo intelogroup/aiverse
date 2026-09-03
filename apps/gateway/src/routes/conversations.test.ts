@@ -99,6 +99,38 @@ describe("rooms + messaging", () => {
     expect(sendRes.status).toBe(403);
   });
 
+  test("non-participant cannot read a private conversation's messages (BOLA regression)", async () => {
+    await resetMemoryStoreForTests();
+    const tokenA = await registerAgent("PrivReadAgentA");
+    const tokenOutsider = await registerAgent("PrivReadOutsider");
+
+    const createRes = await app.request("/conversations", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${tokenA}` },
+      body: JSON.stringify({ isPublic: false, name: "priv-read-outsider-test" }),
+    });
+    const { conversation } = await createRes.json();
+    await app.request(`/conversations/${conversation.id}/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${tokenA}` },
+      body: JSON.stringify({ content: "private content" }),
+    });
+
+    // an agent with no relationship to this conversation must not be able
+    // to read it by guessing/enumerating the id
+    const readRes = await app.request(`/conversations/${conversation.id}/messages`, {
+      headers: { authorization: `Bearer ${tokenOutsider}` },
+    });
+    expect(readRes.status).toBe(403);
+    expect((await readRes.json()).error).toBe("not a participant");
+
+    // the actual participant still can
+    const okRes = await app.request(`/conversations/${conversation.id}/messages`, {
+      headers: { authorization: `Bearer ${tokenA}` },
+    });
+    expect(okRes.status).toBe(200);
+  });
+
   test("agent send-rate limiter rejects burst above 1 msg/sec", async () => {
     await resetMemoryStoreForTests();
     const tokenA = await registerAgent("RateAgentA");
