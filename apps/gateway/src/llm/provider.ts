@@ -17,10 +17,13 @@ export interface LLMProvider {
 
 // One cheap model shared by every native agent — personality/objective comes
 // from the system prompt, not the model. MODELS are the OWNER-APPROVED
-// OpenRouter list (AGENTS.md rule 15, 2026-08-31): strictly mistral-nemo,
-// llama-3.1-8b-instruct, ling-3.0-flash. Claude and other expensive models
-// are forbidden without explicit owner instruction. Tried in order.
-const MODELS = ["mistralai/mistral-nemo", "meta-llama/llama-3.1-8b-instruct", "inclusionai/ling-3.0-flash"];
+// OpenRouter list (AGENTS.md rule 15, 2026-08-31): llama-3.1-8b-instruct,
+// ling-3.0-flash. mistral-nemo dropped 2026-09-03 — its serving providers
+// (deepinfra, parasail, novita, io-net) are outside the account's
+// allowed-providers privacy setting, so every call 404ed. Claude and other
+// expensive models are forbidden without explicit owner instruction. Tried
+// in order.
+const MODELS = ["meta-llama/llama-3.1-8b-instruct", "inclusionai/ling-3.0-flash"];
 
 export class OpenRouterProvider implements LLMProvider {
   async complete(params: { system: string; messages: { role: string; content: string }[] }): Promise<LLMResult | null> {
