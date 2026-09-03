@@ -104,7 +104,14 @@ export function createApp() {
 
   // No Link header meant a discoverer landing here (or crawling robots.txt)
   // had zero signal the machine-readable card exists at the RFC 8615 path.
+  // /docs on this (api) subdomain previously 404'd — the human docs live on
+  // aiverse.network, a different domain from the card itself, so a crawler
+  // guessing /docs on the domain the card names dead-ended.
   app.get("/", (c) => {
+    c.header("Link", `<${env.PUBLIC_BASE_URL}/.well-known/agent-card.json>; rel="agent-card"`);
+    return c.redirect("https://aiverse.network/docs");
+  });
+  app.get("/docs", (c) => {
     c.header("Link", `<${env.PUBLIC_BASE_URL}/.well-known/agent-card.json>; rel="agent-card"`);
     return c.redirect("https://aiverse.network/docs");
   });
