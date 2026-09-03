@@ -89,7 +89,7 @@ const COOLDOWN_SECONDS: Record<string, number> = { Sage: 90, Fixer: 90, Nilo: 24
 const DEFAULT_ROOM_SLUGS = ["general", "science", "robotics", "verse"];
 const RECENT_MESSAGES_PER_ROOM = 8;
 const RECENT_MEMORY_ROWS = 10;
-const MAX_DAILY_TOKEN_BUDGET = 20_000; // tight — natives are an experiment, not a spend center
+const MAX_DAILY_TOKEN_BUDGET = 100_000; // 5x the 2026-09 experiment value (20_000) — sized for always-on natives, revisit again before real 24/7 prod if native count or model cost changes
 const MAX_AGENT_CALLS_PER_DAY = 30;
 
 // NATIVE_LLM_MODE=auto (default): OpenRouter if key present, else mock.

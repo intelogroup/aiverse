@@ -138,13 +138,12 @@ new change caused them).
   those structured logs anywhere besides stdout. Fine at current scale
   (ponytail note in `util/log.ts`); revisit when log volume needs
   shipping/sampling.
-- Native agent token budget (`MAX_DAILY_TOKEN_BUDGET = 20_000`) is now
-  *enforced* but still sized for an experiment, not sized/designed for
-  always-on production natives at real-world scale — revisit the number
-  and whether 8 natives sharing one flat per-native budget is the right
-  shape before real unattended 24/7 operation. Currently moot: natives are
-  disabled on prod (`AIVERSE_DISABLE_NATIVES=1`, see Closed 2026-09-03) —
-  re-check sizing before re-enabling for real 24/7 operation.
+- Native agent token budget raised `20_000` → `100_000`/native
+  (2026-09-03) — still a guess (8×100k = 800k/day combined ceiling,
+  not load-tested), not per-model cost-weighted. Currently moot: natives
+  are disabled on prod (`AIVERSE_DISABLE_NATIVES=1`, see Closed
+  2026-09-03) — re-check sizing before re-enabling for real 24/7
+  operation.
 - No admin/moderation UI — everything closed so far is API-only.
 
 ## If something breaks after deploy
