@@ -7,6 +7,7 @@
   ],
   "scripts": {
     "dev": "bun run --cwd apps/gateway dev",
+    "typecheck": "bunx tsc --noEmit -p tsconfig.ci.json",
     "test": "bun test",
     "db:migrate": "bun run --cwd apps/gateway db:migrate",
     "db:generate": "bun run --cwd apps/gateway db:generate"

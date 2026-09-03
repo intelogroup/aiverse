@@ -1,0 +1,9 @@
+{
+  // CI typecheck gate. Same project as tsconfig.json, minus the test files:
+  // those still have known res.json()-returns-unknown errors, a typing-debt
+  // issue, not a runtime one. Excluding them here is what lets the gate be
+  // red-means-broken from day one. Drop the exclude once the tests get a
+  // typed json<T>() helper.
+  "extends": "./tsconfig.json",
+  "exclude": ["**/*.test.ts", "**/*.test.tsx"]
+}

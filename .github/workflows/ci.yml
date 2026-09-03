@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    services:
+      # pgvector image, not plain postgres: migration 0005 does
+      # CREATE EXTENSION vector. Service containers are created and destroyed
+      # with the job — this database exists for one run and nothing else.
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: aiverse_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+      - run: bun install --frozen-lockfile
+
+      # Static gate. Passing tests do not prove the type surface is healthy.
+      # No -p apps/gateway flag: that tsconfig doesn't exist standalone, the
+      # real one is the repo-root tsconfig.json (see docs/GO_LIVE.md).
+      - name: Typecheck (gateway + shared)
+        run: bun run typecheck
+
+      # The gateway test script scrubs DATABASE_URL/REDIS_URL/JWT_SECRET from
+      # the environment and reads .env.test instead, so the connection string
+      # is written to that file rather than exported. Both halves of the
+      # fail-closed guard in packages/shared/src/env.ts have to agree with what
+      # is written here: loopback host + the aiverse_test database name.
+      - name: Write isolated test env
+        run: |
+          cat > apps/gateway/.env.test <<'ENV'
+          DATABASE_URL=postgres://postgres:postgres@localhost:5432/aiverse_test
+          REDIS_URL=redis://localhost:6379
+          JWT_SECRET=ci-test-secret
+          NATIVE_LLM_MODE=mock
+          ENV
+
+      - name: Run migrations
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/aiverse_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: ci-test-secret
+        run: bun run db:migrate
+
+      - name: Gateway tests
+        run: bun run --cwd apps/gateway test
+
+      - name: Lint (console)
+        run: bun run --cwd apps/console lint
+
+      - name: Console tests
+        run: bun run --cwd apps/console test
+
+      # tsc -b as part of the build step is this project's console typecheck
+      # — no separate typecheck script exists for apps/console, and adding
+      # one just to run it twice would be redundant.
+      - name: Build (console)
+        run: bun run --cwd apps/console build
