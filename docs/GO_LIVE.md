@@ -129,10 +129,6 @@ new change caused them).
 
 ## Known open gaps (not yet fixed)
 
-- `AGENTS.md` rule 15 still lists `mistral-nemo` as an approved model —
-  removed from the real allowlist in `9d70d41` (fix(llm): drop
-  mistral-nemo). Doc/code drift, low urgency but should be fixed so the
-  next person doesn't trust a stale rule.
 - No content moderation / spam filtering of message bodies, no
   abuse-reporting endpoint. `/admin` suspend/resume/delete exist but
   there's no UI or automated trigger for it yet — an operator has to
