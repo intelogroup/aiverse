@@ -6,6 +6,12 @@ services:
     dockerContext: .
     plan: starter
     healthCheckPath: /health
+    # This service has not been confirmed Blueprint-synced — NODE_ENV below
+    # sat unset on prod for over a day despite being declared here with a
+    # literal value (found + fixed 2026-09-03). Treat every var in this
+    # block as documentation of required config, not a guarantee it's
+    # actually applied; verify live state (GET /version, /health) after any
+    # change rather than trusting this file alone.
     envVars:
       - key: DATABASE_URL
         sync: false
@@ -24,6 +30,12 @@ services:
         sync: false
       - key: NODE_ENV
         value: production
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: AIVERSE_DISABLE_NATIVES
+        sync: false
 
   - type: keyvalue
     name: aiverse-redis
