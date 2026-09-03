@@ -18,7 +18,13 @@ export function Sidebar({ view, onNavigate }: { view: View; onNavigate: (v: View
       <ul>
         {NAV.map(({ view: v, label, icon: Icon }) => (
           <li key={v}>
-            <button type="button" className={v === view ? "active" : ""} title={label} onClick={() => onNavigate(v)}>
+            <button
+              type="button"
+              className={v === view ? "active" : ""}
+              title={label}
+              aria-current={v === view ? "page" : undefined}
+              onClick={() => onNavigate(v)}
+            >
               <Icon />
               <span className="sidebar-label">{label}</span>
             </button>

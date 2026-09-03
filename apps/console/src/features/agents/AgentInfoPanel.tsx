@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, type Agent, type Wallet } from "../../lib/api";
+import { api, describeError, type Agent, type Wallet } from "../../lib/api";
 import { pushToast } from "../../lib/toast";
 import { StatusPill } from "../../components/StatusPill";
 import { PauseIcon, PlayIcon, SkullIcon } from "../../icons";
@@ -49,7 +49,8 @@ export function AgentInfoPanel({ agent, onChanged }: { agent: Agent; onChanged: 
       await api.pauseAgent(agent.id);
       onChanged();
     } catch (err) {
-      pushToast(err instanceof Error ? err.message : "failed to pause agent");
+      const { message, kind } = describeError(err);
+      pushToast(message, kind);
     }
   }
   async function resume() {
@@ -57,7 +58,8 @@ export function AgentInfoPanel({ agent, onChanged }: { agent: Agent; onChanged: 
       await api.resumeAgent(agent.id);
       onChanged();
     } catch (err) {
-      pushToast(err instanceof Error ? err.message : "failed to resume agent");
+      const { message, kind } = describeError(err);
+      pushToast(message, kind);
     }
   }
   async function kill() {
@@ -71,7 +73,8 @@ export function AgentInfoPanel({ agent, onChanged }: { agent: Agent; onChanged: 
       onChanged();
     } catch (err) {
       setConfirmingKill(false);
-      pushToast(err instanceof Error ? err.message : "failed to kill agent");
+      const { message, kind } = describeError(err);
+      pushToast(message, kind);
     }
   }
 
@@ -85,36 +88,38 @@ export function AgentInfoPanel({ agent, onChanged }: { agent: Agent; onChanged: 
         <h3>{agent.name}</h3>
         <StatusPill status={agent.status} />
       </div>
-      <div className="capability-chips">
-        {agent.agentCard.capabilities.length === 0 ? (
-          <span className="capabilities">no capabilities</span>
-        ) : (
-          agent.agentCard.capabilities.map((c) => (
-            <span key={c} className="chip">
-              {c}
-            </span>
-          ))
-        )}
-      </div>
+      <div className="info-section">
+        <div className="capability-chips">
+          {agent.agentCard.capabilities.length === 0 ? (
+            <span className="capabilities">no capabilities</span>
+          ) : (
+            agent.agentCard.capabilities.map((c) => (
+              <span key={c} className="chip">
+                {c}
+              </span>
+            ))
+          )}
+        </div>
 
-      <div className="autonomy-dial">
-        <span>Autonomy</span>
-        <div className="segmented">
-          {(["observe", "assist", "autonomous"] as const).map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              className={wallet?.autonomyMode === mode ? "active" : ""}
-              onClick={() => setAutonomy(mode)}
-            >
-              {mode}
-            </button>
-          ))}
+        <div className="autonomy-dial">
+          <span>Autonomy</span>
+          <div className="segmented">
+            {(["observe", "assist", "autonomous"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                className={wallet?.autonomyMode === mode ? "active" : ""}
+                onClick={() => setAutonomy(mode)}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {wallet && (
-        <div className="budget-block">
+        <div className="info-section budget-block">
           <div className="budget-block-labels">
             <span>Daily token budget</span>
             <span>
@@ -128,7 +133,7 @@ export function AgentInfoPanel({ agent, onChanged }: { agent: Agent; onChanged: 
       )}
 
       {goals.length > 0 && (
-        <div className="goals-block">
+        <div className="info-section goals-block">
           <h4>Goals · {goals.length} (polling /owners/goals)</h4>
           <ul className="goals-list">
             {goals.map((g) => {
@@ -149,7 +154,7 @@ export function AgentInfoPanel({ agent, onChanged }: { agent: Agent; onChanged: 
         </div>
       )}
 
-      <div className="controls">
+      <div className="info-section controls">
         {agent.status === "paused" ? (
           <button type="button" className="icon-button-labeled" onClick={resume} aria-label="Resume agent">
             <PlayIcon /> Resume

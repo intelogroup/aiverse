@@ -17,9 +17,11 @@
   --text-faint: #5a5f6b;
   --accent: #5e6ad2;
   --accent-hover: #828fff;
+  --accent-native: #60a5fa;
   --success: #3ddc84;
   --away: #e0b840;
-  --attention: #ff5c5c;
+  --attention: #fbbf24;
+  --danger: #f87171;
   --activity: #e0b840;
   --paused: #7c8ba1;
   --offline: #3a3d44;
@@ -99,11 +101,11 @@ button.link:hover {
   text-decoration: underline;
 }
 button.danger {
-  border-color: var(--attention);
-  color: var(--attention);
+  border-color: var(--danger);
+  color: var(--danger);
 }
 button.danger:hover {
-  background: rgba(255, 92, 92, 0.08);
+  background: rgba(248, 113, 113, 0.08);
 }
 
 input {
@@ -174,6 +176,18 @@ input:focus {
   font-size: 11px;
   font-weight: 700;
   flex-shrink: 0;
+}
+
+/* agent info panel — chunked into hairline-separated sections */
+.info-section {
+  padding-top: 16px;
+  margin-top: 16px;
+  border-top: 1px solid var(--hairline);
+}
+.info-section:first-of-type {
+  padding-top: 0;
+  margin-top: 0;
+  border-top: none;
 }
 
 /* capability chips */
@@ -302,6 +316,9 @@ input:focus {
   flex: 1;
 }
 .toast-error {
+  border-color: var(--danger);
+}
+.toast-attention {
   border-color: var(--attention);
 }
 .toast-success {
@@ -496,7 +513,7 @@ input:focus {
   justify-content: center;
 }
 .error {
-  color: var(--attention);
+  color: var(--danger);
   margin: 0;
   font-size: 13px;
 }
@@ -1110,6 +1127,12 @@ input:focus {
   color: var(--text-faint);
   flex-shrink: 0;
 }
+.thread-row-lock {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  color: var(--text-faint);
+}
 .thread-row-snippet {
   font-size: 13px;
   color: var(--text-dim);
@@ -1199,8 +1222,7 @@ input:focus {
   border: 1px solid var(--hairline);
   color: var(--text-dim);
 }
-.bubble-badge-native { color: #c084fc; border-color: rgba(192,132,252,0.3); }
-.bubble-badge-pa { color: #38bdf8; border-color: rgba(56,189,248,0.3); }
+.bubble-badge-native { color: var(--accent-native); border-color: rgba(96,165,250,0.3); }
 .bubble-content {
   font-size: 13.5px;
   line-height: 1.5;
@@ -1211,9 +1233,6 @@ input:focus {
   border-radius: 12px;
   padding: 10px 12px;
 }
-.bubble-content.native { border-left: 3px solid #c084fc; }
-.bubble-content.pa { border-left: 3px solid #38bdf8; }
-.bubble-content.agent { border-left: 3px solid #4ade80; }
 .connect-hint {
   font-size: 12px;
   color: var(--text-dim);
@@ -1249,11 +1268,11 @@ input:focus {
   cursor: pointer;
   color: inherit;
 }
-.verse-thread:hover { border-color: #3b82f6; }
-.verse-thread.active { border-color: #3b82f6; background: #1a1f2b; }
+.verse-thread:hover { border-color: var(--accent); }
+.verse-thread.active { border-color: var(--accent); background: var(--surface-2); }
 .verse-thread-meta { display: flex; gap: 10px; font-size: 12px; opacity: 0.65; margin-bottom: 4px; }
 .verse-last { margin: 0; font-size: 13px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.verse-sender { color: #93c5fd; }
+.verse-sender { color: var(--accent-hover); }
 .verse-time { opacity: 0.5; font-size: 11px; }
 .verse-thread-pane {
   background: var(--panel, #16181d);
@@ -1265,14 +1284,14 @@ input:focus {
 }
 .verse-close { background: none; border: none; color: inherit; cursor: pointer; font-size: 13px; }
 .verse-messages { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
-.verse-msg { border-radius: 10px; padding: 8px 12px; background: #1b1e25; border-left: 3px solid #4ade80; }
-.verse-msg-native { border-left-color: #c084fc; }
-.verse-msg-pa { border-left-color: #38bdf8; }
-.verse-msg-head { display: flex; gap: 8px; align-items: baseline; margin-bottom: 2px; }
-.verse-badge { font-size: 12px; font-weight: 600; }
-.verse-badge-native { color: #c084fc; }
-.verse-badge-pa { color: #38bdf8; }
-.verse-badge-agent { color: #4ade80; }
-.verse-msg p { margin: 0; font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; }
-.verse-empty { opacity: 0.55; font-size: 13px; }
+.feed-error {
+  grid-column: 1 / -1;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--danger);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13px;
+}
+.feed-error-attention { border-color: var(--attention); }
 @media (max-width: 900px) { .verse-layout { grid-template-columns: 1fr; } }
