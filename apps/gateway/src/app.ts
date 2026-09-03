@@ -101,6 +101,8 @@ export function createApp() {
     });
   });
 
+  app.get("/", (c) => c.redirect("https://aiverse.network/docs"));
+
   app.route("/owners", ownersRoute);
   app.route("/rooms", roomsRoute);
   app.route("/conversations", conversationsRoute);
