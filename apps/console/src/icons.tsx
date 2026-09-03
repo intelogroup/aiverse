@@ -40,12 +40,7 @@ export const SkullIcon = icon(
   `<path d="M12 4a7 7 0 0 0-7 7c0 2.5 1.2 4 2.2 5.2.5.6.8 1 .8 1.6V19a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-1.2c0-.6.3-1 .8-1.6C17.8 15 19 13.5 19 11a7 7 0 0 0-7-7Z"/><circle cx="9.5" cy="11" r="1.2"/><circle cx="14.5" cy="11" r="1.2"/><path d="M10 20v1M14 20v1"/>`,
 );
 export const XIcon = icon(`<path d="M6 6l12 12M18 6 6 18"/>`);
-export const PlusIcon = icon(`<path d="M12 5v14M5 12h14"/>`);
 export const SearchIcon = icon(`<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>`);
-export const CopyIcon = icon(
-  `<rect x="9" y="9" width="11" height="11" rx="1.5"/><path d="M5 15V5.5A1.5 1.5 0 0 1 6.5 4H15"/>`,
-);
-export const CheckIcon = icon(`<path d="M5 12.5l4.5 4.5L19 7"/>`);
 export const InboxIcon = icon(
   `<path d="M4 12h4l2 3h4l2-3h4"/><path d="M5.5 5h13l2.5 7v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-7l2.5-7Z"/>`,
 );

@@ -8,6 +8,7 @@
     { "source": "/docs", "destination": "/index.html" },
     { "source": "/docs/:path*", "destination": "/index.html" },
     { "source": "/public", "destination": "/index.html" },
-    { "source": "/public/:path*", "destination": "/index.html" }
+    { "source": "/public/:path*", "destination": "/index.html" },
+    { "source": "/((?!assets/|.*\\.[a-zA-Z0-9]+$).*)", "destination": "/index.html" }
   ]
 }

@@ -106,6 +106,11 @@ export const api = {
       body: JSON.stringify({ email, password }),
     }),
   listAgents: () => request<{ agents: Agent[] }>("/owners/agents"),
+  claimAgent: (claimCode: string) =>
+    request<{ agent: { id: string; name: string; status: Agent["status"] } }>("/owners/agents/claim", {
+      method: "POST",
+      body: JSON.stringify({ claimCode }),
+    }),
   createAgent: (name: string, capabilities: string[], description?: string) =>
     request<{ agent: Agent; agentToken: string }>("/owners/agents", {
       method: "POST",
@@ -164,6 +169,8 @@ export const api = {
       `/public/conversations/${conversationId}`,
     ),
   publicActivity: () => request<{ activity: PublicActivityItem[] }>("/public/activity"),
+  listRooms: () => request<{ rooms: Room[] }>("/rooms"),
+  roomPresence: (slug: string) => request<RoomPresence>(`/rooms/${slug}/presence`),
 
   // Ambient roster ("who is here") — public, no auth. Used to resolve sender
   // ids to names + native flag in inbox/message views.
@@ -171,15 +178,46 @@ export const api = {
     fetch(`${BASE}/agents/discover`)
       .then((r) => r.json())
       .catch(() => ({ roster: [] as { agentId: string; name: string; isNative?: boolean }[] })),
+
+  // Unauthenticated liveness probe (app.ts's own /health) — the only real
+  // source for a system-status readout. No blockchain/API-relay concept
+  // exists in this product; don't invent rows for it.
+  health: () =>
+    fetch(`${BASE}/health`)
+      .then((r) => r.json())
+      .catch(() => ({ status: "down", db: "down", redis: "down", natives: "unknown" as const })) as Promise<{
+      status: "ok" | "degraded" | "down";
+      db: "ok" | "down";
+      redis: "ok" | "down";
+      natives: "active" | "stale" | "unknown";
+    }>,
 };
 
 export interface PublicActivityItem {
   conversation_id: string;
+  kind?: string;
+  name?: string | null;
   last_message: string;
   last_sender_agent_id: string;
   last_message_at: string;
   agent_count: number;
   message_count: number;
+  topics?: string[];
+}
+
+export interface Room {
+  id: string;
+  slug: string;
+  isPublic: boolean;
+}
+
+export interface RoomPresence {
+  slug: string;
+  conversationId: string;
+  joined: number;
+  connectedInVerse: number;
+  active: number;
+  totalConnected: number;
 }
 
 export interface TrendingTopic {
