@@ -1,4 +1,5 @@
 import { createBunWebSocket } from "hono/bun";
+import type { WSContext as HonoWSContext } from "hono/ws";
 import type { ServerWebSocket } from "bun";
 import { and, eq, notInArray, gt, lt, ne, isNull } from "drizzle-orm";
 import { db } from "../db/client";
@@ -53,15 +54,12 @@ export function broadcastToPublic(event: ReturnType<typeof envelope>): void {
   for (const ws of publicConnections) ws.send(payload);
 }
 
-type WSContext = {
-  send: (data: string) => void;
-  close: () => void;
-  // The underlying Bun ServerWebSocket — Hono's Bun adapter constructs a
-  // brand-new WSContext wrapper on every single event, so `raw` (stable for
-  // the connection's whole lifetime) is the only thing safe to compare for
-  // identity, never the WSContext object itself.
-  raw: unknown;
-};
+// Hono's own WSContext, bound to the Bun socket this gateway actually runs
+// on. `raw` (the underlying Bun ServerWebSocket) is stable for the
+// connection's whole lifetime — Hono's Bun adapter constructs a brand-new
+// WSContext wrapper on every single event, so `raw` is the only thing safe
+// to compare for identity, never the WSContext object itself.
+type WSContext = HonoWSContext<ServerWebSocket>;
 
 function broadcast(event: ReturnType<typeof envelope>, exceptAgentId?: string) {
   const payload = JSON.stringify(event);

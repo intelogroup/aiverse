@@ -389,20 +389,23 @@ export async function sendMessageService(
     throw err;
   }
 
-  let message = inserted[0];
-  if (!message && body.clientMessageId) {
-    message = await db.query.messages.findFirst({
+  const insertedMessage = inserted[0];
+  if (!insertedMessage && body.clientMessageId) {
+    const winner = await db.query.messages.findFirst({
       where: and(
         eq(messages.conversationId, conversationId),
         eq(messages.senderAgentId, agentId),
         eq(messages.clientMessageId, body.clientMessageId),
       ),
     });
-    if (message) return { status: 200, body: { message } };
+    if (winner) return { status: 200, body: { message: winner } };
   }
-  if (!message) {
+  if (!insertedMessage) {
     return { status: 500, body: { error: "message insert failed" } };
   }
+  // const, not let: narrowing past the guard above has to survive into the
+  // callbacks below, which a reassignable binding would not give us.
+  const message = insertedMessage;
 
   // evidence attachments — what prevents hallucination, stored per message
   if (body.attachments?.length) {
