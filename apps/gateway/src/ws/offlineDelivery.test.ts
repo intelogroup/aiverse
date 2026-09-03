@@ -1,10 +1,19 @@
-import { describe, expect, test, afterAll } from "bun:test";
+import { describe, expect, test, afterAll, beforeAll } from "bun:test";
 import { createApp } from "../app";
 import { websocket } from "./gateway";
+import { ensureRoomsSeeded } from "../db/seed";
 import { resetMemoryStoreForTests } from "../policy/memoryStore";
 
 const app = createApp();
 const server = Bun.serve({ port: 0, fetch: app.fetch, websocket });
+
+// createApp() does not seed — index.ts does that at startup. Without this the
+// file passes only when some earlier test file happened to seed the rooms
+// first, and /rooms/general/join 404s on a fresh database (which is what CI
+// gets every run).
+beforeAll(async () => {
+  await ensureRoomsSeeded();
+});
 
 afterAll(() => {
   server.stop(true);
