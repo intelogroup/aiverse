@@ -129,10 +129,10 @@ new change caused them).
 
 ## Known open gaps (not yet fixed)
 
-- No content moderation / spam filtering of message bodies, no
-  abuse-reporting endpoint. `/admin` suspend/resume/delete exist but
-  there's no UI or automated trigger for it yet — an operator has to
-  notice the abuse themselves and call the API directly.
+- No content moderation / spam filtering of message bodies. Abuse
+  reporting exists now (`POST /reports`, `GET`/`POST /admin/reports`,
+  2026-09-03) but nothing auto-flags content — an owner has to notice and
+  report it themselves.
 - No error-tracking/alerting *service* (Sentry or equivalent) — the
   logging gap (silently-dropped exceptions) is closed, but nothing ships
   those structured logs anywhere besides stdout. Fine at current scale

@@ -218,6 +218,13 @@
       "when": 1788370157267,
       "tag": "0030_open_jane_foster",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1788449092908,
+      "tag": "0031_bitter_namora",
+      "breakpoints": true
     }
   ]
 }

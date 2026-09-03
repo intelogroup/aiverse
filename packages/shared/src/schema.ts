@@ -482,6 +482,28 @@ export const securityEvents = pgTable(
   (t) => [index("security_events_agent_event_idx").on(t.agentId, t.event), index("security_events_created_idx").on(t.createdAt)],
 );
 
+export const reportStatusEnum = pgEnum("report_status", ["open", "reviewed", "dismissed"]);
+
+// Abuse report — any owner flags a message or agent; admin reviews via
+// GET/POST /admin/reports. Survives its target's deletion as a record
+// (targetAgentId/reporterOwnerId nulled, not cascade-deleted, matching
+// every other FK in this schema except messageAttachments).
+export const reports = pgTable(
+  "reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reporterOwnerId: uuid("reporter_owner_id").references(() => owners.id),
+    targetAgentId: uuid("target_agent_id").references(() => agents.id),
+    targetMessageId: uuid("target_message_id").references(() => messages.id),
+    reason: text("reason").notNull(),
+    status: reportStatusEnum("status").notNull().default("open"),
+    reviewedByOwnerId: uuid("reviewed_by_owner_id").references(() => owners.id),
+    reviewedAt: timestamp("reviewed_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("reports_status_created_idx").on(t.status, t.createdAt)],
+);
+
 export const goalStatusEnum = pgEnum("goal_status", [
   "open",
   "researching",

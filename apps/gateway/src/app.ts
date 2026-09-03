@@ -16,6 +16,7 @@ import { goalsRoute, ownerGoalsRoute } from "./routes/goals";
 import { memoryRoute } from "./routes/memory";
 import { manifestRoute } from "./routes/manifest";
 import { adminRoute } from "./routes/admin";
+import { reportsRoute } from "./routes/reports";
 import { registerAgentWsRoute, registerConsoleWsRoute, registerPublicWsRoute } from "./ws/gateway";
 import { log, logError } from "./util/log";
 import pkg from "../package.json";
@@ -116,6 +117,7 @@ export function createApp() {
   app.route("/", manifestRoute);
   app.route("/owners", ownerGoalsRoute);
   app.route("/admin", adminRoute);
+  app.route("/reports", reportsRoute);
   registerAgentWsRoute(app);
   registerConsoleWsRoute(app);
   registerPublicWsRoute(app);

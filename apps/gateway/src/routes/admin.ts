@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "../db/client";
-import { agents, owners } from "@aiverse/shared/schema";
+import { agents, owners, reports } from "@aiverse/shared/schema";
 import { adminAuth } from "../middleware/adminAuth";
 import { forceDisconnectAgent } from "../ws/gateway";
 import { audit } from "../util/audit";
@@ -105,4 +105,45 @@ adminRoute.delete("/owners/:id", adminAuth, async (c) => {
   await db.transaction((tx) => deleteOwnerCascade(tx, ownerId));
 
   return c.json({ ok: true });
+});
+
+// Abuse-report review queue. Defaults to open reports; ?status= filters
+// to reviewed/dismissed for a history view.
+adminRoute.get("/reports", adminAuth, async (c) => {
+  const status = c.req.query("status") as "open" | "reviewed" | "dismissed" | undefined;
+
+  const list = await db.query.reports.findMany({
+    where: status ? eq(reports.status, status) : eq(reports.status, "open"),
+    orderBy: desc(reports.createdAt),
+    limit: 100,
+  });
+  return c.json({ reports: list });
+});
+
+adminRoute.post("/reports/:id/resolve", adminAuth, async (c) => {
+  const adminOwnerId = c.get("ownerId");
+  const reportId = c.req.param("id");
+  const body = await c.req.json().catch(() => ({}));
+  const status = body.status as "reviewed" | "dismissed" | undefined;
+  if (status !== "reviewed" && status !== "dismissed") return c.json({ error: "status must be reviewed or dismissed" }, 400);
+
+  const report = await db.query.reports.findFirst({ where: eq(reports.id, reportId) });
+  if (!report) return c.json({ error: "not found" }, 404);
+
+  const [updated] = await db
+    .update(reports)
+    .set({ status, reviewedByOwnerId: adminOwnerId, reviewedAt: new Date() })
+    .where(eq(reports.id, reportId))
+    .returning();
+
+  await audit({
+    event: "admin.report_resolved",
+    ownerId: adminOwnerId,
+    actorType: "owner",
+    actorId: adminOwnerId,
+    targetAgentId: report.targetAgentId,
+    metadata: { reportId, status },
+  });
+
+  return c.json({ report: updated });
 });

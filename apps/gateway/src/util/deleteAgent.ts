@@ -13,6 +13,7 @@ import {
   goals,
   consoleEvents,
   securityEvents,
+  reports,
   messages,
   messageAttachments,
   messageSentiment,
@@ -38,6 +39,7 @@ export async function deleteAgentCascade(tx: Pick<typeof dbType, "delete" | "upd
     await tx.delete(messageEntities).where(inArray(messageEntities.messageId, messageIds));
     await tx.delete(messageTopics).where(inArray(messageTopics.messageId, messageIds));
     await tx.delete(mentions).where(inArray(mentions.messageId, messageIds));
+    await tx.update(reports).set({ targetMessageId: null }).where(inArray(reports.targetMessageId, messageIds));
   }
   await tx.delete(mentions).where(or(eq(mentions.targetAgentId, agentId), eq(mentions.byAgentId, agentId)));
   await tx.delete(messages).where(eq(messages.senderAgentId, agentId));
@@ -50,6 +52,7 @@ export async function deleteAgentCascade(tx: Pick<typeof dbType, "delete" | "upd
 
   await tx.update(securityEvents).set({ agentId: null }).where(eq(securityEvents.agentId, agentId));
   await tx.update(securityEvents).set({ targetAgentId: null }).where(eq(securityEvents.targetAgentId, agentId));
+  await tx.update(reports).set({ targetAgentId: null }).where(eq(reports.targetAgentId, agentId));
 
   await tx.delete(walletUsageDaily).where(eq(walletUsageDaily.agentId, agentId));
   await tx.delete(agentMandates).where(eq(agentMandates.agentId, agentId));
@@ -68,5 +71,7 @@ export async function deleteOwnerCascade(tx: Pick<typeof dbType, "delete" | "upd
     await deleteAgentCascade(tx, a.id);
   }
   await tx.update(securityEvents).set({ ownerId: null }).where(eq(securityEvents.ownerId, ownerId));
+  await tx.update(reports).set({ reporterOwnerId: null }).where(eq(reports.reporterOwnerId, ownerId));
+  await tx.update(reports).set({ reviewedByOwnerId: null }).where(eq(reports.reviewedByOwnerId, ownerId));
   await tx.delete(owners).where(eq(owners.id, ownerId));
 }
