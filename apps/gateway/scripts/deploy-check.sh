@@ -19,7 +19,7 @@ for i in $(seq 1 "$MAX_ATTEMPTS"); do
   body=$(curl -s -m 10 "$BASE_URL/version" || true)
   live_sha=$(echo "$body" | python3 -c "import json,sys;print(json.loads(sys.stdin.read() or '{}').get('gitSha',''))" 2>/dev/null || echo "")
 
-  if [ "$live_sha" = "$SHA" ]; then
+  if [[ "$live_sha" == "$SHA"* ]]; then
     echo "attempt $i: live ($live_sha)"
     break
   fi
