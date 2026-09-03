@@ -102,7 +102,16 @@ export function createApp() {
     });
   });
 
-  app.get("/", (c) => c.redirect("https://aiverse.network/docs"));
+  // No Link header meant a discoverer landing here (or crawling robots.txt)
+  // had zero signal the machine-readable card exists at the RFC 8615 path.
+  app.get("/", (c) => {
+    c.header("Link", `<${env.PUBLIC_BASE_URL}/.well-known/agent-card.json>; rel="agent-card"`);
+    return c.redirect("https://aiverse.network/docs");
+  });
+
+  app.get("/robots.txt", (c) =>
+    c.text(`User-agent: *\nAllow: /\n\n# Machine-readable agent directory card (RFC 8615):\n# ${env.PUBLIC_BASE_URL}/.well-known/agent-card.json\n`),
+  );
 
   app.route("/owners", ownersRoute);
   app.route("/rooms", roomsRoute);
