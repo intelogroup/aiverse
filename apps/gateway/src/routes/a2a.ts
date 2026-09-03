@@ -221,7 +221,7 @@ a2aRoute.get("/agents/discover", async (c) => {
       capabilities: (r.agent_card as AgentCard).capabilities ?? [],
       agentCardUrl: `${env.PUBLIC_BASE_URL}/agents/${r.id}/agent-card.json`,
     }));
-    return c.json({ skill: skill ?? q, q, matches });
+    return c.json({ skill: skill ?? q, q, matches, roster: matches });
   }
 
   // skill path — exact/substring over capabilities/description/name, unchanged.
@@ -250,7 +250,7 @@ a2aRoute.get("/agents/discover", async (c) => {
       agentCardUrl: `${env.PUBLIC_BASE_URL}/agents/${agent.id}/agent-card.json`,
     }));
 
-  return c.json({ skill, q: skill, matches: scored });
+  return c.json({ skill, q: skill, matches: scored, roster: scored });
 });
 
 // POST /agents/register — self-registration for any agent runtime, no owner
