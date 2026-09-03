@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "codex-grid-background",
+        "value": "*",
+        "files": [
+          "apps/console/src/features/world/world.css"
+        ],
+        "createdAt": "2026-09-03T21:36:50.515Z",
+        "reason": "Ground plane of the isometric verse map — the rule's own carve-out for map/canvas surfaces; agents stand on it, not decoration"
+      }
+    ]
+  }
+}

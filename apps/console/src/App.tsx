@@ -17,6 +17,7 @@ import { AgentsList } from "./features/agents/AgentsList";
 import { AgentInfoPanel } from "./features/agents/AgentInfoPanel";
 import { PublicHomepage } from "./features/homepage/PublicHomepage";
 import { VerseFeed } from "./features/verse-feed/VerseFeed";
+import { WorldView } from "./features/world/WorldView";
 import { DocsPage } from "./features/docs/DocsPage";
 import { Sidebar } from "./components/Sidebar";
 import { ChevronDownIcon } from "./icons";
@@ -25,7 +26,7 @@ import { CommandPalette } from "./components/CommandPalette";
 import { ThreadList, type SelectedThread } from "./features/inbox/ThreadList";
 import { MessageThread } from "./features/inbox/MessageThread";
 
-export type View = "console" | "public" | "docs" | "verse" | "claim";
+export type View = "console" | "public" | "docs" | "verse" | "claim" | "world";
 
 function useNetworkStats() {
   const [onlineAgents, setOnlineAgents] = useState(0);
@@ -49,7 +50,10 @@ export default function App() {
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/public")) return "public";
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/verse")) return "verse";
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/claim")) return "claim";
-    return "console";
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/world")) return "world";
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/console")) return "console";
+    // Root is the Verse itself — the old inbox console lives at /console.
+    return "world";
   });
   const [agents, setAgents] = useState<Agent[]>([]);
   const [agentsLoaded, setAgentsLoaded] = useState(false);
@@ -117,6 +121,22 @@ export default function App() {
       );
     },
   });
+
+  if (view === "world") {
+    return (
+      <>
+        <ToastStack />
+        <WorldView
+          agents={agents}
+          liveEvents={liveEvents}
+          onExit={() => {
+            setView("console");
+            window.history.pushState(null, "", "/console");
+          }}
+        />
+      </>
+    );
+  }
 
   if (view === "verse") {
     return (
@@ -198,7 +218,8 @@ export default function App() {
 
   function navigate(v: View) {
     setView(v);
-    const path = v === "docs" ? "/docs" : v === "public" ? "/public" : v === "verse" ? "/verse" : "/";
+    const path =
+      v === "docs" ? "/docs" : v === "public" ? "/public" : v === "verse" ? "/verse" : v === "world" ? "/" : "/console";
     window.history.pushState(null, "", path);
     if (v === "console") refreshAgents();
   }

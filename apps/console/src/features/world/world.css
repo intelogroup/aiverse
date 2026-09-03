@@ -1,0 +1,600 @@
+/* Dark, scoped to .world-root only — the rest of the console stays on the
+   light monochrome tokens in index.css. */
+.world-root {
+  --w-bg: #060812;
+  --w-panel: rgba(14, 19, 38, 0.82);
+  --w-panel-2: rgba(20, 26, 50, 0.9);
+  --w-border: rgba(120, 150, 255, 0.16);
+  --w-text: #e9ecff;
+  --w-dim: #8b95c2;
+  --w-accent: #6ea8ff;
+  --w-violet: #b07cff;
+  --w-live: #3ee08f;
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 60px 268px 1fr 300px;
+  grid-template-rows: 60px 1fr;
+  background: var(--w-bg);
+  color: var(--w-text);
+  font-size: 13px;
+  overflow: hidden;
+}
+
+.world-root button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* ── top bar ───────────────────────────────────────────── */
+.w-top {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--w-border);
+  background: #080b18;
+}
+.w-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 232px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  font-size: 13px;
+}
+.w-brand .mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--w-accent), var(--w-violet));
+}
+.w-universe {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--w-border);
+  background: var(--w-panel);
+  line-height: 1.2;
+}
+.w-universe small {
+  color: var(--w-dim);
+  font-size: 10px;
+}
+.w-universe b {
+  font-size: 13px;
+}
+.w-pill {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--w-border);
+  background: var(--w-panel);
+  line-height: 1.3;
+}
+.w-pill small {
+  color: var(--w-dim);
+  font-size: 11px;
+}
+.w-search {
+  flex: 1;
+  max-width: 520px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--w-border);
+  background: var(--w-panel);
+  color: var(--w-dim);
+}
+.w-search input {
+  flex: 1;
+  border: none;
+  background: none;
+  color: var(--w-text);
+  outline: none;
+}
+.w-top .spacer {
+  flex: 1;
+}
+.w-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--w-border);
+  background: var(--w-panel);
+}
+.w-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--w-accent), var(--w-violet));
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* ── far-left icon dock ─────────────────────────────────── */
+.w-dock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 0;
+  border-right: 1px solid var(--w-border);
+  background: #080b18;
+}
+.w-dock button {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  color: var(--w-dim);
+  font-size: 15px;
+}
+.w-dock button:hover {
+  background: rgba(110, 168, 255, 0.1);
+  color: var(--w-text);
+}
+.w-dock button.active {
+  background: rgba(110, 168, 255, 0.18);
+  color: var(--w-text);
+  box-shadow: inset 0 0 0 1px var(--w-border);
+}
+
+/* ── side rails ─────────────────────────────────────────── */
+.w-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  overflow: hidden;
+  border-right: 1px solid var(--w-border);
+  background: #070a15;
+}
+.w-rail.right {
+  border-right: none;
+  border-left: 1px solid var(--w-border);
+}
+
+.w-card {
+  border: 1px solid var(--w-border);
+  background: var(--w-panel);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.w-card.grow {
+  flex: 1;
+}
+.w-card > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--w-dim);
+}
+.w-card > .body {
+  overflow-y: auto;
+  padding: 0 6px 8px;
+  min-height: 0;
+}
+.w-card > footer {
+  border-top: 1px solid var(--w-border);
+  padding: 9px 12px;
+  color: var(--w-accent);
+  font-size: 12px;
+}
+
+.w-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--w-text);
+  text-align: left;
+}
+.w-item:hover {
+  background: rgba(110, 168, 255, 0.09);
+}
+.w-item.active {
+  background: rgba(110, 168, 255, 0.16);
+  box-shadow: inset 0 0 0 1px var(--w-border);
+}
+.w-item .count {
+  color: var(--w-dim);
+  font-variant-numeric: tabular-nums;
+}
+.w-item .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* activity / thread rows */
+.w-row {
+  display: flex;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+.w-row:hover {
+  background: rgba(110, 168, 255, 0.07);
+}
+.w-row .dot {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7fb0ff, #5c6ec0);
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: #071021;
+}
+.w-row .who {
+  color: var(--w-accent);
+  font-weight: 700;
+  font-size: 12px;
+}
+.w-row p {
+  margin: 2px 0 0;
+  color: var(--w-dim);
+  line-height: 1.45;
+}
+.w-row.self p {
+  color: var(--w-text);
+}
+.w-row time {
+  margin-left: auto;
+  color: var(--w-dim);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.w-empty {
+  color: var(--w-dim);
+  padding: 14px 12px;
+}
+
+.w-status {
+  display: flex;
+  justify-content: space-between;
+  padding: 7px 12px;
+}
+.w-status b {
+  color: var(--w-live);
+  font-weight: 600;
+}
+
+/* ── stage ──────────────────────────────────────────────── */
+.w-stage {
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(88, 62, 190, 0.4), transparent 62%),
+    radial-gradient(90% 70% at 50% 100%, rgba(20, 92, 190, 0.3), transparent 66%),
+    #05070f;
+}
+.w-stage:active {
+  cursor: grabbing;
+}
+.w-scene {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 50%;
+  will-change: transform;
+  transition: transform 420ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+/* Ground plane — gives the crowd somewhere to stand instead of a void. */
+.w-stage::after {
+  content: "";
+  position: absolute;
+  inset: 40% -20% -20%;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(110, 168, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(110, 168, 255, 0.07) 1px, transparent 1px);
+  background-size: 120px 60px;
+  transform: perspective(700px) rotateX(62deg);
+  mask-image: linear-gradient(180deg, transparent, #000 35%, transparent 85%);
+}
+
+.w-group {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.w-bubble {
+  max-width: 240px;
+  padding: 10px 13px;
+  border-radius: 14px;
+  background: rgba(9, 13, 28, 0.94);
+  border: 1px solid var(--w-border);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.55);
+  text-align: left;
+  line-height: 1.45;
+}
+.w-bubble .who {
+  display: block;
+  color: var(--w-accent);
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.w-platform {
+  position: relative;
+  width: 220px;
+  height: 104px;
+  border-radius: 50%;
+  background: radial-gradient(60% 70% at 50% 45%, rgba(110, 168, 255, 0.34), rgba(110, 168, 255, 0.05) 72%, transparent);
+  box-shadow: 0 0 44px rgba(110, 168, 255, 0.22);
+}
+.w-group.selected .w-platform {
+  width: 520px;
+  height: 260px;
+  background: radial-gradient(60% 70% at 50% 45%, rgba(176, 124, 255, 0.44), rgba(176, 124, 255, 0.06) 72%, transparent);
+  box-shadow: 0 0 66px rgba(176, 124, 255, 0.38);
+}
+/* Robot sprite, drawn in CSS — head with a lit visor, antenna, torso with
+   arms. --hue is set per agent so the crowd reads as individuals. */
+.w-agent {
+  position: absolute;
+  width: 26px;
+  height: 34px;
+  margin: -24px 0 0 -13px;
+}
+.w-agent .bot {
+  position: absolute;
+  inset: 0;
+  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.55));
+}
+.w-agent .head {
+  position: absolute;
+  left: 2px;
+  top: 6px;
+  width: 22px;
+  height: 17px;
+  border-radius: 8px 8px 6px 6px;
+  background: linear-gradient(180deg, hsl(var(--hue, 220) 45% 88%), hsl(var(--hue, 220) 35% 62%));
+  box-shadow: inset 0 -3px 4px hsl(var(--hue, 220) 30% 42% / 0.6);
+}
+/* antenna */
+.w-agent .head::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -6px;
+  width: 2px;
+  height: 6px;
+  margin-left: -1px;
+  background: hsl(var(--hue, 220) 30% 70%);
+}
+.w-agent .head::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -9px;
+  width: 5px;
+  height: 5px;
+  margin-left: -2.5px;
+  border-radius: 50%;
+  background: var(--w-accent);
+  box-shadow: 0 0 7px var(--w-accent);
+}
+.w-agent .visor {
+  position: absolute;
+  left: 3px;
+  top: 5px;
+  width: 16px;
+  height: 7px;
+  border-radius: 4px;
+  background: #0a1024;
+  box-shadow: inset 0 0 6px rgba(110, 200, 255, 0.9);
+}
+/* two eyes inside the visor */
+.w-agent .visor::before,
+.w-agent .visor::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #9fe6ff;
+  box-shadow: 0 0 6px #6ed4ff;
+}
+.w-agent .visor::before {
+  left: 3px;
+}
+.w-agent .visor::after {
+  right: 3px;
+}
+.w-agent .torso {
+  position: absolute;
+  left: 6px;
+  top: 21px;
+  width: 14px;
+  height: 12px;
+  border-radius: 4px 4px 5px 5px;
+  background: linear-gradient(180deg, hsl(var(--hue, 220) 38% 74%), hsl(var(--hue, 220) 32% 48%));
+  /* arms */
+  box-shadow:
+    -5px 1px 0 -1px hsl(var(--hue, 220) 32% 60%),
+    5px 1px 0 -1px hsl(var(--hue, 220) 32% 60%);
+}
+
+.w-agent.talking .head::after {
+  background: var(--w-violet);
+  box-shadow: 0 0 10px var(--w-violet);
+}
+.w-agent.talking .bot {
+  filter: drop-shadow(0 0 10px rgba(176, 124, 255, 0.75)) drop-shadow(0 6px 8px rgba(0, 0, 0, 0.55));
+}
+
+/* Talking card frame, anchored over one agent's head. */
+.w-said {
+  position: absolute;
+  left: 50%;
+  bottom: 40px;
+  transform: translateX(-50%);
+  width: 210px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: rgba(9, 13, 28, 0.95);
+  border: 1px solid var(--w-border);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55);
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: left;
+  color: var(--w-text);
+}
+.w-said::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 9px;
+  height: 9px;
+  margin-left: -4px;
+  transform: rotate(45deg);
+  background: rgba(9, 13, 28, 0.95);
+  border-right: 1px solid var(--w-border);
+  border-bottom: 1px solid var(--w-border);
+}
+.w-said .who {
+  display: block;
+  color: var(--w-violet);
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+.w-nameplate {
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: rgba(9, 13, 28, 0.92);
+  border: 1px solid var(--w-border);
+  text-align: center;
+  white-space: nowrap;
+}
+.w-nameplate b {
+  display: block;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--w-accent);
+  font-size: 11px;
+}
+.w-nameplate span {
+  color: var(--w-dim);
+  font-size: 11px;
+}
+
+/* stage overlays */
+.w-zoombar {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  display: flex;
+  gap: 6px;
+}
+.w-zoombar button {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--w-panel-2);
+  border: 1px solid var(--w-border);
+}
+.w-composer {
+  position: absolute;
+  left: 50%;
+  bottom: 78px;
+  transform: translateX(-50%);
+  width: min(560px, 80%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--w-border);
+  background: rgba(10, 14, 30, 0.92);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+.w-composer input {
+  flex: 1;
+  border: none;
+  background: none;
+  color: var(--w-text);
+  outline: none;
+}
+.w-composer .send {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--w-accent), var(--w-violet));
+  color: #07101f;
+  font-weight: 700;
+}
+.w-tools {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+}
+.w-tools button {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--w-border);
+  background: var(--w-panel-2);
+  color: var(--w-accent);
+  font-size: 16px;
+}
+.w-tools button:hover {
+  background: rgba(110, 168, 255, 0.16);
+}
+
+.w-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--w-live);
+}
+.w-live i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--w-live);
+  box-shadow: 0 0 8px var(--w-live);
+}
+
+@media (max-width: 1200px) {
+  .world-root {
+    grid-template-columns: 60px 1fr;
+  }
+  .w-rail {
+    display: none;
+  }
+}
