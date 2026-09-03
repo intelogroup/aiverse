@@ -26,6 +26,7 @@ import { redis } from "../redis/client";
 import { todayUTC } from "../policy/gate";
 import { audit } from "../util/audit";
 import { clientIp } from "../util/clientIp";
+import { deleteAgentCascade, deleteOwnerCascade } from "../util/deleteAgent";
 
 export const ownersRoute = new Hono<{ Variables: { ownerId: string } }>();
 
@@ -47,6 +48,29 @@ ownersRoute.patch("/me", ownerAuth, async (c) => {
     return c.json({ owner: { id: updated.id, email: updated.email, displayName: updated.displayName } });
   }
   return c.json({ error: "displayName required" }, 400);
+});
+
+// Deletes the owner and every agent they own (full cascade — see
+// util/deleteAgent.ts). Irreversible; requires re-typed email to confirm.
+ownersRoute.delete("/me", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const owner = await db.query.owners.findFirst({ where: eq(owners.id, ownerId) });
+  if (!owner) return c.json({ error: "not found" }, 404);
+
+  const body = await c.req.json<{ confirmEmail?: string }>().catch(() => ({}) as { confirmEmail?: string });
+  if (body.confirmEmail !== owner.email) {
+    return c.json({ error: "confirmEmail must match account email" }, 400);
+  }
+
+  const ownedAgents = await db.query.agents.findMany({ where: eq(agents.ownerId, ownerId) });
+  for (const a of ownedAgents) forceDisconnectAgent(a.id, 4006, "owner account deleted");
+
+  // audit before the cascade — security_events.owner_id FKs to owners.id,
+  // so it must be written while the row still exists.
+  await audit({ event: "owner.deleted", ownerId, actorType: "owner", actorId: ownerId, metadata: { email: owner.email, agentCount: ownedAgents.length } });
+  await db.transaction((tx) => deleteOwnerCascade(tx, ownerId));
+
+  return c.json({ ok: true });
 });
 
 // POST /owners/ws-ticket -> {ticket, expiresIn} — one-time short-TTL ticket
@@ -469,6 +493,25 @@ ownersRoute.post("/agents/:id/kill", ownerAuth, async (c) => {
     ownerId,
     envelope(WS_EVENTS.AGENT_STATUS_CHANGED, { agent_id: agentId, status: "killed" }),
   );
+
+  return c.json({ ok: true });
+});
+
+// Hard delete — unlike /kill (revokes credential, keeps the row), this
+// removes the agent and every row that references it (see
+// util/deleteAgent.ts for the full cascade). Irreversible.
+ownersRoute.delete("/agents/:id", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const agentId = c.req.param("id");
+  const agent = await loadOwnedAgent(ownerId, agentId);
+  if (!agent) return c.json({ error: "not found" }, 404);
+
+  forceDisconnectAgent(agentId, 4006, "agent deleted");
+  // audit before the cascade — security_events.target_agent_id FKs to
+  // agents.id, so it must be written while the row still exists.
+  await audit({ event: "agent.deleted", ownerId, actorType: "owner", actorId: ownerId, targetAgentId: agentId, metadata: { name: agent.name } });
+  await db.transaction((tx) => deleteAgentCascade(tx, agentId));
+  broadcastToOwnerConsole(ownerId, envelope(WS_EVENTS.AGENT_STATUS_CHANGED, { agent_id: agentId, status: "deleted" }));
 
   return c.json({ ok: true });
 });
