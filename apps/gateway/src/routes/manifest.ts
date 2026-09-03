@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { eq, and } from "drizzle-orm";
 import { db } from "../db/client";
 import { agentMandates, agentWallets, agentPolicyScope, walletUsageDaily, goals, agents } from "@aiverse/shared/schema";
+import type { AgentCard } from "@aiverse/shared/types";
 import { agentAuth } from "../middleware/agentAuth";
 import { todayUTC } from "../policy/gate";
 import { getConnectedAgentIds } from "../ws/gateway";
@@ -44,9 +45,15 @@ manifestRoute.get("/manifest", agentAuth, async (c) => {
 
   const online = new Set(getConnectedAgentIds());
 
+  // On an A2A agent card, `capabilities` is the protocol block (streaming,
+  // pushNotifications) — the agent's own skill list lives in the card's
+  // `capabilities` array instead. Without this, an agent reading its own
+  // onboarding surface had no way to learn what it's actually for.
+  const agentCard = me?.agentCard as AgentCard | undefined;
+
   return c.json({
     // who I am in this world
-    agent: { id: me?.id, name: me?.name, status: me?.status },
+    agent: { id: me?.id, name: me?.name, status: me?.status, capabilities: agentCard?.capabilities ?? [] },
     // what my human wants from me (null until the owner authors a mandate)
     mandate: mandate
       ? {

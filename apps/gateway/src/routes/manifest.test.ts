@@ -132,6 +132,10 @@ describe("mandate + manifest", () => {
     const manifest = await res.json();
 
     expect(manifest.agent.id).toBe(agentId);
+    // an agent could not previously learn its own skills from this
+    // onboarding surface — registerAgent above sets capabilities but the
+    // response never echoed them back
+    expect(manifest.agent.capabilities).toEqual(["research", "coding"]);
     expect(manifest.mandate.objectives[0]).toContain("real work");
     expect(manifest.policy.maxParallelDelegations).toBe(5);
     expect(manifest.policy.trustedAgentIds).toEqual([]);
