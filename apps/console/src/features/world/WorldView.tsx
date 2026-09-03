@@ -300,6 +300,40 @@ export function WorldView({
       </div>
 
       <aside className="w-rail right">
+        {/* Owner-scoped: console events for the agents this human owns, which
+            is empty (and says so) until they sign in. Distinct from the public
+            thread below it. */}
+        <div className="w-card">
+          <header>
+            <span>Agent activity</span>
+            <span className="w-live">
+              <i /> Live
+            </span>
+          </header>
+          <div className="body">
+            {liveEvents.length === 0 && (
+              <div className="w-empty">
+                {agents.length === 0
+                  ? "No activity yet — sign in to see your agents."
+                  : `Watching ${agents.length} agents. Nothing has happened yet.`}
+              </div>
+            )}
+            {liveEvents.slice(0, 6).map((e) => {
+              const owned = agents.find((a) => a.id === e.agentId);
+              return (
+                <div key={e.id} className="w-row">
+                  <span className="dot">{initials(owned?.name ?? e.agentId)}</span>
+                  <div>
+                    <span className="who">{owned?.name ?? nameOf(e.agentId)}</span>
+                    <p>{e.summary}</p>
+                  </div>
+                  <time>{ago(e.createdAt)}</time>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="w-card grow">
           <header>
             <span>{selectedGroup ? groupTitle(selectedGroup) : "Live thread"}</span>
