@@ -10,10 +10,9 @@ is found; don't let it go stale like the state it documents.
 0. **Deploy target is `origin/main`, not `origin/prod-release`**, despite
    the branch's name — confirmed via `render services -o json` 2026-09-03.
    A push to `prod-release` alone does nothing; fast-forward or push onto
-   `main` to actually trigger a deploy. `main`'s local history has
-   diverged badly (see Known open gaps below) — only fast-forward pushes
-   onto `origin/main`, never force-push or rebase it, without reading that
-   section first.
+   `main` to actually trigger a deploy. Local `main` and `origin/main` are
+   in sync as of 2026-09-03 (see Closed 2026-09-03) — keep it that way with
+   fast-forward-only pushes, never force-push or rebase `main`.
 1. **Confirm `NODE_ENV=production` is actually set on the deploy target —
    don't trust `render.yaml` alone.** `packages/shared/src/env.ts` fails
    loud on missing `PUBLIC_BASE_URL` / `CONSOLE_ORIGINS` / a short
@@ -54,9 +53,10 @@ root. The root `.env.test` can silently shadow `apps/gateway/.env.test`
 and point tests at a stale/unreachable cloud DB, producing false failure
 counts that look like "pre-existing breakage" (see `CLAUDE.md` for the
 2026-09-02 incident where this hid the real suite health for over a week).
-Current real local baseline: 121 pass / 1 fail (one known DB-state flake
-in the native-agent invite test, unrelated to any specific change — verify
-it still fails in isolation before assuming a new change caused it).
+Current real local baseline: 125 pass / 2 fail (both in
+`jobs/nativeAgents.test.ts` — known DB-state flakes, unrelated to any
+specific change — verify they still fail in isolation before assuming a
+new change caused them).
 
 ## Closed this session (2026-09-02)
 
@@ -105,21 +105,30 @@ it still fails in isolation before assuming a new change caused it).
   `AIVERSE_DISABLE_NATIVES=1` (dashboard, persists across normal deploys
   since it's not declared with a `value:` in `render.yaml`).
 - `apps/gateway/scripts/deploy-check.sh` added — see item 5 above.
+- **`main`/`origin/main` divergence resolved.** This used to be a "Known
+  open gap" here, warning that `origin/main` held real unmerged security
+  work — investigating it found that warning stale on both counts: the
+  security work it named (`e2fd209`/`970da23` WS-ticket-retirement,
+  `df23ea7`/`551c6dc` trust-boundary fix) had actually already merged into
+  `prod-release` on 2026-09-02, before that warning was even written — the
+  real divergence was local `main` (46 old commits, mostly a since-
+  abandoned earlier iteration of the `experiments/verse-ecology/` research
+  line). Two genuinely-missing fixes were recovered and reapplied by hand:
+  `GET /manifest` now returns the agent's own capabilities (was silently
+  empty), and `ws/gateway.ts`'s `WSContext` now uses Hono's own type
+  instead of a drifted local one. Old `main`'s full history is preserved
+  at local tag `archive/main-2026-09-02` (not pushed) if anything else in
+  it turns out to matter later. Local `main` now tracks `origin/main`
+  exactly (0 commits either way).
+- **CI added** (`.github/workflows/ci.yml`, `tsconfig.ci.json`) — recovered
+  from the same old branch and fixed to actually pass (it referenced two
+  root `package.json` scripts that didn't exist). Runs typecheck + gateway
+  tests + console lint/test/build against disposable Postgres+pgvector and
+  Redis containers on every push to `main` and every PR. Closes the item
+  right below.
 
 ## Known open gaps (not yet fixed)
 
-- **`main` and `origin/main` have diverged** (45 vs 51 commits as of this
-  session) — `origin/main` holds real unmerged security work (WS ticket
-  auth retirement, trust-boundary gap close). Needs a deliberate rebase or
-  merge decision, not a force-push. Do not touch `main` without reading
-  this section first. Still open as of 2026-09-03 — the delete-API and
-  `/version` deploys that session fast-forwarded onto `origin/main`
-  without touching this divergence, but it needs resolving before it
-  causes a real conflict.
-- **No CI / pre-deploy gate.** No `.github/workflows` exist at all.
-  `apps/gateway/scripts/deploy-check.sh` (added 2026-09-03) is a manual
-  stopgap run by hand after a push — wiring it into an actual CI pipeline
-  that blocks a bad deploy automatically is still undone.
 - `AGENTS.md` rule 15 still lists `mistral-nemo` as an approved model —
   removed from the real allowlist in `9d70d41` (fix(llm): drop
   mistral-nemo). Doc/code drift, low urgency but should be fixed so the
@@ -144,7 +153,7 @@ it still fails in isolation before assuming a new change caused it).
 
 ## If something breaks after deploy
 
-1. Check `/health` first (item 5 above) — rules out DB/Redis before
+1. Check `/health` first (item 1 above) — rules out DB/Redis before
    anything else.
 2. Grep deploy logs for `unhandled_route_error` or `uncaught_exception` —
    both now carry the real error message and, for route errors, the
