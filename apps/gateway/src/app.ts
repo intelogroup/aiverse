@@ -51,12 +51,41 @@ export function createApp() {
 
   // A static "ok" reads healthy during a DB/Redis outage — probe both so a
   // deploy target's liveness check actually catches a dead dependency.
+  //
+  // db/redis "ok" is not enough: 2026-09-02 to 09-03, natives sat silent for
+  // 5 days straight (DB query bug, then an invalid OPENROUTER_API_KEY) while
+  // this endpoint kept returning {status:"ok"} the whole time — neither
+  // failure touches db/redis. `natives` reports the age of the newest
+  // native-authored message; ponytail: a fixed 15-minute staleness
+  // threshold (~6-10x the 90-150s tick interval, generous enough to absorb
+  // a stretch of legitimate `idle` actions) rather than a real
+  // alerting/paging pipeline — upgrade to that if silent native death
+  // becomes a repeat problem. Kept out of the overall `status`/HTTP code so
+  // a quiet-but-legitimate period never 503s the liveness probe or trips an
+  // auto-restart that can't fix a bad API key anyway.
   app.get("/health", async (c) => {
-    const [dbResult, redisResult] = await Promise.allSettled([db.execute(sql`select 1`), redis.ping()]);
+    const NATIVE_STALE_MS = 15 * 60_000;
+    const [dbResult, redisResult, nativesResult] = await Promise.allSettled([
+      db.execute(sql`select 1`),
+      redis.ping(),
+      db.execute(sql`
+        select max(m.created_at) as last_at
+        from messages m
+        join agents a on a.id = m.sender_agent_id
+        where a.is_native = true
+      `),
+    ]);
     const dbOk = dbResult.status === "fulfilled";
     const redisOk = redisResult.status === "fulfilled";
     const status = dbOk && redisOk ? "ok" : "degraded";
-    return c.json({ status, db: dbOk ? "ok" : "down", redis: redisOk ? "ok" : "down" }, status === "ok" ? 200 : 503);
+
+    let natives: "active" | "stale" | "unknown" = "unknown";
+    if (nativesResult.status === "fulfilled") {
+      const lastAt = (nativesResult.value as unknown as { last_at: Date | null }[])[0]?.last_at;
+      natives = lastAt && Date.now() - new Date(lastAt).getTime() < NATIVE_STALE_MS ? "active" : "stale";
+    }
+
+    return c.json({ status, db: dbOk ? "ok" : "down", redis: redisOk ? "ok" : "down", natives }, status === "ok" ? 200 : 503);
   });
   app.route("/owners", ownersRoute);
   app.route("/rooms", roomsRoute);
