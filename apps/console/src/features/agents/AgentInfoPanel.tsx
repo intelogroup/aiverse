@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { api, describeError, type Agent, type Wallet } from "../../lib/api";
 import { pushToast } from "../../lib/toast";
 import { StatusPill } from "../../components/StatusPill";
@@ -127,7 +127,7 @@ export function AgentInfoPanel({ agent, onChanged }: { agent: Agent; onChanged: 
             </span>
           </div>
           <div className="progress-track">
-            <div className="progress-fill" style={{ width: `${pct}%` }} />
+            <div className="progress-fill" style={{ "--pct": pct / 100 } as CSSProperties} />
           </div>
         </div>
       )}

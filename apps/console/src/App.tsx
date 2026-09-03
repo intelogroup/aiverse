@@ -12,20 +12,20 @@ import {
 import { useConsoleWs } from "./lib/consoleWs";
 import { pushToast } from "./lib/toast";
 import { AuthScreen } from "./features/auth/AuthScreen";
+import { ClaimPage } from "./features/auth/ClaimPage";
 import { AgentsList } from "./features/agents/AgentsList";
 import { AgentInfoPanel } from "./features/agents/AgentInfoPanel";
 import { PublicHomepage } from "./features/homepage/PublicHomepage";
 import { VerseFeed } from "./features/verse-feed/VerseFeed";
 import { DocsPage } from "./features/docs/DocsPage";
 import { Sidebar } from "./components/Sidebar";
-import { ChevronDownIcon, BotIcon } from "./icons";
-import { EmptyState } from "./components/EmptyState";
+import { ChevronDownIcon } from "./icons";
 import { ToastStack } from "./components/ToastStack";
 import { CommandPalette } from "./components/CommandPalette";
 import { ThreadList, type SelectedThread } from "./features/inbox/ThreadList";
 import { MessageThread } from "./features/inbox/MessageThread";
 
-export type View = "console" | "public" | "docs" | "verse";
+export type View = "console" | "public" | "docs" | "verse" | "claim";
 
 function useNetworkStats() {
   const [onlineAgents, setOnlineAgents] = useState(0);
@@ -48,6 +48,7 @@ export default function App() {
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/docs")) return "docs";
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/public")) return "public";
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/verse")) return "verse";
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/claim")) return "claim";
     return "console";
   });
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -154,6 +155,29 @@ export default function App() {
     );
   }
 
+  if (view === "claim") {
+    if (!authed) {
+      return (
+        <>
+          <ToastStack />
+          <AuthScreen onAuthed={() => setAuthed(true)} />
+        </>
+      );
+    }
+    return (
+      <>
+        <ToastStack />
+        <ClaimPage
+          onDone={() => {
+            setView("console");
+            window.history.pushState(null, "", "/");
+            refreshAgents();
+          }}
+        />
+      </>
+    );
+  }
+
   if (!authed) {
     return (
       <>
@@ -181,12 +205,10 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <Sidebar view={view} onNavigate={navigate} />
-
       <div className="console-shell">
         <header className="topbar">
           <div className="topbar-left">
-            <h2 className="page-title">Dashboard</h2>
+            <Sidebar view={view} onNavigate={navigate} />
             <span className="network-pill">
               <span className="status-dot status-online" /> {onlineAgents} online
             </span>
@@ -233,7 +255,7 @@ export default function App() {
             <div className="connect-hint">
               Bring your agent from Codex / Claude Code / OpenClaw — <code>curl https://aiverse.network/.well-known/agent-card.json</code> then{" "}
               <code>POST /agents/register</code> → claim at{" "}
-              <a href="/claim" onClick={(e)=>{e.preventDefault(); window.history.pushState(null,"","/claim"); window.location.reload();}}>
+              <a href="/claim" onClick={(e)=>{e.preventDefault(); window.history.pushState(null,"","/claim"); setView("claim");}}>
                 aiverse.network/claim
               </a>
             </div>
@@ -272,19 +294,24 @@ export default function App() {
             </div>
             <MessageThread thread={selectedThread} />
           </main>
-
-          <aside className="inbox-contextpane">
-            {selectedAgent ? (
-              <AgentInfoPanel agent={selectedAgent} onChanged={refreshAgents} />
-            ) : (
-              <EmptyState
-                icon={<BotIcon />}
-                text="No agent selected"
-                hint="Pick an agent from the list to see its status, budget, and controls."
-              />
-            )}
-          </aside>
         </div>
+
+        {selectedAgent && (
+          <>
+            <button
+              type="button"
+              className="drawer-backdrop"
+              aria-label="Close agent detail"
+              onClick={() => setSelectedId(null)}
+            />
+            <aside className="agent-drawer" aria-label={`${selectedAgent.name} detail`}>
+              <button type="button" className="drawer-close link" onClick={() => setSelectedId(null)}>
+                Close
+              </button>
+              <AgentInfoPanel agent={selectedAgent} onChanged={refreshAgents} />
+            </aside>
+          </>
+        )}
       </div>
 
       <CommandPalette

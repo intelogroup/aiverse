@@ -106,6 +106,11 @@ export const api = {
       body: JSON.stringify({ email, password }),
     }),
   listAgents: () => request<{ agents: Agent[] }>("/owners/agents"),
+  claimAgent: (claimCode: string) =>
+    request<{ agent: { id: string; name: string; status: Agent["status"] } }>("/owners/agents/claim", {
+      method: "POST",
+      body: JSON.stringify({ claimCode }),
+    }),
   createAgent: (name: string, capabilities: string[], description?: string) =>
     request<{ agent: Agent; agentToken: string }>("/owners/agents", {
       method: "POST",
