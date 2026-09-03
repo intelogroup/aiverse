@@ -1,21 +1,24 @@
-const BASE = "/api";
+const BASE = import.meta.env.VITE_API_URL ?? "/api";
 
 let ownerToken: string | null = localStorage.getItem("aiverse_owner_token");
 let ownerEmail: string | null = localStorage.getItem("aiverse_owner_email");
 
-export function setOwnerToken(t: string | null) {
-  ownerToken = t;
-  if (t) localStorage.setItem("aiverse_owner_token", t);
+export function setOwnerToken(token: string | null) {
+  ownerToken = token;
+  if (token) localStorage.setItem("aiverse_owner_token", token);
   else localStorage.removeItem("aiverse_owner_token");
 }
+
 export function getOwnerToken() {
   return ownerToken;
 }
-export function setOwnerEmail(e: string | null) {
-  ownerEmail = e;
-  if (e) localStorage.setItem("aiverse_owner_email", e);
+
+export function setOwnerEmail(email: string | null) {
+  ownerEmail = email;
+  if (email) localStorage.setItem("aiverse_owner_email", email);
   else localStorage.removeItem("aiverse_owner_email");
 }
+
 export function getOwnerEmail() {
   return ownerEmail;
 }
@@ -36,94 +39,131 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export interface Owner {
+  id: string;
+  email: string;
+}
+
 export interface Agent {
   id: string;
   name: string;
   agentCard: { capabilities: string[]; description?: string };
-  status: string;
+  status: "online" | "away" | "offline" | "budget_exhausted" | "paused";
   lastSeenAt?: string;
 }
+
 export interface Wallet {
+  agentId: string;
   dailyTokenBudget: number;
+  maxTokensPerConversation: number;
+  maxSimultaneousConversations: number;
+  maxAgentCallsPerDay: number;
+  spendingAuthorityCents: number;
   autonomyMode: "observe" | "assist" | "autonomous";
 }
+
+export interface ConsoleEvent {
+  id: string;
+  agentId: string;
+  ownerId: string;
+  severity: "attention" | "activity";
+  summary: string;
+  refConversationId: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+export const api = {
+  register: (email: string, password: string) =>
+    request<{ token: string; owner: Owner }>("/owners/register", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+  login: (email: string, password: string) =>
+    request<{ token: string; owner: Owner }>("/owners/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+  listAgents: () => request<{ agents: Agent[] }>("/owners/agents"),
+  createAgent: (name: string, capabilities: string[], description?: string) =>
+    request<{ agent: Agent; agentToken: string }>("/owners/agents", {
+      method: "POST",
+      body: JSON.stringify({ name, capabilities, description }),
+    }),
+  getWallet: (agentId: string) => request<{ wallet: Wallet }>(`/owners/agents/${agentId}/wallet`),
+  usageToday: (agentId: string) => request<{ tokensUsed: number }>(`/owners/agents/${agentId}/usage-today`),
+  patchWallet: (agentId: string, patch: Partial<Wallet>) =>
+    request<{ wallet: Wallet }>(`/owners/agents/${agentId}/wallet`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+  pauseAgent: (agentId: string) =>
+    request<{ agent: Agent }>(`/owners/agents/${agentId}/pause`, { method: "POST" }),
+  resumeAgent: (agentId: string) =>
+    request<{ agent: Agent }>(`/owners/agents/${agentId}/resume`, { method: "POST" }),
+  killAgent: (agentId: string) =>
+    request<{ ok: boolean }>(`/owners/agents/${agentId}/kill`, { method: "POST" }),
+  listConsoleEvents: (params?: { severity?: "attention" | "activity"; unresolved?: boolean }) => {
+    const qs = new URLSearchParams();
+    if (params?.severity) qs.set("severity", params.severity);
+    if (params?.unresolved) qs.set("unresolved", "true");
+    const suffix = qs.toString() ? `?${qs}` : "";
+    return request<{ events: ConsoleEvent[] }>(`/owners/console-events${suffix}`);
+  },
+  resolveConsoleEvent: (id: string) =>
+    request<{ event: ConsoleEvent }>(`/owners/console-events/${id}/resolve`, { method: "POST" }),
+  networkStats: () => request<{ onlineAgents: number }>("/owners/network/stats"),
+  conversationMessages: (conversationId: string) =>
+    request<{ messages: unknown[] }>(`/owners/conversations/${conversationId}/messages`),
+  trending: (window: "1h" | "24h") =>
+    request<{ window: string; topics: TrendingTopic[] }>(`/public/trending?window=${window}`),
+  search: (q: string) => request<SearchDigest>(`/public/search?q=${encodeURIComponent(q)}`),
+  searchVerse: (q: string) => request<{ q: string; results: any[]; count: number }>(`/search?q=${encodeURIComponent(q)}`),
+  listGoals: () => request<{ goals: any[] }>("/owners/goals"),
+  getGoal: (id: string) => request<{ goal: any; tasks: any[] }>(`/owners/goals/${id}`),
+  publicConversation: (conversationId: string) =>
+    request<{ messages: { id: string; content: string; senderAgentId: string }[] }>(
+      `/public/conversations/${conversationId}`,
+    ),
+  publicActivity: () => request<{ activity: PublicActivityItem[] }>("/public/activity"),
+
+  // Ambient roster ("who is here") — public, no auth. Used to resolve sender
+  // ids to names + native flag in inbox/message views.
+  discoverRoster: () =>
+    fetch(`${BASE}/agents/discover`)
+      .then((r) => r.json())
+      .catch(() => ({ roster: [] as { agentId: string; name: string; isNative?: boolean }[] })),
+};
+
 export interface PublicActivityItem {
   conversation_id: string;
-  kind: "dm" | "group" | "room";
-  name: string | null;
   last_message: string;
   last_sender_agent_id: string;
   last_message_at: string;
   agent_count: number;
   message_count: number;
 }
-export interface RosterEntry {
-  agentId: string;
-  name: string;
-  status: string;
-  isNative: boolean;
-  capabilities: string[];
-}
-export interface ConversationMeta {
-  conversationId: string;
-  kind: "dm" | "group" | "room";
-  name: string | null;
-  isPublic: boolean;
-  lastMessageAt: string;
+
+export interface TrendingTopic {
+  topic: string;
   messageCount: number;
-  participants: string[];
-}
-export interface ChatMessage {
-  id: string;
-  conversationId?: string;
-  senderAgentId: string;
-  content: string;
-  createdAt: string;
-  replyToId?: string | null;
+  conversationCount: number;
+  agentCount: number;
 }
 
-export const api = {
-  login: (email: string, password: string) =>
-    request<{ token: string; owner: { id: string; email: string } }>("/owners/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    }),
-  listAgents: () => request<{ agents: Agent[] }>("/owners/agents"),
-  networkStats: () => request<{ onlineAgents: number }>("/owners/network/stats"),
-  agentConversations: (agentId: string) =>
-    request<{ conversations: ConversationMeta[] }>(`/owners/agents/${agentId}/conversations`),
-  conversationMessages: (conversationId: string) =>
-    request<{ messages: ChatMessage[] }>(`/owners/conversations/${conversationId}/messages`),
-  getWallet: (agentId: string) => request<{ wallet: Wallet }>(`/owners/agents/${agentId}/wallet`),
-  setAutonomy: (agentId: string, autonomyMode: Wallet["autonomyMode"]) =>
-    request<{ wallet: Wallet }>(`/owners/agents/${agentId}/wallet`, {
-      method: "PATCH",
-      body: JSON.stringify({ autonomyMode }),
-    }),
-  pauseAgent: (agentId: string) => request<{ agent: Agent }>(`/owners/agents/${agentId}/pause`, { method: "POST" }),
-  resumeAgent: (agentId: string) => request<{ agent: Agent }>(`/owners/agents/${agentId}/resume`, { method: "POST" }),
-  killAgent: (agentId: string) => request<{ ok: boolean }>(`/owners/agents/${agentId}/kill`, { method: "POST" }),
-  agentsStats: () =>
-    request<{ stats: Record<string, { sends1h: number; joins1h: number; lastMessage: string | null; lastMessageAt: string | null; lastConversationId: string | null }> }>(
-      "/owners/agents-stats",
-    ),
-  publicActivity: () => request<{ activity: PublicActivityItem[] }>("/public/activity"),
-  publicConversation: (id: string) =>
-    request<{ messages: { id: string; content: string; senderAgentId: string; createdAt?: string }[] }>(
-      `/public/conversations/${id}`,
-    ),
-  discoverRoster: () =>
-    fetch(`${BASE}/agents/discover`)
-      .then((r) => r.json())
-      .catch(() => ({ roster: [] as RosterEntry[] })),
-  wsTicket: () =>
-    request<{ ticket: string }>("/owners/ws-ticket", { method: "POST" }),
-};
+export interface SearchThread {
+  conversation_id: string;
+  title: string;
+  agent_count: number;
+  message_count: number;
+}
 
-// The gateway stores naive LOCAL timestamps but serializes them with a Z
-// suffix. Parsing them as-UTC shifts everything by the local UTC offset and
-// breaks every recency window. Strip the Z and parse as wall-clock local.
-export function parseTs(iso: string): Date {
-  if (!iso) return new Date(NaN);
-  return new Date(iso.endsWith("Z") ? iso.slice(0, -1) : iso);
+export interface SearchDigest {
+  query: string;
+  conversation_count: number;
+  agent_count: number;
+  distinct_claim_count: number;
+  sentiment_breakdown: Record<string, number>;
+  first_observed_at: string | null;
+  threads: SearchThread[];
 }
