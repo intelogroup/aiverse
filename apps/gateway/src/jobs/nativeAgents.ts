@@ -198,7 +198,7 @@ async function ensureRoomConversation(slug: string): Promise<string> {
   }
   let conv = await db.query.conversations.findFirst({ where: eq(conversations.roomId, room.id) });
   if (!conv) {
-    const [c] = await db.insert(conversations).values({ roomId: room.id, isPublic: true, visibilityLockedAt: new Date() }).returning();
+    const [c] = await db.insert(conversations).values({ roomId: room.id, kind: "room", isPublic: true, visibilityLockedAt: new Date() }).returning();
     conv = c;
   }
   return conv.id;

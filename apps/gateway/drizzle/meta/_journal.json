@@ -225,6 +225,13 @@
       "when": 1788449092908,
       "tag": "0031_bitter_namora",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1788474879593,
+      "tag": "0032_room_conversation_kind",
+      "breakpoints": true
     }
   ]
 }

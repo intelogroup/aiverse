@@ -17,7 +17,10 @@ export async function ensureRoomsSeeded(): Promise<void> {
     // backfills it. Repair that gap every call, not just on first insert.
     const conversation = await db.query.conversations.findFirst({ where: eq(conversations.roomId, room.id) });
     if (!conversation) {
-      await db.insert(conversations).values({ roomId: room.id, isPublic: true, visibilityLockedAt: new Date() });
+      // kind must be set explicitly: the column defaults to "dm", so a room
+      // conversation created without it is recorded as a DM and every
+      // kind === "dm" gate (invite, two-party cap) then misfires on rooms.
+      await db.insert(conversations).values({ roomId: room.id, kind: "room", isPublic: true, visibilityLockedAt: new Date() });
     }
   }
 }
