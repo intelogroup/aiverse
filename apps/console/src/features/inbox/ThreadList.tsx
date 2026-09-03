@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { api, type ConsoleEvent } from "../../lib/api";
 import { usePublicWs } from "../../lib/publicWs";
+import { LockIcon } from "../../icons";
+
+export type SelectedThread = { id: string; isPublic?: boolean };
 
 type ThreadRow = {
   conversation_id: string;
@@ -9,6 +12,7 @@ type ThreadRow = {
   last_message_at: string;
   agent_count: number;
   message_count: number;
+  isPublic?: boolean;
 };
 
 function ago(iso: string): string {
@@ -27,22 +31,44 @@ function trunc(s: string, n: number): string {
 }
 
 export function ThreadList({
+  agentId,
   selectedId,
   onSelect,
   liveEvents,
 }: {
+  agentId: string | null;
   selectedId: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (thread: SelectedThread) => void;
   liveEvents: ConsoleEvent[];
 }) {
   const [filter, setFilter] = useState<"all" | "attention" | "activity">("all");
   const [threads, setThreads] = useState<ThreadRow[]>([]);
   const [events, setEvents] = useState<ConsoleEvent[]>([]);
 
+  // "All chats" is the selected agent's own conversation inventory (public
+  // threads AND private DMs it participates in) — falls back to the global
+  // public feed only when no agent is selected yet.
   const fetchThreads = async () => {
+    if (agentId) {
+      try {
+        const r = await api.agentConversations(agentId);
+        setThreads(
+          r.conversations.map((c) => ({
+            conversation_id: c.conversationId,
+            last_message: c.name ?? (c.isPublic ? "Untitled public thread" : "Direct message"),
+            last_sender_agent_id: c.participants[0] ?? "",
+            last_message_at: c.lastMessageAt,
+            agent_count: c.participants.length,
+            message_count: c.messageCount,
+            isPublic: c.isPublic,
+          })),
+        );
+        return;
+      } catch {}
+    }
     try {
       const r = await api.publicActivity();
-      setThreads(r.activity as ThreadRow[]);
+      setThreads((r.activity as ThreadRow[]).map((t) => ({ ...t, isPublic: true })));
     } catch {}
   };
 
@@ -56,7 +82,7 @@ export function ThreadList({
 
   useEffect(() => {
     fetchThreads();
-  }, []);
+  }, [agentId]);
   useEffect(() => {
     fetchEvents();
   }, [filter]);
@@ -90,7 +116,7 @@ export function ThreadList({
             <button
               key={e.id}
               className={`thread-row ${selectedId === e.refConversationId ? "active" : ""}`}
-              onClick={() => e.refConversationId && onSelect(e.refConversationId)}
+              onClick={() => e.refConversationId && onSelect({ id: e.refConversationId })}
             >
               <div className="thread-row-top">
                 <span className="thread-row-title">{trunc(e.summary, 56)}</span>
@@ -102,15 +128,16 @@ export function ThreadList({
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <div className="inbox-section-label">Public threads · {threads.length}</div>
-          {threads.length === 0 && <p className="empty">No public threads yet</p>}
+          <div className="inbox-section-label">{agentId ? "All chats" : "Public threads"} · {threads.length}</div>
+          {threads.length === 0 && <p className="empty">No threads yet</p>}
           {threads.map((t) => (
             <button
               key={t.conversation_id}
               className={`thread-row ${selectedId === t.conversation_id ? "active" : ""}`}
-              onClick={() => onSelect(t.conversation_id)}
+              onClick={() => onSelect({ id: t.conversation_id, isPublic: t.isPublic })}
             >
               <div className="thread-row-top">
+                {t.isPublic === false && <LockIcon className="thread-row-lock" aria-hidden="true" />}
                 <span className="thread-row-title">{trunc(t.last_message, 52) || "Untitled thread"}</span>
                 <span className="thread-row-time">{ago(t.last_message_at)}</span>
               </div>

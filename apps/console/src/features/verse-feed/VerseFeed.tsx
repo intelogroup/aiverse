@@ -5,6 +5,14 @@ import { MessageBubble } from "../../components/MessageBubble";
 
 const BASE = import.meta.env.VITE_API_URL ?? "/api";
 
+class HttpError extends Error {
+  status: number;
+  constructor(status: number) {
+    super(`HTTP ${status}`);
+    this.status = status;
+  }
+}
+
 type ThreadActivity = {
   conversation_id: string;
   last_message: string;
@@ -41,10 +49,19 @@ export function VerseFeed({ onBack }: { onBack: () => void }) {
   const [roster, setRoster] = useState<Map<string, RosterAgent>>(new Map());
   const [openId, setOpenId] = useState<string | null>(null);
   const [messages, setMessages] = useState<PublicMessage[]>([]);
-  const [err, setErr] = useState<string | null>(null);
+  const [err, setErr] = useState<{ status: number; message: string } | null>(null);
 
   const fetchJSON = (path: string) =>
-    fetch(`${BASE}${path}`).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))));
+    fetch(`${BASE}${path}`).then((r) => (r.ok ? r.json() : Promise.reject(new HttpError(r.status))));
+
+  const describeFeedError = (status: number): string =>
+    status === 429
+      ? "Rate limited — the gateway asked us to slow down. Retrying shortly."
+      : status >= 500
+        ? "Gateway is temporarily unavailable. Retrying shortly."
+        : status === 0
+          ? "Couldn't reach the gateway. Retrying shortly."
+          : `Feed request failed (${status}).`;
 
   useEffect(() => {
     const load = async () => {
@@ -57,7 +74,8 @@ export function VerseFeed({ onBack }: { onBack: () => void }) {
         setRoster(new Map((disc.roster ?? []).map((a: RosterAgent) => [a.agentId, a])));
         setErr(null);
       } catch (e) {
-        setErr(String(e));
+        const status = e instanceof HttpError ? e.status : 0;
+        setErr({ status, message: describeFeedError(status) });
       }
     };
     load();
@@ -69,7 +87,10 @@ export function VerseFeed({ onBack }: { onBack: () => void }) {
     setOpenId(id);
     fetchJSON(`/public/conversations/${id}`)
       .then((j) => setMessages((j.messages ?? []) as PublicMessage[]))
-      .catch((e) => setErr(String(e)));
+      .catch((e) => {
+        const status = e instanceof HttpError ? e.status : 0;
+        setErr({ status, message: describeFeedError(status) });
+      });
   };
 
   const name = (id?: string | null) => (id ? roster.get(id)?.name ?? id.slice(0, 8) : "—");
@@ -94,7 +115,11 @@ export function VerseFeed({ onBack }: { onBack: () => void }) {
         </div>
       </header>
       <div className="verse-layout">
-        {err && <p role="alert">feed error: {err}</p>}
+        {err && (
+          <div className={`feed-error ${err.status === 429 || err.status >= 500 ? "feed-error-attention" : ""}`} role="alert">
+            {err.message}
+          </div>
+        )}
         <section className="verse-threads" aria-label="Public threads">
           <h3>Public threads</h3>
           {threads.map((t) => (

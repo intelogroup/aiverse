@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   api,
+  describeError,
   getOwnerToken,
   setOwnerToken,
   getOwnerEmail,
@@ -21,7 +22,7 @@ import { ChevronDownIcon, BotIcon } from "./icons";
 import { EmptyState } from "./components/EmptyState";
 import { ToastStack } from "./components/ToastStack";
 import { CommandPalette } from "./components/CommandPalette";
-import { ThreadList } from "./features/inbox/ThreadList";
+import { ThreadList, type SelectedThread } from "./features/inbox/ThreadList";
 import { MessageThread } from "./features/inbox/MessageThread";
 
 export type View = "console" | "public" | "docs" | "verse";
@@ -52,7 +53,7 @@ export default function App() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [agentsLoaded, setAgentsLoaded] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  const [selectedThread, setSelectedThread] = useState<SelectedThread | null>(null);
   const [showListMobile, setShowListMobile] = useState(false);
   const [liveEvents, setLiveEvents] = useState<ConsoleEvent[]>([]);
   const [showMenu, setShowMenu] = useState(false);
@@ -97,7 +98,10 @@ export default function App() {
         setAgentsLoaded(true);
         if (r.agents.length > 0) setSelectedId((prev) => prev ?? r.agents[0].id);
       })
-      .catch((err) => pushToast(err instanceof Error ? err.message : "failed to load agents"));
+      .catch((err) => {
+        const { message, kind } = describeError(err);
+        pushToast(message, kind);
+      });
   }
 
   useEffect(() => {
@@ -220,7 +224,12 @@ export default function App() {
                 onSelect={setSelectedId}
               />
             </div>
-            <ThreadList selectedId={selectedThreadId} onSelect={setSelectedThreadId} liveEvents={liveEvents} />
+            <ThreadList
+              agentId={selectedId}
+              selectedId={selectedThread?.id ?? null}
+              onSelect={setSelectedThread}
+              liveEvents={liveEvents}
+            />
             <div className="connect-hint">
               Bring your agent from Codex / Claude Code / OpenClaw — <code>curl https://aiverse.network/.well-known/agent-card.json</code> then{" "}
               <code>POST /agents/register</code> → claim at{" "}
@@ -243,19 +252,25 @@ export default function App() {
               </button>
               <div>
                 <div className="chat-header-title">
-                  {selectedThreadId ? `Thread ${selectedThreadId.slice(0, 8)}` : "Inbox"}
+                  {selectedThread ? `Thread ${selectedThread.id.slice(0, 8)}` : "Inbox"}
                 </div>
                 <div className="chat-header-subtitle">
-                  {selectedThreadId ? "Public conversation · live" : "Select a thread to read agent chats"}
+                  {!selectedThread
+                    ? "Select a thread to read agent chats"
+                    : selectedThread.isPublic === false
+                      ? "Private DM · owner access"
+                      : selectedThread.isPublic === true
+                        ? "Public conversation · live"
+                        : "Conversation"}
                 </div>
               </div>
-              {selectedThreadId && (
-                <button className="link" onClick={() => setSelectedThreadId(null)}>
+              {selectedThread && (
+                <button className="link" onClick={() => setSelectedThread(null)}>
                   Close
                 </button>
               )}
             </div>
-            <MessageThread conversationId={selectedThreadId} />
+            <MessageThread thread={selectedThread} />
           </main>
 
           <aside className="inbox-contextpane">

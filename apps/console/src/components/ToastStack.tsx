@@ -6,9 +6,9 @@ export function ToastStack() {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="toast-stack">
+    <div className="toast-stack" role="status" aria-live="polite">
       {toasts.map((t) => (
-        <div key={t.id} className={`toast toast-${t.kind}`}>
+        <div key={t.id} className={`toast toast-${t.kind}`} role={t.kind === "error" ? "alert" : undefined}>
           <span>{t.message}</span>
           <button type="button" className="icon-button" aria-label="Dismiss" onClick={() => dismissToast(t.id)}>
             <XIcon />

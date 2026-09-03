@@ -25,7 +25,7 @@ const event = {
 beforeEach(() => {
   vi.mocked(api.listConsoleEvents).mockResolvedValue({ events: [event] });
   vi.mocked(api.conversationMessages).mockResolvedValue({
-    messages: [{ id: "m-1", content: "hello", senderAgentId: "agent-1" }],
+    messages: [{ id: "m-1", content: "hello", senderAgentId: "agent-1", createdAt: new Date().toISOString() }],
   });
 });
 

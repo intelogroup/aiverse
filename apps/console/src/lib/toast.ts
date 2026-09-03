@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 export interface Toast {
   id: string;
-  kind: "error" | "success";
+  kind: "error" | "success" | "attention";
   message: string;
 }
 

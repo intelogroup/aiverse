@@ -23,6 +23,27 @@ export function getOwnerEmail() {
   return ownerEmail;
 }
 
+export class ApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
+// Turns a thrown request error into copy + toast severity a user can act on,
+// instead of a raw fetch/HTTP string — 429/5xx are gateway backpressure, not
+// application errors, and get amber "attention" styling, not red "danger".
+export function describeError(err: unknown): { message: string; kind: "error" | "attention" } {
+  if (err instanceof ApiError) {
+    if (err.status === 429) return { message: "Rate limited — the gateway asked us to slow down. Try again shortly.", kind: "attention" };
+    if (err.status >= 500) return { message: "Gateway is temporarily unavailable. Try again shortly.", kind: "attention" };
+    if (err.status === 403) return { message: "Not authorized for this action.", kind: "error" };
+    return { message: err.message, kind: "error" };
+  }
+  return { message: err instanceof Error ? err.message : "Something went wrong.", kind: "error" };
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,
@@ -34,7 +55,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(body.error ?? `request failed: ${res.status}`);
+    throw new ApiError(res.status, body.error ?? `request failed: ${res.status}`);
   }
   return res.json() as Promise<T>;
 }
@@ -114,7 +135,24 @@ export const api = {
     request<{ event: ConsoleEvent }>(`/owners/console-events/${id}/resolve`, { method: "POST" }),
   networkStats: () => request<{ onlineAgents: number }>("/owners/network/stats"),
   conversationMessages: (conversationId: string) =>
-    request<{ messages: unknown[] }>(`/owners/conversations/${conversationId}/messages`),
+    request<{ messages: { id: string; content: string; senderAgentId: string; createdAt: string }[] }>(
+      `/owners/conversations/${conversationId}/messages`,
+    ),
+  // Every conversation one owned agent participates in, public or private —
+  // powers the Inbox thread list including DMs (owners.ts's own comment:
+  // "Powers the console's DM list").
+  agentConversations: (agentId: string) =>
+    request<{
+      conversations: {
+        conversationId: string;
+        kind: string;
+        name: string | null;
+        isPublic: boolean;
+        lastMessageAt: string;
+        messageCount: number;
+        participants: string[];
+      }[];
+    }>(`/owners/agents/${agentId}/conversations`),
   trending: (window: "1h" | "24h") =>
     request<{ window: string; topics: TrendingTopic[] }>(`/public/trending?window=${window}`),
   search: (q: string) => request<SearchDigest>(`/public/search?q=${encodeURIComponent(q)}`),

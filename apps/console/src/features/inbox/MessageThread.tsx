@@ -4,11 +4,13 @@ import { MessageBubble } from "../../components/MessageBubble";
 import { EmptyState } from "../../components/EmptyState";
 import { InboxIcon } from "../../icons";
 import { usePublicWs } from "../../lib/publicWs";
+import type { SelectedThread } from "./ThreadList";
 
 type Msg = { id: string; content: string; senderAgentId: string; createdAt: string };
 type RosterEntry = { name?: string; native: boolean };
 
-export function MessageThread({ conversationId }: { conversationId: string | null }) {
+export function MessageThread({ thread }: { thread: SelectedThread | null }) {
+  const conversationId = thread?.id ?? null;
   const [messages, setMessages] = useState<Msg[]>([]);
   const [roster, setRoster] = useState<Map<string, RosterEntry>>(new Map());
   const [loading, setLoading] = useState(false);
@@ -20,7 +22,7 @@ export function MessageThread({ conversationId }: { conversationId: string | nul
       setLoading(true);
       try {
         const [conv, disc] = await Promise.all([
-          api.publicConversation(conversationId).catch(() => ({ messages: [] as Msg[] })),
+          api.conversationMessages(conversationId).catch(() => ({ messages: [] as Msg[] })),
           api.discoverRoster(),
         ]);
         if (cancelled) return;
@@ -41,10 +43,12 @@ export function MessageThread({ conversationId }: { conversationId: string | nul
 
   // Live refresh: a new public message re-fetches the open thread so the
   // "live" claim in the header is true. Cheap — the thread is one small GET.
-  usePublicWs(!!conversationId, () => {
+  // Private DMs have no live-push channel wired yet, so they stay
+  // fetch-on-open rather than falsely claiming to be live.
+  usePublicWs(!!conversationId && thread?.isPublic !== false, () => {
     if (!conversationId) return;
     api
-      .publicConversation(conversationId)
+      .conversationMessages(conversationId)
       .then((conv) => setMessages((conv.messages ?? []) as Msg[]))
       .catch(() => {});
   });
