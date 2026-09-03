@@ -6,9 +6,9 @@ import {
   type ConsoleEvent,
   type PublicActivityItem,
   type Room,
-  type TrendingTopic,
 } from "../../lib/api";
 import { usePublicWs } from "../../lib/publicWs";
+import { Scene3D } from "./Scene3D";
 import "./world.css";
 
 type Msg = { id: string; content: string; senderAgentId: string; createdAt?: string };
@@ -27,18 +27,6 @@ function placement(index: number, total: number) {
     x: (col - (cols - 1) / 2) * CELL_X + (row % 2 ? CELL_X / 2 : 0),
     y: (row - (rows - 1) / 2) * CELL_Y,
   };
-}
-
-// Stable colour per agent (or per empty slot) so a robot keeps its paint job
-// between refetches — the crowd reads as individuals, not clones.
-function hue(seed: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 16777619);
-  return (h >>> 0) % 360;
-}
-
-function excerpt(s: string, n = 110) {
-  return s.length > n ? `${s.slice(0, n).trimEnd()}…` : s;
 }
 
 function groupTitle(g: PublicActivityItem): string {
@@ -65,12 +53,10 @@ export function WorldView({
 }) {
   const [groups, setGroups] = useState<PublicActivityItem[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [topics, setTopics] = useState<TrendingTopic[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<string | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [online, setOnline] = useState(0);
-  const [health, setHealth] = useState<{ db: "ok" | "down"; redis: "ok" | "down"; natives: "active" | "stale" | "unknown" } | null>(null);
   const [searchQ, setSearchQ] = useState("");
   const [searchHits, setSearchHits] = useState<number | null>(null);
   const [cam, setCam] = useState({ x: 0, y: 0, z: 1 });
@@ -92,7 +78,6 @@ export function WorldView({
   useEffect(() => {
     refresh();
     api.listRooms().then((r) => setRooms(r.rooms)).catch(() => {});
-    api.trending("24h").then((r) => setTopics(r.topics)).catch(() => {});
     api
       .discoverRoster()
       .then((r) =>
@@ -111,10 +96,6 @@ export function WorldView({
     poll();
     const id = setInterval(poll, 15000);
     return () => clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    api.health().then(setHealth).catch(() => {});
   }, []);
 
   function runSearch(e: React.FormEvent) {
@@ -280,73 +261,7 @@ export function WorldView({
           setCam((c) => ({ ...c, z: Math.min(2.5, Math.max(0.5, c.z - e.deltaY * 0.001)) }));
         }}
       >
-        <div className="w-scene" style={{ transform: `translate(${cam.x}px, ${cam.y}px) scale(${cam.z})` }}>
-          {placed.map(({ g, pos }) => {
-            const dots = Math.min(g.agent_count, 12);
-            return (
-              <div
-                key={g.conversation_id}
-                className={`w-group ${g.conversation_id === selected ? "selected" : ""}`}
-                style={{ left: `calc(50% + ${pos.x}px)`, top: `calc(50% + ${pos.y}px)` }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  focusGroup(g.conversation_id);
-                }}
-              >
-                {/* Unfocused groups get one bubble for the group's last line;
-                    the focused one puts a card over each speaker's own head. */}
-                {g.conversation_id !== selected && cam.z >= 0.7 && (
-                  <div className="w-bubble">
-                    <span className="who">{nameOf(g.last_sender_agent_id)}</span>
-                    {excerpt(g.last_message)}
-                  </div>
-                )}
-                <div className="w-platform">
-                  {Array.from({ length: dots }, (_, i) => {
-                    const a = (i / dots) * Math.PI * 2 - Math.PI / 2;
-                    // Spread talkers evenly round the ring so their cards don't
-                    // stack on top of each other.
-                    const step = Math.max(1, Math.floor(dots / Math.max(1, speakers.length)));
-                    const speaker =
-                      g.conversation_id === selected && i % step === 0 ? speakers[i / step] : undefined;
-                    return (
-                      <span
-                        key={i}
-                        className={`w-agent ${speaker ? "talking" : ""}`}
-                        style={
-                          {
-                            left: `${50 + Math.cos(a) * 38}%`,
-                            top: `${50 + Math.sin(a) * 30}%`,
-                            "--hue": hue(speaker?.senderAgentId ?? `${g.conversation_id}:${i}`),
-                          } as React.CSSProperties
-                        }
-                      >
-                        <span className="bot">
-                          <span className="head">
-                            <span className="visor" />
-                          </span>
-                          <span className="torso" />
-                        </span>
-                        {speaker && (
-                          <span className="w-said">
-                            <span className="who">{nameOf(speaker.senderAgentId)}</span>
-                            {excerpt(speaker.content, 90)}
-                          </span>
-                        )}
-                      </span>
-                    );
-                  })}
-                </div>
-                <div className="w-nameplate">
-                  <b>{groupTitle(g)}</b>
-                  <span>
-                    {g.agent_count} agents · {g.message_count} messages
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <Scene3D cam={cam} placed={placed} selected={selected} speakers={speakers} onSelect={focusGroup} />
 
         <div className="w-zoombar">
           <button type="button" onClick={() => setCam((c) => ({ ...c, z: Math.min(2.5, c.z + 0.2) }))}>+</button>
@@ -385,31 +300,6 @@ export function WorldView({
       </div>
 
       <aside className="w-rail right">
-        <div className="w-card">
-          <header>
-            <span>Agent activity</span>
-            <span className="w-live">
-              <i /> Live
-            </span>
-          </header>
-          <div className="body">
-            {liveEvents.length === 0 && <div className="w-empty">No activity yet — sign in to see your agents.</div>}
-            {liveEvents.slice(0, 5).map((e) => {
-              const agentName = agents.find((a) => a.id === e.agentId)?.name ?? e.agentId.slice(0, 6);
-              return (
-                <div key={e.id} className="w-row">
-                  <span className="dot">{initials(agentName)}</span>
-                  <div>
-                    <span className="who">{agentName}</span>
-                    <p>{e.summary}</p>
-                  </div>
-                  <time>{ago(e.createdAt)}</time>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
         <div className="w-card grow">
           <header>
             <span>{selectedGroup ? groupTitle(selectedGroup) : "Live thread"}</span>
@@ -429,54 +319,6 @@ export function WorldView({
                 <time>{ago(m.createdAt)}</time>
               </div>
             ))}
-          </div>
-        </div>
-
-        <div className="w-card">
-          <header>Trending topics</header>
-          <div className="body">
-            {topics.length === 0 && <div className="w-empty">Nothing trending yet.</div>}
-            {topics.slice(0, 4).map((t) => (
-              <div key={t.topic} className="w-row">
-                <span className="dot">{initials(t.topic)}</span>
-                <div>
-                  <span className="who">{t.topic}</span>
-                  <p>
-                    {t.agentCount} agents · {t.messageCount} messages
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="w-card">
-          <header>System status</header>
-          <div className="body">
-            {health ? (
-              <>
-                <div className="w-status">
-                  <span>Database</span>
-                  <b style={{ color: health.db === "ok" ? undefined : "#ff6b6b" }}>{health.db === "ok" ? "Healthy" : "Down"}</b>
-                </div>
-                <div className="w-status">
-                  <span>Cache</span>
-                  <b style={{ color: health.redis === "ok" ? undefined : "#ff6b6b" }}>{health.redis === "ok" ? "Healthy" : "Down"}</b>
-                </div>
-                <div className="w-status">
-                  <span>World activity</span>
-                  <b style={{ color: health.natives === "active" ? undefined : "#f5a623" }}>
-                    {health.natives === "active" ? "Active" : health.natives === "stale" ? "Stale" : "Unknown"}
-                  </b>
-                </div>
-              </>
-            ) : (
-              <div className="w-empty">Checking…</div>
-            )}
-            <div className="w-status">
-              <span>Connected agents</span>
-              <b>{online}</b>
-            </div>
           </div>
         </div>
       </aside>
