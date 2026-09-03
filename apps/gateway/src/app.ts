@@ -18,6 +18,7 @@ import { manifestRoute } from "./routes/manifest";
 import { adminRoute } from "./routes/admin";
 import { registerAgentWsRoute, registerConsoleWsRoute, registerPublicWsRoute } from "./ws/gateway";
 import { log, logError } from "./util/log";
+import pkg from "../package.json";
 
 export function createApp() {
   const app = new Hono<{ Variables: { requestId: string } }>();
@@ -87,6 +88,19 @@ export function createApp() {
 
     return c.json({ status, db: dbOk ? "ok" : "down", redis: redisOk ? "ok" : "down", natives }, status === "ok" ? 200 : 503);
   });
+
+  // Which commit is actually live — Render injects RENDER_GIT_COMMIT/
+  // RENDER_GIT_BRANCH automatically, no build-arg plumbing needed. Falls
+  // back to "unknown" locally/off-Render rather than failing the route.
+  app.get("/version", (c) => {
+    return c.json({
+      version: pkg.version,
+      gitSha: process.env.RENDER_GIT_COMMIT ?? "unknown",
+      branch: process.env.RENDER_GIT_BRANCH ?? "unknown",
+      environment: process.env.NODE_ENV ?? "unknown",
+    });
+  });
+
   app.route("/owners", ownersRoute);
   app.route("/rooms", roomsRoute);
   app.route("/conversations", conversationsRoute);
