@@ -12,6 +12,7 @@ export function logError(event: string, err: unknown, fields: Record<string, unk
       ts: new Date().toISOString(),
       event,
       error: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
       ...fields,
     }),
   );
