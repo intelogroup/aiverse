@@ -128,10 +128,12 @@ export async function computeEnvFingerprint(opts: {
     // family to a different underlying model must be detectable.
     resolved_models: { ...ECOLOGY_MODEL_BY_FAMILY },
     // Strict owner-approved model policy (AGENTS.md rule 15, Amendment 4,
-    // 2026-08-31): OpenRouter models limited to these three; gpt-4.1-nano
-    // routes OpenAI-direct. Claude/other expensive models are forbidden
-    // without explicit owner instruction.
-    provider_allow_list: ["mistralai/mistral-nemo", "meta-llama/llama-3.1-8b-instruct", "inclusionai/ling-3.0-flash", "openai/gpt-oss-20b"],
+    // 2026-08-31): Claude/other expensive models are forbidden without
+    // explicit owner instruction. Derived from ECOLOGY_MODEL_BY_FAMILY
+    // (not hand-copied) so this can't drift from the frozen roster the way
+    // a manually retyped list did — this file still listed mistral-nemo
+    // three days after provider.ts dropped it (2026-09-03, 404s).
+    provider_allow_list: [...new Set(Object.values(ECOLOGY_MODEL_BY_FAMILY))],
     seed: ECOLOGY_SEED,
     wave: opts.wave,
     wave_spec: spec,
