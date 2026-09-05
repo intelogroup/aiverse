@@ -1,5 +1,5 @@
 import { describe, expect, test, beforeAll, beforeEach, afterEach } from "bun:test";
-import { eq } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { db } from "../db/client";
 import { agents, agentMemory, agentWallets, conversationParticipants, nativeRuns, conversations, messages } from "@aiverse/shared/schema";
 import { ensureRoomsSeeded } from "../db/seed";
@@ -69,6 +69,49 @@ describe("native agents", () => {
     expect(joined?.conversationId).toBe(conv.conversationId);
   });
 
+  test("recruit_group creates a private group with 3-5 targets and posts the opener", async () => {
+    await resetMemoryStoreForTests();
+    const kova = await getNative("Kova");
+    const targets = await db
+      .insert(agents)
+      .values(
+        Array.from({ length: 3 }, (_, i) => ({ name: `RecruitTarget-${Date.now()}-${i}`, agentCard: {}, apiKeyHash: "x", status: "online" as const })),
+      )
+      .returning();
+    const targetAgentIds = targets.map((t) => t.id);
+    const topic = `test group ${Date.now()}`;
+
+    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "recruit_group", content: "let's talk", topic, targetAgentIds })));
+    await tickOne(kova.id, "Kova", "prompt", "objective");
+
+    const conv = await db.query.conversations.findFirst({ where: eq(conversations.name, topic) });
+    expect(conv).toBeDefined();
+    expect(conv?.kind).toBe("group");
+    expect(conv?.isPublic).toBe(false);
+
+    const parts = await db.query.conversationParticipants.findMany({ where: eq(conversationParticipants.conversationId, conv!.id) });
+    expect(parts.map((p) => p.agentId).sort()).toEqual([kova.id, ...targetAgentIds].sort());
+
+    const msgRows = await db.query.messages.findMany({ where: eq(messages.conversationId, conv!.id) });
+    expect(msgRows.some((m) => m.content === "let's talk")).toBe(true);
+  });
+
+  test("recruit_group with fewer than 3 targets is rejected (no conversation created)", async () => {
+    await resetMemoryStoreForTests();
+    const kova = await getNative("Kova");
+    const targets = await db
+      .insert(agents)
+      .values([{ name: `RecruitTooFew-${Date.now()}`, agentCard: {}, apiKeyHash: "x", status: "online" as const }])
+      .returning();
+
+    const topic = `too small ${Date.now()}`;
+    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "recruit_group", content: "hi", topic, targetAgentIds: [targets[0].id] })));
+    await tickOne(kova.id, "Kova", "prompt", "objective");
+
+    const conv = await db.query.conversations.findFirst({ where: eq(conversations.name, topic) });
+    expect(conv).toBeUndefined();
+  });
+
   test("cooldown blocks a second tick within the window", async () => {
     await resetMemoryStoreForTests();
     const nilo = await getNative("Nilo");
@@ -118,6 +161,28 @@ describe("native agents", () => {
     // here rather than trusting the comment.
     await resetMemoryStoreForTests();
     const kronikler = await getNative("Kronikler");
+
+    // gatherDMContext caps at MAX_DM_CONVERSATIONS (10) and prioritizes
+    // awaiting-reply threads — every prior run of this test leaves a real,
+    // never-replied-to DM conversation behind for this same shared native in
+    // the dev DB, so re-running this test enough times fills all 10 slots
+    // with stale rows and pushes the fresh one this test creates out of the
+    // capped list (discovered 2026-09-05: 10 leftover DMs, none this run's).
+    // Purge only Kronikler's DMs (isPublic: false) — never its public room
+    // memberships, which other tests in this file depend on.
+    const kroniklerConvIds = (
+      await db.query.conversationParticipants.findMany({ where: eq(conversationParticipants.agentId, kronikler.id) })
+    ).map((p) => p.conversationId);
+    if (kroniklerConvIds.length) {
+      const staleDmConvIds = (
+        await db.query.conversations.findMany({ where: and(inArray(conversations.id, kroniklerConvIds), eq(conversations.isPublic, false)) })
+      ).map((c) => c.id);
+      if (staleDmConvIds.length) {
+        await db.delete(messages).where(inArray(messages.conversationId, staleDmConvIds));
+        await db.delete(conversationParticipants).where(inArray(conversationParticipants.conversationId, staleDmConvIds));
+        await db.delete(conversations).where(inArray(conversations.id, staleDmConvIds));
+      }
+    }
 
     const [peer] = await db
       .insert(agents)
