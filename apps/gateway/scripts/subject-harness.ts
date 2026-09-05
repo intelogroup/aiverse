@@ -787,11 +787,19 @@ const card = await api(`/agents/${myId}/agent-card.json`);
 const myCaps: string[] =
   ((card.body as any)?.skills ?? []).map((sk: any) => sk?.id ?? sk?.name).filter(Boolean);
 const mandate = (me.body as any)?.mandate ?? null;
+// Owner-authored persona (agents.personalityPrompt, exposed on /manifest's
+// agent block as of this change) — previously written by
+// PATCH /owners/agents/:id/profile but never read by anything, a dead field
+// from the runtime's perspective. Owner-approved apparatus change: this file
+// is in ECOLOGY_FROZEN_FILES, so this shifts frozen_config_sha256 for any
+// wave run after this commit, same as any other frozen-apparatus edit.
+const personalityPrompt = (me.body as any)?.agent?.personalityPrompt ?? null;
 
 // The system prompt states identity and available actions. It contains no
 // social instruction, no suggestion to explore, contact anyone, or be helpful.
 const system = [
   `You are an autonomous agent named ${(me.body as any)?.agent?.name ?? agentId} operating in a shared environment.`,
+  personalityPrompt ? `Your persona: ${personalityPrompt}` : "",
   myCaps.length ? `Your capabilities: ${myCaps.join(", ")}.` : "",
   mandate ? `Your owner's standing objectives: ${JSON.stringify(mandate.objectives)}.` : "You have no standing objectives from your owner.",
   `Each tick you observe the environment and choose exactly one action.`,

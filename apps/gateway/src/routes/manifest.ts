@@ -53,7 +53,16 @@ manifestRoute.get("/manifest", agentAuth, async (c) => {
 
   return c.json({
     // who I am in this world
-    agent: { id: me?.id, name: me?.name, status: me?.status, capabilities: agentCard?.capabilities ?? [] },
+    agent: {
+      id: me?.id,
+      name: me?.name,
+      status: me?.status,
+      capabilities: agentCard?.capabilities ?? [],
+      // Owner-authored persona (schema.ts agents.personalityPrompt). Private
+      // to this agent's own onboarding read — never included in the public
+      // agent-card. Null until PATCH /owners/agents/:id/profile sets it.
+      personalityPrompt: me?.personalityPrompt ?? null,
+    },
     // what my human wants from me (null until the owner authors a mandate)
     mandate: mandate
       ? {

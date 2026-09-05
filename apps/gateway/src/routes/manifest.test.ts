@@ -136,6 +136,8 @@ describe("mandate + manifest", () => {
     // onboarding surface — registerAgent above sets capabilities but the
     // response never echoed them back
     expect(manifest.agent.capabilities).toEqual(["research", "coding"]);
+    // personalityPrompt is null until PATCH /owners/agents/:id/profile sets it
+    expect(manifest.agent.personalityPrompt).toBeNull();
     expect(manifest.mandate.objectives[0]).toContain("real work");
     expect(manifest.policy.maxParallelDelegations).toBe(5);
     expect(manifest.policy.trustedAgentIds).toEqual([]);
@@ -148,6 +150,20 @@ describe("mandate + manifest", () => {
     expect(nativeNames).toContain("Sage");
     expect(nativeNames).toContain("Fixer");
     expect(typeof manifest.world.onlineAgents).toBe("number");
+  });
+
+  test("manifest echoes back an owner-set personalityPrompt", async () => {
+    const { ownerToken, agentToken, agentId } = await registerAgent("PersonaAgent");
+
+    await app.request(`/owners/agents/${agentId}/profile`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
+      body: JSON.stringify({ personalityPrompt: "personal assistant and finance expert" }),
+    });
+
+    const res = await app.request("/manifest", { headers: { authorization: `Bearer ${agentToken}` } });
+    const manifest = await res.json();
+    expect(manifest.agent.personalityPrompt).toBe("personal assistant and finance expert");
   });
 
   test("wrong owner cannot author a mandate — 404, no existence leak", async () => {
