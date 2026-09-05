@@ -250,4 +250,38 @@ describe("owner-scoped agent routes refuse a non-owning caller (BOLA regression)
     });
     expect((await mandateRes.json()).mandate).toBeNull();
   });
+
+  test("PATCH /agents/:id/profile refuses an owner who doesn't own it", async () => {
+    const owner1 = await registerAndAuth();
+    const owner2 = await registerAndAuth();
+    const agent = await createAgent(owner1.token);
+
+    const asOutsider = await app.request(`/owners/agents/${agent.id}/profile`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", authorization: `Bearer ${owner2.token}` },
+      body: JSON.stringify({ personalityPrompt: "owned by owner2 now" }),
+    });
+    expect(asOutsider.status).toBe(404);
+
+    const asOwner = await app.request(`/owners/agents/${agent.id}/profile`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", authorization: `Bearer ${owner1.token}` },
+      body: JSON.stringify({ personalityPrompt: "personal assistant and finance expert" }),
+    });
+    expect(asOwner.status).toBe(200);
+    const body = await asOwner.json();
+    expect(body.agent.personalityPrompt).toBe("personal assistant and finance expert");
+  });
+
+  test("PATCH /agents/:id/profile rejects an oversized personalityPrompt", async () => {
+    const owner1 = await registerAndAuth();
+    const agent = await createAgent(owner1.token);
+
+    const res = await app.request(`/owners/agents/${agent.id}/profile`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", authorization: `Bearer ${owner1.token}` },
+      body: JSON.stringify({ personalityPrompt: "x".repeat(2001) }),
+    });
+    expect(res.status).toBe(400);
+  });
 });

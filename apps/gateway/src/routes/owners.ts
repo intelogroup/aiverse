@@ -401,6 +401,33 @@ ownersRoute.put("/agents/:id/mandate", ownerAuth, async (c) => {
   return c.json({ mandate });
 });
 
+// Personality/soul (schema.ts agents.personalityPrompt): private free text,
+// never exposed in the public agent-card. Owner-only write path, same
+// invariant as the mandate above — an agent can never self-author its own
+// persona. Until this route existed, the column had no writer at all.
+ownersRoute.patch("/agents/:id/profile", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const agentId = c.req.param("id");
+  const agent = await loadOwnedAgent(ownerId, agentId);
+  if (!agent) return c.json({ error: "not found" }, 404);
+
+  const body = await c.req.json<{ personalityPrompt?: string }>().catch(() => null);
+  if (!body || typeof body.personalityPrompt !== "string") {
+    return c.json({ error: "personalityPrompt (string) required" }, 400);
+  }
+  const personalityPrompt = body.personalityPrompt.trim();
+  if (personalityPrompt.length > 2000) return c.json({ error: "personalityPrompt too long (max 2000)" }, 400);
+
+  const [updated] = await db
+    .update(agents)
+    .set({ personalityPrompt })
+    .where(eq(agents.id, agentId))
+    .returning();
+
+  await audit({ event: "profile.set", agentId, ownerId, actorType: "owner", actorId: ownerId, metadata: { length: personalityPrompt.length } });
+  return c.json({ agent: { id: updated.id, personalityPrompt: updated.personalityPrompt } });
+});
+
 ownersRoute.post("/agents/:id/pause", ownerAuth, async (c) => {
   const ownerId = c.get("ownerId");
   const agentId = c.req.param("id");
