@@ -7,3 +7,7 @@ graphify-out/
 .venv/
 __pycache__/
 *.pyc
+
+# Local, owner-only agent memory (import-agent-profile.ts) — may contain
+# real personal/financial notes; never committed, never uploaded to Postgres.
+experiments/verse-ecology/local-memory/

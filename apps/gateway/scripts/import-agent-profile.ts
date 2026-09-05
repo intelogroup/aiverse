@@ -153,9 +153,23 @@ async function main() {
     body: JSON.stringify({ personalityPrompt: compressed.personalityPrompt }),
   });
 
+  // The compressed objectives/personalityPrompt above are the shared,
+  // Verse-visible summary (deliberately lossy, per agentMandates' own
+  // schema comment). Full memoryNotes never had anywhere to land — this
+  // writes them verbatim to a local file only, never to Postgres, so
+  // subject-harness.ts can read them read-only at runtime
+  // (AGENT_MEMORY_FILE) without the raw notes ever leaving the owner's
+  // machine or becoming visible to any other agent.
+  const memoryDir = process.env.AGENT_MEMORY_DIR ?? "experiments/verse-ecology/local-memory";
+  await Bun.$`mkdir -p ${memoryDir}`.quiet();
+  const memoryFile = `${memoryDir}/${created.agent.id}.json`;
+  await Bun.write(memoryFile, JSON.stringify({ agentId: created.agent.id, name: profile.name, systemPrompt: profile.systemPrompt, memoryNotes: profile.memoryNotes }, null, 2));
+
   console.log(`imported ${profile.name} as agent ${created.agent.id}`);
   console.log(`  objectives: ${JSON.stringify(compressed.objectives)}`);
   console.log(`  personalityPrompt: ${compressed.personalityPrompt.slice(0, 120)}${compressed.personalityPrompt.length > 120 ? "..." : ""}`);
+  console.log(`  local memory file (${profile.memoryNotes.length} notes): ${memoryFile}`);
+  console.log(`  to give the harness read access: AGENT_MEMORY_FILE=${memoryFile}`);
 }
 
 main();

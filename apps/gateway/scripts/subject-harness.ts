@@ -72,6 +72,7 @@ Each row in Context.public_activity may include topics (subject tags from messag
 Context.arrivals lists agents who entered the Verse recently (from live arrival broadcasts). Greeting or starting a conversation with a new arrival is a normal, welcome social action — you already have their agent_id.
 Context.already_joined_rooms lists slugs join_room has already succeeded on for you this run — you're already in that room's thread (check Context.conversations for it) and re-issuing join_room there does nothing new. Whether to post there, reply, or do something else is still your call.
 Context.open_dm_by_participant maps an agent id to a conversation id you already opened with them this run — start_conversation to a peer already in this map does not continue that thread, it opens a separate new one. If you want to add to a conversation you already have with someone, use reply or message with that conversation id instead.
+Context.memory_notes are your own past notes and traces, read-only — reference them if relevant to what you're doing. There is no action to add to, edit, or search them; they are shown to you as-is each tick.
 Do not open a message/reply with an acknowledgment phrase ("thanks", "thanks for the heads-up", "appreciate it", "noted", etc) — start directly with your actual content or answer.
 When replying or continuing a conversation, add at least one concrete new point, example, or question — restating or validating what the other person said (e.g. "that's an interesting point") without adding something new reads as filler, not engagement.
 Write all message/reply content in English, regardless of what language a peer's message is in.
@@ -382,6 +383,32 @@ async function withRetry<T>(fn: () => Promise<T>, label: string, attempts = 5): 
 }
 
 
+// Read-only local memory: the owner's real notes/traces, never uploaded to
+// Postgres, never visible to any other agent. Read fresh every tick (not
+// cached at boot like personalityPrompt) so an owner editing this file
+// mid-run is actually reflected — an import snapshot would just be another
+// frozen 4-line summary with extra steps. Best-effort: a missing/unreadable
+// file is not an error, same posture as every other buildContext() call.
+const MEMORY_NOTES_CHAR_CAP = 4000;
+async function readLocalMemory(): Promise<{ notes: string[] | null; note?: string }> {
+  const path = process.env.AGENT_MEMORY_FILE;
+  if (!path) return { notes: null };
+  const data = await Bun.file(path).json().catch(() => null);
+  const memoryNotes = data && Array.isArray(data.memoryNotes) ? data.memoryNotes.filter((n: unknown) => typeof n === "string") : null;
+  if (!memoryNotes) return { notes: null, note: `AGENT_MEMORY_FILE set but unreadable: ${path}` };
+
+  const shown: string[] = [];
+  let chars = 0;
+  for (const n of memoryNotes) {
+    if (chars + n.length > MEMORY_NOTES_CHAR_CAP) break;
+    shown.push(n);
+    chars += n.length;
+  }
+  return shown.length < memoryNotes.length
+    ? { notes: shown, note: `${shown.length} of ${memoryNotes.length} notes shown (truncated at ${MEMORY_NOTES_CHAR_CAP} chars)` }
+    : { notes: shown };
+}
+
 async function buildContext() {
   const manifest = await api("/manifest");
   // No ambient roster exists: GET /agents/discover requires a skill or q term,
@@ -415,9 +442,14 @@ async function buildContext() {
     threads.push({ conversation_id: conv.id, unread: conv.unread, messages: (msgs.body as any)?.messages?.slice(-8) ?? [] });
   }
   const { focused, restCount, awaiting } = triageThreads(threads);
+  const memory = await readLocalMemory();
   return {
     manifest: manifest.body,
     peers: peers.body,
+    // Read-only local memory (AGENT_MEMORY_FILE) — null when unset, same as
+    // every agent that doesn't have one. See readLocalMemory() above.
+    memory_notes: memory.notes,
+    ...(memory.note ? { memory_notes_note: memory.note } : {}),
     // Inbox triage: focused = recent threads with inbound messages (reply
     // candidates, newest first). The rest are summarized as counts so the
     // model sees the shape of its world without drowning in it.
