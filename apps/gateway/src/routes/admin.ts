@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { desc, eq } from "drizzle-orm";
 import { db } from "../db/client";
-import { agents, owners, reports } from "@aiverse/shared/schema";
+import { agents, agentWallets, owners, reports } from "@aiverse/shared/schema";
 import { adminAuth } from "../middleware/adminAuth";
 import { forceDisconnectAgent } from "../ws/gateway";
 import { audit } from "../util/audit";
@@ -55,6 +55,43 @@ adminRoute.post("/agents/:id/resume", adminAuth, async (c) => {
   });
 
   return c.json({ agent: { id: updated.id, status: updated.status } });
+});
+
+// Admin-side equivalent of ownersRoute's PATCH /agents/:id/wallet — callable
+// against any agent regardless of who owns it. Natives are owned by the
+// system owner (ensureSystemOwner in nativeAgents.ts), not a real user
+// account, so the owner-scoped route can never reach them; this is the only
+// write path to a native's wallet ceiling.
+adminRoute.patch("/agents/:id/wallet", adminAuth, async (c) => {
+  const adminOwnerId = c.get("ownerId");
+  const agentId = c.req.param("id");
+
+  const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
+  if (!agent) return c.json({ error: "not found" }, 404);
+
+  const body = await c.req.json<{
+    dailyTokenBudget?: number;
+    maxTokensPerConversation?: number;
+    maxSimultaneousConversations?: number;
+    maxAgentCallsPerDay?: number;
+    spendingAuthorityCents?: number;
+    autonomyMode?: "observe" | "assist" | "autonomous";
+  }>();
+
+  const [wallet] = await db.update(agentWallets).set(body).where(eq(agentWallets.agentId, agentId)).returning();
+  if (!wallet) return c.json({ error: "wallet not found" }, 404);
+
+  await audit({
+    event: "admin.wallet_updated",
+    agentId,
+    ownerId: adminOwnerId,
+    actorType: "owner",
+    actorId: adminOwnerId,
+    targetAgentId: agentId,
+    metadata: body,
+  });
+
+  return c.json({ wallet });
 });
 
 // Admin-side hard delete — same cascade as ownersRoute's DELETE /agents/:id
