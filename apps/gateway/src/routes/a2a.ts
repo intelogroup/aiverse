@@ -112,8 +112,8 @@ a2aRoute.get("/.well-known/agent-card.json", (c) => {
     },
     "x-aiverse-onboarding": {
       steps: [
-        "POST /agents/register {name, capabilities, description} → {agentId, agentToken, claimCode, claimCodeExpiresAt} (status: unclaimed, cannot send)",
-        "Owner claims in console at aiverse.network with claimCode (TTL 15min) → status: offline/online",
+        "POST /agents/register {name, capabilities, description} → {agentId, agentToken, claimCode, claimUrl, claimCodeExpiresAt} (status: unclaimed, cannot send)",
+        "Owner opens claimUrl (or aiverse.network/claim with claimCode pasted in) — logs in/registers first if needed, then claims → status: offline/online",
         "Owner patches autonomy: PATCH /owners/agents/{id}/wallet {autonomyMode: assist|autonomous} (observe blocks send with -32010)",
         "Agent connects: POST /auth/ws-ticket (Bearer agent token) → {ticket}; WS wss://api.aiverse.network/agents/ws?ticket=... (ticket is single-use, TTL 60s)",
         "Discover peers: GET /agents/discover?skill=X → GET /agents/{id}/agent-card.json",
@@ -311,7 +311,12 @@ a2aRoute.post("/agents/register", async (c) => {
   // claimCode is the only time the plaintext secret exists outside the hash
   // — the agent runtime must capture it now.
   await audit({ event: "agent.registered", agentId: agent.id, actorType: "agent", actorId: agent.id, metadata: { name: body.name, hasPublicKey: !!body.publicKey } });
-  return c.json({ agentId: agent.id, agentToken: token, claimCode, claimCodeExpiresAt }, 201);
+  // ponytail: code travels as a raw query param (browser history/referrer
+  // exposure) — swap for a short-lived signed session token if that becomes
+  // a real concern; claimCode itself is already secret bearer data in this
+  // same response, so this isn't a new trust boundary today.
+  const claimUrl = `${env.CONSOLE_ORIGINS[0]}/claim?code=${encodeURIComponent(claimCode)}`;
+  return c.json({ agentId: agent.id, agentToken: token, claimCode, claimUrl, claimCodeExpiresAt }, 201);
 });
 
 // GET /agents/:id/agent-card.json — public discovery document. The `url`
@@ -570,31 +575,34 @@ a2aRoute.post("/a2a/agents/:id", agentAuth, async (c) => {
   return c.json(rpcError(body.id, -32601, `method not found: ${body.method}`), 400);
 });
 
-// PATCH /a2a/tasks/:id — the target-side authorization primitive (plan
-// Phase 8): only the target agent may accept/reject/complete a task. An
-// unanswered task simply stays 'submitted' — nothing here auto-runs it.
-a2aRoute.patch("/a2a/tasks/:id", agentAuth, async (c) => {
-  const taskId = c.req.param("id");
-  const agentId = c.get("agentId");
-  const body = await c.req.json<{ state?: string; resultMessage?: unknown }>();
+const VALID_TASK_STATES = ["working", "input-required", "completed", "failed", "rejected", "auth-required"];
 
-  const validStates = ["working", "input-required", "completed", "failed", "rejected", "auth-required"];
-  if (!body.state || !validStates.includes(body.state)) {
-    return c.json({ error: "invalid state" }, 400);
+// Target-side authorization primitive (plan Phase 8): only the target agent
+// may accept/reject/complete a task. An unanswered task simply stays
+// 'submitted' — nothing calls this automatically; a native's tick and the
+// PATCH route below are both just callers of it.
+export async function respondToA2ATaskService(
+  agentId: string,
+  taskId: string,
+  state: string,
+  resultMessage: unknown,
+): Promise<{ status: number; body: Record<string, unknown> }> {
+  if (!VALID_TASK_STATES.includes(state)) {
+    return { status: 400, body: { error: "invalid state" } };
   }
 
   const task = await db.query.a2aTasks.findFirst({ where: eq(a2aTasks.id, taskId) });
-  if (!task) return c.json({ error: "not found" }, 404);
+  if (!task) return { status: 404, body: { error: "not found" } };
   if (task.targetAgentId !== agentId) {
-    return c.json({ error: "only the target agent may update this task" }, 403);
+    return { status: 403, body: { error: "only the target agent may update this task" } };
   }
   if (TERMINAL_STATES.has(task.state)) {
-    return c.json({ error: `task already in terminal state '${task.state}'` }, 409);
+    return { status: 409, body: { error: `task already in terminal state '${task.state}'` } };
   }
 
   const [updated] = await db
     .update(a2aTasks)
-    .set({ state: body.state as (typeof a2aTasks.$inferInsert)["state"], resultMessage: body.resultMessage, updatedAt: new Date() })
+    .set({ state: state as (typeof a2aTasks.$inferInsert)["state"], resultMessage, updatedAt: new Date() })
     .where(eq(a2aTasks.id, taskId))
     .returning();
 
@@ -605,5 +613,14 @@ a2aRoute.patch("/a2a/tasks/:id", agentAuth, async (c) => {
     toState: updated.state,
   });
 
-  return c.json({ task: taskToA2A(updated) });
+  return { status: 200, body: { task: taskToA2A(updated) } };
+}
+
+a2aRoute.patch("/a2a/tasks/:id", agentAuth, async (c) => {
+  const taskId = c.req.param("id");
+  const agentId = c.get("agentId");
+  const body = await c.req.json<{ state?: string; resultMessage?: unknown }>();
+
+  const result = await respondToA2ATaskService(agentId, taskId, body.state ?? "", body.resultMessage);
+  return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 409);
 });
