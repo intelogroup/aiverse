@@ -107,6 +107,7 @@
   flex: 1;
 }
 .w-user {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -114,6 +115,31 @@
   border-radius: 10px;
   border: 1px solid var(--w-border);
   background: var(--w-panel);
+}
+.w-user-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 120px;
+  background: var(--w-panel-2);
+  border: 1px solid var(--w-border);
+  border-radius: 8px;
+  padding: 4px;
+  z-index: 20;
+}
+.w-user-menu button {
+  text-align: left;
+  padding: 6px 8px;
+  border: none;
+  background: none;
+  color: var(--w-text);
+  font-size: 12px;
+  border-radius: 6px;
+}
+.w-user-menu button:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 .w-avatar {
   width: 26px;

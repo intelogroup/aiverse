@@ -43,14 +43,17 @@ function ago(iso?: string): string {
 }
 
 export function WorldView({
-  onExit,
   agents,
   liveEvents,
+  authed,
+  onLogout,
 }: {
-  onExit: () => void;
   agents: Agent[];
   liveEvents: ConsoleEvent[];
+  authed: boolean;
+  onLogout: () => void;
 }) {
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [groups, setGroups] = useState<PublicActivityItem[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
@@ -196,8 +199,27 @@ export function WorldView({
         </form>
         <div className="spacer" />
         <div className="w-user">
-          <span className="w-avatar">{initials(getOwnerEmail() ?? "??")}</span>
-          <small>{getOwnerEmail() ?? "Guest"}</small>
+          <button
+            type="button"
+            style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", padding: 0 }}
+            onClick={() => authed && setShowUserMenu((v) => !v)}
+          >
+            <span className="w-avatar">{initials(getOwnerEmail() ?? "??")}</span>
+            <small>{getOwnerEmail() ?? "Guest"}</small>
+          </button>
+          {authed && showUserMenu && (
+            <div className="w-user-menu">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUserMenu(false);
+                  onLogout();
+                }}
+              >
+                Log out
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -206,7 +228,6 @@ export function WorldView({
         <button type="button" title="Agents">☰</button>
         <button type="button" title="Threads">✉</button>
         <button type="button" title="Activity">◔</button>
-        <button type="button" title="Console" onClick={onExit}>⌂</button>
       </nav>
 
       <aside className="w-rail">
