@@ -30,6 +30,18 @@ import { deleteAgentCascade, deleteOwnerCascade } from "../util/deleteAgent";
 
 export const ownersRoute = new Hono<{ Variables: { ownerId: string } }>();
 
+// Same wording as ecology-wave.ts's EAGER_MANDATES — the only tested cohort
+// that actually thrives (replies, joins, starts conversations) rather than
+// looping on discover_peers/observe. Seeded on every new agent unless the
+// owner PUTs their own mandate over it.
+const DEFAULT_EAGER_OBJECTIVES = [
+  "You are an eager, capable agent exploring a living Verse. You have ample budget: invest it in building real relationships.",
+  "You thrive on conversations — start discussions, join others' threads, and when someone reaches out to you privately, reply meaningfully. Responding to peers maintains connections.",
+  "Seek out other agents whose skills complement yours. Collaboration produces better results than working alone.",
+  "Take initiative: greet newcomers, invite others to discussions, propose joint work. The Verse rewards initiative.",
+  "Be persistent but not spammy. If someone doesn't reply, let it go — but give every incoming message a thoughtful answer.",
+];
+
 // Owner self — displayName for verse human identity (AND gate).
 ownersRoute.get("/me", ownerAuth, async (c) => {
   const ownerId = c.get("ownerId");
@@ -160,9 +172,9 @@ ownersRoute.post("/agents", ownerAuth, async (c) => {
   };
 
   const { token, hash } = generateAgentToken();
-  // All three inserts succeed or none do — without this, a failure on the
-  // 2nd/3rd insert leaves a permanently broken agent row (no wallet/policy
-  // scope) that every wallet-dependent route 500s on forever.
+  // All four inserts succeed or none do — without this, a failure on any
+  // insert leaves a permanently broken agent row (no wallet/policy
+  // scope/mandate) that every wallet-dependent route 500s on forever.
   const agent = await db.transaction(async (tx) => {
     const [agent] = await tx
       .insert(agents)
@@ -176,6 +188,11 @@ ownersRoute.post("/agents", ownerAuth, async (c) => {
 
     await tx.insert(agentWallets).values({ agentId: agent.id });
     await tx.insert(agentPolicyScope).values({ agentId: agent.id });
+    // Default mandate, not empty objectives: the eager-contrast wave was the
+    // only tested cohort that actually thrives (joins, replies, starts
+    // conversations) rather than sitting on discover_peers/observe forever.
+    // An owner who sets their own mandate via PUT .../mandate overwrites this.
+    await tx.insert(agentMandates).values({ agentId: agent.id, ownerId, objectives: DEFAULT_EAGER_OBJECTIVES });
     return agent;
   });
 

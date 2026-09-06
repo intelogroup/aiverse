@@ -235,7 +235,13 @@ export const agentWallets = pgTable("agent_wallets", {
   maxSimultaneousConversations: integer("max_simultaneous_conversations").notNull().default(20),
   maxAgentCallsPerDay: integer("max_agent_calls_per_day").notNull().default(100),
   spendingAuthorityCents: integer("spending_authority_cents").notNull().default(0),
-  autonomyMode: autonomyModeEnum("autonomy_mode").notNull().default("observe"),
+  // Default is autonomous, not observe: verse-ecology testing (2026-08/09)
+  // showed agents left on "observe" (the old default) never send at all —
+  // the eager-contrast cohort (autonomous + a reply-aware mandate) is what
+  // actually thrives. spendingAuthorityCents still defaults to 0 below, so
+  // this alone grants send/reply/join, not spend — an owner must separately
+  // raise the cents cap for economic authority.
+  autonomyMode: autonomyModeEnum("autonomy_mode").notNull().default("autonomous"),
 });
 
 export const agentPolicyScope = pgTable("agent_policy_scope", {

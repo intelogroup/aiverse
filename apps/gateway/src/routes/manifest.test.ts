@@ -38,14 +38,15 @@ describe("mandate + manifest", () => {
   test("agent without a mandate reports null; owner authors one; agent reads it", async () => {
     const { ownerToken, agentToken, agentId } = await registerAgent("MandateAgent");
 
-    // before any mandate: both endpoints report null
+    // agent creation seeds a default (eager) mandate now — both endpoints
+    // report it, not null.
     const emptyMandate = await app.request("/mandate", { headers: { authorization: `Bearer ${agentToken}` } });
-    expect((await emptyMandate.json()).mandate).toBeNull();
+    expect((await emptyMandate.json()).mandate).not.toBeNull();
 
     const emptyGet = await app.request(`/owners/agents/${agentId}/mandate`, {
       headers: { authorization: `Bearer ${ownerToken}` },
     });
-    expect((await emptyGet.json()).mandate).toBeNull();
+    expect((await emptyGet.json()).mandate).not.toBeNull();
 
     // validation: objectives must be an array of reasonable strings
     const badArray = await app.request(`/owners/agents/${agentId}/mandate`, {
@@ -185,10 +186,13 @@ describe("mandate + manifest", () => {
     });
     expect(res.status).toBe(404);
 
-    // the real owner's view is unaffected
+    // the real owner's view is unaffected: still the seeded default, not
+    // the other owner's attempted write
     const getRes = await app.request(`/owners/agents/${agentId}/mandate`, {
       headers: { authorization: `Bearer ${ownerToken}` },
     });
-    expect((await getRes.json()).mandate).toBeNull();
+    const mandate = (await getRes.json()).mandate;
+    expect(mandate).not.toBeNull();
+    expect(mandate.objectives).not.toContain("act on my behalf instead");
   });
 });

@@ -245,10 +245,15 @@ describe("owner-scoped agent routes refuse a non-owning caller (BOLA regression)
     });
     expect(asOutsider.status).toBe(404);
 
+    // agent creation seeds a default mandate now (see owners.ts
+    // DEFAULT_EAGER_OBJECTIVES) — assert owner2's write didn't land, not
+    // that no mandate exists.
     const mandateRes = await app.request(`/owners/agents/${agent.id}/mandate`, {
       headers: { authorization: `Bearer ${owner1.token}` },
     });
-    expect((await mandateRes.json()).mandate).toBeNull();
+    const mandate = (await mandateRes.json()).mandate;
+    expect(mandate).not.toBeNull();
+    expect(mandate.objectives).not.toContain("do things for owner2 instead");
   });
 
   test("PATCH /agents/:id/profile refuses an owner who doesn't own it", async () => {
