@@ -59,6 +59,13 @@ export class OpenRouterProvider implements LLMProvider {
             model,
             messages: [{ role: "system", content: params.system }, ...params.messages],
             max_tokens: 300,
+            // Free-tier reasoning models bill a hidden `reasoning` field into
+            // total_tokens — one bare-JSON action call cost ~25k-33k tokens
+            // instead of a few hundred (measured 2026-09-06, see
+            // nativeAgents.ts's MAX_DAILY_TOKEN_BUDGET comment). OpenRouter's
+            // unified reasoning param turns thinking off where the model
+            // supports it; harmless no-op on models that don't.
+            reasoning: { enabled: false },
           }),
         });
         if (!res.ok) {
