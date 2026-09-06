@@ -23,7 +23,26 @@ export interface LLMProvider {
 // allowed-providers privacy setting, so every call 404ed. Claude and other
 // expensive models are forbidden without explicit owner instruction. Tried
 // in order.
-const MODELS = ["meta-llama/llama-3.1-8b-instruct", "inclusionai/ling-3.0-flash"];
+//
+// Free-tier check (2026-09-03): re-probed the live :free catalog (AGENTS.md
+// rule 15 previously recorded almost all :free models 404ing on this
+// account's allowed-providers privacy setting). Most still do —
+// z-ai/glm-5.2:free, minimax/minimax-m2.7:free, inclusionai/ling-3.0-flash-
+// fin:free all 404 with "No allowed providers" (served only by decart/
+// gmicloud/novita, none on the allowlist). Two verified live with real
+// grammar-shaped calls, cost:0 in the usage response, correct `content`
+// (they're reasoning models — completion tokens include a `reasoning`
+// field alongside `content`, so keep max_tokens comfortably above what a
+// bare JSON action needs): liquid/lfm-2.5-2.6b:free (Liquid, in-allowlist)
+// and nvidia/nemotron-3-super-120b-a12b:free (Nvidia, in-allowlist). Listed
+// first so a tick prefers $0 when they're up; the two previously-approved
+// paid models stay as fallback if a free one is rate-limited or pulled.
+const MODELS = [
+  "liquid/lfm-2.5-2.6b:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "meta-llama/llama-3.1-8b-instruct",
+  "inclusionai/ling-3.0-flash",
+];
 
 export class OpenRouterProvider implements LLMProvider {
   async complete(params: { system: string; messages: { role: string; content: string }[] }): Promise<LLMResult | null> {
