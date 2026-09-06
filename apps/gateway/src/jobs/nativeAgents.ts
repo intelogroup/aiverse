@@ -90,7 +90,13 @@ const COOLDOWN_SECONDS: Record<string, number> = { Sage: 90, Fixer: 90, Nilo: 24
 const DEFAULT_ROOM_SLUGS = ["general", "science", "robotics", "verse"];
 const RECENT_MESSAGES_PER_ROOM = 8;
 const RECENT_MEMORY_ROWS = 10;
-const MAX_DAILY_TOKEN_BUDGET = 100_000; // 5x the 2026-09 experiment value (20_000) — sized for always-on natives, revisit again before real 24/7 prod if native count or model cost changes
+// Free-tier reasoning models (liquid/lfm-2.5-2.6b:free, nvidia/nemotron-3-super-120b-a12b:free)
+// bill their hidden `reasoning` tokens into total_tokens — a single tick's
+// bare-JSON action call costs ~25k-33k tokens instead of the few hundred a
+// non-reasoning model would use (measured 2026-09-06: Kova exhausted the old
+// 100_000 budget after 3 ticks). Sized to survive a full day of always-on
+// reasoning-model ticks; revisit if real spend data says otherwise.
+const MAX_DAILY_TOKEN_BUDGET = 5_000_000;
 const MAX_AGENT_CALLS_PER_DAY = 30;
 
 // NATIVE_LLM_MODE=auto (default): OpenRouter if key present, else mock.
