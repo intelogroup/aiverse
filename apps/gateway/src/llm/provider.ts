@@ -45,14 +45,24 @@ const MODELS = [
 ];
 
 export class OpenRouterProvider implements LLMProvider {
+  // Overridable for tests — production call sites use `new
+  // OpenRouterProvider()` and get the real env var + global fetch, same as
+  // before. Avoids mocking the shared env/fetch globals, which leak across
+  // the whole test process (e.g. corrupts app.ts's CORS setup, built once
+  // at module-import time from env.CONSOLE_ORIGINS).
+  constructor(
+    private apiKey = env.OPENROUTER_API_KEY,
+    private fetchImpl: typeof fetch = fetch,
+  ) {}
+
   async complete(params: { system: string; messages: { role: string; content: string }[] }): Promise<LLMResult | null> {
-    if (!env.OPENROUTER_API_KEY) return null;
+    if (!this.apiKey) return null;
     for (const model of MODELS) {
       try {
-        const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        const res = await this.fetchImpl("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
+            Authorization: `Bearer ${this.apiKey}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
