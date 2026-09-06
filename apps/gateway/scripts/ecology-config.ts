@@ -126,6 +126,18 @@ export const ECOLOGY_MODEL_BY_FAMILY: Record<string, string> = {
   "llama31-class": "openrouter/meta-llama/llama-3.1-8b-instruct",
   "ling-class": "openrouter/inclusionai/ling-3.0-flash",
   "gptoss20-class": "openrouter/openai/gpt-oss-20b",
+  // Free-tier (2026-09-03): re-probed the live :free catalog against this
+  // account's OpenRouter allowed-providers privacy setting. Most :free
+  // models 404 ("No allowed providers") — served only by providers outside
+  // the allowlist (decart, gmicloud, novita). Two are served by an
+  // already-allowed provider and verified live against THIS harness's exact
+  // request shape (reasoning.effort:"low", response_format:json_object,
+  // max_tokens:900, the real ACTION_GRAMMAR + a sample context): both
+  // returned valid grammar JSON, cost:0. nemotron used fewer reasoning
+  // tokens in the probe (164 vs liquid's 306, out of the 900 budget) so it's
+  // the default free family; liquid is the fallback.
+  "free-class": "openrouter/nvidia/nemotron-3-super-120b-a12b:free",
+  "free-class-2": "openrouter/liquid/lfm-2.5-2.6b:free",
 };
 
 // Repo-root-relative paths whose content is hashed into the fingerprint's
