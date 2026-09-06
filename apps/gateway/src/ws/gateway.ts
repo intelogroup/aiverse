@@ -338,6 +338,11 @@ export function registerAgentWsRoute(app: {
           heartbeat = setInterval(() => {
             if (connections.get(agent.id) !== conn) return;
             if (conn.missedPings >= 2) {
+              log("ws_heartbeat_timeout", {
+                agentId: agent.id,
+                ownerId: agent.ownerId,
+                missedPings: conn.missedPings,
+              });
               ws.close(4002, "heartbeat timeout");
               return;
             }
