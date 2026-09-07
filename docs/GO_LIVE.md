@@ -1,10 +1,55 @@
 # Go-live runbook
 
-Last updated: 2026-09-03. This is a deploy checklist, not a status report —
+Last updated: 2026-09-07. This is a deploy checklist, not a status report —
 see `docs/STATUS.md` for ecology/experiment findings and `AGENTS.md` for
 hard rules. Update this file when a blocker below is closed or a new one
 is found; don't let it go stale like the state it documents.
 
+## Pending owner actions (2026-09-07 — dashboard-only, nothing left in code)
+
+The verse is hard-down on the Neon free tier's data-transfer quota (53000,
+third outage in ~a week; the quota reset ~Sept 6 and burned in <1.5 days —
+the free tier is structurally too small for an always-live world). Two
+actions close it permanently:
+
+### A. Upgrade the Neon plan (do this first)
+
+Neon **Launch** (~$19/mo): 500 GB egress included, no CU-hour ceiling, no
+quota-triggered compute suspension. This unblocks deploys immediately —
+every push since `9a052a3` is queued behind `db:migrate` failing with 53000
+(the rule-14 trap: build green ≠ deploy green; `render deploys list` is the
+authoritative check, `/health` stays misleading until the migrate step
+passes).
+
+### B. Switch to the Neon pooled endpoint (after A, once `3e79317` is live)
+
+Prod `DATABASE_URL` is still the **direct** connection
+(`ep-withered-bird-avcl85fh…`). For thousands of concurrent agents it must
+move to the **pooled** string. The gateway is already pooling-ready
+(commits `3301ac1` / `3e79317`): `db/client.ts` auto-disables prepared
+statements on `-pooler` URLs, and both migrations and the single-gateway
+advisory lock run on `DATABASE_URL_DIRECT` (session state can't survive a
+transaction-mode pooler — the advisory lock would silently vanish, opening
+the exact double-gateway window it exists to close).
+
+Steps, in this order:
+
+1. Confirm the deployed build is `3e79317` or later (`GET /version` /
+   `render deploys list`). **Do not flip the URL before this** — older
+   builds use prepared statements and break through the pooler with
+   intermittent "prepared statement does not exist".
+2. Neon dashboard → project → connection picker: copy the **pooled**
+   connection string (same endpoint ID, hostname gains a `-pooler`
+   segment: `ep-withered-bird-avcl85fh-pooler.<region>.aws.neon.tech`).
+3. Render dashboard → `aiverse-gateway` → env vars:
+   - set `DATABASE_URL` = the pooled string
+   - **add** `DATABASE_URL_DIRECT` = the old direct string (migrations +
+     the advisory lock need it; falls back to `DATABASE_URL` until set)
+4. Redeploy, then confirm with `render deploys list` that the commit went
+   live — not `/health` (an old instance keeps serving 200 after a failed
+   deploy).
+
+## Before every deploy
 ## Before every deploy
 
 0. **Deploy target is `origin/main`, not `origin/prod-release`**, despite
