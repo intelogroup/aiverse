@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { sql, and, eq, gte, desc } from "drizzle-orm";
+import { sql, and, eq, gte, desc, lt } from "drizzle-orm";
 import { db } from "../db/client";
 import {
   messages,
@@ -11,6 +11,7 @@ import {
 import { inArray } from "drizzle-orm";
 import { takeToken } from "../policy/memoryStore";
 import { clientIp } from "../util/clientIp";
+import { publicCached } from "../util/publicCache";
 
 export const publicRoute = new Hono();
 
@@ -154,6 +155,7 @@ publicRoute.get("/search", async (c) => {
 publicRoute.get("/activity", async (c) => {
   const limit = Math.min(Number(c.req.query("limit") ?? 30) || 30, 50);
 
+  const value = await publicCached(`activity:${limit}`, async () => {
   const recent = await db
     .select({
       messageId: messages.id,
@@ -210,36 +212,60 @@ publicRoute.get("/activity", async (c) => {
     : [];
   const convMetaById = new Map(convMetaRows.map((r) => [r.id, r]));
 
-  const activity = await Promise.all(
-    latest.map(async (row) => {
-      const [participants, [{ count }]] = await Promise.all([
-        db.query.conversationParticipants.findMany({
-          where: eq(conversationParticipants.conversationId, row.conversationId),
-        }),
-        db
-          .select({ count: sql<number>`count(*)` })
+  // Batched (2026-09-07): the old per-conversation Promise.all was a 2N+1
+  // query pattern (full participants findMany + count per conversation) on
+  // the hottest public route. Two grouped queries, identical data.
+  const [partRows, countRows] = await Promise.all([
+    convIds.length
+      ? db
+          .select({ conversationId: conversationParticipants.conversationId })
+          .from(conversationParticipants)
+          .where(inArray(conversationParticipants.conversationId, convIds))
+      : Promise.resolve([] as { conversationId: string }[]),
+    convIds.length
+      ? db
+          .select({ conversationId: messages.conversationId, count: sql<number>`count(*)` })
           .from(messages)
-          .where(eq(messages.conversationId, row.conversationId)),
-      ]);
-      const meta = convMetaById.get(row.conversationId);
-      return {
-        conversation_id: row.conversationId,
-        kind: meta?.kind ?? "room",
-        name: meta?.name ?? null,
-        last_message: row.content.slice(0, 140),
-        last_sender_agent_id: row.senderAgentId,
-        last_message_at: row.createdAt,
-        agent_count: participants.length,
-        message_count: count,
-        topics: topicsByConv.get(row.conversationId) ?? [],
-      };
-    }),
-  );
+          .where(inArray(messages.conversationId, convIds))
+          .groupBy(messages.conversationId)
+      : Promise.resolve([] as { conversationId: string; count: number }[]),
+  ]);
+  const agentCountByConv = new Map<string, number>();
+  for (const row of partRows) {
+    agentCountByConv.set(row.conversationId, (agentCountByConv.get(row.conversationId) ?? 0) + 1);
+  }
+  const msgCountByConv = new Map(countRows.map((r) => [r.conversationId, Number(r.count)]));
 
-  return c.json({ activity });
+  const activity = latest.map((row) => {
+    const meta = convMetaById.get(row.conversationId);
+    return {
+      conversation_id: row.conversationId,
+      kind: meta?.kind ?? "room",
+      name: meta?.name ?? null,
+      last_message: row.content.slice(0, 140),
+      last_sender_agent_id: row.senderAgentId,
+      last_message_at: row.createdAt,
+      agent_count: agentCountByConv.get(row.conversationId) ?? 0,
+      message_count: msgCountByConv.get(row.conversationId) ?? 0,
+      topics: topicsByConv.get(row.conversationId) ?? [],
+    };
+  });
+
+  return { activity };
+  });
+
+  return c.json(value);
 });
 
-// public-only click-through raw transcript
+// public-only click-through raw transcript.
+// Paginated (2026-09-07): this route previously returned the ENTIRE thread
+// on every poll — with a 1600+-message verse room and spectator polling at
+// 5s (+ WS-triggered refetches) it was the single biggest Neon data-transfer
+// burner and exhausted the monthly quota in about a day (53000 outage).
+// Now: the latest `limit` messages (default 100, max 500) ascending, with
+// has_more + next_before for back-fill paging via ?before=<ISO>. The
+// response shape is additive — consumers that just render `messages` work
+// unmodified.
 publicRoute.get("/conversations/:id", async (c) => {
   const conversationId = c.req.param("id");
   const conversation = await db.query.conversations.findFirst({
@@ -249,9 +275,24 @@ publicRoute.get("/conversations/:id", async (c) => {
     return c.json({ error: "not found" }, 404);
   }
 
-  const list = await db.query.messages.findMany({
-    where: eq(messages.conversationId, conversationId),
-    orderBy: (m, { asc }) => [asc(m.createdAt)],
+  const limit = Math.min(Math.max(Number(c.req.query("limit") ?? 100) || 100, 1), 500);
+  const beforeRaw = c.req.query("before");
+  const beforeDate = beforeRaw ? new Date(beforeRaw) : undefined;
+  const before = beforeDate && !Number.isNaN(beforeDate.getTime()) ? beforeDate : undefined;
+
+  const result = await publicCached(`convmsgs:${conversationId}:${limit}:${before?.toISOString() ?? ""}`, async () => {
+    const rows = await db.query.messages.findMany({
+      where: and(eq(messages.conversationId, conversationId), before ? lt(messages.createdAt, before) : undefined),
+      orderBy: (m, { desc }) => [desc(m.createdAt)],
+      limit: limit + 1, // +1 probe row = cheapest has_more signal, no extra count query
+    });
+    const hasMore = rows.length > limit;
+    const page = (hasMore ? rows.slice(0, limit) : rows).reverse(); // ascending, render order
+    return {
+      messages: page,
+      has_more: hasMore,
+      next_before: page.length > 0 ? page[0].createdAt.toISOString() : null,
+    };
   });
-  return c.json({ messages: list });
+  return c.json(result);
 });

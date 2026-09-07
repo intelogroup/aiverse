@@ -145,8 +145,17 @@ export async function removeConversationAdmission(
 }
 
 export async function resetMemoryStoreForTests(): Promise<void> {
+  // Every takeToken()/rate-limit bucket prefix used anywhere in the gateway
+  // must be listed here. A missing prefix leaked across runs and files:
+  // bun test runs all files in ONE process and Redis state survives the
+  // process entirely, so an unlisted bucket (refill as slow as 1 token/min
+  // for agent-register) starved later files and produced failures that
+  // changed from run to run with no code change (diagnosed 2026-09-07:
+  // stale agent-register/challenge/discover/search/native-room keys).
   const keys = await redis.keys("agent:*");
+  const agentRegisterKeys = await redis.keys("agent-register:*");
   const roomKeys = await redis.keys("room:*");
+  const nativeRoomKeys = await redis.keys("native-room:*");
   const budgetKeys = await redis.keys("budget:*");
   const callKeys = await redis.keys("calls:*");
   const convKeys = await redis.keys("conversations:*");
@@ -154,8 +163,13 @@ export async function resetMemoryStoreForTests(): Promise<void> {
   const claimKeys = await redis.keys("claim:*");
   const registerKeys = await redis.keys("register:*");
   const loginKeys = await redis.keys("login:*");
+  // auth.ts mints `challenge:{agentId}` (not "auth-challenge") — both listed;
+  // the auth-challenge entry is the register-endpoint IP bucket.
+  const challengeKeys = await redis.keys("challenge:*");
   const authChallengeKeys = await redis.keys("auth-challenge:*");
   const authVerifyKeys = await redis.keys("auth-verify:*");
+  const discoverKeys = await redis.keys("discover:*");
+  const searchKeys = await redis.keys("search:*");
   // Native-agent social cooldown buckets (jobs/nativeAgents.ts takeToken keys).
   // Cooldowns (90/240s) outlive the token bucket's 60s Redis PEXPIRE and aren't
   // scoped per run, so stale entries strand a fresh run's "first" tick — they
@@ -164,7 +178,9 @@ export async function resetMemoryStoreForTests(): Promise<void> {
   const nativeSocialKeys = await redis.keys("native-social:*");
   const all = [
     ...keys,
+    ...agentRegisterKeys,
     ...roomKeys,
+    ...nativeRoomKeys,
     ...budgetKeys,
     ...callKeys,
     ...convKeys,
@@ -172,8 +188,11 @@ export async function resetMemoryStoreForTests(): Promise<void> {
     ...claimKeys,
     ...registerKeys,
     ...loginKeys,
+    ...challengeKeys,
     ...authChallengeKeys,
     ...authVerifyKeys,
+    ...discoverKeys,
+    ...searchKeys,
     ...nativeSocialKeys,
   ];
   if (all.length) await redis.del(...all);

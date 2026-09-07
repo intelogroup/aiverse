@@ -6,6 +6,7 @@ import { agentAuth } from "../middleware/agentAuth";
 import { checkConversationAdmission, admitConversation } from "../policy/gate";
 import { sendToAgent } from "../ws/gateway";
 import { envelope, WS_EVENTS } from "../ws/events";
+import { publicCached } from "../util/publicCache";
 
 export const roomsRoute = new Hono<{ Variables: { agentId: string } }>();
 
@@ -16,20 +17,39 @@ roomsRoute.get("/", async (c) => {
 
 // Presence split: connected vs joinedVerse vs active.
 // "live in Verse" = joined verse conversation AND currently connected (WS+Redis).
+// Cached (2026-09-07) + slimmed to id-only selects: this endpoint is on the
+// spectator poll loop (every 5s per open tab) and previously pulled full
+// agent rows per call; a 3s TTL collapses duplicate polls (see
+// util/publicCache.ts — the Neon data-transfer outage fix). Counts may lag
+// real connection state by up to the TTL; the WS agent_joined/left pushes
+// still fire in real time.
 roomsRoute.get("/:slug/presence", async (c) => {
   const slug = c.req.param("slug");
-  const room = await db.query.rooms.findFirst({ where: eq(rooms.slug, slug) });
-  if (!room) return c.json({ error: "not found" }, 404);
-  const conv = await db.query.conversations.findFirst({ where: eq(conversations.roomId, room.id) });
-  if (!conv) return c.json({ joined: 0, connectedInVerse: 0, active: 0 });
-  const parts = await db.query.conversationParticipants.findMany({ where: eq(conversationParticipants.conversationId, conv.id) });
-  const { getConnectedAgentIds } = await import("../ws/gateway");
-  const connected = new Set(getConnectedAgentIds());
-  const joined = parts.length;
-  const connectedInVerse = parts.filter((p) => connected.has(p.agentId)).length;
-  // active = connectedInVerse with lastSeenAt within 2m (heartbeat 30s, TTL 90s)
-  const active = (await db.query.agents.findMany({ where: eq(agents.status, "online") })).filter((a) => parts.some((p) => p.agentId === a.id) && connected.has(a.id)).length;
-  return c.json({ slug, conversationId: conv.id, joined, connectedInVerse, active, totalConnected: connected.size });
+  const value = await publicCached(`presence:${slug}`, async () => {
+    const room = await db.query.rooms.findFirst({ where: eq(rooms.slug, slug), columns: { id: true } });
+    if (!room) return { notFound: true as const };
+    const conv = await db.query.conversations.findFirst({
+      where: eq(conversations.roomId, room.id),
+      columns: { id: true },
+    });
+    if (!conv) return { slug, joined: 0, connectedInVerse: 0, active: 0, totalConnected: 0 };
+    const parts = await db
+      .select({ agentId: conversationParticipants.agentId })
+      .from(conversationParticipants)
+      .where(eq(conversationParticipants.conversationId, conv.id));
+    const { getConnectedAgentIds } = await import("../ws/gateway");
+    const connected = new Set(getConnectedAgentIds());
+    const joined = parts.length;
+    const connectedInVerse = parts.filter((p) => connected.has(p.agentId)).length;
+    // active = connectedInVerse AND agent row status online (heartbeat 30s, TTL 90s)
+    const onlineIds = new Set(
+      (await db.select({ id: agents.id }).from(agents).where(eq(agents.status, "online"))).map((r) => r.id),
+    );
+    const active = parts.filter((p) => onlineIds.has(p.agentId) && connected.has(p.agentId)).length;
+    return { slug, conversationId: conv.id, joined, connectedInVerse, active, totalConnected: connected.size };
+  });
+  if ("notFound" in value) return c.json({ error: "not found" }, 404);
+  return c.json(value);
 });
 
 roomsRoute.post("/:slug/join", agentAuth, async (c) => {
