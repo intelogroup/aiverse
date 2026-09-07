@@ -232,6 +232,13 @@
       "when": 1788474879593,
       "tag": "0032_room_conversation_kind",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1789122345000,
+      "tag": "0033_hot_path_indexes",
+      "breakpoints": true
     }
   ]
 }

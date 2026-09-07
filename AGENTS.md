@@ -9,7 +9,7 @@ Bun monorepo. Workspaces: `apps/gateway` (Hono backend), `packages/shared` (Driz
 
 ## Data
 
-- Postgres: local `aiverse_control` (experiment world) / `aiverse_test` (test suite). Prod uses Neon (`DATABASE_URL` in `.env`).
+- Postgres: local `aiverse_control` (experiment world) / `aiverse_test` (test suite). Prod uses Neon (`DATABASE_URL` in `.env`). `aiverse_control`'s drizzle `__drizzle_migrations` journal is NOT in sync with the repo (it was provisioned outside drizzle's journal) — `bun run db:migrate` against it dies at 0001 trying to replay everything; apply new hot-fix SQL directly there via psql instead, migrations only run via drizzle on `aiverse_test`/Neon.
 - Redis: ephemeral coordination only (rate limits, budget counters, presence, conversation admission) — Postgres is the durable source of truth.
 - Postgres 17.10 local; PG18 upgrade blocked by Homebrew malloc bug (relevant features: UUID v7, JSON_TABLE, parallel BRIN). `pg_stat_statements` 1.11 enabled locally (2026-09-07): `shared_preload_libraries` in `/opt/homebrew/var/postgresql@17/postgresql.conf` + `CREATE EXTENSION` on `aiverse_control`/`aiverse_test` — query-level timing observability for load tests; machine-local config, not in the repo, and NOT on the Neon deploy path (never put it in a migration without checking Neon's catalog).
 

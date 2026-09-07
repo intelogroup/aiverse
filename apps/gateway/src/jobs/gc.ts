@@ -8,6 +8,32 @@ import { log } from "../util/log";
 // - a2a_tasks/messages/console_events/security_events >30-90d → delete (retention)
 // This is the last "boring" problem before freeze — not a feature, just hygiene.
 
+// Bounded DELETE batches (2026-09-07 hot-path audit): a single unbounded
+// DELETE over a 90-day slice of a multi-million-row table is one giant
+// transaction — WAL spike, long lock hold, bloat. DELETE-with-LIMIT via an
+// id-CTE in batches, looping to exhaustion with a per-pass ceiling so one
+// GC run never hogs the DB. table/age come from the fixed call sites in
+// runGc, never user input — sql.raw is safe here by construction.
+export async function batchedDelete(
+  table: string,
+  maxAge: string,
+  batchSize = 5000,
+  maxBatches = 20,
+): Promise<number> {
+  let total = 0;
+  for (let i = 0; i < maxBatches; i++) {
+    const res = (await db.execute(
+      sql.raw(
+        `WITH del AS (DELETE FROM ${table} WHERE id IN (SELECT id FROM ${table} WHERE created_at < now() - interval '${maxAge}' LIMIT ${batchSize}) RETURNING 1) SELECT count(*)::int AS n FROM del`,
+      ),
+    )) as any[];
+    const n = Number(res[0]?.n ?? 0);
+    total += n;
+    if (n < batchSize) break;
+  }
+  return total;
+}
+
 export async function runGc(): Promise<Record<string, number>> {
   const out: Record<string, number> = {};
   try {
@@ -41,20 +67,16 @@ export async function runGc(): Promise<Record<string, number>> {
     // delete runs (terminal transitions happen by 7d at the latest, leaving
     // ~23 days of runway). NEVER add a task_outcomes delete here — the ledger
     // outlives a2a_tasks by design.
-    const oldTasks = await db.execute(sql`DELETE FROM a2a_tasks WHERE created_at < now() - interval '30 days'`);
-    out.tasks_old_deleted = (oldTasks as any).rowCount ?? 0;
+    out.tasks_old_deleted = await batchedDelete("a2a_tasks", "30 days");
 
     // 4) old messages >90d
-    const oldMsgs = await db.execute(sql`DELETE FROM messages WHERE created_at < now() - interval '90 days'`);
-    out.messages_old_deleted = (oldMsgs as any).rowCount ?? 0;
+    out.messages_old_deleted = await batchedDelete("messages", "90 days");
 
     // 5) old console_events >90d
-    const oldConsole = await db.execute(sql`DELETE FROM console_events WHERE created_at < now() - interval '90 days'`);
-    out.console_old_deleted = (oldConsole as any).rowCount ?? 0;
+    out.console_old_deleted = await batchedDelete("console_events", "90 days");
 
     // 6) security_events >90d (immutable stream, but needs retention bound)
-    const oldSec = await db.execute(sql`DELETE FROM security_events WHERE created_at < now() - interval '90 days'`);
-    out.security_old_deleted = (oldSec as any).rowCount ?? 0;
+    out.security_old_deleted = await batchedDelete("security_events", "90 days");
 
     log("gc_run", out);
   } catch (e) {

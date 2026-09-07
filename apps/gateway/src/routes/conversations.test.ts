@@ -35,6 +35,76 @@ beforeAll(async () => {
   await ensureRoomsSeeded();
 });
 
+describe("GET /conversations resync (single grouped query, 0033 index)", () => {
+  // registerAgent returns only a token; resync needs two agents with IDs
+  // (A's unread is counted against B's posts).
+  async function registerAgentWithId(name: string): Promise<{ token: string; agentId: string }> {
+    const email = `convr-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
+    const reg = await app.request("/owners/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password: "password123" }),
+    });
+    const { token: ownerToken } = await reg.json();
+    const created = await app.request("/owners/agents", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
+      body: JSON.stringify({ name, capabilities: [] }),
+    });
+    const { agentToken, agent } = await created.json();
+    await app.request(`/owners/agents/${agent.id}/wallet`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
+      body: JSON.stringify({ autonomyMode: "autonomous" }),
+    });
+    return { token: agentToken as string, agentId: agent.id as string };
+  }
+
+  test("unread counts come back per conversation in one round trip", async () => {
+    await resetMemoryStoreForTests();
+    const a = await registerAgentWithId("ResyncAgentA");
+    const b = await registerAgentWithId("ResyncAgentB");
+
+    const createRes = await app.request("/conversations", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${a.token}` },
+      body: JSON.stringify({ isPublic: false, name: "resync-test", participantIds: [b.agentId] }),
+    });
+    const { conversation } = await createRes.json();
+
+    // B posts twice; A has 2 unread, B has 0 (own messages don't count).
+    // The per-agent message bucket (gate.ts agent:{agentId}) is burst-1 with a
+    // slow refill, so back-to-back posts from the same agent need a bucket
+    // reset between them — same pattern every other multi-send test here uses.
+    for (let i = 0; i < 2; i++) {
+      if (i > 0) await resetMemoryStoreForTests();
+      const post = await app.request(`/conversations/${conversation.id}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${b.token}` },
+        body: JSON.stringify({ content: `resync message ${i}` }),
+      });
+      expect(post.status).toBe(201);
+    }
+
+    const resyncA = await app.request("/conversations", {
+      headers: { authorization: `Bearer ${a.token}` },
+    });
+    expect(resyncA.status).toBe(200);
+    const { conversations } = await resyncA.json();
+    const row = (conversations as Array<{ conversation_id: string; unread: number }>).find(
+      (r) => r.conversation_id === conversation.id,
+    );
+    expect(row).toBeDefined();
+    expect(row!.unread).toBe(2);
+
+    const resyncB = await app.request("/conversations", {
+      headers: { authorization: `Bearer ${b.token}` },
+    });
+    const convsB = (await resyncB.json()).conversations as Array<{ conversation_id: string; unread: number }>;
+    expect(convsB.find((r) => r.conversation_id === conversation.id)?.unread).toBe(0);
+  });
+});
+
 describe("rooms + messaging", () => {
   test("agent joins room, sends message, participant reads it back", async () => {
     await resetMemoryStoreForTests();

@@ -142,25 +142,28 @@ conversationsRoute.post("/", agentAuth, async (c) => {
 // trust a client-local read state.
 conversationsRoute.get("/", agentAuth, async (c) => {
   const agentId = c.get("agentId");
-  const participantRows = await db.query.conversationParticipants.findMany({
-    where: eq(conversationParticipants.agentId, agentId),
-  });
-  const result = await Promise.all(
-    participantRows.map(async (p) => {
-      const [{ count }] = await db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(messages)
-        .where(
-          and(
-            eq(messages.conversationId, p.conversationId),
-            gt(messages.createdAt, p.lastDeliveredAt),
-            ne(messages.senderAgentId, agentId),
-          ),
-        );
-      return { conversation_id: p.conversationId, unread: count };
-    }),
-  );
-  return c.json({ conversations: result });
+  // Single grouped query (2026-09-07 hot-path audit): the previous version
+  // was findMany by agentId with NO agent_id index (full participant scan,
+  // every poll) plus one COUNT query per participant row — an agent in N
+  // conversations cost N+1 queries every resync tick, and subject-harness
+  // polls this every tick. One round trip now; unread is counted by an
+  // index range scan on messages(conversation_id, created_at) starting at
+  // the per-conversation last_delivered_at cursor (the join condition
+  // excludes everything at/below the cursor, so it never touches the
+  // thread's history), and the participants lookup runs on
+  // conversation_participants_agent_idx (0033).
+  const rows = (await db.execute(sql`
+    SELECT cp.conversation_id,
+           count(m.id)::int AS unread
+    FROM conversation_participants cp
+    LEFT JOIN messages m
+      ON m.conversation_id = cp.conversation_id
+     AND m.created_at > cp.last_delivered_at
+     AND m.sender_agent_id <> ${agentId}
+    WHERE cp.agent_id = ${agentId}
+    GROUP BY cp.conversation_id
+  `)) as unknown as Array<{ conversation_id: string; unread: number }>;
+  return c.json({ conversations: rows });
 });
 
 // Invite an agent into an existing conversation — the only way to add a
