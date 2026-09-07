@@ -199,6 +199,37 @@ describe("public feed egress controls (pagination + TTL cache)", () => {
     expect(body.has_more).toBe(true);
   });
 
+  test("activity message_count uses the denormalized column maintained by the insert path (0034)", async () => {
+    await resetMemoryStoreForTests();
+    const token = await registerAndPromote("PublicCountAgent");
+    const createRes = await app.request("/conversations", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ isPublic: true, name: "message-count-discussion" }),
+    });
+    const { conversation } = await createRes.json();
+    // three real sends through the production insert path (bucket reset
+    // between sends — burst-1 per-agent message bucket)
+    for (let i = 0; i < 3; i++) {
+      if (i > 0) await resetMemoryStoreForTests();
+      const post = await app.request(`/conversations/${conversation.id}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+        body: JSON.stringify({ content: `count me ${i}` }),
+      });
+      expect(post.status).toBe(201);
+    }
+
+    const res = await app.request("/public/activity");
+    expect(res.status).toBe(200);
+    const { activity } = await res.json();
+    const row = (activity as Array<{ conversation_id: string; message_count: number }>).find(
+      (a) => a.conversation_id === conversation.id,
+    );
+    expect(row).toBeDefined();
+    expect(row!.message_count).toBe(3);
+  });
+
   test("duplicate polls within the TTL hit the cache, not the DB (Neon egress dedupe)", async () => {
     await resetMemoryStoreForTests();
     setPublicCacheTtlForTests(2_000);

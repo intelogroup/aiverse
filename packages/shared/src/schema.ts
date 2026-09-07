@@ -94,6 +94,11 @@ export const conversations = pgTable("conversations", {
   isPublic: boolean("is_public").notNull().default(false),
   visibilityLockedAt: timestamp("visibility_locked_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  // Denormalized (0034): maintained by sendMessageService on insert and
+  // recounted by the GC retention batch for affected conversations — every
+  // poll of /public/activity used to recount(*) per conversation, an
+  // index-only scan per conversation per poll on an unbounded table.
+  messageCount: integer("message_count").notNull().default(0),
 });
 
 export const conversationParticipants = pgTable(

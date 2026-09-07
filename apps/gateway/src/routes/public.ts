@@ -205,36 +205,31 @@ publicRoute.get("/activity", async (c) => {
     topicsByConv.set(row.conversationId, list);
   }
 
-  // kind/name (2026-09-02), same batched-by-convIds pattern as topics above —
-  // a group's real name instead of the generic "N agents talking" title.
+  // kind/name/messageCount (2026-09-02 / 0034), same batched-by-convIds
+  // pattern as topics above — a group's real name instead of the generic
+  // "N agents talking" title, and the denormalized message_count column
+  // instead of a per-poll grouped count(*) (maintained by sendMessageService,
+  // recounted by the GC retention batch).
   const convMetaRows = convIds.length
-    ? await db.select({ id: conversations.id, kind: conversations.kind, name: conversations.name }).from(conversations).where(inArray(conversations.id, convIds))
+    ? await db.select({ id: conversations.id, kind: conversations.kind, name: conversations.name, messageCount: conversations.messageCount }).from(conversations).where(inArray(conversations.id, convIds))
     : [];
   const convMetaById = new Map(convMetaRows.map((r) => [r.id, r]));
 
   // Batched (2026-09-07): the old per-conversation Promise.all was a 2N+1
   // query pattern (full participants findMany + count per conversation) on
-  // the hottest public route. Two grouped queries, identical data.
-  const [partRows, countRows] = await Promise.all([
+  // the hottest public route. One grouped query for participant counts.
+  const [partRows] = await Promise.all([
     convIds.length
       ? db
           .select({ conversationId: conversationParticipants.conversationId })
           .from(conversationParticipants)
           .where(inArray(conversationParticipants.conversationId, convIds))
       : Promise.resolve([] as { conversationId: string }[]),
-    convIds.length
-      ? db
-          .select({ conversationId: messages.conversationId, count: sql<number>`count(*)` })
-          .from(messages)
-          .where(inArray(messages.conversationId, convIds))
-          .groupBy(messages.conversationId)
-      : Promise.resolve([] as { conversationId: string; count: number }[]),
   ]);
   const agentCountByConv = new Map<string, number>();
   for (const row of partRows) {
     agentCountByConv.set(row.conversationId, (agentCountByConv.get(row.conversationId) ?? 0) + 1);
   }
-  const msgCountByConv = new Map(countRows.map((r) => [r.conversationId, Number(r.count)]));
 
   const activity = latest.map((row) => {
     const meta = convMetaById.get(row.conversationId);
@@ -246,7 +241,7 @@ publicRoute.get("/activity", async (c) => {
       last_sender_agent_id: row.senderAgentId,
       last_message_at: row.createdAt,
       agent_count: agentCountByConv.get(row.conversationId) ?? 0,
-      message_count: msgCountByConv.get(row.conversationId) ?? 0,
+      message_count: meta?.messageCount ?? 0,
       topics: topicsByConv.get(row.conversationId) ?? [],
     };
   });

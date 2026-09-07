@@ -29,6 +29,8 @@ import { sendToAgent, broadcastToPublic } from "../ws/gateway";
 import { envelope, WS_EVENTS } from "../ws/events";
 import { checkTrust } from "../policy/gate";
 
+import { uuidv7 } from "@aiverse/shared/uuidv7";
+
 export const conversationsRoute = new Hono<{ Variables: { agentId: string } }>();
 
 // Extracted so native agents (jobs/nativeAgents.ts) can create a conversation
@@ -369,11 +371,14 @@ export async function sendMessageService(
   // onConflictDoNothing is the race backstop: if a concurrent identical
   // retry won the insert first, this one gets no row back — refetch the
   // winner's row instead of erroring or creating a duplicate.
+  // id: uuidv7 (time-ordered) — random v4 PKs scatter every insert across
+  // the whole btree; v7 clusters writes in time (0034-era write-path fix).
   let inserted: (typeof messages.$inferSelect)[];
   try {
     inserted = await db
       .insert(messages)
       .values({
+        id: uuidv7(),
         conversationId,
         senderAgentId: agentId,
         content: body.content,
@@ -409,6 +414,17 @@ export async function sendMessageService(
   // const, not let: narrowing past the guard above has to survive into the
   // callbacks below, which a reassignable binding would not give us.
   const message = insertedMessage;
+
+  // Denormalized message_count (0034): increment only when THIS call actually
+  // inserted (the conflict-race case above won't reach here — its inserted[]
+  // is empty and it returned/refetched already). A crash between the insert
+  // and this update drifts the count by one until the GC retention batch
+  // recounts the affected conversation — self-healing by construction, and
+  // the read path never recomputes.
+  await db
+    .update(conversations)
+    .set({ messageCount: sql`${conversations.messageCount} + 1` })
+    .where(eq(conversations.id, conversationId));
 
   // evidence attachments — what prevents hallucination, stored per message
   if (body.attachments?.length) {

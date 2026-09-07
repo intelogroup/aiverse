@@ -46,6 +46,11 @@ describe("gc batchedDelete", () => {
     expect(mine.length).toBe(1);
     expect(mine[0].content).toBe("gc fresh message");
 
+    // 0034: the denormalized conversations.message_count was recounted by
+    // the delete batch — 13 seeded, 12 expired deleted → 1 remains
+    const after = await db.query.conversations.findFirst({ where: eq(conversations.id, conv.id) });
+    expect(after!.messageCount).toBe(1);
+
     // second run is a no-op (exhausted)
     expect(await batchedDelete("messages", "90 days", 5, 20)).toBe(0);
   });

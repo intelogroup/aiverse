@@ -265,31 +265,52 @@ a2aRoute.get("/agents/discover", async (c) => {
     return c.json({ skill: skill ?? q, q, matches, roster: matches });
   }
 
-  // skill path — exact/substring over capabilities/description/name, unchanged.
-  const claimedAgents = await db.query.agents.findMany({ where: ne(agents.status, "unclaimed") });
+  // skill path — exact/substring over capabilities/description/name.
+  // Scored and filtered in SQL (2026-09-07 P1 audit): the previous version
+  // findMany'd EVERY claimed agent and scored in JS — O(N) rows shipped from
+  // Postgres per discover call, on the endpoint the whole network
+  // bootstraps from. Semantics unchanged: capHit=2 / descHit=1 / nameHit=1,
+  // score > 0, top 20 by score. ILIKE is case-insensitive (the old code
+  // lowercased both sides); user-supplied %/_ are escaped so a query
+  // containing them still means a literal substring. Trgm/GIN indexes for
+  // the ILIKE patterns are deliberately deferred until agent count makes
+  // the seq scan measurably hot — never index preemptively.
   const query = skill!;
-  const scored = claimedAgents
-    .map((agent) => {
-      const card = agent.agentCard as AgentCard;
-      const caps = (card.capabilities ?? []).join(" ").toLowerCase();
-      const desc = (card.description ?? "").toLowerCase();
-      const name = agent.name.toLowerCase();
-      const capHit = caps.includes(query) ? 2 : 0;
-      const descHit = desc.includes(query) ? 1 : 0;
-      const nameHit = name.includes(query) ? 1 : 0;
-      const score = capHit + descHit + nameHit;
-      return { agent, score };
-    })
-    .filter(({ score }) => score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 20)
-    .map(({ agent }) => ({
-      agentId: agent.id,
-      name: agent.name,
-      status: agent.status,
-      capabilities: (agent.agentCard as AgentCard).capabilities ?? [],
-      agentCardUrl: `${env.PUBLIC_BASE_URL}/agents/${agent.id}/agent-card.json`,
-    }));
+  const pattern = `%${query.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
+  const rows = (await db.execute(sql`
+    SELECT id, name, status, agent_card,
+      ((CASE WHEN EXISTS (
+          SELECT 1 FROM jsonb_array_elements_text(agent_card->'capabilities') cap
+          WHERE cap ILIKE ${pattern} ESCAPE '\\'
+        ) THEN 2 ELSE 0 END)
+     + (CASE WHEN coalesce(agent_card->>'description', '') ILIKE ${pattern} ESCAPE '\\' THEN 1 ELSE 0 END)
+     + (CASE WHEN name ILIKE ${pattern} ESCAPE '\\' THEN 1 ELSE 0 END)) AS score
+    FROM agents
+    WHERE status <> 'unclaimed'
+      AND (
+        EXISTS (
+          SELECT 1 FROM jsonb_array_elements_text(agent_card->'capabilities') cap
+          WHERE cap ILIKE ${pattern} ESCAPE '\\'
+        )
+        OR coalesce(agent_card->>'description', '') ILIKE ${pattern} ESCAPE '\\'
+        OR name ILIKE ${pattern} ESCAPE '\\'
+      )
+    ORDER BY score DESC
+    LIMIT 20
+  `)) as unknown as Array<{
+    id: string;
+    name: string;
+    status: string;
+    agent_card: AgentCard;
+    score: number;
+  }>;
+  const scored = rows.map((r) => ({
+    agentId: r.id,
+    name: r.name,
+    status: r.status,
+    capabilities: r.agent_card?.capabilities ?? [],
+    agentCardUrl: `${env.PUBLIC_BASE_URL}/agents/${r.id}/agent-card.json`,
+  }));
 
   return c.json({ skill, q: skill, matches: scored, roster: scored });
 });

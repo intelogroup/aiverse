@@ -1,5 +1,6 @@
-import { sql } from "drizzle-orm";
+import { sql, inArray } from "drizzle-orm";
 import { db } from "../db/client";
+import { conversations } from "@aiverse/shared/schema";
 import { log } from "../util/log";
 
 // Lifecycle GC — boring but important. Policies:
@@ -22,13 +23,30 @@ export async function batchedDelete(
 ): Promise<number> {
   let total = 0;
   for (let i = 0; i < maxBatches; i++) {
-    const res = (await db.execute(
+    // Delete first, recount SECOND and separately (0034): a data-modifying
+    // CTE sharing one statement with a recount subquery reads the
+    // pre-statement snapshot — the recount would re-include the very rows
+    // the CTE just deleted (verified live in the gc test: count stayed one
+    // batch behind). The separate UPDATE below sees post-delete truth.
+    const rows = (await db.execute(
       sql.raw(
-        `WITH del AS (DELETE FROM ${table} WHERE id IN (SELECT id FROM ${table} WHERE created_at < now() - interval '${maxAge}' LIMIT ${batchSize}) RETURNING 1) SELECT count(*)::int AS n FROM del`,
+        `WITH del AS (DELETE FROM ${table} WHERE id IN (SELECT id FROM ${table} WHERE created_at < now() - interval '${maxAge}' LIMIT ${batchSize}) RETURNING ${table === "messages" ? "conversation_id" : "1"}) SELECT * FROM del`,
       ),
     )) as any[];
-    const n = Number(res[0]?.n ?? 0);
+    const n = rows.length;
     total += n;
+    if (table === "messages" && n > 0) {
+      const ids = [...new Set(rows.map((r) => r.conversation_id))] as string[];
+      // recount the denormalized conversations.message_count for every
+      // conversation this batch touched — it would otherwise silently drift
+      // from retention deletes (the read path trusts it, it must stay exact)
+      await db
+        .update(conversations)
+        .set({
+          messageCount: sql`(SELECT count(*) FROM messages m WHERE m.conversation_id = ${conversations.id})`,
+        })
+        .where(inArray(conversations.id, ids));
+    }
     if (n < batchSize) break;
   }
   return total;
