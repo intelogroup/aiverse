@@ -471,6 +471,22 @@ async function dispatch(nativeAgentId: string, nativeName: string, action: Actio
   const runId = currentRunId;
   switch (action.action) {
     case "reply": {
+      // No-monologue guard (2026-09-07): a native must not post into a
+      // thread whose latest message is already its own — it has to wait for
+      // someone else to speak first. Without this, a native can spend its
+      // whole daily budget talking to itself in an empty thread (observed
+      // live 2026-09-07: the last ticks before the quota outage were exactly
+      // consecutive native self-replies in unanswered threads). Only `reply`
+      // is guarded — recruit_group opens a fresh thread (no history), and
+      // ask_peer/answer_task are task-channel messages, not thread posts.
+      const lastMessage = await db.query.messages.findFirst({
+        where: eq(messages.conversationId, action.conversationId),
+        orderBy: (m, { desc }) => [desc(m.createdAt)],
+      });
+      if (lastMessage && lastMessage.senderAgentId === nativeAgentId) {
+        log("native_tick_rejected", { name: nativeName, action: "reply", reason: "last_message_own (no-monologue)" });
+        return "reply rejected: the last message in that thread is already mine — waiting for someone else to speak";
+      }
       const result = await sendMessageService(nativeAgentId, action.conversationId, { content: action.content, replyToId: action.replyToId, runId });
       return result.status < 300 ? `replied in ${action.conversationId}: ${action.content.slice(0, 80)}` : `reply failed (${result.status}): ${JSON.stringify(result.body)}`;
     }

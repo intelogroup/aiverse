@@ -35,9 +35,12 @@ describe("native agents", () => {
     const conv = await db.query.conversationParticipants.findFirst({ where: eq(conversationParticipants.agentId, sage.id) });
     if (!conv) throw new Error("sage has no conversation");
 
-    // seed one message so gatherContext has something to react to
+    // seed one message from a DIFFERENT sender so gatherContext has
+    // something to react to AND the no-monologue guard lets Sage reply
+    // (a seed from Sage himself would now be rejected as self-followup)
+    const fixer = await getNative("Fixer");
     const { messages } = await import("@aiverse/shared/schema");
-    await db.insert(messages).values({ conversationId: conv.conversationId, senderAgentId: sage.id, content: "seed message for reply test" });
+    await db.insert(messages).values({ conversationId: conv.conversationId, senderAgentId: fixer.id, content: "seed message for reply test" });
 
     setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversationId: conv.conversationId, content: "test reply from Sage" })));
     await tickOne(sage.id, "Sage", "prompt", "objective");
@@ -47,6 +50,25 @@ describe("native agents", () => {
 
     const memRows = await db.query.agentMemory.findMany({ where: eq(agentMemory.agentId, sage.id), orderBy: (m, { desc }) => [desc(m.createdAt)], limit: 1 });
     expect(memRows[0]?.type).toBe("interaction");
+  });
+
+  test("no-monologue guard: a native cannot reply when its own message is the thread's last", async () => {
+    await resetMemoryStoreForTests();
+    const sage = await getNative("Sage");
+    const conv = await db.query.conversationParticipants.findFirst({ where: eq(conversationParticipants.agentId, sage.id) });
+    if (!conv) throw new Error("sage has no conversation");
+
+    // the thread's last message is Sage's own — a second reply must be rejected
+    const { messages } = await import("@aiverse/shared/schema");
+    await db.insert(messages).values({ conversationId: conv.conversationId, senderAgentId: sage.id, content: "sage's own last message" });
+    const before = await db.query.messages.findMany({ where: eq(messages.conversationId, conv.conversationId) });
+
+    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversationId: conv.conversationId, content: "this must not be posted" })));
+    await tickOne(sage.id, "Sage", "prompt", "objective");
+
+    const after = await db.query.messages.findMany({ where: eq(messages.conversationId, conv.conversationId) });
+    expect(after.length).toBe(before.length); // nothing was posted
+    expect(after.some((m) => m.content === "this must not be posted")).toBe(false);
   });
 
   test("invite action creates a participant row and fires THREAD_PARTICIPANT_JOINED", async () => {
@@ -305,9 +327,12 @@ describe("run_id attribution", () => {
     const conv = await db.query.conversationParticipants.findFirst({ where: eq(conversationParticipants.agentId, sage.id) });
     if (!conv) throw new Error("sage has no conversation");
 
-    // seed a message so gatherContext has something
+    // seed a message from a DIFFERENT sender — a Sage-seeded message would
+    // now trip the no-monologue guard (native can't follow up its own last
+    // message), so the reply would never be posted
     const { messages } = await import("@aiverse/shared/schema");
-    await db.insert(messages).values({ conversationId: conv.conversationId, senderAgentId: sage.id, content: "seed for run_id test" });
+    const fixer = await getNative("Fixer");
+    await db.insert(messages).values({ conversationId: conv.conversationId, senderAgentId: fixer.id, content: "seed for run_id test" });
 
     setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversationId: conv.conversationId, content: "run_id test reply" })));
     await tickOne(sage.id, "Sage", "prompt", "objective");
@@ -362,7 +387,8 @@ describe("run_id attribution", () => {
     if (!conv) throw new Error("sage has no conversation");
 
     const { messages } = await import("@aiverse/shared/schema");
-    await db.insert(messages).values({ conversationId: conv.conversationId, senderAgentId: sage.id, content: "seed for null run_id test" });
+    const fixer = await getNative("Fixer");
+    await db.insert(messages).values({ conversationId: conv.conversationId, senderAgentId: fixer.id, content: "seed for null run_id test" });
 
     setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversationId: conv.conversationId, content: "null run_id reply" })));
     await tickOne(sage.id, "Sage", "prompt", "objective");
