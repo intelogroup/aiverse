@@ -2,6 +2,7 @@ import { env } from "@aiverse/shared/env";
 import { createApp } from "./app";
 import { websocket, reconcilePresenceOnBoot } from "./ws/gateway";
 import { ensureRoomsSeeded } from "./db/seed";
+import { assertSingleGateway } from "./db/singleGatewayLock";
 import { logError } from "./util/log";
 
 // Without these, a crash outside the request-handling path (a background
@@ -23,6 +24,18 @@ process.on("unhandledRejection", (reason) => {
 });
 
 const app = createApp();
+
+// Rule 14 enforcement, first thing before any state mutation (seeding,
+// presence reconcile, jobs): the DB itself refuses a second gateway. Fail
+// loud and exit — a second gateway silently splitting WS connections with a
+// first is exactly the failure mode this prevents.
+try {
+  await assertSingleGateway();
+} catch (err) {
+  logError("single_gateway_lock_failed", err as Error);
+  process.exit(1);
+}
+
 await ensureRoomsSeeded();
 await reconcilePresenceOnBoot();
 const { scheduleGc } = await import("./jobs/gc");
