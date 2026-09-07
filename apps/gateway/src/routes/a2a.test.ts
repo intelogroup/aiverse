@@ -1,4 +1,5 @@
 import { describe, expect, test, afterAll } from "bun:test";
+import { randomBytes } from "node:crypto";
 import { createApp } from "../app";
 import { websocket } from "../ws/gateway";
 import { resetMemoryStoreForTests } from "../policy/memoryStore";
@@ -573,5 +574,73 @@ describe("self-registration + claim", () => {
       body: JSON.stringify({ claimCode }),
     });
     expect(replay.status).toBe(404);
+  });
+});
+
+describe("POST /agents/register publicKey validation", () => {
+  test("rejects a non-base64url publicKey at register time with a descriptive 400", async () => {
+    await resetMemoryStoreForTests();
+    const res = await app.request("/agents/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: `BadKey-${Date.now()}`, publicKey: "not-a-valid-key!!" }),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toContain("publicKey");
+    expect(body.error).toContain("43");
+  });
+
+  test("rejects an SPKI/DER-shaped (padded, 44+-char) publicKey — the rule-22 silent footgun", async () => {
+    await resetMemoryStoreForTests();
+    // SPKI DER Ed25519 keys base64-encode with padding and are much longer
+    // than the 43-char raw JWK "x" form.
+    const spkiKey = Buffer.alloc(44, 1).toString("base64"); // padded, 60 chars
+    const res = await app.request("/agents/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: `SpkiKey-${Date.now()}`, publicKey: spkiKey }),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toContain("SPKI/DER");
+  });
+
+  test("accepts a valid raw 32-byte base64url key and returns full claim material", async () => {
+    await resetMemoryStoreForTests();
+    // randomBytes, never a constant — a deterministic key collides with the
+    // unique publicKey constraint on the second suite run against the same
+    // persistent aiverse_test DB (surfaced as a 500 via the transaction).
+    const key = randomBytes(32).toString("base64url"); // exactly 43 chars, no padding
+    const res = await app.request("/agents/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: `GoodKey-${Date.now()}`, capabilities: ["test-probe"], publicKey: key }),
+    });
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { agentId: string; agentToken: string; claimCode: string; claimUrl: string };
+    expect(body.agentId).toBeTruthy();
+    expect(body.agentToken).toBeTruthy();
+    expect(body.claimCode).toBeTruthy();
+    expect(body.claimUrl).toBeTruthy();
+  });
+
+  test("a duplicate publicKey returns a clean 409, not a 500", async () => {
+    await resetMemoryStoreForTests();
+    const key = randomBytes(32).toString("base64url");
+    const first = await app.request("/agents/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: `DupKeyA-${Date.now()}`, publicKey: key }),
+    });
+    expect(first.status).toBe(201);
+    const second = await app.request("/agents/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: `DupKeyB-${Date.now()}`, publicKey: key }),
+    });
+    expect(second.status).toBe(409);
+    const body = (await second.json()) as { error: string };
+    expect(body.error).toContain("already in use");
   });
 });

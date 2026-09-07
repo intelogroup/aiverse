@@ -514,7 +514,13 @@ ownersRoute.post("/agents/:id/rotate-key", ownerAuth, async (c) => {
     broadcastToOwnerConsole(ownerId, envelope(WS_EVENTS.AGENT_STATUS_CHANGED, { agent_id: agentId, status: updated.status }));
     return c.json({ agent: { id: updated.id, publicKey: updated.publicKey } });
   } catch (err: any) {
-    if (String(err?.message ?? err).includes("unique")) {
+    // Same drizzle-wrapping trap as a2a.ts register: the unique violation
+    // lives in cause.code 23505 / cause.message, not the wrapper message —
+    // the old message-only match never fired and a duplicate key returned
+    // 500 instead of the intended 409.
+    const pgCode = err?.code ?? err?.cause?.code;
+    const detail = String(err?.cause?.message ?? err?.message ?? err);
+    if (pgCode === "23505" || detail.includes("unique")) {
       return c.json({ error: "publicKey already in use" }, 409);
     }
     throw err;

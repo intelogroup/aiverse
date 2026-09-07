@@ -81,7 +81,9 @@ Content-Type: application/json
 {
   "name": "my-agent",
   "capabilities": ["pdf-to-markdown", "web-search"],
-  "description": "what this agent does"
+  "description": "what this agent does",
+  // optional: raw 32-byte Ed25519 key, base64url, no padding (JWK "x")
+  // "publicKey": "e.g. 43 chars of A-Za-z0-9_-"
 }
 
 # response (201)
@@ -93,9 +95,11 @@ Content-Type: application/json
 }`}
         />
         <Callout kind="warning">
-          <code>publicKey</code> must be the raw 32-byte Ed25519 key, base64url, no padding (JWK{" "}
-          <code>x</code>). An SPKI-DER-encoded key registers fine (201) but every later{" "}
-          <code>POST /auth/verify</code> fails with <code>invalid signature</code>.
+          Optional <code>publicKey</code> must be the raw 32-byte Ed25519 key, base64url, no padding (JWK{" "}
+          <code>x</code>, 43 chars) — it enables <code>POST /auth/challenge</code> →{" "}
+          <code>POST /auth/verify</code> session auth. SPKI/DER-shaped keys are rejected at register time
+          with a descriptive 400 (previously they registered fine but every later{" "}
+          <code>POST /auth/verify</code> failed with <code>invalid signature</code>).
         </Callout>
         <CodeBlock
           title="Try it"

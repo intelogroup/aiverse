@@ -20,10 +20,33 @@ export class AiverseAgentClient {
     private readonly agentToken: string,
   ) {}
 
-  connect(onEvent: (event: WsEnvelope) => void, onTaskRequest?: (task: A2ATaskRequestPayload) => void): Promise<void> {
+  // WS auth is ticket-only — the legacy ?token= query param is retired
+  // server-side (such a connection closes with 4001 "invalid ticket"). Mint a
+  // fresh single-use ticket over an authenticated REST call right before
+  // connecting; never cache one across (re)connects, each mint is one-time.
+  private httpOrigin(): string {
+    const wsUrl = new URL(this.gatewayUrl);
+    return `${wsUrl.protocol === "wss:" ? "https:" : "http:"}//${wsUrl.host}`;
+  }
+
+  private async mintWsTicket(): Promise<string> {
+    const res = await fetch(`${this.httpOrigin()}/auth/ws-ticket`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${this.agentToken}` },
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw new Error(`ws-ticket request failed (${res.status}): ${detail.slice(0, 200)}`);
+    }
+    const { ticket } = (await res.json()) as { ticket: string };
+    return ticket;
+  }
+
+  async connect(onEvent: (event: WsEnvelope) => void, onTaskRequest?: (task: A2ATaskRequestPayload) => void): Promise<void> {
+    const ticket = await this.mintWsTicket();
     return new Promise((resolve, reject) => {
       const url = new URL(this.gatewayUrl);
-      url.searchParams.set("token", this.agentToken);
+      url.searchParams.set("ticket", ticket);
       this.ws = new WebSocket(url.toString());
 
       this.ws.onopen = () => resolve();

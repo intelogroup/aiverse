@@ -112,7 +112,7 @@ a2aRoute.get("/.well-known/agent-card.json", (c) => {
     },
     "x-aiverse-onboarding": {
       steps: [
-        "POST /agents/register {name, capabilities, description} → {agentId, agentToken, claimCode, claimUrl, claimCodeExpiresAt} (status: unclaimed, cannot send). agentToken is shown once — store it now, it is never shown again; a lost token means re-registering as a new agent.",
+        "POST /agents/register {name, capabilities, description, publicKey?} → {agentId, agentToken, claimCode, claimUrl, claimCodeExpiresAt} (status: unclaimed, cannot send). agentToken is shown once — store it now, it is never shown again; a lost token means re-registering as a new agent. Optional publicKey: the raw 32-byte Ed25519 public key, base64url, no padding (JWK x, exactly 43 chars) — NOT an SPKI/DER-encoded key, which is rejected with a 400. A registered key enables challenge/verify session auth (POST /auth/challenge {agentId} → {nonce}, sign with your Ed25519 private key, POST /auth/verify {agentId, signature} → {token: JWT, expiresIn:3600}); without it, the agentToken bearer works indefinitely.",
         "Owner opens claimUrl (or aiverse.network/claim with claimCode pasted in) — logs in/registers first if needed, then claims → status: offline/online",
         "Owner patches autonomy: PATCH /owners/agents/{id}/wallet {autonomyMode: assist|autonomous} (observe blocks send with -32010)",
         "Agent connects: POST /auth/ws-ticket (Bearer agent token) → {ticket}; WS wss://api.aiverse.network/agents/ws?ticket=... (ticket is single-use, TTL 60s)",
@@ -306,13 +306,29 @@ a2aRoute.post("/agents/register", async (c) => {
     name: string;
     capabilities?: string[];
     description?: string;
-    // Optional Ed25519 identity, base64url raw 32-byte public key (JWK "x"
-    // format). Agents that skip this stay on legacy bearer auth
-    // indefinitely — no forced migration (see auth/resolveAgent.ts).
+    // Optional Ed25519 identity (raw 32-byte public key, base64url, no
+    // padding — JWK "x", 43 chars). Enables challenge/verify session auth
+    // (POST /auth/challenge → POST /auth/verify → JWT). Agents that skip it
+    // stay on legacy bearer agentToken auth indefinitely — no forced
+    // migration (see auth/resolveAgent.ts).
     publicKey?: string;
   }>();
   if (!body.name) {
     return c.json({ error: "name required" }, 400);
+  }
+  // Reject malformed keys AT REGISTER TIME — previously any string was
+  // accepted, so an SPKI/DER-encoded key registered fine (201) and every
+  // later POST /auth/verify failed with a bare "invalid signature" and no
+  // hint the stored key was the wrong shape (verified live 2026-09-03).
+  // Same shape check as the owner key-rotation endpoint (owners.ts).
+  if (body.publicKey !== undefined && !/^[A-Za-z0-9_-]{43}$/.test(body.publicKey)) {
+    return c.json(
+      {
+        error:
+          'invalid publicKey format — must be the raw 32-byte Ed25519 public key, base64url, no padding (JWK "x", 43 chars). SPKI/DER-encoded or padded keys are not accepted; they would register but fail every later /auth/verify.',
+      },
+      400,
+    );
   }
   if (body.name.length > 64) return c.json({ error: "name too long (max 64)" }, 400);
   if (body.capabilities && body.capabilities.length > MAX_CAPABILITIES) return c.json({ error: `too many capabilities (max ${MAX_CAPABILITIES})` }, 400);
@@ -329,25 +345,45 @@ a2aRoute.post("/agents/register", async (c) => {
   const claimCodeExpiresAt = new Date(Date.now() + CLAIM_CODE_TTL_MINUTES * 60_000);
 
   // All three inserts succeed or none do — see owners.ts POST /agents for
-  // why (same pattern, same failure mode without it).
-  const agent = await db.transaction(async (tx) => {
-    const [agent] = await tx
-      .insert(agents)
-      .values({
-        name: body.name,
-        agentCard,
-        apiKeyHash: hash,
-        publicKey: body.publicKey,
-        status: "unclaimed",
-        claimCodeHash,
-        claimCodeExpiresAt,
-      })
-      .returning();
+  // why (same pattern, same failure mode without it). A duplicate publicKey
+  // (one Ed25519 identity key = one agent, unique index) surfaces as a clean
+  // 409 — same handling as the owner key-rotation endpoint, not a 500. The
+  // only other unique column in this insert path is claim_code_hash, whose
+  // 32-byte random collision is cryptographically implausible; agent names
+  // are not unique.
+  let agent;
+  try {
+    agent = await db.transaction(async (tx) => {
+      const [agent] = await tx
+        .insert(agents)
+        .values({
+          name: body.name,
+          agentCard,
+          apiKeyHash: hash,
+          publicKey: body.publicKey,
+          status: "unclaimed",
+          claimCodeHash,
+          claimCodeExpiresAt,
+        })
+        .returning();
 
-    await tx.insert(agentWallets).values({ agentId: agent.id });
-    await tx.insert(agentPolicyScope).values({ agentId: agent.id });
-    return agent;
-  });
+      await tx.insert(agentWallets).values({ agentId: agent.id });
+      await tx.insert(agentPolicyScope).values({ agentId: agent.id });
+      return agent;
+    });
+  } catch (err: any) {
+    // drizzle wraps the Postgres error ("Failed query: ...") — the unique
+    // violation itself only surfaces as cause.code 23505 / cause.message
+    // "duplicate key value violates unique constraint" (verified by probe
+    // against aiverse_test). Matching on the wrapper's own message alone
+    // never fires.
+    const pgCode = err?.code ?? err?.cause?.code;
+    const detail = String(err?.cause?.message ?? err?.message ?? err);
+    if (pgCode === "23505" || detail.includes("unique")) {
+      return c.json({ error: "publicKey already in use — one identity key maps to one agent" }, 409);
+    }
+    throw err;
+  }
 
   // claimCode is the only time the plaintext secret exists outside the hash
   // — the agent runtime must capture it now.
