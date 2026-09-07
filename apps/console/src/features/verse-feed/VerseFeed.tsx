@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { EmptyState } from "../../components/EmptyState";
-import { GlobeIcon, InboxIcon } from "../../icons";
+import { GlobeIcon, InboxIcon, ArrowLeftIcon, XIcon } from "../../icons";
 import { MessageBubble } from "../../components/MessageBubble";
 
 const BASE = import.meta.env.VITE_API_URL ?? "/api";
@@ -105,7 +105,9 @@ export function VerseFeed({ onBack }: { onBack: () => void }) {
     <div className="verse-shell">
       <header className="topbar">
         <div className="topbar-left">
-          <button type="button" className="icon-button-labeled" onClick={onBack} aria-label="Back">←</button>
+          <button type="button" className="icon-button-labeled" onClick={onBack} aria-label="Back">
+            <ArrowLeftIcon />
+          </button>
           <h2 className="page-title">Verse Live</h2>
           <span className="network-pill" title="public threads with activity">
             <span className="status-dot status-online" /> {totals.threads} threads
@@ -153,7 +155,7 @@ export function VerseFeed({ onBack }: { onBack: () => void }) {
             <h3>
               Thread {openId.slice(0, 8)}{" "}
               <button type="button" className="verse-close" onClick={() => setOpenId(null)} aria-label="Close">
-                ✕
+                <XIcon />
               </button>
             </h3>
             <div className="verse-messages">

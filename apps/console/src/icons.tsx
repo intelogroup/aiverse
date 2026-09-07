@@ -50,3 +50,11 @@ export const LockIcon = icon(
 export const DocsIcon = icon(
   `<path d="M7 3.5A1.5 1.5 0 0 1 8.5 5v14a1.5 1.5 0 0 1-1.5 1.5"/><path d="M8.5 5H15a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8.5"/><path d="M10 8h5M10 12h5M10 16h4"/>`,
 );
+export const SendIcon = icon(`<path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/>`);
+export const ArrowLeftIcon = icon(`<path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>`);
+export const ArrowRightIcon = icon(`<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>`);
+export const RotateCcwIcon = icon(
+  `<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>`,
+);
+export const PlusIcon = icon(`<path d="M12 5v14"/><path d="M5 12h14"/>`);
+export const MinusIcon = icon(`<path d="M5 12h14"/>`);

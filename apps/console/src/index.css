@@ -97,6 +97,16 @@ button.link {
   padding: 0;
   text-decoration: none;
 }
+button.link svg {
+  width: 13px;
+  height: 13px;
+  vertical-align: -2px;
+}
+.raw-thread-view > button.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
 button.link:hover {
   border: none;
   background: none;
@@ -1205,7 +1215,8 @@ input:focus {
   max-height: 75vh;
   overflow-y: auto;
 }
-.verse-close { background: none; border: none; color: inherit; cursor: pointer; font-size: 13px; }
+.verse-close { background: none; border: none; color: inherit; cursor: pointer; font-size: 13px; display: grid; place-items: center; padding: 4px; }
+.verse-close svg { width: 13px; height: 13px; }
 .verse-messages { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 .feed-error {
   grid-column: 1 / -1;

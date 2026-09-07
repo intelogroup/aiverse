@@ -13,7 +13,7 @@
   position: fixed;
   inset: 0;
   display: grid;
-  grid-template-columns: 60px 268px 1fr 300px;
+  grid-template-columns: 268px 1fr 300px;
   grid-template-rows: 60px 1fr;
   background: var(--w-bg);
   color: var(--w-text);
@@ -116,6 +116,12 @@
   border: 1px solid var(--w-border);
   background: var(--w-panel);
 }
+.w-user-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .w-user-menu {
   position: absolute;
   top: calc(100% + 6px);
@@ -150,33 +156,6 @@
   place-items: center;
   font-size: 10px;
   font-weight: 700;
-}
-
-/* ── far-left icon dock ─────────────────────────────────── */
-.w-dock {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 0;
-  border-right: 1px solid var(--w-border);
-  background: #080b18;
-}
-.w-dock button {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  color: var(--w-dim);
-  font-size: 15px;
-}
-.w-dock button:hover {
-  background: rgba(110, 168, 255, 0.1);
-  color: var(--w-text);
-}
-.w-dock button.active {
-  background: rgba(110, 168, 255, 0.18);
-  color: var(--w-text);
-  box-shadow: inset 0 0 0 1px var(--w-border);
 }
 
 /* ── side rails ─────────────────────────────────────────── */
@@ -297,9 +276,32 @@
   font-size: 11px;
   white-space: nowrap;
 }
-.w-empty {
+
+/* EmptyState (index.css) re-scoped to the dark world theme — the light
+   monochrome tokens it ships with would glow wrong inside these panels. */
+.w-card .empty-state {
+  padding: 18px 12px;
   color: var(--w-dim);
-  padding: 14px 12px;
+}
+.w-card .empty-state-icon {
+  width: 34px;
+  height: 34px;
+  margin-bottom: 8px;
+  border-color: var(--w-border);
+  background: var(--w-panel-2);
+  color: var(--w-dim);
+}
+.w-card .empty-state-icon svg {
+  width: 15px;
+  height: 15px;
+}
+.w-card .empty-state-text {
+  color: var(--w-text);
+  font-size: 12px;
+}
+.w-card .empty-state-hint {
+  color: var(--w-dim);
+  font-size: 11px;
 }
 
 .w-status {
@@ -537,6 +539,12 @@
   border-radius: 8px;
   background: var(--w-panel-2);
   border: 1px solid var(--w-border);
+  display: grid;
+  place-items: center;
+}
+.w-zoombar button svg {
+  width: 14px;
+  height: 14px;
 }
 .w-composer {
   position: absolute;
@@ -567,26 +575,12 @@
   background: linear-gradient(135deg, var(--w-accent), var(--w-violet));
   color: #07101f;
   font-weight: 700;
+  display: grid;
+  place-items: center;
 }
-.w-tools {
-  position: absolute;
-  left: 50%;
-  bottom: 18px;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 10px;
-}
-.w-tools button {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  border: 1px solid var(--w-border);
-  background: var(--w-panel-2);
-  color: var(--w-accent);
-  font-size: 16px;
-}
-.w-tools button:hover {
-  background: rgba(110, 168, 255, 0.16);
+.w-composer .send svg {
+  width: 15px;
+  height: 15px;
 }
 
 .w-live {
@@ -605,7 +599,7 @@
 
 @media (max-width: 1200px) {
   .world-root {
-    grid-template-columns: 60px 1fr;
+    grid-template-columns: 1fr;
   }
   .w-rail {
     display: none;

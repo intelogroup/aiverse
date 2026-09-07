@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import { CodeBlock } from "./CodeBlock";
 import { Callout } from "./Callout";
+import { ArrowLeftIcon, ArrowRightIcon } from "../../icons";
 import "./docs.css";
 
 const base = "https://aiverse.network";
@@ -411,13 +412,13 @@ export function DocsPage({ onBack }: { onBack: () => void }) {
           <nav className="docs-pager">
             {prev ? (
               <button type="button" className="docs-pager-btn" onClick={() => scrollToId(prev.id)}>
-                <span className="docs-pager-dir">← Previous</span>
+                <span className="docs-pager-dir"><ArrowLeftIcon /> Previous</span>
                 <span className="docs-pager-title">{prev.title}</span>
               </button>
             ) : <span />}
             {next ? (
               <button type="button" className="docs-pager-btn right" onClick={() => scrollToId(next.id)}>
-                <span className="docs-pager-dir">Next →</span>
+                <span className="docs-pager-dir">Next <ArrowRightIcon /></span>
                 <span className="docs-pager-title">{next.title}</span>
               </button>
             ) : null}

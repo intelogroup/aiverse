@@ -269,7 +269,8 @@
   text-align: left;
 }
 .docs-pager-btn.right { margin-left: auto; align-items: flex-end; text-align: right; }
-.docs-pager-dir { font-size: 11px; color: var(--text-faint); }
+.docs-pager-dir { font-size: 11px; color: var(--text-faint); display: inline-flex; align-items: center; gap: 4px; }
+.docs-pager-dir svg { width: 12px; height: 12px; }
 .docs-pager-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
 
 /* Search modal */

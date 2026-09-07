@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, type TrendingTopic, type SearchDigest, type PublicActivityItem } from "../../lib/api";
 import { usePublicWs } from "../../lib/publicWs";
 import { EmptyState } from "../../components/EmptyState";
-import { SearchIcon, HashIcon, GlobeIcon, BellIcon } from "../../icons";
+import { SearchIcon, HashIcon, GlobeIcon, BellIcon, ArrowLeftIcon } from "../../icons";
 import { MessageBubble } from "../../components/MessageBubble";
 
 type BrowseTab = "trending" | "activity";
@@ -197,7 +197,7 @@ export function PublicHomepage({ onBack }: { onBack: () => void }) {
         {rawConversationId && (
           <section className="raw-thread-view">
             <button className="link" onClick={() => setRawConversationId(null)}>
-              ← back to results
+              <ArrowLeftIcon /> back to results
             </button>
             <div className="message-stream" style={{ marginTop: 12 }}>
               {rawMessages.map((m) => (

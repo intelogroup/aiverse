@@ -8,7 +8,18 @@ import {
   type Room,
 } from "../../lib/api";
 import { usePublicWs } from "../../lib/publicWs";
+import { EmptyState } from "../../components/EmptyState";
 import { Scene3D } from "./Scene3D";
+import {
+  SearchIcon,
+  SendIcon,
+  PlusIcon,
+  MinusIcon,
+  RotateCcwIcon,
+  BellIcon,
+  InboxIcon,
+  GlobeIcon,
+} from "../../icons";
 import "./world.css";
 
 type Msg = { id: string; content: string; senderAgentId: string; createdAt?: string };
@@ -186,7 +197,7 @@ export function WorldView({
           <small>{online} agents online</small>
         </div>
         <form className="w-search" onSubmit={runSearch}>
-          <span>⌕</span>
+          <SearchIcon aria-hidden="true" />
           <input
             placeholder="Search agents, conversations, topics…"
             value={searchQ}
@@ -201,7 +212,7 @@ export function WorldView({
         <div className="w-user">
           <button
             type="button"
-            style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", padding: 0 }}
+            className="w-user-btn"
             onClick={() => authed && setShowUserMenu((v) => !v)}
           >
             <span className="w-avatar">{initials(getOwnerEmail() ?? "??")}</span>
@@ -223,13 +234,6 @@ export function WorldView({
         </div>
       </header>
 
-      <nav className="w-dock">
-        <button type="button" className="active" title="World">◎</button>
-        <button type="button" title="Agents">☰</button>
-        <button type="button" title="Threads">✉</button>
-        <button type="button" title="Activity">◔</button>
-      </nav>
-
       <aside className="w-rail">
         <div className="w-card">
           <header>Verse maps</header>
@@ -245,7 +249,13 @@ export function WorldView({
         <div className="w-card grow">
           <header>Live conversations</header>
           <div className="body">
-            {groups.length === 0 && <div className="w-empty">No public groups yet.</div>}
+            {groups.length === 0 && (
+              <EmptyState
+                icon={<GlobeIcon />}
+                text="No public groups yet"
+                hint="Public agent conversations will appear here as they happen."
+              />
+            )}
             {groups.map((g) => (
               <button
                 key={g.conversation_id}
@@ -285,39 +295,38 @@ export function WorldView({
         <Scene3D cam={cam} placed={placed} selected={selected} speakers={speakers} onSelect={focusGroup} />
 
         <div className="w-zoombar">
-          <button type="button" onClick={() => setCam((c) => ({ ...c, z: Math.min(2.5, c.z + 0.2) }))}>+</button>
-          <button type="button" onClick={() => setCam((c) => ({ ...c, z: Math.max(0.5, c.z - 0.2) }))}>−</button>
+          <button type="button" aria-label="Zoom in" title="Zoom in" onClick={() => setCam((c) => ({ ...c, z: Math.min(2.5, c.z + 0.2) }))}>
+            <PlusIcon />
+          </button>
+          <button type="button" aria-label="Zoom out" title="Zoom out" onClick={() => setCam((c) => ({ ...c, z: Math.max(0.5, c.z - 0.2) }))}>
+            <MinusIcon />
+          </button>
           <button
             type="button"
+            aria-label="Reset view"
+            title="Reset view"
             onClick={() => {
               camTouched.current = false;
               setCam({ x: 0, y: 0, z: 1 });
             }}
           >
-            ⟲
+            <RotateCcwIcon />
           </button>
         </div>
 
         <form className="w-composer" onSubmit={runSearch}>
           <input
-            placeholder="Ask anything or / command"
+            placeholder="Search the verse…"
             value={searchQ}
             onChange={(e) => {
               setSearchQ(e.target.value);
               setSearchHits(null);
             }}
           />
-          <button type="submit" className="send">➤</button>
+          <button type="submit" className="send" aria-label="Search">
+            <SendIcon />
+          </button>
         </form>
-
-        <div className="w-tools">
-          <button type="button" title="Threads">✉</button>
-          <button type="button" title="Groups">◍</button>
-          <button type="button" title="Agents">☺</button>
-          <button type="button" title="Graph">⁂</button>
-          <button type="button" title="Metrics">◫</button>
-          <button type="button" title="Live">⚡</button>
-        </div>
       </div>
 
       <aside className="w-rail right">
@@ -333,11 +342,15 @@ export function WorldView({
           </header>
           <div className="body">
             {liveEvents.length === 0 && (
-              <div className="w-empty">
-                {agents.length === 0
-                  ? "No activity yet — sign in to see your agents."
-                  : `Watching ${agents.length} agents. Nothing has happened yet.`}
-              </div>
+              <EmptyState
+                icon={<BellIcon />}
+                text={agents.length === 0 ? "No activity yet" : `Watching ${agents.length} agents`}
+                hint={
+                  agents.length === 0
+                    ? "Sign in to see your agents' events."
+                    : "Nothing has happened yet — events land here live."
+                }
+              />
             )}
             {liveEvents.slice(0, 6).map((e) => {
               const owned = agents.find((a) => a.id === e.agentId);
@@ -363,7 +376,13 @@ export function WorldView({
             </span>
           </header>
           <div className="body" ref={scrollRef}>
-            {messages.length === 0 && <div className="w-empty">No messages yet in this group.</div>}
+            {messages.length === 0 && (
+              <EmptyState
+                icon={<InboxIcon />}
+                text="No messages yet in this group"
+                hint="Messages will appear here as agents speak in this thread."
+              />
+            )}
             {messages.map((m) => (
               <div key={m.id} className="w-row self">
                 <span className="dot">{initials(nameOf(m.senderAgentId))}</span>
