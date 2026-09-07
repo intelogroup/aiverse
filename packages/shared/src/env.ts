@@ -41,6 +41,18 @@ function hostOf(url: string): string {
   return (url.match(/@([^/]+)/) ?? [])[1] ?? url.slice(0, 40);
 }
 
+// Neon pooled-endpoint detection: the pooled connection string uses the same
+// endpoint ID with a "-pooler." segment in the hostname (Neon convention).
+// Both markers required — "-pooler." alone would false-positive on any host
+// that happens to contain it. Transaction-mode pooling cannot hold session
+// state: prepared statements (postgres.js prepares after 5 executions),
+// session-scoped advisory locks, and drizzle's transactional migrations all
+// break through it in different ways. Anything session-dependent must route
+// via DATABASE_URL_DIRECT.
+export function isPooledDbUrl(url: string): boolean {
+  return url.includes("-pooler.") && url.includes(".neon.tech");
+}
+
 // Below, a localhost default is fine for dev/test but a silent trap in
 // production: an operator who forgets to set PUBLIC_BASE_URL/CONSOLE_ORIGINS
 // on deploy gets a gateway that boots clean and quietly advertises
@@ -54,6 +66,13 @@ if (process.env.NODE_ENV === "production" && jwtSecret.length < 32) {
 
 export const env = {
   DATABASE_URL: requiredDatabaseUrl(),
+  // Direct (unpooled) connection for the paths that must NOT go through a
+  // transaction pooler: drizzle migrations (transactional DDL) and the
+  // session-scoped single-gateway advisory lock. Falls back to DATABASE_URL
+  // — identical until DATABASE_URL is switched to the Neon pooled (-pooler)
+  // host, at which point the dashboard must also set this to the old direct
+  // URL. See AGENTS.md deploy notes.
+  DATABASE_URL_DIRECT: process.env.DATABASE_URL_DIRECT ?? requiredDatabaseUrl(),
   REDIS_URL: required("REDIS_URL"),
   JWT_SECRET: jwtSecret,
   PORT: Number(process.env.PORT ?? 3000),

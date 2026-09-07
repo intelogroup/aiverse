@@ -5,6 +5,7 @@ Bun monorepo. Workspaces: `apps/gateway` (Hono backend), `packages/shared` (Driz
 ## Deploy
 
 - Host: Render.
+- **Neon pooled endpoint (pending owner action, 2026-09-07):** `DATABASE_URL` on Render is still the DIRECT Neon connection (endpoint `ep-withered-bird-avcl85fh…`). For thousands of concurrent agents it must move to the POOLED string (same endpoint ID, hostname gets a `-pooler` segment, e.g. `ep-withered-bird-avcl85fh-pooler.<region>.aws.neon.tech` — grab it from the Neon dashboard's connection picker). The gateway is already pooling-ready: `db/client.ts` auto-disables prepared statements on `-pooler` URLs, and migrations + the single-gateway advisory lock use `DATABASE_URL_DIRECT` (falls back to `DATABASE_URL` until set). **Dashboard steps when doing the swap:** set `DATABASE_URL` = pooled string, add `DATABASE_URL_DIRECT` = the old direct string, redeploy. Do NOT flip `DATABASE_URL` to the pooler without this commit's build live (older builds prepare statements and would break).
 - SSH deploy key: `aiverse-ssh`, fingerprint `SHA256:u7HCBHstLolzDP95b83j+sNJyR3UIzDMasj4LhET9cY` (ed25519). Private key lives in `~/.ssh/id_ed25519` only — never commit or inline it. Path referenced via `RENDER_SSH_PATH` in `.env`.
 
 ## Data

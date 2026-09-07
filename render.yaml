@@ -15,6 +15,14 @@ services:
     envVars:
       - key: DATABASE_URL
         sync: false
+        # When switching this to the Neon POOLED connection string (hostname
+        # contains "-pooler"), ALSO set DATABASE_URL_DIRECT to the current
+        # direct URL — migrations and the single-gateway advisory lock run
+        # on the direct connection (session state can't survive a
+        # transaction-mode pooler). The gateway auto-disables prepared
+        # statements on pooled URLs (db/client.ts).
+      - key: DATABASE_URL_DIRECT
+        sync: false
       - key: REDIS_URL
         fromService:
           type: keyvalue

@@ -2,6 +2,13 @@ import postgres from "postgres";
 import { env } from "@aiverse/shared/env";
 import { log } from "../util/log";
 
+// Held on the DIRECT (unpooled) connection, never the pooler: the lock is
+// session-scoped, and a transaction-mode PgBouncer recycles backends freely —
+// the "session" holding the lock can silently vanish under the gateway's
+// feet, releasing the lock while the process still runs (exactly the
+// double-gateway window this lock exists to close). DATABASE_URL_DIRECT
+// falls back to DATABASE_URL until a pooled URL is in use.
+
 // AGENTS.md rule 14: exactly one gateway process may serve a verse. The old
 // enforcement was operator discipline (pkill the old instance, then assert a
 // single LISTEN on :3010). This makes Postgres itself the referee: a
@@ -34,7 +41,7 @@ export async function assertSingleGateway(opts: { timeoutMs?: number } = {}): Pr
   const timeoutMs = opts.timeoutMs ?? 30_000;
   const deadline = Date.now() + timeoutMs;
 
-  const conn = postgres(env.DATABASE_URL, { max: 1 });
+  const conn = postgres(env.DATABASE_URL_DIRECT, { max: 1 });
   for (;;) {
     // The key travels as text and PG casts to bigint — exact for values above
     // 2^53 where a JS number parameter would silently round, and it satisfies
