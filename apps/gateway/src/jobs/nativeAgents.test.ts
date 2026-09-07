@@ -52,22 +52,41 @@ describe("native agents", () => {
     expect(memRows[0]?.type).toBe("interaction");
   });
 
-  test("no-monologue guard: a native cannot reply when its own message is the thread's last", async () => {
+  test("monologue limit: a native may follow up its own last message exactly once, never twice", async () => {
     await resetMemoryStoreForTests();
     const sage = await getNative("Sage");
     const conv = await db.query.conversationParticipants.findFirst({ where: eq(conversationParticipants.agentId, sage.id) });
     if (!conv) throw new Error("sage has no conversation");
 
-    // the thread's last message is Sage's own — a second reply must be rejected
     const { messages } = await import("@aiverse/shared/schema");
-    await db.insert(messages).values({ conversationId: conv.conversationId, senderAgentId: sage.id, content: "sage's own last message" });
-    const before = await db.query.messages.findMany({ where: eq(messages.conversationId, conv.conversationId) });
+    const fixer = await getNative("Fixer");
+    const countAll = async () => (await db.query.messages.findMany({ where: eq(messages.conversationId, conv.conversationId) })).length;
 
+    // State 1 — last message is Sage's own, the one before is Fixer's:
+    // ONE follow-up is allowed (the thread ends [.. fixer, sage])
+    await db.insert(messages).values({ conversationId: conv.conversationId, senderAgentId: fixer.id, content: "someone else spoke" });
+    await db.insert(messages).values({ conversationId: conv.conversationId, senderAgentId: sage.id, content: "sage's own last message" });
+    const beforeFollowUp = await countAll();
+
+    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversationId: conv.conversationId, content: "sage follow-up (allowed)" })));
+    await tickOne(sage.id, "Sage", "prompt", "objective");
+
+    let after = await db.query.messages.findMany({ where: eq(messages.conversationId, conv.conversationId) });
+    expect(after.length).toBe(beforeFollowUp + 1); // the follow-up WAS posted
+    expect(after.some((m) => m.content === "sage follow-up (allowed)")).toBe(true);
+
+    // State 2 — the last TWO messages are now both Sage's:
+    // a third consecutive message must be rejected. Reset the rate/cooldown
+    // buckets first so the ONLY thing that can reject this tick is the
+    // monologue limit (a cooldown rejection would pass the assertions for
+    // the wrong reason).
+    await resetMemoryStoreForTests();
+    const beforeThird = await countAll();
     setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversationId: conv.conversationId, content: "this must not be posted" })));
     await tickOne(sage.id, "Sage", "prompt", "objective");
 
-    const after = await db.query.messages.findMany({ where: eq(messages.conversationId, conv.conversationId) });
-    expect(after.length).toBe(before.length); // nothing was posted
+    after = await db.query.messages.findMany({ where: eq(messages.conversationId, conv.conversationId) });
+    expect(after.length).toBe(beforeThird); // nothing was posted
     expect(after.some((m) => m.content === "this must not be posted")).toBe(false);
   });
 

@@ -471,21 +471,24 @@ async function dispatch(nativeAgentId: string, nativeName: string, action: Actio
   const runId = currentRunId;
   switch (action.action) {
     case "reply": {
-      // No-monologue guard (2026-09-07): a native must not post into a
-      // thread whose latest message is already its own — it has to wait for
-      // someone else to speak first. Without this, a native can spend its
-      // whole daily budget talking to itself in an empty thread (observed
-      // live 2026-09-07: the last ticks before the quota outage were exactly
-      // consecutive native self-replies in unanswered threads). Only `reply`
-      // is guarded — recruit_group opens a fresh thread (no history), and
-      // ask_peer/answer_task are task-channel messages, not thread posts.
-      const lastMessage = await db.query.messages.findFirst({
+      // Monologue limit (2026-09-07): a native whose own message is a
+      // thread's last MAY follow up — but at most once. Two consecutive
+      // native messages are allowed (a genuine follow-up can be worth
+      // saying); a THIRD is rejected (native_tick_rejected, reason
+      // monologue_limit) — it must wait for someone else to speak. Without
+      // the cap a native can spend its whole daily budget talking to itself
+      // in an unanswered thread (observed live 2026-09-07: the final ticks
+      // before the quota outage were long runs of native self-replies).
+      // Only `reply` is guarded — recruit_group opens a fresh thread (no
+      // history), and ask_peer/answer_task are task-channel messages.
+      const lastTwo = await db.query.messages.findMany({
         where: eq(messages.conversationId, action.conversationId),
         orderBy: (m, { desc }) => [desc(m.createdAt)],
+        limit: 2,
       });
-      if (lastMessage && lastMessage.senderAgentId === nativeAgentId) {
-        log("native_tick_rejected", { name: nativeName, action: "reply", reason: "last_message_own (no-monologue)" });
-        return "reply rejected: the last message in that thread is already mine — waiting for someone else to speak";
+      if (lastTwo.length === 2 && lastTwo.every((m) => m.senderAgentId === nativeAgentId)) {
+        log("native_tick_rejected", { name: nativeName, action: "reply", reason: "monologue_limit (two consecutive native messages)" });
+        return "reply rejected: I already used my one follow-up in that thread — waiting for someone else to speak";
       }
       const result = await sendMessageService(nativeAgentId, action.conversationId, { content: action.content, replyToId: action.replyToId, runId });
       return result.status < 300 ? `replied in ${action.conversationId}: ${action.content.slice(0, 80)}` : `reply failed (${result.status}): ${JSON.stringify(result.body)}`;
