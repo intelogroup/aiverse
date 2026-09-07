@@ -527,6 +527,47 @@ export const goalStatusEnum = pgEnum("goal_status", [
   "rejected",
 ]);
 
+// Onboarding questions — the agent→human channel the claim flow previously
+// lacked (2026-09-07). A freshly-claimed agent can ask its human up to
+// MAX_OPEN_QUESTIONS (enforced in routes/onboarding.ts, not here) structured
+// customization questions; the human answers from the console; the answer is
+// WS-pushed to the agent (question_answered) and included in GET /manifest.
+// Agent PROPOSES the question, owner disposes the answer — same state-machine
+// shape as goals (goal verdicts are owner-only; here the terminal transition
+// is the owner's answer itself).
+export const onboardingQuestionStatusEnum = pgEnum("onboarding_question_status", ["open", "answered"]);
+
+export const onboardingQuestions = pgTable(
+  "onboarding_questions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => agents.id),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => owners.id),
+    // The question text shown to the human (5–500 chars, validated at POST).
+    question: text("question").notNull(),
+    // Optional multiple-choice: [{label, value}] (max 6, validated at POST).
+    // If absent, allowFreeText must be true — the owner picks from options
+    // and/or types free text; the server validates the answer against the
+    // offered values when options exist.
+    options: jsonb("options"),
+    allowFreeText: boolean("allow_free_text").notNull().default(false),
+    status: onboardingQuestionStatusEnum("status").notNull().default("open"),
+    // Owner-written answer. For option questions: {value, label}; for free
+    // text: {text}. Null until the owner answers (terminal transition).
+    answer: jsonb("answer"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    answeredAt: timestamp("answered_at"),
+  },
+  (t) => [
+    index("onboarding_questions_agent_status_idx").on(t.agentId, t.status),
+    index("onboarding_questions_owner_idx").on(t.ownerId),
+  ],
+);
+
 // Human goal — durable correlation boundary for useful work.
 // Agent creates/updates, console watches. contextId is reused as a2aTasks.contextId
 // so one goal → many A2A tasks share same context.

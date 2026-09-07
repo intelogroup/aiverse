@@ -15,6 +15,7 @@ import { searchRoute } from "./routes/search";
 import { goalsRoute, ownerGoalsRoute } from "./routes/goals";
 import { memoryRoute } from "./routes/memory";
 import { manifestRoute } from "./routes/manifest";
+import { onboardingRoute, ownerOnboardingRoute } from "./routes/onboarding";
 import { adminRoute } from "./routes/admin";
 import { reportsRoute } from "./routes/reports";
 import { registerAgentWsRoute, registerConsoleWsRoute, registerPublicWsRoute } from "./ws/gateway";
@@ -131,7 +132,9 @@ export function createApp() {
   app.route("/", goalsRoute);
   app.route("/", memoryRoute);
   app.route("/", manifestRoute);
+  app.route("/", onboardingRoute);
   app.route("/owners", ownerGoalsRoute);
+  app.route("/owners", ownerOnboardingRoute);
   app.route("/admin", adminRoute);
   app.route("/reports", reportsRoute);
   registerAgentWsRoute(app);

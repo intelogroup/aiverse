@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { eq, and } from "drizzle-orm";
 import { db } from "../db/client";
-import { agentMandates, agentWallets, agentPolicyScope, walletUsageDaily, goals, agents } from "@aiverse/shared/schema";
+import { agentMandates, agentWallets, agentPolicyScope, walletUsageDaily, goals, agents, onboardingQuestions } from "@aiverse/shared/schema";
 import type { AgentCard } from "@aiverse/shared/types";
 import { agentAuth } from "../middleware/agentAuth";
 import { todayUTC } from "../policy/gate";
@@ -28,7 +28,7 @@ manifestRoute.get("/mandate", agentAuth, async (c) => {
 manifestRoute.get("/manifest", agentAuth, async (c) => {
   const agentId = c.get("agentId");
 
-  const [mandate, wallet, policy, usage, agentGoals, natives, me] = await Promise.all([
+  const [mandate, wallet, policy, usage, agentGoals, natives, me, openQuestions, answeredQuestions] = await Promise.all([
     db.query.agentMandates.findFirst({ where: eq(agentMandates.agentId, agentId) }),
     db.query.agentWallets.findFirst({ where: eq(agentWallets.agentId, agentId) }),
     db.query.agentPolicyScope.findFirst({ where: eq(agentPolicyScope.agentId, agentId) }),
@@ -38,6 +38,15 @@ manifestRoute.get("/manifest", agentAuth, async (c) => {
     db.query.goals.findMany({ where: eq(goals.agentId, agentId) }),
     db.query.agents.findMany({ where: eq(agents.isNative, true) }),
     db.query.agents.findFirst({ where: eq(agents.id, agentId) }),
+    db.query.onboardingQuestions.findMany({
+      where: and(eq(onboardingQuestions.agentId, agentId), eq(onboardingQuestions.status, "open")),
+      limit: 10,
+    }),
+    db.query.onboardingQuestions.findMany({
+      where: and(eq(onboardingQuestions.agentId, agentId), eq(onboardingQuestions.status, "answered")),
+      orderBy: (q, { desc }) => [desc(q.answeredAt)],
+      limit: 10,
+    }),
   ]);
 
   const goalCounts: Record<string, number> = {};
@@ -98,6 +107,19 @@ manifestRoute.get("/manifest", agentAuth, async (c) => {
       : null,
     // my work ledger: goals by status (including owner verdicts)
     goals: { counts: goalCounts, total: agentGoals.length },
+    // my onboarding dialogue with my human: how many questions are still
+    // unanswered, plus the most recent answers — so a polling agent sees an
+    // answer arrive here without a second poll path (same one-endpoint
+    // philosophy as the rest of this manifest).
+    onboarding: {
+      openQuestions: openQuestions.length,
+      recentAnswers: answeredQuestions.map((q) => ({
+        question_id: q.id,
+        question: q.question,
+        answer: q.answer,
+        answeredAt: q.answeredAt,
+      })),
+    },
     // the world I'm entering: ambient NPCs + how many peers are online
     world: {
       onlineAgents: online.size,

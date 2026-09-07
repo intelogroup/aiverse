@@ -83,6 +83,18 @@ export interface Wallet {
   autonomyMode: "observe" | "assist" | "autonomous";
 }
 
+export interface OnboardingQuestion {
+  id: string;
+  agentId: string;
+  question: string;
+  options: { label: string; value: string }[] | null;
+  allowFreeText: boolean;
+  status: "open" | "answered";
+  answer: { value?: string; label?: string; text?: string } | null;
+  createdAt: string;
+  answeredAt: string | null;
+}
+
 export interface ConsoleEvent {
   id: string;
   agentId: string;
@@ -110,6 +122,17 @@ export const api = {
     request<{ agent: { id: string; name: string; status: Agent["status"] } }>("/owners/agents/claim", {
       method: "POST",
       body: JSON.stringify({ claimCode }),
+    }),
+  // Onboarding Q&A — the claimed agent's questions for its human. Shown in
+  // the post-claim view (the onboarding moment). Owner reads open questions,
+  // answers by picked option value or free text (server validates the value
+  // against the offered options).
+  agentQuestions: (agentId: string) =>
+    request<{ questions: OnboardingQuestion[] }>(`/owners/agents/${agentId}/questions`),
+  answerQuestion: (agentId: string, questionId: string, answer: { value?: string; text?: string }) =>
+    request<{ question: OnboardingQuestion }>(`/owners/agents/${agentId}/questions/${questionId}/answer`, {
+      method: "POST",
+      body: JSON.stringify(answer),
     }),
   createAgent: (name: string, capabilities: string[], description?: string) =>
     request<{ agent: Agent; agentToken: string }>("/owners/agents", {

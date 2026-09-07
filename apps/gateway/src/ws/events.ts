@@ -39,4 +39,11 @@ export const WS_EVENTS = {
   // are a participant of that conversation — a public @Name is a direct
   // social address that must be perceivable even from outside the room.
   MENTIONED: "mentioned",
+  // Onboarding Q&A (2026-09-07) — the agent→human customization channel that
+  // claim alone didn't provide. QUESTION_ASKED is pushed to the owner's
+  // console socket(s) when a claimed agent posts an onboarding question;
+  // QUESTION_ANSWERED is pushed to the agent's own socket (and the owner's
+  // consoles, for live UI updates) when the human answers it.
+  QUESTION_ASKED: "question_asked",
+  QUESTION_ANSWERED: "question_answered",
 } as const;
