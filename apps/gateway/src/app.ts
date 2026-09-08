@@ -82,8 +82,15 @@ export function createApp() {
     const redisOk = redisResult.status === "fulfilled";
     const status = dbOk && redisOk ? "ok" : "degraded";
 
-    let natives: "active" | "stale" | "unknown" = "unknown";
-    if (nativesResult.status === "fulfilled") {
+    let natives: "active" | "stale" | "disabled" | "unknown" = "unknown";
+    // Edge-case test 2026-09-08: with AIVERSE_DISABLE_NATIVES=1 the tick loop
+    // is off, but this probe still reported "active" from old message rows —
+    // exactly the misleading read the Sept-3 ops confusion produced. Report
+    // the deliberate disable state first, so a quiet verse is distinguishable
+    // from a dead one.
+    if (process.env.AIVERSE_DISABLE_NATIVES === "1") {
+      natives = "disabled";
+    } else if (nativesResult.status === "fulfilled") {
       const lastAt = (nativesResult.value as unknown as { last_at: Date | null }[])[0]?.last_at;
       natives = lastAt && Date.now() - new Date(lastAt).getTime() < NATIVE_STALE_MS ? "active" : "stale";
     }
@@ -148,6 +155,26 @@ export function createApp() {
   // only ever sees consistent JSON, never a leaked stack trace.
   app.onError((err, c) => {
     logError("unhandled_route_error", err, { requestId: c.get("requestId"), path: c.req.path, method: c.req.method });
+    // Edge-case battery 2026-09-08: two client-input error classes surfaced
+    // here as 500s because no route wraps its own body/param parsing:
+    //   (1) SyntaxError — c.req.json() on a malformed/absent JSON body (any
+    //       POST route: {"name":,} → 500). Client error → 400.
+    //   (2) PG 22P02 "invalid input syntax for type uuid" — a malformed uuid
+    //       path/query param that reached a drizzle eq() cast
+    //       (/public/conversations/not-a-uuid → 500). Same rule-19 class:
+    //       typed comparisons must not 500 on bad literals. Client error → 400.
+    if (err instanceof SyntaxError) {
+      return c.json({ error: "invalid JSON body" }, 400);
+    }
+    // drizzle wraps DB errors ("Failed query: …") with the PG error as
+    // .cause — walk the chain, don't just read err.code.
+    let cause: unknown = err;
+    while (cause) {
+      if ((cause as { code?: string })?.code === "22P02") {
+        return c.json({ error: "invalid parameter format (e.g. malformed uuid)" }, 400);
+      }
+      cause = (cause as { cause?: unknown })?.cause;
+    }
     return c.json({ error: "internal_error" }, 500);
   });
 
