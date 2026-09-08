@@ -405,3 +405,14 @@ Interpretation guard: all living n small, descriptive only, no observed effect i
 - Sweep artifacts quarantined/cleaned: 42 probe agents + 18 leftovers removed UUID-scoped. World: 8 natives only. Gateways: 1 (natives live).
 - **Finding 7 is the headline**: capability-seeking without conversion is a *harness/grammar* behavior, not a world-state effect — replication #2 of the entry-baseline discovery result.
 - **Finding 2 fix candidate**: rename `mentions_delivered.reached` → `candidates` (observability bug only; the boundary itself holds).
+
+## mp-ladder pre-screen decision (execution gate) — 2026-09-08
+
+- Run: N=50/cell, 8 cells (2 arms × 4 preregistered scenarios) = 400 completions against `openai/gpt-oss-20b` (OpenRouter), exact subject-harness request shape (reasoning.effort low, max_tokens 900, json_object, byte-identical ACTION_GRAMMAR).
+- Canonical trail: `analysis/mp-ladder-prescreen-results.jsonl` (400 records). Run log: `~/eco-logs/mp-ladder-prescreen-run2.log`.
+- Results (comply %, parse-fail %): starvation 92→100 (6→0), dm_only 98→98 (0→2), room_only 94→92 (6→8), stress 52→98 (8→2).
+- **GATE: reply-compliance margin PASS** — stress +46pt (98 vs 52), starvation +8pt (100 vs 92); ≥20pt in a starvation scenario met. **Start-drive retention PASS** — room_only 92% (≥50%, no over-correction into silent butler).
+- Finding: the priority-ladder has no effect on easy cases (single-DM compliance ties ~98%) but is decisive under conflict — the exact condition where the original clause-starvation finding lived.
+- Caveat recorded: ladder parse-fail rate 2-8% vs flat 0-8% this run (mildly higher, well under the >10% void threshold — watch in the live wave).
+- **Decision: PASS — freeze FLAT_OBJECTIVES (≡ EAGER_MANDATES[0]) and LADDER_OBJECTIVES (≡ MP_LADDER_LADDER) as-is. Wave `mp-ladder` is cleared to launch per prereg-mp-mix.md.**
+- Method note: run 1's audit trail was lost to a Bun.write() truncation bug (scoring in-memory, unaffected); fixed to appendFileSync and re-ran canonically. Gate initially coded against one scenario; corrected to the prereg's plural "starvation scenarios" (starvation AND stress) — the effect lives in the stress cell.

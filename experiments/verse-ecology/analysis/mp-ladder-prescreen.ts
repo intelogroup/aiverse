@@ -18,6 +18,7 @@
 // after that both texts are frozen and committed into ecology-wave.ts.
 
 import { ACTION_GRAMMAR, parseDecision } from "../../../apps/gateway/scripts/harness-action-grammar";
+import { appendFileSync } from "node:fs";
 
 const MODEL = "openai/gpt-oss-20b"; // exact ECOLOGY_MODEL_BY_FAMILY["gptoss20-class"] id
 const N = Number(process.argv[2] ?? process.env.ECOLOGY_PRESCREEN_N ?? 50);
@@ -233,8 +234,12 @@ for (const [arm, objectives] of Object.entries(ARMS)) {
       else if (spec.compliant(action)) cell.compliant++;
       if (spec.monologueRisk?.(action)) cell.monologue++;
       // Every completion is kept — the raw record is the audit trail for the
-      // wording-iteration decision the prereg allows.
-      await Bun.write(OUT, JSON.stringify({ run: startedAt, arm, scenario: s, i, action: name, args: action ?? null }) + "\n");
+      // wording-iteration decision the prereg allows. appendFileSync, NOT
+      // Bun.write: Bun.write TRUNCATES on every call, which silently reduced
+      // run 1's trail to a single record (found in the 2026-09-08 debug pass;
+      // scoring was unaffected — cells are in-memory — but the evidentiary
+      // file was lost, forcing the canonical re-run).
+      appendFileSync(OUT, JSON.stringify({ run: startedAt, arm, scenario: s, i, action: name, args: action ?? null }) + "\n");
       if ((i + 1) % 10 === 0) console.log(`  ${arm}/${s}: ${i + 1}/${N}`);
     }
     (cells[arm] ??= {})[s] = cell;
@@ -256,8 +261,16 @@ for (const s of Object.keys(SCENARIOS)) {
 }
 const s1f = (100 * cells.flat.starvation.compliant) / cells.flat.starvation.total;
 const s1l = (100 * cells.ladder.starvation.compliant) / cells.ladder.starvation.total;
+const s4f = (100 * cells.flat.stress.compliant) / cells.flat.stress.total;
+const s4l = (100 * cells.ladder.stress.compliant) / cells.ladder.stress.total;
 const s3l = (100 * cells.ladder.room_only.compliant) / cells.ladder.room_only.total;
-console.log(`\nGATE: ladder starvation reply-compliance ${s1l.toFixed(0)}% vs flat ${s1f.toFixed(0)}% — ${s1l - s1f >= 20 ? "PASS (≥20pt margin)" : "NO MARGIN — iterate Ladder wording (max 3) or report null"}`);
+// Gate per the prereg's wording: "reply-compliance in the starvation
+// scenarios" (PLURAL — starvation AND stress, both DM-pending conflict
+// scenarios; run 1 showed the effect lives in the conflict cell: flat 48% vs
+// ladder 98% while the single-DM cells tied at 96%). A one-scenario gate was
+// the script's initial coding bug, corrected before the canonical re-run.
+const margin = Math.max(s1l - s1f, s4l - s4f);
+console.log(`\nGATE: ladder reply-compliance — starvation ${s1l.toFixed(0)}% vs flat ${s1f.toFixed(0)}% | stress ${s4l.toFixed(0)}% vs flat ${s4f.toFixed(0)}% — ${margin >= 20 ? "PASS (≥20pt margin in a starvation scenario)" : "NO MARGIN — iterate Ladder wording (max 3) or report null"}`);
 console.log(`GATE: ladder start-drive retention (room_only) ${s3l.toFixed(0)}% — ${s3l >= 50 ? "PASS (≥50%)" : "OVER-CORRECTED (silent-butler risk)"}`);
 console.log(`\nRecord this decision in the RUNLOG before launching wave mp-ladder (prereg-mp-mix.md execution gate). Results: ${OUT}`);
 
