@@ -109,6 +109,15 @@ export const ECOLOGY_WAVES: Record<string, { size: number; staggerMinutes: numbe
   // narrative eager mandate on both tiers. Measures cross-tier social
   // structure, not per-tier compliance. No pre-screen (wording is the constant).
   "mix-pop": { size: 10, staggerMinutes: 0.5, label: "mix-pop-composition" },
+  // exit-keystone (prereg-exit.md): graph resilience under an agent's
+  // persistent absence. All 10 on gptoss20-class, SAME narrative eager
+  // mandate. A supervisor selects the keystone = max undirected degree
+  // (shared-conversation interaction graph from the live world DB) through
+  // tick 189, then severs it permanently at tick 200 (WS close, no respawn).
+  // Single-world primary (owner-ratified 2026-09-08); reference control is
+  // mix-pop's no-exit world. Launches only after mix-pop has exported.
+  // Seed-stream offset 26000. Execution gate: prereg-exit.md (FROZEN).
+  "exit-keystone": { size: 10, staggerMinutes: 0.5, label: "exit-keystone" },
 };
 
 // Families map ONLY to models this account can actually reach. A second,

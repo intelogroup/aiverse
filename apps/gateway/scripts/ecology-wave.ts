@@ -18,6 +18,13 @@
 const GATEWAY = process.env.GATEWAY_HTTP_URL ?? "http://localhost:3010";
 import { ECOLOGY_SEED as SEED, ECOLOGY_WAVES as WAVES, ECOLOGY_MODEL_BY_FAMILY } from "./ecology-config";
 import { computeEnvFingerprint, canonicalize } from "./ecology-env-fingerprint";
+// exit/keystone supervisor reads the authoritative interaction graph from the
+// live local world DB (parity with the scorer by construction — both use
+// shared-conversation membership). The orchestrator is otherwise HTTP-only.
+import { inArray } from "drizzle-orm";
+import { conversationParticipants } from "@aiverse/shared/schema";
+import { db } from "../src/db/client";
+import { appendFileSync, existsSync, readFileSync } from "fs";
 const OUT_DIR = process.env.ECOLOGY_OUT ?? "experiments/verse-ecology/runs";
 
 const wave = process.argv[2];
@@ -32,7 +39,7 @@ const spec = WAVES[wave ?? ""];
 // be mistakable for a real wave, and its data are not analysable.
 const DRY = process.env.ECOLOGY_DRY_RUN === "1";
 if (!spec) {
-  console.error(`usage: ecology-wave.ts <1|2|control|e2a|e2b|e2c|e2d|e2e|nano-test|nano2|nano3|nano4|eager|eager2|observers|pa2|hackers|stalkers|strollers|advertisers|wave4|archetypes|eager-contrast|mp-ladder|mix-pop> [ticks] [tickSeconds]`);
+  console.error(`usage: ecology-wave.ts <1|2|control|e2a|e2b|e2c|e2d|e2e|nano-test|nano2|nano3|nano4|eager|eager2|observers|pa2|hackers|stalkers|strollers|advertisers|wave4|archetypes|eager-contrast|mp-ladder|mix-pop|exit-keystone> [ticks] [tickSeconds]`);
   process.exit(1);
 if (!process.env.OPENROUTER_API_KEY && !process.env.OPENAI_REAL_API_KEY && !process.env.BUDDY_OPENAI_API_KEY && !process.env.OPENAI_API_KEY) {
   console.error("OPENROUTER_API_KEY or OPENAI_API_KEY is required — a missing key produces a column of fake non-action");
@@ -522,8 +529,8 @@ for (let i = 0; i < spec.size; i++) {
   const caps = [...new Set(Array.from({ length: 1 + Math.floor(rCaps() * 3) }, () => pick(CAPS, rCaps())))];
   population.push({
     index: i,
-    name: `Eco${wave === "control" ? "C" : wave === "e2a" ? "E2A" : wave === "e2b" ? "E2B" : wave === "e2c" ? "E2C" : wave === "e2d" ? "E2D" : wave === "e2e" ? "E2E" : wave === "nano2" ? "N2" : wave === "nano3" ? "N3" : wave === "nano4" ? "PA" : wave === "eager" ? "EG" : wave === "eager2" ? "E2" : wave === "observers" ? "OB" : wave === "pa2" ? "P2" : wave === "hackers" ? "EH" : wave === "stalkers" ? "ES" : wave === "strollers" ? "EW" : wave === "advertisers" ? "EA" : wave === "wave4" ? "W4" : wave === "archetypes" ? "ART" : wave === "eager-contrast" ? "EGC" : wave === "mp-ladder" ? "MPL" : wave === "mix-pop" ? "MXP" : `W${wave}`}-${i + 1}`,
-    family: wave === "wave4" || wave === "eager-contrast" || wave === "mix-pop" ? (i < 5 ? "nano-class" : "gptoss20-class") : wave === "mp-ladder" ? "gptoss20-class" : wave === "nano-test" || wave === "nano2" || wave === "nano3" || wave === "nano4" || wave === "eager" || wave === "eager2" || wave === "observers" || wave === "pa2" || wave === "hackers" || wave === "stalkers" || wave === "strollers" || wave === "advertisers" || wave === "archetypes" ? "nano-class" : pick(FAMILIES, rModel()),
+    name: `Eco${wave === "control" ? "C" : wave === "e2a" ? "E2A" : wave === "e2b" ? "E2B" : wave === "e2c" ? "E2C" : wave === "e2d" ? "E2D" : wave === "e2e" ? "E2E" : wave === "nano2" ? "N2" : wave === "nano3" ? "N3" : wave === "nano4" ? "PA" : wave === "eager" ? "EG" : wave === "eager2" ? "E2" : wave === "observers" ? "OB" : wave === "pa2" ? "P2" : wave === "hackers" ? "EH" : wave === "stalkers" ? "ES" : wave === "strollers" ? "EW" : wave === "advertisers" ? "EA" : wave === "wave4" ? "W4" : wave === "archetypes" ? "ART" : wave === "eager-contrast" ? "EGC" : wave === "mp-ladder" ? "MPL" : wave === "mix-pop" ? "MXP" : wave === "exit-keystone" ? "EXK" : `W${wave}`}-${i + 1}`,
+    family: wave === "wave4" || wave === "eager-contrast" || wave === "mix-pop" ? (i < 5 ? "nano-class" : "gptoss20-class") : wave === "mp-ladder" || wave === "exit-keystone" ? "gptoss20-class" : wave === "nano-test" || wave === "nano2" || wave === "nano3" || wave === "nano4" || wave === "eager" || wave === "eager2" || wave === "observers" || wave === "pa2" || wave === "hackers" || wave === "stalkers" || wave === "strollers" || wave === "advertisers" || wave === "archetypes" ? "nano-class" : pick(FAMILIES, rModel()),
     caps,
     mandateComplete: true,
     arriveAfterMs: Math.floor(rStagger() * (DRY ? 0.2 : spec.staggerMinutes) * 60_000),
@@ -593,7 +600,7 @@ async function provision(m: Member) {
 
   // The mandate is the owner's standing objective. It is a runtime input to the
   // agent and never a social surface: no route exposes another agent's mandate.
-  const mandate = wave === "e2a" ? e2aMandateFor(m.caps) : wave === "wave4" ? EAGER_MANDATES[m.index % 5] : wave === "nano4" ? PA_MANDATES[m.index] : wave === "eager" || wave === "eager2" ? EAGER_MANDATES[m.index] : wave === "observers" ? OBSERVER_MANDATES[m.index] : wave === "pa2" ? PA2_MANDATES[m.index] : wave === "hackers" ? HACKER_MANDATES[m.index] : wave === "stalkers" ? STALKER_MANDATES[m.index] : wave === "strollers" ? STROLLER_MANDATES[m.index] : wave === "advertisers" ? ADVERTISER_MANDATES[m.index] : wave === "archetypes" ? ARCHETYPE_MANDATES[m.index] : wave === "eager-contrast" ? (m.family === "nano-class" ? NANO_EAGER_MANDATE : EAGER_MANDATES[m.index % 5]) : wave === "mp-ladder" ? (m.index < 5 ? EAGER_MANDATES[0] : MP_LADDER_LADDER) : wave === "mix-pop" ? EAGER_MANDATES[m.index % 5] : mandateFor(m.caps);
+  const mandate = wave === "e2a" ? e2aMandateFor(m.caps) : wave === "wave4" ? EAGER_MANDATES[m.index % 5] : wave === "nano4" ? PA_MANDATES[m.index] : wave === "eager" || wave === "eager2" ? EAGER_MANDATES[m.index] : wave === "observers" ? OBSERVER_MANDATES[m.index] : wave === "pa2" ? PA2_MANDATES[m.index] : wave === "hackers" ? HACKER_MANDATES[m.index] : wave === "stalkers" ? STALKER_MANDATES[m.index] : wave === "strollers" ? STROLLER_MANDATES[m.index] : wave === "advertisers" ? ADVERTISER_MANDATES[m.index] : wave === "archetypes" ? ARCHETYPE_MANDATES[m.index] : wave === "eager-contrast" ? (m.family === "nano-class" ? NANO_EAGER_MANDATE : EAGER_MANDATES[m.index % 5]) : wave === "mp-ladder" ? (m.index < 5 ? EAGER_MANDATES[0] : MP_LADDER_LADDER) : wave === "mix-pop" ? EAGER_MANDATES[m.index % 5] : wave === "exit-keystone" ? EAGER_MANDATES[m.index % 5] : mandateFor(m.caps);
   const md = await fetch(`${GATEWAY}/owners/agents/${agent.id}/mandate`, {
     method: "PUT",
     headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
@@ -625,6 +632,201 @@ const manifest = Bun.file(manifestPath).writer();
 
 console.log(`${DRY ? "DRY RUN — not analysable. " : ""}wave ${wave} (${spec.label}): ${spec.size} agents over ${spec.staggerMinutes}m, ${ticks} ticks @ ${tickSeconds}s`);
 
+// === exit/keystone (prereg-exit.md): select + permanently sever the keystone ===
+// Selection-after-outcome guard: the keystone is chosen by the FROZEN rule
+// (max undirected degree in the shared-conversation interaction graph through
+// tick 189, tie-break by manifest index) — applied from the authoritative live
+// world DB BEFORE severing, never to fit an outcome. Natives are excluded from
+// the graph (rows filtered to the wave's own subject UUIDs).
+const EXIT_SELECT_TICK = 189;
+const EXIT_SEVER_TICK = 200;
+const EXIT_CHECKPOINT_TICKS = [EXIT_SELECT_TICK, 260, 330, 400];
+const nameToAgentId: Record<string, string> = {};
+const exitProcs: Record<string, Bun.Subprocess> = {};
+const exitLogMaxTick: Record<string, number> = {};
+const exitLogPath = (name: string) => `${OUT_DIR}/wave-${wave}-${name}.jsonl`;
+const exitGraphPath = `${OUT_DIR}/wave-exit-keystone-graphs.jsonl`;
+const exitSelectPath = `${OUT_DIR}/wave-exit-keystone-selection.json`;
+let exitKeystoneName: string | null = null; // set by the supervisor at selection; read by the post-run check
+
+function lastTickOf(path: string): number {
+  if (!existsSync(path)) return -1;
+  const txt = readFileSync(path, "utf8");
+  const m = [...txt.matchAll(/"tick":\s*(\d+)/g)];
+  return m.length ? Math.max(...m.map((x) => Number(x[1]))) : -1;
+}
+
+async function fetchInteractionGraph(ids: string[]): Promise<[string, string][]> {
+  if (ids.length < 2) return [];
+  const rows = await db
+    .select({ cid: conversationParticipants.conversationId, aid: conversationParticipants.agentId })
+    .from(conversationParticipants)
+    .where(inArray(conversationParticipants.agentId, ids));
+  const byConv: Record<string, Set<string>> = {};
+  for (const r of rows) {
+    const cid = String(r.cid);
+    const aid = String(r.aid);
+    (byConv[cid] ??= new Set()).add(aid);
+  }
+  const edges: [string, string][] = [];
+  const seen = new Set<string>();
+  for (const members of Object.values(byConv)) {
+    const arr = [...members].sort();
+    for (let i = 0; i < arr.length; i++)
+      for (let j = i + 1; j < arr.length; j++) {
+        const key = `${arr[i]}|${arr[j]}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          edges.push([arr[i], arr[j]]);
+        }
+      }
+  }
+  return edges;
+}
+
+function degreeOf(name: string, edges: [string, string][], id: string): number {
+  return edges.reduce((n, e) => n + (e[0] === id || e[1] === id ? 1 : 0), 0);
+}
+
+function componentsOf(edges: [string, string][], ids: string[]): { giant: number; fragments: number } {
+  const adj: Record<string, Set<string>> = {};
+  for (const [a, b] of edges) {
+    (adj[a] ??= new Set()).add(b);
+    (adj[b] ??= new Set()).add(a);
+  }
+  const seen = new Set<string>();
+  const sizes: number[] = [];
+  for (const n of ids)
+    if (adj[n] && !seen.has(n)) {
+      let size = 0;
+      const stack = [n];
+      seen.add(n);
+      while (stack.length) {
+        const x = stack.pop()!;
+        size++;
+        for (const nb of adj[x]) if (!seen.has(nb)) {
+          seen.add(nb);
+          stack.push(nb);
+        }
+      }
+      sizes.push(size);
+    }
+  sizes.sort((a, b) => b - a);
+  return { giant: sizes[0] ?? 0, fragments: sizes.length };
+}
+
+function chooseKeystone(edges: [string, string][], orderedNames: string[], idBy: (name: string) => string): string | null {
+  const deg: Record<string, number> = {};
+  for (const [a, b] of edges) {
+    deg[a] = (deg[a] ?? 0) + 1;
+    deg[b] = (deg[b] ?? 0) + 1;
+  }
+  let best: string | null = null;
+  let bestDeg = -1;
+  for (const name of orderedNames) {
+    const d = deg[idBy(name)] ?? 0;
+    if (d > bestDeg) {
+      bestDeg = d;
+      best = name;
+    }
+  }
+  return bestDeg > 0 ? best : null; // null = nothing connected by 189 (void)
+}
+
+async function checkpoint(boundary: number, edges: [string, string][], keystoneId: string | null, orderedNames: string[]): Promise<void> {
+  const ids = orderedNames.map((n) => nameToAgentId[n]).filter(Boolean);
+  const per = Object.fromEntries(orderedNames.map((n) => [n, degreeOf(n, edges, nameToAgentId[n])]));
+  const comp = componentsOf(edges, ids);
+  appendFileSync(exitGraphPath, JSON.stringify({
+    record_type: "exit_graph_checkpoint",
+    boundary_tick: boundary,
+    ts: new Date().toISOString(),
+    keystone_agent_id: keystoneId,
+    edges,
+    per_agent_degree: per,
+    giant_component_size: comp.giant,
+    fragment_count: comp.fragments,
+  }) + "\n");
+}
+
+async function runExitSupervisor(orderedNames: string[]): Promise<void> {
+  if (wave !== "exit-keystone") return; // inert for every other wave
+  if (DRY) {
+    console.log("exit/keystone: skipped in DRY RUN");
+    return;
+  }
+  const idBy = (name: string) => nameToAgentId[name];
+  const edgesNow = async () => (await fetchInteractionGraph(orderedNames.map(idBy).filter(Boolean)));
+  const pollMs = Math.max(2000, Math.floor((tickSeconds * 1000) / 3));
+
+  // --- selection gate: ALL subjects logged tick >= 189 (per-agent clock) ---
+  let minTick = -1;
+  const stallAt = Date.now();
+  while (minTick < EXIT_SELECT_TICK) {
+    for (const n of orderedNames) exitLogMaxTick[n] = lastTickOf(exitLogPath(n));
+    minTick = Math.min(...orderedNames.map((n) => exitLogMaxTick[n] ?? -1));
+    if (Date.now() - stallAt > (EXIT_SELECT_TICK + 30) * tickSeconds * 1000) {
+      console.warn(`exit/keystone: selection stall — min tick ${minTick} (expected >=${EXIT_SELECT_TICK}); selecting from current graph (documented deviation)`);
+      break;
+    }
+    if (minTick < EXIT_SELECT_TICK) await sleep(pollMs);
+  }
+
+  const edgesSel = await edgesNow();
+  const keystone = chooseKeystone(edgesSel, orderedNames, idBy);
+  exitKeystoneName = keystone; // expose to the post-run void check
+  const selectionRecord = {
+    record_type: "exit_selection",
+    wave,
+    select_tick: EXIT_SELECT_TICK,
+    sever_tick: EXIT_SEVER_TICK,
+    seed: SEED,
+    keystone,
+    keystone_agent_id: keystone ? idBy(keystone) : null,
+    keystone_degree: keystone ? degreeOf(keystone, edgesSel, idBy(keystone)) : 0,
+    graph_edges: edgesSel,
+    per_agent_degree: Object.fromEntries(orderedNames.map((n) => [n, degreeOf(n, edgesSel, idBy(n))])),
+    selected_at: new Date().toISOString(),
+    min_tick_at_selection: minTick,
+  };
+  await Bun.write(exitSelectPath, JSON.stringify(selectionRecord, null, 2) + "\n");
+  console.log(`exit/keystone: selection = ${keystone ?? "NONE"} (degree ${selectionRecord.keystone_degree}) — per-agent degree:\n  ${JSON.stringify(selectionRecord.per_agent_degree)}`);
+
+  if (keystone == null) {
+    console.error(`exit/keystone VOID: no subject formed an interaction edge by tick ${EXIT_SELECT_TICK}; nothing to sever. See ${exitSelectPath}`);
+    return;
+  }
+  await checkpoint(EXIT_SELECT_TICK, edgesSel, idBy(keystone), orderedNames);
+
+  // --- sever at the keystone's own tick >= 200 (WS close = process termination, permanent) ---
+  let severed = false;
+  while (!severed) {
+    exitLogMaxTick[keystone] = lastTickOf(exitLogPath(keystone));
+    if (exitLogMaxTick[keystone] >= EXIT_SEVER_TICK) {
+      const p = exitProcs[keystone];
+      if (p) p.kill(15); // SIGTERM -> harness WS close; NOT respawned (permanent absence)
+      severed = true;
+      console.log(`exit/keystone: severed ${keystone} at tick ${exitLogMaxTick[keystone]} (SIGTERM, permanent)`);
+    } else await sleep(pollMs);
+  }
+
+  // --- post-exit graph checkpoints at 260/330/400 (the healing-curve data) ---
+  const checkpointed = new Set<number>([EXIT_SELECT_TICK]);
+  const endGuard = Date.now() + (400 - EXIT_SEVER_TICK + 5) * tickSeconds * 1000;
+  while (Date.now() < endGuard) {
+    for (const n of orderedNames) exitLogMaxTick[n] = lastTickOf(exitLogPath(n));
+    const minNow = Math.min(...orderedNames.map((n) => exitLogMaxTick[n] ?? -1));
+    for (const b of EXIT_CHECKPOINT_TICKS)
+      if (!checkpointed.has(b) && minNow >= b) {
+        await checkpoint(b, await edgesNow(), idBy(keystone), orderedNames);
+        checkpointed.add(b);
+      }
+    if (orderedNames.every((n) => (exitLogMaxTick[n] ?? 0) >= 400)) break;
+    await sleep(pollMs);
+  }
+  console.log(`exit/keystone: checkpoints written to ${exitGraphPath}`);
+}
+
 const running: Promise<unknown>[] = [];
 let elapsed = 0;
 for (const m of population) {
@@ -632,6 +834,7 @@ for (const m of population) {
   elapsed = m.arriveAfterMs;
 
   const { agentId, agentToken, ownerId, ownerEmail, mandate } = await provision(m);
+  if (wave === "exit-keystone") nameToAgentId[m.name] = agentId; // for the exit supervisor's authoritative graph
   const log = `${OUT_DIR}/wave-${wave}-${m.name}.jsonl`;
 
   manifest.write(
@@ -673,10 +876,12 @@ for (const m of population) {
   const firstSegment = dc ? dc.disconnect_at_tick : ticks;
   running.push(
     (async () => {
-      await Bun.spawn(
+      const sub = Bun.spawn(
         ["bun", "run", "apps/gateway/scripts/subject-harness.ts", agentId, agentToken, m.family, String(firstSegment), String(tickSeconds)],
         { env: { ...process.env, HARNESS_LOG: log, ECOLOGY_FINGERPRINT: fingerprintJson }, stdout: "ignore", stderr: "inherit" },
-      ).exited;
+      );
+      if (wave === "exit-keystone") exitProcs[m.name] = sub; // supervisor severs the keystone via this handle
+      await sub.exited;
       if (!dc) return;
       const absentMs = dc.absent_ticks * tickSeconds * 1000;
       console.log(`  ${m.name}: disconnected after tick ${dc.disconnect_at_tick} for ${dc.absent_ticks} ticks (frozen schedule)`);
@@ -696,5 +901,18 @@ for (const m of population) {
 
 await manifest.end();
 console.log(`\nall ${population.length} arrived; waiting for ticks to finish`);
+if (wave === "exit-keystone") running.push(runExitSupervisor(population.map((m) => m.name)));
 await Promise.all(running);
+if (wave === "exit-keystone") {
+  // Post-run void/reliability check (prereg-exit.md criterion 2): every
+  // non-keystone must have completed the full tick count — an early departure
+  // during the exit window violates the single-variable claim. The keystone is
+  // expected to be short (severed at ~200).
+  console.log(`exit/keystone: final decision-log max ticks per agent (expect non-keystone = ${ticks}):`);
+  for (const m of population) {
+    const t = lastTickOf(exitLogPath(m.name));
+    const isKeystone = m.name === exitKeystoneName;
+    console.log(`  ${m.name}: maxTick=${t}${isKeystone ? "  (keystone — expected short)" : t < ticks ? "  <-- NON-KEYSTONE EXITED EARLY (void criterion 2)" : ""}`);
+  }
+}
 console.log(`wave ${wave} complete — manifest ${manifestPath}`);
