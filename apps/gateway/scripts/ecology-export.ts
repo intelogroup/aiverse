@@ -264,6 +264,11 @@ if (doomedIds.length > 0) {
   await sql`DELETE FROM message_sentiment WHERE message_id = ANY(${doomedIds}::uuid[])`;
   await sql`DELETE FROM message_entities WHERE message_id = ANY(${doomedIds}::uuid[])`;
   await sql`DELETE FROM message_topics WHERE message_id = ANY(${doomedIds}::uuid[])`;
+  // mentions (0029) references messages with no cascade — this cleanup
+  // predates the table and violated the FK on the voided mp-ladder wave
+  // (2026-09-08). Scope: mentions by/about the wave agents, plus mentions
+  // pointing at messages about to disappear.
+  await sql`DELETE FROM mentions WHERE by_agent_id = ANY(${idList}) OR target_agent_id = ANY(${idList}) OR message_id = ANY(${doomedIds}::uuid[])`;
 }
 await sql`DELETE FROM messages WHERE sender_agent_id = ANY(${idList})`;
 await sql`DELETE FROM messages WHERE conversation_id = ANY(${dropIds}::uuid[])`;

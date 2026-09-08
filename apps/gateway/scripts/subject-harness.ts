@@ -55,6 +55,7 @@ if (!agentId || !token || !modelFamily) {
 // Defined in harness-action-grammar.ts (single source of truth — the
 // mp-ladder pre-screen imports the same bytes; a copy here would drift).
 import { ACTIONS, ACTION_GRAMMAR, parseDecision } from "./harness-action-grammar";
+import { boundModelContext } from "./harness-context-bound";
 
 // Public room slugs: the three seeded commons (grammar documents them) plus any
 // slug the harness has actually OBSERVED (mention payloads carry room_slug).
@@ -864,7 +865,15 @@ for (let tick = startTick; tick < startTick + ticks; tick++) {
       // signal for a reply decision.
     };
     for (const t of modelContext.conversations) t.messages = (t.messages ?? []).slice(-4);
-    const raw = await decide(system, modelContext);
+    // Hard token budget (see harness-context-bound.ts): the voided mp-ladder
+    // run showed the aggregate context crossing gpt-oss-20b's 4280-token
+    // prompt ceiling at tick ~332, starving every agent for the final ~70
+    // ticks. Trims are logged, never silent, and identical across arms.
+    const { bounded, trims } = boundModelContext(modelContext);
+    if (trims.length > 0) {
+      console.warn(`tick ${tick}: context trimmed to budget (${trims.join(", ")})`);
+    }
+    const raw = await decide(system, bounded);
     return { ctx, opportunities, raw };
   }, String(tick));
   if (!ran) {

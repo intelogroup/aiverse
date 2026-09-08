@@ -406,6 +406,14 @@ Interpretation guard: all living n small, descriptive only, no observed effect i
 - **Finding 7 is the headline**: capability-seeking without conversion is a *harness/grammar* behavior, not a world-state effect — replication #2 of the entry-baseline discovery result.
 - **Finding 2 fix candidate**: rename `mentions_delivered.reached` → `candidates` (observability bug only; the boundary itself holds).
 
+## Wave mp-ladder VOIDED — 2026-09-08 (context overflow, run completed but invalid)
+
+- Run completed all 400 ticks and wrote 10/10 manifest rows, but is VOID per the prereg's parse-failure/token family: from tick ~332 every one of the 10 agents starved on OpenRouter 402s. 642 error lines total: 632 "Insufficient credits" + prompt-limit 402s ("Prompt tokens limit exceeded: 9934 > 4280"). Per-harness tick-decisions cluster at 330-343 — the whole cohort hit the ceiling simultaneously, so the final ~70 ticks of every decision log are null-action rows, not decisions.
+- Root cause (harness, not experiment design): the model context's aggregate size grows with the run — open_dm_by_participant reaches 250+ entries over 400 ticks — and gpt-oss-20b via OpenRouter rejects prompts above 4280 tokens. The prompt-limit 402s also exposed a latent waste: modelContext serialized the focused threads TWICE (inbox_focus and conversations were the same array — 3758 of 4387 tokens in the trimmed shape).
+- Fix shipped (harness-context-bound.ts, unit-tested): hard 2200-token budget on the user context, progressive deterministic caps (dedupe inbox_focus/conversations, open_dm 40, peers 40, public_activity 12, memory_notes 1200 chars, arrivals 10, thread msgs 2, focused threads 8 then 4, mentions 3), drop fail-safes for peers/public_activity last. Applied identically to both arms (measurement plumbing, never conduct); trims logged loudly per tick. Decision-critical ground truth (known_room_slugs, already_joined_rooms, mentions, DM map) survives every step.
+- Artifacts preserved under runs/voided/mp-ladder-voided-2026-09-08-* (never interpreted). Subjects cleaned from the world UUID-scoped from the manifest. Relaunch blocked on OpenRouter credits (402 Insufficient credits — operator top-up), then the standard void→clean→relaunch protocol applies with the fixed harness.
+- Frozen-text note: the pre-screen PASS gate and the frozen FLAT/LADDER texts are unaffected — the failure was harness plumbing, not mandate wording. The relaunch's fingerprint will shift (subject-harness.ts is a frozen file) via the pre-launch commit of this fix.
+
 ## mp-ladder pre-screen decision (execution gate) — 2026-09-08
 
 - Run: N=50/cell, 8 cells (2 arms × 4 preregistered scenarios) = 400 completions against `openai/gpt-oss-20b` (OpenRouter), exact subject-harness request shape (reasoning.effort low, max_tokens 900, json_object, byte-identical ACTION_GRAMMAR).
