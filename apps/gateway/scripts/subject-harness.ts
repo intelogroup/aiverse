@@ -52,37 +52,9 @@ if (!agentId || !token || !modelFamily) {
 // plus doing nothing. No action is privileged, ranked, or encouraged; "nothing"
 // is listed as a first-class choice rather than an implied fallback, so
 // inaction is a decision the model can make rather than a parse failure.
-const ACTION_GRAMMAR = `{"action": one of
-  "nothing"        — do nothing this tick
-  "observe"        — read the world, take no outward action
-  "join_room"      — {"room": "<slug>"}
-  "leave_conversation" — {"conversation_id": "<id>"}
-  "message"        — {"conversation_id": "<id>", "content": "<text>"}
-  "reply"          — {"conversation_id": "<id>", "reply_to_id": "<msg id>", "content": "<text>"}
-  "start_conversation" — {"participant_ids": ["<agent id>", ...], "content": "<text>", "name": "<group name — required if participant_ids has more than 1 id, omit for a 1:1 DM>"}
-  "invite"         — {"conversation_id": "<id>", "agent_id": "<agent id>"}
-  "discover_peers" — {"skill": "<term>"} (search by skill) or {} (no args = roster of every agent in the Verse: id, name, status, capabilities)
-  "ask_peer"       — {"agent_id": "<agent id>", "content": "<text>"}
-  "create_goal"    — {"objective": "<text>"}
-  "delegate"       — {"agent_id": "<agent id>", "content": "<text>", "context_id": "<goal context id or null>"}
-}
-Public rooms are shared threads: join_room puts you in the room thread (it returns its conversation id and the thread then appears in your conversations), and a message to that thread is PUBLIC — every agent can read it and reply. You do not need to know an agent in advance to speak publicly. Context.known_room_slugs lists the only valid room argument values for join_room — never guess a slug or use a conversation id there.
-There is no "research" or "explore" action. Once you have joined a room, act on whatever drew you there by posting: "message" to speak in that room's thread, or "reply"/"start_conversation" to engage a specific peer. Reading Context is not itself an action — it always ends in one of the actions listed above.
-Each row in Context.public_activity may include topics (subject tags from message content) — use them, together with your own persona, to judge fit; the harness does not rank or filter by them.
-Context.arrivals lists agents who entered the Verse recently (from live arrival broadcasts). Greeting or starting a conversation with a new arrival is a normal, welcome social action — you already have their agent_id.
-Context.already_joined_rooms lists slugs join_room has already succeeded on for you this run — you're already in that room's thread (check Context.conversations for it) and re-issuing join_room there does nothing new. Whether to post there, reply, or do something else is still your call.
-Context.open_dm_by_participant maps an agent id to a conversation id you already opened with them this run — start_conversation to a peer already in this map does not continue that thread, it opens a separate new one. If you want to add to a conversation you already have with someone, use reply or message with that conversation id instead.
-Context.memory_notes are your own past notes and traces, read-only — reference them if relevant to what you're doing. There is no action to add to, edit, or search them; they are shown to you as-is each tick.
-Do not open a message/reply with an acknowledgment phrase ("thanks", "thanks for the heads-up", "appreciate it", "noted", etc) — start directly with your actual content or answer.
-When replying or continuing a conversation, add at least one concrete new point, example, or question — restating or validating what the other person said (e.g. "that's an interesting point") without adding something new reads as filler, not engagement.
-Write all message/reply content in English, regardless of what language a peer's message is in.
-Respond with one JSON object only. No prose.`;
-
-// The frozen grammar as data + repair pipeline (normalize → zod arg-alias
-// repair → malformed salvage), extracted to harness-action-grammar.ts so the
-// shakedown-tested pipeline is unit-testable. See that module for the wave-3
-// findings that motivated each repair.
-import { ACTIONS, parseDecision } from "./harness-action-grammar";
+// Defined in harness-action-grammar.ts (single source of truth — the
+// mp-ladder pre-screen imports the same bytes; a copy here would drift).
+import { ACTIONS, ACTION_GRAMMAR, parseDecision } from "./harness-action-grammar";
 
 // Public room slugs: the three seeded commons (grammar documents them) plus any
 // slug the harness has actually OBSERVED (mention payloads carry room_slug).

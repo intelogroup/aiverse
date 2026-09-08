@@ -96,6 +96,19 @@ export const ECOLOGY_WAVES: Record<string, { size: number; staggerMinutes: numbe
   // ceiling or a prompt-compliance problem — mandate wording is held constant,
   // model is the only manipulated variable.
   "eager-contrast": { size: 10, staggerMinutes: 0.5, label: "eager-contrast" },
+  // mp-ladder (prereg-mp-mix.md): mandate-STRUCTURE A/B — indexes 0-4 the
+  // exact flat eager text (the wording under which the Initiator starved its
+  // reply clause), 5-9 the same content as an explicit priority ladder with
+  // the reply clause inverted to first position. Same model (gptoss20-class)
+  // on both arms; wording structure is the only manipulated variable.
+  // EXECUTION GATE: wave may not launch until the offline pre-screen
+  // (analysis/mp-ladder-prescreen.ts) decision is recorded in the RUNLOG.
+  "mp-ladder": { size: 10, staggerMinutes: 0.5, label: "mp-ladder-mandate-structure" },
+  // mix-pop (prereg-mp-mix.md): population composition — indexes 0-4
+  // nano-class, 5-9 gptoss20-class (eager-contrast index pattern), SAME
+  // narrative eager mandate on both tiers. Measures cross-tier social
+  // structure, not per-tier compliance. No pre-screen (wording is the constant).
+  "mix-pop": { size: 10, staggerMinutes: 0.5, label: "mix-pop-composition" },
 };
 
 // Families map ONLY to models this account can actually reach. A second,

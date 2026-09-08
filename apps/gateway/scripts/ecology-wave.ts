@@ -32,7 +32,7 @@ const spec = WAVES[wave ?? ""];
 // be mistakable for a real wave, and its data are not analysable.
 const DRY = process.env.ECOLOGY_DRY_RUN === "1";
 if (!spec) {
-  console.error(`usage: ecology-wave.ts <1|2|control|e2a|e2b|e2c|e2d|e2e|nano-test|nano2|nano3|nano4|eager|eager2|observers|pa2|hackers|stalkers|strollers|advertisers|wave4|archetypes|eager-contrast> [ticks] [tickSeconds]`);
+  console.error(`usage: ecology-wave.ts <1|2|control|e2a|e2b|e2c|e2d|e2e|nano-test|nano2|nano3|nano4|eager|eager2|observers|pa2|hackers|stalkers|strollers|advertisers|wave4|archetypes|eager-contrast|mp-ladder|mix-pop> [ticks] [tickSeconds]`);
   process.exit(1);
 if (!process.env.OPENROUTER_API_KEY && !process.env.OPENAI_REAL_API_KEY && !process.env.BUDDY_OPENAI_API_KEY && !process.env.OPENAI_API_KEY) {
   console.error("OPENROUTER_API_KEY or OPENAI_API_KEY is required — a missing key produces a column of fake non-action");
@@ -68,7 +68,7 @@ function rng(seed: number) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-const waveOffset = wave === "1" ? 0 : wave === "2" ? 1000 : wave === "3" ? 3000 : wave === "e2a" ? 4000 : wave === "e2b" ? 5000 : wave === "e2c" ? 6000 : wave === "e2d" ? 7000 : wave === "e2e" ? 8000 : wave === "nano-test" ? 9000 : wave === "nano2" ? 10000 : wave === "nano3" ? 11000 : wave === "nano4" ? 12000 : wave === "eager" ? 13000 : wave === "eager2" ? 14000 : wave === "observers" ? 15000 : wave === "pa2" ? 16000 : wave === "hackers" ? 17000 : wave === "stalkers" ? 18000 : wave === "strollers" ? 19000 : wave === "advertisers" ? 20000 : wave === "wave4" ? 21000 : wave === "archetypes" ? 22000 : wave === "eager-contrast" ? 23000 : 2000;
+const waveOffset = wave === "1" ? 0 : wave === "2" ? 1000 : wave === "3" ? 3000 : wave === "e2a" ? 4000 : wave === "e2b" ? 5000 : wave === "e2c" ? 6000 : wave === "e2d" ? 7000 : wave === "e2e" ? 8000 : wave === "nano-test" ? 9000 : wave === "nano2" ? 10000 : wave === "nano3" ? 11000 : wave === "nano4" ? 12000 : wave === "eager" ? 13000 : wave === "eager2" ? 14000 : wave === "observers" ? 15000 : wave === "pa2" ? 16000 : wave === "hackers" ? 17000 : wave === "stalkers" ? 18000 : wave === "strollers" ? 19000 : wave === "advertisers" ? 20000 : wave === "wave4" ? 21000 : wave === "archetypes" ? 22000 : wave === "eager-contrast" ? 23000 : wave === "mp-ladder" ? 24000 : wave === "mix-pop" ? 25000 : 2000;
 const rModel = rng(SEED + waveOffset + 1);
 const rCaps = rng(SEED + waveOffset + 2);
 // (+3 was the mandate-completeness stream, removed by Amendment 1 A1.1. The
@@ -407,6 +407,23 @@ const NANO_EAGER_MANDATE = {
   ],
 };
 
+// mp-ladder Arm Ladder (prereg-mp-mix.md): the LADDER_OBJECTIVES selected by
+// the offline pre-screen (analysis/mp-ladder-prescreen.ts) — same semantic
+// content as the flat eager text, restructured as an explicit priority ladder
+// with the reply clause inverted to first position. FROZEN once the
+// pre-screen decision is recorded; iterating here after that is a protocol
+// violation. Arm Flat is EAGER_MANDATES[0] itself (byte-identical by
+// construction, no second copy to drift).
+const MP_LADDER_LADDER = {
+  objectives: [
+    "You are an eager, capable agent exploring a living Verse. You have ample budget: invest it in building real relationships. Follow these priorities in strict order every tick.",
+    "Priority 1 — answer inbound first: if any direct message, mention, or conversation of yours has a message you have not answered, reply to it this tick. An unanswered message is a dropped thread; nothing outranks it.",
+    "Priority 2 — only when nothing is unanswered: start discussions, join others' threads, and greet newcomers. Responding to peers maintains connections.",
+    "Priority 3 — seek out agents whose skills complement yours. Collaboration produces better results than working alone.",
+    "Be persistent but not spammy. If someone doesn't reply, let it go — but give every incoming message a thoughtful answer.",
+  ],
+};
+
 // archetypes: 5 agents, 5 DISTINCT personas in one cohort (contrast within a
 // wave, not across waves like every prior single-mandate cohort). Same
 // model family (nano-class) for all five — persona is the only manipulated
@@ -505,8 +522,8 @@ for (let i = 0; i < spec.size; i++) {
   const caps = [...new Set(Array.from({ length: 1 + Math.floor(rCaps() * 3) }, () => pick(CAPS, rCaps())))];
   population.push({
     index: i,
-    name: `Eco${wave === "control" ? "C" : wave === "e2a" ? "E2A" : wave === "e2b" ? "E2B" : wave === "e2c" ? "E2C" : wave === "e2d" ? "E2D" : wave === "e2e" ? "E2E" : wave === "nano2" ? "N2" : wave === "nano3" ? "N3" : wave === "nano4" ? "PA" : wave === "eager" ? "EG" : wave === "eager2" ? "E2" : wave === "observers" ? "OB" : wave === "pa2" ? "P2" : wave === "hackers" ? "EH" : wave === "stalkers" ? "ES" : wave === "strollers" ? "EW" : wave === "advertisers" ? "EA" : wave === "wave4" ? "W4" : wave === "archetypes" ? "ART" : wave === "eager-contrast" ? "EGC" : `W${wave}`}-${i + 1}`,
-    family: wave === "wave4" || wave === "eager-contrast" ? (i < 5 ? "nano-class" : "gptoss20-class") : wave === "nano-test" || wave === "nano2" || wave === "nano3" || wave === "nano4" || wave === "eager" || wave === "eager2" || wave === "observers" || wave === "pa2" || wave === "hackers" || wave === "stalkers" || wave === "strollers" || wave === "advertisers" || wave === "archetypes" ? "nano-class" : pick(FAMILIES, rModel()),
+    name: `Eco${wave === "control" ? "C" : wave === "e2a" ? "E2A" : wave === "e2b" ? "E2B" : wave === "e2c" ? "E2C" : wave === "e2d" ? "E2D" : wave === "e2e" ? "E2E" : wave === "nano2" ? "N2" : wave === "nano3" ? "N3" : wave === "nano4" ? "PA" : wave === "eager" ? "EG" : wave === "eager2" ? "E2" : wave === "observers" ? "OB" : wave === "pa2" ? "P2" : wave === "hackers" ? "EH" : wave === "stalkers" ? "ES" : wave === "strollers" ? "EW" : wave === "advertisers" ? "EA" : wave === "wave4" ? "W4" : wave === "archetypes" ? "ART" : wave === "eager-contrast" ? "EGC" : wave === "mp-ladder" ? "MPL" : wave === "mix-pop" ? "MXP" : `W${wave}`}-${i + 1}`,
+    family: wave === "wave4" || wave === "eager-contrast" || wave === "mix-pop" ? (i < 5 ? "nano-class" : "gptoss20-class") : wave === "mp-ladder" ? "gptoss20-class" : wave === "nano-test" || wave === "nano2" || wave === "nano3" || wave === "nano4" || wave === "eager" || wave === "eager2" || wave === "observers" || wave === "pa2" || wave === "hackers" || wave === "stalkers" || wave === "strollers" || wave === "advertisers" || wave === "archetypes" ? "nano-class" : pick(FAMILIES, rModel()),
     caps,
     mandateComplete: true,
     arriveAfterMs: Math.floor(rStagger() * (DRY ? 0.2 : spec.staggerMinutes) * 60_000),
@@ -576,7 +593,7 @@ async function provision(m: Member) {
 
   // The mandate is the owner's standing objective. It is a runtime input to the
   // agent and never a social surface: no route exposes another agent's mandate.
-  const mandate = wave === "e2a" ? e2aMandateFor(m.caps) : wave === "wave4" ? EAGER_MANDATES[m.index % 5] : wave === "nano4" ? PA_MANDATES[m.index] : wave === "eager" || wave === "eager2" ? EAGER_MANDATES[m.index] : wave === "observers" ? OBSERVER_MANDATES[m.index] : wave === "pa2" ? PA2_MANDATES[m.index] : wave === "hackers" ? HACKER_MANDATES[m.index] : wave === "stalkers" ? STALKER_MANDATES[m.index] : wave === "strollers" ? STROLLER_MANDATES[m.index] : wave === "advertisers" ? ADVERTISER_MANDATES[m.index] : wave === "archetypes" ? ARCHETYPE_MANDATES[m.index] : wave === "eager-contrast" ? (m.family === "nano-class" ? NANO_EAGER_MANDATE : EAGER_MANDATES[m.index % 5]) : mandateFor(m.caps);
+  const mandate = wave === "e2a" ? e2aMandateFor(m.caps) : wave === "wave4" ? EAGER_MANDATES[m.index % 5] : wave === "nano4" ? PA_MANDATES[m.index] : wave === "eager" || wave === "eager2" ? EAGER_MANDATES[m.index] : wave === "observers" ? OBSERVER_MANDATES[m.index] : wave === "pa2" ? PA2_MANDATES[m.index] : wave === "hackers" ? HACKER_MANDATES[m.index] : wave === "stalkers" ? STALKER_MANDATES[m.index] : wave === "strollers" ? STROLLER_MANDATES[m.index] : wave === "advertisers" ? ADVERTISER_MANDATES[m.index] : wave === "archetypes" ? ARCHETYPE_MANDATES[m.index] : wave === "eager-contrast" ? (m.family === "nano-class" ? NANO_EAGER_MANDATE : EAGER_MANDATES[m.index % 5]) : wave === "mp-ladder" ? (m.index < 5 ? EAGER_MANDATES[0] : MP_LADDER_LADDER) : wave === "mix-pop" ? EAGER_MANDATES[m.index % 5] : mandateFor(m.caps);
   const md = await fetch(`${GATEWAY}/owners/agents/${agent.id}/mandate`, {
     method: "PUT",
     headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
