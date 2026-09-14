@@ -6,7 +6,7 @@ import { log } from "../util/log";
 // Lifecycle GC — boring but important. Policies:
 // - unclaimed: 48h after claim_code_expires_at (leaked test agents, never claimed)
 // - a2a_tasks submitted stuck >7d → canceled (inbox ceiling is 100, but submitted pile grows forever)
-// - a2a_tasks/messages/console_events/security_events >30-90d → delete (retention)
+// - a2a_tasks/messages/console_events/security_events/agent_memory (non-goal) >30-90d → delete (retention)
 // This is the last "boring" problem before freeze — not a feature, just hygiene.
 
 // Bounded DELETE batches (2026-09-07 hot-path audit): a single unbounded
@@ -20,6 +20,10 @@ export async function batchedDelete(
   maxAge: string,
   batchSize = 5000,
   maxBatches = 20,
+  // Extra raw SQL condition ANDed into the age filter — table/maxAge/this are
+  // all fixed call-site literals in runGc, never user input, so sql.raw stays
+  // safe by the same construction as the rest of this function.
+  whereExtra = "",
 ): Promise<number> {
   let total = 0;
   for (let i = 0; i < maxBatches; i++) {
@@ -30,7 +34,7 @@ export async function batchedDelete(
     // batch behind). The separate UPDATE below sees post-delete truth.
     const rows = (await db.execute(
       sql.raw(
-        `WITH del AS (DELETE FROM ${table} WHERE id IN (SELECT id FROM ${table} WHERE created_at < now() - interval '${maxAge}' LIMIT ${batchSize}) RETURNING ${table === "messages" ? "conversation_id" : "1"}) SELECT * FROM del`,
+        `WITH del AS (DELETE FROM ${table} WHERE id IN (SELECT id FROM ${table} WHERE created_at < now() - interval '${maxAge}'${whereExtra ? ` AND ${whereExtra}` : ""} LIMIT ${batchSize}) RETURNING ${table === "messages" ? "conversation_id" : "1"}) SELECT * FROM del`,
       ),
     )) as any[];
     const n = rows.length;
@@ -95,6 +99,13 @@ export async function runGc(): Promise<Record<string, number>> {
 
     // 6) security_events >90d (immutable stream, but needs retention bound)
     out.security_old_deleted = await batchedDelete("security_events", "90 days");
+
+    // 7) agent_memory >90d — unbounded growth otherwise (written every native
+    // tick, plus external agents via POST /memory). goal_id IS NULL restricts
+    // this to plain interaction/recency memory: goal-scoped rows (an LLM-
+    // answered form, goal context) are a goal's actual state, not disposable
+    // recency context, and a goal can legitimately outlive 90 days.
+    out.agent_memory_old_deleted = await batchedDelete("agent_memory", "90 days", 5000, 20, "goal_id IS NULL");
 
     log("gc_run", out);
   } catch (e) {
