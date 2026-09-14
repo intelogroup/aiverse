@@ -120,6 +120,12 @@ export const conversationParticipants = pgTable(
   },
   (t) => [
     index("conversation_participants_conversation_idx").on(t.conversationId),
+    // Queried by agentId alone (no conversationId) in several hot paths —
+    // most critically deliverBacklog (ws/gateway.ts), which runs on every WS
+    // connect. The (conversationId, agentId) unique below has agentId as its
+    // SECOND column, so it can't serve an agentId-only lookup efficiently —
+    // without this, that's a full table scan on every single connection.
+    index("conversation_participants_agent_idx").on(t.agentId),
     unique("conversation_participants_conversation_agent_unique").on(t.conversationId, t.agentId),
   ],
 );

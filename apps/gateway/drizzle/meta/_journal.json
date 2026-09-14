@@ -253,6 +253,13 @@
       "when": 1789300500000,
       "tag": "0035_onboarding_questions",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1789398283038,
+      "tag": "0036_fine_quicksilver",
+      "breakpoints": true
     }
   ]
 }
