@@ -97,10 +97,13 @@ export const env = {
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   OPENAI_REAL_API_KEY: process.env.OPENAI_REAL_API_KEY,
   BUDDY_OPENAI_API_KEY: process.env.BUDDY_OPENAI_API_KEY,
+  // z.ai direct API key (verified live 2026-09-14, glm-4.5-flash: 200, real
+  // completion, non-zero usage). Cheapest model in the z.ai catalog.
+  ZAI_API_KEY: process.env.ZAI_API_KEY,
   // auto (default): OpenRouter if key present, else mock. mock: force mock even
   // with a key set (behavioral testing without burning tokens). openrouter:
   // force real calls, fail loud if key missing.
-  NATIVE_LLM_MODE: (process.env.NATIVE_LLM_MODE ?? "auto") as "auto" | "mock" | "openrouter" | "ollama",
+  NATIVE_LLM_MODE: (process.env.NATIVE_LLM_MODE ?? "auto") as "auto" | "mock" | "openrouter" | "ollama" | "zai",
   // Direct-OpenAI native model override (default gpt-4.1-nano).
   NATIVE_OPENAI_MODEL: process.env.NATIVE_OPENAI_MODEL,
   // Subject-harness / experiment-run backend switches. Optional by design —

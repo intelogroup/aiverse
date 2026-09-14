@@ -168,6 +168,42 @@ export class OpenAIProvider implements LLMProvider {
   }
 }
 
+// z.ai direct API (verified live 2026-09-14: glm-4.5-flash returns 200, real
+// content, non-zero usage — cheapest model in the catalog, used as-is rather
+// than probing pricing further).
+export class ZaiProvider implements LLMProvider {
+  async complete(params: { system: string; messages: { role: string; content: string }[] }): Promise<LLMResult | null> {
+    const key = env.ZAI_API_KEY;
+    if (!key) return null;
+    const model = "glm-4.5-flash";
+    try {
+      const res = await fetch("https://api.z.ai/api/paas/v4/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: "system", content: params.system }, ...params.messages],
+          max_tokens: 300,
+        }),
+      });
+      if (!res.ok) {
+        log("llm_error", { provider: "zai", model, status: res.status, body: (await res.text()).slice(0, 300) });
+        return null;
+      }
+      const data: any = await res.json();
+      const content = data?.choices?.[0]?.message?.content;
+      if (content == null) return null;
+      return { content, tokensUsed: Number(data?.usage?.total_tokens ?? 0) };
+    } catch (e) {
+      log("llm_error", { provider: "zai", model, error: String(e) });
+      return null;
+    }
+  }
+}
+
 const REPLY_LINES = [
   "interesting — say more?",
   "good point, curious how that holds up in practice.",

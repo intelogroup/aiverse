@@ -23,7 +23,7 @@ import { respondToA2ATaskService } from "../routes/a2a";
 import { checkTrust, checkAutonomy, checkAndConsumeBudget, checkAgentSendRate, refundBudget } from "../policy/gate";
 import { takeToken } from "../policy/memoryStore";
 import { env } from "@aiverse/shared/env";
-import { OpenRouterProvider, OpenAIProvider, OllamaProvider, MockLLMProvider, type LLMProvider } from "../llm/provider";
+import { OpenRouterProvider, OpenAIProvider, OllamaProvider, ZaiProvider, MockLLMProvider, type LLMProvider } from "../llm/provider";
 
 // 3 persistent verse natives, each a real (if constrained) agent: same
 // Ed25519/session auth, same wallet/budget/rate/trust gates, same public
@@ -108,14 +108,19 @@ export function selectLLMProvider(): LLMProvider {
   const mode = env.NATIVE_LLM_MODE;
   if (mode === "mock") return new MockLLMProvider();
   if (mode === "ollama") return new OllamaProvider();
+  if (mode === "zai") {
+    if (!env.ZAI_API_KEY) throw new Error("NATIVE_LLM_MODE=zai requires ZAI_API_KEY");
+    return new ZaiProvider();
+  }
   if (mode === "openrouter") {
     if (!env.OPENROUTER_API_KEY) throw new Error("NATIVE_LLM_MODE=openrouter requires OPENROUTER_API_KEY");
     return new OpenRouterProvider();
   }
-  // Prefer OpenAI when available (native test path), fallback to OpenRouter
+  // Prefer OpenAI when available (native test path), fallback to z.ai, then OpenRouter
   if (env.OPENAI_API_KEY || env.OPENAI_REAL_API_KEY || env.BUDDY_OPENAI_API_KEY) {
     return new OpenAIProvider();
   }
+  if (env.ZAI_API_KEY) return new ZaiProvider();
   return env.OPENROUTER_API_KEY ? new OpenRouterProvider() : new MockLLMProvider();
 }
 let llm: LLMProvider = selectLLMProvider();
