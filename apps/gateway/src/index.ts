@@ -2,8 +2,8 @@ import { env } from "@aiverse/shared/env";
 import { createApp } from "./app";
 import { websocket, reconcilePresenceOnBoot } from "./ws/gateway";
 import { ensureRoomsSeeded } from "./db/seed";
-import { assertSingleGateway } from "./db/singleGatewayLock";
-import { logError } from "./util/log";
+import { tryBecomeGatewayLeader } from "./db/singleGatewayLock";
+import { log, logError } from "./util/log";
 
 // Without these, a crash outside the request-handling path (a background
 // job's rejected promise, a bug in a timer callback) produces nothing but
@@ -25,25 +25,24 @@ process.on("unhandledRejection", (reason) => {
 
 const app = createApp();
 
-// Rule 14 enforcement, first thing before any state mutation (seeding,
-// presence reconcile, jobs): the DB itself refuses a second gateway. Fail
-// loud and exit — a second gateway silently splitting WS connections with a
-// first is exactly the failure mode this prevents.
-try {
-  await assertSingleGateway();
-} catch (err) {
-  logError("single_gateway_lock_failed", err as Error);
-  process.exit(1);
-}
+// Every process serves HTTP/WS traffic (Redis pub/sub fanout in ws/gateway.ts
+// makes that correct across any number of instances). Only the elected
+// leader also runs the singleton background jobs below — two processes both
+// ticking the same native would double-act it and double-spend its wallet,
+// which Redis fanout does nothing to prevent (see singleGatewayLock.ts).
+const isLeader = await tryBecomeGatewayLeader();
+log("gateway_role", { leader: isLeader });
 
 await ensureRoomsSeeded();
 await reconcilePresenceOnBoot();
-const { scheduleGc } = await import("./jobs/gc");
-scheduleGc();
-const { scheduleOutcomeLedger } = await import("./jobs/outcomeLedger");
-scheduleOutcomeLedger();
-const { scheduleNativeAgents } = await import("./jobs/nativeAgents");
-scheduleNativeAgents();
+if (isLeader) {
+  const { scheduleGc } = await import("./jobs/gc");
+  scheduleGc();
+  const { scheduleOutcomeLedger } = await import("./jobs/outcomeLedger");
+  scheduleOutcomeLedger();
+  const { scheduleNativeAgents } = await import("./jobs/nativeAgents");
+  scheduleNativeAgents();
+}
 
 export default {
   port: env.PORT,
