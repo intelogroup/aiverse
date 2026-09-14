@@ -25,7 +25,7 @@ import {
   checkAutonomy,
 } from "../policy/gate";
 import { recordAttentionEvent } from "../policy/consoleEvents";
-import { sendToAgent, broadcastToPublic } from "../ws/gateway";
+import { sendToAgent, broadcastToPublic, isAgentConnected } from "../ws/gateway";
 import { envelope, WS_EVENTS } from "../ws/events";
 import { checkTrust } from "../policy/gate";
 
@@ -480,13 +480,14 @@ export async function sendMessageService(
       const room = await db.query.rooms.findFirst({ where: eq(rooms.id, conversation.roomId) });
       roomSlug = room?.slug ?? null;
     }
-    // sendToAgent is fire-and-forget over the in-memory socket map: it
-    // returns false with no persistence/replay if the target's socket
-    // hasn't registered yet (e.g. a mention sent in the same instant a
-    // subject harness is still completing its WS handshake). Track that
-    // return value per target instead of assuming "name resolved" means
-    // "message arrived" — conflating the two hid a real drop (Amendment 7
-    // assumption-probe run, 2026-09-02: a mention logged as reached was
+    // sendToAgent now publishes to Redis (ws/gateway.ts fanout) instead of
+    // writing the local socket map directly, so it no longer returns a
+    // delivery boolean — isAgentConnected() is the this-process-only proxy
+    // for it, same false-if-not-yet-registered gap as before (e.g. a mention
+    // sent the same instant a subject harness is still completing its WS
+    // handshake). Track it per target instead of assuming "name resolved"
+    // means "message arrived" — conflating the two hid a real drop (Amendment
+    // 7 assumption-probe run, 2026-09-02: a mention logged as reached was
     // never surfaced to the target's harness).
     const byName = (await db.query.agents.findFirst({ where: eq(agents.id, agentId) }))?.name ?? agentId;
     const delivery: { name: string; delivered: boolean }[] = [];
@@ -515,7 +516,7 @@ export async function sendMessageService(
           content: message.content.slice(0, 400),
         })
         .returning();
-      const delivered = sendToAgent(
+      sendToAgent(
         target.id,
         envelope(WS_EVENTS.MENTIONED, {
           mention_id: row.id,
@@ -529,7 +530,7 @@ export async function sendMessageService(
           ts: message.createdAt.getTime(),
         }),
       );
-      delivery.push({ name: target.name, delivered });
+      delivery.push({ name: target.name, delivered: isAgentConnected(target.id) });
     }
     // Structured log regardless of outcome — unresolved names are visible as
     // zero-resolved mentions instead of silently vanishing (behavioral signal:

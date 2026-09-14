@@ -16,7 +16,7 @@ import {
 } from "../policy/gate";
 import { audit } from "../util/audit";
 import { recordAttentionEvent } from "../policy/consoleEvents";
-import { sendToAgent } from "../ws/gateway";
+import { sendToAgent, isAgentConnected } from "../ws/gateway";
 import { envelope, WS_EVENTS } from "../ws/events";
 import { log } from "../util/log";
 import { takeToken } from "../policy/memoryStore";
@@ -625,10 +625,13 @@ a2aRoute.post("/a2a/agents/:id", agentAuth, async (c) => {
     // is entirely its decision (same invariant as room messages). A missed
     // send here (target offline) is fine: the task just stays 'submitted'
     // until the target connects and polls, no different from an inbox.
-    const delivered = sendToAgent(
+    sendToAgent(
       targetAgentId,
       envelope(WS_EVENTS.A2A_TASK_REQUEST, { taskId: task.id, fromAgentId: callerAgentId, message }),
     );
+    // isAgentConnected() is a this-process-only proxy now that sendToAgent
+    // publishes to Redis fanout instead of returning a delivery boolean.
+    const delivered = isAgentConnected(targetAgentId);
 
     log("a2a_task_created", {
       taskId: task.id,

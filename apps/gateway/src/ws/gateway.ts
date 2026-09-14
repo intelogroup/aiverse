@@ -4,7 +4,7 @@ import type { ServerWebSocket } from "bun";
 import { and, eq, notInArray, gt, lt, ne, isNull } from "drizzle-orm";
 import { db } from "../db/client";
 import { agents, conversationParticipants, messages, a2aTasks, mentions } from "@aiverse/shared/schema";
-import { redis } from "../redis/client";
+import { redis, redisSub } from "../redis/client";
 import { envelope, WS_EVENTS } from "./events";
 import { log, timed } from "../util/log";
 
@@ -21,10 +21,10 @@ interface Connection {
 
 // Live WS refs — inherently per-process, sockets aren't serializable. Cross-
 // instance/restart-safe presence truth is the Redis `presence:{agentId}` TTL
-// key below, not this Map. This means "is agent X online" is correct even
-// across restarts/multiple gateways, but message delivery (sendToAgent) is
-// still only-this-process — a real gap for a multi-instance deployment,
-// deferred until more than one gateway process is actually run.
+// key below, not this Map. Delivery itself now goes through the Redis fanout
+// below instead of touching these maps directly — same code runs whether
+// there's one gateway process or many, so scaling out later is a deploy
+// change, not a delivery-logic rewrite.
 const connections = new Map<string, Connection>();
 
 const PRESENCE_TTL_SECONDS = 90; // > 2x the 30s heartbeat interval below
@@ -37,22 +37,9 @@ function presenceKey(agentId: string): string {
 // and agent status changes to the human console (Phase 4).
 const consoleConnections = new Map<string, Set<WSContext>>();
 
-export function broadcastToOwnerConsole(ownerId: string, event: ReturnType<typeof envelope>): void {
-  const sockets = consoleConnections.get(ownerId);
-  if (!sockets) return;
-  const payload = JSON.stringify(event);
-  for (const ws of sockets) ws.send(payload);
-}
-
 // unauthenticated public-feed viewers — no ownerId/agentId, just whoever has
 // the public homepage open.
 const publicConnections = new Set<WSContext>();
-
-export function broadcastToPublic(event: ReturnType<typeof envelope>): void {
-  if (publicConnections.size === 0) return;
-  const payload = JSON.stringify(event);
-  for (const ws of publicConnections) ws.send(payload);
-}
 
 // Hono's own WSContext, bound to the Bun socket this gateway actually runs
 // on. `raw` (the underlying Bun ServerWebSocket) is stable for the
@@ -61,12 +48,79 @@ export function broadcastToPublic(event: ReturnType<typeof envelope>): void {
 // to compare for identity, never the WSContext object itself.
 type WSContext = HonoWSContext<ServerWebSocket>;
 
-function broadcast(event: ReturnType<typeof envelope>, exceptAgentId?: string) {
-  const payload = JSON.stringify(event);
-  for (const [agentId, conn] of connections) {
-    if (agentId === exceptAgentId) continue;
-    conn.ws.send(payload);
+// ── Redis fanout ────────────────────────────────────────────────────────
+// Every delivery path (agent DM, room broadcast, console push, public feed)
+// publishes here instead of writing to the local Maps above directly. This
+// process's own subscriber below is what actually walks the Maps and calls
+// ws.send — publish-then-deliver-to-self, same as any other subscriber
+// would. That makes "how many gateway processes are running" purely a
+// deploy question: every instance sees every event and only delivers to the
+// sockets it actually holds.
+const WS_FANOUT_CHANNEL = "ws:fanout";
+
+type FanoutMessage =
+  | { kind: "agent"; agentId: string; event: ReturnType<typeof envelope> }
+  | { kind: "broadcast"; event: ReturnType<typeof envelope>; exceptAgentId?: string }
+  | { kind: "console"; ownerId: string; event: ReturnType<typeof envelope> }
+  | { kind: "public"; event: ReturnType<typeof envelope> };
+
+function publishFanout(msg: FanoutMessage) {
+  redis.publish(WS_FANOUT_CHANNEL, JSON.stringify(msg)).catch((err) => {
+    log("ws_fanout_publish_error", { kind: msg.kind, error: String(err) });
+  });
+}
+
+redisSub.subscribe(WS_FANOUT_CHANNEL).catch((err) => {
+  console.error("[ws-fanout] subscribe failed", err);
+});
+
+redisSub.on("message", (_channel: string, raw: string) => {
+  let msg: FanoutMessage;
+  try {
+    msg = JSON.parse(raw);
+  } catch {
+    return;
   }
+  switch (msg.kind) {
+    case "agent": {
+      const conn = connections.get(msg.agentId);
+      conn?.ws.send(JSON.stringify(msg.event));
+      break;
+    }
+    case "broadcast": {
+      const payload = JSON.stringify(msg.event);
+      for (const [agentId, conn] of connections) {
+        if (agentId === msg.exceptAgentId) continue;
+        conn.ws.send(payload);
+      }
+      break;
+    }
+    case "console": {
+      const sockets = consoleConnections.get(msg.ownerId);
+      if (!sockets) break;
+      const payload = JSON.stringify(msg.event);
+      for (const ws of sockets) ws.send(payload);
+      break;
+    }
+    case "public": {
+      if (publicConnections.size === 0) break;
+      const payload = JSON.stringify(msg.event);
+      for (const ws of publicConnections) ws.send(payload);
+      break;
+    }
+  }
+});
+
+export function broadcastToOwnerConsole(ownerId: string, event: ReturnType<typeof envelope>): void {
+  publishFanout({ kind: "console", ownerId, event });
+}
+
+export function broadcastToPublic(event: ReturnType<typeof envelope>): void {
+  publishFanout({ kind: "public", event });
+}
+
+function broadcast(event: ReturnType<typeof envelope>, exceptAgentId?: string) {
+  publishFanout({ kind: "broadcast", event, exceptAgentId });
 }
 
 // Bounded per source so a long-absent agent reconnecting doesn't get flooded
@@ -426,11 +480,13 @@ export async function reconcilePresenceOnBoot(): Promise<void> {
   }
 }
 
-export function sendToAgent(agentId: string, event: ReturnType<typeof envelope>): boolean {
-  const conn = connections.get(agentId);
-  if (!conn) return false;
-  conn.ws.send(JSON.stringify(event));
-  return true;
+// Fire-and-forget: publishes for every gateway process to attempt delivery,
+// so there's no synchronous "was it delivered" answer any more (there could
+// be several processes, each with a different view of who's connected).
+// Callers that logged the old boolean return should check isAgentConnected()
+// instead if they want an informational (this-process-only) flag.
+export function sendToAgent(agentId: string, event: ReturnType<typeof envelope>): void {
+  publishFanout({ kind: "agent", agentId, event });
 }
 
 export function forceDisconnectAgent(agentId: string, code: number, reason: string): boolean {

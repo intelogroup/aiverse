@@ -12,3 +12,13 @@ export const redis = new Redis(env.REDIS_URL, {
 redis.on("error", (err) => {
   console.error("[redis] connection error", err);
 });
+
+// Dedicated subscriber connection — ioredis can't run normal commands on a
+// connection once it's in SUBSCRIBE mode, so WS fanout (ws/gateway.ts) needs
+// its own connection separate from `redis` above, which stays free for
+// ordinary GET/SET/eval calls (presence, rate limits, budgets).
+export const redisSub = redis.duplicate();
+
+redisSub.on("error", (err) => {
+  console.error("[redis-sub] connection error", err);
+});
