@@ -42,7 +42,7 @@ describe("native agents", () => {
     const { messages } = await import("@aiverse/shared/schema");
     await db.insert(messages).values({ conversationId: conv.conversationId, senderAgentId: fixer.id, content: "seed message for reply test" });
 
-    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversationId: conv.conversationId, content: "test reply from Sage" })));
+    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversation_id: conv.conversationId, content: "test reply from Sage" })));
     await tickOne(sage.id, "Sage", "prompt", "objective");
 
     const rows = await db.query.messages.findMany({ where: eq(messages.conversationId, conv.conversationId), orderBy: (m, { desc }) => [desc(m.createdAt)], limit: 1 });
@@ -68,7 +68,7 @@ describe("native agents", () => {
     await db.insert(messages).values({ conversationId: conv.conversationId, senderAgentId: sage.id, content: "sage's own last message" });
     const beforeFollowUp = await countAll();
 
-    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversationId: conv.conversationId, content: "sage follow-up (allowed)" })));
+    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversation_id: conv.conversationId, content: "sage follow-up (allowed)" })));
     await tickOne(sage.id, "Sage", "prompt", "objective");
 
     let after = await db.query.messages.findMany({ where: eq(messages.conversationId, conv.conversationId) });
@@ -82,7 +82,7 @@ describe("native agents", () => {
     // the wrong reason).
     await resetMemoryStoreForTests();
     const beforeThird = await countAll();
-    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversationId: conv.conversationId, content: "this must not be posted" })));
+    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversation_id: conv.conversationId, content: "this must not be posted" })));
     await tickOne(sage.id, "Sage", "prompt", "objective");
 
     after = await db.query.messages.findMany({ where: eq(messages.conversationId, conv.conversationId) });
@@ -101,7 +101,7 @@ describe("native agents", () => {
       .values({ name: `NativeInviteTarget-${Date.now()}`, agentCard: {}, apiKeyHash: "x", status: "online" })
       .returning();
 
-    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "invite", conversationId: conv.conversationId, targetAgentId })));
+    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "invite", conversation_id: conv.conversationId, agent_id: targetAgentId })));
     await tickOne(fixer.id, "Fixer", "prompt", "objective");
 
     const joined = await db.query.conversationParticipants.findFirst({
@@ -264,7 +264,7 @@ describe("native agents", () => {
 
     setLLMProviderForTests({
       complete: async () => ({
-        content: JSON.stringify({ action: "reply", conversationId: conv.conversationId, content: "billed reply" }),
+        content: JSON.stringify({ action: "reply", conversation_id: conv.conversationId, content: "billed reply" }),
         tokensUsed: 777,
       }),
     });
@@ -295,7 +295,7 @@ describe("native agents", () => {
 
     setLLMProviderForTests({
       complete: async () => ({
-        content: JSON.stringify({ action: "reply", conversationId: conv.conversationId, content: "should be blocked by budget" }),
+        content: JSON.stringify({ action: "reply", conversation_id: conv.conversationId, content: "should be blocked by budget" }),
         tokensUsed: 1,
       }),
     });
@@ -353,7 +353,7 @@ describe("run_id attribution", () => {
     const fixer = await getNative("Fixer");
     await db.insert(messages).values({ conversationId: conv.conversationId, senderAgentId: fixer.id, content: "seed for run_id test" });
 
-    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversationId: conv.conversationId, content: "run_id test reply" })));
+    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversation_id: conv.conversationId, content: "run_id test reply" })));
     await tickOne(sage.id, "Sage", "prompt", "objective");
 
     // Check the message has run_id
@@ -409,7 +409,7 @@ describe("run_id attribution", () => {
     const fixer = await getNative("Fixer");
     await db.insert(messages).values({ conversationId: conv.conversationId, senderAgentId: fixer.id, content: "seed for null run_id test" });
 
-    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversationId: conv.conversationId, content: "null run_id reply" })));
+    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversation_id: conv.conversationId, content: "null run_id reply" })));
     await tickOne(sage.id, "Sage", "prompt", "objective");
 
     const rows = await db.query.messages.findMany({

@@ -403,22 +403,26 @@ async function gatherContext(nativeAgentId: string): Promise<RoomContext[]> {
 }
 
 const ACTION_GRAMMAR = `Respond with ONLY one JSON object, no prose, matching exactly one of:
-{"action":"reply","conversationId":"<uuid>","content":"<text>","replyToId":"<uuid optional>"}
-{"action":"invite","conversationId":"<uuid>","targetAgentId":"<uuid>"}
-{"action":"ask_peer","targetAgentId":"<uuid>","content":"<text>"}
+{"action":"reply","conversation_id":"<uuid>","content":"<text>","reply_to_id":"<uuid optional>"}
+{"action":"invite","conversation_id":"<uuid>","agent_id":"<uuid>"}
+{"action":"ask_peer","agent_id":"<uuid>","content":"<text>"}
 {"action":"recruit_group","content":"<text>","topic":"<short name for the group>","targetAgentIds":["<uuid>","<uuid>","<uuid>"]}
 {"action":"answer_task","taskId":"<uuid>","content":"<text>"}
 {"action":"idle"}
 Only invite/ask_peer/recruit_group an agent whose id you actually saw in the context (a message sender, a newcomer, or a wanderingAgentId — wanderers are online agents who have not entered any room yet; a direct ask_peer DM or inviting them into a discussion is a good first contact). Never re-invite an agent who is already in the room, and never repeat an invite your memory shows already happened. Prefer idle over acting when nothing useful applies. Never send more than one short message.
 There is no "start a new public discussion" action — the public commons is the fixed set of rooms in Context.rooms; post there with "reply". Use recruit_group only to pull 3 to 5 specific agents (by id, from context) into a focused side conversation — never fewer than 3, never more than 5.
 @-mentions: in any reply or discussion content, you may address an agent directly by prefixing its EXACT name with @ (e.g. "@EcoEG-2 what is your take?"). A public @Name pings that agent directly, even if it has never entered the room. Use mentions to pull quiet or wandering agents into the conversation — one mention per message, only names you saw in the context.
-Context.directMessages lists private conversations you are already a participant in, most-awaiting-reply first — awaitingMyReply:true means the other side spoke last and you have not answered yet. Reply there with the same {"action":"reply","conversationId":...} you would use in a room thread.
+Context.directMessages lists private conversations you are already a participant in, most-awaiting-reply first — awaitingMyReply:true means the other side spoke last and you have not answered yet. Reply there with the same {"action":"reply","conversation_id":...} you would use in a room thread.
 Context.pendingTasks lists A2A protocol requests addressed to you that nobody has answered yet (separate channel from room chat and directMessages). Answer one with {"action":"answer_task","taskId":...,"content":...} — prefer this over idle when a pending task exists.`;
 
+// reply/invite/ask_peer arg keys (conversation_id, agent_id, reply_to_id) match
+// the subject-harness grammar (harness-action-grammar.ts) verbatim — unified
+// 2026-09-14 so the two runtimes don't diverge on the same verb's shape.
+// recruit_group/answer_task have no subject-harness counterpart, left as-is.
 type Action =
-  | { action: "reply"; conversationId: string; content: string; replyToId?: string }
-  | { action: "invite"; conversationId: string; targetAgentId: string }
-  | { action: "ask_peer"; targetAgentId: string; content: string }
+  | { action: "reply"; conversation_id: string; content: string; reply_to_id?: string }
+  | { action: "invite"; conversation_id: string; agent_id: string }
+  | { action: "ask_peer"; agent_id: string; content: string }
   | { action: "recruit_group"; content: string; topic?: string; targetAgentIds: string[] }
   | { action: "answer_task"; taskId: string; content: string }
   | { action: "idle" };
@@ -487,7 +491,7 @@ async function dispatch(nativeAgentId: string, nativeName: string, action: Actio
       // Only `reply` is guarded — recruit_group opens a fresh thread (no
       // history), and ask_peer/answer_task are task-channel messages.
       const lastTwo = await db.query.messages.findMany({
-        where: eq(messages.conversationId, action.conversationId),
+        where: eq(messages.conversationId, action.conversation_id),
         orderBy: (m, { desc }) => [desc(m.createdAt)],
         limit: 2,
       });
@@ -495,16 +499,16 @@ async function dispatch(nativeAgentId: string, nativeName: string, action: Actio
         log("native_tick_rejected", { name: nativeName, action: "reply", reason: "monologue_limit (two consecutive native messages)" });
         return "reply rejected: I already used my one follow-up in that thread — waiting for someone else to speak";
       }
-      const result = await sendMessageService(nativeAgentId, action.conversationId, { content: action.content, replyToId: action.replyToId, runId });
-      return result.status < 300 ? `replied in ${action.conversationId}: ${action.content.slice(0, 80)}` : `reply failed (${result.status}): ${JSON.stringify(result.body)}`;
+      const result = await sendMessageService(nativeAgentId, action.conversation_id, { content: action.content, replyToId: action.reply_to_id, runId });
+      return result.status < 300 ? `replied in ${action.conversation_id}: ${action.content.slice(0, 80)}` : `reply failed (${result.status}): ${JSON.stringify(result.body)}`;
     }
     case "invite": {
-      const result = await inviteToConversationService(nativeAgentId, action.conversationId, action.targetAgentId);
-      return result.status < 300 ? `invited ${action.targetAgentId} into ${action.conversationId}` : `invite failed (${result.status}): ${JSON.stringify(result.body)}`;
+      const result = await inviteToConversationService(nativeAgentId, action.conversation_id, action.agent_id);
+      return result.status < 300 ? `invited ${action.agent_id} into ${action.conversation_id}` : `invite failed (${result.status}): ${JSON.stringify(result.body)}`;
     }
     case "ask_peer": {
-      const ok = await sendA2ATask(nativeAgentId, action.targetAgentId, action.content);
-      return ok ? `asked peer ${action.targetAgentId}: ${action.content.slice(0, 80)}` : "ask_peer failed (policy gate)";
+      const ok = await sendA2ATask(nativeAgentId, action.agent_id, action.content);
+      return ok ? `asked peer ${action.agent_id}: ${action.content.slice(0, 80)}` : "ask_peer failed (policy gate)";
     }
     case "recruit_group": {
       // kind:"group" requires a name — fall back to the opener's own text
@@ -617,15 +621,15 @@ export async function tickOne(nativeAgentId: string, nativeName: string, prompt:
   const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const nameToId: Record<string, string> = { ...wanderingByName };
   for (const p of onlinePeers) nameToId[p.name] = p.id;
-  if ("targetAgentId" in action && !uuidRe.test(action.targetAgentId)) {
-    const resolved = nameToId[action.targetAgentId];
-    if (resolved) action.targetAgentId = resolved;
+  if ("agent_id" in action && !uuidRe.test(action.agent_id)) {
+    const resolved = nameToId[action.agent_id];
+    if (resolved) action.agent_id = resolved;
     else {
       log("native_tick_rejected", { name: nativeName, action: action.action, reason: "non-uuid target id (LLM hallucination)" });
       return;
     }
   }
-  if ("conversationId" in action && !uuidRe.test(action.conversationId)) {
+  if ("conversation_id" in action && !uuidRe.test(action.conversation_id)) {
     log("native_tick_rejected", { name: nativeName, action: action.action, reason: "non-uuid target id (LLM hallucination)" });
     return;
   }
