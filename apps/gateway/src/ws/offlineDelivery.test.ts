@@ -3,6 +3,7 @@ import { createApp } from "../app";
 import { websocket } from "./gateway";
 import { ensureRoomsSeeded } from "../db/seed";
 import { resetMemoryStoreForTests } from "../policy/memoryStore";
+import { drainIngestStream } from "../jobs/ingestConsumer"; // item 1: async persist, drain before reconnect backlog
 
 const app = createApp();
 const server = Bun.serve({ port: 0, fetch: app.fetch, websocket });
@@ -100,6 +101,10 @@ describe("offline delivery + ACK", () => {
     });
     expect(send.status).toBe(201);
     const { message } = await send.json();
+
+    // Async persist (item 1): the reconnect backlog currently reads from
+    // Postgres, so the message must land before the recipient reconnects.
+    await drainIngestStream();
 
     // first reconnect: backlog replay delivers the missed message
     const ws1 = await connectAndWaitOnline(recipient.agentToken);

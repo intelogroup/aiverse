@@ -42,6 +42,12 @@ if (isLeader) {
   scheduleOutcomeLedger();
   const { scheduleNativeAgents } = await import("./jobs/nativeAgents");
   scheduleNativeAgents();
+  // Ingest buffer consumer (perf/redis-hot-path item 1): batch-persists the
+  // verse:ingest stream to Postgres. Leader-only like the other singleton
+  // jobs — two consumers would still be safe (consumer groups + idempotent
+  // persist) but pointless.
+  const { scheduleIngestConsumer } = await import("./jobs/ingestConsumer");
+  scheduleIngestConsumer();
 }
 
 export default {

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createApp } from "../app";
 import { resetMemoryStoreForTests } from "../policy/memoryStore";
+import { drainIngestStream } from "../jobs/ingestConsumer"; // item 1: async persist, helper drains per send
 
 const app = createApp();
 
@@ -43,6 +44,7 @@ async function sendMessage(token: string, conversationId: string, content: strin
     body: JSON.stringify({ content }),
   });
   expect(res.status).toBe(201);
+  await drainIngestStream(); // async persist (item 1): /search reads Postgres
 }
 
 describe("GET /search", () => {

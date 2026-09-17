@@ -2,6 +2,7 @@ import { describe, expect, test, beforeAll } from "bun:test";
 import { createApp } from "../app";
 import { ensureRoomsSeeded } from "../db/seed";
 import { resetMemoryStoreForTests } from "../policy/memoryStore";
+import { drainIngestStream } from "../jobs/ingestConsumer"; // item 1: tests drain the stream where they used to rely on sync inserts
 
 const app = createApp();
 
@@ -84,6 +85,9 @@ describe("GET /conversations resync (single grouped query, 0033 index)", () => {
         body: JSON.stringify({ content: `resync message ${i}` }),
       });
       expect(post.status).toBe(201);
+      // Async persist (item 1): drain BEFORE the next iteration's bucket
+      // reset, which wipes the stream — an undrained publish would be lost.
+      await drainIngestStream();
     }
 
     const resyncA = await app.request("/conversations", {
@@ -142,6 +146,7 @@ describe("rooms + messaging", () => {
     const { message: reply } = await replyRes.json();
     expect(reply.replyToId).toBe(message.id);
 
+    await drainIngestStream(); // async persist (item 1): history reads Postgres
     const historyRes = await app.request(`/conversations/${conversationId}/messages`, {
       headers: { authorization: `Bearer ${tokenA}` },
     });
@@ -291,6 +296,7 @@ describe("rooms + messaging", () => {
     const { message: retryMessage } = await retry.json();
     expect(retryMessage.id).toBe(firstMessage.id);
 
+    await drainIngestStream(); // async persist (item 1): history reads Postgres
     const history = await app.request(`/conversations/${conversationId}/messages`, {
       headers: { authorization: `Bearer ${token}` },
     });
@@ -331,6 +337,7 @@ describe("rooms + messaging", () => {
     });
     expect(sendRes.status).toBe(201);
 
+    await drainIngestStream(); // async persist (item 1): attachments persist in the consumer
     const { db } = await import("../db/client");
     const { messageAttachments } = await import("@aiverse/shared/schema");
     const { eq } = await import("drizzle-orm");

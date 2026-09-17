@@ -5,6 +5,7 @@ import { agents, agentMemory, agentWallets, conversationParticipants, nativeRuns
 import { ensureRoomsSeeded } from "../db/seed";
 import { resetMemoryStoreForTests, takeToken } from "../policy/memoryStore";
 import { ensureNativeAgents, setLLMProviderForTests, tickOne, startRun, stopRun, getCurrentRunId } from "./nativeAgents";
+import { drainIngestStream } from "./ingestConsumer"; // item 1: tick posts publish async, drain before DB assertions
 import type { LLMProvider } from "../llm/provider";
 
 function stubProvider(response: string | null): LLMProvider {
@@ -44,6 +45,7 @@ describe("native agents", () => {
 
     setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversation_id: conv.conversationId, content: "test reply from Sage" })));
     await tickOne(sage.id, "Sage", "prompt", "objective");
+    await drainIngestStream(); // item 1: tick posts publish async, persist before DB assertions
 
     const rows = await db.query.messages.findMany({ where: eq(messages.conversationId, conv.conversationId), orderBy: (m, { desc }) => [desc(m.createdAt)], limit: 1 });
     expect(rows[0]?.content).toBe("test reply from Sage");
@@ -70,6 +72,7 @@ describe("native agents", () => {
 
     setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversation_id: conv.conversationId, content: "sage follow-up (allowed)" })));
     await tickOne(sage.id, "Sage", "prompt", "objective");
+    await drainIngestStream(); // item 1: tick posts publish async, persist before DB assertions
 
     let after = await db.query.messages.findMany({ where: eq(messages.conversationId, conv.conversationId) });
     expect(after.length).toBe(beforeFollowUp + 1); // the follow-up WAS posted
@@ -84,6 +87,7 @@ describe("native agents", () => {
     const beforeThird = await countAll();
     setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversation_id: conv.conversationId, content: "this must not be posted" })));
     await tickOne(sage.id, "Sage", "prompt", "objective");
+    await drainIngestStream(); // item 1: tick posts publish async, persist before DB assertions
 
     after = await db.query.messages.findMany({ where: eq(messages.conversationId, conv.conversationId) });
     expect(after.length).toBe(beforeThird); // nothing was posted
@@ -103,6 +107,7 @@ describe("native agents", () => {
 
     setLLMProviderForTests(stubProvider(JSON.stringify({ action: "invite", conversation_id: conv.conversationId, agent_id: targetAgentId })));
     await tickOne(fixer.id, "Fixer", "prompt", "objective");
+    await drainIngestStream(); // item 1: tick posts publish async, persist before DB assertions
 
     const joined = await db.query.conversationParticipants.findFirst({
       where: eq(conversationParticipants.agentId, targetAgentId),
@@ -124,6 +129,7 @@ describe("native agents", () => {
 
     setLLMProviderForTests(stubProvider(JSON.stringify({ action: "recruit_group", content: "let's talk", topic, targetAgentIds })));
     await tickOne(kova.id, "Kova", "prompt", "objective");
+    await drainIngestStream(); // item 1: tick posts publish async, persist before DB assertions
 
     const conv = await db.query.conversations.findFirst({ where: eq(conversations.name, topic) });
     expect(conv).toBeDefined();
@@ -148,6 +154,7 @@ describe("native agents", () => {
     const topic = `too small ${Date.now()}`;
     setLLMProviderForTests(stubProvider(JSON.stringify({ action: "recruit_group", content: "hi", topic, targetAgentIds: [targets[0].id] })));
     await tickOne(kova.id, "Kova", "prompt", "objective");
+    await drainIngestStream(); // item 1: tick posts publish async, persist before DB assertions
 
     const conv = await db.query.conversations.findFirst({ where: eq(conversations.name, topic) });
     expect(conv).toBeUndefined();
@@ -184,6 +191,7 @@ describe("native agents", () => {
       },
     });
     await tickOne(sage.id, "Sage", "prompt", "objective");
+    await drainIngestStream(); // item 1: tick posts publish async, persist before DB assertions
 
     const parsed = JSON.parse(capturedUserContent);
     expect(parsed.onlineAgentCapabilities).toBeDefined();
@@ -244,6 +252,7 @@ describe("native agents", () => {
       },
     });
     await tickOne(kronikler.id, "Kronikler", "prompt", "objective");
+    await drainIngestStream(); // item 1: tick posts publish async, persist before DB assertions
 
     const parsed = JSON.parse(capturedUserContent);
     const dm = (parsed.directMessages as any[]).find((d) => d.conversationId === conv.id);
@@ -269,6 +278,7 @@ describe("native agents", () => {
       }),
     });
     await tickOne(sage.id, "Sage", "prompt", "objective");
+    await drainIngestStream(); // item 1: tick posts publish async, persist before DB assertions
 
     const { checkAndConsumeBudget, refundBudget } = await import("../policy/gate");
     // Consuming 0 more just reads back today's running total without
@@ -300,6 +310,7 @@ describe("native agents", () => {
       }),
     });
     await tickOne(fixer.id, "Fixer", "prompt", "objective");
+    await drainIngestStream(); // item 1: tick posts publish async, persist before DB assertions
 
     const after = await db.query.messages.findMany({ where: eq(messages.conversationId, conv.conversationId) });
     expect(after.length).toBe(before.length);
@@ -312,6 +323,7 @@ describe("native agents", () => {
 
     setLLMProviderForTests(stubProvider("not json at all"));
     await tickOne(sage.id, "Sage", "prompt", "objective");
+    await drainIngestStream(); // item 1: tick posts publish async, persist before DB assertions
 
     const after = await db.query.agentMemory.findMany({ where: eq(agentMemory.agentId, sage.id) });
     expect(after.length).toBe(before.length);
@@ -355,6 +367,7 @@ describe("run_id attribution", () => {
 
     setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversation_id: conv.conversationId, content: "run_id test reply" })));
     await tickOne(sage.id, "Sage", "prompt", "objective");
+    await drainIngestStream(); // item 1: tick posts publish async, persist before DB assertions
 
     // Check the message has run_id
     const rows = await db.query.messages.findMany({
@@ -411,6 +424,7 @@ describe("run_id attribution", () => {
 
     setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversation_id: conv.conversationId, content: "null run_id reply" })));
     await tickOne(sage.id, "Sage", "prompt", "objective");
+    await drainIngestStream(); // item 1: tick posts publish async, persist before DB assertions
 
     const rows = await db.query.messages.findMany({
       where: eq(messages.conversationId, conv.conversationId),
