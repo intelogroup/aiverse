@@ -25,7 +25,28 @@
 // stream grows until the next leader drains it (stale pending entries are
 // XAUTOCLAIMed); dropping un-persisted messages to bound Redis memory would
 // silently lose user data, which is worse.
-import { sql } from "drizzle-orm";
+//
+// DURABILITY CONTRACT (read before changing the ack/fan-out boundary):
+// - A send's 201 means "durably buffered": the XADD was acked by Redis.
+//   The row is NOT yet in Postgres — it lands ≤~250ms later via the
+//   leader-only consumer below, sooner on reconnect-driven drains.
+// - The durability boundary is therefore Redis itself, not Postgres. This
+//   is sound only because the deployed Redis is disk-persistent (Render
+//   managed keyvalue): a gateway crash/restart loses nothing — the stream,
+//   the consumer group, and the pending-entry list all survive, and the
+//   new leader reclaims them via XAUTOCLAIM on boot.
+// - Accepted residual risk: total Redis data loss (managed-service
+//   catastrophe, not a process crash) loses buffered-but-unpersisted
+//   entries that already got 201s and live fan-out. If that risk ever
+//   becomes unacceptable, the fix is a synchronous Postgres write-ahead on
+//   the send path — i.e. reverting this module's reason for existing, not
+//   a tweak to it.
+// - Live fan-out happens at publish time, so agents can see a message that
+//   is later quarantined as poison (quarantinePoisonEntry) rather than
+//   persisted. The reconnect backlog (ws/gateway.ts deliverBacklog, with
+//   its stream-tail merge and early-ACK stash) is the reconciliation point
+//   that converges what agents saw with what Postgres holds.
+import { sql, inArray } from "drizzle-orm";
 import { db } from "../db/client";
 import {
   messages,
@@ -76,13 +97,18 @@ export async function getInflightMessage(
   return redis.get(inflightKey(conversationId, senderAgentId, clientMessageId));
 }
 
+// Atomic first-writer-wins reservation for a clientMessageId. Concurrent
+// same-key sends must not both publish — the loser returns the winner's
+// message instead (see the send path in routes/conversations.ts). Returns
+// false when the key already exists.
 export async function setInflightMessage(
   conversationId: string,
   senderAgentId: string,
   clientMessageId: string,
   messageJson: string,
-): Promise<void> {
-  await redis.set(inflightKey(conversationId, senderAgentId, clientMessageId), messageJson, "PX", INFLIGHT_TTL_MS);
+): Promise<boolean> {
+  const res = await redis.set(inflightKey(conversationId, senderAgentId, clientMessageId), messageJson, "PX", INFLIGHT_TTL_MS, "NX");
+  return res === "OK";
 }
 
 // Remove an in-flight reservation: used when the stream publish it was
@@ -207,7 +233,7 @@ async function ackEntries(entries: IngestEntry[]): Promise<void> {
 // XAUTOCLAIM race) hit ON CONFLICT DO NOTHING on the pre-generated ids, and
 // only rows that actually inserted drive the derived updates — derived state
 // can never double-count a redelivered entry.
-export async function persistIngestBatch(entries: IngestEntry[]): Promise<{ inserted: number }> {
+async function persistBatch(entries: IngestEntry[]): Promise<{ inserted: number }> {
   if (!entries.length) return { inserted: 0 };
   // Stream order ≈ arrival order; keep the batch in that order so
   // created_at (taken from the publish timestamp) stays monotonic and the
@@ -247,7 +273,7 @@ export async function persistIngestBatch(entries: IngestEntry[]): Promise<{ inse
   // all-or-nothing: a pre-commit crash replays the full batch cleanly, a
   // post-commit crash replays into pure conflicts and the derived rows are
   // already there. (The transaction does NOT cover Redis — see below.)
-  const inserted = await db.transaction(async (tx) => {
+  const { ins: inserted, liveIds } = await db.transaction(async (tx) => {
     // Returning only id+conversationId keeps the transfer small; rows the
     // conflict clause skipped are simply absent (that's how we know what was
     // actually inserted vs. redelivered).
@@ -298,15 +324,33 @@ export async function persistIngestBatch(entries: IngestEntry[]): Promise<{ inse
     if (mentionRows.length) {
       await tx.insert(mentions).values(mentionRows).onConflictDoNothing();
     }
-    return ins;
+
+    // Conflict losers vs replays: entries that didn't insert are either
+    // redeliveries (id already in Postgres — e.g. replay after a crash
+    // between the commit and XACK) or clientMessageId-conflict losers (same
+    // key, different pre-generated id — Postgres dropped them). Only the
+    // former may drive derived Redis state below; a loser would plant a
+    // phantom message in the recent cache and a poison job in the classify
+    // feed for an id that doesn't exist.
+    const nonInserted = sorted.filter((e) => !insertedIds.has(e.id));
+    const replayIds = new Set<string>();
+    if (nonInserted.length) {
+      const existing = await tx
+        .select({ id: messages.id })
+        .from(messages)
+        .where(inArray(messages.id, nonInserted.map((e) => e.id)));
+      for (const r of existing) replayIds.add(r.id);
+    }
+    return { ins, liveIds: new Set([...insertedIds, ...replayIds]) };
   });
 
-  // Derived Redis state, one pipeline for the whole batch — deliberately
-  // driven by ALL entries, not just the newly inserted ones, and written
-  // idempotently. Reason: a crash after the Postgres commit but before the
-  // XACK replays the batch with zero inserts; gating Redis on
-  // insertedEntries would then permanently lose the cache/classify/seq
-  // updates for those messages. Instead:
+  // Derived Redis state, one pipeline for the whole batch — driven by
+  // inserted + replayed entries, never by conflict losers (see above).
+  // Idempotent by construction, which is what lets replays re-drive it:
+  // a crash after the Postgres commit but before the XACK replays the batch
+  // with zero inserts; gating Redis on insertedEntries alone would then
+  // permanently lose the cache/classify/seq updates for those messages.
+  // Instead:
   // - recent cache: LREM the exact value before LPUSH, so a replay moves
   //   the entry to the head instead of duplicating it;
   // - classify feed: XADD is append-only, so a replay CAN duplicate feed
@@ -317,6 +361,7 @@ export async function persistIngestBatch(entries: IngestEntry[]): Promise<{ inse
   const pipe = redis.pipeline();
   const seqConversations = new Set<string>();
   for (const e of sorted) {
+    if (!liveIds.has(e.id)) continue; // conflict loser — Postgres dropped it
     const cacheValue = JSON.stringify({
       id: e.id,
       conversationId: e.conversationId,
@@ -339,6 +384,80 @@ export async function persistIngestBatch(entries: IngestEntry[]): Promise<{ inse
   await pipe.exec();
 
   return { inserted: inserted.length };
+}
+
+// Postgres integrity-violation class (foreign_key_violation 23503,
+// not_null 23502, check 23514, ...): the entry itself is bad, not the
+// database. Anything else (connection blip, timeout) is transient and must
+// keep the current retry-whole-batch-next-pass behavior.
+// Note: drizzle surfaces failures as DrizzleQueryError with the driver
+// error on .cause — unwrap a couple of levels to find the PG code.
+function isConstraintViolation(err: unknown): boolean {
+  let cur: unknown = err;
+  for (let i = 0; i < 3 && cur != null; i++) {
+    const code = (cur as { code?: unknown } | null)?.code;
+    if (typeof code === "string" && code.startsWith("23")) return true;
+    cur = (cur as { cause?: unknown } | null)?.cause;
+  }
+  return false;
+}
+
+const POISON_LIST_KEY = "verse:ingest:poison";
+const POISON_LIST_CAP = 100;
+
+async function quarantinePoisonEntry(entry: IngestEntry, err: unknown): Promise<void> {
+  // Acked, not re-driven: the entry stays in the (untrimmed) stream for
+  // forensic replay, and a capped Redis list + loud log give operators the
+  // signal. Without this, one bad entry (e.g. a runId for a deleted run)
+  // FK-violates every batch it lands in and wedges the whole stream —
+  // sends keep 201-ing while nothing persists.
+  await ackEntries([entry]);
+  try {
+    await redis.lpush(
+      POISON_LIST_KEY,
+      JSON.stringify({
+        streamId: entry.streamId,
+        messageId: entry.id,
+        conversationId: entry.conversationId,
+        senderAgentId: entry.senderAgentId,
+        error: String(err),
+        at: new Date().toISOString(),
+      }),
+    );
+    await redis.ltrim(POISON_LIST_KEY, 0, POISON_LIST_CAP - 1);
+  } catch {
+    // Observability must never break the consumer loop.
+  }
+  logError("ingest_poison_entry_quarantined", err, {
+    streamId: entry.streamId,
+    messageId: entry.id,
+    conversationId: entry.conversationId,
+  });
+}
+
+// Batch entry point (drainOnce, claimStalePending, tests). On a constraint
+// violation the batch is retried entry-by-entry: good entries persist
+// normally, poison entries are quarantined (acked, logged, listed) instead
+// of failing the batch forever. Transient errors rethrow — the caller's
+// per-iteration catch retries the whole batch next pass, as before.
+export async function persistIngestBatch(entries: IngestEntry[]): Promise<{ inserted: number }> {
+  if (!entries.length) return { inserted: 0 };
+  try {
+    return await persistBatch(entries);
+  } catch (err) {
+    if (!isConstraintViolation(err)) throw err;
+    logError("ingest_batch_constraint_violation_falling_back_to_solo", err, { count: entries.length });
+    let inserted = 0;
+    for (const entry of entries) {
+      try {
+        inserted += (await persistBatch([entry])).inserted;
+      } catch (soloErr) {
+        if (!isConstraintViolation(soloErr)) throw soloErr;
+        await quarantinePoisonEntry(entry, soloErr);
+      }
+    }
+    return { inserted };
+  }
 }
 
 async function ensureGroup(): Promise<void> {

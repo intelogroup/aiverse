@@ -8,6 +8,7 @@ import {
   agents,
   agentWallets,
   rooms,
+  nativeRuns,
 } from "@aiverse/shared/schema";
 import { agentAuth } from "../middleware/agentAuth";
 import {
@@ -22,6 +23,7 @@ import {
   checkAutonomy,
 } from "../policy/gate";
 import { recordAttentionEvent } from "../policy/consoleEvents";
+import { logError } from "../util/log";
 import { sendToAgent, broadcastToPublic, isAgentConnected } from "../ws/gateway";
 import { publishIngest, getInflightMessage, setInflightMessage, deleteInflightMessage } from "../jobs/ingestConsumer";
 import { envelope, WS_EVENTS } from "../ws/events";
@@ -262,6 +264,27 @@ conversationsRoute.post("/:id/leave", agentAuth, async (c) => {
 // Extracted so native agents can reply through the exact same
 // budget/rate/trust/broadcast logic a route handler runs — no duplicate
 // policy code, no privileged native-only path.
+// Winner lookup for a lost idempotency race (see the NX reservation in the
+// send path): the in-flight stash if the winner hasn't been consumer-
+// persisted yet, else the durable row. Returns null when the winner reserved
+// but never published (it threw and deleted its key, or crashed) — the
+// caller then takes over the reservation instead of returning a ghost.
+async function findDuplicateWinner(
+  conversationId: string,
+  senderAgentId: string,
+  clientMessageId: string,
+): Promise<unknown> {
+  const inflight = await getInflightMessage(conversationId, senderAgentId, clientMessageId);
+  if (inflight) return JSON.parse(inflight);
+  return await db.query.messages.findFirst({
+    where: and(
+      eq(messages.conversationId, conversationId),
+      eq(messages.senderAgentId, senderAgentId),
+      eq(messages.clientMessageId, clientMessageId),
+    ),
+  });
+}
+
 export async function sendMessageService(
   agentId: string,
   conversationId: string,
@@ -277,6 +300,17 @@ export async function sendMessageService(
 ): Promise<{ status: number; body: any }> {
   if (!body.content) {
     return { status: 400, body: { error: "content required" } };
+  }
+
+  // runId FK-guards the consumer's batch insert (messages.run_id →
+  // native_runs.id). A bogus runId would 201 here and then FK-violate the
+  // batch, so validate it up front — cheap indexed point read, before any
+  // budget is consumed.
+  if (body.runId) {
+    const run = await db.query.nativeRuns.findFirst({ where: eq(nativeRuns.id, body.runId) });
+    if (!run) {
+      return { status: 400, body: { error: "unknown runId" } };
+    }
   }
   if (body.content.length > 32 * 1024) {
     return { status: 400, body: { error: "content too large (max 32KB)" } };
@@ -309,10 +343,12 @@ export async function sendMessageService(
   //  2. durable check — the original already committed (the pre-existing
   //     query, unchanged).
   // Two genuinely concurrent requests with the same clientMessageId can both
-  // pass these checks and both consume budget/rate before the DB's unique
-  // constraint picks a winner in the consumer's ON CONFLICT DO NOTHING —
-  // that residual gap is a real reserve-vs-commit problem across Redis and
-  // Postgres, not solved here (same as before this change).
+  // pass these checks and both consume budget/rate — the race is resolved
+  // below by the atomic NX in-flight reservation: exactly one publishes,
+  // the loser gets the winner's message as its 200 (with a budget refund).
+  // A retry that arrives after the reservation expired (120s) but before the
+  // consumer persisted re-reserves and re-publishes; the consumer's
+  // ON CONFLICT DO NOTHING still picks a single Postgres winner.
   if (body.clientMessageId) {
     const inflight = await getInflightMessage(conversationId, agentId, body.clientMessageId);
     if (inflight) {
@@ -383,9 +419,12 @@ export async function sendMessageService(
   // and a singleton leader-only consumer batch-persists it within ~250ms
   // (jobs/ingestConsumer.ts). The response carries the same shape the old
   // synchronous insert returned, so callers are unaffected — only the
-  // durability timing changed. The consumer's ON CONFLICT DO NOTHING on the
-  // pre-generated id is the race backstop for concurrent identical retries
-  // (replacing the old insert-time onConflictDoNothing + winner-refetch).
+  // durability timing changed. The race backstop for concurrent identical
+  // retries is the atomic NX in-flight reservation below (replacing the old
+  // insert-time onConflictDoNothing + winner-refetch); the consumer's
+  // ON CONFLICT DO NOTHING on (conversation, sender, client_message_id)
+  // stays as the backstop for retries that re-publish after the reservation
+  // expired.
   const message = {
     id: uuidv7(),
     conversationId,
@@ -445,17 +484,46 @@ export async function sendMessageService(
     }
   }
 
-  // The in-flight reservation is written INSIDE the compensated try with the
-  // publish, not before it: if setInflightMessage itself throws, the budget
-  // reserved above is refunded; if publishIngest throws after the
-  // reservation was written, the key is deleted so a retry doesn't return
-  // a ghost message for a publish that never happened. (A publish that
-  // actually reached Redis but lost its ack is still safe: the retry's
-  // duplicate is dropped by the (conversation, sender, client_message_id)
-  // ON CONFLICT DO NOTHING in the consumer.)
+  // The in-flight reservation is an atomic NX SET inside the compensated try
+  // with the publish. Exactly one of concurrent same-key sends wins it:
+  // - winner: publishes (below) and fans out exactly once;
+  // - loser: returns the winner's message as the idempotent 200 response
+  //   instead of publishing a duplicate. The old synchronous path resolved
+  //   this race in Postgres before fan-out; the async path must resolve it
+  //   here, before the stream — a loser that published would fan out live
+  //   AND poison the consumer's derived Redis state (recent cache, classify
+  //   feed) with a message id the (conversation, sender, client_message_id)
+  //   ON CONFLICT DO NOTHING then drops.
+  // If setInflightMessage itself throws, the budget reserved above is
+  // refunded; if publishIngest throws after the reservation was written, the
+  // key is deleted so a retry doesn't return a ghost message for a publish
+  // that never happened. (A publish that actually reached Redis but lost its
+  // ack is still safe: the retry's duplicate is dropped by the consumer's
+  // ON CONFLICT DO NOTHING.)
   try {
     if (body.clientMessageId) {
-      await setInflightMessage(conversationId, agentId, body.clientMessageId, JSON.stringify(message));
+      let reserved = false;
+      for (let attempt = 0; attempt < 2 && !reserved; attempt++) {
+        reserved = await setInflightMessage(conversationId, agentId, body.clientMessageId, JSON.stringify(message));
+        if (!reserved) {
+          const winner = await findDuplicateWinner(conversationId, agentId, body.clientMessageId);
+          if (winner) {
+            // This attempt consumed budget above for a message that will
+            // never publish — refund it like any other failed send. The
+            // refund is best-effort compensation: it must not turn the
+            // winner's message into a 500.
+            await refundBudget(agentId, body.tokensUsed ?? 0).catch((refundErr) =>
+              logError("send_loser_budget_refund_failed", refundErr, { agentId }),
+            );
+            return { status: 200, body: { message: winner } };
+          }
+          // The winner reserved but never published (it threw and deleted
+          // its key, or crashed): the key is free again — loop and take over
+          // as the winner. A second consecutive loss with still no winner is
+          // not a real state; the throw below refunds and the client retries.
+        }
+      }
+      if (!reserved) throw new Error("idempotency reservation failed without a winner");
     }
     await publishIngest({
       id: message.id,
@@ -487,10 +555,16 @@ export async function sendMessageService(
     // never queued. Same saga-compensation posture as the old insert path.
     // Also drop the in-flight reservation (written inside this try): a
     // retry must not see a ghost message for a publish that never happened.
+    // Each cleanup is independent and best-effort: a failing delete must
+    // not swallow the refund, and neither may mask the original error.
     if (body.clientMessageId) {
-      await deleteInflightMessage(conversationId, agentId, body.clientMessageId);
+      await deleteInflightMessage(conversationId, agentId, body.clientMessageId).catch((cleanupErr) =>
+        logError("send_cleanup_delete_inflight_failed", cleanupErr, { conversationId, agentId }),
+      );
     }
-    await refundBudget(agentId, body.tokensUsed ?? 0);
+    await refundBudget(agentId, body.tokensUsed ?? 0).catch((refundErr) =>
+      logError("send_cleanup_budget_refund_failed", refundErr, { agentId }),
+    );
     throw err;
   }
 
@@ -516,10 +590,9 @@ export async function sendMessageService(
   // durable row is inserted by the ingest consumer AFTER the message row
   // exists (FK) — the push carries the pre-generated mention_id so a client
   // can ack immediately. Early-ack race: if the ack lands in the ≤250ms
-  // window before the consumer persists the row, the ack's UPDATE hits zero
-  // rows and the mention is replayed once on the next reconnect — one
-  // duplicate, consistent with the at-least-once posture everywhere else
-  // (unacked messages replay the same way).
+  // window before the consumer persists the row, the ack is stashed in Redis
+  // (ws/gateway.ts handleAck) and the reconnect backlog filters the stashed
+  // id out — no duplicate, unlike the unacked-message replay path.
   // Log whenever the message contained @-names — even when nothing resolved
   // or every target was suppressed: unresolved names are visible as
   // zero-resolved mentions instead of silently vanishing (behavioral signal:

@@ -223,4 +223,82 @@ describe("ingest buffer (item 1)", () => {
     expect(rows[0]!.targetAgentId).toBe(target.id);
     expect(rows[0]!.byName).toBe(`IngestMentionSender${suffix}`);
   });
+
+  test("clientMessageId conflict loser plants no phantom cache entry or classify job", async () => {
+    // Two stream entries, same (conversation, sender, clientMessageId), two
+    // pre-generated ids: simulates a retry that re-published after the NX
+    // reservation expired. Stream order decides — the first XADD wins the
+    // consumer's ON CONFLICT DO NOTHING; the loser must not leak into any
+    // derived Redis state (a phantom recent-cache entry would be served by
+    // the reconnect backlog; a classify-feed entry would FK-violate the
+    // worker and wedge its batch).
+    await resetMemoryStoreForTests();
+    const agent = await registerAgent(`ConflictLoser${Date.now().toString(36)}`);
+    const conversationId = await makeConversation(agent.token, true);
+    const key = `conflict-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const winnerId = uuidv7();
+    const loserId = uuidv7();
+    const now = Date.now();
+    await publishIngest(fields(conversationId, agent.id, "winner", { id: winnerId, clientMessageId: key, ts: now }));
+    await publishIngest(fields(conversationId, agent.id, "loser", { id: loserId, clientMessageId: key, ts: now }));
+    await drainIngestStream();
+
+    // Postgres: exactly one row — the winner.
+    const rows = await db.query.messages.findMany({ where: eq(messages.clientMessageId, key) });
+    expect(rows.length).toBe(1);
+    expect(rows[0]!.id).toBe(winnerId);
+
+    // Recent cache: the winner exactly once, the loser nowhere.
+    const cached = await redis.lrange(recentCacheKey(conversationId), 0, -1);
+    const cachedIds = cached.map((c) => (JSON.parse(c) as { id: string }).id);
+    expect(cachedIds).toEqual([winnerId]);
+
+    // Classify feed: exactly one job, the winner's.
+    const feed = (await redis.xrange(CLASSIFY_STREAM, "-", "+", "COUNT", 100)) as Array<[string, string[]]>;
+    const feedIds = feed.map(([, flat]) => {
+      const m = new Map<string, string>();
+      for (let i = 0; i + 1 < flat.length; i += 2) m.set(flat[i], flat[i + 1]);
+      return m.get("messageId");
+    });
+    expect(feedIds).toEqual([winnerId]);
+
+    // Room sequence: one increment for the batch's live entry, not two.
+    expect(await redis.get(roomSeqKey(conversationId))).toBe("1");
+  });
+
+  test("poison entry (FK violation) is quarantined without wedging the stream", async () => {
+    // A runId for a nonexistent run FK-violates the batch insert. The batch
+    // falls back to solo persists: the good entry lands normally, the poison
+    // is acked + listed + logged instead of failing every batch forever
+    // (which would wedge the stream — sends keep 201-ing while nothing
+    // persists).
+    await resetMemoryStoreForTests();
+    const agent = await registerAgent(`Poison${Date.now().toString(36)}`);
+    const conversationId = await makeConversation(agent.token, true);
+    const goodId = uuidv7();
+    const poisonId = uuidv7();
+    const bogusRunId = uuidv7(); // no such native_runs row
+    const now = Date.now();
+    await publishIngest(fields(conversationId, agent.id, "good", { id: goodId, ts: now }));
+    await publishIngest(fields(conversationId, agent.id, "poison", { id: poisonId, runId: bogusRunId, ts: now }));
+
+    // Must not throw: the poison is quarantined inside persistIngestBatch.
+    await drainIngestStream();
+
+    const goodRows = await db.query.messages.findMany({ where: eq(messages.id, goodId) });
+    expect(goodRows.length).toBe(1);
+    const poisonRows = await db.query.messages.findMany({ where: eq(messages.id, poisonId) });
+    expect(poisonRows.length).toBe(0);
+
+    const poisonList = await redis.lrange("verse:ingest:poison", 0, -1);
+    expect(poisonList.length).toBe(1);
+    expect((JSON.parse(poisonList[0]) as { messageId: string }).messageId).toBe(poisonId);
+
+    // The stream keeps moving: a later good entry persists normally.
+    const laterId = uuidv7();
+    await publishIngest(fields(conversationId, agent.id, "later", { id: laterId, ts: Date.now() }));
+    await drainIngestStream();
+    const laterRows = await db.query.messages.findMany({ where: eq(messages.id, laterId) });
+    expect(laterRows.length).toBe(1);
+  });
 });
