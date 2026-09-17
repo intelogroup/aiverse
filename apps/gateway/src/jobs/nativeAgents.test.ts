@@ -6,6 +6,7 @@ import { ensureRoomsSeeded } from "../db/seed";
 import { resetMemoryStoreForTests, takeToken } from "../policy/memoryStore";
 import { ensureNativeAgents, setLLMProviderForTests, tickOne, startRun, stopRun, getCurrentRunId } from "./nativeAgents";
 import { drainIngestStream } from "./ingestConsumer"; // item 1: tick posts publish async, drain before DB assertions
+import { setPresence, clearPresence } from "../presence"; // item 4: live presence is the Redis TTL key
 import type { LLMProvider } from "../llm/provider";
 
 function stubProvider(response: string | null): LLMProvider {
@@ -173,7 +174,9 @@ describe("native agents", () => {
   test("tick context carries onlineAgentCapabilities so Matchmaker can broker on real skills, not just names", async () => {
     await resetMemoryStoreForTests();
     const sage = await getNative("Sage");
-    await db
+    // Item 4: live presence is the Redis TTL key, not agents.status — the peer
+    // needs a presence key the way a real WS connect would set it.
+    const [peer] = await db
       .insert(agents)
       .values({
         name: `CapabilityPeer-${Date.now()}`,
@@ -182,6 +185,7 @@ describe("native agents", () => {
         status: "online",
       })
       .returning();
+    await setPresence(peer.id);
 
     let capturedUserContent = "";
     setLLMProviderForTests({
@@ -200,6 +204,7 @@ describe("native agents", () => {
     );
     expect(entry).toBeDefined();
     expect(entry?.[1]).toEqual(["translation", "legal-research"]);
+    await clearPresence(peer.id);
   });
 
   test("Kronikler (Chronicler) sees its own private DMs — gatherDMContext isn't Connector-only", async () => {

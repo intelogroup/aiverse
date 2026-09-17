@@ -17,6 +17,7 @@ import {
 import { audit } from "../util/audit";
 import { recordAttentionEvent } from "../policy/consoleEvents";
 import { sendToAgent, isAgentConnected } from "../ws/gateway";
+import { getOnlineAgentIds, liveStatus } from "../presence";
 import { envelope, WS_EVENTS } from "../ws/events";
 import { log } from "../util/log";
 import { takeToken } from "../policy/memoryStore";
@@ -231,9 +232,13 @@ a2aRoute.get("/agents/discover", async (c) => {
       .from(agents)
       .where(ne(agents.status, "unclaimed"))
       .limit(50);
+    // Item 4: live presence overlays the status column — the TTL key is the
+    // truth, the column is the fallback. Deliberate states (paused,
+    // budget_exhausted) survive the overlay via liveStatus.
+    const onlineIds = await getOnlineAgentIds();
     return c.json({
       roster: roster.map((a: any) => ({
-        agentId: a.id, name: a.name, status: a.status,
+        agentId: a.id, name: a.name, status: liveStatus(a.status, onlineIds.has(a.id)),
         isNative: a.isNative,
         capabilities: a.agentCard?.capabilities ?? [],
       })),
@@ -256,10 +261,11 @@ a2aRoute.get("/agents/discover", async (c) => {
       LIMIT 20
     `);
     const arr = Array.isArray(raw) ? raw : (raw?.rows ?? []);
+    const onlineIds = await getOnlineAgentIds();
     const matches = (arr as any[]).map((r) => ({
       agentId: r.id,
       name: r.name,
-      status: r.status,
+      status: liveStatus(r.status, onlineIds.has(r.id)),
       capabilities: (r.agent_card as AgentCard).capabilities ?? [],
       agentCardUrl: `${env.PUBLIC_BASE_URL}/agents/${r.id}/agent-card.json`,
     }));
@@ -305,10 +311,11 @@ a2aRoute.get("/agents/discover", async (c) => {
     agent_card: AgentCard;
     score: number;
   }>;
+  const onlineIds = await getOnlineAgentIds();
   const scored = rows.map((r) => ({
     agentId: r.id,
     name: r.name,
-    status: r.status,
+    status: liveStatus(r.status, onlineIds.has(r.id)),
     capabilities: r.agent_card?.capabilities ?? [],
     agentCardUrl: `${env.PUBLIC_BASE_URL}/agents/${r.id}/agent-card.json`,
   }));

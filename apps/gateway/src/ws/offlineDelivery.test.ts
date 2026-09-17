@@ -323,15 +323,18 @@ describe("reconnect backlog from the Redis recent-message cache (item 3)", () =>
     const sender = await registerAgent("TrimmedCacheSender");
     const recipient = await registerAgent("TrimmedCacheRecipient");
 
-    const join = await app.request("/rooms/general/join", {
+    // Private conversation (not the shared general room): hermetic — the
+    // general room accumulates messages across the whole suite and the
+    // by-design 50-per-conversation backlog cap would otherwise truncate
+    // this test's own newest message once the room grows past it.
+    const created = await app.request("/conversations", {
       method: "POST",
-      headers: { authorization: `Bearer ${recipient.agentToken}` },
+      headers: { "content-type": "application/json", authorization: `Bearer ${recipient.agentToken}` },
+      body: JSON.stringify({ participantIds: [sender.agentId] }),
     });
-    const { conversationId } = (await join.json()) as { conversationId: string };
-    await app.request("/rooms/general/join", {
-      method: "POST",
-      headers: { authorization: `Bearer ${sender.agentToken}` },
-    });
+    expect(created.status).toBe(201);
+    const { conversation } = (await created.json()) as { conversation: { id: string } };
+    const conversationId = conversation.id;
 
     // A message that predates the cache entirely (pre-item-1 era, or written
     // around the consumer): Postgres-only, never LPUSHed. Unique content so
@@ -368,8 +371,6 @@ describe("reconnect backlog from the Redis recent-message cache (item 3)", () =>
 
     // Postgres fallback: the ancient message must be delivered, oldest-first
     // relative to the new one — a cache-only read would silently drop it.
-    // (The general room is shared across files, so assert order relative to
-    // this test's own messages, not the exact full sequence.)
     const contents = events.map((e) => e.payload.content);
     expect(contents).toContain(ancientContent);
     expect(contents).toContain(newContent);

@@ -22,6 +22,8 @@ import { createConversationService, sendMessageService, inviteToConversationServ
 import { respondToA2ATaskService } from "../routes/a2a";
 import { checkTrust, checkAutonomy, checkAndConsumeBudget, checkAgentSendRate, refundBudget } from "../policy/gate";
 import { takeToken } from "../policy/memoryStore";
+import { redis } from "../redis/client";
+import { presenceKey, getOnlineAgentIds, NATIVE_PRESENCE_TTL_SECONDS } from "../presence";
 import { env } from "@aiverse/shared/env";
 import { OpenRouterProvider, OpenAIProvider, OllamaProvider, ZaiProvider, MockLLMProvider, type LLMProvider } from "../llm/provider";
 
@@ -551,23 +553,34 @@ export async function tickOne(nativeAgentId: string, nativeName: string, prompt:
     limit: RECENT_MEMORY_ROWS,
   });
 
-  // Wanderers: online agents who have never entered any room. They are present
+  // Wanderers: live agents who have never entered any room. They are present
   // in the world but invisible to room-based greeting; natives may DM/invite
-  // them so presence alone can convert into social contact.
-  const wandering = await db.query.agents.findMany({
-    where: and(eq(agents.isNative, false), eq(agents.status, "online")),
-    limit: 20,
-  });
+  // them so presence alone can convert into social contact. Item 4: the live
+  // set comes from the Redis TTL presence keys (one cheap SCAN per native
+  // tick), not agents.status — then an indexed IN query for the rows we need.
+  // NOTE: keep this as a local fetched inside gatherContext, not a parameter:
+  // bun's bundler miscompiles a same-file parameter passed from tickOne here
+  // (renames the binding in the signature but not the body references).
+  const presenceLiveIds = await getOnlineAgentIds();
+  const wandering = presenceLiveIds.size
+    ? await db.query.agents.findMany({
+        where: and(eq(agents.isNative, false), inArray(agents.id, [...presenceLiveIds])),
+        limit: 20,
+      })
+    : [];
   const participantIds = new Set(
     (await db.select({ agentId: conversationParticipants.agentId }).from(conversationParticipants)).map((r) => r.agentId),
   );
   const wanderingAgentIds = wandering.filter((a) => !participantIds.has(a.id)).slice(0, 5).map((a) => a.id);
   const wanderingByName: Record<string, string> = {};
   for (const w of wandering.filter((a) => !participantIds.has(a.id)).slice(0, 10)) wanderingByName[w.name] = w.id;
-  // Every online agent's exact name — the vocabulary for @-mentions. A public
+  // Every live agent's exact name — the vocabulary for @-mentions. A public
   // "@Name" pings that agent's socket directly, so this list is what lets a
   // native deliberately pull a specific quiet agent into the commons.
-  const onlinePeers = (await db.query.agents.findMany({ where: eq(agents.status, "online") }))
+  // Item 4: same Redis live set as wandering above.
+  const onlinePeers = (
+    presenceLiveIds.size ? await db.query.agents.findMany({ where: inArray(agents.id, [...presenceLiveIds]) }) : []
+  )
     .filter((a) => !a.isNative && a.id !== nativeAgentId)
     .slice(0, 20);
   const onlineAgentNames = onlinePeers.map((a) => a.name);
@@ -651,8 +664,15 @@ async function tick() {
   try {
     const natives = await db.query.agents.findMany({ where: eq(agents.isNative, true) });
     // Natives are always-on world infrastructure: reflect that in presence data.
-    if (natives.length)
+    // Item 4: the Redis TTL key is the live signal (natives hold no WS socket,
+    // so nothing else refreshes it); the DB status stays as the transition
+    // record / Redis-down fallback. TTL 300s > the 90–150s tick interval.
+    if (natives.length) {
       await db.update(agents).set({ status: "online", lastSeenAt: new Date() }).where(eq(agents.isNative, true));
+      const pipe = redis.pipeline();
+      for (const n of natives) pipe.set(presenceKey(n.id), "1", "EX", NATIVE_PRESENCE_TTL_SECONDS);
+      await pipe.exec();
+    }
     for (const native of natives) {
       const meta = NATIVES.find((n) => n.name === native.name);
       if (!meta) continue;

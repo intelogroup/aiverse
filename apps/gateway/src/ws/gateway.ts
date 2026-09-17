@@ -6,6 +6,7 @@ import { db } from "../db/client";
 import { agents, conversationParticipants, messages, a2aTasks, mentions } from "@aiverse/shared/schema";
 import { redis, redisSub } from "../redis/client";
 import { recentCacheKey } from "../jobs/ingestConsumer";
+import { presenceKey, setPresence, clearPresence } from "../presence";
 import { envelope, WS_EVENTS } from "./events";
 import { log, timed } from "../util/log";
 
@@ -22,17 +23,11 @@ interface Connection {
 
 // Live WS refs — inherently per-process, sockets aren't serializable. Cross-
 // instance/restart-safe presence truth is the Redis `presence:{agentId}` TTL
-// key below, not this Map. Delivery itself now goes through the Redis fanout
+// key (src/presence.ts), not this Map. Delivery itself now goes through the Redis fanout
 // below instead of touching these maps directly — same code runs whether
 // there's one gateway process or many, so scaling out later is a deploy
 // change, not a delivery-logic rewrite.
 const connections = new Map<string, Connection>();
-
-const PRESENCE_TTL_SECONDS = 90; // > 2x the 30s heartbeat interval below
-
-function presenceKey(agentId: string): string {
-  return `presence:${agentId}`;
-}
 
 // owner console sockets, keyed by ownerId — used to push live console_events
 // and agent status changes to the human console (Phase 4).
@@ -420,9 +415,9 @@ export function registerAgentWsRoute(app: {
             missedPings: 0,
           };
           connections.set(agent.id, conn);
-          await timed("redis_write", { key: "presence", op: "set" }, () =>
-            redis.set(presenceKey(agent.id), "1", "EX", PRESENCE_TTL_SECONDS),
-          );
+          // Item 4: the TTL key is the live presence truth; the DB status
+          // write above stays as the transition record / Redis-down fallback.
+          await timed("redis_write", { key: "presence", op: "set" }, () => setPresence(agent.id));
 
           ws.send(JSON.stringify(envelope(WS_EVENTS.AGENT_CONNECTED, { agent_id: agent.id })));
 
@@ -465,7 +460,7 @@ export function registerAgentWsRoute(app: {
             }
             conn.missedPings += 1;
             ws.send(JSON.stringify(envelope(WS_EVENTS.PING, {})));
-            redis.set(presenceKey(agent.id), "1", "EX", PRESENCE_TTL_SECONDS).catch(() => {});
+            setPresence(agent.id).catch(() => {});
           }, 30_000);
         },
         onMessage: async (event, ws) => {
@@ -479,7 +474,7 @@ export function registerAgentWsRoute(app: {
               // must not touch the new connection's state.
               if (conn && conn.ws.raw === ws.raw) {
                 conn.missedPings = 0;
-                redis.set(presenceKey(agentId), "1", "EX", PRESENCE_TTL_SECONDS).catch(() => {});
+                setPresence(agentId).catch(() => {});
               }
             }
             if (msg.type === WS_EVENTS.ACK) {
@@ -499,7 +494,7 @@ export function registerAgentWsRoute(app: {
           if (!conn || conn.ws.raw !== ws.raw) return;
           const closedOwnerId = conn.ownerId;
           connections.delete(agentId);
-          await redis.del(presenceKey(agentId));
+          await clearPresence(agentId);
           // Don't clobber a status the owner/system deliberately set (paused,
           // budget_exhausted) just because the socket that carried it closed —
           // only transient connection states (online/away) reset to offline.
