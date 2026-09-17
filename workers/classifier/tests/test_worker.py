@@ -11,13 +11,15 @@ from classifier.worker import (
     parse_stream_entry,
     process_batch,
     process_message,
+    reclaim_stale,
 )
 
 
 class FakeCursor:
-    def __init__(self, pending_rows, already_classified=False):
+    def __init__(self, pending_rows, already_classified=False, message_exists=True):
         self.pending_rows = pending_rows
         self.already_classified = already_classified
+        self.message_exists = message_exists
         self.executed = []
 
     def execute(self, sql, params=None):
@@ -27,6 +29,10 @@ class FakeCursor:
         return self.pending_rows
 
     def fetchone(self):
+        sql, _params = self.executed[-1]
+        if "FROM messages WHERE id" in sql:
+            # the poison guard: a row means "message really persisted"
+            return ("1",) if self.message_exists else None
         # the ML_DONE guard: a row means "already classified, skip"
         return ("1",) if self.already_classified else None
 
@@ -38,8 +44,8 @@ class FakeCursor:
 
 
 class FakeConn:
-    def __init__(self, pending_rows, already_classified=False):
-        self._cursor = FakeCursor(pending_rows, already_classified)
+    def __init__(self, pending_rows, already_classified=False, message_exists=True):
+        self._cursor = FakeCursor(pending_rows, already_classified, message_exists)
         self.committed = False
 
     def cursor(self):
@@ -99,6 +105,17 @@ def test_process_message_returns_true_and_writes_when_new():
     assert len(write_statements(conn._cursor)) > 0
 
 
+def test_process_message_skips_unknown_message_without_writes():
+    """Poison guard: a classify entry for a message id Postgres never
+    persisted (a clientMessageId-conflict loser) must be skipped, not
+    FK-violate the message_topics/message_sentiment/message_entities
+    INSERTs and wedge the batch."""
+    conn = FakeConn([], message_exists=False)
+    with conn.cursor() as cur:
+        assert process_message(cur, "phantom-id", "hello") is False
+    assert write_statements(conn._cursor) == []
+
+
 def test_parse_stream_entry_decodes_bytes_fields():
     assert parse_stream_entry({b"messageId": b"abc", b"content": b"hello"}) == ("abc", "hello")
 
@@ -120,14 +137,24 @@ def test_parse_stream_entry_rejects_malformed(fields):
 
 
 class FakeRedis:
-    def __init__(self, fail_busygroup=False):
+    def __init__(self, fail_busygroup=False, autoclaim_batches=None):
         self.created = []
         self.fail_busygroup = fail_busygroup
+        self.autoclaim_batches = list(autoclaim_batches or [])
+        self.acked = []
 
     def xgroup_create(self, stream, group, id="0", mkstream=False):
         if self.fail_busygroup:
             raise ResponseError("BUSYGROUP Consumer Group name already exists")
         self.created.append((stream, group, id, mkstream))
+
+    def xautoclaim(self, stream, group, consumer, min_idle, start_id="0-0", count=None):
+        if not self.autoclaim_batches:
+            return (b"0-0", [])
+        return self.autoclaim_batches.pop(0)
+
+    def xack(self, stream, group, *ids):
+        self.acked.extend(ids)
 
 
 def test_ensure_group_creates_at_zero_with_mkstream():
@@ -150,3 +177,25 @@ def test_redis_client_socket_timeout_outlives_block():
         assert kwargs.get("socket_timeout", 0) > BLOCK_MS / 1000
     finally:
         r.close()
+
+
+def test_reclaim_stale_processes_and_acks_stranded_entries():
+    """Entries stranded by a dead/renamed consumer are autoclaimed, classified,
+    and acked instead of sitting in the PEL forever."""
+    conn = FakeConn([])
+    stranded = [(b"1-0", {b"messageId": b"msg-r1", b"content": b"hello world"})]
+    r = FakeRedis(autoclaim_batches=[(b"0-0", stranded)])
+
+    assert reclaim_stale(conn, r) == 1
+    assert r.acked == [b"1-0"]
+    assert conn.committed is True
+    assert any("INSERT INTO message_topics" in sql for sql, _ in conn._cursor.executed)
+
+
+def test_reclaim_stale_returns_zero_when_nothing_stranded():
+    conn = FakeConn([])
+    r = FakeRedis()
+
+    assert reclaim_stale(conn, r) == 0
+    assert r.acked == []
+    assert conn.committed is False

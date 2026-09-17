@@ -23,7 +23,7 @@ import { respondToA2ATaskService } from "../routes/a2a";
 import { checkTrust, checkAutonomy, checkAndConsumeBudget, checkAgentSendRate, refundBudget } from "../policy/gate";
 import { takeToken } from "../policy/memoryStore";
 import { redis } from "../redis/client";
-import { presenceKey, getOnlineAgentIds, NATIVE_PRESENCE_TTL_SECONDS } from "../presence";
+import { presenceKey, getOnlineAgentIdSample, NATIVE_PRESENCE_TTL_SECONDS } from "../presence";
 import { roomSeqKey } from "./ingestConsumer";
 import { env } from "@aiverse/shared/env";
 import { OpenRouterProvider, OpenAIProvider, OllamaProvider, ZaiProvider, MockLLMProvider, type LLMProvider } from "../llm/provider";
@@ -661,13 +661,16 @@ export async function tickOne(nativeAgentId: string, nativeName: string, prompt:
   // them so presence alone can convert into social contact. Item 4: the live
   // set comes from the Redis TTL presence keys (one cheap SCAN per native
   // tick), not agents.status — then an indexed IN query for the rows we need.
+  // Bounded: a 60-id sample keeps both the SCAN and the Postgres IN-list
+  // O(1) no matter how many agents are live (the prompt only ever consumes
+  // the first handful of names anyway).
   // NOTE: keep this fetched inside gatherContext, not passed as a parameter
   // from tickOne: the tick may skip gathering entirely, and the live set
   // must reflect the moment of the gather, not the tick start.
-  const presenceLiveIds = await getOnlineAgentIds();
-  const wandering = presenceLiveIds.size
+  const presenceLiveIds = await getOnlineAgentIdSample(60);
+  const wandering = presenceLiveIds.length
     ? await db.query.agents.findMany({
-        where: and(eq(agents.isNative, false), inArray(agents.id, [...presenceLiveIds])),
+        where: and(eq(agents.isNative, false), inArray(agents.id, presenceLiveIds)),
         limit: 20,
       })
     : [];
@@ -692,11 +695,17 @@ export async function tickOne(nativeAgentId: string, nativeName: string, prompt:
   // Every live agent's exact name — the vocabulary for @-mentions. A public
   // "@Name" pings that agent's socket directly, so this list is what lets a
   // native deliberately pull a specific quiet agent into the commons.
-  // Item 4: same Redis live set as wandering above.
+  // Item 4: same bounded Redis live sample as wandering above — the filter
+  // runs in Postgres (isNative) + JS (self), then the final 20 are sliced.
   const onlinePeers = (
-    presenceLiveIds.size ? await db.query.agents.findMany({ where: inArray(agents.id, [...presenceLiveIds]) }) : []
+    presenceLiveIds.length
+      ? await db.query.agents.findMany({
+          where: and(eq(agents.isNative, false), inArray(agents.id, presenceLiveIds)),
+          limit: 25,
+        })
+      : []
   )
-    .filter((a) => !a.isNative && a.id !== nativeAgentId)
+    .filter((a) => a.id !== nativeAgentId)
     .slice(0, 20);
   const onlineAgentNames = onlinePeers.map((a) => a.name);
   // Matchmaker's whole mandate is "match a stated need to a peer's stated

@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 from pathlib import Path
 
 import psycopg
@@ -60,6 +61,17 @@ def format_vector(vec: list[float]) -> str:
 def process_message(cur: psycopg.Cursor, message_id: str, content: str) -> bool:
     """ML-upgrade one message. Returns True when it wrote rows, False when
     the message was already classified (duplicate feed delivery)."""
+    # Poison guard: a feed entry for a message id Postgres never persisted
+    # (a clientMessageId-conflict loser that slipped past the gateway's
+    # derived-state filter) would FK-violate the INSERTs below and wedge the
+    # whole batch — every entry redelivers forever, never acked. Skip and ack
+    # it instead. (Not a "not yet committed" race: the gateway only XADDs to
+    # verse:classify after the Postgres batch commits.)
+    cur.execute("SELECT 1 FROM messages WHERE id = %s", (message_id,))
+    if not cur.fetchone():
+        log.warning("skipping classify entry for unknown message %s", message_id)
+        return False
+
     cur.execute(ML_DONE_QUERY, (message_id,))
     if cur.fetchone():
         return False
@@ -138,6 +150,28 @@ def ensure_group(r: redis.Redis) -> None:
             raise
 
 
+def process_entries(conn: psycopg.Connection, r: redis.Redis, entries: list) -> None:
+    """Shared by the live consumer and the stale-claim reaper: parse each
+    entry, run the classifier, commit, ack. Malformed entries and unknown
+    message ids are acked-and-skipped by the guards inside — they never
+    stall the batch."""
+    ack_ids = []
+    with conn.cursor() as cur:
+        for entry_id, fields in entries:
+            parsed = parse_stream_entry(fields)
+            if parsed is None:
+                log.warning("skipping malformed classify entry %s", entry_id)
+                ack_ids.append(entry_id)
+                continue
+            message_id, content = parsed
+            if process_message(cur, message_id, content):
+                log.debug("classified %s", message_id)
+            ack_ids.append(entry_id)
+        conn.commit()
+    if ack_ids:
+        r.xack(CLASSIFY_STREAM, CLASSIFY_GROUP, *ack_ids)
+
+
 def consume_once(conn: psycopg.Connection, r: redis.Redis, read_id: str) -> bool:
     """One XREADGROUP round-trip: process a batch, ack it. Returns True when
     any entries were read (False = idle timeout, caller decides what next)."""
@@ -145,36 +179,66 @@ def consume_once(conn: psycopg.Connection, r: redis.Redis, read_id: str) -> bool
     if not resp:
         return False
     for _stream, entries in resp:
-        ack_ids = []
-        with conn.cursor() as cur:
-            for entry_id, fields in entries:
-                parsed = parse_stream_entry(fields)
-                if parsed is None:
-                    log.warning("skipping malformed classify entry %s", entry_id)
-                    ack_ids.append(entry_id)
-                    continue
-                message_id, content = parsed
-                if process_message(cur, message_id, content):
-                    log.debug("classified %s", message_id)
-                ack_ids.append(entry_id)
-            conn.commit()
-        if ack_ids:
-            r.xack(CLASSIFY_STREAM, CLASSIFY_GROUP, *ack_ids)
+        process_entries(conn, r, entries)
     return True
+
+
+# A crashed or renamed consumer's pending entries strand under its old name
+# (XREADGROUP "0" only replays the caller's own pending). Reclaim them: any
+# entry idle longer than this is autoclaimed into this consumer and
+# processed. Five minutes comfortably exceeds the slowest legit processing
+# stall (a batch is one Postgres round trip), so this can't steal live work
+# from a healthy replica.
+RECLAIM_MIN_IDLE_MS = 300_000
+RECLAIM_INTERVAL_S = 60
+
+
+def reclaim_stale(conn: psycopg.Connection, r: redis.Redis) -> int:
+    """XAUTOCLAIM entries stranded by dead/renamed consumers into this
+    consumer and process them. Returns the number of entries reclaimed."""
+    reclaimed = 0
+    cursor: str = "0-0"
+    while True:
+        result = r.xautoclaim(
+            CLASSIFY_STREAM, CLASSIFY_GROUP, CLASSIFY_CONSUMER, RECLAIM_MIN_IDLE_MS, start_id=cursor, count=BATCH_SIZE
+        )
+        next_cursor, claimed = result[0], result[1]
+        if isinstance(next_cursor, bytes):
+            next_cursor = next_cursor.decode()
+        cursor = next_cursor
+        if not claimed:
+            break
+        process_entries(conn, r, claimed)
+        reclaimed += len(claimed)
+        if cursor == "0-0":
+            break
+    if reclaimed:
+        log.info("reclaimed %d stale classify entries", reclaimed)
+    return reclaimed
 
 
 def consume_forever(conn: psycopg.Connection, r: redis.Redis) -> None:
     """Stream-first main loop. The pending re-read ("0") replays entries a
     previous run of this consumer read but never acked (crash between
-    processing and XACK); then ">" takes over for new entries."""
+    processing and XACK); then ">" takes over for new entries. Every minute
+    the reaper also XAUTOCLAIMs entries stranded by dead or renamed
+    consumers, so scaling past one replica (CLASSIFIER_CONSUMER per replica)
+    can't orphan work."""
     ensure_group(r)
     log.info("classifier consuming stream %s as %s/%s", CLASSIFY_STREAM, CLASSIFY_GROUP, CLASSIFY_CONSUMER)
     # Drain own pending first (bounded: stops at the first idle timeout),
     # then live-tail forever.
     while consume_once(conn, r, "0"):
         pass
+    last_reclaim = time.monotonic()
     while True:
         consume_once(conn, r, ">")
+        if time.monotonic() - last_reclaim >= RECLAIM_INTERVAL_S:
+            try:
+                reclaim_stale(conn, r)
+            except Exception:
+                log.exception("stale classify reclaim failed")
+            last_reclaim = time.monotonic()
 
 
 def make_redis_client() -> redis.Redis:

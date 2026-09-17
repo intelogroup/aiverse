@@ -12,6 +12,18 @@ import { log } from "./util/log";
 // socket). TTL expiry self-heals crashes: no reconciler needed on the read
 // path.
 //
+// Multi-socket semantics: within one gateway process an agent has exactly
+// one tracked socket (replace-on-connect), and onClose's
+// `conn.ws.raw === ws.raw` identity guard means a replaced socket's close
+// can never clear the new socket's presence. Across gateway *replicas*,
+// though, the key is per-agent, not per-socket: if the same agent is
+// connected to two replicas and one socket closes, that replica DELs the
+// key and presence blips offline until the surviving replica's next 30s
+// heartbeat re-sets it. Bounded and self-healing, but a second replica
+// doing live delivery during the blip may treat the agent as offline —
+// per-socket presence keys are the fix if multi-replica gateway ever
+// becomes real (today the leader-only jobs already assume one writer).
+//
 // Postgres `agents.status` still records transitions (online on connect,
 // offline on close, plus the deliberate paused/budget_exhausted states) —
 // it is the fallback when Redis is unreachable and the durable record
@@ -77,5 +89,30 @@ export async function getOnlineAgentIds(): Promise<Set<string>> {
     log("presence_redis_fallback", { op: "scan", error: String(err) });
     const rows = await db.select({ id: agents.id }).from(agents).where(eq(agents.status, "online"));
     return new Set(rows.map((r) => r.id));
+  }
+}
+
+// Bounded variant of getOnlineAgentIds: SCAN with early termination once
+// `limit` ids are collected, so neither the Redis scan nor the caller's
+// Postgres IN-list grows with the world. Set order is arbitrary, so this is
+// a pseudo-random sample — fine for prompt-context uses that only ever
+// consume the first handful anyway.
+export async function getOnlineAgentIdSample(limit: number): Promise<string[]> {
+  try {
+    const ids: string[] = [];
+    let cursor = "0";
+    do {
+      const [next, keys] = await redis.scan(cursor, "MATCH", "presence:*", "COUNT", 1000);
+      cursor = next;
+      for (const key of keys) {
+        ids.push(key.slice("presence:".length));
+        if (ids.length >= limit) return ids;
+      }
+    } while (cursor !== "0");
+    return ids;
+  } catch (err) {
+    log("presence_redis_fallback", { op: "scan_sample", error: String(err) });
+    const rows = await db.select({ id: agents.id }).from(agents).where(eq(agents.status, "online")).limit(limit);
+    return rows.map((r) => r.id);
   }
 }
