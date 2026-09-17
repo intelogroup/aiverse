@@ -5,6 +5,7 @@ import { and, eq, notInArray, gt, lt, ne, isNull } from "drizzle-orm";
 import { db } from "../db/client";
 import { agents, conversationParticipants, messages, a2aTasks, mentions } from "@aiverse/shared/schema";
 import { redis, redisSub } from "../redis/client";
+import { recentCacheKey } from "../jobs/ingestConsumer";
 import { envelope, WS_EVENTS } from "./events";
 import { log, timed } from "../util/log";
 
@@ -129,6 +130,61 @@ const BACKLOG_MESSAGES_PER_CONVERSATION = 50;
 const BACKLOG_A2A_TASKS = 50;
 const BACKLOG_MENTIONS = 20;
 
+// Item 3: reconnect message backlog reads from the per-conversation
+// recent-message cache the ingest consumer maintains
+// (verse:recent:<id>, newest-first, capped at RECENT_CACHE_CAP) instead of
+// Postgres. Returns null when the cache can't cover the cursor — cold,
+// evicted, or trimmed past lastDeliveredAt — and the caller falls back to
+// the Postgres query, which stays the source of truth.
+//
+// Coverage rule: the cache is a contiguous newest-first suffix of the
+// conversation (LPUSH in stream order, LREM+LPUSH on replay, atomic
+// pipeline), so it holds every undelivered message iff its oldest entry is
+// at or before the cursor. Pre-item-1 messages never entered the cache, so
+// an old cursor correctly misses and falls back.
+interface BacklogCacheEntry {
+  id: string;
+  conversationId: string;
+  senderAgentId: string;
+  content: string;
+  replyToId: string | null;
+  createdAt: number;
+}
+
+async function readBacklogCache(
+  conversationId: string,
+  agentId: string,
+  lastDeliveredAt: Date,
+): Promise<BacklogCacheEntry[] | null> {
+  const raw = await redis.lrange(recentCacheKey(conversationId), 0, -1);
+  if (!raw.length) return null;
+  const entries: BacklogCacheEntry[] = [];
+  for (const item of raw) {
+    try {
+      const e = JSON.parse(item) as Partial<BacklogCacheEntry>;
+      if (typeof e.id !== "string" || typeof e.createdAt !== "number" || !Number.isFinite(e.createdAt)) continue;
+      entries.push({
+        id: e.id,
+        conversationId: typeof e.conversationId === "string" ? e.conversationId : conversationId,
+        senderAgentId: typeof e.senderAgentId === "string" ? e.senderAgentId : "",
+        content: typeof e.content === "string" ? e.content : "",
+        replyToId: typeof e.replyToId === "string" ? e.replyToId : null,
+        createdAt: e.createdAt,
+      });
+    } catch {
+      // Poisoned entry: skip it rather than failing the whole backlog.
+    }
+  }
+  if (!entries.length) return null;
+  const cursorMs = lastDeliveredAt.getTime();
+  if (entries[entries.length - 1].createdAt > cursorMs) return null;
+  // Same filter-then-bound as the Postgres query below: only messages after
+  // the cursor, not from the reconnecting agent, at most the cap.
+  return entries
+    .filter((e) => e.createdAt > cursorMs && e.senderAgentId !== agentId)
+    .slice(0, BACKLOG_MESSAGES_PER_CONVERSATION);
+}
+
 // Offline delivery: replays anything this agent missed while disconnected.
 // Messages replay from each conversation's lastDeliveredAt cursor (only
 // advanced by an explicit client ack, see onMessage below); A2A tasks replay
@@ -143,15 +199,22 @@ async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ message
   let messagesDelivered = 0;
   let participantJoinsDelivered = 0;
   for (const p of participantRows) {
-    const backlog = await db.query.messages.findMany({
-      where: and(
-        eq(messages.conversationId, p.conversationId),
-        gt(messages.createdAt, p.lastDeliveredAt),
-        ne(messages.senderAgentId, agentId),
-      ),
-      orderBy: (m, { asc }) => [asc(m.createdAt)],
-      limit: BACKLOG_MESSAGES_PER_CONVERSATION,
-    });
+    // Cache-first (item 3): the Postgres query below is the fallback for a
+    // cold or cursor-uncovered cache. Cached entries are newest-first; the
+    // wire order stays oldest-first like the Postgres ORDER BY.
+    const cached = await readBacklogCache(p.conversationId, agentId, p.lastDeliveredAt);
+    const backlog =
+      cached !== null
+        ? [...cached].reverse()
+        : await db.query.messages.findMany({
+            where: and(
+              eq(messages.conversationId, p.conversationId),
+              gt(messages.createdAt, p.lastDeliveredAt),
+              ne(messages.senderAgentId, agentId),
+            ),
+            orderBy: (m, { asc }) => [asc(m.createdAt)],
+            limit: BACKLOG_MESSAGES_PER_CONVERSATION,
+          });
     for (const m of backlog) {
       ws.send(
         JSON.stringify(
@@ -161,7 +224,7 @@ async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ message
             sender_id: m.senderAgentId,
             content: m.content,
             reply_to_id: m.replyToId,
-            ts: m.createdAt.getTime(),
+            ts: typeof m.createdAt === "number" ? m.createdAt : m.createdAt.getTime(),
           }),
         ),
       );
