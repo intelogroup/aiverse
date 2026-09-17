@@ -377,3 +377,214 @@ describe("reconnect backlog from the Redis recent-message cache (item 3)", () =>
     expect(contents.indexOf(ancientContent)).toBeLessThan(contents.indexOf(newContent));
   }, 15000);
 });
+
+describe("reconnect racing the async persist window", () => {
+  test("a message sent but not yet consumer-persisted is still delivered on reconnect via the stream-tail merge", async () => {
+    await resetMemoryStoreForTests();
+    const sender = await registerAgent("RaceSender");
+    const recipient = await registerAgent("RaceRecipient");
+
+    const join = await app.request("/rooms/general/join", {
+      method: "POST",
+      headers: { authorization: `Bearer ${recipient.agentToken}` },
+    });
+    const { conversationId } = (await join.json()) as { conversationId: string };
+    await app.request("/rooms/general/join", {
+      method: "POST",
+      headers: { authorization: `Bearer ${sender.agentToken}` },
+    });
+
+    // Recipient connects once, then disconnects before the racing message.
+    const ws0 = await connectAndWaitOnline(recipient.agentToken);
+    ws0.close();
+    await new Promise((r) => setTimeout(r, 200));
+
+    // Sent while the recipient is offline — and deliberately NOT drained:
+    // the message fanned out live but is in neither Postgres nor the
+    // recent-message cache yet.
+    const send = await app.request(`/conversations/${conversationId}/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${sender.agentToken}` },
+      body: JSON.stringify({ content: "racing the persist window" }),
+    });
+    expect(send.status).toBe(201);
+    const { message } = (await send.json()) as { message: { id: string } };
+
+    // Sanity: nothing persisted yet.
+    const unpersisted = await db.query.messages.findMany({ where: eq(messages.id, message.id) });
+    expect(unpersisted.length).toBe(0);
+
+    // Reconnect: the backlog must deliver it via the stream-tail merge.
+    const ws1 = await connectAndWaitOnline(recipient.agentToken);
+    const backlog = await waitFor(ws1, (e) => e.type === "message" && e.payload.message_id === message.id);
+    expect(backlog.payload.content).toBe("racing the persist window");
+    ws1.close();
+    await new Promise((r) => setTimeout(r, 100));
+
+    // The consumer still persists it exactly once when it runs.
+    await drainIngestStream();
+    const persisted = await db.query.messages.findMany({ where: eq(messages.id, message.id) });
+    expect(persisted.length).toBe(1);
+  }, 15000);
+
+  test("an unpersisted @-mention merges into the reconnect backlog with its pre-generated id", async () => {
+    await resetMemoryStoreForTests();
+    const sender = await registerAgent("MentionRaceSender");
+    // Unique per run: mention resolution matches agents by (case-insensitive)
+    // name, and the shared test database accumulates agents across runs.
+    const targetName = `MentionRaceTarget${Date.now().toString(36)}`;
+    const recipient = await registerAgent(targetName);
+
+    const join = await app.request("/rooms/general/join", {
+      method: "POST",
+      headers: { authorization: `Bearer ${recipient.agentToken}` },
+    });
+    const { conversationId } = (await join.json()) as { conversationId: string };
+    await app.request("/rooms/general/join", {
+      method: "POST",
+      headers: { authorization: `Bearer ${sender.agentToken}` },
+    });
+
+    const send = await app.request(`/conversations/${conversationId}/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${sender.agentToken}` },
+      body: JSON.stringify({ content: `hey @${targetName} look at this` }),
+    });
+    expect(send.status).toBe(201);
+    const { message } = (await send.json()) as { message: { id: string } };
+
+    // No drain: the mention row doesn't exist in Postgres yet.
+    const ws = await connectAndWaitOnline(recipient.agentToken);
+    const mentioned = await waitFor(ws, (e) => e.type === "mentioned" && e.payload.message_id === message.id);
+    expect(mentioned.payload.by_name).toBe("MentionRaceSender");
+    const streamMentionId = mentioned.payload.mention_id as string;
+    expect(typeof streamMentionId).toBe("string");
+    ws.close();
+    await new Promise((r) => setTimeout(r, 100));
+
+    // Draining persists the row with the SAME pre-generated id — no duplicate.
+    await drainIngestStream();
+    const { mentions: mentionsTable } = await import("@aiverse/shared/schema");
+    const mrows = await db.query.mentions.findMany({ where: eq(mentionsTable.messageId, message.id) });
+    expect(mrows.length).toBe(1);
+    expect(mrows[0].id).toBe(streamMentionId);
+  }, 15000);
+});
+
+describe("early ACK inside the async persist window", () => {
+  test("a mention ACKed before its row is persisted is not redelivered on reconnect", async () => {
+    await resetMemoryStoreForTests();
+    const suffix = Date.now().toString(36);
+    // Unique names per run: Postgres is NOT reset between runs, and mention
+    // resolution is name-based.
+    const sender = await registerAgent(`EarlyAckSender${suffix}`);
+    const target = await registerAgent(`EarlyAckTarget${suffix}`);
+
+    const join = await app.request("/rooms/general/join", {
+      method: "POST",
+      headers: { authorization: `Bearer ${target.agentToken}` },
+    });
+    const { conversationId } = (await join.json()) as { conversationId: string };
+    await app.request("/rooms/general/join", {
+      method: "POST",
+      headers: { authorization: `Bearer ${sender.agentToken}` },
+    });
+
+    // Target is online so the live MENTIONED push reaches its socket.
+    const wsLive = await connectAndWaitOnline(target.agentToken);
+
+    const send = await app.request(`/conversations/${conversationId}/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${sender.agentToken}` },
+      body: JSON.stringify({ content: `@earlyacktarget${suffix} ping` }),
+    });
+    expect(send.status).toBe(201);
+
+    // The live push carries the pre-generated mention id — but the mention
+    // row is still only in the ingest stream (no drain yet).
+    const pushed = await waitFor(wsLive, (e) => e.type === "mentioned");
+    const mentionId = pushed.payload.mention_id as string;
+    expect(typeof mentionId).toBe("string");
+
+    // ACK immediately: the row doesn't exist yet, so without the early-ACK
+    // stash this ACK would be silently dropped and the mention redelivered
+    // on the next reconnect.
+    wsLive.send(
+      JSON.stringify({ type: "ack", id: crypto.randomUUID(), ts: Date.now(), payload: { mentionId } }),
+    );
+    await new Promise((r) => setTimeout(r, 300));
+    wsLive.close();
+    await new Promise((r) => setTimeout(r, 100));
+
+    // The row now persists — still unacked in Postgres.
+    await drainIngestStream();
+    const { mentions } = await import("@aiverse/shared/schema");
+    const rows = await db.query.mentions.findMany({ where: eq(mentions.id, mentionId) });
+    expect(rows.length).toBe(1);
+    expect(rows[0]!.ackedAt).toBeNull();
+
+    // Reconnect: the mention must NOT come back.
+    const seen: any[] = [];
+    const ws2 = await connectAndWaitOnline(target.agentToken);
+    ws2.onmessage = (msg) => {
+      const event = JSON.parse(String(msg.data));
+      if (event.type === "mentioned") seen.push(event);
+    };
+    await new Promise((r) => setTimeout(r, 1500));
+    expect(seen.filter((e) => e.payload.mention_id === mentionId)).toHaveLength(0);
+    ws2.close();
+  }, 20000);
+
+  test("a message ACKed before its row is persisted is not redelivered on reconnect", async () => {
+    await resetMemoryStoreForTests();
+    const sender = await registerAgent("EarlyAckMsgSender");
+    const recipient = await registerAgent("EarlyAckMsgRecipient");
+
+    const join = await app.request("/rooms/general/join", {
+      method: "POST",
+      headers: { authorization: `Bearer ${recipient.agentToken}` },
+    });
+    const { conversationId } = (await join.json()) as { conversationId: string };
+    await app.request("/rooms/general/join", {
+      method: "POST",
+      headers: { authorization: `Bearer ${sender.agentToken}` },
+    });
+
+    const wsLive = await connectAndWaitOnline(recipient.agentToken);
+
+    const send = await app.request(`/conversations/${conversationId}/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${sender.agentToken}` },
+      body: JSON.stringify({ content: "early ack race message" }),
+    });
+    expect(send.status).toBe(201);
+    const { message } = (await send.json()) as { message: { id: string } };
+
+    // Wait for the live push, then ACK while the row is still unpersisted.
+    await waitFor(wsLive, (e) => e.type === "message" && e.payload.message_id === message.id);
+    wsLive.send(
+      JSON.stringify({
+        type: "ack",
+        id: crypto.randomUUID(),
+        ts: Date.now(),
+        payload: { conversationId, messageId: message.id },
+      }),
+    );
+    await new Promise((r) => setTimeout(r, 300));
+    wsLive.close();
+    await new Promise((r) => setTimeout(r, 100));
+
+    await drainIngestStream();
+
+    // Reconnect: the message must NOT be in the backlog.
+    const seen: any[] = [];
+    const ws2 = await connectAndWaitOnline(recipient.agentToken);
+    ws2.onmessage = (msg) => {
+      const event = JSON.parse(String(msg.data));
+      if (event.type === "message") seen.push(event);
+    };
+    await new Promise((r) => setTimeout(r, 1500));
+    expect(seen.filter((e) => e.payload.message_id === message.id)).toHaveLength(0);
+    ws2.close();
+  }, 20000);
+});

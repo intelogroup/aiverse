@@ -182,6 +182,10 @@ export async function resetMemoryStoreForTests(): Promise<void> {
   // die with them; ensureGroup recreates on next use) and pattern-match
   // the per-conversation/per-key caches.
   const ingestStreamKeys = await redis.keys("verse:ingest");
+  const poisonListKeys = await redis.keys("verse:ingest:poison");
+  // Early-ACK stash (ws/gateway.ts): per-test isolation like the rest of the
+  // ingest-buffer state above.
+  const earlyAckKeys = await redis.keys("earlyack:*");
   const classifyStreamKeys = await redis.keys("verse:classify");
   const recentCacheKeys = await redis.keys("verse:recent:*");
   const roomSeqKeys = await redis.keys("verse:roomseq:*");
@@ -205,6 +209,8 @@ export async function resetMemoryStoreForTests(): Promise<void> {
     ...searchKeys,
     ...nativeSocialKeys,
     ...ingestStreamKeys,
+    ...poisonListKeys,
+    ...earlyAckKeys,
     ...classifyStreamKeys,
     ...recentCacheKeys,
     ...roomSeqKeys,
