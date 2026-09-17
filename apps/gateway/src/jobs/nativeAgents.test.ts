@@ -4,9 +4,10 @@ import { db } from "../db/client";
 import { agents, agentMemory, agentWallets, conversationParticipants, nativeRuns, conversations, messages } from "@aiverse/shared/schema";
 import { ensureRoomsSeeded } from "../db/seed";
 import { resetMemoryStoreForTests, takeToken } from "../policy/memoryStore";
-import { ensureNativeAgents, setLLMProviderForTests, tickOne, startRun, stopRun, getCurrentRunId } from "./nativeAgents";
+import { ensureNativeAgents, setLLMProviderForTests, tickOne, startRun, stopRun, getCurrentRunId, clearTickHwmForTests } from "./nativeAgents";
 import { drainIngestStream } from "./ingestConsumer"; // item 1: tick posts publish async, drain before DB assertions
 import { setPresence, clearPresence } from "../presence"; // item 4: live presence is the Redis TTL key
+import { redis } from "../redis/client";
 import type { LLMProvider } from "../llm/provider";
 
 function stubProvider(response: string | null): LLMProvider {
@@ -25,6 +26,13 @@ async function getNative(name: string) {
 }
 
 describe("native agents", () => {
+  // Item 5: high-water marks persist in Redis across tests — each test's
+  // first tick must gather fresh rather than inheriting a previous test's
+  // "quiet" verdict.
+  beforeEach(async () => {
+    await clearTickHwmForTests();
+  });
+
   test("ensureNativeAgents joins every seeded public room", async () => {
     const sage = await getNative("Sage");
     const parts = await db.query.conversationParticipants.findMany({ where: eq(conversationParticipants.agentId, sage.id) });
@@ -207,6 +215,48 @@ describe("native agents", () => {
     await clearPresence(peer.id);
   });
 
+  test("idle skip: quiet rooms skip the context gather and the LLM call; a new message wakes the tick (item 5)", async () => {
+    await resetMemoryStoreForTests();
+    const sage = await getNative("Sage");
+    const fixer = await getNative("Fixer");
+
+    const seen: string[] = [];
+    setLLMProviderForTests({
+      complete: async ({ messages }) => {
+        seen.push(messages[0]?.content ?? "");
+        return { content: JSON.stringify({ action: "idle" }), tokensUsed: 0 };
+      },
+    });
+
+    // Tick 1: no high-water mark -> full room-context gather, LLM called.
+    await tickOne(sage.id, "Sage", "prompt", "objective");
+    expect(seen.length).toBe(1);
+    expect((JSON.parse(seen[0]).rooms as unknown[]).length).toBeGreaterThan(0);
+
+    // Tick 2: cooldown is honored (buckets reset) but no room sequence
+    // advanced -> nothing to react to -> no LLM call at all.
+    await resetMemoryStoreForTests();
+    await tickOne(sage.id, "Sage", "prompt", "objective");
+    expect(seen.length).toBe(1);
+
+    // A real message through the ingest path bumps verse:roomseq, so tick 3
+    // gathers again and the LLM sees room context.
+    const conv = await db.query.conversationParticipants.findFirst({ where: eq(conversationParticipants.agentId, sage.id) });
+    if (!conv) throw new Error("sage has no conversation");
+    const { sendMessageService } = await import("../routes/conversations");
+    const sent = await sendMessageService(fixer.id, conv.conversationId, { content: "idle-skip probe" });
+    expect(sent.status).toBe(201);
+    await drainIngestStream(); // persist + bump roomseq
+    // Surgical cooldown clear only: resetMemoryStoreForTests() would also
+    // wipe verse:roomseq:* — the very signal tick 3 must observe.
+    await redis.del(`native-social:${sage.id}`);
+    await tickOne(sage.id, "Sage", "prompt", "objective");
+    expect(seen.length).toBe(2);
+    const rooms = JSON.parse(seen[1]).rooms as { recentMessages: { content: string }[] }[];
+    expect(rooms.length).toBeGreaterThan(0);
+    expect(rooms.some((r) => r.recentMessages.some((m) => m.content === "idle-skip probe"))).toBe(true);
+  });
+
   test("Kronikler (Chronicler) sees its own private DMs — gatherDMContext isn't Connector-only", async () => {
     // The gatherDMContext fix (2026-09-02) was written to cover every native
     // via the shared tickOne() call site, and its own comment claims Kronikler
@@ -339,6 +389,9 @@ describe("run_id attribution", () => {
   beforeEach(async () => {
     // Clean up any leaked run state from a previous partial failure
     if (getCurrentRunId()) await stopRun("aborted").catch(() => {});
+    // Item 5: high-water marks persist in Redis — a previous test's "quiet"
+    // verdict must not skip this test's tick.
+    await clearTickHwmForTests();
   });
   afterEach(async () => {
     if (getCurrentRunId()) await stopRun("completed").catch(() => {});
