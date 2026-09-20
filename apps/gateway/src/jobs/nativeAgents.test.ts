@@ -8,7 +8,7 @@ import { ensureNativeAgents, setLLMProviderForTests, tickOne, startRun, stopRun,
 import type { LLMProvider } from "../llm/provider";
 
 function stubProvider(response: string | null): LLMProvider {
-  return { complete: async () => (response == null ? null : { content: response, tokensUsed: 0 }) };
+  return { complete: async () => (response == null ? null : { content: response, tokensUsed: 0, model: "stub" }) };
 }
 
 beforeAll(async () => {
@@ -180,7 +180,7 @@ describe("native agents", () => {
     setLLMProviderForTests({
       complete: async ({ messages }) => {
         capturedUserContent = messages[0]?.content ?? "";
-        return { content: JSON.stringify({ action: "idle" }), tokensUsed: 0 };
+        return { content: JSON.stringify({ action: "idle" }), tokensUsed: 0, model: "stub" };
       },
     });
     await tickOne(sage.id, "Sage", "prompt", "objective");
@@ -240,7 +240,7 @@ describe("native agents", () => {
     setLLMProviderForTests({
       complete: async ({ messages: msgs }) => {
         capturedUserContent = msgs[0]?.content ?? "";
-        return { content: JSON.stringify({ action: "idle" }), tokensUsed: 0 };
+        return { content: JSON.stringify({ action: "idle" }), tokensUsed: 0, model: "stub" };
       },
     });
     await tickOne(kronikler.id, "Kronikler", "prompt", "objective");
@@ -266,6 +266,7 @@ describe("native agents", () => {
       complete: async () => ({
         content: JSON.stringify({ action: "reply", conversation_id: conv.conversationId, content: "billed reply" }),
         tokensUsed: 777,
+        model: "stub",
       }),
     });
     await tickOne(sage.id, "Sage", "prompt", "objective");
@@ -297,6 +298,7 @@ describe("native agents", () => {
       complete: async () => ({
         content: JSON.stringify({ action: "reply", conversation_id: conv.conversationId, content: "should be blocked by budget" }),
         tokensUsed: 1,
+        model: "stub",
       }),
     });
     await tickOne(fixer.id, "Fixer", "prompt", "objective");

@@ -608,7 +608,7 @@ export async function tickOne(nativeAgentId: string, nativeName: string, prompt:
   if (action.action === "idle") {
     const raw = result?.content ?? null;
     const reason = result === null ? "llm_unavailable" : raw == null ? "llm_empty_content" : /"action"\s*:\s*"idle"/.test(raw) ? "explicit_idle" : "unparseable_output";
-    log("native_tick_idle", { name: nativeName, reason, runId: currentRunId });
+    log("native_tick_idle", { name: nativeName, reason, model: result?.model ?? null, runId: currentRunId });
   }
 
   // The real cost of this tick's LLM call was previously never charged
@@ -660,7 +660,7 @@ export async function tickOne(nativeAgentId: string, nativeName: string, prompt:
 
   const outcome = await dispatch(nativeAgentId, nativeName, action);
   await recordMemory(nativeAgentId, "interaction", outcome);
-  log("native_tick", { name: nativeName, action: action.action, runId: currentRunId, outcome: outcome.slice(0, 100) });
+  log("native_tick", { name: nativeName, action: action.action, model: result?.model ?? null, runId: currentRunId, outcome: outcome.slice(0, 100) });
 }
 
 async function tick() {

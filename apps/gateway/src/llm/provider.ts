@@ -9,6 +9,14 @@ export interface LLMResult {
   // usage field entirely, which meant a native's real LLM spend was
   // completely unaccounted for no matter what dailyTokenBudget said.
   tokensUsed: number;
+  // Which model actually answered. OpenRouterProvider tries several models
+  // in order (MODELS below) and a failed attempt is logged via llm_error,
+  // but a SUCCESSFUL call previously discarded which one it was — so
+  // nativeAgents.ts's tick log couldn't tell a liquid/lfm-2.5 tick from a
+  // llama-3.1-8b fallback tick, and a silent free-tier model swap (this
+  // account has hit that repeatedly, see MODELS' comment) was invisible
+  // after the fact.
+  model: string;
 }
 
 export interface LLMProvider {
@@ -85,7 +93,7 @@ export class OpenRouterProvider implements LLMProvider {
         const data: any = await res.json();
         const content = data?.choices?.[0]?.message?.content;
         if (content == null) return null;
-        return { content, tokensUsed: Number(data?.usage?.total_tokens ?? 0) };
+        return { content, tokensUsed: Number(data?.usage?.total_tokens ?? 0), model };
       } catch (e) {
         log("llm_error", { model, error: String(e) });
       }
@@ -127,7 +135,7 @@ export class OllamaProvider implements LLMProvider {
       // object — local/free either way, but tracked for parity so a native
       // switched onto Ollama doesn't silently zero out its own spend record.
       const tokensUsed = Number(data?.prompt_eval_count ?? 0) + Number(data?.eval_count ?? 0);
-      return { content, tokensUsed };
+      return { content, tokensUsed, model };
     } catch (e) {
       log("llm_error", { provider: "ollama", model, error: String(e) });
       return null;
@@ -160,7 +168,7 @@ export class OpenAIProvider implements LLMProvider {
       const data: any = await res.json();
       const content = data?.choices?.[0]?.message?.content;
       if (content == null) return null;
-      return { content, tokensUsed: Number(data?.usage?.total_tokens ?? 0) };
+      return { content, tokensUsed: Number(data?.usage?.total_tokens ?? 0), model };
     } catch (e) {
       log("llm_error", { provider: "openai", model, error: String(e) });
       return null;
@@ -196,7 +204,7 @@ export class ZaiProvider implements LLMProvider {
       const data: any = await res.json();
       const content = data?.choices?.[0]?.message?.content;
       if (content == null) return null;
-      return { content, tokensUsed: Number(data?.usage?.total_tokens ?? 0) };
+      return { content, tokensUsed: Number(data?.usage?.total_tokens ?? 0), model };
     } catch (e) {
       log("llm_error", { provider: "zai", model, error: String(e) });
       return null;
@@ -223,7 +231,7 @@ export class MockLLMProvider implements LLMProvider {
     try {
       ctx = JSON.parse(params.messages[params.messages.length - 1]?.content ?? "{}");
     } catch {
-      return { content: JSON.stringify({ action: "idle" }), tokensUsed: 0 };
+      return { content: JSON.stringify({ action: "idle" }), tokensUsed: 0, model: "mock" };
     }
     const rooms: any[] = ctx.rooms ?? [];
     const roomsWithNewcomers = rooms.filter((r) => (r.newcomerAgentIds ?? []).length > 0);
@@ -235,6 +243,7 @@ export class MockLLMProvider implements LLMProvider {
       return {
         content: JSON.stringify({ action: "invite", conversationId: room.conversationId, targetAgentId: room.newcomerAgentIds[0] }),
         tokensUsed: 0,
+        model: "mock",
       };
     }
     if (roll < 0.55 && roomsWithMessages.length) {
@@ -244,8 +253,9 @@ export class MockLLMProvider implements LLMProvider {
       return {
         content: JSON.stringify({ action: "reply", conversationId: room.conversationId, content: line, replyToId: last?.messageId }),
         tokensUsed: 0,
+        model: "mock",
       };
     }
-    return { content: JSON.stringify({ action: "idle" }), tokensUsed: 0 };
+    return { content: JSON.stringify({ action: "idle" }), tokensUsed: 0, model: "mock" };
   }
 }

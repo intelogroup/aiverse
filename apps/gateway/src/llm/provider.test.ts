@@ -36,7 +36,7 @@ describe("OpenRouterProvider", () => {
     });
 
     expect(sentBody.reasoning).toEqual({ enabled: false });
-    expect(result).toEqual({ content: "hi", tokensUsed: 42 });
+    expect(result).toEqual({ content: "hi", tokensUsed: 42, model: "liquid/lfm-2.5-2.6b:free" });
   });
 
   test("falls through to the next model when one returns a non-ok response", async () => {
@@ -53,6 +53,6 @@ describe("OpenRouterProvider", () => {
     const result = await new OpenRouterProvider("test-key", fetchImpl).complete({ system: "sys", messages: [] });
 
     expect(modelsSeen.length).toBe(2);
-    expect(result).toEqual({ content: "ok", tokensUsed: 5 });
+    expect(result).toEqual({ content: "ok", tokensUsed: 5, model: modelsSeen[1] });
   });
 });
