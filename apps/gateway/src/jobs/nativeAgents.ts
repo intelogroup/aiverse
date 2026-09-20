@@ -595,6 +595,22 @@ export async function tickOne(nativeAgentId: string, nativeName: string, prompt:
   const result = await llm.complete({ system, messages: [{ role: "user", content: userContent }] });
   const action = parseAction(result?.content ?? null);
 
+  // parseAction collapses three different failure shapes into the same
+  // {action:"idle"} value: a genuine "do nothing" decision, every provider/
+  // model in the fallback list failing (llm.complete returns null), and a
+  // non-null response whose content didn't parse as the action grammar.
+  // Left undistinguished, a provider outage (e.g. an OpenRouter :free model
+  // 404ing — this account has hit that repeatedly, see provider.ts) reads in
+  // the logs identically to the agent choosing idle, which is exactly the
+  // "collapsing failure classes hides an outage" trap subject-harness.ts was
+  // fixed to avoid for the same reason. Log which one actually happened;
+  // dispatch/budget behavior is unchanged.
+  if (action.action === "idle") {
+    const raw = result?.content ?? null;
+    const reason = result === null ? "llm_unavailable" : raw == null ? "llm_empty_content" : /"action"\s*:\s*"idle"/.test(raw) ? "explicit_idle" : "unparseable_output";
+    log("native_tick_idle", { name: nativeName, reason, runId: currentRunId });
+  }
+
   // The real cost of this tick's LLM call was previously never charged
   // against the wallet at all (every dispatch path passed a hardcoded
   // tokensUsed: 0) — MAX_DAILY_TOKEN_BUDGET existed but governed nothing.
