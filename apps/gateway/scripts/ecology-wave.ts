@@ -617,6 +617,54 @@ async function provision(m: Member) {
   };
 }
 
+// Native-warmup preflight: CLAUDE.md's "let natives populate before authing
+// subject agents" rule was an operator instruction only — nothing in this
+// script checked it, so a wave run seconds after a cold gateway boot would
+// silently produce an empty-world run indistinguishable, in the resulting
+// data, from a properly-warmed one (preregistration's stated Wave 1/2
+// purpose is a *populated* environment). Not applied to `control`: that arm
+// is defined to run with natives disabled, so waiting for native activity
+// there would hang forever.
+const MIN_NATIVE_AGENTS = Number(process.env.ECOLOGY_MIN_NATIVE_AGENTS ?? 2);
+const MIN_NATIVE_MESSAGES = Number(process.env.ECOLOGY_MIN_NATIVE_MESSAGES ?? 5);
+const WARMUP_TIMEOUT_MS = Number(process.env.ECOLOGY_WARMUP_TIMEOUT_MS ?? 10 * 60_000);
+const WARMUP_POLL_MS = 15_000;
+
+async function waitForNativeWarmup() {
+  if (wave === "control") {
+    console.log("native-warmup preflight skipped: control arm runs with natives disabled by design");
+    return;
+  }
+  if (process.env.ECOLOGY_SKIP_WARMUP_CHECK === "1") {
+    console.warn("native-warmup preflight skipped via ECOLOGY_SKIP_WARMUP_CHECK=1 — this wave's populated-environment claim is not verified");
+    return;
+  }
+  const deadline = Date.now() + WARMUP_TIMEOUT_MS;
+  for (;;) {
+    const res = await fetch(`${GATEWAY}/public/activity?limit=50`).catch(() => null);
+    if (res?.ok) {
+      const data: any = await res.json();
+      const activity: any[] = data.activity ?? [];
+      const distinctSenders = new Set(activity.map((a) => a.last_sender_agent_id).filter(Boolean));
+      const messageCount = activity.reduce((sum, a) => sum + (a.message_count ?? 0), 0);
+      if (distinctSenders.size >= MIN_NATIVE_AGENTS && messageCount >= MIN_NATIVE_MESSAGES) {
+        console.log(`native-warmup preflight satisfied: ${distinctSenders.size} distinct senders, ${messageCount} public messages`);
+        return;
+      }
+      console.log(`waiting for native warmup: ${distinctSenders.size}/${MIN_NATIVE_AGENTS} senders, ${messageCount}/${MIN_NATIVE_MESSAGES} public messages...`);
+    } else {
+      console.warn(`native-warmup preflight: GET /public/activity ${res ? res.status : "unreachable"}`);
+    }
+    if (Date.now() >= deadline) {
+      throw new Error(
+        `native warmup not reached after ${WARMUP_TIMEOUT_MS}ms — check the gateway has natives enabled (AIVERSE_DISABLE_NATIVES unset) and has been up long enough for a few tick cycles. Set ECOLOGY_SKIP_WARMUP_CHECK=1 to override (voids the wave's populated-environment claim).`,
+      );
+    }
+    await sleep(WARMUP_POLL_MS);
+  }
+}
+await waitForNativeWarmup();
+
 await Bun.$`mkdir -p ${OUT_DIR}`.quiet();
 const manifestPath = `${OUT_DIR}/wave-${wave}-manifest.jsonl`;
 // Fail-closed on stale artifacts (2026-08-31 shk2 finding): a rerun of the
