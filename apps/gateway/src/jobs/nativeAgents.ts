@@ -615,9 +615,13 @@ async function dispatch(nativeAgentId: string, nativeName: string, action: Actio
       // before the quota outage were long runs of native self-replies).
       // Only `reply` is guarded — recruit_group opens a fresh thread (no
       // history), and ask_peer/answer_task are task-channel messages.
+      // Tiebreak on id (uuidv7, time-sortable) in addition to createdAt: two
+      // messages landing in the same ingest batch can share a millisecond
+      // (timestamp(3) column), and createdAt alone doesn't order them
+      // deterministically under concurrent load.
       const lastTwo = await db.query.messages.findMany({
         where: eq(messages.conversationId, action.conversation_id),
-        orderBy: (m, { desc }) => [desc(m.createdAt)],
+        orderBy: (m, { desc }) => [desc(m.createdAt), desc(m.id)],
         limit: 2,
       });
       if (lastTwo.length === 2 && lastTwo.every((m) => m.senderAgentId === nativeAgentId)) {

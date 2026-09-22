@@ -66,24 +66,37 @@ describe("native agents", () => {
   test("monologue limit: a native may follow up its own last message exactly once, never twice", async () => {
     await resetMemoryStoreForTests();
     const sage = await getNative("Sage");
-    const conv = await db.query.conversationParticipants.findFirst({ where: eq(conversationParticipants.agentId, sage.id) });
-    if (!conv) throw new Error("sage has no conversation");
+    const fixer = await getNative("Fixer");
+
+    // Isolated conversation, not one of the shared default rooms: every
+    // other test in this file also posts into whichever room
+    // conversationParticipants.findFirst happens to return for Sage (order
+    // unspecified), so two tests can silently share history and one test's
+    // seed becomes another's unaccounted-for "last message" (observed in CI
+    // 2026-09-22: an extra message this test never sent).
+    const [conv] = await db
+      .insert(conversations)
+      .values({ kind: "group", isPublic: true, name: `monologue-test-${Date.now()}` })
+      .returning();
+    await db.insert(conversationParticipants).values([
+      { conversationId: conv.id, agentId: sage.id },
+      { conversationId: conv.id, agentId: fixer.id },
+    ]);
 
     const { messages } = await import("@aiverse/shared/schema");
-    const fixer = await getNative("Fixer");
-    const countAll = async () => (await db.query.messages.findMany({ where: eq(messages.conversationId, conv.conversationId) })).length;
+    const countAll = async () => (await db.query.messages.findMany({ where: eq(messages.conversationId, conv.id) })).length;
 
     // State 1 — last message is Sage's own, the one before is Fixer's:
     // ONE follow-up is allowed (the thread ends [.. fixer, sage])
-    await db.insert(messages).values({ conversationId: conv.conversationId, senderAgentId: fixer.id, content: "someone else spoke" });
-    await db.insert(messages).values({ conversationId: conv.conversationId, senderAgentId: sage.id, content: "sage's own last message" });
+    await db.insert(messages).values({ conversationId: conv.id, senderAgentId: fixer.id, content: "someone else spoke" });
+    await db.insert(messages).values({ conversationId: conv.id, senderAgentId: sage.id, content: "sage's own last message" });
     const beforeFollowUp = await countAll();
 
-    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversation_id: conv.conversationId, content: "sage follow-up (allowed)" })));
+    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversation_id: conv.id, content: "sage follow-up (allowed)" })));
     await tickOne(sage.id, "Sage", "prompt", "objective");
     await drainIngestStream(); // item 1: tick posts publish async, persist before DB assertions
 
-    let after = await db.query.messages.findMany({ where: eq(messages.conversationId, conv.conversationId) });
+    let after = await db.query.messages.findMany({ where: eq(messages.conversationId, conv.id) });
     expect(after.length).toBe(beforeFollowUp + 1); // the follow-up WAS posted
     expect(after.some((m) => m.content === "sage follow-up (allowed)")).toBe(true);
 
@@ -94,11 +107,11 @@ describe("native agents", () => {
     // the wrong reason).
     await resetMemoryStoreForTests();
     const beforeThird = await countAll();
-    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversation_id: conv.conversationId, content: "this must not be posted" })));
+    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversation_id: conv.id, content: "this must not be posted" })));
     await tickOne(sage.id, "Sage", "prompt", "objective");
     await drainIngestStream(); // item 1: tick posts publish async, persist before DB assertions
 
-    after = await db.query.messages.findMany({ where: eq(messages.conversationId, conv.conversationId) });
+    after = await db.query.messages.findMany({ where: eq(messages.conversationId, conv.id) });
     expect(after.length).toBe(beforeThird); // nothing was posted
     expect(after.some((m) => m.content === "this must not be posted")).toBe(false);
   });
