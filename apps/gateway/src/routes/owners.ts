@@ -27,8 +27,18 @@ import { todayUTC } from "../policy/gate";
 import { audit } from "../util/audit";
 import { clientIp } from "../util/clientIp";
 import { deleteAgentCascade, deleteOwnerCascade } from "../util/deleteAgent";
+import { env } from "@aiverse/shared/env";
+import { consumeVerificationToken, sendVerificationEmail } from "../auth/emailVerification";
+import { logError } from "../util/log";
 
 export const ownersRoute = new Hono<{ Variables: { ownerId: string } }>();
+
+export async function ownerNeedsEmailVerification(ownerId: string): Promise<boolean> {
+  if (!env.REQUIRE_EMAIL_VERIFICATION) return false;
+  const owner = await db.query.owners.findFirst({ where: eq(owners.id, ownerId), columns: { emailVerified: true } });
+  return !owner?.emailVerified;
+}
+const EMAIL_NOT_VERIFIED = { error: "email_not_verified", details: "verify your email before creating or claiming agents" } as const;
 
 // Same wording as ecology-wave.ts's EAGER_MANDATES — the only tested cohort
 // that actually thrives (replies, joins, starts conversations) rather than
@@ -100,9 +110,9 @@ ownersRoute.post("/ws-ticket", ownerAuth, async (c) => {
 // the only guard against signup spam / credential-stuffing on a public
 // gateway (no-op locally where nothing hits this from the internet).
 ownersRoute.post("/register", async (c) => {
-  // ponytail: coarse IP bucket, not per-endpoint CAPTCHA/email-verification —
-  // upgrade if real abuse shows up. Capacity padded above realistic burst
-  // traffic (test suite alone does 30+ registrations sharing one IP bucket).
+  // Coarse IP bucket; the real Sybil gate is email verification before agent
+  // create/claim. Capacity padded above realistic burst traffic (test suite
+  // alone does 30+ registrations sharing one IP bucket).
   const ip = clientIp(c);
   if (!(await takeToken(`register:${ip}`, 60, 60 / 3600))) {
     return c.json({ error: "rate_limited" }, 429);
@@ -129,8 +139,43 @@ ownersRoute.post("/register", async (c) => {
     .values({ email: body.email, passwordHash, displayName: body.displayName ?? null })
     .returning();
 
+  // Send failure must not fail signup — the owner can resend from the console.
+  await sendVerificationEmail(owner.id, owner.email).catch((err) =>
+    logError("email.verification.signup_send_failed", err, { ownerId: owner.id }),
+  );
+
   const token = await signOwnerSession(owner.id);
-  return c.json({ token, owner: { id: owner.id, email: owner.email, displayName: owner.displayName } }, 201);
+  return c.json(
+    { token, owner: { id: owner.id, email: owner.email, displayName: owner.displayName, emailVerified: owner.emailVerified } },
+    201,
+  );
+});
+
+// The token itself is the credential (256-bit, single-use, 24h), so no session needed.
+ownersRoute.post("/verify-email", async (c) => {
+  const body = await c.req.json<{ token?: string }>().catch(() => ({}) as { token?: string });
+  if (!body.token) return c.json({ error: "token required" }, 400);
+  const ownerId = await consumeVerificationToken(body.token);
+  if (!ownerId) return c.json({ error: "This link is invalid, expired, or already used." }, 400);
+  await db.update(owners).set({ emailVerified: true }).where(eq(owners.id, ownerId));
+  await audit({ event: "owner.email_verified", ownerId, actorType: "owner", actorId: ownerId });
+  return c.json({ ok: true });
+});
+
+ownersRoute.post("/verify-email/resend", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const owner = await db.query.owners.findFirst({ where: eq(owners.id, ownerId) });
+  if (!owner) return c.json({ error: "not found" }, 404);
+  if (owner.emailVerified) return c.json({ ok: true, alreadyVerified: true });
+  if (!(await takeToken(`verify-resend:${ownerId}`, 3, 3 / 3600))) {
+    return c.json({ error: "rate_limited" }, 429);
+  }
+  try {
+    await sendVerificationEmail(owner.id, owner.email);
+  } catch {
+    return c.json({ error: "could not send verification email, try again later" }, 502);
+  }
+  return c.json({ ok: true });
 });
 
 // Rate-limited per source IP against brute-force login guessing.
@@ -149,11 +194,15 @@ ownersRoute.post("/login", async (c) => {
   }
 
   const token = await signOwnerSession(owner.id);
-  return c.json({ token, owner: { id: owner.id, email: owner.email, displayName: owner.displayName } });
+  return c.json({
+    token,
+    owner: { id: owner.id, email: owner.email, displayName: owner.displayName, emailVerified: owner.emailVerified },
+  });
 });
 
 ownersRoute.post("/agents", ownerAuth, async (c) => {
   const ownerId = c.get("ownerId");
+  if (await ownerNeedsEmailVerification(ownerId)) return c.json(EMAIL_NOT_VERIFIED, 403);
   // Owned cap: high (100) — don't punish John bringing 50 subagents. Real limit is verse presence, not ownership.
   const existing = await db.query.agents.findMany({ where: eq(agents.ownerId, ownerId) });
   if (existing.length >= 100) return c.json({ error: "agent limit reached (100/owner)" }, 429);
@@ -211,6 +260,7 @@ ownersRoute.post("/agents", ownerAuth, async (c) => {
 // against a hash, so this is the only real guard against online guessing.
 ownersRoute.post("/agents/claim", ownerAuth, async (c) => {
   const ownerId = c.get("ownerId");
+  if (await ownerNeedsEmailVerification(ownerId)) return c.json(EMAIL_NOT_VERIFIED, 403);
   const ip = clientIp(c);
   if (!(await takeToken(`claim:${ip}`, 5, 5 / 900))) {
     return c.json({ error: "rate_limited" }, 429);

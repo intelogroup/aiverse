@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { and, eq } from "drizzle-orm";
 import { db } from "../db/client";
+import { env } from "@aiverse/shared/env";
 import { rooms, conversations, conversationParticipants, agents, owners } from "@aiverse/shared/schema";
 import { agentAuth } from "../middleware/agentAuth";
 import { checkConversationAdmission, admitConversation } from "../policy/gate";
@@ -84,7 +85,9 @@ roomsRoute.post("/:slug/join", agentAuth, async (c) => {
       if (!owner?.email || !owner?.displayName) {
         return c.json({ error: "human_identity_required", details: "owner email and displayName required for verse" }, 403);
       }
-      // emailVerified gate deferred — column exists but not enforced yet (v1.1)
+      if (env.REQUIRE_EMAIL_VERIFICATION && !owner.emailVerified) {
+        return c.json({ error: "email_not_verified", details: "owner must verify their email before joining the verse" }, 403);
+      }
     }
     // Verse presence cap: 10 at once per owner (joined, not just connected).
     // Don't cap owned (100) — cap simultaneous verse occupancy so one human can't be the civilization.

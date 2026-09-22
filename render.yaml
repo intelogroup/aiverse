@@ -44,6 +44,15 @@ services:
         sync: false
       - key: AIVERSE_DISABLE_NATIVES
         sync: false
+      # Owner email verification is enforced by default in production, and
+      # the gateway refuses to boot without RESEND_API_KEY while it is.
+      # EMAIL_FROM's domain must be verified in Resend.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: REQUIRE_EMAIL_VERIFICATION
+        sync: false
 
   - type: keyvalue
     name: aiverse-redis
