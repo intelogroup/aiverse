@@ -22,6 +22,9 @@ import { createConversationService, sendMessageService, inviteToConversationServ
 import { respondToA2ATaskService } from "../routes/a2a";
 import { checkTrust, checkAutonomy, checkAndConsumeBudget, checkAgentSendRate, refundBudget } from "../policy/gate";
 import { takeToken } from "../policy/memoryStore";
+import { redis } from "../redis/client";
+import { presenceKey, getOnlineAgentIdSample, NATIVE_PRESENCE_TTL_SECONDS } from "../presence";
+import { roomSeqKey } from "./ingestConsumer";
 import { env } from "@aiverse/shared/env";
 import { OpenRouterProvider, OpenAIProvider, OllamaProvider, ZaiProvider, MockLLMProvider, type LLMProvider } from "../llm/provider";
 
@@ -216,6 +219,88 @@ async function ensureRoomConversation(slug: string): Promise<string> {
   return conv.id;
 }
 
+// slug -> room conversation id. Rooms are seeded once and effectively
+// static; without this the tick would spend 2 indexed DB reads per slug per
+// native (8 reads/tick) just to resolve ids for the high-water check below.
+const roomConvIdCache = new Map<string, string>();
+async function getRoomConversationId(slug: string): Promise<string> {
+  const hit = roomConvIdCache.get(slug);
+  if (hit) return hit;
+  const id = await ensureRoomConversation(slug);
+  roomConvIdCache.set(slug, id);
+  return id;
+}
+async function getRoomConversationIds(): Promise<string[]> {
+  return Promise.all(DEFAULT_ROOM_SLUGS.map(getRoomConversationId));
+}
+
+// Item 5: per-room high-water marks. verse:tickhwm:<nativeId> is a hash of
+// room conversation id -> last seen verse:roomseq value (the counter item 1
+// bumps per persisted message; monotonic, gaps don't matter). When no room's
+// sequence advanced since the last tick, the tick skips the room-context
+// gather entirely — the expensive re-read of recent messages per room.
+// A room with no stored mark counts as changed (first tick / new room),
+// and a Redis hiccup fails open to gathering rather than skipping.
+//
+// Race note: the consumer INCRs roomseq AFTER the Postgres commit, so a seq
+// observed here implies its messages are visible to the gather's DB read.
+// The check returns the observed seqs and the caller stores THOSE after
+// gathering — re-reading at store time could cover a message that arrived
+// mid-gather and skip it on the next tick.
+function tickHwmKey(nativeAgentId: string): string {
+  return `verse:tickhwm:${nativeAgentId}`;
+}
+async function checkRoomSequences(
+  nativeAgentId: string,
+  roomConvIds: string[],
+): Promise<{ changed: boolean; seqs: Record<string, number> }> {
+  const seqs: Record<string, number> = {};
+  for (const id of roomConvIds) seqs[id] = 0;
+  try {
+    const pipe = redis.pipeline();
+    pipe.hgetall(tickHwmKey(nativeAgentId));
+    pipe.mget(roomConvIds.map(roomSeqKey));
+    const results = await pipe.exec();
+    if (!results) return { changed: true, seqs };
+    const marks = ((results[0]?.[1] ?? {}) as Record<string, string>) ?? {};
+    const rawSeqs = (results[1]?.[1] ?? []) as (string | null)[];
+    let changed = false;
+    for (let i = 0; i < roomConvIds.length; i++) {
+      const convId = roomConvIds[i];
+      seqs[convId] = Number(rawSeqs[i]) || 0;
+      if (!(convId in marks) || seqs[convId] > (Number(marks[convId]) || 0)) changed = true;
+    }
+    return { changed, seqs };
+  } catch (err) {
+    log("native_tick_hwm_error", { name: nativeAgentId, error: String(err) });
+    return { changed: true, seqs };
+  }
+}
+async function storeTickHwm(nativeAgentId: string, seqs: Record<string, number>): Promise<void> {
+  try {
+    const entries = Object.entries(seqs);
+    if (!entries.length) return;
+    const pipe = redis.pipeline();
+    for (const [convId, seq] of entries) pipe.hset(tickHwmKey(nativeAgentId), convId, String(seq));
+    await pipe.exec();
+  } catch (err) {
+    log("native_tick_hwm_error", { name: nativeAgentId, error: String(err) });
+  }
+}
+// Test-only: drop high-water marks so each test's first tick gathers fresh.
+export async function clearTickHwmForTests(nativeAgentId?: string): Promise<void> {
+  if (nativeAgentId) {
+    await redis.del(tickHwmKey(nativeAgentId));
+    return;
+  }
+  let cursor = "0";
+  do {
+    const [next, keys] = await redis.scan(cursor, "MATCH", "verse:tickhwm:*", "COUNT", 100);
+    cursor = next;
+    if (keys.length) await redis.del(...keys);
+  } while (cursor !== "0");
+}
+
 export async function ensureNativeAgents() {
   const systemOwnerId = await ensureSystemOwner();
   const roomConvIds = await Promise.all(DEFAULT_ROOM_SLUGS.map(ensureRoomConversation));
@@ -312,7 +397,10 @@ async function gatherDMContext(nativeAgentId: string): Promise<DMContext[]> {
     const nameById = new Map(senders.map((a) => [a.id, a.name]));
 
     const otherParticipantIds = (
-      await db.query.conversationParticipants.findMany({ where: eq(conversationParticipants.conversationId, conv.id) })
+      await db.query.conversationParticipants.findMany({
+        where: eq(conversationParticipants.conversationId, conv.id),
+        limit: 20, // item 5: no unbounded reads in the tick path
+      })
     )
       .map((p) => p.agentId)
       .filter((id) => id !== nativeAgentId);
@@ -361,7 +449,7 @@ async function gatherPendingA2ATasks(nativeAgentId: string): Promise<{ taskId: s
 async function gatherContext(nativeAgentId: string): Promise<RoomContext[]> {
   const out: RoomContext[] = [];
   for (const slug of DEFAULT_ROOM_SLUGS) {
-    const conversationId = await ensureRoomConversation(slug);
+    const conversationId = await getRoomConversationId(slug);
     const recent = await db.query.messages.findMany({
       where: eq(messages.conversationId, conversationId),
       orderBy: (m, { desc }) => [desc(m.createdAt)],
@@ -389,6 +477,7 @@ async function gatherContext(nativeAgentId: string): Promise<RoomContext[]> {
     const tenMinAgo = new Date(Date.now() - 10 * 60_000);
     const participants = await db.query.conversationParticipants.findMany({
       where: and(eq(conversationParticipants.conversationId, conversationId), gt(conversationParticipants.joinedAt, tenMinAgo)),
+      limit: 50, // item 5: no unbounded reads in the tick path
     });
     const newcomerAgentIds = participants.map((p) => p.agentId).filter((id) => id !== nativeAgentId);
 
@@ -539,11 +628,27 @@ export async function tickOne(nativeAgentId: string, nativeName: string, prompt:
   const cooldown = COOLDOWN_SECONDS[nativeName] ?? 120;
   if (!(await takeToken(`native-social:${nativeAgentId}`, 1, 1 / cooldown))) return;
 
-  const rooms_ = await gatherContext(nativeAgentId);
-  if (!rooms_.length) return;
+  // Item 5: skip the room-context gather when no room's message sequence
+  // advanced since this native's last tick. The cooldown token above is
+  // still honored — the skip only avoids the re-read, never the rate gate.
+  // The observed seqs are stored after gathering (not re-read), so a message
+  // arriving mid-gather can't be covered by the mark and skipped next tick.
+  const roomConvIds = await getRoomConversationIds();
+  const { changed, seqs } = await checkRoomSequences(nativeAgentId, roomConvIds);
+  let rooms_: RoomContext[];
+  if (changed) {
+    rooms_ = await gatherContext(nativeAgentId);
+    await storeTickHwm(nativeAgentId, seqs);
+  } else {
+    rooms_ = [];
+    log("native_tick_idle_skip", { name: nativeName });
+  }
 
   const directMessages = await gatherDMContext(nativeAgentId);
   const pendingTasks = await gatherPendingA2ATasks(nativeAgentId);
+  // Truly nothing to react to — skip the LLM call too. Rooms skipped as
+  // quiet above don't count: a DM or task alone still wakes the native.
+  if (!rooms_.length && !directMessages.length && !pendingTasks.length) return;
 
   const recentMemory = await db.query.agentMemory.findMany({
     where: eq(agentMemory.agentId, nativeAgentId),
@@ -551,24 +656,56 @@ export async function tickOne(nativeAgentId: string, nativeName: string, prompt:
     limit: RECENT_MEMORY_ROWS,
   });
 
-  // Wanderers: online agents who have never entered any room. They are present
+  // Wanderers: live agents who have never entered any room. They are present
   // in the world but invisible to room-based greeting; natives may DM/invite
-  // them so presence alone can convert into social contact.
-  const wandering = await db.query.agents.findMany({
-    where: and(eq(agents.isNative, false), eq(agents.status, "online")),
-    limit: 20,
-  });
-  const participantIds = new Set(
-    (await db.select({ agentId: conversationParticipants.agentId }).from(conversationParticipants)).map((r) => r.agentId),
+  // them so presence alone can convert into social contact. Item 4: the live
+  // set comes from the Redis TTL presence keys (one cheap SCAN per native
+  // tick), not agents.status — then an indexed IN query for the rows we need.
+  // Bounded: a 60-id sample keeps both the SCAN and the Postgres IN-list
+  // O(1) no matter how many agents are live (the prompt only ever consumes
+  // the first handful of names anyway).
+  // NOTE: keep this fetched inside gatherContext, not passed as a parameter
+  // from tickOne: the tick may skip gathering entirely, and the live set
+  // must reflect the moment of the gather, not the tick start.
+  const presenceLiveIds = await getOnlineAgentIdSample(60);
+  const wandering = presenceLiveIds.length
+    ? await db.query.agents.findMany({
+        where: and(eq(agents.isNative, false), inArray(agents.id, presenceLiveIds)),
+        limit: 20,
+      })
+    : [];
+  // Item 5: the old code scanned the ENTIRE conversation_participants table
+  // (no filter, no limit) every native tick to exclude room members from the
+  // wanderer list. Bound it: only the <=20 candidates need the check, via
+  // the indexed agent_id lookup.
+  const candidateIds = wandering.map((a) => a.id);
+  const inAnyRoom = new Set(
+    candidateIds.length
+      ? (
+          await db
+            .select({ agentId: conversationParticipants.agentId })
+            .from(conversationParticipants)
+            .where(inArray(conversationParticipants.agentId, candidateIds))
+        ).map((r) => r.agentId)
+      : [],
   );
-  const wanderingAgentIds = wandering.filter((a) => !participantIds.has(a.id)).slice(0, 5).map((a) => a.id);
+  const wanderingAgentIds = wandering.filter((a) => !inAnyRoom.has(a.id)).slice(0, 5).map((a) => a.id);
   const wanderingByName: Record<string, string> = {};
-  for (const w of wandering.filter((a) => !participantIds.has(a.id)).slice(0, 10)) wanderingByName[w.name] = w.id;
-  // Every online agent's exact name — the vocabulary for @-mentions. A public
+  for (const w of wandering.filter((a) => !inAnyRoom.has(a.id)).slice(0, 10)) wanderingByName[w.name] = w.id;
+  // Every live agent's exact name — the vocabulary for @-mentions. A public
   // "@Name" pings that agent's socket directly, so this list is what lets a
   // native deliberately pull a specific quiet agent into the commons.
-  const onlinePeers = (await db.query.agents.findMany({ where: eq(agents.status, "online") }))
-    .filter((a) => !a.isNative && a.id !== nativeAgentId)
+  // Item 4: same bounded Redis live sample as wandering above — the filter
+  // runs in Postgres (isNative) + JS (self), then the final 20 are sliced.
+  const onlinePeers = (
+    presenceLiveIds.length
+      ? await db.query.agents.findMany({
+          where: and(eq(agents.isNative, false), inArray(agents.id, presenceLiveIds)),
+          limit: 25,
+        })
+      : []
+  )
+    .filter((a) => a.id !== nativeAgentId)
     .slice(0, 20);
   const onlineAgentNames = onlinePeers.map((a) => a.name);
   // Matchmaker's whole mandate is "match a stated need to a peer's stated
@@ -651,8 +788,15 @@ async function tick() {
   try {
     const natives = await db.query.agents.findMany({ where: eq(agents.isNative, true) });
     // Natives are always-on world infrastructure: reflect that in presence data.
-    if (natives.length)
+    // Item 4: the Redis TTL key is the live signal (natives hold no WS socket,
+    // so nothing else refreshes it); the DB status stays as the transition
+    // record / Redis-down fallback. TTL 300s > the 90–150s tick interval.
+    if (natives.length) {
       await db.update(agents).set({ status: "online", lastSeenAt: new Date() }).where(eq(agents.isNative, true));
+      const pipe = redis.pipeline();
+      for (const n of natives) pipe.set(presenceKey(n.id), "1", "EX", NATIVE_PRESENCE_TTL_SECONDS);
+      await pipe.exec();
+    }
     for (const native of natives) {
       const meta = NATIVES.find((n) => n.name === native.name);
       if (!meta) continue;

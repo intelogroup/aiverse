@@ -37,16 +37,20 @@ roomsRoute.get("/:slug/presence", async (c) => {
       .select({ agentId: conversationParticipants.agentId })
       .from(conversationParticipants)
       .where(eq(conversationParticipants.conversationId, conv.id));
-    const { getConnectedAgentIds } = await import("../ws/gateway");
-    const connected = new Set(getConnectedAgentIds());
+    const { getOnlineAgentIds } = await import("../presence");
+    // Item 4: live presence is the Redis TTL set (presence:{agentId}), not
+    // the per-process socket map or the agents.status column — cross-process
+    // correct, and TTL expiry self-heals crashed connections. Natives count:
+    // the leader tick refreshes their keys, matching the old "natives are
+    // always online" DB status. connectedInVerse and active converge on the
+    // same live set (their old distinction was a single-process artifact);
+    // both fields stay for wire compatibility. totalConnected is now the
+    // global live count, not this process's socket map size.
+    const onlineIds = await getOnlineAgentIds();
     const joined = parts.length;
-    const connectedInVerse = parts.filter((p) => connected.has(p.agentId)).length;
-    // active = connectedInVerse AND agent row status online (heartbeat 30s, TTL 90s)
-    const onlineIds = new Set(
-      (await db.select({ id: agents.id }).from(agents).where(eq(agents.status, "online"))).map((r) => r.id),
-    );
-    const active = parts.filter((p) => onlineIds.has(p.agentId) && connected.has(p.agentId)).length;
-    return { slug, conversationId: conv.id, joined, connectedInVerse, active, totalConnected: connected.size };
+    const connectedInVerse = parts.filter((p) => onlineIds.has(p.agentId)).length;
+    const active = connectedInVerse;
+    return { slug, conversationId: conv.id, joined, connectedInVerse, active, totalConnected: onlineIds.size };
   });
   if ("notFound" in value) return c.json({ error: "not found" }, 404);
   return c.json(value);

@@ -2,6 +2,7 @@ import { describe, expect, test, beforeAll } from "bun:test";
 import { createApp } from "../app";
 import { ensureRoomsSeeded } from "../db/seed";
 import { resetMemoryStoreForTests } from "../policy/memoryStore";
+import { drainIngestStream } from "../jobs/ingestConsumer"; // item 1: tests drain the stream where they used to rely on sync inserts
 
 const app = createApp();
 
@@ -84,6 +85,9 @@ describe("GET /conversations resync (single grouped query, 0033 index)", () => {
         body: JSON.stringify({ content: `resync message ${i}` }),
       });
       expect(post.status).toBe(201);
+      // Async persist (item 1): drain BEFORE the next iteration's bucket
+      // reset, which wipes the stream — an undrained publish would be lost.
+      await drainIngestStream();
     }
 
     const resyncA = await app.request("/conversations", {
@@ -142,6 +146,7 @@ describe("rooms + messaging", () => {
     const { message: reply } = await replyRes.json();
     expect(reply.replyToId).toBe(message.id);
 
+    await drainIngestStream(); // async persist (item 1): history reads Postgres
     const historyRes = await app.request(`/conversations/${conversationId}/messages`, {
       headers: { authorization: `Bearer ${tokenA}` },
     });
@@ -291,6 +296,7 @@ describe("rooms + messaging", () => {
     const { message: retryMessage } = await retry.json();
     expect(retryMessage.id).toBe(firstMessage.id);
 
+    await drainIngestStream(); // async persist (item 1): history reads Postgres
     const history = await app.request(`/conversations/${conversationId}/messages`, {
       headers: { authorization: `Bearer ${token}` },
     });
@@ -331,6 +337,7 @@ describe("rooms + messaging", () => {
     });
     expect(sendRes.status).toBe(201);
 
+    await drainIngestStream(); // async persist (item 1): attachments persist in the consumer
     const { db } = await import("../db/client");
     const { messageAttachments } = await import("@aiverse/shared/schema");
     const { eq } = await import("drizzle-orm");
@@ -439,4 +446,134 @@ describe("invite", () => {
     });
     expect(inviteRes.status).toBe(403);
   });
+});
+
+describe("concurrent same-clientMessageId sends (NX idempotency reservation)", () => {
+  test("the loser returns the winner's message and publishes nothing", async () => {
+    await resetMemoryStoreForTests();
+    const email = `nxrace-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
+    const reg = await app.request("/owners/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password: "password123" }),
+    });
+    const { token: ownerToken } = (await reg.json()) as { token: string };
+    const created = await app.request("/owners/agents", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
+      body: JSON.stringify({ name: `NxRaceAgent${Date.now().toString(36)}`, capabilities: [] }),
+    });
+    const { agentToken, agent } = (await created.json()) as { agentToken: string; agent: { id: string } };
+    await app.request(`/owners/agents/${agent.id}/wallet`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
+      body: JSON.stringify({ autonomyMode: "autonomous" }),
+    });
+    const join = await app.request("/rooms/general/join", {
+      method: "POST",
+      headers: { authorization: `Bearer ${agentToken}` },
+    });
+    const { conversationId } = (await join.json()) as { conversationId: string };
+
+    const raceKey = `race-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const winnerId = `winner-${raceKey}`;
+    const budgetKey = `budget:${agent.id}:${new Date().toISOString().slice(0, 10)}`;
+
+    // Fire the send without awaiting: it runs the early idempotency checks,
+    // consumes budget, then heads for the rate gates and the NX reservation.
+    // tokensUsed: 5 makes the budget consumption observable so we can plant
+    // the competing reservation after the early checks but before the NX SET.
+    // The @-mention of a nonexistent name forces a Postgres round trip in
+    // mention resolution, widening that window.
+    const sendPromise = app.request(`/conversations/${conversationId}/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${agentToken}` },
+      body: JSON.stringify({ content: "racing @NobodyHere123", clientMessageId: raceKey, tokensUsed: 5 }),
+    });
+
+    const { getDailyCounter } = await import("../policy/memoryStore");
+    // Tight poll, NO sleep: each iteration is one Redis GET (~0.5ms) while
+    // the send still has several sequential network round-trips (rate
+    // gates, mention resolution) before its NX reservation. A sleep here
+    // lets the send run unopposed and win the race under suite load.
+    const deadline = Date.now() + 10000;
+    while ((await getDailyCounter(budgetKey)) === 0) {
+      if (Date.now() > deadline) throw new Error("send never consumed budget");
+    }
+
+    // The "winner": a concurrent same-key send that reserved first. Its
+    // publish is still in flight — the loser's early checks already passed,
+    // so only the NX reservation can stop the duplicate now.
+    const { setInflightMessage } = await import("../jobs/ingestConsumer");
+    const planted = await setInflightMessage(
+      conversationId,
+      agent.id,
+      raceKey,
+      JSON.stringify({ id: winnerId, conversationId, content: "winner" }),
+    );
+    expect(planted).toBe(true);
+
+    const res = await sendPromise;
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { message: { id: string } };
+    expect(body.message.id).toBe(winnerId);
+
+    // The loser's budget consumption was refunded — net zero.
+    expect(await getDailyCounter(budgetKey)).toBe(0);
+
+    // And it published nothing: draining the stream persists no row for the
+    // raced key (the planted winner was a simulation — its publish never
+    // happened either).
+    await drainIngestStream();
+    const { db } = await import("../db/client");
+    const { messages, } = await import("@aiverse/shared/schema");
+    const { and, eq } = await import("drizzle-orm");
+    const rows = await db.query.messages.findMany({
+      where: and(eq(messages.conversationId, conversationId), eq(messages.clientMessageId, raceKey)),
+    });
+    expect(rows.length).toBe(0);
+  }, 15000);
+});
+
+describe("send validation", () => {
+  test("a bogus runId is rejected with 400 before budget is consumed or anything is published", async () => {
+    await resetMemoryStoreForTests();
+    const email = `runid-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
+    const reg = await app.request("/owners/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password: "password123" }),
+    });
+    const { token: ownerToken } = (await reg.json()) as { token: string };
+    const created = await app.request("/owners/agents", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
+      body: JSON.stringify({ name: `RunIdAgent${Date.now().toString(36)}`, capabilities: [] }),
+    });
+    const { agentToken, agent } = (await created.json()) as { agentToken: string; agent: { id: string } };
+    await app.request(`/owners/agents/${agent.id}/wallet`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
+      body: JSON.stringify({ autonomyMode: "autonomous" }),
+    });
+    const join = await app.request("/rooms/general/join", {
+      method: "POST",
+      headers: { authorization: `Bearer ${agentToken}` },
+    });
+    const { conversationId } = (await join.json()) as { conversationId: string };
+
+    const { uuidv7 } = await import("@aiverse/shared/uuidv7");
+    const res = await app.request(`/conversations/${conversationId}/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${agentToken}` },
+      body: JSON.stringify({ content: "bogus run", runId: uuidv7(), tokensUsed: 5 }),
+    });
+    expect(res.status).toBe(400);
+
+    // Nothing consumed, nothing published: the consumer's batch would
+    // FK-violate on messages.run_id, so this must fail fast at the edge.
+    const { getDailyCounter } = await import("../policy/memoryStore");
+    expect(await getDailyCounter(`budget:${agent.id}:${new Date().toISOString().slice(0, 10)}`)).toBe(0);
+    expect(await drainIngestStream()).toBe(0);
+  }, 15000);
 });

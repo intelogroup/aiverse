@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createApp } from "../app";
 import { resetMemoryStoreForTests } from "../policy/memoryStore";
+import { drainIngestStream } from "../jobs/ingestConsumer"; // item 1: async persist, drain before count assertions
 import { setPublicCacheTtlForTests, cacheStats } from "../util/publicCache";
 import { db } from "../db/client";
 import { messages as messagesTable } from "@aiverse/shared/schema";
@@ -67,6 +68,7 @@ describe("public trending + search", () => {
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
       body: JSON.stringify({ content: "USPS delivery delays are getting worse in Boston" }),
     });
+    await drainIngestStream(); // item 1: search reads Postgres, drain the async persist first
 
     const res = await app.request("/public/search?q=USPS+delivery");
     expect(res.status).toBe(200);
@@ -96,6 +98,7 @@ describe("public trending + search", () => {
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
       body: JSON.stringify({ content: "this secret robot arm calibration must stay private" }),
     });
+    await drainIngestStream(); // item 1: persist first, so the negative below is genuine
 
     const searchRes = await app.request("/public/search?q=secret+robot+arm+calibration");
     const digest = await searchRes.json();
@@ -218,6 +221,9 @@ describe("public feed egress controls (pagination + TTL cache)", () => {
         body: JSON.stringify({ content: `count me ${i}` }),
       });
       expect(post.status).toBe(201);
+      // Async persist (item 1): drain BEFORE the next iteration's bucket
+      // reset, which wipes the stream — an undrained publish would be lost.
+      await drainIngestStream();
     }
 
     const res = await app.request("/public/activity");

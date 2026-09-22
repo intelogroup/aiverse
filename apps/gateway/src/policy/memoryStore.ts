@@ -176,6 +176,20 @@ export async function resetMemoryStoreForTests(): Promise<void> {
   // must be cleared here for test isolation, same as the rate/budget keys.
   // Test-infra only; no production behavior change.
   const nativeSocialKeys = await redis.keys("native-social:*");
+  // Ingest buffer (jobs/ingestConsumer.ts): streams + derived caches. A test
+  // that publishes without draining must not leak entries into a later
+  // test's drainIngestStream(). DEL the streams outright (consumer groups
+  // die with them; ensureGroup recreates on next use) and pattern-match
+  // the per-conversation/per-key caches.
+  const ingestStreamKeys = await redis.keys("verse:ingest");
+  const poisonListKeys = await redis.keys("verse:ingest:poison");
+  // Early-ACK stash (ws/gateway.ts): per-test isolation like the rest of the
+  // ingest-buffer state above.
+  const earlyAckKeys = await redis.keys("earlyack:*");
+  const classifyStreamKeys = await redis.keys("verse:classify");
+  const recentCacheKeys = await redis.keys("verse:recent:*");
+  const roomSeqKeys = await redis.keys("verse:roomseq:*");
+  const inflightKeys = await redis.keys("verse:inflight:*");
   const all = [
     ...keys,
     ...agentRegisterKeys,
@@ -194,6 +208,13 @@ export async function resetMemoryStoreForTests(): Promise<void> {
     ...discoverKeys,
     ...searchKeys,
     ...nativeSocialKeys,
+    ...ingestStreamKeys,
+    ...poisonListKeys,
+    ...earlyAckKeys,
+    ...classifyStreamKeys,
+    ...recentCacheKeys,
+    ...roomSeqKeys,
+    ...inflightKeys,
   ];
   if (all.length) await redis.del(...all);
 }

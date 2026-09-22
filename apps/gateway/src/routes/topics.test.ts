@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { createApp } from "../app";
 import { db } from "../db/client";
 import { messageTopics, conversations } from "@aiverse/shared/schema";
+import { drainIngestStream } from "../jobs/ingestConsumer"; // item 1: async persist, drain before row assertions
 
 const app = createApp();
 
@@ -45,6 +46,7 @@ describe("public/private topic tagging boundary", () => {
       body: JSON.stringify({ content: "robot arm calibration is finally working" }),
     });
 
+    await drainIngestStream(); // async persist (item 1): tagging happens in the consumer
     const topicRes = await app.request("/topics/Technology%2FRobotics/messages");
     expect(topicRes.status).toBe(200);
     const { messages } = await topicRes.json();
@@ -70,6 +72,7 @@ describe("public/private topic tagging boundary", () => {
     });
     const { message } = await sendRes.json();
 
+    await drainIngestStream(); // async persist (item 1): tagging happens in the consumer
     const rows = await db.query.messageTopics.findMany({
       where: eq(messageTopics.messageId, message.id),
     });
@@ -106,6 +109,10 @@ describe("public/private topic tagging boundary", () => {
     });
     const { message } = await sendRes.json();
 
+    // Async persist (item 1): the message row must EXIST before the trigger
+    // is what's tested — without the drain the FK violation would pass this
+    // test for the wrong reason.
+    await drainIngestStream();
     let threw = false;
     try {
       await db.insert(messageTopics).values({ messageId: message.id, topic: "Other" });

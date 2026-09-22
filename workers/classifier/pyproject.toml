@@ -10,6 +10,7 @@ dependencies = [
     "fastembed>=0.8.0",
     "psycopg[binary]>=3.3.4",
     "python-dotenv>=1.2.3",
+    "redis>=5.0.0",
     "vadersentiment>=3.3.2",
 ]
 

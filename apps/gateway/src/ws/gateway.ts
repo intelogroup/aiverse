@@ -5,6 +5,8 @@ import { and, eq, notInArray, gt, lt, ne, isNull } from "drizzle-orm";
 import { db } from "../db/client";
 import { agents, conversationParticipants, messages, a2aTasks, mentions } from "@aiverse/shared/schema";
 import { redis, redisSub } from "../redis/client";
+import { recentCacheKey, INGEST_STREAM } from "../jobs/ingestConsumer";
+import { presenceKey, setPresence, clearPresence } from "../presence";
 import { envelope, WS_EVENTS } from "./events";
 import { log, timed } from "../util/log";
 
@@ -21,17 +23,11 @@ interface Connection {
 
 // Live WS refs — inherently per-process, sockets aren't serializable. Cross-
 // instance/restart-safe presence truth is the Redis `presence:{agentId}` TTL
-// key below, not this Map. Delivery itself now goes through the Redis fanout
+// key (src/presence.ts), not this Map. Delivery itself now goes through the Redis fanout
 // below instead of touching these maps directly — same code runs whether
 // there's one gateway process or many, so scaling out later is a deploy
 // change, not a delivery-logic rewrite.
 const connections = new Map<string, Connection>();
-
-const PRESENCE_TTL_SECONDS = 90; // > 2x the 30s heartbeat interval below
-
-function presenceKey(agentId: string): string {
-  return `presence:${agentId}`;
-}
 
 // owner console sockets, keyed by ownerId — used to push live console_events
 // and agent status changes to the human console (Phase 4).
@@ -123,11 +119,217 @@ function broadcast(event: ReturnType<typeof envelope>, exceptAgentId?: string) {
   publishFanout({ kind: "broadcast", event, exceptAgentId });
 }
 
+// Early-ACK stash: a client can ACK a message/mention that arrived on the
+// live socket before the ingest consumer persisted its row (the async
+// persist window). The ACK's UPDATE then matches zero rows and would be
+// silently dropped, causing a duplicate on the next reconnect. Stash the
+// ack in Redis; the reconnect backlog filters stashed ids out. The durable
+// ackedAt / lastDeliveredAt columns stay the source of truth once the row
+// exists — the stash only bridges the persist window, hence the TTL.
+const EARLY_ACK_TTL_SECONDS = 86400;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function earlyAckKey(kind: "msg" | "mention", parts: string[]): string {
+  return `earlyack:${kind}:${parts.join(":")}`;
+}
+
+// Drops backlog entries the client already acked early (see above). One
+// pipeline per call; ids are pre-generated UUIDs so key construction is
+// safe.
+async function filterEarlyAcked<T extends { id: string }>(
+  kind: "msg" | "mention",
+  keyParts: (id: string) => string[],
+  entries: T[],
+): Promise<T[]> {
+  if (!entries.length) return entries;
+  const pipe = redis.pipeline();
+  for (const e of entries) pipe.exists(earlyAckKey(kind, keyParts(e.id)));
+  const hits = await pipe.exec();
+  return entries.filter((_, i) => {
+    const r = hits?.[i]?.[1];
+    return r !== 1 && r !== "1";
+  });
+}
+
 // Bounded per source so a long-absent agent reconnecting doesn't get flooded
 // — this is at-least-once catch-up, not a full history replay.
 const BACKLOG_MESSAGES_PER_CONVERSATION = 50;
 const BACKLOG_A2A_TASKS = 50;
 const BACKLOG_MENTIONS = 20;
+
+// Item 3: reconnect message backlog reads from the per-conversation
+// recent-message cache the ingest consumer maintains
+// (verse:recent:<id>, newest-first, capped at RECENT_CACHE_CAP) instead of
+// Postgres. Returns null when the cache can't cover the cursor — cold,
+// evicted, or trimmed past lastDeliveredAt — and the caller falls back to
+// the Postgres query, which stays the source of truth.
+//
+// Coverage rule: the cache is a contiguous newest-first suffix of the
+// conversation (LPUSH in stream order, LREM+LPUSH on replay, atomic
+// pipeline), so it holds every undelivered message iff its oldest entry is
+// at or before the cursor. Pre-item-1 messages never entered the cache, so
+// an old cursor correctly misses and falls back.
+interface BacklogCacheEntry {
+  id: string;
+  conversationId: string;
+  senderAgentId: string;
+  content: string;
+  replyToId: string | null;
+  createdAt: number;
+}
+
+async function readBacklogCache(
+  conversationId: string,
+  agentId: string,
+  lastDeliveredAt: Date,
+): Promise<BacklogCacheEntry[] | null> {
+  const raw = await redis.lrange(recentCacheKey(conversationId), 0, -1);
+  if (!raw.length) return null;
+  const entries: BacklogCacheEntry[] = [];
+  for (const item of raw) {
+    let e: Partial<BacklogCacheEntry>;
+    try {
+      e = JSON.parse(item) as Partial<BacklogCacheEntry>;
+    } catch {
+      // Malformed entry: the cache no longer provably holds a contiguous
+      // newest-first suffix, so the coverage check below can't be trusted
+      // (the oldest remaining parseable entry could mask a gap). Fall back
+      // to Postgres rather than risk silently omitting messages.
+      return null;
+    }
+    if (typeof e.id !== "string" || typeof e.createdAt !== "number" || !Number.isFinite(e.createdAt)) {
+      // Structurally invalid entry: same reasoning — can't prove coverage.
+      return null;
+    }
+    entries.push({
+      id: e.id,
+      conversationId: typeof e.conversationId === "string" ? e.conversationId : conversationId,
+      senderAgentId: typeof e.senderAgentId === "string" ? e.senderAgentId : "",
+      content: typeof e.content === "string" ? e.content : "",
+      replyToId: typeof e.replyToId === "string" ? e.replyToId : null,
+      createdAt: e.createdAt,
+    });
+  }
+  if (!entries.length) return null;
+  const cursorMs = lastDeliveredAt.getTime();
+  if (entries[entries.length - 1].createdAt > cursorMs) return null;
+  // Same filter-then-bound as the Postgres query below: only messages after
+  // the cursor, not from the reconnecting agent, at most the cap.
+  return entries
+    .filter((e) => e.createdAt > cursorMs && e.senderAgentId !== agentId)
+    .slice(0, BACKLOG_MESSAGES_PER_CONVERSATION);
+}
+
+// Entries published to the ingest stream but not yet persisted by the
+// consumer (the ≤250ms window, or a consumer outage): they already fanned
+// out live, so a reconnect racing the persist window would miss them —
+// neither the recent-message cache nor Postgres has them yet. Reads the
+// stream tail directly (stream ids are "<ms>-<seq>", so min-id "<cursorMs>-0"
+// starts the range at the cursor without scanning older history), oldest-
+// first. `seenIds` dedupes against what the cache/Postgres read already
+// returned — the consumer may persist an entry between the two reads, in
+// which case it appears in both. Unpersisted entries are strictly newer than
+// anything persisted, so the caller appends these after the persisted
+// backlog and wire order stays oldest-first.
+const PENDING_INGEST_SCAN_COUNT = 100;
+async function readPendingIngest(
+  conversationId: string,
+  agentId: string,
+  lastDeliveredAt: Date,
+  seenIds: Set<string>,
+): Promise<BacklogCacheEntry[]> {
+  const cursorMs = lastDeliveredAt.getTime();
+  let raw: Array<[string, string[]]>;
+  try {
+    raw = (await redis.xrange(INGEST_STREAM, `${cursorMs}-0`, "+", "COUNT", PENDING_INGEST_SCAN_COUNT)) as Array<
+      [string, string[]]
+    >;
+  } catch {
+    return [];
+  }
+  const out: BacklogCacheEntry[] = [];
+  for (const [, flat] of raw) {
+    const m = new Map<string, string>();
+    for (let i = 0; i + 1 < flat.length; i += 2) m.set(flat[i], flat[i + 1]);
+    const id = m.get("id") ?? "";
+    const ts = Number(m.get("ts") ?? NaN);
+    if (!id || !Number.isFinite(ts) || ts <= cursorMs) continue;
+    if (m.get("conversationId") !== conversationId) continue;
+    if ((m.get("senderAgentId") ?? "") === agentId) continue;
+    if (seenIds.has(id)) continue;
+    seenIds.add(id);
+    out.push({
+      id,
+      conversationId,
+      senderAgentId: m.get("senderAgentId") ?? "",
+      content: m.get("content") ?? "",
+      replyToId: m.get("replyToId") || null,
+      createdAt: ts,
+    });
+  }
+  return out;
+}
+
+// Same race one level up for @-mentions: the durable mention row is written
+// by the ingest consumer, but the live MENTIONED push fires at send time. A
+// reconnect inside the persist window misses the row in the Postgres query
+// below, so merge unpersisted mentions straight from the stream entries'
+// pre-generated mention payloads. Time-bounded (not cursor-bounded — the
+// mentions backlog is "all unacked", and anything unpersisted is by
+// definition younger than the consumer lag).
+const PENDING_MENTION_SCAN_MINUTES = 5;
+interface PendingMention {
+  mention_id: string;
+  conversation_id: string;
+  is_public: boolean;
+  room_slug: string | null;
+  message_id: string;
+  by: string;
+  by_name: string;
+  content: string;
+  ts: number;
+}
+async function readPendingMentions(agentId: string, seenIds: Set<string>): Promise<PendingMention[]> {
+  const sinceMs = Date.now() - PENDING_MENTION_SCAN_MINUTES * 60_000;
+  let raw: Array<[string, string[]]>;
+  try {
+    raw = (await redis.xrange(INGEST_STREAM, `${sinceMs}-0`, "+", "COUNT", PENDING_INGEST_SCAN_COUNT)) as Array<
+      [string, string[]]
+    >;
+  } catch {
+    return [];
+  }
+  const out: PendingMention[] = [];
+  for (const [, flat] of raw) {
+    const m = new Map<string, string>();
+    for (let i = 0; i + 1 < flat.length; i += 2) m.set(flat[i], flat[i + 1]);
+    let payloads: unknown;
+    try {
+      payloads = JSON.parse(m.get("mentions") ?? "[]");
+    } catch {
+      continue;
+    }
+    if (!Array.isArray(payloads)) continue;
+    const ts = Number(m.get("ts") ?? Date.now());
+    for (const men of payloads as Array<Record<string, unknown>>) {
+      if (men?.targetAgentId !== agentId) continue;
+      const id = typeof men.id === "string" ? men.id : "";
+      if (!id || seenIds.has(id)) continue;
+      seenIds.add(id);
+      out.push({
+        mention_id: id,
+        conversation_id: typeof men.conversationId === "string" ? men.conversationId : "",
+        is_public: men.isPublic === true,
+        room_slug: typeof men.roomSlug === "string" ? men.roomSlug : null,
+        message_id: typeof men.messageId === "string" ? men.messageId : "",
+        by: typeof men.byAgentId === "string" ? men.byAgentId : "",
+        by_name: typeof men.byName === "string" ? men.byName : "",
+        content: typeof men.content === "string" ? men.content : "",
+        ts: Number.isFinite(ts) ? ts : Date.now(),
+      });
+    }
+  }
+  return out;
+}
 
 // Offline delivery: replays anything this agent missed while disconnected.
 // Messages replay from each conversation's lastDeliveredAt cursor (only
@@ -143,15 +345,29 @@ async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ message
   let messagesDelivered = 0;
   let participantJoinsDelivered = 0;
   for (const p of participantRows) {
-    const backlog = await db.query.messages.findMany({
-      where: and(
-        eq(messages.conversationId, p.conversationId),
-        gt(messages.createdAt, p.lastDeliveredAt),
-        ne(messages.senderAgentId, agentId),
-      ),
-      orderBy: (m, { asc }) => [asc(m.createdAt)],
-      limit: BACKLOG_MESSAGES_PER_CONVERSATION,
-    });
+    // Cache-first (item 3): the Postgres query below is the fallback for a
+    // cold or cursor-uncovered cache. Cached entries are newest-first; the
+    // wire order stays oldest-first like the Postgres ORDER BY.
+    const cached = await readBacklogCache(p.conversationId, agentId, p.lastDeliveredAt);
+    const persisted =
+      cached !== null
+        ? [...cached].reverse()
+        : await db.query.messages.findMany({
+            where: and(
+              eq(messages.conversationId, p.conversationId),
+              gt(messages.createdAt, p.lastDeliveredAt),
+              ne(messages.senderAgentId, agentId),
+            ),
+            orderBy: (m, { asc }) => [asc(m.createdAt)],
+            limit: BACKLOG_MESSAGES_PER_CONVERSATION,
+          });
+    // Unpersisted stream tail (see readPendingIngest): strictly newer than
+    // anything above, so it appends after and wire order stays oldest-first.
+    const seenBacklogIds = new Set(persisted.map((m) => m.id));
+    const backlog = await filterEarlyAcked("msg", (id) => [p.conversationId, agentId, id], [
+      ...persisted,
+      ...(await readPendingIngest(p.conversationId, agentId, p.lastDeliveredAt, seenBacklogIds)),
+    ]);
     for (const m of backlog) {
       ws.send(
         JSON.stringify(
@@ -161,7 +377,7 @@ async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ message
             sender_id: m.senderAgentId,
             content: m.content,
             reply_to_id: m.replyToId,
-            ts: m.createdAt.getTime(),
+            ts: typeof m.createdAt === "number" ? m.createdAt : m.createdAt.getTime(),
           }),
         ),
       );
@@ -217,24 +433,44 @@ async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ message
   // conversationParticipants — a mention is deliberately allowed to reach a
   // non-participant (see routes/conversations.ts), so it needs its own
   // per-agent query rather than riding the participant-row loop.
-  const pendingMentions = await db.query.mentions.findMany({
+  const allPersistedMentions = await db.query.mentions.findMany({
     where: and(eq(mentions.targetAgentId, agentId), isNull(mentions.ackedAt)),
     orderBy: (m, { asc }) => [asc(m.createdAt)],
     limit: BACKLOG_MENTIONS,
   });
+  // seenMentionIds is built from the UNFILTERED rows: a mention dropped by
+  // the early-ACK filter below must still suppress its stream-tail twin in
+  // readPendingMentions, or the stash would just move the duplicate from
+  // the Postgres path to the stream path.
+  const seenMentionIds = new Set(allPersistedMentions.map((m) => m.id));
+  const persistedMentions = await filterEarlyAcked("mention", (id) => [id], allPersistedMentions);
+  // Unpersisted mention rows still sitting in the ingest stream (same race
+  // as messages above): append after the persisted ones, oldest-first.
+  const pendingMentions: PendingMention[] = persistedMentions.map((m) => ({
+    mention_id: m.id,
+    conversation_id: m.conversationId,
+    is_public: m.isPublic,
+    room_slug: m.roomSlug,
+    message_id: m.messageId,
+    by: m.byAgentId,
+    by_name: m.byName,
+    content: m.content,
+    ts: m.createdAt.getTime(),
+  }));
+  pendingMentions.push(...(await readPendingMentions(agentId, seenMentionIds)));
   for (const m of pendingMentions) {
     ws.send(
       JSON.stringify(
         envelope(WS_EVENTS.MENTIONED, {
-          mention_id: m.id,
-          conversation_id: m.conversationId,
-          is_public: m.isPublic,
-          room_slug: m.roomSlug,
-          message_id: m.messageId,
-          by: m.byAgentId,
-          by_name: m.byName,
+          mention_id: m.mention_id,
+          conversation_id: m.conversation_id,
+          is_public: m.is_public,
+          room_slug: m.room_slug,
+          message_id: m.message_id,
+          by: m.by,
+          by_name: m.by_name,
           content: m.content,
-          ts: m.createdAt.getTime(),
+          ts: m.ts,
         }),
       ),
     );
@@ -246,6 +482,14 @@ async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ message
 // Advances the delivery cursor for one conversation, gated on the message's
 // real createdAt looked up server-side — never trust a client-supplied
 // timestamp, and never move the cursor backward on an out-of-order ack.
+//
+// Early-ACK race (async persist window): the client can ACK a message or
+// mention that arrived on the live socket before the ingest consumer wrote
+// its row. The lookup below then finds nothing and the ACK would be
+// silently dropped — a guaranteed duplicate on the next reconnect. Instead
+// the ACK is stashed in Redis (see earlyAckKey); deliverBacklog filters
+// stashed ids out, so the client effectively gets exactly-once within the
+// stash TTL even across the persist window.
 async function handleAck(agentId: string, payload: unknown): Promise<void> {
   const { conversationId, messageId, mentionId } = (payload ?? {}) as {
     conversationId?: string;
@@ -256,6 +500,18 @@ async function handleAck(agentId: string, payload: unknown): Promise<void> {
   // messageId): the target may not be a conversation participant, so
   // conversationParticipants.lastDeliveredAt has no row to advance for them.
   if (mentionId) {
+    const row = await db.query.mentions.findFirst({
+      where: and(eq(mentions.id, mentionId), eq(mentions.targetAgentId, agentId)),
+      columns: { id: true },
+    });
+    if (!row) {
+      // Not persisted yet — stash the ACK (guard the key shape: mention ids
+      // are server-generated UUIDs, never trust client input for key parts).
+      if (UUID_RE.test(mentionId)) {
+        await redis.set(earlyAckKey("mention", [mentionId]), "1", "EX", EARLY_ACK_TTL_SECONDS);
+      }
+      return;
+    }
     await db.update(mentions).set({ ackedAt: new Date() }).where(and(eq(mentions.id, mentionId), eq(mentions.targetAgentId, agentId)));
     return;
   }
@@ -264,7 +520,13 @@ async function handleAck(agentId: string, payload: unknown): Promise<void> {
   const message = await db.query.messages.findFirst({
     where: and(eq(messages.id, messageId), eq(messages.conversationId, conversationId)),
   });
-  if (!message) return;
+  if (!message) {
+    // Same early-ACK race as mentions above: stash it for the backlog filter.
+    if (UUID_RE.test(messageId)) {
+      await redis.set(earlyAckKey("msg", [conversationId, agentId, messageId]), "1", "EX", EARLY_ACK_TTL_SECONDS);
+    }
+    return;
+  }
 
   await db
     .update(conversationParticipants)
@@ -357,9 +619,9 @@ export function registerAgentWsRoute(app: {
             missedPings: 0,
           };
           connections.set(agent.id, conn);
-          await timed("redis_write", { key: "presence", op: "set" }, () =>
-            redis.set(presenceKey(agent.id), "1", "EX", PRESENCE_TTL_SECONDS),
-          );
+          // Item 4: the TTL key is the live presence truth; the DB status
+          // write above stays as the transition record / Redis-down fallback.
+          await timed("redis_write", { key: "presence", op: "set" }, () => setPresence(agent.id));
 
           ws.send(JSON.stringify(envelope(WS_EVENTS.AGENT_CONNECTED, { agent_id: agent.id })));
 
@@ -402,7 +664,7 @@ export function registerAgentWsRoute(app: {
             }
             conn.missedPings += 1;
             ws.send(JSON.stringify(envelope(WS_EVENTS.PING, {})));
-            redis.set(presenceKey(agent.id), "1", "EX", PRESENCE_TTL_SECONDS).catch(() => {});
+            setPresence(agent.id).catch(() => {});
           }, 30_000);
         },
         onMessage: async (event, ws) => {
@@ -416,7 +678,7 @@ export function registerAgentWsRoute(app: {
               // must not touch the new connection's state.
               if (conn && conn.ws.raw === ws.raw) {
                 conn.missedPings = 0;
-                redis.set(presenceKey(agentId), "1", "EX", PRESENCE_TTL_SECONDS).catch(() => {});
+                setPresence(agentId).catch(() => {});
               }
             }
             if (msg.type === WS_EVENTS.ACK) {
@@ -436,7 +698,7 @@ export function registerAgentWsRoute(app: {
           if (!conn || conn.ws.raw !== ws.raw) return;
           const closedOwnerId = conn.ownerId;
           connections.delete(agentId);
-          await redis.del(presenceKey(agentId));
+          await clearPresence(agentId);
           // Don't clobber a status the owner/system deliberately set (paused,
           // budget_exhausted) just because the socket that carried it closed —
           // only transient connection states (online/away) reset to offline.
