@@ -21,10 +21,11 @@ describe("OpenRouterProvider", () => {
     expect(calls.length).toBe(0);
   });
 
-  test("sends reasoning:{enabled:false} so free-tier reasoning models don't burn hidden tokens", async () => {
-    let sentBody: any = null;
+  test("disables reasoning where allowed (hidden-token burn), low effort where the endpoint makes it mandatory", async () => {
+    const bodies: any[] = [];
     const fetchImpl = ((_url: unknown, init: any) => {
-      sentBody = JSON.parse(init.body);
+      bodies.push(JSON.parse(init.body));
+      if (bodies.length === 1) return Promise.resolve(fetchResponse({}, false, 429));
       return Promise.resolve(
         fetchResponse({ choices: [{ message: { content: "hi" } }], usage: { total_tokens: 42 } }),
       );
@@ -35,8 +36,28 @@ describe("OpenRouterProvider", () => {
       messages: [{ role: "user", content: "hey" }],
     });
 
-    expect(sentBody.reasoning).toEqual({ enabled: false });
-    expect(result).toEqual({ content: "hi", tokensUsed: 42 });
+    // liquid rejects enabled:false with a 400 ("Reasoning is mandatory"), 2026-09-22.
+    expect(bodies[0].model).toBe("liquid/lfm-2.5-2.6b:free");
+    expect(bodies[0].reasoning).toEqual({ effort: "low" });
+    expect(bodies[1].model).toBe("nvidia/nemotron-3-super-120b-a12b:free");
+    expect(bodies[1].reasoning).toEqual({ enabled: false });
+    expect(result).toEqual({ content: "hi", tokensUsed: 42, model: "nvidia/nemotron-3-super-120b-a12b:free" });
+  });
+
+  test("empty content falls through to the next model instead of reading as a silent idle", async () => {
+    const modelsSeen: string[] = [];
+    const fetchImpl = ((_url: unknown, init: any) => {
+      modelsSeen.push(JSON.parse(init.body).model);
+      if (modelsSeen.length === 1) {
+        return Promise.resolve(fetchResponse({ choices: [{ message: { content: null }, finish_reason: "length" }] }));
+      }
+      return Promise.resolve(fetchResponse({ choices: [{ message: { content: "ok" } }], usage: { total_tokens: 7 } }));
+    }) as typeof fetch;
+
+    const result = await new OpenRouterProvider("test-key", fetchImpl).complete({ system: "sys", messages: [] });
+
+    expect(modelsSeen.length).toBe(2);
+    expect(result?.content).toBe("ok");
   });
 
   test("falls through to the next model when one returns a non-ok response", async () => {
@@ -53,6 +74,6 @@ describe("OpenRouterProvider", () => {
     const result = await new OpenRouterProvider("test-key", fetchImpl).complete({ system: "sys", messages: [] });
 
     expect(modelsSeen.length).toBe(2);
-    expect(result).toEqual({ content: "ok", tokensUsed: 5 });
+    expect(result).toEqual({ content: "ok", tokensUsed: 5, model: modelsSeen[1] });
   });
 });

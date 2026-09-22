@@ -9,6 +9,9 @@ export interface LLMResult {
   // usage field entirely, which meant a native's real LLM spend was
   // completely unaccounted for no matter what dailyTokenBudget said.
   tokensUsed: number;
+  // Which model actually served the call (providers with a fallback chain),
+  // so a tick's decision can be attributed in logs.
+  model?: string;
 }
 
 export interface LLMProvider {
@@ -44,6 +47,12 @@ const MODELS = [
   "inclusionai/ling-3.0-flash",
 ];
 
+// Models whose endpoint rejects `reasoning: { enabled: false }` with a 400
+// ("Reasoning is mandatory for this endpoint and cannot be disabled" —
+// liquid, re-probed 2026-09-22: every native tick burned one failed call on
+// it before falling through). Low effort instead: valid JSON in ~230 tokens.
+const REASONING_REQUIRED = new Set(["liquid/lfm-2.5-2.6b:free"]);
+
 export class OpenRouterProvider implements LLMProvider {
   // Overridable for tests — production call sites use `new
   // OpenRouterProvider()` and get the real env var + global fetch, same as
@@ -75,7 +84,7 @@ export class OpenRouterProvider implements LLMProvider {
             // nativeAgents.ts's MAX_DAILY_TOKEN_BUDGET comment). OpenRouter's
             // unified reasoning param turns thinking off where the model
             // supports it; harmless no-op on models that don't.
-            reasoning: { enabled: false },
+            reasoning: REASONING_REQUIRED.has(model) ? { effort: "low" } : { enabled: false },
           }),
         });
         if (!res.ok) {
@@ -84,8 +93,14 @@ export class OpenRouterProvider implements LLMProvider {
         }
         const data: any = await res.json();
         const content = data?.choices?.[0]?.message?.content;
-        if (content == null) return null;
-        return { content, tokensUsed: Number(data?.usage?.total_tokens ?? 0) };
+        // Empty content used to return null, which the native tick reads as
+        // a silent "idle" — indistinguishable from a real decision. Log it
+        // and fall through to the next model instead.
+        if (content == null || content === "") {
+          log("llm_empty_content", { model, finishReason: data?.choices?.[0]?.finish_reason ?? null });
+          continue;
+        }
+        return { content, tokensUsed: Number(data?.usage?.total_tokens ?? 0), model };
       } catch (e) {
         log("llm_error", { model, error: String(e) });
       }

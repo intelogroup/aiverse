@@ -233,6 +233,12 @@ async function getRoomConversationId(slug: string): Promise<string> {
 async function getRoomConversationIds(): Promise<string[]> {
   return Promise.all(DEFAULT_ROOM_SLUGS.map(getRoomConversationId));
 }
+// Test-only: point a default room slug at a given conversation (null clears
+// the override so the real room resolves again).
+export function setRoomConversationForTests(slug: string, conversationId: string | null): void {
+  if (conversationId) roomConvIdCache.set(slug, conversationId);
+  else roomConvIdCache.delete(slug);
+}
 
 // Item 5: per-room high-water marks. verse:tickhwm:<nativeId> is a hash of
 // room conversation id -> last seen verse:roomseq value (the counter item 1
@@ -465,15 +471,19 @@ async function gatherPendingA2ATasks(nativeAgentId: string): Promise<{ taskId: s
   }));
 }
 
-async function gatherContext(nativeAgentId: string): Promise<RoomContext[]> {
+// emptyOnly: consider only these conversations and return only the ones that
+// are genuinely empty (bootstrap candidates) — the idle-skip path's check.
+async function gatherContext(nativeAgentId: string, emptyOnly?: Set<string>): Promise<RoomContext[]> {
   const out: RoomContext[] = [];
   for (const slug of DEFAULT_ROOM_SLUGS) {
     const conversationId = await getRoomConversationId(slug);
+    if (emptyOnly && !emptyOnly.has(conversationId)) continue;
     const recent = await db.query.messages.findMany({
       where: eq(messages.conversationId, conversationId),
       orderBy: (m, { desc }) => [desc(m.createdAt)],
       limit: RECENT_MESSAGES_PER_ROOM,
     });
+    if (emptyOnly && recent.length) continue;
     if (!recent.length) {
       // Native bootstrap (minimal diff): an empty public room is still context.
       // The native may make the first move there, but the per-room token
@@ -666,8 +676,16 @@ export async function tickOne(nativeAgentId: string, nativeName: string, prompt:
     rooms_ = await gatherContext(nativeAgentId);
     await storeTickHwm(nativeAgentId, seqs);
   } else {
-    rooms_ = [];
-    log("native_tick_idle_skip", { name: nativeName });
+    // An empty room never advances its sequence, so the skip above used to
+    // exclude it forever after a native's first tick — the empty-room
+    // bootstrap in gatherContext became unreachable and a cold world stayed
+    // silent permanently (bootstrap retest 2026-09-22: 0 messages, 40/40
+    // ticks skipped). Re-check only rooms whose sequence reads 0: a seq > 0
+    // proves the room has messages, so busy worlds pay nothing, and the
+    // per-room bootstrap token still bounds how often an empty room is offered.
+    const zeroSeq = new Set(roomConvIds.filter((id) => (seqs[id] ?? 0) === 0));
+    rooms_ = zeroSeq.size ? await gatherContext(nativeAgentId, zeroSeq) : [];
+    if (!rooms_.length) log("native_tick_idle_skip", { name: nativeName });
   }
 
   const directMessages = await gatherDMContext(nativeAgentId);
@@ -757,6 +775,16 @@ export async function tickOne(nativeAgentId: string, nativeName: string, prompt:
 
   const result = await llm.complete({ system, messages: [{ role: "user", content: userContent }] });
   const action = parseAction(result?.content ?? null);
+  // Every decision, idle included — before this an idle choice (or a failed
+  // call that parsed as idle) left no trace, so "natives stayed silent" could
+  // not be told apart from "natives were never asked".
+  log("native_tick_decision", {
+    name: nativeName,
+    action: action.action,
+    model: result?.model ?? null,
+    llmFailed: result == null,
+    emptyRooms: rooms_.filter((r) => !r.recentMessages.length).map((r) => r.slug),
+  });
 
   // The real cost of this tick's LLM call was previously never charged
   // against the wallet at all (every dispatch path passed a hardcoded

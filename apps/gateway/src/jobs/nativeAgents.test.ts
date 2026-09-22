@@ -1,10 +1,10 @@
 import { describe, expect, test, beforeAll, beforeEach, afterEach } from "bun:test";
 import { eq, and, inArray } from "drizzle-orm";
 import { db } from "../db/client";
-import { agents, agentMemory, agentWallets, conversationParticipants, nativeRuns, conversations, messages } from "@aiverse/shared/schema";
+import { agents, agentMemory, agentWallets, conversationParticipants, nativeRuns, conversations, messages, rooms as roomsTable } from "@aiverse/shared/schema";
 import { ensureRoomsSeeded } from "../db/seed";
 import { resetMemoryStoreForTests, takeToken } from "../policy/memoryStore";
-import { ensureNativeAgents, setLLMProviderForTests, tickOne, startRun, stopRun, getCurrentRunId, clearTickHwmForTests, markPeerText } from "./nativeAgents";
+import { ensureNativeAgents, setLLMProviderForTests, tickOne, startRun, stopRun, getCurrentRunId, clearTickHwmForTests, markPeerText, setRoomConversationForTests } from "./nativeAgents";
 import { drainIngestStream } from "./ingestConsumer"; // item 1: tick posts publish async, drain before DB assertions
 import { setPresence, clearPresence } from "../presence"; // item 4: live presence is the Redis TTL key
 import { redis } from "../redis/client";
@@ -277,6 +277,20 @@ describe("native agents", () => {
     const sage = await getNative("Sage");
     const fixer = await getNative("Fixer");
 
+    // Premise: quiet but NON-empty rooms. An empty room is a bootstrap
+    // candidate and is (correctly) still offered on the skip path — see the
+    // next test. Direct inserts leave the Redis sequence at 0, which also
+    // covers "sequence reads 0 but the room has messages → still skipped".
+    const roomConvs = await db
+      .select({ id: conversations.id })
+      .from(conversations)
+      .innerJoin(roomsTable, eq(roomsTable.id, conversations.roomId))
+      .where(inArray(roomsTable.slug, ["general", "science", "robotics", "verse"]));
+    for (const { id } of roomConvs) {
+      const any = await db.query.messages.findFirst({ where: eq(messages.conversationId, id) });
+      if (!any) await db.insert(messages).values({ conversationId: id, senderAgentId: fixer.id, content: "room seed for idle-skip premise" });
+    }
+
     const seen: string[] = [];
     setLLMProviderForTests({
       complete: async ({ messages }) => {
@@ -312,6 +326,47 @@ describe("native agents", () => {
     const rooms = JSON.parse(seen[1]).rooms as { recentMessages: { content: string }[] }[];
     expect(rooms.length).toBeGreaterThan(0);
     expect(rooms.some((r) => r.recentMessages.some((m) => m.content === markPeerText("idle-skip probe")))).toBe(true);
+  });
+
+  test("an empty room is still offered after the idle-skip mark is set (bootstrap deadlock, retest 2026-09-22)", async () => {
+    await resetMemoryStoreForTests();
+    const sage = await getNative("Sage");
+    const fixer = await getNative("Fixer");
+
+    // Deterministic world: 3 rooms with a message, 1 genuinely empty.
+    const slugs = ["general", "science", "robotics", "verse"];
+    const convs = await db
+      .insert(conversations)
+      .values(slugs.map((s) => ({ kind: "group" as const, isPublic: true, name: `deadlock-${s}-${Date.now()}` })))
+      .returning();
+    const emptyConvId = convs[2].id;
+    for (const c of convs) if (c.id !== emptyConvId) await db.insert(messages).values({ conversationId: c.id, senderAgentId: fixer.id, content: "not empty" });
+    slugs.forEach((s, i) => setRoomConversationForTests(s, convs[i].id));
+
+    const seen: string[] = [];
+    setLLMProviderForTests({
+      complete: async ({ messages: msgs }) => {
+        seen.push(msgs[0]?.content ?? "");
+        return { content: JSON.stringify({ action: "idle" }), tokensUsed: 0 };
+      },
+    });
+
+    try {
+      // Tick 1 sets the high-water marks (every sequence reads 0).
+      await tickOne(sage.id, "Sage", "prompt", "objective");
+      expect(seen.length).toBe(1);
+
+      // Tick 2: nothing advanced. Before the fix this skipped the gather
+      // entirely, forever — the empty room could never get its first move.
+      await resetMemoryStoreForTests(); // cooldown + bootstrap token available again
+      await tickOne(sage.id, "Sage", "prompt", "objective");
+      expect(seen.length).toBe(2);
+      const offered = JSON.parse(seen[1]).rooms as { conversationId: string; recentMessages: unknown[] }[];
+      expect(offered.map((r) => r.conversationId)).toEqual([emptyConvId]); // only the empty room, not the quiet ones
+      expect(offered[0].recentMessages).toEqual([]);
+    } finally {
+      for (const s of slugs) setRoomConversationForTests(s, null);
+    }
   });
 
   test("Kronikler (Chronicler) sees its own private DMs — gatherDMContext isn't Connector-only", async () => {
