@@ -1,10 +1,10 @@
 import { describe, expect, test, beforeAll, beforeEach, afterEach } from "bun:test";
 import { eq, and, inArray } from "drizzle-orm";
 import { db } from "../db/client";
-import { agents, agentMemory, agentWallets, conversationParticipants, nativeRuns, conversations, messages } from "@aiverse/shared/schema";
+import { agents, agentMemory, agentWallets, conversationParticipants, nativeRuns, conversations, messages, rooms as roomsTable } from "@aiverse/shared/schema";
 import { ensureRoomsSeeded } from "../db/seed";
 import { resetMemoryStoreForTests, takeToken } from "../policy/memoryStore";
-import { ensureNativeAgents, setLLMProviderForTests, tickOne, startRun, stopRun, getCurrentRunId, clearTickHwmForTests, markPeerText } from "./nativeAgents";
+import { ensureNativeAgents, setLLMProviderForTests, tickOne, startRun, stopRun, getCurrentRunId, clearTickHwmForTests, markPeerText, setRoomConversationForTests } from "./nativeAgents";
 import { drainIngestStream } from "./ingestConsumer"; // item 1: tick posts publish async, drain before DB assertions
 import { setPresence, clearPresence } from "../presence"; // item 4: live presence is the Redis TTL key
 import { redis } from "../redis/client";
@@ -66,24 +66,37 @@ describe("native agents", () => {
   test("monologue limit: a native may follow up its own last message exactly once, never twice", async () => {
     await resetMemoryStoreForTests();
     const sage = await getNative("Sage");
-    const conv = await db.query.conversationParticipants.findFirst({ where: eq(conversationParticipants.agentId, sage.id) });
-    if (!conv) throw new Error("sage has no conversation");
+    const fixer = await getNative("Fixer");
+
+    // Isolated conversation, not one of the shared default rooms: every
+    // other test in this file also posts into whichever room
+    // conversationParticipants.findFirst happens to return for Sage (order
+    // unspecified), so two tests can silently share history and one test's
+    // seed becomes another's unaccounted-for "last message" (observed in CI
+    // 2026-09-22: an extra message this test never sent).
+    const [conv] = await db
+      .insert(conversations)
+      .values({ kind: "group", isPublic: true, name: `monologue-test-${Date.now()}` })
+      .returning();
+    await db.insert(conversationParticipants).values([
+      { conversationId: conv.id, agentId: sage.id },
+      { conversationId: conv.id, agentId: fixer.id },
+    ]);
 
     const { messages } = await import("@aiverse/shared/schema");
-    const fixer = await getNative("Fixer");
-    const countAll = async () => (await db.query.messages.findMany({ where: eq(messages.conversationId, conv.conversationId) })).length;
+    const countAll = async () => (await db.query.messages.findMany({ where: eq(messages.conversationId, conv.id) })).length;
 
     // State 1 — last message is Sage's own, the one before is Fixer's:
     // ONE follow-up is allowed (the thread ends [.. fixer, sage])
-    await db.insert(messages).values({ conversationId: conv.conversationId, senderAgentId: fixer.id, content: "someone else spoke" });
-    await db.insert(messages).values({ conversationId: conv.conversationId, senderAgentId: sage.id, content: "sage's own last message" });
+    await db.insert(messages).values({ conversationId: conv.id, senderAgentId: fixer.id, content: "someone else spoke" });
+    await db.insert(messages).values({ conversationId: conv.id, senderAgentId: sage.id, content: "sage's own last message" });
     const beforeFollowUp = await countAll();
 
-    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversation_id: conv.conversationId, content: "sage follow-up (allowed)" })));
+    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversation_id: conv.id, content: "sage follow-up (allowed)" })));
     await tickOne(sage.id, "Sage", "prompt", "objective");
     await drainIngestStream(); // item 1: tick posts publish async, persist before DB assertions
 
-    let after = await db.query.messages.findMany({ where: eq(messages.conversationId, conv.conversationId) });
+    let after = await db.query.messages.findMany({ where: eq(messages.conversationId, conv.id) });
     expect(after.length).toBe(beforeFollowUp + 1); // the follow-up WAS posted
     expect(after.some((m) => m.content === "sage follow-up (allowed)")).toBe(true);
 
@@ -94,11 +107,11 @@ describe("native agents", () => {
     // the wrong reason).
     await resetMemoryStoreForTests();
     const beforeThird = await countAll();
-    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversation_id: conv.conversationId, content: "this must not be posted" })));
+    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversation_id: conv.id, content: "this must not be posted" })));
     await tickOne(sage.id, "Sage", "prompt", "objective");
     await drainIngestStream(); // item 1: tick posts publish async, persist before DB assertions
 
-    after = await db.query.messages.findMany({ where: eq(messages.conversationId, conv.conversationId) });
+    after = await db.query.messages.findMany({ where: eq(messages.conversationId, conv.id) });
     expect(after.length).toBe(beforeThird); // nothing was posted
     expect(after.some((m) => m.content === "this must not be posted")).toBe(false);
   });
@@ -277,6 +290,20 @@ describe("native agents", () => {
     const sage = await getNative("Sage");
     const fixer = await getNative("Fixer");
 
+    // Premise: quiet but NON-empty rooms. An empty room is a bootstrap
+    // candidate and is (correctly) still offered on the skip path — see the
+    // next test. Direct inserts leave the Redis sequence at 0, which also
+    // covers "sequence reads 0 but the room has messages → still skipped".
+    const roomConvs = await db
+      .select({ id: conversations.id })
+      .from(conversations)
+      .innerJoin(roomsTable, eq(roomsTable.id, conversations.roomId))
+      .where(inArray(roomsTable.slug, ["general", "science", "robotics", "verse"]));
+    for (const { id } of roomConvs) {
+      const any = await db.query.messages.findFirst({ where: eq(messages.conversationId, id) });
+      if (!any) await db.insert(messages).values({ conversationId: id, senderAgentId: fixer.id, content: "room seed for idle-skip premise" });
+    }
+
     const seen: string[] = [];
     setLLMProviderForTests({
       complete: async ({ messages }) => {
@@ -312,6 +339,47 @@ describe("native agents", () => {
     const rooms = JSON.parse(seen[1]).rooms as { recentMessages: { content: string }[] }[];
     expect(rooms.length).toBeGreaterThan(0);
     expect(rooms.some((r) => r.recentMessages.some((m) => m.content === markPeerText("idle-skip probe")))).toBe(true);
+  });
+
+  test("an empty room is still offered after the idle-skip mark is set (bootstrap deadlock, retest 2026-09-22)", async () => {
+    await resetMemoryStoreForTests();
+    const sage = await getNative("Sage");
+    const fixer = await getNative("Fixer");
+
+    // Deterministic world: 3 rooms with a message, 1 genuinely empty.
+    const slugs = ["general", "science", "robotics", "verse"];
+    const convs = await db
+      .insert(conversations)
+      .values(slugs.map((s) => ({ kind: "group" as const, isPublic: true, name: `deadlock-${s}-${Date.now()}` })))
+      .returning();
+    const emptyConvId = convs[2].id;
+    for (const c of convs) if (c.id !== emptyConvId) await db.insert(messages).values({ conversationId: c.id, senderAgentId: fixer.id, content: "not empty" });
+    slugs.forEach((s, i) => setRoomConversationForTests(s, convs[i].id));
+
+    const seen: string[] = [];
+    setLLMProviderForTests({
+      complete: async ({ messages: msgs }) => {
+        seen.push(msgs[0]?.content ?? "");
+        return { content: JSON.stringify({ action: "idle" }), tokensUsed: 0 };
+      },
+    });
+
+    try {
+      // Tick 1 sets the high-water marks (every sequence reads 0).
+      await tickOne(sage.id, "Sage", "prompt", "objective");
+      expect(seen.length).toBe(1);
+
+      // Tick 2: nothing advanced. Before the fix this skipped the gather
+      // entirely, forever — the empty room could never get its first move.
+      await resetMemoryStoreForTests(); // cooldown + bootstrap token available again
+      await tickOne(sage.id, "Sage", "prompt", "objective");
+      expect(seen.length).toBe(2);
+      const offered = JSON.parse(seen[1]).rooms as { conversationId: string; recentMessages: unknown[] }[];
+      expect(offered.map((r) => r.conversationId)).toEqual([emptyConvId]); // only the empty room, not the quiet ones
+      expect(offered[0].recentMessages).toEqual([]);
+    } finally {
+      for (const s of slugs) setRoomConversationForTests(s, null);
+    }
   });
 
   test("Kronikler (Chronicler) sees its own private DMs — gatherDMContext isn't Connector-only", async () => {

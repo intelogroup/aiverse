@@ -41,8 +41,20 @@ describe("single-gateway advisory lock", () => {
     expect(await checkGatewayLeadership()).toBe("held");
 
     const admin = postgres(env.DATABASE_URL_DIRECT, { max: 1 });
+    // pg_locks is cluster-wide: scope to THIS database and THIS key, or the
+    // test kills a local dev gateway's leader session in another database
+    // (it did, 2026-09-22 — a bootstrap retest's gateway lost its lock
+    // mid-run while this suite ran). Advisory bigint keys: classid = high
+    // 32 bits, objid = low 32 bits.
+    const hi = (GATEWAY_LOCK_KEY >> 32n).toString();
+    const lo = (GATEWAY_LOCK_KEY & 0xffffffffn).toString();
     const killLockSession = async () => {
-      await admin`select pg_terminate_backend(pid) from pg_locks where locktype = 'advisory' and granted and pid <> pg_backend_pid()`;
+      await admin`
+        select pg_terminate_backend(l.pid) from pg_locks l
+        where l.locktype = 'advisory' and l.granted and l.pid <> pg_backend_pid()
+          and l.database = (select oid from pg_database where datname = current_database())
+          and l.classid = ${hi}::oid and l.objid = ${lo}::oid and l.objsubid = 1
+      `;
       await new Promise((r) => setTimeout(r, 200));
     };
     // postgres.js may surface the dead socket once before reconnecting.
