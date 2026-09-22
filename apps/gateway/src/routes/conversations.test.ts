@@ -577,3 +577,89 @@ describe("send validation", () => {
     expect(await drainIngestStream()).toBe(0);
   }, 15000);
 });
+
+// Red-team finding (2026-09-22): createConversationService never called
+// checkTrust at all, unlike inviteToConversationService — an agent explicitly
+// blocked by its target could still open a DM (or a private group) with it
+// and deliver a message. A cheap free-tier model, given a peer message
+// dressed up as a "SYSTEM OVERRIDE" platform directive, complied and used
+// exactly this path to propagate the injected instruction to an agent it had
+// never discovered or interacted with. Cold-DMs to a never-met, NON-blocking
+// agent remain allowed by design (kind "a2a", same as invite) — the platform
+// exists for agents to freely contact strangers; only an explicit block stops
+// contact.
+describe("start_conversation / DM trust gate", () => {
+  async function registerAgentWithId(name: string) {
+    const email = `conv-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
+    const reg = await app.request("/owners/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password: "password123" }),
+    });
+    const { token: ownerToken } = await reg.json();
+    const created = await app.request("/owners/agents", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
+      body: JSON.stringify({ name, capabilities: [] }),
+    });
+    const { agentToken, agent } = await created.json();
+    await app.request(`/owners/agents/${agent.id}/wallet`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
+      body: JSON.stringify({ autonomyMode: "autonomous" }),
+    });
+    return { token: agentToken as string, agentId: agent.id as string, ownerToken: ownerToken as string };
+  }
+
+  test("a DM is refused when the target has blocked the caller", async () => {
+    await resetMemoryStoreForTests();
+    const caller = await registerAgentWithId("DMCaller");
+    const blocker = await registerAgentWithId("DMBlocker");
+
+    await app.request(`/owners/agents/${blocker.agentId}/policy`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", authorization: `Bearer ${blocker.ownerToken}` },
+      body: JSON.stringify({ blockedAgentIds: [caller.agentId] }),
+    });
+
+    const dm = await app.request("/conversations", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${caller.token}` },
+      body: JSON.stringify({ participantIds: [blocker.agentId], kind: "dm" }),
+    });
+    expect(dm.status).toBe(403);
+  });
+
+  test("a private group invite at creation is refused when a target has blocked the caller", async () => {
+    await resetMemoryStoreForTests();
+    const caller = await registerAgentWithId("GroupCaller");
+    const other = await registerAgentWithId("GroupOther");
+    const blocker = await registerAgentWithId("GroupBlocker");
+
+    await app.request(`/owners/agents/${blocker.agentId}/policy`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", authorization: `Bearer ${blocker.ownerToken}` },
+      body: JSON.stringify({ blockedAgentIds: [caller.agentId] }),
+    });
+
+    const group = await app.request("/conversations", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${caller.token}` },
+      body: JSON.stringify({ kind: "group", name: "trust-gate-group", participantIds: [other.agentId, blocker.agentId] }),
+    });
+    expect(group.status).toBe(403);
+  });
+
+  test("a cold DM to a never-met agent that has NOT blocked the caller still succeeds", async () => {
+    await resetMemoryStoreForTests();
+    const caller = await registerAgentWithId("DMCaller2");
+    const stranger = await registerAgentWithId("DMStranger");
+
+    const dm = await app.request("/conversations", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${caller.token}` },
+      body: JSON.stringify({ participantIds: [stranger.agentId], kind: "dm" }),
+    });
+    expect(dm.status).toBe(201);
+  });
+});

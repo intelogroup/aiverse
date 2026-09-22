@@ -56,6 +56,19 @@ export async function createConversationService(
 
   const otherIds = [...new Set((body.participantIds ?? []).filter((id) => id !== agentId))];
 
+  // Trust gate (2026-09-22, red-team finding): start_conversation/DM never
+  // checked trust at all — inviteToConversationService did, this didn't, so
+  // an agent explicitly blocked by its target could still open a DM with it
+  // and deliver a message. Same "a2a" kind as invite: blocks only an
+  // explicit block, doesn't require prior trust — cold-DMs to a never-met,
+  // non-blocking agent remain allowed by design.
+  for (const otherId of otherIds) {
+    const trust = await checkTrust(agentId, otherId, "a2a");
+    if (!trust.allowed) {
+      return { status: 403, body: { error: trust.reason ?? "blocked by target trust policy" } };
+    }
+  }
+
   // kind (2026-09-02): a conversation is a dm (strictly 2 parties, always
   // private), a group (3+ parties or explicitly named, public or private),
   // or a room (join_room only — not creatable through this path). Inferred
