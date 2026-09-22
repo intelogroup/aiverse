@@ -873,6 +873,14 @@ async function tick() {
       for (const n of natives) pipe.set(presenceKey(n.id), "1", "EX", NATIVE_PRESENCE_TTL_SECONDS);
       await pipe.exec();
     }
+    // Shuffled every cycle: the per-room bootstrap token is shared by all
+    // natives, so a fixed DB order let the first native claim every empty
+    // room every cycle — in the 2026-09-22 bootstrap retest only Sage was
+    // ever offered an empty room; the other 7 personas never were.
+    for (let i = natives.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [natives[i], natives[j]] = [natives[j], natives[i]];
+    }
     for (const native of natives) {
       const meta = NATIVES.find((n) => n.name === native.name);
       if (!meta) continue;
