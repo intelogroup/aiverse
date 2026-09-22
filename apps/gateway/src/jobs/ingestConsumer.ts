@@ -24,17 +24,21 @@
 // ON CONFLICT DO NOTHING). No MAXLEN trim: if the consumer is down the
 // stream grows until the next leader drains it (stale pending entries are
 // XAUTOCLAIMed); dropping un-persisted messages to bound Redis memory would
-// silently lose user data, which is worse.
+// silently lose user data, which is worse. Persisted (acked) entries ARE
+// trimmed — see trimPersistedIngest — so the stream holds only the
+// unpersisted tail, which is also all the reconnect backlog reads from it.
 //
 // DURABILITY CONTRACT (read before changing the ack/fan-out boundary):
 // - A send's 201 means "durably buffered": the XADD was acked by Redis.
 //   The row is NOT yet in Postgres — it lands ≤~250ms later via the
 //   leader-only consumer below, sooner on reconnect-driven drains.
 // - The durability boundary is therefore Redis itself, not Postgres. This
-//   is sound only because the deployed Redis is disk-persistent (Render
-//   managed keyvalue): a gateway crash/restart loses nothing — the stream,
-//   the consumer group, and the pending-entry list all survive, and the
-//   new leader reclaims them via XAUTOCLAIM on boot.
+//   is sound only if the deployed Redis is disk-persistent: a gateway
+//   crash/restart loses nothing — the stream, the consumer group, and the
+//   pending-entry list all survive, and the new leader reclaims them via
+//   XAUTOCLAIM on boot. Render's FREE Key Value plan has no persistence and
+//   may restart at any time (render.com/docs/key-value) — on it, a restart
+//   loses every buffered-but-unpersisted entry. Paid plans persist.
 // - Accepted residual risk: total Redis data loss (managed-service
 //   catastrophe, not a process crash) loses buffered-but-unpersisted
 //   entries that already got 201s and live fan-out. If that risk ever
@@ -60,7 +64,7 @@ import { redis } from "../redis/client";
 import { log, logError } from "../util/log";
 
 export const INGEST_STREAM = "verse:ingest";
-const INGEST_GROUP = "verse:ingest:group";
+export const INGEST_GROUP = "verse:ingest:group";
 export const CLASSIFY_STREAM = "verse:classify";
 
 // Item 3: per-conversation recent-message cache, newest-first (LPUSH),
@@ -406,9 +410,10 @@ const POISON_LIST_KEY = "verse:ingest:poison";
 const POISON_LIST_CAP = 100;
 
 async function quarantinePoisonEntry(entry: IngestEntry, err: unknown): Promise<void> {
-  // Acked, not re-driven: the entry stays in the (untrimmed) stream for
-  // forensic replay, and a capped Redis list + loud log give operators the
-  // signal. Without this, one bad entry (e.g. a runId for a deleted run)
+  // Acked, not re-driven: a capped Redis list + loud log give operators the
+  // signal, and the list carries the payload for forensic replay (the stream
+  // itself is trimmed once entries are acked — see trimPersistedIngest).
+  // Without this, one bad entry (e.g. a runId for a deleted run)
   // FK-violates every batch it lands in and wedges the whole stream —
   // sends keep 201-ing while nothing persists.
   await ackEntries([entry]);
@@ -420,6 +425,10 @@ async function quarantinePoisonEntry(entry: IngestEntry, err: unknown): Promise<
         messageId: entry.id,
         conversationId: entry.conversationId,
         senderAgentId: entry.senderAgentId,
+        content: entry.content.slice(0, 2000),
+        replyToId: entry.replyToId ?? null,
+        runId: entry.runId ?? null,
+        ts: entry.ts,
         error: String(err),
         at: new Date().toISOString(),
       }),
@@ -523,39 +532,100 @@ export async function drainIngestStream(): Promise<number> {
   return total;
 }
 
+// Redis stream ids are "<ms>-<seq>"; compare numerically, never as strings.
+function compareStreamIds(a: string, b: string): number {
+  const [am, as] = a.split("-").map(BigInt);
+  const [bm, bs] = b.split("-").map(BigInt);
+  if (am !== bm) return am < bm ? -1 : 1;
+  return as === bs ? 0 : as < bs ? -1 : 1;
+}
+
+// XACK only clears the pending list — the entry itself stays in the stream
+// forever unless trimmed (soak test 2026-09-22: ~308 bytes/message retained
+// indefinitely; a 25 MB Redis fills after roughly 80k messages and every send
+// starts failing). Trim everything strictly below the oldest entry that may
+// still be unpersisted: the lowest pending (read, not yet acked) id, or the
+// last id this consumer acked — anything above that hasn't been read by the
+// group yet. XTRIM MINID only removes ids LOWER than the threshold, so the
+// threshold entry itself and everything newer survive. Exact (not "~")
+// trimming: bounded work per call, and deterministic.
+export async function trimPersistedIngest(lastAckedId: string): Promise<void> {
+  const summary = (await redis.xpending(INGEST_STREAM, INGEST_GROUP)) as unknown as [number, string | null, string | null, unknown];
+  const lowestPending = summary && Number(summary[0]) > 0 ? summary[1] : null;
+  const threshold = lowestPending && compareStreamIds(lowestPending, lastAckedId) < 0 ? lowestPending : lastAckedId;
+  await redis.call("XTRIM", INGEST_STREAM, "MINID", threshold);
+}
+
+export interface IngestConsumerState {
+  consumer: string;
+  needsSetup: boolean;
+  sinceClaim: number;
+  sinceTrim: number;
+  lastAckedId: string | null;
+}
+
+export function newIngestConsumerState(consumer: string): IngestConsumerState {
+  return { consumer, needsSetup: true, sinceClaim: Date.now(), sinceTrim: 0, lastAckedId: null };
+}
+
+const CLAIM_INTERVAL_MS = 60_000;
+const TRIM_INTERVAL_MS = 5_000;
+
+// One pass of the leader's consumer loop. Setup (group create + stale claim)
+// runs inside the pass, not once before the loop: before, a Redis blip at
+// boot killed the consumer for the process lifetime, and a Redis restart
+// without persistence (Render's free Key Value restarts at will and loses
+// everything) deleted the consumer group — every XREADGROUP then failed with
+// NOGROUP, forever, while sends kept 201-ing (soak test 2026-09-22: 0/10
+// persisted, consumer wedged until the process restarted).
+export async function ingestConsumerTick(state: IngestConsumerState, opts: { blockMs?: number; trimIntervalMs?: number } = {}): Promise<number> {
+  try {
+    if (state.needsSetup) {
+      await ensureGroup();
+      const claimed = await claimStalePending(state.consumer, CLAIM_INTERVAL_MS);
+      state.needsSetup = false;
+      state.sinceClaim = Date.now();
+      log("ingest_consumer_started", { stream: INGEST_STREAM, group: INGEST_GROUP, claimed });
+    }
+    const entries = await readGroup(state.consumer, 100, opts.blockMs ?? 250);
+    if (entries.length) {
+      await persistIngestBatch(entries);
+      await ackEntries(entries);
+      state.lastAckedId = entries[entries.length - 1].streamId;
+      log("ingest_batch", { inserted: entries.length });
+    }
+    // Periodic stale-claim so a dead leader's unacked entries don't sit
+    // until the next process boot claims them.
+    if (Date.now() - state.sinceClaim > CLAIM_INTERVAL_MS) {
+      const claimed = await claimStalePending(state.consumer, CLAIM_INTERVAL_MS);
+      if (claimed > 0) log("ingest_claimed_stale", { claimed });
+      state.sinceClaim = Date.now();
+    }
+    if (state.lastAckedId && Date.now() - state.sinceTrim >= (opts.trimIntervalMs ?? TRIM_INTERVAL_MS)) {
+      await trimPersistedIngest(state.lastAckedId);
+      state.sinceTrim = Date.now();
+    }
+    return entries.length;
+  } catch (err) {
+    if (String(err).includes("NOGROUP")) state.needsSetup = true;
+    throw err;
+  }
+}
+
 // Leader-only entry point, wired in index.ts next to the other singleton
 // jobs. BLOCK-based long poll: wakes on arrival or every 250ms, whichever
 // is first — no busy spin, no timer drift.
 export function scheduleIngestConsumer(): void {
-  const consumer = `gateway-${process.pid}`;
+  const state = newIngestConsumerState(`gateway-${process.pid}`);
   (async () => {
-    await ensureGroup();
-    await claimStalePending(consumer, 60_000);
-    log("ingest_consumer_started", { stream: INGEST_STREAM, group: INGEST_GROUP });
-    let sinceClaim = Date.now();
     for (;;) {
       try {
-        const n = await (async () => {
-          const entries = await readGroup(consumer, 100, 250);
-          if (!entries.length) return 0;
-          await persistIngestBatch(entries);
-          await ackEntries(entries);
-          return entries.length;
-        })();
-        if (n > 0) log("ingest_batch", { inserted: n });
-        // Periodic stale-claim so a dead leader's unacked entries don't sit
-        // until the next process boot claims them.
-        if (Date.now() - sinceClaim > 60_000) {
-          const claimed = await claimStalePending(consumer, 60_000);
-          if (claimed > 0) log("ingest_claimed_stale", { claimed });
-          sinceClaim = Date.now();
-        }
+        await ingestConsumerTick(state);
       } catch (err) {
         // Per-iteration catch: a transient Redis/Postgres blip must not kill
-        // the loop — unacked entries stay pending and get retried next pass.
-        // (index.ts's unhandledRejection handler is the backstop for anything
-        // that escapes here.)
-        logError("ingest_consumer_error", err);
+        // the loop — unacked entries stay pending and get retried next pass,
+        // and a vanished group is recreated on the next pass (needsSetup).
+        logError("ingest_consumer_error", err, { needsSetup: state.needsSetup });
         await new Promise((r) => setTimeout(r, 1000));
       }
     }

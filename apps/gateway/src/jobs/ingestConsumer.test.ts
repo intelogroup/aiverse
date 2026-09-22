@@ -11,6 +11,9 @@ import {
   drainIngestStream,
   persistIngestBatch,
   INGEST_STREAM,
+  INGEST_GROUP,
+  ingestConsumerTick,
+  newIngestConsumerState,
   CLASSIFY_STREAM,
   RECENT_CACHE_CAP,
   recentCacheKey,
@@ -300,5 +303,66 @@ describe("ingest buffer (item 1)", () => {
     await drainIngestStream();
     const laterRows = await db.query.messages.findMany({ where: eq(messages.id, laterId) });
     expect(laterRows.length).toBe(1);
+  });
+});
+
+describe("ingest consumer loop resilience (soak test 2026-09-22)", () => {
+  test("a vanished consumer group (Redis restart without persistence) is recreated, not wedged on NOGROUP", async () => {
+    await resetMemoryStoreForTests();
+    const { token, id: agentId } = await registerAgent("IngestNogroupAgent");
+    const conversationId = await makeConversation(token, true);
+    await drainIngestStream();
+
+    const state = newIngestConsumerState(`nogroup-test-${Date.now()}`);
+    await ingestConsumerTick(state, { blockMs: 10 });
+    expect(state.needsSetup).toBe(false);
+
+    // What a no-persistence Redis restart does to our keys: stream and group gone.
+    await redis.del(INGEST_STREAM);
+    const lost = fields(conversationId, agentId, "sent after the restart");
+    await publishIngest(lost); // XADD recreates the stream, but not the group
+
+    await expect(ingestConsumerTick(state, { blockMs: 10 })).rejects.toThrow(/NOGROUP/);
+    expect(state.needsSetup).toBe(true);
+
+    // Next pass recreates the group and persists what arrived after the restart.
+    await ingestConsumerTick(state, { blockMs: 10 });
+    const row = await db.query.messages.findFirst({ where: eq(messages.id, lost.id) });
+    expect(row?.content).toBe("sent after the restart");
+  });
+
+  test("acked entries are trimmed, but never an entry that is still pending", async () => {
+    await resetMemoryStoreForTests();
+    const { token, id: agentId } = await registerAgent("IngestTrimAgent");
+    const conversationId = await makeConversation(token, true);
+    await drainIngestStream();
+
+    const state = newIngestConsumerState(`trim-test-${Date.now()}`);
+    await ingestConsumerTick(state, { blockMs: 10 });
+
+    // p1 is read by another consumer and never acked: still unpersisted.
+    const p1 = fields(conversationId, agentId, "held pending by a slow consumer");
+    await publishIngest(p1);
+    const held = (await (redis.xreadgroup as (...a: (string | number)[]) => Promise<Array<[string, Array<[string, string[]]>]>>)(
+      "GROUP", INGEST_GROUP, "slow-holder", "COUNT", 1, "STREAMS", INGEST_STREAM, ">",
+    ))[0][1][0][0];
+
+    const p2 = fields(conversationId, agentId, "persisted normally");
+    await publishIngest(p2);
+    await ingestConsumerTick(state, { blockMs: 10, trimIntervalMs: 0 });
+
+    const ids = async () => ((await redis.xrange(INGEST_STREAM, "-", "+")) as Array<[string, string[]]>).map(([id]) => id);
+    const afterFirstTrim = await ids();
+    expect(afterFirstTrim).toContain(held); // the pending entry survives the trim
+    expect(afterFirstTrim.length).toBe(2); // everything older is gone; only held (pending) and p2 (last acked) remain
+
+    // Once the slow consumer acks, the next trim clears it too.
+    await redis.xack(INGEST_STREAM, INGEST_GROUP, held);
+    const p3 = fields(conversationId, agentId, "after the slow ack");
+    await publishIngest(p3);
+    await ingestConsumerTick(state, { blockMs: 10, trimIntervalMs: 0 });
+    const afterSecondTrim = await ids();
+    expect(afterSecondTrim).not.toContain(held);
+    expect(afterSecondTrim.length).toBe(1); // just the last acked entry (p3)
   });
 });

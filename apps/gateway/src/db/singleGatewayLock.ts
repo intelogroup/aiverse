@@ -52,9 +52,7 @@ export async function tryBecomeGatewayLeader(opts: { timeoutMs?: number } = {}):
   // few seconds to actually die — retrying here lets the new process pick up
   // leadership promptly instead of just concluding "someone else leads" while
   // that someone is actually mid-shutdown. timeoutMs: 0 = exactly one attempt
-  // (tests). This is a boot-time election only — no live failover once a
-  // process starts running as a non-leader; a future need for that is a
-  // separate change (index.ts would periodically retry tryBecomeGatewayLeader).
+  // — what index.ts's periodic follower retry uses for live failover.
   const timeoutMs = opts.timeoutMs ?? 30_000;
   const deadline = Date.now() + timeoutMs;
 
@@ -74,4 +72,31 @@ export async function tryBecomeGatewayLeader(opts: { timeoutMs?: number } = {}):
   }
   await conn.end();
   return false;
+}
+
+// Leadership can be lost without the process noticing: if the lock
+// connection drops, postgres.js reconnects transparently on the next query
+// with a brand-new session that holds no lock, so a plain `select 1` still
+// succeeds. Ask Postgres whether THIS session's backend holds the advisory
+// lock (this connection never takes any other). If not, try to take it back;
+// "lost" means another process now holds it and this one must stop running
+// the singleton jobs. Throws on DB errors — the caller decides how many to
+// tolerate.
+export async function checkGatewayLeadership(): Promise<"held" | "reacquired" | "lost"> {
+  if (!lockConnection) return "lost";
+  const held = (await lockConnection`
+    select count(*)::int as n from pg_locks
+    where locktype = 'advisory' and granted and pid = pg_backend_pid()
+  `) as unknown as Array<{ n: number }>;
+  if ((held[0]?.n ?? 0) > 0) return "held";
+  const retaken = (await lockConnection`select pg_try_advisory_lock(${GATEWAY_LOCK_KEY.toString()}::bigint) as ok`) as unknown as Array<{ ok: boolean }>;
+  return retaken[0]?.ok ? "reacquired" : "lost";
+}
+
+// Test-only: forget this process's leadership so the next test starts clean.
+export async function releaseGatewayLeadershipForTests(): Promise<void> {
+  if (!lockConnection) return;
+  const conn = lockConnection;
+  lockConnection = undefined;
+  await conn.end();
 }
