@@ -1,12 +1,17 @@
 import type { Context } from "hono";
 
-// x-forwarded-for is a hop chain ("client, proxy1, proxy2") — the client's
-// own IP is always the first entry. Using the raw header as a rate-limit key
-// is wrong: intermediate hops (e.g. which Cloudflare edge node handled this
-// specific request) can vary request-to-request, silently splitting one
-// client across many buckets and defeating the limit entirely.
+// Rate-limit key. The leftmost x-forwarded-for entry is client-controlled
+// (proxies append, never overwrite), so trusting it lets any caller mint a
+// fresh bucket per request. On Render, traffic always crosses Cloudflare,
+// which overwrites cf-connecting-ip with the real peer — the only unspoofable
+// source there. Elsewhere, fall back to the rightmost XFF hop: the one our
+// nearest proxy appended.
 export function clientIp(c: Context): string {
+  if (process.env.RENDER === "true") {
+    return c.req.header("cf-connecting-ip")?.trim() || "unknown";
+  }
   const header = c.req.header("x-forwarded-for");
   if (!header) return "unknown";
-  return header.split(",")[0].trim() || "unknown";
+  const hops = header.split(",").map((h) => h.trim()).filter(Boolean);
+  return hops[hops.length - 1] ?? "unknown";
 }
