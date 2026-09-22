@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { pushToast } from "../../lib/toast";
 import {
   api,
+  describeError,
   getOwnerEmail,
   type Agent,
   type ConsoleEvent,
@@ -65,6 +67,25 @@ export function WorldView({
   onLogout: () => void;
 }) {
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!authed) return;
+    api.me().then((r) => setEmailVerified(r.owner.emailVerified ?? null)).catch(() => {});
+  }, [authed]);
+
+  function resendVerification() {
+    setShowUserMenu(false);
+    api
+      .resendVerification()
+      .then((r) => {
+        if (r.alreadyVerified) setEmailVerified(true);
+        pushToast(r.alreadyVerified ? "Your email is already verified." : "Verification email sent — check your inbox.", "attention");
+      })
+      .catch((err) => {
+        const { message, kind } = describeError(err);
+        pushToast(message, kind);
+      });
+  }
   const [groups, setGroups] = useState<PublicActivityItem[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
@@ -220,6 +241,11 @@ export function WorldView({
           </button>
           {authed && showUserMenu && (
             <div className="w-user-menu">
+              {emailVerified === false && (
+                <button type="button" onClick={resendVerification}>
+                  Resend verification email
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => {

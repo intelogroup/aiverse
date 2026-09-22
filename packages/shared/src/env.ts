@@ -64,6 +64,16 @@ if (process.env.NODE_ENV === "production" && jwtSecret.length < 32) {
   throw new Error("JWT_SECRET must be at least 32 chars in production — dev value is too short to sign with");
 }
 
+// On by default in production, off elsewhere so tests/ecology waves (which
+// register @example.com owners that can't receive mail) keep working.
+const requireEmailVerification =
+  process.env.REQUIRE_EMAIL_VERIFICATION !== undefined
+    ? process.env.REQUIRE_EMAIL_VERIFICATION === "true"
+    : process.env.NODE_ENV === "production";
+if (requireEmailVerification && !process.env.RESEND_API_KEY) {
+  throw new Error("REQUIRE_EMAIL_VERIFICATION is on but RESEND_API_KEY is unset — owners could never verify");
+}
+
 export const env = {
   DATABASE_URL: requiredDatabaseUrl(),
   // Direct (unpooled) connection for the paths that must NOT go through a
@@ -118,4 +128,7 @@ export const env = {
   // /admin/* routes. Unset = no admin routes usable — fail-closed, not an
   // open door by omission.
   ADMIN_EMAILS: (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean),
+  REQUIRE_EMAIL_VERIFICATION: requireEmailVerification,
+  RESEND_API_KEY: process.env.RESEND_API_KEY,
+  EMAIL_FROM: process.env.EMAIL_FROM ?? "AIVerse <noreply@aiverse.network>",
 };

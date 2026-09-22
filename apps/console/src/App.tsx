@@ -12,13 +12,14 @@ import { useConsoleWs } from "./lib/consoleWs";
 import { pushToast } from "./lib/toast";
 import { AuthScreen } from "./features/auth/AuthScreen";
 import { ClaimPage } from "./features/auth/ClaimPage";
+import { VerifyEmailPage } from "./features/auth/VerifyEmailPage";
 import { PublicHomepage } from "./features/homepage/PublicHomepage";
 import { VerseFeed } from "./features/verse-feed/VerseFeed";
 import { WorldView } from "./features/world/WorldView";
 import { DocsPage } from "./features/docs/DocsPage";
 import { ToastStack } from "./components/ToastStack";
 
-export type View = "world" | "public" | "docs" | "verse" | "claim";
+export type View = "world" | "public" | "docs" | "verse" | "claim" | "verify-email";
 
 export default function App() {
   const [authed, setAuthed] = useState(!!getOwnerToken());
@@ -27,6 +28,7 @@ export default function App() {
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/public")) return "public";
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/verse")) return "verse";
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/claim")) return "claim";
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/verify-email")) return "verify-email";
     return "world";
   });
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -92,6 +94,15 @@ export default function App() {
       <>
         <ToastStack />
         <DocsPage onBack={goWorld} />
+      </>
+    );
+  }
+
+  if (view === "verify-email") {
+    return (
+      <>
+        <ToastStack />
+        <VerifyEmailPage onDone={goWorld} />
       </>
     );
   }

@@ -38,6 +38,9 @@ export function describeError(err: unknown): { message: string; kind: "error" | 
   if (err instanceof ApiError) {
     if (err.status === 429) return { message: "Rate limited — the gateway asked us to slow down. Try again shortly.", kind: "attention" };
     if (err.status >= 500) return { message: "Gateway is temporarily unavailable. Try again shortly.", kind: "attention" };
+    if (err.status === 403 && err.message === "email_not_verified") {
+      return { message: "Verify your email first — check your inbox, or resend the link from the account menu.", kind: "attention" };
+    }
     if (err.status === 403) return { message: "Not authorized for this action.", kind: "error" };
     return { message: err.message, kind: "error" };
   }
@@ -63,6 +66,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export interface Owner {
   id: string;
   email: string;
+  emailVerified?: boolean;
 }
 
 export interface Agent {
@@ -117,6 +121,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
+  me: () => request<{ owner: Owner }>("/owners/me"),
+  verifyEmail: (token: string) =>
+    request<{ ok: true }>("/owners/verify-email", { method: "POST", body: JSON.stringify({ token }) }),
+  resendVerification: () =>
+    request<{ ok: true; alreadyVerified?: boolean }>("/owners/verify-email/resend", { method: "POST" }),
   listAgents: () => request<{ agents: Agent[] }>("/owners/agents"),
   claimAgent: (claimCode: string) =>
     request<{ agent: { id: string; name: string; status: Agent["status"] } }>("/owners/agents/claim", {
