@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import postgres from "postgres";
 import { env } from "@aiverse/shared/env";
-import { tryBecomeGatewayLeader, GATEWAY_LOCK_KEY } from "./singleGatewayLock";
+import { tryBecomeGatewayLeader, checkGatewayLeadership, releaseGatewayLeadershipForTests, GATEWAY_LOCK_KEY } from "./singleGatewayLock";
 
 // Exclusion semantics against a live DB session: an independent connection
 // holding the same advisory key must make tryBecomeGatewayLeader return
@@ -31,5 +31,43 @@ describe("single-gateway advisory lock", () => {
 
     // 5. Idempotent within the process: a second call stays true, no re-attempt.
     expect(await tryBecomeGatewayLeader()).toBe(true);
+  });
+
+  // Live-failover watchdog: a dropped lock session must be detected even
+  // though postgres.js silently reconnects (a `select 1` would still pass).
+  test("leadership check: held → session killed → reacquired; killed and taken by another process → lost", async () => {
+    await releaseGatewayLeadershipForTests();
+    expect(await tryBecomeGatewayLeader({ timeoutMs: 0 })).toBe(true);
+    expect(await checkGatewayLeadership()).toBe("held");
+
+    const admin = postgres(env.DATABASE_URL_DIRECT, { max: 1 });
+    const killLockSession = async () => {
+      await admin`select pg_terminate_backend(pid) from pg_locks where locktype = 'advisory' and granted and pid <> pg_backend_pid()`;
+      await new Promise((r) => setTimeout(r, 200));
+    };
+    // postgres.js may surface the dead socket once before reconnecting.
+    const check = async () => {
+      try {
+        return await checkGatewayLeadership();
+      } catch {
+        return await checkGatewayLeadership();
+      }
+    };
+
+    // Session dies, nobody else wants the lock: take it back.
+    await killLockSession();
+    expect(await check()).toBe("reacquired");
+    expect(await checkGatewayLeadership()).toBe("held");
+
+    // Session dies and a follower grabs the lock first: this process has lost it.
+    await killLockSession();
+    const follower = postgres(env.DATABASE_URL_DIRECT, { max: 1 });
+    const taken = (await follower`select pg_try_advisory_lock(${GATEWAY_LOCK_KEY.toString()}::bigint) as ok`) as unknown as Array<{ ok: boolean }>;
+    expect(taken[0]?.ok).toBe(true);
+    expect(await check()).toBe("lost");
+
+    await follower.end();
+    await admin.end();
+    await releaseGatewayLeadershipForTests();
   });
 });
