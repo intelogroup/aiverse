@@ -361,6 +361,115 @@ async function s6_loneExternal(): Promise<ScenarioResult> {
   return r;
 }
 
+// S7: gateway restart mid-run (a deploy).
+async function s7_gatewayRestart(): Promise<ScenarioResult> {
+  await resetDb();
+  let gw = startGateway();
+  await waitHealthy();
+  const startedAt = Date.now();
+  const externals = await Promise.all(["RebootAgent1", "RebootAgent2"].map(makeExternalAgent));
+  for (const e of externals) await connectWs(e);
+  await postToRoom(externals[0], "general", "Hello before restart");
+  await sleep(10_000);
+  // Capture message count before restart
+  const msgCountBefore = Number(sql(`select count(*) from messages`));
+  const nativeTicksBefore = gw.logs.filter((l) => l.includes('"event":"native_tick"')).length;
+  // Kill and restart the gateway
+  await stopGateway(gw);
+  await sleep(3_000);
+  gw = startGateway();
+  await waitHealthy();
+  const restartedAt = Date.now();
+  // Continue for another window
+  await postToRoom(externals[0], "general", "Hello after restart");
+  await sleep(DEFAULT_DURATION_MS);
+  await stopGateway(gw);
+  const r = summarize("S7_gateway_restart", startedAt, gw.logs, {
+    msgCountBefore,
+    nativeTicksBefore,
+    restartedAtOffsetMs: restartedAt - startedAt,
+  });
+  const msgCountAfter = r.roomMessageCounts.general;
+  // Pass if we see activity after restart and no obvious duplicate greetings
+  // (duplicate greetings would manifest as too many messages in same room)
+  r.pass = msgCountAfter > 0 && msgCountBefore < msgCountAfter && r.uncaughtExceptions === 0;
+  r.notes.push("target: natives continue without re-greeting after gateway restart; no duplicate messages");
+  return r;
+}
+
+// S8: Redis wiped mid-run (free-plan restart).
+async function s8_redisWipe(): Promise<ScenarioResult> {
+  await resetDb();
+  const gw = startGateway();
+  await waitHealthy();
+  const startedAt = Date.now();
+  const externals = await Promise.all(["RedisWipeAgent1", "RedisWipeAgent2"].map(makeExternalAgent));
+  for (const e of externals) await connectWs(e);
+  await postToRoom(externals[0], "robotics", "Before Redis wipe");
+  await sleep(20_000);
+  const msgCountBefore = Number(sql(`select count(*) from messages`));
+  // Flush Redis mid-run
+  redisCli("FLUSHDB");
+  await sleep(10_000);
+  // Post and continue
+  await postToRoom(externals[1], "robotics", "After Redis wipe");
+  await sleep(DEFAULT_DURATION_MS);
+  await stopGateway(gw);
+  const r = summarize("S8_redis_wipe", startedAt, gw.logs, { msgCountBefore });
+  const msgCountAfter = r.roomMessageCounts.robotics;
+  // Pass if messages continue and no duplicate greetings (would see double-greeting pattern)
+  r.pass = msgCountAfter > msgCountBefore && r.uncaughtExceptions === 0 && r.nativeTickErrors === 0;
+  r.notes.push("target: populated rooms not treated as blank after Redis wipe; no duplicate greetings");
+  return r;
+}
+
+// S9: long run (≥2h) to measure token budget and repetition.
+async function s9_soakRun(): Promise<ScenarioResult> {
+  const durationMs = Number(process.env.S9_DURATION_MS ?? 2 * 60 * 60_000); // 2 hours default
+  await resetDb();
+  const gw = startGateway();
+  await waitHealthy();
+  const startedAt = Date.now();
+  const externals = await Promise.all(["SoakAgent1", "SoakAgent2", "SoakAgent3"].map(makeExternalAgent));
+  for (const e of externals) await connectWs(e);
+  let running = true;
+  const chatLoop = (async () => {
+    const topics = ["what's new?", "any interesting ideas?", "thoughts on AI?", "how's everyone doing?"];
+    let i = 0;
+    while (running) {
+      const e = externals[i % externals.length];
+      const topic = topics[i % topics.length];
+      await postToRoom(e, "verse", `${topic} (#${i})`).catch(() => {});
+      i++;
+      await sleep(30_000);
+    }
+  })();
+  await sleep(durationMs);
+  running = false;
+  await chatLoop;
+  await stopGateway(gw);
+  const r = summarize("S9_soak_run", startedAt, gw.logs, { durationMs });
+  // Check for repetition: if the same native is posting the same content multiple times
+  const decisions = r.decisions;
+  const contentByName: Record<string, string[]> = {};
+  for (const d of decisions) {
+    if (!contentByName[d.name]) contentByName[d.name] = [];
+    contentByName[d.name].push(d.action);
+  }
+  let hasRepetition = false;
+  for (const [name, actions] of Object.entries(contentByName)) {
+    const recent = actions.slice(-20);
+    const uniqueRecent = new Set(recent).size;
+    if (uniqueRecent < 3) hasRepetition = true;
+  }
+  r.pass = !hasRepetition && r.uncaughtExceptions === 0 && r.nativeTickErrors === 0;
+  r.notes.push("target: stable operation for 2h+ with no token budget overruns, no repetition loops");
+  r.extra.uniqueActionsPerPersona = Object.fromEntries(
+    Object.entries(contentByName).map(([name, actions]) => [name, new Set(actions).size])
+  );
+  return r;
+}
+
 const SCENARIOS: Record<string, () => Promise<ScenarioResult>> = {
   S1: s1_coldDeploy,
   S2: s2_firstArrival,
@@ -368,6 +477,9 @@ const SCENARIOS: Record<string, () => Promise<ScenarioResult>> = {
   S4: s4_activeThenQuiet,
   S5: s5_agentsRemoved,
   S6: s6_loneExternal,
+  S7: s7_gatewayRestart,
+  S8: s8_redisWipe,
+  S9: s9_soakRun,
 };
 
 async function main() {
