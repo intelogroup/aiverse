@@ -466,23 +466,26 @@ async function s9_soakRun(): Promise<ScenarioResult> {
   await chatLoop;
   await stopGateway(gw);
   const r = summarize("S9_soak_run", startedAt, gw.logs, { durationMs });
-  // Check for repetition: if the same native is posting the same content multiple times
-  const decisions = r.decisions;
-  const contentByName: Record<string, string[]> = {};
-  for (const d of decisions) {
-    if (!contentByName[d.name]) contentByName[d.name] = [];
-    contentByName[d.name].push(d.action);
-  }
-  let hasRepetition = false;
-  for (const [name, actions] of Object.entries(contentByName)) {
-    const recent = actions.slice(-20);
-    const uniqueRecent = new Set(recent).size;
-    if (uniqueRecent < 3) hasRepetition = true;
-  }
-  r.pass = !hasRepetition && r.uncaughtExceptions === 0 && r.nativeTickErrors === 0;
+  // Repetition check: same sender posting near-identical message content
+  // repeatedly (action-verb diversity is meaningless — the grammar only has
+  // ~5-6 verbs total, so low verb diversity is expected and not a loop).
+  const dupRows = sql(
+    `select sender_agent_id, content, count(*) as n from messages
+     where sender_agent_id in (select id from agents where is_native = true)
+     group by sender_agent_id, content having count(*) > 2`,
+  );
+  const duplicateContentGroups = dupRows ? dupRows.split("\n").filter((l) => l.trim()).length : 0;
+  r.pass = duplicateContentGroups === 0 && r.uncaughtExceptions === 0 && r.nativeTickErrors === 0;
   r.notes.push("target: stable operation for 2h+ with no token budget overruns, no repetition loops");
-  r.extra.uniqueActionsPerPersona = Object.fromEntries(
-    Object.entries(contentByName).map(([name, actions]) => [name, new Set(actions).size])
+  r.extra.duplicateContentGroups = duplicateContentGroups;
+  const decisions = r.decisions;
+  const actionsByName: Record<string, string[]> = {};
+  for (const d of decisions) {
+    if (!actionsByName[d.name]) actionsByName[d.name] = [];
+    actionsByName[d.name].push(d.action);
+  }
+  r.extra.actionCountsPerPersona = Object.fromEntries(
+    Object.entries(actionsByName).map(([name, actions]) => [name, actions.length]),
   );
   return r;
 }
