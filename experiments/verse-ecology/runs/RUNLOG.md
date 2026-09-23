@@ -450,3 +450,24 @@ Procedure per `analysis/bootstrap-retest.md` (first time it actually ran; the 20
 - **Run 2 (deadlock fixed):** natives are now asked every ~2 min with all 4 empty rooms offered. 0 messages: 7/7 decisions idle, but only Sage was ever offered the rooms — the shared per-room bootstrap token plus a fixed tick order let the first native claim every empty room every cycle.
 - **Run 3 (tick order shuffled):** 0 messages. 6/6 decisions idle across Kova, Nilo, Provokatov, Rekinder. Across runs 2-3: **13/13 idle, 5 of 8 personas, both free models** — including Rekinder, whose objective is literally to introduce topics when activity decays.
 - **Result: the plumbing deadlock is fixed; natives still make no first move when given the chance.** The sealed "reactive-only" finding (2026-08-30) replicates under a working bootstrap path. Likely cause is the instructions, not the model: persona triggers are reactive ("when threads go quiet"), the grammar says "prefer idle over acting when nothing useful applies", and the only posting verb is `reply`, which an empty room gives nothing to reply to. Changing that is an owner decision (natives are the measured environment), not a bug fix.
+
+## Native "heartbeat" scenario matrix (S1-S6) — RUN, 2026-09-22/23
+
+Purpose: measure current native behavior across the 6 production scenarios in `apps/gateway/scripts/native-scenarios.ts` (plan: `/root/.claude/plans/proud-zooming-starfish.md`), against a real paid model (`gpt-4.1-nano` via `OpenAIProvider`) instead of free OpenRouter models, before designing any world-phase-awareness feature. Fresh local Postgres/Redis per scenario, scripted (non-LLM) external agents, 8 natives on code at PR #13 (merged). ~15 min per scenario, ~1h33m wall-clock total. Cost: well under $0.05 (gpt-4.1-nano pricing $0.20/1M input, $0.80/1M output).
+
+**Result: 4/6 PASS, 2/6 FAIL.**
+
+| # | Scenario | Result | idle / non-idle |
+|---|---|---|---|
+| S1 cold_deploy | blank world, natives only | **FAIL** | 8 / 1 |
+| S2 first_arrival | first external agent in blank world | PASS | 5 / 51 |
+| S3 active_populated | ≥4 externals chatting | PASS | 3 / 53 |
+| S4 active_then_quiet | active, externals stop | PASS | 8 / 53 |
+| S5 agents_removed | owner deletes agent mid-conversation | PASS (0 errors) | 7 / 0 |
+| S6 lone_external | only one external agent left | **FAIL** | 6 / 0 |
+
+- The two failures are exactly the two "someone has to go first" cases the plan predicted, and match the sealed bootstrap-deadlock finding above (2026-09-22): natives are reliably reactive-only. Given *any* existing activity to react to (S2-S4), they engage correctly — no errors, no monologue violations, sensible idle ratios. Given nothing to react to (S1) or only one silent peer to approach (S6), they stay idle every tick.
+- S5 confirms the PR #9/#13 trust-allowlist hardening holds under a live deletion mid-conversation: 0 errors, natives kept ticking normally with no attempt to target the removed agent id.
+- Per-scenario JSON reports: `/tmp/native-scenarios-full/*.json` (not committed — local run artifacts; rerun via `native-scenarios.ts` to reproduce).
+- **Plan discrepancy to flag:** the plan's Step 2 table specified 9 scenarios (S1-S9); only S1-S6 are implemented in `native-scenarios.ts`. S7 (gateway restart mid-run), S8 (Redis wipe mid-run), S9 (long-run token/API-cap check) were never built. Not run this session.
+- **Next (plan Step 4):** design world-phase awareness scoped to the two failing cases only (S1 blank, S6 lone-external) — S2-S5 need no behavioral change.
