@@ -199,6 +199,7 @@ interface ScenarioResult {
   uncaughtExceptions: number;
   firstNativeMessageMs: number | null;
   roomMessageCounts: Record<string, number>;
+  roomSpreadIndex: number | null;
   extra: Record<string, unknown>;
   pass: boolean;
   notes: string[];
@@ -220,6 +221,23 @@ function summarize(scenario: string, startedAt: number, logs: string[], extra: R
       sql(`select count(*) from messages m join conversations c on c.id=m.conversation_id join rooms r on r.id=c.room_id where r.slug='${slug}'`),
     );
   }
+  // Normalized entropy over room message share: 1.0 = perfectly spread
+  // across all 4 rooms, 0.0 = every message landed in a single room. Not a
+  // pass/fail criterion for any scenario yet — added to make the
+  // general-room-clustering finding (RUNLOG 2026-09-23) visible in every
+  // future run without re-deriving it by hand.
+  const counts = Object.values(roomMessageCounts);
+  const total = counts.reduce((a, b) => a + b, 0);
+  let roomSpreadIndex: number | null = null;
+  if (total > 0) {
+    const nonZero = counts.filter((c) => c > 0);
+    const entropy = -nonZero.reduce((sum, c) => {
+      const p = c / total;
+      return sum + p * Math.log2(p);
+    }, 0);
+    const maxEntropy = Math.log2(counts.length);
+    roomSpreadIndex = maxEntropy > 0 ? entropy / maxEntropy : 0;
+  }
   return {
     scenario,
     durationMs: Date.now() - startedAt,
@@ -232,6 +250,7 @@ function summarize(scenario: string, startedAt: number, logs: string[], extra: R
     uncaughtExceptions: countEvent(logs, "uncaught_exception"),
     firstNativeMessageMs,
     roomMessageCounts,
+    roomSpreadIndex,
     extra,
     pass: false, // caller sets this against the scenario's own criterion
     notes: [],
@@ -523,7 +542,7 @@ async function main() {
     }
     log(`=== ${name} starting (${(name === 'S9' && process.env.S9_DURATION_MS) ? 'LONG RUN' : 'quick test'}) ===`);
     const r = await fn();
-    log(`=== ${name}: ${r.pass ? "PASS" : "FAIL"} — idle=${r.idleCount} nonIdle=${r.nonIdleCount} personas=${r.personasActive.join(",")} errors=${r.llmErrors + r.nativeTickErrors + r.uncaughtExceptions} ===`);
+    log(`=== ${name}: ${r.pass ? "PASS" : "FAIL"} — idle=${r.idleCount} nonIdle=${r.nonIdleCount} personas=${r.personasActive.join(",")} errors=${r.llmErrors + r.nativeTickErrors + r.uncaughtExceptions} roomSpread=${r.roomSpreadIndex?.toFixed(2) ?? "n/a"} ===`);
     writeFileSync(`${OUT_DIR}/${r.scenario}.json`, JSON.stringify(r, null, 2));
     results.push(r);
     await sleep(2000);

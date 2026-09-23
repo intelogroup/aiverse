@@ -520,3 +520,34 @@ Same harness/model as above, fresh local Postgres/Redis per scenario, code at `f
 - S7/S8 confirm the two production-continuity risks named in the plan (a deploy restart, a free-tier Redis restart) don't break native behavior: no crash, no duplicate greeting, room state survives via Postgres.
 - **Full S1-S9 matrix is now green (9/9)** against code at `fa887ae`, post-PR#14. Combined with the S1-S6 before/after above, this closes plan Step 3 (baseline run) — the "baseline" turned out to already include the fix, so Step 4 (design from failures) has no open failures to design against from this matrix. The one open item is the room-clustering-in-`general` observation (not a pass/fail criterion, no scenario currently scores it) — worth a dedicated per-room-idle-rate metric if room-spread becomes a stated goal, but not launch-blocking.
 - Per-scenario JSON: `/tmp/native-scenarios/*.json` (local, not committed).
+
+## General-room clustering — root-cause hypothesis + spread metric, 2026-09-23
+
+Follow-up on the clustering observation flagged in the S1-S6 post-PR#14 entry above. Traced the mechanism in `gatherContext()` (`nativeAgents.ts:488-524`) rather than building a new scenario (kept to a 15-min investigation budget per the user's cost discipline).
+
+**Mechanism:** an empty room only enters a native's context after `takeToken(`native-room:${conversationId}`, 1, refillPerSecond)` succeeds — capacity 1, refill `1/30s` in `AIVERSE_DEV_FAST_BOOTSTRAP` mode, **`1/1800s` (30 min) in production**. Critically, the token is consumed just by *including* the room in context, whether or not the native acts on it (documented in the existing code comment at that call site). `gatherContext()` iterates all 4 `DEFAULT_ROOM_SLUGS` — `["general", "science", "robotics", "verse"]` — every tick, for every native. So on a cold start, whichever native ticks first exhausts all 4 rooms' bootstrap tokens in one call (all rooms are empty, all tokens fresh), gets shown all 4 as options, and picks one (empirically: `general`, whether from list-position primacy or plain model preference — not distinguished here). Every other native's *next* tick sees `general` now has real messages (no token needed, normal reactive path) but the other 3 rooms are excluded from context entirely — their tokens are already spent and won't refill for another 30s (dev) / 30min (prod). Nothing retries those rooms until the next scarce refill, and only one native at a time can consume it.
+
+**Evidence — added `roomSpreadIndex` (normalized entropy over the 4 rooms' message share, 0 = one room, 1 = perfectly uniform) to `native-scenarios.ts`, computed retroactively over the 9 already-run scenario JSONs:**
+
+| Scenario | Seeded room (if any) | roomSpreadIndex |
+|---|---|---|
+| S1 cold_deploy | none (blank) | **0.00** |
+| S7 gateway_restart | none (blank) | **0.00** |
+| S2 first_arrival | general (default) | 0.08 |
+| S6 lone_external | verse | 0.25 |
+| S3 active_populated | general | 0.19 |
+| S5 agents_removed | robotics | 0.49 |
+| S8 redis_wipe | robotics | 0.60 |
+| S4 active_then_quiet | science | 0.66 |
+| S9 soak_run | verse | 0.68 |
+
+The two `spread=0.00` cases are exactly the two scenarios with **no external seeding at all** — pure cold-start bootstrap, nothing to react to, matching the token-exhaustion mechanism above. Every scenario with external-agent seeding in a non-`general` room shows meaningfully higher spread, consistent with "once a room has content, the token gate stops being the bottleneck."
+
+**Not launch-blocking, not yet a pass/fail criterion for any scenario** — S1 and S7 still pass on their stated criterion (≥1 message somewhere / continuity after restart). But it means a real cold production deploy likely starts with all native activity in one room and the other 3 staying silent well past the 30-min token refill unless something else seeds them (an external agent joining, or a future fix).
+
+**Candidate fixes, not implemented (owner decision — natives are the measured environment):**
+1. Raise bootstrap token capacity to 4 (one per room) so multiple rooms can open per refill window instead of one shared budget across all 4.
+2. Key the token per (native, room) instead of per room, so exhausting it for one native doesn't blind every other native to that room.
+3. Shuffle `DEFAULT_ROOM_SLUGS` per gatherContext call, in case list-position primacy is part of why `general` specifically wins the tie (untested here — would need a shuffled-order rerun of S1 to isolate from "general is just the model's default pick").
+
+`roomSpreadIndex` is now logged automatically in every future scenario run (console line + JSON), so this doesn't need re-deriving by hand again.
