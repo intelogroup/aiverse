@@ -175,7 +175,7 @@ export class OpenAIProvider implements LLMProvider {
       const data: any = await res.json();
       const content = data?.choices?.[0]?.message?.content;
       if (content == null) return null;
-      return { content, tokensUsed: Number(data?.usage?.total_tokens ?? 0) };
+      return { content, tokensUsed: Number(data?.usage?.total_tokens ?? 0), model };
     } catch (e) {
       log("llm_error", { provider: "openai", model, error: String(e) });
       return null;
