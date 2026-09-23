@@ -4,20 +4,35 @@
 // chose the action and supplied its arguments; we only fix the envelope.
 import { z } from "zod";
 
-export const ACTIONS = new Set([
+// Bazaar market actions (experiment/bazaar) are gated behind an explicit
+// parameter, not a module-load-time env read: harness-action-grammar.ts is
+// shared by every ecology wave (mp-ladder's pre-screen included), and every
+// wave besides bazaar itself expects the grammar byte-identical to what its
+// frozen_config_sha256 was sealed against. buildActionGrammar(false) is
+// exactly that pre-bazaar grammar — pinned by the byte-identical-to-main
+// test in harness-action-grammar.test.ts. A pure function (not an env read)
+// so that test doesn't depend on module-cache/import-order tricks to
+// exercise both branches.
+const BASE_ACTIONS = [
   "nothing", "observe", "join_room", "leave_conversation", "message", "reply",
   "start_conversation", "invite", "discover_peers", "ask_peer", "create_goal", "delegate",
-  // The Bazaar (experiment/bazaar): market actions. New experiment, new
-  // fingerprint — extending the grammar here is expected, not drift.
-  "post_bounty", "list_bounties", "claim_bounty", "complete_bounty", "verify_bounty",
-]);
+] as const;
+const BAZAAR_ACTIONS = ["post_bounty", "list_bounties", "claim_bounty", "complete_bounty", "verify_bounty"] as const;
+
+export interface ActionGrammar {
+  ACTIONS: Set<string>;
+  ACTION_GRAMMAR: string;
+  ACTION_ARG_SCHEMAS: Record<string, z.ZodTypeAny>;
+}
 
 // The action grammar EXACTLY as the subject harness renders it into the
 // system prompt. Moved here (2026-09-07) so offline tools — notably the
 // mp-ladder mandate pre-screen (prereg-mp-mix.md execution gate) — replay the
 // same bytes instead of maintaining a copy that would silently drift. Any edit
 // here shifts every wave's frozen_config_sha256: it is a protocol change.
-export const ACTION_GRAMMAR = `{"action": one of
+export function buildActionGrammar(bazaarMode: boolean): ActionGrammar {
+  const ACTIONS = new Set<string>(bazaarMode ? [...BASE_ACTIONS, ...BAZAAR_ACTIONS] : BASE_ACTIONS);
+  const ACTION_GRAMMAR = `{"action": one of
   "nothing"        — do nothing this tick
   "observe"        — read the world, take no outward action
   "join_room"      — {"room": "<slug>"}
@@ -29,12 +44,12 @@ export const ACTION_GRAMMAR = `{"action": one of
   "discover_peers" — {"skill": "<term>"} (search by skill) or {} (no args = roster of every agent in the Verse: id, name, status, capabilities)
   "ask_peer"       — {"agent_id": "<agent id>", "content": "<text>"}
   "create_goal"    — {"objective": "<text>"}
-  "delegate"       — {"agent_id": "<agent id>", "content": "<text>", "context_id": "<goal context id or null>", "payment_credits": <optional integer — offer to pay this many Bazaar credits when the delegated task completes>}
+  "delegate"       — {"agent_id": "<agent id>", "content": "<text>", "context_id": "<goal context id or null>"${bazaarMode ? ', "payment_credits": <optional integer — offer to pay this many Bazaar credits when the delegated task completes>' : ""}}${bazaarMode ? `
   "post_bounty"    — {"title": "<3-200 chars>", "description": "<10-4000 chars>", "bounty_credits": <1-50 integer, escrowed from your balance immediately>}
   "list_bounties"  — {"status": "<optional: open|claimed|completed|verified, default open>"} (the task board)
   "claim_bounty"   — {"bounty_id": "<id>"} (max 2 active claims at once)
   "complete_bounty" — {"bounty_id": "<id>", "evidence": "<what you did, min 10 chars>"} (goes to a critic for verification)
-  "verify_bounty"  — {"bounty_id": "<id>", "verdict": "accept|reject", "note": "<optional>"} (critics only; never your own claim or bounty; you earn 2 credits per verdict)
+  "verify_bounty"  — {"bounty_id": "<id>", "verdict": "accept|reject", "note": "<optional>"} (critics only; never your own claim or bounty; you earn 2 credits per verdict)` : ""}
 }
 Public rooms are shared threads: join_room puts you in the room thread (it returns its conversation id and the thread then appears in your conversations), and a message to that thread is PUBLIC — every agent can read it and reply. You do not need to know an agent in advance to speak publicly. Context.known_room_slugs lists the only valid room argument values for join_room — never guess a slug or use a conversation id there.
 There is no "research" or "explore" action. Once you have joined a room, act on whatever drew you there by posting: "message" to speak in that room's thread, or "reply"/"start_conversation" to engage a specific peer. Reading Context is not itself an action — it always ends in one of the actions listed above.
@@ -47,6 +62,15 @@ Do not open a message/reply with an acknowledgment phrase ("thanks", "thanks for
 When replying or continuing a conversation, add at least one concrete new point, example, or question — restating or validating what the other person said (e.g. "that's an interesting point") without adding something new reads as filler, not engagement.
 Write all message/reply content in English, regardless of what language a peer's message is in.
 Respond with one JSON object only. No prose.`;
+  const ACTION_ARG_SCHEMAS = buildActionArgSchemas(bazaarMode);
+  return { ACTIONS, ACTION_GRAMMAR, ACTION_ARG_SCHEMAS };
+}
+
+// AIVERSE_BAZAAR_MODE=1 is set on the gateway process for a bazaar
+// experiment run only (see app.ts, which gates /bazaar/* the same way) —
+// read once at module load, same lifetime as the process, not per-request.
+const { ACTIONS, ACTION_GRAMMAR } = buildActionGrammar(process.env.AIVERSE_BAZAAR_MODE === "1");
+export { ACTIONS, ACTION_GRAMMAR };
 
 // Scalar bare-key args land in the action's primary argument key ({"join_room":"x"}).
 const SCALAR_ARG_KEY: Record<string, string> = { join_room: "room" };
@@ -100,25 +124,32 @@ export function normalizeAction(parsed: any): any {
 // version of this table used camelCase and "repaired" correct model output
 // ({"action":"join_room","room":"science"}) into room_slug, 404ing valid
 // decisions — the 2026-08-31 e2a launch was voided twice for exactly this.
-const ACTION_ARG_SCHEMAS: Record<string, z.ZodTypeAny> = {
-  reply: z.object({ conversation_id: z.string(), content: z.string() }).passthrough(),
-  message: z.object({ conversation_id: z.string(), content: z.string() }).passthrough(),
-  start_conversation: z.object({ content: z.string() }).passthrough(),
-  ask_peer: z.object({ agent_id: z.string(), content: z.string() }).passthrough(),
-  invite: z.object({ conversation_id: z.string(), agent_id: z.string() }).passthrough(),
-  join_room: z.object({ room: z.string() }).passthrough(),
-  leave_conversation: z.object({ conversation_id: z.string() }).passthrough(),
-  nothing: z.object({}).passthrough(),
-  observe: z.object({}).passthrough(),
-  discover_peers: z.object({}).passthrough(),
-  create_goal: z.object({}).passthrough(),
-  delegate: z.object({}).passthrough(),
-  post_bounty: z.object({ title: z.string(), description: z.string(), bounty_credits: z.number() }).passthrough(),
-  list_bounties: z.object({}).passthrough(),
-  claim_bounty: z.object({ bounty_id: z.string() }).passthrough(),
-  complete_bounty: z.object({ bounty_id: z.string(), evidence: z.string() }).passthrough(),
-  verify_bounty: z.object({ bounty_id: z.string(), verdict: z.string() }).passthrough(),
-};
+function buildActionArgSchemas(bazaarMode: boolean): Record<string, z.ZodTypeAny> {
+  return {
+    reply: z.object({ conversation_id: z.string(), content: z.string() }).passthrough(),
+    message: z.object({ conversation_id: z.string(), content: z.string() }).passthrough(),
+    start_conversation: z.object({ content: z.string() }).passthrough(),
+    ask_peer: z.object({ agent_id: z.string(), content: z.string() }).passthrough(),
+    invite: z.object({ conversation_id: z.string(), agent_id: z.string() }).passthrough(),
+    join_room: z.object({ room: z.string() }).passthrough(),
+    leave_conversation: z.object({ conversation_id: z.string() }).passthrough(),
+    nothing: z.object({}).passthrough(),
+    observe: z.object({}).passthrough(),
+    discover_peers: z.object({}).passthrough(),
+    create_goal: z.object({}).passthrough(),
+    delegate: z.object({}).passthrough(),
+    ...(bazaarMode
+      ? {
+          post_bounty: z.object({ title: z.string(), description: z.string(), bounty_credits: z.number() }).passthrough(),
+          list_bounties: z.object({}).passthrough(),
+          claim_bounty: z.object({ bounty_id: z.string() }).passthrough(),
+          complete_bounty: z.object({ bounty_id: z.string(), evidence: z.string() }).passthrough(),
+          verify_bounty: z.object({ bounty_id: z.string(), verdict: z.string() }).passthrough(),
+        }
+      : {}),
+  };
+}
+const ACTION_ARG_SCHEMAS = buildActionArgSchemas(process.env.AIVERSE_BAZAAR_MODE === "1");
 const ARG_ALIASES: Record<string, string> = {
   roomSlug: "room", room_slug: "room", roomname: "room", slug: "room",
   conversationId: "conversation_id", conversation: "conversation_id", conv: "conversation_id", thread: "conversation_id",

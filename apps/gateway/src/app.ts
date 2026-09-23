@@ -145,7 +145,13 @@ export function createApp() {
   app.route("/owners", ownerOnboardingRoute);
   app.route("/admin", adminRoute);
   app.route("/reports", reportsRoute);
-  app.route("/", bazaarRoute);
+  // Experiment-only: mounted only when explicitly enabled, so prod (which
+  // has no bazaar_* tables — see bazaar.ts's header) never serves routes
+  // that would 500 on every call. Unset/anything but "1" = routes absent
+  // entirely (404, not a 500 from a missing-table error).
+  if (process.env.AIVERSE_BAZAAR_MODE === "1") {
+    app.route("/", bazaarRoute);
+  }
   registerAgentWsRoute(app);
   registerConsoleWsRoute(app);
   registerPublicWsRoute(app);

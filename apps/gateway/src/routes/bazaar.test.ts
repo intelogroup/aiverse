@@ -1,4 +1,6 @@
 import { describe, expect, test, beforeAll, afterAll } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { createApp } from "../app";
 import { db } from "../db/client";
 import { sql } from "drizzle-orm";
@@ -7,7 +9,47 @@ import { sql } from "drizzle-orm";
 // These verify the accounting hardening: atomic verify, no double-pay,
 // solvent delegation settlement.
 
+// Route mounting is gated behind this flag (see app.ts) so prod never
+// serves /bazaar/* against a database that lacks the tables. Bun runs every
+// test file in one process, so this mutation would otherwise leak into any
+// test file that happens to run after this one and reads the same env var
+// (harness-action-grammar.ts's module-level ACTIONS/ACTION_GRAMMAR among
+// them) — restored in the top-level afterAll below.
+const PRIOR_BAZAAR_MODE = process.env.AIVERSE_BAZAAR_MODE;
+process.env.AIVERSE_BAZAAR_MODE = "1";
 const app = createApp();
+
+afterAll(() => {
+  if (PRIOR_BAZAAR_MODE === undefined) delete process.env.AIVERSE_BAZAAR_MODE;
+  else process.env.AIVERSE_BAZAAR_MODE = PRIOR_BAZAAR_MODE;
+});
+
+// The bazaar_* tables are deliberately kept out of the shared drizzle schema
+// (control-DB-only, never prod — see bazaar.ts's header comment), so the
+// normal `bun run db:migrate` never creates them. Without this, every test
+// in this file fails on a fresh database (CI, or any dev DB that hasn't had
+// schema.sql applied by hand) with "relation bazaar_roles does not exist" —
+// the PR's own "16 pass, 0 fail" only ever held locally against a database
+// someone had manually bootstrapped. All statements are CREATE TABLE/INDEX
+// IF NOT EXISTS, so this is idempotent against a DB that already has them.
+beforeAll(async () => {
+  const schemaPath = join(import.meta.dir, "../../../../experiments/bazaar/schema.sql");
+  // Strip `-- line comments` before splitting on ";" — schema.sql's header
+  // comment itself contains a semicolon ("...mismatched by design; see
+  // AGENTS.md hard rule 7)."), which a naive split(";") breaks mid-sentence
+  // into an invalid fragment ("syntax error at or near \"see\"").
+  const withoutComments = readFileSync(schemaPath, "utf-8")
+    .split("\n")
+    .map((line) => line.replace(/--.*$/, ""))
+    .join("\n");
+  const statements = withoutComments
+    .split(";")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  for (const stmt of statements) {
+    await db.execute(sql.raw(stmt));
+  }
+});
 
 async function registerAgent(name: string): Promise<{ agentToken: string; agentId: string; ownerToken: string }> {
   const email = `bazaar-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
@@ -471,6 +513,40 @@ describe("bazaar delegation accounting", () => {
       headers: auth(payee.agentToken),
     });
     expect(cancel2.status).toBe(409);
+  });
+
+  test("expireStaleDelegations refunds an abandoned offer, leaves a fresh one alone", async () => {
+    // Nothing in either run script's grammar (live-run.ts, dry-run.ts) ever
+    // offers a cancel action, and settlement only happens on the linked a2a
+    // task's completion — a payee who never responds locks the payer's
+    // escrow forever without this sweep. Backdate created_at directly
+    // (routes have no way to fake the clock) to simulate "abandoned".
+    const { expireStaleDelegations } = await import("./bazaar");
+    const taskOld = await delegate(payer.agentToken, payee.agentId, `expire-old-${Date.now()}`);
+    const taskFresh = await delegate(payer.agentToken, payee.agentId, `expire-fresh-${Date.now()}`);
+    const payerBefore = await getBalance(payer.agentId);
+
+    const offerOld = await app.request("/bazaar/delegations", {
+      method: "POST",
+      headers: auth(payer.agentToken),
+      body: JSON.stringify({ a2a_task_id: taskOld, payee_id: payee.agentId, amount: 11 }),
+    });
+    const { delegation_id: oldId } = await offerOld.json();
+    const offerFresh = await app.request("/bazaar/delegations", {
+      method: "POST",
+      headers: auth(payer.agentToken),
+      body: JSON.stringify({ a2a_task_id: taskFresh, payee_id: payee.agentId, amount: 5 }),
+    });
+    await offerFresh.json();
+    expect(await getBalance(payer.agentId)).toBe(payerBefore - 16);
+
+    await db.execute(sql`UPDATE bazaar_delegations SET created_at = now() - interval '2 hours' WHERE id = ${oldId}::uuid`);
+
+    const refundedCount = await expireStaleDelegations(60);
+    expect(refundedCount).toBe(1);
+    expect(await getBalance(payer.agentId)).toBe(payerBefore - 5); // old refunded, fresh still escrowed
+    expect((await getDelegation(taskOld)).state).toBe("canceled");
+    expect((await getDelegation(taskFresh)).state).toBe("offered");
   });
 });
 

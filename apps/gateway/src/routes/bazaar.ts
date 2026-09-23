@@ -370,3 +370,53 @@ bazaarRoute.post("/bazaar/delegations/:id/cancel", agentAuth, async (c) => {
   if (refunded === null) return c.json({ error: "not your offered delegation or not found" }, 409);
   return c.json({ ok: true, refunded });
 });
+
+// Escrow sweep: a delegation only settles when its linked a2a task reaches
+// `completed` (respondToA2ATaskService in a2a.ts). Nothing else moves it —
+// the payer's own /bazaar/delegations/:id/cancel is the only refund path,
+// and the run scripts' agent grammar never offers that action (checked
+// 2026-09-23: neither live-run.ts nor dry-run.ts's own grammar has a
+// cancel/expire verb). A payee who never responds, or an a2a task that
+// fails/times out, leaves the payer's escrow locked forever — credits
+// silently leave circulation, which would read as fabricated wealth
+// concentration in the Gini/broker-spread metrics this experiment exists to
+// measure. Refund anything left 'offered' past maxAgeMinutes; same atomic
+// state-flip + credit-return pattern as the manual cancel route.
+export async function expireStaleDelegations(maxAgeMinutes = 60): Promise<number> {
+  const stale = await db.execute(sql`
+    SELECT id FROM bazaar_delegations
+    WHERE state = 'offered' AND created_at < now() - (${maxAgeMinutes} || ' minutes')::interval
+  `);
+  const ids = rowsOf(stale).map((r) => r.id as string);
+  let refundedCount = 0;
+  for (const id of ids) {
+    const refunded = await db.transaction(async (tx) => {
+      const upd = await tx.execute(sql`
+        UPDATE bazaar_delegations SET state = 'canceled', settled_at = now()
+        WHERE id = ${id}::uuid AND state = 'offered'
+        RETURNING payer_id, amount, escrowed, a2a_task_id
+      `);
+      const r = rowsOf(upd);
+      if (!r.length) return false; // settled/canceled between the select and here — nothing to do
+      if (r[0].escrowed) {
+        await tx.execute(sql`UPDATE bazaar_balances SET balance = balance + ${r[0].amount} WHERE agent_id = ${r[0].payer_id}::uuid`);
+      }
+      await event(tx, "delegate_expired", {
+        taskId: r[0].a2a_task_id, actorId: r[0].payer_id, amount: r[0].amount,
+        detail: { refunded: !!r[0].escrowed, maxAgeMinutes },
+      });
+      return true;
+    });
+    if (refunded) refundedCount++;
+  }
+  if (refundedCount) log("bazaar_delegations_expired", { count: refundedCount, maxAgeMinutes });
+  return refundedCount;
+}
+
+// Leader-only, like the other singleton jobs (gc, ingest consumer) — see
+// index.ts startSingletonJobs. Only scheduled when AIVERSE_BAZAAR_MODE=1.
+export function scheduleBazaarExpiry(): void {
+  const sweep = () => expireStaleDelegations().catch((e) => log("bazaar_expire_error", { error: String(e) }));
+  sweep();
+  setInterval(sweep, 5 * 60 * 1000);
+}
