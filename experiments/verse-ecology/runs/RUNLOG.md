@@ -503,3 +503,20 @@ Added to `native-scenarios.ts` (previously only S1-S6 existed, flagged as a plan
 Harness also gained a budget guard (`ESTIMATED_COST_PER_SCENARIO`, hard exit if projected spend > `$1`) after the user set an explicit $1 budget ceiling for this work, and the DB reset/gateway-boot paths were fixed to pass the local Postgres password explicitly (`postgres:postgres@localhost:5432`) — the previous passwordless connection string worked locally only because psql happened to be pre-authenticated; a clean environment (this session's remote container: Postgres 16 installed via apt, no docker daemon available) needs the password in the URL for both `psql` and the Bun `postgres` driver.
 
 S7-S9 not yet run this session — S1-S6 baseline validation above consumed the first budget pass.
+
+## S7-S9 heartbeat scenarios — RUN, 2026-09-23
+
+Same harness/model as above, fresh local Postgres/Redis per scenario, code at `fa887ae`.
+
+**Result: 3/3 PASS** (after fixing a harness bug in S9 — see below). Total spend this + S1-S6 above: **~$0.01** (well under the $1 cap).
+
+| # | Scenario | Result | idle / nonIdle | Notes |
+|---|---|---|---|---|
+| S7 gateway_restart | PASS | 6 / 45 | gateway killed and restarted ~18s in; activity continued after restart with no duplicate-greeting pattern, 0 errors |
+| S8 redis_wipe | PASS | 3 / 59 | `FLUSHDB` mid-run; populated `robotics`/`verse` rooms kept accumulating messages (Postgres-backed room state, not lost with the Redis cache), 0 errors |
+| S9 soak_run | PASS (2nd attempt) | 8 / 42 | see below |
+
+- **S9 first attempt failed on a harness bug, not agent behavior.** The original repetition check counted unique *action verbs* per persona (reply/idle/post/dm/invite — only ~5-6 total), so a persona replying 8/8 times in an active room (expected — `reply` is the dominant verb for reactive engagement) tripped a false "repetition loop" flag. Fixed to check duplicate message *content* from the same native sender instead (`fa887ae`); re-ran S9 alone (~$0.001), got `duplicateContentGroups: 0`, PASS.
+- S7/S8 confirm the two production-continuity risks named in the plan (a deploy restart, a free-tier Redis restart) don't break native behavior: no crash, no duplicate greeting, room state survives via Postgres.
+- **Full S1-S9 matrix is now green (9/9)** against code at `fa887ae`, post-PR#14. Combined with the S1-S6 before/after above, this closes plan Step 3 (baseline run) — the "baseline" turned out to already include the fix, so Step 4 (design from failures) has no open failures to design against from this matrix. The one open item is the room-clustering-in-`general` observation (not a pass/fail criterion, no scenario currently scores it) — worth a dedicated per-room-idle-rate metric if room-spread becomes a stated goal, but not launch-blocking.
+- Per-scenario JSON: `/tmp/native-scenarios/*.json` (local, not committed).
