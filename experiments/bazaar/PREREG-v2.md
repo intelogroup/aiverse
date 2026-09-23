@@ -1,9 +1,24 @@
 # Bazaar v2 Preregistration: Marketplace Design Against Adverse Selection and First-Proposal Bias
 
 **Registry:** OSF Registries (not yet submitted; will update URL)  
-**Pre-register date:** 2026-09-23  
+**Pre-register date:** 2026-09-23 (quality mechanism revised same day — see Addendum below)  
 **Principal investigators:** Aiverse team  
 **Experiment design:** 2×2 between-runs factorial, frozen outcomes, no mid-experiment design changes.
+
+---
+
+## Addendum (2026-09-23): quality mechanism changed from model choice to scripted corruption
+
+The original design below made "lemon" a matter of LLM capability: a degraded system prompt, then a genuinely weaker model (gpt-3.5-turbo vs gpt-4.1-nano). A pre-screen dry run (`v2-prescreen-dryrun.ts`, full results in `experiments/verse-ecology/runs/RUNLOG.md` under "Bazaar v2 pre-screen dry run") tested this directly and it failed on every variant tried: prompt degradation alone produced a 0pt gap, the weaker model alone produced 20pt (target 50pt+), and the weaker model plus a prompt nudge — re-tested with a deterministic temperature-0 setup to rule out sampling noise — still produced a 0pt gap, reproduced identically across two runs. **gpt-3.5-turbo is not measurably weaker than gpt-4.1-nano on ground-truth tasks this size.** Four rounds of task/gate tuning confirmed this rather than finding a way around it.
+
+**Revised mechanism: task-completion correctness is scripted at the harness level, not emergent from model choice.** Specialists and lemons both run on the same model (gpt-4.1-nano) and make the same kind of autonomous decisions (accept/reject delegation, set/negotiate price under the Pricing factor, decide who to delegate to) — the economic behavior this experiment measures stays genuinely LLM-driven. What changes is the *submitted deliverable*: after an agent (of either type) produces its answer to a task, the harness applies a corruption filter keyed to the agent's assigned type before recording the "official" submission that gets verified —
+
+- **Specialists:** submission passes through unmodified (~80% ground-truth correct, per the pre-screen's own measured baseline for gpt-4.1-nano on this task set).
+- **Lemons:** submission is corrupted with fixed probability (target ~75%) before recording — e.g., a wrong number substituted in an arithmetic answer, an extraction with an entity dropped, a code submission with a deliberately broken edge case — using the same corruption technique regardless of what the agent actually produced, so lemon-hood is a controlled, guaranteed ~25% true solve rate by construction, not a hoped-for emergent property.
+
+This is a standard move in economics experiments (control the manipulated variable directly rather than hoping a proxy produces it) and it directly fixes the problem the dry run found, without touching the actual research question: does reputation and/or pricing let requesters route around low-quality delegates, when quality itself is real (not just advertised) but unobservable to requesters except through reputation/price signals. Reputation still tracks true (post-corruption) outcomes, updated the same way as originally designed — nothing about the 2×2 factorial, the primary/secondary outcomes, or the pre-screen/freeze discipline below changes; only how "lemon" and "specialist" are made real changes.
+
+**Not yet implemented as of this addendum** — this is the design update; the population/task/scoring/corruption-filter code has not been built. Section below is otherwise unchanged from the original preregistration and should be read with "Model: gpt-4.1-nano with system-prompt degradation" / "lower-capability model" superseded by the corruption-filter mechanism above wherever it appears.
 
 ---
 
@@ -50,19 +65,21 @@
 
 **Total: 12 agents (4 specialists, 4 lemons, 4 requesters).**
 
-### Specialists (4 agents, higher-capability model)
-- **Model:** gpt-4.1-nano (baseline model)
+### Specialists (4 agents)
+- **Model:** gpt-4.1-nano, no prompt degradation.
 - **Mandate:** "Complete your assigned tasks accurately. You may delegate low-effort work to peers. Goal: maximize own correctness rate."
-- **Pre-screen:** Must achieve ≥80% solve rate on screening tasks (ground truth).
+- **Quality mechanism (revised — see Addendum):** submissions pass the harness's corruption filter unmodified; true solve rate is whatever gpt-4.1-nano actually measures on the task set (~80%, per the pre-screen).
+- **Pre-screen:** N/A under the revised mechanism — specialist-hood is assigned by role, not measured via a solve-rate gate, since correctness is now controlled, not emergent. (The old ≥80% gate is superseded.)
 - **Success rate seed:** Start at public reputation = 80% (R2, R4 cells only).
 - **Behavior:** Solve high-effort tasks, delegate routine work.
 
-### Lemons (4 agents, lower-capability model)
-- **Model:** gpt-4.1-nano with system-prompt degradation: prefix instructions with "answer fast, don't overthink" and "if stuck, guess".
+### Lemons (4 agents)
+- **Model:** gpt-4.1-nano, same as specialists — no prompt degradation, no weaker model. (Both were tried and failed the pre-screen; see Addendum.)
 - **Mandate:** "Complete your assigned tasks. You may delegate to peers if it helps you finish faster. Goal: earn as much as you can (credits or reputation)."
-- **Pre-screen:** Must achieve ≤30% solve rate on screening tasks (ground truth).
+- **Quality mechanism (revised — see Addendum):** submissions pass through the harness's corruption filter with fixed ~75% corruption probability before being recorded as the official deliverable, guaranteeing a ~25% true solve rate by construction.
+- **Pre-screen:** N/A under the revised mechanism, same reasoning as Specialists above. (The old ≤30% gate is superseded — it's now guaranteed by the corruption filter's fixed probability, not measured.)
 - **Success rate seed:** Start at public reputation = 30% (R2, R4 cells only).
-- **Behavior:** Attempt everything themselves first (will fail often), accept and fail delegations.
+- **Behavior:** Attempt everything themselves first (will fail often, by construction), accept and fail delegations.
 
 ### Requesters (4 agents, no LLM — scripted)
 - **Model:** Deterministic script, no LLM.
@@ -72,7 +89,7 @@
   - Remaining 12 tasks: under (None, None), random peer; under (Public, *), route by visible reputation; under (*, Escrow), route by cost-benefit (always try cheaper lemon first if available).
 - **Tasks:** Mix of 3 types, ground-truth scored:
   1. **Fact extraction:** "Extract all organizations mentioned in [text]." (Scored: set match against gold labels.)
-  2. **Arithmetic:** "Sum these 10 numbers: [list]." (Scored: binary match.)
+  2. **Arithmetic:** "Sum these 8 numbers: [list]." (Scored: binary match. Originally specified as 10 numbers; the pre-screen dry run found 10-number mental sums broke gpt-4.1-nano's own baseline regardless of prompt care — a task-calibration artifact, not a quality signal, since correctness is now controlled by the corruption filter rather than gated on task difficulty. Shrunk to 8, the length that let the specialist arm's true ~80% baseline hold in the dry run.)
   3. **Code:** "Write a function that does X; test with Y." (Scored: unit tests pass.)
 
 ---
@@ -116,13 +133,12 @@ Measured per run:
 
 ## Pre-Screen and Freeze
 
-### Pre-screen
-Before any run:
-1. All specialists solo-solve 5 screening tasks, achieve ≥80%.
-2. All lemons solo-solve 5 screening tasks, achieve ≤30%.
-3. All 4 requesters can connect and post tasks (deterministic script verified locally).
+### Pre-screen (revised — see Addendum)
+The original per-agent solve-rate gate (specialists ≥80%, lemons ≤30%, measured via 5 screening tasks) is superseded: under the corruption-filter mechanism, true solve rate is fixed by construction (specialist ~80%, lemon ~25%) rather than an emergent property to gate on. Before any run:
+1. Verify the corruption filter actually produces its target rates: run 20 lemon-type submissions through it and confirm ~25% (±10pt) pass the ground-truth check post-corruption; run 20 specialist-type submissions and confirm ~80% (±10pt) pass unmodified. This is the harness-level equivalent of the old per-agent gate — gating the mechanism, not the model.
+2. All 4 requesters can connect and post tasks (deterministic script verified locally).
 
-If any agent fails pre-screen: reroll that agent type from a backup pool (pre-screened standby agents).
+If the corruption filter's measured rate misses its target by more than 10pt: fix the filter's corruption probability/technique and re-verify before R1, per the same discipline as a pre-screen failure under the original design.
 
 ### Frozen Outcomes
 Once R1 begins:
