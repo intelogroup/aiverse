@@ -382,6 +382,82 @@ describe("native agents", () => {
     }
   });
 
+  test("blank-room fallback: idle in an offered empty room is overridden with a scripted open_topic", async () => {
+    await resetMemoryStoreForTests();
+    const rekinder = await getNative("Rekinder");
+
+    // A genuinely empty, isolated room (not one of the shared default rooms,
+    // whose bootstrap token may already be consumed by another test/window).
+    const [room] = await db.insert(roomsTable).values({ slug: `blank-fallback-${Date.now()}`, isPublic: true }).returning();
+    const [conv] = await db.insert(conversations).values({ roomId: room.id, kind: "room", isPublic: true }).returning();
+    await db.insert(conversationParticipants).values({ conversationId: conv.id, agentId: rekinder.id });
+    setRoomConversationForTests(room.slug, conv.id);
+    // getRoomConversationIds() only iterates DEFAULT_ROOM_SLUGS, so point one
+    // of those slugs at this fresh empty conversation for this test's tick.
+    setRoomConversationForTests("general", conv.id);
+
+    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "idle" })));
+    try {
+      await tickOne(rekinder.id, "Rekinder", "prompt", "objective");
+      await drainIngestStream();
+
+      const rows = await db.query.messages.findMany({ where: eq(messages.conversationId, conv.id) });
+      expect(rows.length).toBe(1);
+      expect(rows[0].content).toBe(
+        "Opening this one up — what's a question worth arguing about today?",
+      );
+      expect(rows[0].senderAgentId).toBe(rekinder.id);
+    } finally {
+      setRoomConversationForTests("general", null);
+      setRoomConversationForTests(room.slug, null);
+    }
+  });
+
+  test("lone-external fallback: idle with exactly one online peer is overridden with a scripted ask_peer, capped once per window", async () => {
+    await resetMemoryStoreForTests();
+    const sage = await getNative("Sage");
+    const [peer] = await db
+      .insert(agents)
+      .values({ name: `LoneExternal-${Date.now()}`, agentCard: {}, apiKeyHash: "x", status: "online" })
+      .returning();
+    await setPresence(peer.id);
+
+    // Seed every default room with a message so no blank-room offer competes
+    // with the lone-external path this tick.
+    const roomConvs = await db
+      .select({ id: conversations.id })
+      .from(conversations)
+      .innerJoin(roomsTable, eq(roomsTable.id, conversations.roomId))
+      .where(inArray(roomsTable.slug, ["general", "science", "robotics", "verse"]));
+    const fixer = await getNative("Fixer");
+    for (const { id } of roomConvs) {
+      const any = await db.query.messages.findFirst({ where: eq(messages.conversationId, id) });
+      if (!any) await db.insert(messages).values({ conversationId: id, senderAgentId: fixer.id, content: "seed so this room isn't the blank-room offer" });
+    }
+
+    setLLMProviderForTests(stubProvider(JSON.stringify({ action: "idle" })));
+    try {
+      await tickOne(sage.id, "Sage", "prompt", "objective");
+      await drainIngestStream();
+
+      const task = await db.query.a2aTasks.findFirst({
+        where: (t, { eq: eqOp, and: andOp }) => andOp(eqOp(t.callerAgentId, sage.id), eqOp(t.targetAgentId, peer.id)),
+      });
+      expect(task).toBeDefined();
+      expect((task!.requestMessage as { parts: { text: string }[] }).parts[0].text).toBe(
+        "Hey — looks like it's just you around right now. Anything you're trying to figure out? Happy to help.",
+      );
+
+      // Capped: the tick above already consumed this window's lone-contact
+      // token, so a second native hitting the same idle+lone-peer condition
+      // in the same window must NOT also contact the peer.
+      const secondAttempt = await takeToken(`native-lone:${peer.id}`, 1, 1 / 1800);
+      expect(secondAttempt).toBe(false);
+    } finally {
+      await clearPresence(peer.id);
+    }
+  });
+
   test("Kronikler (Chronicler) sees its own private DMs — gatherDMContext isn't Connector-only", async () => {
     // The gatherDMContext fix (2026-09-02) was written to cover every native
     // via the shared tickOne() call site, and its own comment claims Kronikler

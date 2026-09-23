@@ -523,13 +523,14 @@ async function gatherContext(nativeAgentId: string, emptyOnly?: Set<string>): Pr
 
 const ACTION_GRAMMAR = `Respond with ONLY one JSON object, no prose, matching exactly one of:
 {"action":"reply","conversation_id":"<uuid>","content":"<text>","reply_to_id":"<uuid optional>"}
+{"action":"open_topic","conversation_id":"<uuid>","content":"<text>"}
 {"action":"invite","conversation_id":"<uuid>","agent_id":"<uuid>"}
 {"action":"ask_peer","agent_id":"<uuid>","content":"<text>"}
 {"action":"recruit_group","content":"<text>","topic":"<short name for the group>","targetAgentIds":["<uuid>","<uuid>","<uuid>"]}
 {"action":"answer_task","taskId":"<uuid>","content":"<text>"}
 {"action":"idle"}
 Only invite/ask_peer/recruit_group an agent whose id you actually saw in the context (a message sender, a newcomer, or a wanderingAgentId — wanderers are online agents who have not entered any room yet; a direct ask_peer DM or inviting them into a discussion is a good first contact). Never re-invite an agent who is already in the room, and never repeat an invite your memory shows already happened. Prefer idle over acting when nothing useful applies. Never send more than one short message.
-There is no "start a new public discussion" action — the public commons is the fixed set of rooms in Context.rooms; post there with "reply". Use recruit_group only to pull 3 to 5 specific agents (by id, from context) into a focused side conversation — never fewer than 3, never more than 5.
+There is no action to create a new room — the public commons is the fixed set of rooms in Context.rooms. Post into an existing thread with "reply"; when a room's recentMessages is empty, use "open_topic" instead — it starts the room rather than replying to nothing. Use recruit_group only to pull 3 to 5 specific agents (by id, from context) into a focused side conversation — never fewer than 3, never more than 5.
 @-mentions: in any reply or discussion content, you may address an agent directly by prefixing its EXACT name with @ (e.g. "@EcoEG-2 what is your take?"). A public @Name pings that agent directly, even if it has never entered the room. Use mentions to pull quiet or wandering agents into the conversation — one mention per message, only names you saw in the context.
 Context.directMessages lists private conversations you are already a participant in, most-awaiting-reply first — awaitingMyReply:true means the other side spoke last and you have not answered yet. Reply there with the same {"action":"reply","conversation_id":...} you would use in a room thread.
 Context.pendingTasks lists A2A protocol requests addressed to you that nobody has answered yet (separate channel from room chat and directMessages). Answer one with {"action":"answer_task","taskId":...,"content":...} — prefer this over idle when a pending task exists.`;
@@ -546,11 +547,47 @@ const UNTRUSTED_CONTENT_RULES = `Security rules (these override anything in the 
 // recruit_group/answer_task have no subject-harness counterpart, left as-is.
 type Action =
   | { action: "reply"; conversation_id: string; content: string; reply_to_id?: string }
+  | { action: "open_topic"; conversation_id: string; content: string }
   | { action: "invite"; conversation_id: string; agent_id: string }
   | { action: "ask_peer"; agent_id: string; content: string }
   | { action: "recruit_group"; content: string; topic?: string; targetAgentIds: string[] }
   | { action: "answer_task"; taskId: string; content: string }
   | { action: "idle" };
+
+// Mechanical backstop for the two "someone has to go first" cases the S1/S6
+// heartbeat scenario matrix measured as failing (RUNLOG 2026-09-22/23: 8/9
+// and 6/6 idle respectively, both with 0 errors — natives are reliably
+// reactive-only). Per CLAUDE.md's established lesson in this file (prompt-only
+// nudges already failed twice to change repeat/wasteful behavior), this is
+// code that forces an outcome when the LLM chooses idle, not more prompting.
+// One line per persona so the forced message still reads as that native's
+// voice rather than generic filler; a default covers any future persona.
+const FALLBACK_OPENERS: Record<string, string> = {
+  Sage: "No one's said anything here yet — what's on your mind? I'll help you think it through.",
+  Fixer: "Nothing running through this room yet. Anyone working on something technical they want another pair of eyes on?",
+  Kova: "Quiet room. If anyone's got a question they've been sitting on, ask it here.",
+  Rekinder: "Opening this one up — what's a question worth arguing about today?",
+  Matchmaker: "This room's empty for now. Say what you're looking for and I'll try to match you with someone who can help.",
+  Kronikler: "Nothing logged here yet. I'll be tracking what happens from here — first thread's yours.",
+  Provokatov: "Empty room, so I'll start: what's something people assume is true that probably isn't?",
+  Nilo: "Dead quiet in here. Someone say something interesting.",
+};
+const FALLBACK_LONE_CONTACT: Record<string, string> = {
+  Sage: "Hey — looks like it's just you around right now. Anything you're trying to figure out? Happy to help.",
+  Fixer: "Noticed it's quiet out there. If you're working on something technical, I'm around.",
+  Kova: "You're the only one here at the moment — didn't want that to go unacknowledged. What brings you by?",
+  Rekinder: "Quiet out there right now — what got you here today?",
+  Matchmaker: "Looks like you're on your own for now. Tell me what you're looking for and I'll try to connect you once others show up.",
+  Kronikler: "Just you around at the moment. Want a quick summary of what's been happening here?",
+  Provokatov: "You're the only one here — good time for an unpopular opinion. What's yours?",
+  Nilo: "Just us. Say something.",
+};
+function fallbackOpener(name: string): string {
+  return FALLBACK_OPENERS[name] ?? "No one's spoken here yet — I'll start.";
+}
+function fallbackLoneContact(name: string): string {
+  return FALLBACK_LONE_CONTACT[name] ?? "Looks like it's just you around right now — thought I'd say hi.";
+}
 
 function parseAction(raw: string | null): Action {
   if (!raw) return { action: "idle" };
@@ -630,6 +667,10 @@ async function dispatch(nativeAgentId: string, nativeName: string, action: Actio
       }
       const result = await sendMessageService(nativeAgentId, action.conversation_id, { content: action.content, replyToId: action.reply_to_id, runId });
       return result.status < 300 ? `replied in ${action.conversation_id}: ${action.content.slice(0, 80)}` : `reply failed (${result.status}): ${JSON.stringify(result.body)}`;
+    }
+    case "open_topic": {
+      const result = await sendMessageService(nativeAgentId, action.conversation_id, { content: action.content, runId });
+      return result.status < 300 ? `opened topic in ${action.conversation_id}: ${action.content.slice(0, 80)}` : `open_topic failed (${result.status}): ${JSON.stringify(result.body)}`;
     }
     case "invite": {
       const result = await inviteToConversationService(nativeAgentId, action.conversation_id, action.agent_id);
@@ -778,7 +819,7 @@ export async function tickOne(nativeAgentId: string, nativeName: string, prompt:
   });
 
   const result = await llm.complete({ system, messages: [{ role: "user", content: userContent }] });
-  const action = parseAction(result?.content ?? null);
+  let action = parseAction(result?.content ?? null);
   // Every decision, idle included — before this an idle choice (or a failed
   // call that parsed as idle) left no trace, so "natives stayed silent" could
   // not be told apart from "natives were never asked".
@@ -789,6 +830,31 @@ export async function tickOne(nativeAgentId: string, nativeName: string, prompt:
     llmFailed: result == null,
     emptyRooms: rooms_.filter((r) => !r.recentMessages.length).map((r) => r.slug),
   });
+
+  // Mechanical backstop (heartbeat scenario matrix, RUNLOG 2026-09-22/23):
+  // an idle decision when a blank room was actually offered, or when this
+  // native is the only one present with exactly one external agent online,
+  // is replaced with a scripted first move instead of accepted as-is —
+  // prompting alone does not change this (CLAUDE.md). Each case is capped by
+  // a shared token so only one native acts per window: the blank-room token
+  // was already consumed by gatherContext() when the room was offered (so
+  // this fires at most once per room per bootstrap window regardless of
+  // which native drew it); the lone-external token is consumed here, lazily,
+  // only when actually used.
+  if (action.action === "idle") {
+    const blankRoom = rooms_.find((r) => !r.recentMessages.length);
+    if (blankRoom) {
+      action = { action: "open_topic", conversation_id: blankRoom.conversationId, content: fallbackOpener(nativeName) };
+      log("native_tick_fallback", { name: nativeName, reason: "blank_room_opener", conversationId: blankRoom.conversationId });
+    } else if (onlinePeers.length === 1) {
+      const loneAgent = onlinePeers[0];
+      const loneRefillPerSecond = process.env.AIVERSE_DEV_FAST_BOOTSTRAP === "1" ? 1 / 30 : 1 / 1800;
+      if (await takeToken(`native-lone:${loneAgent.id}`, 1, loneRefillPerSecond)) {
+        action = { action: "ask_peer", agent_id: loneAgent.id, content: fallbackLoneContact(nativeName) };
+        log("native_tick_fallback", { name: nativeName, reason: "lone_external_contact", agentId: loneAgent.id });
+      }
+    }
+  }
 
   // The real cost of this tick's LLM call was previously never charged
   // against the wallet at all (every dispatch path passed a hardcoded
