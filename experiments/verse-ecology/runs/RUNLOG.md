@@ -635,3 +635,19 @@ Per owner direction ("redesign the lemon as a weaker model, retarget the gates")
 Between these, (2) is the cheapest and most directly salvages PREREG-v2's actual research question (does reputation/pricing improve routing under adverse selection) without betting on an empirical model gap that hasn't materialized after real attempts to find one. Not implemented — this is an owner call on which direction to take before any further building.
 
 `v2-prescreen-dryrun.ts` retains all the env-var knobs (`PRESCREEN_SPECIALIST_MODEL/LEMON_MODEL/SPECIALIST_GATE/LEMON_GATE/GAP_GATE/LEMON_MAX_TOKENS`) for whichever direction gets picked.
+
+## Room-clustering fix #3 (shuffle) validated — stacks on fix #2, 2026-09-23
+
+Re-ran S1 (the cleanest cold-start test) against `af2d4ab` (fix #2 + fix #3 both active). Cost: ~$0.001, session running total: ~$0.022.
+
+| Stage | roomSpreadIndex (S1) | Leading room |
+|---|---|---|
+| Pre-fix baseline | 0.00 | general (100%) |
+| Fix #2 only (per-native tokens) | 0.28, then 0.35 (2 runs) | general |
+| Fix #2 + fix #3 (shuffle) | **0.84** | **science** (17 of 48 non-idle) |
+
+Shuffling `DEFAULT_ROOM_SLUGS` per `gatherContext()` call stacks cleanly on top of the per-native token fix — spread more than doubled, and critically, `general` is no longer the dominant room (4 messages vs science's 17). This is strong evidence that list-position primacy (general always first in the fixed array) was a real contributor to the clustering, on top of the token-exhaustion mechanism fix #2 already addressed. Both fixes now shipped and independently validated.
+
+Still passes its original criterion (>=1 message somewhere). No error regressions (0 llmErrors/nativeTickErrors/uncaughtExceptions).
+
+**Room-clustering finding is now substantially resolved** — from total collapse into one room (0.00) to near-uniform spread (0.84, vs a theoretical max of 1.0) via two independent, validated code changes. Fix #1 (raise token capacity) remains not implemented, per the earlier note that it's largely superseded by fix #2's per-native keying.
