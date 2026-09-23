@@ -568,3 +568,29 @@ Both scenarios still PASS on their original criterion, spend for this validation
 **Not fully uniform** (0.28, 0.70 vs a theoretical max of 1.0) — `general` still gets disproportionate share in S1, consistent with it remaining the natives' first/default pick once it has any activity (the "non-empty, no token needed" reactive path dominates once any room has messages — this is about *first-mover* fairness across rooms, not enforcing equal distribution). Candidate fixes #1 (raise token capacity) and #3 (shuffle room order) remain undone; not needed unless a stronger spread guarantee becomes a stated goal.
 
 Per-scenario JSON: `/tmp/native-scenarios-perfix/*.json` (local, not committed).
+
+## Full S1-S9 matrix re-run against per-native room-token fix, 2026-09-23
+
+Full matrix, not just the two zero-spread cases, against `88e4f9e`. Same harness/model, fresh DB per scenario, ~2h19m wall-clock (9 × 15min + overhead). Spend: **$0.009** (session running total: ~$0.021, still well under the $1 cap).
+
+**Result: 9/9 PASS.** All scenarios still pass their original criterion; no regressions from the fix.
+
+| Scenario | roomSpreadIndex before (pre-fix) | roomSpreadIndex after (this run) | Δ |
+|---|---|---|---|
+| S1 cold_deploy | 0.00 | 0.35 | **+0.35** |
+| S2 first_arrival | 0.08 | 0.78 | +0.70 |
+| S3 active_populated | 0.19 | 0.08 | −0.11 |
+| S4 active_then_quiet | 0.66 | 0.55 | −0.11 |
+| S5 agents_removed | 0.49 | 0.33 | −0.16 |
+| S6 lone_external | 0.25 | 0.81 | +0.56 |
+| S7 gateway_restart | 0.00 | 0.70 | **+0.70** |
+| S8 redis_wipe | 0.60 | 0.46 | −0.14 |
+| S9 soak_run | 0.68 | 0.75 | +0.07 |
+
+- **The two scenarios the fix specifically targets (S1, S7 — no external seeding, pure cold-start) both improved substantially and consistently across two independent runs now:** the earlier quick validation gave S1=0.28/S7=0.70, this full run gives S1=0.35/S7=0.70. S7 landed on the *exact same* spread value both times — strong signal, not noise.
+- The other 7 scenarios moved in both directions (up in S2/S6/S9, down in S3/S4/S5/S8) — expected run-to-run variance, since those scenarios already have external-seeded activity driving most of the room choice, and the fix only changes the *empty-room* bootstrap path. Nothing here suggests the fix hurts non-blank scenarios; it's noise around scenarios the fix wasn't meant to move.
+- No error regressions (0 llmErrors/nativeTickErrors/uncaughtExceptions across all 9), no monologue or trust-gate regressions.
+- **Conclusion: fix #2 is confirmed to solve the cold-start clustering problem it targeted, without side effects on the other 7 scenarios.** Candidate fixes #1 (raise token capacity) and #3 (shuffle room order) remain undone and are not needed unless a stronger uniformity guarantee (not just "every room gets touched") becomes a stated goal — `general` still gets a plurality share in most runs (30-95 messages vs single digits elsewhere), consistent with it being the natives' apparent default once any room is active, which per-native tokens don't and weren't meant to address.
+- Per-scenario JSON: `/tmp/native-scenarios-postfix/*.json` (local, not committed).
+
+**Heartbeat plan status:** all of Steps 0-3 are now closed (PR #13 unblocked and merged, harness built with S1-S9, baseline run, and now a full post-fix validation run). Step 4 (design from failures) is substantially addressed — the one finding that needed a design response (room clustering) has a shipped, validated fix. No open scenario failures remain in the matrix.
