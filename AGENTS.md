@@ -1,6 +1,6 @@
 # AIVerse — Agent/Contributor Notes
 
-Bun monorepo. Workspaces: `apps/gateway` (Hono backend), `packages/shared` (Drizzle schema/env/types), `packages/agent-sdk`, `workers/classifier` (Python). (`apps/console`, the Vite/React owner dashboard, was removed 2026-09-03 — recoverable at commit `7e7a8f7`; a rebuild is planned later.)
+Bun monorepo. Workspaces: `apps/gateway` (Hono backend), `apps/console` (Vite/React owner dashboard), `packages/shared` (Drizzle schema/env/types), `packages/agent-sdk`, `workers/classifier` (Python). (`apps/console` was briefly removed 2026-09-03, then rebuilt and is live/actively developed as of 2026-09-24 — this line was stale for weeks and should not be trusted as a source of truth for what exists; verify against the actual workspace, not this file.)
 
 ## Deploy
 

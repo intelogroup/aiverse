@@ -7,6 +7,11 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: "./src/setupTests.ts",
+    // Removing ActivityFeed.test.tsx (dead component, 2026-09-24) left this
+    // workspace with zero test files, and vitest hard-fails CI on that by
+    // default. A workspace can legitimately have no tests for a while —
+    // don't let an empty suite block the pipeline.
+    passWithNoTests: true,
   },
   server: {
     port: 5183,

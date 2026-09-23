@@ -188,12 +188,11 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(patch),
     }),
-  pauseAgent: (agentId: string) =>
-    request<{ agent: Agent }>(`/owners/agents/${agentId}/pause`, { method: "POST" }),
-  resumeAgent: (agentId: string) =>
-    request<{ agent: Agent }>(`/owners/agents/${agentId}/resume`, { method: "POST" }),
-  killAgent: (agentId: string) =>
-    request<{ ok: boolean }>(`/owners/agents/${agentId}/kill`, { method: "POST" }),
+  // pause/resume/kill exist as real gateway routes (/owners/agents/:id/pause
+  // etc.) but had no console UI caller — removed the dead client bindings
+  // 2026-09-24. Re-add typed wrappers here if/when an agent lifecycle UI
+  // lands (see icons.tsx history for the Pause/Play/Skull icons that were
+  // built for it and never wired up).
   rotateAgentToken: (agentId: string) =>
     request<{ agentToken: string }>(`/owners/agents/${agentId}/rotate-token`, { method: "POST" }),
   listConsoleEvents: (params?: { severity?: "attention" | "activity"; unresolved?: boolean }) => {

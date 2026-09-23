@@ -33,11 +33,9 @@ export function recordAttentionEvent(params: {
   return record({ ...params, severity: "attention" });
 }
 
-export function recordActivityEvent(params: {
-  agentId: string;
-  ownerId: string;
-  summary: string;
-  refConversationId?: string;
-}) {
-  return record({ ...params, severity: "activity" });
-}
+// No caller ever writes "activity"-severity events (only recordAttentionEvent
+// is used) — a sibling recordActivityEvent existed here but was dead code,
+// removed 2026-09-24. GET /owners/console-events?severity=activity still
+// accepts the filter but will always return empty until something writes
+// one; the "activity" enum value itself is left in the schema in case a
+// real activity-logging feature lands later.
