@@ -594,3 +594,27 @@ Full matrix, not just the two zero-spread cases, against `88e4f9e`. Same harness
 - Per-scenario JSON: `/tmp/native-scenarios-postfix/*.json` (local, not committed).
 
 **Heartbeat plan status:** all of Steps 0-3 are now closed (PR #13 unblocked and merged, harness built with S1-S9, baseline run, and now a full post-fix validation run). Step 4 (design from failures) is substantially addressed — the one finding that needed a design response (room clustering) has a shipped, validated fix. No open scenario failures remain in the matrix.
+
+## Bazaar v2 pre-screen dry run — FAILED, core assumption needs rework, 2026-09-23
+
+Before building the full 2x2 factorial population (12 agents/run, ~$5 budget per PREREG-v2.md), ran a cheap standalone check (`experiments/bazaar/v2-prescreen-dryrun.ts`, no gateway/DB) of the design's core assumption: does a "lemon" arm (degraded system prompt and/or weaker model) actually produce the assumed <=30% solve rate vs a specialist's >=80%, on 5 ground-truth tasks (2 extraction, 2 arithmetic, 1 code)? Cost: ~15 API calls total, negligible.
+
+**Result: FAILED on both variants tried.**
+
+| Variant | Specialist | Lemon | Specialist rate | Lemon rate | Gap |
+|---|---|---|---|---|---|
+| Prompt degradation only (both gpt-4.1-nano) | careful-prompt | "answer fast, don't overthink, guess" prompt | 80% | 80% | **0pt** |
+| Weaker model + degraded prompt | gpt-4.1-nano | gpt-3.5-turbo + degraded prompt | 80% | 60% | 20pt |
+| Weaker model + degraded prompt + 60-token cap | gpt-4.1-nano | gpt-3.5-turbo, max_tokens=60 | 80% | 60% | 20pt |
+
+- **Prompt-only degradation has zero effect on gpt-4.1-nano at this task difficulty** — the model is too capable for a "rush, don't verify" system-prompt instruction to matter on 5 simple ground-truth tasks. This confirms the risk flagged before building anything (prior turn): "I don't actually know a system-prompt prefix... reliably drives gpt-4.1-nano to <=30% solve rate."
+- Swapping to a genuinely weaker model (gpt-3.5-turbo) gets a real but insufficient gap (20pt, target 30pt+ separation with lemon <=30%). Capping lemon max_tokens to 60 didn't move the needle further — the failing tasks (mostly the 10-number arithmetic sum) weren't token-constrained to begin with.
+- **Secondary finding, independent of the lemon question:** the *specialist* arm (gpt-4.1-nano, careful prompt) failed the 10-number arithmetic sum task in all 3 runs (448, 462, 452 — all wrong; correct answer 502), despite passing the extraction and code tasks cleanly. Mental multi-number arithmetic without a tool appears to be a weak spot for this model independent of prompt care, meaning that specific task is poorly calibrated for a "specialist should score >=80%" pre-screen gate — it's dragging the specialist rate down for reasons unrelated to effort/care.
+- **Decision: did not proceed to building the full population/task/scoring infrastructure.** Per the original flag, this was exactly the point of running the cheap check first rather than discovering a null result after the full $5 run.
+
+**Options going forward, not yet decided (owner call):**
+1. Redesign lemon-hood as model choice (not prompt), with a genuinely weaker/older model, and accept a smaller quality gap (e.g., retarget gates to specialist >=70%/lemon <=40%, still separable, rather than 80/30).
+2. Replace the arithmetic task type with something more reliably discriminative between capable and weak models (e.g., multi-step word problems, longer extraction lists with distractors) and re-run the dry run before committing to gates.
+3. Descope Bazaar v2's lemon mechanism entirely and measure something else the design doesn't depend on a clean quality gap for (e.g., first-proposal bias and Gini under pricing/reputation, dropping the "routing accuracy toward specialists" primary outcome).
+
+`v2-prescreen-dryrun.ts` supports arm-specific model/prompt/max_tokens via env vars (`PRESCREEN_SPECIALIST_MODEL`, `PRESCREEN_LEMON_MODEL`, `PRESCREEN_LEMON_MAX_TOKENS`) for further cheap iteration without touching the full harness.
