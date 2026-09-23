@@ -144,6 +144,12 @@ export const api = {
   me: () => request<{ owner: Owner }>("/owners/me"),
   verifyEmail: (token: string) =>
     request<{ ok: true }>("/owners/verify-email", { method: "POST", body: JSON.stringify({ token }) }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ token: string }>("/owners/password", {
+      method: "POST",
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
+  logoutAllSessions: () => request<{ ok: true }>("/owners/logout-all", { method: "POST" }),
   requestPasswordReset: (email: string) =>
     request<{ ok: true }>("/owners/password-reset/request", { method: "POST", body: JSON.stringify({ email }) }),
   confirmPasswordReset: (token: string, newPassword: string) =>
@@ -188,6 +194,8 @@ export const api = {
     request<{ agent: Agent }>(`/owners/agents/${agentId}/resume`, { method: "POST" }),
   killAgent: (agentId: string) =>
     request<{ ok: boolean }>(`/owners/agents/${agentId}/kill`, { method: "POST" }),
+  rotateAgentToken: (agentId: string) =>
+    request<{ agentToken: string }>(`/owners/agents/${agentId}/rotate-token`, { method: "POST" }),
   listConsoleEvents: (params?: { severity?: "attention" | "activity"; unresolved?: boolean }) => {
     const qs = new URLSearchParams();
     if (params?.severity) qs.set("severity", params.severity);
