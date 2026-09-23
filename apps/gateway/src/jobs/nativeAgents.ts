@@ -485,11 +485,24 @@ async function gatherPendingA2ATasks(nativeAgentId: string): Promise<{ taskId: s
   }));
 }
 
+// Fisher-Yates. Not security-sensitive — this only decorrelates which room
+// a native sees first in its prompt from DEFAULT_ROOM_SLUGS' fixed order, to
+// rule out list-position primacy as a contributor to the general-room
+// clustering finding (RUNLOG 2026-09-23; candidate fix #3).
+function shuffled<T>(arr: readonly T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 // emptyOnly: consider only these conversations and return only the ones that
 // are genuinely empty (bootstrap candidates) — the idle-skip path's check.
 async function gatherContext(nativeAgentId: string, emptyOnly?: Set<string>): Promise<RoomContext[]> {
   const out: RoomContext[] = [];
-  for (const slug of DEFAULT_ROOM_SLUGS) {
+  for (const slug of shuffled(DEFAULT_ROOM_SLUGS)) {
     const conversationId = await getRoomConversationId(slug);
     if (emptyOnly && !emptyOnly.has(conversationId)) continue;
     const recent = await db.query.messages.findMany({
