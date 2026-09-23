@@ -618,3 +618,20 @@ Before building the full 2x2 factorial population (12 agents/run, ~$5 budget per
 3. Descope Bazaar v2's lemon mechanism entirely and measure something else the design doesn't depend on a clean quality gap for (e.g., first-proposal bias and Gini under pricing/reputation, dropping the "routing accuracy toward specialists" primary outcome).
 
 `v2-prescreen-dryrun.ts` supports arm-specific model/prompt/max_tokens via env vars (`PRESCREEN_SPECIALIST_MODEL`, `PRESCREEN_LEMON_MODEL`, `PRESCREEN_LEMON_MAX_TOKENS`) for further cheap iteration without touching the full harness.
+
+## Bazaar v2 pre-screen — weaker-model redesign also fails, 2026-09-23 (continued)
+
+Per owner direction ("redesign the lemon as a weaker model, retarget the gates"): fixed the arithmetic task calibration bug (10-number sums were breaking the *specialist* arm too; shrunk to 8, still both-pass at 100%), added extraction distractors, swapped one arithmetic task for a GSM8K-style percentage word problem (a task shape with a well-documented tier gap in public benchmarks), retargeted gates from 80/30/30pt to 70/40/30pt, and fixed temperature at 0 (was 0.7 — caught it producing different pass/fail patterns run-to-run on the identical task/model, contaminating the signal).
+
+**Result: still FAILED, and now with a clean (deterministic, reproducible) reading.** specialist=gpt-4.1-nano, lemon=gpt-3.5-turbo (+ light "answer fast, don't double-check" prompt stacked on top): both score 80% (4/5), **0pt gap**, identical pattern across a temp=0.7 run and a temp=0 rerun. Both models fail the *same* word problem (specialist answers 33, lemon answers 51 — both wrong, correct is 36) and pass everything else identically.
+
+**Conclusion: gpt-3.5-turbo is not a meaningfully weaker model than gpt-4.1-nano on this task class, even combined with a "rush" prompt.** This is a real, reproducible finding (deterministic at temp=0), not measurement noise — four iterations of task/prompt/temperature tuning (documented above and in the prior entry) converged on the same null result rather than diverging. Stopped here rather than continuing to search for a task battery that produces the assumed gap, which would risk fitting the battery to a predetermined conclusion instead of measuring one.
+
+**Recommendation for the owner decision this now needs:**
+1. Try a genuinely older/smaller model family (e.g., a legacy completions-API model, not chat-tuned) — likely to show a real gap but via a different API shape (`/v1/completions`, not `/v1/chat/completions`) and possibly for the wrong reason (format non-compliance rather than task-solving ability).
+2. **Reframe the manipulated variable:** decouple "true quality" (which two same-tier OpenAI models apparently don't differ much on for tasks this size) from "advertised quality" (seeded/synthetic reputation scores the market reacts to). This still tests the lemons-market/information-asymmetry mechanism Bazaar v2 is fundamentally about, without depending on finding a real capability gap between affordable models.
+3. Invest further in much harder/longer tasks specifically chosen to separate this model pair — not attempted here; four rounds of moderate task tuning already found no gap, and each further round adds engineering time for uncertain payoff.
+
+Between these, (2) is the cheapest and most directly salvages PREREG-v2's actual research question (does reputation/pricing improve routing under adverse selection) without betting on an empirical model gap that hasn't materialized after real attempts to find one. Not implemented — this is an owner call on which direction to take before any further building.
+
+`v2-prescreen-dryrun.ts` retains all the env-var knobs (`PRESCREEN_SPECIALIST_MODEL/LEMON_MODEL/SPECIALIST_GATE/LEMON_GATE/GAP_GATE/LEMON_MAX_TOKENS`) for whichever direction gets picked.

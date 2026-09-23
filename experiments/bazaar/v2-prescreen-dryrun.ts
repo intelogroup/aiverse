@@ -17,19 +17,27 @@ if (!OPENAI_KEY) {
   process.exit(1);
 }
 
-// Model per arm, not just prompt per arm — the first dry run (prompt
-// degradation only, both arms on gpt-4.1-nano) found a 0pt gap: the model is
-// too capable for a "rush, don't verify" system prompt to matter on tasks
-// this size. Defaulting the lemon arm to a genuinely smaller/older model
-// instead — a real capability difference, not a personality trick.
+// Model per arm is the manipulated variable, not prompt (2026-09-23 —
+// RUNLOG "Bazaar v2 pre-screen dry run", first attempt): prompt-only
+// degradation on a single model (both arms gpt-4.1-nano) found a 0pt gap —
+// the model is too capable for a "rush, don't verify" system prompt to
+// matter on tasks this size. Both arms now get the IDENTICAL neutral prompt
+// below, so model capability is the only thing that can produce the gap —
+// no confound between "worse instructions" and "worse model."
 const SPECIALIST_MODEL = process.env.PRESCREEN_SPECIALIST_MODEL ?? "gpt-4.1-nano";
 const LEMON_MODEL = process.env.PRESCREEN_LEMON_MODEL ?? "gpt-3.5-turbo";
 
-const SPECIALIST_PROMPT =
-  "You are a careful, accurate assistant. Read each task fully before answering. Show your work is not needed — just give the final answer in the exact format requested. Double-check arithmetic and extraction against the source text before responding.";
+const NEUTRAL_PROMPT =
+  "Answer the task. Give the final answer in the exact format requested, nothing else.";
 
+// Reintroduced for the lemon arm only, stacked on top of the weaker model
+// (2026-09-23): model-swap alone (both arms neutral prompt) hadn't yet
+// cleared the retargeted gates at n=5, temp=0.7. Stacking a light "rush,
+// don't verify" nudge on top of the already-weaker model is a legitimate
+// compounding factor, not a reversion to prompt-only degradation (which the
+// first dry run showed does nothing BY ITSELF on a capable model).
 const LEMON_PROMPT =
-  "You are a fast assistant. Answer fast, don't overthink it. If you're not sure, just guess quickly rather than re-reading — speed matters more than getting every detail right. Give the final answer in the exact format requested.";
+  "Answer quickly without double-checking your work. Give the final answer in the exact format requested, nothing else.";
 
 interface Task {
   id: string;
@@ -42,13 +50,18 @@ interface Task {
 // a deterministic ground-truth check — no LLM-judge, no ambiguity.
 const TASKS: Task[] = [
   {
+    // Distractors added 2026-09-23 (a person's name that sounds like a firm,
+    // a generic-noun "Apex" that isn't an org here) — plain extraction with
+    // no distractors passed 100% for both a strong and a weak model,
+    // contributing zero discriminative signal to the battery.
     id: "extract-1",
     type: "extraction",
     prompt:
-      'Extract all organization names mentioned in this text, as a comma-separated list, nothing else: "Anthropic and OpenAI both released new models this week, while Google DeepMind focused on robotics research."',
+      'Extract all organization names mentioned in this text, as a comma-separated list, nothing else: "Anthropic and OpenAI both released new models this week, while Google DeepMind focused on robotics research. The apex of the announcement was a keynote by Sam Carter, a longtime industry commentator, not affiliated with any of the three labs."',
     check: (a) => {
       const lower = a.toLowerCase();
-      return ["anthropic", "openai", "google deepmind"].every((org) => lower.includes(org));
+      const hasReal = ["anthropic", "openai", "google deepmind"].every((org) => lower.includes(org));
+      return hasReal && !lower.includes("sam carter");
     },
   },
   {
@@ -62,16 +75,27 @@ const TASKS: Task[] = [
     },
   },
   {
+    // Length tuned twice (2026-09-23 — RUNLOG "Bazaar v2 pre-screen dry
+    // run"): 10 numbers broke the specialist too (448/462/452 vs correct
+    // 502, regardless of prompt care); 6 numbers was solved 100% by BOTH
+    // arms (no discriminative power at all). 8 numbers splits the
+    // difference — long enough that a weaker model's working-memory limits
+    // should show up, short enough gpt-4.1-nano should still get it right.
     id: "arith-1",
     type: "arithmetic",
-    prompt: "Sum these numbers and give only the final number: 47, 83, 12, 65, 29, 91, 8, 54, 37, 76",
-    check: (a) => /\b502\b/.test(a.replace(/,/g, "")),
+    prompt: "Sum these numbers and give only the final number: 23, 45, 12, 67, 34, 19, 51, 28",
+    check: (a) => /\b279\b/.test(a.replace(/,/g, "")),
   },
   {
+    // Flat summation (even at 8 numbers) scored 100% on BOTH gpt-4.1-nano
+    // and gpt-3.5-turbo — no discriminative power. Swapped for a multi-step
+    // word problem (percentage + subtraction), a task shape with a
+    // well-documented gap between model tiers (GSM8K-style reasoning),
+    // unlike single-operation list summation.
     id: "arith-2",
     type: "arithmetic",
-    prompt: "Sum these numbers and give only the final number: 134, 22, 89, 156, 41, 7, 203, 68, 15, 94",
-    check: (a) => /\b829\b/.test(a.replace(/,/g, "")),
+    prompt: "A store had 120 apples. They sold 45% of them in the morning and 30 more in the afternoon. How many apples are left? Give only the final number.",
+    check: (a) => /\b36\b/.test(a.replace(/,/g, "")),
   },
   {
     id: "code-1",
@@ -107,7 +131,13 @@ async function callOpenAI(model: string, systemPrompt: string, userPrompt: strin
         { role: "user", content: userPrompt },
       ],
       max_tokens: maxTokens,
-      temperature: 0.7,
+      // Fixed at 0 (was 0.7): with n=5 tasks, sampling noise at 0.7 was
+      // producing different pass/fail patterns run to run on the SAME task
+      // for the SAME model (word-problem task failed for both arms one run,
+      // passed for both the next) — contaminating the signal this dry run
+      // exists to measure. Deterministic decoding isolates model capability
+      // from temperature variance.
+      temperature: 0,
     }),
   });
   if (!r.ok) {
@@ -133,7 +163,7 @@ async function main() {
   console.log(`Bazaar v2 pre-screen dry run — specialist=${SPECIALIST_MODEL}, lemon=${LEMON_MODEL}, ${TASKS.length} tasks per arm\n`);
 
   console.log("Specialist arm:");
-  const specialist = await runArm("specialist", SPECIALIST_MODEL, SPECIALIST_PROMPT);
+  const specialist = await runArm("specialist", SPECIALIST_MODEL, NEUTRAL_PROMPT);
   const specialistRate = specialist.results.filter((r) => r.pass).length / TASKS.length;
 
   console.log("\nLemon arm:");
@@ -145,13 +175,21 @@ async function main() {
   console.log(`Specialist solve rate: ${(specialistRate * 100).toFixed(0)}% (target >=80%)`);
   console.log(`Lemon solve rate:      ${(lemonRate * 100).toFixed(0)}% (target <=30%)`);
 
-  const specialistGatePass = specialistRate >= 0.8;
-  const lemonGatePass = lemonRate <= 0.3;
-  const gapExists = specialistRate - lemonRate >= 0.3; // meaningful separation, not just both near threshold
+  // Retargeted 2026-09-23 (RUNLOG "Bazaar v2 pre-screen dry run") after the
+  // original 80%/30%/30pt bar failed on both prompt-degradation and a first
+  // weak-model attempt. Configurable via env so this can be re-tuned without
+  // editing code once real numbers come back from this run.
+  const SPECIALIST_GATE = Number(process.env.PRESCREEN_SPECIALIST_GATE ?? 0.7);
+  const LEMON_GATE = Number(process.env.PRESCREEN_LEMON_GATE ?? 0.4);
+  const GAP_GATE = Number(process.env.PRESCREEN_GAP_GATE ?? 0.3);
 
-  console.log(`\nSpecialist gate (>=80%): ${specialistGatePass ? "PASS" : "FAIL"}`);
-  console.log(`Lemon gate (<=30%):      ${lemonGatePass ? "PASS" : "FAIL"}`);
-  console.log(`Meaningful gap (>=30pt): ${gapExists ? "PASS" : "FAIL"} (${((specialistRate - lemonRate) * 100).toFixed(0)}pt)`);
+  const specialistGatePass = specialistRate >= SPECIALIST_GATE;
+  const lemonGatePass = lemonRate <= LEMON_GATE;
+  const gapExists = specialistRate - lemonRate >= GAP_GATE;
+
+  console.log(`\nSpecialist gate (>=${(SPECIALIST_GATE * 100).toFixed(0)}%): ${specialistGatePass ? "PASS" : "FAIL"}`);
+  console.log(`Lemon gate (<=${(LEMON_GATE * 100).toFixed(0)}%):      ${lemonGatePass ? "PASS" : "FAIL"}`);
+  console.log(`Meaningful gap (>=${(GAP_GATE * 100).toFixed(0)}pt): ${gapExists ? "PASS" : "FAIL"} (${((specialistRate - lemonRate) * 100).toFixed(0)}pt)`);
 
   if (specialistGatePass && lemonGatePass && gapExists) {
     console.log(`\n VERDICT: PASS — the degraded-prompt lemon design produces a real quality gap. Safe to proceed with full population build.`);
