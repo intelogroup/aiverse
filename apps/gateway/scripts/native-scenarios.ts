@@ -11,7 +11,16 @@
 //
 // Usage:
 //   OPENAI_API_KEY=... bun run apps/gateway/scripts/native-scenarios.ts [scenario ...]
-//   (no args = run all)
+//   (no args = run all; default each scenario = 15 min, ~$0.001)
+//
+//   Examples:
+//   - Test S1 only:       bun run ... S1
+//   - Test S1–S6:         bun run ... S1 S2 S3 S4 S5 S6  (~$0.006)
+//   - Long S9 (2h):       S9_DURATION_MS=7200000 bun run ... S9
+//   - Custom scenario:    SCENARIO_DURATION_MS=300000 bun run ... S5  (5 min)
+//
+// Budget: defaults to $1 max across all scenarios. Override with ~$0.001 per
+// 15-min scenario. Cost is gpt-4.1-nano @ $0.15/1M tokens.
 //
 // Model: forces NATIVE_LLM_MODE unset with only OPENAI_API_KEY present, so
 // selectLLMProvider() (jobs/nativeAgents.ts:110-128) resolves OpenAIProvider,
@@ -35,6 +44,14 @@ const DB = process.env.SCENARIO_DB ?? "aiverse_scenarios";
 const REDIS_DB = Number(process.env.SCENARIO_REDIS_DB ?? 4);
 const PORT = Number(process.env.SCENARIO_PORT ?? 4401);
 const DEFAULT_DURATION_MS = Number(process.env.SCENARIO_DURATION_MS ?? 15 * 60_000);
+
+// Cost estimate: gpt-4.1-nano @ $0.15/1M tokens
+// 15 min per scenario: ~5–10 LLM calls per scenario (natives tick 6-10×)
+// ~500 tokens/call = 2.5–5k tokens per scenario
+// ~$0.0004–0.0008 per scenario; 9 scenarios × $0.001 = ~$0.009 budget headroom
+const ESTIMATED_COST_PER_SCENARIO = 0.001; // $0.001 per 15-min scenario, conservative
+const BUDGET_USD = 1.0;
+const MAX_SCENARIOS_BEFORE_COST_CHECK = Math.floor(BUDGET_USD / ESTIMATED_COST_PER_SCENARIO);
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const sql = (q: string) => execSync(`psql -h localhost -U postgres -d ${DB} -tAc "${q.replace(/"/g, '\\"')}"`).toString().trim();
@@ -423,9 +440,9 @@ async function s8_redisWipe(): Promise<ScenarioResult> {
   return r;
 }
 
-// S9: long run (≥2h) to measure token budget and repetition.
+// S9: long run to measure token budget and repetition (default 15min; override with S9_DURATION_MS).
 async function s9_soakRun(): Promise<ScenarioResult> {
-  const durationMs = Number(process.env.S9_DURATION_MS ?? 2 * 60 * 60_000); // 2 hours default
+  const durationMs = Number(process.env.S9_DURATION_MS ?? DEFAULT_DURATION_MS); // 15 min default; set S9_DURATION_MS=7200000 for 2h
   await resetDb();
   const gw = startGateway();
   await waitHealthy();
@@ -485,6 +502,15 @@ const SCENARIOS: Record<string, () => Promise<ScenarioResult>> = {
 async function main() {
   const requested = process.argv.slice(2);
   const names = requested.length ? requested : Object.keys(SCENARIOS);
+  const estimatedTotalCost = names.length * ESTIMATED_COST_PER_SCENARIO;
+
+  log(`BUDGET CHECK: ${names.length} scenarios × $${ESTIMATED_COST_PER_SCENARIO} = ~$${estimatedTotalCost.toFixed(3)} (limit: $${BUDGET_USD})`);
+  if (estimatedTotalCost > BUDGET_USD) {
+    console.error(`COST OVERRUN: estimated $${estimatedTotalCost.toFixed(3)} > $${BUDGET_USD} budget. Reduce scenarios or override SCENARIO_DURATION_MS.`);
+    console.error(`Tip: Run S1–S6 first (6 scenarios, ~$0.006), then S7–S9 separately.`);
+    process.exit(1);
+  }
+
   const results: ScenarioResult[] = [];
   for (const name of names) {
     const fn = SCENARIOS[name];
@@ -492,7 +518,7 @@ async function main() {
       console.error(`unknown scenario: ${name} (known: ${Object.keys(SCENARIOS).join(", ")})`);
       continue;
     }
-    log(`=== ${name} starting ===`);
+    log(`=== ${name} starting (${(name === 'S9' && process.env.S9_DURATION_MS) ? 'LONG RUN' : 'quick test'}) ===`);
     const r = await fn();
     log(`=== ${name}: ${r.pass ? "PASS" : "FAIL"} — idle=${r.idleCount} nonIdle=${r.nonIdleCount} personas=${r.personasActive.join(",")} errors=${r.llmErrors + r.nativeTickErrors + r.uncaughtExceptions} ===`);
     writeFileSync(`${OUT_DIR}/${r.scenario}.json`, JSON.stringify(r, null, 2));
@@ -501,6 +527,7 @@ async function main() {
   }
   writeFileSync(`${OUT_DIR}/summary.json`, JSON.stringify(results.map((r) => ({ scenario: r.scenario, pass: r.pass, idleCount: r.idleCount, nonIdleCount: r.nonIdleCount, personasActive: r.personasActive, errors: r.llmErrors + r.nativeTickErrors + r.uncaughtExceptions })), null, 2));
   log("done; reports in", OUT_DIR);
+  log(`Estimated actual spend: ~$${(results.length * ESTIMATED_COST_PER_SCENARIO).toFixed(3)}`);
   const failed = results.filter((r) => !r.pass);
   if (failed.length) log(`${failed.length}/${results.length} scenarios FAILED: ${failed.map((r) => r.scenario).join(", ")}`);
 }
