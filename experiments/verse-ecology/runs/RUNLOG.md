@@ -471,3 +471,35 @@ Purpose: measure current native behavior across the 6 production scenarios in `a
 - Per-scenario JSON reports: `/tmp/native-scenarios-full/*.json` (not committed — local run artifacts; rerun via `native-scenarios.ts` to reproduce).
 - **Plan discrepancy to flag:** the plan's Step 2 table specified 9 scenarios (S1-S9); only S1-S6 are implemented in `native-scenarios.ts`. S7 (gateway restart mid-run), S8 (Redis wipe mid-run), S9 (long-run token/API-cap check) were never built. Not run this session.
 - **Next (plan Step 4):** design world-phase awareness scoped to the two failing cases only (S1 blank, S6 lone-external) — S2-S5 need no behavioral change.
+
+## Native "heartbeat" scenario matrix (S1-S6) — RE-RUN post-PR#14, 2026-09-23
+
+Purpose: validate `b6601ac` ("Natives: mechanical backstop for blank-room and lone-external idle bias", PR #14) against the exact two failures recorded in the 2026-09-22/23 run above. Same harness (`native-scenarios.ts`), same model (`gpt-4.1-nano`), fresh local Postgres/Redis per scenario, ~15 min per scenario, ~1h33m wall-clock. Budget: capped at $1, actual spend **$0.006**.
+
+**Result: 6/6 PASS** (up from 4/6).
+
+| # | Scenario | Prior (pre-#14) | This run (post-#14) |
+|---|---|---|---|
+| S1 cold_deploy | **FAIL** (8 idle / 1 nonIdle) | **PASS** (7 idle / 47 nonIdle) |
+| S2 first_arrival | PASS (5 / 51) | PASS (5 / 69) |
+| S3 active_populated | PASS (3 / 53) | PASS (4 / 52) |
+| S4 active_then_quiet | PASS (8 / 53) | PASS (4 / 52) |
+| S5 agents_removed | PASS, 0 errors (7 / 0) | PASS, 0 errors (7 / 56) |
+| S6 lone_external | **FAIL** (6 / 0) | **PASS** (1 / 62) |
+
+- The two "someone has to go first" failures the plan predicted (and the prior run confirmed) are now fixed. S1: first native message at 121.5s, room messages appear (21 in `general`). S6: 32 messages landed in `verse` — the room the lone external agent actually joined, not a default room — so the backstop is room-targeted, not just "post somewhere."
+- S4 (revival) still passes cleanly: Rekinder posted into the quiet `science` room ~28.5s after externals stopped.
+- S5 (deletion mid-conversation) still 0 errors/0 exceptions with the mechanical backstop active — no regression from adding the new verb/grammar path.
+- **New finding, not previously flagged:** message distribution clusters heavily in `general` across S1-S3 (S1: 21/21 in general; S2: 41 general vs 1 science; S3 not yet broken out) — `science`, `robotics`, `verse` stay near-zero except when an external agent is physically in that room (S4, S6). The backstop fixes *whether* natives post, not *where* — worth a follow-up scenario or metric (per-room idle rate, not just global) if room-spread becomes a stated goal.
+- Per-scenario JSON: `/tmp/native-scenarios/*.json` (local, not committed).
+
+## S7-S9 heartbeat scenarios — implemented, 2026-09-23
+
+Added to `native-scenarios.ts` (previously only S1-S6 existed, flagged as a plan discrepancy in the prior RUNLOG entry):
+- **S7** (gateway restart mid-run): seeds a room, kills and restarts the gateway process, posts again, checks for continued activity without duplicate/re-greeting behavior.
+- **S8** (Redis wipe mid-run): seeds a room, `FLUSHDB`s the scenario's Redis index mid-run, checks Postgres-backed state survives (room not treated as blank, no duplicate greeting).
+- **S9** (soak run): configurable duration (`S9_DURATION_MS`, defaults to the same 15 min as other scenarios; set to `7200000` for the full 2h target), checks for repetition loops via per-persona action diversity.
+
+Harness also gained a budget guard (`ESTIMATED_COST_PER_SCENARIO`, hard exit if projected spend > `$1`) after the user set an explicit $1 budget ceiling for this work, and the DB reset/gateway-boot paths were fixed to pass the local Postgres password explicitly (`postgres:postgres@localhost:5432`) — the previous passwordless connection string worked locally only because psql happened to be pre-authenticated; a clean environment (this session's remote container: Postgres 16 installed via apt, no docker daemon available) needs the password in the URL for both `psql` and the Bun `postgres` driver.
+
+S7-S9 not yet run this session — S1-S6 baseline validation above consumed the first budget pass.
