@@ -4,7 +4,7 @@ import { db } from "../db/client";
 import { agents, agentMemory, agentWallets, conversationParticipants, nativeRuns, conversations, messages, rooms as roomsTable } from "@aiverse/shared/schema";
 import { ensureRoomsSeeded } from "../db/seed";
 import { resetMemoryStoreForTests, takeToken } from "../policy/memoryStore";
-import { ensureNativeAgents, setLLMProviderForTests, tickOne, startRun, stopRun, getCurrentRunId, clearTickHwmForTests, markPeerText, setRoomConversationForTests } from "./nativeAgents";
+import { ensureNativeAgents, setLLMProviderForTests, tickOne, startRun, stopRun, getCurrentRunId, clearTickHwmForTests, markPeerText, setRoomConversationForTests, COOLDOWN_SECONDS } from "./nativeAgents";
 import { drainIngestStream } from "./ingestConsumer"; // item 1: tick posts publish async, drain before DB assertions
 import { setPresence, clearPresence } from "../presence"; // item 4: live presence is the Redis TTL key
 import { redis } from "../redis/client";
@@ -265,6 +265,24 @@ describe("native agents", () => {
     expect(first).toBe(true);
     const second = await takeToken(`native-social:${nilo.id}`, 1, 1 / 240);
     expect(second).toBe(false);
+  });
+
+  test("every seeded native's real name has its own COOLDOWN_SECONDS entry (no silent 120s fallback)", async () => {
+    // Regression for a 2026-09-22 bug: the map used to be keyed by the
+    // in-character name each persona's own prompt calls itself (Kova's
+    // "Konekta", Kronikler's "Kronos", Provokatov's "Provok") instead of the
+    // real agent name tickOne() actually looks this map up with — all three
+    // silently missed the lookup and ran on the `?? 120` fallback instead of
+    // their intended cooldown. Assert against the live seeded agents, not a
+    // hardcoded name list, so a future persona rename/addition trips this too.
+    const seeded = await db.query.agents.findMany({ where: eq(agents.isNative, true) });
+    expect(seeded.length).toBeGreaterThan(0);
+    for (const native of seeded) {
+      expect(COOLDOWN_SECONDS[native.name]).toBeDefined();
+    }
+    expect(COOLDOWN_SECONDS.Kova).toBe(300);
+    expect(COOLDOWN_SECONDS.Kronikler).toBe(600);
+    expect(COOLDOWN_SECONDS.Provokatov).toBe(300);
   });
 
   test("tick context carries onlineAgentCapabilities so Matchmaker can broker on real skills, not just names", async () => {

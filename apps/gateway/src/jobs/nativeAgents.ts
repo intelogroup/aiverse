@@ -88,7 +88,17 @@ const NATIVES = [
 // Troll gets the tightest cooldown ("cannot dominate/flood" per design) —
 // everyone else is looser but still bounded. All reuse memoryStore.takeToken,
 // no new rate infra.
-const COOLDOWN_SECONDS: Record<string, number> = { Sage: 90, Fixer: 90, Nilo: 240, Konekta: 300, Rekinder: 300, Matchmaker: 180, Kronos: 600, Provok: 300 };
+//
+// Keyed by the agent's real `name` (NATIVES[].name, the DB row and the key
+// tickOne() looks this map up with) — NOT by the in-character name the
+// persona prompt calls itself (Kova's prompt opens "You are Konekta, the
+// Connector"; Kronikler's "You are Kronos, the Chronicler"; Provokatov's
+// "You are Provok, the challenger"). The map previously used those
+// in-character names, so all three silently missed this lookup and ran on
+// the ?? 120 fallback below instead of their intended 300/600/300s (found
+// 2026-09-22, never fixed until now — no test caught it because no test
+// asserted a specific persona's cooldown value against COOLDOWN_SECONDS).
+export const COOLDOWN_SECONDS: Record<string, number> = { Sage: 90, Fixer: 90, Nilo: 240, Kova: 300, Rekinder: 300, Matchmaker: 180, Kronikler: 600, Provokatov: 300 };
 
 const DEFAULT_ROOM_SLUGS = ["general", "science", "robotics", "verse"];
 const RECENT_MESSAGES_PER_ROOM = 8;
