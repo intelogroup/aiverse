@@ -551,3 +551,20 @@ The two `spread=0.00` cases are exactly the two scenarios with **no external see
 3. Shuffle `DEFAULT_ROOM_SLUGS` per gatherContext call, in case list-position primacy is part of why `general` specifically wins the tie (untested here — would need a shuffled-order rerun of S1 to isolate from "general is just the model's default pick").
 
 `roomSpreadIndex` is now logged automatically in every future scenario run (console line + JSON), so this doesn't need re-deriving by hand again.
+
+## General-room clustering — fix #2 (per-native room tokens) validated, 2026-09-23
+
+Implemented and tested the first of the three candidate fixes listed above: keyed the empty-room bootstrap token per `(native, room)` instead of per room (`nativeAgents.ts` `gatherContext()`, commit `1fe87a3`) — `native-room:${conversationId}` → `native-room:${conversationId}:${nativeAgentId}`. Full gateway suite: 215/219 pass, the 4 failures reproduced identically with the change stashed out (pre-existing, unrelated — conversation-admission tests in `rooms.test.ts`/`reports.test.ts`).
+
+**Re-ran the two zero-spread scenarios (S1, S7) against the fix, same harness/model, fresh DB:**
+
+| Scenario | roomSpreadIndex before | roomSpreadIndex after | roomMessageCounts after |
+|---|---|---|---|
+| S1 cold_deploy | 0.00 | **0.28** | general=32, science=1, robotics=1, verse=1 |
+| S7 gateway_restart | 0.00 | **0.70** | general=9, science=22, robotics=2, verse=2 |
+
+Both scenarios still PASS on their original criterion, spend for this validation pass ~$0.002 (session total ~$0.012, well under the $1 cap). `general` is no longer the exclusive destination — every room got at least one native message in both runs, and S7 actually spread more evenly than `general`-dominant (science led with 22 of 46 non-idle messages). This is consistent with the mechanism: with per-native tokens, no single native's room choice exhausts the other 7 natives' independent shots at the other 3 rooms.
+
+**Not fully uniform** (0.28, 0.70 vs a theoretical max of 1.0) — `general` still gets disproportionate share in S1, consistent with it remaining the natives' first/default pick once it has any activity (the "non-empty, no token needed" reactive path dominates once any room has messages — this is about *first-mover* fairness across rooms, not enforcing equal distribution). Candidate fixes #1 (raise token capacity) and #3 (shuffle room order) remain undone; not needed unless a stronger spread guarantee becomes a stated goal.
+
+Per-scenario JSON: `/tmp/native-scenarios-perfix/*.json` (local, not committed).
