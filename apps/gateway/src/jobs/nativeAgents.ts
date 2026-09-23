@@ -500,16 +500,26 @@ async function gatherContext(nativeAgentId: string, emptyOnly?: Set<string>): Pr
     if (emptyOnly && recent.length) continue;
     if (!recent.length) {
       // Native bootstrap (minimal diff): an empty public room is still context.
-      // The native may make the first move there, but the per-room token
-      // (30-min refill) bounds it — three natives cannot open the same room
-      // every tick, and an idle decision still consumes the slot (documented).
+      // The native may make the first move there, bounded by a per-(native,
+      // room) token so a single native can't open the same empty room every
+      // tick, and an idle decision still consumes the slot (documented).
       // AIVERSE_DEV_FAST_BOOTSTRAP shortens that refill for local dev/smoke
       // runs — a single idle choice from one native otherwise silences a
       // room for 30 real minutes with no retry (hit 2026-09-02 testing a
       // freshly-truncated local DB: all 4 rooms went idle on tick 1, no
       // native activity for the rest of the session).
+      //
+      // Keyed per native, not per room (fixed 2026-09-23 — see RUNLOG
+      // "General-room clustering"): a shared per-room token meant whichever
+      // native ticked first on a cold start exhausted all 4 rooms' tokens in
+      // one gatherContext() call, picked one room to post in, and every
+      // other native then saw only that one room as non-empty — the other 3
+      // stayed invisible (not just unposted-to) until the scarce shared
+      // token refilled, once per 30 real minutes in production. Per-native
+      // keying gives every native its own shot at every room on its own
+      // schedule, so one native's pick no longer blinds the rest.
       const bootstrapRefillPerSecond = process.env.AIVERSE_DEV_FAST_BOOTSTRAP === "1" ? 1 / 30 : 1 / 1800;
-      if (!(await takeToken(`native-room:${conversationId}`, 1, bootstrapRefillPerSecond))) continue;
+      if (!(await takeToken(`native-room:${conversationId}:${nativeAgentId}`, 1, bootstrapRefillPerSecond))) continue;
       out.push({ slug, conversationId, recentMessages: [], newcomerAgentIds: [], senders: [] });
       continue;
     }
