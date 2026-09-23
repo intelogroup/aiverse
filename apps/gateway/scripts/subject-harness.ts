@@ -416,6 +416,14 @@ async function buildContext() {
   }
   const { focused, restCount, awaiting } = triageThreads(threads);
   const memory = await readLocalMemory();
+  // The Bazaar (experiment/bazaar): per-tick market snapshot. Ground truth,
+  // not instruction — the agent decides what to do with it. Null when the
+  // bazaar tables/routes are absent (non-experiment gateway).
+  let bazaar: unknown = null;
+  try {
+    const bz = await api("/bazaar/context");
+    if (bz.status < 400) bazaar = bz.body;
+  } catch { /* non-bazaar gateway — leave null */ }
   return {
     manifest: manifest.body,
     peers: peers.body,
@@ -453,6 +461,8 @@ async function buildContext() {
     // raw conversation UUID and invented names ("public-activity",
     // "public_discussion"), 8/8 ticks 404.
     known_room_slugs: [...knownRoomSlugs],
+    // The Bazaar market snapshot (null on non-experiment gateways).
+    bazaar,
   };
 }
 
@@ -628,7 +638,43 @@ async function execute(action: any): Promise<{ status: number; note: string; tar
       const r = await api(`/a2a/agents/${action.agent_id}`, { method: "POST", body: JSON.stringify({ message: { parts: [{ kind: "text", text: action.content ?? "" }] }, contextId: action.context_id ?? undefined }) });
       // A2A errors are JSON-RPC: the failure lives in body.error, not the HTTP status.
       const rpc = (r.body as any)?.error;
-      return { status: r.status, target: `agent:${action.agent_id} context:${action.context_id ?? "none"}`, note: `delegate ${rpc ? `rpc:${rpc.code} ${String(rpc.message).slice(0, 40)}` : r.status >= 400 ? reason(r.body) : "ok"}` };
+      let note = `delegate ${rpc ? `rpc:${rpc.code} ${String(rpc.message).slice(0, 40)}` : r.status >= 400 ? reason(r.body) : "ok"}`;
+      // The Bazaar: optional payment offer — record the paid delegation so the
+      // gateway settles payer -> payee when the a2a task completes.
+      const pay = Math.floor(Number(action.payment_credits));
+      if (r.status < 400 && !rpc && Number.isFinite(pay) && pay > 0) {
+        const taskId = (r.body as any)?.result?.taskId ?? (r.body as any)?.taskId;
+        const targetId = String(action.agent_id ?? "");
+        if (taskId && targetId) {
+          const dr = await api("/bazaar/delegations", { method: "POST", body: JSON.stringify({ a2a_task_id: taskId, payee_id: targetId, amount: pay }) });
+          note += dr.status < 400 ? ` +${pay}cr delegation recorded` : ` (delegation NOT recorded: ${reason(dr.body)})`;
+        } else {
+          note += " (payment requested but task id not returned — delegation not recorded)";
+        }
+      }
+      return { status: r.status, target: `agent:${action.agent_id} context:${action.context_id ?? "none"}`, note };
+    }
+    // The Bazaar market actions — thin wrappers over /bazaar/* routes.
+    case "post_bounty": {
+      const r = await api("/bazaar/tasks", { method: "POST", body: JSON.stringify({ title: action.title, description: action.description, bounty_credits: action.bounty_credits }) });
+      return { status: r.status, target: `bounty:${(r.body as any)?.task?.id ?? "?"}`, note: `post_bounty ${r.status >= 400 ? reason(r.body) : `ok, escrowed ${(r.body as any)?.escrowed}`}` };
+    }
+    case "list_bounties": {
+      const r = await api(`/bazaar/tasks?status=${encodeURIComponent(action.status ?? "open")}`);
+      const n = ((r.body as any)?.tasks ?? []).length;
+      return { status: r.status, target: "bazaar board", note: `list_bounties ${r.status >= 400 ? reason(r.body) : `${n} shown`}` };
+    }
+    case "claim_bounty": {
+      const r = await api(`/bazaar/tasks/${encodeURIComponent(action.bounty_id)}/claim`, { method: "POST", body: "{}" });
+      return { status: r.status, target: `bounty:${action.bounty_id}`, note: `claim_bounty ${r.status >= 400 ? reason(r.body) : "ok"}` };
+    }
+    case "complete_bounty": {
+      const r = await api(`/bazaar/tasks/${encodeURIComponent(action.bounty_id)}/complete`, { method: "POST", body: JSON.stringify({ evidence: action.evidence }) });
+      return { status: r.status, target: `bounty:${action.bounty_id}`, note: `complete_bounty ${r.status >= 400 ? reason(r.body) : "ok, awaiting verification"}` };
+    }
+    case "verify_bounty": {
+      const r = await api(`/bazaar/tasks/${encodeURIComponent(action.bounty_id)}/verify`, { method: "POST", body: JSON.stringify({ verdict: action.verdict, note: action.note }) });
+      return { status: r.status, target: `bounty:${action.bounty_id}`, note: `verify_bounty ${r.status >= 400 ? reason(r.body) : `verdict=${(r.body as any)?.verdict}`}` };
     }
     case "join_room": {
       // Slug repair (wave-3: "public_science" → 404 ×2 before guessing right).

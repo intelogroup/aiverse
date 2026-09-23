@@ -700,29 +700,169 @@ export async function respondToA2ATaskService(
     return { status: 400, body: { error: "invalid state" } };
   }
 
-  const task = await db.query.a2aTasks.findFirst({ where: eq(a2aTasks.id, taskId) });
-  if (!task) return { status: 404, body: { error: "not found" } };
-  if (task.targetAgentId !== agentId) {
-    return { status: 403, body: { error: "only the target agent may update this task" } };
-  }
-  if (TERMINAL_STATES.has(task.state)) {
-    return { status: 409, body: { error: `task already in terminal state '${task.state}'` } };
-  }
+  // Only a completion can settle a paid delegation, and only then do we
+  // need to know whether this database carries the experiment tables.
+  const maySettleBazaar = state === "completed" && (await bazaarTablesPresent());
 
-  const [updated] = await db
-    .update(a2aTasks)
-    .set({ state: state as (typeof a2aTasks.$inferInsert)["state"], resultMessage, updatedAt: new Date() })
-    .where(eq(a2aTasks.id, taskId))
-    .returning();
+  // The whole transition — task row lock, terminal re-check, update, and
+  // (on complete) the Bazaar delegation settlement — runs in ONE transaction.
+  // Concurrent completions serialize on the FOR UPDATE lock: the loser sees
+  // the terminal state under the lock and gets 409. A crash can never leave
+  // the task completed while its delegation is still offered, or vice versa.
+  return db.transaction(async (tx) => {
+    const locked = await tx.execute(sql`
+      SELECT id, state, target_agent_id, caller_agent_id, context_id
+      FROM a2a_tasks WHERE id = ${taskId}::uuid FOR UPDATE
+    `);
+    const trows = ((locked as any).rows ?? locked) as any[];
+    if (!trows.length) return { status: 404, body: { error: "not found" } };
+    const t = trows[0];
+    if (t.target_agent_id !== agentId) {
+      return { status: 403, body: { error: "only the target agent may update this task" } };
+    }
+    if (TERMINAL_STATES.has(t.state)) {
+      return { status: 409, body: { error: `task already in terminal state '${t.state}'` } };
+    }
 
-  log("a2a_task_transition", {
-    taskId,
-    contextId: updated.contextId,
-    fromState: task.state,
-    toState: updated.state,
+    const [updated] = await tx
+      .update(a2aTasks)
+      .set({ state: state as (typeof a2aTasks.$inferInsert)["state"], resultMessage, updatedAt: new Date() })
+      .where(eq(a2aTasks.id, taskId))
+      .returning();
+
+    log("a2a_task_transition", {
+      taskId,
+      contextId: updated.contextId,
+      fromState: t.state,
+      toState: updated.state,
+    });
+
+    // Bazaar (experiment): a completed task settles any linked paid delegation.
+    // maySettleBazaar was resolved BEFORE the transaction opened (see
+    // bazaarTablesPresent): the tables are known present here, so any error
+    // below is real and must roll back the whole transaction — never
+    // half-commit. On databases without the tables (prod) this block is
+    // skipped entirely and the task transition commits normally.
+    //
+    // The delegation row is locked inside the same transaction and the state
+    // flip + credit movement + event rows commit or roll back together with
+    // the task transition. The loser's state='offered' re-check matches zero
+    // rows, so money can never move twice or be debited without being credited.
+    //
+    // Ownership: the delegation's payer/payee must match the a2a task's
+    // caller/target. A mismatch fails the delegation (escrow refunded to the
+    // recorded payer) and is logged — the task itself still completes.
+    //
+    // Escrow model: offers made through POST /bazaar/delegations escrow the
+    // payer's amount at offer time, so settlement moves escrow -> payee and
+    // cannot fail on insolvency. Legacy non-escrowed rows keep the old
+    // debit-at-settle path and fail (no money created) if the payer is short.
+    if (updated.state === "completed" && maySettleBazaar) {
+      const found = await tx.execute(sql`
+        SELECT id, payer_id, payee_id, amount, escrowed FROM bazaar_delegations
+        WHERE a2a_task_id = ${taskId}::uuid AND state = 'offered'
+        FOR UPDATE
+      `);
+      const drows = ((found as any).rows ?? found) as any[];
+      if (drows.length) {
+        const d = drows[0];
+
+        // Ownership validation against the a2a task we just completed.
+        if (d.payer_id !== t.caller_agent_id || d.payee_id !== t.target_agent_id) {
+          const fin = await tx.execute(sql`
+            UPDATE bazaar_delegations SET state = 'failed', settled_at = now()
+            WHERE id = ${d.id}::uuid AND state = 'offered'
+            RETURNING id
+          `);
+          if ((((fin as any).rows ?? fin) as any[]).length) {
+            if (d.escrowed) {
+              await tx.execute(sql`UPDATE bazaar_balances SET balance = balance + ${d.amount} WHERE agent_id = ${d.payer_id}::uuid`);
+            }
+            await tx.execute(sql`
+              INSERT INTO bazaar_events (kind, task_id, actor_id, counterparty_id, amount, detail)
+              VALUES ('delegate_failed', ${taskId}::uuid, ${d.payer_id}::uuid, ${d.payee_id}::uuid, ${d.amount}, '{"reason":"ownership_mismatch"}'::jsonb)
+            `);
+            log("bazaar_delegate_failed", { a2aTask: taskId, reason: "ownership_mismatch" });
+          }
+        } else if (d.escrowed) {
+          // Escrow -> payee. Insolvency impossible by construction.
+          const fin = await tx.execute(sql`
+            UPDATE bazaar_delegations SET state = 'settled', settled_at = now()
+            WHERE id = ${d.id}::uuid AND state = 'offered'
+            RETURNING id
+          `);
+          if ((((fin as any).rows ?? fin) as any[]).length) {
+            await tx.execute(sql`
+              UPDATE bazaar_balances SET balance = balance + ${d.amount}
+              WHERE agent_id = ${d.payee_id}::uuid
+            `);
+            await tx.execute(sql`
+              INSERT INTO bazaar_events (kind, task_id, actor_id, counterparty_id, amount)
+              VALUES ('delegate_settle', ${taskId}::uuid, ${d.payer_id}::uuid, ${d.payee_id}::uuid, ${d.amount})
+            `);
+            log("bazaar_delegate_settle", { a2aTask: taskId, amount: d.amount, from: "escrow" });
+          }
+        } else {
+          // Legacy path: debit payer only if solvent; RETURNING tells us.
+          const debited = await tx.execute(sql`
+            UPDATE bazaar_balances SET balance = balance - ${d.amount}
+            WHERE agent_id = ${d.payer_id}::uuid AND balance >= ${d.amount}
+            RETURNING balance
+          `);
+          if ((((debited as any).rows ?? debited) as any[]).length) {
+            const fin = await tx.execute(sql`
+              UPDATE bazaar_delegations SET state = 'settled', settled_at = now()
+              WHERE id = ${d.id}::uuid AND state = 'offered'
+              RETURNING id
+            `);
+            if ((((fin as any).rows ?? fin) as any[]).length) {
+              await tx.execute(sql`
+                UPDATE bazaar_balances SET balance = balance + ${d.amount}
+                WHERE agent_id = ${d.payee_id}::uuid
+              `);
+              await tx.execute(sql`
+                INSERT INTO bazaar_events (kind, task_id, actor_id, counterparty_id, amount)
+                VALUES ('delegate_settle', ${taskId}::uuid, ${d.payer_id}::uuid, ${d.payee_id}::uuid, ${d.amount})
+              `);
+              log("bazaar_delegate_settle", { a2aTask: taskId, amount: d.amount, from: "payer" });
+            }
+          } else {
+            // Payer insolvent: fail the delegation, create no money.
+            const fin = await tx.execute(sql`
+              UPDATE bazaar_delegations SET state = 'failed', settled_at = now()
+              WHERE id = ${d.id}::uuid AND state = 'offered'
+              RETURNING id
+            `);
+            if ((((fin as any).rows ?? fin) as any[]).length) {
+              await tx.execute(sql`
+                INSERT INTO bazaar_events (kind, task_id, actor_id, counterparty_id, amount, detail)
+                VALUES ('delegate_failed', ${taskId}::uuid, ${d.payer_id}::uuid, ${d.payee_id}::uuid, ${d.amount}, '{"reason":"insolvent_payer"}'::jsonb)
+              `);
+              log("bazaar_delegate_failed", { a2aTask: taskId, amount: d.amount, reason: "insolvent_payer" });
+            }
+          }
+        }
+      }
+    }
+
+    return { status: 200, body: { task: taskToA2A(updated) } };
   });
+}
 
-  return { status: 200, body: { task: taskToA2A(updated) } };
+// Bazaar (experiment): are the bazaar_* tables present on this database?
+// They live on the control DB only and are absent in prod, where delegation
+// settlement must be a silent no-op.
+//
+// This check runs OUTSIDE any transaction by design. A missing-table error
+// raised INSIDE a transaction aborts it, and the subsequent COMMIT would
+// silently ROLL BACK the enclosing work instead of committing it —
+// swallowing the error would turn every prod task completion into a silent
+// no-op while reporting 200. Never probe for the tables inside the
+// completion transaction.
+async function bazaarTablesPresent(): Promise<boolean> {
+  const r = await db.execute(sql`SELECT to_regclass('public.bazaar_delegations') IS NOT NULL AS present`);
+  const rows = ((r as any).rows ?? r) as any[];
+  return rows.length > 0 && rows[0].present === true;
 }
 
 a2aRoute.patch("/a2a/tasks/:id", agentAuth, async (c) => {

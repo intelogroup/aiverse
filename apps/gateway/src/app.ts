@@ -18,6 +18,7 @@ import { manifestRoute } from "./routes/manifest";
 import { onboardingRoute, ownerOnboardingRoute } from "./routes/onboarding";
 import { adminRoute } from "./routes/admin";
 import { reportsRoute } from "./routes/reports";
+import { bazaarRoute } from "./routes/bazaar";
 import { registerAgentWsRoute, registerConsoleWsRoute, registerPublicWsRoute } from "./ws/gateway";
 import { log, logError } from "./util/log";
 import pkg from "../package.json";
@@ -144,6 +145,7 @@ export function createApp() {
   app.route("/owners", ownerOnboardingRoute);
   app.route("/admin", adminRoute);
   app.route("/reports", reportsRoute);
+  app.route("/", bazaarRoute);
   registerAgentWsRoute(app);
   registerConsoleWsRoute(app);
   registerPublicWsRoute(app);
