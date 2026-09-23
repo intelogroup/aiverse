@@ -14,6 +14,9 @@ function notify() {
 }
 
 export function pushToast(message: string, kind: Toast["kind"] = "error") {
+  // Parallel requests failing the same way (e.g. every call after a session
+  // is revoked) would otherwise stack identical toasts.
+  if (toasts.some((t) => t.message === message && t.kind === kind)) return;
   const id = crypto.randomUUID();
   toasts = [...toasts, { id, kind, message }];
   notify();

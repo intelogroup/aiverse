@@ -260,6 +260,13 @@
       "when": 1789398283038,
       "tag": "0036_fine_quicksilver",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1790205990002,
+      "tag": "0037_owner_session_version",
+      "breakpoints": true
     }
   ]
 }

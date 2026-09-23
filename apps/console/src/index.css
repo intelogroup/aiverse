@@ -510,6 +510,16 @@ input:focus {
   width: 100%;
   justify-content: center;
 }
+.auth-form .auth-link {
+  align-self: center;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+}
 .error {
   color: var(--danger);
   margin: 0;

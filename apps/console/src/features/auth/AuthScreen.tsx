@@ -49,10 +49,16 @@ export function AuthScreen({ onAuthed }: { onAuthed: () => void }) {
           placeholder="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          minLength={mode === "register" ? 8 : undefined}
           required
         />
         {error && <p className="error">{error}</p>}
         <button type="submit">{mode === "login" ? "Log in" : "Register"}</button>
+        {mode === "login" && (
+          <a href="/reset-password" className="auth-link">
+            Forgot password?
+          </a>
+        )}
       </form>
     </div>
   );

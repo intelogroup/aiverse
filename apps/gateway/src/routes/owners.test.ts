@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { createApp } from "../app";
+import { eq } from "drizzle-orm";
+import { agents, agentWallets } from "@aiverse/shared/schema";
+import { db } from "../db/client";
 
 const app = createApp();
 
@@ -155,9 +158,9 @@ describe("hard delete", () => {
     });
     expect(delRes.status).toBe(200);
 
-    // owner session no longer resolves to anything usable
+    // owner session is rejected outright — verifyOwnerSession checks the row
     const meRes = await app.request("/owners/me", { headers: { authorization: `Bearer ${token}` } });
-    expect(meRes.status).toBe(404);
+    expect(meRes.status).toBe(401);
 
     // login as the deleted owner fails
     const loginRes = await app.request("/owners/login", {
@@ -167,9 +170,10 @@ describe("hard delete", () => {
     });
     expect(loginRes.status).toBe(401);
 
-    // their agent's wallet is gone too (cascaded)
-    const walletRes = await app.request(`/owners/agents/${agent.id}/wallet`, { headers: { authorization: `Bearer ${token}` } });
-    expect(walletRes.status).toBe(404);
+    // their agent and its wallet are gone too (cascaded) — checked in the DB,
+    // since the deleted owner's token no longer authenticates at all
+    expect(await db.query.agents.findFirst({ where: eq(agents.id, agent.id) })).toBeUndefined();
+    expect(await db.query.agentWallets.findFirst({ where: eq(agentWallets.agentId, agent.id) })).toBeUndefined();
   });
 });
 

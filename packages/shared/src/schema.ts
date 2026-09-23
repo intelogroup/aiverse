@@ -40,6 +40,10 @@ export const owners = pgTable("owners", {
   displayName: text("display_name"),
   emailVerified: boolean("email_verified").notNull().default(false),
   emailVerificationToken: text("email_verification_token"),
+  // Embedded as `sv` in every owner session JWT and checked on each request
+  // (auth/session.ts). Bumping it revokes every outstanding session at once —
+  // logout-all, password change, and password reset all do.
+  sessionVersion: integer("session_version").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
