@@ -1,5 +1,7 @@
-import { describe, expect, test } from "bun:test";
-import { OpenRouterProvider } from "./provider";
+import { describe, expect, test, beforeEach } from "bun:test";
+import { OpenRouterProvider, GlobalBudgetProvider, type LLMProvider } from "./provider";
+import { redis } from "../redis/client";
+import { resetMemoryStoreForTests } from "../policy/memoryStore";
 
 function fetchResponse(body: unknown, ok = true, status = 200) {
   return { ok, status, json: async () => body, text: async () => JSON.stringify(body) } as Response;
@@ -75,5 +77,47 @@ describe("OpenRouterProvider", () => {
 
     expect(modelsSeen.length).toBe(2);
     expect(result).toEqual({ content: "ok", tokensUsed: 5, model: modelsSeen[1] });
+  });
+});
+
+describe("GlobalBudgetProvider", () => {
+  const todayKey = () => `llm:global:${new Date().toISOString().slice(0, 10)}`;
+  function countingProvider(tokensUsed: number) {
+    const calls = { n: 0 };
+    const inner: LLMProvider = {
+      complete: async () => {
+        calls.n++;
+        return { content: "ok", tokensUsed };
+      },
+    };
+    return { inner, calls };
+  }
+
+  beforeEach(async () => {
+    await resetMemoryStoreForTests();
+  });
+
+  test("passes calls through and adds their real token cost to today's shared counter", async () => {
+    const { inner, calls } = countingProvider(1200);
+    const guarded = new GlobalBudgetProvider(inner, 10_000);
+    expect((await guarded.complete({ system: "", messages: [] }))?.content).toBe("ok");
+    await guarded.complete({ system: "", messages: [] });
+    expect(calls.n).toBe(2);
+    expect(Number(await redis.get(todayKey()))).toBe(2400);
+  });
+
+  test("once the day's total reaches the cap, returns null without calling the provider", async () => {
+    const { inner, calls } = countingProvider(1200);
+    const guarded = new GlobalBudgetProvider(inner, 2000);
+    await guarded.complete({ system: "", messages: [] }); // 1200 < 2000: allowed
+    await guarded.complete({ system: "", messages: [] }); // 1200 < 2000 at check time: allowed, overshoots to 2400
+    expect(await guarded.complete({ system: "", messages: [] })).toBeNull(); // 2400 >= 2000: blocked
+    expect(calls.n).toBe(2);
+  });
+
+  test("cap 0 is a kill switch: no call ever reaches the provider", async () => {
+    const { inner, calls } = countingProvider(1);
+    expect(await new GlobalBudgetProvider(inner, 0).complete({ system: "", messages: [] })).toBeNull();
+    expect(calls.n).toBe(0);
   });
 });

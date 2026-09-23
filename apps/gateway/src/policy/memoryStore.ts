@@ -176,6 +176,11 @@ export async function resetMemoryStoreForTests(): Promise<void> {
   // must be cleared here for test isolation, same as the rate/budget keys.
   // Test-infra only; no production behavior change.
   const nativeSocialKeys = await redis.keys("native-social:*");
+  const nativeLoneKeys = await redis.keys("native-lone:*");
+  // System-wide LLM spend counter and the owner goal-answer bucket
+  // (llm/provider.ts GlobalBudgetProvider, routes/goals.ts).
+  const llmGlobalKeys = await redis.keys("llm:global:*");
+  const goalAnswerKeys = await redis.keys("goal-answer:*");
   // Ingest buffer (jobs/ingestConsumer.ts): streams + derived caches. A test
   // that publishes without draining must not leak entries into a later
   // test's drainIngestStream(). DEL the streams outright (consumer groups
@@ -208,6 +213,9 @@ export async function resetMemoryStoreForTests(): Promise<void> {
     ...discoverKeys,
     ...searchKeys,
     ...nativeSocialKeys,
+    ...nativeLoneKeys,
+    ...llmGlobalKeys,
+    ...goalAnswerKeys,
     ...ingestStreamKeys,
     ...poisonListKeys,
     ...earlyAckKeys,

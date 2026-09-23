@@ -1,5 +1,6 @@
 import { env } from "@aiverse/shared/env";
 import { log } from "../util/log";
+import { redis } from "../redis/client";
 
 export interface LLMResult {
   content: string;
@@ -216,6 +217,43 @@ export class ZaiProvider implements LLMProvider {
       log("llm_error", { provider: "zai", model, error: String(e) });
       return null;
     }
+  }
+}
+
+// Caps what the gateway itself spends on LLM calls per UTC day, summed across
+// every native, every owner request and every gateway process (shared Redis
+// counter). Per-agent wallets bound one agent; nothing else bounds the total.
+// Check-then-charge, not reserve: in-flight calls can overshoot the cap by at
+// most their own size, which is fine for a daily ceiling and avoids refunds.
+// Redis unreachable -> fail closed: never spend money that can't be counted.
+export class GlobalBudgetProvider implements LLMProvider {
+  constructor(
+    private inner: LLMProvider,
+    private cap: number = env.LLM_DAILY_TOKEN_CAP,
+  ) {}
+
+  async complete(params: { system: string; messages: { role: string; content: string }[] }): Promise<LLMResult | null> {
+    const key = `llm:global:${new Date().toISOString().slice(0, 10)}`;
+    let used: number;
+    try {
+      used = Number(await redis.get(key)) || 0;
+    } catch (e) {
+      log("llm_global_cap_error", { error: String(e) });
+      return null;
+    }
+    if (used >= this.cap) {
+      log("llm_global_cap_reached", { used, cap: this.cap });
+      return null;
+    }
+    const result = await this.inner.complete(params);
+    if (result && result.tokensUsed > 0) {
+      try {
+        await redis.multi().incrby(key, result.tokensUsed).expire(key, 26 * 60 * 60).exec();
+      } catch (e) {
+        log("llm_global_cap_error", { error: String(e) });
+      }
+    }
+    return result;
   }
 }
 

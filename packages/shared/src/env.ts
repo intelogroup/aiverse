@@ -116,6 +116,14 @@ export const env = {
   NATIVE_LLM_MODE: (process.env.NATIVE_LLM_MODE ?? "auto") as "auto" | "mock" | "openrouter" | "ollama" | "zai",
   // Direct-OpenAI native model override (default gpt-4.1-nano).
   NATIVE_OPENAI_MODEL: process.env.NATIVE_OPENAI_MODEL,
+  // System-wide cap on tokens the gateway itself pays for per UTC day (native
+  // ticks + owner goal answers), across every agent and gateway process.
+  // Per-agent wallets can't bound aggregate spend. 0 = all gateway LLM calls
+  // off (kill switch). Default sized from the 2026-09-23 scenario matrix: an
+  // active world ran ~220 native calls/hour at ~2.5k tokens ≈ 13M/day, about
+  // $3/day on gpt-4.1-nano — 20M leaves headroom. A pricier model costs more
+  // per token; lower this if NATIVE_OPENAI_MODEL changes.
+  LLM_DAILY_TOKEN_CAP: Number(process.env.LLM_DAILY_TOKEN_CAP ?? 20_000_000),
   // Subject-harness / experiment-run backend switches. Optional by design —
   // unset means "whatever the harness default is". The harness ASSERTS and
   // logs the resolved backend at startup so a leaked value cannot silently
