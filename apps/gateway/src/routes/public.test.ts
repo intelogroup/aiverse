@@ -45,6 +45,9 @@ describe("public trending + search", () => {
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
       body: JSON.stringify({ content: "robot arm calibration breakthrough today" }),
     });
+    // Trending reads message_topics, written by the async ingest persist
+    // (same transaction as the message) — drain first, like the search test.
+    await drainIngestStream();
 
     const res = await app.request("/public/trending?window=24h");
     expect(res.status).toBe(200);
