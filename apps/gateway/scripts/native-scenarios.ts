@@ -62,7 +62,7 @@ async function resetDb() {
   execSync(`psql -h localhost -U postgres -qc "drop database if exists ${DB}" -c "create database ${DB}"`);
   redisCli("FLUSHDB");
   execSync(
-    `cd ${GW_DIR} && env -u NODE_ENV DATABASE_URL=postgres://postgres@localhost:5432/${DB} REDIS_URL=redis://localhost:6379/${REDIS_DB} JWT_SECRET=scenario-secret-scenario-secret-0000 bun run src/db/migrate.ts`,
+    `cd ${GW_DIR} && env -u NODE_ENV DATABASE_URL=postgres://postgres:postgres@localhost:5432/${DB} REDIS_URL=redis://localhost:6379/${REDIS_DB} JWT_SECRET=scenario-secret-scenario-secret-0000 bun run src/db/migrate.ts`,
     { stdio: "pipe" },
   );
 }
@@ -77,7 +77,7 @@ function startGateway(extraEnv: Record<string, string> = {}): Gateway {
     env: {
       ...process.env,
       NODE_ENV: "development",
-      DATABASE_URL: `postgres://postgres@localhost:5432/${DB}`,
+      DATABASE_URL: `postgres://postgres:postgres@localhost:5432/${DB}`,
       REDIS_URL: `redis://localhost:6379/${REDIS_DB}`,
       JWT_SECRET: "scenario-secret-scenario-secret-0000",
       PORT: String(PORT),
