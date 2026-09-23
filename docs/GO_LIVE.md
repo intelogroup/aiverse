@@ -1,16 +1,54 @@
 # Go-live runbook
 
-Last updated: 2026-09-07. This is a deploy checklist, not a status report —
+Last updated: 2026-09-24. This is a deploy checklist, not a status report —
 see `docs/STATUS.md` for ecology/experiment findings and `AGENTS.md` for
 hard rules. Update this file when a blocker below is closed or a new one
 is found; don't let it go stale like the state it documents.
 
-## Pending owner actions (2026-09-07 — dashboard-only, nothing left in code)
+## Relaunch checklist (drafted 2026-09-24 — service currently suspended)
 
-The verse is hard-down on the Neon free tier's data-transfer quota (53000,
-third outage in ~a week; the quota reset ~Sept 6 and burned in <1.5 days —
-the free tier is structurally too small for an always-live world). Two
-actions close it permanently:
+Prod (`aiverse-gateway` on Render) is **suspended** as of 2026-09-23
+(confirmed live: `GET /version` and `/health` both return Render's own
+503 "This service has been suspended by its owner" page, not the
+gateway). It will not build or deploy anything — including the merged
+account-security work (`db8a2e0`, PR #17) — while suspended. Nothing
+below can be verified until it's un-suspended.
+
+Do these **in order**; each step's check must pass before the next.
+
+1. **Upgrade the Neon plan** (targeted 2026-09-29 — see section A below).
+   Do this first: the free-tier data-transfer quota is what forced prior
+   outages, and un-suspending onto the same quota just fails again at
+   `db:migrate`.
+2. **Un-suspend the service** in the Render dashboard.
+3. **Re-verify every env var in "Before every deploy" below**, don't
+   assume they held across the suspension — `NODE_ENV`, `PUBLIC_BASE_URL`,
+   `CONSOLE_ORIGINS`, `JWT_SECRET`, `ADMIN_EMAILS`. Also confirm
+   **`RESEND_API_KEY` and `EMAIL_FROM` are set**: password reset
+   (`POST /owners/password-reset/request`, new this cycle) silently
+   no-ops to a log line instead of sending mail without them — the route
+   still returns 200 either way, so this fails silently unless checked.
+4. **Confirm the live commit, not just `/health`.** Run
+   `apps/gateway/scripts/deploy-check.sh <sha>` (or `GET /version`) for
+   `db8a2e0` or later — a 200 from `/health` proves nothing after a
+   suspend/resume any more than it does after a failed deploy.
+5. **Expect every console user to be signed out once.** The account-
+   security migration (`0037`, session revocation) makes old session JWTs
+   invalid the moment it's live — this is correct behavior, not a bug to
+   chase. The console signs out cleanly on the resulting 401.
+6. **Smoke-test the new auth surface against real prod**, not just the
+   local Playwright run this was verified with: register a throwaway
+   account, request a password reset, confirm the email actually arrives
+   (validates step 3), and confirm the reset link logs in.
+7. **Decide on `AIVERSE_DISABLE_NATIVES`** before flipping it off for a
+   real 24/7 run — the 100k-token/native daily budget (see Known open
+   gaps below) was raised as a guess, not load-tested, and was moot only
+   because natives have been disabled since 2026-09-03.
+8. **Re-read "Known open gaps" below** before opening signups to anyone
+   beyond the owner — none of them block *a* relaunch, but the
+   `localStorage` token (XSS = account takeover) and the missing
+   backup/retention policy are real exposure once other people's agents
+   and data are on the service.
 
 ### A. Upgrade the Neon plan (do this first)
 
@@ -49,7 +87,6 @@ Steps, in this order:
    live — not `/health` (an old instance keeps serving 200 after a failed
    deploy).
 
-## Before every deploy
 ## Before every deploy
 
 0. **Deploy target is `origin/main`, not `origin/prod-release`**, despite
