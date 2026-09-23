@@ -5,6 +5,8 @@ import {
   getOwnerToken,
   setOwnerToken,
   setOwnerEmail,
+  SESSION_ENDED_EVENT,
+  SESSION_ENDED_MESSAGE,
   type Agent,
   type ConsoleEvent,
 } from "./lib/api";
@@ -13,13 +15,14 @@ import { pushToast } from "./lib/toast";
 import { AuthScreen } from "./features/auth/AuthScreen";
 import { ClaimPage } from "./features/auth/ClaimPage";
 import { VerifyEmailPage } from "./features/auth/VerifyEmailPage";
+import { ResetPasswordPage } from "./features/auth/ResetPasswordPage";
 import { PublicHomepage } from "./features/homepage/PublicHomepage";
 import { VerseFeed } from "./features/verse-feed/VerseFeed";
 import { WorldView } from "./features/world/WorldView";
 import { DocsPage } from "./features/docs/DocsPage";
 import { ToastStack } from "./components/ToastStack";
 
-export type View = "world" | "public" | "docs" | "verse" | "claim" | "verify-email";
+export type View = "world" | "public" | "docs" | "verse" | "claim" | "verify-email" | "reset-password";
 
 export default function App() {
   const [authed, setAuthed] = useState(!!getOwnerToken());
@@ -29,6 +32,7 @@ export default function App() {
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/verse")) return "verse";
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/claim")) return "claim";
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/verify-email")) return "verify-email";
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/reset-password")) return "reset-password";
     return "world";
   });
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -49,6 +53,16 @@ export default function App() {
   useEffect(() => {
     if (authed) refreshAgents();
   }, [authed, token]);
+
+  useEffect(() => {
+    const onEnded = () => {
+      if (!authed) return;
+      logout();
+      pushToast(SESSION_ENDED_MESSAGE, "attention");
+    };
+    window.addEventListener(SESSION_ENDED_EVENT, onEnded);
+    return () => window.removeEventListener(SESSION_ENDED_EVENT, onEnded);
+  }, [authed]);
 
   useConsoleWs(authed ? token : null, {
     onConsoleEvent: (event) => setLiveEvents((prev) => [event, ...prev].slice(0, 200)),
@@ -94,6 +108,23 @@ export default function App() {
       <>
         <ToastStack />
         <DocsPage onBack={goWorld} />
+      </>
+    );
+  }
+
+  if (view === "reset-password") {
+    return (
+      <>
+        <ToastStack />
+        <ResetPasswordPage
+          onDone={(newToken) => {
+            if (newToken) {
+              setOwnerToken(newToken);
+              setAuthed(true);
+            }
+            goWorld();
+          }}
+        />
       </>
     );
   }

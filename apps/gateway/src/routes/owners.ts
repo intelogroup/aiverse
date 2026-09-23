@@ -16,7 +16,8 @@ import {
 } from "@aiverse/shared/schema";
 import type { AgentCard } from "@aiverse/shared/types";
 import { hashPassword, verifyPassword } from "../auth/password";
-import { signOwnerSession } from "../auth/session";
+import { revokeOwnerSessions, signOwnerSession } from "../auth/session";
+import { consumePasswordResetToken, sendPasswordResetEmail } from "../auth/passwordReset";
 import { generateAgentToken, hashAgentToken } from "../auth/agentToken";
 import { ownerAuth } from "../middleware/ownerAuth";
 import { forceDisconnectAgent, getConnectedAgentIds, broadcastToOwnerConsole } from "../ws/gateway";
@@ -39,6 +40,26 @@ export async function ownerNeedsEmailVerification(ownerId: string): Promise<bool
   return !owner?.emailVerified;
 }
 const EMAIL_NOT_VERIFIED = { error: "email_not_verified", details: "verify your email before creating or claiming agents" } as const;
+
+// Floor, not a policy engine. bcrypt truncates input past 72 bytes, so
+// anything longer would silently authenticate on its prefix.
+const MIN_PASSWORD = 8;
+const MAX_PASSWORD = 72;
+function passwordError(password: unknown): string | null {
+  if (typeof password !== "string") return "password required";
+  if (password.length < MIN_PASSWORD) return `password must be at least ${MIN_PASSWORD} characters`;
+  if (Buffer.byteLength(password) > MAX_PASSWORD) return `password must be at most ${MAX_PASSWORD} bytes`;
+  return null;
+}
+
+// Emails are stored lowercased from here on; lookups compare lower(email) so
+// rows created before normalization (possibly mixed-case) still match.
+function normalizeEmail(email: unknown): string {
+  return typeof email === "string" ? email.trim().toLowerCase() : "";
+}
+function findOwnerByEmail(email: string) {
+  return db.query.owners.findFirst({ where: sql`lower(${owners.email}) = ${email}` });
+}
 
 // Same wording as ecology-wave.ts's EAGER_MANDATES — the only tested cohort
 // that actually thrives (replies, joins, starts conversations) rather than
@@ -80,7 +101,7 @@ ownersRoute.delete("/me", ownerAuth, async (c) => {
   if (!owner) return c.json({ error: "not found" }, 404);
 
   const body = await c.req.json<{ confirmEmail?: string }>().catch(() => ({}) as { confirmEmail?: string });
-  if (body.confirmEmail !== owner.email) {
+  if (normalizeEmail(body.confirmEmail) !== owner.email.toLowerCase()) {
     return c.json({ error: "confirmEmail must match account email" }, 400);
   }
 
@@ -119,16 +140,17 @@ ownersRoute.post("/register", async (c) => {
   }
 
   const body = await c.req.json<{ email: string; password: string; displayName?: string }>();
-  if (!body.email || !body.password) {
+  const email = normalizeEmail(body.email);
+  if (!email || !body.password) {
     return c.json({ error: "email and password required" }, 400);
   }
+  const pwErr = passwordError(body.password);
+  if (pwErr) return c.json({ error: pwErr }, 400);
   if (body.displayName && (body.displayName.length < 2 || body.displayName.length > 64)) {
     return c.json({ error: "displayName must be 2-64 chars" }, 400);
   }
 
-  const existing = await db.query.owners.findFirst({
-    where: eq(owners.email, body.email),
-  });
+  const existing = await findOwnerByEmail(email);
   if (existing) {
     return c.json({ error: "email already registered" }, 409);
   }
@@ -136,7 +158,7 @@ ownersRoute.post("/register", async (c) => {
   const passwordHash = await hashPassword(body.password);
   const [owner] = await db
     .insert(owners)
-    .values({ email: body.email, passwordHash, displayName: body.displayName ?? null })
+    .values({ email, passwordHash, displayName: body.displayName ?? null })
     .returning();
 
   // Send failure must not fail signup — the owner can resend from the console.
@@ -144,7 +166,7 @@ ownersRoute.post("/register", async (c) => {
     logError("email.verification.signup_send_failed", err, { ownerId: owner.id }),
   );
 
-  const token = await signOwnerSession(owner.id);
+  const token = await signOwnerSession(owner.id, owner.sessionVersion);
   return c.json(
     { token, owner: { id: owner.id, email: owner.email, displayName: owner.displayName, emailVerified: owner.emailVerified } },
     201,
@@ -186,18 +208,93 @@ ownersRoute.post("/login", async (c) => {
   }
 
   const body = await c.req.json<{ email: string; password: string }>();
-  const owner = await db.query.owners.findFirst({
-    where: eq(owners.email, body.email ?? ""),
-  });
+  const owner = await findOwnerByEmail(normalizeEmail(body.email));
   if (!owner || !(await verifyPassword(body.password ?? "", owner.passwordHash))) {
     return c.json({ error: "invalid credentials" }, 401);
   }
 
-  const token = await signOwnerSession(owner.id);
+  const token = await signOwnerSession(owner.id, owner.sessionVersion);
   return c.json({
     token,
     owner: { id: owner.id, email: owner.email, displayName: owner.displayName, emailVerified: owner.emailVerified },
   });
+});
+
+// Signs out every device, including this one — the only way to kill a
+// leaked token before its 7-day exp.
+ownersRoute.post("/logout-all", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  await revokeOwnerSessions(ownerId);
+  await audit({ event: "owner.sessions_revoked", ownerId, actorType: "owner", actorId: ownerId });
+  return c.json({ ok: true });
+});
+
+// Requires the current password so a stolen session token alone can't lock
+// the real owner out. Revokes all other sessions and returns a fresh token
+// for the caller.
+ownersRoute.post("/password", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  if (!(await takeToken(`password-change:${ownerId}`, 5, 5 / 900))) {
+    return c.json({ error: "rate_limited" }, 429);
+  }
+  const body = await c.req.json<{ currentPassword?: string; newPassword?: string }>().catch(() => ({}) as { currentPassword?: string; newPassword?: string });
+  const pwErr = passwordError(body.newPassword);
+  if (pwErr) return c.json({ error: pwErr }, 400);
+  const owner = await db.query.owners.findFirst({ where: eq(owners.id, ownerId) });
+  if (!owner || !(await verifyPassword(body.currentPassword ?? "", owner.passwordHash))) {
+    return c.json({ error: "invalid credentials" }, 401);
+  }
+  await db.update(owners).set({ passwordHash: await hashPassword(body.newPassword!) }).where(eq(owners.id, ownerId));
+  const sv = await revokeOwnerSessions(ownerId);
+  await audit({ event: "owner.password_changed", ownerId, actorType: "owner", actorId: ownerId });
+  return c.json({ token: await signOwnerSession(ownerId, sv) });
+});
+
+// Always 200 whether or not the email exists — the response must not reveal
+// which emails have accounts. Rate-limited per IP and per address so it
+// can't be used to mail-bomb one inbox.
+ownersRoute.post("/password-reset/request", async (c) => {
+  const ip = clientIp(c);
+  if (!(await takeToken(`pwreset-ip:${ip}`, 10, 10 / 3600))) {
+    return c.json({ error: "rate_limited" }, 429);
+  }
+  const body = await c.req.json<{ email?: string }>().catch(() => ({}) as { email?: string });
+  const email = normalizeEmail(body.email);
+  if (!email) return c.json({ error: "email required" }, 400);
+  if (await takeToken(`pwreset-email:${email}`, 3, 3 / 3600)) {
+    const owner = await findOwnerByEmail(email);
+    if (owner) {
+      await sendPasswordResetEmail(owner.id, owner.email).catch((err) =>
+        logError("email.password_reset.request_failed", err, { ownerId: owner.id }),
+      );
+    }
+  }
+  return c.json({ ok: true });
+});
+
+// The emailed token is the credential. Completing a reset proves inbox
+// control, so it also marks the email verified, and it revokes every
+// session (the reason for a reset is often a compromised account).
+ownersRoute.post("/password-reset/confirm", async (c) => {
+  const ip = clientIp(c);
+  if (!(await takeToken(`pwreset-confirm:${ip}`, 10, 10 / 300))) {
+    return c.json({ error: "rate_limited" }, 429);
+  }
+  const body = await c.req.json<{ token?: string; newPassword?: string }>().catch(() => ({}) as { token?: string; newPassword?: string });
+  if (!body.token) return c.json({ error: "token required" }, 400);
+  const pwErr = passwordError(body.newPassword);
+  if (pwErr) return c.json({ error: pwErr }, 400);
+  const ownerId = await consumePasswordResetToken(body.token);
+  if (!ownerId) return c.json({ error: "This link is invalid, expired, or already used." }, 400);
+  const [updated] = await db
+    .update(owners)
+    .set({ passwordHash: await hashPassword(body.newPassword!), emailVerified: true })
+    .where(eq(owners.id, ownerId))
+    .returning({ id: owners.id });
+  if (!updated) return c.json({ error: "This link is invalid, expired, or already used." }, 400);
+  const sv = await revokeOwnerSessions(ownerId);
+  await audit({ event: "owner.password_reset", ownerId, actorType: "owner", actorId: ownerId });
+  return c.json({ token: await signOwnerSession(ownerId, sv) });
 });
 
 ownersRoute.post("/agents", ownerAuth, async (c) => {
@@ -577,6 +674,23 @@ ownersRoute.post("/agents/:id/rotate-key", ownerAuth, async (c) => {
   }
 });
 
+// Bearer-token rotation: the recoverable alternative to /kill for a leaked
+// agentToken. Old token stops resolving immediately (resolveAgent.ts looks
+// up by hash), live WS sessions are dropped, and the new plaintext is shown
+// once. Ed25519 identity is untouched — that has /rotate-key.
+ownersRoute.post("/agents/:id/rotate-token", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const agentId = c.req.param("id");
+  const agent = await loadOwnedAgent(ownerId, agentId);
+  if (!agent) return c.json({ error: "not found" }, 404);
+
+  const { token, hash } = generateAgentToken();
+  await db.update(agents).set({ apiKeyHash: hash }).where(eq(agents.id, agentId));
+  forceDisconnectAgent(agentId, 4007, "token rotated");
+  await audit({ event: "agent.token_rotated", agentId, ownerId, actorType: "owner", actorId: ownerId, metadata: { name: agent.name } });
+  return c.json({ agentToken: token });
+});
+
 // Kill revokes the agent's credential (rotated to an unusable random hash)
 // and force-disconnects any live WS session. There is no "un-kill" — the
 // owner creates a fresh agent if they want that identity to exist again.
@@ -586,8 +700,12 @@ ownersRoute.post("/agents/:id/kill", ownerAuth, async (c) => {
   const agent = await loadOwnedAgent(ownerId, agentId);
   if (!agent) return c.json({ error: "not found" }, 404);
 
+  // Both credentials must go: rotating only the bearer hash left an Ed25519
+  // agent able to /auth/challenge + /auth/verify its way back in. Nulling
+  // publicKey also fails every outstanding session JWT (resolveAgent.ts
+  // rejects a session whose agent has no key).
   const { hash } = generateAgentToken();
-  await db.update(agents).set({ status: "offline", apiKeyHash: hash }).where(eq(agents.id, agentId));
+  await db.update(agents).set({ status: "offline", apiKeyHash: hash, publicKey: null }).where(eq(agents.id, agentId));
   forceDisconnectAgent(agentId, 4004, "agent killed");
   broadcastToOwnerConsole(
     ownerId,

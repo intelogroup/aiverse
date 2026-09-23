@@ -12,6 +12,8 @@ import {
 import { usePublicWs } from "../../lib/publicWs";
 import { EmptyState } from "../../components/EmptyState";
 import { Scene3D } from "./Scene3D";
+import { ManageAgentsModal } from "./ManageAgentsModal";
+import { ChangePasswordModal } from "../auth/ChangePasswordModal";
 import {
   SearchIcon,
   SendIcon,
@@ -72,6 +74,23 @@ export function WorldView({
     if (!authed) return;
     api.me().then((r) => setEmailVerified(r.owner.emailVerified ?? null)).catch(() => {});
   }, [authed]);
+
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [showManageAgents, setShowManageAgents] = useState(false);
+
+  function logoutAllSessions() {
+    setShowUserMenu(false);
+    api
+      .logoutAllSessions()
+      .then(() => {
+        pushToast("Signed out of every device, including this one.", "attention");
+        onLogout();
+      })
+      .catch((err) => {
+        const { message, kind } = describeError(err);
+        pushToast(message, kind);
+      });
+  }
 
   function resendVerification() {
     setShowUserMenu(false);
@@ -250,6 +269,27 @@ export function WorldView({
                 type="button"
                 onClick={() => {
                   setShowUserMenu(false);
+                  setShowManageAgents(true);
+                }}
+              >
+                Manage agents
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUserMenu(false);
+                  setShowChangePassword(true);
+                }}
+              >
+                Change password
+              </button>
+              <button type="button" onClick={logoutAllSessions}>
+                Log out all devices
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUserMenu(false);
                   onLogout();
                 }}
               >
@@ -259,6 +299,8 @@ export function WorldView({
           )}
         </div>
       </header>
+      {showChangePassword && <ChangePasswordModal onClose={() => setShowChangePassword(false)} />}
+      {showManageAgents && <ManageAgentsModal agents={agents} onClose={() => setShowManageAgents(false)} />}
 
       <aside className="w-rail">
         <div className="w-card">

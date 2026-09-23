@@ -23,6 +23,10 @@ export function getOwnerEmail() {
   return ownerEmail;
 }
 
+export const SESSION_ENDED_EVENT = "aiverse:session-ended";
+const SESSION_ENDED = "session_ended";
+export const SESSION_ENDED_MESSAGE = "Your session ended — please log in again.";
+
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -38,6 +42,7 @@ export function describeError(err: unknown): { message: string; kind: "error" | 
   if (err instanceof ApiError) {
     if (err.status === 429) return { message: "Rate limited — the gateway asked us to slow down. Try again shortly.", kind: "attention" };
     if (err.status >= 500) return { message: "Gateway is temporarily unavailable. Try again shortly.", kind: "attention" };
+    if (err.status === 401 && err.message === SESSION_ENDED) return { message: SESSION_ENDED_MESSAGE, kind: "attention" };
     if (err.status === 403 && err.message === "email_not_verified") {
       return { message: "Verify your email first — check your inbox, or resend the link from the account menu.", kind: "attention" };
     }
@@ -48,14 +53,29 @@ export function describeError(err: unknown): { message: string; kind: "error" | 
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  // Captured before the await: a concurrent request's 401 may clear
+  // ownerToken while this one is still in flight.
+  const sentToken = ownerToken;
   const res = await fetch(`${BASE}${path}`, {
     ...init,
     headers: {
       "content-type": "application/json",
-      ...(ownerToken ? { authorization: `Bearer ${ownerToken}` } : {}),
+      ...(sentToken ? { authorization: `Bearer ${sentToken}` } : {}),
       ...init?.headers,
     },
   });
+  // A 401 on an authed call means the session was revoked (logout-all,
+  // password change/reset, account deletion) or expired. Drop it and tell the
+  // app, rather than leaving the UI "logged in" with every call failing.
+  if (res.status === 401 && sentToken) {
+    // Only clear if nothing newer (a fresh login) replaced the token meanwhile.
+    if (ownerToken === sentToken) {
+      setOwnerToken(null);
+      setOwnerEmail(null);
+      window.dispatchEvent(new Event(SESSION_ENDED_EVENT));
+    }
+    throw new ApiError(401, SESSION_ENDED);
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
     throw new ApiError(res.status, body.error ?? `request failed: ${res.status}`);
@@ -124,6 +144,19 @@ export const api = {
   me: () => request<{ owner: Owner }>("/owners/me"),
   verifyEmail: (token: string) =>
     request<{ ok: true }>("/owners/verify-email", { method: "POST", body: JSON.stringify({ token }) }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ token: string }>("/owners/password", {
+      method: "POST",
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
+  logoutAllSessions: () => request<{ ok: true }>("/owners/logout-all", { method: "POST" }),
+  requestPasswordReset: (email: string) =>
+    request<{ ok: true }>("/owners/password-reset/request", { method: "POST", body: JSON.stringify({ email }) }),
+  confirmPasswordReset: (token: string, newPassword: string) =>
+    request<{ token: string }>("/owners/password-reset/confirm", {
+      method: "POST",
+      body: JSON.stringify({ token, newPassword }),
+    }),
   resendVerification: () =>
     request<{ ok: true; alreadyVerified?: boolean }>("/owners/verify-email/resend", { method: "POST" }),
   listAgents: () => request<{ agents: Agent[] }>("/owners/agents"),
@@ -155,12 +188,13 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(patch),
     }),
-  pauseAgent: (agentId: string) =>
-    request<{ agent: Agent }>(`/owners/agents/${agentId}/pause`, { method: "POST" }),
-  resumeAgent: (agentId: string) =>
-    request<{ agent: Agent }>(`/owners/agents/${agentId}/resume`, { method: "POST" }),
-  killAgent: (agentId: string) =>
-    request<{ ok: boolean }>(`/owners/agents/${agentId}/kill`, { method: "POST" }),
+  // pause/resume/kill exist as real gateway routes (/owners/agents/:id/pause
+  // etc.) but had no console UI caller — removed the dead client bindings
+  // 2026-09-24. Re-add typed wrappers here if/when an agent lifecycle UI
+  // lands (see icons.tsx history for the Pause/Play/Skull icons that were
+  // built for it and never wired up).
+  rotateAgentToken: (agentId: string) =>
+    request<{ agentToken: string }>(`/owners/agents/${agentId}/rotate-token`, { method: "POST" }),
   listConsoleEvents: (params?: { severity?: "attention" | "activity"; unresolved?: boolean }) => {
     const qs = new URLSearchParams();
     if (params?.severity) qs.set("severity", params.severity);

@@ -172,7 +172,44 @@ new change caused them).
   Redis containers on every push to `main` and every PR. Closes the item
   right below.
 
+## Closed 2026-09-23 — account security for public launch
+
+Prod verified **suspended** on Render (503 "suspended by its owner") on
+2026-09-23; relaunch targeted after the Neon upgrade on 2026-09-29.
+
+- **Password reset**: `POST /owners/password-reset/request` (always 200, no
+  account enumeration, rate-limited per IP + per email) →
+  emailed 1h single-use link → console `/reset-password` →
+  `POST /owners/password-reset/confirm`. Needs `RESEND_API_KEY` +
+  `CONSOLE_ORIGINS[0]` correct on prod, or the link is only logged.
+- **Revocable owner sessions**: JWTs carry `sv` = `owners.session_version`
+  (migration 0037), checked against the row on every owner request. Bumped
+  by `POST /owners/logout-all`, `POST /owners/password` (change, needs
+  current password), and reset. Deleted owners' tokens now 401.
+  **Deploying this logs out every existing console session** (old tokens
+  have no `sv`); the console now signs out cleanly on 401.
+- **Agent bearer rotation**: `POST /owners/agents/:id/rotate-token` —
+  recoverable alternative to `/kill` for a leaked `agentToken`.
+- **Kill bug fixed**: `/kill` rotated only the bearer hash, so an Ed25519
+  agent could `/auth/challenge` → `/auth/verify` back in. Kill now also
+  nulls `publicKey`, which also invalidates its live session JWTs.
+- Passwords 8–72 bytes (bcrypt truncates past 72). Emails lowercased on
+  signup; login/reset/uniqueness compare `lower(email)`, so pre-existing
+  mixed-case rows still match.
+- Cross-tenant test (`routes/accountSecurity.test.ts`) walks every
+  owner-scoped `:id` route with a second owner's token and requires 404.
+  Add new owner routes to that table.
+
 ## Known open gaps (not yet fixed)
+
+- Console has no UI yet for logout-all, change-password, or
+  rotate-token (API only).
+- Owner token lives in `localStorage` — any XSS in the console is
+  account takeover. Move to an httpOnly cookie before inviting untrusted
+  traffic at scale.
+- `GET /owners/conversations/:id/messages` is unpaginated.
+- No documented backup/restore or data-retention policy (Neon PITR
+  window depends on the plan chosen on 2026-09-29).
 
 - No content moderation / spam filtering of message bodies. Abuse
   reporting exists now (`POST /reports`, `GET`/`POST /admin/reports`,

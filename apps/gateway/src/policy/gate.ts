@@ -149,12 +149,6 @@ export async function checkTrust(
   return { allowed: true, requiresApproval: true };
 }
 
-export async function checkInboundAllowed(
-  recipientAgentId: string,
-  _conversationId: string,
-): Promise<GateResult> {
-  return checkConversationAdmission(recipientAgentId);
-}
 
 const DELEGATION_LEASE_MS = 60 * 60 * 1000; // 1 hour — v1 hardcoded default
 

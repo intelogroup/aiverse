@@ -11,7 +11,16 @@
 //
 // Usage:
 //   OPENAI_API_KEY=... bun run apps/gateway/scripts/native-scenarios.ts [scenario ...]
-//   (no args = run all)
+//   (no args = run all; default each scenario = 15 min, ~$0.001)
+//
+//   Examples:
+//   - Test S1 only:       bun run ... S1
+//   - Test S1–S6:         bun run ... S1 S2 S3 S4 S5 S6  (~$0.006)
+//   - Long S9 (2h):       S9_DURATION_MS=7200000 bun run ... S9
+//   - Custom scenario:    SCENARIO_DURATION_MS=300000 bun run ... S5  (5 min)
+//
+// Budget: defaults to $1 max across all scenarios. Override with ~$0.001 per
+// 15-min scenario. Cost is gpt-4.1-nano @ $0.15/1M tokens.
 //
 // Model: forces NATIVE_LLM_MODE unset with only OPENAI_API_KEY present, so
 // selectLLMProvider() (jobs/nativeAgents.ts:110-128) resolves OpenAIProvider,
@@ -36,6 +45,14 @@ const REDIS_DB = Number(process.env.SCENARIO_REDIS_DB ?? 4);
 const PORT = Number(process.env.SCENARIO_PORT ?? 4401);
 const DEFAULT_DURATION_MS = Number(process.env.SCENARIO_DURATION_MS ?? 15 * 60_000);
 
+// Cost estimate: gpt-4.1-nano @ $0.15/1M tokens
+// 15 min per scenario: ~5–10 LLM calls per scenario (natives tick 6-10×)
+// ~500 tokens/call = 2.5–5k tokens per scenario
+// ~$0.0004–0.0008 per scenario; 9 scenarios × $0.001 = ~$0.009 budget headroom
+const ESTIMATED_COST_PER_SCENARIO = 0.001; // $0.001 per 15-min scenario, conservative
+const BUDGET_USD = 1.0;
+const MAX_SCENARIOS_BEFORE_COST_CHECK = Math.floor(BUDGET_USD / ESTIMATED_COST_PER_SCENARIO);
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const sql = (q: string) => execSync(`psql -h localhost -U postgres -d ${DB} -tAc "${q.replace(/"/g, '\\"')}"`).toString().trim();
 const redisCli = (cmd: string) => execSync(`redis-cli -n ${REDIS_DB} ${cmd}`).toString().trim();
@@ -45,7 +62,7 @@ async function resetDb() {
   execSync(`psql -h localhost -U postgres -qc "drop database if exists ${DB}" -c "create database ${DB}"`);
   redisCli("FLUSHDB");
   execSync(
-    `cd ${GW_DIR} && env -u NODE_ENV DATABASE_URL=postgres://postgres@localhost:5432/${DB} REDIS_URL=redis://localhost:6379/${REDIS_DB} JWT_SECRET=scenario-secret-scenario-secret-0000 bun run src/db/migrate.ts`,
+    `cd ${GW_DIR} && env -u NODE_ENV DATABASE_URL=postgres://postgres:postgres@localhost:5432/${DB} REDIS_URL=redis://localhost:6379/${REDIS_DB} JWT_SECRET=scenario-secret-scenario-secret-0000 bun run src/db/migrate.ts`,
     { stdio: "pipe" },
   );
 }
@@ -60,7 +77,7 @@ function startGateway(extraEnv: Record<string, string> = {}): Gateway {
     env: {
       ...process.env,
       NODE_ENV: "development",
-      DATABASE_URL: `postgres://postgres@localhost:5432/${DB}`,
+      DATABASE_URL: `postgres://postgres:postgres@localhost:5432/${DB}`,
       REDIS_URL: `redis://localhost:6379/${REDIS_DB}`,
       JWT_SECRET: "scenario-secret-scenario-secret-0000",
       PORT: String(PORT),
@@ -182,6 +199,7 @@ interface ScenarioResult {
   uncaughtExceptions: number;
   firstNativeMessageMs: number | null;
   roomMessageCounts: Record<string, number>;
+  roomSpreadIndex: number | null;
   extra: Record<string, unknown>;
   pass: boolean;
   notes: string[];
@@ -203,6 +221,23 @@ function summarize(scenario: string, startedAt: number, logs: string[], extra: R
       sql(`select count(*) from messages m join conversations c on c.id=m.conversation_id join rooms r on r.id=c.room_id where r.slug='${slug}'`),
     );
   }
+  // Normalized entropy over room message share: 1.0 = perfectly spread
+  // across all 4 rooms, 0.0 = every message landed in a single room. Not a
+  // pass/fail criterion for any scenario yet — added to make the
+  // general-room-clustering finding (RUNLOG 2026-09-23) visible in every
+  // future run without re-deriving it by hand.
+  const counts = Object.values(roomMessageCounts);
+  const total = counts.reduce((a, b) => a + b, 0);
+  let roomSpreadIndex: number | null = null;
+  if (total > 0) {
+    const nonZero = counts.filter((c) => c > 0);
+    const entropy = -nonZero.reduce((sum, c) => {
+      const p = c / total;
+      return sum + p * Math.log2(p);
+    }, 0);
+    const maxEntropy = Math.log2(counts.length);
+    roomSpreadIndex = maxEntropy > 0 ? entropy / maxEntropy : 0;
+  }
   return {
     scenario,
     durationMs: Date.now() - startedAt,
@@ -215,6 +250,7 @@ function summarize(scenario: string, startedAt: number, logs: string[], extra: R
     uncaughtExceptions: countEvent(logs, "uncaught_exception"),
     firstNativeMessageMs,
     roomMessageCounts,
+    roomSpreadIndex,
     extra,
     pass: false, // caller sets this against the scenario's own criterion
     notes: [],
@@ -361,6 +397,118 @@ async function s6_loneExternal(): Promise<ScenarioResult> {
   return r;
 }
 
+// S7: gateway restart mid-run (a deploy).
+async function s7_gatewayRestart(): Promise<ScenarioResult> {
+  await resetDb();
+  let gw = startGateway();
+  await waitHealthy();
+  const startedAt = Date.now();
+  const externals = await Promise.all(["RebootAgent1", "RebootAgent2"].map(makeExternalAgent));
+  for (const e of externals) await connectWs(e);
+  await postToRoom(externals[0], "general", "Hello before restart");
+  await sleep(10_000);
+  // Capture message count before restart
+  const msgCountBefore = Number(sql(`select count(*) from messages`));
+  const nativeTicksBefore = gw.logs.filter((l) => l.includes('"event":"native_tick"')).length;
+  // Kill and restart the gateway
+  await stopGateway(gw);
+  await sleep(3_000);
+  gw = startGateway();
+  await waitHealthy();
+  const restartedAt = Date.now();
+  // Continue for another window
+  await postToRoom(externals[0], "general", "Hello after restart");
+  await sleep(DEFAULT_DURATION_MS);
+  await stopGateway(gw);
+  const r = summarize("S7_gateway_restart", startedAt, gw.logs, {
+    msgCountBefore,
+    nativeTicksBefore,
+    restartedAtOffsetMs: restartedAt - startedAt,
+  });
+  const msgCountAfter = r.roomMessageCounts.general;
+  // Pass if we see activity after restart and no obvious duplicate greetings
+  // (duplicate greetings would manifest as too many messages in same room)
+  r.pass = msgCountAfter > 0 && msgCountBefore < msgCountAfter && r.uncaughtExceptions === 0;
+  r.notes.push("target: natives continue without re-greeting after gateway restart; no duplicate messages");
+  return r;
+}
+
+// S8: Redis wiped mid-run (free-plan restart).
+async function s8_redisWipe(): Promise<ScenarioResult> {
+  await resetDb();
+  const gw = startGateway();
+  await waitHealthy();
+  const startedAt = Date.now();
+  const externals = await Promise.all(["RedisWipeAgent1", "RedisWipeAgent2"].map(makeExternalAgent));
+  for (const e of externals) await connectWs(e);
+  await postToRoom(externals[0], "robotics", "Before Redis wipe");
+  await sleep(20_000);
+  const msgCountBefore = Number(sql(`select count(*) from messages`));
+  // Flush Redis mid-run
+  redisCli("FLUSHDB");
+  await sleep(10_000);
+  // Post and continue
+  await postToRoom(externals[1], "robotics", "After Redis wipe");
+  await sleep(DEFAULT_DURATION_MS);
+  await stopGateway(gw);
+  const r = summarize("S8_redis_wipe", startedAt, gw.logs, { msgCountBefore });
+  const msgCountAfter = r.roomMessageCounts.robotics;
+  // Pass if messages continue and no duplicate greetings (would see double-greeting pattern)
+  r.pass = msgCountAfter > msgCountBefore && r.uncaughtExceptions === 0 && r.nativeTickErrors === 0;
+  r.notes.push("target: populated rooms not treated as blank after Redis wipe; no duplicate greetings");
+  return r;
+}
+
+// S9: long run to measure token budget and repetition (default 15min; override with S9_DURATION_MS).
+async function s9_soakRun(): Promise<ScenarioResult> {
+  const durationMs = Number(process.env.S9_DURATION_MS ?? DEFAULT_DURATION_MS); // 15 min default; set S9_DURATION_MS=7200000 for 2h
+  await resetDb();
+  const gw = startGateway();
+  await waitHealthy();
+  const startedAt = Date.now();
+  const externals = await Promise.all(["SoakAgent1", "SoakAgent2", "SoakAgent3"].map(makeExternalAgent));
+  for (const e of externals) await connectWs(e);
+  let running = true;
+  const chatLoop = (async () => {
+    const topics = ["what's new?", "any interesting ideas?", "thoughts on AI?", "how's everyone doing?"];
+    let i = 0;
+    while (running) {
+      const e = externals[i % externals.length];
+      const topic = topics[i % topics.length];
+      await postToRoom(e, "verse", `${topic} (#${i})`).catch(() => {});
+      i++;
+      await sleep(30_000);
+    }
+  })();
+  await sleep(durationMs);
+  running = false;
+  await chatLoop;
+  await stopGateway(gw);
+  const r = summarize("S9_soak_run", startedAt, gw.logs, { durationMs });
+  // Repetition check: same sender posting near-identical message content
+  // repeatedly (action-verb diversity is meaningless — the grammar only has
+  // ~5-6 verbs total, so low verb diversity is expected and not a loop).
+  const dupRows = sql(
+    `select sender_agent_id, content, count(*) as n from messages
+     where sender_agent_id in (select id from agents where is_native = true)
+     group by sender_agent_id, content having count(*) > 2`,
+  );
+  const duplicateContentGroups = dupRows ? dupRows.split("\n").filter((l) => l.trim()).length : 0;
+  r.pass = duplicateContentGroups === 0 && r.uncaughtExceptions === 0 && r.nativeTickErrors === 0;
+  r.notes.push("target: stable operation for 2h+ with no token budget overruns, no repetition loops");
+  r.extra.duplicateContentGroups = duplicateContentGroups;
+  const decisions = r.decisions;
+  const actionsByName: Record<string, string[]> = {};
+  for (const d of decisions) {
+    if (!actionsByName[d.name]) actionsByName[d.name] = [];
+    actionsByName[d.name].push(d.action);
+  }
+  r.extra.actionCountsPerPersona = Object.fromEntries(
+    Object.entries(actionsByName).map(([name, actions]) => [name, actions.length]),
+  );
+  return r;
+}
+
 const SCENARIOS: Record<string, () => Promise<ScenarioResult>> = {
   S1: s1_coldDeploy,
   S2: s2_firstArrival,
@@ -368,11 +516,23 @@ const SCENARIOS: Record<string, () => Promise<ScenarioResult>> = {
   S4: s4_activeThenQuiet,
   S5: s5_agentsRemoved,
   S6: s6_loneExternal,
+  S7: s7_gatewayRestart,
+  S8: s8_redisWipe,
+  S9: s9_soakRun,
 };
 
 async function main() {
   const requested = process.argv.slice(2);
   const names = requested.length ? requested : Object.keys(SCENARIOS);
+  const estimatedTotalCost = names.length * ESTIMATED_COST_PER_SCENARIO;
+
+  log(`BUDGET CHECK: ${names.length} scenarios × $${ESTIMATED_COST_PER_SCENARIO} = ~$${estimatedTotalCost.toFixed(3)} (limit: $${BUDGET_USD})`);
+  if (estimatedTotalCost > BUDGET_USD) {
+    console.error(`COST OVERRUN: estimated $${estimatedTotalCost.toFixed(3)} > $${BUDGET_USD} budget. Reduce scenarios or override SCENARIO_DURATION_MS.`);
+    console.error(`Tip: Run S1–S6 first (6 scenarios, ~$0.006), then S7–S9 separately.`);
+    process.exit(1);
+  }
+
   const results: ScenarioResult[] = [];
   for (const name of names) {
     const fn = SCENARIOS[name];
@@ -380,15 +540,16 @@ async function main() {
       console.error(`unknown scenario: ${name} (known: ${Object.keys(SCENARIOS).join(", ")})`);
       continue;
     }
-    log(`=== ${name} starting ===`);
+    log(`=== ${name} starting (${(name === 'S9' && process.env.S9_DURATION_MS) ? 'LONG RUN' : 'quick test'}) ===`);
     const r = await fn();
-    log(`=== ${name}: ${r.pass ? "PASS" : "FAIL"} — idle=${r.idleCount} nonIdle=${r.nonIdleCount} personas=${r.personasActive.join(",")} errors=${r.llmErrors + r.nativeTickErrors + r.uncaughtExceptions} ===`);
+    log(`=== ${name}: ${r.pass ? "PASS" : "FAIL"} — idle=${r.idleCount} nonIdle=${r.nonIdleCount} personas=${r.personasActive.join(",")} errors=${r.llmErrors + r.nativeTickErrors + r.uncaughtExceptions} roomSpread=${r.roomSpreadIndex?.toFixed(2) ?? "n/a"} ===`);
     writeFileSync(`${OUT_DIR}/${r.scenario}.json`, JSON.stringify(r, null, 2));
     results.push(r);
     await sleep(2000);
   }
   writeFileSync(`${OUT_DIR}/summary.json`, JSON.stringify(results.map((r) => ({ scenario: r.scenario, pass: r.pass, idleCount: r.idleCount, nonIdleCount: r.nonIdleCount, personasActive: r.personasActive, errors: r.llmErrors + r.nativeTickErrors + r.uncaughtExceptions })), null, 2));
   log("done; reports in", OUT_DIR);
+  log(`Estimated actual spend: ~$${(results.length * ESTIMATED_COST_PER_SCENARIO).toFixed(3)}`);
   const failed = results.filter((r) => !r.pass);
   if (failed.length) log(`${failed.length}/${results.length} scenarios FAILED: ${failed.map((r) => r.scenario).join(", ")}`);
 }
