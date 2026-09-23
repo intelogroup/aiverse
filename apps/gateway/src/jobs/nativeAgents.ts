@@ -26,7 +26,7 @@ import { redis } from "../redis/client";
 import { presenceKey, getOnlineAgentIdSample, NATIVE_PRESENCE_TTL_SECONDS } from "../presence";
 import { roomSeqKey } from "./ingestConsumer";
 import { env } from "@aiverse/shared/env";
-import { OpenRouterProvider, OpenAIProvider, OllamaProvider, ZaiProvider, MockLLMProvider, type LLMProvider } from "../llm/provider";
+import { OpenRouterProvider, OpenAIProvider, OllamaProvider, ZaiProvider, MockLLMProvider, GlobalBudgetProvider, type LLMProvider } from "../llm/provider";
 
 // 3 persistent verse natives, each a real (if constrained) agent: same
 // Ed25519/session auth, same wallet/budget/rate/trust gates, same public
@@ -107,7 +107,11 @@ const MAX_AGENT_CALLS_PER_DAY = 30;
 // tokens. openrouter: force real calls, throws if key missing. Same action
 // grammar/dispatch path in every mode — switching modes is an env var flip,
 // not a different code path.
+// Every gateway-paid LLM call goes through the system-wide daily cap.
 export function selectLLMProvider(): LLMProvider {
+  return new GlobalBudgetProvider(selectRawLLMProvider());
+}
+function selectRawLLMProvider(): LLMProvider {
   const mode = env.NATIVE_LLM_MODE;
   if (mode === "mock") return new MockLLMProvider();
   if (mode === "ollama") return new OllamaProvider();

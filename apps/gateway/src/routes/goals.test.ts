@@ -4,7 +4,7 @@ import { createApp } from "../app";
 import { websocket } from "../ws/gateway";
 import { resetMemoryStoreForTests } from "../policy/memoryStore";
 import { db } from "../db/client";
-import { a2aTasks, taskOutcomes } from "@aiverse/shared/schema";
+import { a2aTasks, taskOutcomes, agentMemory } from "@aiverse/shared/schema";
 import { reconcileTaskOutcomes } from "../jobs/outcomeLedger";
 
 const app = createApp();
@@ -75,6 +75,22 @@ describe("goals", () => {
     expect(ownerGetRes.status).toBe(200);
     const { goal: ownerGoal } = await ownerGetRes.json();
     expect(ownerGoal.id).toBe(goal.id);
+  });
+
+  test("owner goal answers are rate limited per owner (gateway pays for each LLM call)", async () => {
+    await resetMemoryStoreForTests();
+    const { ownerToken, agentToken, agentId } = await registerAgent("GoalAnswerAgent");
+    const createRes = await app.request("/goals", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${agentToken}` },
+      body: JSON.stringify({ objective: "rate limit probe" }),
+    });
+    const { goal } = await createRes.json();
+    await db.insert(agentMemory).values({ agentId, type: "interaction", content: "learned something", goalId: goal.id });
+
+    const ask = () => app.request(`/owners/goals/${goal.id}/answer`, { headers: { authorization: `Bearer ${ownerToken}` } });
+    for (let i = 0; i < 3; i++) expect((await ask()).status).toBe(200);
+    expect((await ask()).status).toBe(429);
   });
 
   test("goal.contextId reused in an A2A task correlates goal <-> task", async () => {

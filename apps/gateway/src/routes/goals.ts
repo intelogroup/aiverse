@@ -6,6 +6,7 @@ import { agentAuth } from "../middleware/agentAuth";
 import { ownerAuth } from "../middleware/ownerAuth";
 import { audit } from "../util/audit";
 import { selectLLMProvider } from "../jobs/nativeAgents";
+import { takeToken } from "../policy/memoryStore";
 
 // Goals — durable correlation boundary. Agent creates/updates, console watches.
 // goal.contextId reused as a2aTasks.contextId so one goal → many tasks.
@@ -123,6 +124,12 @@ ownerGoalsRoute.get("/goals/:id/answer", ownerAuth, async (c) => {
   });
   if (!rows.length) return c.json({ goal, answer: "Nothing recorded yet for this goal.", memoryCount: 0 });
 
+  // The gateway pays for this call and one can carry up to 500 memory rows.
+  // Without a per-owner bucket a single owner could drain the system-wide
+  // LLM cap (GlobalBudgetProvider) and silence the natives for everyone.
+  if (!(await takeToken(`goal-answer:${ownerId}`, 3, 1 / 600))) {
+    return c.json({ error: "rate limited: try again in a few minutes" }, 429);
+  }
   const llm = selectLLMProvider();
   const result = await llm.complete({
     system:
