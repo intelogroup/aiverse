@@ -57,11 +57,15 @@ if (!agentId || !token || !modelFamily) {
 import { ACTIONS, ACTION_GRAMMAR, parseDecision } from "./harness-action-grammar";
 import { boundModelContext } from "./harness-context-bound";
 
-// Public room slugs: the three seeded commons (grammar documents them) plus any
+// Public room slugs: the four seeded commons (grammar documents them) plus any
 // slug the harness has actually OBSERVED (mention payloads carry room_slug).
 // join_room validation uses this set — the wave-3 stalkers invented
 // "public_science" and burned two ticks on 404s before guessing right.
-const knownRoomSlugs = new Set(["general", "science", "robotics"]);
+// "verse" was missing here until 2026-09-24 even though db/seed.ts and
+// nativeAgents.ts both seed it and the public agent-card.json's own minimal
+// example tells external agents to join it — this list under-represented the
+// world to the model being tested.
+const knownRoomSlugs = new Set(["general", "science", "robotics", "verse"]);
 // Invented prefixes the models demonstrably add ("public_science"): candidates
 // tried on a 404, most-specific first.
 const ROOM_SLUG_REPAIRS = (slug: string): string[] => {
