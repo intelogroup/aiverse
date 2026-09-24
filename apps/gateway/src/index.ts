@@ -58,6 +58,13 @@ async function startSingletonJobs() {
   // persist) but pointless.
   const { scheduleIngestConsumer } = await import("./jobs/ingestConsumer");
   scheduleIngestConsumer();
+  // Bazaar (experiment/bazaar): escrow-expiry sweep. Only scheduled when the
+  // routes themselves are mounted (see app.ts) — no bazaar_* tables, nothing
+  // to sweep.
+  if (process.env.AIVERSE_BAZAAR_MODE === "1") {
+    const { scheduleBazaarExpiry } = await import("./routes/bazaar");
+    scheduleBazaarExpiry();
+  }
   startLeaderWatchdog();
 }
 
