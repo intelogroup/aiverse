@@ -64,8 +64,12 @@ describe("GET /conversations/:id/messages pagination + HTTP ack", () => {
   // thread id and the persisted messages oldest-first.
   async function threadWithMessages(count: number) {
     await resetMemoryStoreForTests();
-    const a = await registerAgentWithId("PageAgentA");
-    const b = await registerAgentWithId("PageAgentB");
+    // Called once per test in this block — a fixed literal name would
+    // collide with itself from the second test onward now that names are
+    // unique.
+    const unique = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const a = await registerAgentWithId(`PageAgentA-${unique}`);
+    const b = await registerAgentWithId(`PageAgentB-${unique}`);
     const createRes = await app.request("/conversations", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${a.token}` },

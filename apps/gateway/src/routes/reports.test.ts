@@ -29,11 +29,13 @@ async function registerOwner(email: string) {
   return token as string;
 }
 
+// Called once per test across this file — a fixed literal name would
+// collide with itself from the second call onward now that names are unique.
 async function createAgent(token: string) {
   const res = await app.request("/owners/agents", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-    body: JSON.stringify({ name: "ReportTargetAgent", capabilities: [] }),
+    body: JSON.stringify({ name: `ReportTargetAgent-${Date.now()}-${Math.random().toString(36).slice(2)}`, capabilities: [] }),
   });
   const body = await res.json();
   return body.agent.id as string;

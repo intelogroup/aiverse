@@ -6,6 +6,7 @@ import type { AgentCard } from "@aiverse/shared/types";
 import { env } from "@aiverse/shared/env";
 import { agentAuth } from "../middleware/agentAuth";
 import { generateAgentToken, generateClaimCode } from "../auth/agentToken";
+import { generateAgentName, isAgentNameTaken } from "../util/agentName";
 import {
   checkAgentSendRate,
   checkAndConsumeBudget,
@@ -332,7 +333,7 @@ a2aRoute.post("/agents/register", async (c) => {
     return c.json({ error: "rate_limited" }, 429);
   }
   const body = await c.req.json<{
-    name: string;
+    name?: string;
     capabilities?: string[];
     description?: string;
     // Optional Ed25519 identity (raw 32-byte public key, base64url, no
@@ -342,9 +343,7 @@ a2aRoute.post("/agents/register", async (c) => {
     // migration (see auth/resolveAgent.ts).
     publicKey?: string;
   }>();
-  if (!body.name) {
-    return c.json({ error: "name required" }, 400);
-  }
+  const requestedName = body.name?.trim();
   // Reject malformed keys AT REGISTER TIME — previously any string was
   // accepted, so an SPKI/DER-encoded key registered fine (201) and every
   // later POST /auth/verify failed with a bare "invalid signature" and no
@@ -359,10 +358,20 @@ a2aRoute.post("/agents/register", async (c) => {
       400,
     );
   }
-  if (body.name.length > 64) return c.json({ error: "name too long (max 64)" }, 400);
+  if (requestedName !== undefined && requestedName.length > 64) return c.json({ error: "name too long (max 64)" }, 400);
   if (body.capabilities && body.capabilities.length > MAX_CAPABILITIES) return c.json({ error: `too many capabilities (max ${MAX_CAPABILITIES})` }, 400);
   if (JSON.stringify(body).length > MAX_CARD_BYTES) return c.json({ error: "Agent Card too large" }, 400);
   if (body.description && body.description.length > 500) return c.json({ error: "description too long (max 500)" }, 400);
+
+  // Same omitted-name-gets-generated, taken-name-gets-409 rule as
+  // owners.ts POST /agents — see util/agentName.ts.
+  let name: string;
+  if (!requestedName) {
+    name = await generateAgentName();
+  } else {
+    if (await isAgentNameTaken(requestedName)) return c.json({ error: "name taken" }, 409);
+    name = requestedName;
+  }
 
   const agentCard: AgentCard = {
     capabilities: body.capabilities ?? [],
@@ -378,15 +387,16 @@ a2aRoute.post("/agents/register", async (c) => {
   // (one Ed25519 identity key = one agent, unique index) surfaces as a clean
   // 409 — same handling as the owner key-rotation endpoint, not a 500. The
   // only other unique column in this insert path is claim_code_hash, whose
-  // 32-byte random collision is cryptographically implausible; agent names
-  // are not unique.
+  // 32-byte random collision is cryptographically implausible. Name
+  // uniqueness is checked above, app-level (util/agentName.ts) — a
+  // registration race on the same name is possible but accepted for now.
   let agent;
   try {
     agent = await db.transaction(async (tx) => {
       const [agent] = await tx
         .insert(agents)
         .values({
-          name: body.name,
+          name,
           agentCard,
           apiKeyHash: hash,
           publicKey: body.publicKey,
@@ -416,7 +426,7 @@ a2aRoute.post("/agents/register", async (c) => {
 
   // claimCode is the only time the plaintext secret exists outside the hash
   // — the agent runtime must capture it now.
-  await audit({ event: "agent.registered", agentId: agent.id, actorType: "agent", actorId: agent.id, metadata: { name: body.name, hasPublicKey: !!body.publicKey } });
+  await audit({ event: "agent.registered", agentId: agent.id, actorType: "agent", actorId: agent.id, metadata: { name, hasPublicKey: !!body.publicKey } });
   // ponytail: code travels as a raw query param (browser history/referrer
   // exposure) — swap for a short-lived signed session token if that becomes
   // a real concern; claimCode itself is already secret bearer data in this

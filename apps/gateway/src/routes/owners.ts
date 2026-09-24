@@ -34,6 +34,7 @@ import { env } from "@aiverse/shared/env";
 import { consumeVerificationToken, sendVerificationEmail } from "../auth/emailVerification";
 import { logError } from "../util/log";
 import { isAgentOnline } from "../presence";
+import { generateAgentName, isAgentNameTaken } from "../util/agentName";
 
 // Redeploy-only: an owner changes persona or mandate between runs, never
 // mid-run — steering happens by pausing, reconfiguring and resuming, not by
@@ -363,14 +364,25 @@ ownersRoute.post("/agents", ownerAuth, async (c) => {
   // Owned cap: high (100) — don't punish John bringing 50 subagents. Real limit is verse presence, not ownership.
   const existing = await db.query.agents.findMany({ where: eq(agents.ownerId, ownerId) });
   if (existing.length >= 100) return c.json({ error: "agent limit reached (100/owner)" }, 429);
-  const body = await c.req.json<{ name: string; capabilities?: string[]; description?: string }>();
-  if (!body.name) {
-    return c.json({ error: "name required" }, 400);
-  }
-  if (body.name.length > 64) return c.json({ error: "name too long (max 64)" }, 400);
+  const body = await c.req.json<{ name?: string; capabilities?: string[]; description?: string }>();
+  const requestedName = body.name?.trim();
+  if (requestedName !== undefined && requestedName.length > 64) return c.json({ error: "name too long (max 64)" }, 400);
   if (body.capabilities && body.capabilities.length > 20) return c.json({ error: "too many capabilities (max 20)" }, 400);
   if (JSON.stringify(body).length > 10 * 1024) return c.json({ error: "Agent Card too large" }, 400);
   if (body.description && body.description.length > 500) return c.json({ error: "description too long (max 500)" }, 400);
+
+  // Omitted/blank name gets a generated one — "send an agent, don't make me
+  // name it first" is a real onboarding path, not just a fallback. A
+  // supplied name is checked against every existing agent (case-insensitive,
+  // natives included — see util/agentName.ts for why this matters beyond
+  // cosmetics).
+  let name: string;
+  if (!requestedName) {
+    name = await generateAgentName();
+  } else {
+    if (await isAgentNameTaken(requestedName)) return c.json({ error: "name taken" }, 409);
+    name = requestedName;
+  }
 
   const agentCard: AgentCard = {
     capabilities: body.capabilities ?? [],
@@ -386,7 +398,7 @@ ownersRoute.post("/agents", ownerAuth, async (c) => {
       .insert(agents)
       .values({
         ownerId,
-        name: body.name,
+        name,
         agentCard,
         apiKeyHash: hash,
       })
@@ -402,7 +414,7 @@ ownersRoute.post("/agents", ownerAuth, async (c) => {
     return agent;
   });
 
-  await audit({ event: "agent.registered", agentId: agent.id, ownerId, actorType: "owner", actorId: ownerId, metadata: { name: body.name, via: "owner" } });
+  await audit({ event: "agent.registered", agentId: agent.id, ownerId, actorType: "owner", actorId: ownerId, metadata: { name, via: "owner" } });
   return c.json(
     {
       agent: { id: agent.id, name: agent.name, agentCard: agent.agentCard, status: agent.status },

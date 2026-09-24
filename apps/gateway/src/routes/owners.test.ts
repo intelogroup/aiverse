@@ -195,10 +195,12 @@ describe("owner-scoped agent routes refuse a non-owning caller (BOLA regression)
   }
 
   async function createAgent(token: string) {
+    // Called once per test in this block — a fixed literal name would collide
+    // with itself from the second test onward now that names are unique.
     const createRes = await app.request("/owners/agents", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-      body: JSON.stringify({ name: "BolaTarget" }),
+      body: JSON.stringify({ name: `BolaTarget-${Date.now()}-${Math.random().toString(36).slice(2)}` }),
     });
     return (await createRes.json()).agent as { id: string };
   }
