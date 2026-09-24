@@ -3,12 +3,15 @@ import type { WSContext as HonoWSContext } from "hono/ws";
 import type { ServerWebSocket } from "bun";
 import { and, eq, notInArray, gt, lt, ne, isNull } from "drizzle-orm";
 import { db } from "../db/client";
-import { agents, conversationParticipants, messages, a2aTasks, mentions } from "@aiverse/shared/schema";
+import { agents, conversationParticipants, messages, a2aTasks, mentions, consoleEvents } from "@aiverse/shared/schema";
 import { redis, redisSub } from "../redis/client";
 import { recentCacheKey, INGEST_STREAM } from "../jobs/ingestConsumer";
 import { presenceKey, setPresence, clearPresence } from "../presence";
 import { envelope, WS_EVENTS } from "./events";
 import { log, timed } from "../util/log";
+import { checkAndConsumeVisit } from "../policy/visits";
+
+export const VISIT_CLOSE_CODE = 4008;
 
 export const { upgradeWebSocket, websocket } = createBunWebSocket<ServerWebSocket>();
 
@@ -109,6 +112,26 @@ redisSub.on("message", (_channel: string, raw: string) => {
 
 export function broadcastToOwnerConsole(ownerId: string, event: ReturnType<typeof envelope>): void {
   publishFanout({ kind: "console", ownerId, event });
+}
+
+// The disconnect+notify side effect of a visit ending — one place for it
+// since every caller (agentAuth, this module's own WS connect handler,
+// jobs/visits.ts's sweep, owners.ts's stop-visit route) needs the exact same
+// three things: kick any live socket, leave an attention trail in the
+// console event log, and push a live update to any open console.
+export async function announceVisitEnded(ended: { agentId: string; ownerId: string; id: string; reason: string }): Promise<void> {
+  forceDisconnectAgent(ended.agentId, VISIT_CLOSE_CODE, `visit ended: ${ended.reason}`);
+  await db.insert(consoleEvents).values({
+    agentId: ended.agentId,
+    ownerId: ended.ownerId,
+    severity: "attention",
+    summary: `Visit ended (${ended.reason.replace(/_/g, " ")})`,
+  });
+  broadcastToOwnerConsole(
+    ended.ownerId,
+    envelope(WS_EVENTS.VISIT_ENDED, { agent_id: ended.agentId, visit_id: ended.id, reason: ended.reason }),
+  );
+  log("visit_ended", { agentId: ended.agentId, ownerId: ended.ownerId, visitId: ended.id, reason: ended.reason });
 }
 
 export function broadcastToPublic(event: ReturnType<typeof envelope>): void {
@@ -586,6 +609,17 @@ export function registerAgentWsRoute(app: {
           }
           if (!agent.ownerId) {
             ws.close(4005, "agent unclaimed");
+            return;
+          }
+          // "GET" — connecting isn't an action to spend budget on, but an
+          // agent whose visit already ended (deadline or cap, possibly not
+          // yet swept) must not be able to open a fresh socket. Real actions
+          // still go through agentAuth's own check on the HTTP call that
+          // sends them; this only guards presence/delivery over the socket.
+          const visit = await checkAndConsumeVisit(agent.id, "GET");
+          if (!visit.allowed) {
+            if (visit.ended) await announceVisitEnded(visit.ended);
+            ws.close(VISIT_CLOSE_CODE, `visit ended`);
             return;
           }
 

@@ -1,6 +1,8 @@
 import type { MiddlewareHandler } from "hono";
 import { resolveAgentFromToken } from "../auth/resolveAgent";
 import { setPresence, API_PRESENCE_TTL_SECONDS } from "../presence";
+import { checkAndConsumeVisit } from "../policy/visits";
+import { announceVisitEnded } from "../ws/gateway";
 
 export const agentAuth: MiddlewareHandler<{ Variables: { agentId: string } }> = async (
   c,
@@ -21,6 +23,15 @@ export const agentAuth: MiddlewareHandler<{ Variables: { agentId: string } }> = 
   }
   if (agent.status === "unclaimed") {
     return c.json({ error: "agent_unclaimed" }, 403);
+  }
+
+  // Visit enforcement, before the call counts as anything else: an agent
+  // whose visit just ended (deadline or action cap) gets rejected here, not
+  // let through and caught later.
+  const visit = await checkAndConsumeVisit(agent.id, c.req.method);
+  if (!visit.allowed) {
+    if (visit.ended) await announceVisitEnded(visit.ended);
+    return c.json({ error: "visit_ended", reason: visit.reason }, 403);
   }
 
   c.set("agentId", agent.id);

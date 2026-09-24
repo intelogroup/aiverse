@@ -599,6 +599,48 @@ export const ownerReadKeys = pgTable(
   (t) => [index("owner_read_keys_owner_idx").on(t.ownerId)],
 );
 
+// A time-and-action-boxed autonomous session: "send my agent into the Verse
+// for 2 hours, at most 200 actions." The owner-only surface for starting one
+// is deliberately narrow (POST .../visits, POST .../visits/:id/stop) — an
+// agent cannot extend, raise the cap on, or end its own visit; the same
+// "owner sets the envelope, agent acts inside it" split as the wallet.
+// Enforcement lives in middleware/agentAuth.ts (every authed call checks the
+// active visit, a non-GET call counts against it) plus jobs/visits.ts (a
+// leader-only sweep that ends a visit whose deadline passed even if the
+// agent never calls in again, and ends one whose agent has had no presence
+// key for AGENT_OFFLINE_GRACE_SECONDS — covers a closed Claude Code session
+// or Grok Bot hitting its own weekly limit, which look identical from here:
+// the agent just stops calling in).
+export const agentVisits = pgTable(
+  "agent_visits",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => agents.id),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => owners.id),
+    startedAt: timestamp("started_at").notNull().defaultNow(),
+    endsAt: timestamp("ends_at").notNull(),
+    maxActions: integer("max_actions").notNull(),
+    actionsUsed: integer("actions_used").notNull().default(0),
+    // Set by the sweep the first tick it finds the agent with no live
+    // presence key, cleared the first tick it finds one again — the sweep's
+    // own record of "since when has this agent been unreachable", not
+    // updated on the request path.
+    offlineSince: timestamp("offline_since"),
+    endedAt: timestamp("ended_at"),
+    endedReason: text("ended_reason"),
+  },
+  (t) => [
+    // The "does this agent have an active visit" check (agentAuth, every
+    // authed request) and "one active visit per agent" check (starting a
+    // new one) are both WHERE agent_id = ? AND ended_at IS NULL.
+    index("agent_visits_agent_active_idx").on(t.agentId, t.endedAt),
+  ],
+);
+
 // Human goal — durable correlation boundary for useful work.
 // Agent creates/updates, console watches. contextId is reused as a2aTasks.contextId
 // so one goal → many A2A tasks share same context.

@@ -14,15 +14,17 @@ import {
   messages,
   walletUsageDaily,
   ownerReadKeys,
+  agentVisits,
 } from "@aiverse/shared/schema";
 import { generateOwnerReadKey, ownerSessionOrReadKey } from "../middleware/ownerReadAuth";
+import { stopVisitRecord, MIN_VISIT_MINUTES, MAX_VISIT_MINUTES, MIN_VISIT_ACTIONS, MAX_VISIT_ACTIONS } from "../policy/visits";
 import type { AgentCard } from "@aiverse/shared/types";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { revokeOwnerSessions, signOwnerSession } from "../auth/session";
 import { consumePasswordResetToken, sendPasswordResetEmail } from "../auth/passwordReset";
 import { generateAgentToken, hashAgentToken } from "../auth/agentToken";
 import { ownerAuth } from "../middleware/ownerAuth";
-import { forceDisconnectAgent, getConnectedAgentIds, broadcastToOwnerConsole } from "../ws/gateway";
+import { forceDisconnectAgent, getConnectedAgentIds, broadcastToOwnerConsole, announceVisitEnded } from "../ws/gateway";
 import { envelope, WS_EVENTS } from "../ws/events";
 import { takeToken } from "../policy/memoryStore";
 import { redis } from "../redis/client";
@@ -787,6 +789,75 @@ ownersRoute.post("/agents/:id/kill", ownerAuth, async (c) => {
     ownerId,
     envelope(WS_EVENTS.AGENT_STATUS_CHANGED, { agent_id: agentId, status: "killed" }),
   );
+
+  return c.json({ ok: true });
+});
+
+// Visits: "send this agent into the Verse for N minutes, at most M actions."
+// Owner-only to start or stop — an agent cannot extend its own deadline,
+// raise its own cap, or end its own visit. Enforcement (the deadline/cap
+// check, the action counter) lives in middleware/agentAuth.ts and
+// ws/gateway.ts's WS connect handler, both via policy/visits.ts; this route
+// only creates/lists/ends the row.
+ownersRoute.post("/agents/:id/visits", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const agentId = c.req.param("id");
+  const agent = await loadOwnedAgent(ownerId, agentId);
+  if (!agent) return c.json({ error: "not found" }, 404);
+
+  const active = await db.query.agentVisits.findFirst({
+    where: and(eq(agentVisits.agentId, agentId), isNull(agentVisits.endedAt)),
+  });
+  if (active) return c.json({ error: "agent already has an active visit — stop it first" }, 409);
+
+  const body = await c.req.json<{ minutes?: number; maxActions?: number }>().catch(() => ({}) as { minutes?: number; maxActions?: number });
+  const minutes = Number(body.minutes);
+  const maxActions = Number(body.maxActions);
+  if (!Number.isInteger(minutes) || minutes < MIN_VISIT_MINUTES || minutes > MAX_VISIT_MINUTES) {
+    return c.json({ error: `minutes must be an integer between ${MIN_VISIT_MINUTES} and ${MAX_VISIT_MINUTES}` }, 400);
+  }
+  if (!Number.isInteger(maxActions) || maxActions < MIN_VISIT_ACTIONS || maxActions > MAX_VISIT_ACTIONS) {
+    return c.json({ error: `maxActions must be an integer between ${MIN_VISIT_ACTIONS} and ${MAX_VISIT_ACTIONS}` }, 400);
+  }
+
+  const [visit] = await db
+    .insert(agentVisits)
+    .values({ agentId, ownerId, endsAt: new Date(Date.now() + minutes * 60_000), maxActions })
+    .returning();
+
+  await audit({ event: "visit.started", agentId, ownerId, actorType: "owner", actorId: ownerId, metadata: { minutes, maxActions } });
+  return c.json({ visit }, 201);
+});
+
+ownersRoute.get("/agents/:id/visits", ownerSessionOrReadKey, async (c) => {
+  const ownerId = c.get("ownerId");
+  const agentId = c.req.param("id");
+  const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
+  if (!agent || agent.ownerId !== ownerId) return c.json({ error: "not found" }, 404);
+
+  const visits = await db.query.agentVisits.findMany({
+    where: eq(agentVisits.agentId, agentId),
+    orderBy: desc(agentVisits.startedAt),
+    limit: 50,
+  });
+  return c.json({ visits });
+});
+
+ownersRoute.post("/agents/:id/visits/:visitId/stop", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const agentId = c.req.param("id");
+  const agent = await loadOwnedAgent(ownerId, agentId);
+  if (!agent) return c.json({ error: "not found" }, 404);
+
+  const visit = await db.query.agentVisits.findFirst({
+    where: and(eq(agentVisits.id, c.req.param("visitId")), eq(agentVisits.agentId, agentId)),
+  });
+  if (!visit) return c.json({ error: "not found" }, 404);
+
+  const ended = await stopVisitRecord(visit.id);
+  if (!ended) return c.json({ error: "visit already ended" }, 409);
+  await announceVisitEnded(ended);
+  await audit({ event: "visit.stopped", agentId, ownerId, actorType: "owner", actorId: ownerId, metadata: { visitId: visit.id } });
 
   return c.json({ ok: true });
 });
