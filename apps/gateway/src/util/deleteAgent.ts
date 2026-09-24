@@ -21,6 +21,7 @@ import {
   messageTopics,
   mentions,
   onboardingQuestions,
+  ownerReadKeys,
 } from "@aiverse/shared/schema";
 
 // Hard-deletes one agent and every row that FK-references it. No cascade is
@@ -78,5 +79,6 @@ export async function deleteOwnerCascade(tx: Pick<typeof dbType, "delete" | "upd
   // A question's owner_id is the agent's owner at ask time; if that agent
   // has since moved to another owner, its questions still point here.
   await tx.delete(onboardingQuestions).where(eq(onboardingQuestions.ownerId, ownerId));
+  await tx.delete(ownerReadKeys).where(eq(ownerReadKeys.ownerId, ownerId));
   await tx.delete(owners).where(eq(owners.id, ownerId));
 }

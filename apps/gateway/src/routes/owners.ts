@@ -13,7 +13,9 @@ import {
   conversations,
   messages,
   walletUsageDaily,
+  ownerReadKeys,
 } from "@aiverse/shared/schema";
+import { generateOwnerReadKey, ownerSessionOrReadKey } from "../middleware/ownerReadAuth";
 import type { AgentCard } from "@aiverse/shared/types";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { revokeOwnerSessions, signOwnerSession } from "../auth/session";
@@ -237,6 +239,53 @@ ownersRoute.post("/logout-all", ownerAuth, async (c) => {
   const ownerId = c.get("ownerId");
   await revokeOwnerSessions(ownerId);
   await audit({ event: "owner.sessions_revoked", ownerId, actorType: "owner", actorId: ownerId });
+  return c.json({ ok: true });
+});
+
+// Read keys: long-lived, read-only credentials for observer clients (the
+// Verse MCP server). Managed only from a full console session — a read key
+// can never mint, list or revoke keys. The plaintext is returned once.
+const MAX_ACTIVE_READ_KEYS = 10;
+
+ownersRoute.post("/read-keys", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const body = await c.req.json<{ label?: string }>().catch(() => ({}) as { label?: string });
+  const label = (body.label ?? "").trim();
+  if (label.length < 1 || label.length > 60) return c.json({ error: "label required (1-60 chars)" }, 400);
+
+  const active = await db.query.ownerReadKeys.findMany({
+    where: and(eq(ownerReadKeys.ownerId, ownerId), isNull(ownerReadKeys.revokedAt)),
+    columns: { id: true },
+  });
+  if (active.length >= MAX_ACTIVE_READ_KEYS) {
+    return c.json({ error: `too many active read keys (max ${MAX_ACTIVE_READ_KEYS}) — revoke one first` }, 409);
+  }
+
+  const { key, hash } = generateOwnerReadKey();
+  const [row] = await db.insert(ownerReadKeys).values({ ownerId, keyHash: hash, label }).returning();
+  await audit({ event: "owner.read_key_created", ownerId, actorType: "owner", actorId: ownerId, metadata: { keyId: row.id, label } });
+  return c.json({ readKey: { id: row.id, label: row.label, createdAt: row.createdAt }, key }, 201);
+});
+
+ownersRoute.get("/read-keys", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const keys = await db.query.ownerReadKeys.findMany({
+    where: eq(ownerReadKeys.ownerId, ownerId),
+    columns: { id: true, label: true, createdAt: true, lastUsedAt: true, revokedAt: true },
+    orderBy: desc(ownerReadKeys.createdAt),
+  });
+  return c.json({ readKeys: keys });
+});
+
+ownersRoute.delete("/read-keys/:id", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const [revoked] = await db
+    .update(ownerReadKeys)
+    .set({ revokedAt: new Date() })
+    .where(and(eq(ownerReadKeys.id, c.req.param("id")), eq(ownerReadKeys.ownerId, ownerId), isNull(ownerReadKeys.revokedAt)))
+    .returning({ id: ownerReadKeys.id });
+  if (!revoked) return c.json({ error: "not found" }, 404);
+  await audit({ event: "owner.read_key_revoked", ownerId, actorType: "owner", actorId: ownerId, metadata: { keyId: revoked.id } });
   return c.json({ ok: true });
 });
 
@@ -749,7 +798,7 @@ ownersRoute.delete("/agents/:id", ownerAuth, async (c) => {
   return c.json({ ok: true });
 });
 
-ownersRoute.get("/console-events", ownerAuth, async (c) => {
+ownersRoute.get("/console-events", ownerSessionOrReadKey, async (c) => {
   const ownerId = c.get("ownerId");
   const severity = c.req.query("severity") as "attention" | "activity" | undefined;
   const unresolvedOnly = c.req.query("unresolved") === "true";
@@ -854,7 +903,7 @@ ownersRoute.get("/agents-stats", ownerAuth, async (c) => {
 
 // Conversation inventory for one owned agent: every conversation it
 // participates in, with last-activity metadata. Powers the console's DM list.
-ownersRoute.get("/agents/:id/conversations", ownerAuth, async (c) => {
+ownersRoute.get("/agents/:id/conversations", ownerSessionOrReadKey, async (c) => {
   const ownerId = c.get("ownerId");
   const agentId = c.req.param("id");
 
@@ -902,7 +951,7 @@ ownersRoute.get("/agents/:id/conversations", ownerAuth, async (c) => {
 
 // Raw-tab transcript access: the owner can read a conversation's history if
 // any of their own agents is a participant in it (Phase 4's ⚪ Raw tier).
-ownersRoute.get("/conversations/:id/messages", ownerAuth, async (c) => {
+ownersRoute.get("/conversations/:id/messages", ownerSessionOrReadKey, async (c) => {
   const ownerId = c.get("ownerId");
   const conversationId = c.req.param("id");
 
@@ -917,6 +966,19 @@ ownersRoute.get("/conversations/:id/messages", ownerAuth, async (c) => {
     return c.json({ error: "not found" }, 404);
   }
 
+  // Opt-in limit returns only the newest page (still oldest-first); without
+  // it the console keeps getting the full history it renders today.
+  const limitRaw = c.req.query("limit");
+  if (limitRaw !== undefined) {
+    const limit = Math.min(Math.max(Number(limitRaw) || 100, 1), 500);
+    const newest = await db.query.messages.findMany({
+      where: eq(messages.conversationId, conversationId),
+      orderBy: (m, { desc }) => [desc(m.createdAt), desc(m.id)],
+      limit,
+    });
+    return c.json({ messages: newest.reverse() });
+  }
+
   const list = await db.query.messages.findMany({
     where: eq(messages.conversationId, conversationId),
     orderBy: (m, { asc }) => [asc(m.createdAt)],
@@ -924,7 +986,7 @@ ownersRoute.get("/conversations/:id/messages", ownerAuth, async (c) => {
   return c.json({ messages: list });
 });
 
-ownersRoute.get("/agents", ownerAuth, async (c) => {
+ownersRoute.get("/agents", ownerSessionOrReadKey, async (c) => {
   const ownerId = c.get("ownerId");
   const list = await db.query.agents.findMany({
     where: eq(agents.ownerId, ownerId),

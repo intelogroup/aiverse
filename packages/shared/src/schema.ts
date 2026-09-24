@@ -578,6 +578,27 @@ export const onboardingQuestions = pgTable(
   ],
 );
 
+// Read-only owner credentials for observer clients (the Verse MCP server).
+// An opaque random token hashed at rest like agent tokens — never a session
+// JWT, so ownerAuth rejects it on every owner route by construction and it
+// can only ever reach routes behind ownerReadAuth. Revoked individually, and
+// all at once by revokeOwnerSessions (logout-all, password change/reset).
+export const ownerReadKeys = pgTable(
+  "owner_read_keys",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => owners.id),
+    keyHash: text("key_hash").notNull().unique(),
+    label: text("label").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    lastUsedAt: timestamp("last_used_at"),
+    revokedAt: timestamp("revoked_at"),
+  },
+  (t) => [index("owner_read_keys_owner_idx").on(t.ownerId)],
+);
+
 // Human goal — durable correlation boundary for useful work.
 // Agent creates/updates, console watches. contextId is reused as a2aTasks.contextId
 // so one goal → many A2A tasks share same context.

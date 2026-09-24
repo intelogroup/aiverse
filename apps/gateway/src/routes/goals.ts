@@ -4,6 +4,7 @@ import { db } from "../db/client";
 import { goals, a2aTasks, agentMemory } from "@aiverse/shared/schema";
 import { agentAuth } from "../middleware/agentAuth";
 import { ownerAuth } from "../middleware/ownerAuth";
+import { ownerSessionOrReadKey } from "../middleware/ownerReadAuth";
 import { audit } from "../util/audit";
 import { selectLLMProvider } from "../jobs/nativeAgents";
 import { takeToken } from "../policy/memoryStore";
@@ -75,7 +76,7 @@ goalsRoute.patch("/goals/:id", agentAuth, async (c) => {
 });
 
 // Owner watches
-ownerGoalsRoute.get("/goals", ownerAuth, async (c) => {
+ownerGoalsRoute.get("/goals", ownerSessionOrReadKey, async (c) => {
   const ownerId = c.get("ownerId");
   const list = await db.query.goals.findMany({ where: eq(goals.ownerId, ownerId), orderBy: desc(goals.createdAt), limit: 50 });
   return c.json({ goals: list });

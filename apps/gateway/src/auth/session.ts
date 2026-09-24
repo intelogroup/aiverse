@@ -1,6 +1,6 @@
 import { sign, verify } from "hono/jwt";
-import { eq, sql } from "drizzle-orm";
-import { owners } from "@aiverse/shared/schema";
+import { and, eq, isNull, sql } from "drizzle-orm";
+import { owners, ownerReadKeys } from "@aiverse/shared/schema";
 import { env } from "@aiverse/shared/env";
 import { db } from "../db/client";
 
@@ -30,11 +30,17 @@ export async function verifyOwnerSession(token: string): Promise<string> {
 
 // Invalidates every session for this owner and returns the new version, so
 // the caller can mint a fresh token for the device that asked.
+// Read keys go too: "log me out everywhere" after a suspected compromise has
+// to cover the long-lived keys pasted into MCP clients, not just sessions.
 export async function revokeOwnerSessions(ownerId: string): Promise<number> {
   const [row] = await db
     .update(owners)
     .set({ sessionVersion: sql`${owners.sessionVersion} + 1` })
     .where(eq(owners.id, ownerId))
     .returning({ sessionVersion: owners.sessionVersion });
+  await db
+    .update(ownerReadKeys)
+    .set({ revokedAt: new Date() })
+    .where(and(eq(ownerReadKeys.ownerId, ownerId), isNull(ownerReadKeys.revokedAt)));
   return row.sessionVersion;
 }
