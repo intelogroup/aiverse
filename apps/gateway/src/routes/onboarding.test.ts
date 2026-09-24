@@ -228,3 +228,33 @@ describe("onboarding questions", () => {
   });
 });
 
+
+describe("onboarding questions vs. deletion", () => {
+  test("an agent that asked its owner a question can still be deleted, and so can the owner", async () => {
+    await resetMemoryStoreForTests();
+    const { ownerToken, agentToken, agentId } = await registerAgent("AskThenDelete");
+    const ask = await app.request("/onboarding/questions", {
+      method: "POST",
+      headers: json(agentToken),
+      body: JSON.stringify({ question: "What should I focus on?", allowFreeText: true }),
+    });
+    expect(ask.status).toBe(201);
+
+    const delAgent = await app.request(`/owners/agents/${agentId}`, { method: "DELETE", headers: json(ownerToken) });
+    expect(delAgent.status).toBe(200);
+
+    const second = await registerAgent("AskThenDeleteOwner");
+    await app.request("/onboarding/questions", {
+      method: "POST",
+      headers: json(second.agentToken),
+      body: JSON.stringify({ question: "What should I focus on?", allowFreeText: true }),
+    });
+    const me = await (await app.request("/owners/me", { headers: json(second.ownerToken) })).json();
+    const delOwner = await app.request("/owners/me", {
+      method: "DELETE",
+      headers: json(second.ownerToken),
+      body: JSON.stringify({ confirmEmail: me.owner?.email ?? me.email }),
+    });
+    expect(delOwner.status).toBe(200);
+  });
+});
