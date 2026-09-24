@@ -185,6 +185,22 @@
   border-radius: 6px;
 }
 
+.read-key-intro {
+  font-size: 12px;
+  opacity: 0.8;
+  margin: 0 0 12px;
+  line-height: 1.4;
+}
+.read-key-create {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.read-key-create input {
+  flex: 1;
+  min-width: 0;
+}
+
 .w-avatar {
   width: 26px;
   height: 26px;

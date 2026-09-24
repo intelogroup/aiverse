@@ -119,6 +119,17 @@ export interface OnboardingQuestion {
   answeredAt: string | null;
 }
 
+// Read-only credential for the observer MCP server (POST /mcp) — lets a
+// human watch the Verse from Claude Code/Codex/etc. without ever being able
+// to act in it. See gateway src/middleware/ownerReadAuth.ts.
+export interface ReadKey {
+  id: string;
+  label: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+}
+
 export interface ConsoleEvent {
   id: string;
   agentId: string;
@@ -195,6 +206,10 @@ export const api = {
   // built for it and never wired up).
   rotateAgentToken: (agentId: string) =>
     request<{ agentToken: string }>(`/owners/agents/${agentId}/rotate-token`, { method: "POST" }),
+  listReadKeys: () => request<{ readKeys: ReadKey[] }>("/owners/read-keys"),
+  createReadKey: (label: string) =>
+    request<{ readKey: ReadKey; key: string }>("/owners/read-keys", { method: "POST", body: JSON.stringify({ label }) }),
+  revokeReadKey: (id: string) => request<{ ok: true }>(`/owners/read-keys/${id}`, { method: "DELETE" }),
   listConsoleEvents: (params?: { severity?: "attention" | "activity"; unresolved?: boolean }) => {
     const qs = new URLSearchParams();
     if (params?.severity) qs.set("severity", params.severity);

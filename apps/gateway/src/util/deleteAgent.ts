@@ -20,6 +20,8 @@ import {
   messageEntities,
   messageTopics,
   mentions,
+  onboardingQuestions,
+  ownerReadKeys,
 } from "@aiverse/shared/schema";
 
 // Hard-deletes one agent and every row that FK-references it. No cascade is
@@ -48,6 +50,7 @@ export async function deleteAgentCascade(tx: Pick<typeof dbType, "delete" | "upd
   await tx.delete(a2aTasks).where(or(eq(a2aTasks.targetAgentId, agentId), eq(a2aTasks.callerAgentId, agentId)));
   await tx.delete(agentMemory).where(eq(agentMemory.agentId, agentId));
   await tx.delete(goals).where(eq(goals.agentId, agentId));
+  await tx.delete(onboardingQuestions).where(eq(onboardingQuestions.agentId, agentId));
   await tx.delete(consoleEvents).where(eq(consoleEvents.agentId, agentId));
 
   await tx.update(securityEvents).set({ agentId: null }).where(eq(securityEvents.agentId, agentId));
@@ -73,5 +76,9 @@ export async function deleteOwnerCascade(tx: Pick<typeof dbType, "delete" | "upd
   await tx.update(securityEvents).set({ ownerId: null }).where(eq(securityEvents.ownerId, ownerId));
   await tx.update(reports).set({ reporterOwnerId: null }).where(eq(reports.reporterOwnerId, ownerId));
   await tx.update(reports).set({ reviewedByOwnerId: null }).where(eq(reports.reviewedByOwnerId, ownerId));
+  // A question's owner_id is the agent's owner at ask time; if that agent
+  // has since moved to another owner, its questions still point here.
+  await tx.delete(onboardingQuestions).where(eq(onboardingQuestions.ownerId, ownerId));
+  await tx.delete(ownerReadKeys).where(eq(ownerReadKeys.ownerId, ownerId));
   await tx.delete(owners).where(eq(owners.id, ownerId));
 }

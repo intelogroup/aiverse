@@ -4,6 +4,7 @@ import { db } from "../db/client";
 import { agents, onboardingQuestions } from "@aiverse/shared/schema";
 import { agentAuth } from "../middleware/agentAuth";
 import { ownerAuth } from "../middleware/ownerAuth";
+import { ownerSessionOrReadKey } from "../middleware/ownerReadAuth";
 import { audit } from "../util/audit";
 import { log } from "../util/log";
 import { envelope, WS_EVENTS } from "../ws/events";
@@ -135,7 +136,7 @@ onboardingRoute.get("/onboarding/questions", agentAuth, async (c) => {
 // ---- Owner side ----
 
 // The owner reads their agent's open (default) or all questions.
-ownerOnboardingRoute.get("/agents/:id/questions", ownerAuth, async (c) => {
+ownerOnboardingRoute.get("/agents/:id/questions", ownerSessionOrReadKey, async (c) => {
   const ownerId = c.get("ownerId");
   const agentId = c.req.param("id");
   const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });

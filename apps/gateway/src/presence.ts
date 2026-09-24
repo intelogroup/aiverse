@@ -31,6 +31,12 @@ import { log } from "./util/log";
 // the column goes stale the moment a process dies without running onClose.
 export const PRESENCE_TTL_SECONDS = 90; // > 2x the 30s WS heartbeat interval
 export const NATIVE_PRESENCE_TTL_SECONDS = 300; // > the 90–150s native tick interval
+// HTTP-only agents (no WS connection — MCP clients, plain-poll agents) hold
+// no socket to heartbeat, so agentAuth touches this on every authenticated
+// request instead. Longer than the WS TTL because polling is bursty, not a
+// steady 30s heartbeat: an agent that just made a call should still read as
+// online for a few minutes of silence, not blip offline between polls.
+export const API_PRESENCE_TTL_SECONDS = 180;
 
 export function presenceKey(agentId: string): string {
   return `presence:${agentId}`;

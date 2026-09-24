@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { and, eq, gt, inArray, ne, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, ne, or, sql } from "drizzle-orm";
 import { db } from "../db/client";
 import {
   conversations,
@@ -24,7 +24,7 @@ import {
 } from "../policy/gate";
 import { recordAttentionEvent } from "../policy/consoleEvents";
 import { logError } from "../util/log";
-import { sendToAgent, broadcastToPublic, isAgentConnected } from "../ws/gateway";
+import { sendToAgent, broadcastToPublic, isAgentConnected, handleAck } from "../ws/gateway";
 import { publishIngest, getInflightMessage, setInflightMessage, deleteInflightMessage } from "../jobs/ingestConsumer";
 import { envelope, WS_EVENTS } from "../ws/events";
 import { checkTrust } from "../policy/gate";
@@ -671,9 +671,30 @@ conversationsRoute.post("/:id/messages", agentAuth, async (c) => {
   return c.json(result.body, result.status as any);
 });
 
+// Paginated read. Agents without a socket have no other way to read a
+// thread, so returning the whole history on every poll re-paid its full
+// context each tick. Three modes, always returned oldest-first:
+//   (default)     the newest `limit` messages — what a caller that slices
+//                 the tail (subject-harness's slice(-8)) actually needs;
+//                 oldest-first-with-limit would hand it stale messages
+//                 once a thread outgrows the limit.
+//   ?after=<id>   messages strictly after that message, keyed on
+//                 (createdAt, id) so two messages in the same millisecond
+//                 can't fall into the gap between pages.
+//   ?unread=true  messages from others after the server-side ack cursor
+//                 (lastDeliveredAt) — the same set GET /conversations
+//                 counts as unread, so an agent that forgets its place
+//                 (a restarted session) resumes from the server's record.
+// hasMore says another page exists in the requested direction.
 conversationsRoute.get("/:id/messages", agentAuth, async (c) => {
   const agentId = c.get("agentId");
   const conversationId = c.req.param("id");
+  const limit = Math.min(Math.max(Number(c.req.query("limit") ?? 100) || 100, 1), 500);
+  const afterId = c.req.query("after");
+  const unread = c.req.query("unread") === "true";
+  if (afterId && unread) {
+    return c.json({ error: "use either after or unread, not both" }, 400);
+  }
 
   const conversation = await db.query.conversations.findFirst({
     where: eq(conversations.id, conversationId),
@@ -681,21 +702,64 @@ conversationsRoute.get("/:id/messages", agentAuth, async (c) => {
   if (!conversation) {
     return c.json({ error: "conversation not found" }, 404);
   }
-  if (!conversation.isPublic) {
-    const participant = await db.query.conversationParticipants.findFirst({
-      where: and(
-        eq(conversationParticipants.conversationId, conversationId),
-        eq(conversationParticipants.agentId, agentId),
-      ),
-    });
-    if (!participant) {
-      return c.json({ error: "not a participant" }, 403);
-    }
+  const participant = await db.query.conversationParticipants.findFirst({
+    where: and(
+      eq(conversationParticipants.conversationId, conversationId),
+      eq(conversationParticipants.agentId, agentId),
+    ),
+  });
+  if (!conversation.isPublic && !participant) {
+    return c.json({ error: "not a participant" }, 403);
   }
 
-  const list = await db.query.messages.findMany({
-    where: eq(messages.conversationId, conversationId),
-    orderBy: (m, { asc }) => [asc(m.createdAt)],
+  const inConversation = eq(messages.conversationId, conversationId);
+  let rows: (typeof messages.$inferSelect)[];
+
+  if (afterId || unread) {
+    let lowerBound;
+    if (afterId) {
+      const anchor = await db.query.messages.findFirst({
+        where: and(eq(messages.id, afterId), inConversation),
+        columns: { id: true, createdAt: true },
+      });
+      if (!anchor) return c.json({ error: "after: message not found in this conversation" }, 400);
+      lowerBound = or(
+        gt(messages.createdAt, anchor.createdAt),
+        and(eq(messages.createdAt, anchor.createdAt), gt(messages.id, anchor.id)),
+      );
+    } else {
+      if (!participant) return c.json({ error: "unread requires being a participant" }, 400);
+      lowerBound = and(gt(messages.createdAt, participant.lastDeliveredAt), ne(messages.senderAgentId, agentId));
+    }
+    rows = await db.query.messages.findMany({
+      where: and(inConversation, lowerBound),
+      orderBy: (m, { asc }) => [asc(m.createdAt), asc(m.id)],
+      limit: limit + 1,
+    });
+    const hasMore = rows.length > limit;
+    return c.json({ messages: rows.slice(0, limit), hasMore });
+  }
+
+  rows = await db.query.messages.findMany({
+    where: inConversation,
+    orderBy: (m, { desc }) => [desc(m.createdAt), desc(m.id)],
+    limit: limit + 1,
   });
-  return c.json({ messages: list });
+  const hasMore = rows.length > limit;
+  return c.json({ messages: rows.slice(0, limit).reverse(), hasMore });
+});
+
+// Explicit ack for HTTP-only agents — the same cursor-advance a WS client
+// gets for free via the ACK frame (ws/events.ts), exposed as a route so a
+// client with no socket (MCP clients, plain-poll agents) can mark a message
+// read. Deliberately a separate call from GET .../messages rather than an
+// implicit side effect of reading: a poll shouldn't silently consume the
+// unread count an agent might still want to see un-acked (e.g. to decide
+// whether to reply before marking read).
+conversationsRoute.post("/:id/messages/:messageId/ack", agentAuth, async (c) => {
+  const agentId = c.get("agentId");
+  const conversationId = c.req.param("id");
+  const messageId = c.req.param("messageId");
+  await handleAck(agentId, { conversationId, messageId });
+  return c.json({ ok: true });
 });

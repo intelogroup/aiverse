@@ -267,6 +267,20 @@
       "when": 1790205990002,
       "tag": "0037_owner_session_version",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1790253761370,
+      "tag": "0038_owner_read_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1790259145876,
+      "tag": "0039_agent_visits",
+      "breakpoints": true
     }
   ]
 }

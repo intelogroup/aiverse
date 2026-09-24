@@ -36,31 +36,114 @@ beforeAll(async () => {
   await ensureRoomsSeeded();
 });
 
-describe("GET /conversations resync (single grouped query, 0033 index)", () => {
-  // registerAgent returns only a token; resync needs two agents with IDs
-  // (A's unread is counted against B's posts).
-  async function registerAgentWithId(name: string): Promise<{ token: string; agentId: string }> {
-    const email = `convr-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
-    const reg = await app.request("/owners/register", {
+// registerAgent returns only a token; tests that address a peer by id need both.
+async function registerAgentWithId(name: string): Promise<{ token: string; agentId: string }> {
+  const email = `convr-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
+  const reg = await app.request("/owners/register", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email, password: "password123" }),
+  });
+  const { token: ownerToken } = await reg.json();
+  const created = await app.request("/owners/agents", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
+    body: JSON.stringify({ name, capabilities: [] }),
+  });
+  const { agentToken, agent } = await created.json();
+  await app.request(`/owners/agents/${agent.id}/wallet`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
+    body: JSON.stringify({ autonomyMode: "autonomous" }),
+  });
+  return { token: agentToken as string, agentId: agent.id as string };
+}
+
+describe("GET /conversations/:id/messages pagination + HTTP ack", () => {
+  // A opens a private thread with B; B posts `count` messages. Returns the
+  // thread id and the persisted messages oldest-first.
+  async function threadWithMessages(count: number) {
+    await resetMemoryStoreForTests();
+    // Called once per test in this block — a fixed literal name would
+    // collide with itself from the second test onward now that names are
+    // unique.
+    const unique = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const a = await registerAgentWithId(`PageAgentA-${unique}`);
+    const b = await registerAgentWithId(`PageAgentB-${unique}`);
+    const createRes = await app.request("/conversations", {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email, password: "password123" }),
+      headers: { "content-type": "application/json", authorization: `Bearer ${a.token}` },
+      body: JSON.stringify({ isPublic: false, name: "page-test", participantIds: [b.agentId] }),
     });
-    const { token: ownerToken } = await reg.json();
-    const created = await app.request("/owners/agents", {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
-      body: JSON.stringify({ name, capabilities: [] }),
-    });
-    const { agentToken, agent } = await created.json();
-    await app.request(`/owners/agents/${agent.id}/wallet`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
-      body: JSON.stringify({ autonomyMode: "autonomous" }),
-    });
-    return { token: agentToken as string, agentId: agent.id as string };
+    const { conversation } = await createRes.json();
+    for (let i = 0; i < count; i++) {
+      if (i > 0) await resetMemoryStoreForTests();
+      const post = await app.request(`/conversations/${conversation.id}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${b.token}` },
+        body: JSON.stringify({ content: `m${i}` }),
+      });
+      expect(post.status).toBe(201);
+      await drainIngestStream();
+    }
+    return { a, b, conversationId: conversation.id as string };
   }
 
+  async function read(token: string, conversationId: string, query = "") {
+    const res = await app.request(`/conversations/${conversationId}/messages${query}`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    return { status: res.status, body: (await res.json()) as any };
+  }
+
+  test("default returns the NEWEST page, oldest-first, with hasMore", async () => {
+    const { a, conversationId } = await threadWithMessages(3);
+    const { status, body } = await read(a.token, conversationId, "?limit=2");
+    expect(status).toBe(200);
+    expect(body.messages.map((m: any) => m.content)).toEqual(["m1", "m2"]);
+    expect(body.hasMore).toBe(true);
+  });
+
+  test("after=<id> pages forward from that message", async () => {
+    const { a, conversationId } = await threadWithMessages(3);
+    const all = await read(a.token, conversationId);
+    const first = all.body.messages[0];
+    const { body } = await read(a.token, conversationId, `?after=${first.id}&limit=1`);
+    expect(body.messages.map((m: any) => m.content)).toEqual(["m1"]);
+    expect(body.hasMore).toBe(true);
+    const last = await read(a.token, conversationId, `?after=${all.body.messages[2].id}`);
+    expect(last.body.messages).toEqual([]);
+    expect(last.body.hasMore).toBe(false);
+  });
+
+  test("unread=true follows the server cursor, and HTTP ack advances it", async () => {
+    const { a, b, conversationId } = await threadWithMessages(3);
+    const before = await read(a.token, conversationId, "?unread=true");
+    expect(before.body.messages.map((m: any) => m.content)).toEqual(["m0", "m1", "m2"]);
+
+    const ack = await app.request(`/conversations/${conversationId}/messages/${before.body.messages[1].id}/ack`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${a.token}` },
+    });
+    expect(ack.status).toBe(200);
+
+    const after = await read(a.token, conversationId, "?unread=true");
+    expect(after.body.messages.map((m: any) => m.content)).toEqual(["m2"]);
+    // The sender's own messages are never its unread.
+    const own = await read(b.token, conversationId, "?unread=true");
+    expect(own.body.messages).toEqual([]);
+  });
+
+  test("bad cursor inputs are rejected, not silently ignored", async () => {
+    const { a, conversationId } = await threadWithMessages(1);
+    const unknown = await read(a.token, conversationId, `?after=${crypto.randomUUID()}`);
+    expect(unknown.status).toBe(400);
+    const both = await read(a.token, conversationId, `?after=${crypto.randomUUID()}&unread=true`);
+    expect(both.status).toBe(400);
+  });
+});
+
+describe("GET /conversations resync (single grouped query, 0033 index)", () => {
   test("unread counts come back per conversation in one round trip", async () => {
     await resetMemoryStoreForTests();
     const a = await registerAgentWithId("ResyncAgentA");

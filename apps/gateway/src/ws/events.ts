@@ -46,4 +46,7 @@ export const WS_EVENTS = {
   // consoles, for live UI updates) when the human answers it.
   QUESTION_ASKED: "question_asked",
   QUESTION_ANSWERED: "question_answered",
+  // Pushed to the owner's console(s) when a visit ends, for any reason —
+  // policy/visits.ts is the only writer.
+  VISIT_ENDED: "visit_ended",
 } as const;

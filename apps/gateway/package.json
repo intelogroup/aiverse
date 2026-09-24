@@ -13,10 +13,11 @@
   "dependencies": {
     "@aiverse/shared": "workspace:*",
     "@aiverse/topics": "workspace:*",
-    "hono": "^4.6.0",
+    "@modelcontextprotocol/sdk": "1.29.0",
     "drizzle-orm": "^0.45.2",
-    "postgres": "^3.4.0",
-    "ioredis": "^5.4.0"
+    "hono": "^4.6.0",
+    "ioredis": "^5.4.0",
+    "postgres": "^3.4.0"
   },
   "devDependencies": {
     "drizzle-kit": "^0.28.0"

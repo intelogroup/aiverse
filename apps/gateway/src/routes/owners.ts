@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { randomBytes } from "node:crypto";
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 import { db } from "../db/client";
 import {
   owners,
@@ -13,14 +13,18 @@ import {
   conversations,
   messages,
   walletUsageDaily,
+  ownerReadKeys,
+  agentVisits,
 } from "@aiverse/shared/schema";
+import { generateOwnerReadKey, ownerSessionOrReadKey } from "../middleware/ownerReadAuth";
+import { stopVisitRecord, MIN_VISIT_MINUTES, MAX_VISIT_MINUTES, MIN_VISIT_ACTIONS, MAX_VISIT_ACTIONS } from "../policy/visits";
 import type { AgentCard } from "@aiverse/shared/types";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { revokeOwnerSessions, signOwnerSession } from "../auth/session";
 import { consumePasswordResetToken, sendPasswordResetEmail } from "../auth/passwordReset";
 import { generateAgentToken, hashAgentToken } from "../auth/agentToken";
 import { ownerAuth } from "../middleware/ownerAuth";
-import { forceDisconnectAgent, getConnectedAgentIds, broadcastToOwnerConsole } from "../ws/gateway";
+import { forceDisconnectAgent, getConnectedAgentIds, broadcastToOwnerConsole, announceVisitEnded } from "../ws/gateway";
 import { envelope, WS_EVENTS } from "../ws/events";
 import { takeToken } from "../policy/memoryStore";
 import { redis } from "../redis/client";
@@ -31,6 +35,18 @@ import { deleteAgentCascade, deleteOwnerCascade } from "../util/deleteAgent";
 import { env } from "@aiverse/shared/env";
 import { consumeVerificationToken, sendVerificationEmail } from "../auth/emailVerification";
 import { logError } from "../util/log";
+import { isAgentOnline } from "../presence";
+import { generateAgentName, isAgentNameTaken } from "../util/agentName";
+
+// Redeploy-only: an owner changes persona or mandate between runs, never
+// mid-run — steering happens by pausing, reconfiguring and resuming, not by
+// rewriting a live agent's aims while it acts. Paused counts as between runs
+// even while its presence key is still expiring.
+async function liveEditRefusal(agent: { id: string; status: string }): Promise<string | null> {
+  if (agent.status === "paused") return null;
+  if (!(await isAgentOnline(agent.id))) return null;
+  return "agent is live: pause it before changing its persona or mandate, then resume";
+}
 
 export const ownersRoute = new Hono<{ Variables: { ownerId: string } }>();
 
@@ -229,6 +245,53 @@ ownersRoute.post("/logout-all", ownerAuth, async (c) => {
   return c.json({ ok: true });
 });
 
+// Read keys: long-lived, read-only credentials for observer clients (the
+// Verse MCP server). Managed only from a full console session — a read key
+// can never mint, list or revoke keys. The plaintext is returned once.
+const MAX_ACTIVE_READ_KEYS = 10;
+
+ownersRoute.post("/read-keys", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const body = await c.req.json<{ label?: string }>().catch(() => ({}) as { label?: string });
+  const label = (body.label ?? "").trim();
+  if (label.length < 1 || label.length > 60) return c.json({ error: "label required (1-60 chars)" }, 400);
+
+  const active = await db.query.ownerReadKeys.findMany({
+    where: and(eq(ownerReadKeys.ownerId, ownerId), isNull(ownerReadKeys.revokedAt)),
+    columns: { id: true },
+  });
+  if (active.length >= MAX_ACTIVE_READ_KEYS) {
+    return c.json({ error: `too many active read keys (max ${MAX_ACTIVE_READ_KEYS}) — revoke one first` }, 409);
+  }
+
+  const { key, hash } = generateOwnerReadKey();
+  const [row] = await db.insert(ownerReadKeys).values({ ownerId, keyHash: hash, label }).returning();
+  await audit({ event: "owner.read_key_created", ownerId, actorType: "owner", actorId: ownerId, metadata: { keyId: row.id, label } });
+  return c.json({ readKey: { id: row.id, label: row.label, createdAt: row.createdAt }, key }, 201);
+});
+
+ownersRoute.get("/read-keys", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const keys = await db.query.ownerReadKeys.findMany({
+    where: eq(ownerReadKeys.ownerId, ownerId),
+    columns: { id: true, label: true, createdAt: true, lastUsedAt: true, revokedAt: true },
+    orderBy: desc(ownerReadKeys.createdAt),
+  });
+  return c.json({ readKeys: keys });
+});
+
+ownersRoute.delete("/read-keys/:id", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const [revoked] = await db
+    .update(ownerReadKeys)
+    .set({ revokedAt: new Date() })
+    .where(and(eq(ownerReadKeys.id, c.req.param("id")), eq(ownerReadKeys.ownerId, ownerId), isNull(ownerReadKeys.revokedAt)))
+    .returning({ id: ownerReadKeys.id });
+  if (!revoked) return c.json({ error: "not found" }, 404);
+  await audit({ event: "owner.read_key_revoked", ownerId, actorType: "owner", actorId: ownerId, metadata: { keyId: revoked.id } });
+  return c.json({ ok: true });
+});
+
 // Requires the current password so a stolen session token alone can't lock
 // the real owner out. Revokes all other sessions and returns a fresh token
 // for the caller.
@@ -303,14 +366,25 @@ ownersRoute.post("/agents", ownerAuth, async (c) => {
   // Owned cap: high (100) — don't punish John bringing 50 subagents. Real limit is verse presence, not ownership.
   const existing = await db.query.agents.findMany({ where: eq(agents.ownerId, ownerId) });
   if (existing.length >= 100) return c.json({ error: "agent limit reached (100/owner)" }, 429);
-  const body = await c.req.json<{ name: string; capabilities?: string[]; description?: string }>();
-  if (!body.name) {
-    return c.json({ error: "name required" }, 400);
-  }
-  if (body.name.length > 64) return c.json({ error: "name too long (max 64)" }, 400);
+  const body = await c.req.json<{ name?: string; capabilities?: string[]; description?: string }>();
+  const requestedName = body.name?.trim();
+  if (requestedName !== undefined && requestedName.length > 64) return c.json({ error: "name too long (max 64)" }, 400);
   if (body.capabilities && body.capabilities.length > 20) return c.json({ error: "too many capabilities (max 20)" }, 400);
   if (JSON.stringify(body).length > 10 * 1024) return c.json({ error: "Agent Card too large" }, 400);
   if (body.description && body.description.length > 500) return c.json({ error: "description too long (max 500)" }, 400);
+
+  // Omitted/blank name gets a generated one — "send an agent, don't make me
+  // name it first" is a real onboarding path, not just a fallback. A
+  // supplied name is checked against every existing agent (case-insensitive,
+  // natives included — see util/agentName.ts for why this matters beyond
+  // cosmetics).
+  let name: string;
+  if (!requestedName) {
+    name = await generateAgentName();
+  } else {
+    if (await isAgentNameTaken(requestedName)) return c.json({ error: "name taken" }, 409);
+    name = requestedName;
+  }
 
   const agentCard: AgentCard = {
     capabilities: body.capabilities ?? [],
@@ -326,7 +400,7 @@ ownersRoute.post("/agents", ownerAuth, async (c) => {
       .insert(agents)
       .values({
         ownerId,
-        name: body.name,
+        name,
         agentCard,
         apiKeyHash: hash,
       })
@@ -342,7 +416,7 @@ ownersRoute.post("/agents", ownerAuth, async (c) => {
     return agent;
   });
 
-  await audit({ event: "agent.registered", agentId: agent.id, ownerId, actorType: "owner", actorId: ownerId, metadata: { name: body.name, via: "owner" } });
+  await audit({ event: "agent.registered", agentId: agent.id, ownerId, actorType: "owner", actorId: ownerId, metadata: { name, via: "owner" } });
   return c.json(
     {
       agent: { id: agent.id, name: agent.name, agentCard: agent.agentCard, status: agent.status },
@@ -528,6 +602,8 @@ ownersRoute.put("/agents/:id/mandate", ownerAuth, async (c) => {
   const agentId = c.req.param("id");
   const agent = await loadOwnedAgent(ownerId, agentId);
   if (!agent) return c.json({ error: "not found" }, 404);
+  const refusal = await liveEditRefusal(agent);
+  if (refusal) return c.json({ error: refusal }, 409);
 
   const body = await c.req.json().catch(() => null);
   const parsed = validateMandateBody(body ?? {});
@@ -574,6 +650,8 @@ ownersRoute.patch("/agents/:id/profile", ownerAuth, async (c) => {
   const agentId = c.req.param("id");
   const agent = await loadOwnedAgent(ownerId, agentId);
   if (!agent) return c.json({ error: "not found" }, 404);
+  const refusal = await liveEditRefusal(agent);
+  if (refusal) return c.json({ error: refusal }, 409);
 
   const body = await c.req.json<{ personalityPrompt?: string }>().catch(() => null);
   if (!body || typeof body.personalityPrompt !== "string") {
@@ -715,6 +793,75 @@ ownersRoute.post("/agents/:id/kill", ownerAuth, async (c) => {
   return c.json({ ok: true });
 });
 
+// Visits: "send this agent into the Verse for N minutes, at most M actions."
+// Owner-only to start or stop — an agent cannot extend its own deadline,
+// raise its own cap, or end its own visit. Enforcement (the deadline/cap
+// check, the action counter) lives in middleware/agentAuth.ts and
+// ws/gateway.ts's WS connect handler, both via policy/visits.ts; this route
+// only creates/lists/ends the row.
+ownersRoute.post("/agents/:id/visits", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const agentId = c.req.param("id");
+  const agent = await loadOwnedAgent(ownerId, agentId);
+  if (!agent) return c.json({ error: "not found" }, 404);
+
+  const active = await db.query.agentVisits.findFirst({
+    where: and(eq(agentVisits.agentId, agentId), isNull(agentVisits.endedAt)),
+  });
+  if (active) return c.json({ error: "agent already has an active visit — stop it first" }, 409);
+
+  const body = await c.req.json<{ minutes?: number; maxActions?: number }>().catch(() => ({}) as { minutes?: number; maxActions?: number });
+  const minutes = Number(body.minutes);
+  const maxActions = Number(body.maxActions);
+  if (!Number.isInteger(minutes) || minutes < MIN_VISIT_MINUTES || minutes > MAX_VISIT_MINUTES) {
+    return c.json({ error: `minutes must be an integer between ${MIN_VISIT_MINUTES} and ${MAX_VISIT_MINUTES}` }, 400);
+  }
+  if (!Number.isInteger(maxActions) || maxActions < MIN_VISIT_ACTIONS || maxActions > MAX_VISIT_ACTIONS) {
+    return c.json({ error: `maxActions must be an integer between ${MIN_VISIT_ACTIONS} and ${MAX_VISIT_ACTIONS}` }, 400);
+  }
+
+  const [visit] = await db
+    .insert(agentVisits)
+    .values({ agentId, ownerId, endsAt: new Date(Date.now() + minutes * 60_000), maxActions })
+    .returning();
+
+  await audit({ event: "visit.started", agentId, ownerId, actorType: "owner", actorId: ownerId, metadata: { minutes, maxActions } });
+  return c.json({ visit }, 201);
+});
+
+ownersRoute.get("/agents/:id/visits", ownerSessionOrReadKey, async (c) => {
+  const ownerId = c.get("ownerId");
+  const agentId = c.req.param("id");
+  const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
+  if (!agent || agent.ownerId !== ownerId) return c.json({ error: "not found" }, 404);
+
+  const visits = await db.query.agentVisits.findMany({
+    where: eq(agentVisits.agentId, agentId),
+    orderBy: desc(agentVisits.startedAt),
+    limit: 50,
+  });
+  return c.json({ visits });
+});
+
+ownersRoute.post("/agents/:id/visits/:visitId/stop", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const agentId = c.req.param("id");
+  const agent = await loadOwnedAgent(ownerId, agentId);
+  if (!agent) return c.json({ error: "not found" }, 404);
+
+  const visit = await db.query.agentVisits.findFirst({
+    where: and(eq(agentVisits.id, c.req.param("visitId")), eq(agentVisits.agentId, agentId)),
+  });
+  if (!visit) return c.json({ error: "not found" }, 404);
+
+  const ended = await stopVisitRecord(visit.id);
+  if (!ended) return c.json({ error: "visit already ended" }, 409);
+  await announceVisitEnded(ended);
+  await audit({ event: "visit.stopped", agentId, ownerId, actorType: "owner", actorId: ownerId, metadata: { visitId: visit.id } });
+
+  return c.json({ ok: true });
+});
+
 // Hard delete — unlike /kill (revokes credential, keeps the row), this
 // removes the agent and every row that references it (see
 // util/deleteAgent.ts for the full cascade). Irreversible.
@@ -734,7 +881,7 @@ ownersRoute.delete("/agents/:id", ownerAuth, async (c) => {
   return c.json({ ok: true });
 });
 
-ownersRoute.get("/console-events", ownerAuth, async (c) => {
+ownersRoute.get("/console-events", ownerSessionOrReadKey, async (c) => {
   const ownerId = c.get("ownerId");
   const severity = c.req.query("severity") as "attention" | "activity" | undefined;
   const unresolvedOnly = c.req.query("unresolved") === "true";
@@ -839,7 +986,7 @@ ownersRoute.get("/agents-stats", ownerAuth, async (c) => {
 
 // Conversation inventory for one owned agent: every conversation it
 // participates in, with last-activity metadata. Powers the console's DM list.
-ownersRoute.get("/agents/:id/conversations", ownerAuth, async (c) => {
+ownersRoute.get("/agents/:id/conversations", ownerSessionOrReadKey, async (c) => {
   const ownerId = c.get("ownerId");
   const agentId = c.req.param("id");
 
@@ -887,7 +1034,7 @@ ownersRoute.get("/agents/:id/conversations", ownerAuth, async (c) => {
 
 // Raw-tab transcript access: the owner can read a conversation's history if
 // any of their own agents is a participant in it (Phase 4's ⚪ Raw tier).
-ownersRoute.get("/conversations/:id/messages", ownerAuth, async (c) => {
+ownersRoute.get("/conversations/:id/messages", ownerSessionOrReadKey, async (c) => {
   const ownerId = c.get("ownerId");
   const conversationId = c.req.param("id");
 
@@ -902,6 +1049,22 @@ ownersRoute.get("/conversations/:id/messages", ownerAuth, async (c) => {
     return c.json({ error: "not found" }, 404);
   }
 
+  // Opt-in limit returns only the newest page (still oldest-first), and
+  // before= pages back from there; without limit the console keeps getting
+  // the full history it renders today.
+  const limitRaw = c.req.query("limit");
+  if (limitRaw !== undefined) {
+    const limit = Math.min(Math.max(Number(limitRaw) || 100, 1), 500);
+    const beforeDate = c.req.query("before") ? new Date(c.req.query("before")!) : undefined;
+    const before = beforeDate && !Number.isNaN(beforeDate.getTime()) ? beforeDate : undefined;
+    const newest = await db.query.messages.findMany({
+      where: and(eq(messages.conversationId, conversationId), before ? lt(messages.createdAt, before) : undefined),
+      orderBy: (m, { desc }) => [desc(m.createdAt), desc(m.id)],
+      limit,
+    });
+    return c.json({ messages: newest.reverse() });
+  }
+
   const list = await db.query.messages.findMany({
     where: eq(messages.conversationId, conversationId),
     orderBy: (m, { asc }) => [asc(m.createdAt)],
@@ -909,7 +1072,7 @@ ownersRoute.get("/conversations/:id/messages", ownerAuth, async (c) => {
   return c.json({ messages: list });
 });
 
-ownersRoute.get("/agents", ownerAuth, async (c) => {
+ownersRoute.get("/agents", ownerSessionOrReadKey, async (c) => {
   const ownerId = c.get("ownerId");
   const list = await db.query.agents.findMany({
     where: eq(agents.ownerId, ownerId),

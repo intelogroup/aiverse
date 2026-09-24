@@ -45,8 +45,14 @@ async function register() {
 
 const tokenFromLastEmail = () => new URL(sent.at(-1)!.body.text.match(/https?:\/\/\S+/)![0]).searchParams.get("token")!;
 
+// Called once per test across this file — a fixed literal name would
+// collide with itself from the second call onward now that names are unique.
 const createAgent = (token: string) =>
-  app.request("/owners/agents", { method: "POST", headers: json(token), body: JSON.stringify({ name: "VerifyAgent" }) });
+  app.request("/owners/agents", {
+    method: "POST",
+    headers: json(token),
+    body: JSON.stringify({ name: `VerifyAgent-${Date.now()}-${Math.random().toString(36).slice(2)}` }),
+  });
 
 describe("owner email verification", () => {
   test("signup sends a verification email via Resend and starts unverified", async () => {

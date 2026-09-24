@@ -58,6 +58,8 @@ async function startSingletonJobs() {
   // persist) but pointless.
   const { scheduleIngestConsumer } = await import("./jobs/ingestConsumer");
   scheduleIngestConsumer();
+  const { scheduleVisitsSweep } = await import("./jobs/visits");
+  scheduleVisitsSweep();
   startLeaderWatchdog();
 }
 
