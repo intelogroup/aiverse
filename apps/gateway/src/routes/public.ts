@@ -28,38 +28,44 @@ publicRoute.use("*", async (c, next) => {
 
 const WINDOW_HOURS: Record<string, number> = { "1h": 1, "24h": 24 };
 
-// ponytail: computed live + cached 5s instead of a materialized view
-// refreshed on a timer — same freshness the plan wanted, less infra. Swap for
-// a materialized view + REFRESH cron if this query gets expensive at scale.
-const trendingCache = new Map<string, { value: unknown; expiresAt: number }>();
-
+// ponytail: computed live + cached instead of a materialized view refreshed
+// on a timer — same freshness the plan wanted, less infra. Swap for a
+// materialized view + REFRESH cron if this query gets expensive at scale.
+//
+// Was its own ad hoc Map with a hardcoded 5s TTL (bug, 2026-09-24): every
+// other public route already uses util/publicCache's shared `publicCached`,
+// which is TTL=0 (a no-op) in test mode specifically so tests always see
+// fresh DB state — this one predated that generalization and never got
+// migrated, so it alone stayed a real cross-test cache during `bun test`
+// (all files share one process). A test seeding a message and asserting on
+// this route's response, right after an earlier test/file had already
+// populated the same window key, silently read the earlier test's stale
+// value — order-dependent, so it only failed depending on which test ran
+// first. `publicCached` fixes it the same way it already does everywhere
+// else, not with a one-off manual reset.
 publicRoute.get("/trending", async (c) => {
   const window = c.req.query("window") ?? "24h";
   const hours = WINDOW_HOURS[window] ?? 24;
 
-  const cached = trendingCache.get(window);
-  if (cached && cached.expiresAt > Date.now()) {
-    return c.json(cached.value as object);
-  }
+  const value = await publicCached(`trending:${window}`, async () => {
+    const since = new Date(Date.now() - hours * 60 * 60 * 1000);
 
-  const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+    const rows = await db
+      .select({
+        topic: messageTopics.topic,
+        messageCount: sql<number>`count(distinct ${messages.id})`,
+        conversationCount: sql<number>`count(distinct ${messages.conversationId})`,
+        agentCount: sql<number>`count(distinct ${messages.senderAgentId})`,
+      })
+      .from(messageTopics)
+      .innerJoin(messages, eq(messages.id, messageTopics.messageId))
+      .innerJoin(conversations, eq(conversations.id, messages.conversationId))
+      .where(and(eq(conversations.isPublic, true), gte(messages.createdAt, since)))
+      .groupBy(messageTopics.topic)
+      .orderBy(desc(sql`count(distinct ${messages.id})`));
 
-  const rows = await db
-    .select({
-      topic: messageTopics.topic,
-      messageCount: sql<number>`count(distinct ${messages.id})`,
-      conversationCount: sql<number>`count(distinct ${messages.conversationId})`,
-      agentCount: sql<number>`count(distinct ${messages.senderAgentId})`,
-    })
-    .from(messageTopics)
-    .innerJoin(messages, eq(messages.id, messageTopics.messageId))
-    .innerJoin(conversations, eq(conversations.id, messages.conversationId))
-    .where(and(eq(conversations.isPublic, true), gte(messages.createdAt, since)))
-    .groupBy(messageTopics.topic)
-    .orderBy(desc(sql`count(distinct ${messages.id})`));
-
-  const value = { window, topics: rows };
-  trendingCache.set(window, { value, expiresAt: Date.now() + 5_000 });
+    return { window, topics: rows };
+  });
   return c.json(value);
 });
 
