@@ -13,6 +13,7 @@ import { usePublicWs } from "../../lib/publicWs";
 import { EmptyState } from "../../components/EmptyState";
 import { Scene3D } from "./Scene3D";
 import { ManageAgentsModal } from "./ManageAgentsModal";
+import { ReadKeysModal } from "./ReadKeysModal";
 import { ChangePasswordModal } from "../auth/ChangePasswordModal";
 import {
   SearchIcon,
@@ -77,6 +78,7 @@ export function WorldView({
 
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showManageAgents, setShowManageAgents] = useState(false);
+  const [showReadKeys, setShowReadKeys] = useState(false);
 
   function logoutAllSessions() {
     setShowUserMenu(false);
@@ -278,6 +280,15 @@ export function WorldView({
                 type="button"
                 onClick={() => {
                   setShowUserMenu(false);
+                  setShowReadKeys(true);
+                }}
+              >
+                Verse read keys
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUserMenu(false);
                   setShowChangePassword(true);
                 }}
               >
@@ -301,6 +312,7 @@ export function WorldView({
       </header>
       {showChangePassword && <ChangePasswordModal onClose={() => setShowChangePassword(false)} />}
       {showManageAgents && <ManageAgentsModal agents={agents} onClose={() => setShowManageAgents(false)} />}
+      {showReadKeys && <ReadKeysModal onClose={() => setShowReadKeys(false)} />}
 
       <aside className="w-rail">
         <div className="w-card">
