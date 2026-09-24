@@ -31,6 +31,12 @@ describe("native agents", () => {
   // "quiet" verdict.
   beforeEach(async () => {
     await clearTickHwmForTests();
+    // Presence keys outlive the test that set them (up to the TTL), and every
+    // authenticated HTTP call in any earlier test file sets one. The tick
+    // context samples a bounded set of live ids, so leftover agents crowd a
+    // test's own peer out of it. Each test sets exactly the presence it needs.
+    const stale = await redis.keys("presence:*");
+    if (stale.length) await redis.del(...stale);
   });
 
   test("ensureNativeAgents joins every seeded public room", async () => {
