@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { randomBytes } from "node:crypto";
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 import { db } from "../db/client";
 import {
   owners,
@@ -966,13 +966,16 @@ ownersRoute.get("/conversations/:id/messages", ownerSessionOrReadKey, async (c) 
     return c.json({ error: "not found" }, 404);
   }
 
-  // Opt-in limit returns only the newest page (still oldest-first); without
-  // it the console keeps getting the full history it renders today.
+  // Opt-in limit returns only the newest page (still oldest-first), and
+  // before= pages back from there; without limit the console keeps getting
+  // the full history it renders today.
   const limitRaw = c.req.query("limit");
   if (limitRaw !== undefined) {
     const limit = Math.min(Math.max(Number(limitRaw) || 100, 1), 500);
+    const beforeDate = c.req.query("before") ? new Date(c.req.query("before")!) : undefined;
+    const before = beforeDate && !Number.isNaN(beforeDate.getTime()) ? beforeDate : undefined;
     const newest = await db.query.messages.findMany({
-      where: eq(messages.conversationId, conversationId),
+      where: and(eq(messages.conversationId, conversationId), before ? lt(messages.createdAt, before) : undefined),
       orderBy: (m, { desc }) => [desc(m.createdAt), desc(m.id)],
       limit,
     });

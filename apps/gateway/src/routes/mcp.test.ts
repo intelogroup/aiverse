@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createApp } from "../app";
 import { resetMemoryStoreForTests } from "../policy/memoryStore";
+import { drainIngestStream } from "../jobs/ingestConsumer";
 
 const app = createApp();
 
@@ -95,28 +96,104 @@ describe("observer MCP", () => {
     }
   });
 
-  test("my_agents shows the caller's own agents, framed as untrusted data", async () => {
+  test("my_agents shows the caller's own agents with live status, framed as untrusted data", async () => {
     const o = await ownerWithAgent(`MineAgent-${Date.now()}`);
+    await app.request("/manifest", { headers: json(o.agentToken) }); // the agent's own call makes it live
     const { status, body } = await callTool(o.key, "my_agents");
     expect(status).toBe(200);
     const text = body.result.content[0].text as string;
-    expect(text.startsWith("Data from the Verse")).toBe(true);
-    expect(text).toContain(o.agentName);
+    expect(text.startsWith("[Verse data written by third-party AI agents")).toBe(true);
+    expect(text).toContain(`${o.agentName} · online`);
   });
 
   test("a read key cannot see another owner's agent", async () => {
     const mine = await ownerWithAgent("IsoMine");
     const theirs = await ownerWithAgent("IsoTheirs");
-    const { body } = await callTool(mine.key, "my_agent_conversations", { agentId: theirs.agentId });
-    expect(body.result.isError).toBe(true);
-    expect(body.result.content[0].text).toMatch(/^error 404/);
+    for (const show of [undefined, ["goals"]]) {
+      const { body } = await callTool(mine.key, "my_agent", { agentId: theirs.agentId, ...(show ? { show } : {}) });
+      expect(body.result.isError).toBe(true);
+      expect(body.result.content[0].text).toContain("not found");
+    }
   });
 
-  test("public reads work through the MCP", async () => {
+  test("my_agent returns only the sections asked for", async () => {
+    const o = await ownerWithAgent("SectionAgent");
+    await app.request("/onboarding/questions", {
+      method: "POST",
+      headers: json(o.agentToken),
+      body: JSON.stringify({ question: "Robotics or biology first?", options: [{ label: "Robotics", value: "r" }, { label: "Biology", value: "b" }] }),
+    });
+    const { body } = await callTool(o.key, "my_agent", { agentId: o.agentId, show: ["questions"] });
+    const text = body.result.content[0].text as string;
+    expect(text).toContain("Robotics or biology first?");
+    expect(text).not.toContain("Conversations");
+    expect(text).not.toContain("Goals");
+  });
+
+  test("read_conversation gives the newest page by name, compactly, with a working hint for older messages", async () => {
+    const o = await ownerWithAgent("TalkerA");
+    const peer = await ownerWithAgent("TalkerB");
+    for (const t of [o, peer]) {
+      await app.request(`/owners/agents/${t.agentId}/wallet`, { method: "PATCH", headers: json(t.session), body: JSON.stringify({ autonomyMode: "autonomous" }) });
+    }
+    const conv = (await (await app.request("/conversations", {
+      method: "POST",
+      headers: json(o.agentToken),
+      body: JSON.stringify({ isPublic: false, name: "mcp-read-test", participantIds: [peer.agentId] }),
+    })).json()) as any;
+    const long = "x".repeat(2000);
+    for (let i = 0; i < 25; i++) {
+      await resetMemoryStoreForTests();
+      const send = await app.request(`/conversations/${conv.conversation.id}/messages`, {
+        method: "POST",
+        headers: json(i % 2 ? o.agentToken : peer.agentToken),
+        body: JSON.stringify({ content: `msg-${String(i).padStart(2, "0")} ${long}` }),
+      });
+      expect(send.status).toBe(201);
+      await drainIngestStream();
+    }
+
+    const first = await callTool(o.key, "read_conversation", { conversationId: conv.conversation.id });
+    const text = first.body.result.content[0].text as string;
+    expect(text).toContain("msg-24");
+    expect(text).toContain("msg-05");
+    expect(text).not.toContain("msg-04 ");
+    expect(text).toContain("TalkerB:");
+    expect(text).not.toContain(peer.agentId); // names, not ids
+    // 20 messages of 2,000 chars each would be ~40k raw; concise stays small.
+    expect(text.length).toBeLessThan(10_000);
+
+    const before = text.match(/before="([^"]+)"/)?.[1];
+    expect(before).toBeDefined();
+    const older = await callTool(o.key, "read_conversation", { conversationId: conv.conversation.id, before });
+    const olderText = older.body.result.content[0].text as string;
+    expect(olderText).toContain("msg-00");
+    expect(olderText).toContain("msg-04");
+    expect(olderText).not.toContain("msg-05");
+    expect(olderText).not.toContain("Older messages exist");
+  });
+
+  test("read_conversation refuses a private conversation none of the caller's agents are in", async () => {
+    const outsider = await ownerWithAgent("Outsider");
+    const a = await ownerWithAgent("PrivA");
+    const b = await ownerWithAgent("PrivB");
+    const conv = (await (await app.request("/conversations", {
+      method: "POST",
+      headers: json(a.agentToken),
+      body: JSON.stringify({ isPublic: false, name: "private-one", participantIds: [b.agentId] }),
+    })).json()) as any;
+    const { body } = await callTool(outsider.key, "read_conversation", { conversationId: conv.conversation.id });
+    expect(body.result.isError).toBe(true);
+  });
+
+  test("verse_now and verse_search answer from public data", async () => {
     const o = await ownerWithAgent("PublicReader");
-    const { body } = await callTool(o.key, "verse_activity", { limit: 5 });
-    expect(body.result.isError).toBeFalsy();
-    const bad = await callTool(o.key, "verse_read_public_conversation", { conversationId: "not-a-uuid" });
+    const now = await callTool(o.key, "verse_now", { limit: 3 });
+    expect(now.body.result.isError).toBeFalsy();
+    expect(now.body.result.content[0].text).toContain("Trending (24h):");
+    const search = await callTool(o.key, "verse_search", { q: `nothing-matches-${Date.now()}` });
+    expect(search.body.result.content[0].text).toContain("No public conversations mention");
+    const bad = await callTool(o.key, "read_conversation", { conversationId: "not-a-uuid" });
     expect(bad.body.result?.isError ?? bad.body.error).toBeTruthy();
   });
 });
