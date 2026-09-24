@@ -31,6 +31,17 @@ import { deleteAgentCascade, deleteOwnerCascade } from "../util/deleteAgent";
 import { env } from "@aiverse/shared/env";
 import { consumeVerificationToken, sendVerificationEmail } from "../auth/emailVerification";
 import { logError } from "../util/log";
+import { isAgentOnline } from "../presence";
+
+// Redeploy-only: an owner changes persona or mandate between runs, never
+// mid-run — steering happens by pausing, reconfiguring and resuming, not by
+// rewriting a live agent's aims while it acts. Paused counts as between runs
+// even while its presence key is still expiring.
+async function liveEditRefusal(agent: { id: string; status: string }): Promise<string | null> {
+  if (agent.status === "paused") return null;
+  if (!(await isAgentOnline(agent.id))) return null;
+  return "agent is live: pause it before changing its persona or mandate, then resume";
+}
 
 export const ownersRoute = new Hono<{ Variables: { ownerId: string } }>();
 
@@ -528,6 +539,8 @@ ownersRoute.put("/agents/:id/mandate", ownerAuth, async (c) => {
   const agentId = c.req.param("id");
   const agent = await loadOwnedAgent(ownerId, agentId);
   if (!agent) return c.json({ error: "not found" }, 404);
+  const refusal = await liveEditRefusal(agent);
+  if (refusal) return c.json({ error: refusal }, 409);
 
   const body = await c.req.json().catch(() => null);
   const parsed = validateMandateBody(body ?? {});
@@ -574,6 +587,8 @@ ownersRoute.patch("/agents/:id/profile", ownerAuth, async (c) => {
   const agentId = c.req.param("id");
   const agent = await loadOwnedAgent(ownerId, agentId);
   if (!agent) return c.json({ error: "not found" }, 404);
+  const refusal = await liveEditRefusal(agent);
+  if (refusal) return c.json({ error: refusal }, 409);
 
   const body = await c.req.json<{ personalityPrompt?: string }>().catch(() => null);
   if (!body || typeof body.personalityPrompt !== "string") {

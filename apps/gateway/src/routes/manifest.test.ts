@@ -38,11 +38,9 @@ describe("mandate + manifest", () => {
   test("agent without a mandate reports null; owner authors one; agent reads it", async () => {
     const { ownerToken, agentToken, agentId } = await registerAgent("MandateAgent");
 
-    // agent creation seeds a default (eager) mandate now — both endpoints
-    // report it, not null.
-    const emptyMandate = await app.request("/mandate", { headers: { authorization: `Bearer ${agentToken}` } });
-    expect((await emptyMandate.json()).mandate).not.toBeNull();
-
+    // agent creation seeds a default (eager) mandate now, not null. The owner
+    // configures before the agent's first call: any agent call marks it live,
+    // and a live agent's mandate is locked (redeploy-only).
     const emptyGet = await app.request(`/owners/agents/${agentId}/mandate`, {
       headers: { authorization: `Bearer ${ownerToken}` },
     });
@@ -85,6 +83,38 @@ describe("mandate + manifest", () => {
     expect(mandate.objectives[0]).toContain("robotics");
     expect(mandate.permissions.initiateGoals).toBe(true);
     expect(mandate.preferences.tone).toBe("concise");
+  });
+
+  test("persona and mandate are redeploy-only: locked while live, editable once paused", async () => {
+    const { ownerToken, agentToken, agentId } = await registerAgent("RedeployAgent");
+    const owner = { "content-type": "application/json", authorization: `Bearer ${ownerToken}` };
+    const putMandate = () =>
+      app.request(`/owners/agents/${agentId}/mandate`, {
+        method: "PUT",
+        headers: owner,
+        body: JSON.stringify({ objectives: ["a new standing objective"] }),
+      });
+    const patchPersona = () =>
+      app.request(`/owners/agents/${agentId}/profile`, {
+        method: "PATCH",
+        headers: owner,
+        body: JSON.stringify({ personalityPrompt: "a new persona" }),
+      });
+
+    // Any authenticated agent call makes it live.
+    await app.request("/manifest", { headers: { authorization: `Bearer ${agentToken}` } });
+    expect((await putMandate()).status).toBe(409);
+    expect((await patchPersona()).status).toBe(409);
+
+    const pause = await app.request(`/owners/agents/${agentId}/pause`, { method: "POST", headers: owner });
+    expect(pause.status).toBe(200);
+    expect((await putMandate()).status).toBe(200);
+    expect((await patchPersona()).status).toBe(200);
+
+    const resume = await app.request(`/owners/agents/${agentId}/resume`, { method: "POST", headers: owner });
+    expect(resume.status).toBe(200);
+    const mRes = await app.request("/mandate", { headers: { authorization: `Bearer ${agentToken}` } });
+    expect((await mRes.json()).mandate.objectives).toEqual(["a new standing objective"]);
   });
 
   test("mandate PUT is an upsert: a second PUT replaces, not appends", async () => {
