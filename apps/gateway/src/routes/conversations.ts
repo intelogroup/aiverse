@@ -24,7 +24,7 @@ import {
 } from "../policy/gate";
 import { recordAttentionEvent } from "../policy/consoleEvents";
 import { logError } from "../util/log";
-import { sendToAgent, broadcastToPublic, isAgentConnected } from "../ws/gateway";
+import { sendToAgent, broadcastToPublic, isAgentConnected, handleAck } from "../ws/gateway";
 import { publishIngest, getInflightMessage, setInflightMessage, deleteInflightMessage } from "../jobs/ingestConsumer";
 import { envelope, WS_EVENTS } from "../ws/events";
 import { checkTrust } from "../policy/gate";
@@ -671,9 +671,21 @@ conversationsRoute.post("/:id/messages", agentAuth, async (c) => {
   return c.json(result.body, result.status as any);
 });
 
+// since/limit (2026-09-24): this returned the ENTIRE history on every call —
+// fine for a WS client that only ever hits it once on reconnect (backlog
+// replay is the live channel otherwise), but an HTTP-only agent (no
+// socket — MCP clients, plain-poll agents) has no other way to read a
+// conversation, so a poll loop against this route re-fetched and re-paid
+// context on the whole thread every time. since= mirrors the ack cursor
+// (lastDeliveredAt) semantics: pass the last message's createdAt back in to
+// get only what's newer.
 conversationsRoute.get("/:id/messages", agentAuth, async (c) => {
   const agentId = c.get("agentId");
   const conversationId = c.req.param("id");
+  const limit = Math.min(Math.max(Number(c.req.query("limit") ?? 100) || 100, 1), 500);
+  const sinceRaw = c.req.query("since");
+  const sinceDate = sinceRaw ? new Date(sinceRaw) : undefined;
+  const since = sinceDate && !Number.isNaN(sinceDate.getTime()) ? sinceDate : undefined;
 
   const conversation = await db.query.conversations.findFirst({
     where: eq(conversations.id, conversationId),
@@ -694,8 +706,26 @@ conversationsRoute.get("/:id/messages", agentAuth, async (c) => {
   }
 
   const list = await db.query.messages.findMany({
-    where: eq(messages.conversationId, conversationId),
+    where: since
+      ? and(eq(messages.conversationId, conversationId), gt(messages.createdAt, since))
+      : eq(messages.conversationId, conversationId),
     orderBy: (m, { asc }) => [asc(m.createdAt)],
+    limit,
   });
   return c.json({ messages: list });
+});
+
+// Explicit ack for HTTP-only agents — the same cursor-advance a WS client
+// gets for free via the ACK frame (ws/events.ts), exposed as a route so a
+// client with no socket (MCP clients, plain-poll agents) can mark a message
+// read. Deliberately a separate call from GET .../messages rather than an
+// implicit side effect of reading: a poll shouldn't silently consume the
+// unread count an agent might still want to see un-acked (e.g. to decide
+// whether to reply before marking read).
+conversationsRoute.post("/:id/messages/:messageId/ack", agentAuth, async (c) => {
+  const agentId = c.get("agentId");
+  const conversationId = c.req.param("id");
+  const messageId = c.req.param("messageId");
+  await handleAck(agentId, { conversationId, messageId });
+  return c.json({ ok: true });
 });

@@ -490,7 +490,11 @@ async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ message
 // the ACK is stashed in Redis (see earlyAckKey); deliverBacklog filters
 // stashed ids out, so the client effectively gets exactly-once within the
 // stash TTL even across the persist window.
-async function handleAck(agentId: string, payload: unknown): Promise<void> {
+// Exported so HTTP-only clients (no WS connection — MCP/plain-poll agents)
+// can ack the same way a WS client does: conversations.ts's POST
+// /:id/messages/:messageId/ack calls this directly instead of duplicating
+// the cursor-advance logic.
+export async function handleAck(agentId: string, payload: unknown): Promise<void> {
   const { conversationId, messageId, mentionId } = (payload ?? {}) as {
     conversationId?: string;
     messageId?: string;

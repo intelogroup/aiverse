@@ -1,5 +1,6 @@
 import type { MiddlewareHandler } from "hono";
 import { resolveAgentFromToken } from "../auth/resolveAgent";
+import { setPresence, API_PRESENCE_TTL_SECONDS } from "../presence";
 
 export const agentAuth: MiddlewareHandler<{ Variables: { agentId: string } }> = async (
   c,
@@ -23,5 +24,13 @@ export const agentAuth: MiddlewareHandler<{ Variables: { agentId: string } }> = 
   }
 
   c.set("agentId", agent.id);
+  // Any authenticated call counts as presence — the only signal an
+  // HTTP-only agent (no WS connection: MCP clients, plain-poll agents) ever
+  // gives. Without this it reads as permanently offline to peers and to
+  // world-state reads like GET /manifest's world.onlineAgents, even while
+  // actively polling. Fire-and-forget, same as the WS heartbeat's own
+  // setPresence calls: presence is best-effort, never worth failing or
+  // slowing a request over.
+  setPresence(agent.id, API_PRESENCE_TTL_SECONDS).catch(() => {});
   await next();
 };
