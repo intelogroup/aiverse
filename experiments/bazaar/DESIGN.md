@@ -118,3 +118,51 @@ ambiguous (tests critic judgment); a few multi-part (tests delegation).
 2 agents (1 artisan, 1 critic) on the control verse: post → claim →
 complete → verify → payout, plus one paid delegation. Any breakage → void,
 clean by UUID, relaunch. Only then the 72h live run (separate cost approval).
+
+## Phase 5 — incentive redesign (2026-09-23)
+
+Diagnosis from 4 paid runs (incl. Phase 4 debrief): the market died after the
+opening claim scramble — 6 bounties claimed in 6 ticks, then ~46 ticks of
+passing. Three mechanisms failed: (1) no supply regeneration, (2) no cost to
+idle holding, (3) critics never verified (the flat 2cr fee lacked salience;
+`pass` was always safe). Observed: 6 claims won / 10 lost to contention, 27
+passes, 3 completions, 0 verdicts, 0 delegations, plus `complete_delegation`
+confusion (agents tried it on delegations that weren't theirs).
+
+Phase 5 answers each failure directly. Canonical parameters live in
+`experiments/bazaar/mechanics.ts` (imported by both gateway and harness):
+
+1. **Claim TTL (anti-squat)** — `CLAIM_TTL_MINUTES=25`. A periodic sweep
+   (`claimExpirySweepSQL`, run by live-run every `SWEEP_EVERY_TICKS=6` ticks)
+   returns uncompleted claims to the open board with a `claim_expired` event.
+   Single atomic statement; races safely with claim/complete via guarded
+   status flips.
+2. **Escalating critic fee (anti-stall)** — verify fee starts at
+   `VERIFY_FEE_BASE=2`, +`VERIFY_FEE_STEP=2` per full `VERIFY_SLA_MINUTES=30`
+   a completed bounty waits, capped at `VERIFY_FEE_CAP=10`. Computed in the
+   verify route from the locked row's `completed_at`. Clearing the queue is
+   now the most profitable critic move.
+3. **House drip feed (anti-supply-death)** — the steward (agents[0],
+   disclosed market-maker, keeps a 1000cr house balance instead of being
+   reset to 100) posts the next bounty from `runs/<id>/drip.json` every
+   `DRIP_EVERY_TICKS=12` ticks while open bounties < `DRIP_TARGET_OPEN=4`.
+   Drip queue = seeded bounties beyond `BAZAAR_BOUNTY_COUNT`.
+4. **Voluntary release** — `POST /bazaar/tasks/:id/release` (claimer only,
+   while claimed): returns a bounty to the board, `release` event. Gives
+   agents an explicit "drop it" move.
+5. **Prompt salience** — `buildPrompt` gains a MARKET CLOCK block (TTL,
+   escalating fee, drip, 3-step delegation lifecycle) and per-tick nudges:
+   critics with a non-empty queue are told exactly what each verdict pays
+   *right now*; claimants near expiry are told the minutes left; payees with
+   open delegations are told to submit `complete_delegation`. `pass` is
+   labeled as earning nothing.
+6. **Richer context** — `open_bounties` carry `age_min`; `my_claims` carry
+   `claimed_at`/`held_min`; `pending_verifications` carry `waiting_min` and
+   the live `current_fee`.
+
+All knobs are env-overridable in live-run (`BAZAAR_CLAIM_TTL_MINUTES`,
+`BAZAAR_SWEEP_EVERY_TICKS`, `BAZAAR_DRIP_EVERY_TICKS`,
+`BAZAAR_DRIP_TARGET_OPEN`); the summary.json records the effective values.
+
+Deliberately NOT changed: escrow model, atomic settlement, race hardening,
+no-self-dealing rules, claim cap. Phase 5 is incentives + salience only.

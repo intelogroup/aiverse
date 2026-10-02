@@ -592,3 +592,182 @@ describe("bazaar cancel/claim race", () => {
     }
   });
 });
+
+describe("bazaar phase 5 incentives", () => {
+  let poster: { agentToken: string; agentId: string };
+  let worker: { agentToken: string; agentId: string };
+  let critic: { agentToken: string; agentId: string };
+
+  beforeAll(async () => {
+    poster = await registerAgent("bazaar-p5-poster");
+    worker = await registerAgent("bazaar-p5-worker");
+    critic = await registerAgent("bazaar-p5-critic");
+    await setupBazaar(poster.agentId, "broker", 200);
+    await setupBazaar(worker.agentId, "artisan", 100);
+    await setupBazaar(critic.agentId, "critic", 100);
+  });
+
+  async function postClaimComplete(bounty: number, title: string) {
+    const postRes = await app.request("/bazaar/tasks", {
+      method: "POST",
+      headers: auth(poster.agentToken),
+      body: JSON.stringify({ title, description: "Phase 5 incentive test bounty", bounty_credits: bounty }),
+    });
+    expect(postRes.status).toBe(201);
+    const { task } = await postRes.json();
+    const claimRes = await app.request(`/bazaar/tasks/${task.id}/claim`, {
+      method: "POST",
+      headers: auth(worker.agentToken),
+    });
+    expect(claimRes.status).toBe(200);
+    const completeRes = await app.request(`/bazaar/tasks/${task.id}/complete`, {
+      method: "POST",
+      headers: auth(worker.agentToken),
+      body: JSON.stringify({ evidence: "Completed work with sufficient evidence text" }),
+    });
+    expect(completeRes.status).toBe(200);
+    return task.id as string;
+  }
+
+  test("escalating fee: stale verification pays more", async () => {
+    const taskId = await postClaimComplete(10, "Stale verify fee test");
+    // Backdate completion by 65 minutes → 2 full SLA windows → fee 2 + 2*2 = 6.
+    await db.execute(sql`UPDATE bazaar_tasks SET completed_at = now() - interval '65 minutes' WHERE id = ${taskId}::uuid`);
+    const criticBefore = await getBalance(critic.agentId);
+    const verifyRes = await app.request(`/bazaar/tasks/${taskId}/verify`, {
+      method: "POST",
+      headers: auth(critic.agentToken),
+      body: JSON.stringify({ verdict: "accept" }),
+    });
+    expect(verifyRes.status).toBe(200);
+    expect(await getBalance(critic.agentId)).toBe(criticBefore + 6);
+    // The fee is recorded on the fee event row (amount) and the verify
+    // event's detail payload.
+    const ev = await db.execute(sql`SELECT amount FROM bazaar_events WHERE kind = 'fee' AND task_id = ${taskId}::uuid`);
+    expect(Number(rows(ev)[0].amount)).toBe(6);
+    const vev = await db.execute(sql`SELECT detail FROM bazaar_events WHERE kind = 'verify' AND task_id = ${taskId}::uuid`);
+    const vrow = rows(vev)[0];
+    expect(Number(vrow.detail.fee)).toBe(6);
+    expect(Number(vrow.detail.waiting_min)).toBeGreaterThanOrEqual(60);
+  });
+
+  test("escalating fee: capped at 10", async () => {
+    const taskId = await postClaimComplete(10, "Fee cap test");
+    await db.execute(sql`UPDATE bazaar_tasks SET completed_at = now() - interval '10 hours' WHERE id = ${taskId}::uuid`);
+    const criticBefore = await getBalance(critic.agentId);
+    const verifyRes = await app.request(`/bazaar/tasks/${taskId}/verify`, {
+      method: "POST",
+      headers: auth(critic.agentToken),
+      body: JSON.stringify({ verdict: "accept" }),
+    });
+    expect(verifyRes.status).toBe(200);
+    expect(await getBalance(critic.agentId)).toBe(criticBefore + 10);
+  });
+
+  test("immediate verify still pays base fee 2", async () => {
+    const taskId = await postClaimComplete(10, "Base fee test");
+    const criticBefore = await getBalance(critic.agentId);
+    const verifyRes = await app.request(`/bazaar/tasks/${taskId}/verify`, {
+      method: "POST",
+      headers: auth(critic.agentToken),
+      body: JSON.stringify({ verdict: "accept" }),
+    });
+    expect(verifyRes.status).toBe(200);
+    expect(await getBalance(critic.agentId)).toBe(criticBefore + 2);
+  });
+
+  test("release: claimer returns bounty to the open board", async () => {
+    const postRes = await app.request("/bazaar/tasks", {
+      method: "POST",
+      headers: auth(poster.agentToken),
+      body: JSON.stringify({ title: "Release me", description: "Voluntary release test bounty", bounty_credits: 8 }),
+    });
+    const { task } = await postRes.json();
+    await app.request(`/bazaar/tasks/${task.id}/claim`, { method: "POST", headers: auth(worker.agentToken) });
+
+    const releaseRes = await app.request(`/bazaar/tasks/${task.id}/release`, {
+      method: "POST",
+      headers: auth(worker.agentToken),
+    });
+    expect(releaseRes.status).toBe(200);
+
+    // Task is open again and claimable by someone else.
+    const t = await db.execute(sql`SELECT status, claimed_by FROM bazaar_tasks WHERE id = ${task.id}::uuid`);
+    expect(rows(t)[0].status).toBe("open");
+    expect(rows(t)[0].claimed_by).toBeNull();
+    const ev = await db.execute(sql`SELECT kind FROM bazaar_events WHERE kind = 'release' AND task_id = ${task.id}::uuid`);
+    expect(rows(ev).length).toBe(1);
+
+    // Non-claimer cannot release.
+    await app.request(`/bazaar/tasks/${task.id}/claim`, { method: "POST", headers: auth(worker.agentToken) });
+    const badRelease = await app.request(`/bazaar/tasks/${task.id}/release`, {
+      method: "POST",
+      headers: auth(critic.agentToken),
+    });
+    expect(badRelease.status).toBe(409);
+  });
+
+  test("claim TTL sweep releases expired claims with events", async () => {
+    const { claimExpirySweepSQL } = await import("../../../../experiments/bazaar/mechanics");
+    const postRes = await app.request("/bazaar/tasks", {
+      method: "POST",
+      headers: auth(poster.agentToken),
+      body: JSON.stringify({ title: "Sweep me", description: "Claim TTL sweep test bounty", bounty_credits: 9 }),
+    });
+    const { task } = await postRes.json();
+    await app.request(`/bazaar/tasks/${task.id}/claim`, { method: "POST", headers: auth(worker.agentToken) });
+    // Age the claim past the TTL.
+    await db.execute(sql`UPDATE bazaar_tasks SET claimed_at = now() - interval '30 minutes' WHERE id = ${task.id}::uuid`);
+
+    const swept = await db.execute(sql.raw(claimExpirySweepSQL(25)));
+    expect(rows(swept).map((r: any) => r.task_id)).toContain(task.id);
+
+    const t = await db.execute(sql`SELECT status, claimed_by FROM bazaar_tasks WHERE id = ${task.id}::uuid`);
+    expect(rows(t)[0].status).toBe("open");
+    expect(rows(t)[0].claimed_by).toBeNull();
+    const ev = await db.execute(sql`SELECT kind, actor_id, amount FROM bazaar_events WHERE kind = 'claim_expired' AND task_id = ${task.id}::uuid`);
+    const evRows = rows(ev);
+    expect(evRows.length).toBe(1);
+    expect(evRows[0].actor_id).toBe(worker.agentId); // pre-update claimant preserved
+    expect(Number(evRows[0].amount)).toBe(9);
+  });
+
+  test("claim TTL sweep leaves fresh claims alone", async () => {
+    const { claimExpirySweepSQL } = await import("../../../../experiments/bazaar/mechanics");
+    const postRes = await app.request("/bazaar/tasks", {
+      method: "POST",
+      headers: auth(poster.agentToken),
+      body: JSON.stringify({ title: "Keep me", description: "Fresh claim survives sweep", bounty_credits: 9 }),
+    });
+    const { task } = await postRes.json();
+    await app.request(`/bazaar/tasks/${task.id}/claim`, { method: "POST", headers: auth(worker.agentToken) });
+
+    const swept = await db.execute(sql.raw(claimExpirySweepSQL(25)));
+    expect(rows(swept).map((r: any) => r.task_id)).not.toContain(task.id);
+    const t = await db.execute(sql`SELECT status FROM bazaar_tasks WHERE id = ${task.id}::uuid`);
+    expect(rows(t)[0].status).toBe("claimed");
+    // Clean up: release so the worker's claim cap isn't polluted for later tests.
+    await app.request(`/bazaar/tasks/${task.id}/release`, { method: "POST", headers: auth(worker.agentToken) });
+  });
+
+  test("context carries phase 5 fields: current_fee, waiting_min, held_min", async () => {
+    const taskId = await postClaimComplete(11, "Context fields test");
+    await db.execute(sql`UPDATE bazaar_tasks SET completed_at = now() - interval '35 minutes' WHERE id = ${taskId}::uuid`);
+    const ctxRes = await app.request("/bazaar/context", { headers: auth(critic.agentToken) });
+    expect(ctxRes.status).toBe(200);
+    const ctx = await ctxRes.json();
+    const pv = ctx.pending_verifications.find((t: any) => t.id === taskId);
+    expect(pv).toBeDefined();
+    expect(Number(pv.waiting_min)).toBeGreaterThan(30);
+    expect(Number(pv.current_fee)).toBe(4); // 35 min → 1 step → 2 + 2
+  });
+
+  test("verifyFeeFor unit schedule", async () => {
+    const { verifyFeeFor } = await import("../../../../experiments/bazaar/mechanics");
+    expect(verifyFeeFor(0)).toBe(2);
+    expect(verifyFeeFor(29)).toBe(2);
+    expect(verifyFeeFor(30)).toBe(4);
+    expect(verifyFeeFor(65)).toBe(6);
+    expect(verifyFeeFor(10000)).toBe(10);
+  });
+});

@@ -145,7 +145,9 @@ if (!DRY) {
 }
 
 // 5) Seeded bounties from the house steward (first artisan doubles as steward;
-//    give the steward a house balance so escrow never fails).
+//    Phase 5: the steward KEEPS its house balance so the live-run drip feed can
+//    keep posting bounties while the board is thin — it is the market-maker,
+//    disclosed in DESIGN.md).
 if (!DRY) {
   const steward = agents[0];
   await dbExec(`INSERT INTO bazaar_balances (agent_id, balance) VALUES ('${steward.agentId}', 1000) ON CONFLICT (agent_id) DO UPDATE SET balance = 1000;`);
@@ -156,8 +158,10 @@ if (!DRY) {
     else console.warn(`  bounty post failed ${r.status}: ${r.text.slice(0, 100)}`);
   }
   console.log(`  posted ${posted}/${SEED_B.length} bounties (BAZAAR_BOUNTY_COUNT=${BOUNTY_COUNT})`);
-  // Restore the steward to a normal participant balance afterwards.
-  await dbExec(`UPDATE bazaar_balances SET balance = 100 WHERE agent_id = '${steward.agentId}';`);
+  // Phase 5: remaining bounties become the house drip queue for live-run.ts.
+  const drip = BOUNTIES.slice(BOUNTY_COUNT).map((b) => ({ title: b.title, description: b.description, bounty: b.bounty }));
+  await Bun.write(`experiments/bazaar/runs/${RUN_ID}/drip.json`, JSON.stringify(drip));
+  console.log(`  drip queue: ${drip.length} bounties (steward keeps house balance for drip escrow)`);
 }
 
 // 6) Manifest
@@ -167,6 +171,10 @@ const manifest = {
   agents: DRY ? POPULATION.map((m) => ({ name: m.name, role: m.role })) : agents.map((a) => ({ ...a, agentToken: "<redacted>" })),
   bounties: SEED_B.length,
   bounty_count_env: process.env.BAZAAR_BOUNTY_COUNT ?? null,
+  // Phase 5: agents[0] doubles as house steward — keeps a house balance and
+  // drip-posts bounties while the board is thin (see DESIGN.md).
+  steward: DRY ? POPULATION[0].name : agents[0]?.name,
+  drip_bounties: BOUNTIES.length - SEED_B.length,
 };
 await Bun.write(`experiments/bazaar/runs/${RUN_ID}/manifest.json`, JSON.stringify(manifest, null, 2));
 console.log(`  manifest written (tokens redacted)`);

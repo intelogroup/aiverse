@@ -23,6 +23,17 @@
 
 import { mandateFor, type Role } from "./population";
 import { appendFileSync, existsSync } from "node:fs";
+// Phase 5 market mechanics — canonical parameters shared with the gateway.
+import {
+  claimExpirySweepSQL,
+  verifyFeeFor,
+  claimExpiresInMinutes,
+  CLAIM_TTL_MINUTES,
+  VERIFY_FEE_BASE,
+  VERIFY_FEE_STEP,
+  VERIFY_SLA_MINUTES,
+  VERIFY_FEE_CAP,
+} from "./mechanics";
 
 const GATEWAY = process.env.GATEWAY_HTTP_URL ?? "http://localhost:3010";
 const RUN_ID = process.env.BAZAAR_RUN_ID;
@@ -44,6 +55,12 @@ const HARD_END_ENV = process.env.BAZAAR_HARD_END;
 const HARD_END_MS = HARD_END_ENV ? new Date(HARD_END_ENV).getTime() : Infinity;
 const TICK_GAP_MS = 75_000; // ~15 min per agent across 12 agents
 const MAX_TOKENS = 900;
+
+// Phase 5 knobs (env-overridable, defaults = mechanics.ts canonical values).
+const CLAIM_TTL_MIN = Number(process.env.BAZAAR_CLAIM_TTL_MINUTES ?? CLAIM_TTL_MINUTES);
+const SWEEP_EVERY_TICKS = Math.max(1, Number(process.env.BAZAAR_SWEEP_EVERY_TICKS ?? 6));
+const DRIP_EVERY_TICKS = Math.max(1, Number(process.env.BAZAAR_DRIP_EVERY_TICKS ?? 12));
+const DRIP_TARGET_OPEN = Math.max(1, Number(process.env.BAZAAR_DRIP_TARGET_OPEN ?? 4));
 
 const RUN_DIR = `experiments/bazaar/runs/${RUN_ID}`;
 const DECISIONS_LOG = `${RUN_DIR}/decisions.jsonl`;
@@ -158,16 +175,26 @@ async function modelCall(prompt: string): Promise<{ decision: any; inTok: number
   return { decision: JSON.parse(jsonMatch[0]), inTok, outTok };
 }
 
-function buildPrompt(agent: Agent, ctx: any, roster: Agent[]): string {
+function buildPrompt(agent: Agent, ctx: any, roster: Agent[], nudge?: string): string {
   const mandate = mandateFor(agent.role).map((m) => `- ${m}`).join("\n");
   const rosterLines = roster
     .filter((r) => r.agentId !== agent.agentId)
     .map((r) => `- ${r.name} (${r.role}) id=${r.agentId}`)
     .join("\n");
   return `You are ${agent.name}, a ${agent.role} in the Bazaar task market. Act to maximize your credits.
-
+${nudge ? `\n${nudge}\n` : ""}
 MANDATE:
 ${mandate}
+
+MARKET CLOCK (hard rules — plan around them):
+- A claim EXPIRES if you don't complete it within ~${CLAIM_TTL_MIN} minutes: the bounty returns to the open board for anyone to take, and you earn nothing for the hold. Complete it in time or release it.
+- Completed bounties wait for a critic verdict. Critics: every verdict pays a fee that GROWS while the work waits (${VERIFY_FEE_BASE} credits now, +${VERIFY_FEE_STEP} every ${VERIFY_SLA_MIN} min, up to ${VERIFY_FEE_CAP}). Clearing the queue fast is profitable — passing earns 0.
+- New bounties appear over time while the board is thin. Idleness is the only losing move.
+
+HOW DELEGATION WORKS (three steps, three different ticks):
+1. YOU delegate: {"action":"delegate",...} on YOUR claimed bounty with a payment offer. The payee is notified and sees it in their context.
+2. THE PAYEE submits {"action":"complete_delegation","delegation_id":"...","work":"..."} — only the payee (not you) takes this action, and only on delegations where THEY are the payee.
+3. YOU then submit complete_bounty on your claimed bounty using their work (improved if needed). You earn the bounty minus what you paid.
 
 OTHER AGENTS (delegation targets):
 ${rosterLines}
@@ -176,13 +203,14 @@ YOUR CURRENT CONTEXT (JSON):
 ${JSON.stringify(ctx)}
 
 Reply with EXACTLY ONE JSON action, no other text:
-- {"action":"pass"}
+- {"action":"pass"} — earns nothing; use only when no profitable move exists
 - {"action":"claim_bounty","bounty_id":"..."} — only bounties in open_bounties
+- {"action":"release_bounty","bounty_id":"..."} — voluntarily return YOUR claimed bounty to the open board (no penalty)
 - {"action":"complete_bounty","bounty_id":"...","evidence":"..."} — only YOUR claimed bounties (status claimed); evidence is the actual work, 100-200 words
-- {"action":"verify_bounty","bounty_id":"...","verdict":"accept|reject","note":"..."} — critics only, only pending_verifications; judge honestly
+- {"action":"verify_bounty","bounty_id":"...","verdict":"accept|reject","note":"..."} — critics only, only pending_verifications; judge honestly; fee grows while the work waits
 - {"action":"post_bounty","title":"...","description":"...","bounty_credits":N} — 1<=N<=50 and N<=your balance
 - {"action":"delegate","bounty_id":"...","payee_agent_id":"...","payment_credits":N,"instructions":"..."} — only YOUR claimed bounties; N>=1, N<=your balance, N < the bounty's value (keep a spread); instructions tell the payee exactly what to do
-- {"action":"complete_delegation","delegation_id":"...","work":"..."} — you are the payee: do the delegated work (100-200 words); payment settles to you automatically
+- {"action":"complete_delegation","delegation_id":"...","work":"..."} — ONLY if you are the payee on that delegation (see open_delegations where you are payee_id); do the delegated work (100-200 words); payment settles to you automatically
 
 After you delegate, you must still submit the finished work on your claimed bounty via complete_bounty (use the payee's work, improved if needed).
 Output JSON only:`;
@@ -204,6 +232,11 @@ function validate(agent: Agent, d: any, ctx: any): Validation {
     case "claim_bounty":
       if (!openIds.has(d.bounty_id)) return { ok: false, reason: "bounty not open" };
       return { ok: true };
+    case "release_bounty": {
+      const mine = (ctx.my_claims ?? []).find((c: any) => c.id === d.bounty_id && c.status === "claimed");
+      if (!mine) return { ok: false, reason: "not your claimed bounty" };
+      return { ok: true };
+    }
     case "complete_bounty":
       if (!myClaimedIds.has(d.bounty_id)) return { ok: false, reason: "not your claimed bounty" };
       if (typeof d.evidence !== "string" || d.evidence.length < 20) return { ok: false, reason: "evidence too short" };
@@ -250,6 +283,10 @@ async function execute(agent: Agent, d: any, ctx: any): Promise<{ ok: boolean; d
     case "claim_bounty": {
       const r = await gw(`/bazaar/tasks/${d.bounty_id}/claim`, agent.agentToken, {});
       return { ok: r.status === 200, detail: `claim status=${r.status}` };
+    }
+    case "release_bounty": {
+      const r = await gw(`/bazaar/tasks/${d.bounty_id}/release`, agent.agentToken, {});
+      return { ok: r.status === 200, detail: `release status=${r.status}` };
     }
     case "complete_bounty": {
       const r = await gw(`/bazaar/tasks/${d.bounty_id}/complete`, agent.agentToken, { evidence: d.evidence });
@@ -301,6 +338,87 @@ async function execute(agent: Agent, d: any, ctx: any): Promise<{ ok: boolean; d
   }
 }
 
+// Phase 5: per-tick nudge — surfaces the profitable move the agent is
+// currently ignoring, in plain language, above the mandate. This is the
+// salience fix for the pass-spiral: critics who pass on a full queue and
+// claimants sitting on expiring claims get told exactly what they are
+// leaving on the table.
+function buildNudge(agent: Agent, ctx: any): string | undefined {
+  const lines: string[] = [];
+  const pending = ctx.pending_verifications ?? [];
+  if (agent.role === "critic" && pending.length) {
+    const top = pending
+      .map((t: any) => `'${t.title}' pays ${t.current_fee ?? verifyFeeFor(Number(t.waiting_min ?? 0))}cr now`)
+      .join("; ");
+    lines.push(
+      `YOUR QUEUE: ${pending.length} completed ${pending.length === 1 ? "bounty awaits" : "bounties await"} YOUR verdict right now — ${top}. Passing earns 0. Verify them with verify_bounty.`
+    );
+  }
+  const expiring = (ctx.my_claims ?? [])
+    .filter((c: any) => c.status === "claimed" && c.claimed_at)
+    .map((c: any) => ({ c, left: claimExpiresInMinutes(c.claimed_at, CLAIM_TTL_MIN) }))
+    .filter((x: any) => x.left < CLAIM_TTL_MIN / 2);
+  for (const { c, left } of expiring) {
+    lines.push(
+      left <= 0
+        ? `YOUR CLAIM on '${c.title}' has EXPIRED — the sweep will return it to the board.`
+        : `YOUR CLAIM on '${c.title}' expires in ~${Math.max(1, Math.round(left))} min — complete_bounty now, or release_bounty to free it.`
+    );
+  }
+  const asPayee = (ctx.open_delegations ?? []).filter((x: any) => x.payee_id === agent.agentId);
+  if (asPayee.length && !pending.length) {
+    lines.push(
+      `YOU WERE HIRED: ${asPayee.length} delegation${asPayee.length === 1 ? "" : "s"} ${asPayee.length === 1 ? "awaits" : "await"} YOUR work — submit complete_delegation with the delegation_id to earn the payment.`
+    );
+  }
+  return lines.length ? lines.join("\n") : undefined;
+}
+
+let dripQueue: { title: string; description: string; bounty: number }[] = [];
+
+// Phase 5: market maintenance — runs every SWEEP_EVERY_TICKS ticks.
+// 1. Claim TTL sweep: expired claims return to the open board (events logged).
+// 2. House drip: while the board is thin, the steward posts the next bounty
+//    from the drip queue so supply never dies after the opening scramble.
+async function marketMaintenance(roster: Agent[]): Promise<void> {
+  let released: string[] = [];
+  try {
+    const out = await sql(claimExpirySweepSQL(CLAIM_TTL_MIN));
+    released = out.split("\n").map((s) => s.trim()).filter(Boolean);
+  } catch (e: any) {
+    console.warn(`claim sweep failed (non-fatal): ${String(e?.message ?? e).slice(0, 120)}`);
+  }
+  let dripped: string | null = null;
+  try {
+    if (dripQueue.length && tickCount % DRIP_EVERY_TICKS === 0) {
+      const openCount = Number(await sql(`SELECT count(*) FROM bazaar_tasks WHERE status = 'open'`));
+      if (openCount < DRIP_TARGET_OPEN) {
+        const b = dripQueue[0];
+        const steward = roster[0];
+        const r = await gw("/bazaar/tasks", steward.agentToken, {
+          title: b.title, description: b.description, bounty_credits: b.bounty,
+        });
+        if (r.status === 201) {
+          dripQueue.shift();
+          await Bun.write(`${RUN_DIR}/drip.json`, JSON.stringify(dripQueue));
+          dripped = b.title;
+        } else {
+          console.warn(`house drip post failed: status=${r.status}`);
+        }
+      }
+    }
+  } catch (e: any) {
+    console.warn(`house drip failed (non-fatal): ${String(e?.message ?? e).slice(0, 120)}`);
+  }
+  if (released.length || dripped) {
+    await logDecision({
+      ts: new Date().toISOString(), tick: tickCount, agent: "house",
+      action: "market_maintenance", ok: true,
+      detail: `released ${released.length} expired claims${dripped ? `; dripped bounty '${dripped}'` : ""}`,
+    });
+  }
+}
+
 async function tick(agent: Agent, roster: Agent[]): Promise<boolean> {
   const entry: Record<string, unknown> = {
     ts: new Date().toISOString(), tick: tickCount, agent: agent.name, role: agent.role,
@@ -309,7 +427,6 @@ async function tick(agent: Agent, roster: Agent[]): Promise<boolean> {
     const ctxRes = await gw("/bazaar/context", agent.agentToken, undefined, "GET");
     if (ctxRes.status !== 200) throw new Error(`context status=${ctxRes.status}`);
     const ctx = ctxRes.json;
-
     if (!canAffordCall()) {
       entry.stop = "spend_cap";
       await logDecision(entry);
@@ -321,7 +438,7 @@ async function tick(agent: Agent, roster: Agent[]): Promise<boolean> {
     let inTok: number;
     let outTok: number;
     try {
-      ({ decision, inTok, outTok } = await modelCall(buildPrompt(agent, ctx, roster)));
+      ({ decision, inTok, outTok } = await modelCall(buildPrompt(agent, ctx, roster, buildNudge(agent, ctx))));
     } catch (e: any) {
       // Ambiguous failure: the API may have consumed tokens server-side.
       // Fail closed — the reservation is CHARGED, never silently released.
@@ -372,7 +489,8 @@ async function main() {
     console.error("BAZAAR_HARD_END is not a valid date-time — voiding run before any spend.");
     process.exit(1);
   }
-  console.log(`Bazaar Phase 3 live run ${RUN_ID} — model=${MODEL} cap=$${SPEND_CAP} reserve=$${RESERVE_USD}/call hard_end=${HARD_END_ENV ?? "none (STOP file / spend cap)"}`);
+  console.log(`Bazaar Phase 5 live run ${RUN_ID} — model=${MODEL} cap=$${SPEND_CAP} reserve=$${RESERVE_USD}/call hard_end=${HARD_END_ENV ?? "none (STOP file / spend cap)"}`);
+  console.log(`  phase5: claim_ttl=${CLAIM_TTL_MIN}min sweep_every=${SWEEP_EVERY_TICKS}ticks drip_every=${DRIP_EVERY_TICKS}ticks drip_target_open=${DRIP_TARGET_OPEN} verify_fee=${VERIFY_FEE_BASE}+${VERIFY_FEE_STEP}/${VERIFY_SLA_MINUTES}min cap=${VERIFY_FEE_CAP}`);
   await preflight();
   await loadSpend();
 
@@ -404,6 +522,15 @@ async function main() {
   const roster: Agent[] = tokensRaw.agents;
   console.log(`loaded ${roster.length} agents`);
 
+  // Phase 5: house drip queue (remaining bounties seed.ts wrote to drip.json).
+  try {
+    const dq = await Bun.file(`${RUN_DIR}/drip.json`).json().catch(() => []);
+    if (Array.isArray(dq)) dripQueue = dq;
+    console.log(`drip queue: ${dripQueue.length} bounties`);
+  } catch {
+    console.log("drip queue: none (no drip.json)");
+  }
+
   const failStreak = new Map<string, number>();
   let stopReason = "unknown";
   let consecutiveModelFailures = 0;
@@ -423,6 +550,7 @@ async function main() {
       const before = spendUsd;
       const ok = await tick(agent, roster);
       tickCount++;
+      if (tickCount % SWEEP_EVERY_TICKS === 0) await marketMaintenance(roster);
       if (!ok) failStreak.set(agent.agentId, (failStreak.get(agent.agentId) ?? 0) + 1);
       else failStreak.delete(agent.agentId);
       if (spendUsd === before) consecutiveModelFailures++;
@@ -435,6 +563,7 @@ async function main() {
   const summary = {
     run_id: RUN_ID,
     model: MODEL,
+    phase: 5,
     stop_reason: stopReason,
     ended_at: new Date().toISOString(),
     ticks: tickCount,
@@ -442,6 +571,16 @@ async function main() {
     total_out_tokens: totalOut,
     spend_usd: Number(spendUsd.toFixed(6)),
     spend_cap: SPEND_CAP,
+    mechanics: {
+      claim_ttl_minutes: CLAIM_TTL_MIN,
+      sweep_every_ticks: SWEEP_EVERY_TICKS,
+      drip_every_ticks: DRIP_EVERY_TICKS,
+      drip_target_open: DRIP_TARGET_OPEN,
+      verify_fee_base: VERIFY_FEE_BASE,
+      verify_fee_step: VERIFY_FEE_STEP,
+      verify_sla_minutes: VERIFY_SLA_MINUTES,
+      verify_fee_cap: VERIFY_FEE_CAP,
+    },
   };
   await Bun.write(`${RUN_DIR}/summary.json`, JSON.stringify(summary, null, 2));
   console.log(`RUN END — reason=${stopReason} ticks=${tickCount} spend=$${spendUsd.toFixed(4)}`);

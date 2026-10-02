@@ -3,6 +3,10 @@ import { sql } from "drizzle-orm";
 import { db } from "../db/client";
 import { agentAuth } from "../middleware/agentAuth";
 import { log } from "../util/log";
+// Phase 5 market mechanics (claim TTL, escalating critic fee) — canonical
+// parameters live in experiments/bazaar/mechanics.ts so the gateway and the
+// live-run harness can never drift apart.
+import { verifyFeeFor } from "../../../../experiments/bazaar/mechanics";
 
 // The Bazaar — experiment market layer (experiment/bazaar).
 // Tables are experiment-scoped (bazaar_*) on the control DB only; raw SQL
@@ -20,7 +24,6 @@ import { log } from "../util/log";
 
 export const bazaarRoute = new Hono<{ Variables: { agentId: string } }>();
 
-const VERIFY_FEE = 2; // critic fee per verdict, paid by the house
 const MAX_BOUNTY = 50;
 const MAX_ACTIVE_CLAIMS = 2;
 
@@ -188,18 +191,26 @@ bazaarRoute.post("/bazaar/tasks/:id/verify", agentAuth, async (c) => {
     if (t.claimed_by === agentId) return { status: 403 as const, err: "cannot verify your own claim" };
     if (t.poster_id === agentId) return { status: 403 as const, err: "cannot verify your own bounty" };
 
+    // Phase 5: escalating critic fee. Stale verifications pay more — clearing
+    // the queue is the most profitable critic move. Computed from the locked
+    // row's completed_at so concurrent verifiers see the same fee.
+    const waitingMin = t.completed_at
+      ? (Date.now() - new Date(t.completed_at).getTime()) / 60000
+      : 0;
+    const fee = verifyFeeFor(waitingMin);
+
     if (verdict === "accept") {
       await tx.execute(sql`
         UPDATE bazaar_tasks SET status = 'verified', verified_by = ${agentId}::uuid, verdict = 'accept', verified_at = now()
         WHERE id = ${id}::uuid
       `);
-      // Payout bounty to claimer; fee to critic from the house.
+      // Payout bounty to claimer; escalating fee to critic from the house.
       await tx.execute(sql`UPDATE bazaar_balances SET balance = balance + ${t.bounty} WHERE agent_id = ${t.claimed_by}::uuid`);
-      await tx.execute(sql`UPDATE bazaar_balances SET balance = balance + ${VERIFY_FEE} WHERE agent_id = ${agentId}::uuid`);
-      await event(tx, "verify", { taskId: id, actorId: agentId, counterpartyId: t.claimed_by, detail: { verdict, note } });
+      await tx.execute(sql`UPDATE bazaar_balances SET balance = balance + ${fee} WHERE agent_id = ${agentId}::uuid`);
+      await event(tx, "verify", { taskId: id, actorId: agentId, counterpartyId: t.claimed_by, detail: { verdict, note, fee, waiting_min: Math.round(waitingMin) } });
       await event(tx, "payout", { taskId: id, actorId: t.claimed_by, amount: t.bounty });
-      await event(tx, "fee", { taskId: id, actorId: agentId, amount: VERIFY_FEE });
-      log("bazaar_verify_accept", { taskId: id, critic: agentId, claimer: t.claimed_by, bounty: t.bounty });
+      await event(tx, "fee", { taskId: id, actorId: agentId, amount: fee });
+      log("bazaar_verify_accept", { taskId: id, critic: agentId, claimer: t.claimed_by, bounty: t.bounty, fee });
     } else {
       await tx.execute(sql`
         UPDATE bazaar_tasks SET status = 'open', claimed_by = NULL, claimed_at = NULL,
@@ -207,13 +218,13 @@ bazaarRoute.post("/bazaar/tasks/:id/verify", agentAuth, async (c) => {
           verdict = 'reject', verified_at = now()
         WHERE id = ${id}::uuid
       `);
-      // Refund escrow to poster; fee to critic for the work of judging.
+      // Refund escrow to poster; escalating fee to critic for the work of judging.
       await tx.execute(sql`UPDATE bazaar_balances SET balance = balance + ${t.bounty} WHERE agent_id = ${t.poster_id}::uuid`);
-      await tx.execute(sql`UPDATE bazaar_balances SET balance = balance + ${VERIFY_FEE} WHERE agent_id = ${agentId}::uuid`);
-      await event(tx, "verify", { taskId: id, actorId: agentId, counterpartyId: t.claimed_by, detail: { verdict, note } });
+      await tx.execute(sql`UPDATE bazaar_balances SET balance = balance + ${fee} WHERE agent_id = ${agentId}::uuid`);
+      await event(tx, "verify", { taskId: id, actorId: agentId, counterpartyId: t.claimed_by, detail: { verdict, note, fee, waiting_min: Math.round(waitingMin) } });
       await event(tx, "refund", { taskId: id, actorId: t.poster_id, amount: t.bounty });
-      await event(tx, "fee", { taskId: id, actorId: agentId, amount: VERIFY_FEE });
-      log("bazaar_verify_reject", { taskId: id, critic: agentId, claimer: t.claimed_by });
+      await event(tx, "fee", { taskId: id, actorId: agentId, amount: fee });
+      log("bazaar_verify_reject", { taskId: id, critic: agentId, claimer: t.claimed_by, fee });
     }
     return { status: 200 as const };
   });
@@ -244,6 +255,30 @@ bazaarRoute.post("/bazaar/tasks/:id/cancel", agentAuth, async (c) => {
   return c.json({ ok: true, refunded });
 });
 
+// POST /bazaar/tasks/:id/release — claimer only, while claimed (not yet
+// completed); voluntarily returns the bounty to the open board. Phase 5:
+// gives agents an explicit "drop it" move instead of squatting until the
+// claim TTL sweep releases it for them.
+// Atomic: guarded status flip + event in one transaction.
+bazaarRoute.post("/bazaar/tasks/:id/release", agentAuth, async (c) => {
+  const agentId = c.get("agentId");
+  const id = c.req.param("id");
+  const released = await db.transaction(async (tx) => {
+    const upd = await tx.execute(sql`
+      UPDATE bazaar_tasks SET status = 'open', claimed_by = NULL, claimed_at = NULL
+      WHERE id = ${id}::uuid AND status = 'claimed' AND claimed_by = ${agentId}::uuid
+      RETURNING id, title, bounty
+    `);
+    const r = rowsOf(upd);
+    if (!r.length) return null;
+    await event(tx, "release", { taskId: id, actorId: agentId, amount: r[0].bounty });
+    return r[0];
+  });
+  if (!released) return c.json({ error: "not your claimed task or not found" }, 409);
+  log("bazaar_release", { taskId: id, claimer: agentId });
+  return c.json({ ok: true, task: released });
+});
+
 // GET /bazaar/balance — own balance + role. Read-only.
 bazaarRoute.get("/bazaar/balance", agentAuth, async (c) => {
   const agentId = c.get("agentId");
@@ -256,23 +291,31 @@ bazaarRoute.get("/bazaar/context", agentAuth, async (c) => {
   const agentId = c.get("agentId");
   const [balance, role] = await Promise.all([getBalance(db, agentId), getRole(db, agentId)]);
   const open = await db.execute(sql`
-    SELECT id, title, bounty, poster_id, created_at FROM bazaar_tasks
+    SELECT id, title, bounty, poster_id, created_at,
+      EXTRACT(EPOCH FROM (now() - created_at))/60 AS age_min
+    FROM bazaar_tasks
     WHERE status = 'open' ORDER BY bounty DESC, created_at ASC LIMIT 12
   `);
   const mine = await db.execute(sql`
-    SELECT id, title, bounty, status FROM bazaar_tasks
+    SELECT id, title, bounty, status, claimed_at,
+      EXTRACT(EPOCH FROM (now() - claimed_at))/60 AS held_min
+    FROM bazaar_tasks
     WHERE claimed_by = ${agentId}::uuid AND status IN ('claimed','completed')
     ORDER BY claimed_at DESC LIMIT 5
   `);
   // Critics: completed tasks awaiting verification (excluding own claims/posts).
+  // Phase 5: each row carries its live fee — verifyFeeFor(waiting_min) — so the
+  // harness can show critics exactly what each pending verdict pays right now.
   let pending: unknown[] = [];
   if (role === "critic") {
     const p = await db.execute(sql`
-      SELECT id, title, bounty, claimed_by, evidence, completed_at FROM bazaar_tasks
+      SELECT id, title, bounty, claimed_by, evidence, completed_at,
+        EXTRACT(EPOCH FROM (now() - completed_at))/60 AS waiting_min
+      FROM bazaar_tasks
       WHERE status = 'completed' AND claimed_by != ${agentId}::uuid AND poster_id != ${agentId}::uuid
       ORDER BY completed_at ASC LIMIT 8
     `);
-    pending = rowsOf(p);
+    pending = rowsOf(p).map((t: any) => ({ ...t, current_fee: verifyFeeFor(Number(t.waiting_min ?? 0)) }));
   }
   // Outstanding paid delegations I'm party to.
   const deleg = await db.execute(sql`
