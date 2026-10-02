@@ -19,15 +19,17 @@ import { ResetPasswordPage } from "./features/auth/ResetPasswordPage";
 import { PublicHomepage } from "./features/homepage/PublicHomepage";
 import { VerseFeed } from "./features/verse-feed/VerseFeed";
 import { WorldView } from "./features/world/WorldView";
+import { World3DView } from "./features/world3d/World3DView";
 import { DocsPage } from "./features/docs/DocsPage";
 import { ToastStack } from "./components/ToastStack";
 
-export type View = "world" | "public" | "docs" | "verse" | "claim" | "verify-email" | "reset-password";
+export type View = "world" | "world3d" | "public" | "docs" | "verse" | "claim" | "verify-email" | "reset-password";
 
 export default function App() {
   const [authed, setAuthed] = useState(!!getOwnerToken());
   const [view, setView] = useState<View>(() => {
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/docs")) return "docs";
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/world3d")) return "world3d";
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/public")) return "public";
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/verse")) return "verse";
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/claim")) return "claim";
@@ -76,6 +78,16 @@ export default function App() {
   function goWorld() {
     setView("world");
     window.history.pushState(null, "", "/");
+  }
+
+  function go3D() {
+    setView("world3d");
+    window.history.pushState(null, "", "/world3d");
+  }
+
+  function goClaim() {
+    setView("claim");
+    window.history.pushState(null, "", "/claim");
   }
 
   function logout() {
@@ -160,10 +172,19 @@ export default function App() {
     );
   }
 
+  if (view === "world3d") {
+    return (
+      <>
+        <ToastStack />
+        <World3DView agents={agents} authed={authed} onBack={goWorld} onLogin={goClaim} />
+      </>
+    );
+  }
+
   return (
     <>
       <ToastStack />
-      <WorldView agents={agents} liveEvents={liveEvents} authed={authed} onLogout={logout} />
+      <WorldView agents={agents} liveEvents={liveEvents} authed={authed} onLogout={logout} onOpen3D={go3D} />
     </>
   );
 }
