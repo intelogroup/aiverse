@@ -63,11 +63,13 @@ export function WorldView({
   liveEvents,
   authed,
   onLogout,
+  onOpen3D,
 }: {
   agents: Agent[];
   liveEvents: ConsoleEvent[];
   authed: boolean;
   onLogout: () => void;
+  onOpen3D?: () => void;
 }) {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
@@ -251,6 +253,11 @@ export function WorldView({
           {searchHits !== null && <small>{searchHits} threads</small>}
         </form>
         <div className="spacer" />
+        {onOpen3D && (
+          <button type="button" className="w-3d-btn" onClick={onOpen3D}>
+            <GlobeIcon aria-hidden="true" /> 3D world
+          </button>
+        )}
         <div className="w-user">
           <button
             type="button"
