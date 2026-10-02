@@ -8,6 +8,9 @@ graphify-out/
 __pycache__/
 *.pyc
 
+# Bazaar experiment run state: agent tokens, decision logs. Never committed.
+experiments/bazaar/runs/
+
 # Local, owner-only agent memory (import-agent-profile.ts) — may contain
 # real personal/financial notes; never committed, never uploaded to Postgres.
 experiments/verse-ecology/local-memory/
