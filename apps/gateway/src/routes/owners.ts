@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { randomBytes } from "node:crypto";
-import { and, desc, eq, inArray, isNull, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, lt, sql } from "drizzle-orm";
 import { db } from "../db/client";
 import {
   owners,
@@ -453,13 +453,35 @@ ownersRoute.post("/agents/claim", ownerAuth, async (c) => {
     return c.json({ error: "claim code expired" }, 410);
   }
 
-  // one-time use: whoever wins this update clears the hash, so a second
-  // attempt with the same code (even a legitimate retry) now 404s above.
+  // Atomic claim: the UPDATE only succeeds while the code is still live —
+  // unclaimed, unexpired, hash intact. Concurrent racers get zero rows back
+  // instead of both winning (TOCTOU on the old find-then-update).
   const [updated] = await db
     .update(agents)
     .set({ ownerId, claimCodeHash: null, claimCodeExpiresAt: null, status: "offline" })
-    .where(eq(agents.id, agent.id))
+    .where(
+      and(
+        eq(agents.id, agent.id),
+        eq(agents.claimCodeHash, claimCodeHash),
+        isNull(agents.ownerId),
+        gt(agents.claimCodeExpiresAt, new Date()),
+      ),
+    )
     .returning();
+
+  if (!updated) {
+    // Lost a race, or the code expired between the read and the write.
+    // Discriminator: if the code is still live (unclaimed, hash intact)
+    // the only way the conditional write missed is the expiry guard → 410.
+    // Otherwise someone consumed it → 404.
+    const recheck = await db.query.agents.findFirst({ where: eq(agents.id, agent.id) });
+    const stillLive =
+      recheck && !recheck.ownerId && recheck.claimCodeHash === claimCodeHash;
+    if (stillLive) {
+      return c.json({ error: "claim code expired" }, 410);
+    }
+    return c.json({ error: "invalid claim code" }, 404);
+  }
 
   await audit({ event: "agent.claimed", agentId: updated.id, ownerId, actorType: "owner", actorId: ownerId, metadata: { name: updated.name } });
   return c.json({ agent: { id: updated.id, name: updated.name, status: updated.status } });
