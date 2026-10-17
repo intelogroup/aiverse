@@ -23,7 +23,8 @@ interface Connection {
   ws: WSContext;
   missedPings: number;
   // Register-first (PHASE0_SPEC §1): the socket enters the fanout registry
-  // in this state right after ticket validation, BEFORE the gates and the
+  // in this state immediately after the ticket GETDEL yields the agentId,
+  // BEFORE the reconnect budget, the agent-row fetch, the gates and the
   // backlog run. While "setting_up", fanout frames addressed to this
   // socket append to `pending` instead of being written; the buffer
   // flushes after the backlog, and only then does the connection go
@@ -842,78 +843,73 @@ export function registerAgentWsRoute(app: {
             return;
           }
 
-          // Burst defense (PHASE0_SPEC §2): the per-agent reconnect
-          // budget is spent before any DB work — a storming agent costs
-          // one Redis INCR per attempt from here on.
-          const retryAfterMs = await consumeReconnectBudget(ticketAgentId);
-          if (retryAfterMs > 0) {
-            log("ws_reconnect_budget_exceeded", { agentId: ticketAgentId, retryAfterMs });
-            ws.close(RECONNECT_BUDGET_CLOSE_CODE, JSON.stringify({ retry_after_ms: retryAfterMs }));
-            return;
-          }
-
-          const agent = await db.query.agents.findFirst({ where: eq(agents.id, ticketAgentId) });
-          if (!agent) {
-            ws.close(4001, "invalid ticket");
-            return;
-          }
-          log("agent_auth", { agentId: agent.id, authMethod: "ws_ticket" });
-
-          agentId = agent.id;
-          const capabilities = (agent.agentCard as { capabilities?: string[] })
-            .capabilities ?? [];
+          agentId = ticketAgentId;
 
           // Register-first (PHASE0_SPEC §1): this socket joins the fanout
-          // registry NOW, in setting_up state — before the gates, the
-          // status write, and the backlog below run. Fanout frames that
+          // registry NOW, in setting_up state — the GETDEL above is the
+          // only await in front of registration. The first reorder still
+          // left the reconnect-budget check and the agent-row fetch ahead
+          // of this point, and the burst re-soak showed why that is too
+          // late: under a connect storm the PG SELECT queues behind
+          // thousands of concurrent connect-path queries, so most sockets
+          // had not reached registration when the burst fired (connecting
+          // cohort 44,434/250,000 with zero pending-buffer overflows —
+          // the frames were never buffered because the sockets were not
+          // registered yet). The record needs only the ticket's agentId
+          // here; the row's owner/name/capabilities are filled in on it
+          // once the fetch lands (nothing reads them while setting_up —
+          // fanout delivery only buffers raw frames). Fanout frames that
           // arrive during setup buffer on the connection record (bounded:
           // MAX_PENDING_BUFFER) and flush after the backlog instead of
           // being lost to registration lag, which is exactly the window
-          // the burst soak measured at 0/250,000 for the connecting
-          // cohort. An incumbent connection for the same agent is
-          // displaced from the registry by this registration — it stops
-          // receiving fanout immediately — but it is only *closed* (4006)
-          // at the replace step after the gates pass: a gate failure
+          // the original burst soak measured at 0/250,000 for the
+          // connecting cohort. An incumbent connection for the same agent
+          // is displaced from the registry by this registration — it
+          // stops receiving fanout immediately — but it is only *closed*
+          // (4006) at the replace step after the gates pass: a refusal
           // restores it untouched, matching the Go edge's observable
           // gate-failure behavior.
           const conn: Connection = {
-            agentId: agent.id,
-            ownerId: agent.ownerId ?? "",
-            name: agent.name,
-            capabilities,
+            agentId: ticketAgentId,
+            ownerId: "",
+            name: "",
+            capabilities: [],
             ws,
             missedPings: 0,
             state: "setting_up",
             pending: [],
             droppedPending: 0,
           };
-          const displaced = connections.get(agent.id);
-          connections.set(agent.id, conn);
+          const displaced = connections.get(ticketAgentId);
+          connections.set(ticketAgentId, conn);
 
-          // Gate failure during setup: unregister (the pending buffer is
-          // discarded unsent), then close with the gate's code. Nothing
-          // was delivered, no presence key was written, no digest join is
-          // collected — no residue. The displaced incumbent is restored
-          // for the agent-state gates (4003/4005: it is the same agent in
-          // the same state, and pre-register-first it was never touched).
-          // For a visit-ended refusal (4008) there is no restore: the
-          // visit is over for the incumbent too, and it only escaped the
+          // Refusal during setup (reconnect budget, missing agent row,
+          // or any gate below): unregister (the pending buffer is
+          // discarded unsent), then close with the refusal's code.
+          // Nothing was delivered, no presence key was written, no
+          // digest join is collected — no residue. The displaced
+          // incumbent is restored for refusals that say nothing about
+          // the incumbent (budget, missing row, and the 4003/4005
+          // agent-state gates: it is the same agent in the same state,
+          // and pre-register-first it was never touched). For a
+          // visit-ended refusal (4008) there is no restore: the visit is
+          // over for the incumbent too, and it only escaped the
           // announce's force-disconnect because this registration had
           // already displaced it — so it is closed with the same code.
           const failSetup = (code: number, reason: string, restoreDisplaced: boolean) => {
-            if (connections.get(agent.id) === conn) {
-              connections.delete(agent.id);
+            if (connections.get(conn.agentId) === conn) {
+              connections.delete(conn.agentId);
               if (displaced && restoreDisplaced) {
                 if (displaced.ws.raw.readyState === 1) {
-                  connections.set(agent.id, displaced);
+                  connections.set(conn.agentId, displaced);
                 } else {
-                  // The incumbent died inside the gate window; its
+                  // The incumbent died inside the setup window; its
                   // onClose identity-failed against this registration, so
                   // its departure was never announced. Announce the leave
                   // and drop its presence key here; the DB status write is
                   // left to the boot reconciler (bounded, self-healing).
-                  recordPresenceLeft(agent.id);
-                  clearPresence(agent.id).catch(() => {});
+                  recordPresenceLeft(conn.agentId);
+                  clearPresence(conn.agentId).catch(() => {});
                 }
               }
             }
@@ -923,6 +919,34 @@ export function registerAgentWsRoute(app: {
             conn.pending = [];
             ws.close(code, reason);
           };
+
+          // Burst defense (PHASE0_SPEC §2): the per-agent reconnect
+          // budget is spent before any DB work — a storming agent costs
+          // one Redis INCR per attempt from here on. The socket is
+          // already registered at this point, so a budget refusal flows
+          // through the same unregister + restore path as a gate
+          // failure; the close code and reason are unchanged.
+          const retryAfterMs = await consumeReconnectBudget(ticketAgentId);
+          if (retryAfterMs > 0) {
+            log("ws_reconnect_budget_exceeded", { agentId: ticketAgentId, retryAfterMs });
+            failSetup(RECONNECT_BUDGET_CLOSE_CODE, JSON.stringify({ retry_after_ms: retryAfterMs }), true);
+            return;
+          }
+
+          const agent = await db.query.agents.findFirst({ where: eq(agents.id, ticketAgentId) });
+          if (!agent) {
+            failSetup(4001, "invalid ticket", true);
+            return;
+          }
+          log("agent_auth", { agentId: agent.id, authMethod: "ws_ticket" });
+
+          // Complete the registry record with the row's identity fields
+          // now that the fetch has landed.
+          const capabilities = (agent.agentCard as { capabilities?: string[] })
+            .capabilities ?? [];
+          conn.ownerId = agent.ownerId ?? "";
+          conn.name = agent.name;
+          conn.capabilities = capabilities;
 
           if (agent.status === "paused") {
             failSetup(4003, "agent paused", true);
