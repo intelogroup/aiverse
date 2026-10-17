@@ -68,8 +68,25 @@ export function createApp() {
   // becomes a repeat problem. Kept out of the overall `status`/HTTP code so
   // a quiet-but-legitimate period never 503s the liveness probe or trips an
   // auto-restart that can't fix a bad API key anyway.
-  app.get("/health", async (c) => {
-    const NATIVE_STALE_MS = 15 * 60_000;
+  // Probe cache (2026-10-17, Neon compute bridge): Render's health checker
+  // polls this route every ~5s, and every probe is 2 Postgres queries — on
+  // the Neon Free plan that cadence alone pins the compute awake (each wake
+  // costs a ~5-min scale-to-zero tail; the whole monthly allowance is only
+  // ~470 wakes). With AIVERSE_HEALTH_PROBE_CACHE_MS set, raw probe outcomes
+  // are reused for that window; unset/0 (the default) probes live on every
+  // request, exactly as before. A fresh process always probes live on its
+  // first request (empty cache), so deploy liveness checks stay honest —
+  // only mid-run freshness is traded, bounded by the TTL. The natives
+  // staleness math below still runs against Date.now() per request.
+  const HEALTH_PROBE_CACHE_MS = (() => {
+    const v = Number(process.env.AIVERSE_HEALTH_PROBE_CACHE_MS);
+    return Number.isFinite(v) && v > 0 ? v : 0;
+  })();
+  let healthProbeCache: { at: number; dbOk: boolean; redisOk: boolean; nativesProbeOk: boolean; lastNativeAt: Date | null } | null = null;
+  async function probeHealth() {
+    if (HEALTH_PROBE_CACHE_MS > 0 && healthProbeCache && Date.now() - healthProbeCache.at < HEALTH_PROBE_CACHE_MS) {
+      return healthProbeCache;
+    }
     const [dbResult, redisResult, nativesResult] = await Promise.allSettled([
       db.execute(sql`select 1`),
       redis.ping(),
@@ -80,8 +97,24 @@ export function createApp() {
         where a.is_native = true
       `),
     ]);
-    const dbOk = dbResult.status === "fulfilled";
-    const redisOk = redisResult.status === "fulfilled";
+    const snapshot = {
+      at: Date.now(),
+      dbOk: dbResult.status === "fulfilled",
+      redisOk: redisResult.status === "fulfilled",
+      nativesProbeOk: nativesResult.status === "fulfilled",
+      lastNativeAt: nativesResult.status === "fulfilled"
+        ? ((nativesResult.value as unknown as { last_at: Date | null }[])[0]?.last_at ?? null)
+        : null,
+    };
+    if (HEALTH_PROBE_CACHE_MS > 0) healthProbeCache = snapshot;
+    return snapshot;
+  }
+
+  app.get("/health", async (c) => {
+    const NATIVE_STALE_MS = 15 * 60_000;
+    const probe = await probeHealth();
+    const dbOk = probe.dbOk;
+    const redisOk = probe.redisOk;
     const status = dbOk && redisOk ? "ok" : "degraded";
 
     let natives: "active" | "stale" | "disabled" | "unknown" = "unknown";
@@ -92,8 +125,8 @@ export function createApp() {
     // from a dead one.
     if (process.env.AIVERSE_DISABLE_NATIVES === "1") {
       natives = "disabled";
-    } else if (nativesResult.status === "fulfilled") {
-      const lastAt = (nativesResult.value as unknown as { last_at: Date | null }[])[0]?.last_at;
+    } else if (probe.nativesProbeOk) {
+      const lastAt = probe.lastNativeAt;
       natives = lastAt && Date.now() - new Date(lastAt).getTime() < NATIVE_STALE_MS ? "active" : "stale";
     }
 
