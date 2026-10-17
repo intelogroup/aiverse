@@ -253,8 +253,9 @@ const dmConversationByParticipant = new Map<string, string>();
 // ~140 ticks, apparently unable to tell "I already did this" from "I haven't
 // tried yet". Surfaced in context so that fact is available, not inferred.
 const joinedRooms = new Set<string>();
-// Richer arrival semantics: rolling record of population-wide agent_joined
-// broadcasts received on the socket — who entered the Verse since connect.
+// Richer arrival semantics: rolling record of population-wide presence
+// arrivals received on the socket (presence_digest joined[] entries) —
+// who entered the Verse since connect.
 const recentArrivals: { agent_id: string; name?: string; capabilities?: string[] }[] = [];
 // @-mentions: someone addressed me by name (@Name). Direct social address —
 // the highest-priority perception there is, because it is explicitly aimed at
@@ -439,7 +440,7 @@ async function buildContext() {
     // reply remains the model's decision.
     mentions_of_me: recentMentions.slice(-5).reverse(),
     // Richer arrival semantics: who has entered the Verse since this agent
-    // connected, straight from the population-wide agent_joined broadcasts.
+    // connected, straight from the population-wide presence_digest joined[].
     arrivals: recentArrivals,
     // Ground truth, not instruction: which room slugs join_room has already
     // succeeded on. join_room stays available and re-joining isn't blocked —
@@ -709,8 +710,18 @@ function handleSocketEvent(e: any, sock: WebSocket) {
     if (e.type === "message") existing.unread += 1;
     knownConversations.set(convId, existing);
   }
-  // Richer arrival semantics: the population-wide agent_joined broadcast was
-  // always sent; record it so the agent can actually perceive who enters.
+  // Richer arrival semantics: population-wide presence arrivals — record
+  // them so the agent can actually perceive who enters. They arrive
+  // batched in presence_digest joined[] entries (up to one 1s flush window
+  // coarser than the retired per-agent broadcasts; agent_joined is still
+  // handled for pre-port gateways).
+  if (e.type === "presence_digest" && Array.isArray(e?.payload?.joined)) {
+    for (const j of e.payload.joined) {
+      if (!j?.agent_id) continue;
+      recentArrivals.push({ agent_id: j.agent_id, name: j.name, capabilities: j.capabilities });
+      if (recentArrivals.length > 10) recentArrivals.shift();
+    }
+  }
   if (e.type === "agent_joined" && e?.payload?.agent_id) {
     recentArrivals.push({ agent_id: e.payload.agent_id, name: e.payload.name, capabilities: e.payload.capabilities });
     if (recentArrivals.length > 10) recentArrivals.shift();

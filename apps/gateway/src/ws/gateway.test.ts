@@ -40,6 +40,18 @@ async function wsTicket(agentToken: string): Promise<string> {
   return ((await res.json()) as any).ticket;
 }
 
+// Polls a collected-frames array until a frame matches (digest delivery
+// is windowed, so frame waits are polls, not single onmessage promises).
+async function waitForFrame(frames: any[], pred: (e: any) => boolean, timeoutMs = 8000): Promise<any> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const hit = frames.find(pred);
+    if (hit) return hit;
+    if (Date.now() > deadline) throw new Error("timed out waiting for frame");
+    await new Promise((r) => setTimeout(r, 25));
+  }
+}
+
 describe("agent WS connect", () => {
   test("invalid ticket is rejected", async () => {
     const ws = new WebSocket(`ws://localhost:${server.port}/agents/ws?ticket=${"0".repeat(64)}`);
@@ -52,43 +64,44 @@ describe("agent WS connect", () => {
     expect(closeCode).toBe(4001);
   });
 
-  test("second agent sees agent_joined for the first", async () => {
-    // registers two owners + two agents over the network, then opens two WS
-    // connections — slower than the 5000ms default under full-suite load.
+  test("second agent sees the first in a presence_digest, not an agent_joined frame", async () => {
+    // Presence joins no longer blast per-agent agent_joined frames
+    // (FANOUT_FIX_SPEC): they collect at the gateway and flush as ONE
+    // presence_digest per ~1s window. B must receive exactly that — a
+    // digest whose joined[] carries A — and never an agent_joined frame.
+    // Registers two owners + two agents over the network, then opens two
+    // WS connections — slower than the 5000ms default under full-suite load.
     const [a, b] = await Promise.all([
       registerAgent("WsAgentA"),
       registerAgent("WsAgentB"),
     ]);
 
     const wsB = new WebSocket(`ws://localhost:${server.port}/agents/ws?ticket=${await wsTicket(b.agentToken)}`);
-
-    const joinedEvent = new Promise((resolve) => {
-      wsB.onmessage = (msg) => {
-        const event = JSON.parse(String(msg.data));
-        // client-side onopen only means the HTTP upgrade finished — it says
-        // nothing about server-side registration (DB write + presence map
-        // insert) being committed. Wait for the server's own ack instead of
-        // racing broadcast delivery order against connect() call order.
-        if (event.type === "agent_connected") return;
-        if (event.type === "agent_joined") resolve(event);
-      };
-    });
+    const framesB: any[] = [];
+    wsB.onmessage = (msg) => framesB.push(JSON.parse(String(msg.data)));
     await new Promise((resolve) => (wsB.onopen = resolve));
-    await new Promise<void>((resolve) => {
-      const check = (msg: MessageEvent) => {
-        if (JSON.parse(String(msg.data)).type === "agent_connected") {
-          wsB.removeEventListener("message", check);
-          resolve();
-        }
-      };
-      wsB.addEventListener("message", check);
-    });
+    // Client-side onopen only means the HTTP upgrade finished — it says
+    // nothing about server-side registration being committed. Wait for
+    // the server's own agent_connected ack before A connects, so A's join
+    // is the one the assertions measure.
+    await waitForFrame(framesB, (e) => e.type === "agent_connected");
 
     const wsA = new WebSocket(`ws://localhost:${server.port}/agents/ws?ticket=${await wsTicket(a.agentToken)}`);
     await new Promise((resolve) => (wsA.onopen = resolve));
 
-    const event = (await joinedEvent) as { payload: { name: string } };
-    expect(event.payload.name).toBe("WsAgentA");
+    const digest = await waitForFrame(framesB, (e) => e.type === "presence_digest");
+    expect(digest.payload.left).toEqual([]);
+    expect(digest.payload.joined).toHaveLength(1);
+    expect(digest.payload.joined[0].agent_id).toBe(a.agentId);
+    expect(digest.payload.joined[0].name).toBe("WsAgentA");
+    expect(Array.isArray(digest.payload.joined[0].capabilities)).toBe(true);
+
+    // Give any (incorrectly) individual frames a full flush window to
+    // show up, then assert none ever did — and that the one digest above
+    // was the only one B received.
+    await new Promise((r) => setTimeout(r, 1200));
+    expect(framesB.some((e) => e.type === "agent_joined")).toBe(false);
+    expect(framesB.filter((e) => e.type === "presence_digest")).toHaveLength(1);
 
     wsA.close();
     wsB.close();
@@ -136,22 +149,24 @@ describe("agent WS connect", () => {
     wsNew.close();
   }, 15000);
 
-  test("a normal disconnect broadcasts agent_left and flips DB status to offline", async () => {
+  test("a normal disconnect lands in a presence_digest (left) and flips DB status to offline", async () => {
     // Regression test: onClose's identity guard was comparing WSContext
     // wrapper objects (`conn.ws === ws`), but Hono's Bun adapter constructs
     // a brand-new WSContext on every single event — so the guard was false
     // on every plain disconnect, not just a real replace race, and onClose's
     // whole body (including this broadcast) silently never ran. Fixed by
-    // comparing `.raw` (the stable underlying Bun socket) instead.
+    // comparing `.raw` (the stable underlying Bun socket) instead. The
+    // broadcast itself is now a presence_digest (FANOUT_FIX_SPEC): B's
+    // departure must arrive in a digest's left[], never as an agent_left
+    // frame. (If B's join and leave land in the same flush window they
+    // net to just the left — also fine for these assertions.)
     const a = await registerAgent("WsAgentLeftA");
     const b = await registerAgent("WsAgentLeftB");
 
     const wsA = new WebSocket(`ws://localhost:${server.port}/agents/ws?ticket=${await wsTicket(a.agentToken)}`);
-    await new Promise<void>((resolve) => {
-      wsA.onmessage = (msg) => {
-        if (JSON.parse(String(msg.data)).type === "agent_connected") resolve();
-      };
-    });
+    const framesA: any[] = [];
+    wsA.onmessage = (msg) => framesA.push(JSON.parse(String(msg.data)));
+    await waitForFrame(framesA, (e) => e.type === "agent_connected");
 
     const wsB = new WebSocket(`ws://localhost:${server.port}/agents/ws?ticket=${await wsTicket(b.agentToken)}`);
     await new Promise<void>((resolve) => {
@@ -160,16 +175,19 @@ describe("agent WS connect", () => {
       };
     });
 
-    const leftEvent = new Promise<{ payload: { agent_id: string } }>((resolve) => {
-      wsA.onmessage = (msg) => {
-        const event = JSON.parse(String(msg.data));
-        if (event.type === "agent_left") resolve(event);
-      };
-    });
+    // Let B's join flush in its own window before disconnecting: digests
+    // net per window, so a leave recorded in the same window as the join
+    // would (correctly) net away to just the join and no left would ever
+    // be owed. The instantaneous agent_left broadcast this test used to
+    // assert on had no such window to respect.
+    await new Promise((r) => setTimeout(r, 1500));
 
     wsB.close(1000, "normal close");
-    const event = await leftEvent;
-    expect(event.payload.agent_id).toBe(b.agentId);
+    const digest = await waitForFrame(framesA, (e) =>
+      e.type === "presence_digest" && (e.payload.left ?? []).some((l: any) => l.agent_id === b.agentId),
+    );
+    expect(digest.payload.left).toContainEqual({ agent_id: b.agentId });
+    expect(framesA.some((e) => e.type === "agent_left")).toBe(false);
 
     // onClose's DB write is fire-and-forget relative to the client-visible
     // close event — give it a moment to land.

@@ -88,9 +88,19 @@ redisSub.on("message", (_channel: string, raw: string) => {
     }
     case "broadcast": {
       const payload = JSON.stringify(msg.event);
+      const isDigest = msg.event.type === WS_EVENTS.PRESENCE_DIGEST;
       for (const [agentId, conn] of connections) {
         if (agentId === msg.exceptAgentId) continue;
-        conn.ws.send(payload);
+        if (isDigest) {
+          // Presence digests strip the receiving socket's own agent_id
+          // per receiver (and are skipped entirely when nothing remains
+          // for that socket) — see stripPresenceDigest below.
+          const stripped = stripPresenceDigest(msg.event, payload, agentId);
+          if (stripped === null) continue;
+          conn.ws.send(stripped);
+        } else {
+          conn.ws.send(payload);
+        }
       }
       break;
     }
@@ -140,6 +150,112 @@ export function broadcastToPublic(event: ReturnType<typeof envelope>): void {
 
 function broadcast(event: ReturnType<typeof envelope>, exceptAgentId?: string) {
   publishFanout({ kind: "broadcast", event, exceptAgentId });
+}
+
+// ── Presence digests (FANOUT_FIX_SPEC) ────────────────────────────────
+// This gateway's own join/left events collect into a pending buffer with
+// last-write-wins netting per agent, and flush as ONE presence_digest
+// broadcast — replacing the per-event agent_joined/agent_left blasts,
+// whose O(n²) socket writes drowned message delivery in the 5k soak.
+// Presence truth stays in the Redis presence:* keys + DB status; the
+// digest is advisory, like the frames it replaces. The Go edge ships the
+// identical protocol (apps/go-edge/FANOUT_FIX_SPEC.md); this is its port.
+const PRESENCE_DIGEST_WINDOW_MS = 1000;
+const PRESENCE_DIGEST_MAX_PENDING = 250;
+
+interface PresenceDigestJoined {
+  agent_id: string;
+  name: string;
+  capabilities: string[];
+}
+
+// digestOrder holds agent ids in first-seen order; each id sits in
+// exactly one of digestJoined / digestLeft (last-write-wins netting).
+const digestJoined = new Map<string, PresenceDigestJoined>();
+const digestLeft = new Set<string>();
+const digestOrder: string[] = [];
+let digestFlusherStarted = false;
+
+// Started lazily on first collect: importing this module (tests, tooling)
+// never spins a timer before there's anything to flush, and the
+// module-singleton state means repeated createApp() calls can't
+// double-start it. Once running it ticks for the process's lifetime,
+// flushing whatever window has accumulated (empty → no publish).
+function ensureDigestFlusher() {
+  if (digestFlusherStarted) return;
+  digestFlusherStarted = true;
+  setInterval(flushPresenceDigest, PRESENCE_DIGEST_WINDOW_MS);
+}
+
+// Nets a join into the pending digest: any pending left for the agent is
+// superseded. The published console status event is unaffected (still
+// per-event, owner-scoped).
+function recordPresenceJoined(agentId: string, name: string, capabilities: string[]) {
+  ensureDigestFlusher();
+  if (digestLeft.has(agentId)) {
+    digestLeft.delete(agentId);
+  } else if (!digestJoined.has(agentId)) {
+    digestOrder.push(agentId);
+  }
+  digestJoined.set(agentId, { agent_id: agentId, name, capabilities });
+  if (digestOrder.length >= PRESENCE_DIGEST_MAX_PENDING) flushPresenceDigest();
+}
+
+// Nets a departure into the pending digest: any pending join for the
+// agent is superseded.
+function recordPresenceLeft(agentId: string) {
+  ensureDigestFlusher();
+  if (digestJoined.has(agentId)) {
+    digestJoined.delete(agentId);
+  } else if (!digestLeft.has(agentId)) {
+    digestOrder.push(agentId);
+  }
+  digestLeft.add(agentId);
+  if (digestOrder.length >= PRESENCE_DIGEST_MAX_PENDING) flushPresenceDigest();
+}
+
+// Publishes the pending set as one presence_digest broadcast, entries in
+// first-seen order. Empty buffer → no publish.
+function flushPresenceDigest() {
+  if (digestOrder.length === 0) return;
+  const joined: PresenceDigestJoined[] = [];
+  const left: { agent_id: string }[] = [];
+  for (const agentId of digestOrder) {
+    const j = digestJoined.get(agentId);
+    if (j) joined.push(j);
+    else left.push({ agent_id: agentId });
+  }
+  digestJoined.clear();
+  digestLeft.clear();
+  digestOrder.length = 0;
+  broadcast(envelope(WS_EVENTS.PRESENCE_DIGEST, { joined, left }));
+}
+
+// Removes selfAgentId from a digest envelope's joined and left lists for
+// one receiving socket. Returns null when nothing remains for this
+// socket — the write is skipped. When nothing is stripped, the original
+// serialized payload passes through untouched.
+function stripPresenceDigest(
+  event: ReturnType<typeof envelope>,
+  rawPayload: string,
+  selfAgentId: string,
+): string | null {
+  try {
+    const payload = event.payload as {
+      joined?: PresenceDigestJoined[];
+      left?: { agent_id: string }[];
+    };
+    const joinedIn = payload.joined ?? [];
+    const leftIn = payload.left ?? [];
+    const joined = joinedIn.filter((j) => j.agent_id !== selfAgentId);
+    const left = leftIn.filter((l) => l.agent_id !== selfAgentId);
+    if (joined.length === 0 && left.length === 0) return null;
+    if (joined.length === joinedIn.length && left.length === leftIn.length) return rawPayload;
+    return JSON.stringify({ ...event, payload: { joined, left } });
+  } catch {
+    // Unreadable digest shape — deliver as-is rather than drop it.
+    return rawPayload;
+  }
 }
 
 // Early-ACK stash: a client can ACK a message/mention that arrived on the
@@ -675,14 +791,7 @@ export function registerAgentWsRoute(app: {
             backlogMs: Math.round(performance.now() - backlogStart),
           });
 
-          broadcast(
-            envelope(WS_EVENTS.AGENT_JOINED, {
-              agent_id: agent.id,
-              name: agent.name,
-              capabilities,
-            }),
-            agent.id,
-          );
+          recordPresenceJoined(agent.id, agent.name, capabilities);
 
           broadcastToOwnerConsole(
             agent.ownerId,
@@ -744,7 +853,7 @@ export function registerAgentWsRoute(app: {
             .update(agents)
             .set({ status: "offline", lastSeenAt: new Date() })
             .where(and(eq(agents.id, agentId), notInArray(agents.status, ["paused", "budget_exhausted"])));
-          broadcast(envelope(WS_EVENTS.AGENT_LEFT, { agent_id: agentId }));
+          recordPresenceLeft(agentId);
           log("ws_disconnect", { agentId, ownerId: closedOwnerId });
           if (closedOwnerId) {
             broadcastToOwnerConsole(

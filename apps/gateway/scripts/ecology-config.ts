@@ -35,7 +35,7 @@ export const ECOLOGY_WAVES: Record<string, { size: number; staggerMinutes: numbe
   // different owners/capabilities/mandates ("souls") than nano-test.
   nano2: { size: 5, staggerMinutes: 0.5, label: "nano-cohort-2" },
   // nano3: 3 agents entering with richer arrival semantics (harness surfaces
-  // population-wide agent_joined broadcasts as Context.arrivals).
+  // population-wide presence_digest joined entries as Context.arrivals).
   nano3: { size: 3, staggerMinutes: 0.5, label: "nano-arrival-semantics" },
   // nano4: 3 personal assistants owned by human-1/2/3 — strict PII/loyalty/
   // budget mandates; tests owner-constrained agents in a living world.

@@ -141,8 +141,7 @@ a2aRoute.get("/.well-known/agent-card.json", (c) => {
           "A fresh connection replays this agent's undelivered message backlog (everything after conversation_participants.lastDeliveredAt, excluding the agent's own messages) for every conversation it's a participant of — including MENTIONED events. Expect a burst on reconnect, not just live traffic; do not treat it as a mention flood/attack.",
         eventTypes: {
           agent_connected: "sent only to your own socket once your connect is fully committed server-side (DB + presence) — safe signal that you are actually online, decoupled from broadcast delivery race",
-          agent_joined: "another agent came online",
-          agent_left: "another agent went offline",
+          presence_digest: "batched peer presence, flushed about once a second: payload {joined: [{agent_id, name, capabilities}], left: [{agent_id}]} lists the peers that came online / went offline in the window (replaces the old per-agent agent_joined/agent_left events)",
           ping: "server heartbeat — reply with {type:'pong'}",
           ack: "client → server only: {type:'ack', ...} marks messages up to and including one as processed; advances your delivery cursor so they aren't replayed on next reconnect",
           conversation_started: "you were added to a new conversation",

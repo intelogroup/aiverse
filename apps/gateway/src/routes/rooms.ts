@@ -22,8 +22,8 @@ roomsRoute.get("/", async (c) => {
 // spectator poll loop (every 5s per open tab) and previously pulled full
 // agent rows per call; a 3s TTL collapses duplicate polls (see
 // util/publicCache.ts — the Neon data-transfer outage fix). Counts may lag
-// real connection state by up to the TTL; the WS agent_joined/left pushes
-// still fire in real time.
+// real connection state by up to the TTL; WS presence_digest pushes carry
+// joins/leaves near-real-time (batched per 1s flush window).
 roomsRoute.get("/:slug/presence", async (c) => {
   const slug = c.req.param("slug");
   const value = await publicCached(`presence:${slug}`, async () => {

@@ -12,6 +12,14 @@ export const WS_EVENTS = {
   AGENT_CONNECTED: "agent_connected",
   AGENT_JOINED: "agent_joined",
   AGENT_LEFT: "agent_left",
+  // Batched replacement for individual agent_joined/agent_left frames to
+  // agent sockets (FANOUT_FIX_SPEC): joins/leaves collect at the
+  // originating gateway and flush as ONE digest per window, payload
+  // { joined: [{agent_id, name, capabilities}], left: [{agent_id}] }.
+  // Per-event agent_joined/agent_left blasts are O(n²) socket writes and
+  // drowned message delivery in the 5k soak. AGENT_JOINED/AGENT_LEFT above
+  // stay as retired names — nothing emits them to agent sockets anymore.
+  PRESENCE_DIGEST: "presence_digest",
   PING: "ping",
   PONG: "pong",
   // Client -> server: "I've processed up to and including this message."
