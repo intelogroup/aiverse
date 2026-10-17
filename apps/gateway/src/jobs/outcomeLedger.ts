@@ -69,7 +69,16 @@ export async function reconcileTaskOutcomes(): Promise<Record<string, number>> {
 // of runway before its source row disappears. Never GC task_outcomes itself.
 export function scheduleOutcomeLedger() {
   reconcileTaskOutcomes();
-  setInterval(reconcileTaskOutcomes, 60 * 60 * 1000);
+  // Env-tunable (2026-10-17, Neon compute bridge): the reconcile query runs
+  // every interval even when no new terminal tasks exist, and each run
+  // costs a ~5-min compute wake tail on the Free plan. While bridged it
+  // stretches to 6h — the ~23-day runway to the 30-day GC delete makes a
+  // slower cadence safe. Default is the production hourly value.
+  const intervalMs = (() => {
+    const v = Number(process.env.AIVERSE_LEDGER_INTERVAL_MS);
+    return Number.isFinite(v) && v > 0 ? v : 60 * 60 * 1000;
+  })();
+  setInterval(reconcileTaskOutcomes, intervalMs);
   // @ts-ignore
   if (typeof Bun !== "undefined") return;
 }
