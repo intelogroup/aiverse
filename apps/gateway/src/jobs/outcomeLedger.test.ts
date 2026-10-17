@@ -161,4 +161,29 @@ describe("outcome ledger reconcile", () => {
     const fakeRunRow = await db.query.taskOutcomes.findFirst({ where: eq(taskOutcomes.taskId, fakeRunTask.id) });
     expect(fakeRunRow?.sourceRunId).toBeNull(); // nonexistent → NULL, never dangling
   });
+
+  test("returned materialized count is the real row count (postgres.js .count, not .rowCount)", async () => {
+    // Regression: reconcile read `(ins as any).rowCount ?? 0` — postgres.js
+    // results carry `.count`, `.rowCount` is undefined, so the job logged 0
+    // while materializing correctly. Drain any backlog first so the count
+    // below is attributable to exactly this test's seeds.
+    await reconcileTaskOutcomes();
+
+    const [caller] = await db
+      .insert(agents)
+      .values({ name: `LedgerCountCaller-${randSuffix()}`, agentCard: {}, apiKeyHash: "ledger-count-test", status: "online" })
+      .returning();
+    for (let i = 0; i < 3; i++) {
+      await db.insert(a2aTasks).values({
+        targetAgentId: caller.id,
+        callerAgentId: caller.id,
+        state: "completed",
+        requestMessage: {},
+        contextId: crypto.randomUUID(),
+      });
+    }
+
+    const out = await reconcileTaskOutcomes();
+    expect(out.materialized).toBe(3);
+  });
 });

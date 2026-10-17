@@ -76,12 +76,12 @@ export async function runGc(): Promise<Record<string, number>> {
       // security_events.agent_id is nullable, delete references
       await db.execute(sql`DELETE FROM security_events WHERE agent_id IN (SELECT id FROM agents WHERE status='unclaimed' AND claim_code_expires_at < now() - interval '48 hours')`);
       const del = await db.execute(sql`DELETE FROM agents WHERE status='unclaimed' AND claim_code_expires_at < now() - interval '48 hours'`);
-      out.unclaimed_purged = (del as any).rowCount ?? ids.length;
+      out.unclaimed_purged = (del as any).count ?? ids.length;
     } else out.unclaimed_purged = 0;
 
     // 2) stuck submitted tasks >7d → canceled (prevents 145 pile from growing forever, same as inbox ceiling but for age)
     const stuck = await db.execute(sql`UPDATE a2a_tasks SET state='canceled', updated_at=now() WHERE state='submitted' AND created_at < now() - interval '7 days'`);
-    out.tasks_stuck_canceled = (stuck as any).rowCount ?? 0;
+    out.tasks_stuck_canceled = (stuck as any).count ?? 0;
 
     // 3) old tasks >30d → delete (any terminal state; keeps submitted working recent)
     // Ordering invariant: task_outcomes (the durable outcome ledger) is

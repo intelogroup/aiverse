@@ -41,7 +41,7 @@ export async function reconcileTaskOutcomes(): Promise<Record<string, number>> {
       ON CONFLICT (task_id) DO NOTHING
       RETURNING 1
     `);
-    out.materialized = (ins as any).rowCount ?? 0;
+    out.materialized = (ins as any).count ?? 0;
 
     // 2) Verdict sweep — owner verdicts that arrived BEFORE the ledger row was
     // materialized (the accept/reject endpoints only backfill rows that exist
@@ -54,7 +54,7 @@ export async function reconcileTaskOutcomes(): Promise<Record<string, number>> {
         AND g.status IN ('accepted', 'rejected')
         AND o.goal_accepted IS DISTINCT FROM (g.status = 'accepted')
     `);
-    out.verdict_backfilled = (upd as any).rowCount ?? 0;
+    out.verdict_backfilled = (upd as any).count ?? 0;
 
     if (out.materialized || out.verdict_backfilled) log("outcome_ledger_reconcile", out);
   } catch (e) {

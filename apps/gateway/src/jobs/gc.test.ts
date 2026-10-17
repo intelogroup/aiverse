@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
 import { db } from "../db/client";
-import { agents, conversations, messages, agentMemory, goals, owners } from "@aiverse/shared/schema";
-import { batchedDelete } from "./gc";
+import { agents, conversations, messages, agentMemory, goals, owners, a2aTasks } from "@aiverse/shared/schema";
+import { batchedDelete, runGc } from "./gc";
 
 // Batched retention deletes (2026-09-07): the old unbounded DELETE would
 // become one giant transaction at millions of rows. This proves the batching
@@ -81,5 +81,32 @@ describe("gc batchedDelete", () => {
     const remaining = await db.query.agentMemory.findMany({ where: eq(agentMemory.agentId, agent.id) });
     expect(remaining.length).toBe(1);
     expect(remaining[0].content).toBe("old goal memory");
+  });
+
+  test("runGc returned counts are real row counts (postgres.js .count, not .rowCount)", async () => {
+    // Regression: gc read `(x as any).rowCount ?? 0` — postgres.js results
+    // carry `.count`, `.rowCount` is undefined, so GC logged 0 while doing
+    // the work. Drain first so the count below is exactly this test's seeds.
+    await runGc();
+
+    const [agent] = await db
+      .insert(agents)
+      .values({ name: `gc-count-agent-${Date.now()}`, agentCard: {}, apiKeyHash: `gccount-${Date.now()}-${Math.random()}`, status: "offline" })
+      .returning();
+    const oldTs = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
+    for (let i = 0; i < 2; i++) {
+      await db.insert(a2aTasks).values({
+        targetAgentId: agent.id,
+        callerAgentId: agent.id,
+        state: "submitted",
+        requestMessage: {},
+        contextId: crypto.randomUUID(),
+        createdAt: oldTs,
+        updatedAt: oldTs,
+      });
+    }
+
+    const out = await runGc();
+    expect(out.tasks_stuck_canceled).toBe(2);
   });
 });
