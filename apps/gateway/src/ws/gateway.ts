@@ -22,6 +22,16 @@ interface Connection {
   capabilities: string[];
   ws: WSContext;
   missedPings: number;
+  // Register-first (PHASE0_SPEC §1): the socket enters the fanout registry
+  // in this state right after ticket validation, BEFORE the gates and the
+  // backlog run. While "setting_up", fanout frames addressed to this
+  // socket append to `pending` instead of being written; the buffer
+  // flushes after the backlog, and only then does the connection go
+  // "live". Mirrors the Go edge's conn.settingUp/pending
+  // (apps/go-edge/internal/edge/edge.go).
+  state: "setting_up" | "live";
+  pending: string[];
+  droppedPending: number;
 }
 
 // Live WS refs — inherently per-process, sockets aren't serializable. Cross-
@@ -69,6 +79,43 @@ function publishFanout(msg: FanoutMessage) {
   });
 }
 
+// Bounded pending buffer for a setting-up connection (PHASE0_SPEC §1,
+// mirroring the Go edge's maxPendingBuffer): fanout frames arriving
+// during connect setup append to the buffer; on overflow the frame is
+// dropped and counted — never queued unboundedly, never written early.
+const MAX_PENDING_BUFFER = 1024;
+
+// The one delivery path for agent sockets: buffered while the connection
+// is setting up, straight to the socket once live. Acks keep their
+// meaning throughout — delivery (and any client ack it can trigger) only
+// ever follows an actual socket write, here or in the post-backlog flush.
+function deliverToAgentConn(conn: Connection, payload: string): void {
+  if (conn.state === "setting_up") {
+    if (conn.pending.length < MAX_PENDING_BUFFER) {
+      conn.pending.push(payload);
+    } else {
+      conn.droppedPending += 1;
+    }
+    return;
+  }
+  conn.ws.send(payload);
+}
+
+// Extracts payload.message_id from a serialized "message" envelope — the
+// dedupe key between the reconnect backlog and the register-first pending
+// buffer (same rule as the Go edge's messageEnvelopeID: message envelopes
+// only, everything else always flushes).
+function messageEnvelopeId(raw: string): string | null {
+  try {
+    const parsed = JSON.parse(raw) as { type?: string; payload?: { message_id?: unknown } };
+    if (parsed.type !== WS_EVENTS.MESSAGE) return null;
+    const id = parsed.payload?.message_id;
+    return typeof id === "string" && id.length > 0 ? id : null;
+  } catch {
+    return null;
+  }
+}
+
 redisSub.subscribe(WS_FANOUT_CHANNEL).catch((err) => {
   console.error("[ws-fanout] subscribe failed", err);
 });
@@ -83,7 +130,7 @@ redisSub.on("message", (_channel: string, raw: string) => {
   switch (msg.kind) {
     case "agent": {
       const conn = connections.get(msg.agentId);
-      conn?.ws.send(JSON.stringify(msg.event));
+      if (conn) deliverToAgentConn(conn, JSON.stringify(msg.event));
       break;
     }
     case "broadcast": {
@@ -97,9 +144,9 @@ redisSub.on("message", (_channel: string, raw: string) => {
           // for that socket) — see stripPresenceDigest below.
           const stripped = stripPresenceDigest(msg.event, payload, agentId);
           if (stripped === null) continue;
-          conn.ws.send(stripped);
+          deliverToAgentConn(conn, stripped);
         } else {
-          conn.ws.send(payload);
+          deliverToAgentConn(conn, payload);
         }
       }
       break;
@@ -476,13 +523,18 @@ async function readPendingMentions(agentId: string, seenIds: Set<string>): Promi
 // every still-'submitted' task addressed to this agent, since 'submitted'
 // already means "not yet acted on" — no separate delivered/acked column
 // needed there, the state machine itself gates redelivery.
-async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ messages: number; tasks: number; mentions: number; participantJoins: number }> {
+async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ messages: number; tasks: number; mentions: number; participantJoins: number; messageIds: Set<string> }> {
   const participantRows = await db.query.conversationParticipants.findMany({
     where: eq(conversationParticipants.agentId, agentId),
   });
 
   let messagesDelivered = 0;
   let participantJoinsDelivered = 0;
+  // Ids of every message envelope written here — the register-first
+  // flush dedupes the setting-up buffer against this set (a frame that
+  // fanned out live during setup AND made the backlog is delivered
+  // once, from the backlog).
+  const deliveredMessageIds = new Set<string>();
   for (const p of participantRows) {
     // Cache-first (item 3): the Postgres query below is the fallback for a
     // cold or cursor-uncovered cache. Cached entries are newest-first; the
@@ -520,6 +572,7 @@ async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ message
           }),
         ),
       );
+      deliveredMessageIds.add(m.id);
       messagesDelivered += 1;
     }
 
@@ -615,7 +668,7 @@ async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ message
     );
   }
 
-  return { messages: messagesDelivered, tasks: pendingTasks.length, mentions: pendingMentions.length, participantJoins: participantJoinsDelivered };
+  return { messages: messagesDelivered, tasks: pendingTasks.length, mentions: pendingMentions.length, participantJoins: participantJoinsDelivered, messageIds: deliveredMessageIds };
 }
 
 // Advances the delivery cursor for one conversation, gated on the message's
@@ -690,11 +743,84 @@ export async function handleAck(agentId: string, payload: unknown): Promise<void
   });
 }
 
+// ── Burst defenses (PHASE0_SPEC §2) ─────────────────────────────────────
+// Two independent guards against connect storms, sized as seatbelts, not
+// product limits: storms are hundreds of connects; normal agents connect
+// a handful of times an hour.
+
+// Reconnect budget: per-agent fixed-window counter in Redis. On exceed,
+// the connect is shed with close 4009 and a retry_after_ms hint (ms until
+// the window resets) in the close reason — the server-driven retry hint
+// that, with client-side jittered backoff, keeps a shed fleet from
+// re-synchronizing into a second storm.
+export const RECONNECT_BUDGET_CLOSE_CODE = 4009;
+const RECONNECT_BUDGET_LIMIT = 30;
+const RECONNECT_BUDGET_WINDOW_SECONDS = 300;
+
+// Returns 0 when this connect is within budget, else the ms until the
+// current window resets.
+async function consumeReconnectBudget(agentId: string): Promise<number> {
+  const key = `ws:reconnect:${agentId}`;
+  const count = await redis.incr(key);
+  if (count === 1) await redis.expire(key, RECONNECT_BUDGET_WINDOW_SECONDS);
+  if (count <= RECONNECT_BUDGET_LIMIT) return 0;
+  const pttl = await redis.pttl(key);
+  return pttl > 0 ? pttl : RECONNECT_BUDGET_WINDOW_SECONDS * 1000;
+}
+
+// Connect admission: a per-process token bucket guarding the TLS+auth
+// CPU a connect storm burns before any ticket is even redeemed. 200/s
+// sustained, 400 burst by default; env-tunable with the production values
+// as defaults, same pattern as the singleton-job intervals. The bucket
+// re-clamps to the current cap on every check, so an env change takes
+// effect on the next connect without a restart.
+function connectRatePerSec(): number {
+  const v = Number(process.env.AIVERSE_WS_CONNECT_RATE_PER_SEC);
+  return Number.isFinite(v) && v >= 0 ? v : 200;
+}
+function connectBurstAllowance(): number {
+  const v = Number(process.env.AIVERSE_WS_CONNECT_BURST);
+  return Number.isFinite(v) && v >= 1 ? Math.floor(v) : 400;
+}
+let connectBucketTokens: number | undefined;
+let connectBucketLastMs = Date.now();
+
+function tryAdmitAgentConnect(): boolean {
+  const cap = connectBurstAllowance();
+  const now = Date.now();
+  if (connectBucketTokens === undefined) connectBucketTokens = cap;
+  connectBucketTokens = Math.min(
+    cap,
+    connectBucketTokens + ((now - connectBucketLastMs) / 1000) * connectRatePerSec(),
+  );
+  connectBucketLastMs = now;
+  if (connectBucketTokens >= 1) {
+    connectBucketTokens -= 1;
+    return true;
+  }
+  return false;
+}
+
+// Hono handler placed ahead of upgradeWebSocket on /agents/ws: returning
+// a response here ends the chain, so a shed connect costs one token check
+// — no upgrade, no ticket redemption, no DB work. Existing connections
+// are never touched by shedding; they are the expensive-to-rebuild asset.
+function agentConnectAdmission(
+  c: { text: (body: string, status: number, headers?: Record<string, string>) => Response },
+  next: () => Promise<unknown>,
+): Promise<unknown> | Response {
+  if (!tryAdmitAgentConnect()) {
+    return c.text("too many connection attempts", 503, { "Retry-After": "1" });
+  }
+  return next();
+}
+
 export function registerAgentWsRoute(app: {
   get: (path: string, ...handlers: unknown[]) => unknown;
 }) {
   app.get(
     "/agents/ws",
+    agentConnectAdmission,
     upgradeWebSocket((c) => {
       let agentId: string | undefined;
       let heartbeat: ReturnType<typeof setInterval> | undefined;
@@ -707,24 +833,103 @@ export function registerAgentWsRoute(app: {
           // a long-lived credential must never appear in a query string /
           // access log.
           const ticket = c.req.query("ticket");
-          let agent;
+          let ticketAgentId: string | null = null;
           if (ticket) {
-            const ticketAgentId = await redis.getdel(`wsticket:agent:${ticket}`);
-            if (ticketAgentId) {
-              agent = await db.query.agents.findFirst({ where: eq(agents.id, ticketAgentId) });
-              if (agent) log("agent_auth", { agentId: agent.id, authMethod: "ws_ticket" });
-            }
+            ticketAgentId = await redis.getdel(`wsticket:agent:${ticket}`);
           }
+          if (!ticketAgentId) {
+            ws.close(4001, "invalid ticket");
+            return;
+          }
+
+          // Burst defense (PHASE0_SPEC §2): the per-agent reconnect
+          // budget is spent before any DB work — a storming agent costs
+          // one Redis INCR per attempt from here on.
+          const retryAfterMs = await consumeReconnectBudget(ticketAgentId);
+          if (retryAfterMs > 0) {
+            log("ws_reconnect_budget_exceeded", { agentId: ticketAgentId, retryAfterMs });
+            ws.close(RECONNECT_BUDGET_CLOSE_CODE, JSON.stringify({ retry_after_ms: retryAfterMs }));
+            return;
+          }
+
+          const agent = await db.query.agents.findFirst({ where: eq(agents.id, ticketAgentId) });
           if (!agent) {
             ws.close(4001, "invalid ticket");
             return;
           }
+          log("agent_auth", { agentId: agent.id, authMethod: "ws_ticket" });
+
+          agentId = agent.id;
+          const capabilities = (agent.agentCard as { capabilities?: string[] })
+            .capabilities ?? [];
+
+          // Register-first (PHASE0_SPEC §1): this socket joins the fanout
+          // registry NOW, in setting_up state — before the gates, the
+          // status write, and the backlog below run. Fanout frames that
+          // arrive during setup buffer on the connection record (bounded:
+          // MAX_PENDING_BUFFER) and flush after the backlog instead of
+          // being lost to registration lag, which is exactly the window
+          // the burst soak measured at 0/250,000 for the connecting
+          // cohort. An incumbent connection for the same agent is
+          // displaced from the registry by this registration — it stops
+          // receiving fanout immediately — but it is only *closed* (4006)
+          // at the replace step after the gates pass: a gate failure
+          // restores it untouched, matching the Go edge's observable
+          // gate-failure behavior.
+          const conn: Connection = {
+            agentId: agent.id,
+            ownerId: agent.ownerId ?? "",
+            name: agent.name,
+            capabilities,
+            ws,
+            missedPings: 0,
+            state: "setting_up",
+            pending: [],
+            droppedPending: 0,
+          };
+          const displaced = connections.get(agent.id);
+          connections.set(agent.id, conn);
+
+          // Gate failure during setup: unregister (the pending buffer is
+          // discarded unsent), then close with the gate's code. Nothing
+          // was delivered, no presence key was written, no digest join is
+          // collected — no residue. The displaced incumbent is restored
+          // for the agent-state gates (4003/4005: it is the same agent in
+          // the same state, and pre-register-first it was never touched).
+          // For a visit-ended refusal (4008) there is no restore: the
+          // visit is over for the incumbent too, and it only escaped the
+          // announce's force-disconnect because this registration had
+          // already displaced it — so it is closed with the same code.
+          const failSetup = (code: number, reason: string, restoreDisplaced: boolean) => {
+            if (connections.get(agent.id) === conn) {
+              connections.delete(agent.id);
+              if (displaced && restoreDisplaced) {
+                if (displaced.ws.raw.readyState === 1) {
+                  connections.set(agent.id, displaced);
+                } else {
+                  // The incumbent died inside the gate window; its
+                  // onClose identity-failed against this registration, so
+                  // its departure was never announced. Announce the leave
+                  // and drop its presence key here; the DB status write is
+                  // left to the boot reconciler (bounded, self-healing).
+                  recordPresenceLeft(agent.id);
+                  clearPresence(agent.id).catch(() => {});
+                }
+              }
+            }
+            if (displaced && !restoreDisplaced) {
+              displaced.ws.close(code, reason);
+            }
+            conn.pending = [];
+            ws.close(code, reason);
+          };
+
           if (agent.status === "paused") {
-            ws.close(4003, "agent paused");
+            failSetup(4003, "agent paused", true);
             return;
           }
           if (!agent.ownerId) {
-            ws.close(4005, "agent unclaimed");
+            failSetup(4005, "agent unclaimed", true);
             return;
           }
           // "GET" — connecting isn't an action to spend budget on, but an
@@ -735,49 +940,47 @@ export function registerAgentWsRoute(app: {
           const visit = await checkAndConsumeVisit(agent.id, "GET");
           if (!visit.allowed) {
             if (visit.ended) await announceVisitEnded(visit.ended);
-            ws.close(VISIT_CLOSE_CODE, `visit ended`);
+            failSetup(VISIT_CLOSE_CODE, `visit ended`, false);
             return;
           }
 
-          agentId = agent.id;
-          const capabilities = (agent.agentCard as { capabilities?: string[] })
-            .capabilities ?? [];
+          // A force-disconnect (the visit sweep kicking this agent) may
+          // have unregistered this socket while the gates ran — its close
+          // is already handled there; don't resurrect it.
+          if (connections.get(agent.id) !== conn) return;
 
-          // Same agent identity, second connection: never leave the old
-          // socket as a silent zombie (it was previously just overwritten in
-          // the Map, orphaned but still open). Explicitly replace: close the
-          // old one, then register the new one. The old socket's own onClose
-          // will still fire async — the `conn.ws.raw === ws.raw` identity
-          // check there is what stops it from clobbering this (the new)
-          // connection's state once it runs. Compare `.raw` (the underlying
-          // Bun socket), not the WSContext wrapper itself — Hono's Bun
-          // adapter constructs a brand-new WSContext on every single event
-          // (open/message/close), so `conn.ws === ws` is false by
-          // construction on every call, not just during a real replace race.
-          const existing = connections.get(agent.id);
-          if (existing) {
-            existing.ws.close(4006, "replaced by a new connection for the same agent");
-            connections.delete(agent.id);
+          // Replace semantics (4006): same agent identity, second
+          // connection — never leave the old socket as a silent zombie.
+          // The old socket's own onClose will still fire async — the
+          // `conn.ws.raw === ws.raw` identity check there is what stops it
+          // from clobbering this (the new) connection's state once it
+          // runs. Compare `.raw` (the underlying Bun socket), not the
+          // WSContext wrapper itself — Hono's Bun adapter constructs a
+          // brand-new WSContext on every single event (open/message/
+          // close), so `conn.ws === ws` is false by construction on every
+          // call, not just during a real replace race.
+          if (displaced) {
+            displaced.ws.close(4006, "replaced by a new connection for the same agent");
           }
 
           await timed("postgres_write", { table: "agents", op: "set_online" }, () =>
             db.update(agents).set({ status: "online", lastSeenAt: new Date() }).where(eq(agents.id, agent.id)),
           );
 
-          const conn: Connection = {
-            agentId: agent.id,
-            ownerId: agent.ownerId,
-            name: agent.name,
-            capabilities,
-            ws,
-            missedPings: 0,
-          };
-          connections.set(agent.id, conn);
           // Item 4: the TTL key is the live presence truth; the DB status
           // write above stays as the transition record / Redis-down fallback.
           await timed("redis_write", { key: "presence", op: "set" }, () => setPresence(agent.id));
 
           ws.send(JSON.stringify(envelope(WS_EVENTS.AGENT_CONNECTED, { agent_id: agent.id })));
+
+          // Test hook (mirrors the Go edge's backlogDelay field, zero in
+          // production): stretches the setting-up window so the
+          // register-first test can fan a frame out mid-setup
+          // deterministically instead of racing the backlog.
+          const backlogDelayMs = Number(process.env.AIVERSE_WS_BACKLOG_DELAY_MS);
+          if (Number.isFinite(backlogDelayMs) && backlogDelayMs > 0) {
+            await new Promise((r) => setTimeout(r, backlogDelayMs));
+          }
 
           const backlogStart = performance.now();
           const backlog = await deliverBacklog(agent.id, ws);
@@ -791,6 +994,34 @@ export function registerAgentWsRoute(app: {
             backlogMs: Math.round(performance.now() - backlogStart),
           });
 
+          // Flush the setting-up buffer (PHASE0_SPEC §1 step 5): backlog
+          // first (delivered above), then buffered frames in arrival
+          // order, skipping message envelopes the backlog already
+          // delivered — the same dedupe rule as the Go edge's
+          // flushPending. The loop is synchronous, so no fanout delivery
+          // can interleave between buffer and socket; the connection is
+          // live from the assignment after it.
+          const buffered = conn.pending;
+          conn.pending = [];
+          for (const raw of buffered) {
+            const mid = messageEnvelopeId(raw);
+            if (mid && backlog.messageIds.has(mid)) continue;
+            ws.send(raw);
+          }
+          if (conn.droppedPending > 0) {
+            log("ws_pending_overflow", { agentId: agent.id, dropped: conn.droppedPending });
+          }
+          conn.state = "live";
+
+          // The socket may have closed mid-setup — onClose already ran
+          // its cleanup and unregistered it. Don't announce a join (or
+          // start a heartbeat) for a connection that no longer exists.
+          if (connections.get(agent.id) !== conn) return;
+
+          // Presence digest collection point (PHASE0_SPEC §1 step 7):
+          // the join collects only now that the connection is live — a
+          // gate-failed or never-completed setup never appears in a
+          // digest, same as the Go edge.
           recordPresenceJoined(agent.id, agent.name, capabilities);
 
           broadcastToOwnerConsole(
@@ -840,10 +1071,16 @@ export function registerAgentWsRoute(app: {
           if (!agentId) return;
           const conn = connections.get(agentId);
           // A newer connection for this same agent already replaced us
-          // (see the `existing` replace-on-connect logic above) — this
+          // (see the displaced replace-on-connect logic above) — this
           // socket's own cleanup is a no-op, the new one owns presence now.
           if (!conn || conn.ws.raw !== ws.raw) return;
           const closedOwnerId = conn.ownerId;
+          // A connection that never went live never announced a join
+          // (register-first: the digest join collects at the live
+          // transition), so it must not announce a leave or an offline
+          // status either. Registry/presence/status cleanup still runs —
+          // setup may have written the online transition already.
+          const wasLive = conn.state === "live";
           connections.delete(agentId);
           await clearPresence(agentId);
           // Don't clobber a status the owner/system deliberately set (paused,
@@ -853,9 +1090,9 @@ export function registerAgentWsRoute(app: {
             .update(agents)
             .set({ status: "offline", lastSeenAt: new Date() })
             .where(and(eq(agents.id, agentId), notInArray(agents.status, ["paused", "budget_exhausted"])));
-          recordPresenceLeft(agentId);
+          if (wasLive) recordPresenceLeft(agentId);
           log("ws_disconnect", { agentId, ownerId: closedOwnerId });
-          if (closedOwnerId) {
+          if (wasLive && closedOwnerId) {
             broadcastToOwnerConsole(
               closedOwnerId,
               envelope(WS_EVENTS.AGENT_STATUS_CHANGED, { agent_id: agentId, status: "offline" }),
