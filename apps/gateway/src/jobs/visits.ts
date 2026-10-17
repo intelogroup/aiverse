@@ -66,7 +66,14 @@ export async function sweepVisits(): Promise<{ endedByDeadlineOrCap: number; end
   return { endedByDeadlineOrCap, endedByPresence };
 }
 
-const SWEEP_INTERVAL_MS = 60_000;
+// Env-tunable (2026-10-17, Neon compute bridge): the sweep SELECTs every
+// interval even with zero active visits, which pins the Free-plan compute
+// awake. While bridged it stretches alongside AIVERSE_LEADER_CHECK_MS;
+// visit expiries land up to one interval late. Default is production.
+const SWEEP_INTERVAL_MS = (() => {
+  const v = Number(process.env.AIVERSE_VISITS_SWEEP_MS);
+  return Number.isFinite(v) && v > 0 ? v : 60_000;
+})();
 
 export function scheduleVisitsSweep(): void {
   sweepVisits();

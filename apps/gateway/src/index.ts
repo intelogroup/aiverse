@@ -40,7 +40,14 @@ await reconcilePresenceOnBoot();
 // leader left the survivors serving traffic with no one persisting messages
 // (Postgres frozen while sends kept 201-ing) until some process restarted.
 // Followers now retry the lock; the leader re-checks that it still holds it.
-const LEADER_CHECK_MS = 15_000;
+// Env-tunable (2026-10-17, Neon compute bridge): on the Free plan every DB
+// touch costs a ~5-min scale-to-zero tail, so while the verse is idle the
+// check stretches to let the compute sleep between heartbeats. The default
+// is the production value; failover latency scales with whatever is set.
+const LEADER_CHECK_MS = (() => {
+  const v = Number(process.env.AIVERSE_LEADER_CHECK_MS);
+  return Number.isFinite(v) && v > 0 ? v : 15_000;
+})();
 let singletonJobsStarted = false;
 
 async function startSingletonJobs() {
