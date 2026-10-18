@@ -5,6 +5,7 @@
 // delivery/admission happens at all.
 import {
   takeToken,
+  takeTokens,
   admitConversationIfUnderLimit,
   removeConversationAdmission,
   activeConversationCount,
@@ -44,6 +45,66 @@ export async function checkAgentSendRate(agentId: string): Promise<GateResult> {
 export async function checkRoomSendRate(roomId: string): Promise<GateResult> {
   const allowed = await takeToken(`room:${roomId}`, ROOM_MSG_BUCKET_CAPACITY, ROOM_MSG_REFILL_PER_SECOND);
   return allowed ? { allowed: true } : { allowed: false, reason: "room_rate_limited" };
+}
+
+// Phase 1 WI-1 — per-room fanout budget: the flat gates above charge per
+// SEND; this one charges per DELIVERY, max(1, audienceSize) tokens from
+// the conversation's own bucket, so a 1 msg/s sender in a huge room stops
+// being free. The numbers are env knobs, read at call time (the WI-4
+// ack-cursor pattern), because Q1 of PHASE1_SPEC leaves the production
+// figures open — the defaults below are deliberately generous enough that
+// no conversation shaped like today's traffic is throttled; the binding
+// values are a deploy-time decision for the 50k shape. Capacity "inf"
+// (or "Infinity") disables the gate entirely (spec §Sequencing).
+const FANOUT_BUDGET_DEFAULT_CAPACITY = 100_000;
+const FANOUT_BUDGET_DEFAULT_REFILL_PER_SECOND = 10_000;
+// Group conversations at/above this many participants are audience-priced
+// like rooms; smaller groups and DMs pay a flat 1 token against their own
+// conversation's bucket (unthrottled in practice at any sane capacity).
+const FANOUT_BUDGET_DEFAULT_GROUP_MIN_PARTICIPANTS = 10;
+
+export function fanoutBudgetCapacity(): number {
+  const raw = process.env.AIVERSE_FANOUT_BUDGET_CAPACITY;
+  if (raw && (raw === "inf" || raw.toLowerCase() === "infinity")) return Infinity;
+  const v = Number(raw);
+  return Number.isFinite(v) && v > 0 ? v : FANOUT_BUDGET_DEFAULT_CAPACITY;
+}
+
+export function fanoutBudgetRefillPerSecond(): number {
+  const v = Number(process.env.AIVERSE_FANOUT_BUDGET_REFILL_PER_SEC);
+  return Number.isFinite(v) && v >= 0 ? v : FANOUT_BUDGET_DEFAULT_REFILL_PER_SECOND;
+}
+
+export function fanoutBudgetGroupMinParticipants(): number {
+  const v = Number(process.env.AIVERSE_FANOUT_BUDGET_GROUP_MIN_PARTICIPANTS);
+  return Number.isFinite(v) && v > 0 ? Math.floor(v) : FANOUT_BUDGET_DEFAULT_GROUP_MIN_PARTICIPANTS;
+}
+
+// audienceSize = participants other than the sender (the caller has the
+// participant list in hand from its membership check — no extra query).
+// Priced conversations: rooms (roomId set / kind "room") and groups at or
+// above the size threshold. Everything else (DMs, small groups) is
+// charged a flat 1 token against its own key, which cannot starve any
+// other conversation. Charge basis is all participants for now; WI-2
+// narrows it to active participants when passive/active state exists.
+export async function checkFanoutBudget(
+  conversation: { id: string; roomId: string | null; kind: string },
+  audienceSize: number,
+): Promise<GateResult> {
+  const capacity = fanoutBudgetCapacity();
+  if (!Number.isFinite(capacity)) return { allowed: true };
+  const priced =
+    conversation.roomId != null ||
+    conversation.kind === "room" ||
+    (conversation.kind === "group" && audienceSize + 1 >= fanoutBudgetGroupMinParticipants());
+  const charge = priced ? Math.max(1, audienceSize) : 1;
+  const allowed = await takeTokens(
+    `fanout:${conversation.id}`,
+    charge,
+    capacity,
+    fanoutBudgetRefillPerSecond(),
+  );
+  return allowed ? { allowed: true } : { allowed: false, reason: "fanout_budget_exceeded" };
 }
 
 export async function checkConversationAdmission(agentId: string): Promise<GateResult> {

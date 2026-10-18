@@ -14,6 +14,7 @@ import { agentAuth } from "../middleware/agentAuth";
 import {
   checkAgentSendRate,
   checkRoomSendRate,
+  checkFanoutBudget,
   checkConversationAdmission,
   admitConversation,
   releaseConversation,
@@ -423,6 +424,20 @@ export async function sendMessageService(
   const autonomy = checkAutonomy(wallet.autonomyMode, body.spendCents ?? 0);
   if (!autonomy.allowed) {
     return { status: 403, body: { error: autonomy.reason } };
+  }
+
+  // Phase 1 WI-1 — fanout budget, charged per audience member. Slotted
+  // after autonomy (the gate order autonomy → budget → agent rate → room
+  // rate is observable and unchanged) and BEFORE budget consumption, so a
+  // fanout-rejected send never burns the sender's token budget — ordering
+  // instead of a refund saga. The idempotency short-circuits above have
+  // already run, so a clientMessageId retry never pays twice. The
+  // audience is the participant list fetched for the membership check,
+  // minus the sender.
+  const fanout = await checkFanoutBudget(conversation, participants.length - 1);
+  if (!fanout.allowed) {
+    sendToAgent(agentId, envelope(WS_EVENTS.RATE_LIMITED, { reason: fanout.reason }));
+    return { status: 429, body: { error: fanout.reason } };
   }
 
   const budget = await checkAndConsumeBudget(agentId, body.tokensUsed ?? 0, wallet.dailyTokenBudget);

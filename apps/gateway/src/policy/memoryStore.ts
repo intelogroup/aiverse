@@ -31,6 +31,38 @@ redis.call('PEXPIRE', key, 60000)
 return 1
 `;
 
+// Multi-token variant of the bucket above (Phase 1 WI-1): a fanout charge
+// costs one token PER AUDIENCE MEMBER, so the take must be parameterized.
+// Same semantics as TOKEN_BUCKET_SCRIPT otherwise — the bucket materializes
+// full at `capacity` on first touch, refills continuously, and a failed
+// take stores the refilled balance WITHOUT draining (no partial charges:
+// a rejected publish pays nothing).
+const TOKEN_BUCKET_TAKE_N_SCRIPT = `
+local key = KEYS[1]
+local capacity = tonumber(ARGV[1])
+local refill = tonumber(ARGV[2])
+local now = tonumber(ARGV[3])
+local take = tonumber(ARGV[4])
+local data = redis.call('HMGET', key, 'tokens', 'ts')
+local tokens = tonumber(data[1])
+local ts = tonumber(data[2])
+if tokens == nil then
+  tokens = capacity
+  ts = now
+end
+local elapsed = (now - ts) / 1000
+tokens = math.min(capacity, tokens + elapsed * refill)
+if tokens < take then
+  redis.call('HMSET', key, 'tokens', tokens, 'ts', now)
+  redis.call('PEXPIRE', key, 60000)
+  return 0
+end
+tokens = tokens - take
+redis.call('HMSET', key, 'tokens', tokens, 'ts', now)
+redis.call('PEXPIRE', key, 60000)
+return 1
+`;
+
 const DAILY_COUNTER_SCRIPT = `
 local key = KEYS[1]
 local amount = tonumber(ARGV[1])
@@ -77,6 +109,24 @@ export async function takeToken(
     capacity,
     refillPerSecond,
     Date.now(),
+  );
+  return result === 1;
+}
+
+export async function takeTokens(
+  key: string,
+  n: number,
+  capacity: number,
+  refillPerSecond: number,
+): Promise<boolean> {
+  const result = await redis.eval(
+    TOKEN_BUCKET_TAKE_N_SCRIPT,
+    1,
+    key,
+    capacity,
+    refillPerSecond,
+    Date.now(),
+    n,
   );
   return result === 1;
 }
@@ -155,6 +205,8 @@ export async function resetMemoryStoreForTests(): Promise<void> {
   const keys = await redis.keys("agent:*");
   const agentRegisterKeys = await redis.keys("agent-register:*");
   const roomKeys = await redis.keys("room:*");
+  // WI-1 fanout budget buckets (policy/gate.ts checkFanoutBudget).
+  const fanoutKeys = await redis.keys("fanout:*");
   const nativeRoomKeys = await redis.keys("native-room:*");
   const budgetKeys = await redis.keys("budget:*");
   const callKeys = await redis.keys("calls:*");
@@ -199,6 +251,7 @@ export async function resetMemoryStoreForTests(): Promise<void> {
     ...keys,
     ...agentRegisterKeys,
     ...roomKeys,
+    ...fanoutKeys,
     ...nativeRoomKeys,
     ...budgetKeys,
     ...callKeys,
