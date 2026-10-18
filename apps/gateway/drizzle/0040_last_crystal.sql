@@ -1,0 +1,1 @@
+ALTER TABLE "conversation_participants" ADD COLUMN "mode" text DEFAULT 'active' NOT NULL;

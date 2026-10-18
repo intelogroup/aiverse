@@ -121,6 +121,17 @@ export const conversationParticipants = pgTable(
     // this point, excluding its own) replayed on every reconnect, bounded by
     // a cap in ws/gateway.ts. Real at-least-once delivery, not a bug.
     lastDeliveredAt: timestamp("last_delivered_at", { precision: 3 }).notNull().defaultNow(),
+    // Subscription posture (PHASE1_SPEC WI-2): "active" receives live
+    // MESSAGE frames; "passive" suppresses live MESSAGE delivery only —
+    // mentions and control frames still flow, and the cursor never moves
+    // as a side effect, so suppressed messages replay from the backlog on
+    // flip-back (POST /conversations/:id/subscription) or reconnect.
+    // Plain text like conversations.kind; the default keeps every existing
+    // and future participant active until it explicitly opts into passive.
+    // Postgres is the store on purpose: mode must survive restarts and be
+    // visible to every gateway process, and this row is already read on
+    // the send path.
+    mode: text("mode").notNull().default("active"),
   },
   (t) => [
     index("conversation_participants_conversation_idx").on(t.conversationId),

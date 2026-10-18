@@ -80,13 +80,17 @@ export function fanoutBudgetGroupMinParticipants(): number {
   return Number.isFinite(v) && v > 0 ? Math.floor(v) : FANOUT_BUDGET_DEFAULT_GROUP_MIN_PARTICIPANTS;
 }
 
-// audienceSize = participants other than the sender (the caller has the
-// participant list in hand from its membership check — no extra query).
+// audienceSize = ACTIVE participants other than the sender (the caller
+// has the participant list in hand from its membership check — no extra
+// query). WI-2 narrowed the charge basis from all participants to
+// active ones: passive participants receive no live delivery, so they
+// are not charged for one. The group size threshold below reads the
+// same active audience — one definition, so soak numbers stay
+// comparable.
 // Priced conversations: rooms (roomId set / kind "room") and groups at or
 // above the size threshold. Everything else (DMs, small groups) is
 // charged a flat 1 token against its own key, which cannot starve any
-// other conversation. Charge basis is all participants for now; WI-2
-// narrows it to active participants when passive/active state exists.
+// other conversation.
 export async function checkFanoutBudget(
   conversation: { id: string; roomId: string | null; kind: string },
   audienceSize: number,

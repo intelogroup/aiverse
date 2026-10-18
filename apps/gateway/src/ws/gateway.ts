@@ -8,7 +8,7 @@ import { redis, redisSub } from "../redis/client";
 import { recentCacheKey, INGEST_STREAM } from "../jobs/ingestConsumer";
 import { presenceKey, setPresence, clearPresence } from "../presence";
 import { envelope, WS_EVENTS } from "./events";
-import { ackCursorMode, ackCursorsEnabled, advanceAckCursor, addMentionAck, getAckCursorsMs } from "./ackCursors";
+import { ackCursorMode, ackCursorsEnabled, advanceAckCursor, addMentionAck, getAckCursorMs, getAckCursorsMs } from "./ackCursors";
 import { log, timed } from "../util/log";
 import { checkAndConsumeVisit } from "../policy/visits";
 
@@ -521,41 +521,35 @@ async function readPendingMentions(agentId: string, seenIds: Set<string>): Promi
   return out;
 }
 
-// Offline delivery: replays anything this agent missed while disconnected.
-// Messages replay from each conversation's lastDeliveredAt cursor (only
-// advanced by an explicit client ack, see onMessage below); A2A tasks replay
-// every still-'submitted' task addressed to this agent, since 'submitted'
-// already means "not yet acted on" — no separate delivered/acked column
-// needed there, the state machine itself gates redelivery.
-async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ messages: number; tasks: number; mentions: number; participantJoins: number; messageIds: Set<string> }> {
-  const participantRows = await db.query.conversationParticipants.findMany({
-    where: eq(conversationParticipants.agentId, agentId),
-  });
-
-  // Cursor acks v1 (PHASE1_SPEC WI-4 / discrepancy D4): the effective
-  // cursor is max(PG lastDeliveredAt, Redis hot cursor). Inside the
-  // checkpoint window the PG column alone lags by up to one interval;
-  // reading it directly would replay already-acked messages on every
-  // reconnect. Legacy mode never touches Redis here — PG only, as before.
-  const redisCursors = ackCursorsEnabled()
-    ? await getAckCursorsMs(agentId, participantRows.map((p) => p.conversationId))
-    : new Map<string, number>();
-  const effectiveCursor = (p: (typeof participantRows)[number]): Date => {
-    const redisMs = redisCursors.get(p.conversationId);
-    return redisMs !== undefined && redisMs > p.lastDeliveredAt.getTime()
-      ? new Date(redisMs)
-      : p.lastDeliveredAt;
-  };
-
+// Per-conversation backlog replay: the messages + participant joins one
+// agent missed in ONE conversation, oldest-first, each source bounded by
+// BACKLOG_MESSAGES_PER_CONVERSATION. Extracted from deliverBacklog
+// (PHASE1_SPEC WI-2): the reconnect path replays every conversation
+// through here, and a passive→active subscription flip replays exactly
+// one conversation through the same code — a single implementation, so
+// the two paths cannot drift on cursor semantics, the early-ack filter,
+// or the pending-ingest merge. `redisCursorMs` is the agent's Redis hot
+// cursor for this conversation (WI-4); the effective cursor is
+// max(PG lastDeliveredAt, Redis) — inside the checkpoint window the PG
+// column alone lags by up to one interval and reading it directly would
+// replay already-acked messages. `send` is the frame sink: the
+// reconnect path writes to the connecting socket, the subscription
+// path publishes through the Redis fanout (the socket may live on
+// another gateway process).
+async function deliverConversationBacklog(
+  agentId: string,
+  p: { conversationId: string; lastDeliveredAt: Date },
+  redisCursorMs: number | undefined,
+  send: (event: ReturnType<typeof envelope>) => void,
+): Promise<{ messages: number; participantJoins: number; messageIds: Set<string> }> {
   let messagesDelivered = 0;
   let participantJoinsDelivered = 0;
-  // Ids of every message envelope written here — the register-first
-  // flush dedupes the setting-up buffer against this set (a frame that
-  // fanned out live during setup AND made the backlog is delivered
-  // once, from the backlog).
-  const deliveredMessageIds = new Set<string>();
-  for (const p of participantRows) {
-    const lastDeliveredAt = effectiveCursor(p);
+  const messageIds = new Set<string>();
+  {
+    const lastDeliveredAt =
+      redisCursorMs !== undefined && redisCursorMs > p.lastDeliveredAt.getTime()
+        ? new Date(redisCursorMs)
+        : p.lastDeliveredAt;
     // Cache-first (item 3): the Postgres query below is the fallback for a
     // cold or cursor-uncovered cache. Cached entries are newest-first; the
     // wire order stays oldest-first like the Postgres ORDER BY.
@@ -580,19 +574,17 @@ async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ message
       ...(await readPendingIngest(p.conversationId, agentId, lastDeliveredAt, seenBacklogIds)),
     ]);
     for (const m of backlog) {
-      ws.send(
-        JSON.stringify(
-          envelope(WS_EVENTS.MESSAGE, {
-            conversation_id: m.conversationId,
-            message_id: m.id,
-            sender_id: m.senderAgentId,
-            content: m.content,
-            reply_to_id: m.replyToId,
-            ts: typeof m.createdAt === "number" ? m.createdAt : m.createdAt.getTime(),
-          }),
-        ),
+      send(
+        envelope(WS_EVENTS.MESSAGE, {
+          conversation_id: m.conversationId,
+          message_id: m.id,
+          sender_id: m.senderAgentId,
+          content: m.content,
+          reply_to_id: m.replyToId,
+          ts: typeof m.createdAt === "number" ? m.createdAt : m.createdAt.getTime(),
+        }),
       );
-      deliveredMessageIds.add(m.id);
+      messageIds.add(m.id);
       messagesDelivered += 1;
     }
 
@@ -612,17 +604,82 @@ async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ message
       limit: BACKLOG_MESSAGES_PER_CONVERSATION,
     });
     for (const joined of newJoins) {
-      ws.send(
-        JSON.stringify(
-          envelope(WS_EVENTS.THREAD_PARTICIPANT_JOINED, {
-            conversation_id: p.conversationId,
-            agent_id: joined.agentId,
-            invited_by: null,
-          }),
-        ),
+      send(
+        envelope(WS_EVENTS.THREAD_PARTICIPANT_JOINED, {
+          conversation_id: p.conversationId,
+          agent_id: joined.agentId,
+          invited_by: null,
+        }),
       );
       participantJoinsDelivered += 1;
     }
+  }
+  return { messages: messagesDelivered, participantJoins: participantJoinsDelivered, messageIds };
+}
+
+// WI-2 subscription catch-up: when a participant flips passive → active
+// (POST /conversations/:id/subscription), the messages suppressed while
+// passive are replayed immediately instead of waiting for a reconnect.
+// Runs the same per-conversation backlog as a reconnect — the cursor is
+// untouched (the client's acks still advance it) and at-least-once is
+// intact. Delivery goes through the Redis fanout via sendToAgent because
+// the agent's socket may live on any gateway process; an agent with no
+// live socket gets nothing here and still receives the same backlog on
+// its next connect, so a flip while offline loses nothing.
+export async function deliverSubscriptionCatchUp(
+  agentId: string,
+  conversationId: string,
+): Promise<{ messages: number; participantJoins: number }> {
+  const participant = await db.query.conversationParticipants.findFirst({
+    where: and(
+      eq(conversationParticipants.conversationId, conversationId),
+      eq(conversationParticipants.agentId, agentId),
+    ),
+  });
+  if (!participant) return { messages: 0, participantJoins: 0 };
+  const redisCursorMs = ackCursorsEnabled()
+    ? ((await getAckCursorMs(agentId, conversationId)) ?? undefined)
+    : undefined;
+  const part = await deliverConversationBacklog(agentId, participant, redisCursorMs, (event) =>
+    sendToAgent(agentId, event),
+  );
+  return { messages: part.messages, participantJoins: part.participantJoins };
+}
+
+// Offline delivery: replays anything this agent missed while disconnected.
+// Messages replay from each conversation's lastDeliveredAt cursor (only
+// advanced by an explicit client ack, see onMessage below); A2A tasks replay
+// every still-'submitted' task addressed to this agent, since 'submitted'
+// already means "not yet acted on" — no separate delivered/acked column
+// needed there, the state machine itself gates redelivery.
+async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ messages: number; tasks: number; mentions: number; participantJoins: number; messageIds: Set<string> }> {
+  const participantRows = await db.query.conversationParticipants.findMany({
+    where: eq(conversationParticipants.agentId, agentId),
+  });
+
+  // Cursor acks v1 (PHASE1_SPEC WI-4 / discrepancy D4): one pipelined
+  // fetch of the agent's Redis hot cursors up front;
+  // deliverConversationBacklog applies the max(PG, Redis) rule per
+  // conversation. Legacy mode never touches Redis here — PG only, as
+  // before.
+  const redisCursors = ackCursorsEnabled()
+    ? await getAckCursorsMs(agentId, participantRows.map((p) => p.conversationId))
+    : new Map<string, number>();
+
+  let messagesDelivered = 0;
+  let participantJoinsDelivered = 0;
+  // Ids of every message envelope written here — the register-first
+  // flush dedupes the setting-up buffer against this set (a frame that
+  // fanned out live during setup AND made the backlog is delivered
+  // once, from the backlog).
+  const deliveredMessageIds = new Set<string>();
+  for (const p of participantRows) {
+    const part = await deliverConversationBacklog(agentId, p, redisCursors.get(p.conversationId), (event) =>
+      ws.send(JSON.stringify(event)),
+    );
+    messagesDelivered += part.messages;
+    participantJoinsDelivered += part.participantJoins;
+    for (const id of part.messageIds) deliveredMessageIds.add(id);
   }
 
   const pendingTasks = await db.query.a2aTasks.findMany({

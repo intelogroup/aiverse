@@ -281,6 +281,13 @@
       "when": 1790259145876,
       "tag": "0039_agent_visits",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1792290226734,
+      "tag": "0040_last_crystal",
+      "breakpoints": true
     }
   ]
 }

@@ -25,7 +25,7 @@ import {
 } from "../policy/gate";
 import { recordAttentionEvent } from "../policy/consoleEvents";
 import { logError } from "../util/log";
-import { sendToAgent, broadcastToPublic, isAgentConnected, handleAck } from "../ws/gateway";
+import { sendToAgent, broadcastToPublic, isAgentConnected, handleAck, deliverSubscriptionCatchUp } from "../ws/gateway";
 import { ackCursorsEnabled, getAckCursorMs, getAckCursorsMs } from "../ws/ackCursors";
 import { publishIngest, getInflightMessage, setInflightMessage, deleteInflightMessage } from "../jobs/ingestConsumer";
 import { envelope, WS_EVENTS } from "../ws/events";
@@ -171,6 +171,7 @@ conversationsRoute.get("/", agentAuth, async (c) => {
   // conversation_participants_agent_idx (0033).
   const rows = (await db.execute(sql`
     SELECT cp.conversation_id,
+           cp.mode,
            count(m.id)::int AS unread
     FROM conversation_participants cp
     LEFT JOIN messages m
@@ -178,8 +179,8 @@ conversationsRoute.get("/", agentAuth, async (c) => {
      AND m.created_at > cp.last_delivered_at
      AND m.sender_agent_id <> ${agentId}
     WHERE cp.agent_id = ${agentId}
-    GROUP BY cp.conversation_id
-  `)) as unknown as Array<{ conversation_id: string; unread: number }>;
+    GROUP BY cp.conversation_id, cp.mode
+  `)) as unknown as Array<{ conversation_id: string; mode: string; unread: number }>;
   // Cursor acks v1 (PHASE1_SPEC WI-4 / discrepancy D4): the count above
   // reads the PG cursor directly, which lags the Redis hot cursor by up
   // to one checkpoint interval. Where a Redis cursor is ahead of PG,
@@ -310,6 +311,67 @@ conversationsRoute.post("/:id/leave", agentAuth, async (c) => {
   return c.json({ left: deleted.length > 0 });
 });
 
+// WI-2 subscription posture (PHASE1_SPEC WI-2): an agent sets its own
+// per-conversation delivery mode. "passive" suppresses live MESSAGE
+// delivery to that participant (mentions and control frames still
+// flow; the cursor never moves, so nothing is lost — suppressed
+// messages replay from the backlog). Flipping back to "active" replays
+// the suppressed backlog for this one conversation immediately, through
+// the same per-conversation backlog path a reconnect uses.
+// Transitions are explicit-API only in v1: no inactivity timer, and no
+// implicit flip on send/ack/read (Open Question Q2 — changing that is a
+// product decision, not a default). Applies to any conversation the
+// caller participates in; new participants default to "active" (schema
+// default), so an agent that never calls this route sees no change.
+conversationsRoute.post("/:id/subscription", agentAuth, async (c) => {
+  const agentId = c.get("agentId");
+  const conversationId = c.req.param("id");
+  const body = await c.req
+    .json<{ mode?: string }>()
+    .catch(() => ({}) as { mode?: string });
+  if (body.mode !== "active" && body.mode !== "passive") {
+    return c.json({ error: 'mode must be "active" or "passive"' }, 400);
+  }
+
+  const conversation = await db.query.conversations.findFirst({
+    where: eq(conversations.id, conversationId),
+  });
+  if (!conversation) {
+    return c.json({ error: "conversation not found" }, 404);
+  }
+  const participant = await db.query.conversationParticipants.findFirst({
+    where: and(
+      eq(conversationParticipants.conversationId, conversationId),
+      eq(conversationParticipants.agentId, agentId),
+    ),
+  });
+  if (!participant) {
+    return c.json({ error: "not a participant" }, 403);
+  }
+
+  const wasPassive = participant.mode === "passive";
+  if (participant.mode !== body.mode) {
+    await db
+      .update(conversationParticipants)
+      .set({ mode: body.mode })
+      .where(
+        and(
+          eq(conversationParticipants.conversationId, conversationId),
+          eq(conversationParticipants.agentId, agentId),
+        ),
+      );
+  }
+
+  // Catch-up fires on the passive→active transition only; re-posting
+  // "active" while already active is a no-op (a reconnect replays the
+  // same backlog for an agent that wants a resync).
+  if (body.mode === "active" && wasPassive) {
+    const catchUp = await deliverSubscriptionCatchUp(agentId, conversationId);
+    return c.json({ conversationId, mode: body.mode, catchUp });
+  }
+  return c.json({ conversationId, mode: body.mode });
+});
+
 // Extracted so native agents can reply through the exact same
 // budget/rate/trust/broadcast logic a route handler runs — no duplicate
 // policy code, no privileged native-only path.
@@ -433,8 +495,11 @@ export async function sendMessageService(
   // instead of a refund saga. The idempotency short-circuits above have
   // already run, so a clientMessageId retry never pays twice. The
   // audience is the participant list fetched for the membership check,
-  // minus the sender.
-  const fanout = await checkFanoutBudget(conversation, participants.length - 1);
+  // minus the sender — and, since WI-2, minus passive participants: the
+  // charge prices the deliveries actually made, and a passive
+  // participant costs no delivery (its messages wait in the backlog).
+  const fanoutAudience = participants.filter((p) => p.agentId !== agentId && p.mode === "active").length;
+  const fanout = await checkFanoutBudget(conversation, fanoutAudience);
   if (!fanout.allowed) {
     sendToAgent(agentId, envelope(WS_EVENTS.RATE_LIMITED, { reason: fanout.reason }));
     return { status: 429, body: { error: fanout.reason } };
@@ -645,8 +710,13 @@ export async function sendMessageService(
     ts: message.createdAt.getTime(),
   });
 
+  // WI-2: passive participants are skipped for live MESSAGE delivery
+  // only. Their cursor is deliberately untouched — the message replays
+  // from the backlog when they flip back to active or reconnect, so
+  // suppression defers, never loses. Mentions (below) and every control
+  // frame still flow to passive participants.
   for (const p of participants) {
-    if (p.agentId !== agentId) sendToAgent(p.agentId, messageEvent);
+    if (p.agentId !== agentId && p.mode !== "passive") sendToAgent(p.agentId, messageEvent);
   }
 
   // Live @-mention push (resolution happened above, before publish). The
