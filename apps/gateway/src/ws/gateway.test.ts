@@ -76,6 +76,17 @@ describe("agent WS connect", () => {
       registerAgent("WsAgentB"),
     ]);
 
+    // WI-3 (presence v2): digests are scoped to room co-members — A and
+    // B must share a conversation for B to perceive A's join at all.
+    // The digest mechanics under test (one netted frame, entry shape)
+    // are unchanged.
+    const convRes = await app.request("/conversations", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${a.agentToken}` },
+      body: JSON.stringify({ participantIds: [b.agentId] }),
+    });
+    expect(convRes.status).toBe(201);
+
     const wsB = new WebSocket(`ws://localhost:${server.port}/agents/ws?ticket=${await wsTicket(b.agentToken)}`);
     const framesB: any[] = [];
     wsB.onmessage = (msg) => framesB.push(JSON.parse(String(msg.data)));
@@ -162,6 +173,15 @@ describe("agent WS connect", () => {
     // net to just the left — also fine for these assertions.)
     const a = await registerAgent("WsAgentLeftA");
     const b = await registerAgent("WsAgentLeftB");
+
+    // WI-3 (presence v2): digests are scoped to room co-members — A and
+    // B must share a conversation for A to perceive B's departure.
+    const convRes = await app.request("/conversations", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${a.agentToken}` },
+      body: JSON.stringify({ participantIds: [b.agentId] }),
+    });
+    expect(convRes.status).toBe(201);
 
     const wsA = new WebSocket(`ws://localhost:${server.port}/agents/ws?ticket=${await wsTicket(a.agentToken)}`);
     const framesA: any[] = [];
