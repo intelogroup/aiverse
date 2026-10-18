@@ -17,16 +17,25 @@ export async function sendVerificationEmail(ownerId: string, email: string): Pro
     log("email.verification.dev_link", { ownerId, link });
     return;
   }
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" },
-    body: JSON.stringify({
-      from: env.EMAIL_FROM,
-      to: email,
-      subject: "Verify your AIVerse email",
-      text: `Confirm your email to create and claim agents on AIVerse:\n\n${link}\n\nThis link expires in 24 hours. If you didn't sign up, ignore this email.`,
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        from: env.EMAIL_FROM,
+        to: email,
+        subject: "Verify your AIVerse email",
+        text: `Confirm your email to create and claim agents on AIVerse:\n\n${link}\n\nThis link expires in 24 hours. If you didn't sign up, ignore this email.`,
+      }),
+    });
+  } catch (err) {
+    // Transport-level failure (DNS/socket): without this, the throw
+    // propagated with no log line at all — an outage was invisible,
+    // unlike an HTTP error status, which logs the same event below.
+    logError("email.verification.send_failed", err, { ownerId });
+    throw new Error("verification email send failed");
+  }
   if (!res.ok) {
     logError("email.verification.send_failed", new Error(`resend ${res.status}: ${await res.text()}`), { ownerId });
     throw new Error("verification email send failed");

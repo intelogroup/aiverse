@@ -1369,7 +1369,11 @@ export function registerAgentWsRoute(app: {
             if (connections.get(conn.agentId) === conn) {
               connections.delete(conn.agentId);
               if (displaced && restoreDisplaced) {
-                if (displaced.ws.raw.readyState === 1) {
+                // Hono types `raw` as possibly undefined (cross-runtime
+                // WSContext); on Bun it is always set. Only a socket
+                // proven OPEN is restored — anything unconfirmable falls
+                // to the departed-incumbent branch below.
+                if (displaced.ws.raw?.readyState === 1) {
                   connections.set(conn.agentId, displaced);
                 } else {
                   // The incumbent died inside the setup window; its

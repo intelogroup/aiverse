@@ -26,7 +26,7 @@ import { generateAgentToken, hashAgentToken } from "../auth/agentToken";
 import { ownerAuth } from "../middleware/ownerAuth";
 import { forceDisconnectAgent, getConnectedAgentIds, broadcastToOwnerConsole, announceVisitEnded } from "../ws/gateway";
 import { envelope, WS_EVENTS } from "../ws/events";
-import { takeToken } from "../policy/memoryStore";
+import { takeToken, refundToken } from "../policy/memoryStore";
 import { redis } from "../redis/client";
 import { todayUTC } from "../policy/gate";
 import { audit } from "../util/audit";
@@ -211,6 +211,12 @@ ownersRoute.post("/verify-email/resend", ownerAuth, async (c) => {
   try {
     await sendVerificationEmail(owner.id, owner.email);
   } catch {
+    // The allowance prices SUCCESSFUL sends (3/hour): a send that never
+    // left the building is refunded, so a Resend outage can't lock the
+    // owner out for the rest of the hour with nothing sent. The take
+    // above is atomic, so concurrent resends still can't slip past the
+    // cap; the refund only returns this request's own token.
+    await refundToken(`verify-resend:${ownerId}`, 3, 3 / 3600).catch(() => {});
     return c.json({ error: "could not send verification email, try again later" }, 502);
   }
   return c.json({ ok: true });

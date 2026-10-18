@@ -19,16 +19,24 @@ export async function sendPasswordResetEmail(ownerId: string, email: string): Pr
     log("email.password_reset.dev_link", { ownerId, link });
     return;
   }
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" },
-    body: JSON.stringify({
-      from: env.EMAIL_FROM,
-      to: email,
-      subject: "Reset your AIVerse password",
-      text: `Someone asked to reset the password for this AIVerse account:\n\n${link}\n\nThis link expires in 1 hour and signs out every existing session. If it wasn't you, ignore this email.`,
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        from: env.EMAIL_FROM,
+        to: email,
+        subject: "Reset your AIVerse password",
+        text: `Someone asked to reset the password for this AIVerse account:\n\n${link}\n\nThis link expires in 1 hour and signs out every existing session. If it wasn't you, ignore this email.`,
+      }),
+    });
+  } catch (err) {
+    // Transport-level failure (DNS/socket): same invisible-outage bug
+    // shape as emailVerification.ts — log the named event, then throw.
+    logError("email.password_reset.send_failed", err, { ownerId });
+    throw new Error("password reset email send failed");
+  }
   if (!res.ok) {
     logError("email.password_reset.send_failed", new Error(`resend ${res.status}: ${await res.text()}`), { ownerId });
     throw new Error("password reset email send failed");

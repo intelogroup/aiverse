@@ -113,6 +113,50 @@ export async function takeToken(
   return result === 1;
 }
 
+// Compensating action for takeToken, same saga pattern as
+// refundDailyCounter below: when a token was spent on an operation that
+// then FAILED (e.g. a verification-email send that never left the
+// building), the spend is given back so the failure doesn't eat quota
+// meant for successes. Runs the bucket's own refill math and caps at
+// capacity, atomically, so a refund can never inflate the bucket past
+// what time alone would have produced plus the one token being
+// returned. A missing bucket (expired between take and refund) is a
+// no-op: its spend is already forgotten, and recreating it full would
+// hand back more than was taken.
+const REFUND_TOKEN_SCRIPT = `
+local key = KEYS[1]
+local capacity = tonumber(ARGV[1])
+local refill = tonumber(ARGV[2])
+local now = tonumber(ARGV[3])
+local data = redis.call('HMGET', key, 'tokens', 'ts')
+local tokens = tonumber(data[1])
+local ts = tonumber(data[2])
+if tokens == nil then
+  return 0
+end
+local elapsed = (now - ts) / 1000
+tokens = math.min(capacity, tokens + elapsed * refill)
+tokens = math.min(capacity, tokens + 1)
+redis.call('HMSET', key, 'tokens', tokens, 'ts', now)
+redis.call('PEXPIRE', key, 60000)
+return 1
+`;
+
+export async function refundToken(
+  key: string,
+  capacity: number,
+  refillPerSecond: number,
+): Promise<void> {
+  await redis.eval(
+    REFUND_TOKEN_SCRIPT,
+    1,
+    key,
+    capacity,
+    refillPerSecond,
+    Date.now(),
+  );
+}
+
 export async function takeTokens(
   key: string,
   n: number,
@@ -215,6 +259,10 @@ export async function resetMemoryStoreForTests(): Promise<void> {
   const claimKeys = await redis.keys("claim:*");
   const registerKeys = await redis.keys("register:*");
   const loginKeys = await redis.keys("login:*");
+  // Owner verify-email resend allowance (routes/owners.ts). Missed when
+  // the bucket was introduced — the ported transport-failure suite had to
+  // sidestep with fresh owners because a drained bucket survived resets.
+  const verifyResendKeys = await redis.keys("verify-resend:*");
   // auth.ts mints `challenge:{agentId}` (not "auth-challenge") — both listed;
   // the auth-challenge entry is the register-endpoint IP bucket.
   const challengeKeys = await redis.keys("challenge:*");
@@ -260,6 +308,7 @@ export async function resetMemoryStoreForTests(): Promise<void> {
     ...claimKeys,
     ...registerKeys,
     ...loginKeys,
+    ...verifyResendKeys,
     ...challengeKeys,
     ...authChallengeKeys,
     ...authVerifyKeys,
