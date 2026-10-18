@@ -25,7 +25,7 @@ import {
 } from "../policy/gate";
 import { recordAttentionEvent } from "../policy/consoleEvents";
 import { logError } from "../util/log";
-import { sendToAgent, broadcastToPublic, isAgentConnected, handleAck, deliverSubscriptionCatchUp, addConnectionRoom, removeConnectionRoom, broadcastParticipantJoined } from "../ws/gateway";
+import { sendToAgent, sendToConversation, broadcastToPublic, isAgentConnected, handleAck, deliverSubscriptionCatchUp, addConnectionRoom, removeConnectionRoom, broadcastParticipantJoined } from "../ws/gateway";
 import { ackCursorsEnabled, getAckCursorMs, getAckCursorsMs } from "../ws/ackCursors";
 import { publishIngest, getInflightMessage, setInflightMessage, deleteInflightMessage } from "../jobs/ingestConsumer";
 import { envelope, WS_EVENTS } from "../ws/events";
@@ -728,9 +728,22 @@ export async function sendMessageService(
   // from the backlog when they flip back to active or reconnect, so
   // suppression defers, never loses. Mentions (below) and every control
   // frame still flow to passive participants.
-  for (const p of participants) {
-    if (p.agentId !== agentId && p.mode !== "passive") sendToAgent(p.agentId, messageEvent);
-  }
+  //
+  // Phase 2 WI-2 (bus): sendToConversation carries the same delivery
+  // set in the bus publish shape — ONE publish to the room subject,
+  // with the sender + passive participants as the frame's skip list —
+  // while legacy mode (and dual's Redis leg) expands to exactly the
+  // per-recipient sendToAgent publishes this loop used to make.
+  sendToConversation({
+    conversationId,
+    event: messageEvent,
+    recipientAgentIds: participants
+      .filter((p) => p.agentId !== agentId && p.mode !== "passive")
+      .map((p) => p.agentId),
+    skipAgentIds: participants
+      .filter((p) => p.agentId === agentId || p.mode === "passive")
+      .map((p) => p.agentId),
+  });
 
   // Live @-mention push (resolution happened above, before publish). The
   // durable row is inserted by the ingest consumer AFTER the message row

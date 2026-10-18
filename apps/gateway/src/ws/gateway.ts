@@ -8,6 +8,20 @@ import { redis, redisSub } from "../redis/client";
 import { recentCacheKey, INGEST_STREAM } from "../jobs/ingestConsumer";
 import { presenceKey, setPresence, clearPresence, getOnlineAgentIds } from "../presence";
 import { envelope, WS_EVENTS } from "./events";
+import {
+  busMode,
+  newMid,
+  startBus,
+  publishBus,
+  subjectForFanout,
+  subscribeBusSubject,
+  unsubscribeBusSubject,
+  desiredBusSubjects as busIntentSubjects,
+  MidDedupe,
+  AGENT_WILDCARD_SUBJECT,
+  FLEET_BROADCAST_SUBJECT,
+  FLEET_CONTROL_SUBJECT,
+} from "./bus";
 import { ackCursorMode, ackCursorsEnabled, advanceAckCursor, addMentionAck, getAckCursorMs, getAckCursorsMs } from "./ackCursors";
 import { log, timed } from "../util/log";
 import { checkAndConsumeVisit } from "../policy/visits";
@@ -34,6 +48,10 @@ interface Connection {
   state: "setting_up" | "live";
   pending: string[];
   droppedPending: number;
+  // WI-2 dual-run dedupe ring: mids of fanout envelopes already
+  // delivered to this connection (bus.ts MidDedupe). Lazily created,
+  // only consulted in AIVERSE_BUS_MODE=dual.
+  midDedupe?: MidDedupe;
   // Presence v2 (PHASE1_SPEC WI-3): the conversations this agent is a
   // participant of, as far as this process knows — populated from the
   // Postgres participant rows at the live transition and maintained from
@@ -79,19 +97,44 @@ type WSContext = HonoWSContext<ServerWebSocket>;
 // sockets it actually holds.
 const WS_FANOUT_CHANNEL = "ws:fanout";
 
-type FanoutMessage =
+type FanoutMessage = (
   | { kind: "agent"; agentId: string; event: ReturnType<typeof envelope> }
   // `roomConversationId` (WI-3) marks a room-scoped broadcast: delivery
   // is restricted to sockets whose connection room set contains the
   // conversation (see the subscriber below).
   | { kind: "broadcast"; event: ReturnType<typeof envelope>; exceptAgentId?: string; roomConversationId?: string }
   | { kind: "console"; ownerId: string; event: ReturnType<typeof envelope> }
-  | { kind: "public"; event: ReturnType<typeof envelope> };
+  | { kind: "public"; event: ReturnType<typeof envelope> }
+) & {
+  // WI-2 (Phase 2 bus migration, additive): `mid` is the uuidv7 stamped
+  // by publishFanout — the dual-run dedupe key (bus.ts). `skipAgentIds`
+  // is the room publish's exclusion list (sender + passive participants,
+  // computed once by the send path) so gateway-side fanout from the
+  // room subject reproduces the legacy per-recipient loop's exact
+  // delivery set. Both are internal bus metadata, stripped with the
+  // envelope before any socket write.
+  mid?: string;
+  skipAgentIds?: string[];
+};
+
+// Publish routing follows AIVERSE_BUS_MODE (bus.ts): legacy publishes
+// to the Redis channel only (today's behavior), dual publishes to both
+// transports with the SAME stamped mid, nats publishes to the scoped
+// NATS subject only. The Redis leg is extracted so sendToConversation
+// can run its dual-mode split (per-recipient legacy copies + one room
+// publish) without the room frame ever landing on the legacy channel —
+// a legacy subscriber must see exactly today's per-recipient stream.
+function publishLegacyFanout(stamped: FanoutMessage) {
+  redis.publish(WS_FANOUT_CHANNEL, JSON.stringify(stamped)).catch((err) => {
+    log("ws_fanout_publish_error", { kind: stamped.kind, error: String(err) });
+  });
+}
 
 function publishFanout(msg: FanoutMessage) {
-  redis.publish(WS_FANOUT_CHANNEL, JSON.stringify(msg)).catch((err) => {
-    log("ws_fanout_publish_error", { kind: msg.kind, error: String(err) });
-  });
+  const mode = busMode();
+  const stamped: FanoutMessage = msg.mid ? msg : { ...msg, mid: newMid() };
+  if (mode !== "nats") publishLegacyFanout(stamped);
+  if (mode !== "legacy") publishBus(subjectForFanout(stamped), JSON.stringify(stamped));
 }
 
 // Bounded pending buffer for a setting-up connection (PHASE0_SPEC §1,
@@ -136,6 +179,37 @@ redisSub.subscribe(WS_FANOUT_CHANNEL).catch((err) => {
 });
 
 redisSub.on("message", (_channel: string, raw: string) => {
+  handleFanoutMessage(raw);
+});
+
+// WI-2 dual-run dedupe: in dual mode every fanout envelope arrives on
+// both transports with the same mid; the per-target ring drops the
+// second copy. Only dual dedupes — legacy and nats each have exactly
+// one live transport. Room-set maintenance above a delivery still runs
+// for both copies (it is idempotent); only the socket write is gated.
+function fanoutSeenBefore(owner: { midDedupe?: MidDedupe }, mid: string | undefined): boolean {
+  if (busMode() !== "dual" || !mid) return false;
+  owner.midDedupe ??= new MidDedupe();
+  return owner.midDedupe.check(mid);
+}
+
+// Console/public sockets are bare WSContexts (no Connection record);
+// their dedupe rings key on the stable underlying socket (`raw`),
+// never the per-event wrapper (see the WSContext note at the top).
+const socketMidDedupe = new WeakMap<object, MidDedupe>();
+
+function fanoutSeenBeforeSocket(ws: WSContext, mid: string | undefined): boolean {
+  if (busMode() !== "dual" || !mid) return false;
+  const key = (ws as { raw?: object }).raw ?? (ws as object);
+  let ring = socketMidDedupe.get(key);
+  if (!ring) {
+    ring = new MidDedupe();
+    socketMidDedupe.set(key, ring);
+  }
+  return ring.check(mid);
+}
+
+function handleFanoutMessage(raw: string) {
   let msg: FanoutMessage;
   try {
     msg = JSON.parse(raw);
@@ -152,8 +226,12 @@ redisSub.on("message", (_channel: string, raw: string) => {
         // broadcasts see the membership without waiting for a reconnect.
         if (msg.event.type === WS_EVENTS.CONVERSATION_STARTED) {
           const conversationId = (msg.event.payload as { conversation_id?: unknown })?.conversation_id;
-          if (typeof conversationId === "string") conn.rooms.add(conversationId);
+          if (typeof conversationId === "string" && !conn.rooms.has(conversationId)) {
+            conn.rooms.add(conversationId);
+            pokeBusReconcile();
+          }
         }
+        if (fanoutSeenBefore(conn, msg.mid)) break;
         deliverToAgentConn(conn, JSON.stringify(msg.event));
       }
       break;
@@ -177,11 +255,16 @@ redisSub.on("message", (_channel: string, raw: string) => {
       }
       for (const [agentId, conn] of connections) {
         if (agentId === msg.exceptAgentId) continue;
+        // WI-2 room publish exclusion: the send path's skip list
+        // (sender + passive participants) rides the room frame so this
+        // fanout reproduces the legacy per-recipient loop exactly.
+        if (msg.skipAgentIds && msg.skipAgentIds.includes(agentId)) continue;
         // Room-scope filter: sockets outside the conversation never see
         // the frame. A filtered live frame is not a correctness loss —
         // the reconnect backlog replays missed joins from the
         // participant rows (deliverConversationBacklog).
         if (msg.roomConversationId && !conn.rooms.has(msg.roomConversationId)) continue;
+        if (fanoutSeenBefore(conn, msg.mid)) continue;
         if (isDigest) {
           // Presence digests are scoped to room co-members and stripped
           // of the receiving socket's own agent_id per receiver (and
@@ -200,17 +283,23 @@ redisSub.on("message", (_channel: string, raw: string) => {
       const sockets = consoleConnections.get(msg.ownerId);
       if (!sockets) break;
       const payload = JSON.stringify(msg.event);
-      for (const ws of sockets) ws.send(payload);
+      for (const ws of sockets) {
+        if (fanoutSeenBeforeSocket(ws, msg.mid)) continue;
+        ws.send(payload);
+      }
       break;
     }
     case "public": {
       if (publicConnections.size === 0) break;
       const payload = JSON.stringify(msg.event);
-      for (const ws of publicConnections) ws.send(payload);
+      for (const ws of publicConnections) {
+        if (fanoutSeenBeforeSocket(ws, msg.mid)) continue;
+        ws.send(payload);
+      }
       break;
     }
   }
-});
+}
 
 export function broadcastToOwnerConsole(ownerId: string, event: ReturnType<typeof envelope>): void {
   publishFanout({ kind: "console", ownerId, event });
@@ -251,11 +340,16 @@ function broadcast(event: ReturnType<typeof envelope>, exceptAgentId?: string) {
 // participant rows remain the truth and the set is rebuilt from them on
 // every connect.
 export function addConnectionRoom(agentId: string, conversationId: string): void {
-  connections.get(agentId)?.rooms.add(conversationId);
+  const conn = connections.get(agentId);
+  if (conn && !conn.rooms.has(conversationId)) {
+    conn.rooms.add(conversationId);
+    pokeBusReconcile();
+  }
 }
 
 export function removeConnectionRoom(agentId: string, conversationId: string): void {
-  connections.get(agentId)?.rooms.delete(conversationId);
+  const conn = connections.get(agentId);
+  if (conn && conn.rooms.delete(conversationId)) pokeBusReconcile();
   // The leave route is this helper's only caller: the room's
   // participant rows just changed, so a cached oversize determination
   // for it (below) is stale.
@@ -277,6 +371,124 @@ export function broadcastParticipantJoined(
   exceptAgentId?: string,
 ): void {
   publishFanout({ kind: "broadcast", event, exceptAgentId, roomConversationId: conversationId });
+}
+
+// ── WI-2 subscription discipline (PHASE2_SPEC WI-2 step 4) ───────────
+// A gateway subscribes to a room subject iff it holds ≥1 socket in that
+// room (active or passive — passive sockets still receive mentions and
+// digests for the room), to `agent.*` while it holds any agent socket,
+// to `fleet.broadcast` while it holds any agent or public socket, and
+// to `console.{ownerId}` for each owner with a local console socket.
+// fleet.control is subscribed once by startBus and never reconciled
+// away. The desired set is recomputed from the WI-3 per-connection
+// room sets (and the other registries) — the same source localRoomCount
+// reads — by a 1 s reconciler plus immediate pokes from every room-set
+// mutation site, so subscribes land promptly while unsubscribes wait
+// out a 30 s grace that absorbs reconnect flaps.
+const BUS_RECONCILE_INTERVAL_MS = 1_000;
+export const BUS_UNSUBSCRIBE_GRACE_MS = 30_000;
+const busAbsentSince = new Map<string, number>();
+let busReconcilerStarted = false;
+
+export function computeDesiredBusSubjects(): Set<string> {
+  const desired = new Set<string>();
+  if (connections.size > 0) {
+    desired.add(AGENT_WILDCARD_SUBJECT);
+    desired.add(FLEET_BROADCAST_SUBJECT);
+  }
+  if (publicConnections.size > 0) desired.add(FLEET_BROADCAST_SUBJECT);
+  for (const conn of connections.values()) {
+    for (const roomId of conn.rooms) desired.add(`room.${roomId}`);
+  }
+  for (const [ownerId, sockets] of consoleConnections) {
+    if (sockets.size > 0) desired.add(`console.${ownerId}`);
+  }
+  return desired;
+}
+
+export function reconcileBusSubscriptions(now: number = Date.now()): void {
+  if (busMode() === "legacy") return;
+  const desired = computeDesiredBusSubjects();
+  for (const subject of desired) {
+    busAbsentSince.delete(subject);
+    subscribeBusSubject(subject);
+  }
+  for (const subject of busIntentSubjects()) {
+    if (subject === FLEET_CONTROL_SUBJECT || desired.has(subject)) continue;
+    const since = busAbsentSince.get(subject);
+    if (since === undefined) {
+      busAbsentSince.set(subject, now);
+      continue;
+    }
+    if (now - since >= BUS_UNSUBSCRIBE_GRACE_MS) {
+      unsubscribeBusSubject(subject);
+      busAbsentSince.delete(subject);
+    }
+  }
+}
+
+function pokeBusReconcile(): void {
+  reconcileBusSubscriptions();
+}
+
+export function startBusSubscriptions(): void {
+  if (busReconcilerStarted || busMode() === "legacy") return;
+  busReconcilerStarted = true;
+  reconcileBusSubscriptions();
+  setInterval(() => reconcileBusSubscriptions(), BUS_RECONCILE_INTERVAL_MS);
+}
+
+// ── WI-2 publish shape (PHASE2_SPEC WI-2 step 3) ─────────────────────
+// A room message send used to cost one fanout publish PER RECIPIENT
+// (the send path's loop over active participants). On the bus it costs
+// exactly ONE publish to the room subject, and each gateway fans out to
+// its local sockets in the room. The legacy leg keeps the old shape
+// verbatim: in legacy mode — and as dual mode's Redis leg — this
+// expands to the same per-recipient `agent` publishes the loop made,
+// so a legacy subscriber sees exactly today's stream. In dual mode all
+// copies (per-recipient legacy + the one room publish) share one mid,
+// so a dual subscriber delivers exactly once per socket; in nats mode
+// only the room publish happens. `skipAgentIds` (sender + passive
+// participants, from the send path's participant rows) rides the room
+// frame, reproducing the loop's exclusions at fanout time; mentions and
+// control frames keep their direct per-agent publishes and still reach
+// passive participants, exactly as before.
+export function sendToConversation(params: {
+  conversationId: string;
+  event: ReturnType<typeof envelope>;
+  recipientAgentIds: string[];
+  skipAgentIds: string[];
+}): void {
+  const mode = busMode();
+  if (mode === "nats") {
+    publishFanout({
+      kind: "broadcast",
+      event: params.event,
+      roomConversationId: params.conversationId,
+      skipAgentIds: params.skipAgentIds,
+    });
+    return;
+  }
+  const mid = mode === "dual" ? newMid() : undefined;
+  for (const agentId of params.recipientAgentIds) {
+    if (mode === "dual") {
+      publishLegacyFanout({ kind: "agent", agentId, event: params.event, mid });
+    } else {
+      publishFanout({ kind: "agent", agentId, event: params.event });
+    }
+  }
+  if (mode === "dual") {
+    publishBus(
+      `room.${params.conversationId}`,
+      JSON.stringify({
+        kind: "broadcast",
+        event: params.event,
+        roomConversationId: params.conversationId,
+        skipAgentIds: params.skipAgentIds,
+        mid,
+      } satisfies FanoutMessage),
+    );
+  }
 }
 
 // ── Presence digests (FANOUT_FIX_SPEC + PHASE1_SPEC WI-3) ───────────
@@ -1496,6 +1708,9 @@ export function registerAgentWsRoute(app: {
             columns: { conversationId: true },
           });
           conn.rooms = new Set(roomRows.map((r) => r.conversationId));
+          // WI-2: this socket's rooms are now known — warm the bus
+          // subscriptions for them before the first live frame.
+          pokeBusReconcile();
 
           const backlogStart = performance.now();
           const backlog = await deliverBacklog(agent.id, ws);
@@ -1599,6 +1814,10 @@ export function registerAgentWsRoute(app: {
           // setup may have written the online transition already.
           const wasLive = conn.state === "live";
           connections.delete(agentId);
+          // WI-2: the socket's rooms leave the desired subscription
+          // set with it (the 30 s grace in the reconciler absorbs a
+          // reconnect flap before anything actually unsubscribes).
+          pokeBusReconcile();
           await clearPresence(agentId);
           // Don't clobber a status the owner/system deliberately set (paused,
           // budget_exhausted) just because the socket that carried it closed —
@@ -1709,6 +1928,7 @@ export function forceDisconnectAgent(agentId: string, code: number, reason: stri
   if (!conn) return false;
   conn.ws.close(code, reason);
   connections.delete(agentId);
+  pokeBusReconcile();
   return true;
 }
 
@@ -1724,6 +1944,7 @@ export function registerPublicWsRoute(app: {
     upgradeWebSocket(() => ({
       onOpen: (_event, ws) => {
         publicConnections.add(ws);
+        pokeBusReconcile();
       },
       onClose: (_event, ws) => {
         publicConnections.delete(ws);
@@ -1754,6 +1975,7 @@ export function registerConsoleWsRoute(app: {
           const sockets = consoleConnections.get(ownerId) ?? new Set();
           sockets.add(ws);
           consoleConnections.set(ownerId, sockets);
+          pokeBusReconcile();
         },
         onClose: (_event, ws) => {
           if (!ownerId) return;
@@ -1762,4 +1984,17 @@ export function registerConsoleWsRoute(app: {
       };
     }),
   );
+}
+
+// WI-2: the NATS bus feeds the same delivery path (handleFanoutMessage
+// above). In legacy mode the bus never starts and this process is
+// exactly the pre-WI-2 gateway; in dual/nats the reconciler keeps this
+// process's subject subscriptions matched to the sockets it actually
+// holds. This block sits at the END of the module on purpose: it runs
+// during module evaluation, and the reconciler's state (busAbsentSince,
+// busReconcilerStarted) is declared mid-file — starting any earlier
+// would hit the TDZ on those bindings.
+if (busMode() !== "legacy") {
+  startBus((raw) => handleFanoutMessage(raw));
+  startBusSubscriptions();
 }

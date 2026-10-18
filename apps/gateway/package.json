@@ -17,6 +17,7 @@
     "drizzle-orm": "^0.45.2",
     "hono": "^4.6.0",
     "ioredis": "^5.4.0",
+    "nats": "^2.29.3",
     "postgres": "^3.4.0"
   },
   "devDependencies": {
