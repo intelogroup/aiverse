@@ -1,6 +1,6 @@
 import { env } from "@aiverse/shared/env";
 import { createApp } from "./app";
-import { websocket, reconcilePresenceOnBoot } from "./ws/gateway";
+import { websocket, reconcilePresenceOnBoot, scheduleHeapStats } from "./ws/gateway";
 import { ensureRoomsSeeded } from "./db/seed";
 import { tryBecomeGatewayLeader, checkGatewayLeadership } from "./db/singleGatewayLock";
 import { log, logError } from "./util/log";
@@ -24,6 +24,11 @@ process.on("unhandledRejection", (reason) => {
 });
 
 const app = createApp();
+
+// PHASE2 WI-6: the 60 s heap stats line is per-process and role-free
+// (heap is a per-node budget, not a singleton job), so every gateway
+// process starts it at boot, leader and follower alike.
+scheduleHeapStats();
 
 // Every process serves HTTP/WS traffic (Redis pub/sub fanout in ws/gateway.ts
 // makes that correct across any number of instances). Only the elected

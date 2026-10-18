@@ -1625,6 +1625,58 @@ export function getConnectedAgentIds(): string[] {
   return [...connections.keys()];
 }
 
+// ---------------------------------------------------------------------------
+// Heap budget stats (PHASE2_SPEC WI-6). A 60 s live-heap line on stdout —
+// the same log path as everything else in this process — in the Go edge's
+// key=value shape (`heap inuse_mb= alloc_mb= sys_mb= gc_count=
+// last_gc_pause_ms= conns=`, cmd/edge/main.go formatHeapStats) so soak
+// tooling parses one format across both stacks. The TS keys name what Bun
+// actually measures (process.memoryUsage): rss_mb / heap_used_mb /
+// heap_total_mb, then this process's registry counts. MB values are whole
+// numbers (floor — the Go line's >>20 integer style). Plain console.log,
+// not the JSON log(): the line's shape is the contract, same as Go's.
+// rooms_local aggregates the WI-3 per-connection room sets — computed
+// only on this 60 s tick, never on a message path.
+// ---------------------------------------------------------------------------
+
+export const HEAP_STATS_INTERVAL_MS = 60_000;
+
+export function formatHeapStatsLine(
+  mem: { rss: number; heapUsed: number; heapTotal: number },
+  conns: number,
+  roomsLocal: number,
+): string {
+  const mb = (bytes: number) => Math.floor(bytes / 1_048_576);
+  return `heap rss_mb=${mb(mem.rss)} heap_used_mb=${mb(mem.heapUsed)} heap_total_mb=${mb(mem.heapTotal)} conns=${conns} rooms_local=${roomsLocal}`;
+}
+
+// Distinct rooms with >= 1 local socket, from the per-connection room sets.
+export function localRoomCount(): number {
+  const rooms = new Set<string>();
+  for (const conn of connections.values()) {
+    for (const roomId of conn.rooms) rooms.add(roomId);
+  }
+  return rooms.size;
+}
+
+export function heapStatsLine(): string {
+  return formatHeapStatsLine(process.memoryUsage(), connections.size, localRoomCount());
+}
+
+let heapStatsTimerStarted = false;
+
+// Called once from index.ts at boot — heap is a per-process budget, so
+// both leader and follower emit it (unlike the singleton jobs). The
+// module-singleton guard keeps repeated calls from double-starting the
+// timer, same pattern as the presence-digest flusher above.
+export function scheduleHeapStats(): void {
+  if (heapStatsTimerStarted) return;
+  heapStatsTimerStarted = true;
+  setInterval(() => {
+    console.log(heapStatsLine());
+  }, HEAP_STATS_INTERVAL_MS);
+}
+
 // Call once at process boot, before serving traffic. A crash (not a clean
 // shutdown) leaves DB rows stuck at status="online" with nobody connected —
 // this Postgres-vs-Redis reconciliation is what makes that self-heal instead
