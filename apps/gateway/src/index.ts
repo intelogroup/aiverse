@@ -30,11 +30,23 @@ const app = createApp();
 // leader also runs the singleton background jobs below — two processes both
 // ticking the same native would double-act it and double-spend its wallet,
 // which Redis fanout does nothing to prevent (see singleGatewayLock.ts).
-const isLeader = await tryBecomeGatewayLeader();
-log("gateway_role", { leader: isLeader });
-
-await ensureRoomsSeeded();
-await reconcilePresenceOnBoot();
+//
+// WI-5 (serving-first follower boot): the leader election no longer blocks
+// the export at the bottom of this module — Bun only starts serving once
+// module evaluation finishes, and tryBecomeGatewayLeader retries for up to
+// 30 s by default (the Render deploy-overlap window), so awaiting it here
+// used to leave a follower dark for that whole window even though serving
+// never depended on the outcome. The election now runs concurrently (see
+// the bottom of this file); only the singleton jobs wait for the lock,
+// gated additionally on bootPrep so they still start strictly after
+// seeding/reconciliation, exactly as the old sequential boot ordered them.
+// What still gates serving is bootPrep alone — the same two steps, with
+// the same fail-loud semantics (a rejection here fails module evaluation
+// before anything is served, as the bare awaits did before).
+const bootPrep = (async () => {
+  await ensureRoomsSeeded();
+  await reconcilePresenceOnBoot();
+})();
 
 // Live failover (soak test 2026-09-22): with election only at boot, a dead
 // leader left the survivors serving traffic with no one persisting messages
@@ -107,9 +119,19 @@ function startLeaderWatchdog() {
   }, LEADER_CHECK_MS);
 }
 
-if (isLeader) {
+// Singleton jobs start only once leadership is held AND boot prep has
+// finished — the pre-WI-5 boot sequenced seed/reconcile strictly before
+// startSingletonJobs, and that ordering is preserved on every path that
+// reaches the jobs (boot win below, or a later failover win).
+async function startSingletonJobsAfterPrep() {
+  await bootPrep;
   await startSingletonJobs();
-} else {
+}
+
+// Live failover, unchanged from the pre-WI-5 boot: followers retry the lock
+// every LEADER_CHECK_MS (single attempt each) and start the singleton jobs
+// when they win it.
+function startFollowerRetry() {
   let attempting = false;
   const retry = setInterval(async () => {
     if (attempting) return;
@@ -118,7 +140,7 @@ if (isLeader) {
       if (await tryBecomeGatewayLeader({ timeoutMs: 0 })) {
         clearInterval(retry);
         log("gateway_leader_failover", {});
-        await startSingletonJobs();
+        await startSingletonJobsAfterPrep();
       }
     } catch (err) {
       logError("gateway_leader_retry_error", err);
@@ -127,6 +149,41 @@ if (isLeader) {
     }
   }, LEADER_CHECK_MS);
 }
+
+// Boot election, started but NOT awaited (WI-5): this module's export below
+// is what makes Bun serve, so evaluation must reach it without waiting out
+// the election's deploy-overlap retry window. tryBecomeGatewayLeader is
+// invoked synchronously inside this IIFE, so the first attempt starts
+// during module evaluation, concurrently with boot prep — leadership
+// simply resolves whenever it resolves: an uncontended win lands the
+// singleton jobs at
+// boot, a loss (or a thrown attempt — logged, then treated as a loss)
+// lands this process in the follower retry above. A failure starting the
+// singleton jobs after a boot win exits the process: before WI-5 that
+// throw surfaced as a failed top-level await and the boot crashed the
+// same way, leaving the restart to the supervisor.
+const leadership = (async () => {
+  let isLeader = false;
+  try {
+    isLeader = await tryBecomeGatewayLeader();
+  } catch (err) {
+    logError("gateway_leader_boot_error", err);
+  }
+  log("gateway_role", { leader: isLeader });
+  if (isLeader) {
+    await startSingletonJobsAfterPrep();
+  } else {
+    startFollowerRetry();
+  }
+})();
+leadership.catch((err) => {
+  logError("gateway_boot_error", err);
+  process.exit(1);
+});
+
+// Serving still waits for boot prep (seed + presence reconcile) — it is
+// only the election that moved off the critical path.
+await bootPrep;
 
 export default {
   port: env.PORT,
