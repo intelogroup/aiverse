@@ -595,6 +595,22 @@ func (s *Server) deliver(c *conn, payload []byte) {
 // ── connection lifecycle ────────────────────────────────────────────────
 
 func (s *Server) runConn(ctx context.Context, c *conn, onFrame func(*conn, []byte), onDone func(*conn)) {
+	// The socket's close is owned HERE, by the connection's root
+	// goroutine, on EVERY exit path. Before this defer existed, the
+	// read-error path (transport death: the peer's process dies, the
+	// kernel sends a bare FIN, no WS close frame) broke the loop, ran
+	// the registry cleanup — and never closed the socket: the writer
+	// pump only closes on a write error, and the graceful close()
+	// calls live in the heartbeat/replace/setup paths. net.Conn has
+	// no finalizer, so each dead client leaked its fd with the kernel
+	// socket parked in CLOSE_WAIT until the process hit the fd cap
+	// and the accept loop wedged (8k soak, 2026-10-18: 3,791
+	// CLOSE_WAIT). CloseNow is idempotent in coder/websocket, so the
+	// closes other goroutines race in (heartbeat 4002, replaced 4006,
+	// write-error CloseNow below) stay safe: they deliver their close
+	// code while this goroutine is alive, and this defer guarantees
+	// the fd is released when it exits.
+	defer func() { _ = c.ws.CloseNow() }()
 	// writer pump
 	go func() {
 		for {

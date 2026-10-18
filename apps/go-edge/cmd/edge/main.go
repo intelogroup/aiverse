@@ -6,7 +6,8 @@
 // — the parity connect gates, backlog, and acks all read Postgres), PORT
 // (default 8080), JWT_SECRET (verifies the session JWTs the ws-ticket
 // mints authenticate with; unset fails those mints closed — see
-// internal/edge/wsticket.go).
+// internal/edge/wsticket.go), AIVERSE_PG_POOL_MAX (Postgres pool ceiling,
+// default 48).
 package main
 
 import (
@@ -16,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -45,7 +47,20 @@ func main() {
 	if dsn == "" {
 		log.Fatal("DATABASE_URL is required (parity connect gates read Postgres)")
 	}
-	pool, err := pgxpool.New(ctx, dsn)
+	// Explicit pool sizing: pgxpool's default MaxConns is max(4, NumCPU),
+	// which starves the connect path (agent load + status + visit + backlog
+	// queries all queue behind ~4 connections during a connect storm —
+	// measured in the 8k soak, 2026-10-18). 48 leaves the connect path
+	// uncontended on small hosts while staying far under Neon's pooled
+	// session budget; override with AIVERSE_PG_POOL_MAX when the host or
+	// the pooler budget says otherwise.
+	poolCfg, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		log.Fatalf("bad DATABASE_URL: %v", err)
+	}
+	poolCfg.MaxConns = int32(envIntOr("AIVERSE_PG_POOL_MAX", 48))
+	poolCfg.MaxConnIdleTime = 5 * time.Minute
+	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
 		log.Fatalf("bad DATABASE_URL: %v", err)
 	}
@@ -67,9 +82,13 @@ func main() {
 
 	srv.StartFanout(ctx)
 
+	// Header + idle bounds only: ReadTimeout/WriteTimeout would kill
+	// long-lived WebSocket connections, so they stay zero on purpose.
 	httpSrv := &http.Server{
-		Addr:    ":" + *port,
-		Handler: srv.Handler(),
+		Addr:              ":" + *port,
+		Handler:           srv.Handler(),
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 	go func() {
 		logger.Printf("go-edge listening on :%s", *port)
@@ -90,6 +109,15 @@ func main() {
 func envOr(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
+	}
+	return def
+}
+
+func envIntOr(key string, def int) int {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
 	}
 	return def
 }
