@@ -263,6 +263,13 @@ export async function resetMemoryStoreForTests(): Promise<void> {
   // the bucket was introduced — the ported transport-failure suite had to
   // sidestep with fresh owners because a drained bucket survived resets.
   const verifyResendKeys = await redis.keys("verify-resend:*");
+  // Owner password buckets (routes/owners.ts): change + reset request/
+  // confirm limiters. Same miss class as verify-resend — added with the
+  // fix pass that cleared it.
+  const passwordChangeKeys = await redis.keys("password-change:*");
+  const pwresetEmailKeys = await redis.keys("pwreset-email:*");
+  const pwresetIpKeys = await redis.keys("pwreset-ip:*");
+  const pwresetConfirmKeys = await redis.keys("pwreset-confirm:*");
   // auth.ts mints `challenge:{agentId}` (not "auth-challenge") — both listed;
   // the auth-challenge entry is the register-endpoint IP bucket.
   const challengeKeys = await redis.keys("challenge:*");
@@ -309,6 +316,10 @@ export async function resetMemoryStoreForTests(): Promise<void> {
     ...registerKeys,
     ...loginKeys,
     ...verifyResendKeys,
+    ...passwordChangeKeys,
+    ...pwresetEmailKeys,
+    ...pwresetIpKeys,
+    ...pwresetConfirmKeys,
     ...challengeKeys,
     ...authChallengeKeys,
     ...authVerifyKeys,

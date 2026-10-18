@@ -57,4 +57,19 @@ describe("resetMemoryStoreForTests", () => {
     expect(await redis.keys("verify-resend:*")).not.toContain(key);
     expect(await takeToken(key, 3, 3 / 3600)).toBe(true);
   });
+
+  test("clears the owner password buckets", async () => {
+    const suffix = `test-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const prefixes = ["password-change:", "pwreset-email:", "pwreset-ip:", "pwreset-confirm:"];
+    for (const prefix of prefixes) {
+      expect(await takeToken(`${prefix}${suffix}`, 3, 3 / 3600)).toBe(true);
+      expect(await redis.keys(`${prefix}*`)).toContain(`${prefix}${suffix}`);
+    }
+
+    await resetMemoryStoreForTests();
+
+    for (const prefix of prefixes) {
+      expect(await redis.keys(`${prefix}*`)).not.toContain(`${prefix}${suffix}`);
+    }
+  });
 });
