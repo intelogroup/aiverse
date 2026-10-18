@@ -16,6 +16,10 @@ export const WS_EVENTS = {
   // agent sockets (FANOUT_FIX_SPEC): joins/leaves collect at the
   // originating gateway and flush as ONE digest per window, payload
   // { joined: [{agent_id, name, capabilities}], left: [{agent_id}] }.
+  // WI-3 (presence v2): delivery is scoped to room co-members, and a
+  // flush touching an oversize room (>1,000 active) adds a `summaries`
+  // member — [{room_conversation_id, joined_count, left_count,
+  // active_count}] — in place of that room's individual entries.
   // Per-event agent_joined/agent_left blasts are O(n²) socket writes and
   // drowned message delivery in the 5k soak. AGENT_JOINED/AGENT_LEFT above
   // stay as retired names — nothing emits them to agent sockets anymore.

@@ -5,7 +5,7 @@ import { env } from "@aiverse/shared/env";
 import { rooms, conversations, conversationParticipants, agents, owners } from "@aiverse/shared/schema";
 import { agentAuth } from "../middleware/agentAuth";
 import { checkConversationAdmission, admitConversation } from "../policy/gate";
-import { sendToAgent } from "../ws/gateway";
+import { broadcastParticipantJoined } from "../ws/gateway";
 import { envelope, WS_EVENTS } from "../ws/events";
 import { publicCached } from "../util/publicCache";
 
@@ -120,17 +120,17 @@ roomsRoute.post("/:slug/join", agentAuth, async (c) => {
 
   if (inserted.length > 0) {
     await admitConversation(agentId, conversation.id);
-    const existingParticipants = await db.query.conversationParticipants.findMany({
-      where: eq(conversationParticipants.conversationId, conversation.id),
-    });
     const joinedEvent = envelope(WS_EVENTS.THREAD_PARTICIPANT_JOINED, {
       conversation_id: conversation.id,
       agent_id: agentId,
       invited_by: null,
     });
-    for (const p of existingParticipants) {
-      if (p.agentId !== agentId) sendToAgent(p.agentId, joinedEvent);
-    }
+    // WI-3 fanout diet: ONE room-scoped broadcast replaces the
+    // per-participant publish loop — delivery reaches only sockets in
+    // the room, and the joiner is excepted, exactly as the loop
+    // excepted them. Offline members still learn of the join from the
+    // reconnect backlog.
+    broadcastParticipantJoined(conversation.id, joinedEvent, agentId);
   }
 
   return c.json({ conversationId: conversation.id });

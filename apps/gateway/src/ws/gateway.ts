@@ -1,12 +1,12 @@
 import { createBunWebSocket } from "hono/bun";
 import type { WSContext as HonoWSContext } from "hono/ws";
 import type { ServerWebSocket } from "bun";
-import { and, eq, notInArray, gt, lt, ne, isNull, isNotNull } from "drizzle-orm";
+import { and, count, eq, notInArray, gt, lt, ne, isNull, isNotNull } from "drizzle-orm";
 import { db } from "../db/client";
 import { agents, conversationParticipants, messages, a2aTasks, mentions, consoleEvents } from "@aiverse/shared/schema";
 import { redis, redisSub } from "../redis/client";
 import { recentCacheKey, INGEST_STREAM } from "../jobs/ingestConsumer";
-import { presenceKey, setPresence, clearPresence } from "../presence";
+import { presenceKey, setPresence, clearPresence, getOnlineAgentIds } from "../presence";
 import { envelope, WS_EVENTS } from "./events";
 import { ackCursorMode, ackCursorsEnabled, advanceAckCursor, addMentionAck, getAckCursorMs, getAckCursorsMs } from "./ackCursors";
 import { log, timed } from "../util/log";
@@ -34,6 +34,16 @@ interface Connection {
   state: "setting_up" | "live";
   pending: string[];
   droppedPending: number;
+  // Presence v2 (PHASE1_SPEC WI-3): the conversations this agent is a
+  // participant of, as far as this process knows — populated from the
+  // Postgres participant rows at the live transition and maintained from
+  // the join/leave/invite events this process already sees. A delivery-
+  // routing cache ONLY: Postgres participant rows stay the truth, the
+  // set dies with the socket, and a stale entry costs a mis-scoped
+  // presence digest (or a missed live THREAD_PARTICIPANT_JOINED — the
+  // backlog replays those), never a lost message: message delivery does
+  // not route through it in v1.
+  rooms: Set<string>;
 }
 
 // Live WS refs — inherently per-process, sockets aren't serializable. Cross-
@@ -71,7 +81,10 @@ const WS_FANOUT_CHANNEL = "ws:fanout";
 
 type FanoutMessage =
   | { kind: "agent"; agentId: string; event: ReturnType<typeof envelope> }
-  | { kind: "broadcast"; event: ReturnType<typeof envelope>; exceptAgentId?: string }
+  // `roomConversationId` (WI-3) marks a room-scoped broadcast: delivery
+  // is restricted to sockets whose connection room set contains the
+  // conversation (see the subscriber below).
+  | { kind: "broadcast"; event: ReturnType<typeof envelope>; exceptAgentId?: string; roomConversationId?: string }
   | { kind: "console"; ownerId: string; event: ReturnType<typeof envelope> }
   | { kind: "public"; event: ReturnType<typeof envelope> };
 
@@ -132,21 +145,47 @@ redisSub.on("message", (_channel: string, raw: string) => {
   switch (msg.kind) {
     case "agent": {
       const conn = connections.get(msg.agentId);
-      if (conn) deliverToAgentConn(conn, JSON.stringify(msg.event));
+      if (conn) {
+        // Presence v2 (WI-3) room-set maintenance: a CONVERSATION_STARTED
+        // delivery means the recipient just became a participant of that
+        // conversation — record it so presence scoping and room-scoped
+        // broadcasts see the membership without waiting for a reconnect.
+        if (msg.event.type === WS_EVENTS.CONVERSATION_STARTED) {
+          const conversationId = (msg.event.payload as { conversation_id?: unknown })?.conversation_id;
+          if (typeof conversationId === "string") conn.rooms.add(conversationId);
+        }
+        deliverToAgentConn(conn, JSON.stringify(msg.event));
+      }
       break;
     }
     case "broadcast": {
       const payload = JSON.stringify(msg.event);
       const isDigest = msg.event.type === WS_EVENTS.PRESENCE_DIGEST;
+      // Presence v2 (WI-3) room-set maintenance: a room-scoped
+      // THREAD_PARTICIPANT_JOINED broadcast tells every process the
+      // subject joined the conversation — heal the subject's local room
+      // set BEFORE the scope filter runs, so an invitee whose socket
+      // lives on this process (while the invite route ran on another)
+      // passes the filter for their own join frame.
+      if (msg.roomConversationId && msg.event.type === WS_EVENTS.THREAD_PARTICIPANT_JOINED) {
+        const subjectId = (msg.event.payload as { agent_id?: unknown })?.agent_id;
+        if (typeof subjectId === "string") addConnectionRoom(subjectId, msg.roomConversationId);
+      }
       for (const [agentId, conn] of connections) {
         if (agentId === msg.exceptAgentId) continue;
+        // Room-scope filter: sockets outside the conversation never see
+        // the frame. A filtered live frame is not a correctness loss —
+        // the reconnect backlog replays missed joins from the
+        // participant rows (deliverConversationBacklog).
+        if (msg.roomConversationId && !conn.rooms.has(msg.roomConversationId)) continue;
         if (isDigest) {
-          // Presence digests strip the receiving socket's own agent_id
-          // per receiver (and are skipped entirely when nothing remains
-          // for that socket) — see stripPresenceDigest below.
-          const stripped = stripPresenceDigest(msg.event, payload, agentId);
-          if (stripped === null) continue;
-          deliverToAgentConn(conn, stripped);
+          // Presence digests are scoped to room co-members and stripped
+          // of the receiving socket's own agent_id per receiver (and
+          // skipped entirely when nothing remains for that socket) —
+          // see scopePresenceDigest below.
+          const scoped = scopePresenceDigest(msg.event, payload, conn);
+          if (scoped === null) continue;
+          deliverToAgentConn(conn, scoped);
         } else {
           deliverToAgentConn(conn, payload);
         }
@@ -201,7 +240,38 @@ function broadcast(event: ReturnType<typeof envelope>, exceptAgentId?: string) {
   publishFanout({ kind: "broadcast", event, exceptAgentId });
 }
 
-// ── Presence digests (FANOUT_FIX_SPEC) ────────────────────────────────
+// ── Presence v2 room sets (PHASE1_SPEC WI-3) ──────────────────────────
+// Writers of Connection.rooms besides the live-transition population:
+// these two helpers (routes + the fanout subscriber's own maintenance
+// above) — all process-local and best-effort by design, since Postgres
+// participant rows remain the truth and the set is rebuilt from them on
+// every connect.
+export function addConnectionRoom(agentId: string, conversationId: string): void {
+  connections.get(agentId)?.rooms.add(conversationId);
+}
+
+export function removeConnectionRoom(agentId: string, conversationId: string): void {
+  connections.get(agentId)?.rooms.delete(conversationId);
+}
+
+// The join fanout diet (WI-3 change 4): THREAD_PARTICIPANT_JOINED used
+// to cost one fanout publish PER existing participant from the join /
+// invite routes — the same O(N) publish shape the digest fixed for
+// connect/close. It is now ONE broadcast publish, restricted at
+// delivery to sockets whose room set contains the conversation.
+// `exceptAgentId` preserves the room-join semantics (the joiner is not
+// notified of their own join); invites pass no exception — the invitee
+// IS notified, exactly as the old per-participant loop + explicit
+// target send delivered it.
+export function broadcastParticipantJoined(
+  conversationId: string,
+  event: ReturnType<typeof envelope>,
+  exceptAgentId?: string,
+): void {
+  publishFanout({ kind: "broadcast", event, exceptAgentId, roomConversationId: conversationId });
+}
+
+// ── Presence digests (FANOUT_FIX_SPEC + PHASE1_SPEC WI-3) ───────────
 // This gateway's own join/left events collect into a pending buffer with
 // last-write-wins netting per agent, and flush as ONE presence_digest
 // broadcast — replacing the per-event agent_joined/agent_left blasts,
@@ -209,19 +279,53 @@ function broadcast(event: ReturnType<typeof envelope>, exceptAgentId?: string) {
 // Presence truth stays in the Redis presence:* keys + DB status; the
 // digest is advisory, like the frames it replaces. The Go edge ships the
 // identical protocol (apps/go-edge/FANOUT_FIX_SPEC.md); this is its port.
+//
+// WI-3 (presence v2) scopes the digest to room co-members: every entry
+// carries a snapshot of the subject's room set (its connection's
+// delivery-routing cache) taken at collect time, and delivery keeps an
+// entry for a socket only when the socket's agent shares ≥1 room with
+// the subject. The fleet-wide "who is online" perception the digest
+// used to give every agent narrows to room co-members by design
+// (owner-accepted, spec Q3); GET /agents/discover remains the ambient
+// who-exists surface. The `rooms` attribution rides the internal fanout
+// envelope only — scopePresenceDigest strips it before any socket
+// write, so the client wire shape for sub-threshold traffic is
+// unchanged. A room whose active (connected-and-joined) membership
+// exceeds PRESENCE_OVERSIZE_ROOM_ACTIVE_THRESHOLD stops enumerating:
+// its attributable entries collapse into a per-room presence_summary of
+// counts, delivered to that room's members in place of the entries.
 const PRESENCE_DIGEST_WINDOW_MS = 1000;
 const PRESENCE_DIGEST_MAX_PENDING = 250;
+export const PRESENCE_OVERSIZE_ROOM_ACTIVE_THRESHOLD = 1000;
 
 interface PresenceDigestJoined {
   agent_id: string;
   name: string;
   capabilities: string[];
+  // Internal fanout-only attribution (WI-3): the subject's room-set
+  // snapshot at collect time. Stripped before socket delivery.
+  rooms: string[];
+}
+
+interface PresenceDigestLeft {
+  agent_id: string;
+  // Internal fanout-only attribution (WI-3) — see PresenceDigestJoined.
+  rooms: string[];
+}
+
+// Wire-additive payload member, present only when a flush contains
+// entries attributable to an oversize room (WI-3 change 3).
+interface PresenceSummary {
+  room_conversation_id: string;
+  joined_count: number;
+  left_count: number;
+  active_count: number;
 }
 
 // digestOrder holds agent ids in first-seen order; each id sits in
 // exactly one of digestJoined / digestLeft (last-write-wins netting).
 const digestJoined = new Map<string, PresenceDigestJoined>();
-const digestLeft = new Set<string>();
+const digestLeft = new Map<string, PresenceDigestLeft>();
 const digestOrder: string[] = [];
 let digestFlusherStarted = false;
 
@@ -233,74 +337,183 @@ let digestFlusherStarted = false;
 function ensureDigestFlusher() {
   if (digestFlusherStarted) return;
   digestFlusherStarted = true;
-  setInterval(flushPresenceDigest, PRESENCE_DIGEST_WINDOW_MS);
+  setInterval(() => {
+    void flushPresenceDigest();
+  }, PRESENCE_DIGEST_WINDOW_MS);
 }
 
 // Nets a join into the pending digest: any pending left for the agent is
-// superseded. The published console status event is unaffected (still
-// per-event, owner-scoped).
-function recordPresenceJoined(agentId: string, name: string, capabilities: string[]) {
+// superseded. `rooms` is the subject's room-set snapshot at collect time
+// (WI-3 attribution — last-write-wins, like the entry itself). The
+// published console status event is unaffected (still per-event,
+// owner-scoped).
+function recordPresenceJoined(agentId: string, name: string, capabilities: string[], rooms: ReadonlySet<string>) {
   ensureDigestFlusher();
   if (digestLeft.has(agentId)) {
     digestLeft.delete(agentId);
   } else if (!digestJoined.has(agentId)) {
     digestOrder.push(agentId);
   }
-  digestJoined.set(agentId, { agent_id: agentId, name, capabilities });
-  if (digestOrder.length >= PRESENCE_DIGEST_MAX_PENDING) flushPresenceDigest();
+  digestJoined.set(agentId, { agent_id: agentId, name, capabilities, rooms: [...rooms] });
+  if (digestOrder.length >= PRESENCE_DIGEST_MAX_PENDING) void flushPresenceDigest();
 }
 
 // Nets a departure into the pending digest: any pending join for the
 // agent is superseded.
-function recordPresenceLeft(agentId: string) {
+function recordPresenceLeft(agentId: string, rooms: ReadonlySet<string>) {
   ensureDigestFlusher();
   if (digestJoined.has(agentId)) {
     digestJoined.delete(agentId);
   } else if (!digestLeft.has(agentId)) {
     digestOrder.push(agentId);
   }
-  digestLeft.add(agentId);
-  if (digestOrder.length >= PRESENCE_DIGEST_MAX_PENDING) flushPresenceDigest();
+  digestLeft.set(agentId, { agent_id: agentId, rooms: [...rooms] });
+  if (digestOrder.length >= PRESENCE_DIGEST_MAX_PENDING) void flushPresenceDigest();
 }
 
 // Publishes the pending set as one presence_digest broadcast, entries in
-// first-seen order. Empty buffer → no publish.
-function flushPresenceDigest() {
+// first-seen order. Empty buffer → no publish. The pending set is
+// snapshotted and cleared synchronously; the oversize computation
+// (Redis presence set ∩ participant rows) is awaited before the
+// publish, so entries collected during the await land in the next
+// window — netting and ordering semantics are unchanged.
+async function flushPresenceDigest() {
   if (digestOrder.length === 0) return;
   const joined: PresenceDigestJoined[] = [];
-  const left: { agent_id: string }[] = [];
+  const left: PresenceDigestLeft[] = [];
   for (const agentId of digestOrder) {
     const j = digestJoined.get(agentId);
     if (j) joined.push(j);
-    else left.push({ agent_id: agentId });
+    else {
+      const l = digestLeft.get(agentId);
+      if (l) left.push(l);
+    }
   }
   digestJoined.clear();
   digestLeft.clear();
   digestOrder.length = 0;
-  broadcast(envelope(WS_EVENTS.PRESENCE_DIGEST, { joined, left }));
+
+  // Oversize rooms (WI-3 change 3): a room whose active membership —
+  // participant rows whose agent currently holds a live presence key —
+  // exceeds the threshold stops enumerating. Entries attributable to it
+  // collapse into one presence_summary per room; delivery suppresses
+  // the individual entries for that room's members and delivers the
+  // summary instead (scopePresenceDigest). Sub-threshold rooms in the
+  // same flush still enumerate, bounded per room by the same 250-entry
+  // window cap: entries are per-agent, so a room's attributable entries
+  // in one flush can never exceed the pending cap.
+  const summaries: PresenceSummary[] = [];
+  const oversizeRooms: string[] = [];
+  const attributedRooms = new Set<string>();
+  for (const e of joined) for (const roomId of e.rooms) attributedRooms.add(roomId);
+  for (const e of left) for (const roomId of e.rooms) attributedRooms.add(roomId);
+  if (attributedRooms.size > 0) {
+    try {
+      // Active membership can never exceed the participant count, so
+      // only a room with more participants than the threshold can be
+      // oversize: a cheap index-only COUNT per attributed room gates
+      // the Redis presence scan, which is paid at most once per flush
+      // and only when an oversize candidate is actually in play.
+      let onlineIds: Set<string> | null = null;
+      for (const roomId of attributedRooms) {
+        const [{ n: participantCount }] = await db
+          .select({ n: count() })
+          .from(conversationParticipants)
+          .where(eq(conversationParticipants.conversationId, roomId));
+        if (participantCount <= PRESENCE_OVERSIZE_ROOM_ACTIVE_THRESHOLD) continue;
+        onlineIds ??= await getOnlineAgentIds();
+        const parts = await db
+          .select({ agentId: conversationParticipants.agentId })
+          .from(conversationParticipants)
+          .where(eq(conversationParticipants.conversationId, roomId));
+        let activeCount = 0;
+        for (const p of parts) if (onlineIds.has(p.agentId)) activeCount += 1;
+        if (activeCount > PRESENCE_OVERSIZE_ROOM_ACTIVE_THRESHOLD) {
+          oversizeRooms.push(roomId);
+          summaries.push({
+            room_conversation_id: roomId,
+            joined_count: joined.filter((e) => e.rooms.includes(roomId)).length,
+            left_count: left.filter((e) => e.rooms.includes(roomId)).length,
+            active_count: activeCount,
+          });
+        }
+      }
+    } catch (err) {
+      // Advisory path: a failed oversize computation must not lose the
+      // digest — flush fully enumerated (the pre-WI-3 behavior) and log.
+      log("presence_digest_oversize_check_failed", { error: String(err) });
+      summaries.length = 0;
+      oversizeRooms.length = 0;
+    }
+  }
+
+  broadcast(
+    envelope(WS_EVENTS.PRESENCE_DIGEST, {
+      joined,
+      left,
+      ...(summaries.length > 0 ? { summaries, oversize_rooms: oversizeRooms } : {}),
+    }),
+  );
 }
 
-// Removes selfAgentId from a digest envelope's joined and left lists for
-// one receiving socket. Returns null when nothing remains for this
-// socket — the write is skipped. When nothing is stripped, the original
-// serialized payload passes through untouched.
-function stripPresenceDigest(
+// Scopes one digest envelope for one receiving socket (WI-3): an entry
+// survives iff the subject shares ≥1 room with the receiver and at
+// least one shared room is sub-threshold (oversize rooms are covered by
+// their presence_summary instead of entries); the receiver's own entry
+// is stripped, as the original digest always did; a summary survives
+// iff the receiver is in the summarized room. The internal `rooms`
+// attribution and `oversize_rooms` list never reach the wire. Returns
+// null when nothing remains for this socket — the write is skipped.
+// When nothing was filtered or stripped, the original serialized
+// payload passes through untouched.
+function scopePresenceDigest(
   event: ReturnType<typeof envelope>,
   rawPayload: string,
-  selfAgentId: string,
+  conn: Connection,
 ): string | null {
   try {
     const payload = event.payload as {
       joined?: PresenceDigestJoined[];
-      left?: { agent_id: string }[];
+      left?: PresenceDigestLeft[];
+      summaries?: PresenceSummary[];
+      oversize_rooms?: string[];
     };
     const joinedIn = payload.joined ?? [];
     const leftIn = payload.left ?? [];
-    const joined = joinedIn.filter((j) => j.agent_id !== selfAgentId);
-    const left = leftIn.filter((l) => l.agent_id !== selfAgentId);
-    if (joined.length === 0 && left.length === 0) return null;
-    if (joined.length === joinedIn.length && left.length === leftIn.length) return rawPayload;
-    return JSON.stringify({ ...event, payload: { joined, left } });
+    const summariesIn = payload.summaries ?? [];
+    const oversize = new Set(payload.oversize_rooms ?? []);
+    const inScope = (e: { agent_id: string; rooms?: string[] }): boolean => {
+      if (e.agent_id === conn.agentId) return false;
+      // No attribution — a digest shape this build never emits (e.g. a
+      // mixed-version fleet mate): deliver as before rather than drop.
+      if (!e.rooms) return true;
+      for (const roomId of e.rooms) {
+        if (conn.rooms.has(roomId) && !oversize.has(roomId)) return true;
+      }
+      return false;
+    };
+    const joined = joinedIn
+      .filter(inScope)
+      .map((e) => ({ agent_id: e.agent_id, name: e.name, capabilities: e.capabilities }));
+    const left = leftIn.filter(inScope).map((e) => ({ agent_id: e.agent_id }));
+    const summaries = summariesIn.filter((s) => conn.rooms.has(s.room_conversation_id));
+    if (joined.length === 0 && left.length === 0 && summaries.length === 0) return null;
+    const untouched =
+      joined.length === joinedIn.length &&
+      left.length === leftIn.length &&
+      summaries.length === summariesIn.length &&
+      oversize.size === 0 &&
+      joinedIn.every((e) => !e.rooms) &&
+      leftIn.every((e) => !e.rooms);
+    if (untouched) return rawPayload;
+    return JSON.stringify({
+      ...event,
+      payload: {
+        joined,
+        left,
+        ...(summaries.length > 0 ? { summaries } : {}),
+      },
+    });
   } catch {
     // Unreadable digest shape — deliver as-is rather than drop it.
     return rawPayload;
@@ -1039,6 +1252,7 @@ export function registerAgentWsRoute(app: {
             state: "setting_up",
             pending: [],
             droppedPending: 0,
+            rooms: new Set(),
           };
           const displaced = connections.get(ticketAgentId);
           connections.set(ticketAgentId, conn);
@@ -1068,7 +1282,7 @@ export function registerAgentWsRoute(app: {
                   // its departure was never announced. Announce the leave
                   // and drop its presence key here; the DB status write is
                   // left to the boot reconciler (bounded, self-healing).
-                  recordPresenceLeft(conn.agentId);
+                  recordPresenceLeft(conn.agentId, displaced.rooms);
                   clearPresence(conn.agentId).catch(() => {});
                 }
               }
@@ -1195,6 +1409,19 @@ export function registerAgentWsRoute(app: {
           if (conn.droppedPending > 0) {
             log("ws_pending_overflow", { agentId: agent.id, dropped: conn.droppedPending });
           }
+
+          // Presence v2 (WI-3): populate the connection's room set from
+          // the participant rows — the anchor every later maintenance
+          // event only has to keep current. Done before the live
+          // transition so the digest join collected below snapshots a
+          // complete set, and room-scoped delivery applies from the
+          // first frame this socket receives as live.
+          const roomRows = await db.query.conversationParticipants.findMany({
+            where: eq(conversationParticipants.agentId, agent.id),
+            columns: { conversationId: true },
+          });
+          conn.rooms = new Set(roomRows.map((r) => r.conversationId));
+
           conn.state = "live";
 
           // The socket may have closed mid-setup — onClose already ran
@@ -1205,8 +1432,9 @@ export function registerAgentWsRoute(app: {
           // Presence digest collection point (PHASE0_SPEC §1 step 7):
           // the join collects only now that the connection is live — a
           // gate-failed or never-completed setup never appears in a
-          // digest, same as the Go edge.
-          recordPresenceJoined(agent.id, agent.name, capabilities);
+          // digest, same as the Go edge. The room set populated above is
+          // the entry's WI-3 attribution snapshot.
+          recordPresenceJoined(agent.id, agent.name, capabilities, conn.rooms);
 
           broadcastToOwnerConsole(
             agent.ownerId,
@@ -1274,7 +1502,7 @@ export function registerAgentWsRoute(app: {
             .update(agents)
             .set({ status: "offline", lastSeenAt: new Date() })
             .where(and(eq(agents.id, agentId), notInArray(agents.status, ["paused", "budget_exhausted"])));
-          if (wasLive) recordPresenceLeft(agentId);
+          if (wasLive) recordPresenceLeft(agentId, conn.rooms);
           log("ws_disconnect", { agentId, ownerId: closedOwnerId });
           if (wasLive && closedOwnerId) {
             broadcastToOwnerConsole(

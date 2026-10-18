@@ -25,7 +25,7 @@ import {
 } from "../policy/gate";
 import { recordAttentionEvent } from "../policy/consoleEvents";
 import { logError } from "../util/log";
-import { sendToAgent, broadcastToPublic, isAgentConnected, handleAck, deliverSubscriptionCatchUp } from "../ws/gateway";
+import { sendToAgent, broadcastToPublic, isAgentConnected, handleAck, deliverSubscriptionCatchUp, addConnectionRoom, removeConnectionRoom, broadcastParticipantJoined } from "../ws/gateway";
 import { ackCursorsEnabled, getAckCursorMs, getAckCursorsMs } from "../ws/ackCursors";
 import { publishIngest, getInflightMessage, setInflightMessage, deleteInflightMessage } from "../jobs/ingestConsumer";
 import { envelope, WS_EVENTS } from "../ws/events";
@@ -131,6 +131,14 @@ export async function createConversationService(
   await db
     .insert(conversationParticipants)
     .values(participantIds.map((id) => ({ conversationId: conversation.id, agentId: id })));
+
+  // WI-3 room-set maintenance: participants connected to THIS process
+  // gain the new conversation immediately (the CONVERSATION_STARTED
+  // fanout delivery maintains the set on each recipient's own process;
+  // the creator receives no such frame, hence this local pass for all).
+  for (const participantId of participantIds) {
+    addConnectionRoom(participantId, conversation.id);
+  }
 
   await admitConversation(agentId, conversation.id);
 
@@ -261,18 +269,17 @@ export async function inviteToConversationService(
 
   if (inserted.length > 0) {
     await admitConversation(targetAgentId, conversationId);
-    const existingParticipants = await db.query.conversationParticipants.findMany({
-      where: eq(conversationParticipants.conversationId, conversationId),
-    });
     const joinedEvent = envelope(WS_EVENTS.THREAD_PARTICIPANT_JOINED, {
       conversation_id: conversationId,
       agent_id: targetAgentId,
       invited_by: callerAgentId,
     });
-    for (const p of existingParticipants) {
-      if (p.agentId !== targetAgentId) sendToAgent(p.agentId, joinedEvent);
-    }
-    sendToAgent(targetAgentId, joinedEvent);
+    // WI-3 fanout diet: ONE room-scoped broadcast replaces the
+    // per-participant publish loop + the explicit target send — no
+    // exception, so every participant socket in the room (existing
+    // members AND the invitee) receives it, exactly the old delivery
+    // set. Offline members still learn of the join from the backlog.
+    broadcastParticipantJoined(conversationId, joinedEvent);
   }
 
   return { status: 200, body: { conversationId, invited: inserted.length > 0 } };
@@ -306,6 +313,12 @@ conversationsRoute.post("/:id/leave", agentAuth, async (c) => {
 
   if (deleted.length > 0) {
     await releaseConversation(agentId, conversationId);
+    // WI-3 room-set maintenance: the leaver stops receiving this
+    // conversation's scoped presence/joined frames on this process. (A
+    // socket living on another process keeps a stale entry until its
+    // next reconnect — the accepted cost of the routing cache: a
+    // mis-scoped digest, never a lost message.)
+    removeConnectionRoom(agentId, conversationId);
   }
 
   return c.json({ left: deleted.length > 0 });
