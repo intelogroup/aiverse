@@ -170,6 +170,10 @@ redisSub.on("message", (_channel: string, raw: string) => {
       if (msg.roomConversationId && msg.event.type === WS_EVENTS.THREAD_PARTICIPANT_JOINED) {
         const subjectId = (msg.event.payload as { agent_id?: unknown })?.agent_id;
         if (typeof subjectId === "string") addConnectionRoom(subjectId, msg.roomConversationId);
+        // The room's participant rows changed on whichever process
+        // served the join/invite: drop any cached oversize
+        // determination for it (see the cache notes below).
+        invalidateOversizeDetermination(msg.roomConversationId);
       }
       for (const [agentId, conn] of connections) {
         if (agentId === msg.exceptAgentId) continue;
@@ -252,6 +256,10 @@ export function addConnectionRoom(agentId: string, conversationId: string): void
 
 export function removeConnectionRoom(agentId: string, conversationId: string): void {
   connections.get(agentId)?.rooms.delete(conversationId);
+  // The leave route is this helper's only caller: the room's
+  // participant rows just changed, so a cached oversize determination
+  // for it (below) is stale.
+  invalidateOversizeDetermination(conversationId);
 }
 
 // The join fanout diet (WI-3 change 4): THREAD_PARTICIPANT_JOINED used
@@ -349,6 +357,9 @@ function ensureDigestFlusher() {
 // owner-scoped).
 function recordPresenceJoined(agentId: string, name: string, capabilities: string[], rooms: ReadonlySet<string>) {
   ensureDigestFlusher();
+  // Active membership moved in every room the subject belongs to —
+  // cached oversize determinations for those rooms are stale.
+  for (const roomId of rooms) invalidateOversizeDetermination(roomId);
   if (digestLeft.has(agentId)) {
     digestLeft.delete(agentId);
   } else if (!digestJoined.has(agentId)) {
@@ -362,6 +373,9 @@ function recordPresenceJoined(agentId: string, name: string, capabilities: strin
 // agent is superseded.
 function recordPresenceLeft(agentId: string, rooms: ReadonlySet<string>) {
   ensureDigestFlusher();
+  // Active membership moved in every room the subject belongs to —
+  // cached oversize determinations for those rooms are stale.
+  for (const roomId of rooms) invalidateOversizeDetermination(roomId);
   if (digestJoined.has(agentId)) {
     digestJoined.delete(agentId);
   } else if (!digestLeft.has(agentId)) {
@@ -371,10 +385,106 @@ function recordPresenceLeft(agentId: string, rooms: ReadonlySet<string>) {
   if (digestOrder.length >= PRESENCE_DIGEST_MAX_PENDING) void flushPresenceDigest();
 }
 
+// ── Oversize determinations (WI-3 change 3, cost-bounded) ─────────────
+// A room is oversize when its active membership — participant rows
+// whose agent currently holds a live presence key — exceeds
+// PRESENCE_OVERSIZE_ROOM_ACTIVE_THRESHOLD. The determination itself is
+// exact (Postgres rows ∩ the Redis presence set, computed by
+// computeOversizeDetermination), but it is NOT recomputed on every
+// flush: determinations are cached per room, so a flush whose rooms'
+// membership has not changed issues no PG or Redis queries at all —
+// exactly what the pre-WI-3 flush cost. A cached determination is
+// dropped as soon as this process observes an event that can change
+// it:
+//   - a digest entry attributable to the room is collected (a member's
+//     presence joined/left — the only way active membership moves), or
+//   - a THREAD_PARTICIPANT_JOINED broadcast for the room is seen, or
+//     the local leave path runs (participant rows changed), or
+//   - the TTL expires — a backstop for changes no local event reveals
+//     (e.g. a leave served by another gateway process).
+// Participant counts change slowly, so the bounded staleness that
+// remains (a room crossing the threshold is picked up at its next
+// membership event or at TTL expiry) is the accepted price of keeping
+// the 1 s flush off the database.
+const PRESENCE_OVERSIZE_CACHE_TTL_MS = 60_000;
+const PRESENCE_OVERSIZE_CACHE_MAX_ENTRIES = 4096;
+
+interface OversizeDetermination {
+  oversize: boolean;
+  // Exact on the oversize path (participant rows ∩ live presence
+  // keys). On the gated sub-threshold path it holds the participant
+  // count — an upper bound on active membership, never read: summaries
+  // are built only from oversize determinations.
+  activeCount: number;
+  computedAtMs: number;
+}
+
+const oversizeDeterminations = new Map<string, OversizeDetermination>();
+
+function invalidateOversizeDetermination(conversationId: string): void {
+  oversizeDeterminations.delete(conversationId);
+}
+
+async function computeOversizeDetermination(
+  roomId: string,
+  sharedOnlineIds: () => Promise<Set<string>>,
+): Promise<OversizeDetermination> {
+  // Active membership can never exceed the participant count, so only
+  // a room with more participants than the threshold can be oversize:
+  // a cheap index-only COUNT gates the Redis presence scan, which the
+  // caller shares across every room one flush actually computes.
+  const [{ n: participantCount }] = await db
+    .select({ n: count() })
+    .from(conversationParticipants)
+    .where(eq(conversationParticipants.conversationId, roomId));
+  if (participantCount <= PRESENCE_OVERSIZE_ROOM_ACTIVE_THRESHOLD) {
+    return { oversize: false, activeCount: participantCount, computedAtMs: Date.now() };
+  }
+  const onlineIds = await sharedOnlineIds();
+  const parts = await db
+    .select({ agentId: conversationParticipants.agentId })
+    .from(conversationParticipants)
+    .where(eq(conversationParticipants.conversationId, roomId));
+  let activeCount = 0;
+  for (const p of parts) if (onlineIds.has(p.agentId)) activeCount += 1;
+  return {
+    oversize: activeCount > PRESENCE_OVERSIZE_ROOM_ACTIVE_THRESHOLD,
+    activeCount,
+    computedAtMs: Date.now(),
+  };
+}
+
+async function determineOversize(
+  roomId: string,
+  sharedOnlineIds: () => Promise<Set<string>>,
+): Promise<OversizeDetermination> {
+  const cached = oversizeDeterminations.get(roomId);
+  if (cached && Date.now() - cached.computedAtMs < PRESENCE_OVERSIZE_CACHE_TTL_MS) {
+    return cached;
+  }
+  const determination = await computeOversizeDetermination(roomId, sharedOnlineIds);
+  oversizeDeterminations.set(roomId, determination);
+  if (oversizeDeterminations.size > PRESENCE_OVERSIZE_CACHE_MAX_ENTRIES) {
+    // Opportunistic bound: expired entries go first; if the map is
+    // still over the cap, clear it — a lost entry costs one lazy
+    // recomputation, never correctness.
+    const now = Date.now();
+    for (const [id, entry] of oversizeDeterminations) {
+      if (now - entry.computedAtMs >= PRESENCE_OVERSIZE_CACHE_TTL_MS) {
+        oversizeDeterminations.delete(id);
+      }
+    }
+    if (oversizeDeterminations.size > PRESENCE_OVERSIZE_CACHE_MAX_ENTRIES) {
+      oversizeDeterminations.clear();
+    }
+  }
+  return determination;
+}
+
 // Publishes the pending set as one presence_digest broadcast, entries in
 // first-seen order. Empty buffer → no publish. The pending set is
-// snapshotted and cleared synchronously; the oversize computation
-// (Redis presence set ∩ participant rows) is awaited before the
+// snapshotted and cleared synchronously; oversize determinations are
+// resolved (from the per-room cache, computed on a miss) before the
 // publish, so entries collected during the await land in the next
 // window — netting and ordering semantics are unchanged.
 async function flushPresenceDigest() {
@@ -393,15 +503,16 @@ async function flushPresenceDigest() {
   digestLeft.clear();
   digestOrder.length = 0;
 
-  // Oversize rooms (WI-3 change 3): a room whose active membership —
-  // participant rows whose agent currently holds a live presence key —
-  // exceeds the threshold stops enumerating. Entries attributable to it
-  // collapse into one presence_summary per room; delivery suppresses
-  // the individual entries for that room's members and delivers the
-  // summary instead (scopePresenceDigest). Sub-threshold rooms in the
-  // same flush still enumerate, bounded per room by the same 250-entry
-  // window cap: entries are per-agent, so a room's attributable entries
-  // in one flush can never exceed the pending cap.
+  // Oversize rooms (WI-3 change 3): a room whose active membership
+  // exceeds the threshold stops enumerating. Entries attributable to
+  // it collapse into one presence_summary per room; delivery
+  // suppresses the individual entries for that room's members and
+  // delivers the summary instead (scopePresenceDigest). Sub-threshold
+  // rooms in the same flush still enumerate, bounded per room by the
+  // same 250-entry window cap: entries are per-agent, so a room's
+  // attributable entries in one flush can never exceed the pending
+  // cap. Determinations come from the per-room cache above — computed
+  // by the production path on a miss, never per flush in steady state.
   const summaries: PresenceSummary[] = [];
   const oversizeRooms: string[] = [];
   const attributedRooms = new Set<string>();
@@ -409,34 +520,18 @@ async function flushPresenceDigest() {
   for (const e of left) for (const roomId of e.rooms) attributedRooms.add(roomId);
   if (attributedRooms.size > 0) {
     try {
-      // Active membership can never exceed the participant count, so
-      // only a room with more participants than the threshold can be
-      // oversize: a cheap index-only COUNT per attributed room gates
-      // the Redis presence scan, which is paid at most once per flush
-      // and only when an oversize candidate is actually in play.
       let onlineIds: Set<string> | null = null;
+      const sharedOnlineIds = async () => (onlineIds ??= await getOnlineAgentIds());
       for (const roomId of attributedRooms) {
-        const [{ n: participantCount }] = await db
-          .select({ n: count() })
-          .from(conversationParticipants)
-          .where(eq(conversationParticipants.conversationId, roomId));
-        if (participantCount <= PRESENCE_OVERSIZE_ROOM_ACTIVE_THRESHOLD) continue;
-        onlineIds ??= await getOnlineAgentIds();
-        const parts = await db
-          .select({ agentId: conversationParticipants.agentId })
-          .from(conversationParticipants)
-          .where(eq(conversationParticipants.conversationId, roomId));
-        let activeCount = 0;
-        for (const p of parts) if (onlineIds.has(p.agentId)) activeCount += 1;
-        if (activeCount > PRESENCE_OVERSIZE_ROOM_ACTIVE_THRESHOLD) {
-          oversizeRooms.push(roomId);
-          summaries.push({
-            room_conversation_id: roomId,
-            joined_count: joined.filter((e) => e.rooms.includes(roomId)).length,
-            left_count: left.filter((e) => e.rooms.includes(roomId)).length,
-            active_count: activeCount,
-          });
-        }
+        const determination = await determineOversize(roomId, sharedOnlineIds);
+        if (!determination.oversize) continue;
+        oversizeRooms.push(roomId);
+        summaries.push({
+          room_conversation_id: roomId,
+          joined_count: joined.filter((e) => e.rooms.includes(roomId)).length,
+          left_count: left.filter((e) => e.rooms.includes(roomId)).length,
+          active_count: determination.activeCount,
+        });
       }
     } catch (err) {
       // Advisory path: a failed oversize computation must not lose the
@@ -1380,6 +1475,24 @@ export function registerAgentWsRoute(app: {
             await new Promise((r) => setTimeout(r, backlogDelayMs));
           }
 
+          // Presence v2 (WI-3): populate the connection's room set from
+          // the participant rows — the anchor every later maintenance
+          // event only has to keep current. This MUST stay ahead of the
+          // backlog + pending-flush sequence below: the flush loop and
+          // the `state = "live"` assignment after it are deliberately
+          // separated by no await (a fanout frame delivered to this
+          // connection in such a gap would land in the pending buffer
+          // after its only flush and never reach the socket), so every
+          // awaited setup step belongs before that sequence. Populated
+          // here, the set is still complete before the live transition,
+          // so the digest join collected below snapshots a complete set
+          // and room-scoped delivery applies from the first live frame.
+          const roomRows = await db.query.conversationParticipants.findMany({
+            where: eq(conversationParticipants.agentId, agent.id),
+            columns: { conversationId: true },
+          });
+          conn.rooms = new Set(roomRows.map((r) => r.conversationId));
+
           const backlogStart = performance.now();
           const backlog = await deliverBacklog(agent.id, ws);
           log("ws_connect", {
@@ -1409,18 +1522,6 @@ export function registerAgentWsRoute(app: {
           if (conn.droppedPending > 0) {
             log("ws_pending_overflow", { agentId: agent.id, dropped: conn.droppedPending });
           }
-
-          // Presence v2 (WI-3): populate the connection's room set from
-          // the participant rows — the anchor every later maintenance
-          // event only has to keep current. Done before the live
-          // transition so the digest join collected below snapshots a
-          // complete set, and room-scoped delivery applies from the
-          // first frame this socket receives as live.
-          const roomRows = await db.query.conversationParticipants.findMany({
-            where: eq(conversationParticipants.agentId, agent.id),
-            columns: { conversationId: true },
-          });
-          conn.rooms = new Set(roomRows.map((r) => r.conversationId));
 
           conn.state = "live";
 
