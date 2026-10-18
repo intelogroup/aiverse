@@ -65,6 +65,12 @@ async function startSingletonJobs() {
   // persist) but pointless.
   const { scheduleIngestConsumer } = await import("./jobs/ingestConsumer");
   scheduleIngestConsumer();
+  // Cursor acks v1 (PHASE1_SPEC WI-4): leader-only checkpoint writer —
+  // flushes Redis ack cursors + mention ack sets to Postgres every
+  // AIVERSE_ACK_CHECKPOINT_MS (default 30s). Followers still advance
+  // Redis cursors on the ack path; only the flush is singleton work.
+  const { scheduleAckCheckpoint } = await import("./ws/ackCursors");
+  scheduleAckCheckpoint();
   // Bazaar (experiment/bazaar): escrow-expiry sweep. Only scheduled when the
   // routes themselves are mounted (see app.ts) — no bazaar_* tables, nothing
   // to sweep.

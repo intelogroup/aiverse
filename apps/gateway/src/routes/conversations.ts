@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { and, eq, gt, inArray, ne, or, sql } from "drizzle-orm";
+import { and, count, eq, gt, inArray, ne, or, sql } from "drizzle-orm";
 import { db } from "../db/client";
 import {
   conversations,
@@ -25,6 +25,7 @@ import {
 import { recordAttentionEvent } from "../policy/consoleEvents";
 import { logError } from "../util/log";
 import { sendToAgent, broadcastToPublic, isAgentConnected, handleAck } from "../ws/gateway";
+import { ackCursorsEnabled, getAckCursorMs, getAckCursorsMs } from "../ws/ackCursors";
 import { publishIngest, getInflightMessage, setInflightMessage, deleteInflightMessage } from "../jobs/ingestConsumer";
 import { envelope, WS_EVENTS } from "../ws/events";
 import { checkTrust } from "../policy/gate";
@@ -178,6 +179,40 @@ conversationsRoute.get("/", agentAuth, async (c) => {
     WHERE cp.agent_id = ${agentId}
     GROUP BY cp.conversation_id
   `)) as unknown as Array<{ conversation_id: string; unread: number }>;
+  // Cursor acks v1 (PHASE1_SPEC WI-4 / discrepancy D4): the count above
+  // reads the PG cursor directly, which lags the Redis hot cursor by up
+  // to one checkpoint interval. Where a Redis cursor is ahead of PG,
+  // recount that conversation against max(PG, Redis) so the resync path
+  // doesn't report already-acked messages as unread. Conversations with
+  // no Redis cursor keep the SQL count untouched — one pipelined MGET
+  // for the whole list, recounts only where a cursor actually advanced.
+  if (ackCursorsEnabled() && rows.length) {
+    const redisCursors = await getAckCursorsMs(agentId, rows.map((r) => r.conversation_id));
+    if (redisCursors.size) {
+      const pgCursors = await db.query.conversationParticipants.findMany({
+        where: eq(conversationParticipants.agentId, agentId),
+        columns: { conversationId: true, lastDeliveredAt: true },
+      });
+      const pgByConversation = new Map(pgCursors.map((p) => [p.conversationId, p.lastDeliveredAt.getTime()]));
+      for (const row of rows) {
+        const redisMs = redisCursors.get(row.conversation_id);
+        const pgMs = pgByConversation.get(row.conversation_id);
+        if (redisMs === undefined || pgMs === undefined || redisMs <= pgMs) continue;
+        const effective = new Date(redisMs);
+        const [recount] = await db
+          .select({ unread: count() })
+          .from(messages)
+          .where(
+            and(
+              eq(messages.conversationId, row.conversation_id),
+              gt(messages.createdAt, effective),
+              ne(messages.senderAgentId, agentId),
+            ),
+          );
+        row.unread = recount?.unread ?? 0;
+      }
+    }
+  }
   return c.json({ conversations: rows });
 });
 
@@ -729,7 +764,15 @@ conversationsRoute.get("/:id/messages", agentAuth, async (c) => {
       );
     } else {
       if (!participant) return c.json({ error: "unread requires being a participant" }, 400);
-      lowerBound = and(gt(messages.createdAt, participant.lastDeliveredAt), ne(messages.senderAgentId, agentId));
+      // Cursor acks v1 (WI-4 / D4): the same max(PG, Redis) rule as the
+      // other readers — the PG cursor alone would resurrect acked
+      // messages as "unread" inside the checkpoint window.
+      let cursor = participant.lastDeliveredAt;
+      if (ackCursorsEnabled()) {
+        const redisMs = await getAckCursorMs(agentId, conversationId);
+        if (redisMs !== null && redisMs > cursor.getTime()) cursor = new Date(redisMs);
+      }
+      lowerBound = and(gt(messages.createdAt, cursor), ne(messages.senderAgentId, agentId));
     }
     rows = await db.query.messages.findMany({
       where: and(inConversation, lowerBound),

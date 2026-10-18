@@ -1,13 +1,14 @@
 import { createBunWebSocket } from "hono/bun";
 import type { WSContext as HonoWSContext } from "hono/ws";
 import type { ServerWebSocket } from "bun";
-import { and, eq, notInArray, gt, lt, ne, isNull } from "drizzle-orm";
+import { and, eq, notInArray, gt, lt, ne, isNull, isNotNull } from "drizzle-orm";
 import { db } from "../db/client";
 import { agents, conversationParticipants, messages, a2aTasks, mentions, consoleEvents } from "@aiverse/shared/schema";
 import { redis, redisSub } from "../redis/client";
 import { recentCacheKey, INGEST_STREAM } from "../jobs/ingestConsumer";
 import { presenceKey, setPresence, clearPresence } from "../presence";
 import { envelope, WS_EVENTS } from "./events";
+import { ackCursorMode, ackCursorsEnabled, advanceAckCursor, addMentionAck, getAckCursorsMs } from "./ackCursors";
 import { log, timed } from "../util/log";
 import { checkAndConsumeVisit } from "../policy/visits";
 
@@ -321,15 +322,17 @@ function earlyAckKey(kind: "msg" | "mention", parts: string[]): string {
 
 // Drops backlog entries the client already acked early (see above). One
 // pipeline per call; ids are pre-generated UUIDs so key construction is
-// safe.
-async function filterEarlyAcked<T extends { id: string }>(
+// safe. getId defaults to `.id` (message/mention rows); stream-merged
+// mention payloads carry `mention_id` instead.
+async function filterEarlyAcked<T>(
   kind: "msg" | "mention",
   keyParts: (id: string) => string[],
   entries: T[],
+  getId: (e: T) => string = (e) => (e as { id: string }).id,
 ): Promise<T[]> {
   if (!entries.length) return entries;
   const pipe = redis.pipeline();
-  for (const e of entries) pipe.exists(earlyAckKey(kind, keyParts(e.id)));
+  for (const e of entries) pipe.exists(earlyAckKey(kind, keyParts(getId(e))));
   const hits = await pipe.exec();
   return entries.filter((_, i) => {
     const r = hits?.[i]?.[1];
@@ -529,6 +532,21 @@ async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ message
     where: eq(conversationParticipants.agentId, agentId),
   });
 
+  // Cursor acks v1 (PHASE1_SPEC WI-4 / discrepancy D4): the effective
+  // cursor is max(PG lastDeliveredAt, Redis hot cursor). Inside the
+  // checkpoint window the PG column alone lags by up to one interval;
+  // reading it directly would replay already-acked messages on every
+  // reconnect. Legacy mode never touches Redis here — PG only, as before.
+  const redisCursors = ackCursorsEnabled()
+    ? await getAckCursorsMs(agentId, participantRows.map((p) => p.conversationId))
+    : new Map<string, number>();
+  const effectiveCursor = (p: (typeof participantRows)[number]): Date => {
+    const redisMs = redisCursors.get(p.conversationId);
+    return redisMs !== undefined && redisMs > p.lastDeliveredAt.getTime()
+      ? new Date(redisMs)
+      : p.lastDeliveredAt;
+  };
+
   let messagesDelivered = 0;
   let participantJoinsDelivered = 0;
   // Ids of every message envelope written here — the register-first
@@ -537,17 +555,18 @@ async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ message
   // once, from the backlog).
   const deliveredMessageIds = new Set<string>();
   for (const p of participantRows) {
+    const lastDeliveredAt = effectiveCursor(p);
     // Cache-first (item 3): the Postgres query below is the fallback for a
     // cold or cursor-uncovered cache. Cached entries are newest-first; the
     // wire order stays oldest-first like the Postgres ORDER BY.
-    const cached = await readBacklogCache(p.conversationId, agentId, p.lastDeliveredAt);
+    const cached = await readBacklogCache(p.conversationId, agentId, lastDeliveredAt);
     const persisted =
       cached !== null
         ? [...cached].reverse()
         : await db.query.messages.findMany({
             where: and(
               eq(messages.conversationId, p.conversationId),
-              gt(messages.createdAt, p.lastDeliveredAt),
+              gt(messages.createdAt, lastDeliveredAt),
               ne(messages.senderAgentId, agentId),
             ),
             orderBy: (m, { asc }) => [asc(m.createdAt)],
@@ -558,7 +577,7 @@ async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ message
     const seenBacklogIds = new Set(persisted.map((m) => m.id));
     const backlog = await filterEarlyAcked("msg", (id) => [p.conversationId, agentId, id], [
       ...persisted,
-      ...(await readPendingIngest(p.conversationId, agentId, p.lastDeliveredAt, seenBacklogIds)),
+      ...(await readPendingIngest(p.conversationId, agentId, lastDeliveredAt, seenBacklogIds)),
     ]);
     for (const m of backlog) {
       ws.send(
@@ -586,7 +605,7 @@ async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ message
     const newJoins = await db.query.conversationParticipants.findMany({
       where: and(
         eq(conversationParticipants.conversationId, p.conversationId),
-        gt(conversationParticipants.joinedAt, p.lastDeliveredAt),
+        gt(conversationParticipants.joinedAt, lastDeliveredAt),
         ne(conversationParticipants.agentId, agentId),
       ),
       orderBy: (cp, { asc }) => [asc(cp.joinedAt)],
@@ -636,9 +655,28 @@ async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ message
   // readPendingMentions, or the stash would just move the duplicate from
   // the Postgres path to the stream path.
   const seenMentionIds = new Set(allPersistedMentions.map((m) => m.id));
+  // Acked mentions suppress their stream twins too (cursor acks v1 made
+  // this load-bearing: the checkpoint now sets ackedAt for early-acked
+  // mentions, which removes them from the unacked query above — without
+  // this, their stream copies would replay on every reconnect inside
+  // the scan window). Bounded by the same window readPendingMentions
+  // scans.
+  const recentlyAckedMentions = await db.query.mentions.findMany({
+    where: and(
+      eq(mentions.targetAgentId, agentId),
+      isNotNull(mentions.ackedAt),
+      gt(mentions.createdAt, new Date(Date.now() - PENDING_MENTION_SCAN_MINUTES * 60_000)),
+    ),
+    columns: { id: true },
+    limit: PENDING_INGEST_SCAN_COUNT,
+  });
+  for (const m of recentlyAckedMentions) seenMentionIds.add(m.id);
   const persistedMentions = await filterEarlyAcked("mention", (id) => [id], allPersistedMentions);
   // Unpersisted mention rows still sitting in the ingest stream (same race
   // as messages above): append after the persisted ones, oldest-first.
+  // The merged copies pass through the early-ACK filter as well — the
+  // stash contract (ACK_CURSORS_V1 §1) covers the whole backlog, not
+  // just the Postgres half of it.
   const pendingMentions: PendingMention[] = persistedMentions.map((m) => ({
     mention_id: m.id,
     conversation_id: m.conversationId,
@@ -650,7 +688,14 @@ async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ message
     content: m.content,
     ts: m.createdAt.getTime(),
   }));
-  pendingMentions.push(...(await readPendingMentions(agentId, seenMentionIds)));
+  pendingMentions.push(
+    ...(await filterEarlyAcked(
+      "mention",
+      (id) => [id],
+      await readPendingMentions(agentId, seenMentionIds),
+      (m) => m.mention_id,
+    )),
+  );
   for (const m of pendingMentions) {
     ws.send(
       JSON.stringify(
@@ -670,6 +715,47 @@ async function deliverBacklog(agentId: string, ws: WSContext): Promise<{ message
   }
 
   return { messages: messagesDelivered, tasks: pendingTasks.length, mentions: pendingMentions.length, participantJoins: participantJoinsDelivered, messageIds: deliveredMessageIds };
+}
+
+// Resolves a message's real createdAt for an ack (ACK_CURSORS_V1 §3.2
+// step 1): the client's timestamp is never trusted, and the durable
+// lookup is the last resort, not the first — the recent-message cache
+// and the pending-ingest stream tail both carry the authoritative ts
+// the send path assigned. Null = unresolvable everywhere; the caller
+// falls back to the early-ack stash, exactly as the old PG-only lookup
+// did when it found no row.
+async function resolveAckMessageCreatedAt(conversationId: string, messageId: string): Promise<Date | null> {
+  const cached = await redis.lrange(recentCacheKey(conversationId), 0, -1);
+  for (const item of cached) {
+    try {
+      const e = JSON.parse(item) as { id?: unknown; createdAt?: unknown };
+      if (e.id === messageId && typeof e.createdAt === "number" && Number.isFinite(e.createdAt)) {
+        return new Date(e.createdAt);
+      }
+    } catch {
+      // Malformed cache entry — not a resolution source; keep looking.
+    }
+  }
+  try {
+    const tail = (await redis.xrevrange(INGEST_STREAM, "+", "-", "COUNT", PENDING_INGEST_SCAN_COUNT)) as Array<
+      [string, string[]]
+    >;
+    for (const [, flat] of tail) {
+      const fields = new Map<string, string>();
+      for (let i = 0; i + 1 < flat.length; i += 2) fields.set(flat[i], flat[i + 1]);
+      if (fields.get("id") === messageId && fields.get("conversationId") === conversationId) {
+        const ts = Number(fields.get("ts") ?? NaN);
+        if (Number.isFinite(ts)) return new Date(ts);
+      }
+    }
+  } catch {
+    // Stream unreadable — fall through to Postgres.
+  }
+  const row = await db.query.messages.findFirst({
+    where: and(eq(messages.id, messageId), eq(messages.conversationId, conversationId)),
+    columns: { createdAt: true },
+  });
+  return row?.createdAt ?? null;
 }
 
 // Advances the delivery cursor for one conversation, gated on the message's
@@ -693,6 +779,7 @@ export async function handleAck(agentId: string, payload: unknown): Promise<void
     messageId?: string;
     mentionId?: string;
   };
+  const mode = ackCursorMode();
   // A mention ack is keyed on the mentions row id (not conversationId +
   // messageId): the target may not be a conversation participant, so
   // conversationParticipants.lastDeliveredAt has no row to advance for them.
@@ -706,18 +793,24 @@ export async function handleAck(agentId: string, payload: unknown): Promise<void
       // are server-generated UUIDs, never trust client input for key parts).
       if (UUID_RE.test(mentionId)) {
         await redis.set(earlyAckKey("mention", [mentionId]), "1", "EX", EARLY_ACK_TTL_SECONDS);
+        // Cursor acks v1: the id also joins the checkpoint set, so the ack
+        // lands on the row once the ingest consumer persists it — the
+        // stash alone only filters one reconnect's backlog.
+        if (mode !== "legacy") await addMentionAck(agentId, mentionId);
       }
       return;
     }
-    await db.update(mentions).set({ ackedAt: new Date() }).where(and(eq(mentions.id, mentionId), eq(mentions.targetAgentId, agentId)));
+    if (mode !== "redis") {
+      await db.update(mentions).set({ ackedAt: new Date() }).where(and(eq(mentions.id, mentionId), eq(mentions.targetAgentId, agentId)));
+      log("ack_pg_writes", { agentId, kind: "mention", count: 1 });
+    }
+    if (mode !== "legacy") await addMentionAck(agentId, mentionId);
     return;
   }
   if (!conversationId || !messageId) return;
 
-  const message = await db.query.messages.findFirst({
-    where: and(eq(messages.id, messageId), eq(messages.conversationId, conversationId)),
-  });
-  if (!message) {
+  const createdAt = await resolveAckMessageCreatedAt(conversationId, messageId);
+  if (!createdAt) {
     // Same early-ACK race as mentions above: stash it for the backlog filter.
     if (UUID_RE.test(messageId)) {
       await redis.set(earlyAckKey("msg", [conversationId, agentId, messageId]), "1", "EX", EARLY_ACK_TTL_SECONDS);
@@ -725,22 +818,32 @@ export async function handleAck(agentId: string, payload: unknown): Promise<void
     return;
   }
 
-  await db
-    .update(conversationParticipants)
-    .set({ lastDeliveredAt: message.createdAt })
-    .where(
-      and(
-        eq(conversationParticipants.conversationId, conversationId),
-        eq(conversationParticipants.agentId, agentId),
-        lt(conversationParticipants.lastDeliveredAt, message.createdAt),
-      ),
-    );
+  // Cursor acks v1 (ACK_CURSORS_V1 §3.2/§4): dual mode keeps today's PG
+  // write AND advances the Redis cursor; redis mode advances the cursor
+  // only — PG moves at checkpoint. Legacy is today's path untouched.
+  if (mode !== "redis") {
+    await db
+      .update(conversationParticipants)
+      .set({ lastDeliveredAt: createdAt })
+      .where(
+        and(
+          eq(conversationParticipants.conversationId, conversationId),
+          eq(conversationParticipants.agentId, agentId),
+          lt(conversationParticipants.lastDeliveredAt, createdAt),
+        ),
+      );
+    log("ack_pg_writes", { agentId, conversationId, kind: "message", count: 1 });
+  }
+  if (mode !== "legacy") {
+    const advanced = await advanceAckCursor(agentId, conversationId, createdAt.getTime(), messageId);
+    if (advanced) log("ack_redis_advances", { agentId, conversationId, count: 1 });
+  }
 
   log("message_ack", {
     agentId,
     conversationId,
     messageId,
-    ackLatencyMs: Date.now() - message.createdAt.getTime(),
+    ackLatencyMs: Date.now() - createdAt.getTime(),
   });
 }
 
