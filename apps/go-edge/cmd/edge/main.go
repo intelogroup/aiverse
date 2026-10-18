@@ -7,17 +7,23 @@
 // (default 8080), JWT_SECRET (verifies the session JWTs the ws-ticket
 // mints authenticate with; unset fails those mints closed — see
 // internal/edge/wsticket.go), AIVERSE_PG_POOL_MAX (Postgres pool ceiling,
-// default 48).
+// default 48), AIVERSE_GOMEMLIMIT_MB (Go runtime soft memory limit in
+// MB — see decideMemoryLimit; unset leaves the runtime default, i.e. no
+// limit, and the boot log says so).
 package main
 
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
+	"runtime/debug"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -28,6 +34,14 @@ import (
 )
 
 func main() {
+	// Memory limit first, before anything allocates in earnest: the
+	// soft limit only steers GC, so applying it early costs nothing.
+	dec := decideMemoryLimit(os.Getenv("AIVERSE_GOMEMLIMIT_MB"))
+	if dec.apply {
+		debug.SetMemoryLimit(dec.bytes)
+	}
+	log.Printf("gomemlimit: %s", dec.note)
+
 	port := flag.String("port", envOr("PORT", "8080"), "listen port")
 	flag.Parse()
 
@@ -82,6 +96,24 @@ func main() {
 
 	srv.StartFanout(ctx)
 
+	// Live-heap visibility (millions plan rule 6 + Phase 2): per-node
+	// live heap is a first-class scaling metric, so emit it on a fixed
+	// cadence next to the live connection count — a soak can then read
+	// heap-per-connection and spot GC-shaped growth directly from the
+	// service log, no scraping endpoint needed.
+	go func() {
+		t := time.NewTicker(60 * time.Second)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				logger.Printf("%s", heapStatsLine(srv.ConnCount()))
+			}
+		}
+	}()
+
 	// Header + idle bounds only: ReadTimeout/WriteTimeout would kill
 	// long-lived WebSocket connections, so they stay zero on purpose.
 	httpSrv := &http.Server{
@@ -100,10 +132,65 @@ func main() {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	<-sig
-	logger.Printf("go-edge shutting down: delivered=%d dropped=%d", srv.Delivered.Load(), srv.Dropped.Load())
+	logger.Printf("go-edge shutting down: delivered=%d dropped=%d %s", srv.Delivered.Load(), srv.Dropped.Load(), heapStatsLine(srv.ConnCount()))
 	shutCtx, shutCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutCancel()
 	_ = httpSrv.Shutdown(shutCtx)
+}
+
+// memoryLimitDecision is the pure result of interpreting
+// AIVERSE_GOMEMLIMIT_MB: whether to call debug.SetMemoryLimit, with
+// what byte limit, plus the boot-log explanation either way.
+//
+// There is deliberately NO default limit when the env is unset. The
+// edge runs on hosts an order of magnitude apart (Render Starter has
+// 512 MB total RAM; a soak host has tens of GB): a hardcoded number
+// sized for one would GC-thrash or pointlessly cap the other. The
+// plan's rule is that the limit is SET and VISIBLE per environment —
+// the deploy chooses the number, this knob honors it, and the boot
+// log always states which of the three cases (set / unset / invalid)
+// happened, so a missing limit is never silent.
+type memoryLimitDecision struct {
+	apply bool
+	bytes int64
+	note  string
+}
+
+func decideMemoryLimit(raw string) memoryLimitDecision {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return memoryLimitDecision{note: "AIVERSE_GOMEMLIMIT_MB unset: runtime default (no soft memory limit)"}
+	}
+	mb, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || mb <= 0 {
+		return memoryLimitDecision{note: fmt.Sprintf("AIVERSE_GOMEMLIMIT_MB=%q invalid (want a positive integer of MB): ignored, runtime default (no soft memory limit)", raw)}
+	}
+	return memoryLimitDecision{
+		apply: true,
+		bytes: mb << 20,
+		note:  fmt.Sprintf("AIVERSE_GOMEMLIMIT_MB=%d: soft memory limit applied (%d bytes)", mb, mb<<20),
+	}
+}
+
+// formatHeapStats renders one runtime.MemStats snapshot as a single
+// key=value line. Pure (the caller reads MemStats) so tests can pin
+// the shape: the keys are the Phase 2 heap-budget vocabulary and must
+// not drift between the periodic line and the shutdown line.
+func formatHeapStats(ms runtime.MemStats, conns int) string {
+	var lastPauseNs uint64
+	if ms.NumGC > 0 {
+		// PauseNs is a 256-entry ring; the most recent pause sits at
+		// (NumGC+255)%256.
+		lastPauseNs = ms.PauseNs[(ms.NumGC+255)%256]
+	}
+	return fmt.Sprintf("heap inuse_mb=%d alloc_mb=%d sys_mb=%d gc_count=%d last_gc_pause_ms=%d conns=%d",
+		ms.HeapInuse>>20, ms.HeapAlloc>>20, ms.Sys>>20, ms.NumGC, lastPauseNs/1_000_000, conns)
+}
+
+func heapStatsLine(conns int) string {
+	var ms runtime.MemStats
+	runtime.ReadMemStats(&ms)
+	return formatHeapStats(ms, conns)
 }
 
 func envOr(key, def string) string {

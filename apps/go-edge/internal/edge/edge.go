@@ -257,6 +257,21 @@ func NewServer(rdb *redis.Client, pool *pgxpool.Pool, logger *log.Logger) *Serve
 	}
 }
 
+// ConnCount reports the number of live sockets across all three
+// registries (agents hold one conn each; consoles and publics are
+// sets). It exists for the periodic heap stats line in cmd/edge: heap
+// per connection is the Phase 2 per-node budget metric, so the two
+// numbers must be readable together.
+func (s *Server) ConnCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	n := len(s.agents) + len(s.publics)
+	for _, set := range s.consoles {
+		n += len(set)
+	}
+	return n
+}
+
 // Handler returns the HTTP routes: /agents/ws, /console/ws, /public/ws,
 // /healthz, and the ticket mints POST /auth/ws-ticket +
 // POST /owners/ws-ticket (wsticket.go).
