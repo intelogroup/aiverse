@@ -31,6 +31,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -136,6 +137,12 @@ type conn struct {
 	// truth and the set is rebuilt from them on every connect.
 	rooms map[string]struct{}
 
+	// midDedupe is the WI-2 dual-run dedupe ring (bus.go): mids of
+	// fanout envelopes already delivered to this connection. Lazily
+	// created, only consulted in AIVERSE_BUS_MODE=dual, and only
+	// touched under Server.mu (deliverFanout's switch).
+	midDedupe *midDedupe
+
 	sendCh  chan []byte
 	done    chan struct{}
 	dropped atomic.Int64
@@ -173,6 +180,12 @@ type Server struct {
 	sub    *redis.Client
 	pool   *pgxpool.Pool
 	logger *log.Logger
+
+	// busMode + bus are the PHASE2 WI-2 bus transport (bus.go): the
+	// rollout mode parsed from AIVERSE_BUS_MODE in NewServer, and the
+	// NATS connection/subscription state (unused in legacy mode).
+	busMode string
+	bus     *busState
 
 	// jwtSecret verifies the agent + owner session JWTs the ws-ticket
 	// mints authenticate with (wsticket.go) — env.JWT_SECRET on the TS
@@ -243,6 +256,8 @@ func NewServer(rdb *redis.Client, pool *pgxpool.Pool, logger *log.Logger) *Serve
 		sub:               rdb,
 		pool:              pool,
 		logger:            logger,
+		busMode:           parseBusMode(os.Getenv("AIVERSE_BUS_MODE")),
+		bus:               newBusState(),
 		jwtSecret:         jwtSecret,
 		heartbeatInterval: defaultHeartbeatInterval,
 		digestWindow:      defaultDigestWindow,
@@ -292,6 +307,9 @@ func (s *Server) Handler() http.Handler {
 // StartFanout subscribes this process to ws:fanout and delivers until ctx ends.
 func (s *Server) StartFanout(ctx context.Context) {
 	s.startPresenceDigest(ctx)
+	// WI-2: the NATS bus feeds the same deliverFanout path (startBus
+	// is a no-op in legacy mode, the default).
+	s.startBus(ctx)
 	sub := s.sub.Subscribe(ctx, verse.FanoutChannel)
 	ch := sub.Channel(redis.WithChannelSize(4096))
 	go func() {
@@ -313,14 +331,24 @@ func (s *Server) StartFanout(ctx context.Context) {
 // PublishFanout is the publish half of the interop contract — the events
 // this process originates (status/visit-ended directly; presence via the
 // digest collector below) go out in the exact shapes the TS gateway
-// publishes.
+// publishes. WI-2 routing follows AIVERSE_BUS_MODE (bus.go): legacy
+// publishes to the Redis channel only, dual to both transports with the
+// same stamped mid, nats to the scoped subject only.
 func (s *Server) PublishFanout(ctx context.Context, msg verse.FanoutMessage) {
+	if msg.Mid == "" {
+		msg.Mid = verse.UUIDv7()
+	}
 	raw, err := json.Marshal(msg)
 	if err != nil {
 		return
 	}
-	if err := s.rdb.Publish(ctx, verse.FanoutChannel, raw).Err(); err != nil {
-		s.logger.Printf("ws_fanout_publish_error kind=%s err=%v", msg.Kind, err)
+	if s.busMode != busModeNATS {
+		if err := s.rdb.Publish(ctx, verse.FanoutChannel, raw).Err(); err != nil {
+			s.logger.Printf("ws_fanout_publish_error kind=%s err=%v", msg.Kind, err)
+		}
+	}
+	if s.busMode != busModeLegacy {
+		s.publishBusMessage(verse.SubjectForFanout(msg), raw)
 	}
 }
 
@@ -520,7 +548,9 @@ func (s *Server) deliverFanout(raw string) {
 					addRoomLocked(c, cp.Payload.ConversationID)
 				}
 			}
-			s.deliverTo(c, event)
+			if !s.fanoutDuplicate(c, msg.Mid) {
+				s.deliverTo(c, event)
+			}
 		}
 	case "broadcast":
 		// Presence v2 (WI-3) room-set maintenance: a room-scoped
@@ -549,6 +579,14 @@ func (s *Server) deliverFanout(raw string) {
 			if agentID == msg.ExceptAgentID {
 				continue
 			}
+			// WI-2 room publish exclusion: the send path's skip list
+			// (sender + passive participants) rides the room frame so
+			// this fanout reproduces the legacy per-recipient loop
+			// exactly (the publish-side twin of the agent-kind PG
+			// point read above).
+			if len(msg.SkipAgentIDs) > 0 && slices.Contains(msg.SkipAgentIDs, agentID) {
+				continue
+			}
 			// Room-scope filter: sockets outside the conversation
 			// never see the frame. A filtered live frame is not a
 			// correctness loss — the reconnect backlog replays missed
@@ -557,6 +595,9 @@ func (s *Server) deliverFanout(raw string) {
 				if _, member := c.rooms[msg.RoomConversationID]; !member {
 					continue
 				}
+			}
+			if s.fanoutDuplicate(c, msg.Mid) {
+				continue
 			}
 			payload := event
 			if isDigest {
@@ -574,11 +615,15 @@ func (s *Server) deliverFanout(raw string) {
 		}
 	case "console":
 		for c := range s.consoles[msg.OwnerID] {
-			s.deliver(c, event)
+			if !s.fanoutDuplicate(c, msg.Mid) {
+				s.deliver(c, event)
+			}
 		}
 	case "public":
 		for c := range s.publics {
-			s.deliver(c, event)
+			if !s.fanoutDuplicate(c, msg.Mid) {
+				s.deliver(c, event)
+			}
 		}
 	}
 }

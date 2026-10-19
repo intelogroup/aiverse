@@ -84,6 +84,16 @@ type FanoutMessage struct {
 	// contains the conversation (WI-3: THREAD_PARTICIPANT_JOINED's
 	// single room-scoped broadcast). Absent = unscoped, as before.
 	RoomConversationID string `json:"roomConversationId,omitempty"`
+	// SkipAgentIDs is the PHASE2 WI-2 room publish's exclusion list
+	// (sender + passive participants, computed once by the send path)
+	// so gateway-side fanout from the room subject reproduces the
+	// legacy per-recipient loop's exact delivery set.
+	SkipAgentIDs []string `json:"skipAgentIds,omitempty"`
+	// Mid is the additive PHASE2 WI-2 bus metadata: a uuidv7 stamped
+	// by the publisher, the dual-run dedupe key. Declared last so the
+	// marshaled key order keeps matching the TS object literals
+	// (bus metadata after the envelope proper, mid final).
+	Mid string `json:"mid,omitempty"`
 }
 
 // IngestStream is the async-persist stream the gateway's send path XADDs

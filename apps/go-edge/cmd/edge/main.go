@@ -9,7 +9,9 @@
 // internal/edge/wsticket.go), AIVERSE_PG_POOL_MAX (Postgres pool ceiling,
 // default 48), AIVERSE_GOMEMLIMIT_MB (Go runtime soft memory limit in
 // MB — see decideMemoryLimit; unset leaves the runtime default, i.e. no
-// limit, and the boot log says so).
+// limit, and the boot log says so), AIVERSE_BUS_MODE (PHASE2 WI-2 bus
+// rollout: legacy (default) | dual | nats — see internal/edge/bus.go),
+// NATS_URL (bus address, default nats://127.0.0.1:4222).
 package main
 
 import (
