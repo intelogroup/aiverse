@@ -69,11 +69,13 @@ local amount = tonumber(ARGV[1])
 local limit = tonumber(ARGV[2])
 local ttl = tonumber(ARGV[3])
 local current = tonumber(redis.call('GET', key) or '0')
--- A consume can only move the counter UP. A negative amount would pass
--- the limit check trivially and mint headroom out of recorded spend (or
--- drive the ledger below zero), so it is refused without mutating.
--- Returning recorded spend is refundDailyCounter's job, never this one's.
-if amount < 0 then
+-- A consume can only move the counter UP, by whole tokens. A negative
+-- amount would pass the limit check trivially and mint headroom out of
+-- recorded spend (or drive the ledger below zero), and a fractional one
+-- would throw inside the integer-only INCRBY — both are refused without
+-- mutating. Returning recorded spend is refundDailyCounter's job, never
+-- this one's.
+if amount == nil or amount < 0 or amount ~= math.floor(amount) then
   return {0, current}
 end
 if current + amount > limit then
@@ -190,8 +192,11 @@ export async function incrementDailyCounterIfUnderLimit(
   // A non-finite amount (NaN out of a Number(...) coercion of a malformed
   // client payload, Infinity) must never reach the script: every Lua
   // comparison against NaN is false, which would wave it past the limit
-  // check and into INCRBY. Refuse it here, reporting the untouched total.
-  if (!Number.isFinite(amount)) {
+  // check and into INCRBY. A fractional amount must never reach it either:
+  // INCRBY is integer-only and would throw instead of refusing. Refuse
+  // both here, reporting the untouched total. (Number.isInteger is false
+  // for NaN and Infinity, so it carries the finiteness guard too.)
+  if (!Number.isInteger(amount)) {
     return { allowed: false, total: await getDailyCounter(key) };
   }
   const [allowed, total] = (await redis.eval(
@@ -227,7 +232,7 @@ export async function getDailyCounter(key: string): Promise<number> {
 const REFUND_DAILY_COUNTER_SCRIPT = `
 local key = KEYS[1]
 local amount = tonumber(ARGV[1])
-if amount <= 0 then
+if amount == nil or amount <= 0 or amount ~= math.floor(amount) then
   return 0
 end
 local current = tonumber(redis.call('GET', key))
@@ -243,7 +248,10 @@ return 1
 `;
 
 export async function refundDailyCounter(key: string, amount: number): Promise<void> {
-  if (!Number.isFinite(amount)) return;
+  // Same amount discipline as the consume path: a non-finite refund is
+  // meaningless, and a fractional one would store a fractional counter
+  // value that poisons every later INCRBY. Both are no-ops.
+  if (!Number.isInteger(amount)) return;
   await redis.eval(REFUND_DAILY_COUNTER_SCRIPT, 1, key, amount);
 }
 

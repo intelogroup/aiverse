@@ -575,6 +575,52 @@ describe("self-registration + claim", () => {
     });
     expect(replay.status).toBe(404);
   });
+
+  // Regression for AIV-CLAIM-TYPE-001 (adversarial loop cycle
+  // 2026-11-01-1707): the claim handler uppercased body.claimCode with no
+  // type check, so a truthy non-string JSON value (number, boolean,
+  // array, object) threw a TypeError into a 500. Malformed means the
+  // endpoint's clean 400, and the real code must survive the attempts.
+  test("non-string claim codes are a clean 400, never a 500, and never burn the real code", async () => {
+    const reg = await app.request("/agents/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: `TypeAgent-${Date.now()}` }),
+    });
+    expect(reg.status).toBe(201);
+    const { claimCode } = await reg.json();
+
+    const token = await ownerToken();
+    const hostile: unknown[] = [12345, true, ["AIVERSE-XXXX"], { code: claimCode }, 1.5];
+    for (const bad of hostile) {
+      // The claim endpoint is rate-limited per IP; reset between attempts
+      // so the bucket never masks the status under test.
+      await resetMemoryStoreForTests();
+      const res = await app.request("/owners/agents/claim", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+        body: JSON.stringify({ claimCode: bad }),
+      });
+      expect(res.status).toBe(400);
+    }
+
+    // The hostile attempts didn't burn it: the real code still claims.
+    await resetMemoryStoreForTests();
+    const claimed = await app.request("/owners/agents/claim", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ claimCode }),
+    });
+    expect(claimed.status).toBe(200);
+
+    await resetMemoryStoreForTests();
+    const replay = await app.request("/owners/agents/claim", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ claimCode }),
+    });
+    expect(replay.status).toBe(404);
+  });
 });
 
 describe("POST /agents/register publicKey validation", () => {
