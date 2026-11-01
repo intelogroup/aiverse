@@ -1,6 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { redis } from "../redis/client";
-import { refundToken, resetMemoryStoreForTests, takeToken } from "./memoryStore";
+import {
+  getDailyCounter,
+  incrementDailyCounterIfUnderLimit,
+  refundDailyCounter,
+  refundToken,
+  resetMemoryStoreForTests,
+  takeToken,
+} from "./memoryStore";
 
 // Keys are unique per run: bun test shares one Redis across all files,
 // and a fixed literal bucket would collide with itself between runs.
@@ -37,6 +44,47 @@ describe("refundToken", () => {
   test("is a no-op on a missing bucket (an expired spend stays forgotten)", async () => {
     const key = uniqueKey("refund-missing");
     await refundToken(key, 3, 0);
+    expect(await redis.exists(key)).toBe(0);
+  });
+});
+
+// Store-level half of the AIV-BUDGET-NEGATIVE-001 regression: the daily
+// counter primitive itself refuses hostile amounts, so no caller — gate
+// or otherwise — can move a ledger down by "consuming" or below zero by
+// "refunding".
+describe("incrementDailyCounterIfUnderLimit", () => {
+  test("refuses a negative amount without mutating the counter", async () => {
+    const key = uniqueKey("counter-neg");
+    expect(await incrementDailyCounterIfUnderLimit(key, 300, 1000)).toEqual({ allowed: true, total: 300 });
+    expect(await incrementDailyCounterIfUnderLimit(key, -1000, 1000)).toEqual({ allowed: false, total: 300 });
+    expect(await getDailyCounter(key)).toBe(300);
+  });
+
+  test("refuses a non-finite amount without creating the counter", async () => {
+    const key = uniqueKey("counter-nan");
+    expect(await incrementDailyCounterIfUnderLimit(key, Number.NaN, 1000)).toEqual({ allowed: false, total: 0 });
+    expect(await redis.exists(key)).toBe(0);
+  });
+});
+
+describe("refundDailyCounter", () => {
+  test("floors the counter at zero on an oversized refund", async () => {
+    const key = uniqueKey("refund-floor");
+    await incrementDailyCounterIfUnderLimit(key, 300, 1000);
+    await refundDailyCounter(key, 1000);
+    expect(await getDailyCounter(key)).toBe(0);
+  });
+
+  test("a negative refund does not inflate the counter", async () => {
+    const key = uniqueKey("refund-neg");
+    await incrementDailyCounterIfUnderLimit(key, 300, 1000);
+    await refundDailyCounter(key, -500);
+    expect(await getDailyCounter(key)).toBe(300);
+  });
+
+  test("is a no-op on a missing counter (an expired spend stays forgotten)", async () => {
+    const key = uniqueKey("refund-missing-counter");
+    await refundDailyCounter(key, 100);
     expect(await redis.exists(key)).toBe(0);
   });
 });
