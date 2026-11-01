@@ -11,6 +11,7 @@ import {
   activeConversationCount,
   incrementDailyCounterIfUnderLimit,
   refundDailyCounter,
+  getDailyCounter,
 } from "./memoryStore";
 import { db } from "../db/client";
 import { agentPolicyScope, a2aTasks } from "@aiverse/shared/schema";
@@ -149,6 +150,15 @@ export async function checkAndConsumeBudget(
   dateKey: string = todayUTC(),
 ): Promise<BudgetCheckResult> {
   const key = `budget:${agentId}:${dateKey}`;
+  // The amount is client-reported usage (conversations/a2a bodies), so it
+  // is untrusted: a negative or non-finite "spend" is not a spend at all
+  // and must never reach the counter, where it would mint headroom out of
+  // recorded usage. Refused as its own reason — it is not budget
+  // exhaustion — with the counter reported untouched. (The store primitive
+  // refuses negative amounts too, for callers that bypass this gate.)
+  if (!Number.isFinite(tokens) || tokens < 0) {
+    return { allowed: false, reason: "invalid_amount", tokensUsedToday: await getDailyCounter(key) };
+  }
   const { allowed, total } = await incrementDailyCounterIfUnderLimit(key, tokens, dailyTokenBudget);
   if (!allowed) {
     return { allowed: false, reason: "budget_exceeded", tokensUsedToday: total };

@@ -69,6 +69,13 @@ local amount = tonumber(ARGV[1])
 local limit = tonumber(ARGV[2])
 local ttl = tonumber(ARGV[3])
 local current = tonumber(redis.call('GET', key) or '0')
+-- A consume can only move the counter UP. A negative amount would pass
+-- the limit check trivially and mint headroom out of recorded spend (or
+-- drive the ledger below zero), so it is refused without mutating.
+-- Returning recorded spend is refundDailyCounter's job, never this one's.
+if amount < 0 then
+  return {0, current}
+end
 if current + amount > limit then
   return {0, current}
 end
@@ -180,6 +187,13 @@ export async function incrementDailyCounterIfUnderLimit(
   amount: number,
   limit: number,
 ): Promise<{ allowed: boolean; total: number }> {
+  // A non-finite amount (NaN out of a Number(...) coercion of a malformed
+  // client payload, Infinity) must never reach the script: every Lua
+  // comparison against NaN is false, which would wave it past the limit
+  // check and into INCRBY. Refuse it here, reporting the untouched total.
+  if (!Number.isFinite(amount)) {
+    return { allowed: false, total: await getDailyCounter(key) };
+  }
   const [allowed, total] = (await redis.eval(
     DAILY_COUNTER_SCRIPT,
     1,
@@ -202,8 +216,35 @@ export async function getDailyCounter(key: string): Promise<number> {
 // refunds the reservation instead of silently, permanently eating quota for
 // a message that never existed. Best-effort, not itself transactional —
 // this is a saga-style compensation, not a distributed transaction.
+//
+// The refund runs as a script with the same guards as refundToken above:
+// a non-positive amount is not a refund (a negative one would INFLATE the
+// counter), the ledger floors at zero (an oversized refund repays a spend
+// that was never recorded here, and a negative balance is minted budget),
+// and a missing counter is a no-op — its spend already expired, and
+// recreating it below zero would hand back more than was ever taken. The
+// counter's TTL, set by the consume, is preserved.
+const REFUND_DAILY_COUNTER_SCRIPT = `
+local key = KEYS[1]
+local amount = tonumber(ARGV[1])
+if amount <= 0 then
+  return 0
+end
+local current = tonumber(redis.call('GET', key))
+if current == nil then
+  return 0
+end
+local newval = current - amount
+if newval < 0 then
+  newval = 0
+end
+redis.call('SET', key, newval, 'KEEPTTL')
+return 1
+`;
+
 export async function refundDailyCounter(key: string, amount: number): Promise<void> {
-  await redis.decrby(key, amount);
+  if (!Number.isFinite(amount)) return;
+  await redis.eval(REFUND_DAILY_COUNTER_SCRIPT, 1, key, amount);
 }
 
 // True if this join actually consumed a new admission slot (SADD happened),
