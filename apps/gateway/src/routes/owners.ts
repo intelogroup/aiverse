@@ -444,7 +444,11 @@ ownersRoute.post("/agents/claim", ownerAuth, async (c) => {
   }
 
   const body = await c.req.json<{ claimCode: string }>();
-  if (!body.claimCode) {
+  // The JSON body is untrusted: a truthy non-string claimCode (number,
+  // boolean, array, object) has no toUpperCase and would throw into a 500
+  // below. Anything that isn't a non-empty string is the same malformed
+  // request as a missing code — the endpoint's clean 400.
+  if (typeof body.claimCode !== "string" || !body.claimCode) {
     return c.json({ error: "claimCode required" }, 400);
   }
 

@@ -99,6 +99,46 @@ describe("checkAndConsumeBudget", () => {
     const probe = await checkAndConsumeBudget("agent-nan", 0, 1000, "2026-01-01");
     expect(probe.tokensUsedToday).toBe(300);
   });
+
+  // Regression for AIV-BUDGET-FRACTIONAL-001 (adversarial loop cycle
+  // 2026-11-01-1407): the third leg of the amount discipline. A fractional
+  // tokensUsed passed the sign/finiteness checks above and threw inside
+  // the integer-only INCRBY — a 500 for the sender instead of a refusal.
+  test("a fractional consume is refused as invalid_amount and the ledger stays exactly enforceable", async () => {
+    const legit = await checkAndConsumeBudget("agent-frac", 300, 1000, "2026-01-01");
+    expect(legit.allowed).toBe(true);
+    expect(legit.tokensUsedToday).toBe(300);
+
+    const frac = await checkAndConsumeBudget("agent-frac", 1.5, 1000, "2026-01-01");
+    expect(frac.allowed).toBe(false);
+    expect(frac.reason).toBe("invalid_amount");
+    expect(frac.tokensUsedToday).toBe(300);
+
+    // Not poisoned: the remaining integer budget is enforced to the token.
+    const fill = await checkAndConsumeBudget("agent-frac", 700, 1000, "2026-01-01");
+    expect(fill.allowed).toBe(true);
+    expect(fill.tokensUsedToday).toBe(1000);
+    const over = await checkAndConsumeBudget("agent-frac", 1, 1000, "2026-01-01");
+    expect(over.allowed).toBe(false);
+    expect(over.reason).toBe("budget_exceeded");
+  });
+
+  test("concurrent fractional consumes racing legitimate spends never over-admit and settle exactly", async () => {
+    const calls = [
+      ...Array.from({ length: 5 }, () => checkAndConsumeBudget("agent-frac-race", 0.5, 1000, "2026-01-01")),
+      ...Array.from({ length: 3 }, () => checkAndConsumeBudget("agent-frac-race", 400, 1000, "2026-01-01")),
+    ];
+    // Promise.all rejects if ANY call throws — a throw is itself a failure.
+    const results = await Promise.all(calls);
+    for (const r of results.slice(0, 5)) {
+      expect(r.allowed).toBe(false);
+      expect(r.reason).toBe("invalid_amount");
+    }
+    const posWinners = results.slice(5).filter((r) => r.allowed).length;
+    expect(posWinners).toBe(2); // 2*400=800 <= 1000; the third would reach 1200
+    const probe = await checkAndConsumeBudget("agent-frac-race", 0, 1000, "2026-01-01");
+    expect(probe.tokensUsedToday).toBe(800);
+  });
 });
 
 describe("refundBudget", () => {
@@ -117,6 +157,22 @@ describe("refundBudget", () => {
     await refundBudget("agent-refund-neg", -500, "2026-01-01");
     const probe = await checkAndConsumeBudget("agent-refund-neg", 0, 1000, "2026-01-01");
     expect(probe.tokensUsedToday).toBe(300);
+  });
+
+  // AIV-BUDGET-FRACTIONAL-001, refund leg: the refund paths in
+  // conversations/a2a hand refundBudget the same untrusted tokensUsed as
+  // the consume, so a fractional refund gets the same discipline — it
+  // must not move the counter or leave a fractional value behind that
+  // poisons later integer spends.
+  test("a fractional refund does not move the counter or poison it", async () => {
+    await checkAndConsumeBudget("agent-refund-frac", 300, 1000, "2026-01-01");
+    await refundBudget("agent-refund-frac", 1.5, "2026-01-01");
+    const probe = await checkAndConsumeBudget("agent-refund-frac", 0, 1000, "2026-01-01");
+    expect(probe.tokensUsedToday).toBe(300);
+    // Still a clean integer ledger: an exact fill is admitted afterwards.
+    const fill = await checkAndConsumeBudget("agent-refund-frac", 700, 1000, "2026-01-01");
+    expect(fill.allowed).toBe(true);
+    expect(fill.tokensUsedToday).toBe(1000);
   });
 });
 

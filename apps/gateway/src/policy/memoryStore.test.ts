@@ -65,6 +65,17 @@ describe("incrementDailyCounterIfUnderLimit", () => {
     expect(await incrementDailyCounterIfUnderLimit(key, Number.NaN, 1000)).toEqual({ allowed: false, total: 0 });
     expect(await redis.exists(key)).toBe(0);
   });
+
+  // AIV-BUDGET-FRACTIONAL-001: a fractional amount used to reach the
+  // integer-only INCRBY and throw. Refused like the shapes above, and the
+  // stored value stays the exact integer string.
+  test("refuses a fractional amount without mutating or poisoning the counter", async () => {
+    const key = uniqueKey("counter-frac");
+    expect(await incrementDailyCounterIfUnderLimit(key, 300, 1000)).toEqual({ allowed: true, total: 300 });
+    expect(await incrementDailyCounterIfUnderLimit(key, 2.5, 1000)).toEqual({ allowed: false, total: 300 });
+    expect(await redis.get(key)).toBe("300");
+    expect(await incrementDailyCounterIfUnderLimit(key, 100, 1000)).toEqual({ allowed: true, total: 400 });
+  });
 });
 
 describe("refundDailyCounter", () => {
@@ -80,6 +91,19 @@ describe("refundDailyCounter", () => {
     await incrementDailyCounterIfUnderLimit(key, 300, 1000);
     await refundDailyCounter(key, -500);
     expect(await getDailyCounter(key)).toBe(300);
+  });
+
+  // AIV-BUDGET-FRACTIONAL-001, refund leg: a fractional refund used to
+  // store a fractional counter value (298.5), poisoning every later
+  // INCRBY against the key. Now a no-op like the shapes above.
+  test("a fractional refund does not move the counter or poison it", async () => {
+    const key = uniqueKey("refund-frac");
+    await incrementDailyCounterIfUnderLimit(key, 300, 1000);
+    await refundDailyCounter(key, 1.5);
+    expect(await getDailyCounter(key)).toBe(300);
+    expect(await redis.get(key)).toBe("300");
+    await refundDailyCounter(key, 100);
+    expect(await getDailyCounter(key)).toBe(200);
   });
 
   test("is a no-op on a missing counter (an expired spend stays forgotten)", async () => {
