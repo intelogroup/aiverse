@@ -58,6 +58,26 @@ function rowsOf(r: unknown): any[] {
   return ((r as any).rows ?? r) as any[];
 }
 
+// Competition integrity: two agents under the SAME owner are one economic
+// actor. ownerOf reads the owner linkage (agents.owner_id); a null owner
+// (native / unclaimed agent) never matches, so unowned agents stay exempt
+// from the same-owner guards below.
+async function ownerOf(dbx: DbLike, agentId: string): Promise<string | null> {
+  const r = await dbx.execute(sql`SELECT owner_id FROM agents WHERE id = ${agentId}::uuid`);
+  const rows = rowsOf(r);
+  return rows.length ? (rows[0].owner_id as string | null) : null;
+}
+
+function sameOwner(a: string | null, b: string | null): boolean {
+  return a !== null && b !== null && a === b;
+}
+
+// Thrown inside the delegations transaction to force a rollback when the
+// escrow debit finds the payer insolvent AFTER the delegation insert (the
+// insert must not commit without its debit). Translated to the existing
+// 402 response by the .catch on the transaction promise below.
+class InsufficientEscrow extends Error {}
+
 // POST /bazaar/tasks — post a bounty; escrow deducted immediately.
 // Atomic: escrow debit + task insert + event commit or roll back together.
 // The conditional UPDATE (balance >= bounty) is the solvency gate — no
@@ -125,6 +145,18 @@ bazaarRoute.post("/bazaar/tasks/:id/claim", agentAuth, async (c) => {
       WHERE claimed_by = ${agentId}::uuid AND status IN ('claimed','completed')
     `);
     if (Number(rowsOf(mine)[0].n) >= MAX_ACTIVE_CLAIMS) return { err: `claim cap reached (${MAX_ACTIVE_CLAIMS} active)` };
+    // Self-dealing guards (competition integrity): the poster can never
+    // claim its own bounty, and neither can another agent of the same
+    // owner — on both sides of the escrow sits one economic actor, so the
+    // "work" would be bookkeeping that farms payouts and critic fees.
+    const t = await tx.execute(sql`SELECT poster_id FROM bazaar_tasks WHERE id = ${id}::uuid`);
+    const trows = rowsOf(t);
+    if (trows.length) {
+      if (trows[0].poster_id === agentId)
+        return { status: 403 as const, err: "cannot claim your own bounty" };
+      if (sameOwner(await ownerOf(tx, trows[0].poster_id), await ownerOf(tx, agentId)))
+        return { status: 403 as const, err: "cannot claim a bounty posted by an agent of the same owner" };
+    }
     const upd = await tx.execute(sql`
       UPDATE bazaar_tasks SET status = 'claimed', claimed_by = ${agentId}::uuid, claimed_at = now()
       WHERE id = ${id}::uuid AND status = 'open'
@@ -135,7 +167,7 @@ bazaarRoute.post("/bazaar/tasks/:id/claim", agentAuth, async (c) => {
     await event(tx, "claim", { taskId: id, actorId: agentId, detail: { title: r[0].title } });
     return { task: r[0] };
   });
-  if ("err" in claimed) return c.json({ error: claimed.err }, 409);
+  if ("err" in claimed) return c.json({ error: claimed.err }, claimed.status ?? 409);
   log("bazaar_claim", { taskId: id, claimer: agentId });
   return c.json({ task: claimed.task });
 });
@@ -190,6 +222,16 @@ bazaarRoute.post("/bazaar/tasks/:id/verify", agentAuth, async (c) => {
     // No self-dealing.
     if (t.claimed_by === agentId) return { status: 403 as const, err: "cannot verify your own claim" };
     if (t.poster_id === agentId) return { status: 403 as const, err: "cannot verify your own bounty" };
+    // No same-owner capture either: a critic sharing an owner with the
+    // claimer or the poster is the same economic actor as one side of the
+    // verdict — the house-minted fee and the verdict would both stay
+    // inside one household.
+    const criticOwner = await ownerOf(tx, agentId);
+    if (
+      sameOwner(criticOwner, await ownerOf(tx, t.claimed_by)) ||
+      sameOwner(criticOwner, await ownerOf(tx, t.poster_id))
+    )
+      return { status: 403 as const, err: "cannot verify work involving an agent of the same owner" };
 
     // Phase 5: escalating critic fee. Stale verifications pay more — clearing
     // the queue is the most profitable critic move. Computed from the locked
@@ -348,41 +390,69 @@ bazaarRoute.post("/bazaar/delegations", agentAuth, async (c) => {
   if (!body.a2a_task_id || !body.payee_id || !Number.isFinite(amount) || amount <= 0)
     return c.json({ error: "a2a_task_id, payee_id, amount>0 required" }, 400);
   if (body.payee_id === agentId) return c.json({ error: "cannot hire yourself" }, 400);
+  const payeeId = body.payee_id; // narrowed to string by the validation above
 
-  const created = await db.transaction(async (tx) => {
-    // Ownership validation: the a2a task must be this payer hiring this payee.
-    const t = await tx.execute(sql`
-      SELECT caller_agent_id, target_agent_id, state FROM a2a_tasks WHERE id = ${body.a2a_task_id}::uuid
-    `);
-    const trows = rowsOf(t);
-    if (!trows.length) return { status: 404 as const, err: "a2a task not found" };
-    if (trows[0].caller_agent_id !== agentId)
-      return { status: 403 as const, err: "delegation payer must be the a2a task caller" };
-    if (trows[0].target_agent_id !== body.payee_id)
-      return { status: 403 as const, err: "delegation payee must be the a2a task target" };
+  const created = await db
+    .transaction(async (tx) => {
+      // Ownership validation: the a2a task must be this payer hiring this payee.
+      const t = await tx.execute(sql`
+        SELECT caller_agent_id, target_agent_id, state FROM a2a_tasks WHERE id = ${body.a2a_task_id}::uuid
+      `);
+      const trows = rowsOf(t);
+      if (!trows.length) return { status: 404 as const, err: "a2a task not found" };
+      if (trows[0].caller_agent_id !== agentId)
+        return { status: 403 as const, err: "delegation payer must be the a2a task caller" };
+      if (trows[0].target_agent_id !== body.payee_id)
+        return { status: 403 as const, err: "delegation payee must be the a2a task target" };
 
-    // Atomic escrow: debit only if solvent. No separate balance read → no TOCTOU.
-    const esc = await tx.execute(sql`
-      UPDATE bazaar_balances SET balance = balance - ${amount}
-      WHERE agent_id = ${agentId}::uuid AND balance >= ${amount}
-      RETURNING balance
-    `);
-    if (!rowsOf(esc).length) return { status: 402 as const, err: "insufficient balance for delegation escrow" };
+      // Same-owner self-dealing: payer and payee under one owner are one
+      // economic actor; escrow between them is bookkeeping, not a market.
+      // Checked before any write, so returning here moves no credits.
+      if (sameOwner(await ownerOf(tx, agentId), await ownerOf(tx, payeeId)))
+        return { status: 403 as const, err: "cannot delegate to an agent of the same owner" };
 
-    const ins = await tx.execute(sql`
-      INSERT INTO bazaar_delegations (a2a_task_id, payer_id, payee_id, amount, state, escrowed)
-      VALUES (${body.a2a_task_id}::uuid, ${agentId}::uuid, ${body.payee_id}::uuid, ${amount}, 'offered', true)
-      ON CONFLICT (a2a_task_id) DO NOTHING
-      RETURNING id
-    `);
-    const irows = rowsOf(ins);
-    if (!irows.length) return { status: 409 as const, err: "delegation already recorded for this task" };
-    await event(tx, "delegate_offer", {
-      taskId: body.a2a_task_id, actorId: agentId, counterpartyId: body.payee_id, amount,
-      detail: { escrowed: true },
+      // Insert BEFORE the escrow debit. The unique constraint on
+      // a2a_task_id is the idempotency gate, and a duplicate offer must move
+      // NO credits — debiting first and then RETURNING a 409 from this
+      // callback commits the debit with no delegation row, stranding the
+      // credits where they can neither settle nor be cancel-refunded
+      // (AIV-DELEG-DUP-ESCROW-001, re-proven live on this lineage by
+      // AIV-COLL-010). On conflict nothing has been written yet, so
+      // returning the 409 here is safe. A concurrent duplicate blocks on
+      // the unique index until this transaction settles, then sees the
+      // conflict (or inserts, if this one rolled back).
+      const ins = await tx.execute(sql`
+        INSERT INTO bazaar_delegations (a2a_task_id, payer_id, payee_id, amount, state, escrowed)
+        VALUES (${body.a2a_task_id}::uuid, ${agentId}::uuid, ${body.payee_id}::uuid, ${amount}, 'offered', true)
+        ON CONFLICT (a2a_task_id) DO NOTHING
+        RETURNING id
+      `);
+      const irows = rowsOf(ins);
+      if (!irows.length) return { status: 409 as const, err: "delegation already recorded for this task" };
+
+      // Atomic escrow: debit only if solvent. No separate balance read → no
+      // TOCTOU. Insolvency must THROW, not return: the insert above has to
+      // roll back together with the failed debit, or the payer is left
+      // holding a delegation row whose escrow was never paid. The throw is
+      // translated back into the 402 response just outside the transaction.
+      const esc = await tx.execute(sql`
+        UPDATE bazaar_balances SET balance = balance - ${amount}
+        WHERE agent_id = ${agentId}::uuid AND balance >= ${amount}
+        RETURNING balance
+      `);
+      if (!rowsOf(esc).length) throw new InsufficientEscrow();
+      await event(tx, "delegate_offer", {
+        taskId: body.a2a_task_id, actorId: agentId, counterpartyId: body.payee_id, amount,
+        detail: { escrowed: true },
+      });
+      return { status: 201 as const, delegation_id: irows[0].id };
+    })
+    .catch((e) => {
+      if (e instanceof InsufficientEscrow) {
+        return { status: 402 as const, err: "insufficient balance for delegation escrow" };
+      }
+      throw e;
     });
-    return { status: 201 as const, delegation_id: irows[0].id };
-  });
   if (created.status !== 201) return c.json({ error: created.err }, created.status);
   log("bazaar_delegate_offer", { a2aTask: body.a2a_task_id, payer: agentId, payee: body.payee_id, amount });
   return c.json({ delegation_id: created.delegation_id }, 201);
