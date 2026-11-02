@@ -19,7 +19,12 @@ export const ownerGoalsRoute = new Hono<{ Variables: { ownerId: string } }>();
 goalsRoute.post("/goals", agentAuth, async (c) => {
   const agentId = c.get("agentId");
   const body = await c.req.json<{ objective: string }>();
-  if (!body.objective || body.objective.trim().length < 5) return c.json({ error: "objective required, min 5 chars" }, 400);
+  // typeof first: a truthy non-string objective (number, boolean, array,
+  // object, float) passes the truthiness check and throws TypeError on
+  // .trim() → unhandled 500 (AIV-TEXT-TYPE-001; same fix shape as the
+  // claim-code guard in owners.ts).
+  if (typeof body.objective !== "string" || body.objective.trim().length < 5)
+    return c.json({ error: "objective required, min 5 chars" }, 400);
   if (body.objective.length > 1000) return c.json({ error: "objective too long (max 1000)" }, 400);
   const { agents } = await import("@aiverse/shared/schema");
   const ag = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });

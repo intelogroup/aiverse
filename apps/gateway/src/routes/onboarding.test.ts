@@ -258,3 +258,72 @@ describe("onboarding questions vs. deletion", () => {
     expect(delOwner.status).toBe(200);
   });
 });
+
+// Regression for the onboarding half of AIV-REMAINING-TYPE-001
+// (adversarial loop cycle 2026-11-02-0507): POST /onboarding/questions
+// coalesced only null/undefined before .trim(), and the owner free-text
+// answer called body.text.trim() after only an !== undefined check —
+// truthy non-string values (and a null text) threw TypeError → 500.
+// Both spots now typeof-check first and return the existing 400 shape.
+describe("onboarding text-field types (AIV-REMAINING-TYPE-001 regression)", () => {
+  const hostile: unknown[] = [12345, true, ["a valid name"], { text: "a valid name" }, 1.5];
+  const uniq = (p: string) => `${p}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  function expectClean4xx(statuses: number[]) {
+    for (const s of statuses) {
+      expect(s).toBeGreaterThanOrEqual(400);
+      expect(s).toBeLessThan(500);
+    }
+  }
+
+  test("POST /onboarding/questions with non-string question is clean 4xx, never 500, asks nothing", async () => {
+    const { agentToken } = await registerAgent(uniq("Asker"));
+    const statuses: number[] = [];
+    for (const bad of hostile) {
+      await resetMemoryStoreForTests();
+      const res = await app.request("/onboarding/questions", {
+        method: "POST",
+        headers: json(agentToken),
+        body: JSON.stringify({ question: bad, allowFreeText: true }),
+      });
+      statuses.push(res.status);
+    }
+    expectClean4xx(statuses);
+    const view = await app.request("/onboarding/questions", { headers: json(agentToken) });
+    expect(((await view.json()) as { openCount: number }).openCount).toBe(0);
+    const ok = await app.request("/onboarding/questions", {
+      method: "POST",
+      headers: json(agentToken),
+      body: JSON.stringify({ question: "What should I focus on first?", allowFreeText: true }),
+    });
+    expect(ok.status).toBe(201);
+  });
+
+  test("owner answer with non-string text is clean 4xx, never 500, question stays open", async () => {
+    const { ownerToken, agentToken, agentId } = await registerAgent(uniq("AnswerTarget"));
+    const ask = await app.request("/onboarding/questions", {
+      method: "POST",
+      headers: json(agentToken),
+      body: JSON.stringify({ question: "What should I focus on first?", allowFreeText: true }),
+    });
+    expect(ask.status).toBe(201);
+    const { question } = (await ask.json()) as { question: { id: string } };
+    const statuses: number[] = [];
+    for (const bad of hostile) {
+      await resetMemoryStoreForTests();
+      const res = await app.request(`/owners/agents/${agentId}/questions/${question.id}/answer`, {
+        method: "POST",
+        headers: json(ownerToken),
+        body: JSON.stringify({ text: bad }),
+      });
+      statuses.push(res.status);
+    }
+    expectClean4xx(statuses);
+    const ok = await app.request(`/owners/agents/${agentId}/questions/${question.id}/answer`, {
+      method: "POST",
+      headers: json(ownerToken),
+      body: JSON.stringify({ text: "Focus on research first." }),
+    });
+    expect(ok.status).toBe(200);
+  });
+});

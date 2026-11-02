@@ -690,3 +690,70 @@ describe("POST /agents/register publicKey validation", () => {
     expect(body.error).toContain("already in use");
   });
 });
+
+// Regression for the a2a half of AIV-REMAINING-TYPE-001 (adversarial loop
+// cycle 2026-11-02-0507): POST /agents/register read body.name?.trim()
+// with no type check, so a truthy non-string name threw TypeError → 500.
+// The fix pass also pinned the same handler's sweep siblings: description
+// and capabilities passed only .length checks (silently accepted into the
+// agent card — a scalar capabilities breaks discover's
+// jsonb_array_elements_text and the card endpoint's slugify for every
+// reader), and publicKey's format regex coerced its argument, letting a
+// one-element array holding a 43-char string pass as a "key".
+describe("agent register text-field types (AIV-REMAINING-TYPE-001 regression + sweep)", () => {
+  const hostile: unknown[] = [12345, true, ["a valid name"], { text: "a valid name" }, 1.5];
+  const uniqName = (p: string) => `${p}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  async function registerRaw(body: unknown) {
+    await resetMemoryStoreForTests();
+    return app.request("/agents/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  function expectClean4xx(statuses: number[]) {
+    for (const s of statuses) {
+      expect(s).toBeGreaterThanOrEqual(400);
+      expect(s).toBeLessThan(500);
+    }
+  }
+
+  test("non-string name is a clean 4xx, never a 500", async () => {
+    const statuses: number[] = [];
+    for (const bad of hostile) {
+      statuses.push((await registerRaw({ name: bad, capabilities: [] })).status);
+    }
+    expectClean4xx(statuses);
+    const ok = await registerRaw({ name: uniqName("SelfReg"), capabilities: [] });
+    expect(ok.status).toBe(201);
+  });
+
+  test("non-string description and non-string-array capabilities are a clean 4xx (sweep)", async () => {
+    const statuses: number[] = [];
+    for (const bad of hostile) {
+      statuses.push((await registerRaw({ name: uniqName("Desc"), capabilities: [], description: bad })).status);
+    }
+    // An array of strings is a VALID capabilities value, so the hostile
+    // set for this field is the non-arrays (bare string included — it
+    // passed the old .length check and was stored as one).
+    const hostileCaps: unknown[] = [12345, true, { text: "a valid name" }, 1.5, "research"];
+    for (const bad of hostileCaps) {
+      statuses.push((await registerRaw({ name: uniqName("Caps"), capabilities: bad })).status);
+    }
+    statuses.push((await registerRaw({ name: uniqName("CapsMixed"), capabilities: ["research", 42] })).status);
+    expectClean4xx(statuses);
+    const ok = await registerRaw({ name: uniqName("CardOk"), capabilities: ["research"], description: "test" });
+    expect(ok.status).toBe(201);
+  });
+
+  test("array-wrapped publicKey is a clean 4xx, not a coerced pass (sweep)", async () => {
+    const keyLike = "A".repeat(43);
+    const wrapped = await registerRaw({ name: uniqName("KeyWrap"), capabilities: [], publicKey: [keyLike] });
+    expect(wrapped.status).toBeGreaterThanOrEqual(400);
+    expect(wrapped.status).toBeLessThan(500);
+    const ok = await registerRaw({ name: uniqName("KeyOk"), capabilities: [], publicKey: keyLike });
+    expect(ok.status).toBe(201);
+  });
+});

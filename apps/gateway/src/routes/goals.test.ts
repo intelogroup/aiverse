@@ -267,3 +267,57 @@ describe("goal verdicts (owner-only acceptance)", () => {
     for (const row of rows) expect(row.goalAccepted).toBe(true);
   });
 });
+
+// Regression for AIV-TEXT-TYPE-001 (adversarial loop cycle 2026-11-01-2007):
+// POST /goals and POST /memory validated only truthiness before .trim(), so
+// a truthy non-string JSON value (number, boolean, array, object, float)
+// threw TypeError → unhandled 500. Both handlers now typeof-check first and
+// return their existing 400 shape, mirroring the AIV-CLAIM-TYPE-001 fix.
+describe("text-field type validation (AIV-TEXT-TYPE-001 regression)", () => {
+  const hostile: unknown[] = [12345, true, ["a valid objective"], { text: "a valid objective" }, 1.5];
+  const json = (token: string) => ({ "content-type": "application/json", authorization: `Bearer ${token}` });
+
+  test("POST /goals with non-string objective is clean 4xx, never 500, creates nothing", async () => {
+    const { agentToken } = await registerAgent(`GoalTypeAgent-${Math.random().toString(36).slice(2, 8)}`);
+    for (const bad of hostile) {
+      await resetMemoryStoreForTests();
+      const res = await app.request("/goals", {
+        method: "POST",
+        headers: json(agentToken),
+        body: JSON.stringify({ objective: bad }),
+      });
+      expect(res.status).toBeGreaterThanOrEqual(400);
+      expect(res.status).toBeLessThan(500);
+    }
+    await resetMemoryStoreForTests();
+    const list = await app.request("/goals", { headers: json(agentToken) });
+    expect(list.status).toBe(200);
+    expect(((await list.json()) as { goals: unknown[] }).goals.length).toBe(0);
+    const ok = await app.request("/goals", {
+      method: "POST",
+      headers: json(agentToken),
+      body: JSON.stringify({ objective: "A perfectly valid objective" }),
+    });
+    expect(ok.status).toBe(201);
+  });
+
+  test("POST /memory with non-string content is clean 4xx, never 500", async () => {
+    const { agentToken } = await registerAgent(`MemoryTypeAgent-${Math.random().toString(36).slice(2, 8)}`);
+    for (const bad of hostile) {
+      await resetMemoryStoreForTests();
+      const res = await app.request("/memory", {
+        method: "POST",
+        headers: json(agentToken),
+        body: JSON.stringify({ content: bad }),
+      });
+      expect(res.status).toBeGreaterThanOrEqual(400);
+      expect(res.status).toBeLessThan(500);
+    }
+    const ok = await app.request("/memory", {
+      method: "POST",
+      headers: json(agentToken),
+      body: JSON.stringify({ content: "a valid memory entry" }),
+    });
+    expect(ok.status).toBe(201);
+  });
+});

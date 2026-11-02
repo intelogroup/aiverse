@@ -746,3 +746,58 @@ describe("start_conversation / DM trust gate", () => {
     expect(dm.status).toBe(201);
   });
 });
+
+// Sweep regression from the AIV-TEXT-TYPE-001 fix pass (2026-11-02):
+// sendMessageService validated message content with truthiness plus a
+// .length cap — .length is undefined on number/object/float, so a truthy
+// non-string content passed both checks and reached the message insert
+// unchecked (an array value failed the text-column insert as an unhandled
+// 500; an object was silently stored as garbage). Content is now
+// typeof-checked at the service boundary, returning the existing
+// "content required" 400.
+describe("send content type validation (sweep regression)", () => {
+  test("non-string message content is a clean 400, never a 500, and a valid send still lands", async () => {
+    await resetMemoryStoreForTests();
+    const email = `ctype-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
+    const reg = await app.request("/owners/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password: "password123" }),
+    });
+    const { token: ownerToken } = (await reg.json()) as { token: string };
+    const created = await app.request("/owners/agents", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
+      body: JSON.stringify({ name: `ContentTypeAgent${Date.now().toString(36)}`, capabilities: [] }),
+    });
+    const { agentToken, agent } = (await created.json()) as { agentToken: string; agent: { id: string } };
+    await app.request(`/owners/agents/${agent.id}/wallet`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
+      body: JSON.stringify({ autonomyMode: "autonomous" }),
+    });
+    const join = await app.request("/rooms/general/join", {
+      method: "POST",
+      headers: { authorization: `Bearer ${agentToken}` },
+    });
+    const { conversationId } = (await join.json()) as { conversationId: string };
+
+    const hostile: unknown[] = [12345, true, ["a valid message"], { text: "a valid message" }, 1.5];
+    for (const bad of hostile) {
+      await resetMemoryStoreForTests();
+      const res = await app.request(`/conversations/${conversationId}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${agentToken}` },
+        body: JSON.stringify({ content: bad }),
+      });
+      expect(res.status).toBe(400);
+    }
+    await resetMemoryStoreForTests();
+    const ok = await app.request(`/conversations/${conversationId}/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${agentToken}` },
+      body: JSON.stringify({ content: "a perfectly valid message" }),
+    });
+    expect(ok.status).toBe(201);
+  }, 15000);
+});

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createApp } from "../app";
+import { resetMemoryStoreForTests } from "../policy/memoryStore";
 import { eq } from "drizzle-orm";
 import { agents, agentWallets } from "@aiverse/shared/schema";
 import { db } from "../db/client";
@@ -294,5 +295,177 @@ describe("owner-scoped agent routes refuse a non-owning caller (BOLA regression)
       body: JSON.stringify({ personalityPrompt: "x".repeat(2001) }),
     });
     expect(res.status).toBe(400);
+  });
+});
+
+// Regressions for AIV-OWNER-TEXT-TYPE-001 (cycle 2026-11-02-0807) and the
+// owners half of AIV-REMAINING-TYPE-001 (cycle 2026-11-02-0507), plus the
+// fix-pass sweep of the same handler: text fields were used after only
+// truthiness / ?? / ?. guards — the read-key label and agent name threw
+// TypeError → 500 on truthy non-strings, while displayName (PATCH /me and
+// register) was silently ACCEPTED for number/boolean/object/float because
+// .length is undefined on those types and both range comparisons pass.
+// The agent-card description/capabilities fields shared the .length-only
+// shape and are pinned here too.
+describe("owner text-field type validation (AIV-OWNER-TEXT-TYPE-001 / AIV-REMAINING-TYPE-001 regressions)", () => {
+  const hostile: unknown[] = [12345, true, ["a valid label"], { text: "a valid label" }, 1.5];
+  const json = (token?: string) => ({
+    "content-type": "application/json",
+    ...(token ? { authorization: `Bearer ${token}` } : {}),
+  });
+
+  function expectClean4xx(statuses: number[]) {
+    for (const s of statuses) {
+      expect(s).toBeGreaterThanOrEqual(400);
+      expect(s).toBeLessThan(500);
+    }
+  }
+
+  async function makeOwnerToken(): Promise<string> {
+    const reg = await app.request("/owners/register", {
+      method: "POST",
+      headers: json(),
+      body: JSON.stringify({ email: uniqueEmail(), password: "password123" }),
+    });
+    expect(reg.status).toBe(201);
+    const { token } = (await reg.json()) as { token: string };
+    return token;
+  }
+
+  test("POST /owners/read-keys with non-string label is clean 4xx, never 500, mints nothing", async () => {
+    const ownerToken = await makeOwnerToken();
+    const statuses: number[] = [];
+    for (const bad of hostile) {
+      await resetMemoryStoreForTests();
+      const res = await app.request("/owners/read-keys", {
+        method: "POST",
+        headers: json(ownerToken),
+        body: JSON.stringify({ label: bad }),
+      });
+      statuses.push(res.status);
+    }
+    expectClean4xx(statuses);
+    const list = await app.request("/owners/read-keys", { headers: json(ownerToken) });
+    expect(list.status).toBe(200);
+    const keys = (await list.json()) as { keys?: unknown[]; readKeys?: unknown[] };
+    expect((keys.keys ?? keys.readKeys ?? []).length).toBe(0);
+    const ok = await app.request("/owners/read-keys", {
+      method: "POST",
+      headers: json(ownerToken),
+      body: JSON.stringify({ label: "observer laptop" }),
+    });
+    expect(ok.status).toBe(201);
+  });
+
+  test("PATCH /owners/me with non-string displayName is clean 4xx, never 500, changes nothing", async () => {
+    const ownerToken = await makeOwnerToken();
+    const statuses: number[] = [];
+    for (const bad of hostile) {
+      await resetMemoryStoreForTests();
+      const res = await app.request("/owners/me", {
+        method: "PATCH",
+        headers: json(ownerToken),
+        body: JSON.stringify({ displayName: bad }),
+      });
+      statuses.push(res.status);
+    }
+    expectClean4xx(statuses);
+    const me = await app.request("/owners/me", { headers: json(ownerToken) });
+    expect(me.status).toBe(200);
+    expect(((await me.json()) as { owner: { displayName: unknown } }).owner.displayName ?? null).toBeNull();
+    const ok = await app.request("/owners/me", {
+      method: "PATCH",
+      headers: json(ownerToken),
+      body: JSON.stringify({ displayName: "Jim Verse" }),
+    });
+    expect(ok.status).toBe(200);
+  });
+
+  test("POST /owners/register with non-string displayName is clean 4xx, never 500", async () => {
+    const statuses: number[] = [];
+    for (const bad of hostile) {
+      await resetMemoryStoreForTests();
+      const res = await app.request("/owners/register", {
+        method: "POST",
+        headers: json(),
+        body: JSON.stringify({ email: uniqueEmail(), password: "password123", displayName: bad }),
+      });
+      statuses.push(res.status);
+    }
+    expectClean4xx(statuses);
+    const ok = await app.request("/owners/register", {
+      method: "POST",
+      headers: json(),
+      body: JSON.stringify({ email: uniqueEmail(), password: "password123", displayName: "Jim Verse" }),
+    });
+    expect(ok.status).toBe(201);
+  });
+
+  test("POST /owners/agents with non-string name is clean 4xx, never 500", async () => {
+    const ownerToken = await makeOwnerToken();
+    const statuses: number[] = [];
+    for (const bad of hostile) {
+      await resetMemoryStoreForTests();
+      const res = await app.request("/owners/agents", {
+        method: "POST",
+        headers: json(ownerToken),
+        body: JSON.stringify({ name: bad, capabilities: [] }),
+      });
+      statuses.push(res.status);
+    }
+    expectClean4xx(statuses);
+    const ok = await app.request("/owners/agents", {
+      method: "POST",
+      headers: json(ownerToken),
+      body: JSON.stringify({ name: `OwnerNamed-${Math.random().toString(36).slice(2, 8)}`, capabilities: [] }),
+    });
+    expect(ok.status).toBe(201);
+  });
+
+  test("POST /owners/agents with non-string description or non-string-array capabilities is clean 4xx (sweep)", async () => {
+    const ownerToken = await makeOwnerToken();
+    const statuses: number[] = [];
+    for (const bad of hostile) {
+      await resetMemoryStoreForTests();
+      const res = await app.request("/owners/agents", {
+        method: "POST",
+        headers: json(ownerToken),
+        body: JSON.stringify({ name: `CardDesc-${Math.random().toString(36).slice(2, 8)}`, capabilities: [], description: bad }),
+      });
+      statuses.push(res.status);
+    }
+    // For capabilities the hostile set differs: an array of strings is a
+    // VALID value here, so the attacks are the non-arrays (a bare string
+    // included — it passed the old .length check and was stored as one).
+    const hostileCaps: unknown[] = [12345, true, { text: "a valid name" }, 1.5, "research"];
+    for (const bad of hostileCaps) {
+      await resetMemoryStoreForTests();
+      const res = await app.request("/owners/agents", {
+        method: "POST",
+        headers: json(ownerToken),
+        body: JSON.stringify({ name: `CardCaps-${Math.random().toString(36).slice(2, 8)}`, capabilities: bad }),
+      });
+      statuses.push(res.status);
+    }
+    // A capabilities array holding non-string elements is rejected too —
+    // it would break the card endpoint's slugify for every reader.
+    await resetMemoryStoreForTests();
+    const mixed = await app.request("/owners/agents", {
+      method: "POST",
+      headers: json(ownerToken),
+      body: JSON.stringify({ name: `CardCapsMixed-${Math.random().toString(36).slice(2, 8)}`, capabilities: ["research", 42] }),
+    });
+    statuses.push(mixed.status);
+    expectClean4xx(statuses);
+    const ok = await app.request("/owners/agents", {
+      method: "POST",
+      headers: json(ownerToken),
+      body: JSON.stringify({
+        name: `CardOk-${Math.random().toString(36).slice(2, 8)}`,
+        capabilities: ["research"],
+        description: "a valid description",
+      }),
+    });
+    expect(ok.status).toBe(201);
   });
 });
