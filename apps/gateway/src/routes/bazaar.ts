@@ -58,6 +58,20 @@ function rowsOf(r: unknown): any[] {
   return ((r as any).rows ?? r) as any[];
 }
 
+// Competition integrity: two agents under the SAME owner are one economic
+// actor. ownerOf reads the owner linkage (agents.owner_id); a null owner
+// (native / unclaimed agent) never matches, so unowned agents stay exempt
+// from the same-owner guards below.
+async function ownerOf(dbx: DbLike, agentId: string): Promise<string | null> {
+  const r = await dbx.execute(sql`SELECT owner_id FROM agents WHERE id = ${agentId}::uuid`);
+  const rows = rowsOf(r);
+  return rows.length ? (rows[0].owner_id as string | null) : null;
+}
+
+function sameOwner(a: string | null, b: string | null): boolean {
+  return a !== null && b !== null && a === b;
+}
+
 // POST /bazaar/tasks — post a bounty; escrow deducted immediately.
 // Atomic: escrow debit + task insert + event commit or roll back together.
 // The conditional UPDATE (balance >= bounty) is the solvency gate — no
@@ -132,6 +146,18 @@ bazaarRoute.post("/bazaar/tasks/:id/claim", agentAuth, async (c) => {
       WHERE claimed_by = ${agentId}::uuid AND status IN ('claimed','completed')
     `);
     if (Number(rowsOf(mine)[0].n) >= MAX_ACTIVE_CLAIMS) return { err: `claim cap reached (${MAX_ACTIVE_CLAIMS} active)` };
+    // Self-dealing guards (competition integrity): the poster can never
+    // claim its own bounty, and neither can another agent of the same
+    // owner — on both sides of the escrow sits one economic actor, so the
+    // "work" would be bookkeeping that farms payouts and critic fees.
+    const t = await tx.execute(sql`SELECT poster_id FROM bazaar_tasks WHERE id = ${id}::uuid`);
+    const trows = rowsOf(t);
+    if (trows.length) {
+      if (trows[0].poster_id === agentId)
+        return { status: 403 as const, err: "cannot claim your own bounty" };
+      if (sameOwner(await ownerOf(tx, trows[0].poster_id), await ownerOf(tx, agentId)))
+        return { status: 403 as const, err: "cannot claim a bounty posted by an agent of the same owner" };
+    }
     const upd = await tx.execute(sql`
       UPDATE bazaar_tasks SET status = 'claimed', claimed_by = ${agentId}::uuid, claimed_at = now()
       WHERE id = ${id}::uuid AND status = 'open'
@@ -142,7 +168,7 @@ bazaarRoute.post("/bazaar/tasks/:id/claim", agentAuth, async (c) => {
     await event(tx, "claim", { taskId: id, actorId: agentId, detail: { title: r[0].title } });
     return { task: r[0] };
   });
-  if ("err" in claimed) return c.json({ error: claimed.err }, 409);
+  if ("err" in claimed) return c.json({ error: claimed.err }, claimed.status ?? 409);
   log("bazaar_claim", { taskId: id, claimer: agentId });
   return c.json({ task: claimed.task });
 });
@@ -205,6 +231,16 @@ bazaarRoute.post("/bazaar/tasks/:id/verify", agentAuth, async (c) => {
     // No self-dealing.
     if (t.claimed_by === agentId) return { status: 403 as const, err: "cannot verify your own claim" };
     if (t.poster_id === agentId) return { status: 403 as const, err: "cannot verify your own bounty" };
+    // No same-owner capture either: a critic sharing an owner with the
+    // claimer or the poster is the same economic actor as one side of the
+    // verdict — the house-minted fee and the verdict would both stay
+    // inside one household.
+    const criticOwner = await ownerOf(tx, agentId);
+    if (
+      sameOwner(criticOwner, await ownerOf(tx, t.claimed_by)) ||
+      sameOwner(criticOwner, await ownerOf(tx, t.poster_id))
+    )
+      return { status: 403 as const, err: "cannot verify work involving an agent of the same owner" };
 
     // Phase 5: escalating critic fee. Stale verifications pay more — clearing
     // the queue is the most profitable critic move. Computed from the locked
@@ -369,6 +405,7 @@ bazaarRoute.post("/bazaar/delegations", agentAuth, async (c) => {
   if (!body.a2a_task_id || !body.payee_id || !Number.isFinite(amount) || amount <= 0)
     return c.json({ error: "a2a_task_id, payee_id, amount>0 required" }, 400);
   if (body.payee_id === agentId) return c.json({ error: "cannot hire yourself" }, 400);
+  const payeeId = body.payee_id; // narrowed to string by the validation above
 
   const created = await db
     .transaction(async (tx) => {
@@ -382,6 +419,12 @@ bazaarRoute.post("/bazaar/delegations", agentAuth, async (c) => {
         return { status: 403 as const, err: "delegation payer must be the a2a task caller" };
       if (trows[0].target_agent_id !== body.payee_id)
         return { status: 403 as const, err: "delegation payee must be the a2a task target" };
+
+      // Same-owner self-dealing: payer and payee under one owner are one
+      // economic actor; escrow between them is bookkeeping, not a market.
+      // Checked before any write, so returning here moves no credits.
+      if (sameOwner(await ownerOf(tx, agentId), await ownerOf(tx, payeeId)))
+        return { status: 403 as const, err: "cannot delegate to an agent of the same owner" };
 
       // Insert BEFORE the escrow debit. The unique constraint on
       // a2a_task_id is the idempotency gate, and a duplicate offer must move
