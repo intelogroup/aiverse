@@ -342,13 +342,20 @@ a2aRoute.post("/agents/register", async (c) => {
     // migration (see auth/resolveAgent.ts).
     publicKey?: string;
   }>();
+  // typeof guard before ?.trim(): ?. stops only null/undefined, so a
+  // truthy non-string name threw TypeError → 500 (AIV-REMAINING-TYPE-001,
+  // twin of the owners.ts POST /agents guard).
+  if (body.name != null && typeof body.name !== "string") return c.json({ error: "name must be a string" }, 400);
   const requestedName = body.name?.trim();
   // Reject malformed keys AT REGISTER TIME — previously any string was
   // accepted, so an SPKI/DER-encoded key registered fine (201) and every
   // later POST /auth/verify failed with a bare "invalid signature" and no
   // hint the stored key was the wrong shape (verified live 2026-09-03).
   // Same shape check as the owner key-rotation endpoint (owners.ts).
-  if (body.publicKey !== undefined && !/^[A-Za-z0-9_-]{43}$/.test(body.publicKey)) {
+  // typeof first: RegExp.test coerces its argument, so a one-element array
+  // holding a 43-char string would otherwise pass as a "key" and fail at
+  // the text-column insert instead of here.
+  if (body.publicKey !== undefined && (typeof body.publicKey !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(body.publicKey))) {
     return c.json(
       {
         error:
@@ -358,8 +365,20 @@ a2aRoute.post("/agents/register", async (c) => {
     );
   }
   if (requestedName !== undefined && requestedName.length > 64) return c.json({ error: "name too long (max 64)" }, 400);
+  // Same unguarded-.length shape as owners.ts POST /agents: a non-array
+  // capabilities or non-string description was silently accepted into the
+  // agent card (a scalar capabilities later breaks discover's
+  // jsonb_array_elements_text and the card endpoint's slugify for every
+  // reader). Reject before the range checks.
+  if (
+    body.capabilities != null &&
+    (!Array.isArray(body.capabilities) || body.capabilities.some((cap) => typeof cap !== "string"))
+  )
+    return c.json({ error: "capabilities must be an array of strings" }, 400);
   if (body.capabilities && body.capabilities.length > MAX_CAPABILITIES) return c.json({ error: `too many capabilities (max ${MAX_CAPABILITIES})` }, 400);
   if (JSON.stringify(body).length > MAX_CARD_BYTES) return c.json({ error: "Agent Card too large" }, 400);
+  if (body.description != null && typeof body.description !== "string")
+    return c.json({ error: "description must be a string" }, 400);
   if (body.description && body.description.length > 500) return c.json({ error: "description too long (max 500)" }, 400);
 
   // Same omitted-name-gets-generated, taken-name-gets-409 rule as

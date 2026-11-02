@@ -771,3 +771,224 @@ describe("bazaar phase 5 incentives", () => {
     expect(verifyFeeFor(10000)).toBe(10);
   });
 });
+
+// Regression for AIV-DELEG-DUP-ESCROW-001 (adversarial loop cycle
+// 2026-11-02-1107): POST /bazaar/delegations debited escrow inside
+// db.transaction BEFORE the INSERT ... ON CONFLICT DO NOTHING, and the
+// conflict branch RETURNED its 409 from the transaction callback — which
+// commits — so a duplicate offer was refused yet the debit persisted,
+// stranding credits in no delegation row (sequential duplicate of 15 left
+// the payer at 70 instead of 85; concurrent duplicates of 10 debited
+// twice, 50 instead of 60). The handler now inserts first and throws on
+// insolvency so the debit can never commit without the row.
+describe("bazaar delegation duplicate escrow (AIV-DELEG-DUP-ESCROW-001 regression)", () => {
+  let payer: { agentToken: string; agentId: string; ownerToken: string };
+  let payee: { agentToken: string; agentId: string; ownerToken: string };
+
+  const rpc = (method: string, params: any) => ({ jsonrpc: "2.0", id: 1, method, params });
+
+  async function delegate(messageId: string): Promise<string> {
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const res = await app.request(`/a2a/agents/${payee.agentId}`, {
+        method: "POST",
+        headers: auth(payer.agentToken),
+        body: JSON.stringify(
+          rpc("message/send", {
+            message: { role: "user", parts: [{ kind: "text", text: "do the work" }], messageId },
+          }),
+        ),
+      });
+      const body = await res.json();
+      if (body.result?.id) return body.result.id as string;
+      if (res.status !== 429) throw new Error(`delegate failed ${res.status}`);
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    throw new Error("delegate rate limited");
+  }
+
+  async function delegationCount(taskId: string): Promise<number> {
+    const r = await db.execute(
+      sql`SELECT count(*)::int AS n FROM bazaar_delegations WHERE a2a_task_id = ${taskId}::uuid`,
+    );
+    return Number(rows(r)[0].n);
+  }
+
+  const offer = (taskId: string, amount: number) =>
+    app.request("/bazaar/delegations", {
+      method: "POST",
+      headers: auth(payer.agentToken),
+      body: JSON.stringify({ a2a_task_id: taskId, payee_id: payee.agentId, amount }),
+    });
+
+  beforeAll(async () => {
+    const suffix = Math.random().toString(36).slice(2, 8);
+    payer = await registerAgent(`dupesc-payer-${suffix}`);
+    payee = await registerAgent(`dupesc-payee-${suffix}`);
+    await enableWallet(payer.ownerToken, payer.agentId);
+    await enableWallet(payee.ownerToken, payee.agentId);
+    await setupBazaar(payer.agentId, "broker", 100);
+    await setupBazaar(payee.agentId, "artisan", 100);
+  });
+
+  test("sequential duplicate offer: 409 and no second debit", async () => {
+    const taskId = await delegate(`dupesc-seq-${Date.now()}`);
+    const before = await getBalance(payer.agentId);
+    const first = await offer(taskId, 15);
+    expect(first.status).toBe(201);
+    expect(await getBalance(payer.agentId)).toBe(before - 15);
+    const dup = await offer(taskId, 15);
+    expect(dup.status).toBe(409);
+    expect(await delegationCount(taskId)).toBe(1);
+    expect(await getBalance(payer.agentId)).toBe(before - 15);
+  });
+
+  test("concurrent duplicate offers: exactly one 201, exactly one debit", async () => {
+    const taskId = await delegate(`dupesc-conc-${Date.now()}`);
+    const before = await getBalance(payer.agentId);
+    const [r1, r2] = await Promise.all([offer(taskId, 10), offer(taskId, 10)]);
+    expect([r1.status, r2.status].sort()).toEqual([201, 409]);
+    expect(await delegationCount(taskId)).toBe(1);
+    expect(await getBalance(payer.agentId)).toBe(before - 10);
+  });
+
+  test("insolvent offer after the insert rolls the row back too", async () => {
+    // An offer far above any balance this payer can hold must 402 and
+    // leave neither a debit nor a delegation row (the insert precedes the
+    // debit in the fixed handler, so this pins the throw/rollback leg).
+    const taskId = await delegate(`dupesc-insolvent-${Date.now()}`);
+    const before = await getBalance(payer.agentId);
+    const res = await offer(taskId, 100000);
+    expect(res.status).toBe(402);
+    expect(await delegationCount(taskId)).toBe(0);
+    expect(await getBalance(payer.agentId)).toBe(before);
+  });
+});
+
+// Regression for AIV-BAZAAR-TYPE-001 (adversarial loop cycle
+// 2026-11-01-2307): every bazaar text field coalesced only null/undefined
+// ((body.x ?? "").trim()/.toLowerCase()/.slice()), so truthy non-string
+// JSON values threw TypeError → unhandled 500 — except the array note,
+// which silently completed a critic accept because arrays have .slice().
+// All five fields now typeof-check before any string method.
+describe("bazaar text-field types (AIV-BAZAAR-TYPE-001 regression)", () => {
+  const hostile: unknown[] = [12345, true, ["a valid text"], { text: "a valid text" }, 1.5];
+
+  function expectClean4xx(statuses: number[]) {
+    for (const s of statuses) {
+      expect(s).toBeGreaterThanOrEqual(400);
+      expect(s).toBeLessThan(500);
+    }
+  }
+
+  async function taskCount(): Promise<number> {
+    const r = await db.execute(sql`SELECT count(*)::int AS n FROM bazaar_tasks`);
+    return Number(rows(r)[0].n);
+  }
+
+  test("POST /bazaar/tasks with non-string title/description is clean 4xx, escrows nothing, creates nothing", async () => {
+    const suffix = Math.random().toString(36).slice(2, 8);
+    const poster = await registerAgent(`bztype-poster-${suffix}`);
+    await setupBazaar(poster.agentId, "broker", 100);
+    const before = await taskCount();
+
+    const titleStatuses: number[] = [];
+    for (const bad of hostile) {
+      const res = await app.request("/bazaar/tasks", {
+        method: "POST",
+        headers: auth(poster.agentToken),
+        body: JSON.stringify({ title: bad, description: "A perfectly valid description", bounty_credits: 10 }),
+      });
+      titleStatuses.push(res.status);
+    }
+    const descStatuses: number[] = [];
+    for (const bad of hostile) {
+      const res = await app.request("/bazaar/tasks", {
+        method: "POST",
+        headers: auth(poster.agentToken),
+        body: JSON.stringify({ title: "A valid title", description: bad, bounty_credits: 10 }),
+      });
+      descStatuses.push(res.status);
+    }
+    expectClean4xx(titleStatuses);
+    expectClean4xx(descStatuses);
+    expect(await getBalance(poster.agentId)).toBe(100);
+    expect(await taskCount()).toBe(before);
+
+    const ok = await app.request("/bazaar/tasks", {
+      method: "POST",
+      headers: auth(poster.agentToken),
+      body: JSON.stringify({ title: "A valid title", description: "A perfectly valid description", bounty_credits: 10 }),
+    });
+    expect(ok.status).toBe(201);
+    expect(await getBalance(poster.agentId)).toBe(90);
+  });
+
+  test("complete with non-string evidence and verify with non-string verdict/note are clean 4xx, flip and pay nothing", async () => {
+    const suffix = Math.random().toString(36).slice(2, 8);
+    const poster = await registerAgent(`bztype-poster2-${suffix}`);
+    const worker = await registerAgent(`bztype-worker2-${suffix}`);
+    const critic = await registerAgent(`bztype-critic2-${suffix}`);
+    await setupBazaar(poster.agentId, "broker", 100);
+    await setupBazaar(worker.agentId, "artisan", 100);
+    await setupBazaar(critic.agentId, "critic", 100);
+
+    const post = await app.request("/bazaar/tasks", {
+      method: "POST",
+      headers: auth(poster.agentToken),
+      body: JSON.stringify({ title: "Probe task", description: "Type confusion probe task", bounty_credits: 15 }),
+    });
+    expect(post.status).toBe(201);
+    const { task } = (await post.json()) as { task: { id: string } };
+    const claim = await app.request(`/bazaar/tasks/${task.id}/claim`, { method: "POST", headers: auth(worker.agentToken) });
+    expect(claim.status).toBe(200);
+
+    const evidenceStatuses: number[] = [];
+    for (const bad of hostile) {
+      const res = await app.request(`/bazaar/tasks/${task.id}/complete`, {
+        method: "POST",
+        headers: auth(worker.agentToken),
+        body: JSON.stringify({ evidence: bad }),
+      });
+      evidenceStatuses.push(res.status);
+    }
+    const done = await app.request(`/bazaar/tasks/${task.id}/complete`, {
+      method: "POST",
+      headers: auth(worker.agentToken),
+      body: JSON.stringify({ evidence: "Did the thing, here is proof of completion" }),
+    });
+    expect(done.status).toBe(200);
+
+    const verdictStatuses: number[] = [];
+    for (const bad of hostile) {
+      const res = await app.request(`/bazaar/tasks/${task.id}/verify`, {
+        method: "POST",
+        headers: auth(critic.agentToken),
+        body: JSON.stringify({ verdict: bad, note: "ok" }),
+      });
+      verdictStatuses.push(res.status);
+    }
+    const noteStatuses: number[] = [];
+    for (const bad of hostile) {
+      const res = await app.request(`/bazaar/tasks/${task.id}/verify`, {
+        method: "POST",
+        headers: auth(critic.agentToken),
+        body: JSON.stringify({ verdict: "accept", note: bad }),
+      });
+      noteStatuses.push(res.status);
+    }
+    expectClean4xx(evidenceStatuses);
+    expectClean4xx(verdictStatuses);
+    expectClean4xx(noteStatuses);
+    // No hostile attempt paid anyone — the array note included.
+    expect(await getBalance(worker.agentId)).toBe(100);
+    expect(await getBalance(critic.agentId)).toBe(100);
+
+    const ok = await app.request(`/bazaar/tasks/${task.id}/verify`, {
+      method: "POST",
+      headers: auth(critic.agentToken),
+      body: JSON.stringify({ verdict: "accept", note: "Looks good" }),
+    });
+    expect(ok.status).toBe(200);
+    expect(await getBalance(worker.agentId)).toBe(115);
+  });
+});

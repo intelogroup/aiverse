@@ -65,6 +65,13 @@ function rowsOf(r: unknown): any[] {
 bazaarRoute.post("/bazaar/tasks", agentAuth, async (c) => {
   const agentId = c.get("agentId");
   const body = await c.req.json<{ title?: string; description?: string; bounty_credits?: number }>();
+  // The JSON body is untrusted: a truthy non-string title/description
+  // (number, boolean, array, object, float) slips past the ?? "" coalesce
+  // and throws TypeError on .trim() → unhandled 500 (AIV-BAZAAR-TYPE-001,
+  // same shape as the claim-code fix in owners.ts). Type-check first.
+  if (body.title != null && typeof body.title !== "string") return c.json({ error: "title must be 3-200 chars" }, 400);
+  if (body.description != null && typeof body.description !== "string")
+    return c.json({ error: "description must be 10-4000 chars" }, 400);
   const title = (body.title ?? "").trim();
   const description = (body.description ?? "").trim();
   const bounty = Math.floor(Number(body.bounty_credits));
@@ -146,6 +153,8 @@ bazaarRoute.post("/bazaar/tasks/:id/complete", agentAuth, async (c) => {
   const agentId = c.get("agentId");
   const id = c.req.param("id");
   const body = await c.req.json<{ evidence?: string }>();
+  if (body.evidence != null && typeof body.evidence !== "string")
+    return c.json({ error: "evidence required, min 10 chars" }, 400);
   const evidence = (body.evidence ?? "").trim();
   if (evidence.length < 10) return c.json({ error: "evidence required, min 10 chars" }, 400);
   const done = await db.transaction(async (tx) => {
@@ -174,11 +183,17 @@ bazaarRoute.post("/bazaar/tasks/:id/verify", agentAuth, async (c) => {
   const agentId = c.get("agentId");
   const id = c.req.param("id");
   const body = await c.req.json<{ verdict?: string; note?: string }>();
+  if (body.verdict != null && typeof body.verdict !== "string")
+    return c.json({ error: "verdict must be accept|reject" }, 400);
   const verdict = (body.verdict ?? "").toLowerCase();
   if (verdict !== "accept" && verdict !== "reject") return c.json({ error: "verdict must be accept|reject" }, 400);
   const role = await getRole(db, agentId);
   if (role !== "critic") return c.json({ error: "only critics may verify" }, 403);
 
+  // Arrays have .slice() too, so a non-string note would NOT throw — it
+  // would be silently accepted as the critic's annotation (observed in the
+  // AIV-BAZAAR-TYPE-001 probe). Reject any non-string note explicitly.
+  if (body.note != null && typeof body.note !== "string") return c.json({ error: "note must be a string" }, 400);
   const note = (body.note ?? "").slice(0, 200);
   const outcome = await db.transaction(async (tx) => {
     // Lock the task row; the lock is held for the whole transaction.
@@ -332,6 +347,12 @@ bazaarRoute.get("/bazaar/context", agentAuth, async (c) => {
   });
 });
 
+// Thrown inside the delegations transaction to force a rollback when the
+// escrow debit finds the payer insolvent AFTER the delegation insert (the
+// insert must not commit without its debit). Translated to the existing
+// 402 response by the .catch on the transaction promise below.
+class InsufficientEscrow extends Error {}
+
 // POST /bazaar/delegations — record a paid delegation offer linked to an a2a task.
 // Called by the harness right after a successful delegate with payment_credits.
 //
@@ -349,40 +370,60 @@ bazaarRoute.post("/bazaar/delegations", agentAuth, async (c) => {
     return c.json({ error: "a2a_task_id, payee_id, amount>0 required" }, 400);
   if (body.payee_id === agentId) return c.json({ error: "cannot hire yourself" }, 400);
 
-  const created = await db.transaction(async (tx) => {
-    // Ownership validation: the a2a task must be this payer hiring this payee.
-    const t = await tx.execute(sql`
+  const created = await db
+    .transaction(async (tx) => {
+      // Ownership validation: the a2a task must be this payer hiring this payee.
+      const t = await tx.execute(sql`
       SELECT caller_agent_id, target_agent_id, state FROM a2a_tasks WHERE id = ${body.a2a_task_id}::uuid
     `);
-    const trows = rowsOf(t);
-    if (!trows.length) return { status: 404 as const, err: "a2a task not found" };
-    if (trows[0].caller_agent_id !== agentId)
-      return { status: 403 as const, err: "delegation payer must be the a2a task caller" };
-    if (trows[0].target_agent_id !== body.payee_id)
-      return { status: 403 as const, err: "delegation payee must be the a2a task target" };
+      const trows = rowsOf(t);
+      if (!trows.length) return { status: 404 as const, err: "a2a task not found" };
+      if (trows[0].caller_agent_id !== agentId)
+        return { status: 403 as const, err: "delegation payer must be the a2a task caller" };
+      if (trows[0].target_agent_id !== body.payee_id)
+        return { status: 403 as const, err: "delegation payee must be the a2a task target" };
 
-    // Atomic escrow: debit only if solvent. No separate balance read → no TOCTOU.
-    const esc = await tx.execute(sql`
-      UPDATE bazaar_balances SET balance = balance - ${amount}
-      WHERE agent_id = ${agentId}::uuid AND balance >= ${amount}
-      RETURNING balance
-    `);
-    if (!rowsOf(esc).length) return { status: 402 as const, err: "insufficient balance for delegation escrow" };
-
-    const ins = await tx.execute(sql`
+      // Insert BEFORE the escrow debit. The unique constraint on
+      // a2a_task_id is the idempotency gate, and a duplicate offer must move
+      // NO credits — debiting first and then RETURNING a 409 from this
+      // callback commits the debit with no delegation row, stranding the
+      // credits where they can neither settle nor be cancel-refunded
+      // (AIV-DELEG-DUP-ESCROW-001). On conflict nothing has been written
+      // yet, so returning the 409 here is safe. A concurrent duplicate
+      // blocks on the unique index until this transaction settles, then
+      // sees the conflict (or inserts, if this one rolled back).
+      const ins = await tx.execute(sql`
       INSERT INTO bazaar_delegations (a2a_task_id, payer_id, payee_id, amount, state, escrowed)
       VALUES (${body.a2a_task_id}::uuid, ${agentId}::uuid, ${body.payee_id}::uuid, ${amount}, 'offered', true)
       ON CONFLICT (a2a_task_id) DO NOTHING
       RETURNING id
     `);
-    const irows = rowsOf(ins);
-    if (!irows.length) return { status: 409 as const, err: "delegation already recorded for this task" };
-    await event(tx, "delegate_offer", {
-      taskId: body.a2a_task_id, actorId: agentId, counterpartyId: body.payee_id, amount,
-      detail: { escrowed: true },
+      const irows = rowsOf(ins);
+      if (!irows.length) return { status: 409 as const, err: "delegation already recorded for this task" };
+
+      // Atomic escrow: debit only if solvent. No separate balance read → no
+      // TOCTOU. Insolvency must THROW, not return: the insert above has to
+      // roll back together with the failed debit, or the payer is left
+      // holding a delegation row whose escrow was never paid. The throw is
+      // translated back into the 402 response just outside the transaction.
+      const esc = await tx.execute(sql`
+      UPDATE bazaar_balances SET balance = balance - ${amount}
+      WHERE agent_id = ${agentId}::uuid AND balance >= ${amount}
+      RETURNING balance
+    `);
+      if (!rowsOf(esc).length) throw new InsufficientEscrow();
+      await event(tx, "delegate_offer", {
+        taskId: body.a2a_task_id, actorId: agentId, counterpartyId: body.payee_id, amount,
+        detail: { escrowed: true },
+      });
+      return { status: 201 as const, delegation_id: irows[0].id };
+    })
+    .catch((e) => {
+      if (e instanceof InsufficientEscrow) {
+        return { status: 402 as const, err: "insufficient balance for delegation escrow" };
+      }
+      throw e;
     });
-    return { status: 201 as const, delegation_id: irows[0].id };
-  });
   if (created.status !== 201) return c.json({ error: created.err }, created.status);
   log("bazaar_delegate_offer", { a2aTask: body.a2a_task_id, payer: agentId, payee: body.payee_id, amount });
   return c.json({ delegation_id: created.delegation_id }, 201);

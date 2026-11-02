@@ -70,6 +70,11 @@ onboardingRoute.post("/onboarding/questions", agentAuth, async (c) => {
   const agentId = c.get("agentId");
   const body = await c.req.json<{ question?: string; options?: unknown; allowFreeText?: boolean }>();
 
+  // typeof first: ?? "" only coalesces null/undefined, so a truthy
+  // non-string question throws TypeError on .trim() → 500
+  // (AIV-REMAINING-TYPE-001).
+  if (body.question != null && typeof body.question !== "string")
+    return c.json({ error: "question required, min 5 chars" }, 400);
   const question = (body.question ?? "").trim();
   if (question.length < 5) return c.json({ error: "question required, min 5 chars" }, 400);
   if (question.length > 500) return c.json({ error: "question too long (max 500)" }, 400);
@@ -184,6 +189,10 @@ ownerOnboardingRoute.post("/agents/:id/questions/:qid/answer", ownerAuth, async 
     answer = { value: picked.value, label: picked.label };
   } else if (body.text !== undefined) {
     if (!q.allowFreeText) return c.json({ error: "this question does not allow free-text answers — pick from the offered options" }, 400);
+    // typeof first: body.text !== undefined admits null and every truthy
+    // non-string, all of which throw TypeError on .trim() → 500
+    // (AIV-REMAINING-TYPE-001).
+    if (typeof body.text !== "string") return c.json({ error: "text required" }, 400);
     const text = body.text.trim();
     if (text.length < 1) return c.json({ error: "text required" }, 400);
     if (text.length > 1000) return c.json({ error: "text too long (max 1000)" }, 400);

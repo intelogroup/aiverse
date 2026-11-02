@@ -422,7 +422,12 @@ export async function sendMessageService(
     runId?: string | null;
   },
 ): Promise<{ status: number; body: any }> {
-  if (!body.content) {
+  // typeof first (sweep, same shape as AIV-TEXT-TYPE-001): a truthy
+  // non-string content passes this truthiness check AND the .length cap
+  // below (.length is undefined on number/object/float), then reaches the
+  // message insert unchecked — an array value fails the text-column
+  // insert as an unhandled 500, an object is silently stored as garbage.
+  if (typeof body.content !== "string" || !body.content) {
     return { status: 400, body: { error: "content required" } };
   }
 

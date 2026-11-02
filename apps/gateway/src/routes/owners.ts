@@ -100,7 +100,10 @@ ownersRoute.patch("/me", ownerAuth, async (c) => {
   const ownerId = c.get("ownerId");
   const body = await c.req.json<{ displayName?: string }>();
   if (body.displayName !== undefined) {
-    if (!body.displayName || body.displayName.length < 2 || body.displayName.length > 64) {
+    // typeof first: .length is undefined on number/boolean/object/float,
+    // so both range comparisons pass and a non-string displayName was
+    // silently accepted as the owner's identity (AIV-OWNER-TEXT-TYPE-001).
+    if (typeof body.displayName !== "string" || body.displayName.length < 2 || body.displayName.length > 64) {
       return c.json({ error: "displayName must be 2-64 chars" }, 400);
     }
     const [updated] = await db.update(owners).set({ displayName: body.displayName }).where(eq(owners.id, ownerId)).returning();
@@ -162,7 +165,10 @@ ownersRoute.post("/register", async (c) => {
   }
   const pwErr = passwordError(body.password);
   if (pwErr) return c.json({ error: pwErr }, 400);
-  if (body.displayName && (body.displayName.length < 2 || body.displayName.length > 64)) {
+  // typeof first, same AIV-OWNER-TEXT-TYPE-001 shape as PATCH /me above:
+  // .length is undefined on non-strings, so the range check alone silently
+  // accepted number/boolean/object/float displayNames at register time.
+  if (body.displayName && (typeof body.displayName !== "string" || body.displayName.length < 2 || body.displayName.length > 64)) {
     return c.json({ error: "displayName must be 2-64 chars" }, 400);
   }
 
@@ -259,6 +265,10 @@ const MAX_ACTIVE_READ_KEYS = 10;
 ownersRoute.post("/read-keys", ownerAuth, async (c) => {
   const ownerId = c.get("ownerId");
   const body = await c.req.json<{ label?: string }>().catch(() => ({}) as { label?: string });
+  // typeof first: ?? "" only coalesces null/undefined, so a truthy
+  // non-string label throws TypeError on .trim() → 500
+  // (AIV-OWNER-TEXT-TYPE-001).
+  if (body.label != null && typeof body.label !== "string") return c.json({ error: "label required (1-60 chars)" }, 400);
   const label = (body.label ?? "").trim();
   if (label.length < 1 || label.length > 60) return c.json({ error: "label required (1-60 chars)" }, 400);
 
@@ -373,10 +383,25 @@ ownersRoute.post("/agents", ownerAuth, async (c) => {
   const existing = await db.query.agents.findMany({ where: eq(agents.ownerId, ownerId) });
   if (existing.length >= 100) return c.json({ error: "agent limit reached (100/owner)" }, 429);
   const body = await c.req.json<{ name?: string; capabilities?: string[]; description?: string }>();
+  // typeof/Array guards before any string method or .length range check:
+  // ?. and truthiness stop only null/undefined, so truthy non-string values
+  // threw TypeError on .trim() → 500 (name, AIV-REMAINING-TYPE-001) or were
+  // silently accepted past the .length checks and stored into the agent
+  // card (description; capabilities — a scalar capabilities value later
+  // breaks discover's jsonb_array_elements_text and the card's slugify
+  // for every reader).
+  if (body.name != null && typeof body.name !== "string") return c.json({ error: "name must be a string" }, 400);
   const requestedName = body.name?.trim();
   if (requestedName !== undefined && requestedName.length > 64) return c.json({ error: "name too long (max 64)" }, 400);
+  if (
+    body.capabilities != null &&
+    (!Array.isArray(body.capabilities) || body.capabilities.some((cap) => typeof cap !== "string"))
+  )
+    return c.json({ error: "capabilities must be an array of strings" }, 400);
   if (body.capabilities && body.capabilities.length > 20) return c.json({ error: "too many capabilities (max 20)" }, 400);
   if (JSON.stringify(body).length > 10 * 1024) return c.json({ error: "Agent Card too large" }, 400);
+  if (body.description != null && typeof body.description !== "string")
+    return c.json({ error: "description must be a string" }, 400);
   if (body.description && body.description.length > 500) return c.json({ error: "description too long (max 500)" }, 400);
 
   // Omitted/blank name gets a generated one — "send an agent, don't make me
