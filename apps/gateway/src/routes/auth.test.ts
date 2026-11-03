@@ -143,6 +143,67 @@ describe("Ed25519 challenge/verify auth", () => {
     expect(second.status).toBe(400);
   });
 
+  test("concurrent verifies with one signature mint exactly one session (AIV-CHALLENGE-VERIFY-RACE-001)", async () => {
+    await resetMemoryStoreForTests();
+    const { agentId, privateKey } = await registerAndClaimKeyedAgent("AuthAgentRace");
+
+    const challenge = await app.request("/auth/challenge", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ agentId }),
+    });
+    const { nonce } = await challenge.json();
+    const signature = signNonce(privateKey, nonce);
+
+    // Regression: the nonce used to be consumed non-atomically (GET …
+    // verify … DEL), so simultaneous verifies carrying one captured valid
+    // signature all passed. It is now consumed with GETDEL before
+    // verification — exactly one of the 8 may succeed.
+    const attempts = await Promise.all(
+      Array.from({ length: 8 }, () =>
+        app.request("/auth/verify", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ agentId, signature }),
+        }),
+      ),
+    );
+    const statuses = attempts.map((r) => r.status);
+    expect(statuses.filter((s) => s === 200).length).toBe(1);
+    expect(statuses.filter((s) => s === 400).length).toBe(7);
+  });
+
+  test("a failed signature burns the challenge: the consumed nonce is not restored", async () => {
+    await resetMemoryStoreForTests();
+    const { agentId, privateKey } = await registerAndClaimKeyedAgent("AuthAgentBurn");
+    const { privateKey: wrongKey } = genKeypair();
+
+    const challenge = await app.request("/auth/challenge", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ agentId }),
+    });
+    const { nonce } = await challenge.json();
+
+    const bad = await app.request("/auth/verify", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ agentId, signature: signNonce(wrongKey, nonce) }),
+    });
+    expect(bad.status).toBe(401);
+
+    // GETDEL consumed the nonce before verification and a failed attempt
+    // must not restore it — even the correct signature can no longer
+    // redeem this challenge; the client re-challenges (the same contract
+    // as the email-verification / password-reset token flows).
+    const good = await app.request("/auth/verify", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ agentId, signature: signNonce(privateKey, nonce) }),
+    });
+    expect(good.status).toBe(400);
+  });
+
   test("challenge for an agent with no registered public key 404s", async () => {
     await resetMemoryStoreForTests();
     const email = `auth-nokey-${Date.now()}@example.com`;

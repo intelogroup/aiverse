@@ -174,7 +174,7 @@ describe("bazaar accounting", () => {
     expect(await getBalance(poster.agentId)).toBe(posterBefore);
   });
 
-  test("verify reject refunds poster and reopens task", async () => {
+  test("verify reject reopens task with escrow locked; cancel refunds exactly once", async () => {
     const postRes = await app.request("/bazaar/tasks", {
       method: "POST",
       headers: auth(poster.agentToken),
@@ -197,13 +197,89 @@ describe("bazaar accounting", () => {
     });
     expect(verifyRes.status).toBe(200);
 
-    // Poster refunded the 12
-    expect(await getBalance(poster.agentId)).toBe(posterBefore + 12);
+    // AIV-REJECT-REOPEN-ESCROW-001 (corrected semantics): a reject does NOT
+    // refund — the escrow stays locked behind the reopened task, so the
+    // poster is unchanged here. (This assertion previously expected
+    // posterBefore + 12 at this point, pinning the double-refund bug.)
+    expect(await getBalance(poster.agentId)).toBe(posterBefore);
 
     // Task is open again
     const listRes = await app.request("/bazaar/tasks?status=open", { headers: auth(poster.agentToken) });
     const { tasks } = await listRes.json();
     expect(tasks.some((t: any) => t.id === task.id)).toBe(true);
+
+    // The refund happens exactly once, at the terminal close: the poster
+    // cancels the reopened task and gets the 12 back — and only the 12.
+    const cancelRes = await app.request(`/bazaar/tasks/${task.id}/cancel`, {
+      method: "POST",
+      headers: auth(poster.agentToken),
+    });
+    expect(cancelRes.status).toBe(200);
+    expect((await cancelRes.json()).refunded).toBe(12);
+    expect(await getBalance(poster.agentId)).toBe(posterBefore + 12);
+  });
+
+  test("re-accept after reject pays the second worker from the still-held escrow", async () => {
+    // AIV-REJECT-REOPEN-ESCROW-001 regression (probe leg B): the reject
+    // leaves the escrow locked, so when the reopened task is claimed again,
+    // completed and accepted, the payout comes out of that held escrow and
+    // poster + second-worker totals are conserved — nothing is minted.
+    const worker2 = await registerAgent("bazaar-worker2");
+    await setupBazaar(worker2.agentId, "artisan", 100);
+    const posterStart = await getBalance(poster.agentId);
+
+    const postRes = await app.request("/bazaar/tasks", {
+      method: "POST",
+      headers: auth(poster.agentToken),
+      body: JSON.stringify({ title: "Reopen payout", description: "Reject then re-accept conservation check", bounty_credits: 20 }),
+    });
+    expect(postRes.status).toBe(201);
+    const { task } = await postRes.json();
+    expect(await getBalance(poster.agentId)).toBe(posterStart - 20);
+
+    expect((await app.request(`/bazaar/tasks/${task.id}/claim`, { method: "POST", headers: auth(worker.agentToken) })).status).toBe(200);
+    expect((await app.request(`/bazaar/tasks/${task.id}/complete`, { method: "POST", headers: auth(worker.agentToken), body: JSON.stringify({ evidence: "First attempt evidence, judged insufficient" }) })).status).toBe(200);
+    expect((await app.request(`/bazaar/tasks/${task.id}/verify`, { method: "POST", headers: auth(critic.agentToken), body: JSON.stringify({ verdict: "reject" }) })).status).toBe(200);
+    // Escrow still locked behind the reopened task — poster unchanged.
+    expect(await getBalance(poster.agentId)).toBe(posterStart - 20);
+
+    expect((await app.request(`/bazaar/tasks/${task.id}/claim`, { method: "POST", headers: auth(worker2.agentToken) })).status).toBe(200);
+    expect((await app.request(`/bazaar/tasks/${task.id}/complete`, { method: "POST", headers: auth(worker2.agentToken), body: JSON.stringify({ evidence: "Second attempt evidence, complete and correct" }) })).status).toBe(200);
+    expect((await app.request(`/bazaar/tasks/${task.id}/verify`, { method: "POST", headers: auth(critic.agentToken), body: JSON.stringify({ verdict: "accept" }) })).status).toBe(200);
+
+    expect(await getBalance(worker2.agentId)).toBe(120);
+    expect(await getBalance(poster.agentId)).toBe(posterStart - 20);
+    // Conservation: poster + worker2 together hold exactly their starts.
+    expect((await getBalance(poster.agentId)) + (await getBalance(worker2.agentId))).toBe(posterStart + 100);
+  });
+
+  test("two rejects in a row still refund exactly once, at cancel", async () => {
+    // AIV-REJECT-REOPEN-ESCROW-001 regression: repeated reject/reopen
+    // cycles never touch the escrow; the single refund is the cancel.
+    const posterStart = await getBalance(poster.agentId);
+    const postRes = await app.request("/bazaar/tasks", {
+      method: "POST",
+      headers: auth(poster.agentToken),
+      body: JSON.stringify({ title: "Double reject", description: "Rejected twice, canceled once, refunded once", bounty_credits: 10 }),
+    });
+    expect(postRes.status).toBe(201);
+    const { task } = await postRes.json();
+    expect(await getBalance(poster.agentId)).toBe(posterStart - 10);
+
+    for (let round = 0; round < 2; round++) {
+      expect((await app.request(`/bazaar/tasks/${task.id}/claim`, { method: "POST", headers: auth(worker.agentToken) })).status).toBe(200);
+      expect((await app.request(`/bazaar/tasks/${task.id}/complete`, { method: "POST", headers: auth(worker.agentToken), body: JSON.stringify({ evidence: `Round ${round} evidence, judged insufficient` }) })).status).toBe(200);
+      expect((await app.request(`/bazaar/tasks/${task.id}/verify`, { method: "POST", headers: auth(critic.agentToken), body: JSON.stringify({ verdict: "reject" }) })).status).toBe(200);
+      expect(await getBalance(poster.agentId)).toBe(posterStart - 10);
+    }
+
+    const cancelRes = await app.request(`/bazaar/tasks/${task.id}/cancel`, {
+      method: "POST",
+      headers: auth(poster.agentToken),
+    });
+    expect(cancelRes.status).toBe(200);
+    expect((await cancelRes.json()).refunded).toBe(10);
+    expect(await getBalance(poster.agentId)).toBe(posterStart);
   });
 
   test("concurrent verify: exactly one payout", async () => {

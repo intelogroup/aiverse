@@ -57,7 +57,14 @@ authRoute.post("/verify", async (c) => {
     return c.json({ error: "agentId and signature required" }, 400);
   }
 
-  const nonce = await redis.get(challengeKey(body.agentId));
+  // Consume the nonce atomically BEFORE verifying (GETDEL — the same
+  // pattern as the email-verification and password-reset tokens). The old
+  // GET … verify … DEL left a window where concurrent verifies with one
+  // captured signature all read the nonce before any of them deleted it,
+  // minting many sessions from a one-time challenge
+  // (AIV-CHALLENGE-VERIFY-RACE-001). A failed signature burns the challenge
+  // — the client simply re-challenges, exactly like the reset-token flow.
+  const nonce = await redis.getdel(challengeKey(body.agentId));
   if (!nonce) return c.json({ error: "no active challenge, or expired" }, 400);
 
   const agent = await db.query.agents.findFirst({ where: eq(agents.id, body.agentId) });
@@ -69,8 +76,8 @@ authRoute.post("/verify", async (c) => {
     return c.json({ error: "invalid signature" }, 401);
   }
 
-  await redis.del(challengeKey(body.agentId)); // one-time use
-
+  // Nonce already consumed by the GETDEL above — one-time use is enforced
+  // at read time, not after verification.
   const token = await signAgentSession(agent.id, agent.publicKey);
   log("auth_verify_ok", { agentId: agent.id });
   return c.json({ token, expiresIn: 3600 });

@@ -12,7 +12,8 @@ import { verifyFeeFor } from "../../../../experiments/bazaar/mechanics";
 // Tables are experiment-scoped (bazaar_*) on the control DB only; raw SQL
 // keeps them out of the shared drizzle schema. Credits are the experiment's
 // unit of account: no negative balances, escrow on post, payout on verified
-// completion, refund on reject/cancel.
+// completion, refund on cancel only — a reject reopens the task with its
+// escrow still locked (AIV-REJECT-REOPEN-ESCROW-001).
 //
 // ACCOUNTING INVARIANT: every route that moves credits or flips a task's
 // status does it inside ONE db.transaction. Row locks (SELECT ... FOR UPDATE)
@@ -199,7 +200,9 @@ bazaarRoute.post("/bazaar/tasks/:id/complete", agentAuth, async (c) => {
   return c.json({ task: done, note: "awaiting critic verification" });
 });
 
-// POST /bazaar/tasks/:id/verify — critics only. accept → payout; reject → refund poster, task reopens.
+// POST /bazaar/tasks/:id/verify — critics only. accept → payout from the held
+// escrow; reject → task reopens, escrow stays locked (refund only when the
+// poster cancels the reopened task — a terminal close).
 // Fully atomic: the task row is locked inside the transaction, all guards are
 // re-checked under the lock, and the status flip + every credit movement +
 // every event row commit or roll back together. Concurrent verifiers serialize
@@ -269,11 +272,16 @@ bazaarRoute.post("/bazaar/tasks/:id/verify", agentAuth, async (c) => {
           verdict = 'reject', verified_at = now()
         WHERE id = ${id}::uuid
       `);
-      // Refund escrow to poster; escalating fee to critic for the work of judging.
-      await tx.execute(sql`UPDATE bazaar_balances SET balance = balance + ${t.bounty} WHERE agent_id = ${t.poster_id}::uuid`);
+      // NO refund here: the escrow stays locked and the reopened task stays
+      // backed by it (AIV-REJECT-REOPEN-ESCROW-001). Refunding at reject and
+      // then letting the poster cancel the reopened task refunded the same
+      // escrow twice, and a re-claim + accept paid a bounty with no escrow
+      // behind it. The single refund path is now the terminal close: poster
+      // cancel of the (reopened) open task, which credits the bounty exactly
+      // once; a later accept pays the claimer out of this still-held escrow.
+      // Escalating fee to the critic for the work of judging, as before.
       await tx.execute(sql`UPDATE bazaar_balances SET balance = balance + ${fee} WHERE agent_id = ${agentId}::uuid`);
       await event(tx, "verify", { taskId: id, actorId: agentId, counterpartyId: t.claimed_by, detail: { verdict, note, fee, waiting_min: Math.round(waitingMin) } });
-      await event(tx, "refund", { taskId: id, actorId: t.poster_id, amount: t.bounty });
       await event(tx, "fee", { taskId: id, actorId: agentId, amount: fee });
       log("bazaar_verify_reject", { taskId: id, critic: agentId, claimer: t.claimed_by, fee });
     }
