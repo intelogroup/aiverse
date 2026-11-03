@@ -1,32 +1,33 @@
-import { useMemo, useRef, type RefObject } from "react";
+import { useEffect, useMemo, useRef, type RefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Html, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
+import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import type { AgentFrame } from "./locomotion";
 
-// CastFigure — a White Bot (the Agora's greeter body) driven by the same
-// AgentFrame stream as every other figure in the world. The model is a
-// STATIC posed mesh — no skeleton, no clips — so one GLB loads once (drei
-// cache) and each cast member is a plain hierarchy clone: geometry and
-// materials are shared across instances, nothing is skinned or mixed.
+// CastFigure — a Body Block bot (Mixamo-rigged, 57 bones) driven by the
+// same AgentFrame stream as every other figure in the world. One GLB is
+// loaded once (drei cache) and cloned per cast member with SkeletonUtils,
+// so each bot owns its skeleton and AnimationMixer while sharing
+// geometry and materials.
 //
-// Motion life comes from the crowd frames plus the same procedural
-// treatment the ring world's unrigged figures use in Scene3D.tsx: while
-// walking, a subtle vertical bob and forward lean (with a slight roll
-// from the stride), all easing back to a settled upright stance at rest.
-// Position and heading are owned by the crowd, exactly as before.
+// The model ships two clips: "Walk" (1.0 s, baked IN PLACE — the crowd,
+// not the clip, owns position, so no root-motion pinning is needed) and
+// "Idle" (a subtle sway). Animation state follows crowd speed: Idle at
+// rest, Walk while moving, the two blended by a walk weight that ramps
+// over ~0.25 s so starts and stops crossfade instead of snapping. Walk
+// playback rate scales modestly with ground speed (anti-skate).
+//
+// The model is authored at cast size: 1.25 m tall, feet grounded at the
+// local origin. Unlike the retired Y Bot there is NO height
+// normalization — the only fit applied is a measured floor lift.
 
-export const BOT_GLB_URL = "/assets/cast-whitebot.glb";
+export const BOT_GLB_URL = "/assets/cast-bodyblock.glb";
 
-// Ported from Scene3D.tsx's figure treatment (same constants, so the two
-// worlds read alike): bob is |sin| at ~9 rad/s, 5 cm tall; lean is a
-// fixed 0.1 rad pitch while walking. Roll is the stride sway on top.
-const BOB_FREQ = 9;
-const BOB_AMP = 0.05;
-const LEAN_MAX = 0.1;
-const ROLL_MAX = 0.035;
-// Smoothing rate for lean/roll so starts and stops settle, not snap.
-const SETTLE = 8;
+// Ground speed at which the Walk cycle plays at its natural rate.
+const WALK_NOMINAL_SPEED = 1.0;
+// Time for the walk weight to ramp 0→1 (the Idle↔Walk crossfade).
+const FADE_S = 0.25;
 
 export function CastFigure({
   framesRef,
@@ -48,57 +49,91 @@ export function CastFigure({
 }) {
   const gltf = useGLTF(BOT_GLB_URL);
   const group = useRef<THREE.Group>(null);
-  const lean = useRef<THREE.Group>(null);
-  const pose = useRef({ lean: 0, roll: 0 });
 
-  // Shared geometry/materials per instance — Object3D.clone() on an
-  // unrigged hierarchy reuses both; only transforms are per-figure.
-  const scene = useMemo(() => gltf.scene.clone(), [gltf]);
+  // Own skeleton + own scene graph per cast member.
+  const scene = useMemo(() => skeletonClone(gltf.scene), [gltf]);
 
-  // The export is grounded (feet at y = 0, 1.15 m tall); measure anyway so
-  // the label height tracks the real bounds and any floor offset lifts out.
+  // No scaling — the export is authored at 1.25 m with feet at y = 0.
+  // Measure anyway so the floor lift and label height track real bounds.
   const fit = useMemo(() => {
     scene.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(scene);
     return { lift: -box.min.y, height: box.max.y - box.min.y };
   }, [scene]);
 
-  useFrame((state, delta) => {
-    const grp = group.current;
-    const inner = lean.current;
-    if (!grp || !inner) return;
-    const f = framesRef.current[index];
-    const walking = f?.state === "walk";
-    const speed = f ? f.speed : 0;
-    // Stride phase per figure (index-offset, as in Scene3D) so a walking
-    // crowd never bobs in sync.
-    const phase = state.clock.elapsedTime * BOB_FREQ + index * 1.7;
-    const bob = walking ? Math.abs(Math.sin(phase)) * BOB_AMP : 0;
+  const mixer = useMemo(() => new THREE.AnimationMixer(scene), [scene]);
+  const actions = useMemo(() => {
+    const make = (name: string) => {
+      // Exact name first; the exporter may suffix a duplicate clip name
+      // ("Walk.001"), so fall back to matching the base name.
+      const clip =
+        gltf.animations.find((a) => a.name === name) ??
+        gltf.animations.find((a) => a.name.replace(/\.\d+$/, "") === name);
+      if (!clip) return null;
+      const action = mixer.clipAction(clip);
+      action.setLoop(THREE.LoopRepeat, Infinity);
+      return action;
+    };
+    const idle = make("Idle");
+    const walk = make("Walk");
+    // Idle is the resting state: running from the start at full weight.
+    // Walk starts silent; the frame loop raises its weight on movement.
+    if (idle) idle.reset().setEffectiveWeight(1).play();
+    if (walk) walk.setEffectiveWeight(0);
+    return { idle, walk };
+  }, [gltf, mixer]);
 
+  // Current Walk blend weight (0 = pure Idle, 1 = pure Walk).
+  const walkWeight = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      mixer.stopAllAction();
+    };
+  }, [mixer]);
+
+  useFrame((_, delta) => {
+    const grp = group.current;
+    if (!grp) return;
+    const f = framesRef.current[index];
     if (f) {
-      grp.position.set(f.position[0], baseY + bob, f.position[1]);
+      grp.position.set(f.position[0], baseY, f.position[1]);
       grp.rotation.y = f.heading;
     }
 
-    // Ease lean/roll toward their targets: pitched and swaying in
-    // proportion to speed while walking, upright and still at rest.
-    const p = pose.current;
-    const k = Math.min(1, delta * SETTLE);
-    const leanTarget = walking ? LEAN_MAX * Math.min(1, speed) : 0;
-    const rollTarget = walking ? Math.sin(phase) * ROLL_MAX * Math.min(1, speed) : 0;
-    p.lean += (leanTarget - p.lean) * k;
-    p.roll += (rollTarget - p.roll) * k;
-    inner.rotation.x = p.lean;
-    inner.rotation.z = p.roll;
+    const { idle, walk } = actions;
+    if (walk) {
+      const walking = f?.state === "walk";
+      const target = walking ? 1 : 0;
+      const w = walkWeight.current;
+      if (w !== target) {
+        const step = delta / FADE_S;
+        walkWeight.current =
+          target > w ? Math.min(target, w + step) : Math.max(target, w - step);
+      }
+      const weight = walkWeight.current;
+      if (weight > 0 && !walk.isRunning()) walk.reset().play();
+      walk.setEffectiveWeight(weight);
+      if (idle) idle.setEffectiveWeight(1 - weight);
+      // Feet roughly match ground speed: the 1.0 s cycle at its natural
+      // rate near WALK_NOMINAL_SPEED, clamped to a modest band.
+      walk.timeScale = THREE.MathUtils.clamp(
+        (f ? f.speed : 0) / WALK_NOMINAL_SPEED,
+        0.7,
+        1.4,
+      );
+      // Fully idle again: stop the Walk action so a resting bot costs
+      // no clip evaluation beyond its Idle sway.
+      if (weight === 0 && walk.isRunning()) walk.stop();
+    }
+    mixer.update(delta);
   });
 
   return (
     <group ref={group} position={home}>
-      <group ref={lean}>
-        <primitive object={scene} position={[0, fit.lift, 0]} />
-      </group>
+      <primitive object={scene} position={[0, fit.lift, 0]} />
       {label && (
-        <Html center position={[0, fit.height + 0.4, 0]}>
+        <Html center position={[0, fit.height + 0.35, 0]}>
           <div className="w-cast-name">{label}</div>
         </Html>
       )}
