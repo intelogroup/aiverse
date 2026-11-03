@@ -70,6 +70,15 @@ export interface PlatformCrowdOptions {
   agentRadius?: number;
   maxSpeed?: number;
   /**
+   * Disc crowds only: radius of a central circular keep-out with NO
+   * walkable geometry inside it (e.g. the Agora's hologlobe). The navmesh
+   * becomes an annulus — the exact setup the spike proved (deck r=12,
+   * keep-out r=2.2: zero intrusions over 60 s at 60 Hz).
+   */
+  keepOutRadius?: number;
+  /** Geometry crowds only: navmesh voxel size, m (disc crowds use 0.1). */
+  cellSize?: number;
+  /**
    * Spawn positions in crowd space, one per agent (extra agents fall back
    * to random points). Lets the renderer spawn figures where its static
    * fallback ring already drew them, so the swap is seamless.
@@ -101,15 +110,16 @@ function ensureInit(): Promise<void> {
 // disc, so the first crowd pays generation and the rest reuse it. Cached
 // entries live for the page lifetime (a 2.4 m disc navmesh is ~100 polys);
 // dispose() therefore destroys only the Crowd, never the shared navmesh.
-const navMeshCache = new Map<number, Promise<{ navMesh: NavMesh; query: NavMeshQuery }>>();
+const navMeshCache = new Map<string, Promise<{ navMesh: NavMesh; query: NavMeshQuery }>>();
 
-function discNavMesh(radius: number, agentRadius: number) {
-  const key = radius;
+function discNavMesh(radius: number, agentRadius: number, keepOutRadius = 0) {
+  const key = `${radius}|${keepOutRadius}`;
   let entry = navMeshCache.get(key);
   if (!entry) {
     entry = (async () => {
       await ensureInit();
-      const { positions, indices } = buildDiscGeometry(radius);
+      const { positions, indices } =
+        keepOutRadius > 0 ? buildAnnulusGeometry(radius, keepOutRadius) : buildDiscGeometry(radius);
       const gen = generateSoloNavMesh(positions, indices, {
         cs: CELL_SIZE,
         // GOTCHA (found by the spike, do not "fix"): walkableRadius is in
@@ -145,6 +155,67 @@ function buildDiscGeometry(radius: number, segments = 128): { positions: number[
   return { positions, indices };
 }
 
+/**
+ * Annulus (disc with a central hole) at y=0: interleaved inner/outer ring
+ * vertices. The hole IS the keep-out — no walkable geometry exists inside
+ * the inner radius. Winding matches buildDiscGeometry (+Y up). This is
+ * the spike's proven geometry, carried over unchanged.
+ */
+export function buildAnnulusGeometry(
+  radius: number,
+  keepOutRadius: number,
+  segments = 128,
+): { positions: number[]; indices: number[] } {
+  const positions: number[] = [];
+  const indices: number[] = [];
+  for (let i = 0; i < segments; i++) {
+    const t = (i / segments) * Math.PI * 2;
+    positions.push(Math.cos(t) * keepOutRadius, 0, Math.sin(t) * keepOutRadius); // inner i
+    positions.push(Math.cos(t) * radius, 0, Math.sin(t) * radius); // outer i
+  }
+  for (let i = 0; i < segments; i++) {
+    const innerI = i * 2;
+    const outerI = innerI + 1;
+    const innerN = ((i + 1) % segments) * 2;
+    const outerN = innerN + 1;
+    indices.push(innerI, innerN, outerI, outerI, innerN, outerN);
+  }
+  return { positions, indices };
+}
+
+/**
+ * Flat subdivided rectangle in world XZ at height y (for crowds whose
+ * navmesh should live directly in world coordinates, e.g. a city street
+ * block). +Y-up winding, same as the disc builders.
+ */
+export function buildRectGeometry(
+  cx: number,
+  cz: number,
+  y: number,
+  width: number,
+  depth: number,
+  cells = 8,
+): { positions: number[]; indices: number[] } {
+  const positions: number[] = [];
+  const indices: number[] = [];
+  for (let j = 0; j <= cells; j++) {
+    for (let i = 0; i <= cells; i++) {
+      positions.push(cx - width / 2 + (i / cells) * width, y, cz - depth / 2 + (j / cells) * depth);
+    }
+  }
+  const row = cells + 1;
+  for (let j = 0; j < cells; j++) {
+    for (let i = 0; i < cells; i++) {
+      const a = j * row + i;
+      const b = a + 1;
+      const c = a + row;
+      const d = c + 1;
+      indices.push(a, c, b, b, c, d);
+    }
+  }
+  return { positions, indices };
+}
+
 interface AgentRec {
   agent: CrowdAgent;
   target: { x: number; z: number };
@@ -167,8 +238,52 @@ export async function createPlatformCrowd(
   if (opts.seed !== undefined) setRandomSeed(opts.seed);
 
   const agentRadius = opts.agentRadius ?? AGENT_RADIUS;
+  const { navMesh, query } = await discNavMesh(radius, agentRadius, opts.keepOutRadius ?? 0);
+  return driveCrowd(navMesh, query, agentCount, opts);
+}
+
+/**
+ * Build a wandering crowd over caller-supplied navmesh geometry (positions
+ * / indices in whatever coordinate space the caller renders in — the
+ * frames come back in that same space). Used for the city world, whose
+ * walkable area is a street rectangle in world coordinates. The navmesh
+ * is one-off (not cached like the discs) and is destroyed on dispose.
+ */
+export async function createGeometryCrowd(
+  positions: number[],
+  indices: number[],
+  agentCount: number,
+  opts: PlatformCrowdOptions = {},
+): Promise<PlatformCrowd> {
+  await ensureInit();
+  if (opts.seed !== undefined) setRandomSeed(opts.seed);
+
+  const agentRadius = opts.agentRadius ?? AGENT_RADIUS;
+  const cs = opts.cellSize ?? 0.3;
+  const gen = generateSoloNavMesh(positions, indices, {
+    cs,
+    // Same voxel-units rule as the disc path (see discNavMesh).
+    walkableRadius: Math.ceil(agentRadius / cs),
+  });
+  if (!gen.success) {
+    throw new Error(`locomotion: navmesh generation failed for geometry crowd: ${gen.error}`);
+  }
+  const navMesh = gen.navMesh;
+  return driveCrowd(navMesh, new NavMeshQuery(navMesh), agentCount, opts, () => {
+    (navMesh as { destroy?: () => void }).destroy?.();
+  });
+}
+
+/** Shared crowd driver: spawn/retarget/step bookkeeping over any navmesh. */
+function driveCrowd(
+  navMesh: NavMesh,
+  query: NavMeshQuery,
+  agentCount: number,
+  opts: PlatformCrowdOptions,
+  onDispose?: () => void,
+): PlatformCrowd {
+  const agentRadius = opts.agentRadius ?? AGENT_RADIUS;
   const maxSpeed = opts.maxSpeed ?? AGENT_MAX_SPEED;
-  const { navMesh, query } = await discNavMesh(radius, agentRadius);
   const crowd = new Crowd(navMesh, { maxAgents: MAX_PLATFORM_AGENTS, maxAgentRadius: agentRadius });
 
   const randomPoint = (): { x: number; z: number } => {
@@ -265,6 +380,7 @@ export async function createPlatformCrowd(
       disposed = true;
       recs.length = 0;
       crowd.destroy();
+      onDispose?.();
     },
   };
 }

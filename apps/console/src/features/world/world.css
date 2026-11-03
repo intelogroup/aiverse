@@ -676,3 +676,50 @@
     display: none;
   }
 }
+
+/* GLB worlds (default stage) */
+.w-glb-root {
+  position: absolute;
+  inset: 0;
+}
+.world-root .w-glb-toggle {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(9, 13, 28, 0.85);
+  border: 1px solid var(--w-border);
+  z-index: 5;
+}
+.world-root .w-glb-toggle button {
+  background: transparent;
+  color: var(--w-dim);
+  border: 1px solid transparent;
+  border-radius: 9px;
+  padding: 6px 16px;
+  font: inherit;
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.world-root .w-glb-toggle button.active {
+  background: rgba(110, 168, 255, 0.16);
+  border-color: rgba(110, 168, 255, 0.45);
+  color: var(--w-text);
+}
+.w-cast-name {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(9, 13, 28, 0.88);
+  border: 1px solid var(--w-border);
+  color: var(--w-accent);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  pointer-events: none;
+}
