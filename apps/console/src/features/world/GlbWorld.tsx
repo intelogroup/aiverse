@@ -1,6 +1,8 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, useGLTF } from "@react-three/drei";
+import * as THREE from "three";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import {
   buildRectGeometry,
   createGeometryCrowd,
@@ -24,9 +26,14 @@ import { CastFigure } from "./CastFigure";
 //   space — the Blender Y axis lands negated in glTF Z).
 //
 // Spectator framing throughout: a perspective camera + OrbitControls,
-// no avatar driving. Cast membership comes from WorldView (owned agents
-// first, then the public roster) — the same data the ring world's
-// figures are drawn from.
+// no avatar driving. Each place opens at an elevated three-quarter view
+// that frames its whole play area; OrbitControls stays above the horizon
+// so nobody can duck under the world. The stage is lit for PBR: a
+// RoomEnvironment image-based light (three's built-in, PMREM-baked — no
+// HDR files) for base illumination, one shadow-casting key light per
+// place for grounding, and a modest ambient fill. Cast membership comes
+// from WorldView (owned agents first, then the public roster) — the
+// same data the ring world's figures are drawn from.
 
 export type CastMember = { id: string; name: string };
 type Place = "agora" | "city";
@@ -61,6 +68,97 @@ function homeFor(place: Place, i: number, n: number): [number, number, number] {
 function WorldEnv({ url }: { url: string }) {
   const gltf = useGLTF(url);
   return <primitive object={gltf.scene} />;
+}
+
+/**
+ * Image-based lighting from three's built-in RoomEnvironment, PMREM-baked
+ * once per mount (the Canvas remounts per place). Kept at moderate
+ * intensity so the worlds' emissive glow rings and eye screens still read
+ * as glow, and paired with a slight exposure lift so the dark deck plates
+ * show their baked texture instead of washing to black.
+ */
+function StageEnvironment() {
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+  useEffect(() => {
+    const pmrem = new THREE.PMREMGenerator(gl);
+    const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = envMap;
+    scene.environmentIntensity = 0.6;
+    gl.toneMappingExposure = 1.1;
+    return () => {
+      scene.environment = null;
+      envMap.dispose();
+      pmrem.dispose();
+    };
+  }, [gl, scene]);
+  return null;
+}
+
+/**
+ * One shadow-casting key light per place, its ortho shadow camera fitted
+ * to the play area. The target is added to the scene graph explicitly —
+ * three only tracks a light's aim if the target's matrixWorld updates.
+ */
+function KeyLight({ place }: { place: Place }) {
+  const light = useRef<THREE.DirectionalLight>(null!);
+  const scene = useThree((s) => s.scene);
+  const agora = place === "agora";
+  useEffect(() => {
+    const l = light.current;
+    l.target.position.set(agora ? 0 : CITY_CENTER[0], 0, agora ? 0 : CITY_CENTER[1]);
+    scene.add(l.target);
+    l.target.updateMatrixWorld();
+    return () => {
+      l.target.removeFromParent();
+    };
+  }, [agora, scene]);
+  return (
+    <directionalLight
+      ref={light}
+      castShadow
+      position={agora ? [14, 22, 10] : [-75, 150, -30]}
+      intensity={agora ? 2.4 : 2.6}
+      shadow-mapSize-width={2048}
+      shadow-mapSize-height={2048}
+      shadow-camera-left={agora ? -13 : -72}
+      shadow-camera-right={agora ? 13 : 72}
+      shadow-camera-top={agora ? 13 : 72}
+      shadow-camera-bottom={agora ? -13 : -72}
+      shadow-camera-near={agora ? 2 : 10}
+      shadow-camera-far={agora ? 60 : 340}
+      shadow-bias={-0.00015}
+      shadow-normalBias={agora ? 0.02 : 0.06}
+    />
+  );
+}
+
+/**
+ * Flags every mesh in the stage as a shadow caster/receiver. The world
+ * GLB and the cast figures both arrive as raw primitives (neither sets
+ * shadow flags), so the stage tags them itself: opaque meshes cast and
+ * receive, transparent ones (the hologlobe shell) only receive. The
+ * walk is throttled and skips meshes it has already tagged, so after the
+ * first pass it costs a few hundred no-op node visits a few times a
+ * second — cast members load async, hence the repeats.
+ */
+function ShadowTagger() {
+  const scene = useThree((s) => s.scene);
+  const acc = useRef(1); // first frame tags immediately
+  useFrame((_, delta) => {
+    acc.current += delta;
+    if (acc.current < 0.3) return;
+    acc.current = 0;
+    scene.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh || mesh.userData.__glbShadowTagged) return;
+      const mat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+      mesh.castShadow = !mat?.transparent;
+      mesh.receiveShadow = true;
+      mesh.userData.__glbShadowTagged = true;
+    });
+  });
+  return null;
 }
 
 /** Owns one Recast crowd for the active place and steps it every frame. */
@@ -147,20 +245,34 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   const [place, setPlace] = useState<Place>("agora");
   const agora = place === "agora";
 
+  // Elevated three-quarter spectator defaults, worked out from the play
+  // areas: Agora from 25 m at ~37° elevation frames the whole 9.7 m deck
+  // disc with headroom; City from ~114 m at ~40° frames the whole
+  // 110×70 m street rectangle the same way.
   const camera = useMemo(
     () =>
       agora
-        ? { position: [14, 10.5, 14] as [number, number, number], fov: 45, near: 0.1, far: 600 }
-        : { position: [-95, 60, 5] as [number, number, number], fov: 45, near: 0.5, far: 3000 },
+        ? { position: [14, 16, 14] as [number, number, number], fov: 45, near: 0.1, far: 600 }
+        : { position: [-103, 74, -33] as [number, number, number], fov: 45, near: 0.5, far: 3000 },
     [agora],
   );
-  const target: [number, number, number] = agora ? [0, 0.8, 0] : [CITY_CENTER[0], 1, CITY_CENTER[1]];
+  const target: [number, number, number] = agora
+    ? [0, AGORA_GROUND_Y, 0]
+    : [CITY_CENTER[0], 1, CITY_CENTER[1]];
 
   return (
     <div className="w-glb-root">
-      <Canvas key={place} camera={camera} gl={{ antialias: true }} style={{ position: "absolute", inset: 0 }}>
-        <ambientLight intensity={0.75} />
-        <directionalLight position={agora ? [12, 18, 8] : [-80, 140, 20]} intensity={1.1} />
+      <Canvas
+        key={place}
+        camera={camera}
+        shadows="soft"
+        gl={{ antialias: true }}
+        style={{ position: "absolute", inset: 0 }}
+      >
+        <ambientLight intensity={0.35} />
+        <StageEnvironment />
+        <KeyLight place={place} />
+        <ShadowTagger />
         <Suspense fallback={null}>
           <WorldEnv url={agora ? AGORA_URL : CITY_URL} />
           <CrowdCast place={place} cast={cast} />
@@ -170,8 +282,8 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           target={target}
           enableDamping
           maxPolarAngle={Math.PI / 2 - 0.04}
-          minDistance={agora ? 4 : 15}
-          maxDistance={agora ? 70 : 900}
+          minDistance={agora ? 6 : 20}
+          maxDistance={agora ? 55 : 450}
         />
       </Canvas>
       <div className="w-glb-toggle" role="group" aria-label="Choose world">
