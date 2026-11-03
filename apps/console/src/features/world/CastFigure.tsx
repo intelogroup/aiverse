@@ -1,32 +1,32 @@
-import { useEffect, useMemo, useRef, type RefObject } from "react";
+import { useMemo, useRef, type RefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Html, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
-import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import type { AgentFrame } from "./locomotion";
-import { pinRootMotion } from "./clipUtils";
 
-// CastFigure — a Y Bot (Mixamo-rigged, 65 bones) driven by the same
-// AgentFrame stream as every other figure in the world. One GLB is loaded
-// once (drei cache) and cloned per cast member with SkeletonUtils, so each
-// bot owns its skeleton and AnimationMixer while sharing geometry.
+// CastFigure — a White Bot (the Agora's greeter body) driven by the same
+// AgentFrame stream as every other figure in the world. The model is a
+// STATIC posed mesh — no skeleton, no clips — so one GLB loads once (drei
+// cache) and each cast member is a plain hierarchy clone: geometry and
+// materials are shared across instances, nothing is skinned or mixed.
 //
-// The model ships exactly two clips: "Walk" (1.0 s) and "Rumba". There is
-// NO idle clip, and none is faked: at crowd-idle the Walk action fades out
-// and the figure simply stands in its bind pose. While walking, the clip
-// plays with timeScale proportional to ground speed (anti-skate, same
-// convention as RiggedFigure) and its root travel is pinned
-// (pinRootMotion) because the crowd — not the clip — owns position.
+// Motion life comes from the crowd frames plus the same procedural
+// treatment the ring world's unrigged figures use in Scene3D.tsx: while
+// walking, a subtle vertical bob and forward lean (with a slight roll
+// from the stride), all easing back to a settled upright stance at rest.
+// Position and heading are owned by the crowd, exactly as before.
 
-export const BOT_GLB_URL = "/assets/bot-ybot.glb";
+export const BOT_GLB_URL = "/assets/cast-whitebot.glb";
 
-// The source model stands ~3.57 m; on the Agora deck (19.4 m across) and
-// the city streets alike, a 1.8 m figure reads as a person-scale bot.
-const TARGET_HEIGHT = 1.8;
-// Walk stride is ~2.0 m per 1.0 s loop at this height, so the cycle is
-// skate-free when timeScale = speed / WALK_NOMINAL_SPEED.
-const WALK_NOMINAL_SPEED = 2.0;
-const CROSSFADE_S = 0.25;
+// Ported from Scene3D.tsx's figure treatment (same constants, so the two
+// worlds read alike): bob is |sin| at ~9 rad/s, 5 cm tall; lean is a
+// fixed 0.1 rad pitch while walking. Roll is the stride sway on top.
+const BOB_FREQ = 9;
+const BOB_AMP = 0.05;
+const LEAN_MAX = 0.1;
+const ROLL_MAX = 0.035;
+// Smoothing rate for lean/roll so starts and stops settle, not snap.
+const SETTLE = 8;
 
 export function CastFigure({
   framesRef,
@@ -48,72 +48,57 @@ export function CastFigure({
 }) {
   const gltf = useGLTF(BOT_GLB_URL);
   const group = useRef<THREE.Group>(null);
+  const lean = useRef<THREE.Group>(null);
+  const pose = useRef({ lean: 0, roll: 0 });
 
-  // Own skeleton + own scene graph per cast member.
-  const scene = useMemo(() => skeletonClone(gltf.scene), [gltf]);
+  // Shared geometry/materials per instance — Object3D.clone() on an
+  // unrigged hierarchy reuses both; only transforms are per-figure.
+  const scene = useMemo(() => gltf.scene.clone(), [gltf]);
 
-  // Normalize once: uniform scale to TARGET_HEIGHT, floor lifted to y=0.
+  // The export is grounded (feet at y = 0, 1.15 m tall); measure anyway so
+  // the label height tracks the real bounds and any floor offset lifts out.
   const fit = useMemo(() => {
     scene.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(scene);
-    const height = box.max.y - box.min.y;
-    const s = height > 0 ? TARGET_HEIGHT / height : 1;
-    return { scale: s, lift: -box.min.y * s };
+    return { lift: -box.min.y, height: box.max.y - box.min.y };
   }, [scene]);
 
-  const mixer = useMemo(() => new THREE.AnimationMixer(scene), [scene]);
-  const walk = useMemo(() => {
-    const clip = gltf.animations.find((a) => a.name === "Walk");
-    if (!clip) return null;
-    const action = mixer.clipAction(pinRootMotion(clip.clone()));
-    action.setLoop(THREE.LoopRepeat, Infinity);
-    return action;
-  }, [gltf, mixer]);
-
-  const fadingOut = useRef(false);
-
-  useEffect(() => {
-    return () => {
-      mixer.stopAllAction();
-    };
-  }, [mixer]);
-
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     const grp = group.current;
-    if (!grp) return;
+    const inner = lean.current;
+    if (!grp || !inner) return;
     const f = framesRef.current[index];
-    if (f) {
-      grp.position.set(f.position[0], baseY, f.position[1]);
-      grp.rotation.y = f.heading;
+    const walking = f?.state === "walk";
+    const speed = f ? f.speed : 0;
+    // Stride phase per figure (index-offset, as in Scene3D) so a walking
+    // crowd never bobs in sync.
+    const phase = state.clock.elapsedTime * BOB_FREQ + index * 1.7;
+    const bob = walking ? Math.abs(Math.sin(phase)) * BOB_AMP : 0;
 
-      if (walk) {
-        if (f.state === "walk") {
-          if (!walk.isRunning()) {
-            walk.reset().setEffectiveWeight(0).play();
-          }
-          fadingOut.current = false;
-          walk.fadeIn(CROSSFADE_S);
-          walk.timeScale = THREE.MathUtils.clamp(f.speed / WALK_NOMINAL_SPEED, 0.3, 1.2);
-        } else if (walk.isRunning()) {
-          walk.fadeOut(CROSSFADE_S);
-          fadingOut.current = true;
-        }
-      }
+    if (f) {
+      grp.position.set(f.position[0], baseY + bob, f.position[1]);
+      grp.rotation.y = f.heading;
     }
-    mixer.update(delta);
-    // Once the idle fade has fully drained, stop the action so an idle
-    // bot costs no clip evaluation — its bind pose is the standing pose.
-    if (walk && fadingOut.current && walk.getEffectiveWeight() < 0.02) {
-      walk.stop();
-      fadingOut.current = false;
-    }
+
+    // Ease lean/roll toward their targets: pitched and swaying in
+    // proportion to speed while walking, upright and still at rest.
+    const p = pose.current;
+    const k = Math.min(1, delta * SETTLE);
+    const leanTarget = walking ? LEAN_MAX * Math.min(1, speed) : 0;
+    const rollTarget = walking ? Math.sin(phase) * ROLL_MAX * Math.min(1, speed) : 0;
+    p.lean += (leanTarget - p.lean) * k;
+    p.roll += (rollTarget - p.roll) * k;
+    inner.rotation.x = p.lean;
+    inner.rotation.z = p.roll;
   });
 
   return (
     <group ref={group} position={home}>
-      <primitive object={scene} scale={fit.scale} position={[0, fit.lift, 0]} />
+      <group ref={lean}>
+        <primitive object={scene} position={[0, fit.lift, 0]} />
+      </group>
       {label && (
-        <Html center position={[0, TARGET_HEIGHT + 0.4, 0]}>
+        <Html center position={[0, fit.height + 0.4, 0]}>
           <div className="w-cast-name">{label}</div>
         </Html>
       )}
