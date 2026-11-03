@@ -298,9 +298,15 @@ describe("collusion: bazaar task sides", () => {
     expect((await complete(hWorker, task.id, "ring probe evidence text")).status).toBe(200);
     expect((await verify(c, task.id, "accept")).status).toBe(403); // same-owner critic
 
-    // An independent critic rejects: poster refunded in full. That is the
-    // ONLY money movement the ring's task may ever cause.
+    // An independent critic rejects: NO refund at reject — the escrow stays
+    // locked behind the reopened task (AIV-REJECT-REOPEN-ESCROW-001), so
+    // the poster sits at 80 until it terminally closes the task. The poster
+    // cancels the reopened task: that is the ONLY money movement the ring's
+    // task may ever cause, and it restores the poster exactly.
     expect((await verify(hCritic, task.id, "reject")).status).toBe(200);
+    expect(await getBalance(p.agentId)).toBe(80);
+    const cancel = await app.request(`/bazaar/tasks/${task.id}/cancel`, { method: "POST", headers: auth(p.agentToken) });
+    expect(cancel.status).toBe(200);
 
     // Ring balances: exactly where they started (100 each). No payout, no fee.
     expect(await getBalance(p.agentId)).toBe(100);
@@ -337,17 +343,19 @@ describe("collusion: bazaar task sides", () => {
     expect(await getBalance(hWorker.agentId)).toBe(workerBefore + 15);
     expect(await getBalance(hCritic.agentId)).toBe(criticBefore + 2); // base fee, immediate verdict
 
-    // Reject path: refund + reopen.
+    // Reject path: escrow stays locked + reopen; the refund is the cancel.
     const task2 = await postTask(hPoster, 12);
     const posterBefore = await getBalance(hPoster.agentId);
     expect((await claim(hWorker, task2.id)).status).toBe(200);
     expect((await complete(hWorker, task2.id)).status).toBe(200);
     expect((await verify(hCritic, task2.id, "reject")).status).toBe(200);
-    expect(await getBalance(hPoster.agentId)).toBe(posterBefore + 12);
+    // AIV-REJECT-REOPEN-ESCROW-001: no refund at reject (was posterBefore + 12).
+    expect(await getBalance(hPoster.agentId)).toBe(posterBefore);
     expect((await taskRow(task2.id)).status).toBe("open");
     // Leave it canceled so it doesn't sit open for other tests' board reads.
     const cancel = await app.request(`/bazaar/tasks/${task2.id}/cancel`, { method: "POST", headers: auth(hPoster.agentToken) });
     expect(cancel.status).toBe(200);
+    expect(await getBalance(hPoster.agentId)).toBe(posterBefore + 12);
   });
 });
 
