@@ -3,7 +3,13 @@
 // environment is jsdom, so this file opts back into node.
 
 import { describe, expect, it } from "vitest";
-import { animState, createPlatformCrowd } from "./locomotion";
+import {
+  animState,
+  buildAnnulusGeometry,
+  buildRectGeometry,
+  createGeometryCrowd,
+  createPlatformCrowd,
+} from "./locomotion";
 
 describe("animState", () => {
   it("is idle at rest and just below the walk threshold", () => {
@@ -68,6 +74,37 @@ describe("createPlatformCrowd", () => {
     60_000,
   );
 
+  it(
+    "keeps agents out of the hologlobe keep-out on the Agora deck annulus",
+    async () => {
+      const crowd = await createPlatformCrowd(9.7, 6, { seed: 11, keepOutRadius: 2.2 });
+      const dt = 1 / 60;
+      let minRadius = Infinity;
+      let maxRadius = 0;
+
+      for (let s = 0; s < 30 * 60; s++) {
+        const frames = crowd.step(dt);
+        expect(frames).toHaveLength(6);
+        for (const f of frames) {
+          const r = Math.hypot(f.position[0], f.position[1]);
+          if (r < minRadius) minRadius = r;
+          if (r > maxRadius) maxRadius = r;
+        }
+      }
+
+      // No walkable geometry exists inside r=2.2 or outside r=9.7, so
+      // agent centers can never cross those radii (the spike's assertion,
+      // on the exact Agora dimensions).
+      expect(minRadius).toBeGreaterThanOrEqual(2.2);
+      expect(maxRadius).toBeLessThanOrEqual(9.7 + 1e-6);
+      const finalFrames = crowd.step(0);
+      expect(finalFrames.filter((f) => f.targetsReached >= 1).length).toBeGreaterThanOrEqual(4);
+
+      crowd.dispose();
+    },
+    60_000,
+  );
+
   it("reconciles the agent set with setAgentCount instead of rebuilding", async () => {
     const crowd = await createPlatformCrowd(6, 3, { seed: 7 });
     expect(crowd.agentCount).toBe(3);
@@ -84,4 +121,70 @@ describe("createPlatformCrowd", () => {
     crowd.dispose();
     expect(crowd.step(1 / 60)).toEqual([]);
   });
+});
+
+describe("navmesh geometry builders", () => {
+  it("builds an annulus whose vertices sit exactly on the inner/outer radii", () => {
+    const { positions, indices } = buildAnnulusGeometry(9.7, 2.2, 64);
+    expect(positions.length).toBe(64 * 2 * 3);
+    expect(indices.length).toBe(64 * 6);
+    for (let i = 0; i < positions.length; i += 3) {
+      const r = Math.hypot(positions[i], positions[i + 2]);
+      expect(Math.abs(r - 2.2) < 1e-6 || Math.abs(r - 9.7) < 1e-6).toBe(true);
+      expect(positions[i + 1]).toBe(0);
+    }
+    for (const ix of indices) expect(ix).toBeLessThan(128);
+  });
+
+  it("builds a subdivided rect centered where asked, at the given height", () => {
+    const { positions, indices } = buildRectGeometry(-165, -95, 0.2, 110, 70, 4);
+    expect(positions.length).toBe(25 * 3);
+    expect(indices.length).toBe(16 * 6);
+    const xs = positions.filter((_, i) => i % 3 === 0);
+    const ys = positions.filter((_, i) => i % 3 === 1);
+    const zs = positions.filter((_, i) => i % 3 === 2);
+    expect(Math.min(...xs)).toBeCloseTo(-220);
+    expect(Math.max(...xs)).toBeCloseTo(-110);
+    expect(Math.min(...zs)).toBeCloseTo(-130);
+    expect(Math.max(...zs)).toBeCloseTo(-60);
+    expect(new Set(ys)).toEqual(new Set([0.2]));
+  });
+});
+
+describe("createGeometryCrowd", () => {
+  it(
+    "wanders a world-space street rectangle without leaving it",
+    async () => {
+      const geo = buildRectGeometry(-165, -95, 0.2, 110, 70);
+      const crowd = await createGeometryCrowd(geo.positions, geo.indices, 4, {
+        seed: 3,
+        cellSize: 0.5,
+      });
+      const dt = 1 / 60;
+      const pathLength = [0, 0, 0, 0];
+      let prev: [number, number][] | null = null;
+      for (let s = 0; s < 60 * 60; s++) {
+        const frames = crowd.step(dt);
+        expect(frames).toHaveLength(4);
+        frames.forEach((f, i) => {
+          expect(f.position[0]).toBeGreaterThanOrEqual(-220);
+          expect(f.position[0]).toBeLessThanOrEqual(-110);
+          expect(f.position[1]).toBeGreaterThanOrEqual(-130);
+          expect(f.position[1]).toBeLessThanOrEqual(-60);
+          if (prev) pathLength[i] += Math.hypot(f.position[0] - prev[i][0], f.position[1] - prev[i][1]);
+        });
+        prev = frames.map((f) => f.position);
+      }
+      // Every agent genuinely walks the streets (tens of meters in 60 s).
+      // Arrivals are rare by design at this scale — targets average ~50 m
+      // away while the wander policy retargets every 8 s — so the test
+      // asserts travel + bounds, not arrival counts.
+      for (const d of pathLength) expect(d).toBeGreaterThan(40);
+      const finalFrames = crowd.step(0);
+      expect(finalFrames.reduce((sum, f) => sum + f.targetsReached, 0)).toBeGreaterThanOrEqual(1);
+      crowd.dispose();
+      expect(crowd.step(1 / 60)).toEqual([]);
+    },
+    60_000,
+  );
 });

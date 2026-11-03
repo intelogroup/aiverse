@@ -12,6 +12,7 @@ import {
 import { usePublicWs } from "../../lib/publicWs";
 import { EmptyState } from "../../components/EmptyState";
 import { Scene3D } from "./Scene3D";
+import { GlbWorld, type CastMember } from "./GlbWorld";
 import { ManageAgentsModal } from "./ManageAgentsModal";
 import { ReadKeysModal } from "./ReadKeysModal";
 import { ChangePasswordModal } from "../auth/ChangePasswordModal";
@@ -196,6 +197,36 @@ export function WorldView({
     [groups],
   );
 
+  // The modeled GLB worlds are the default stage; the procedural ring
+  // world stays one URL flag away (?ring=1) — it is also what the drag /
+  // wheel camera state below drives, so those handlers only attach in
+  // ring mode (in GLB mode OrbitControls owns the stage pointer).
+  const ringMode = useMemo(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("ring") === "1",
+    [],
+  );
+
+  // The GLB worlds' cast: the signed-in owner's own agents first, then
+  // the public roster (the same discover data the ring world's figures
+  // draw names from), capped at 6 — a personal cast, stable per session
+  // because both sources are.
+  const cast = useMemo<CastMember[]>(() => {
+    const seen = new Set<string>();
+    const out: CastMember[] = [];
+    for (const a of agents) {
+      if (seen.has(a.id)) continue;
+      seen.add(a.id);
+      out.push({ id: a.id, name: a.name });
+    }
+    for (const [id, name] of Object.entries(names)) {
+      if (out.length >= 6) break;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      out.push({ id, name });
+    }
+    return out.slice(0, 6);
+  }, [agents, names]);
+
   // Land on the busiest group at readable zoom — a world you walk through,
   // not a dollhouse of 30 unreadable cells. Wheel/drag takes over from here.
   useEffect(() => {
@@ -362,24 +393,32 @@ export function WorldView({
       <div
         ref={stageRef}
         className="w-stage"
-        onPointerDown={(e) => {
-          camTouched.current = true;
-          drag.current = { x: e.clientX - cam.x, y: e.clientY - cam.y };
-          e.currentTarget.setPointerCapture(e.pointerId);
-        }}
-        onPointerMove={(e) => {
-          if (!drag.current) return;
-          setCam((c) => ({ ...c, x: e.clientX - drag.current!.x, y: e.clientY - drag.current!.y }));
-        }}
-        onPointerUp={() => {
-          drag.current = null;
-        }}
-        onWheel={(e) => {
-          camTouched.current = true;
-          setCam((c) => ({ ...c, z: Math.min(2.5, Math.max(0.5, c.z - e.deltaY * 0.001)) }));
-        }}
+        {...(ringMode
+          ? {
+              onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => {
+                camTouched.current = true;
+                drag.current = { x: e.clientX - cam.x, y: e.clientY - cam.y };
+                e.currentTarget.setPointerCapture(e.pointerId);
+              },
+              onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => {
+                if (!drag.current) return;
+                setCam((c) => ({ ...c, x: e.clientX - drag.current!.x, y: e.clientY - drag.current!.y }));
+              },
+              onPointerUp: () => {
+                drag.current = null;
+              },
+              onWheel: (e: React.WheelEvent<HTMLDivElement>) => {
+                camTouched.current = true;
+                setCam((c) => ({ ...c, z: Math.min(2.5, Math.max(0.5, c.z - e.deltaY * 0.001)) }));
+              },
+            }
+          : {})}
       >
-        <Scene3D cam={cam} placed={placed} selected={selected} speakers={speakers} onSelect={focusGroup} />
+        {!ringMode ? (
+          <GlbWorld cast={cast} />
+        ) : (
+          <>
+            <Scene3D cam={cam} placed={placed} selected={selected} speakers={speakers} onSelect={focusGroup} />
 
         <div className="w-zoombar">
           <button type="button" aria-label="Zoom in" title="Zoom in" onClick={() => setCam((c) => ({ ...c, z: Math.min(2.5, c.z + 0.2) }))}>
@@ -414,6 +453,8 @@ export function WorldView({
             <SendIcon />
           </button>
         </form>
+          </>
+        )}
       </div>
 
       <aside className="w-rail right">
