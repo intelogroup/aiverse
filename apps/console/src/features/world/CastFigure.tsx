@@ -26,6 +26,29 @@ export const BOT_GLB_URL = "/assets/cast-bodyblock.glb";
 
 // Ground speed at which the Walk cycle plays at its natural rate.
 const WALK_NOMINAL_SPEED = 1.0;
+
+// Face-screen accents: the graphite cast reads as one uniform crowd until
+// each bot's screen glows its own color. The palette is curated (bright,
+// glow-friendly hues), and the pick is a stable hash of the roster label
+// so an agent keeps its color wherever it stands. The asset ships the
+// screen emissive white; this is the only place the tint is applied.
+const ACCENT_PALETTE = [
+  "#2fd4ff", // cyan
+  "#ffa028", // amber
+  "#ff5cc8", // pink
+  "#b6f04a", // lime
+  "#8f7bff", // violet
+  "#ff6a4d", // coral
+  "#3affc8", // mint
+  "#ffe14d", // yellow
+];
+
+export function accentForFigure(label: string | undefined, index: number): string {
+  const s = label ?? String(index);
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return ACCENT_PALETTE[h % ACCENT_PALETTE.length];
+}
 // Time for the walk weight to ramp 0→1 (the Idle↔Walk crossfade).
 const FADE_S = 0.25;
 
@@ -52,6 +75,23 @@ export function CastFigure({
 
   // Own skeleton + own scene graph per cast member.
   const scene = useMemo(() => skeletonClone(gltf.scene), [gltf]);
+
+  // Tint this figure's face screen with its accent. Materials are shared
+  // across clones, so the screen material is cloned before tinting —
+  // every other part keeps the shared graphite finish.
+  useMemo(() => {
+    const accent = new THREE.Color(accentForFigure(label, index));
+    scene.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      const mat = o.material;
+      if (!Array.isArray(mat) && mat.name === "screen" && mat instanceof THREE.MeshStandardMaterial) {
+        const own = mat.clone();
+        own.emissive.copy(accent);
+        own.emissiveIntensity = 1.8;
+        o.material = own;
+      }
+    });
+  }, [scene, label, index]);
 
   // No scaling — the export is authored at 1.25 m with feet at y = 0.
   // Measure anyway so the floor lift and label height track real bounds.
