@@ -28,12 +28,14 @@ import { CastFigure } from "./CastFigure";
 // Spectator framing throughout: a perspective camera + OrbitControls,
 // no avatar driving. Each place opens at an elevated three-quarter view
 // that frames its whole play area; OrbitControls stays above the horizon
-// so nobody can duck under the world. The stage is lit for PBR: a
-// RoomEnvironment image-based light (three's built-in, PMREM-baked — no
-// HDR files) for base illumination, one shadow-casting key light per
-// place for grounding, and a modest ambient fill. Cast membership comes
-// from WorldView (owned agents first, then the public roster) — the
-// same data the ring world's figures are drawn from.
+// so nobody can duck under the world. The stage is lit for PBR: the
+// Agora wears its authored sky (a Blender-baked equirect panorama as
+// background + PMREM image-based light, with matched exponential fog);
+// the City still uses three's built-in RoomEnvironment. One
+// shadow-casting key light per place for grounding, and a modest
+// ambient fill. Cast membership comes from WorldView (owned agents
+// first, then the public roster) — the same data the ring world's
+// figures are drawn from.
 
 export type CastMember = { id: string; name: string };
 type Place = "agora" | "city";
@@ -70,28 +72,67 @@ function WorldEnv({ url }: { url: string }) {
   return <primitive object={gltf.scene} />;
 }
 
+const SKY_URL = "/assets/sky-equi.jpg";
+// Atmosphere values graded against the primary design boards (Blender
+// sky pass, 2026-11-04): the mist in the Blender scene blends toward
+// #46548c over 25–210 m; FogExp2 at this density reaches the same ~10%
+// haze at 100 m, so depth reads identically in renders and live.
+const SKY_FOG_COLOR = 0x46548c;
+const SKY_FOG_DENSITY = 0.0035;
+
 /**
- * Image-based lighting from three's built-in RoomEnvironment, PMREM-baked
- * once per mount (the Canvas remounts per place). Kept at moderate
- * intensity so the worlds' emissive glow rings and eye screens still read
- * as glow, and paired with a slight exposure lift so the dark deck plates
- * show their baked texture instead of washing to black.
+ * Environment per place (the Canvas remounts per place).
+ *
+ * Agora wears the authored sky: an equirectangular panorama baked from
+ * the Blender scene (gradient + nebula + spire ring) serves as both the
+ * visible background and the PMREM image-based light, and a matched
+ * FogExp2 supplies the distance haze the Blender mist pass grades with.
+ * Environment intensity stays near the old RoomEnvironment level so the
+ * worlds' emissive glow rings and eye screens still read as glow, and a
+ * slight exposure lift keeps the dark deck plates from washing to black.
+ *
+ * City keeps the neutral RoomEnvironment for now — it gets its own sky
+ * pass later; the Agora fog density would drown its 450 m sightlines.
  */
-function StageEnvironment() {
+function StageEnvironment({ place }: { place: Place }) {
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
   useEffect(() => {
     const pmrem = new THREE.PMREMGenerator(gl);
-    const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-    scene.environment = envMap;
-    scene.environmentIntensity = 0.6;
     gl.toneMappingExposure = 1.1;
+    if (place === "city") {
+      const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+      scene.environment = envMap;
+      scene.environmentIntensity = 0.6;
+      return () => {
+        scene.environment = null;
+        envMap.dispose();
+        pmrem.dispose();
+      };
+    }
+    let live = true;
+    const tex = new THREE.TextureLoader().load(SKY_URL, (t) => {
+      if (!live) return;
+      t.mapping = THREE.EquirectangularReflectionMapping;
+      t.colorSpace = THREE.SRGBColorSpace;
+      const envMap = pmrem.fromEquirectangular(t).texture;
+      scene.background = t;
+      scene.environment = envMap;
+      scene.environmentIntensity = 0.55;
+      scene.fog = new THREE.FogExp2(SKY_FOG_COLOR, SKY_FOG_DENSITY);
+      tex.userData.envMap = envMap;
+    });
     return () => {
+      live = false;
+      const envMap = tex.userData.envMap as THREE.Texture | undefined;
+      scene.background = null;
       scene.environment = null;
-      envMap.dispose();
+      scene.fog = null;
+      envMap?.dispose();
+      tex.dispose();
       pmrem.dispose();
     };
-  }, [gl, scene]);
+  }, [gl, scene, place]);
   return null;
 }
 
@@ -270,7 +311,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
         style={{ position: "absolute", inset: 0 }}
       >
         <ambientLight intensity={0.35} />
-        <StageEnvironment />
+        <StageEnvironment place={place} />
         <KeyLight place={place} />
         <ShadowTagger />
         <Suspense fallback={null}>
