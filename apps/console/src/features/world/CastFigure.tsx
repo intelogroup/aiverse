@@ -87,7 +87,7 @@ export function CastFigure({
       if (!Array.isArray(mat) && mat.name === "screen" && mat instanceof THREE.MeshStandardMaterial) {
         const own = mat.clone();
         own.emissive.copy(accent);
-        own.emissiveIntensity = 1.8;
+        own.emissiveIntensity = 2.6;
         o.material = own;
       }
     });
