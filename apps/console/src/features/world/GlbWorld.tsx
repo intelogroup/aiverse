@@ -1,5 +1,6 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Bloom, EffectComposer } from "@react-three/postprocessing";
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
@@ -99,6 +100,10 @@ function StageEnvironment({ place }: { place: Place }) {
   const scene = useThree((s) => s.scene);
   useEffect(() => {
     const pmrem = new THREE.PMREMGenerator(gl);
+    // Matched tone-curve pair with the Blender authoring (AgX view transform):
+    // R3F otherwise defaults to ACES Filmic, which grades the stage on a
+    // different curve than the one it was authored under.
+    gl.toneMapping = THREE.AgXToneMapping;
     gl.toneMappingExposure = 1.1;
     if (place === "city") {
       const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
@@ -159,7 +164,7 @@ function KeyLight({ place }: { place: Place }) {
       ref={light}
       castShadow
       position={agora ? [14, 22, 10] : [-75, 150, -30]}
-      intensity={agora ? 2.4 : 2.6}
+      intensity={agora ? 1.5 : 2.6}
       shadow-mapSize-width={2048}
       shadow-mapSize-height={2048}
       shadow-camera-left={agora ? -13 : -72}
@@ -310,10 +315,20 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
         gl={{ antialias: true }}
         style={{ position: "absolute", inset: 0 }}
       >
-        <ambientLight intensity={0.35} />
+        <ambientLight intensity={0.12} color="#8fa3cc" />
         <StageEnvironment place={place} />
         <KeyLight place={place} />
         <ShadowTagger />
+        {agora ? (
+          <EffectComposer>
+            <Bloom
+              mipmapBlur
+              intensity={0.55}
+              luminanceThreshold={0.25}
+              luminanceSmoothing={0.2}
+            />
+          </EffectComposer>
+        ) : null}
         <Suspense fallback={null}>
           <WorldEnv url={agora ? AGORA_URL : CITY_URL} />
           <CrowdCast place={place} cast={cast} />
