@@ -70,22 +70,6 @@ function homeFor(place: Place, i: number, n: number): [number, number, number] {
 
 function WorldEnv({ url }: { url: string }) {
   const gltf = useGLTF(url);
-  useEffect(() => {
-    // The hex floor's Blender material drives its emission through a node
-    // graph (pattern-masked); the glTF exporter flattened that into a
-    // uniform emissive at strength 5, so the whole floor glows neon in
-    // three.js. Clamp it to a dim teal wash until the material is rebuilt
-    // for export at the source.
-    gltf.scene.traverse((o) => {
-      const mesh = o as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-      for (const m of mats) {
-        const std = m as THREE.MeshStandardMaterial;
-        if (std.name === "Hexagonal_Pattern_Sci-fi_Floor") std.emissiveIntensity = 0.5;
-      }
-    });
-  }, [gltf]);
   return <primitive object={gltf.scene} />;
 }
 
