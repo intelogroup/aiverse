@@ -25,6 +25,25 @@ import type { CrowdAgent, NavMesh } from "@recast-navigation/core";
 
 export const AGENT_RADIUS = 0.35; // m
 export const AGENT_MAX_SPEED = 1.4; // m/s
+
+/**
+ * Per-agent cruise speed, m/s. A crowd where everyone cruises at the same
+ * 1.4 m/s reads as a marching column, so each crowd slot gets a stable
+ * pace of its own: roughly a third of slots amble at a working pace
+ * (0.55–0.75), the middle band walks (0.75–1.05), the rest hurry
+ * (1.05–1.4). Deterministic in the slot index — no RNG state, so runs
+ * reproduce and a figure keeps its pace for the life of the crowd. The
+ * walk cycle already scales its stride to ground speed, so slow agents
+ * stride slow instead of skating. `cap` (the crowd's maxSpeed option)
+ * still bounds everyone.
+ */
+export function cruiseSpeedForIndex(index: number, cap: number = AGENT_MAX_SPEED): number {
+  let x = (index + 1) * 2654435761 >>> 0;
+  x ^= x >>> 15;
+  const h = ((x >>> 0) % 1000) / 1000; // stable scatter in [0, 1)
+  const pace = h < 0.3 ? 0.55 + 0.2 * (h / 0.3) : h < 0.75 ? 0.75 + 0.3 * ((h - 0.3) / 0.45) : 1.05 + 0.35 * ((h - 0.75) / 0.25);
+  return Math.min(cap, pace);
+}
 export const MAX_PLATFORM_AGENTS = 32; // Crowd allocation cap; the console renders <= 12 figures per platform
 
 const CELL_SIZE = 0.1; // navmesh voxel size, m
@@ -314,7 +333,7 @@ function driveCrowd(
       {
         radius: agentRadius,
         height: 1.6,
-        maxSpeed,
+        maxSpeed: cruiseSpeedForIndex(recs.length, maxSpeed),
         maxAcceleration: 8,
         collisionQueryRange: 2.5,
         separationWeight: 2.0,

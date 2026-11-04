@@ -4,11 +4,13 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  AGENT_MAX_SPEED,
   animState,
   buildAnnulusGeometry,
   buildRectGeometry,
   createGeometryCrowd,
   createPlatformCrowd,
+  cruiseSpeedForIndex,
 } from "./locomotion";
 
 describe("animState", () => {
@@ -30,6 +32,29 @@ describe("animState", () => {
     expect(sw.state).toBe("walk");
     expect(sw.heading).toBeCloseTo((-3 * Math.PI) / 4);
     expect(sw.speed).toBeCloseTo(Math.SQRT2);
+  });
+});
+
+describe("cruiseSpeedForIndex", () => {
+  it("is deterministic and stays inside [0.55, AGENT_MAX_SPEED]", () => {
+    for (let i = 0; i < 64; i++) {
+      const v = cruiseSpeedForIndex(i);
+      expect(v).toBe(cruiseSpeedForIndex(i));
+      expect(v).toBeGreaterThanOrEqual(0.55);
+      expect(v).toBeLessThanOrEqual(AGENT_MAX_SPEED);
+    }
+  });
+
+  it("spreads a crowd across slow, mid and fast paces", () => {
+    const speeds = Array.from({ length: 32 }, (_, i) => cruiseSpeedForIndex(i));
+    expect(speeds.some((v) => v <= 0.75)).toBe(true); // working pace
+    expect(speeds.some((v) => v > 0.75 && v < 1.05)).toBe(true);
+    expect(speeds.some((v) => v >= 1.05)).toBe(true);
+    expect(new Set(speeds).size).toBeGreaterThan(24); // near-unique per slot
+  });
+
+  it("respects a lower crowd cap", () => {
+    for (let i = 0; i < 32; i++) expect(cruiseSpeedForIndex(i, 0.8)).toBeLessThanOrEqual(0.8);
   });
 });
 
@@ -178,8 +203,10 @@ describe("createGeometryCrowd", () => {
       // Every agent genuinely walks the streets (tens of meters in 60 s).
       // Arrivals are rare by design at this scale — targets average ~50 m
       // away while the wander policy retargets every 8 s — so the test
-      // asserts travel + bounds, not arrival counts.
-      for (const d of pathLength) expect(d).toBeGreaterThan(40);
+      // asserts travel + bounds, not arrival counts. The travel floor is
+      // per-agent now: each figure cruises at its own cruiseSpeedForIndex
+      // pace, so the slowest walker legitimately covers less ground.
+      pathLength.forEach((d, i) => expect(d).toBeGreaterThan(cruiseSpeedForIndex(i) * 60 * 0.35));
       const finalFrames = crowd.step(0);
       expect(finalFrames.reduce((sum, f) => sum + f.targetsReached, 0)).toBeGreaterThanOrEqual(1);
       crowd.dispose();
