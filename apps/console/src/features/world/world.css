@@ -786,6 +786,15 @@
 .world-root .w-embody-section {
   margin-top: 12px;
 }
+.world-root .w-clip-list {
+  max-height: 132px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.world-root .w-clip-list button {
+  padding: 4px 8px;
+  font-size: 11.5px;
+}
 .world-root .w-embody-vision {
   display: block;
   width: 100%;
