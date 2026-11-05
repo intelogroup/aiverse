@@ -129,6 +129,16 @@ export function bodyForMember(member: { body?: string } | null | undefined): Bod
 }
 
 /**
+ * Fastest ground speed a body may cruise: its measured walkSpeed plus a
+ * small stride headroom. Past it the walk cycle visibly skates, so the
+ * crowd caps each slot at its wearer's value (locomotion's
+ * maxSpeedForIndex) instead of one slot-blind pace band for all bodies.
+ */
+export function cruiseCapForBody(body: BodyDef): number {
+  return body.walkSpeed * 1.15;
+}
+
+/**
  * Clip selection for the sit/stand transition: while an embody
  * override is in its mounting phase the figure plays SitDown once,
  * forward; seated it loops SittingTalking; while standing it plays

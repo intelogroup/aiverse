@@ -44,6 +44,28 @@ export function cruiseSpeedForIndex(index: number, cap: number = AGENT_MAX_SPEED
   const pace = h < 0.3 ? 0.55 + 0.2 * (h / 0.3) : h < 0.75 ? 0.75 + 0.3 * ((h - 0.3) / 0.45) : 1.05 + 0.35 * ((h - 0.75) / 0.25);
   return Math.min(cap, pace);
 }
+
+/**
+ * Clamp a crowd-space position to a disc of radius maxR centred on the
+ * origin — the render backstop that keeps Agora figures on the deck even
+ * when separation shoves a centre past the navmesh rim for a frame.
+ */
+export function clampPositionToRadius(pos: [number, number], maxR: number): [number, number] {
+  const r = Math.hypot(pos[0], pos[1]);
+  if (r <= maxR || r === 0) return pos;
+  const s = maxR / r;
+  return [pos[0] * s, pos[1] * s];
+}
+
+/**
+ * The part of a hips-height deviation (posed minus rest, m) that exceeds
+ * the authored-bob band: what a renderer must counter so a baked Walk
+ * cycle's vertical ramp cannot sink the figure, while the bob inside
+ * ±band passes through untouched.
+ */
+export function verticalExcess(dy: number, band: number): number {
+  return dy - Math.max(-band, Math.min(band, dy));
+}
 export const MAX_PLATFORM_AGENTS = 32; // Crowd allocation cap; the console renders <= 12 figures per platform
 
 const CELL_SIZE = 0.1; // navmesh voxel size, m
@@ -88,6 +110,14 @@ export interface PlatformCrowdOptions {
   seed?: number;
   agentRadius?: number;
   maxSpeed?: number;
+  /**
+   * Per-slot cruise cap on top of maxSpeed: slot i cruises at most
+   * min(maxSpeed, maxSpeedForIndex(i)) when the callback returns a
+   * number. Bodies cruise at different natural paces (bodies.ts
+   * walkSpeed); a slot-blind band system had slow bodies skating at
+   * hurry pace, so the renderer passes each member's body cap here.
+   */
+  maxSpeedForIndex?: (index: number) => number | undefined;
   /**
    * Disc crowds only: radius of a central circular keep-out with NO
    * walkable geometry inside it (e.g. the Agora's hologlobe). The navmesh
@@ -448,12 +478,14 @@ function driveCrowd(
   const addAgent = (): void => {
     const initial = opts.initialPositions?.[recs.length];
     const spawn = initial ? { x: initial[0], z: initial[1] } : pickSpawn();
+    const perSlot = opts.maxSpeedForIndex?.(recs.length);
+    const cap = perSlot === undefined ? maxSpeed : Math.min(maxSpeed, perSlot);
     const agent = crowd.addAgent(
       { x: spawn.x, y: 0, z: spawn.z },
       {
         radius: agentRadius,
         height: 1.6,
-        maxSpeed: cruiseSpeedForIndex(recs.length, maxSpeed),
+        maxSpeed: cruiseSpeedForIndex(recs.length, cap),
         maxAcceleration: 8,
         collisionQueryRange: 2.5,
         separationWeight: 2.0,

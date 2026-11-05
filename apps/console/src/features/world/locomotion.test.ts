@@ -10,10 +10,12 @@ import {
   buildDeckGeometry,
   buildRectGeometry,
   buildStreetGeometry,
+  clampPositionToRadius,
   createGeometryCrowd,
   insideObstacle,
   createPlatformCrowd,
   cruiseSpeedForIndex,
+  verticalExcess,
 } from "./locomotion";
 
 describe("animState", () => {
@@ -61,7 +63,61 @@ describe("cruiseSpeedForIndex", () => {
   });
 });
 
+describe("clampPositionToRadius", () => {
+  it("leaves positions inside the disc (and the origin) untouched", () => {
+    expect(clampPositionToRadius([3, 4], 9.35)).toEqual([3, 4]);
+    expect(clampPositionToRadius([0, 0], 9.35)).toEqual([0, 0]);
+  });
+
+  it("pulls an outside position back onto the circle", () => {
+    const [x, z] = clampPositionToRadius([10, 0], 9.35);
+    expect(x).toBeCloseTo(9.35);
+    expect(z).toBeCloseTo(0);
+    const [x2, z2] = clampPositionToRadius([8, 8], 9.35);
+    expect(Math.hypot(x2, z2)).toBeCloseTo(9.35);
+    expect(x2).toBeCloseTo(z2); // direction preserved
+  });
+});
+
+describe("verticalExcess", () => {
+  it("passes the authored bob through untouched", () => {
+    expect(verticalExcess(0, 0.09)).toBe(0);
+    expect(verticalExcess(0.05, 0.09)).toBe(0);
+    expect(verticalExcess(-0.09, 0.09)).toBe(0);
+  });
+
+  it("returns only the part beyond the band", () => {
+    // Summer's baked Walk ramp: hips sink ~1.26 m over one cycle.
+    expect(verticalExcess(-1.26, 0.09)).toBeCloseTo(-1.17);
+    expect(verticalExcess(0.2, 0.09)).toBeCloseTo(0.11);
+  });
+});
+
 describe("createPlatformCrowd", () => {
+  it(
+    "honours a per-slot speed cap (maxSpeedForIndex) while still wandering",
+    async () => {
+      const crowd = await createPlatformCrowd(9.7, 8, {
+        seed: 5,
+        keepOutRadius: 2.2,
+        maxSpeedForIndex: () => 0.6,
+      });
+      const dt = 1 / 60;
+      let maxSpeed = 0;
+      for (let s = 0; s < 20 * 60; s++) {
+        for (const f of crowd.step(dt)) {
+          if (f.speed > maxSpeed) maxSpeed = f.speed;
+        }
+      }
+      // No agent ever beat its body cap (small solver epsilon), and the
+      // crowd really did cruise near it — the cap slows, not freezes.
+      expect(maxSpeed).toBeLessThanOrEqual(0.62);
+      expect(maxSpeed).toBeGreaterThan(0.4);
+      crowd.dispose();
+    },
+    60_000,
+  );
+
   it(
     "keeps 6 agents on a radius-6 disc, separated and wandering, for 60 s at 60 Hz",
     async () => {
