@@ -27,21 +27,32 @@ export const BOT_GLB_URL = "/assets/cast-bodyblock.glb";
 // Ground speed at which the Walk cycle plays at its natural rate.
 const WALK_NOMINAL_SPEED = 1.0;
 
-// Face-screen accents: the graphite cast reads as one uniform crowd until
-// each bot's screen glows its own color. The palette is curated (bright,
-// glow-friendly hues), and the pick is a stable hash of the roster label
-// so an agent keeps its color wherever it stands. The asset ships the
-// screen emissive white; this is the only place the tint is applied.
+// Per-agent body colors: each bot is painted its own color (Jim's call —
+// red, yellow, blue and family), with the face screen glowing a lightened
+// version of the same hue. The pick is a stable hash of the roster label
+// so an agent keeps its color wherever it stands. Part shades preserve
+// the authored light/dark ladder between body parts (head darkest, limbs
+// lightest) on top of the agent color. The asset's own factors are the
+// graphite fallback for anything this pass doesn't reach.
 const ACCENT_PALETTE = [
-  "#2fd4ff", // cyan
-  "#ffa028", // amber
-  "#ff5cc8", // pink
-  "#b6f04a", // lime
-  "#8f7bff", // violet
-  "#ff6a4d", // coral
-  "#3affc8", // mint
-  "#ffe14d", // yellow
+  "#d23b3b", // red
+  "#e6b93d", // yellow
+  "#2f6fd0", // blue
+  "#3fae5a", // green
+  "#e07b2a", // orange
+  "#7a4fd0", // violet
+  "#1fa8a0", // teal
+  "#d0537f", // rose
 ];
+
+const PART_SHADE: Record<string, number> = {
+  torso: 1.0,
+  head: 0.75,
+  pelvis: 0.86,
+  arms: 1.2,
+  legs: 1.2,
+  ears: 1.2,
+};
 
 export function accentForFigure(label: string | undefined, index: number): string {
   const s = label ?? String(index);
@@ -76,18 +87,24 @@ export function CastFigure({
   // Own skeleton + own scene graph per cast member.
   const scene = useMemo(() => skeletonClone(gltf.scene), [gltf]);
 
-  // Tint this figure's face screen with its accent. Materials are shared
-  // across clones, so the screen material is cloned before tinting —
-  // every other part keeps the shared graphite finish.
+  // Paint this figure in its agent color. Materials are shared across
+  // clones, so every tinted material is cloned first. Body parts take the
+  // color at their ladder shade; the screen glows a lightened version.
   useMemo(() => {
     const accent = new THREE.Color(accentForFigure(label, index));
+    const face = accent.clone().lerp(new THREE.Color("#ffffff"), 0.55);
     scene.traverse((o) => {
       if (!(o instanceof THREE.Mesh)) return;
       const mat = o.material;
-      if (!Array.isArray(mat) && mat.name === "screen" && mat instanceof THREE.MeshStandardMaterial) {
+      if (Array.isArray(mat) || !(mat instanceof THREE.MeshStandardMaterial)) return;
+      if (mat.name === "screen") {
         const own = mat.clone();
-        own.emissive.copy(accent);
+        own.emissive.copy(face);
         own.emissiveIntensity = 2.6;
+        o.material = own;
+      } else if (mat.name in PART_SHADE) {
+        const own = mat.clone();
+        own.color.copy(accent).multiplyScalar(PART_SHADE[mat.name]);
         o.material = own;
       }
     });
