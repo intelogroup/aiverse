@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { and, eq } from "drizzle-orm";
 import { db } from "../db/client";
+import { withCapLock } from "../db/capLock";
 import { env } from "@aiverse/shared/env";
 import { rooms, conversations, conversationParticipants, agents, owners } from "@aiverse/shared/schema";
 import { agentAuth } from "../middleware/agentAuth";
@@ -73,6 +74,11 @@ roomsRoute.post("/:slug/join", agentAuth, async (c) => {
     return c.json({ error: "room has no conversation" }, 500);
   }
 
+  // Set when the verse per-owner presence cap applies to this join
+  // (non-native agent with an owner): the insert below then runs under
+  // the per-owner cap lock with an authoritative recount.
+  let verseCapOwnerId: string | null = null;
+
   // Verse AND gate: agent.name + owner.email + owner.displayName, natives bypass.
   // Public verse is a community, not an anon sandbox — human identity required.
   // Other rooms (general/science/robotics) remain open for now, only verse gated.
@@ -93,6 +99,7 @@ roomsRoute.post("/:slug/join", agentAuth, async (c) => {
     // Don't cap owned (100) — cap simultaneous verse occupancy so one human can't be the civilization.
     // Joined count is the plaza occupancy, not just WS connected — otherwise 100 offline-joined still mono-polize history/broadcast.
     if (!agent.isNative) {
+      verseCapOwnerId = agent.ownerId;
       const ownerAgents = await db.query.agents.findMany({ where: eq(agents.ownerId, agent.ownerId!) });
       const ownerAgentIds = new Set(ownerAgents.map((a) => a.id));
       const verseParts = await db.query.conversationParticipants.findMany({ where: eq(conversationParticipants.conversationId, conversation.id) });
@@ -112,11 +119,42 @@ roomsRoute.post("/:slug/join", agentAuth, async (c) => {
   // DB-level UNIQUE(conversation_id, agent_id) is the real guard against a
   // concurrent double-join; onConflictDoNothing makes this idempotent
   // instead of racing a findFirst-then-insert check.
-  const inserted = await db
-    .insert(conversationParticipants)
-    .values({ conversationId: conversation.id, agentId })
-    .onConflictDoNothing()
-    .returning();
+  type ParticipantRow = typeof conversationParticipants.$inferSelect;
+  let inserted: ParticipantRow[];
+  if (verseCapOwnerId) {
+    // Verse per-owner presence cap: recount + insert under the per-owner
+    // cap lock (db/capLock.ts). The snapshot count in the gate above is
+    // only a fast path — concurrent joins by distinct agents of one owner
+    // all pass it before any of their inserts lands, overshooting the
+    // 10-per-owner cap (AIV-VERSE-CAP-RACE-001).
+    const res = await withCapLock(`cap:verse-join:${verseCapOwnerId}`, async (tx) => {
+      const ownerAgents = await tx.query.agents.findMany({ where: eq(agents.ownerId, verseCapOwnerId) });
+      const ownerAgentIds = new Set(ownerAgents.map((a) => a.id));
+      const verseParts = await tx.query.conversationParticipants.findMany({
+        where: eq(conversationParticipants.conversationId, conversation.id),
+      });
+      const alreadyInVerse = verseParts.some((p) => p.agentId === agentId);
+      const ownerJoinedInVerse = verseParts.filter((p) => ownerAgentIds.has(p.agentId)).length;
+      if (!alreadyInVerse && ownerJoinedInVerse >= 10)
+        return { capFull: true as const, inserted: [] as ParticipantRow[] };
+      const ins = await tx
+        .insert(conversationParticipants)
+        .values({ conversationId: conversation.id, agentId })
+        .onConflictDoNothing()
+        .returning();
+      return { capFull: false as const, inserted: ins };
+    });
+    if (res.capFull) {
+      return c.json({ error: "verse_presence_full", details: "10 agents in Verse at once per owner (bring 100, active 10)" }, 429);
+    }
+    inserted = res.inserted;
+  } else {
+    inserted = await db
+      .insert(conversationParticipants)
+      .values({ conversationId: conversation.id, agentId })
+      .onConflictDoNothing()
+      .returning();
+  }
 
   if (inserted.length > 0) {
     await admitConversation(agentId, conversation.id);

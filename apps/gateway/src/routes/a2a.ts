@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { and, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { db } from "../db/client";
+import { withCapLock } from "../db/capLock";
 import { agents, agentWallets, agentPolicyScope, a2aTasks } from "@aiverse/shared/schema";
 import type { AgentCard } from "@aiverse/shared/types";
 import { env } from "@aiverse/shared/env";
@@ -616,21 +617,35 @@ a2aRoute.post("/a2a/agents/:id", agentAuth, async (c) => {
     const contextId = typeof body.params?.contextId === "string" && /^[0-9a-f-]{36}$/i.test(body.params.contextId) ? body.params.contextId : undefined;
     let task;
     try {
-      if (contextId) {
-        const policyScope = await db.query.agentPolicyScope.findFirst({ where: eq(agentPolicyScope.agentId, callerAgentId) });
-        const admission = await admitAndCreateTask({
-          callerAgentId,
-          contextId,
-          maxParallel: policyScope?.maxParallelDelegations ?? 3,
-          task: { contextId, targetAgentId, callerAgentId, callerMessageId, requiresApproval, requestMessage: message },
-        });
-        if (!admission.allowed) {
-          await refundBudget(callerAgentId, tokensUsed);
-          return c.json(rpcError(body.id, -32016, "parallel delegation limit reached for this goal"), 429);
+      // Target-inbox cap, authoritatively: recount + create under the
+      // per-target cap lock (db/capLock.ts). The pending count near the
+      // top of this handler is only a fast path — concurrent sends to
+      // the same target all pass it before any of their tasks lands,
+      // overshooting MAX_PENDING_TASKS (AIV-A2A-INBOX-CAP-RACE-001). The
+      // goal-scoped path runs inside the same transaction (admission
+      // takes its own (caller, context) lock within it), so both caps
+      // are decided atomically. Budget was already consumed above, so a
+      // cap refusal here refunds it — the same contract as the
+      // insert-failure path in the catch below.
+      const created = await withCapLock(`cap:a2a-inbox:${targetAgentId}`, async (tx) => {
+        const [{ pendingCount }] = await tx
+          .select({ pendingCount: sql<number>`count(*)::int` })
+          .from(a2aTasks)
+          .where(and(eq(a2aTasks.targetAgentId, targetAgentId), inArray(a2aTasks.state, ["submitted", "working"])));
+        if (pendingCount >= MAX_PENDING_TASKS) return { inboxFull: true as const };
+        if (contextId) {
+          const policyScope = await tx.query.agentPolicyScope.findFirst({ where: eq(agentPolicyScope.agentId, callerAgentId) });
+          const admission = await admitAndCreateTask({
+            callerAgentId,
+            contextId,
+            maxParallel: policyScope?.maxParallelDelegations ?? 3,
+            task: { contextId, targetAgentId, callerAgentId, callerMessageId, requiresApproval, requestMessage: message },
+            tx,
+          });
+          if (!admission.allowed) return { parallelFull: true as const };
+          return { task: admission.task };
         }
-        task = admission.task;
-      } else {
-        [task] = await db
+        const [t] = await tx
           .insert(a2aTasks)
           .values({
             targetAgentId,
@@ -640,7 +655,17 @@ a2aRoute.post("/a2a/agents/:id", agentAuth, async (c) => {
             requestMessage: message,
           })
           .returning();
+        return { task: t };
+      });
+      if ("inboxFull" in created) {
+        await refundBudget(callerAgentId, tokensUsed);
+        return c.json(rpcError(body.id, -32015, "target inbox full"), 429);
       }
+      if ("parallelFull" in created) {
+        await refundBudget(callerAgentId, tokensUsed);
+        return c.json(rpcError(body.id, -32016, "parallel delegation limit reached for this goal"), 429);
+      }
+      task = created.task;
     } catch (err: any) {
       // Budget was already reserved in Redis above — a genuine insert
       // failure here must not permanently burn that reservation for a task
