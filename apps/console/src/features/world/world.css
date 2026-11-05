@@ -707,3 +707,42 @@
   white-space: nowrap;
   pointer-events: none;
 }
+.world-root .w-embody-panel {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  z-index: 6;
+  max-width: 430px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(9, 13, 28, 0.9);
+  border: 1px solid var(--w-border);
+  color: var(--w-text);
+  font-size: 12.5px;
+}
+.world-root .w-embody-title {
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 11px;
+  color: var(--w-dim);
+  margin-bottom: 8px;
+}
+.world-root .w-embody-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.world-root .w-embody-row button {
+  background: rgba(110, 168, 255, 0.12);
+  color: var(--w-text);
+  border: 1px solid rgba(110, 168, 255, 0.4);
+  border-radius: 9px;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.world-root .w-embody-status {
+  margin-top: 8px;
+  color: var(--w-dim);
+}

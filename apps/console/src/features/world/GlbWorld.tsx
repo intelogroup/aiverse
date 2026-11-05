@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
 import { OrbitControls, useGLTF } from "@react-three/drei";
@@ -12,6 +12,11 @@ import {
   type PlatformCrowd,
 } from "./locomotion";
 import { CastFigure } from "./CastFigure";
+import {
+  AGORA_BENCH_ANCHORS,
+  EmbodyController,
+  type FigureOverride,
+} from "./embody";
 
 // GlbWorld — the modeled worlds (Blender-authored GLBs) as the console's
 // default stage. Two places share one cast:
@@ -208,7 +213,20 @@ function ShadowTagger() {
 }
 
 /** Owns one Recast crowd for the active place and steps it every frame. */
-function CrowdCast({ place, cast }: { place: Place; cast: CastMember[] }) {
+function CrowdCast({
+  place,
+  cast,
+  embodyOn,
+  controllerRef,
+  overridesRef,
+}: {
+  place: Place;
+  cast: CastMember[];
+  /** Embody v0 spike (?embody=1): skill layer + spike benches, Agora only. */
+  embodyOn: boolean;
+  controllerRef: RefObject<EmbodyController | null>;
+  overridesRef: RefObject<Map<number, FigureOverride>>;
+}) {
   const crowdRef = useRef<PlatformCrowd | null>(null);
   const framesRef = useRef<AgentFrame[]>([]);
   const [crowdReady, setCrowdReady] = useState(false);
@@ -247,11 +265,33 @@ function CrowdCast({ place, cast }: { place: Place; cast: CastMember[] }) {
           return;
         }
         crowdRef.current = c;
+        if (embodyOn && place === "agora") {
+          // Embody v0: the skill layer drives this crowd through a
+          // BodyPort adapter over the latest frames. Anchors are cloned
+          // so occupancy state belongs to this mount.
+          const port = {
+            frame: (i: number) => {
+              const f = framesRef.current[i];
+              return f ? { position: f.position, speed: f.speed, heading: f.heading } : null;
+            },
+            setControlled: (i: number, on: boolean) => crowdRef.current?.setControlled(i, on),
+            moveTo: (i: number, x: number, z: number) => crowdRef.current?.moveAgentTo(i, x, z),
+            stop: (i: number) => crowdRef.current?.stopAgent(i),
+            setHeading: (i: number, h: number) => crowdRef.current?.setHeading(i, h),
+          };
+          const ctl = new EmbodyController(
+            port,
+            AGORA_BENCH_ANCHORS.map((a) => ({ ...a, occupiedBy: null })),
+          );
+          controllerRef.current = ctl;
+          (window as unknown as Record<string, unknown>).__embody = ctl;
+        }
         setCrowdReady(true);
       })
       .catch(() => {});
     return () => {
       live = false;
+      controllerRef.current = null;
       crowdRef.current?.dispose();
       crowdRef.current = null;
     };
@@ -266,17 +306,57 @@ function CrowdCast({ place, cast }: { place: Place; cast: CastMember[] }) {
   useFrame((_, delta) => {
     const crowd = crowdRef.current;
     if (!crowd) return;
-    framesRef.current = crowd.step(Math.min(delta, 0.05));
+    const dt = Math.min(delta, 0.05);
+    framesRef.current = crowd.step(dt);
+    const ctl = controllerRef.current;
+    if (ctl) {
+      ctl.tick(dt);
+      overridesRef.current.clear();
+      for (let i = 0; i < count; i++) {
+        const ov = ctl.overrideFor(i);
+        if (ov) overridesRef.current.set(i, ov);
+      }
+    }
   });
 
   const groundY = place === "agora" ? AGORA_GROUND_Y : CITY_GROUND_Y;
 
   return (
     <>
+      {embodyOn && place === "agora"
+        ? AGORA_BENCH_ANCHORS.map((a) => (
+            // Spike stand-in bench: the Smart Object and its anchor
+            // arrive together. Production benches are shelf assets in
+            // the world GLB carrying the same anchor data.
+            <group key={a.id} position={[a.seat[0], groundY, a.seat[1]]} rotation={[0, a.facing, 0]}>
+              <mesh position={[0, a.seatHeight - 0.035, 0]} castShadow receiveShadow>
+                <boxGeometry args={[1.3, 0.07, 0.45]} />
+                <meshStandardMaterial color="#454c58" metalness={0.3} roughness={0.5} />
+              </mesh>
+              <mesh position={[-0.55, a.seatHeight / 2, 0]} castShadow>
+                <boxGeometry args={[0.08, a.seatHeight, 0.4]} />
+                <meshStandardMaterial color="#363c46" metalness={0.3} roughness={0.55} />
+              </mesh>
+              <mesh position={[0.55, a.seatHeight / 2, 0]} castShadow>
+                <boxGeometry args={[0.08, a.seatHeight, 0.4]} />
+                <meshStandardMaterial color="#363c46" metalness={0.3} roughness={0.55} />
+              </mesh>
+              <mesh position={[0, a.seatHeight + 0.22, -0.22]} castShadow>
+                <boxGeometry args={[1.3, 0.44, 0.05]} />
+                <meshStandardMaterial color="#454c58" metalness={0.3} roughness={0.5} />
+              </mesh>
+              <mesh position={[0, a.seatHeight + 0.44, -0.22]}>
+                <boxGeometry args={[1.3, 0.03, 0.03]} />
+                <meshStandardMaterial color="#0b0e11" emissive="#2fd4ff" emissiveIntensity={2.2} />
+              </mesh>
+            </group>
+          ))
+        : null}
       {cast.map((member, i) => (
         <CastFigure
           key={member.id}
           framesRef={framesRef}
+          overridesRef={overridesRef}
           index={i}
           baseY={groundY}
           home={homeFor(place, i, count)}
@@ -287,9 +367,69 @@ function CrowdCast({ place, cast }: { place: Place; cast: CastMember[] }) {
   );
 }
 
+/**
+ * Embody v0 spike panel (?embody=1, Agora only): hand-drives the first
+ * cast member through the skill menu so the body layer can be watched
+ * without the gateway. The same controller sits on window.__embody.
+ */
+function EmbodyPanel({
+  cast,
+  controllerRef,
+}: {
+  cast: CastMember[];
+  controllerRef: RefObject<EmbodyController | null>;
+}) {
+  const [, setPulse] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setPulse((p) => p + 1), 400);
+    return () => clearInterval(id);
+  }, []);
+  const ctl = controllerRef.current;
+  const st = ctl?.stateFor(0);
+  const last = ctl?.events[ctl.events.length - 1];
+  const name = cast[0]?.name ?? "first bot";
+  const benchB = AGORA_BENCH_ANCHORS[1];
+  return (
+    <div className="w-embody-panel">
+      <div className="w-embody-title">Embody spike — driving {name}</div>
+      <div className="w-embody-row">
+        <button type="button" onClick={() => ctl?.issue(0, { skill: "sit_on", anchorId: "bench-a" })}>
+          Sit on Bench A
+        </button>
+        <button type="button" onClick={() => ctl?.issue(0, { skill: "stand" })}>
+          Stand
+        </button>
+        <button type="button" onClick={() => ctl?.issue(0, { skill: "face", target: { point: [0, 0] } })}>
+          Face the globe
+        </button>
+        <button type="button" onClick={() => ctl?.issue(0, { skill: "go_to", target: benchB.approach })}>
+          Walk to Bench B
+        </button>
+        <button type="button" onClick={() => ctl?.issue(0, { skill: "stop" })}>
+          Stop
+        </button>
+      </div>
+      <div className="w-embody-status">
+        {ctl
+          ? `${st?.posture ?? "standing"}${st?.current ? ` · ${st.current}` : " · idle"}`
+          : "warming up…"}
+        {last ? ` — last event: ${last.type} ${last.skill}` : ""}
+      </div>
+    </div>
+  );
+}
+
 export function GlbWorld({ cast }: { cast: CastMember[] }) {
   const [place, setPlace] = useState<Place>("agora");
   const agora = place === "agora";
+
+  // Embody v0 spike: ?embody=1 turns on the skill layer (Agora only).
+  const embodyOn = useMemo(
+    () => new URLSearchParams(window.location.search).get("embody") === "1",
+    [],
+  );
+  const controllerRef = useRef<EmbodyController | null>(null);
+  const overridesRef = useRef(new Map<number, FigureOverride>());
 
   // Elevated three-quarter spectator defaults, worked out from the play
   // areas: Agora from 25 m at ~37° elevation frames the whole 9.7 m deck
@@ -331,7 +471,13 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
         ) : null}
         <Suspense fallback={null}>
           <WorldEnv url={agora ? AGORA_URL : CITY_URL} />
-          <CrowdCast place={place} cast={cast} />
+          <CrowdCast
+            place={place}
+            cast={cast}
+            embodyOn={embodyOn}
+            controllerRef={controllerRef}
+            overridesRef={overridesRef}
+          />
         </Suspense>
         <OrbitControls
           makeDefault
@@ -350,6 +496,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           City
         </button>
       </div>
+      {embodyOn && agora ? <EmbodyPanel cast={cast} controllerRef={controllerRef} /> : null}
     </div>
   );
 }

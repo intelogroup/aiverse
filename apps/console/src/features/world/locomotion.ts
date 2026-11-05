@@ -115,6 +115,17 @@ export interface PlatformCrowd {
    * figure count changes instead of recreating the crowd.
    */
   setAgentCount: (n: number) => void;
+  /**
+   * Embody v0 control surface: a controlled agent leaves the wander loop
+   * and only moves under explicit commands (moveAgentTo / stopAgent).
+   * Releasing control returns it to wandering. Heading can be set
+   * directly for an idle controlled agent (the face skill); a walking
+   * agent's velocity heading still wins frame to frame.
+   */
+  setControlled: (index: number, on: boolean) => void;
+  moveAgentTo: (index: number, x: number, z: number) => void;
+  stopAgent: (index: number) => void;
+  setHeading: (index: number, heading: number) => void;
   dispose: () => void;
 }
 
@@ -241,6 +252,8 @@ interface AgentRec {
   sinceTarget: number;
   targetsReached: number;
   heading: number;
+  /** Embody v0: true while a skill layer owns this agent (no wandering). */
+  controlled: boolean;
 }
 
 /**
@@ -339,7 +352,7 @@ function driveCrowd(
         separationWeight: 2.0,
       },
     );
-    const rec: AgentRec = { agent, target: randomPoint(), sinceTarget: 0, targetsReached: 0, heading: 0 };
+    const rec: AgentRec = { agent, target: randomPoint(), sinceTarget: 0, targetsReached: 0, heading: 0, controlled: false };
     agent.requestMoveTarget({ x: rec.target.x, y: 0, z: rec.target.z });
     recs.push(rec);
   };
@@ -361,11 +374,40 @@ function driveCrowd(
 
   setAgentCount(agentCount);
 
+  const haltAgent = (rec: AgentRec): void => {
+    const p = rec.agent.position();
+    rec.target = { x: p.x, z: p.z };
+    rec.agent.requestMoveTarget({ x: p.x, y: 0, z: p.z });
+    rec.sinceTarget = 0;
+  };
+
   return {
     get agentCount() {
       return recs.length;
     },
     setAgentCount,
+    setControlled(index: number, on: boolean): void {
+      const rec = recs[index];
+      if (!rec || rec.controlled === on) return;
+      rec.controlled = on;
+      if (on) haltAgent(rec);
+      else retarget(rec);
+    },
+    moveAgentTo(index: number, x: number, z: number): void {
+      const rec = recs[index];
+      if (!rec) return;
+      rec.target = { x, z };
+      rec.agent.requestMoveTarget({ x, y: 0, z });
+      rec.sinceTarget = 0;
+    },
+    stopAgent(index: number): void {
+      const rec = recs[index];
+      if (rec) haltAgent(rec);
+    },
+    setHeading(index: number, heading: number): void {
+      const rec = recs[index];
+      if (rec) rec.heading = heading;
+    },
     step(dt: number): AgentFrame[] {
       if (disposed) return [];
       crowd.update(dt);
@@ -376,12 +418,14 @@ function driveCrowd(
         if (a.heading !== null) rec.heading = a.heading;
 
         rec.sinceTarget += dt;
-        const dTarget = Math.hypot(p.x - rec.target.x, p.z - rec.target.z);
-        if (dTarget < ARRIVE_DIST) {
-          rec.targetsReached++;
-          retarget(rec);
-        } else if (rec.sinceTarget >= RETARGET_AFTER_S) {
-          retarget(rec);
+        if (!rec.controlled) {
+          const dTarget = Math.hypot(p.x - rec.target.x, p.z - rec.target.z);
+          if (dTarget < ARRIVE_DIST) {
+            rec.targetsReached++;
+            retarget(rec);
+          } else if (rec.sinceTarget >= RETARGET_AFTER_S) {
+            retarget(rec);
+          }
         }
 
         return {

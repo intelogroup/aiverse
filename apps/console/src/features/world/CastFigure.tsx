@@ -4,6 +4,7 @@ import { Html, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import type { AgentFrame } from "./locomotion";
+import type { FigureOverride } from "./embody";
 
 // CastFigure — a Body Block bot (Mixamo-rigged, 57 bones) driven by the
 // same AgentFrame stream as every other figure in the world. One GLB is
@@ -65,6 +66,7 @@ const FADE_S = 0.25;
 
 export function CastFigure({
   framesRef,
+  overridesRef,
   index = 0,
   baseY = 0,
   home,
@@ -72,6 +74,11 @@ export function CastFigure({
 }: {
   /** Latest crowd frames, written by the crowd driver (GlbWorld). */
   framesRef: RefObject<AgentFrame[]>;
+  /**
+   * Embody v0 render overrides (seat transforms while sitting/mounting),
+   * keyed by crowd index. Absent in the normal world view.
+   */
+  overridesRef?: RefObject<Map<number, FigureOverride>>;
   /** Which crowd agent this figure visualizes. */
   index?: number;
   /** World Y of the ground this figure walks on (frames carry only XZ). */
@@ -154,8 +161,16 @@ export function CastFigure({
     if (!grp) return;
     const f = framesRef.current[index];
     if (f) {
-      grp.position.set(f.position[0], baseY, f.position[1]);
-      grp.rotation.y = f.heading;
+      const ov = overridesRef?.current.get(index);
+      if (ov) {
+        // Embody override: the figure sits/mounts at the anchor while the
+        // crowd body stays at the approach point.
+        grp.position.set(ov.position[0], baseY + ov.y, ov.position[1]);
+        grp.rotation.y = ov.heading;
+      } else {
+        grp.position.set(f.position[0], baseY, f.position[1]);
+        grp.rotation.y = f.heading;
+      }
     }
 
     const { idle, walk } = actions;
