@@ -36,8 +36,10 @@ function anchorFacingCentre(id: string, label: string, angleDeg: number, radius:
   const facing = Math.atan2(-seat[0], -seat[1]);
   const fx = Math.sin(facing);
   const fz = Math.cos(facing);
-  // Approach point stands 0.55 m behind the seat, opposite the facing.
-  const approach: Vec2 = [seat[0] - fx * 0.55, seat[1] - fz * 0.55];
+  // Approach point stands 0.95 m behind the seat, opposite the facing —
+  // far enough that it stays on the deck navmesh now that the bench
+  // itself is carved out of it (hole + navmesh edge erosion ≈ 0.65 m).
+  const approach: Vec2 = [seat[0] - fx * 0.95, seat[1] - fz * 0.95];
   return { id, label, seat, facing, approach, seatHeight, occupiedBy: null };
 }
 

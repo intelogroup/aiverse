@@ -5,10 +5,11 @@ import { OrbitControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import {
+  buildDeckGeometry,
   buildStreetGeometry,
   createGeometryCrowd,
-  createPlatformCrowd,
   type AgentFrame,
+  type PlanObstacle,
   type PlatformCrowd,
 } from "./locomotion";
 import { CITY_FOOTPRINTS, insideFootprint } from "./cityFootprints";
@@ -379,10 +380,24 @@ function CrowdCast({
     });
     const building =
       place === "agora"
-        ? createPlatformCrowd(AGORA_DECK_RADIUS, count, {
-            keepOutRadius: AGORA_KEEP_OUT,
-            initialPositions,
-          })
+        ? (() => {
+            // Deck geometry with the spike benches punched out: the
+            // benches are solid — the crowd paths around them, and the
+            // sit_on approach point (0.95 m behind the seat) stays on
+            // the mesh. Same 0.1 navmesh cells as the old disc path.
+            const obstacles: PlanObstacle[] = AGORA_BENCH_ANCHORS.map((a) => ({
+              x: a.seat[0],
+              z: a.seat[1],
+              heading: a.facing,
+              w: 1.3,
+              d: 0.5,
+            }));
+            const geo = buildDeckGeometry(AGORA_DECK_RADIUS, AGORA_KEEP_OUT, obstacles);
+            return createGeometryCrowd(geo.positions, geo.indices, count, {
+              cellSize: 0.1,
+              initialPositions,
+            });
+          })()
         : (() => {
             // Streets only: the navmesh geometry leaves every building
             // footprint out (measured from the world GLB), so the cast
