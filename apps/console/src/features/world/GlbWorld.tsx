@@ -362,7 +362,7 @@ function CrowdCast({
   controllerRef: RefObject<EmbodyController | null>;
   overridesRef: RefObject<Map<number, FigureOverride>>;
   camModeRef: RefObject<CameraMode>;
-  /** Reactive camera mode — the ridden figure hides its head in ride. */
+  /** Reactive camera mode — the ridden figure does not render in ride. */
   camMode: CameraMode;
   /** Latest crowd frames, shared with the Embody panel's test harness. */
   framesRef: RefObject<AgentFrame[]>;
@@ -527,7 +527,7 @@ function CrowdCast({
           baseY={groundY}
           home={place === "city" ? cityHomeFor(i, count) : homeFor(place, i, count)}
           label={member.name}
-          headless={embodyOn && i === 0 && camMode === "ride"}
+          hidden={embodyOn && i === 0 && camMode === "ride"}
         />
       ))}
     </>

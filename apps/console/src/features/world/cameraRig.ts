@@ -41,7 +41,7 @@ export const RIDE_LOOK_AHEAD = 4;
  * plane, like eyes. At the centre the bot's own head shell fills the
  * frame (Jim, riding Amara: "the view is barred by her head — it should
  * be like my eyes seeing"). The ridden figure's head is also hidden in
- * ride mode (CastFigure `headless`); the offset alone clears the shell
+ * ride mode (CastFigure `hidden`); the offset alone clears the shell
  * even mid-crossfade.
  */
 export const EYE_FORWARD = 0.22;
