@@ -179,10 +179,11 @@ export function CastFigure({
   // traveling cycle performs over the crowd point instead of walking
   // away from it and snapping back at the loop.
   const rootMotion = useMemo(() => {
-    let hips: THREE.Object3D | null = null;
+    const found: THREE.Object3D[] = [];
     scene.traverse((o) => {
-      if (!hips && o.name.endsWith("Hips")) hips = o;
+      if (o.name.endsWith("Hips")) found.push(o);
     });
+    const hips = found[0] ?? null;
     if (!hips || !hips.parent) return null;
     const parent = hips.parent;
     return {
