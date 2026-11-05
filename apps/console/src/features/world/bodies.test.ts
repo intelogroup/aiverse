@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { AGORA_BENCH_ANCHORS, CAST_HIPS_Y, seatedRootY } from "./embody";
 import {
+  BARBARIAN_HIPS_Y,
   BODIES,
+  BODY_BARBARIAN,
   BODY_CAST,
+  BODY_KNIGHT,
+  BODY_MAGE,
   BODY_SUMMER,
+  KNIGHT_HIPS_Y,
+  MAGE_HIPS_Y,
   SUMMER_HIPS_Y,
   bodyForMember,
   sitClipForPhase,
@@ -32,6 +38,21 @@ describe("body registry", () => {
     expect(bodyForMember({ body: "ninja" })).toBe(BODY_CAST);
   });
 
+  it("resolves the character-wave bodies and their measured hips", () => {
+    expect(bodyForMember({ body: "mage" })).toBe(BODY_MAGE);
+    expect(BODY_MAGE.url).toBe("/assets/cast-mage.glb");
+    expect(BODY_MAGE.hipsY).toBe(MAGE_HIPS_Y);
+    expect(BODIES.mage).toBe(BODY_MAGE);
+    expect(bodyForMember({ body: "barbarian" })).toBe(BODY_BARBARIAN);
+    expect(BODY_BARBARIAN.url).toBe("/assets/cast-barbarian.glb");
+    expect(BODY_BARBARIAN.hipsY).toBe(BARBARIAN_HIPS_Y);
+    expect(BODIES.barbarian).toBe(BODY_BARBARIAN);
+    expect(bodyForMember({ body: "knight" })).toBe(BODY_KNIGHT);
+    expect(BODY_KNIGHT.url).toBe("/assets/cast-knight.glb");
+    expect(BODY_KNIGHT.hipsY).toBe(KNIGHT_HIPS_Y);
+    expect(BODIES.knight).toBe(BODY_KNIGHT);
+  });
+
   it("every body carries a measured natural walk speed", () => {
     for (const b of Object.values(BODIES)) {
       expect(b.walkSpeed).toBeGreaterThan(0.3);
@@ -56,6 +77,7 @@ describe("body registry", () => {
     expect(seatedRootY(bench, BODY_CAST.hipsY)).toBeCloseTo(bench.seatHeight - CAST_HIPS_Y);
     expect(seatedRootY(bench, BODY_SUMMER.hipsY)).toBeCloseTo(bench.seatHeight - SUMMER_HIPS_Y);
     expect(seatedRootY(bench, BODY_SUMMER.hipsY)).not.toBeCloseTo(seatedRootY(bench));
+    expect(seatedRootY(bench, BODY_MAGE.hipsY)).toBeCloseTo(bench.seatHeight - MAGE_HIPS_Y);
   });
 });
 

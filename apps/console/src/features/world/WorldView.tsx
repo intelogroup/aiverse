@@ -227,6 +227,12 @@ export function WorldView({
     // extra local member — she is not a roster agent, just a body in
     // the crowd. Placeholder label until Jim names her.
     capped.push({ id: "summer-guest", name: "Summer (new)", body: "summer" });
+    // Character wave (2026-11-05): the KayKit Adventurers bodies
+    // (bodies.ts) join the crowd the same way — extra local members,
+    // placeholder labels until Jim names them.
+    capped.push({ id: "mage-guest", name: "Mage (new)", body: "mage" });
+    capped.push({ id: "barbarian-guest", name: "Barbarian (new)", body: "barbarian" });
+    capped.push({ id: "knight-guest", name: "Knight (new)", body: "knight" });
     return capped;
   }, [agents, names]);
 
