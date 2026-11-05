@@ -12,12 +12,14 @@ import type { FigureOverride } from "./embody";
 // so each bot owns its skeleton and AnimationMixer while sharing
 // geometry and materials.
 //
-// The model ships two clips: "Walk" (1.0 s, baked IN PLACE — the crowd,
-// not the clip, owns position, so no root-motion pinning is needed) and
-// "Idle" (a subtle sway). Animation state follows crowd speed: Idle at
-// rest, Walk while moving, the two blended by a walk weight that ramps
-// over ~0.25 s so starts and stops crossfade instead of snapping. Walk
-// playback rate scales modestly with ground speed (anti-skate).
+// The model ships three clips: "Walk" (baked IN PLACE — the crowd,
+// not the clip, owns position, so no root-motion pinning is needed),
+// "Idle" (a subtle sway), and "SittingTalking" (a 44 s seated loop,
+// rotations only — the embody override owns seat placement). Animation
+// state follows the body: Idle at rest, Walk while moving, SittingTalking
+// while an embody override holds the figure (mounting or seated). The
+// weights ramp over ~0.25 s so transitions crossfade instead of snapping.
+// Walk playback rate scales modestly with ground speed (anti-skate).
 //
 // The model is authored at cast size: 1.25 m tall, feet grounded at the
 // local origin. Unlike the retired Y Bot there is NO height
@@ -140,15 +142,19 @@ export function CastFigure({
     };
     const idle = make("Idle");
     const walk = make("Walk");
+    const sit = make("SittingTalking");
     // Idle is the resting state: running from the start at full weight.
-    // Walk starts silent; the frame loop raises its weight on movement.
+    // Walk and Sit start silent; the frame loop raises their weights.
     if (idle) idle.reset().setEffectiveWeight(1).play();
     if (walk) walk.setEffectiveWeight(0);
-    return { idle, walk };
+    if (sit) sit.setEffectiveWeight(0);
+    return { idle, walk, sit };
   }, [gltf, mixer]);
 
   // Current Walk blend weight (0 = pure Idle, 1 = pure Walk).
   const walkWeight = useRef(0);
+  // Current Sit blend weight (0 = upright states, 1 = pure SittingTalking).
+  const sitWeight = useRef(0);
 
   useEffect(() => {
     return () => {
@@ -160,8 +166,8 @@ export function CastFigure({
     const grp = group.current;
     if (!grp) return;
     const f = framesRef.current[index];
+    const ov = f ? overridesRef?.current.get(index) : undefined;
     if (f) {
-      const ov = overridesRef?.current.get(index);
       if (ov) {
         // Embody override: the figure sits/mounts at the anchor while the
         // crowd body stays at the approach point.
@@ -173,7 +179,22 @@ export function CastFigure({
       }
     }
 
-    const { idle, walk } = actions;
+    const { idle, walk, sit } = actions;
+    if (sit) {
+      // An embody override is active (mounting or seated): the sitting
+      // clip owns the figure, crossfaded at the same rate as Walk.
+      const target = ov ? 1 : 0;
+      const w = sitWeight.current;
+      if (w !== target) {
+        const step = delta / FADE_S;
+        sitWeight.current =
+          target > w ? Math.min(target, w + step) : Math.max(target, w - step);
+      }
+      const sw = sitWeight.current;
+      if (sw > 0 && !sit.isRunning()) sit.reset().play();
+      sit.setEffectiveWeight(sw);
+      if (sw === 0 && sit.isRunning()) sit.stop();
+    }
     if (walk) {
       const walking = f?.state === "walk";
       const target = walking ? 1 : 0;
@@ -185,8 +206,8 @@ export function CastFigure({
       }
       const weight = walkWeight.current;
       if (weight > 0 && !walk.isRunning()) walk.reset().play();
-      walk.setEffectiveWeight(weight);
-      if (idle) idle.setEffectiveWeight(1 - weight);
+      walk.setEffectiveWeight(weight * (1 - sitWeight.current));
+      if (idle) idle.setEffectiveWeight((1 - weight) * (1 - sitWeight.current));
       // Feet roughly match ground speed: the 1.0 s cycle at its natural
       // rate near WALK_NOMINAL_SPEED, clamped to a modest band.
       walk.timeScale = THREE.MathUtils.clamp(

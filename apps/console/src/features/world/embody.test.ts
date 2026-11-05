@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AGORA_BENCH_ANCHORS,
+  CAST_HIPS_Y,
   EmbodyController,
   angleDelta,
   turnToward,
@@ -159,7 +160,9 @@ describe("EmbodyController skills", () => {
     expect(ov).not.toBeNull();
     expect(ov!.position[0]).toBeCloseTo(bench.seat[0]);
     expect(ov!.position[1]).toBeCloseTo(bench.seat[1]);
-    expect(ov!.y).toBeCloseTo(bench.seatHeight);
+    // Seated root Y: the figure drops so the rig's hips rest on the seat
+    // top (the sitting clip is rotations-only; placement lives here).
+    expect(ov!.y).toBeCloseTo(bench.seatHeight - CAST_HIPS_Y);
 
     // Seated: locomotion is refused, facing still works.
     expect(ctl.issue(0, { skill: "go_to", target: [0, 0] })).toBe(false);
