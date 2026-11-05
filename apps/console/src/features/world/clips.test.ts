@@ -13,7 +13,7 @@ describe("clip catalog", () => {
 
   it("keeps the five core clips the body layer is wired to", () => {
     expect(clipDef("Idle")).toMatchObject({ loop: true, duration: 2.6667 });
-    expect(clipDef("Walk")).toMatchObject({ loop: true, duration: 1.2 });
+    expect(clipDef("Walk")).toMatchObject({ loop: true, duration: 1.1667 });
     expect(clipDef("SittingTalking")).toMatchObject({ loop: true, duration: 44.1 });
     expect(clipDef("SitDown")).toMatchObject({ loop: false, duration: 2.2333 });
     expect(clipDef("StandUp")).toMatchObject({ loop: false, duration: 2.2667 });

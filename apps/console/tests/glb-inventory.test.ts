@@ -7,7 +7,7 @@
 // Lives outside src/ because the app tsconfig is browser-typed; vitest
 // picks it up from here with the node environment above.
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { CLIP_CATALOG } from "../src/features/world/clips";
 
@@ -69,13 +69,7 @@ describe("shipped body GLBs — clip inventory", () => {
     expect(g.tris).toBeGreaterThan(40000);
   });
 
-  it("cast-ninja.glb: full catalog, exact durations, 65 joints, 24,780 tris", () => {
-    const g = readGlb("../public/assets/cast-ninja.glb");
-    expect(Object.keys(g.anims).sort()).toEqual(Object.keys(EXPECTED_CLIPS).sort());
-    for (const [name, dur] of Object.entries(EXPECTED_CLIPS)) {
-      expect(g.anims[name], name).toBeCloseTo(dur, 2);
-    }
-    expect(g.joints).toBe(65);
-    expect(g.tris).toBe(24780);
+  it("cast-ninja.glb is ABSENT — Ninja deleted at Jim's word, 2026-11-05", () => {
+    expect(existsSync(new URL("../public/assets/cast-ninja.glb", import.meta.url))).toBe(false);
   });
 });

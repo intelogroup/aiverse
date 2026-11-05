@@ -16,8 +16,12 @@ import { CLIP_CATALOG, clipDef, type ClipTestState } from "./clips";
 // materials.
 //
 // Every body ships the same 45-clip catalog (clips.ts). Five clips
-// are body-layer business: "Walk" (baked IN PLACE — the crowd,
-// not the clip, owns position, so no root-motion pinning is needed),
+// are body-layer business: "Walk" (a REAL root-motion cycle since
+// 2026-11-05 — the clip carries genuine hips translation; the crowd
+// still owns position, so the frame loop extracts the root motion:
+// it counter-translates the posed hips XZ on the skeleton's parent
+// node, leaving the gait, the bob and the foot plants in the pose
+// while the figure stays over its crowd point),
 // "Idle" (a subtle sway), "SittingTalking" (a 44 s seated loop,
 // rotations only — the embody override owns seat placement),
 // "SitDown" (the authored stand-to-sit transition, played once while
@@ -49,8 +53,8 @@ export const BOT_GLB_URL = "/assets/cast-bodyblock.glb";
 // One-line tuning knob for Jim's eye.
 export const NAMEPLATE_DISTANCE_FACTOR = 10;
 
-// Ground speed at which the Walk cycle plays at its natural rate.
-const WALK_NOMINAL_SPEED = 1.0;
+// The Walk cycle's natural rate is per body (bodies.ts walkSpeed —
+// measured from the baked cycle's stance feet, not a global guess).
 
 // Per-agent body colors: each bot is painted its own color (Jim's call —
 // red, yellow, blue and family), with the face screen glowing a lightened
@@ -167,6 +171,29 @@ export function CastFigure({
     const box = new THREE.Box3().setFromObject(scene);
     return { lift: -box.min.y, height: box.max.y - box.min.y };
   }, [scene]);
+
+  // Root-motion extraction rig: the hips joint (the only joint whose
+  // translation any clip animates — Walk's root ramp; every other
+  // clip ships rotation-only) and its parent node. Each frame the
+  // parent is counter-translated by the posed hips XZ delta, so the
+  // traveling cycle performs over the crowd point instead of walking
+  // away from it and snapping back at the loop.
+  const rootMotion = useMemo(() => {
+    let hips: THREE.Object3D | null = null;
+    scene.traverse((o) => {
+      if (!hips && o.name.endsWith("Hips")) hips = o;
+    });
+    if (!hips || !hips.parent) return null;
+    const parent = hips.parent;
+    return {
+      hips,
+      parent,
+      hipsRest: hips.position.clone(),
+      parentRest: parent.position.clone(),
+      parentQuat: parent.quaternion.clone(),
+    };
+  }, [scene]);
+  const rmDelta = useRef(new THREE.Vector3());
 
   const mixer = useMemo(() => new THREE.AnimationMixer(scene), [scene]);
   const actions = useMemo(() => {
@@ -386,18 +413,33 @@ export function CastFigure({
       if (weight > 0 && !walk.isRunning()) walk.reset().play();
       walk.setEffectiveWeight(weight * (1 - seated) * (1 - yieldEff));
       if (idle) idle.setEffectiveWeight((1 - weight) * (1 - seated) * (1 - yieldEff));
-      // Feet roughly match ground speed: the 1.0 s cycle at its natural
-      // rate near WALK_NOMINAL_SPEED, clamped to a modest band. A
-      // tester-fired Walk plays at its natural rate instead — the
-      // crowd is standing still, the clip performs in place.
+      // Feet match ground speed: the cycle plays at its natural rate
+      // when the crowd moves at this body's measured walkSpeed
+      // (bodies.ts), scaled proportionally and clamped to a modest
+      // band. A tester-fired Walk plays at its natural rate instead —
+      // the crowd is standing still and the extraction below keeps
+      // the traveling cycle over its point.
       walk.timeScale = testerWalk
         ? 1
-        : THREE.MathUtils.clamp((f ? f.speed : 0) / WALK_NOMINAL_SPEED, 0.7, 1.4);
+        : THREE.MathUtils.clamp((f ? f.speed : 0) / body.walkSpeed, 0.7, 1.4);
       // Fully idle again: stop the Walk action so a resting bot costs
       // no clip evaluation beyond its Idle sway.
       if (weight === 0 && walk.isRunning()) walk.stop();
     }
     mixer.update(delta);
+    // Root-motion extraction (see rootMotion above): cancel the
+    // posed hips' horizontal travel on the skeleton's parent node.
+    // The Y (bob) is left in the pose — it is what grounds the feet.
+    // Clips without hips translation (everything but Walk) evaluate
+    // to a zero delta here, so sitting and tester poses are untouched.
+    if (rootMotion) {
+      const d = rmDelta.current
+        .copy(rootMotion.hips.position)
+        .sub(rootMotion.hipsRest)
+        .applyQuaternion(rootMotion.parentQuat);
+      d.y = 0;
+      rootMotion.parent.position.copy(rootMotion.parentRest).sub(d);
+    }
   });
 
   // Leader-line nameplate (Jim's callout design): a dot pinned to the
