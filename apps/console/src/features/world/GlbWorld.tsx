@@ -17,6 +17,21 @@ import {
   EmbodyController,
   type FigureOverride,
 } from "./embody";
+import {
+  DAMP_FOV,
+  DAMP_HEADING,
+  DAMP_LOOK,
+  DAMP_POS_FOLLOW,
+  DAMP_POS_RIDE,
+  FOV_RIDE,
+  FOV_WIDE,
+  botView,
+  damp,
+  dampAngle,
+  followTarget,
+  rideTarget,
+  type CameraMode,
+} from "./cameraRig";
 
 // GlbWorld — the modeled worlds (Blender-authored GLBs) as the console's
 // default stage. Two places share one cast:
@@ -212,6 +227,93 @@ function ShadowTagger() {
   return null;
 }
 
+/**
+ * Embody head camera (?embody=1, Agora): drives the Canvas camera in
+ * follow/ride modes from the selected bot's crowd frame (+ seat
+ * override). Pose math lives in cameraRig.ts; this component is the
+ * per-frame glue — damped vectors in refs, never React state. The
+ * parent disables OrbitControls while a bot mode is active; in wide
+ * mode this rig only eases the FOV back to the house 45°.
+ */
+function CameraRig({
+  framesRef,
+  overridesRef,
+  groundY,
+  camModeRef,
+  index = 0,
+}: {
+  framesRef: RefObject<AgentFrame[]>;
+  overridesRef: RefObject<Map<number, FigureOverride>>;
+  groundY: number;
+  camModeRef: RefObject<CameraMode>;
+  /** The selected bot — cast[0], the same one the panel drives. */
+  index?: number;
+}) {
+  const camera = useThree((s) => s.camera);
+  const rig = useRef<{
+    mode: CameraMode;
+    camPos: THREE.Vector3;
+    lookPos: THREE.Vector3;
+    heading: number;
+  } | null>(null);
+
+  useFrame((_, delta) => {
+    const persp = camera as THREE.PerspectiveCamera;
+    const mode = camModeRef.current;
+    if (mode === "wide") {
+      rig.current = null; // entering a bot mode later starts from its pose
+      if (Math.abs(persp.fov - FOV_WIDE) > 0.01) {
+        persp.fov = damp(persp.fov, FOV_WIDE, DAMP_FOV, delta);
+        persp.updateProjectionMatrix();
+      }
+      return;
+    }
+    const view = botView(
+      framesRef.current[index] ?? null,
+      overridesRef.current.get(index) ?? null,
+      groundY,
+    );
+    if (!view) return;
+    const dt = Math.min(delta, 0.05);
+
+    let st = rig.current;
+    if (!st || st.mode !== mode) {
+      // Entering a mode: adopt the bot's pose outright (a cut, like
+      // games cut to first person) instead of swooping across the deck
+      // from wherever the spectator camera happened to rest.
+      const t = mode === "ride" ? rideTarget(view, view.heading) : followTarget(view);
+      st = rig.current = {
+        mode,
+        camPos: new THREE.Vector3(...t.cam),
+        lookPos: new THREE.Vector3(...t.look),
+        heading: view.heading,
+      };
+    }
+    if (mode === "ride") st.heading = dampAngle(st.heading, view.heading, DAMP_HEADING, dt);
+    const target = mode === "ride" ? rideTarget(view, st.heading) : followTarget(view);
+    const posRate = mode === "ride" ? DAMP_POS_RIDE : DAMP_POS_FOLLOW;
+    st.camPos.set(
+      damp(st.camPos.x, target.cam[0], posRate, dt),
+      damp(st.camPos.y, target.cam[1], posRate, dt),
+      damp(st.camPos.z, target.cam[2], posRate, dt),
+    );
+    st.lookPos.set(
+      damp(st.lookPos.x, target.look[0], DAMP_LOOK, dt),
+      damp(st.lookPos.y, target.look[1], DAMP_LOOK, dt),
+      damp(st.lookPos.z, target.look[2], DAMP_LOOK, dt),
+    );
+    camera.position.copy(st.camPos);
+    camera.lookAt(st.lookPos);
+    const targetFov = mode === "ride" ? FOV_RIDE : FOV_WIDE;
+    const fov = damp(persp.fov, targetFov, DAMP_FOV, dt);
+    if (Math.abs(fov - persp.fov) > 0.001) {
+      persp.fov = fov;
+      persp.updateProjectionMatrix();
+    }
+  });
+  return null;
+}
+
 /** Owns one Recast crowd for the active place and steps it every frame. */
 function CrowdCast({
   place,
@@ -219,6 +321,7 @@ function CrowdCast({
   embodyOn,
   controllerRef,
   overridesRef,
+  camModeRef,
 }: {
   place: Place;
   cast: CastMember[];
@@ -226,6 +329,7 @@ function CrowdCast({
   embodyOn: boolean;
   controllerRef: RefObject<EmbodyController | null>;
   overridesRef: RefObject<Map<number, FigureOverride>>;
+  camModeRef: RefObject<CameraMode>;
 }) {
   const crowdRef = useRef<PlatformCrowd | null>(null);
   const framesRef = useRef<AgentFrame[]>([]);
@@ -323,6 +427,14 @@ function CrowdCast({
 
   return (
     <>
+      {embodyOn && place === "agora" ? (
+        <CameraRig
+          framesRef={framesRef}
+          overridesRef={overridesRef}
+          groundY={groundY}
+          camModeRef={camModeRef}
+        />
+      ) : null}
       {embodyOn && place === "agora"
         ? AGORA_BENCH_ANCHORS.map((a) => (
             // Spike stand-in bench: the Smart Object and its anchor
@@ -375,9 +487,13 @@ function CrowdCast({
 function EmbodyPanel({
   cast,
   controllerRef,
+  camMode,
+  onCamMode,
 }: {
   cast: CastMember[];
   controllerRef: RefObject<EmbodyController | null>;
+  camMode: CameraMode;
+  onCamMode: (m: CameraMode) => void;
 }) {
   const [, setPulse] = useState(0);
   useEffect(() => {
@@ -409,11 +525,35 @@ function EmbodyPanel({
           Stop
         </button>
       </div>
+      <div className="w-embody-row" role="group" aria-label="Camera mode">
+        <button
+          type="button"
+          className={camMode === "wide" ? "active" : ""}
+          onClick={() => onCamMode("wide")}
+        >
+          Wide
+        </button>
+        <button
+          type="button"
+          className={camMode === "follow" ? "active" : ""}
+          onClick={() => onCamMode("follow")}
+        >
+          Follow
+        </button>
+        <button
+          type="button"
+          className={camMode === "ride" ? "active" : ""}
+          onClick={() => onCamMode("ride")}
+        >
+          Ride
+        </button>
+      </div>
       <div className="w-embody-status">
         {ctl
           ? `${st?.posture ?? "standing"}${st?.current ? ` · ${st.current}` : " · idle"}`
           : "warming up…"}
         {last ? ` — last event: ${last.type} ${last.skill}` : ""}
+        {` · camera: ${camMode}`}
       </div>
     </div>
   );
@@ -430,6 +570,14 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   );
   const controllerRef = useRef<EmbodyController | null>(null);
   const overridesRef = useRef(new Map<number, FigureOverride>());
+
+  // Head-camera mode (Embody spike): state for the panel buttons and
+  // OrbitControls, mirrored into a ref the camera rig reads per frame.
+  const [camMode, setCamMode] = useState<CameraMode>("wide");
+  const camModeRef = useRef<CameraMode>("wide");
+  useEffect(() => {
+    camModeRef.current = camMode;
+  }, [camMode]);
 
   // Elevated three-quarter spectator defaults, worked out from the play
   // areas: Agora from 25 m at ~37° elevation frames the whole 9.7 m deck
@@ -477,26 +625,51 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
             embodyOn={embodyOn}
             controllerRef={controllerRef}
             overridesRef={overridesRef}
+            camModeRef={camModeRef}
           />
         </Suspense>
         <OrbitControls
           makeDefault
           target={target}
           enableDamping
+          // Parked while a bot camera mode owns the camera (drei only
+          // updates controls when enabled, so the rig never fights it).
+          enabled={!embodyOn || !agora || camMode === "wide"}
           maxPolarAngle={Math.PI / 2 - 0.04}
           minDistance={agora ? 6 : 20}
           maxDistance={agora ? 55 : 450}
         />
       </Canvas>
       <div className="w-glb-toggle" role="group" aria-label="Choose world">
-        <button type="button" className={agora ? "active" : ""} onClick={() => setPlace("agora")}>
+        <button
+          type="button"
+          className={agora ? "active" : ""}
+          onClick={() => {
+            setPlace("agora");
+            setCamMode("wide");
+          }}
+        >
           Agora
         </button>
-        <button type="button" className={!agora ? "active" : ""} onClick={() => setPlace("city")}>
+        <button
+          type="button"
+          className={!agora ? "active" : ""}
+          onClick={() => {
+            setPlace("city");
+            setCamMode("wide");
+          }}
+        >
           City
         </button>
       </div>
-      {embodyOn && agora ? <EmbodyPanel cast={cast} controllerRef={controllerRef} /> : null}
+      {embodyOn && agora ? (
+        <EmbodyPanel
+          cast={cast}
+          controllerRef={controllerRef}
+          camMode={camMode}
+          onCamMode={setCamMode}
+        />
+      ) : null}
     </div>
   );
 }

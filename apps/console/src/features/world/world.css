@@ -742,6 +742,14 @@
   font-size: 12px;
   cursor: pointer;
 }
+.world-root .w-embody-row + .w-embody-row {
+  margin-top: 6px;
+}
+.world-root .w-embody-row button.active {
+  background: rgba(110, 168, 255, 0.3);
+  border-color: rgba(110, 168, 255, 0.85);
+  color: #fff;
+}
 .world-root .w-embody-status {
   margin-top: 8px;
   color: var(--w-dim);
