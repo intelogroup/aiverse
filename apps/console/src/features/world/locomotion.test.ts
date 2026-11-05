@@ -8,6 +8,7 @@ import {
   animState,
   buildAnnulusGeometry,
   buildRectGeometry,
+  buildStreetGeometry,
   createGeometryCrowd,
   createPlatformCrowd,
   cruiseSpeedForIndex,
@@ -174,9 +175,49 @@ describe("navmesh geometry builders", () => {
     expect(Math.max(...zs)).toBeCloseTo(-60);
     expect(new Set(ys)).toEqual(new Set([0.2]));
   });
+
+  it("carves footprints out of the street geometry", () => {
+    const fp: [number, number, number, number][] = [[-5, -5, 5, 5]];
+    const { positions, indices } = buildStreetGeometry(0, 0, 0.2, 20, 20, fp, 2);
+    expect(positions.length).toBe(11 * 11 * 3);
+    expect(indices.length).toBeLessThan(100 * 6); // some quads are gone
+    expect(indices.length).toBeGreaterThan(0);
+    for (let t = 0; t < indices.length; t += 3) {
+      const cx =
+        (positions[indices[t] * 3] + positions[indices[t + 1] * 3] + positions[indices[t + 2] * 3]) / 3;
+      const cz =
+        (positions[indices[t] * 3 + 2] + positions[indices[t + 1] * 3 + 2] + positions[indices[t + 2] * 3 + 2]) / 3;
+      expect(cx < -5 || cx > 5 || cz < -5 || cz > 5).toBe(true);
+    }
+  });
 });
 
 describe("createGeometryCrowd", () => {
+  it(
+    "never walks through a carved building footprint",
+    async () => {
+      const fp: [number, number, number, number][] = [[-185, -115, -145, -75]];
+      const geo = buildStreetGeometry(-165, -95, 0.2, 110, 70, fp);
+      const crowd = await createGeometryCrowd(geo.positions, geo.indices, 4, {
+        seed: 5,
+        cellSize: 0.5,
+      });
+      const dt = 1 / 60;
+      for (let s = 0; s < 60 * 30; s++) {
+        const frames = crowd.step(dt);
+        expect(frames).toHaveLength(4);
+        frames.forEach((f) => {
+          const [x, z] = f.position;
+          const inside =
+            x > fp[0][0] + 0.2 && x < fp[0][2] - 0.2 && z > fp[0][1] + 0.2 && z < fp[0][3] - 0.2;
+          expect(inside).toBe(false);
+        });
+      }
+      crowd.dispose();
+    },
+    60_000,
+  );
+
   it(
     "wanders a world-space street rectangle without leaving it",
     async () => {

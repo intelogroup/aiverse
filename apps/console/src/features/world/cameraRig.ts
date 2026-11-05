@@ -36,6 +36,15 @@ export const FOLLOW_UP = 1.9;
 export const FOLLOW_LOOK_UP = 0.9;
 /** How far ahead the ride camera gazes (level, along the heading). */
 export const RIDE_LOOK_AHEAD = 4;
+/**
+ * How far in FRONT of the body centre the ride camera sits — at the face
+ * plane, like eyes. At the centre the bot's own head shell fills the
+ * frame (Jim, riding Amara: "the view is barred by her head — it should
+ * be like my eyes seeing"). The ridden figure's head is also hidden in
+ * ride mode (CastFigure `headless`); the offset alone clears the shell
+ * even mid-crossfade.
+ */
+export const EYE_FORWARD = 0.22;
 
 /** Smoothing rates (1/s) for the exponential dampers in the rig. */
 export const DAMP_POS_RIDE = 12;
@@ -107,15 +116,13 @@ export function botView(
   };
 }
 
-/** First-person pose: camera at the head, gaze level along `heading`. */
+/** First-person pose: camera at the eyes, gaze level along `heading`. */
 export function rideTarget(view: BotView, heading: number): { cam: Vec3; look: Vec3 } {
   const head = view.seated ? SEAT_HEAD_HEIGHT : HEAD_HEIGHT;
-  const cam: Vec3 = [view.x, view.feetY + head, view.z];
-  const look: Vec3 = [
-    cam[0] + Math.sin(heading) * RIDE_LOOK_AHEAD,
-    cam[1],
-    cam[2] + Math.cos(heading) * RIDE_LOOK_AHEAD,
-  ];
+  const fx = Math.sin(heading);
+  const fz = Math.cos(heading);
+  const cam: Vec3 = [view.x + fx * EYE_FORWARD, view.feetY + head, view.z + fz * EYE_FORWARD];
+  const look: Vec3 = [cam[0] + fx * RIDE_LOOK_AHEAD, cam[1], cam[2] + fz * RIDE_LOOK_AHEAD];
   return { cam, look };
 }
 

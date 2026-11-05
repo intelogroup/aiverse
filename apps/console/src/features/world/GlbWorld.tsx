@@ -5,12 +5,13 @@ import { OrbitControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import {
-  buildRectGeometry,
+  buildStreetGeometry,
   createGeometryCrowd,
   createPlatformCrowd,
   type AgentFrame,
   type PlatformCrowd,
 } from "./locomotion";
+import { CITY_FOOTPRINTS, insideFootprint } from "./cityFootprints";
 import { CastFigure } from "./CastFigure";
 import {
   AGORA_BENCH_ANCHORS,
@@ -53,7 +54,10 @@ import {
 //   crowd walks a bounded street rectangle in world coordinates over the
 //   dense district (geometry-verified from the GLB: roads surface
 //   y = 0.2 m, densest fabric around x −210..−120, z −90 in three.js
-//   space — the Blender Y axis lands negated in glTF Z).
+//   space — the Blender Y axis lands negated in glTF Z). The rectangle's
+//   navmesh geometry leaves the building footprints out (cityFootprints
+//   .ts, measured from the same GLB), so the cast walks streets and
+//   plazas and never passes through a building.
 //
 // Spectator framing throughout: a perspective camera + OrbitControls,
 // no avatar driving. Each place opens at an elevated three-quarter view
@@ -95,6 +99,22 @@ function homeFor(place: Place, i: number, n: number): [number, number, number] {
   const x = CITY_CENTER[0] - CITY_RECT_W / 2 + 10 + col * ((CITY_RECT_W - 20) / Math.max(1, cols - 1 || 1));
   const z = CITY_CENTER[1] - CITY_RECT_D / 2 + 10 + row * 20;
   return [x, CITY_GROUND_Y, z];
+}
+
+/** City stand-here spots: the home grid, pushed out of building footprints. */
+function cityHomeFor(i: number, n: number): [number, number, number] {
+  const h = homeFor("city", i, n);
+  if (!insideFootprint(h[0], h[2], 1)) return h;
+  for (let d = 2; d <= 60; d += 2) {
+    for (const [dx, dz] of [[0, d], [0, -d], [d, 0], [-d, 0]] as const) {
+      const x = h[0] + dx;
+      const z = h[2] + dz;
+      if (x < CITY_CENTER[0] - CITY_RECT_W / 2 || x > CITY_CENTER[0] + CITY_RECT_W / 2) continue;
+      if (z < CITY_CENTER[1] - CITY_RECT_D / 2 || z > CITY_CENTER[1] + CITY_RECT_D / 2) continue;
+      if (!insideFootprint(x, z, 1)) return [x, CITY_GROUND_Y, z];
+    }
+  }
+  return h;
 }
 
 function WorldEnv({ url }: { url: string }) {
@@ -331,6 +351,7 @@ function CrowdCast({
   controllerRef,
   overridesRef,
   camModeRef,
+  camMode,
   framesRef,
 }: {
   place: Place;
@@ -340,6 +361,8 @@ function CrowdCast({
   controllerRef: RefObject<EmbodyController | null>;
   overridesRef: RefObject<Map<number, FigureOverride>>;
   camModeRef: RefObject<CameraMode>;
+  /** Reactive camera mode — the ridden figure hides its head in ride. */
+  camMode: CameraMode;
   /** Latest crowd frames, shared with the Embody panel's test harness. */
   framesRef: RefObject<AgentFrame[]>;
 }) {
@@ -361,16 +384,21 @@ function CrowdCast({
             initialPositions,
           })
         : (() => {
-            const geo = buildRectGeometry(
+            // Streets only: the navmesh geometry leaves every building
+            // footprint out (measured from the world GLB), so the cast
+            // walks roads and plazas instead of passing through walls.
+            // No initialPositions: spawns are sampled on the navmesh
+            // itself, which guarantees they land on open ground.
+            const geo = buildStreetGeometry(
               CITY_CENTER[0],
               CITY_CENTER[1],
               CITY_GROUND_Y,
               CITY_RECT_W,
               CITY_RECT_D,
+              CITY_FOOTPRINTS,
             );
             return createGeometryCrowd(geo.positions, geo.indices, count, {
               cellSize: 0.5,
-              initialPositions,
             });
           })();
     building
@@ -482,8 +510,9 @@ function CrowdCast({
           overridesRef={overridesRef}
           index={i}
           baseY={groundY}
-          home={homeFor(place, i, count)}
+          home={place === "city" ? cityHomeFor(i, count) : homeFor(place, i, count)}
           label={member.name}
+          headless={embodyOn && i === 0 && camMode === "ride"}
         />
       ))}
     </>
@@ -768,6 +797,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
             controllerRef={controllerRef}
             overridesRef={overridesRef}
             camModeRef={camModeRef}
+            camMode={camMode}
             framesRef={framesRef}
           />
         </Suspense>

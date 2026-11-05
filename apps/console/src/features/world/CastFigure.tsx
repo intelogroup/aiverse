@@ -73,6 +73,7 @@ export function CastFigure({
   baseY = 0,
   home,
   label,
+  headless = false,
 }: {
   /** Latest crowd frames, written by the crowd driver (GlbWorld). */
   framesRef: RefObject<AgentFrame[]>;
@@ -83,6 +84,11 @@ export function CastFigure({
   overridesRef?: RefObject<Map<number, FigureOverride>>;
   /** Which crowd agent this figure visualizes. */
   index?: number;
+  /**
+   * Ride mode: hide this figure's head parts (head, screen, ears) so the
+   * first-person camera at its eyes is never barred by its own shell.
+   */
+  headless?: boolean;
   /** World Y of the ground this figure walks on (frames carry only XZ). */
   baseY?: number;
   /** Stand-here position until the first crowd frame arrives. */
@@ -118,6 +124,15 @@ export function CastFigure({
       }
     });
   }, [scene, label, index]);
+
+  // Ride mode: hide this figure's head parts so its own shell never bars
+  // the eye camera. Per-figure scene clone, so visibility is safe here.
+  useEffect(() => {
+    const HEAD_PARTS = new Set(["head_low", "screen_low", "ears_low"]);
+    scene.traverse((o) => {
+      if (o instanceof THREE.Mesh && HEAD_PARTS.has(o.name)) o.visible = !headless;
+    });
+  }, [scene, headless]);
 
   // No scaling — the export is authored at 1.25 m with feet at y = 0.
   // Measure anyway so the floor lift and label height track real bounds.

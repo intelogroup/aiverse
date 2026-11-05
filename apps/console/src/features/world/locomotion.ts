@@ -246,6 +246,50 @@ export function buildRectGeometry(
   return { positions, indices };
 }
 
+/**
+ * Street geometry for the city crowd: the same subdivided rectangle as
+ * buildRectGeometry, but at metre-scale steps and with every quad whose
+ * centre falls inside a building footprint left out — the navmesh built
+ * from it covers streets and plazas only, so the crowd can never path
+ * through a building. Footprints are [minX, minZ, maxX, maxZ] in the
+ * same world space as the rectangle.
+ */
+export function buildStreetGeometry(
+  cx: number,
+  cz: number,
+  y: number,
+  width: number,
+  depth: number,
+  footprints: readonly (readonly [number, number, number, number])[],
+  step = 2,
+): { positions: number[]; indices: number[] } {
+  const nx = Math.max(1, Math.round(width / step));
+  const nz = Math.max(1, Math.round(depth / step));
+  const positions: number[] = [];
+  for (let j = 0; j <= nz; j++) {
+    for (let i = 0; i <= nx; i++) {
+      positions.push(cx - width / 2 + (i / nx) * width, y, cz - depth / 2 + (j / nz) * depth);
+    }
+  }
+  const row = nx + 1;
+  const indices: number[] = [];
+  const carved = (x: number, z: number): boolean =>
+    footprints.some(([x0, z0, x1, z1]) => x >= x0 && x <= x1 && z >= z0 && z <= z1);
+  for (let j = 0; j < nz; j++) {
+    for (let i = 0; i < nx; i++) {
+      const mx = cx - width / 2 + ((i + 0.5) / nx) * width;
+      const mz = cz - depth / 2 + ((j + 0.5) / nz) * depth;
+      if (carved(mx, mz)) continue;
+      const a = j * row + i;
+      const b = a + 1;
+      const c = a + row;
+      const d = c + 1;
+      indices.push(a, c, b, b, c, d);
+    }
+  }
+  return { positions, indices };
+}
+
 interface AgentRec {
   agent: CrowdAgent;
   target: { x: number; z: number };
