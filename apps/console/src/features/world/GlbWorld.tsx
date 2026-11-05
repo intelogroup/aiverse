@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
 import { OrbitControls, useGLTF } from "@react-three/drei";
@@ -12,6 +12,26 @@ import {
   type PlatformCrowd,
 } from "./locomotion";
 import { CastFigure } from "./CastFigure";
+import {
+  AGORA_BENCH_ANCHORS,
+  EmbodyController,
+  type FigureOverride,
+} from "./embody";
+import {
+  DAMP_FOV,
+  DAMP_HEADING,
+  DAMP_LOOK,
+  DAMP_POS_FOLLOW,
+  DAMP_POS_RIDE,
+  FOV_RIDE,
+  FOV_WIDE,
+  botView,
+  damp,
+  dampAngle,
+  followTarget,
+  rideTarget,
+  type CameraMode,
+} from "./cameraRig";
 
 // GlbWorld — the modeled worlds (Blender-authored GLBs) as the console's
 // default stage. Two places share one cast:
@@ -51,7 +71,7 @@ const AGORA_GROUND_Y = 0.84; // deck top surface
 const CITY_CENTER: [number, number] = [-165, -95]; // XZ, three.js space
 const CITY_RECT_W = 110;
 const CITY_RECT_D = 70;
-const CITY_GROUND_Y = 0.2; // roads surface
+const CITY_GROUND_Y = 0.22; // roads surface (lifted +0.02 over the slab in world2 to end street z-fighting)
 
 /** Deterministic stand-here spots (pre-first-frame + crowd spawn points). */
 function homeFor(place: Place, i: number, n: number): [number, number, number] {
@@ -207,8 +227,110 @@ function ShadowTagger() {
   return null;
 }
 
+/**
+ * Embody head camera (?embody=1, Agora): drives the Canvas camera in
+ * follow/ride modes from the selected bot's crowd frame (+ seat
+ * override). Pose math lives in cameraRig.ts; this component is the
+ * per-frame glue — damped vectors in refs, never React state. The
+ * parent disables OrbitControls while a bot mode is active; in wide
+ * mode this rig only eases the FOV back to the house 45°.
+ */
+function CameraRig({
+  framesRef,
+  overridesRef,
+  groundY,
+  camModeRef,
+  index = 0,
+}: {
+  framesRef: RefObject<AgentFrame[]>;
+  overridesRef: RefObject<Map<number, FigureOverride>>;
+  groundY: number;
+  camModeRef: RefObject<CameraMode>;
+  /** The selected bot — cast[0], the same one the panel drives. */
+  index?: number;
+}) {
+  const camera = useThree((s) => s.camera);
+  const rig = useRef<{
+    mode: CameraMode;
+    camPos: THREE.Vector3;
+    lookPos: THREE.Vector3;
+    heading: number;
+  } | null>(null);
+
+  useFrame((_, delta) => {
+    const persp = camera as THREE.PerspectiveCamera;
+    const mode = camModeRef.current;
+    if (mode === "wide") {
+      rig.current = null; // entering a bot mode later starts from its pose
+      if (Math.abs(persp.fov - FOV_WIDE) > 0.01) {
+        persp.fov = damp(persp.fov, FOV_WIDE, DAMP_FOV, delta);
+        persp.updateProjectionMatrix();
+      }
+      return;
+    }
+    const view = botView(
+      framesRef.current[index] ?? null,
+      overridesRef.current.get(index) ?? null,
+      groundY,
+    );
+    if (!view) return;
+    const dt = Math.min(delta, 0.05);
+
+    let st = rig.current;
+    if (!st || st.mode !== mode) {
+      // Entering a mode: adopt the bot's pose outright (a cut, like
+      // games cut to first person) instead of swooping across the deck
+      // from wherever the spectator camera happened to rest.
+      const t = mode === "ride" ? rideTarget(view, view.heading) : followTarget(view);
+      st = rig.current = {
+        mode,
+        camPos: new THREE.Vector3(...t.cam),
+        lookPos: new THREE.Vector3(...t.look),
+        heading: view.heading,
+      };
+    }
+    if (mode === "ride") st.heading = dampAngle(st.heading, view.heading, DAMP_HEADING, dt);
+    const target = mode === "ride" ? rideTarget(view, st.heading) : followTarget(view);
+    const posRate = mode === "ride" ? DAMP_POS_RIDE : DAMP_POS_FOLLOW;
+    st.camPos.set(
+      damp(st.camPos.x, target.cam[0], posRate, dt),
+      damp(st.camPos.y, target.cam[1], posRate, dt),
+      damp(st.camPos.z, target.cam[2], posRate, dt),
+    );
+    st.lookPos.set(
+      damp(st.lookPos.x, target.look[0], DAMP_LOOK, dt),
+      damp(st.lookPos.y, target.look[1], DAMP_LOOK, dt),
+      damp(st.lookPos.z, target.look[2], DAMP_LOOK, dt),
+    );
+    camera.position.copy(st.camPos);
+    camera.lookAt(st.lookPos);
+    const targetFov = mode === "ride" ? FOV_RIDE : FOV_WIDE;
+    const fov = damp(persp.fov, targetFov, DAMP_FOV, dt);
+    if (Math.abs(fov - persp.fov) > 0.001) {
+      persp.fov = fov;
+      persp.updateProjectionMatrix();
+    }
+  });
+  return null;
+}
+
 /** Owns one Recast crowd for the active place and steps it every frame. */
-function CrowdCast({ place, cast }: { place: Place; cast: CastMember[] }) {
+function CrowdCast({
+  place,
+  cast,
+  embodyOn,
+  controllerRef,
+  overridesRef,
+  camModeRef,
+}: {
+  place: Place;
+  cast: CastMember[];
+  /** Embody v0 spike (?embody=1): skill layer + spike benches, Agora only. */
+  embodyOn: boolean;
+  controllerRef: RefObject<EmbodyController | null>;
+  overridesRef: RefObject<Map<number, FigureOverride>>;
+  camModeRef: RefObject<CameraMode>;
+}) {
   const crowdRef = useRef<PlatformCrowd | null>(null);
   const framesRef = useRef<AgentFrame[]>([]);
   const [crowdReady, setCrowdReady] = useState(false);
@@ -247,11 +369,33 @@ function CrowdCast({ place, cast }: { place: Place; cast: CastMember[] }) {
           return;
         }
         crowdRef.current = c;
+        if (embodyOn && place === "agora") {
+          // Embody v0: the skill layer drives this crowd through a
+          // BodyPort adapter over the latest frames. Anchors are cloned
+          // so occupancy state belongs to this mount.
+          const port = {
+            frame: (i: number) => {
+              const f = framesRef.current[i];
+              return f ? { position: f.position, speed: f.speed, heading: f.heading } : null;
+            },
+            setControlled: (i: number, on: boolean) => crowdRef.current?.setControlled(i, on),
+            moveTo: (i: number, x: number, z: number) => crowdRef.current?.moveAgentTo(i, x, z),
+            stop: (i: number) => crowdRef.current?.stopAgent(i),
+            setHeading: (i: number, h: number) => crowdRef.current?.setHeading(i, h),
+          };
+          const ctl = new EmbodyController(
+            port,
+            AGORA_BENCH_ANCHORS.map((a) => ({ ...a, occupiedBy: null })),
+          );
+          controllerRef.current = ctl;
+          (window as unknown as Record<string, unknown>).__embody = ctl;
+        }
         setCrowdReady(true);
       })
       .catch(() => {});
     return () => {
       live = false;
+      controllerRef.current = null;
       crowdRef.current?.dispose();
       crowdRef.current = null;
     };
@@ -266,17 +410,65 @@ function CrowdCast({ place, cast }: { place: Place; cast: CastMember[] }) {
   useFrame((_, delta) => {
     const crowd = crowdRef.current;
     if (!crowd) return;
-    framesRef.current = crowd.step(Math.min(delta, 0.05));
+    const dt = Math.min(delta, 0.05);
+    framesRef.current = crowd.step(dt);
+    const ctl = controllerRef.current;
+    if (ctl) {
+      ctl.tick(dt);
+      overridesRef.current.clear();
+      for (let i = 0; i < count; i++) {
+        const ov = ctl.overrideFor(i);
+        if (ov) overridesRef.current.set(i, ov);
+      }
+    }
   });
 
   const groundY = place === "agora" ? AGORA_GROUND_Y : CITY_GROUND_Y;
 
   return (
     <>
+      {embodyOn && place === "agora" ? (
+        <CameraRig
+          framesRef={framesRef}
+          overridesRef={overridesRef}
+          groundY={groundY}
+          camModeRef={camModeRef}
+        />
+      ) : null}
+      {embodyOn && place === "agora"
+        ? AGORA_BENCH_ANCHORS.map((a) => (
+            // Spike stand-in bench: the Smart Object and its anchor
+            // arrive together. Production benches are shelf assets in
+            // the world GLB carrying the same anchor data.
+            <group key={a.id} position={[a.seat[0], groundY, a.seat[1]]} rotation={[0, a.facing, 0]}>
+              <mesh position={[0, a.seatHeight - 0.035, 0]} castShadow receiveShadow>
+                <boxGeometry args={[1.3, 0.07, 0.45]} />
+                <meshStandardMaterial color="#454c58" metalness={0.3} roughness={0.5} />
+              </mesh>
+              <mesh position={[-0.55, a.seatHeight / 2, 0]} castShadow>
+                <boxGeometry args={[0.08, a.seatHeight, 0.4]} />
+                <meshStandardMaterial color="#363c46" metalness={0.3} roughness={0.55} />
+              </mesh>
+              <mesh position={[0.55, a.seatHeight / 2, 0]} castShadow>
+                <boxGeometry args={[0.08, a.seatHeight, 0.4]} />
+                <meshStandardMaterial color="#363c46" metalness={0.3} roughness={0.55} />
+              </mesh>
+              <mesh position={[0, a.seatHeight + 0.22, -0.22]} castShadow>
+                <boxGeometry args={[1.3, 0.44, 0.05]} />
+                <meshStandardMaterial color="#454c58" metalness={0.3} roughness={0.5} />
+              </mesh>
+              <mesh position={[0, a.seatHeight + 0.44, -0.22]}>
+                <boxGeometry args={[1.3, 0.03, 0.03]} />
+                <meshStandardMaterial color="#0b0e11" emissive="#2fd4ff" emissiveIntensity={2.2} />
+              </mesh>
+            </group>
+          ))
+        : null}
       {cast.map((member, i) => (
         <CastFigure
           key={member.id}
           framesRef={framesRef}
+          overridesRef={overridesRef}
           index={i}
           baseY={groundY}
           home={homeFor(place, i, count)}
@@ -287,9 +479,105 @@ function CrowdCast({ place, cast }: { place: Place; cast: CastMember[] }) {
   );
 }
 
+/**
+ * Embody v0 spike panel (?embody=1, Agora only): hand-drives the first
+ * cast member through the skill menu so the body layer can be watched
+ * without the gateway. The same controller sits on window.__embody.
+ */
+function EmbodyPanel({
+  cast,
+  controllerRef,
+  camMode,
+  onCamMode,
+}: {
+  cast: CastMember[];
+  controllerRef: RefObject<EmbodyController | null>;
+  camMode: CameraMode;
+  onCamMode: (m: CameraMode) => void;
+}) {
+  const [, setPulse] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setPulse((p) => p + 1), 400);
+    return () => clearInterval(id);
+  }, []);
+  const ctl = controllerRef.current;
+  const st = ctl?.stateFor(0);
+  const last = ctl?.events[ctl.events.length - 1];
+  const name = cast[0]?.name ?? "first bot";
+  const benchB = AGORA_BENCH_ANCHORS[1];
+  return (
+    <div className="w-embody-panel">
+      <div className="w-embody-title">Embody spike — driving {name}</div>
+      <div className="w-embody-row">
+        <button type="button" onClick={() => ctl?.issue(0, { skill: "sit_on", anchorId: "bench-a" })}>
+          Sit on Bench A
+        </button>
+        <button type="button" onClick={() => ctl?.issue(0, { skill: "stand" })}>
+          Stand
+        </button>
+        <button type="button" onClick={() => ctl?.issue(0, { skill: "face", target: { point: [0, 0] } })}>
+          Face the globe
+        </button>
+        <button type="button" onClick={() => ctl?.issue(0, { skill: "go_to", target: benchB.approach })}>
+          Walk to Bench B
+        </button>
+        <button type="button" onClick={() => ctl?.issue(0, { skill: "stop" })}>
+          Stop
+        </button>
+      </div>
+      <div className="w-embody-row" role="group" aria-label="Camera mode">
+        <button
+          type="button"
+          className={camMode === "wide" ? "active" : ""}
+          onClick={() => onCamMode("wide")}
+        >
+          Wide
+        </button>
+        <button
+          type="button"
+          className={camMode === "follow" ? "active" : ""}
+          onClick={() => onCamMode("follow")}
+        >
+          Follow
+        </button>
+        <button
+          type="button"
+          className={camMode === "ride" ? "active" : ""}
+          onClick={() => onCamMode("ride")}
+        >
+          Ride
+        </button>
+      </div>
+      <div className="w-embody-status">
+        {ctl
+          ? `${st?.posture ?? "standing"}${st?.current ? ` · ${st.current}` : " · idle"}`
+          : "warming up…"}
+        {last ? ` — last event: ${last.type} ${last.skill}` : ""}
+        {` · camera: ${camMode}`}
+      </div>
+    </div>
+  );
+}
+
 export function GlbWorld({ cast }: { cast: CastMember[] }) {
   const [place, setPlace] = useState<Place>("agora");
   const agora = place === "agora";
+
+  // Embody v0 spike: ?embody=1 turns on the skill layer (Agora only).
+  const embodyOn = useMemo(
+    () => new URLSearchParams(window.location.search).get("embody") === "1",
+    [],
+  );
+  const controllerRef = useRef<EmbodyController | null>(null);
+  const overridesRef = useRef(new Map<number, FigureOverride>());
+
+  // Head-camera mode (Embody spike): state for the panel buttons and
+  // OrbitControls, mirrored into a ref the camera rig reads per frame.
+  const [camMode, setCamMode] = useState<CameraMode>("wide");
+  const camModeRef = useRef<CameraMode>("wide");
+  useEffect(() => {
+    camModeRef.current = camMode;
+  }, [camMode]);
 
   // Elevated three-quarter spectator defaults, worked out from the play
   // areas: Agora from 25 m at ~37° elevation frames the whole 9.7 m deck
@@ -331,25 +619,57 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
         ) : null}
         <Suspense fallback={null}>
           <WorldEnv url={agora ? AGORA_URL : CITY_URL} />
-          <CrowdCast place={place} cast={cast} />
+          <CrowdCast
+            place={place}
+            cast={cast}
+            embodyOn={embodyOn}
+            controllerRef={controllerRef}
+            overridesRef={overridesRef}
+            camModeRef={camModeRef}
+          />
         </Suspense>
         <OrbitControls
           makeDefault
           target={target}
           enableDamping
+          // Parked while a bot camera mode owns the camera (drei only
+          // updates controls when enabled, so the rig never fights it).
+          enabled={!embodyOn || !agora || camMode === "wide"}
           maxPolarAngle={Math.PI / 2 - 0.04}
           minDistance={agora ? 6 : 20}
           maxDistance={agora ? 55 : 450}
         />
       </Canvas>
       <div className="w-glb-toggle" role="group" aria-label="Choose world">
-        <button type="button" className={agora ? "active" : ""} onClick={() => setPlace("agora")}>
+        <button
+          type="button"
+          className={agora ? "active" : ""}
+          onClick={() => {
+            setPlace("agora");
+            setCamMode("wide");
+          }}
+        >
           Agora
         </button>
-        <button type="button" className={!agora ? "active" : ""} onClick={() => setPlace("city")}>
+        <button
+          type="button"
+          className={!agora ? "active" : ""}
+          onClick={() => {
+            setPlace("city");
+            setCamMode("wide");
+          }}
+        >
           City
         </button>
       </div>
+      {embodyOn && agora ? (
+        <EmbodyPanel
+          cast={cast}
+          controllerRef={controllerRef}
+          camMode={camMode}
+          onCamMode={setCamMode}
+        />
+      ) : null}
     </div>
   );
 }
