@@ -75,10 +75,11 @@ import {
 // figures are drawn from.
 
 export type CastMember = { id: string; name: string; body?: string };
-type Place = "agora" | "city";
+type Place = "agora" | "city" | "city2";
 
 const AGORA_URL = "/assets/world-agora.glb";
 const CITY_URL = "/assets/world-city.glb";
+const CITY2_URL = "/assets/world-city2.glb";
 
 const AGORA_DECK_RADIUS = 9.7;
 const AGORA_KEEP_OUT = 2.2;
@@ -88,6 +89,12 @@ const CITY_CENTER: [number, number] = [-165, -95]; // XZ, three.js space
 const CITY_RECT_W = 110;
 const CITY_RECT_D = 70;
 const CITY_GROUND_Y = 0.22; // roads surface (lifted +0.02 over the slab in world2 to end street z-fighting)
+
+// City 2 is Eyzok: the measured island ground (v4) with the spire standing
+// on the plaza, exported as one composite GLB. Viewing world for now — the
+// cast does not walk it yet, so there is no crowd and no navmesh here.
+const CITY2_CENTER: [number, number] = [-4, -63]; // XZ, three.js space (the plaza; layout (−4, +63))
+const CITY2_GROUND_Y = 0.45; // plaza foundation level
 
 /** Deterministic stand-here spots (pre-first-frame + crowd spawn points). */
 function homeFor(place: Place, i: number, n: number): [number, number, number] {
@@ -157,7 +164,7 @@ function StageEnvironment({ place }: { place: Place }) {
     // different curve than the one it was authored under.
     gl.toneMapping = THREE.AgXToneMapping;
     gl.toneMappingExposure = 1.1;
-    if (place === "city") {
+    if (place !== "agora") {
       const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
       scene.environment = envMap;
       scene.environmentIntensity = 0.6;
@@ -202,29 +209,31 @@ function KeyLight({ place }: { place: Place }) {
   const light = useRef<THREE.DirectionalLight>(null!);
   const scene = useThree((s) => s.scene);
   const agora = place === "agora";
+  const city2 = place === "city2";
   useEffect(() => {
     const l = light.current;
-    l.target.position.set(agora ? 0 : CITY_CENTER[0], 0, agora ? 0 : CITY_CENTER[1]);
+    const c = agora ? [0, 0] : city2 ? CITY2_CENTER : CITY_CENTER;
+    l.target.position.set(c[0], 0, c[1]);
     scene.add(l.target);
     l.target.updateMatrixWorld();
     return () => {
       l.target.removeFromParent();
     };
-  }, [agora, scene]);
+  }, [agora, city2, scene]);
   return (
     <directionalLight
       ref={light}
       castShadow
-      position={agora ? [14, 22, 10] : [-75, 150, -30]}
+      position={agora ? [14, 22, 10] : city2 ? [90, 200, -170] : [-75, 150, -30]}
       intensity={agora ? 1.5 : 2.6}
       shadow-mapSize-width={2048}
       shadow-mapSize-height={2048}
-      shadow-camera-left={agora ? -13 : -72}
-      shadow-camera-right={agora ? 13 : 72}
-      shadow-camera-top={agora ? 13 : 72}
-      shadow-camera-bottom={agora ? -13 : -72}
+      shadow-camera-left={agora ? -13 : city2 ? -215 : -72}
+      shadow-camera-right={agora ? 13 : city2 ? 215 : 72}
+      shadow-camera-top={agora ? 13 : city2 ? 215 : 72}
+      shadow-camera-bottom={agora ? -13 : city2 ? -215 : -72}
       shadow-camera-near={agora ? 2 : 10}
-      shadow-camera-far={agora ? 60 : 340}
+      shadow-camera-far={agora ? 60 : city2 ? 800 : 340}
       shadow-bias={-0.00015}
       shadow-normalBias={agora ? 0.02 : 0.06}
     />
@@ -384,6 +393,8 @@ function CrowdCast({
   useEffect(() => {
     let live = true;
     setCrowdReady(false);
+    // City 2 is a viewing world: no crowd is built and no cast is placed.
+    if (place === "city2") return () => {};
     const initialPositions: [number, number][] = Array.from({ length: count }, (_, i) => {
       const h = homeFor(place, i, count);
       return [h[0], h[2]];
@@ -489,7 +500,8 @@ function CrowdCast({
     }
   });
 
-  const groundY = place === "agora" ? AGORA_GROUND_Y : CITY_GROUND_Y;
+  const groundY =
+    place === "agora" ? AGORA_GROUND_Y : place === "city2" ? CITY2_GROUND_Y : CITY_GROUND_Y;
 
   return (
     <>
@@ -530,20 +542,22 @@ function CrowdCast({
             </group>
           ))
         : null}
-      {cast.map((member, i) => (
-        <CastFigure
-          key={member.id}
-          framesRef={framesRef}
-          overridesRef={overridesRef}
-          index={i}
-          baseY={groundY}
-          home={place === "city" ? cityHomeFor(i, count) : homeFor(place, i, count)}
-          label={member.name}
-          body={bodyForMember(member)}
-          clipTester={i === 0 ? clipTester : undefined}
-          hidden={embodyOn && i === 0 && camMode === "ride"}
-        />
-      ))}
+      {place === "city2"
+        ? null
+        : cast.map((member, i) => (
+            <CastFigure
+              key={member.id}
+              framesRef={framesRef}
+              overridesRef={overridesRef}
+              index={i}
+              baseY={groundY}
+              home={place === "city" ? cityHomeFor(i, count) : homeFor(place, i, count)}
+              label={member.name}
+              body={bodyForMember(member)}
+              clipTester={i === 0 ? clipTester : undefined}
+              hidden={embodyOn && i === 0 && camMode === "ride"}
+            />
+          ))}
     </>
   );
 }
@@ -779,7 +793,11 @@ function EmbodyPanel({
 }
 
 export function GlbWorld({ cast }: { cast: CastMember[] }) {
-  const [place, setPlace] = useState<Place>("agora");
+  // ?world=city|city2 deep-links a world (same pattern as ?embody=1).
+  const [place, setPlace] = useState<Place>(() => {
+    const w = new URLSearchParams(window.location.search).get("world");
+    return w === "city" || w === "city2" ? w : "agora";
+  });
   const agora = place === "agora";
 
   // Embody v0 spike: ?embody=1 turns on the skill layer (Agora only).
@@ -817,12 +835,16 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
     () =>
       agora
         ? { position: [14, 16, 14] as [number, number, number], fov: 45, near: 0.1, far: 600 }
-        : { position: [-103, 74, -33] as [number, number, number], fov: 45, near: 0.5, far: 3000 },
-    [agora],
+        : place === "city"
+          ? { position: [-103, 74, -33] as [number, number, number], fov: 45, near: 0.5, far: 3000 }
+          : { position: [128, 96, 88] as [number, number, number], fov: 45, near: 0.5, far: 3000 },
+    [place],
   );
   const target: [number, number, number] = agora
     ? [0, AGORA_GROUND_Y, 0]
-    : [CITY_CENTER[0], 1, CITY_CENTER[1]];
+    : place === "city"
+      ? [CITY_CENTER[0], 1, CITY_CENTER[1]]
+      : [CITY2_CENTER[0], 24, CITY2_CENTER[1]];
 
   return (
     <div className="w-glb-root">
@@ -851,7 +873,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           </EffectComposer>
         ) : null}
         <Suspense fallback={null}>
-          <WorldEnv url={agora ? AGORA_URL : CITY_URL} />
+          <WorldEnv url={agora ? AGORA_URL : place === "city" ? CITY_URL : CITY2_URL} />
           <CrowdCast
             place={place}
             cast={cast}
@@ -889,13 +911,23 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
         </button>
         <button
           type="button"
-          className={!agora ? "active" : ""}
+          className={place === "city" ? "active" : ""}
           onClick={() => {
             setPlace("city");
             setCamMode("wide");
           }}
         >
           City
+        </button>
+        <button
+          type="button"
+          className={place === "city2" ? "active" : ""}
+          onClick={() => {
+            setPlace("city2");
+            setCamMode("wide");
+          }}
+        >
+          City 2
         </button>
       </div>
       {embodyOn && agora ? (
