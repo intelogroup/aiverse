@@ -4,24 +4,30 @@ import { Html, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import type { AgentFrame } from "./locomotion";
-import type { FigureOverride } from "./embody";
+import type { FigureOverride, SitPhase } from "./embody";
+import { BODY_CAST, sitClipForPhase, type BodyDef } from "./bodies";
 
-// CastFigure — a Body Block bot (Mixamo-rigged, 57 bones) driven by the
-// same AgentFrame stream as every other figure in the world. One GLB is
-// loaded once (drei cache) and cloned per cast member with SkeletonUtils,
-// so each bot owns its skeleton and AnimationMixer while sharing
-// geometry and materials.
+// CastFigure — a cast bot (a "body" from bodies.ts: a rigged GLB plus
+// its measured hips and clip catalog) driven by the same AgentFrame
+// stream as every other figure in the world. One GLB is loaded once
+// (drei cache) and cloned per cast member with SkeletonUtils, so each
+// bot owns its skeleton and AnimationMixer while sharing geometry and
+// materials.
 //
-// The model ships three clips: "Walk" (baked IN PLACE — the crowd,
+// Every body ships four clips: "Walk" (baked IN PLACE — the crowd,
 // not the clip, owns position, so no root-motion pinning is needed),
-// "Idle" (a subtle sway), and "SittingTalking" (a 44 s seated loop,
-// rotations only — the embody override owns seat placement). Animation
-// state follows the body: Idle at rest, Walk while moving, SittingTalking
-// while an embody override holds the figure (mounting or seated). The
-// weights ramp over ~0.25 s so transitions crossfade instead of snapping.
+// "Idle" (a subtle sway), "SittingTalking" (a 44 s seated loop,
+// rotations only — the embody override owns seat placement), and
+// "SitDown" (a 2.8 s stand-to-sit transition, played once while the
+// override mounts and in reverse while it stands). Animation state
+// follows the body: Idle at rest, Walk while moving, and the sitting
+// family follows the override's phase (bodies.ts sitClipForPhase).
+// The weights ramp over ~0.25 s so transitions crossfade instead of
+// snapping — the one exception being SitDown's start, which begins
+// from the standing pose its first frame already matches.
 // Walk playback rate scales modestly with ground speed (anti-skate).
 //
-// The model is authored at cast size: 1.25 m tall, feet grounded at the
+// Bodies are authored at cast size: 1.25 m tall, feet grounded at the
 // local origin. Unlike the retired Y Bot there is NO height
 // normalization — the only fit applied is a measured floor lift.
 
@@ -74,7 +80,10 @@ export function CastFigure({
   home,
   label,
   hidden = false,
+  body = BODY_CAST,
 }: {
+  /** The body this member wears (bodies.ts registry). */
+  body?: BodyDef;
   /** Latest crowd frames, written by the crowd driver (GlbWorld). */
   framesRef: RefObject<AgentFrame[]>;
   /**
@@ -97,7 +106,7 @@ export function CastFigure({
   /** Agent name shown on the floating label (roster name, as elsewhere). */
   label?: string;
 }) {
-  const gltf = useGLTF(BOT_GLB_URL);
+  const gltf = useGLTF(body.url);
   const group = useRef<THREE.Group>(null);
 
   // Own skeleton + own scene graph per cast member.
@@ -147,21 +156,34 @@ export function CastFigure({
       action.setLoop(THREE.LoopRepeat, Infinity);
       return action;
     };
-    const idle = make("Idle");
-    const walk = make("Walk");
-    const sit = make("SittingTalking");
+    const idle = make(body.clips.idle);
+    const walk = make(body.clips.walk);
+    const sit = make(body.clips.sitTalk);
+    const sitDown = make(body.clips.sitDown);
+    // SitDown is a transition, not a loop: play it once per phase and
+    // hold the final pose until the seated loop has faded in.
+    if (sitDown) {
+      sitDown.setLoop(THREE.LoopOnce, 1);
+      sitDown.clampWhenFinished = true;
+    }
     // Idle is the resting state: running from the start at full weight.
-    // Walk and Sit start silent; the frame loop raises their weights.
+    // The rest start silent; the frame loop raises their weights.
     if (idle) idle.reset().setEffectiveWeight(1).play();
     if (walk) walk.setEffectiveWeight(0);
     if (sit) sit.setEffectiveWeight(0);
-    return { idle, walk, sit };
-  }, [gltf, mixer]);
+    if (sitDown) sitDown.setEffectiveWeight(0);
+    return { idle, walk, sit, sitDown };
+  }, [gltf, mixer, body]);
 
   // Current Walk blend weight (0 = pure Idle, 1 = pure Walk).
   const walkWeight = useRef(0);
-  // Current Sit blend weight (0 = upright states, 1 = pure SittingTalking).
+  // Current SittingTalking blend weight (0 = upright, 1 = seated loop).
   const sitWeight = useRef(0);
+  // Current SitDown blend weight (the mount/stand transition clip).
+  const downWeight = useRef(0);
+  // The override phase the figure last reacted to — SitDown is
+  // (re)started on phase ENTRY, not held down per frame.
+  const phaseRef = useRef<SitPhase | null>(null);
 
   useEffect(() => {
     return () => {
@@ -188,22 +210,43 @@ export function CastFigure({
       }
     }
 
-    const { idle, walk, sit } = actions;
+    const { idle, walk, sit, sitDown } = actions;
+    // Sitting family follows the override's phase (see sitClipForPhase):
+    // mounting plays SitDown once, seated loops SittingTalking,
+    // standing plays SitDown in reverse. No override — no sitting clip.
+    const phase: SitPhase | null = ov ? ov.phase : null;
+    const plan = sitClipForPhase(phase);
+    if (sitDown && phase !== phaseRef.current && plan.clip === "sitDown") {
+      // Phase entry: (re)start the transition from the correct end.
+      // Forward starts at frame 0 (a standing pose the figure already
+      // holds); standing starts from the seated end frame, reversed.
+      sitDown.reset();
+      sitDown.timeScale = plan.reverse ? -1 : 1;
+      if (plan.reverse) sitDown.time = sitDown.getClip().duration;
+      sitDown.play();
+    }
+    phaseRef.current = phase;
+    const ramp = (cur: number, target: number): number => {
+      if (cur === target) return cur;
+      const step = delta / FADE_S;
+      return target > cur ? Math.min(target, cur + step) : Math.max(target, cur - step);
+    };
     if (sit) {
-      // An embody override is active (mounting or seated): the sitting
-      // clip owns the figure, crossfaded at the same rate as Walk.
-      const target = ov ? 1 : 0;
-      const w = sitWeight.current;
-      if (w !== target) {
-        const step = delta / FADE_S;
-        sitWeight.current =
-          target > w ? Math.min(target, w + step) : Math.max(target, w - step);
-      }
+      sitWeight.current = ramp(sitWeight.current, plan.clip === "sitTalk" ? 1 : 0);
       const sw = sitWeight.current;
       if (sw > 0 && !sit.isRunning()) sit.reset().play();
       sit.setEffectiveWeight(sw);
       if (sw === 0 && sit.isRunning()) sit.stop();
     }
+    if (sitDown) {
+      downWeight.current = ramp(downWeight.current, plan.clip === "sitDown" ? 1 : 0);
+      const dw = downWeight.current;
+      if (dw > 0 && !sitDown.isRunning() && plan.clip === "sitDown") sitDown.play();
+      sitDown.setEffectiveWeight(dw);
+      if (dw === 0 && sitDown.isRunning() && plan.clip !== "sitDown") sitDown.stop();
+    }
+    // While either sitting weight is up, the upright clips yield.
+    const seated = Math.min(1, sitWeight.current + downWeight.current);
     if (walk) {
       const walking = f?.state === "walk";
       const target = walking ? 1 : 0;
@@ -215,8 +258,8 @@ export function CastFigure({
       }
       const weight = walkWeight.current;
       if (weight > 0 && !walk.isRunning()) walk.reset().play();
-      walk.setEffectiveWeight(weight * (1 - sitWeight.current));
-      if (idle) idle.setEffectiveWeight((1 - weight) * (1 - sitWeight.current));
+      walk.setEffectiveWeight(weight * (1 - seated));
+      if (idle) idle.setEffectiveWeight((1 - weight) * (1 - seated));
       // Feet roughly match ground speed: the 1.0 s cycle at its natural
       // rate near WALK_NOMINAL_SPEED, clamped to a modest band.
       walk.timeScale = THREE.MathUtils.clamp(

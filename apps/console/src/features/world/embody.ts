@@ -84,30 +84,42 @@ export interface EmbodyEvent {
   detail?: string;
 }
 
+/**
+ * Which leg of the sit/stand transition an override belongs to. The
+ * figure layer plays a different clip per phase (see bodies.ts
+ * sitClipForPhase): mounting plays SitDown forward, seated loops
+ * SittingTalking, standing plays SitDown in reverse.
+ */
+export type SitPhase = "mounting" | "seated" | "standing";
+
 /** Render transform override for one figure (crowd space + lift). */
 export interface FigureOverride {
   position: Vec2;
   /** Height above the ground plane, m. */
   y: number;
   heading: number;
+  phase: SitPhase;
 }
 
 export const TURN_RATE = Math.PI; // 180 deg/s
 export const FACE_DONE_RAD = (5 * Math.PI) / 180;
 export const ARRIVE_RADIUS = 0.35; // m — tighter than the crowd's wander arrival: a skill means the spot
 export const BLOCKED_AFTER_S = 4; // stationary and unarrived this long => blocked
-export const MOUNT_S = 0.6; // s to slide from approach point onto the seat (and back)
+export const MOUNT_S = 0.6; // legacy slide time — superseded by SIT_DOWN_S for mount/stand
+export const SIT_DOWN_S = 2.8; // s — SitDown clip length (source frames 50–134 @ 30 fps, rescaled to 24 fps); mount and stand slides sync to it so the root drop lands with the clip's descent
 export const CAST_HIPS_Y = 0.6531; // m — cast rig's standing hips height, measured in Blender from cast-bodyblock.glb
 
 /**
- * Root Y of a figure seated on anchor `a`. The SittingTalking clip carries
- * rotations only (its hips-location channel was stripped at bake time), so
- * the override drops the whole figure by the difference between the rig's
- * standing hips height and the seat top — the pelvis lands on the seat and
- * the bent legs reach the floor (proof-rendered at this exact offset).
+ * Root Y of a figure seated on anchor `a`. The sitting clips carry
+ * rotations only (their hips-location channels were stripped at bake
+ * time), so the override drops the whole figure by the difference
+ * between the rig's standing hips height and the seat top — the pelvis
+ * lands on the seat and the bent legs reach the floor (proof-rendered
+ * at this exact offset). `hipsY` is the MEMBER's body hips height
+ * (bodies.ts registry); it defaults to the cast body's.
  */
-export function seatedRootY(a: Anchor): number {
-  return a.seatHeight - CAST_HIPS_Y;
+export function seatedRootY(a: Anchor, hipsY: number = CAST_HIPS_Y): number {
+  return a.seatHeight - hipsY;
 }
 export const NEARBY_RADIUS = 6; // m — context surface: interactables offered within this range
 
@@ -153,10 +165,19 @@ export class EmbodyController {
 
   private port: BodyPort;
   readonly anchors: Anchor[];
+  /** Standing hips height per agent index — members wear different
+   * bodies (bodies.ts), and the seat drop uses the wearer's own hips. */
+  private hipsYFor: (index: number) => number;
 
-  constructor(port: BodyPort, anchors: Anchor[]) {
+  constructor(port: BodyPort, anchors: Anchor[], opts?: { hipsYFor?: (index: number) => number }) {
     this.port = port;
     this.anchors = anchors;
+    this.hipsYFor = opts?.hipsYFor ?? (() => CAST_HIPS_Y);
+  }
+
+  /** Seated root Y for one agent on one anchor, in the agent's body. */
+  private rootY(index: number, a: Anchor): number {
+    return seatedRootY(a, this.hipsYFor(index));
   }
 
   private log(agent: number, type: EmbodyEvent["type"], skill: string, detail?: string): void {
@@ -303,12 +324,13 @@ export class EmbodyController {
         this.tickSitOn(index, s, cur, f, dt);
       } else if (cur.name === "stand") {
         cur.phaseT += dt;
-        const k = Math.min(1, cur.phaseT / MOUNT_S);
+        const k = Math.min(1, cur.phaseT / SIT_DOWN_S);
         const a = cur.anchor;
         s.override = {
           position: lerp2(a.seat, a.approach, k),
-          y: seatedRootY(a) * (1 - k),
+          y: this.rootY(index, a) * (1 - k),
           heading: s.heading,
+          phase: "standing",
         };
         if (k >= 1) {
           s.override = null;
@@ -353,13 +375,15 @@ export class EmbodyController {
       }
       return;
     }
-    // mount: slide from the approach point onto the seat.
+    // mount: slide from the approach point onto the seat, synced to
+    // the SitDown clip — the root drop lands as the clip's descent ends.
     cur.phaseT += dt;
-    const k = Math.min(1, cur.phaseT / MOUNT_S);
+    const k = Math.min(1, cur.phaseT / SIT_DOWN_S);
     s.override = {
       position: lerp2(cur.from, a.seat, k),
-      y: seatedRootY(a) * k,
+      y: this.rootY(index, a) * k,
       heading: a.facing,
+      phase: k >= 1 ? "seated" : "mounting",
     };
     s.heading = a.facing;
     if (k >= 1) {

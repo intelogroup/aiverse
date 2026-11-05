@@ -14,6 +14,7 @@ import {
 } from "./locomotion";
 import { CITY_FOOTPRINTS, insideFootprint } from "./cityFootprints";
 import { CastFigure } from "./CastFigure";
+import { bodyForMember } from "./bodies";
 import {
   AGORA_BENCH_ANCHORS,
   EmbodyController,
@@ -72,7 +73,7 @@ import {
 // first, then the public roster) — the same data the ring world's
 // figures are drawn from.
 
-export type CastMember = { id: string; name: string };
+export type CastMember = { id: string; name: string; body?: string };
 type Place = "agora" | "city";
 
 const AGORA_URL = "/assets/world-agora.glb";
@@ -370,6 +371,11 @@ function CrowdCast({
   const crowdRef = useRef<PlatformCrowd | null>(null);
   const [crowdReady, setCrowdReady] = useState(false);
   const count = cast.length;
+  // Latest cast, for the controller's per-member body lookups (the
+  // crowd build effect below runs once per place, so it reads the
+  // membership through this ref rather than its build-time closure).
+  const castRef = useRef(cast);
+  castRef.current = cast;
 
   useEffect(() => {
     let live = true;
@@ -440,6 +446,8 @@ function CrowdCast({
           const ctl = new EmbodyController(
             port,
             AGORA_BENCH_ANCHORS.map((a) => ({ ...a, occupiedBy: null })),
+            // Seat drops are computed in the wearer's own body.
+            { hipsYFor: (i) => bodyForMember(castRef.current[i]).hipsY },
           );
           controllerRef.current = ctl;
           (window as unknown as Record<string, unknown>).__embody = ctl;
@@ -527,6 +535,7 @@ function CrowdCast({
           baseY={groundY}
           home={place === "city" ? cityHomeFor(i, count) : homeFor(place, i, count)}
           label={member.name}
+          body={bodyForMember(member)}
           hidden={embodyOn && i === 0 && camMode === "ride"}
         />
       ))}

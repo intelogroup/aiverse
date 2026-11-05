@@ -5,7 +5,9 @@ import { describe, expect, it } from "vitest";
 import {
   AGORA_BENCH_ANCHORS,
   CAST_HIPS_Y,
+  SIT_DOWN_S,
   EmbodyController,
+  seatedRootY,
   angleDelta,
   turnToward,
   type Anchor,
@@ -175,9 +177,10 @@ describe("EmbodyController skills", () => {
     run(ctl, body, 1.5);
     expect(ctl.stateFor(0).heading).toBeCloseTo(0);
 
-    // Stand releases the anchor and the override.
+    // Stand releases the anchor and the override (the stand slide
+    // takes the full SitDown clip length, SIT_DOWN_S).
     expect(ctl.issue(0, { skill: "stand" })).toBe(true);
-    run(ctl, body, 1.5);
+    run(ctl, body, 3.5);
     expect(hasEvent(ctl, "completed", "stand")).toBe(true);
     expect(ctl.stateFor(0).posture).toBe("standing");
     expect(bench.occupiedBy).toBeNull();
@@ -192,7 +195,7 @@ describe("EmbodyController skills", () => {
     body.spawn(0, [0, 0], 0);
     const ctl = new EmbodyController(body, anchors);
     ctl.issue(1, { skill: "sit_on", anchorId: "bench-a" });
-    run(ctl, body, 4);
+    run(ctl, body, 5);
     expect(ctl.stateFor(1).posture).toBe("seated");
 
     expect(ctl.issue(0, { skill: "sit_on", anchorId: "bench-a" })).toBe(false);
@@ -200,6 +203,64 @@ describe("EmbodyController skills", () => {
     expect(ctl.issue(0, { skill: "stand" })).toBe(false);
     const refusals = ctl.events.filter((e) => e.type === "refused" && e.agent === 0);
     expect(refusals.some((e) => e.detail?.includes("occupied"))).toBe(true);
+  });
+
+  it("override phases run mounting -> seated -> standing, each transition lasting the SitDown clip", () => {
+    const body = new FakeBody();
+    const anchors = freshAnchors();
+    const bench = anchors[0];
+    body.spawn(0, [...bench.approach], bench.facing);
+    const ctl = new EmbodyController(body, anchors);
+    const dt = 0.05;
+    const phases: (string | null)[] = [];
+    const step = () => {
+      body.advance(dt);
+      ctl.tick(dt);
+      phases.push(ctl.overrideFor(0)?.phase ?? null);
+    };
+    ctl.issue(0, { skill: "sit_on", anchorId: "bench-a" });
+    let mountStart = -1;
+    let seatedAt = -1;
+    for (let i = 0; i < 200 && seatedAt < 0; i++) {
+      step();
+      if (mountStart < 0 && phases[phases.length - 1] === "mounting") mountStart = i;
+      if (ctl.stateFor(0).posture === "seated") seatedAt = i;
+    }
+    expect(mountStart).toBeGreaterThanOrEqual(0);
+    expect(seatedAt).toBeGreaterThan(mountStart);
+    // The mount slide is synced to the clip: SIT_DOWN_S of ticks.
+    const mountS = (seatedAt - mountStart) * dt;
+    expect(mountS).toBeGreaterThan(SIT_DOWN_S - 0.25);
+    expect(mountS).toBeLessThan(SIT_DOWN_S + 0.25);
+    expect(ctl.overrideFor(0)?.phase).toBe("seated");
+
+    phases.length = 0;
+    ctl.issue(0, { skill: "stand" });
+    let standTicks = 0;
+    for (let i = 0; i < 200 && ctl.stateFor(0).posture !== "standing"; i++) {
+      step();
+      standTicks++;
+    }
+    expect(phases).toContain("standing");
+    expect(standTicks * dt).toBeGreaterThan(SIT_DOWN_S - 0.25);
+    expect(standTicks * dt).toBeLessThan(SIT_DOWN_S + 0.25);
+    expect(ctl.overrideFor(0)).toBeNull();
+  });
+
+  it("seated root Y uses the member's own body hips (hipsYFor)", () => {
+    const body = new FakeBody();
+    const anchors = freshAnchors();
+    const bench = anchors[0];
+    body.spawn(0, [...bench.approach], bench.facing);
+    const summerHips = 0.7854; // BODY_SUMMER.hipsY (bodies.ts)
+    const ctl = new EmbodyController(body, anchors, { hipsYFor: () => summerHips });
+    ctl.issue(0, { skill: "sit_on", anchorId: "bench-a" });
+    run(ctl, body, 6);
+    expect(ctl.stateFor(0).posture).toBe("seated");
+    expect(ctl.overrideFor(0)!.y).toBeCloseTo(bench.seatHeight - summerHips);
+    // The pure helper agrees, and still defaults to the cast body.
+    expect(seatedRootY(bench, summerHips)).toBeCloseTo(bench.seatHeight - summerHips);
+    expect(seatedRootY(bench)).toBeCloseTo(bench.seatHeight - CAST_HIPS_Y);
   });
 
   it("contextFor offers only nearby, enumerated interactables", () => {

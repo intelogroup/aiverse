@@ -222,7 +222,12 @@ export function WorldView({
       seen.add(id);
       out.push({ id, name });
     }
-    return out.slice(0, 6);
+    const capped = out.slice(0, 6);
+    // Summer (Jim's character, bodies.ts) walks both worlds as one
+    // extra local member — she is not a roster agent, just a body in
+    // the crowd. Placeholder label until Jim names her.
+    capped.push({ id: "summer-guest", name: "Summer (new)", body: "summer" });
+    return capped;
   }, [agents, names]);
 
   // Land on the busiest group at readable zoom — a world you walk through,
