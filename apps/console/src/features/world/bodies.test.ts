@@ -12,8 +12,19 @@ import {
   MAGE_HIPS_Y,
   SUMMER_HIPS_Y,
   bodyForMember,
+  cruiseCapForBody,
   sitClipForPhase,
 } from "./bodies";
+
+describe("cruiseCapForBody", () => {
+  it("caps each body at its measured walkSpeed plus stride headroom", () => {
+    expect(cruiseCapForBody(BODY_CAST)).toBeCloseTo(0.8746 * 1.15);
+    expect(cruiseCapForBody(BODY_SUMMER)).toBeCloseTo(1.0796 * 1.15);
+    // The KayKit bodies were skating at up to 1.4 m/s on a 0.5749 gait.
+    expect(cruiseCapForBody(BODY_MAGE)).toBeCloseTo(0.5749 * 1.15);
+    expect(cruiseCapForBody(BODY_MAGE)).toBeLessThan(0.7);
+  });
+});
 
 describe("body registry", () => {
   it("defaults every member to the cast body", () => {

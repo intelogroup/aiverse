@@ -5,8 +5,10 @@ import { OrbitControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import {
+  AGENT_RADIUS,
   buildDeckGeometry,
   buildStreetGeometry,
+  clampPositionToRadius,
   createGeometryCrowd,
   type AgentFrame,
   type PlanObstacle,
@@ -14,7 +16,7 @@ import {
 } from "./locomotion";
 import { CITY_FOOTPRINTS, insideFootprint } from "./cityFootprints";
 import { CastFigure } from "./CastFigure";
-import { bodyForMember } from "./bodies";
+import { bodyForMember, cruiseCapForBody } from "./bodies";
 import { CLIP_CATALOG, ClipTestState } from "./clips";
 import {
   AGORA_BENCH_ANCHORS,
@@ -84,6 +86,12 @@ const CITY2_URL = "/assets/world-city2.glb";
 const AGORA_DECK_RADIUS = 9.7;
 const AGORA_KEEP_OUT = 2.2;
 const AGORA_GROUND_Y = 0.84; // deck top surface
+// The navmesh stops 0.55 m short of the rim, so agent centres (and the
+// bodies around them) always keep a visible margin of deck — and the
+// per-frame clamp below is the hard backstop if separation ever shoves
+// a centre past the mesh edge anyway.
+const AGORA_WALK_RADIUS = AGORA_DECK_RADIUS - 0.55;
+const AGORA_FRAME_RMAX = AGORA_DECK_RADIUS - AGENT_RADIUS;
 
 const CITY_CENTER: [number, number] = [-165, -95]; // XZ, three.js space
 const CITY_RECT_W = 110;
@@ -413,10 +421,16 @@ function CrowdCast({
               w: 1.3,
               d: 0.5,
             }));
-            const geo = buildDeckGeometry(AGORA_DECK_RADIUS, AGORA_KEEP_OUT, obstacles);
+            const geo = buildDeckGeometry(AGORA_WALK_RADIUS, AGORA_KEEP_OUT, obstacles);
             return createGeometryCrowd(geo.positions, geo.indices, count, {
               cellSize: 0.1,
               initialPositions,
+              // Each slot cruises at its own body's pace, not the
+              // slot-blind band (slow bodies were skating at hurry pace).
+              maxSpeedForIndex: (i) => {
+                const m = castRef.current[i];
+                return m ? cruiseCapForBody(bodyForMember(m)) : undefined;
+              },
             });
           })()
         : (() => {
@@ -435,6 +449,10 @@ function CrowdCast({
             );
             return createGeometryCrowd(geo.positions, geo.indices, count, {
               cellSize: 0.5,
+              maxSpeedForIndex: (i) => {
+                const m = castRef.current[i];
+                return m ? cruiseCapForBody(bodyForMember(m)) : undefined;
+              },
             });
           })();
     building
@@ -489,6 +507,12 @@ function CrowdCast({
     if (!crowd) return;
     const dt = Math.min(delta, 0.05);
     framesRef.current = crowd.step(dt);
+    // Hard backstop: no Agora frame ever renders past the deck rim.
+    if (place === "agora") {
+      for (const fr of framesRef.current) {
+        fr.position = clampPositionToRadius(fr.position, AGORA_FRAME_RMAX);
+      }
+    }
     const ctl = controllerRef.current;
     if (ctl) {
       ctl.tick(dt);

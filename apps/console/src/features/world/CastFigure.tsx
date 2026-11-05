@@ -3,7 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import { Html, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.js";
-import type { AgentFrame } from "./locomotion";
+import { verticalExcess, type AgentFrame } from "./locomotion";
 import type { FigureOverride, SitPhase } from "./embody";
 import { BODY_CAST, sitClipForPhase, type BodyDef } from "./bodies";
 import { CLIP_CATALOG, clipDef, type ClipTestState } from "./clips";
@@ -91,6 +91,11 @@ export function accentForFigure(label: string | undefined, index: number): strin
 }
 // Time for the walk weight to ramp 0→1 (the Idle↔Walk crossfade).
 const FADE_S = 0.25;
+
+// Authored-bob band for the vertical guard below: hips height may
+// wander ±9 cm around rest on the pose's own bob; anything past that is
+// a baked ramp, not a bob, and gets countered on the figure group.
+const HIPS_Y_BAND = 0.09;
 
 export function CastFigure({
   framesRef,
@@ -186,15 +191,22 @@ export function CastFigure({
     const hips = found[0] ?? null;
     if (!hips || !hips.parent) return null;
     const parent = hips.parent;
+    // Rest hips height in figure-local space (the primitive rides at
+    // fit.lift inside the group) — the vertical guard's reference.
+    scene.updateMatrixWorld(true);
+    const restWorld = new THREE.Vector3();
+    hips.getWorldPosition(restWorld);
     return {
       hips,
       parent,
       hipsRest: hips.position.clone(),
       parentRest: parent.position.clone(),
       parentQuat: parent.quaternion.clone(),
+      restHipsLocalY: restWorld.y + fit.lift,
     };
-  }, [scene]);
+  }, [scene, fit]);
   const rmDelta = useRef(new THREE.Vector3());
+  const hipsWorldTmp = useRef(new THREE.Vector3());
 
   const mixer = useMemo(() => new THREE.AnimationMixer(scene), [scene]);
   const actions = useMemo(() => {
@@ -440,6 +452,19 @@ export function CastFigure({
         .applyQuaternion(rootMotion.parentQuat);
       d.y = 0;
       rootMotion.parent.position.copy(rootMotion.parentRest).sub(d);
+    }
+    // Vertical guard: a baked Walk cycle can carry a large vertical
+    // hips ramp under its bob (Summer's sinks ~1.26 m per cycle and
+    // snaps back at the loop — the visible plunge into the deck). The
+    // extraction above leaves Y in the pose by design, so counter only
+    // the deviation beyond the bob band, on the figure group: the bob
+    // passes, the ramp is floored. Body-layer locomotion only — sit
+    // overrides and tester clips own their own heights.
+    if (rootMotion && !ov && !activeTest.current) {
+      const hw = hipsWorldTmp.current;
+      rootMotion.hips.getWorldPosition(hw);
+      const dy = grp.worldToLocal(hw).y - rootMotion.restHipsLocalY;
+      grp.position.y = baseY - verticalExcess(dy, HIPS_Y_BAND);
     }
   });
 
