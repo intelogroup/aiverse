@@ -2,12 +2,14 @@
 // Inventory of the shipped body GLBs (public/assets): clip names and
 // durations, skin joints, triangle counts. Reads the binary files
 // directly — these assert the Blender bake pipeline's output contract
-// (five-clip catalog, exact durations) against what the console loads.
+// (the full 45-clip catalog, exact durations) against what the
+// console loads.
 // Lives outside src/ because the app tsconfig is browser-typed; vitest
 // picks it up from here with the node environment above.
 
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { CLIP_CATALOG } from "../src/features/world/clips";
 
 interface GlbInfo {
   tris: number;
@@ -38,16 +40,15 @@ function readGlb(rel: string): GlbInfo {
   return { tris, joints: doc.skins?.[0]?.joints.length ?? 0, anims };
 }
 
-const EXPECTED_CLIPS: Record<string, number> = {
-  Idle: 2.667,
-  Walk: 1.2,
-  SittingTalking: 44.1,
-  SitDown: 2.2333, // dedicated stand_to_sit, 67 frames @ 30 fps
-  StandUp: 2.2667, // dedicated sit_to_stand, 68 frames @ 30 fps
-};
+// The full catalog (clips.ts is the single source of truth): the five
+// core clips plus the 40 baked from the 2026-11-05 Mixamo batch —
+// every body carries all 45, durations exact.
+const EXPECTED_CLIPS: Record<string, number> = Object.fromEntries(
+  CLIP_CATALOG.map((c) => [c.name, c.duration]),
+);
 
 describe("shipped body GLBs — clip inventory", () => {
-  it("cast-bodyblock.glb: five clips, exact durations, 57 joints, 72,164 tris", () => {
+  it("cast-bodyblock.glb: full catalog, exact durations, 57 joints, 72,164 tris", () => {
     const g = readGlb("../public/assets/cast-bodyblock.glb");
     expect(Object.keys(g.anims).sort()).toEqual(Object.keys(EXPECTED_CLIPS).sort());
     for (const [name, dur] of Object.entries(EXPECTED_CLIPS)) {
@@ -57,7 +58,7 @@ describe("shipped body GLBs — clip inventory", () => {
     expect(g.tris).toBe(72164);
   });
 
-  it("cast-summer.glb: five clips, exact durations, 33 joints, dieted mesh", () => {
+  it("cast-summer.glb: full catalog, exact durations, 33 joints, dieted mesh", () => {
     const g = readGlb("../public/assets/cast-summer.glb");
     expect(Object.keys(g.anims).sort()).toEqual(Object.keys(EXPECTED_CLIPS).sort());
     for (const [name, dur] of Object.entries(EXPECTED_CLIPS)) {
@@ -68,7 +69,7 @@ describe("shipped body GLBs — clip inventory", () => {
     expect(g.tris).toBeGreaterThan(40000);
   });
 
-  it("cast-ninja.glb: five clips, exact durations, 65 joints, 24,780 tris", () => {
+  it("cast-ninja.glb: full catalog, exact durations, 65 joints, 24,780 tris", () => {
     const g = readGlb("../public/assets/cast-ninja.glb");
     expect(Object.keys(g.anims).sort()).toEqual(Object.keys(EXPECTED_CLIPS).sort());
     for (const [name, dur] of Object.entries(EXPECTED_CLIPS)) {

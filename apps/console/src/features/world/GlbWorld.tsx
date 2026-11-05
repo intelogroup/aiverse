@@ -15,6 +15,7 @@ import {
 import { CITY_FOOTPRINTS, insideFootprint } from "./cityFootprints";
 import { CastFigure } from "./CastFigure";
 import { bodyForMember } from "./bodies";
+import { CLIP_CATALOG, ClipTestState } from "./clips";
 import {
   AGORA_BENCH_ANCHORS,
   EmbodyController,
@@ -355,11 +356,14 @@ function CrowdCast({
   camModeRef,
   camMode,
   framesRef,
+  clipTester,
 }: {
   place: Place;
   cast: CastMember[];
   /** Embody v0 spike (?embody=1): skill layer + spike benches, Agora only. */
   embodyOn: boolean;
+  /** Clip tester state (panel-fired catalog clips) for cast[0]. */
+  clipTester?: ClipTestState;
   controllerRef: RefObject<EmbodyController | null>;
   overridesRef: RefObject<Map<number, FigureOverride>>;
   camModeRef: RefObject<CameraMode>;
@@ -536,6 +540,7 @@ function CrowdCast({
           home={place === "city" ? cityHomeFor(i, count) : homeFor(place, i, count)}
           label={member.name}
           body={bodyForMember(member)}
+          clipTester={i === 0 ? clipTester : undefined}
           hidden={embodyOn && i === 0 && camMode === "ride"}
         />
       ))}
@@ -555,8 +560,11 @@ function EmbodyPanel({
   glCanvasRef,
   camMode,
   onCamMode,
+  clipTester,
 }: {
   cast: CastMember[];
+  /** Clip tester: fires catalog clips on cast[0] (clips.ts). */
+  clipTester: ClipTestState;
   controllerRef: RefObject<EmbodyController | null>;
   /** Latest crowd frames — the harness reads Amara's anim state/speed. */
   framesRef: RefObject<AgentFrame[]>;
@@ -705,6 +713,32 @@ function EmbodyPanel({
           ? `anim ${frame0.state} · ${frame0.speed.toFixed(2)} m/s · ${st?.posture ?? "standing"} · ${st?.current ?? "no skill"}`
           : "anim — · no frame yet"}
       </div>
+      <div className="w-embody-title w-embody-section">Clip tester — {name}</div>
+      <div className="w-embody-row w-clip-list" role="group" aria-label="Clip tester">
+        {CLIP_CATALOG.map((c) => {
+          const active =
+            c.name === "Idle" ? clipTester.current === null : clipTester.current === c.name;
+          return (
+            <button
+              key={c.name}
+              type="button"
+              className={active ? "active" : ""}
+              onClick={() => {
+                clipTester.fire(c.name);
+                setPulse((p) => p + 1);
+              }}
+            >
+              {c.name}
+              {c.loop ? " ∞" : ""}
+            </button>
+          );
+        })}
+      </div>
+      <div className="w-embody-status">
+        {clipTester.current
+          ? `firing ${clipTester.current} — one-shots return to Idle, loops hold`
+          : "no test clip — body layer owns the figure"}
+      </div>
       <div className="w-embody-title w-embody-section">{name}'s eye — vision fps probe</div>
       {camMode === "ride" ? (
         <>
@@ -754,6 +788,10 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
     [],
   );
   const controllerRef = useRef<EmbodyController | null>(null);
+  // Clip tester for the Embody panel: one shared state object — the
+  // panel fires clips into it, cast[0]'s figure blends toward them.
+  const clipTesterRef = useRef<ClipTestState | null>(null);
+  if (clipTesterRef.current === null) clipTesterRef.current = new ClipTestState();
   const overridesRef = useRef(new Map<number, FigureOverride>());
   // Latest crowd frames, shared between CrowdCast (writer), the camera
   // rig and CastFigure (readers), and the panel's "Own Amara" harness.
@@ -823,6 +861,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
             camModeRef={camModeRef}
             camMode={camMode}
             framesRef={framesRef}
+            clipTester={agora ? (clipTesterRef.current ?? undefined) : undefined}
           />
         </Suspense>
         <OrbitControls
@@ -867,6 +906,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           glCanvasRef={glCanvasRef}
           camMode={camMode}
           onCamMode={setCamMode}
+          clipTester={clipTesterRef.current}
         />
       ) : null}
     </div>

@@ -6,6 +6,7 @@ import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.j
 import type { AgentFrame } from "./locomotion";
 import type { FigureOverride, SitPhase } from "./embody";
 import { BODY_CAST, sitClipForPhase, type BodyDef } from "./bodies";
+import { CLIP_CATALOG, clipDef, type ClipTestState } from "./clips";
 
 // CastFigure — a cast bot (a "body" from bodies.ts: a rigged GLB plus
 // its measured hips and clip catalog) driven by the same AgentFrame
@@ -14,13 +15,16 @@ import { BODY_CAST, sitClipForPhase, type BodyDef } from "./bodies";
 // bot owns its skeleton and AnimationMixer while sharing geometry and
 // materials.
 //
-// Every body ships five clips: "Walk" (baked IN PLACE — the crowd,
+// Every body ships the same 45-clip catalog (clips.ts). Five clips
+// are body-layer business: "Walk" (baked IN PLACE — the crowd,
 // not the clip, owns position, so no root-motion pinning is needed),
 // "Idle" (a subtle sway), "SittingTalking" (a 44 s seated loop,
 // rotations only — the embody override owns seat placement),
 // "SitDown" (the authored stand-to-sit transition, played once while
 // the override mounts) and "StandUp" (its dedicated sit-to-stand
-// counterpart, played once while the override stands). Animation state
+// counterpart, played once while the override stands). The other 40
+// are catalog vocabulary, driven only by the Embody panel's clip
+// tester overlay below. Animation state
 // follows the body: Idle at rest, Walk while moving, and the sitting
 // family follows the override's phase (bodies.ts sitClipForPhase).
 // The weights ramp over ~0.25 s so transitions crossfade instead of
@@ -93,9 +97,18 @@ export function CastFigure({
   label,
   hidden = false,
   body = BODY_CAST,
+  clipTester,
 }: {
   /** The body this member wears (bodies.ts registry). */
   body?: BodyDef;
+  /**
+   * Embody panel clip tester (clips.ts): when present (cast[0] in
+   * embody mode), the figure blends toward the fired catalog clip —
+   * one-shots once, loops held — and yields back to the body layer
+   * afterwards. The sit choreography always wins: while a sit
+   * override is active the tester is suppressed, never blended.
+   */
+  clipTester?: ClipTestState;
   /** Latest crowd frames, written by the crowd driver (GlbWorld). */
   framesRef: RefObject<AgentFrame[]>;
   /**
@@ -173,6 +186,15 @@ export function CastFigure({
     const sit = make(body.clips.sitTalk);
     const sitDown = make(body.clips.sitDown);
     const standUp = make(body.clips.standUp);
+    // The full catalog by name, for the clip tester: every clip the
+    // body ships (clips.ts) gets an action; the five core clips share
+    // the action objects above, the rest start silent and are driven
+    // only by the tester overlay in the frame loop.
+    const byName = new Map<string, THREE.AnimationAction>();
+    for (const def of CLIP_CATALOG) {
+      const a = make(def.name);
+      if (a) byName.set(def.name, a);
+    }
     // The transitions are one-shots, not loops: play once per phase
     // and hold the final pose until the next state has faded in.
     for (const t of [sitDown, standUp]) {
@@ -188,7 +210,12 @@ export function CastFigure({
     if (sit) sit.setEffectiveWeight(0);
     if (sitDown) sitDown.setEffectiveWeight(0);
     if (standUp) standUp.setEffectiveWeight(0);
-    return { idle, walk, sit, sitDown, standUp };
+    for (const a of byName.values()) {
+      if (a !== idle && a !== walk && a !== sit && a !== sitDown && a !== standUp) {
+        a.setEffectiveWeight(0);
+      }
+    }
+    return { idle, walk, sit, sitDown, standUp, byName };
   }, [gltf, mixer, body]);
 
   // Current Walk blend weight (0 = pure Idle, 1 = pure Walk).
@@ -202,6 +229,11 @@ export function CastFigure({
   // The override phase the figure last reacted to — SitDown is
   // (re)started on phase ENTRY, not held down per frame.
   const phaseRef = useRef<SitPhase | null>(null);
+  // Clip tester overlay: the catalog clip currently fired on this
+  // figure (null = body layer owns it) and its blend weight.
+  const activeTest = useRef<string | null>(null);
+  const testActionRef = useRef<THREE.AnimationAction | null>(null);
+  const testWeight = useRef(0);
 
   useEffect(() => {
     return () => {
@@ -228,7 +260,7 @@ export function CastFigure({
       }
     }
 
-    const { idle, walk, sit, sitDown, standUp } = actions;
+    const { idle, walk, sit, sitDown, standUp, byName } = actions;
     // Sitting family follows the override's phase (see sitClipForPhase):
     // mounting plays SitDown once, seated loops SittingTalking,
     // standing plays the dedicated StandUp once. No override — no
@@ -251,12 +283,51 @@ export function CastFigure({
       const step = delta / FADE_S;
       return target > cur ? Math.min(target, cur + step) : Math.max(target, cur - step);
     };
+    // ---- Clip tester sync (Embody panel, cast[0] only) ----
+    // This figure is the tester state's only consumer, so it ticks
+    // the clock that expires one-shots. While a sit override owns the
+    // body the sync is skipped outright — the choreography is never
+    // fought; a clip fired mid-sit starts once the figure stands.
+    if (clipTester) {
+      clipTester.tick(delta);
+      if (!ov && clipTester.current !== activeTest.current) {
+        const want = clipTester.current;
+        if (want) {
+          // Direct clip-to-clip switch: retire the old overlay clip.
+          const prev = testActionRef.current;
+          if (prev && prev !== idle && prev !== walk) {
+            prev.stop();
+            prev.setEffectiveWeight(0);
+          }
+          testActionRef.current = null;
+        }
+        // On expiry (want === null) the old action stays referenced
+        // so the weight block can fade it out before stopping it.
+        activeTest.current = want;
+        if (want && want !== body.clips.walk && want !== body.clips.idle) {
+          const a = byName.get(want);
+          const def = clipDef(want);
+          if (a && def) {
+            a.reset();
+            if (def.loop) {
+              a.setLoop(THREE.LoopRepeat, Infinity);
+              a.clampWhenFinished = false;
+            } else {
+              a.setLoop(THREE.LoopOnce, 1);
+              a.clampWhenFinished = true;
+            }
+            a.play();
+            testActionRef.current = a;
+          }
+        }
+      }
+    }
     if (sit) {
       sitWeight.current = ramp(sitWeight.current, plan.clip === "sitTalk" ? 1 : 0);
       const sw = sitWeight.current;
       if (sw > 0 && !sit.isRunning()) sit.reset().play();
       sit.setEffectiveWeight(sw);
-      if (sw === 0 && sit.isRunning()) sit.stop();
+      if (sw === 0 && sit.isRunning() && sit !== testActionRef.current) sit.stop();
     }
     const driveTransition = (
       action: THREE.AnimationAction | null,
@@ -268,15 +339,43 @@ export function CastFigure({
       const w = weight.current;
       if (w > 0 && !action.isRunning() && active) action.play();
       action.setEffectiveWeight(w);
-      if (w === 0 && action.isRunning() && !active) action.stop();
+      if (w === 0 && action.isRunning() && !active && action !== testActionRef.current) {
+        action.stop();
+      }
     };
     driveTransition(sitDown, downWeight, plan.clip === "sitDown");
     driveTransition(standUp, upWeight, plan.clip === "standUp");
     // While any sitting weight is up, the upright clips yield.
     const seated = Math.min(1, sitWeight.current + downWeight.current + upWeight.current);
+    // ---- Clip tester weight ----
+    // Ramps toward the fired clip while no sit override owns the
+    // body, scaled by (1 - seated) so the sitting family always wins
+    // a blend. While an override IS active the tester never writes a
+    // core sit action (its drivers own those); a tester-only action
+    // is simply muted. yieldEff damps Idle/Walk by the same factor.
+    testWeight.current = ramp(testWeight.current, activeTest.current && !ov ? 1 : 0);
+    const testEff = testWeight.current * (1 - seated);
+    const effAction = testActionRef.current;
+    if (effAction && !ov) {
+      effAction.setEffectiveWeight(testEff);
+      if (testWeight.current === 0 && !activeTest.current) {
+        effAction.stop();
+        testActionRef.current = null;
+      }
+    } else if (
+      effAction &&
+      ov &&
+      effAction !== sit &&
+      effAction !== sitDown &&
+      effAction !== standUp
+    ) {
+      effAction.setEffectiveWeight(0);
+    }
+    const yieldEff = activeTest.current === body.clips.walk ? 0 : testEff;
     if (walk) {
+      const testerWalk = activeTest.current === body.clips.walk;
       const walking = f?.state === "walk";
-      const target = walking ? 1 : 0;
+      const target = testerWalk || walking ? 1 : 0;
       const w = walkWeight.current;
       if (w !== target) {
         const step = delta / FADE_S;
@@ -285,15 +384,15 @@ export function CastFigure({
       }
       const weight = walkWeight.current;
       if (weight > 0 && !walk.isRunning()) walk.reset().play();
-      walk.setEffectiveWeight(weight * (1 - seated));
-      if (idle) idle.setEffectiveWeight((1 - weight) * (1 - seated));
+      walk.setEffectiveWeight(weight * (1 - seated) * (1 - yieldEff));
+      if (idle) idle.setEffectiveWeight((1 - weight) * (1 - seated) * (1 - yieldEff));
       // Feet roughly match ground speed: the 1.0 s cycle at its natural
-      // rate near WALK_NOMINAL_SPEED, clamped to a modest band.
-      walk.timeScale = THREE.MathUtils.clamp(
-        (f ? f.speed : 0) / WALK_NOMINAL_SPEED,
-        0.7,
-        1.4,
-      );
+      // rate near WALK_NOMINAL_SPEED, clamped to a modest band. A
+      // tester-fired Walk plays at its natural rate instead — the
+      // crowd is standing still, the clip performs in place.
+      walk.timeScale = testerWalk
+        ? 1
+        : THREE.MathUtils.clamp((f ? f.speed : 0) / WALK_NOMINAL_SPEED, 0.7, 1.4);
       // Fully idle again: stop the Walk action so a resting bot costs
       // no clip evaluation beyond its Idle sway.
       if (weight === 0 && walk.isRunning()) walk.stop();

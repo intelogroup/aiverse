@@ -3,9 +3,10 @@
 // A "body" is one rigged GLB plus the facts the console needs to wear
 // it: where its hips ride (the embody seat drop is computed from the
 // WEARER's hips, not a global constant) and the clip names its catalog
-// carries. Every body ships the same five-clip catalog — Idle, Walk,
-// SittingTalking, SitDown, StandUp — baked onto its own rig, so skills
-// and clip selection never branch per body; only the measurements do.
+// carries. The five CORE clips — Idle, Walk, SittingTalking, SitDown,
+// StandUp — are the ones skills and clip selection are wired to; the
+// full 45-clip catalog every body ships lives in clips.ts. Bodies
+// never branch per clip; only the measurements do.
 //
 // Three-free and DOM-free, same discipline as embody.ts.
 
