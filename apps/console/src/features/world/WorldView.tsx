@@ -222,7 +222,13 @@ export function WorldView({
       seen.add(id);
       out.push({ id, name });
     }
-    return out.slice(0, 6);
+    const capped = out.slice(0, 6);
+    // Summer and Ninja (Jim's characters, bodies.ts) walk both worlds
+    // as extra local members — they are not roster agents, just bodies
+    // in the crowd. Placeholder labels until Jim names them.
+    capped.push({ id: "summer-guest", name: "Summer (new)", body: "summer" });
+    capped.push({ id: "ninja-guest", name: "Ninja (new)", body: "ninja" });
+    return capped;
   }, [agents, names]);
 
   // Land on the busiest group at readable zoom — a world you walk through,

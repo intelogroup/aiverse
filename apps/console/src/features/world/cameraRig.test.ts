@@ -65,7 +65,7 @@ describe("botView", () => {
   });
 
   it("override wins over the crowd frame: seat position, lift, anchor facing", () => {
-    const ov: FigureOverride = { position: [-4, 1], y: 0.45, heading: 2.2 };
+    const ov: FigureOverride = { position: [-4, 1], y: 0.45, heading: 2.2, phase: "seated" };
     const v = botView(frame([9, 9], 0), ov, 0.84)!;
     expect(v).toMatchObject({ x: -4, z: 1, heading: 2.2, seated: true });
     expect(v.feetY).toBeCloseTo(0.84 + 0.45);
@@ -85,7 +85,7 @@ describe("rideTarget", () => {
   });
 
   it("seated: camera rides at seat height + the seated head offset", () => {
-    const ov: FigureOverride = { position: [0, 5.2], y: 0.45, heading: Math.PI };
+    const ov: FigureOverride = { position: [0, 5.2], y: 0.45, heading: Math.PI, phase: "seated" };
     const v = botView(null, ov, 0.84)!;
     const { cam, look } = rideTarget(v, v.heading);
     expect(cam[1]).toBeCloseTo(0.84 + 0.45 + 1.0);
