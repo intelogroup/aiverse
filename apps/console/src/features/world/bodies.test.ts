@@ -3,9 +3,7 @@ import { AGORA_BENCH_ANCHORS, CAST_HIPS_Y, seatedRootY } from "./embody";
 import {
   BODIES,
   BODY_CAST,
-  BODY_NINJA,
   BODY_SUMMER,
-  NINJA_HIPS_Y,
   SUMMER_HIPS_Y,
   bodyForMember,
   sitClipForPhase,
@@ -29,11 +27,16 @@ describe("body registry", () => {
     expect(BODIES.cast).toBe(BODY_CAST);
   });
 
-  it("resolves the ninja body and its measured hips", () => {
-    expect(bodyForMember({ body: "ninja" })).toBe(BODY_NINJA);
-    expect(BODY_NINJA.url).toBe("/assets/cast-ninja.glb");
-    expect(BODY_NINJA.hipsY).toBe(NINJA_HIPS_Y);
-    expect(BODIES.ninja).toBe(BODY_NINJA);
+  it("ninja is gone from the registry (deleted at Jim's word, 2026-11-05)", () => {
+    expect(BODIES.ninja).toBeUndefined();
+    expect(bodyForMember({ body: "ninja" })).toBe(BODY_CAST);
+  });
+
+  it("every body carries a measured natural walk speed", () => {
+    for (const b of Object.values(BODIES)) {
+      expect(b.walkSpeed).toBeGreaterThan(0.3);
+      expect(b.walkSpeed).toBeLessThan(2.0);
+    }
   });
 
   it("every body carries the same five-clip catalog", () => {
@@ -53,8 +56,6 @@ describe("body registry", () => {
     expect(seatedRootY(bench, BODY_CAST.hipsY)).toBeCloseTo(bench.seatHeight - CAST_HIPS_Y);
     expect(seatedRootY(bench, BODY_SUMMER.hipsY)).toBeCloseTo(bench.seatHeight - SUMMER_HIPS_Y);
     expect(seatedRootY(bench, BODY_SUMMER.hipsY)).not.toBeCloseTo(seatedRootY(bench));
-    expect(seatedRootY(bench, BODY_NINJA.hipsY)).toBeCloseTo(bench.seatHeight - NINJA_HIPS_Y);
-    expect(seatedRootY(bench, BODY_NINJA.hipsY)).not.toBeCloseTo(seatedRootY(bench));
   });
 });
 

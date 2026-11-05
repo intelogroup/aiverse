@@ -18,6 +18,15 @@ export interface BodyDef {
   url: string;
   /** Standing hips height of this rig, m — measured in Blender. */
   hipsY: number;
+  /**
+   * Natural ground speed of this body's Walk cycle, m/s — the speed
+   * at which the baked root motion travels (cycle distance / cycle
+   * duration, measured in Blender from the stance feet). CastFigure
+   * scales Walk playback by crowd speed / walkSpeed so the feet track
+   * the ground, and extracts the clip's root translation so the crowd
+   * keeps position authority.
+   */
+  walkSpeed: number;
   clips: { idle: string; walk: string; sitTalk: string; sitDown: string; standUp: string };
 }
 
@@ -28,6 +37,8 @@ export const BODY_CAST: BodyDef = {
   id: "cast",
   url: "/assets/cast-bodyblock.glb",
   hipsY: CAST_HIPS_Y,
+  // Walk bake 2026-11-05: cycle 1.0203 m / 1.1667 s (stance-measured).
+  walkSpeed: 0.8746,
   clips: CATALOG,
 };
 
@@ -42,27 +53,21 @@ export const BODY_SUMMER: BodyDef = {
   id: "summer",
   url: "/assets/cast-summer.glb",
   hipsY: SUMMER_HIPS_Y,
+  // Walk bake 2026-11-05: cycle 1.2595 m / 1.1667 s (stance-measured
+  // on her own rig during the bake).
+  walkSpeed: 1.0796,
   clips: CATALOG,
 };
 
-/**
- * Ninja — Jim's second character (Sitting__1__small_1_u9zs.fbx,
- * Mixamo Ch24), a 65-bone mixamorig rig scaled to cast height. Hips
- * measured in Blender from the exported cast-ninja.glb at rest.
- */
-export const NINJA_HIPS_Y = 0.675; // m
-
-export const BODY_NINJA: BodyDef = {
-  id: "ninja",
-  url: "/assets/cast-ninja.glb",
-  hipsY: NINJA_HIPS_Y,
-  clips: CATALOG,
-};
+// Ninja (Jim's Ch24 character) was REMOVED from the cast at Jim's
+// word on 2026-11-05: her rig shipped with a corrupted bind pose
+// (right arm ~2x too long in every clip) and Jim chose deletion over
+// repair. Her files are retired to trash, recoverable; the cast is
+// Body Block + Summer.
 
 export const BODIES: Record<string, BodyDef> = {
   [BODY_CAST.id]: BODY_CAST,
   [BODY_SUMMER.id]: BODY_SUMMER,
-  [BODY_NINJA.id]: BODY_NINJA,
 };
 
 /** The body a cast member wears; members name one via `body`, else cast. */

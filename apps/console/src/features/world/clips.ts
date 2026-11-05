@@ -23,7 +23,7 @@ export interface ClipDef {
 
 const CORE: ClipDef[] = [
   { name: "Idle", loop: true, duration: 2.6667 },
-  { name: "Walk", loop: true, duration: 1.2 },
+  { name: "Walk", loop: true, duration: 1.1667 },
   { name: "SittingTalking", loop: true, duration: 44.1 },
   { name: "SitDown", loop: false, duration: 2.2333 },
   { name: "StandUp", loop: false, duration: 2.2667 },
