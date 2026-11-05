@@ -246,6 +246,113 @@ export function buildRectGeometry(
   return { positions, indices };
 }
 
+/**
+ * Street geometry for the city crowd: the same subdivided rectangle as
+ * buildRectGeometry, but at metre-scale steps and with every quad whose
+ * centre falls inside a building footprint left out — the navmesh built
+ * from it covers streets and plazas only, so the crowd can never path
+ * through a building. Footprints are [minX, minZ, maxX, maxZ] in the
+ * same world space as the rectangle.
+ */
+export function buildStreetGeometry(
+  cx: number,
+  cz: number,
+  y: number,
+  width: number,
+  depth: number,
+  footprints: readonly (readonly [number, number, number, number])[],
+  step = 2,
+): { positions: number[]; indices: number[] } {
+  const nx = Math.max(1, Math.round(width / step));
+  const nz = Math.max(1, Math.round(depth / step));
+  const positions: number[] = [];
+  for (let j = 0; j <= nz; j++) {
+    for (let i = 0; i <= nx; i++) {
+      positions.push(cx - width / 2 + (i / nx) * width, y, cz - depth / 2 + (j / nz) * depth);
+    }
+  }
+  const row = nx + 1;
+  const indices: number[] = [];
+  const carved = (x: number, z: number): boolean =>
+    footprints.some(([x0, z0, x1, z1]) => x >= x0 && x <= x1 && z >= z0 && z <= z1);
+  for (let j = 0; j < nz; j++) {
+    for (let i = 0; i < nx; i++) {
+      const mx = cx - width / 2 + ((i + 0.5) / nx) * width;
+      const mz = cz - depth / 2 + ((j + 0.5) / nz) * depth;
+      if (carved(mx, mz)) continue;
+      const a = j * row + i;
+      const b = a + 1;
+      const c = a + row;
+      const d = c + 1;
+      indices.push(a, c, b, b, c, d);
+    }
+  }
+  return { positions, indices };
+}
+
+/** A rotated rectangular obstacle in plan view (a bench, a crate). */
+export interface PlanObstacle {
+  x: number;
+  z: number;
+  /** Heading of the obstacle's local +Z (its depth axis), locomotion convention. */
+  heading: number;
+  /** Local X extent (width), m. */
+  w: number;
+  /** Local Z extent (depth), m. */
+  d: number;
+}
+
+/** True when (x, z) lies inside the rotated obstacle, inflated by margin. */
+export function insideObstacle(x: number, z: number, o: PlanObstacle, margin = 0): boolean {
+  const dx = x - o.x;
+  const dz = z - o.z;
+  const c = Math.cos(o.heading);
+  const s = Math.sin(o.heading);
+  const lx = dx * c - dz * s;
+  const lz = dx * s + dz * c;
+  return Math.abs(lx) <= o.w / 2 + margin && Math.abs(lz) <= o.d / 2 + margin;
+}
+
+/**
+ * Deck geometry for the Agora crowd: a metre-grid over the deck disc,
+ * keeping only quads whose centre sits in the annulus band (outside the
+ * keep-out, inside the rim) and outside every plan obstacle. The navmesh
+ * built from it makes obstacles physically solid — the crowd paths
+ * around benches instead of through them. (The exact-annulus builder
+ * above cannot punch holes; this grid can.)
+ */
+export function buildDeckGeometry(
+  radius: number,
+  keepOutRadius: number,
+  obstacles: readonly PlanObstacle[],
+  step = 0.5,
+): { positions: number[]; indices: number[] } {
+  const n = Math.max(2, Math.round((radius * 2) / step));
+  const positions: number[] = [];
+  for (let j = 0; j <= n; j++) {
+    for (let i = 0; i <= n; i++) {
+      positions.push(-radius + (i / n) * radius * 2, 0, -radius + (j / n) * radius * 2);
+    }
+  }
+  const row = n + 1;
+  const indices: number[] = [];
+  for (let j = 0; j < n; j++) {
+    for (let i = 0; i < n; i++) {
+      const mx = -radius + ((i + 0.5) / n) * radius * 2;
+      const mz = -radius + ((j + 0.5) / n) * radius * 2;
+      const r = Math.hypot(mx, mz);
+      if (r < keepOutRadius || r > radius) continue;
+      if (obstacles.some((o) => insideObstacle(mx, mz, o))) continue;
+      const a = j * row + i;
+      const b = a + 1;
+      const c2 = a + row;
+      const d = c2 + 1;
+      indices.push(a, c2, b, b, c2, d);
+    }
+  }
+  return { positions, indices };
+}
+
 interface AgentRec {
   agent: CrowdAgent;
   target: { x: number; z: number };

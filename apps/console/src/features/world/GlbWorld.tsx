@@ -5,12 +5,14 @@ import { OrbitControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import {
-  buildRectGeometry,
+  buildDeckGeometry,
+  buildStreetGeometry,
   createGeometryCrowd,
-  createPlatformCrowd,
   type AgentFrame,
+  type PlanObstacle,
   type PlatformCrowd,
 } from "./locomotion";
+import { CITY_FOOTPRINTS, insideFootprint } from "./cityFootprints";
 import { CastFigure } from "./CastFigure";
 import {
   AGORA_BENCH_ANCHORS,
@@ -32,6 +34,15 @@ import {
   rideTarget,
   type CameraMode,
 } from "./cameraRig";
+import {
+  PROBE_CADENCES,
+  PROBE_HEIGHT,
+  PROBE_WIDTH,
+  initialProbeStats,
+  recordCapture,
+  shouldCapture,
+  type ProbeStats,
+} from "./visionProbe";
 
 // GlbWorld — the modeled worlds (Blender-authored GLBs) as the console's
 // default stage. Two places share one cast:
@@ -44,7 +55,10 @@ import {
 //   crowd walks a bounded street rectangle in world coordinates over the
 //   dense district (geometry-verified from the GLB: roads surface
 //   y = 0.2 m, densest fabric around x −210..−120, z −90 in three.js
-//   space — the Blender Y axis lands negated in glTF Z).
+//   space — the Blender Y axis lands negated in glTF Z). The rectangle's
+//   navmesh geometry leaves the building footprints out (cityFootprints
+//   .ts, measured from the same GLB), so the cast walks streets and
+//   plazas and never passes through a building.
 //
 // Spectator framing throughout: a perspective camera + OrbitControls,
 // no avatar driving. Each place opens at an elevated three-quarter view
@@ -86,6 +100,22 @@ function homeFor(place: Place, i: number, n: number): [number, number, number] {
   const x = CITY_CENTER[0] - CITY_RECT_W / 2 + 10 + col * ((CITY_RECT_W - 20) / Math.max(1, cols - 1 || 1));
   const z = CITY_CENTER[1] - CITY_RECT_D / 2 + 10 + row * 20;
   return [x, CITY_GROUND_Y, z];
+}
+
+/** City stand-here spots: the home grid, pushed out of building footprints. */
+function cityHomeFor(i: number, n: number): [number, number, number] {
+  const h = homeFor("city", i, n);
+  if (!insideFootprint(h[0], h[2], 1)) return h;
+  for (let d = 2; d <= 60; d += 2) {
+    for (const [dx, dz] of [[0, d], [0, -d], [d, 0], [-d, 0]] as const) {
+      const x = h[0] + dx;
+      const z = h[2] + dz;
+      if (x < CITY_CENTER[0] - CITY_RECT_W / 2 || x > CITY_CENTER[0] + CITY_RECT_W / 2) continue;
+      if (z < CITY_CENTER[1] - CITY_RECT_D / 2 || z > CITY_CENTER[1] + CITY_RECT_D / 2) continue;
+      if (!insideFootprint(x, z, 1)) return [x, CITY_GROUND_Y, z];
+    }
+  }
+  return h;
 }
 
 function WorldEnv({ url }: { url: string }) {
@@ -322,6 +352,8 @@ function CrowdCast({
   controllerRef,
   overridesRef,
   camModeRef,
+  camMode,
+  framesRef,
 }: {
   place: Place;
   cast: CastMember[];
@@ -330,9 +362,12 @@ function CrowdCast({
   controllerRef: RefObject<EmbodyController | null>;
   overridesRef: RefObject<Map<number, FigureOverride>>;
   camModeRef: RefObject<CameraMode>;
+  /** Reactive camera mode — the ridden figure does not render in ride. */
+  camMode: CameraMode;
+  /** Latest crowd frames, shared with the Embody panel's test harness. */
+  framesRef: RefObject<AgentFrame[]>;
 }) {
   const crowdRef = useRef<PlatformCrowd | null>(null);
-  const framesRef = useRef<AgentFrame[]>([]);
   const [crowdReady, setCrowdReady] = useState(false);
   const count = cast.length;
 
@@ -345,21 +380,40 @@ function CrowdCast({
     });
     const building =
       place === "agora"
-        ? createPlatformCrowd(AGORA_DECK_RADIUS, count, {
-            keepOutRadius: AGORA_KEEP_OUT,
-            initialPositions,
-          })
+        ? (() => {
+            // Deck geometry with the spike benches punched out: the
+            // benches are solid — the crowd paths around them, and the
+            // sit_on approach point (0.95 m behind the seat) stays on
+            // the mesh. Same 0.1 navmesh cells as the old disc path.
+            const obstacles: PlanObstacle[] = AGORA_BENCH_ANCHORS.map((a) => ({
+              x: a.seat[0],
+              z: a.seat[1],
+              heading: a.facing,
+              w: 1.3,
+              d: 0.5,
+            }));
+            const geo = buildDeckGeometry(AGORA_DECK_RADIUS, AGORA_KEEP_OUT, obstacles);
+            return createGeometryCrowd(geo.positions, geo.indices, count, {
+              cellSize: 0.1,
+              initialPositions,
+            });
+          })()
         : (() => {
-            const geo = buildRectGeometry(
+            // Streets only: the navmesh geometry leaves every building
+            // footprint out (measured from the world GLB), so the cast
+            // walks roads and plazas instead of passing through walls.
+            // No initialPositions: spawns are sampled on the navmesh
+            // itself, which guarantees they land on open ground.
+            const geo = buildStreetGeometry(
               CITY_CENTER[0],
               CITY_CENTER[1],
               CITY_GROUND_Y,
               CITY_RECT_W,
               CITY_RECT_D,
+              CITY_FOOTPRINTS,
             );
             return createGeometryCrowd(geo.positions, geo.indices, count, {
               cellSize: 0.5,
-              initialPositions,
             });
           })();
     building
@@ -471,8 +525,9 @@ function CrowdCast({
           overridesRef={overridesRef}
           index={i}
           baseY={groundY}
-          home={homeFor(place, i, count)}
+          home={place === "city" ? cityHomeFor(i, count) : homeFor(place, i, count)}
           label={member.name}
+          hidden={embodyOn && i === 0 && camMode === "ride"}
         />
       ))}
     </>
@@ -487,11 +542,17 @@ function CrowdCast({
 function EmbodyPanel({
   cast,
   controllerRef,
+  framesRef,
+  glCanvasRef,
   camMode,
   onCamMode,
 }: {
   cast: CastMember[];
   controllerRef: RefObject<EmbodyController | null>;
+  /** Latest crowd frames — the harness reads Amara's anim state/speed. */
+  framesRef: RefObject<AgentFrame[]>;
+  /** The WebGL canvas — the vision probe captures it in Ride mode. */
+  glCanvasRef: RefObject<HTMLCanvasElement | null>;
   camMode: CameraMode;
   onCamMode: (m: CameraMode) => void;
 }) {
@@ -505,6 +566,68 @@ function EmbodyPanel({
   const last = ctl?.events[ctl.events.length - 1];
   const name = cast[0]?.name ?? "first bot";
   const benchB = AGORA_BENCH_ANCHORS[1];
+
+  // ---- "Own Amara" test harness -------------------------------------
+  // Animation tester: Patrol keeps issuing go_to legs between the two
+  // bench approaches whenever Amara is idle, so the Walk clip plays
+  // continuously; toggling off issues stop. If she is seated when a leg
+  // comes due, the harness stands her up first.
+  const [patrolOn, setPatrolOn] = useState(false);
+  const patrolLeg = useRef(0);
+  useEffect(() => {
+    if (!patrolOn) return;
+    const id = setInterval(() => {
+      const c = controllerRef.current;
+      if (!c) return;
+      const s = c.stateFor(0);
+      if (s.current) return; // a skill is running — the leg waits
+      if (s.posture === "seated") {
+        c.issue(0, { skill: "stand" });
+        return;
+      }
+      const leg = patrolLeg.current % AGORA_BENCH_ANCHORS.length;
+      patrolLeg.current = leg + 1;
+      c.issue(0, { skill: "go_to", target: AGORA_BENCH_ANCHORS[leg].approach });
+    }, 300);
+    return () => clearInterval(id);
+  }, [patrolOn, controllerRef]);
+  const togglePatrol = () => {
+    if (patrolOn) controllerRef.current?.issue(0, { skill: "stop" });
+    setPatrolOn(!patrolOn);
+  };
+  const turn180 = () => {
+    const c = controllerRef.current;
+    if (!c) return;
+    c.issue(0, { skill: "face", target: { heading: c.stateFor(0).heading + Math.PI } });
+  };
+
+  // Vision FPS probe ("Amara's eye"): in Ride mode the main camera IS
+  // the head camera, so capturing the WebGL canvas measures exactly
+  // what a served `look` would cost. Capture = one drawImage into the
+  // preview canvas — no encoding, no network (visionProbe.ts owns the
+  // cadence gate and the statistics).
+  const [probeFps, setProbeFps] = useState(0);
+  const previewRef = useRef<HTMLCanvasElement | null>(null);
+  const statsRef = useRef<ProbeStats>(initialProbeStats());
+  useEffect(() => {
+    if (camMode !== "ride" || probeFps <= 0) return;
+    statsRef.current = initialProbeStats();
+    const id = setInterval(() => {
+      const src = glCanvasRef.current;
+      const dst = previewRef.current;
+      if (!src || !dst) return;
+      const ctx = dst.getContext("2d");
+      if (!ctx) return;
+      const t0 = performance.now();
+      if (!shouldCapture(t0, statsRef.current.lastAt, probeFps)) return;
+      ctx.drawImage(src, 0, 0, PROBE_WIDTH, PROBE_HEIGHT);
+      statsRef.current = recordCapture(statsRef.current, t0, performance.now() - t0);
+    }, 40);
+    return () => clearInterval(id);
+  }, [camMode, probeFps, glCanvasRef]);
+  const stats = statsRef.current;
+  const frame0 = framesRef.current[0];
+
   return (
     <div className="w-embody-panel">
       <div className="w-embody-title">Embody spike — driving {name}</div>
@@ -555,6 +678,59 @@ function EmbodyPanel({
         {last ? ` — last event: ${last.type} ${last.skill}` : ""}
         {` · camera: ${camMode}`}
       </div>
+      <div className="w-embody-title w-embody-section">Test harness — {name}</div>
+      <div className="w-embody-row" role="group" aria-label="Animation tester">
+        <button
+          type="button"
+          className={patrolOn ? "active" : ""}
+          onClick={togglePatrol}
+        >
+          Patrol
+        </button>
+        <button type="button" onClick={turn180}>
+          Turn 180°
+        </button>
+      </div>
+      <div className="w-embody-status">
+        {frame0
+          ? `anim ${frame0.state} · ${frame0.speed.toFixed(2)} m/s · ${st?.posture ?? "standing"} · ${st?.current ?? "no skill"}`
+          : "anim — · no frame yet"}
+      </div>
+      <div className="w-embody-title w-embody-section">{name}'s eye — vision fps probe</div>
+      {camMode === "ride" ? (
+        <>
+          <div className="w-embody-row" role="group" aria-label="Vision capture rate">
+            {PROBE_CADENCES.map((f) => (
+              <button
+                key={f}
+                type="button"
+                className={probeFps === f ? "active" : ""}
+                onClick={() => setProbeFps(f)}
+              >
+                {f} fps
+              </button>
+            ))}
+            <button
+              type="button"
+              className={probeFps === 0 ? "active" : ""}
+              onClick={() => setProbeFps(0)}
+            >
+              Off
+            </button>
+          </div>
+          <canvas
+            ref={previewRef}
+            width={PROBE_WIDTH}
+            height={PROBE_HEIGHT}
+            className="w-embody-vision"
+          />
+          <div className="w-embody-status">
+            {`target ${probeFps} fps · achieved ${stats.fpsEma.toFixed(1)} fps · ${stats.costEmaMs.toFixed(2)} ms/capture · ${stats.captures} frames`}
+          </div>
+        </>
+      ) : (
+        <div className="w-embody-status">switch to Ride to probe {name}'s eye</div>
+      )}
     </div>
   );
 }
@@ -570,6 +746,13 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   );
   const controllerRef = useRef<EmbodyController | null>(null);
   const overridesRef = useRef(new Map<number, FigureOverride>());
+  // Latest crowd frames, shared between CrowdCast (writer), the camera
+  // rig and CastFigure (readers), and the panel's "Own Amara" harness.
+  const framesRef = useRef<AgentFrame[]>([]);
+  // The WebGL canvas element, captured by Canvas onCreated — the vision
+  // probe's frame source. preserveDrawingBuffer (embody only) is what
+  // makes reading it back outside the render loop meaningful.
+  const glCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Head-camera mode (Embody spike): state for the panel buttons and
   // OrbitControls, mirrored into a ref the camera rig reads per frame.
@@ -600,7 +783,10 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
         key={place}
         camera={camera}
         shadows="soft"
-        gl={{ antialias: true }}
+        gl={{ antialias: true, preserveDrawingBuffer: embodyOn }}
+        onCreated={({ gl }) => {
+          glCanvasRef.current = gl.domElement;
+        }}
         style={{ position: "absolute", inset: 0 }}
       >
         <ambientLight intensity={0.12} color="#8fa3cc" />
@@ -626,6 +812,8 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
             controllerRef={controllerRef}
             overridesRef={overridesRef}
             camModeRef={camModeRef}
+            camMode={camMode}
+            framesRef={framesRef}
           />
         </Suspense>
         <OrbitControls
@@ -666,6 +854,8 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
         <EmbodyPanel
           cast={cast}
           controllerRef={controllerRef}
+          framesRef={framesRef}
+          glCanvasRef={glCanvasRef}
           camMode={camMode}
           onCamMode={setCamMode}
         />

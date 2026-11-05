@@ -36,8 +36,10 @@ function anchorFacingCentre(id: string, label: string, angleDeg: number, radius:
   const facing = Math.atan2(-seat[0], -seat[1]);
   const fx = Math.sin(facing);
   const fz = Math.cos(facing);
-  // Approach point stands 0.55 m behind the seat, opposite the facing.
-  const approach: Vec2 = [seat[0] - fx * 0.55, seat[1] - fz * 0.55];
+  // Approach point stands 0.95 m behind the seat, opposite the facing —
+  // far enough that it stays on the deck navmesh now that the bench
+  // itself is carved out of it (hole + navmesh edge erosion ≈ 0.65 m).
+  const approach: Vec2 = [seat[0] - fx * 0.95, seat[1] - fz * 0.95];
   return { id, label, seat, facing, approach, seatHeight, occupiedBy: null };
 }
 
@@ -95,6 +97,18 @@ export const FACE_DONE_RAD = (5 * Math.PI) / 180;
 export const ARRIVE_RADIUS = 0.35; // m — tighter than the crowd's wander arrival: a skill means the spot
 export const BLOCKED_AFTER_S = 4; // stationary and unarrived this long => blocked
 export const MOUNT_S = 0.6; // s to slide from approach point onto the seat (and back)
+export const CAST_HIPS_Y = 0.6531; // m — cast rig's standing hips height, measured in Blender from cast-bodyblock.glb
+
+/**
+ * Root Y of a figure seated on anchor `a`. The SittingTalking clip carries
+ * rotations only (its hips-location channel was stripped at bake time), so
+ * the override drops the whole figure by the difference between the rig's
+ * standing hips height and the seat top — the pelvis lands on the seat and
+ * the bent legs reach the floor (proof-rendered at this exact offset).
+ */
+export function seatedRootY(a: Anchor): number {
+  return a.seatHeight - CAST_HIPS_Y;
+}
 export const NEARBY_RADIUS = 6; // m — context surface: interactables offered within this range
 
 /** Shortest signed angular distance from `from` to `to`, in (-PI, PI]. */
@@ -293,7 +307,7 @@ export class EmbodyController {
         const a = cur.anchor;
         s.override = {
           position: lerp2(a.seat, a.approach, k),
-          y: a.seatHeight * (1 - k),
+          y: seatedRootY(a) * (1 - k),
           heading: s.heading,
         };
         if (k >= 1) {
@@ -344,7 +358,7 @@ export class EmbodyController {
     const k = Math.min(1, cur.phaseT / MOUNT_S);
     s.override = {
       position: lerp2(cur.from, a.seat, k),
-      y: a.seatHeight * k,
+      y: seatedRootY(a) * k,
       heading: a.facing,
     };
     s.heading = a.facing;

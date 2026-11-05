@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AGORA_BENCH_ANCHORS,
+  CAST_HIPS_Y,
   EmbodyController,
   angleDelta,
   turnToward,
@@ -12,7 +13,12 @@ import {
   type BodyPort,
   type Vec2,
 } from "./embody";
-import { createPlatformCrowd } from "./locomotion";
+import {
+  buildDeckGeometry,
+  createGeometryCrowd,
+  createPlatformCrowd,
+  type PlanObstacle,
+} from "./locomotion";
 
 const dist = (a: Vec2, b: Vec2) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
@@ -159,7 +165,9 @@ describe("EmbodyController skills", () => {
     expect(ov).not.toBeNull();
     expect(ov!.position[0]).toBeCloseTo(bench.seat[0]);
     expect(ov!.position[1]).toBeCloseTo(bench.seat[1]);
-    expect(ov!.y).toBeCloseTo(bench.seatHeight);
+    // Seated root Y: the figure drops so the rig's hips rest on the seat
+    // top (the sitting clip is rotations-only; placement lives here).
+    expect(ov!.y).toBeCloseTo(bench.seatHeight - CAST_HIPS_Y);
 
     // Seated: locomotion is refused, facing still works.
     expect(ctl.issue(0, { skill: "go_to", target: [0, 0] })).toBe(false);
@@ -205,6 +213,64 @@ describe("EmbodyController skills", () => {
     expect(ctx.nearby_interactables.map((a) => a.id)).toEqual(["bench-a"]);
     expect(ctx.nearby_interactables[0].free).toBe(true);
   });
+});
+
+describe("sit_on over the bench-carved deck (production composition)", () => {
+  it(
+    "reaches the 0.95 m approach and sits, with the bench solid in the navmesh",
+    async () => {
+      const anchors = AGORA_BENCH_ANCHORS.map((a) => ({ ...a, occupiedBy: null }));
+      const obstacles: PlanObstacle[] = anchors.map((a) => ({
+        x: a.seat[0],
+        z: a.seat[1],
+        heading: a.facing,
+        w: 1.3,
+        d: 0.5,
+      }));
+      const geo = buildDeckGeometry(9.7, 2.2, obstacles);
+      const bench = anchors[0];
+      const crowd = await createGeometryCrowd(geo.positions, geo.indices, 2, {
+        seed: 11,
+        cellSize: 0.1,
+        initialPositions: [
+          [bench.approach[0] + 1.2, bench.approach[1] + 0.8],
+          [-4, 3],
+        ],
+      });
+      try {
+        let frames = crowd.step(0);
+        const port = {
+          frame: (i: number) => {
+            const f = frames[i];
+            return f ? { position: f.position, speed: f.speed, heading: f.heading } : null;
+          },
+          setControlled: (i: number, on: boolean) => crowd.setControlled(i, on),
+          moveTo: (i: number, x: number, z: number) => crowd.moveAgentTo(i, x, z),
+          stop: (i: number) => crowd.stopAgent(i),
+          setHeading: (i: number, h: number) => crowd.setHeading(i, h),
+        };
+        const ctl = new EmbodyController(port, anchors);
+        expect(ctl.issue(0, { skill: "sit_on", anchorId: "bench-a" })).toBe(true);
+        const dt = 1 / 30;
+        for (let t = 0; t < 25 && ctl.stateFor(0).posture !== "seated"; t += dt) {
+          frames = crowd.step(dt);
+          ctl.tick(dt);
+        }
+        expect(ctl.stateFor(0).posture).toBe("seated");
+        expect(hasEvent(ctl, "completed", "sit_on")).toBe(true);
+        // And she can stand back up onto the same mesh.
+        expect(ctl.issue(0, { skill: "stand" })).toBe(true);
+        for (let t = 0; t < 5 && ctl.stateFor(0).posture !== "standing"; t += dt) {
+          frames = crowd.step(dt);
+          ctl.tick(dt);
+        }
+        expect(ctl.stateFor(0).posture).toBe("standing");
+      } finally {
+        crowd.dispose();
+      }
+    },
+    60_000,
+  );
 });
 
 describe("crowd control surface (real Recast crowd)", () => {

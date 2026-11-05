@@ -754,3 +754,15 @@
   margin-top: 8px;
   color: var(--w-dim);
 }
+.world-root .w-embody-section {
+  margin-top: 12px;
+}
+.world-root .w-embody-vision {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--w-border);
+  background: #000;
+}

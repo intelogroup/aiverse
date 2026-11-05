@@ -3,6 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  EYE_FORWARD,
   FOLLOW_BACK,
   damp,
   dampAngle,
@@ -72,13 +73,13 @@ describe("botView", () => {
 });
 
 describe("rideTarget", () => {
-  it("standing: camera at head height, gaze level and 4 m along the heading", () => {
+  it("standing: camera at the eyes (face plane), gaze level and 4 m along the heading", () => {
     const v = botView(frame([1, 2], Math.PI / 2), null, 0.84)!; // facing +X
     const { cam, look } = rideTarget(v, v.heading);
-    expect(cam[0]).toBeCloseTo(1);
+    expect(cam[0]).toBeCloseTo(1 + EYE_FORWARD); // pushed out of the head shell
     expect(cam[1]).toBeCloseTo(0.84 + 1.15);
     expect(cam[2]).toBeCloseTo(2);
-    expect(look[0]).toBeCloseTo(1 + 4);
+    expect(look[0]).toBeCloseTo(cam[0] + 4);
     expect(look[1]).toBeCloseTo(cam[1]); // level gaze, no pitch
     expect(look[2]).toBeCloseTo(2);
   });
