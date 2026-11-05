@@ -65,9 +65,62 @@ export const BODY_SUMMER: BodyDef = {
 // repair. Her files are retired to trash, recoverable; the cast is
 // Body Block + Summer.
 
+// ---------------------------------------------------------------------------
+// Character wave (2026-11-05): KayKit "Character Pack: Adventurers"
+// (CC0) bodies, Rig_Medium skeletons retargeted with the full 45-clip
+// catalog. KayKit proportions are chibi — a bbox normalization would
+// shrink the body to a child next to the cast (the Mage is mostly
+// hat), so each body is scaled by the HEAD-JOINT landmark instead:
+// head joint pinned to 1.10 m (cast 1.0956 / summer 1.0816 class).
+// Hips Y is the measured pelvis (upperleg) joint height of the
+// exported GLB — the seat drop uses it exactly like the other bodies;
+// the seated proof render sits the pelvis on the bench top.
+// Walk speed: the cast Walk joint motion retargeted verbatim, so the
+// natural speed scales with the stride the smaller rig performs —
+// cast walkSpeed x (this body's Walk foot fore-aft travel / cast's),
+// both measured on the shipped GLBs (cast avg 0.4466 m).
+// ---------------------------------------------------------------------------
+
+export const MAGE_HIPS_Y = 0.4601; // m
+
+export const BODY_MAGE: BodyDef = {
+  id: "mage",
+  url: "/assets/cast-mage.glb",
+  hipsY: MAGE_HIPS_Y,
+  // 0.8746 x (0.2936 / 0.4466) — see note above.
+  walkSpeed: 0.5749,
+  clips: CATALOG,
+};
+
+export const BARBARIAN_HIPS_Y = 0.4601; // m
+
+export const BODY_BARBARIAN: BodyDef = {
+  id: "barbarian",
+  url: "/assets/cast-barbarian.glb",
+  hipsY: BARBARIAN_HIPS_Y,
+  // Same Rig_Medium skeleton as the Mage — identical measured Walk
+  // foot travel (0.2936 m avg), so the same derived speed.
+  walkSpeed: 0.5749,
+  clips: CATALOG,
+};
+
+export const KNIGHT_HIPS_Y = 0.4601; // m
+
+export const BODY_KNIGHT: BodyDef = {
+  id: "knight",
+  url: "/assets/cast-knight.glb",
+  hipsY: KNIGHT_HIPS_Y,
+  // Same Rig_Medium skeleton — identical measured Walk foot travel.
+  walkSpeed: 0.5749,
+  clips: CATALOG,
+};
+
 export const BODIES: Record<string, BodyDef> = {
   [BODY_CAST.id]: BODY_CAST,
   [BODY_SUMMER.id]: BODY_SUMMER,
+  [BODY_MAGE.id]: BODY_MAGE,
+  [BODY_BARBARIAN.id]: BODY_BARBARIAN,
+  [BODY_KNIGHT.id]: BODY_KNIGHT,
 };
 
 /** The body a cast member wears; members name one via `body`, else cast. */

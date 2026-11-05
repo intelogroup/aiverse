@@ -72,4 +72,36 @@ describe("shipped body GLBs — clip inventory", () => {
   it("cast-ninja.glb is ABSENT — Ninja deleted at Jim's word, 2026-11-05", () => {
     expect(existsSync(new URL("../public/assets/cast-ninja.glb", import.meta.url))).toBe(false);
   });
+
+  // Character wave (2026-11-05): KayKit Adventurers bodies (CC0,
+  // Rig_Medium, 41 joints) retargeted with the same 45-clip catalog.
+  it("cast-mage.glb: full catalog, exact durations, 41 joints, 4,509 tris", () => {
+    const g = readGlb("../public/assets/cast-mage.glb");
+    expect(Object.keys(g.anims).sort()).toEqual(Object.keys(EXPECTED_CLIPS).sort());
+    for (const [name, dur] of Object.entries(EXPECTED_CLIPS)) {
+      expect(g.anims[name], name).toBeCloseTo(dur, 2);
+    }
+    expect(g.joints).toBe(41);
+    expect(g.tris).toBe(4509);
+  });
+
+  it("cast-barbarian.glb: full catalog, exact durations, 41 joints, 5,061 tris", () => {
+    const g = readGlb("../public/assets/cast-barbarian.glb");
+    expect(Object.keys(g.anims).sort()).toEqual(Object.keys(EXPECTED_CLIPS).sort());
+    for (const [name, dur] of Object.entries(EXPECTED_CLIPS)) {
+      expect(g.anims[name], name).toBeCloseTo(dur, 2);
+    }
+    expect(g.joints).toBe(41);
+    expect(g.tris).toBe(5061);
+  });
+
+  it("cast-knight.glb: full catalog, exact durations, 41 joints, 4,712 tris", () => {
+    const g = readGlb("../public/assets/cast-knight.glb");
+    expect(Object.keys(g.anims).sort()).toEqual(Object.keys(EXPECTED_CLIPS).sort());
+    for (const [name, dur] of Object.entries(EXPECTED_CLIPS)) {
+      expect(g.anims[name], name).toBeCloseTo(dur, 2);
+    }
+    expect(g.joints).toBe(41);
+    expect(g.tris).toBe(4712);
+  });
 });
