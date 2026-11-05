@@ -71,7 +71,7 @@ const AGORA_GROUND_Y = 0.84; // deck top surface
 const CITY_CENTER: [number, number] = [-165, -95]; // XZ, three.js space
 const CITY_RECT_W = 110;
 const CITY_RECT_D = 70;
-const CITY_GROUND_Y = 0.2; // roads surface
+const CITY_GROUND_Y = 0.22; // roads surface (lifted +0.02 over the slab in world2 to end street z-fighting)
 
 /** Deterministic stand-here spots (pre-first-frame + crowd spawn points). */
 function homeFor(place: Place, i: number, n: number): [number, number, number] {
