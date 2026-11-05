@@ -389,7 +389,7 @@ function CrowdCast({
         ? (() => {
             // Deck geometry with the spike benches punched out: the
             // benches are solid — the crowd paths around them, and the
-            // sit_on approach point (0.95 m behind the seat) stays on
+            // sit_on stand point (0.62 m in front of the seat) stays on
             // the mesh. Same 0.1 navmesh cells as the old disc path.
             const obstacles: PlanObstacle[] = AGORA_BENCH_ANCHORS.map((a) => ({
               x: a.seat[0],

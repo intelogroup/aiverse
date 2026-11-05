@@ -3,7 +3,9 @@ import { AGORA_BENCH_ANCHORS, CAST_HIPS_Y, seatedRootY } from "./embody";
 import {
   BODIES,
   BODY_CAST,
+  BODY_NINJA,
   BODY_SUMMER,
+  NINJA_HIPS_Y,
   SUMMER_HIPS_Y,
   bodyForMember,
   sitClipForPhase,
@@ -27,13 +29,21 @@ describe("body registry", () => {
     expect(BODIES.cast).toBe(BODY_CAST);
   });
 
-  it("every body carries the same four-clip catalog", () => {
+  it("resolves the ninja body and its measured hips", () => {
+    expect(bodyForMember({ body: "ninja" })).toBe(BODY_NINJA);
+    expect(BODY_NINJA.url).toBe("/assets/cast-ninja.glb");
+    expect(BODY_NINJA.hipsY).toBe(NINJA_HIPS_Y);
+    expect(BODIES.ninja).toBe(BODY_NINJA);
+  });
+
+  it("every body carries the same five-clip catalog", () => {
     for (const b of Object.values(BODIES)) {
       expect(b.clips).toEqual({
         idle: "Idle",
         walk: "Walk",
         sitTalk: "SittingTalking",
         sitDown: "SitDown",
+        standUp: "StandUp",
       });
     }
   });
@@ -43,22 +53,24 @@ describe("body registry", () => {
     expect(seatedRootY(bench, BODY_CAST.hipsY)).toBeCloseTo(bench.seatHeight - CAST_HIPS_Y);
     expect(seatedRootY(bench, BODY_SUMMER.hipsY)).toBeCloseTo(bench.seatHeight - SUMMER_HIPS_Y);
     expect(seatedRootY(bench, BODY_SUMMER.hipsY)).not.toBeCloseTo(seatedRootY(bench));
+    expect(seatedRootY(bench, BODY_NINJA.hipsY)).toBeCloseTo(bench.seatHeight - NINJA_HIPS_Y);
+    expect(seatedRootY(bench, BODY_NINJA.hipsY)).not.toBeCloseTo(seatedRootY(bench));
   });
 });
 
 describe("sitClipForPhase — clip selection per override phase", () => {
   it("mounting plays SitDown forward, once", () => {
-    expect(sitClipForPhase("mounting")).toEqual({ clip: "sitDown", reverse: false });
+    expect(sitClipForPhase("mounting")).toEqual({ clip: "sitDown" });
   });
   it("seated loops SittingTalking", () => {
-    expect(sitClipForPhase("seated")).toEqual({ clip: "sitTalk", reverse: false });
+    expect(sitClipForPhase("seated")).toEqual({ clip: "sitTalk" });
   });
-  it("standing plays SitDown in reverse", () => {
-    expect(sitClipForPhase("standing")).toEqual({ clip: "sitDown", reverse: true });
+  it("standing plays the dedicated StandUp clip forward — never reverse", () => {
+    expect(sitClipForPhase("standing")).toEqual({ clip: "standUp" });
   });
   it("no override — no sitting clip", () => {
-    expect(sitClipForPhase(null)).toEqual({ clip: null, reverse: false });
-    expect(sitClipForPhase(undefined)).toEqual({ clip: null, reverse: false });
+    expect(sitClipForPhase(null)).toEqual({ clip: null });
+    expect(sitClipForPhase(undefined)).toEqual({ clip: null });
   });
 });
 

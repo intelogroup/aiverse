@@ -3,9 +3,9 @@
 // A "body" is one rigged GLB plus the facts the console needs to wear
 // it: where its hips ride (the embody seat drop is computed from the
 // WEARER's hips, not a global constant) and the clip names its catalog
-// carries. Every body ships the same four-clip catalog — Idle, Walk,
-// SittingTalking, SitDown — baked onto its own rig, so skills and clip
-// selection never branch per body; only the measurements do.
+// carries. Every body ships the same five-clip catalog — Idle, Walk,
+// SittingTalking, SitDown, StandUp — baked onto its own rig, so skills
+// and clip selection never branch per body; only the measurements do.
 //
 // Three-free and DOM-free, same discipline as embody.ts.
 
@@ -17,10 +17,10 @@ export interface BodyDef {
   url: string;
   /** Standing hips height of this rig, m — measured in Blender. */
   hipsY: number;
-  clips: { idle: string; walk: string; sitTalk: string; sitDown: string };
+  clips: { idle: string; walk: string; sitTalk: string; sitDown: string; standUp: string };
 }
 
-const CATALOG = { idle: "Idle", walk: "Walk", sitTalk: "SittingTalking", sitDown: "SitDown" };
+const CATALOG = { idle: "Idle", walk: "Walk", sitTalk: "SittingTalking", sitDown: "SitDown", standUp: "StandUp" };
 
 /** The shared Body Block body every roster member wears by default. */
 export const BODY_CAST: BodyDef = {
@@ -44,9 +44,24 @@ export const BODY_SUMMER: BodyDef = {
   clips: CATALOG,
 };
 
+/**
+ * Ninja — Jim's second character (Sitting__1__small_1_u9zs.fbx,
+ * Mixamo Ch24), a 65-bone mixamorig rig scaled to cast height. Hips
+ * measured in Blender from the exported cast-ninja.glb at rest.
+ */
+export const NINJA_HIPS_Y = 0.675; // m
+
+export const BODY_NINJA: BodyDef = {
+  id: "ninja",
+  url: "/assets/cast-ninja.glb",
+  hipsY: NINJA_HIPS_Y,
+  clips: CATALOG,
+};
+
 export const BODIES: Record<string, BodyDef> = {
   [BODY_CAST.id]: BODY_CAST,
   [BODY_SUMMER.id]: BODY_SUMMER,
+  [BODY_NINJA.id]: BODY_NINJA,
 };
 
 /** The body a cast member wears; members name one via `body`, else cast. */
@@ -58,19 +73,21 @@ export function bodyForMember(member: { body?: string } | null | undefined): Bod
  * Clip selection for the sit/stand transition: while an embody
  * override is in its mounting phase the figure plays SitDown once,
  * forward; seated it loops SittingTalking; while standing it plays
- * SitDown in reverse. No override — no sitting clip at all.
+ * the dedicated StandUp clip forward (the authored sit_to_stand
+ * transition — no reverse playback anywhere). No override — no
+ * sitting clip at all.
  */
 export function sitClipForPhase(
   phase: SitPhase | null | undefined,
-): { clip: "sitDown" | "sitTalk" | null; reverse: boolean } {
+): { clip: "sitDown" | "standUp" | "sitTalk" | null } {
   switch (phase) {
     case "mounting":
-      return { clip: "sitDown", reverse: false };
+      return { clip: "sitDown" };
     case "standing":
-      return { clip: "sitDown", reverse: true };
+      return { clip: "standUp" };
     case "seated":
-      return { clip: "sitTalk", reverse: false };
+      return { clip: "sitTalk" };
     default:
-      return { clip: null, reverse: false };
+      return { clip: null };
   }
 }

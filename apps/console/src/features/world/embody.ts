@@ -21,12 +21,21 @@ export interface Anchor {
   seat: Vec2;
   /** Heading the seated figure faces, radians. */
   facing: number;
-  /** Walkable point the body navigates to before mounting. */
+  /** Stand point in front of the seat: the body navigates here, faces
+   * the bench, turns its back to it and mounts backwards onto the seat. */
   approach: Vec2;
   /** Seat surface height above the ground plane, m (render lift). */
   seatHeight: number;
   occupiedBy: number | null;
 }
+
+/** How far in FRONT of the seat centre the sit_on stand point sits, m.
+ * The sitter walks to the front of the bench, faces it, turns around
+ * and backs onto the seat — she never enters through the bench. 0.62 m
+ * clears the seat's front edge (seat depth 0.45 → half-depth 0.225)
+ * plus the agent's own radius, and the point stands on open deck in
+ * front of the carved bench footprint. */
+export const STAND_OFF = 0.62;
 
 function anchorFacingCentre(id: string, label: string, angleDeg: number, radius: number, seatHeight: number): Anchor {
   const t = (angleDeg * Math.PI) / 180;
@@ -36,10 +45,10 @@ function anchorFacingCentre(id: string, label: string, angleDeg: number, radius:
   const facing = Math.atan2(-seat[0], -seat[1]);
   const fx = Math.sin(facing);
   const fz = Math.cos(facing);
-  // Approach point stands 0.95 m behind the seat, opposite the facing —
-  // far enough that it stays on the deck navmesh now that the bench
-  // itself is carved out of it (hole + navmesh edge erosion ≈ 0.65 m).
-  const approach: Vec2 = [seat[0] - fx * 0.95, seat[1] - fz * 0.95];
+  // The stand point is in FRONT of the seat, along the facing: the
+  // point the body navigates to before the face-turn-mount sequence,
+  // and the point stand returns to.
+  const approach: Vec2 = [seat[0] + fx * STAND_OFF, seat[1] + fz * STAND_OFF];
   return { id, label, seat, facing, approach, seatHeight, occupiedBy: null };
 }
 
@@ -88,7 +97,7 @@ export interface EmbodyEvent {
  * Which leg of the sit/stand transition an override belongs to. The
  * figure layer plays a different clip per phase (see bodies.ts
  * sitClipForPhase): mounting plays SitDown forward, seated loops
- * SittingTalking, standing plays SitDown in reverse.
+ * SittingTalking, standing plays the dedicated StandUp clip forward.
  */
 export type SitPhase = "mounting" | "seated" | "standing";
 
@@ -105,8 +114,9 @@ export const TURN_RATE = Math.PI; // 180 deg/s
 export const FACE_DONE_RAD = (5 * Math.PI) / 180;
 export const ARRIVE_RADIUS = 0.35; // m — tighter than the crowd's wander arrival: a skill means the spot
 export const BLOCKED_AFTER_S = 4; // stationary and unarrived this long => blocked
-export const MOUNT_S = 0.6; // legacy slide time — superseded by SIT_DOWN_S for mount/stand
-export const SIT_DOWN_S = 2.8; // s — SitDown clip length (source frames 50–134 @ 30 fps, rescaled to 24 fps); mount and stand slides sync to it so the root drop lands with the clip's descent
+export const MOUNT_S = 0.6; // legacy slide time — superseded by SIT_DOWN_S / STAND_UP_S
+export const SIT_DOWN_S = 2.2333; // s — SitDown clip length: the dedicated Mixamo stand_to_sit transition (authored span 67 frames @ 30 fps, rescaled to 24 fps); the mount slide syncs to it so the root drop lands with the clip's descent
+export const STAND_UP_S = 2.2667; // s — StandUp clip length: the dedicated sit_to_stand transition (68 frames @ 30 fps, rescaled); the stand slide syncs to it
 export const CAST_HIPS_Y = 0.6531; // m — cast rig's standing hips height, measured in Blender from cast-bodyblock.glb
 
 /**
@@ -143,7 +153,7 @@ type Posture = "standing" | "seated";
 type RunningSkill =
   | { name: "go_to"; target: Vec2; lastMoveAt: number }
   | { name: "face"; targetHeading: number }
-  | { name: "sit_on"; anchor: Anchor; phase: "goto" | "face" | "mount"; phaseT: number; from: Vec2; lastMoveAt: number }
+  | { name: "sit_on"; anchor: Anchor; phase: "goto" | "face" | "turn" | "mount"; phaseT: number; from: Vec2; lastMoveAt: number }
   | { name: "stand"; anchor: Anchor; phaseT: number };
 
 interface AgentState {
@@ -324,7 +334,7 @@ export class EmbodyController {
         this.tickSitOn(index, s, cur, f, dt);
       } else if (cur.name === "stand") {
         cur.phaseT += dt;
-        const k = Math.min(1, cur.phaseT / SIT_DOWN_S);
+        const k = Math.min(1, cur.phaseT / STAND_UP_S);
         const a = cur.anchor;
         s.override = {
           position: lerp2(a.seat, a.approach, k),
@@ -367,6 +377,16 @@ export class EmbodyController {
       return;
     }
     if (cur.phase === "face") {
+      // At the stand point, first FACE the bench (heading opposite the
+      // seat facing) — you look at the thing you are about to sit on.
+      if (this.turnStep(s, index, a.facing + Math.PI, dt)) {
+        cur.phase = "turn";
+      }
+      return;
+    }
+    if (cur.phase === "turn") {
+      // Then turn in place 180° so the back is to the bench; the mount
+      // backs onto the seat from the front, never through it.
       if (this.turnStep(s, index, a.facing, dt)) {
         cur.phase = "mount";
         cur.phaseT = 0;
@@ -375,7 +395,8 @@ export class EmbodyController {
       }
       return;
     }
-    // mount: slide from the approach point onto the seat, synced to
+    // mount: slide BACKWARD from the stand point onto the seat (the
+    // segment stays in the front hemisphere of the seat), synced to
     // the SitDown clip — the root drop lands as the clip's descent ends.
     cur.phaseT += dt;
     const k = Math.min(1, cur.phaseT / SIT_DOWN_S);

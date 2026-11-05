@@ -6,6 +6,8 @@ import {
   AGORA_BENCH_ANCHORS,
   CAST_HIPS_Y,
   SIT_DOWN_S,
+  STAND_OFF,
+  STAND_UP_S,
   EmbodyController,
   seatedRootY,
   angleDelta,
@@ -178,7 +180,7 @@ describe("EmbodyController skills", () => {
     expect(ctl.stateFor(0).heading).toBeCloseTo(0);
 
     // Stand releases the anchor and the override (the stand slide
-    // takes the full SitDown clip length, SIT_DOWN_S).
+    // takes the full StandUp clip length, STAND_UP_S).
     expect(ctl.issue(0, { skill: "stand" })).toBe(true);
     run(ctl, body, 3.5);
     expect(hasEvent(ctl, "completed", "stand")).toBe(true);
@@ -205,7 +207,7 @@ describe("EmbodyController skills", () => {
     expect(refusals.some((e) => e.detail?.includes("occupied"))).toBe(true);
   });
 
-  it("override phases run mounting -> seated -> standing, each transition lasting the SitDown clip", () => {
+  it("override phases run mounting -> seated -> standing, slides synced to the SitDown / StandUp clips", () => {
     const body = new FakeBody();
     const anchors = freshAnchors();
     const bench = anchors[0];
@@ -242,8 +244,8 @@ describe("EmbodyController skills", () => {
       standTicks++;
     }
     expect(phases).toContain("standing");
-    expect(standTicks * dt).toBeGreaterThan(SIT_DOWN_S - 0.25);
-    expect(standTicks * dt).toBeLessThan(SIT_DOWN_S + 0.25);
+    expect(standTicks * dt).toBeGreaterThan(STAND_UP_S - 0.25);
+    expect(standTicks * dt).toBeLessThan(STAND_UP_S + 0.25);
     expect(ctl.overrideFor(0)).toBeNull();
   });
 
@@ -276,9 +278,105 @@ describe("EmbodyController skills", () => {
   });
 });
 
+describe("front-entry sit choreography (Jim's sequence)", () => {
+  const facingVec = (a: Anchor): Vec2 => [Math.sin(a.facing), Math.cos(a.facing)];
+  const dotFront = (a: Anchor, p: Vec2): number => {
+    const f = facingVec(a);
+    return (p[0] - a.seat[0]) * f[0] + (p[1] - a.seat[1]) * f[1];
+  };
+
+  it("(a) the sit_on stand point is IN FRONT of the bench, STAND_OFF along the facing", () => {
+    for (const a of AGORA_BENCH_ANCHORS) {
+      expect(dotFront(a, a.approach)).toBeCloseTo(STAND_OFF);
+      expect(dotFront(a, a.approach)).toBeGreaterThan(0);
+      expect(dist(a.approach, a.seat)).toBeCloseTo(STAND_OFF);
+    }
+  });
+
+  it("(b)+(c) face the bench, turn in place, then back onto the seat — the slide never leaves the front hemisphere", () => {
+    const body = new FakeBody();
+    const anchors = freshAnchors();
+    const bench = anchors[0];
+    body.spawn(0, [...bench.approach], bench.facing + 0.3);
+    const ctl = new EmbodyController(body, anchors);
+    const dt = 0.05;
+    const trace: { heading: number; phase: string | null; pos: Vec2 | null }[] = [];
+    const step = () => {
+      body.advance(dt);
+      ctl.tick(dt);
+      const ov = ctl.overrideFor(0);
+      trace.push({
+        heading: ctl.stateFor(0).heading,
+        phase: ov?.phase ?? null,
+        pos: ov ? [...ov.position] : null,
+      });
+    };
+    expect(ctl.issue(0, { skill: "sit_on", anchorId: "bench-a" })).toBe(true);
+    for (let i = 0; i < 400 && ctl.stateFor(0).posture !== "seated"; i++) step();
+    expect(ctl.stateFor(0).posture).toBe("seated");
+
+    const firstMount = trace.findIndex((t) => t.phase === "mounting");
+    expect(firstMount).toBeGreaterThan(0);
+    // (b) Before mounting, she FACED the bench: some pre-mount tick
+    // has heading = facing + PI (looking at the bench)...
+    const facedBench = trace
+      .slice(0, firstMount)
+      .some((t) => Math.abs(angleDelta(t.heading, bench.facing + Math.PI)) <= 0.1);
+    expect(facedBench).toBe(true);
+    // ...and the turn completed before the mount: the last pre-mount
+    // heading and the mount override's own heading are the seat facing
+    // (back to the bench).
+    expect(Math.abs(angleDelta(trace[firstMount - 1].heading, bench.facing))).toBeLessThanOrEqual(0.1);
+    expect(ctl.overrideFor(0)?.heading).toBeCloseTo(bench.facing);
+
+    // Stand, tracing the unmount slide the same way.
+    trace.length = 0;
+    expect(ctl.issue(0, { skill: "stand" })).toBe(true);
+    for (let i = 0; i < 400 && ctl.stateFor(0).posture !== "standing"; i++) step();
+    expect(ctl.stateFor(0).posture).toBe("standing");
+    const unmount = trace.filter((t) => t.pos !== null);
+    expect(unmount.length).toBeGreaterThan(0);
+    // The unmount ends at the stand point, still facing away.
+    expect(Math.abs(angleDelta(ctl.stateFor(0).heading, bench.facing))).toBeLessThanOrEqual(0.1);
+
+    // (c) Every override position across mount AND unmount stays in
+    // the front hemisphere of the seat (dot with the facing >= 0):
+    // the slide runs stand point -> seat over the seat's front edge,
+    // never through the bench's back half.
+    const body2 = new FakeBody();
+    const anchors2 = freshAnchors();
+    const bench2 = anchors2[0];
+    body2.spawn(0, [...bench2.approach], bench2.facing);
+    const ctl2 = new EmbodyController(body2, anchors2);
+    const positions: { pos: Vec2; phase: string }[] = [];
+    const step2 = () => {
+      body2.advance(dt);
+      ctl2.tick(dt);
+      const ov = ctl2.overrideFor(0);
+      if (ov) positions.push({ pos: [...ov.position], phase: ov.phase });
+    };
+    ctl2.issue(0, { skill: "sit_on", anchorId: "bench-a" });
+    for (let i = 0; i < 400 && ctl2.stateFor(0).posture !== "seated"; i++) step2();
+    ctl2.issue(0, { skill: "stand" });
+    for (let i = 0; i < 400 && ctl2.stateFor(0).posture !== "standing"; i++) step2();
+    expect(positions.length).toBeGreaterThan(10);
+    for (const { pos } of positions) {
+      expect(dotFront(bench2, pos)).toBeGreaterThanOrEqual(-1e-9);
+    }
+    // The mount starts up at the stand point, not at the seat.
+    const firstMountPos = positions.find((p) => p.phase === "mounting");
+    expect(firstMountPos).toBeDefined();
+    expect(dotFront(bench2, firstMountPos!.pos)).toBeGreaterThan(0.2);
+    // And it ends exactly on the seat.
+    const seatedPos = positions.find((p) => p.phase === "seated");
+    expect(seatedPos).toBeDefined();
+    expect(dotFront(bench2, seatedPos!.pos)).toBeCloseTo(0);
+  });
+});
+
 describe("sit_on over the bench-carved deck (production composition)", () => {
   it(
-    "reaches the 0.95 m approach and sits, with the bench solid in the navmesh",
+    "reaches the front stand point and sits, with the bench solid in the navmesh",
     async () => {
       const anchors = AGORA_BENCH_ANCHORS.map((a) => ({ ...a, occupiedBy: null }));
       const obstacles: PlanObstacle[] = anchors.map((a) => ({

@@ -223,10 +223,11 @@ export function WorldView({
       out.push({ id, name });
     }
     const capped = out.slice(0, 6);
-    // Summer (Jim's character, bodies.ts) walks both worlds as one
-    // extra local member — she is not a roster agent, just a body in
-    // the crowd. Placeholder label until Jim names her.
+    // Summer and Ninja (Jim's characters, bodies.ts) walk both worlds
+    // as extra local members — they are not roster agents, just bodies
+    // in the crowd. Placeholder labels until Jim names them.
     capped.push({ id: "summer-guest", name: "Summer (new)", body: "summer" });
+    capped.push({ id: "ninja-guest", name: "Ninja (new)", body: "ninja" });
     return capped;
   }, [agents, names]);
 

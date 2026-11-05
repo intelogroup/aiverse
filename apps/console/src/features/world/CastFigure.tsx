@@ -14,12 +14,13 @@ import { BODY_CAST, sitClipForPhase, type BodyDef } from "./bodies";
 // bot owns its skeleton and AnimationMixer while sharing geometry and
 // materials.
 //
-// Every body ships four clips: "Walk" (baked IN PLACE — the crowd,
+// Every body ships five clips: "Walk" (baked IN PLACE — the crowd,
 // not the clip, owns position, so no root-motion pinning is needed),
 // "Idle" (a subtle sway), "SittingTalking" (a 44 s seated loop,
-// rotations only — the embody override owns seat placement), and
-// "SitDown" (a 2.8 s stand-to-sit transition, played once while the
-// override mounts and in reverse while it stands). Animation state
+// rotations only — the embody override owns seat placement),
+// "SitDown" (the authored stand-to-sit transition, played once while
+// the override mounts) and "StandUp" (its dedicated sit-to-stand
+// counterpart, played once while the override stands). Animation state
 // follows the body: Idle at rest, Walk while moving, and the sitting
 // family follows the override's phase (bodies.ts sitClipForPhase).
 // The weights ramp over ~0.25 s so transitions crossfade instead of
@@ -32,6 +33,17 @@ import { BODY_CAST, sitClipForPhase, type BodyDef } from "./bodies";
 // normalization — the only fit applied is a measured floor lift.
 
 export const BOT_GLB_URL = "/assets/cast-bodyblock.glb";
+
+// Nameplate scaling (drei Html distanceFactor): the element renders
+// as if its CSS pixels were world units scaled by
+// distanceFactor / canvasHeightPx — at 10 and a ~1000 px-tall canvas,
+// 100 px ≈ 1 m in the world at ANY camera distance. The nameplate's
+// 30 px name therefore stands ≈ 0.30 m tall in world space (about a
+// quarter of the 1.25 m figure): proportionate from the Agora camera
+// (~24 m) and shrunk with its bot from the City camera (~114 m)
+// instead of wallpapering the streets at constant screen size.
+// One-line tuning knob for Jim's eye.
+export const NAMEPLATE_DISTANCE_FACTOR = 10;
 
 // Ground speed at which the Walk cycle plays at its natural rate.
 const WALK_NOMINAL_SPEED = 1.0;
@@ -160,11 +172,14 @@ export function CastFigure({
     const walk = make(body.clips.walk);
     const sit = make(body.clips.sitTalk);
     const sitDown = make(body.clips.sitDown);
-    // SitDown is a transition, not a loop: play it once per phase and
-    // hold the final pose until the seated loop has faded in.
-    if (sitDown) {
-      sitDown.setLoop(THREE.LoopOnce, 1);
-      sitDown.clampWhenFinished = true;
+    const standUp = make(body.clips.standUp);
+    // The transitions are one-shots, not loops: play once per phase
+    // and hold the final pose until the next state has faded in.
+    for (const t of [sitDown, standUp]) {
+      if (t) {
+        t.setLoop(THREE.LoopOnce, 1);
+        t.clampWhenFinished = true;
+      }
     }
     // Idle is the resting state: running from the start at full weight.
     // The rest start silent; the frame loop raises their weights.
@@ -172,15 +187,18 @@ export function CastFigure({
     if (walk) walk.setEffectiveWeight(0);
     if (sit) sit.setEffectiveWeight(0);
     if (sitDown) sitDown.setEffectiveWeight(0);
-    return { idle, walk, sit, sitDown };
+    if (standUp) standUp.setEffectiveWeight(0);
+    return { idle, walk, sit, sitDown, standUp };
   }, [gltf, mixer, body]);
 
   // Current Walk blend weight (0 = pure Idle, 1 = pure Walk).
   const walkWeight = useRef(0);
   // Current SittingTalking blend weight (0 = upright, 1 = seated loop).
   const sitWeight = useRef(0);
-  // Current SitDown blend weight (the mount/stand transition clip).
+  // Current SitDown blend weight (the mount transition clip).
   const downWeight = useRef(0);
+  // Current StandUp blend weight (the stand transition clip).
+  const upWeight = useRef(0);
   // The override phase the figure last reacted to — SitDown is
   // (re)started on phase ENTRY, not held down per frame.
   const phaseRef = useRef<SitPhase | null>(null);
@@ -210,20 +228,22 @@ export function CastFigure({
       }
     }
 
-    const { idle, walk, sit, sitDown } = actions;
+    const { idle, walk, sit, sitDown, standUp } = actions;
     // Sitting family follows the override's phase (see sitClipForPhase):
     // mounting plays SitDown once, seated loops SittingTalking,
-    // standing plays SitDown in reverse. No override — no sitting clip.
+    // standing plays the dedicated StandUp once. No override — no
+    // sitting clip.
     const phase: SitPhase | null = ov ? ov.phase : null;
     const plan = sitClipForPhase(phase);
-    if (sitDown && phase !== phaseRef.current && plan.clip === "sitDown") {
-      // Phase entry: (re)start the transition from the correct end.
-      // Forward starts at frame 0 (a standing pose the figure already
-      // holds); standing starts from the seated end frame, reversed.
-      sitDown.reset();
-      sitDown.timeScale = plan.reverse ? -1 : 1;
-      if (plan.reverse) sitDown.time = sitDown.getClip().duration;
-      sitDown.play();
+    const transition =
+      plan.clip === "sitDown" ? sitDown : plan.clip === "standUp" ? standUp : null;
+    if (transition && phase !== phaseRef.current) {
+      // Phase entry: (re)start the transition from its first frame —
+      // SitDown opens on the standing pose the figure already holds,
+      // StandUp on the seated pose.
+      transition.reset();
+      transition.timeScale = 1;
+      transition.play();
     }
     phaseRef.current = phase;
     const ramp = (cur: number, target: number): number => {
@@ -238,15 +258,22 @@ export function CastFigure({
       sit.setEffectiveWeight(sw);
       if (sw === 0 && sit.isRunning()) sit.stop();
     }
-    if (sitDown) {
-      downWeight.current = ramp(downWeight.current, plan.clip === "sitDown" ? 1 : 0);
-      const dw = downWeight.current;
-      if (dw > 0 && !sitDown.isRunning() && plan.clip === "sitDown") sitDown.play();
-      sitDown.setEffectiveWeight(dw);
-      if (dw === 0 && sitDown.isRunning() && plan.clip !== "sitDown") sitDown.stop();
-    }
-    // While either sitting weight is up, the upright clips yield.
-    const seated = Math.min(1, sitWeight.current + downWeight.current);
+    const driveTransition = (
+      action: THREE.AnimationAction | null,
+      weight: { current: number },
+      active: boolean,
+    ) => {
+      if (!action) return;
+      weight.current = ramp(weight.current, active ? 1 : 0);
+      const w = weight.current;
+      if (w > 0 && !action.isRunning() && active) action.play();
+      action.setEffectiveWeight(w);
+      if (w === 0 && action.isRunning() && !active) action.stop();
+    };
+    driveTransition(sitDown, downWeight, plan.clip === "sitDown");
+    driveTransition(standUp, upWeight, plan.clip === "standUp");
+    // While any sitting weight is up, the upright clips yield.
+    const seated = Math.min(1, sitWeight.current + downWeight.current + upWeight.current);
     if (walk) {
       const walking = f?.state === "walk";
       const target = walking ? 1 : 0;
@@ -274,12 +301,45 @@ export function CastFigure({
     mixer.update(delta);
   });
 
+  // Leader-line nameplate (Jim's callout design): a dot pinned to the
+  // head top (the Html anchor, container centre), a thin oblique line
+  // rising out of it, then a horizontal segment with the name sitting
+  // on it — drawn in the figure's own accent at low opacity. The whole
+  // callout is ONE Html element under distanceFactor, so it scales
+  // with distance as a unit (NAMEPLATE_DISTANCE_FACTOR). Unmounted
+  // while `hidden` (Ride), like the pill it replaces.
+  const tagAccent = accentForFigure(label, index);
   return (
     <group ref={group} position={home}>
       <primitive object={scene} position={[0, fit.lift, 0]} />
       {label && !hidden && (
-        <Html center position={[0, fit.height + 0.35, 0]}>
-          <div className="w-cast-name">{label}</div>
+        <Html
+          center
+          position={[0, fit.height + 0.02, 0]}
+          distanceFactor={NAMEPLATE_DISTANCE_FACTOR}
+          zIndexRange={[30, 0]}
+        >
+          <div className="w-cast-tag" style={{ pointerEvents: "none" }}>
+            <svg
+              className="w-cast-tag-lines"
+              viewBox="0 0 460 150"
+              width={460}
+              height={150}
+              aria-hidden="true"
+            >
+              <polyline
+                points="230,75 268,30 448,30"
+                fill="none"
+                stroke={tagAccent}
+                strokeWidth={3}
+                strokeOpacity={0.75}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+              />
+              <circle cx={230} cy={75} r={5.5} fill={tagAccent} fillOpacity={0.9} />
+            </svg>
+            <div className="w-cast-name">{label}</div>
+          </div>
         </Html>
       )}
     </group>
