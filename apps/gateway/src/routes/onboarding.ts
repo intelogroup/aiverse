@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { and, eq, desc } from "drizzle-orm";
 import { db } from "../db/client";
+import { withCapLock } from "../db/capLock";
 import { agents, onboardingQuestions } from "@aiverse/shared/schema";
 import { agentAuth } from "../middleware/agentAuth";
 import { ownerAuth } from "../middleware/ownerAuth";
@@ -81,6 +82,7 @@ onboardingRoute.post("/onboarding/questions", agentAuth, async (c) => {
 
   const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
   if (!agent?.ownerId) return c.json({ error: "agent not claimed" }, 403);
+  const ownerId = agent.ownerId;
 
   let options: QuestionOption[] | null = null;
   if (body.options !== undefined && body.options !== null) {
@@ -95,17 +97,24 @@ onboardingRoute.post("/onboarding/questions", agentAuth, async (c) => {
     return c.json({ error: "question needs options and/or allowFreeText: true — otherwise the human has no way to answer" }, 400);
   }
 
-  const openCount = (await db.query.onboardingQuestions.findMany({
-    where: and(eq(onboardingQuestions.agentId, agentId), eq(onboardingQuestions.status, "open")),
-  })).length;
-  if (openCount >= MAX_OPEN_QUESTIONS) {
+  // Count + insert under the per-agent cap lock (db/capLock.ts): the old
+  // count-then-insert let a concurrent burst open questions past the cap
+  // (AIV-ONBOARDING-CAP-RACE-001).
+  const created = await withCapLock(`cap:onboarding-questions:${agentId}`, async (tx) => {
+    const openCount = (await tx.query.onboardingQuestions.findMany({
+      where: and(eq(onboardingQuestions.agentId, agentId), eq(onboardingQuestions.status, "open")),
+      columns: { id: true },
+    })).length;
+    if (openCount >= MAX_OPEN_QUESTIONS) return null;
+    const [row] = await tx
+      .insert(onboardingQuestions)
+      .values({ agentId, ownerId, question, options, allowFreeText })
+      .returning();
+    return row;
+  });
+  if (!created) {
     return c.json({ error: `too many open questions (max ${MAX_OPEN_QUESTIONS}) — wait for answers or ask fewer` }, 409);
   }
-
-  const [created] = await db
-    .insert(onboardingQuestions)
-    .values({ agentId, ownerId: agent.ownerId, question, options, allowFreeText })
-    .returning();
 
   log("onboarding_question_asked", { questionId: created.id, agentId });
   await audit({ event: "onboarding.question_asked", agentId, ownerId: agent.ownerId, actorType: "agent", actorId: agentId, metadata: { questionId: created.id } });

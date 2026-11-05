@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { randomBytes } from "node:crypto";
 import { and, desc, eq, gt, inArray, isNull, lt, sql } from "drizzle-orm";
 import { db } from "../db/client";
+import { acquireCapLock, withCapLock } from "../db/capLock";
 import {
   owners,
   agents,
@@ -272,16 +273,22 @@ ownersRoute.post("/read-keys", ownerAuth, async (c) => {
   const label = (body.label ?? "").trim();
   if (label.length < 1 || label.length > 60) return c.json({ error: "label required (1-60 chars)" }, 400);
 
-  const active = await db.query.ownerReadKeys.findMany({
-    where: and(eq(ownerReadKeys.ownerId, ownerId), isNull(ownerReadKeys.revokedAt)),
-    columns: { id: true },
+  const { key, hash } = generateOwnerReadKey();
+  // Count + insert under the per-owner cap lock (db/capLock.ts): the old
+  // list-then-insert let a concurrent burst mint keys past the cap
+  // (AIV-READKEYS-CAP-RACE-001).
+  const row = await withCapLock(`cap:read-keys:${ownerId}`, async (tx) => {
+    const active = await tx.query.ownerReadKeys.findMany({
+      where: and(eq(ownerReadKeys.ownerId, ownerId), isNull(ownerReadKeys.revokedAt)),
+      columns: { id: true },
+    });
+    if (active.length >= MAX_ACTIVE_READ_KEYS) return null;
+    const [created] = await tx.insert(ownerReadKeys).values({ ownerId, keyHash: hash, label }).returning();
+    return created;
   });
-  if (active.length >= MAX_ACTIVE_READ_KEYS) {
+  if (!row) {
     return c.json({ error: `too many active read keys (max ${MAX_ACTIVE_READ_KEYS}) — revoke one first` }, 409);
   }
-
-  const { key, hash } = generateOwnerReadKey();
-  const [row] = await db.insert(ownerReadKeys).values({ ownerId, keyHash: hash, label }).returning();
   await audit({ event: "owner.read_key_created", ownerId, actorType: "owner", actorId: ownerId, metadata: { keyId: row.id, label } });
   return c.json({ readKey: { id: row.id, label: row.label, createdAt: row.createdAt }, key }, 201);
 });
@@ -426,7 +433,17 @@ ownersRoute.post("/agents", ownerAuth, async (c) => {
   // All four inserts succeed or none do — without this, a failure on any
   // insert leaves a permanently broken agent row (no wallet/policy
   // scope/mandate) that every wallet-dependent route 500s on forever.
-  const agent = await db.transaction(async (tx) => {
+  const created = await db.transaction(async (tx) => {
+    // Authoritative cap re-check under the per-owner cap lock
+    // (db/capLock.ts): the count at the top of this handler is only a
+    // fast path — concurrent creations all pass it before any of them
+    // commits, overshooting the 100/owner cap (AIV-OWNER-AGENT-CAP-RACE-001).
+    await acquireCapLock(tx, `cap:owner-agents:${ownerId}`);
+    const owned = await tx.query.agents.findMany({
+      where: eq(agents.ownerId, ownerId),
+      columns: { id: true },
+    });
+    if (owned.length >= 100) return { capFull: true as const };
     const [agent] = await tx
       .insert(agents)
       .values({
@@ -444,8 +461,10 @@ ownersRoute.post("/agents", ownerAuth, async (c) => {
     // conversations) rather than sitting on discover_peers/observe forever.
     // An owner who sets their own mandate via PUT .../mandate overwrites this.
     await tx.insert(agentMandates).values({ agentId: agent.id, ownerId, objectives: DEFAULT_EAGER_OBJECTIVES });
-    return agent;
+    return { agent };
   });
+  if ("capFull" in created) return c.json({ error: "agent limit reached (100/owner)" }, 429);
+  const agent = created.agent;
 
   await audit({ event: "agent.registered", agentId: agent.id, ownerId, actorType: "owner", actorId: ownerId, metadata: { name, via: "owner" } });
   return c.json(

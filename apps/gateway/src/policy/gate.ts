@@ -242,15 +242,24 @@ const DELEGATION_LEASE_MS = 60 * 60 * 1000; // 1 hour — v1 hardcoded default
 // (offline delivery/reconnect-replay exist for exactly this reason); a task
 // whose lease has lapsed is still fully valid and deliverable, nothing here
 // touches its state.
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 export async function admitAndCreateTask(params: {
   callerAgentId: string;
   contextId: string;
   maxParallel: number;
   task: typeof a2aTasks.$inferInsert;
+  // Optional caller-owned transaction: when the caller already runs
+  // inside one (routes/a2a.ts wraps task creation in the per-target
+  // inbox cap lock, db/capLock.ts), execute in it instead of opening a
+  // separate transaction, so both caps are decided atomically. The
+  // (caller, context) advisory lock below is still taken — xact-scoped
+  // advisory locks compose within a single transaction.
+  tx?: Tx;
 }): Promise<
   { allowed: true; task: typeof a2aTasks.$inferSelect } | { allowed: false; reason: string }
 > {
-  return db.transaction(async (tx) => {
+  const run = async (tx: Tx) => {
     await tx.execute(
       sql`SELECT pg_advisory_xact_lock(hashtext(${params.callerAgentId}), hashtext(${params.contextId}))`,
     );
@@ -263,7 +272,7 @@ export async function admitAndCreateTask(params: {
       ),
     });
     if (active.length >= params.maxParallel) {
-      return { allowed: false, reason: "parallel_delegation_limit" };
+      return { allowed: false as const, reason: "parallel_delegation_limit" };
     }
     const [task] = await tx
       .insert(a2aTasks)
@@ -272,6 +281,7 @@ export async function admitAndCreateTask(params: {
         delegationLeaseExpiresAt: new Date(Date.now() + DELEGATION_LEASE_MS),
       })
       .returning();
-    return { allowed: true, task };
-  });
+    return { allowed: true as const, task };
+  };
+  return params.tx ? run(params.tx) : db.transaction(run);
 }
