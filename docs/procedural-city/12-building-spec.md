@@ -1,0 +1,38 @@
+# City 3 future building spec (2026-11-06)
+
+Companion to 10-building-inventory.md (what exists) and 11-decor-probe-*.md (candidate assets, full tables). This is the target.
+
+## Rules for every prop
+- Free licence only. CC0 preferred; CC-BY allowed with an entry in ASSETS.md and out/asset-credits.json. No branded or trademarked designs (logos stripped).
+- Budget: <=300 tris for repeated small items (bottles, jars), <=1k for furniture, hero pieces may go higher. Instance anything repeated (`inst_*` Empty, `export_gpu_instances=True`).
+- Textures: base colour only, <=1k, per `assets_kit._diffuse_only`.
+- Style test before rollout: one cafe test room, screenshot, then all 77 shops. Avramania low-poly vs Poly Haven realistic must not clash.
+- Changing a seat or counter means updating `hero-anchors.json` and the nav seat anchors.
+
+## Interior replacement plan (placeholder -> real prop)
+| Placeholder (rooms.py) | Target | Licence |
+|---|---|---|
+| shelf_bottles_a/b/c (coloured boxes) | Split single bottles from Sketchfab "Alcohol bottles" (DaengNu) + Avramania Potion; CC0 option BlendSwap #33793; recolour per shelf | CC-BY / CC0 |
+| shelf_goods_a/b | Poly Haven painted_wooden_shelves body + Avramania Sack, Roll, Basket, Pot | CC0 |
+| sofa_3, booth | Poly Haven chinese_sofa; BlendSwap #30053 Diwan sofa (tea house); booth has no source yet | CC0 |
+| armchair_blue/red | Poly Haven chinese_armchair | CC0 |
+| rug_6x4, rug_4x3 | Avramania Rug or Persian Carpet | CC0 / CC-BY |
+| fireplace | Sketchfab Fireplace Low-poly (MaX3Dd) or Poly Haven masonry heater | CC-BY / CC0 |
+| frames_wall, menu_board | Poly Haven picture frames, standing_chalkboard_01, BlendKit Blackboard | CC0 |
+| lanterns, tea tableware | Japanese Paper Lantern, chinese_tea_table, teapot | CC-BY / CC0 |
+| counter, shop_counter, display tables, folded cloth | No source found: keep procedural or model by hand | - |
+Avoid trademarked bottle packs (Absolut, Jack Daniels, Heineken, Coca-Cola).
+Order: bottles -> furniture -> wall decor.
+
+## Entrances
+Geometry-only doors, 4-6 instanced styles (frame, leaf, handle, step, awning/lamp). Bazaar shops first, then Glass podiums, Foundry bays, Terraces gates, 11 grand Halo entrances. Doors do not open yet; `heroes.json` door positions must not move.
+
+## Player and agent
+- User-driven Summer bot (WASD, FPV + follow) in City 3, abstract intent input so an agent can drive it later.
+- Agent-driven version needs City 3 navmesh/seat data (only footprints exist today).
+- Driving vehicles: deferred; Halo ring road is the candidate district.
+
+## Open
+- Bazaar non-hero ~35 footprints: enterable or facade only (undecided).
+- Cars: game-ready modulatable asset, CC-BY OK? generic vs brand? (parked).
+- Retention lane (goal contracts, away digest, event-log replays) is a product spec, not a building spec: not included here.
