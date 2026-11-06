@@ -149,6 +149,7 @@ def city3():
     # ---- quay
     qbad = 0
     for k in range(-170, 171, 20):
+        if abs(k) < 12: continue                                                      # bridge landings
         for (o, d) in (((P["land"] - 1, k), (1, 0)), ((-P["land"] + 1, k), (-1, 0)), ((k, P["land"] - 1), (0, 1)), ((k, -P["land"] + 1), (0, -1))):
             h = W.first_hit((o[0], Z + 0.8, -o[1]), (d[0], 0, -d[1]), tmax=2.0)
             if not h or h[0] > 1.5: qbad += 1
@@ -214,12 +215,14 @@ def district(name):
         (fail if miss else ok)(f"{n} footprint probes inside a solid" if not miss else f"{len(miss)}/{n} NOT covered: {miss[:6]}")
         L = P["land"]; qbad = 0
         for k in range(-int(L) + 10, int(L) - 9, 30):
+            if abs(k) < 12: continue                                                  # bridge landing
             for (o, d) in (((L - 1, k), (1, 0)), ((-L + 1, k), (-1, 0)), ((k, L - 1), (0, 1)), ((k, -L + 1), (0, -1))):
                 gy = W.ground_y(o[0], -o[1], Z + 2.0)
                 if gy is None: continue                                              # no ground there (water side / Halo's curved shore): fine
                 h = W.first_hit((o[0], Z + 0.8, -o[1]), (d[0], 0, -d[1]), tmax=3.0)
                 if not h: qbad += 1
-        (fail if qbad else ok)("island edge has a wall wherever there is ground" if not qbad else f"{qbad} edge rays escape")
+        allow = 9 if name == "halo" else 0                                                  # Halo: nine walkable piers leave gaps
+        (fail if qbad > allow else ok)("island edge has a wall wherever there is ground (halo: piers excepted)" if not qbad else f"{qbad} edge rays escape")
     else:
         for (x, y) in ((0, 200), (0, -200), (200, 0), (-200, 0)):
             gy = W.ground_y(x, -y, Z + 2.0); (ok if gy is not None and abs(gy - Z) < 0.05 else fail)(f"bridge deck at ({x},{y}): {gy}")

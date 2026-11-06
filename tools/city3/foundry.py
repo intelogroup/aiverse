@@ -4,6 +4,8 @@ import bpy, json, math, os, random, sys
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 from mkit import *
 import mdetails as D
+import collision as CX
+COL = CX.Col()                                                  # collision solids (collision.py); exported after the visual GLB
 clear_blender()
 Z = 0.2; FH = 4.6; LAND = 180.0; SW = 3.0
 rng = random.Random(4040); T = {k: v["size"] for k, v in PB.items()}
@@ -67,7 +69,7 @@ def fire_escape(fr, u0, nfl):
             P = fr.p; beam(P(u0 + 2.6, 0.55, z - FH + 0.0), P(u0 + 0.4, 0.55, z), 0.12, 0.08, "steel")
     for s in (0.05, 2.95): x, y = fr.xy(u0 + s, 1.15); cyl(x, y, fr.z0, fr.z0 + (nfl - 1) * FH, 0.04, 5, "steel", top=False)
 def chimney(x, y, z, h):
-    seg = 14
+    COL.cyl("props", x, y, z - 0.3, z + h, 2.7, 14); seg = 14
     for k in range(6):
         r0 = 2.6 - k * 0.26; r1 = 2.6 - (k + 1) * 0.26; cyl(x, y, z + h * k / 6, z + h * (k + 1) / 6, r0, seg, "brick" if False else "brick_dk" if False else "rust", r1=r1, top=False)
     cyl(x, y, z + h, z + h + 0.5, 1.15, seg, "steel"); cyl(x, y, z + h * 0.95, z + h * 0.97, 1.5, seg, "concrete_dk")
@@ -116,11 +118,12 @@ def container(x, y, z, r, along_x=True, ci=None):
         ln = math.hypot(p1[0] - p0[0], p1[1] - p0[1]); tquad(col, (p0[0], p0[1], z), (p1[0], p1[1], z), (p1[0], p1[1], z + H), (p0[0], p0[1], z + H), [(0, 0), (ln / tl, 0), (ln / tl, H / tl), (0, H / tl)], nrm)
     pquad("palette", (x0, y0, z + H), (x1, y0, z + H), (x1, y1, z + H), (x0, y1, z + H), "container_grey", (0, 0, 1))
 def stack(x, y, z, r, along_x, n):
+    COL.box("props", x - (6.1 if along_x else 1.22), y - (1.22 if along_x else 6.1), z - 0.1, x + (6.1 if along_x else 1.22), y + (1.22 if along_x else 6.1), z + n * 2.6)
     for k in range(n): container(x, y, z + k * 2.6, r, along_x)
 def gantry_crane(x, y, z, reach=-1):
     """Portal crane at the quay edge; boom reaches over the water (reach = +-1 along x)."""
     for sx in (-6, 6):
-        for sy in (-7, 7): beam((x + sx, y + sy, z), (x + sx * 0.8, y + sy * 0.9, z + 24), 0.8, 0.8, "orange")
+        for sy in (-7, 7): COL.box("props", x + sx - 0.6, y + sy - 0.6, z - 0.1, x + sx + 0.6, y + sy + 0.6, z + 24); beam((x + sx, y + sy, z), (x + sx * 0.8, y + sy * 0.9, z + 24), 0.8, 0.8, "orange")
     for sy in (-7, 7): pbox(x - 7.5, y + sy - 0.5, x + 7.5, y + sy + 0.5, z + 23.6, z + 24.6, "orange"); pbox(x - 7.5, y + sy - 0.6, x + 7.5, y + sy + 0.6, z, z + 0.5, "steel")
     pbox(x - 5, y - 7.5, x + 5, y + 7.5, z + 24.2, z + 25.4, "orange")
     bx0 = x - 6 * 0 + reach * 4
@@ -131,7 +134,7 @@ def gantry_crane(x, y, z, reach=-1):
 def silo_group(cx, cy, z, r):
     for a in range(3):
         for b in range(2):
-            x, y = cx - 10 + a * 10, cy - 5 + b * 10; h = 24 + r.choice([0, 3, 6])
+            x, y = cx - 10 + a * 10, cy - 5 + b * 10; h = 24 + r.choice([0, 3, 6]); COL.cyl("props", x, y, z - 0.1, z + h + 2.2, 4.5, 20)
             cyl(x, y, z, z + h, 4.4, 20, "concrete", top=False); cyl(x, y, z + h, z + h + 2.2, 4.4, 20, "concrete_dk", r1=0.8)
             for q in range(4): cyl(x, y, z + (q + 1) * h / 5, z + (q + 1) * h / 5 + 0.15, 4.5, 20, "concrete_dk", top=False)
             cyl(x + 4.9, y, z, z + h, 0.05, 5, "steel", top=False)
@@ -144,7 +147,7 @@ def rail(y, x0, x1, z, r):
     for k in range(int((x1 - x0) / 0.7)): pbox(x0 + k * 0.7, y - 1.3, x0 + k * 0.7 + 0.25, y + 1.3, z, z + 0.13, "trunk")
     for s in (-0.72, 0.72): pbox(x0, y + s - 0.04, x1, y + s + 0.04, z + 0.13, z + 0.26, "steel")
 def boxcar(x, y, z, r):
-    col = r.choice(["container_red", "rust", "container_green", "container_grey"]); pbox(x - 7, y - 1.4, x + 7, y + 1.4, z + 0.8, z + 4.0, col); pbox(x - 7.2, y - 1.5, x + 7.2, y + 1.5, z + 0.5, z + 0.8, "black")
+    col = r.choice(["container_red", "rust", "container_green", "container_grey"]); COL.box("props", x - 7.2, y - 1.5, z, x + 7.2, y + 1.5, z + 4.0); pbox(x - 7, y - 1.4, x + 7, y + 1.4, z + 0.8, z + 4.0, col); pbox(x - 7.2, y - 1.5, x + 7.2, y + 1.5, z + 0.5, z + 0.8, "black")
     for sx in (-5, -4.2, 4.2, 5): cyl(x + sx, y - 1.45, z + 0.5, z + 0.9, 0.5, 10, "steel")
     pbox(x - 1.0, y - 1.45, x + 1.0, y - 1.38, z + 0.9, z + 3.8, "black")
 def dress(rect, r, density=1.0):
@@ -247,3 +250,9 @@ for k, v in MBS.items(): agg[k.rpartition("::")[2]] = agg.get(k.rpartition("::")
 print("TRIS", sum(agg.values()), dict(sorted(agg.items(), key=lambda kv: -kv[1])[:8]))
 os.makedirs(f"{HERE}/out", exist_ok=True); bpy.ops.wm.save_as_mainfile(filepath=f"{HERE}/out/foundry.blend")
 export_glb(f"{HERE}/out/world-foundry.glb"); json.dump(PLAN, open(f"{HERE}/out/foundry-plan.json", "w"))
+# ---- collision: ground, quay (open where the Bazaar bridge lands: west edge), plan footprints (height = floors x FH), trunks, lamps; chimneys / container stacks / silos / cranes / box cars come from the builders above
+COL.ground_rect("ground", -LAND, -LAND, LAND, LAND, Z); CX.quay(COL, LAND, Z, "W")
+for b in PLAN["buildings"]: COL.prism("buildings", b["poly"], Z - 0.3, Z + b["floors"] * FH)
+for (x, y) in PLAN["trees"]: COL.cyl("props", x, y, Z - 0.1, Z + 3.0, 0.25, 6)
+for (x, y) in PLAN["lamps"]: COL.cyl("props", x, y, Z - 0.1, Z + 4.0, 0.15, 6)
+CX.finish(COL, f"{HERE}/out/world-foundry-collision.glb")

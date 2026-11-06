@@ -7,6 +7,8 @@ HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 from mkit import *
 from mkit import _principled
 import mdetails as D
+import collision as CX
+COL = CX.Col()                                                  # collision solids (collision.py); exported after the visual GLB
 clear_blender(); Z = 0.2; FH = 4.0; R_ISL = 176.0; TAU = 2 * math.pi
 PB["halo_pave"] = {"rough": PB["plaza_herring"]["rough"]}; PB["halo_terrazzo"] = {"rough": PB["terrazzo"]["rough"]}   # halo_tex.py tints
 for k, tag in (("road", "road_m"), ("sidewalk", "halo_pave"), ("terrazzo", "halo_terrazzo"), ("stone", "plaza_stone")): pbr_mat(k, tag)
@@ -103,6 +105,7 @@ def plinth(cx, cy, R, h=0.6, steps=2):
     for q in (0.55, 0.8): flat_ring("palette", cx, cy, (R - (steps - 1) * 1.2) * q, (R - (steps - 1) * 1.2) * q + 0.35, Z + h + 0.03, 64, color="terra")
     OCC.append((cx, cy, R + 2)); return Z + h
 def planter_ring(cx, cy, r0, r1, z, rng, n):
+    if z < Z + 1.0: COL.annulus("props", cx, cy, r0, r1, Z - 0.3, z + 0.7, 48)      # raised planted ring at ground level: a 0.7 m wall
     lathe(cx, cy, [(r1, z), (r1, z + 0.7), (r1 - 0.25, z + 0.7)], 64, color="cream"); flat_ring("palette", cx, cy, r0, r1 - 0.25, z + 0.55, 64, color="moss")
     for k in range(n):
         t = rng.uniform(0, TAU); r = rng.uniform(r0 + 0.5, r1 - 0.8)
@@ -170,6 +173,7 @@ def shrub_any(x, y, z, rng, sz, color):
     if color in ("pink", "lilac", "yellow") or rng.random() < 0.35: flowers(x, y, z, rng, 0.85 + sz * 0.6, {"pink": 0, "lilac": 3, "yellow": 2}.get(color, rng.randrange(4)))
     else: shrub(x, y, z, rng, 1.0 + sz * 0.9, 2 if color == "moss" else None)
 def fountain(cx, cy, z, R, rng, jets=12):
+    COL.cyl("props", cx, cy, Z - 0.3, z + 2.0, R + 0.1, 32)                              # basin + centrepiece: solid (no ground over water)
     lathe(cx, cy, [(R, z), (R, z + 0.6), (R - 0.45, z + 0.6), (R - 0.45, z + 0.3)], 64, "marble")
     flat_ring("water", cx, cy, 0, R - 0.45, z + 0.32, 64, color="water")
     for q in (0.42, 0.7): flat_ring("palette", cx, cy, R * q, R * q + 0.25, z + 0.36, 64, color="white")
@@ -186,6 +190,7 @@ def bld(tag, kind, cx, cy, r, h, **kw): PLAN["buildings"].append({"id": tag, "ki
 def hero_spire(cx, cy, rng):
     """Flared buttress spire: glass core flaring to the ground, white buttress blades, gold mullions, observation drum, halo rings, needle."""
     z0 = plinth(cx, cy, 46, 0.6, 2); TOP = 88.0; core = lambda z: 6.5 + 10.5 * max(0.0, 1 - (z - z0) / (TOP - z0)) ** 2.2
+    COL.cyl("buildings", cx, cy, Z - 0.3, Z + TOP + 9, 17.6, 40); COL.cyl("buildings", cx, cy, Z - 0.3, z0 + 8.4, 26.6, 48)      # glass core + the two-storey r26 podium glazing
     glass_shell(cx, cy, core, z0, int((TOP - z0) // FH), rng)
     glass_shell(cx, cy, lambda z: 26.0, z0, 2, rng); flat_ring("palette", cx, cy, 17.5, 26.6, z0 + 8.0, 64, color="moss"); lathe(cx, cy, [(26.6, z0 + 7.6), (26.6, z0 + 8.4), (26.2, z0 + 8.4)], 64, color="cream")
     for k in range(12):                                                    # gold mullions hugging the core
@@ -212,7 +217,7 @@ def hero_spire(cx, cy, rng):
 def ring_tower(tag, cx, cy, r, nfl, rng, crown="cone"):
     """Cylindrical tower with a white slab ring every floor (image 1), glass crown dome + gold rib cone + halo rings + needle."""
     z0 = plinth(cx, cy, r + 9, 0.5, 2); planter_ring(cx, cy, r + 3, r + 6, z0, rng, 18)
-    glass_shell(cx, cy, lambda z: r, z0, nfl, rng, slab=0.85); top = z0 + nfl * FH
+    glass_shell(cx, cy, lambda z: r, z0, nfl, rng, slab=0.85); top = z0 + nfl * FH; COL.cyl("buildings", cx, cy, Z - 0.3, top + 1.0, r + 0.9, 40)
     lathe(cx, cy, [(r + 1.1, top - 0.4), (r + 1.1, top + 0.6), (r - 0.6, top + 0.9)], 48, "marble")
     dome(cx, cy, top + 0.9, r - 1.0, r * 0.45, 12, 1, oculus=False)
     if crown == "cone":
@@ -228,7 +233,7 @@ def ring_tower(tag, cx, cy, r, nfl, rng, crown="cone"):
 def flared_tower(tag, cx, cy, rng, H=80.0, r_top=6.0, r_base=13.0, fins=4):
     """Image 3: tapering glass core, white blades sweeping out to the plinth, halo ring and needle on top."""
     z0 = plinth(cx, cy, 26, 0.6, 2); core = lambda z: r_top + (r_base - r_top) * max(0.0, 1 - (z - z0) / H) ** 1.6
-    glass_shell(cx, cy, core, z0, int(H // FH), rng); top = z0 + int(H // FH) * FH
+    glass_shell(cx, cy, core, z0, int(H // FH), rng); top = z0 + int(H // FH) * FH; COL.cyl("buildings", cx, cy, Z - 0.3, top + 4.0, r_base + 0.5, 40); COL.cyl("buildings", cx, cy, Z - 0.3, z0 + 4.4, 18.4, 40)
     for k in range(fins):
         t = TAU * k / fins + TAU / (2 * fins); pts = []
         for i in range(15):
@@ -244,7 +249,7 @@ def flared_tower(tag, cx, cy, rng, H=80.0, r_top=6.0, r_base=13.0, fins=4):
 def diagrid_drum(tag, cx, cy, R, nfl, rng, n=20):
     """Image 2: glazed drum wrapped in a cream diagrid with gold inner lines, glass dome with gold ribs and a blue oculus."""
     z0 = plinth(cx, cy, R + 6, 0.5, 2); planter_ring(cx, cy, R + 1.5, R + 4.5, z0, rng, 24)
-    glass_shell(cx, cy, lambda z: R, z0, nfl, rng); top = z0 + nfl * FH; lv = nfl
+    glass_shell(cx, cy, lambda z: R, z0, nfl, rng); top = z0 + nfl * FH; lv = nfl; COL.cyl("buildings", cx, cy, Z - 0.3, top + 1.4 + (R - 1.6) * 0.62, R + 1.6, 40)
     P = lambda k, l, d=0.55: (cx + (R + d) * math.cos(TAU * k / n), cy + (R + d) * math.sin(TAU * k / n), z0 + top * 0 + (l * FH))
     for l in range(lv):
         for k in range(n):
@@ -258,12 +263,12 @@ def terraced_dome(tag, cx, cy, R, rng, levels=4):
     """Image 5 (left): stepped glass drums with planted terraces, crowned by a ribbed glass dome."""
     z = plinth(cx, cy, R + 5, 0.5, 2)
     for l in range(levels):
-        r = R - 3.2 * l; glass_shell(cx, cy, lambda zz, r=r: r, z, 1, rng); z += FH
+        r = R - 3.2 * l; glass_shell(cx, cy, lambda zz, r=r: r, z, 1, rng); z += FH; COL.cyl("buildings", cx, cy, Z - 0.3, z + 0.3, r + 0.6, 48)
         lathe(cx, cy, [(r + 0.6, z - 0.3), (r + 0.6, z + 0.3), (r - 3.2, z + 0.3)], 64, "marble"); planter_ring(cx, cy, r - 2.8, r + 0.5, z + 0.3, rng, 16)
-    rd = R - 3.2 * levels; dome(cx, cy, z + 0.3, rd, rd * 0.8, 16, 2, rib_b="chrome")
+    rd = R - 3.2 * levels; COL.cyl("buildings", cx, cy, Z - 0.3, z + 0.3 + rd * 0.8, rd + 0.2, 32); dome(cx, cy, z + 0.3, rd, rd * 0.8, 16, 2, rib_b="chrome")
     bld(tag, "terraced_dome", cx, cy, R + 5, z + rd * 0.8)
 def hex_tower(tag, cx, cy, r, nfl, rng):
-    z0 = plinth(cx, cy, r + 7, 0.5, 2); poly = ellipse_poly(cx, cy, r, r, 6, 0.3); glass_prism(poly, z0, nfl, rng); top = z0 + nfl * FH
+    z0 = plinth(cx, cy, r + 7, 0.5, 2); poly = ellipse_poly(cx, cy, r, r, 6, 0.3); glass_prism(poly, z0, nfl, rng); top = z0 + nfl * FH; COL.prism("buildings", poly, Z - 0.3, top + FH + 6)
     for p in poly: lathe(p[0], p[1], [(0.45, z0), (0.45, top + 3), (0, top + 3.2)], 8, "gold")
     cap(poly, top, "concrete_dk"); inner = inset_poly(poly, 3.0); glass_prism(inner, top, 1, rng); cap(inner, top + FH, "white")
     for k in range(6):
@@ -275,7 +280,7 @@ def wave_terraces(tag, cx, cy, rx, ry, rng, levels=4):
     """Image 5 (lower left): elliptical stacked terraces stepping back, green rims, roof pool, beside a freeform lagoon pool."""
     z = Z + 0.05
     for l in range(levels):
-        ex, ey = rx - 2.6 * l, ry - 2.0 * l; poly = ellipse_poly(cx, cy, ex, ey, 32, 0.0); glass_prism(poly, z, 1, rng, slab=0.5); z += FH
+        ex, ey = rx - 2.6 * l, ry - 2.0 * l; poly = ellipse_poly(cx, cy, ex, ey, 32, 0.0); glass_prism(poly, z, 1, rng, slab=0.5); z += FH; COL.prism("buildings", poly, Z - 0.3, z)
         cap(poly, z, "cream"); rim = ellipse_poly(cx, cy, ex + 0.3, ey + 0.3, 32)
         for fr, L in edge_frames(rim, z): fbox(fr, 0, L, -0.9, 0.0, 0.0, 0.55, "leaf_dk")
     pool = ellipse_poly(cx, cy, rx - 2.6 * levels - 1, ry - 2.0 * levels - 1, 24)
@@ -287,6 +292,7 @@ def lagoon_pool(cx, cy, rng):
     n = 40; pts = []
     for k in range(n):
         t = TAU * k / n; r = 15 + 4.5 * math.sin(2 * t + 0.6) + 2.5 * math.sin(3 * t + 1.7); pts.append((cx + r * 1.3 * math.cos(t), cy + r * math.sin(t)))
+    COL.prism("props", pts, Z - 0.3, Z + 0.7)                                          # freeform pool: solid block, no ground over water
     for k in range(n):
         a = pts[k]; b = pts[(k + 1) % n]; u = pal_uv("water")
         mb("water").tri((cx, cy, Z + 0.1), (a[0], a[1], Z + 0.1), (b[0], b[1], Z + 0.1), u, u, u, (0, 0, 1)); beam((a[0], a[1], Z + 0.18), (b[0], b[1], Z + 0.18), 0.9, 0.3, "white", "marble")
@@ -302,10 +308,15 @@ def lagoon_pool(cx, cy, rng):
 def inside(x, y, margin=0.0): R = R_ISL - margin; return (abs(x) / R) ** 4 + (abs(y) / R) ** 4 <= 1.0
 def edge_pt(t, R=R_ISL):
     c, s = math.cos(t), math.sin(t); return (R * math.copysign(abs(c) ** 0.5, c), R * math.copysign(abs(s) ** 0.5, s))
+PIER_T = [0.25, 0.75, 1.3, 2.2, 2.85, 3.5, 4.2, 5.25, 5.75]
 def island(rng):
     N = 192; E = [edge_pt(TAU * k / N) for k in range(N)]
     for k in range(N):
-        a = E[k]; b = E[(k + 1) % N]; mb("sidewalk").tri((0, 0, Z), (a[0], a[1], Z), (b[0], b[1], Z), (0, 0), (a[0] / TL["sidewalk"], a[1] / TL["sidewalk"]), (b[0] / TL["sidewalk"], b[1] / TL["sidewalk"]), (0, 0, 1))
+        a = E[k]; b = E[(k + 1) % N]
+        COL.tri("ground", (0, 0, Z), (a[0], a[1], Z), (b[0], b[1], Z)); tm_ = TAU * (k + 0.5) / N         # ground fan; 1.5 m quay wall except at the north gateway (the bridge) and the piers
+        if not (abs((a[0] + b[0]) / 2) < 11 and (a[1] + b[1]) > 0) and not any(abs((tm_ - p_ + math.pi) % TAU - math.pi) < TAU / N for p_ in PIER_T):
+            A1 = edge_pt(TAU * k / N, R_ISL + 1); B1 = edge_pt(TAU * (k + 1) / N, R_ISL + 1); COL.prism("quay", [a, b, B1, A1], -3.0, Z + 1.5)
+        mb("sidewalk").tri((0, 0, Z), (a[0], a[1], Z), (b[0], b[1], Z), (0, 0), (a[0] / TL["sidewalk"], a[1] / TL["sidewalk"]), (b[0] / TL["sidewalk"], b[1] / TL["sidewalk"]), (0, 0, 1))
         A = edge_pt(TAU * k / N, R_ISL + 7); B = edge_pt(TAU * (k + 1) / N, R_ISL + 7)
         pquad("palette", (a[0], a[1], Z), (b[0], b[1], Z), (B[0], B[1], -3.0), (A[0], A[1], -3.0), "sand", ((a[0] + b[0]), (a[1] + b[1]), 40))
         A2 = edge_pt(TAU * k / N, R_ISL + 22); B2 = edge_pt(TAU * (k + 1) / N, R_ISL + 22)
@@ -315,6 +326,7 @@ def island(rng):
     for k, t in enumerate([0.25, 0.75, 1.3, 2.2, 2.85, 3.5, 4.2, 5.25, 5.75]):   # timber piers
         a = edge_pt(t, R_ISL - 1); b = edge_pt(t, R_ISL + 24); d = (b[0] - a[0], b[1] - a[1]); L = math.hypot(*d); u = (d[0] / L, d[1] / L)
         beam((a[0], a[1], Z - 0.1), (b[0], b[1], Z - 0.1), 2.6, 0.3, "wood")
+        COL.quad("ground", (a[0] + u[1] * 1.3, a[1] - u[0] * 1.3, Z), (b[0] + u[1] * 1.3, b[1] - u[0] * 1.3, Z), (b[0] - u[1] * 1.3, b[1] + u[0] * 1.3, Z), (a[0] - u[1] * 1.3, a[1] + u[0] * 1.3, Z))   # pier deck is walkable
         for s in range(0, int(L), 4):
             for side in (-1, 1): x = a[0] + u[0] * s - u[1] * 1.2 * side; y = a[1] + u[1] * s + u[0] * 1.2 * side; cyl(x, y, -2.5, Z + 0.05, 0.14, 6, "wood_dk", top=False)
         beam((b[0] - u[1] * 3, b[1] + u[0] * 3, Z - 0.1), (b[0] + u[1] * 3, b[1] - u[0] * 3, Z - 0.1), 2.0, 0.3, "wood")
@@ -328,6 +340,7 @@ def roads(rng):
         t0 = TAU * k / 64; t1 = t0 + TAU / 64 * 0.5; pts = [(r * math.cos(t), r * math.sin(t), Z + 0.06) for r, t in ((66.9, t0), (66.9, t1), (67.1, t1), (67.1, t0))]; pquad("palette", *pts, "paint_white", (0, 0, 1))
     for (y0, y1) in ((74, R_ISL + 2), (-R_ISL - 2, -152)):
         floor_quad("road", -8, y0, 8, y1, Z + 0.03, TL["road"]); D.stripe(-0.08, y0, 0.08, y1, Z + 0.06, "paint_yellow")
+        COL.ground_rect("ground", -8, y0, 8, 180.0 if y1 > 0 else y1, Z)             # north boulevard runs on to the bridge landing (local y = 180)
         for s in (-1, 1):
             D.stripe(s * 7.6 - 0.07, y0, s * 7.6 + 0.07, y1, Z + 0.06, "paint_white"); pbox(-8.0 if s < 0 else 7.75, y0, -7.75 if s < 0 else 8.0, y1, Z, Z + 0.16, "concrete")
             for k in range(int((y1 - y0) // 15)):
@@ -378,7 +391,7 @@ def monorail(rng):
     for k in range(0, N, 5):
         x, y, _ = P[k]
         if abs(x) < 13 or not inside(x, y, 3): continue
-        cyl(x, y, Z, zt - 2.6, 0.75, 10, "white"); nx, ny = math.cos(TAU * k / N), math.sin(TAU * k / N)
+        COL.cyl("props", x, y, Z - 0.1, zt - 2.6, 0.8, 10); cyl(x, y, Z, zt - 2.6, 0.75, 10, "white"); nx, ny = math.cos(TAU * k / N), math.sin(TAU * k / N)
         lathe(x, y, [(0.75, zt - 2.65), (1.3, zt - 1.5), (1.3, zt - 1.05), (0, zt - 1.05)], 10, "marble")
         PLAN["monorail"].append([round(x, 2), round(y, 2)])
     k0 = 6
@@ -457,6 +470,7 @@ def cafe_cluster(x, y, z, rng, rot=0.0, n=3, cart=True):
         for j in (-1, 0, 1): flowers(bx + j * 0.45 * math.cos(c + math.pi / 2), by + j * 0.45 * math.sin(c + math.pi / 2), z + 0.62, rng, 0.42, rng.randrange(4))
     LIFE["bin"].append((x + 5.5 * math.cos(rot - 0.4), y + 5.5 * math.sin(rot - 0.4), z))
 def statue(key, x, y, z, rot, sc):
+    COL.cyl("props", x, y, z - 0.3, z + 1.8, 1.5, 16)
     lathe(x, y, [(1.5, z), (1.5, z + 0.25), (1.15, z + 0.4), (1.0, z + 1.4), (1.25, z + 1.55), (1.25, z + 1.75), (0, z + 1.75)], 24, "marble")
     PLACE[key].append((x, y, z + 1.75, rot, sc))
 def street_life(rng):
@@ -535,3 +549,13 @@ print("TRIS", sum(agg.values()), dict(sorted(agg.items(), key=lambda kv: -kv[1])
 bake_assets()
 os.makedirs(f"{HERE}/out", exist_ok=True); bpy.ops.wm.save_as_mainfile(filepath=f"{HERE}/out/halo.blend")
 export_glb(f"{HERE}/out/world-halo.glb", gpu_instances=True); json.dump(PLAN, open(f"{HERE}/out/halo-plan.json", "w"))
+# ---- collision: the towers / pools / fountains / ground / quay come from the builders above; here the scatter (palms, lamps), parked cars, kiosks, bins and the CC0 cafe / cart / planter instances
+for (x, y) in PLAN["trees"]: COL.cyl("props", x, y, Z - 0.1, Z + 3.0, 0.35, 6)
+for (x, y) in PLAN["lamps"]: COL.cyl("props", x, y, Z - 0.1, Z + 4.0, 0.15, 6)
+for (x, y, z, h) in LIFE["car"]: COL.obox("props", x, y, 2.3, 0.95, h, z, z + 1.45)
+for (x, y, z) in LIFE["kiosk"]: COL.cyl("props", x, y, z - 0.1, z + 3.5, 2.0, 12)
+for (x, y, z) in LIFE["bin"]: COL.cyl("props", x, y, z, z + 0.95, 0.3, 8)
+for key in ("cafe", "cart", "planter"):
+    dx, dy, dz = AK.LIB[key]["dims"]
+    for (x, y, z, rot, sc) in PLACE[key]: COL.obox("props", x, y, dx * sc / 2, dy * sc / 2, rot, z, z + dz * sc)
+CX.finish(COL, f"{HERE}/out/world-halo-collision.glb")

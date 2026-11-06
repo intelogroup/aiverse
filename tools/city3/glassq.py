@@ -7,6 +7,8 @@ HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 from mkit import *
 import mdetails as D, kit
 for _n in [n for n in dir(D) if callable(getattr(D,n)) and not n.startswith('_') and n not in ('Frame','MB','Vector')]: setattr(D,_n,kit.prof(_n,getattr(D,_n)))
+import collision as CX
+COL = CX.Col()                                                  # collision solids (collision.py); exported after the visual GLB
 clear_blender()
 Z = 0.2; FH = 4.0; GROUND = 5.5; LAND = 180.0; SW = 3.5
 rng = random.Random(1818); T = {k: v["size"] for k, v in PB.items()}
@@ -280,7 +282,7 @@ def mid(i, j, r):
             roof(poly, Z + GROUND + (fl - 1) * FH, r, False, 4); add_building(poly, fl, "mid", "ribbon" if face == "S" else "curtain", f"mid{i}{j}{face}")
         # courtyard between the bars: pool, pave, trees, benches
         yy0, yy1 = y0 + 27, y1 - 27; floor_quad("pave", x0 + 6, yy0, x1 - 6, yy1, Z + 0.02, TILE["pave"])
-        pw = (x1 - x0) * 0.45; D.planter(cx, (yy0 + yy1) / 2, Z + 0.02, pw, 6.0, r, 0.45); mb("water").quad((cx - pw / 2 + 0.3, (yy0 + yy1) / 2 - 2.7, Z + 0.5), (cx + pw / 2 - 0.3, (yy0 + yy1) / 2 - 2.7, Z + 0.5), (cx + pw / 2 - 0.3, (yy0 + yy1) / 2 + 2.7, Z + 0.5), (cx - pw / 2 + 0.3, (yy0 + yy1) / 2 + 2.7, Z + 0.5), (0, 0), (1, 0), (1, 1), (0, 1), (0, 0, 1))
+        pw = (x1 - x0) * 0.45; COL.box("props", cx - pw / 2, (yy0 + yy1) / 2 - 3.0, Z - 0.1, cx + pw / 2, (yy0 + yy1) / 2 + 3.0, Z + 0.9); D.planter(cx, (yy0 + yy1) / 2, Z + 0.02, pw, 6.0, r, 0.45); mb("water").quad((cx - pw / 2 + 0.3, (yy0 + yy1) / 2 - 2.7, Z + 0.5), (cx + pw / 2 - 0.3, (yy0 + yy1) / 2 - 2.7, Z + 0.5), (cx + pw / 2 - 0.3, (yy0 + yy1) / 2 + 2.7, Z + 0.5), (cx - pw / 2 + 0.3, (yy0 + yy1) / 2 + 2.7, Z + 0.5), (0, 0), (1, 0), (1, 1), (0, 1), (0, 0, 1))
         for k in range(8): D.tree(x0 + 12 + k * (x1 - x0 - 24) / 7, yy0 + 2.5 if k % 2 else yy1 - 2.5, Z + 0.02, r, 5.5); PLAN["trees"].append([x0 + 12 + k * (x1 - x0 - 24) / 7, yy0 + 2.5])
         for k in range(5): D.bench(x0 + 14 + k * (x1 - x0 - 28) / 4, (yy0 + yy1) / 2 + (5.0 if k % 2 else -5.0), Z + 0.02, True)
         dress_block((x0, y0, x1, y1), r)
@@ -309,7 +311,7 @@ def campus(i, j, r):
             for _ in range(24): D.shrub(r.uniform(rect[0] + 2, rect[2] - 2), r.uniform(rect[1] + 2, rect[3] - 2), top, r, r.uniform(0.5, 0.9))
             add_building(poly, 4, "campus", "ribbon", f"cam{i}{j}{face}")
         ly0, ly1 = y0 + 22, y1 - 22; tquad("palette", (x0 + 6, ly0, Z + 0.03), (x1 - 6, ly0, Z + 0.03), (x1 - 6, ly1, Z + 0.03), (x0 + 6, ly1, Z + 0.03), [pal_uv("grass")] * 4, (0, 0, 1))
-        pond = ellipse_poly(cx, (ly0 + ly1) / 2, (x1 - x0) * 0.22, (ly1 - ly0) * 0.28, 24); poly_cap("water", [(a, b) for a, b in pond], Z + 0.05, 4.0)
+        pond = ellipse_poly(cx, (ly0 + ly1) / 2, (x1 - x0) * 0.22, (ly1 - ly0) * 0.28, 24); COL.prism("props", pond, Z - 0.3, Z + 0.7); poly_cap("water", [(a, b) for a, b in pond], Z + 0.05, 4.0)
         for k in range(14): D.tree(r.uniform(x0 + 10, x1 - 10), r.uniform(ly0 + 2, ly1 - 2), Z + 0.03, r, r.uniform(5, 8)) if not point_in(pond, (0, 0)) else None
         stripe_path = [(x0 + 6, (ly0 + ly1) / 2 - 1.2, x1 - 6, (ly0 + ly1) / 2 + 1.2)]
         for a, b, c_, d_ in stripe_path: pquad("palette", (a, b, Z + 0.05), (c_, b, Z + 0.05), (c_, d_, Z + 0.05), (a, d_, Z + 0.05), "sand", (0, 0, 1))
@@ -319,7 +321,7 @@ def park(i, j, r):
     with grp(f"b{i}{j}"):
         tquad("palette", (x0, y0, Z + 0.04), (x1, y0, Z + 0.04), (x1, y1, Z + 0.04), (x0, y1, Z + 0.04), [pal_uv("grass")] * 4, (0, 0, 1))
         for (a, b, c_, d_) in ((x0, cy - 1.5, x1, cy + 1.5), (cx - 1.5, y0, cx + 1.5, y1)): tquad("pave", (a, b, Z + 0.06), (c_, b, Z + 0.06), (c_, d_, Z + 0.06), (a, d_, Z + 0.06), [(a / 1.8, b / 1.8), (c_ / 1.8, b / 1.8), (c_ / 1.8, d_ / 1.8), (a / 1.8, d_ / 1.8)], (0, 0, 1))
-        pond = ellipse_poly(cx + 14, cy + 14, 11, 8, 24, 0.5); poly_cap("water", pond, Z + 0.08, 4.0)
+        pond = ellipse_poly(cx + 14, cy + 14, 11, 8, 24, 0.5); COL.prism("props", pond, Z - 0.3, Z + 0.7); poly_cap("water", pond, Z + 0.08, 4.0)
         pts = []
         for _ in range(60):
             x = r.uniform(x0 + 4, x1 - 4); y = r.uniform(y0 + 4, y1 - 4)
@@ -335,7 +337,7 @@ def plaza(i, j, r):
     x0, y0, x1, y1 = block_rect(i, j); cx = (x0 + x1) / 2; cy = (y0 + y1) / 2
     with grp(f"b{i}{j}"):
         floor_quad("terrazzo", x0, y0, x1, y1, Z + 0.025, TILE["terrazzo"])
-        pbox(cx - 22, cy - 9, cx + 22, cy + 9, Z, Z + 0.5, "concrete"); mb("water").quad((cx - 21.5, cy - 8.5, Z + 0.36), (cx + 21.5, cy - 8.5, Z + 0.36), (cx + 21.5, cy + 8.5, Z + 0.36), (cx - 21.5, cy + 8.5, Z + 0.36), (0, 0), (1, 0), (1, 1), (0, 1), (0, 0, 1))
+        COL.box("props", cx - 22, cy - 9, Z - 0.1, cx + 22, cy + 9, Z + 0.9); pbox(cx - 22, cy - 9, cx + 22, cy + 9, Z, Z + 0.5, "concrete"); mb("water").quad((cx - 21.5, cy - 8.5, Z + 0.36), (cx + 21.5, cy - 8.5, Z + 0.36), (cx + 21.5, cy + 8.5, Z + 0.36), (cx - 21.5, cy + 8.5, Z + 0.36), (0, 0), (1, 0), (1, 1), (0, 1), (0, 0, 1))
         for k in range(7):
             a = k * 0.55 + 0.2; h = 7 + 1.4 * k; bx, by = cx - 10 + k * 3.3, cy; w = 0.35
             ca, sa = math.cos(a), math.sin(a); pts = [(bx + ca * 0.3 - sa * w, by + sa * 0.3 + ca * w), (bx - ca * 0.3 - sa * w, by - sa * 0.3 + ca * w), (bx - ca * 0.3 + sa * w, by - sa * 0.3 - ca * w), (bx + ca * 0.3 + sa * w, by + sa * 0.3 - ca * w)]
@@ -347,7 +349,7 @@ def plaza(i, j, r):
                 x, y = cx + gx * 11, cy + gy * 21
                 if abs(y - cy) > 12: D.tree_grate(x, y, Z + 0.03); D.tree(x, y, Z + 0.03, r, 6.0); PLAN["trees"].append([x, y])
         for k in range(8): D.bench(cx - 28 + k * 8, cy + (11 if k % 2 else -11), Z + 0.03, True)
-        px, py = cx + 30, cy - 24; pbox(px - 9, py - 5, px + 9, py + 5, Z + 0.03, Z + 4.2, "glass_dk"); pbox(px - 10.5, py - 6.5, px + 10.5, py + 6.5, Z + 4.2, Z + 4.5, "white")
+        px, py = cx + 30, cy - 24; COL.box("props", px - 9, py - 5, Z - 0.1, px + 9, py + 5, Z + 4.2); pbox(px - 9, py - 5, px + 9, py + 5, Z + 0.03, Z + 4.2, "glass_dk"); pbox(px - 10.5, py - 6.5, px + 10.5, py + 6.5, Z + 4.2, Z + 4.5, "white")
         dress_block((x0, y0, x1, y1), r)
 def transit(i, j, r):
     x0, y0, x1, y1 = block_rect(i, j); cx = (x0 + x1) / 2; cy = (y0 + y1) / 2
@@ -355,7 +357,7 @@ def transit(i, j, r):
         floor_quad("pave", x0, y0, x1, y1, Z + 0.025, TILE["pave"])
         for k in range(3):
             bx = x0 + 12 + k * 22; D.bus_shelter(bx, y0 + 6, Z + 0.03, (0, -1)); pbox(bx - 8, y0 + 2.5, bx + 8, y0 + 2.7, Z + 0.03, Z + 0.035, "paint_yellow")
-        pbox(cx - 24, cy - 6, cx + 24, cy + 14, Z + 0.03, Z + 7.2, "glass_dk"); pbox(cx - 26, cy - 8, cx + 26, cy + 16, Z + 7.2, Z + 7.6, "white")
+        COL.box("props", cx - 24, cy - 6, Z - 0.1, cx + 24, cy + 14, Z + 7.2); pbox(cx - 24, cy - 6, cx + 24, cy + 14, Z + 0.03, Z + 7.2, "glass_dk"); pbox(cx - 26, cy - 8, cx + 26, cy + 16, Z + 7.2, Z + 7.6, "white")
         for sx in range(-3, 4): cyl(cx + sx * 8, cy - 7.6, Z + 0.03, Z + 7.2, 0.18, 8, "alu_dk")
         for sx in range(-3, 4): D.bike_rack(cx + sx * 7, cy + 24, Z + 0.03, True)
         for _ in range(18): D.tree(r.uniform(x0 + 4, x1 - 4), r.uniform(cy + 28, y1 - 3), Z + 0.03, r, 5.5)
@@ -370,6 +372,12 @@ if __name__ == "__main__" or True:
     print("TRIS", sum(len(b.f) for b in MBS.values()), "meshes", len(MBS), {k: len(v.f) for k, v in sorted(MBS.items(), key=lambda kv: -len(kv[1].f))[:8]})
     os.makedirs(f"{HERE}/out", exist_ok=True); bpy.ops.wm.save_as_mainfile(filepath=f"{HERE}/out/glassq.blend")
     export_glb(f"{HERE}/out/world-glassq.glb"); json.dump(PLAN, open(f"{HERE}/out/glassq-plan.json", "w"))
+    # ---- collision: ground, quay (open where the Bazaar bridge lands: south edge), plan footprints as closed prisms, trunks, lamps (+ pools / ponds / pavilions added in the block builders)
+    COL.ground_rect("ground", -LAND, -LAND, LAND, LAND, Z); CX.quay(COL, LAND, Z, "S")
+    for b in PLAN["buildings"]: COL.prism("buildings", b["poly"], Z - 0.3, Z + GROUND + (b["floors"] - 1) * FH)
+    for (x, y) in PLAN["trees"]: COL.cyl("props", x, y, Z - 0.1, Z + 3.0, 0.25, 6)
+    for (x, y) in PLAN["lamps"]: COL.cyl("props", x, y, Z - 0.1, Z + 4.0, 0.15, 6)
+    CX.finish(COL, f"{HERE}/out/world-glassq-collision.glb")
     agg = {}
     for k, v in MBS.items(): agg[k.rpartition("::")[2]] = agg.get(k.rpartition("::")[2], 0) + len(v.f)
     print("PROF", dict(sorted(kit.PROF.items(), key=lambda kv: -kv[1])[:12]))

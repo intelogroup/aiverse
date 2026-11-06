@@ -131,6 +131,25 @@ def _triangulate(p):
     if len(idx) == 3: out.append(tuple(idx))
     return out
 
+def quay(c, L, Z, gaps=(), gap=10.5, thick=1.0, top=1.5):
+    """Closed 1.5 m wall around a square island (|x|,|y| <= L). `gaps`: sides ('S','E','N','W') where a bridge lands; the wall stops |t| < gap there."""
+    h = Z + top
+    def seg(side, t0, t1):
+        if t1 - t0 < 1e-3: return
+        if side == "S": c.box("quay", t0, -L - thick, -3, t1, -L, h)
+        elif side == "N": c.box("quay", t0, L, -3, t1, L + thick, h)
+        elif side == "W": c.box("quay", -L - thick, t0, -3, -L, t1, h)
+        else: c.box("quay", L, t0, -3, L + thick, t1, h)
+    for side in "SENW":
+        if side in gaps: seg(side, -L - thick, -gap); seg(side, gap, L + thick)
+        else: seg(side, -L - thick, L + thick)
+
+def finish(c, path):
+    """Validate (every solid bucket closed, outward) and write the GLB."""
+    bad = c.check_closed()
+    if bad: raise SystemExit(f"collision: NOT closed: {bad}")
+    c.export(path)
+
 # ======================================================================================= Bazaar (City 3)
 WALK_STEP = 0.28            # hero doorstep / floor height above walk_z (hero.py: f = 0.28, relative to the frame's z0 = walk_z)
 DOOR_W, DOOR_H, WALL_T = 1.7, 2.9, 0.3      # same numbers as hero.py (opening width, soffit, wall thickness)
@@ -182,10 +201,8 @@ def bazaar(ctx, out_path):
         a0, a1 = 2 * math.pi * k / N, 2 * math.pi * (k + 1) / N
         i0 = (Rf * math.cos(a0), Rf * math.sin(a0)); i1 = (Rf * math.cos(a1), Rf * math.sin(a1)); o0, o1 = sq(a0), sq(a1)
         c.quad("ground", (i0[0], i0[1], Z), (o0[0], o0[1], Z), (o1[0], o1[1], Z), (i1[0], i1[1], Z))      # ccw seen from above
-    # ---- quay: closed wall around the island, 1.5 m high, so nobody walks off into the water
-    h = Z + 1.5
-    c.box("quay", -L - 1, -L - 1, -3, L + 1, -L, h); c.box("quay", -L - 1, L, -3, L + 1, L + 1, h)
-    c.box("quay", L, -L, -3, L + 1, L, h); c.box("quay", -L - 1, -L, -3, -L, L, h)
+    # ---- quay: closed wall around the island, 1.5 m high, so nobody walks off into the water; open only where the four bridges land (|t| < 10.5)
+    quay(c, L, Z, gaps="SENW")
     # ---- buildings, halls, towers
     hero_bd = {id(hi["bd"]): hid for hid, hi in ctx["HERO_INFO"].items()}
     for bd in P["buildings"]:
@@ -219,7 +236,5 @@ def bazaar(ctx, out_path):
         a = 2 * math.pi * k / 8 + math.pi / 8; c.cyl("props", 22 * math.cos(a), 22 * math.sin(a), Z - 0.1, Z + 6.0, 0.12, 6)
     for (x, y, rot, _, _) in ctx["PARTY"]:
         dx, dy, dz = ctx["PT_DIMS"]; c.obox("props", x, y, dx / 2, dy / 2, rot, Z, Z + dz)
-    bad = c.check_closed()
-    if bad: raise SystemExit(f"collision: NOT closed: {bad}")
-    c.export(out_path)
+    finish(c, out_path)
     return c

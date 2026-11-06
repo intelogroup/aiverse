@@ -4,6 +4,8 @@ import bpy, math, os, sys, random
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 from mkit import *
 import mdetails as D
+import collision as CX
+COL = CX.Col()                                                  # collision solids (collision.py); exported after the visual GLB
 clear_blender(); Z = 0.2
 pbr_mat("road", "road_m"); pbr_mat("sidewalk", "plaza_herring"); pbr_mat("panel", "panel_conc"); palette_mat("palette"); palette_mat("led", emit=3.0); glass_mat("shopglass")
 rng = random.Random(5)
@@ -26,6 +28,12 @@ def bridge(axis, c, a0, a1, w=20.0):
     # deck road (14 m) + walks (3 m each side)
     for (v0, v1, mat, tile) in ((-7, 7, "road", 2.1), (-10, -7, "sidewalk", 1.8), (7, 10, "sidewalk", 1.8)):
         quad(mat, [P(0, v0, Z), P(L, v0, Z), P(L, v1, Z), P(0, v1, Z)], [(P(0, v0, 0)[0] / tile, P(0, v0, 0)[1] / tile), (P(L, v0, 0)[0] / tile, P(L, v0, 0)[1] / tile), (P(L, v1, 0)[0] / tile, P(L, v1, 0)[1] / tile), (P(0, v1, 0)[0] / tile, P(0, v1, 0)[1] / tile)], (0, 0, 1))
+    # collision: walkable deck (road + both walks) and the glass rails as closed 0.4 m walls; lamp posts as thin cylinders
+    ra, rb = P(0, -10.2, 0), P(L, 10.2, 0); COL.ground_rect("ground", min(ra[0], rb[0]), min(ra[1], rb[1]), max(ra[0], rb[0]), max(ra[1], rb[1]), Z)
+    for s in (-1, 1):
+        ra, rb = P(0, s * 10.0, 0), P(L, s * 10.4, 0); COL.box("rails", min(ra[0], rb[0]), min(ra[1], rb[1]), Z - 0.5, max(ra[0], rb[0]), max(ra[1], rb[1]), Z + 1.25)
+    for k in range(5):
+        for s in (-1, 1): lx, ly = P(4 + k * (L - 8) / 4, s * 9.2, 0)[:2]; COL.cyl("rails", lx, ly, Z - 0.1, Z + 4.0, 0.15, 6)
     # lane markings
     for k in range(int(L / 9)):
         u = 2 + k * 9; D.stripe(*sorted((P(u, -0.07, 0)[0], P(u + 4, 0.07, 0)[0])), *sorted((P(u, -0.07, 0)[1], P(u + 4, 0.07, 0)[1])), Z + 0.012, "paint_yellow") if False else None
@@ -65,5 +73,5 @@ def main():
     which = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else ["N", "E", "W", "S"]
     for k in which: {"N": lambda: bridge("y", 0, 180, 220), "E": lambda: bridge("x", 0, 180, 220), "W": lambda: bridge("x", 0, -220, -180), "S": lambda: bridge("y", 0, -220, -180)}[k]()
     realise({"road": "Road", "sidewalk": "Sidewalk", "palette": "Props", "led": "Led", "shopglass": "ShopGlass"})
-    print("TRIS", sum(len(b.f) for b in MBS.values())); bpy.ops.wm.save_as_mainfile(filepath=f"{HERE}/out/links.blend"); export_glb(f"{HERE}/out/world-links.glb")
+    print("TRIS", sum(len(b.f) for b in MBS.values())); bpy.ops.wm.save_as_mainfile(filepath=f"{HERE}/out/links.blend"); export_glb(f"{HERE}/out/world-links.glb"); CX.finish(COL, f"{HERE}/out/world-links-collision.glb")
 main()
