@@ -39,6 +39,11 @@ Fountain-ring and plaza-rim benches are now `med_bench` (616 tris, backrest on +
 Village stall (`med_stall`, 752 tris): ~35% of the 80 stalls (`MEDSTALLS`, seeded per stall index) use it instead of the procedural stall, scaled (1.4, 1.4, 1.2); the
 scalloped awning edge is its -y side (rot 0 for facing S, pi for N). Verified from the plaza side for S-facing stalls; N-facing orientation not yet checked in a screenshot.
 
+## Bazaar trees (2026-11-06)
+Procedural trunk + branch tubes (Poly Haven `bark_brown_02`, CC0) + 280-480 V-folded leaf-cluster cards from a generated alpha atlas (`trees_tex.py`), 6 variants,
+2.7-3.3k tris each, 130 placements as linked duplicates under `inst_tree_<variant>` Empties (EXT_mesh_gpu_instancing; one mesh, bark + `tree_foliage` MASK material,
+vertex-colour AO/tint via COLOR_0). Poly Haven trees (0.15-17 M polys) and decimated scans rejected. GLB size went down 356 KB (old per-tree palette blobs were baked per tree); rendered triangles +~350k.
+
 ## Agora 2 spike sources (2026-11-06, not shipped)
 - Quaternius Modular Sci-Fi MegaKit Standard (CC0, 190 glTF): itch.io `POST <page>/download_url` -> download page -> `POST <page>/file/<upload_id>?source=game_download` (60 s signed URL).
 - Kenney Modular Space Kit (CC0): direct zip on OpenGameArt (`kenney_modular-space-kit_1.0.zip`).

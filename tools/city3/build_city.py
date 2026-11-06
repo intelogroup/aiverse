@@ -321,16 +321,24 @@ for s in P["streets"]:                                                       # b
 for k in range(8):                                                           # plaza festoon poles + string lights
     a=2*math.pi*k/8+math.pi/8; P0=(22*math.cos(a),22*math.sin(a)); cyl(P0[0],P0[1],Z,Z+6.0,0.09,6,"iron",top=False)
     a2=2*math.pi*(k+1)/8+math.pi/8; P1=(22*math.cos(a2),22*math.sin(a2)); string_lights((P0[0],P0[1],Z+5.9),(P1[0],P1[1],Z+5.9))
-def tree(x,y):
-    h=rng.uniform(4.0,6.0); cyl(x,y,Z,Z+h*0.6,0.17,7,"trunk_dark",top=False,r1=0.1); R=h*0.4
-    for k in range(rng.choice([3,4])):
-        a=rng.uniform(0,6.28); d=rng.uniform(0,R*0.7); blob(x+math.cos(a)*d,y+math.sin(a)*d,Z+h*0.72+rng.uniform(-0.3,0.8)*R*0.5,R*rng.uniform(0.6,0.9),rng.choice(["leaf","leaf_dark"]))
+import trees as _tr                                                          # dense procedural trees (trees.py): 6 variants, GPU-instanced under inst_tree_* Empties
+_trr=random.Random(31415); _BR=[b_["rect"] for b_ in P["buildings"]]
+def _clear(x,y): return min(math.hypot(max(r_[0]-x,0,x-r_[2]),max(r_[1]-y,0,y-r_[3])) for r_ in _BR)
+def tree(x,y,zb=None,planter=False):
+    h=rng.uniform(4.0,6.0); R=h*0.4                                          # burn the old blob tree's rng draws so everything seeded after it keeps its layout
+    for k in range(rng.choice([3,4])): rng.uniform(0,6.28); rng.uniform(0,R*0.7); rng.uniform(-0.3,0.8); rng.uniform(0.6,0.9); rng.choice(["leaf","leaf_dark"])
+    nm=_trr.choice(["olive","blossom","linden","plane_b","gold","olive","linden","blossom"] if planter else ["plane","plane","plane_b","plane_b","linden","linden","linden","olive","gold","blossom","blossom"])
+    s=_trr.uniform(0.9,1.12)*(0.72 if planter and nm in("plane_b","linden") else 1.0); d=_clear(x,y)
+    if d<3.4 and nm in("plane","plane_b"): nm="linden"
+    s=max(0.55,min(s,(d-0.4)/_tr.CROWN_R[nm]))
+    _tr.place(nm,x,y,Z-0.05 if zb is None else zb-0.05,_trr.uniform(0,6.28),s,_trr.uniform(0.93,1.07))
 for (x,y) in P["trees"]: tree(x,y)
 for t_ in range(-52,53,13):                                                  # plaza rim: trees in planters + benches facing the square
     for (x,y,al) in ((t_,-57.0,True),(t_,57.0,True),(-57.0,t_,False),(57.0,t_,False)):
         if abs(t_)<8: continue
-        pbox(x-0.9,y-0.9,x+0.9,y+0.9,Z,Z+0.5,"stone_lt"); pbox(x-0.8,y-0.8,x+0.8,y+0.8,Z+0.5,Z+0.52,"trunk_dark"); tree(x,y)
+        pbox(x-0.9,y-0.9,x+0.9,y+0.9,Z,Z+0.5,"stone_lt"); pbox(x-0.8,y-0.8,x+0.8,y+0.8,Z+0.5,Z+0.52,"trunk_dark"); tree(x,y,Z+0.52,True)
         BENCHES.append((x+(3.2 if not al else 0),y+(3.2 if al and y<0 else (-3.2 if al else 0)),al))
+print("TREES",{k:v["n"] for k,v in _tr.LIB.items()},"tris/tree",{k:v["tris"] for k,v in _tr.LIB.items()},"total tris",sum(v["n"]*v["tris"] for v in _tr.LIB.values()))
 # café sets out front of the hero + a few elsewhere handled in hero
 if "tea" in HERO_INFO:
     fr=HERO_INFO["tea"]["fr"]; du=HERO_INFO["tea"]["door_u"]
@@ -461,6 +469,7 @@ sz=[os.path.getsize(f"{HERE}/out/interiors/{k}.json") for k in by_bid]
 print("LAYOUTS",len(by_bid),"files; props min/avg/max",min(len(v) for v in by_bid.values()),sum(len(v) for v in by_bid.values())//len(by_bid),max(len(v) for v in by_bid.values()),"| bytes total",sum(sz))
 CREDITS=[{"asset":k,"source":("https://opengameart.org/content/furniture-low-poly" if v["source"]=="quaternius" else (json.load(open(f"{HERE}/assets/sketchfab/{v['id']}/meta.json"))["source"] if v["source"]=="sketchfab" else f"https://polyhaven.com/a/{v['id']}")),"license":"CC0"} for k,v in assets_kit.LIB.items() if v["source"]!="usdz"]
 CREDITS+=[{"asset":k,"source":"user-supplied upload (partycups_usdz.zip)","license":"not stated"} for k,v in assets_kit.LIB.items() if v["source"]=="usdz"]
+CREDITS+=[{"asset":"tree_bark","source":"https://polyhaven.com/a/bark_brown_02","license":"CC0"},{"asset":"tree_leaves + tree geometry","source":"procedural (trees.py, trees_tex.py)","license":"n/a"}]
 json.dump(CREDITS,open(f"{HERE}/out/asset-credits.json","w"),indent=1)
 GROUND_TOP=Z+GH+0.05
 rooms_idx=[]
