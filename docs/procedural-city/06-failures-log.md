@@ -27,3 +27,4 @@
 | 23 | Foot-slide metric "5–12× better" | fewer low-foot frames while stepping | replaced by the rigid-fit planting test (0.6 mm) |
 | 24 | My unit tests failed 3 times | my expectations were wrong (hysteresis radii, `getMatrixAt` returns void, thresholds) | read the failing assertion before touching code |
 | 25 | Kenney / Poly Pizza downloads | blocked (403) from the container | use Poly Haven API + Quaternius via OpenGameArt |
+| Bazaar lit windows (translucent emissive pane 2-6 cm in front of upper windows, `win_glow`) | Pane mesh loaded (942 quads, correct positions, material state fine) but never visible with depth test on, even forced opaque red; visible only with depthTest off. Cause NOT found (polygonOffset, clip planes, 6 cm offset all ruled out). Reverted. Next try: emissive twin of the facade atlas, or per-bay atlas variants. |
