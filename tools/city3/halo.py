@@ -290,11 +290,12 @@ def lagoon_pool(cx, cy, rng):
     for k in range(n):
         a = pts[k]; b = pts[(k + 1) % n]; u = pal_uv("water")
         mb("water").tri((cx, cy, Z + 0.1), (a[0], a[1], Z + 0.1), (b[0], b[1], Z + 0.1), u, u, u, (0, 0, 1)); beam((a[0], a[1], Z + 0.18), (b[0], b[1], Z + 0.18), 0.9, 0.3, "white", "marble")
-    for k in range(10):
-        t = TAU * k / 10 + 0.2; r = 25 + rng.uniform(0, 3); x, y = cx + 1.3 * r * math.cos(t), cy + r * math.sin(t)
+    for k in range(16):                                                      # parasol + lounger pairs ring the coping (inland side survives inside())
+        t = TAU * k / 16 + 0.2; r = 15 + 4.5 * math.sin(2 * t + 0.6) + 2.5 * math.sin(3 * t + 1.7) + 4.2 + rng.uniform(0, 1.2); x, y = cx + 1.3 * r * math.cos(t), cy + r * math.sin(t)
         if not inside(x, y, 6): continue
         cyl(x, y, Z, Z + 2.5, 0.05, 6, "alu", top=False); lathe(x, y, [(1.6, Z + 2.2), (0.0, Z + 2.8)], 10, color=rng.choice(["teal", "white", "orange"]))
-        for s in (-1, 1): pbox(x + s * 1.0 - 0.35, y - 0.9, x + s * 1.0 + 0.35, y + 0.9, Z, Z + 0.35, "white")
+        h = math.atan2(cy - y, cx - x)                                       # loungers face the water, either side of the parasol
+        for s in (-1, 1): LIFE["lounger"].append((x - math.sin(h) * s * 1.1, y + math.cos(h) * s * 1.1, Z, h))
     OCC.append((cx, cy, 30))
 
 # ---------------------------------------------------------------- island, roads, plazas
@@ -470,6 +471,11 @@ def street_life(rng):
         if not free(x, y, 8): continue
         flat_ring("terrazzo", x, y, 0, 7.6, Z + 0.035, 40, TL["terrazzo"]); flat_ring("palette", x, y, 7.6, 7.95, Z + 0.05, 40, color="terra")
         cafe_cluster(x, y, Z + 0.035, rng, rng.uniform(0, TAU), rng.choice([3, 4])); OCC.append((x, y, 9.5)); placed += 1
+    kq = 0; tries = 0                                                         # round glass kiosks along the open paving
+    while kq < 6 and tries < 4000:
+        tries += 1; x, y = rng.uniform(-R_ISL, R_ISL), rng.uniform(-R_ISL, R_ISL)
+        if not free(x, y, 4.5): continue
+        LIFE["kiosk"].append((x, y, Z + 0.03)); OCC.append((x, y, 5.5)); kq += 1
     for r, n in ((63.4, 12), (70.6, 12)):                                     # cars on the ring road, in loose platoons, both directions
         for k in range(n):
             t = TAU * (k + rng.uniform(-0.25, 0.25)) / n + (0.11 if r > 66 else 0)
@@ -491,11 +497,14 @@ def emit_life():
     """Procedural street life from halo_props.py (sub-module, optional while it is being written)."""
     try: import halo_props as HP
     except Exception as e: print("halo_props missing:", e); return
-    rng = random.Random(77)
+    rng = random.Random(77); HP.use_halo_materials()
     for (x, y, z) in LIFE["parasol"]: HP.parasol(x, y, z, rng)
     for (x, y, z) in LIFE["bin"]: HP.bin(x, y, z)
     for (x, y, z, h) in LIFE["car"]: HP.car(x, y, z, h, rng)
-    for (x, y, z, h) in LIFE["yacht"]: HP.yacht(x, y, z, h, rng)
+    for (x, y, z, h) in LIFE["yacht"]: (HP.sailboat if rng.random() < 0.35 else HP.yacht)(x, y, z, h, rng)
+    print("LIFE", {k: len(v) for k, v in LIFE.items()}, "kiosks", [(round(x), round(y)) for x, y, _ in LIFE["kiosk"]])
+    for (x, y, z) in LIFE["kiosk"]: HP.kiosk(x, y, z, rng)
+    for (x, y, z, h) in LIFE["lounger"]: HP.lounger(x, y, z, h, rng)
 
 # ---------------------------------------------------------------- compose
 rng = random.Random(9090)
