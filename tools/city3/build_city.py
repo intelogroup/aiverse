@@ -44,7 +44,7 @@ def pbr_override(key,tag,tile_m,rough=None):
     n=nt.nodes.new("ShaderNodeTexImage"); n.image=bpy.data.images.load(f"{HERE}/tex_m/{tag}_n.jpg"); n.image.colorspace_settings.name="Non-Color"; n.extension="REPEAT"; nt.links.new(mp.outputs["Vector"],n.inputs["Vector"])
     nm=nt.nodes.new("ShaderNodeNormalMap"); nt.links.new(n.outputs["Color"],nm.inputs["Color"]); nt.links.new(nm.outputs["Normal"],bs.inputs["Normal"])
     bs.inputs["Roughness"].default_value=PBRM[tag]["rough"] if rough is None else rough; m.use_backface_culling=True; MATS[key]=m
-for _k,_t,_s in (("cobble","cobble_pbr",6.0),("sidewalk","pave_warm",4.0),("courtyard","pave_warm",4.0),("roof_tile","roof_clay",3.0),("roof_flat","roof_clay2",4.0)): pbr_override(_k,_t,_s)
+for _k,_t,_s in (("cobble","plaza_stone",6.0),("sidewalk","pave_warm",4.0),("courtyard","pave_warm",4.0),("roof_tile","roof_clay",3.0),("roof_flat","roof_clay2",4.0)): pbr_override(_k,_t,_s)
 MATS["water"]=make_mat("water","palette",0.45); MATS["lamp_glow"]=make_mat("lamp_glow","palette",0.5,emit=True,strength=3.0)
 MATS["glass"]=make_mat("glass",None,0.05,alpha=0.22,base=(0.72,0.86,0.95,1.0))
 # ---------------- flat surfaces & roads ----------------
@@ -288,6 +288,11 @@ def tree(x,y):
         a0=2*math.pi*i/k; a1=2*math.pi*(i+1)/k; am=(a0+a1)/2; t=(x,y,Z+h+H); b=(x,y,Z+h-0.3); m=(x+R*math.cos(a0),y+R*math.sin(a0),Z+h+H*0.35); m2=(x+R*math.cos(a1),y+R*math.sin(a1),Z+h+H*0.35)
         ptri("palette",m,m2,t,nm,(math.cos(am),math.sin(am),0.5)); ptri("palette",m2,m,b,nm,(math.cos(am),math.sin(am),-0.5))
 for (x,y) in P["trees"]: tree(x,y)
+for t_ in range(-52,53,13):                                                  # plaza rim: trees in planters + benches facing the square
+    for (x,y,al) in ((t_,-57.0,True),(t_,57.0,True),(-57.0,t_,False),(57.0,t_,False)):
+        if abs(t_)<8: continue
+        pbox(x-0.9,y-0.9,x+0.9,y+0.9,Z,Z+0.5,"stone_lt"); pbox(x-0.8,y-0.8,x+0.8,y+0.8,Z+0.5,Z+0.52,"trunk_dark"); tree(x,y)
+        bench(x+(3.2 if not al else 0),y+(3.2 if al and y<0 else (-3.2 if al else 0)),Z,al)
 # café sets out front of the hero + a few elsewhere handled in hero
 if "tea" in HERO_INFO:
     fr=HERO_INFO["tea"]["fr"]; du=HERO_INFO["tea"]["door_u"]
