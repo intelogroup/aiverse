@@ -50,7 +50,7 @@ void main(){ float h = clamp(vDir.y, -0.2, 1.0); vec3 c = mix(horizon, top, pow(
  * fog, key light, water, exposure and emissive "night" amount; the PMREM environment is rebuilt only when the sky moves.
  * `window.__districts` exposes counters for the memory test (?districtDebug=1).
  */
-export function DistrictWorld({ residentUrl, light, collide = true }: { residentUrl: string; light: React.RefObject<THREE.DirectionalLight | null>; collide?: boolean }) {
+export function DistrictWorld({ residentUrl, light, collide = true, meshesRef }: { residentUrl: string; light: React.RefObject<THREE.DirectionalLight | null>; collide?: boolean; meshesRef?: { current: (() => THREE.Mesh[]) | null } }) {
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
   const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3 } | null;
@@ -71,6 +71,8 @@ export function DistrictWorld({ residentUrl, light, collide = true }: { resident
   const dropColliders = (key: string) => { colliderSets.current.delete(key); colliderFlat.current = null; };
   const collideDebug = useRef(true);
   const getMeshes = () => (colliderFlat.current ??= [...colliderSets.current.values()].flat());
+  // The walker (CityWalker) raycasts the same meshes; it reads them through this ref.
+  if (meshesRef) meshesRef.current = getMeshes;
   const themeRef = useRef<Theme | null>(null);
   const envTheme = useRef<Theme | null>(null);
   const clock = useRef(0);

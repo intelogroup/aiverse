@@ -694,6 +694,27 @@
 .world-root .w-glb-poi {
   top: 62px;
 }
+.world-root .w-glb-walk {
+  top: auto;
+  bottom: 18px;
+  left: 14px;
+  transform: none;
+}
+.world-root .w-walk-hint {
+  position: absolute;
+  bottom: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(9, 13, 28, 0.7);
+  border: 1px solid var(--w-border);
+  color: var(--w-dim);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  pointer-events: none;
+  z-index: 5;
+}
 .world-root .w-glb-toggle button.active {
   background: rgba(110, 168, 255, 0.16);
   border-color: rgba(110, 168, 255, 0.45);

@@ -36,3 +36,4 @@ re-deriving it. Written 2026-11-06 at the end of a long build; update it, don't 
 4. Look at the latest screenshots you produce before believing any number.
 
 - [09-districts.md](09-districts.md) — Glass Quarter (N), Foundry Wharf (E), Garden Terraces (W), Halo Lagoon (S), bridges, district streaming + themes (read before touching `districts.ts`/`DistrictWorld.tsx`).
+- [10-walker.md](10-walker.md) — walkable bot in City 3 (kinematic walker, BVH world, ride/follow cameras).
