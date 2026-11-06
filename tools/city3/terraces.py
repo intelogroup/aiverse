@@ -33,24 +33,37 @@ for side, (a, b, o) in {"S": ((-LAND, -LAND), (LAND, -LAND), (0, -1)), "E": ((LA
     pquad("palette", (a[0], a[1], -3), (b[0], b[1], -3), (b[0], b[1], Z), (a[0], a[1], Z), "concrete_dk", (o[0], o[1], 0))
 def block_rect(i, j): x0, x1 = BL[i]; y0, y1 = BL[j]; return (x0 + SW, y0 + SW, x1 - SW, y1 - SW)
 def modern_wall(fr, L, nfl, r, z0=0.0, slat_share=0.3, big=True):
-    """White stucco with floor-to-ceiling glazing bays, timber screens and slab edges; balconies with glass rails on some floors."""
+    """Glazed bays are the default cell, framed in stucco piers with slab edges. Timber
+    screens survive only as full-height strips in fixed bay columns and balconies stack
+    in alternating columns — the pattern is a pure function of the wall frame (origin,
+    direction, base height), never per-cell dice. The legacy per-cell draws are still
+    consumed in the old order and discarded, so every downstream placement in the
+    district (trees, shrubs, villa footprints) rolls exactly as it did before."""
     nb = max(1, round(L / 4.5)); bw = L / nb
+    hk = (int(round(fr.a[0] * 2)) * 73856093) ^ (int(round(fr.a[1] * 2)) * 19349663) ^ (int(round(fr.z0 * 2)) * 83492791) ^ (int(fr.r[0] * 2 + 2) * 297121507) ^ (int(fr.r[1] * 2 + 2) * 433024223)
+    variant = hk % 3; gvar = hk % 8
+    if nb >= 6: strips = ({nb // 2}, {0, nb - 1}, {nb // 3, 2 * nb // 3})[variant]
+    elif nb >= 4: strips = ({nb // 2}, {0, nb - 1}, {nb // 2})[variant]
+    elif nb == 3: strips = {1}
+    else: strips = set()
     for f in range(nfl):
         z = z0 + f * FH
         for b in range(nb):
-            u0, u1 = b * bw, (b + 1) * bw; c = (u0 + u1) / 2; k = r.random()
-            if k < slat_share: wall(fr, u0, u1, z, z + FH, "slat", TL["slat"]); continue
-            if k >= 0.9: wall(fr, u0, u1, z, z + FH, "stucco", TL["stucco"])
-            if k < 0.9:
-                w = bw - 1.0; a, d = c - w / 2, c + w / 2; sill, head = 0.15, 3.0
-                wall(fr, u0, a, z, z + FH, "stucco", TL["stucco"]); wall(fr, d, u1, z, z + FH, "stucco", TL["stucco"]); wall(fr, a, d, z, z + sill, "stucco", TL["stucco"]); wall(fr, a, d, z + head, z + FH, "stucco", TL["stucco"])
-                reveal(fr, a, d, z + sill, z + head, 0.0, -0.25, "stucco", TL["stucco"])
-                gu = glaze_uv(r.randrange(8), r.randrange(3)); tquad("glass", fr.p(a, -0.26, z + sill), fr.p(d, -0.26, z + sill), fr.p(d, -0.26, z + head), fr.p(a, -0.26, z + head), [(gu[0], gu[1]), (gu[2], gu[1]), (gu[2], gu[3]), (gu[0], gu[3])], fr.o(0, 1))
-                for q in (1, 2): fbox(fr, a + w * q / 3 - 0.025, a + w * q / 3 + 0.025, -0.27, -0.2, z + sill, z + head, "alu_dk")
-                if f > 0 and r.random() < 0.5:
-                    wbox(fr, a - 0.2, d + 0.2, 0, 1.3, z - 0.02, z + 0.16, "panel", TL["panel"]); P = fr.p
-                    mb("shopglass").quad(P(a - 0.2, 1.3, z + 0.16), P(d + 0.2, 1.3, z + 0.16), P(d + 0.2, 1.3, z + 1.1), P(a - 0.2, 1.3, z + 1.1), (0, 0), (1, 0), (1, 1), (0, 1), fr.o(0, 1)); fbox(fr, a - 0.2, d + 0.2, 1.27, 1.33, z + 1.08, z + 1.14, "alu")
-                else: fbox(fr, a - 0.1, d + 0.1, 0, 0.12, z - 0.05, z + 0.08, "white")
+            u0, u1 = b * bw, (b + 1) * bw; c = (u0 + u1) / 2
+            k = r.random()                                   # legacy draws, kept for stream parity
+            if slat_share <= k < 0.9:
+                r.randrange(8); r.randrange(3)
+                if f > 0: r.random()
+            if b in strips: wall(fr, u0, u1, z, z + FH, "slat", TL["slat"]); continue
+            w = bw - 1.0; a, d = c - w / 2, c + w / 2; sill, head = 0.15, 3.0
+            wall(fr, u0, a, z, z + FH, "stucco", TL["stucco"]); wall(fr, d, u1, z, z + FH, "stucco", TL["stucco"]); wall(fr, a, d, z, z + sill, "stucco", TL["stucco"]); wall(fr, a, d, z + head, z + FH, "stucco", TL["stucco"])
+            reveal(fr, a, d, z + sill, z + head, 0.0, -0.25, "stucco", TL["stucco"])
+            gu = glaze_uv(gvar, b % 3); tquad("glass", fr.p(a, -0.26, z + sill), fr.p(d, -0.26, z + sill), fr.p(d, -0.26, z + head), fr.p(a, -0.26, z + head), [(gu[0], gu[1]), (gu[2], gu[1]), (gu[2], gu[3]), (gu[0], gu[3])], fr.o(0, 1))
+            for q in (1, 2): fbox(fr, a + w * q / 3 - 0.025, a + w * q / 3 + 0.025, -0.27, -0.2, z + sill, z + head, "alu_dk")
+            if f > 0 and b % 2 == variant % 2:
+                wbox(fr, a - 0.2, d + 0.2, 0, 1.3, z - 0.02, z + 0.16, "panel", TL["panel"]); P = fr.p
+                mb("shopglass").quad(P(a - 0.2, 1.3, z + 0.16), P(d + 0.2, 1.3, z + 0.16), P(d + 0.2, 1.3, z + 1.1), P(a - 0.2, 1.3, z + 1.1), (0, 0), (1, 0), (1, 1), (0, 1), fr.o(0, 1)); fbox(fr, a - 0.2, d + 0.2, 1.27, 1.33, z + 1.08, z + 1.14, "alu")
+            else: fbox(fr, a - 0.1, d + 0.1, 0, 0.12, z - 0.05, z + 0.08, "white")
         fbox(fr, 0, L, 0, 0.08, z + FH - 0.12, z + FH, "white")
 def green_roof(rect, z, r, shrubs=0.04):
     x0, y0, x1, y1 = rect; poly = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
