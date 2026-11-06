@@ -7,7 +7,7 @@ import mdetails as D
 import collision as CX
 COL = CX.Col()                                                  # collision solids (collision.py); exported after the visual GLB
 clear_blender(); Z = 0.2; FH = 3.4; LAND = 180.0; SW = 3.5; rng = random.Random(7071)
-for k, tag in (("road", "road_m"), ("sidewalk", "plaza_herring"), ("stucco", None), ("slat", "wood_slat"), ("stone", "stone_clad"), ("panel", "panel_conc"), ("terrazzo", None), ("roofgrey", "roof_grey"), ("bitumen", None)):
+for k, tag in (("road", "road_m"), ("sidewalk", "plaza_herring"), ("stucco", None), ("slat", "wood_slat"), ("stone", "stone_clad"), ("panel", "conc_panels"), ("terrazzo", None), ("roofgrey", "roof_grey"), ("bitumen", None)):
     pbr_mat(k, tag or k)
 pbr_mat("greenroof", "grass004", rough=0.95)   # ambientCG short grass on the planted roofs (was a flat palette-moss quad); rough overridden — the set's authored roughness map averages 0.26, a sheen no lawn has, and mkit materials take the scalar
 img_mat("glass", "glass_atlas.jpg", "glass_emit.jpg", rough=0.07, metal=0.6, emit=1.0); img_mat("msign", "msigns.jpg", "msigns.jpg", rough=0.4, emit=0.5)

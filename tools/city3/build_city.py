@@ -29,6 +29,21 @@ def make_mat(name,img,rough=0.9,emit=False,strength=0.0,alpha=None,base=None):
             except Exception: pass
     return m
 for k in ("sand","ochre","white","rose","blue"): MATS[f"facade_{k}"]=make_mat(f"Facade_{k}",f"facade_{k}",0.92)
+# Facade plaster (ambientCG Plaster002, the facades pass): the painted strip stays the base colour on
+# UVMap — its clouding is baked into the strip pixels by textures.py, because a texture x texture
+# multiply cannot survive glTF export (probed on 5.2.3: the exporter drops the second texture).
+# What CAN ride the export is the plaster's relief: normal + packed roughness on the wall-planar
+# second UV channel (u along the wall, v = world height, 3.5 m tile — emitted by wallq/hero).
+def facade_plaster(key):
+    m=MATS[key]; nt=m.node_tree; b=nt.nodes["Principled BSDF"]
+    uvm=nt.nodes.new("ShaderNodeUVMap"); uvm.uv_map="UVMap2"
+    n=nt.nodes.new("ShaderNodeTexImage"); n.image=bpy.data.images.load(f"{HERE}/tex_m/plaster002_n.jpg"); n.image.colorspace_settings.name="Non-Color"; n.extension="REPEAT"
+    nt.links.new(uvm.outputs["UV"],n.inputs["Vector"])
+    nm=nt.nodes.new("ShaderNodeNormalMap"); nt.links.new(n.outputs["Color"],nm.inputs["Color"]); nt.links.new(nm.outputs["Normal"],b.inputs["Normal"])
+    rt=nt.nodes.new("ShaderNodeTexImage"); rt.image=bpy.data.images.load(f"{HERE}/tex_m/plaster002_r.jpg"); rt.image.colorspace_settings.name="Non-Color"; rt.extension="REPEAT"
+    nt.links.new(uvm.outputs["UV"],rt.inputs["Vector"])
+    sep=nt.nodes.new("ShaderNodeSeparateColor"); nt.links.new(rt.outputs["Color"],sep.inputs["Color"]); nt.links.new(sep.outputs["Green"],b.inputs["Roughness"]); nt.links.new(sep.outputs["Blue"],b.inputs["Metallic"])
+for k in ("sand","ochre","white","rose","blue"): facade_plaster(f"facade_{k}")
 for n,r in (("roof_tile",0.85),("roof_flat",0.95),("cobble",0.88),("sidewalk",0.9),("road_plain",0.9),("road_narrow",0.9),("road_avenue",0.9),("grass",1.0),("courtyard",0.95),("awning",0.8),("palette",0.8),("shutters",0.7),("signs",0.6),("blades",0.6),("interior_wall",0.95),("wood_floor",0.7),("rug",0.95),("newsprint",0.9)):
     MATS[n]=make_mat(n,n,r)
 # PBR re-skin (Poly Haven CC0 via mtex.py): ground and roofs get normal maps; UV stays 1 unit = tile_m metres, a Mapping node rescales to the scan size.
@@ -92,7 +107,9 @@ for (ix0,iy0,ix1,iy1) in INTS:                                              # ze
 block_kind={(b["i"],b["j"]):b["kind"] for b in P["blocks"]}
 SUB={k:tuple(v) for k,v in ATL.items()}
 def wallq(mat,fr,s0,s1,z0,z1,sub,u1=1.0):
-    v0,v1=SUB[sub]; tq(mat,[fr.p(s0,0,z0),fr.p(s1,0,z0),fr.p(s1,0,z1),fr.p(s0,0,z1)],[(0,v0),(u1,v0),(u1,v1),(0,v1)],fr.o(0,1))
+    v0,v1=SUB[sub]; pts=[fr.p(s0,0,z0),fr.p(s1,0,z0),fr.p(s1,0,z1),fr.p(s0,0,z1)]
+    uv2=[((p[0]*fr.r[0]+p[1]*fr.r[1])/3.5,p[2]/3.5) for p in pts]   # wall-planar plaster channel: u along the wall, v = world height, 3.5 m tile
+    tq(mat,pts,[(0,v0),(u1,v0),(u1,v1),(0,v1)],fr.o(0,1),uv2=uv2)
 # Room buildings: every market-block building gets real openings, glazing and a furnished ground floor
 # (a template -> a streamed layout). Upper floors stay in the merged meshes; the console cuts a building
 # away with a clipping box, so no per-building objects exist.
@@ -396,6 +413,9 @@ for key,b in MBS.items():
     if g.startswith("LIB_") or g.startswith("DI_"): LIBG.setdefault(g,{})[m]=b; continue
     me=bpy.data.meshes.new(key); me.from_pydata(b.v,[],b.f); me.update()
     uvl=me.uv_layers.new(name="UVMap"); uvl.data.foreach_set("uv",[c for tri in b.uv for uv in tri for c in uv])
+    if b.uv2on:
+        me.uv_layers.new(name="UVMap2").data.foreach_set("uv",[c for tri in b.uv2 for uv in tri for c in uv])
+        me.uv_layers.active=uvl   # unconnected texture nodes (the painted strip) must keep resolving to TEXCOORD_0
     nm=NAME.get(m,"B_"+m.replace("facade_","Facade_")); nm=f"{g}_{nm}" if g else nm
     ob=bpy.data.objects.new(nm,me); bpy.context.scene.collection.objects.link(ob); ob.data.materials.append(MATS[m])
 for g,parts in LIBG.items():                    # procedural library pieces: one object, one material slot per material

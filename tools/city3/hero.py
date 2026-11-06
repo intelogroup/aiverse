@@ -9,7 +9,9 @@ def hero_ground(bd,fr,W,D,GH,rnd,plain_sub,sign=3,blade_k=0,door_col="door_green
     bays=max(1,round(W/4.0)); bw=W/bays; db=bays//2
     def outer(s0,s1,z0,z1,bs0):
         u0=(s0-bs0)/bw; u1=(s1-bs0)/bw; a=v0+z0/GH*(v1-v0); b=v0+z1/GH*(v1-v0)
-        tq("facade_"+bd["mat"],[fr.p(s0,0,z0),fr.p(s1,0,z0),fr.p(s1,0,z1),fr.p(s0,0,z1)],[(u0,a),(u1,a),(u1,b),(u0,b)],fr.o(0,1))
+        pts=[fr.p(s0,0,z0),fr.p(s1,0,z0),fr.p(s1,0,z1),fr.p(s0,0,z1)]
+        uv2=[((p[0]*fr.r[0]+p[1]*fr.r[1])/3.5,p[2]/3.5) for p in pts]   # wall-planar plaster channel, same convention as build_city.wallq
+        tq("facade_"+bd["mat"],pts,[(u0,a),(u1,a),(u1,b),(u0,b)],fr.o(0,1),uv2=uv2)
         tq("interior_wall",[fr.p(s0,-T,z0),fr.p(s1,-T,z0),fr.p(s1,-T,z1),fr.p(s0,-T,z1)],[(s0/4,z0/GH),(s1/4,z0/GH),(s1/4,z1/GH),(s0/4,z1/GH)],fr.o(0,-1))
     doorpos=None
     for k in range(bays):
