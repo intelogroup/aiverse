@@ -62,6 +62,16 @@ Downloaded with the owner's Sketchfab account (the connector download route retu
 
 Loaded by `assets_kit.tree_variants_sketchfab`: trunk/branch part pairs are joined into whole trees — `hero_full` (624 tris), `hero_tall` (630), `hero_stocky` (624), `hero_birch` (285; grey trunk, golden autumn crown) — plus the pack's atlas-card background trees (`bg_*`, registered but currently unused: they read as painted cards up close). No decimation (the heroes are already at budget) and NO palette re-skin: the pack ships with its own atlas textures, downsized to the 512 px pipeline budget, diffuse-only; study frames showed a flat re-skin collapses its branch cards into slabs while the textured original reads as a proper low-poly tree. Foliage keeps alpha cutout (source alphaMode BLEND → Math ROUND on alpha in the material → glTF alphaMode MASK, the halo-palm pattern). The pack's rocks and shrubs are not used. Placement weights mirror the old blob build's three-variant mix, with the birch in the accent slot.
 
+## District ground — Bazaar plaza (branch tmp/city3-ground, stacked on tmp/kaykit-trees)
+
+The Bazaar's `PlazaCobble` surface (the 120×120 m market square), re-paved in the texture pass (owner's pick "B" of three proofed finalists):
+
+| Asset | Author | Licence | Source |
+|---|---|---|---|
+| PavingStones150 (1K JPG set: Color / NormalGL / Roughness / AmbientOcclusion / Displacement) | ambientCG | CC0 | https://ambientcg.com/view?id=PavingStones150 |
+
+Downloaded from ambientCG's public API (no key needed). The 1K JPG set is kept local in `assets/ambientcg/PavingStones150/` (gitignored, like the other downloads); `mtex.py:acg_pbr` converts it into the pipeline's `tex_m/` layout as `plaza_setts` — diffuse with the set's AO multiplied in (ambientCG's own template does the same), NormalGL as the normal map, and a channel-packed companion texture in glTF metallicRoughness layout (R = AO, G = roughness, B = 0 metalness) that `pbr_override` wires when present, so roughness ships as a real texture map. Displacement is not used. Applied by `build_city.py`'s PBR override on the `cobble` material only, planar world UVs, one texture repeat = **2.5 m**, no tint — the fan-sett paving proofed in the selection rig. It replaces the Poly Haven `herringbone_concrete_tile` (`plaza_stone`) on this surface only; `plaza_stone` still serves Halo's `stone` material, and no other district's ground changes in this pass (survey in the build record: Terraces = sidewalk-class herringbone block fill + grass gardens + terrazzo decks; Glass Quarter plaza = its own terrazzo treatment, block fill is sidewalk class; Foundry = concrete pavement / bitumen / floor concrete, industrial class; Halo = its own tinted pave + terrazzo plazas).
+
 Fallback stand-in (NOT shipped — superseded by the pack above; kept here as the record of the earlier proof build on this branch):
 
 | Asset | Author | Licence | Source |

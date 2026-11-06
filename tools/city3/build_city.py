@@ -43,8 +43,13 @@ def pbr_override(key,tag,tile_m,rough=None):
     d=nt.nodes.new("ShaderNodeTexImage"); d.image=bpy.data.images.load(f"{HERE}/tex_m/{tag}_d.jpg"); d.extension="REPEAT"; nt.links.new(mp.outputs["Vector"],d.inputs["Vector"]); nt.links.new(d.outputs["Color"],bs.inputs["Base Color"])
     n=nt.nodes.new("ShaderNodeTexImage"); n.image=bpy.data.images.load(f"{HERE}/tex_m/{tag}_n.jpg"); n.image.colorspace_settings.name="Non-Color"; n.extension="REPEAT"; nt.links.new(mp.outputs["Vector"],n.inputs["Vector"])
     nm=nt.nodes.new("ShaderNodeNormalMap"); nt.links.new(n.outputs["Color"],nm.inputs["Color"]); nt.links.new(nm.outputs["Normal"],bs.inputs["Normal"])
-    bs.inputs["Roughness"].default_value=PBRM[tag]["rough"] if rough is None else rough; m.use_backface_culling=True; MATS[key]=m
-for _k,_t,_s in (("cobble","plaza_stone",6.0),("sidewalk","pave_warm",4.0),("courtyard","pave_warm",4.0),("roof_tile","roof_clay",3.0),("roof_flat","roof_clay2",4.0)): pbr_override(_k,_t,_s)
+    bs.inputs["Roughness"].default_value=PBRM[tag]["rough"] if rough is None else rough
+    rp=f"{HERE}/tex_m/{tag}_r.jpg"                                                                 # optional channel-packed map (ambientCG sets): G = roughness, B = metalness, same mapping; wins over the scalars
+    if os.path.exists(rp):
+        rt=nt.nodes.new("ShaderNodeTexImage"); rt.image=bpy.data.images.load(rp); rt.image.colorspace_settings.name="Non-Color"; rt.extension="REPEAT"; nt.links.new(mp.outputs["Vector"],rt.inputs["Vector"])
+        sep=nt.nodes.new("ShaderNodeSeparateColor"); nt.links.new(rt.outputs["Color"],sep.inputs["Color"]); nt.links.new(sep.outputs["Green"],bs.inputs["Roughness"]); nt.links.new(sep.outputs["Blue"],bs.inputs["Metallic"])
+    m.use_backface_culling=True; MATS[key]=m
+for _k,_t,_s in (("cobble","plaza_setts",6.0),("sidewalk","pave_warm",4.0),("courtyard","pave_warm",4.0),("roof_tile","roof_clay",3.0),("roof_flat","roof_clay2",4.0)): pbr_override(_k,_t,_s)
 MATS["water"]=make_mat("water","palette",0.45); MATS["lamp_glow"]=make_mat("lamp_glow","palette",0.5,emit=True,strength=3.0)
 MATS["glass"]=make_mat("glass",None,0.05,alpha=0.22,base=(0.72,0.86,0.95,1.0))
 # ---------------- flat surfaces & roads ----------------
