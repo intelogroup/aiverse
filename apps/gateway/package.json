@@ -13,7 +13,7 @@
   "dependencies": {
     "@aiverse/shared": "workspace:*",
     "@aiverse/topics": "workspace:*",
-    "@modelcontextprotocol/sdk": "1.29.0",
+    "@modelcontextprotocol/sdk": "1.31.0",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.6.0",
     "ioredis": "^5.4.0",
