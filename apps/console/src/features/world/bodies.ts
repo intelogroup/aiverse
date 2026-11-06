@@ -27,6 +27,13 @@ export interface BodyDef {
    * keeps position authority.
    */
   walkSpeed: number;
+  /**
+   * Run-cycle facts for gait-driven frames (AgentFrame.gait, the City 3 walker): natural ground speed of the
+   * catalog "Run" clip (in-place, so measured from the stance feet), how far its stance foot rides above Walk's
+   * (the bake stripped the hips drop, so the figure is lowered by this x run weight), and the Run-minus-Walk
+   * touchdown phase offset used to keep the two clips in step while they crossfade. Absent = the body never runs.
+   */
+  run?: { speed: number; footLift: number; phaseOffset: number };
   clips: { idle: string; walk: string; sitTalk: string; sitDown: string; standUp: string };
 }
 
@@ -56,6 +63,13 @@ export const BODY_SUMMER: BodyDef = {
   // Walk bake 2026-11-05: cycle 1.2595 m / 1.1667 s (stance-measured
   // on her own rig during the bake).
   walkSpeed: 1.0796,
+  // Run measured 2026-11-06 on the shipped GLB in three space (headless GLTFLoader + mixer, root-motion cancel
+  // applied as CastFigure does): mean backward speed of the toe and ankle joints while within 2 cm of their
+  // lowest point. The same method on Walk gives 1.081 m/s vs the bake's 1.0796 (0.1%). Run: 2.673 m/s, so the
+  // 0.7333 s cycle covers a 1.960 m stride (left foot 2.25-2.57, right 2.75-3.12: the clip is asymmetric).
+  // Run's stance toes sit 0.088 m above Walk's (hips track constant in both clips: no bob, no ramp, no XZ travel).
+  // Touchdowns: Walk L 0.375 / R 0.871, Run L 0.283 / R 0.846 (cycle phase) -> Run leads by 0.067.
+  run: { speed: 2.673, footLift: 0.088, phaseOffset: -0.067 },
   clips: CATALOG,
 };
 

@@ -7,6 +7,7 @@ import { verticalExcess, type AgentFrame } from "./locomotion";
 import type { FigureOverride, SitPhase } from "./embody";
 import { BODY_CAST, sitClipForPhase, type BodyDef } from "./bodies";
 import { CLIP_CATALOG, clipDef, type ClipTestState } from "./clips";
+import { approach, cycleRateFor, gaitTargets, runTimeForWalkPhase, type GaitSpec } from "./gait";
 
 // CastFigure — a cast bot (a "body" from bodies.ts: a rigged GLB plus
 // its measured hips and clip catalog) driven by the same AgentFrame
@@ -281,11 +282,24 @@ export function CastFigure({
         a.setEffectiveWeight(0);
       }
     }
-    return { idle, walk, sit, sitDown, standUp, byName };
+    // Run: only bodies with measured run facts (bodies.ts `run`), only for gait-driven frames (AgentFrame.gait).
+    const run = body.run ? (byName.get("Run") ?? null) : null;
+    const gait: GaitSpec | null =
+      run && walk && body.run
+        ? {
+            walkSpeed: body.walkSpeed,
+            runSpeed: body.run.speed,
+            walkDuration: walk.getClip().duration,
+            runDuration: run.getClip().duration,
+          }
+        : null;
+    return { idle, walk, sit, sitDown, standUp, byName, run, gait };
   }, [gltf, mixer, body]);
 
-  // Current Walk blend weight (0 = pure Idle, 1 = pure Walk).
+  // Current Walk blend weight (0 = pure Idle, 1 = pure Walk). On the gait path: Idle vs locomotion (Walk + Run).
   const walkWeight = useRef(0);
+  // Gait path only: Run's share of the locomotion blend (0 = all Walk, 1 = all Run).
+  const runMix = useRef(0);
   // Current SittingTalking blend weight (0 = upright, 1 = seated loop).
   const sitWeight = useRef(0);
   // Current SitDown blend weight (the mount transition clip).
@@ -476,7 +490,48 @@ export function CastFigure({
         turnYawRef.current = 0;
       }
     }
-    if (walk) {
+    // ---- Gait path (AgentFrame.gait: the City 3 walker) ----
+    // Idle / Walk / Run from speed (gait.ts), one shared phase: Walk runs at the mixed stride's cycle rate
+    // (reversed for a backpedal) and Run's clock is slaved to Walk's phase + the measured touchdown offset.
+    // Crowd frames never set `gait`, so Agora keeps the Idle/Walk code below unchanged.
+    const runAction = actions.run;
+    const gaitSpec = actions.gait;
+    const gaitOn = !!(f?.gait && gaitSpec && runAction && walk && !ctrl && !ov && !activeTest.current);
+    let runEff = 0;
+    if (gaitOn && f && gaitSpec && runAction && walk) {
+      const reverse = f.gait!.reverse;
+      const g = gaitTargets(f.speed, gaitSpec);
+      const moving = g.walk + g.run;
+      walkWeight.current = approach(walkWeight.current, moving, delta, FADE_S);
+      runMix.current = approach(runMix.current, reverse || moving === 0 ? 0 : g.run / moving, delta, FADE_S);
+      const weight = walkWeight.current;
+      const rm = runMix.current;
+      const common = (1 - seated) * (1 - yieldEff);
+      const rate = cycleRateFor(f.speed, rm, gaitSpec);
+      if (weight > 0 && !walk.isRunning()) walk.reset().play();
+      walk.timeScale = rate * gaitSpec.walkDuration * (reverse ? -1 : 1);
+      walk.setEffectiveWeight(weight * (1 - rm) * common);
+      runEff = weight * rm * common;
+      if (runEff > 0) {
+        if (!runAction.isRunning()) runAction.reset().play();
+        const wp = walk.time / gaitSpec.walkDuration;
+        runAction.time = runTimeForWalkPhase(wp, body.run!.phaseOffset, gaitSpec.runDuration);
+        runAction.timeScale = rate * gaitSpec.runDuration;
+      } else if (runAction.isRunning()) {
+        runAction.stop();
+      }
+      runAction.setEffectiveWeight(runEff);
+      if (idle) idle.setEffectiveWeight((1 - weight) * common);
+      if (weight === 0 && walk.isRunning()) walk.stop();
+    } else if (runAction && runMix.current > 0) {
+      // Leaving the gait path (tester fired, override mounted): Run hands back to the Idle/Walk layer.
+      runMix.current = 0;
+      if (runAction !== testActionRef.current) {
+        runAction.setEffectiveWeight(0);
+        runAction.stop();
+      }
+    }
+    if (walk && !gaitOn) {
       const testerWalk = activeTest.current === body.clips.walk;
       const walking = f?.state === "walk";
       const useBody = ctrl !== null && !testerWalk;
@@ -508,7 +563,9 @@ export function CastFigure({
       // no clip evaluation beyond its Idle sway.
       if (weight === 0 && walk.isRunning()) walk.stop();
     }
-    mixer.update(delta);
+    // The walker clamps its step to 0.1 s; a gait-driven figure's clips advance by the same clamped dt so the
+    // cycle stays in step with the travel on slow frames (feet do not run ahead of the body on a hitch).
+    mixer.update(gaitOn ? Math.min(delta, 0.1) : delta);
     // Root-motion extraction (see rootMotion above): cancel the
     // posed hips' horizontal travel on the skeleton's parent node.
     // The Y (bob) is left in the pose — it is what grounds the feet.
@@ -538,6 +595,9 @@ export function CastFigure({
       rootMotion.hips.getWorldPosition(hw);
       const dy = grp.worldToLocal(hw).y - rootMotion.restHipsLocalY;
       grp.position.y = baseY - verticalExcess(dy, HIPS_Y_BAND);
+      // Run was baked with its hips drop stripped: its stance foot rides body.run.footLift above Walk's.
+      // Lower the figure by that much x the Run weight so the planted foot meets the ground.
+      if (runEff > 0 && body.run) grp.position.y -= body.run.footLift * runEff;
     }
     // Head-bone stream for the ride camera: written AFTER the mixer
     // and every position adjustment above, so the camera anchors on

@@ -23,6 +23,11 @@ Visible yaw = start + clip swing, so the clip's own stepping is intact. **Proof:
 ## Measured (real Detour crowd, 3 seeds, 'go back 5 m' order)
 Heading rate 1962–10800 → ≤217 deg/s; pops (>20°/frame) 1–3 → 0; walking again 1.4–2.6 s after the order; foot-slide proxy 0.72 → 0.37 m (crude).
 
+## Gait path (City 3 walker, not the crowd)
+Frames that carry `AgentFrame.gait` (only CityWalker sets it) skip the controller/legacy Idle/Walk code in CastFigure and use `gait.ts`:
+Idle/Walk/Run by speed with one shared phase, Walk reversed for a backpedal, Run lowered by its measured foot lift. Summer's Run: 2.673 m/s,
+1.960 m stride / 0.7333 s. Crowd frames never set `gait`, so everything above is unchanged. Details and numbers: `10-walker.md`.
+
 ## Known gaps
 No 180° clip (2×90° ≈ 2.6 s at urgency 1.4); no walk start/stop clips; no head look-at (reflex layer = rules, not built); `embody.ts` refuses a second
 skill as "busy" (no preemption); Embody's own `face` turn (π rad/s) feeds the crowd heading gradually so small turns never trigger the clip.

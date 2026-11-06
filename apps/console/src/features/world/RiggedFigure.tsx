@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, type ReactNode, type RefObject } from "reac
 import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
-import type { AgentFrame } from "./locomotion";
+import type { AgentFrame, LocomotionState } from "./locomotion";
 
 // RiggedFigure — the library-clips half of the locomotion integration.
 //
@@ -71,7 +71,7 @@ export function RiggedFigure({
     return { idle: byName("Idle"), walk: byName("Walking_A") };
   }, [gltf, mixer]);
 
-  const activeState = useRef<"idle" | "walk">("idle");
+  const activeState = useRef<LocomotionState>("idle");
 
   useEffect(() => {
     actions.idle?.play();

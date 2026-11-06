@@ -74,7 +74,8 @@ const ARRIVE_DIST = 0.6; // m from target counts as "reached"
 const RETARGET_AFTER_S = 8; // pick a fresh wander target at least this often
 const SPAWN_MIN_SEPARATION = 1.5; // m between spawn points (best effort)
 
-export type LocomotionState = "idle" | "walk";
+/** "run" is produced only by gait-driven frames (the City 3 walker); the crowd emits idle/walk. */
+export type LocomotionState = "idle" | "walk" | "run";
 
 export interface AnimState {
   state: LocomotionState;
@@ -106,6 +107,12 @@ export interface AgentFrame {
   targetsReached: number;
   /** Set by the renderer's body controller (bodyController.ts): smoothed heading, turn clip, walk blend. */
   body?: BodyOutput;
+  /**
+   * Set by a gait-aware driver (the City 3 walker, walker.ts): CastFigure blends Idle/Walk/Run from `speed`
+   * (gait.ts) and `heading` is the BODY heading (it turns toward the travel direction; the view heading is the
+   * driver's own). `reverse` = backpedal: Walk plays backwards. Crowd frames leave it unset (Idle/Walk only).
+   */
+  gait?: { reverse: boolean };
 }
 
 export interface PlatformCrowdOptions {

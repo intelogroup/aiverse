@@ -18,8 +18,15 @@ export interface WalkerState {
   /** Feet height (world y). */
   y: number;
   z: number;
-  /** Facing (see conventions above). Also the view heading. */
+  /** VIEW heading (see conventions above): camera and movement frame. */
   heading: number;
+  /**
+   * BODY heading: what the figure faces. Third-person standard: it turns toward the direction of travel at
+   * cfg.bodyTurnRate (strafing turns the body sideways), except a walking backpedal, where it faces away from the
+   * travel direction and `backward` is set (the figure plays Walk in reverse). Standing still it faces the view.
+   */
+  body: number;
+  backward: boolean;
   /** Horizontal velocity, m/s. */
   vx: number;
   vz: number;
@@ -81,6 +88,11 @@ export interface WalkConfig {
   gravity: number;
   /** A drop this small is walked down instantly (stairs down, curbs). */
   stepDown: number;
+  /** rad/s: how fast the BODY heading chases the travel direction. */
+  bodyTurnRate: number;
+  /** Travel this far (rad) from the view heading, walking, is a backpedal; back below `backExit` it is not. */
+  backEnter: number;
+  backExit: number;
 }
 
 export const WALK_CONFIG: WalkConfig = {
@@ -93,13 +105,16 @@ export const WALK_CONFIG: WalkConfig = {
   waterY: -0.5,
   gravity: 14,
   stepDown: 0.4,
+  bodyTurnRate: 10,
+  backEnter: (120 * Math.PI) / 180,
+  backExit: (100 * Math.PI) / 180,
 };
 
 /** Speed below which the body counts as standing (clip choice). */
 export const MOVING_SPEED = 0.15;
 
 export function makeWalker(x: number, y: number, z: number, heading = 0): WalkerState {
-  return { x, y, z, heading, vx: 0, vz: 0, speed: 0, vy: 0, grounded: true };
+  return { x, y, z, heading, body: heading, backward: false, vx: 0, vz: 0, speed: 0, vy: 0, grounded: true };
 }
 
 export function wrapAngle(a: number): number {
@@ -114,12 +129,42 @@ export function angleTo(a: number, b: number): number {
   return wrapAngle(b - a);
 }
 
-/** Clip choice from speed: the locomotion state CastFigure understands. */
-export function clipFor(speed: number): "walk" | "idle" {
-  return speed > MOVING_SPEED ? "walk" : "idle";
+/** Speed above which the gait reads "run" (between walkSpeed 1.3 and runSpeed 2.7; the clip blend itself is gait.ts). */
+export const RUNNING_SPEED = 1.6;
+
+/** Locomotion state from speed: what CastFigure's AgentFrame.state carries. */
+export function clipFor(speed: number): "walk" | "run" | "idle" {
+  return speed > RUNNING_SPEED ? "run" : speed > MOVING_SPEED ? "walk" : "idle";
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+/**
+ * Advance the BODY heading one frame (pure; `step` calls it). `wish` is the wanted travel direction in (x, z)
+ * (null when no movement is asked for). Moving: face the travel direction, or, walking with travel more than
+ * cfg.backEnter from the view (hysteresis down to cfg.backExit), face AWAY from it and backpedal. Running never
+ * backpedals: the body turns round and runs. Standing: face the view heading.
+ */
+export function stepBody(
+  s: Pick<WalkerState, "heading" | "body" | "backward">,
+  wish: Vec2 | null,
+  run: boolean,
+  dt: number,
+  cfg: WalkConfig = WALK_CONFIG,
+): void {
+  let target = s.heading;
+  if (wish && Math.hypot(wish[0], wish[1]) > 1e-6) {
+    const dir = Math.atan2(wish[0], wish[1]);
+    const off = Math.abs(angleTo(s.heading, dir));
+    s.backward = !run && off > (s.backward ? cfg.backExit : cfg.backEnter);
+    target = s.backward ? wrapAngle(dir + Math.PI) : dir;
+  } else {
+    s.backward = false;
+  }
+  const d = angleTo(s.body, target);
+  const m = cfg.bodyTurnRate * dt;
+  s.body = wrapAngle(s.body + clamp(d, -m, m));
+}
 
 /**
  * Try the horizontal move (dx, dz) from the current position. Walls: the part of the move into an obstruction is
@@ -181,6 +226,7 @@ export function step(s: WalkerState, input: WalkInput, dt: number, world: World,
     wx = (sn * f - cs * r) * k; // forward (sin,cos) + right (-cos,sin)
     wz = (cs * f + sn * r) * k;
   }
+  stepBody(s, mag > 1e-6 ? [wx, wz] : null, input.run, dt, cfg);
   const a = 1 - Math.exp(-cfg.accel * dt);
   s.vx += (wx - s.vx) * a;
   s.vz += (wz - s.vz) * a;
