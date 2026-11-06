@@ -15,3 +15,6 @@ experiments/bazaar/runs/
 # real personal/financial notes; never committed, never uploaded to Postgres.
 experiments/verse-ecology/local-memory/
 dump.rdb
+
+# agent worktrees (local only)
+.claude/worktrees/

@@ -8742,9 +8742,9 @@
    "facing": 3.1416,
    "approach": [
     -15.1,
-    76.43
+    77.67
    ],
-   "approachSide": "front",
+   "approachSide": "back",
    "seatHeight": 0.46,
    "floorY": 0.48,
    "occupiedBy": null
@@ -8760,9 +8760,9 @@
    "facing": 3.1416,
    "approach": [
     -17.9,
-    76.43
+    77.67
    ],
-   "approachSide": "front",
+   "approachSide": "back",
    "seatHeight": 0.46,
    "floorY": 0.48,
    "occupiedBy": null
@@ -8778,9 +8778,9 @@
    "facing": 3.1416,
    "approach": [
     -15.1,
-    79.43
+    80.67
    ],
-   "approachSide": "front",
+   "approachSide": "back",
    "seatHeight": 0.46,
    "floorY": 0.48,
    "occupiedBy": null
@@ -8796,9 +8796,9 @@
    "facing": 3.1416,
    "approach": [
     -17.9,
-    79.43
+    80.67
    ],
-   "approachSide": "front",
+   "approachSide": "back",
    "seatHeight": 0.46,
    "floorY": 0.48,
    "occupiedBy": null

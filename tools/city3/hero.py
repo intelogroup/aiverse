@@ -2,8 +2,9 @@
 import math, random
 from kit import *
 from details import *
+import doors
 GLASS="glass"
-def hero_ground(bd,fr,W,D,GH,rnd,plain_sub,sign=3,blade_k=0,door_col="door_green",interior_fn=None):
+def hero_ground(bd,fr,W,D,GH,rnd,plain_sub,sign=3,blade_k=0,door_col="door_green",interior_fn=None,door_style=0,door_no=1):
     v0,v1=plain_sub; T=0.3; f=0.28
     bays=max(1,round(W/4.0)); bw=W/bays; db=bays//2
     def outer(s0,s1,z0,z1,bs0):
@@ -34,9 +35,7 @@ def hero_ground(bd,fr,W,D,GH,rnd,plain_sub,sign=3,blade_k=0,door_col="door_green
             doorpos=c
             fbox(fr,ou0,ou1,-T,0.0,0,f,"stone"); fbox(fr,c-1.3,c+1.3,0,0.85,0,f,"stone")
             fbox(fr,c-1.0,c-0.8,0,0.14,f,zt+0.25,"stone_lt"); fbox(fr,c+0.8,c+1.0,0,0.14,f,zt+0.25,"stone_lt"); fbox(fr,c-1.0,c+1.0,0,0.16,zt,zt+0.26,"stone_lt")
-            th=1.25; hu=ou0+0.04; tu=hu+1.5*math.cos(th); tt=-0.1-1.5*math.sin(th)                    # leaf swung open into the room
-            col=door_col
-            two_sided("palette",[fr.p(hu,-0.1,f),fr.p(tu,tt,f),fr.p(tu,tt,zt-0.05),fr.p(hu,-0.1,zt-0.05)],[pal_uv(col)]*4,fr.o(-(tt+0.1),tu-hu))
+            doors.entrance(fr,c,door_style,door_col,door_no)                                            # closed leaf + frame detail (doors never open); static part is instanced
             lantern_wall(fr,c+1.35,2.5); lantern_wall(fr,c-1.35,2.5)
     cu=db*bw+bw/2
     fascia(fr,cu-2.0,cu+2.0,3.3,4.3,sign)                                                                  # 4:1, matches the sign cell

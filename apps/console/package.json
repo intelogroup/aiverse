@@ -19,7 +19,8 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "recast-navigation": "0.44.0",
-    "three": "^0.170.0"
+    "three": "^0.170.0",
+    "three-mesh-bvh": "0.9.16"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^7.0.1",

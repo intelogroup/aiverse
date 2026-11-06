@@ -1,7 +1,7 @@
 import bpy, json, math, os, random, sys
 HERE=os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0,HERE)
 from kit import *
-import kit, details, hero, press, rooms, assets_kit
+import kit, details, hero, press, rooms, assets_kit, doors
 from details import *
 P=json.load(open(f"{HERE}/plan.json")); rng=random.Random(77)
 Z=P["walk_z"]; L=P["land"]; GH=4.2; FH=3.5
@@ -99,8 +99,9 @@ def wallq(mat,fr,s0,s1,z0,z1,sub,u1=1.0):
 SIGN_NAMES=["Sage's Library","Fixer's Forge","Kronikler Press","Matchmaker's Tea House","Provokatov Hall","Kova's Spices","Rekinder Lamps","The Golden Scale","Bakery","Apothecary","Ink & Quill","Cloth & Dye","Coffee","Fruit & Fig","Today's Tea","Salt Road Trading"]
 TPL_SIGNS={"cafe":[12,8,13,14],"shop":[5,6,7,9,11,15],"library":[0,10],"workshop":[1]}
 rr_=random.Random(2026)
-SPECIAL={(2,4,"S"):dict(id="tea",template="tea",sign=3,blade=0,door="door_green",fn=rooms.TEMPLATES["tea"]),
-         (2,1,"N"):dict(id="press",template="press",sign=2,blade=2,door="door_blue",fn=press.interior)}
+TPL_DOORS={"cafe":[1,3,1,2],"shop":[0,1,3,0,2],"library":[4,0,4,3],"workshop":[4,1,4]}      # door style pool per room template (doors.py)
+SPECIAL={(2,4,"S"):dict(id="tea",template="tea",sign=3,blade=0,door="door_green",dstyle=2,dno=7,fn=rooms.TEMPLATES["tea"]),
+         (2,1,"N"):dict(id="press",template="press",sign=2,blade=2,door="door_blue",fn=press.interior,dstyle=4,dno=21)}
 widest={}
 for bd in P["buildings"]:
     k=(*tuple(bd["block"]),bd["face"])
@@ -113,6 +114,7 @@ for idx,bd in enumerate(P["buildings"]):
     else:
         t=rr_.choices(["cafe","shop","library","workshop"],[0.3,0.4,0.15,0.15])[0]
         spec=dict(id=f"shop-{idx}",template=t,sign=rr_.choice(TPL_SIGNS[t]),blade=rr_.randrange(16),door=rr_.choice(details.DOORS),fn=rooms.TEMPLATES[t])
+        dr_=random.Random(9100+idx); spec["dstyle"]=dr_.choice(TPL_DOORS[t]); spec["dno"]=dr_.randint(1,98)      # own RNG: must not shift rr_ / the per-building streams
     spec["lot"]=f"shop-{idx}"; spec["name"]=SIGN_NAMES[spec["sign"]]; spec["upper"]=None
     HERO_OF[id(bd)]=spec
 HERO_INFO={}
@@ -129,7 +131,7 @@ def building(bd,idx):
             if is_hero:
                 D_=bd["rect"][3]-bd["rect"][1] if side in ("S","N") else bd["rect"][2]-bd["rect"][0]
                 HERO_INFO[spec["id"]]={"fr":fr,"W":length,"D":D_,"bd":bd,"spec":spec}; kit.CUR[0]=spec["id"]
-                dp=hero.hero_ground(bd,fr,length,D_,GH,rnd,SUB["plain"],sign=spec["sign"],blade_k=spec["blade"],door_col=spec["door"],interior_fn=spec["fn"]); HERO_INFO[spec["id"]]["door_u"]=dp
+                dp=hero.hero_ground(bd,fr,length,D_,GH,rnd,SUB["plain"],sign=spec["sign"],blade_k=spec["blade"],door_col=spec["door"],interior_fn=spec["fn"],door_style=spec["dstyle"],door_no=spec["dno"]); HERO_INFO[spec["id"]]["door_u"]=dp
             else:
                 for k in range(bays):
                     s0=k*bw; s1=s0+bw; c=(s0+s1)/2
@@ -381,12 +383,16 @@ for k in range(3):                                                           # p
     string_lights((-7.6,27+k*9.0,Z+5.0),(7.6,27+k*9.0,Z+5.0),sag=0.6)
 for k in (-1,1):
     for y_ in (27,36,45): cyl(k*7.6,y_,Z,Z+5.1,0.07,6,"iron",top=False)
+# ---------------- hero door statics (instanced) ----------------
+LF=Frame((0.0,0.0),(1.0,0.0),(0.0,-1.0),0.0)
+for _st in sorted({i[0] for i in doors.INST}):
+    with grp(f"DI_{_st}"): doors.door_static(_st,LF)
 # ---------------- realise ----------------
 NAME={"sidewalk":"Sidewalks","cobble":"PlazaCobble","grass":"Parks","courtyard":"Courtyards","road_avenue":"RoadAvenue","road_narrow":"RoadStreet","road_plain":"RoadJunction","roof_tile":"RoofTile","roof_tile_v1":"RoofTileV1","roof_tile_v2":"RoofTileV2","roof_tile_v3":"RoofTileV3","roof_tile_v4":"RoofTileV4","roof_hall":"RoofHall","roof_flat":"RoofFlat","awning":"Awnings","palette":"Props","water":"Water","lamp_glow":"LampGlow","shutters":"Shutters","signs":"Signs","blades":"BladeSigns","interior_wall":"InteriorWalls","wood_floor":"WoodFloor","rug":"Rug","glass":"Glass","newsprint":"Newsprint"}
 LIBG={}
 for key,b in MBS.items():
     g,_,m=key.rpartition("::")
-    if g.startswith("LIB_"): LIBG.setdefault(g,{})[m]=b; continue
+    if g.startswith("LIB_") or g.startswith("DI_"): LIBG.setdefault(g,{})[m]=b; continue
     me=bpy.data.meshes.new(key); me.from_pydata(b.v,[],b.f); me.update()
     uvl=me.uv_layers.new(name="UVMap"); uvl.data.foreach_set("uv",[c for tri in b.uv for uv in tri for c in uv])
     nm=NAME.get(m,"B_"+m.replace("facade_","Facade_")); nm=f"{g}_{nm}" if g else nm
@@ -400,6 +406,12 @@ for g,parts in LIBG.items():                    # procedural library pieces: one
     for m in mats: me.materials.append(MATS[m])
     me.polygons.foreach_set("material_index",midx)
     ob=bpy.data.objects.new(g,me); bpy.context.scene.collection.objects.link(ob)
+    if g.startswith("DI_"):                                                    # hero door static part: linked duplicates under one Empty -> EXT_mesh_gpu_instancing
+        st=int(g[3:]); root=bpy.data.objects.new(f"inst_door_{doors.STYLE_NAMES[st].split('+')[0]}",None); bpy.context.scene.collection.objects.link(root)
+        for i,(s_,x_,y_,z_,r_) in enumerate(i_ for i_ in doors.INST if i_[0]==st):
+            o=ob.copy(); o.data=ob.data; o.name=f"door{st}_{i}"; o.location=(x_,y_,z_); o.rotation_euler=(0,0,r_)
+            bpy.context.scene.collection.objects.link(o); o.parent=root
+        bpy.data.objects.remove(ob,do_unlink=True)
 # ---------------- Sketchfab CC0 props baked into the city (linked duplicates: one mesh, many nodes) ----------------
 def _sk(name,h):
     L=assets_kit.load(name,600,source="sketchfab",name=f"sk_{name}",tex=256); return L["obj"],h/max(L["dims"][2],1e-3)
@@ -408,8 +420,9 @@ _rs=random.Random(909)
 for o_ in list(bpy.data.objects):
     pass
 SK={n:_sk(n,h) for n,h in (("lantern",0.42),("pot",0.5),("producecrate",0.3),("med_bench",0.96),("med_crate",0.5),("med_stall",2.3))}
+SKP=[]                                                                      # (asset, x, y, z, rot) of every placed Sketchfab prop (collision.py)
 def _skput(n,x,y,z,rot=0.0):
-    src,s=SK[n]; o=src.copy(); o.data=src.data; o.name=f"SK_{n}"; o.location=(x,y,z); o.rotation_euler=(0,0,rot); o.scale=(s,s,s); _skc.objects.link(o)
+    SKP.append((n,x,y,z,rot)); src,s=SK[n]; o=src.copy(); o.data=src.data; o.name=f"SK_{n}"; o.location=(x,y,z); o.rotation_euler=(0,0,rot); o.scale=(s,s,s); _skc.objects.link(o)
 for si_,s_ in enumerate(P["stalls"]):
     cx,cy=s_["c"]; w_,d_=s_["size"]; hx_,hy_=w_/2,d_/2
     if si_ in MEDSTALLS:                                                      # model front (scalloped awning edge) is -y; facing S keeps it, N turns it round
@@ -475,7 +488,7 @@ TEXPX={"wooden_bookshelf_worn":512,"drawer_cabinet":512,"vintage_grandfather_clo
        "book_encyclopedia_set_01":256,"desk_lamp_arm_01":256,"vintage_radio_transceiver":256,"WoodenTable_02":256,"vintage_oil_lamp":128,"wall_clock":256,"binder_notebook":256}
 QUAT={"ChairCushioned"}
 USED={p[1] for p in kit.PLACEMENTS}
-for key in sorted(USED-set(press.PIECE_NAMES)-set(rooms.PIECES)):
+for key in sorted(USED-set(press.PIECE_NAMES)-set(rooms.PIECES)-set(rooms.BOTTLE_KEYS)):
     assets_kit.load(key,BUDGET.get(key,2000),source="quaternius" if key in QUAT else "polyhaven",tex=TEXPX.get(key,256))
 bpy.context.view_layer.layer_collection.children["AssetLibrary"].exclude=False
 for o in list(bpy.data.objects):
@@ -495,7 +508,8 @@ for bid,ps in by_bid.items():
     json.dump({"id":bid,"library":"world-city3-library.glb","props":props},open(f"{HERE}/out/interiors/{bid}.json","w"),separators=(",",":"))
 sz=[os.path.getsize(f"{HERE}/out/interiors/{k}.json") for k in by_bid]
 print("LAYOUTS",len(by_bid),"files; props min/avg/max",min(len(v) for v in by_bid.values()),sum(len(v) for v in by_bid.values())//len(by_bid),max(len(v) for v in by_bid.values()),"| bytes total",sum(sz))
-CREDITS=[{"asset":k,"source":v.get("credit") or ("https://opengameart.org/content/furniture-low-poly" if v["source"]=="quaternius" else (json.load(open(f"{HERE}/assets/sketchfab/{v['id']}/meta.json"))["source"] if v["source"]=="sketchfab" else f"https://polyhaven.com/a/{v['id']}")),"license":v.get("credit_license","CC0")} for k,v in assets_kit.LIB.items() if v["source"]!="usdz"]
+CREDITS=[{"asset":k,"source":v.get("credit") or ("https://opengameart.org/content/furniture-low-poly" if v["source"]=="quaternius" else (json.load(open(f"{HERE}/assets/sketchfab/{v['id']}/meta.json"))["source"] if v["source"]=="sketchfab" else f"https://polyhaven.com/a/{v['id']}")),"license":v.get("credit_license","CC0")} for k,v in assets_kit.LIB.items() if v["source"] not in ("usdz","blendswap")]
+CREDITS+=[{"asset":k,"source":"https://blendswap.com/blend/33793","license":"CC0 (uploader-declared), coldpengu"} for k,v in assets_kit.LIB.items() if v["source"]=="blendswap"]
 CREDITS+=[{"asset":k,"source":"user-supplied upload (partycups_usdz.zip)","license":"not stated"} for k,v in assets_kit.LIB.items() if v["source"]=="usdz"]
 json.dump(CREDITS,open(f"{HERE}/out/asset-credits.json","w"),indent=1)
 GROUND_TOP=Z+GH+0.05
@@ -512,3 +526,10 @@ json.dump(rooms_idx,open(f"{HERE}/out/interiors/index.json","w"),separators=(","
 json.dump(rooms_idx,open(f"{HERE}/out/heroes.json","w"),indent=1)
 json.dump({"units":"m, three.js XZ; heading = atan2(fx, fz)","anchors":kit.ANCHORS},open(f"{HERE}/out/hero-anchors.json","w"),indent=1)
 print("ANCHORS",len(kit.ANCHORS),{h:sum(1 for a in kit.ANCHORS if a["building"]==h) for h in HERO_INFO})
+
+# ---------------- collision (collision.py / col_interiors.py): closed solids + hero rooms, and furniture boxes per room ----------------
+import collision, col_interiors
+def _skdim(n):
+    d=assets_kit.LIB[f"sk_{n}"]["dims"]; k=SK[n][1]; return (d[0]*k,d[1]*k,d[2]*k)
+collision.bazaar(dict(P=P,GH=GH,FH=FH,HERO_INFO=HERO_INFO,SKP=SKP,SKDIM={n:_skdim(n) for n in ("med_bench","med_crate","pot")},PARTY=PARTY,PT_DIMS=_PT["dims"],MEDSTALLS=MEDSTALLS),f"{HERE}/out/world-city3-collision.glb")
+col_interiors.write(HERO_INFO,f"{HERE}/out/interiors")

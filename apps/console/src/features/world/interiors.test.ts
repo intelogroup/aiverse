@@ -1,7 +1,9 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { buildInterior, indexLibrary } from "./interiorBuild";
-import { groupByAsset, planStreaming, type InteriorLayout, type StreamHero } from "./interiors";
+import { bakeCollisionRoot, boxesMesh, createCapsuleWorld } from "./capsuleWorld";
+import { WalkColliders } from "./walkColliders";
+import { colUrl, groupByAsset, parseColBoxes, planStreaming, type InteriorLayout, type StreamHero } from "./interiors";
 
 const heroes: StreamHero[] = [
   { id: "a", center: [0, 0] },
@@ -140,5 +142,41 @@ describe("groupByAsset", () => {
     ]);
     expect(g.get("a")!.map((p) => p[1])).toEqual([1, 3]);
     expect(g.get("b")!.length).toBe(1);
+  });
+});
+
+describe("interior collision sidecar", () => {
+  it("colUrl maps a layout url to its .col.json", () => {
+    expect(colUrl("/assets/interiors/shop-100.json")).toBe("/assets/interiors/shop-100.col.json");
+    expect(colUrl("/assets/interiors/press.json")).toBe("/assets/interiors/press.col.json");
+  });
+  it("parseColBoxes takes arrays or {boxes}, drops malformed and degenerate boxes", () => {
+    const good = [1, 2, 0.5, 0.6, 0.28, 1.2, 0.3];
+    expect(parseColBoxes([good, [1, 2, 3], "x", [1, 2, 0, 0.6, 0, 1, 0], [1, 2, 1, 1, 1, 1, 0], [1, 2, 1, 1, 0, 1]])).toEqual([good, [1, 2, 1, 1, 0, 1, 0]]);
+    expect(parseColBoxes({ boxes: [good] })).toEqual([good]);
+    expect(parseColBoxes(null)).toEqual([]);
+    expect(parseColBoxes({ nope: 1 })).toEqual([]);
+  });
+});
+
+describe("interior boxes register with the walker list", () => {
+  it("a streamed room's boxes block, shift with the room, and are freed on drop", () => {
+    const reg = new WalkColliders();
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100).rotateX(-Math.PI / 2));
+    floor.position.y = 0.28;
+    floor.updateMatrixWorld(true);
+    reg.set("resident", [bakeCollisionRoot(floor)!]);
+    const world = createCapsuleWorld(reg.list);
+    const boxes = parseColBoxes([[0, 0, 1, 0.5, 0.28, 1.1, 0]]);
+    reg.set("interior:a", [boxesMesh(boxes, [30, 40])!]);
+    expect(world.blocked([28.2, 0.28, 40], [29, 0.28, 40], 0.4)).not.toBeNull(); // shifted by the room offset
+    expect(world.blocked([-2, 0.28, 0], [-1, 0.28, 0], 0.4)).toBeNull(); // not at the unshifted place
+    expect(reg.stats().sets).toEqual(["resident", "interior:a"]);
+    reg.drop("interior:a");
+    expect(world.blocked([28.2, 0.28, 40], [29, 0.28, 40], 0.4)).toBeNull();
+    expect(reg.stats().drops).toBe(1);
+    expect(reg.stats().meshes).toBe(1);
+    reg.dropAll();
+    expect(reg.list().length).toBe(0);
   });
 });

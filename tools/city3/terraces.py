@@ -4,6 +4,8 @@ import bpy, json, math, os, random, sys
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 from mkit import *
 import mdetails as D
+import collision as CX
+COL = CX.Col()                                                  # collision solids (collision.py); exported after the visual GLB
 clear_blender(); Z = 0.2; FH = 3.4; LAND = 180.0; SW = 3.5; rng = random.Random(7071)
 for k, tag in (("road", "road_m"), ("sidewalk", "plaza_herring"), ("stucco", None), ("slat", "wood_slat"), ("stone", "stone_clad"), ("panel", "panel_conc"), ("terrazzo", None), ("roofgrey", "roof_grey"), ("bitumen", None)):
     pbr_mat(k, tag or k)
@@ -93,7 +95,7 @@ def terrace_building(x0, y0, x1, y1, r, base_floors, tag):
             green_roof((rect[0], rect[1], rect[2], nxt_y), top, r, 0.04) if False else None
             deck((rect[0] + 0.6, rect[1] + 0.6, rect[2] - 0.6, nxt_y - 0.2), top, r, 3)
             green_roof((rect[0], nxt_y, rect[2], rect[3]), top, r, 0.01) if rect[3] > nxt_y + 1 else None
-        PLAN["buildings"].append({"id": f"{tag}{k}", "poly": [[round(a, 2), round(b, 2)] for a, b in poly], "floors": fl, "kind": "terrace", "style": "stucco"})
+        PLAN["buildings"].append({"id": f"{tag}{k}", "poly": [[round(a, 2), round(b, 2)] for a, b in poly], "floors": fl, "h": round(top - Z, 2), "kind": "terrace", "style": "stucco"})
         z = top
 def dress(rect, r):
     x0, y0, x1, y1 = rect
@@ -128,18 +130,18 @@ def villas(i, j, r):
                 poly_cap("roofgrey", poly, top, 4.0)
                 for fr, L in edge_frames(poly, top): wbox(fr, -0.6, L + 0.6, -0.3, 0.9, 0.0, 0.22, "panel", TL["panel"]) if False else wbox(fr, 0, L, -0.2, 0.9, 0.0, 0.22, "panel", TL["panel"])
                 px, py = cx - w / 2 - 6, cy                                     # pool + timber pergola beside the house
-                pbox(px - 4, py - 2.5, px + 4, py + 2.5, Z + 0.03, Z + 0.15, "concrete"); mb("water").quad((px - 3.7, py - 2.2, Z + 0.1), (px + 3.7, py - 2.2, Z + 0.1), (px + 3.7, py + 2.2, Z + 0.1), (px - 3.7, py + 2.2, Z + 0.1), (0, 0), (1, 0), (1, 1), (0, 1), (0, 0, 1))
+                COL.box("props", px - 4, py - 2.5, Z - 0.1, px + 4, py + 2.5, Z + 0.9); pbox(px - 4, py - 2.5, px + 4, py + 2.5, Z + 0.03, Z + 0.15, "concrete"); mb("water").quad((px - 3.7, py - 2.2, Z + 0.1), (px + 3.7, py - 2.2, Z + 0.1), (px + 3.7, py + 2.2, Z + 0.1), (px - 3.7, py + 2.2, Z + 0.1), (0, 0), (1, 0), (1, 1), (0, 1), (0, 0, 1))
                 for sx in (-1, 1):
                     for sy in (-1, 1): cyl(cx + w / 2 + 3 + sx * 2.2, cy + sy * 2.2, Z + 0.03, Z + 2.6, 0.08, 6, "wood_dk")
                 for k in range(6): pbox(cx + w / 2 + 0.7, cy - 2.6 + k * 1.0, cx + w / 2 + 5.4, cy - 2.4 + k * 1.0, Z + 2.6, Z + 2.72, "wood")
                 for _ in range(3): D.tree(r.uniform(x0 + 3, x1 - 3), r.uniform(y0 + 3, y1 - 3), Z + 0.03, r, r.uniform(5, 8))
-                PLAN["buildings"].append({"id": f"v{i}{j}{a}{b}", "poly": [[round(p, 2), round(q, 2)] for p, q in poly], "floors": fl, "kind": "villa", "style": "stucco"})
+                PLAN["buildings"].append({"id": f"v{i}{j}{a}{b}", "poly": [[round(p, 2), round(q, 2)] for p, q in poly], "floors": fl, "h": round(top - Z, 2), "kind": "villa", "style": "stucco"})
         dress((x0, y0, x1, y1), r)
 def garden(i, j, r):
     x0, y0, x1, y1 = block_rect(i, j); cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
     with grp(f"b{i}{j}"):
         tquad("palette", (x0, y0, Z + 0.04), (x1, y0, Z + 0.04), (x1, y1, Z + 0.04), (x0, y1, Z + 0.04), [pal_uv("grass")] * 4, (0, 0, 1))
-        pbox(cx - (x1 - x0) / 2, cy - 5, cx + (x1 - x0) / 2, cy + 5, Z + 0.04, Z + 0.35, "concrete"); mb("water").quad((x0 + 0.3, cy - 4.7, Z + 0.28), (x1 - 0.3, cy - 4.7, Z + 0.28), (x1 - 0.3, cy + 4.7, Z + 0.28), (x0 + 0.3, cy + 4.7, Z + 0.28), (0, 0), (1, 0), (1, 1), (0, 1), (0, 0, 1))   # canal
+        COL.box("props", x0, cy - 5, Z - 0.5, x1, cy + 5, Z + 0.9); pbox(cx - (x1 - x0) / 2, cy - 5, cx + (x1 - x0) / 2, cy + 5, Z + 0.04, Z + 0.35, "concrete"); mb("water").quad((x0 + 0.3, cy - 4.7, Z + 0.28), (x1 - 0.3, cy - 4.7, Z + 0.28), (x1 - 0.3, cy + 4.7, Z + 0.28), (x0 + 0.3, cy + 4.7, Z + 0.28), (0, 0), (1, 0), (1, 1), (0, 1), (0, 0, 1))   # canal
         for bx in (x0 + (x1 - x0) * 0.3, x0 + (x1 - x0) * 0.7):
             pbox(bx - 2.2, cy - 5.2, bx + 2.2, cy + 5.2, Z + 0.34, Z + 0.5, "wood"); [pbox(bx + s * 2.1 - 0.05, cy - 5.2, bx + s * 2.1 + 0.05, cy + 5.2, Z + 0.5, Z + 1.2, "alu") for s in (-1, 1)]
         for _ in range(36):
@@ -159,3 +161,9 @@ for k, v in MBS.items(): agg[k.rpartition("::")[2]] = agg.get(k.rpartition("::")
 print("TRIS", sum(agg.values()), dict(sorted(agg.items(), key=lambda kv: -kv[1])[:8]))
 os.makedirs(f"{HERE}/out", exist_ok=True); bpy.ops.wm.save_as_mainfile(filepath=f"{HERE}/out/terraces.blend")
 export_glb(f"{HERE}/out/world-terraces.glb"); json.dump(PLAN, open(f"{HERE}/out/terraces-plan.json", "w"))
+# ---- collision: ground, quay (open where the Bazaar bridge lands: east edge), plan footprints (plan "h" = height above Z), trunks, lamps; pools and garden canals are solid blocks (no ground over water)
+COL.ground_rect("ground", -LAND, -LAND, LAND, LAND, Z); CX.quay(COL, LAND, Z, "E")
+for b in PLAN["buildings"]: COL.prism("buildings", b["poly"], Z - 0.3, Z + b["h"])
+for (x, y) in PLAN["trees"]: COL.cyl("props", x, y, Z - 0.1, Z + 3.0, 0.25, 6)
+for (x, y) in PLAN["lamps"]: COL.cyl("props", x, y, Z - 0.1, Z + 4.0, 0.15, 6)
+CX.finish(COL, f"{HERE}/out/world-terraces-collision.glb")

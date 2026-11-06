@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
 import { OrbitControls, useGLTF } from "@react-three/drei";
@@ -17,6 +17,7 @@ import {
 } from "./locomotion";
 import { CITY_FOOTPRINTS, insideFootprint } from "./cityFootprints";
 import { CastFigure } from "./CastFigure";
+import { CityWalker } from "./CityWalker";
 import { BODY_CAST, BODY_SUMMER, bodyForMember, cruiseCapForBody, excludeBody } from "./bodies";
 import { CLIP_CATALOG, ClipTestState } from "./clips";
 import {
@@ -57,7 +58,9 @@ import {
 } from "./city3";
 import { boxPlanes, inactivePlanes, pickCutRoom } from "./cutaway";
 import { buildInterior, indexLibrary, type InteriorHandle } from "./interiorBuild";
-import { planStreaming, type InteriorLayout } from "./interiors";
+import { colUrl, parseColBoxes, planStreaming, type InteriorLayout } from "./interiors";
+import { boxesMesh } from "./capsuleWorld";
+import { WalkColliders } from "./walkColliders";
 import {
   PROBE_CADENCES,
   PROBE_HEIGHT,
@@ -279,7 +282,7 @@ function ClipCutaway({
  * `?streamDebug=1` exposes window.__city3Stream (counters, renderer memory,
  * teleport) for the memory test; `&fake=N` adds N synthetic rooms to arbitrate.
  */
-function InteriorStreamer({ rooms: realRooms }: { rooms: City3Room[] }) {
+function InteriorStreamer({ rooms: realRooms, walk }: { rooms: City3Room[]; walk?: WalkColliders }) {
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
@@ -385,6 +388,7 @@ function InteriorStreamer({ rooms: realRooms }: { rooms: City3Room[] }) {
           ready={layoutsReady}
           handles={handles.current}
           stats={stats.current}
+          walk={walk}
         />
       ) : null}
     </Suspense>
@@ -399,6 +403,7 @@ function StreamedRooms({
   ready,
   handles,
   stats,
+  walk,
 }: {
   ids: string[];
   heroes: City3Room[];
@@ -406,6 +411,7 @@ function StreamedRooms({
   ready: string[];
   handles: Map<string, InteriorHandle>;
   stats: { builds: number };
+  walk?: WalkColliders;
 }) {
   const gl = useThree((s) => s.gl);
   const library = useGLTF(CITY3_LIBRARY_URL);
@@ -429,7 +435,7 @@ function StreamedRooms({
         const layout = hero ? layouts.get(hero.layout) : undefined;
         if (!hero || !layout || !ready.length) return null;
         return (
-          <InteriorRoom key={id} id={id} layout={layout} assets={assets} offset={hero.shift ?? ZERO_SHIFT} handles={handles} stats={stats} />
+          <InteriorRoom key={id} id={id} layout={layout} layoutUrl={hero.layout} assets={assets} offset={hero.shift ?? ZERO_SHIFT} handles={handles} stats={stats} walk={walk} />
         );
       })}
     </>
@@ -441,17 +447,21 @@ const ZERO_SHIFT: [number, number] = [0, 0];
 function InteriorRoom({
   id,
   layout,
+  layoutUrl,
   assets,
   offset,
   handles,
   stats,
+  walk,
 }: {
   id: string;
   layout: InteriorLayout;
+  layoutUrl: string;
   assets: Map<string, THREE.Object3D>;
   offset: [number, number];
   handles: Map<string, InteriorHandle>;
   stats: { builds: number };
+  walk?: WalkColliders;
 }) {
   // Built inside the effect, not memoised: React (StrictMode in dev) runs cleanup then the effect
   // again on the same render, and a memoised handle would come back already disposed and empty.
@@ -467,6 +477,21 @@ function InteriorRoom({
       setHandle(null);
     };
   }, [id, layout, assets, offset, handles, stats]);
+  // Invisible furniture boxes for the walker (one merged BVH), fetched with the room and dropped on eviction.
+  useEffect(() => {
+    if (!walk) return;
+    let live = true;
+    const key = `interior:${id}`;
+    fetch(colUrl(layoutUrl))
+      .then((r) => (r.ok ? r.json() : []))
+      .then((j) => {
+        if (!live) return;
+        const m = boxesMesh(parseColBoxes(j), offset, key);
+        if (m) walk.set(key, [m]);
+      })
+      .catch(() => {});
+    return () => { live = false; walk.drop(key); };
+  }, [id, layoutUrl, offset, walk]);
   return handle ? <primitive object={handle.group} /> : null;
 }
 
@@ -1364,10 +1389,21 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   // OrbitControls, mirrored into a ref the camera rig reads per frame.
   const keyLightRef = useRef<THREE.DirectionalLight | null>(null);
   const city3Rooms = useCity3Rooms(place === "city3");
-  const [camMode, setCamMode] = useState<CameraMode>("wide");
+  // ?walk=1 (with ?world=city3) deep-links straight into the walkable bot's first-person view.
+  const walkLink = useMemo(() => {
+    const q = new URLSearchParams(window.location.search);
+    return q.get("world") === "city3" && q.get("walk") === "1";
+  }, []);
+  const [camMode, setCamMode] = useState<CameraMode>(walkLink ? "ride" : "wide");
+  // City 3 collider meshes (DistrictWorld fills it), read by the walker.
+  const colliderMeshesRef = useRef<(() => THREE.Mesh[]) | null>(null);
+  const getColliderMeshes = useCallback(() => colliderMeshesRef.current?.() ?? [], []);
+  // The walker's own collision list (collision GLBs + interior boxes), separate from the camera's.
+  const walkColliders = useMemo(() => new WalkColliders(), []);
+  const walking = place === "city3" && camMode !== "wide";
   // City 3: which hero building to fly to (cutaway shows on arrival); nonce re-fires a repeat click.
   const [heroFocus, setHeroFocus] = useState<{ id: string; nonce: number } | null>(null);
-  const camModeRef = useRef<CameraMode>("wide");
+  const camModeRef = useRef<CameraMode>(walkLink ? "ride" : "wide");
   useEffect(() => {
     camModeRef.current = camMode;
   }, [camMode]);
@@ -1424,7 +1460,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
         ) : null}
         <Suspense fallback={null}>
           {place === "city3" ? (
-            <DistrictWorld residentUrl={CITY3_URL} light={keyLightRef} />
+            <DistrictWorld residentUrl={CITY3_URL} light={keyLightRef} collide={camMode === "wide"} meshesRef={colliderMeshesRef} walk={walkColliders} />
           ) : (
           <WorldEnv
             url={
@@ -1439,8 +1475,17 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           {place === "city3" ? (
             <>
               <ClipCutaway rooms={city3Rooms} focus={heroFocus} />
-              <InteriorStreamer rooms={city3Rooms} />
+              <InteriorStreamer rooms={city3Rooms} walk={walkColliders} />
             </>
+          ) : null}
+          {walking ? (
+            <CityWalker
+              mode={camMode === "follow" ? "follow" : "ride"}
+              onMode={setCamMode}
+              onExit={() => setCamMode("wide")}
+              getMeshes={getColliderMeshes}
+              walk={walkColliders}
+            />
           ) : null}
           <CrowdCast
             place={place}
@@ -1462,9 +1507,10 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           enableDamping
           // Parked while a bot camera mode owns the camera (drei only
           // updates controls when enabled, so the rig never fights it).
-          enabled={!embodyOn || !agora || camMode === "wide"}
+          enabled={(!embodyOn || !agora || camMode === "wide") && !walking}
           maxPolarAngle={Math.PI / 2 - 0.04}
-          minDistance={agora ? 6 : 20}
+          // City 3: 3 m close-ups; CameraCollider (in DistrictWorld) keeps the camera out of walls.
+          minDistance={agora ? 6 : place === "city3" ? 3 : 20}
           maxDistance={agora ? 55 : place === "city3" ? 1100 : 450}
         />
       </Canvas>
@@ -1511,6 +1557,24 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
         </button>
       </div>
       {place === "city3" ? (
+        <div className="w-glb-toggle w-glb-walk" role="group" aria-label="Walk City 3">
+          {walking ? (
+            <>
+              <button type="button" className={camMode === "ride" ? "active" : ""} onClick={() => setCamMode("ride")}>First person</button>
+              <button type="button" className={camMode === "follow" ? "active" : ""} onClick={() => setCamMode("follow")}>Follow</button>
+              <button type="button" onClick={() => setCamMode("wide")}>Exit (Esc)</button>
+            </>
+          ) : (
+            <button type="button" onClick={() => setCamMode("ride")}>Walk</button>
+          )}
+        </div>
+      ) : null}
+      {walking ? (
+        <div className="w-walk-hint" aria-hidden="true">
+          click to look · W A S D move · Shift run · V camera · Esc leave
+        </div>
+      ) : null}
+      {place === "city3" && !walking ? (
         <div className="w-glb-toggle w-glb-poi" role="group" aria-label="Places in City 3">
           {city3Rooms.filter((r) => r.featured).map((hero) => (
             <button

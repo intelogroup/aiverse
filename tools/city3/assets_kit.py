@@ -113,6 +113,32 @@ def _recolor(obj):
         for key,col in QCOL:
             if key in n: rgb=col if col else COVERS[i%len(COVERS)]; break
         slot.material=_qmat(rgb)
+def load_blend(key,blend,obj_name,height,rgb,rough=0.15,metal=0.0,budget=400,src_id=None):
+    """Append one mesh from a .blend, scale to `height` m, origin to bottom centre, give it a flat Principled material (colour variants of
+    one shape share nothing but the source; each key gets its own data). BlendSwap packs ship without materials."""
+    with bpy.data.libraries.load(blend,link=False) as (d_from,d_to): d_to.objects=[obj_name]
+    obj=d_to.objects[0]; obj.parent=None
+    for c in list(obj.users_collection): c.objects.unlink(obj)
+    bpy.context.scene.collection.objects.link(obj)
+    for o in bpy.context.selected_objects: o.select_set(False)
+    obj.select_set(True); bpy.context.view_layer.objects.active=obj
+    obj.data=obj.data.copy(); k=height/obj.dimensions.z; obj.scale=(k,k,k)
+    bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
+    raw=_tris(obj)
+    if raw>budget:
+        m=obj.modifiers.new("dec","DECIMATE"); m.ratio=max(0.05,budget/raw); m.use_collapse_triangulate=True
+        ev=obj.evaluated_get(bpy.context.evaluated_depsgraph_get()); me=bpy.data.meshes.new_from_object(ev); obj.modifiers.remove(m); obj.data=me
+    vs=[v.co for v in obj.data.vertices]; mn=Vector([min(v[i] for v in vs) for i in range(3)]); mx=Vector([max(v[i] for v in vs) for i in range(3)])
+    off=Vector(((mn.x+mx.x)/2,(mn.y+mx.y)/2,mn.z))
+    for v in obj.data.vertices: v.co-=off
+    obj.location=(0,0,0); obj.name=f"LIB_{key}"; obj.data.name=f"LIB_{key}"
+    m=bpy.data.materials.new(f"M_{key}"); m.use_nodes=True; b=m.node_tree.nodes["Principled BSDF"]
+    b.inputs["Base Color"].default_value=(*rgb,1); b.inputs["Roughness"].default_value=rough; b.inputs["Metallic"].default_value=metal
+    obj.data.materials.clear(); obj.data.materials.append(m)
+    for c in list(obj.users_collection): c.objects.unlink(obj)
+    _lib_collection().objects.link(obj)
+    LIB[key]={"obj":obj,"dims":tuple(round(d,3) for d in (mx-mn)),"tris_raw":raw,"tris":_tris(obj),"source":"blendswap","id":src_id or obj_name}
+    return LIB[key]
 def place(key,coll,x,y,z,rot_z=0.0,scale=1.0,name=None):
     src=LIB[key]["obj"]; o=src.copy(); o.data=src.data
     o.name=name or f"{coll.name}_{key}"; o.location=(x,y,z); o.rotation_euler=(0,0,rot_z); o.scale=(scale,scale,scale)
