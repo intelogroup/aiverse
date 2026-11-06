@@ -19,8 +19,19 @@ Use tiny viewports (480x320) to speed live probes, or test logic headless in vit
 ## Network (checked 2026-11-06)
 Open: `download.blender.org`, `api.polyhaven.com` + `dl.polyhaven.org` (**send a `User-Agent`**, default urllib gets 403), `quaternius.com`,
 `opengameart.org` (direct zip links work), `syntystore.com` (page only), `github.com` raw/codeload for public repos is untested here.
-Blocked from this container: `kenney.nl` (403), `poly.pizza` (403), `github.com/KenneyNL` (403). `blenderkit.com` redirects (needs an account/add-on).
+Blocked from this container: `kenney.nl` (403), `poly.pizza` (403), `github.com/KenneyNL` (403). `blenderkit.com` site redirects; its REST API works (below).
 `drive.google.com` returns 302 (Quaternius' main hosting; not followed).
+
+## Asset APIs and secrets (2026-11-06)
+- **BlenderKit** add-on v3.21.3 (zip uploaded by user) installs via `blender -b --python-expr "import bpy; bpy.ops.extensions.package_install_files(filepath=..., repo='user_default')"`
+  (or similar), but its local client does not run in `-b` mode ("connection refused"). Use the REST API directly:
+  search `https://www.blendkit.com/api/v1/search/?query=<q> asset_type:model license:cc_zero is_free:true&page_size=N` (needs a `User-Agent`);
+  download = GET the file's `downloadUrl` + `?scene_uuid=<any valid uuid4>` -> JSON `filePath` (signed URL) -> fetch the .glb.
+- **API keys live ONLY as environment network secrets** (the proxy injects them); never write them into files, env vars or Blender prefs.
+  BlenderKit: secret for `www.blendkit.com` (`Authorization: Bearer`). Sketchfab: secret for `api.sketchfab.com` (`Authorization: Token ...`) — run scripts that
+  expect the env var as `SKETCHFAB_TOKEN=proxy-injected`.
+- **BlendSwap**: via the blendswap MCP tools. `search_assets` free; `download_asset` = 7 free/day on the free plan, then 10 credits; .blend inside a zip;
+  licences are uploader-declared (check each).
 
 ## Shell habits that avoid pain
 - `sleep N` in the foreground is blocked; run long jobs in the background and wait with an `until grep ...; do sleep 5; done` Bash call with

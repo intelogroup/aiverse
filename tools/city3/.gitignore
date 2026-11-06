@@ -18,3 +18,12 @@ palette_m.json
 pbr_m.json
 assets/sketchfab/
 assets/poliigon/
+# BlendSwap/BlenderKit downloads stay local; only the CC0 palm-frond texture pair (needs the BlendSwap MCP to re-fetch) is committed
+assets/blendkit/
+assets/blendswap/*
+!assets/blendswap/palm_5812/
+assets/blendswap/palm_5812/*
+!assets/blendswap/palm_5812/PalmFrond*.png
+!assets/blendswap/palm_5812/BLENDSWAP_LICENSE.txt
+assets/partycups/
+assets/_usdx/

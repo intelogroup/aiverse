@@ -125,12 +125,16 @@ def bunting(p0,p1,rnd,sag=0.7,flags=14):
             for sgn in (1,-1): ptri("palette",tri[0],tri[1],tri[2],c,(-uy*sgn,ux*sgn,0))
         prev=pt
 def string_lights(p0,p1,sag=0.9,n=16):
-    for k in range(n+1):
-        t=k/n; x=p0[0]+(p1[0]-p0[0])*t; y=p0[1]+(p1[1]-p0[1])*t; z=p0[2]-sag*4*t*(1-t)
-        pbox(x-0.09,y-0.09,x+0.09,y+0.09,z-0.18,z,"lamp",b="lamp_glow")
-        if k: 
-            px=p0[0]+(p1[0]-p0[0])*(k-1)/n; py=p0[1]+(p1[1]-p0[1])*(k-1)/n; pz=p0[2]-sag*4*((k-1)/n)*(1-(k-1)/n)
-            pbox(min(px,x)-0.01,min(py,y)-0.01,max(px,x)+0.01,max(py,y)+0.01,min(pz,z)-0.01,max(pz,z)+0.01,"iron")
+    """Catenary-ish festoon: a 2.5 cm wire ribbon (crossed quads, so it reads from any side) with small glowing bulbs.
+    The old wire was an axis-aligned box over each segment's bounding box, so any diagonal string became a 1-2 m slab."""
+    P=[(p0[0]+(p1[0]-p0[0])*k/n,p0[1]+(p1[1]-p0[1])*k/n,p0[2]-sag*4*(k/n)*(1-k/n)) for k in range(n+1)]
+    dx,dy=p1[0]-p0[0],p1[1]-p0[1]; dl=math.hypot(dx,dy) or 1; nx,ny=-dy/dl*0.0125,dx/dl*0.0125
+    for a,b in zip(P,P[1:]):
+        for sg in (1,-1):
+            pquad("palette",(a[0]-nx,a[1]-ny,a[2]),(b[0]-nx,b[1]-ny,b[2]),(b[0]+nx,b[1]+ny,b[2]),(a[0]+nx,a[1]+ny,a[2]),"iron",(0,0,sg))
+            pquad("palette",(a[0],a[1],a[2]-0.0125),(b[0],b[1],b[2]-0.0125),(b[0],b[1],b[2]+0.0125),(a[0],a[1],a[2]+0.0125),"iron",(ny*80*sg,-nx*80*sg,0))
+    for k,(x,y,z) in enumerate(P):
+        if 0<k<n: pbox(x-0.055,y-0.055,x+0.055,y+0.055,z-0.16,z-0.04,"lamp",b="lamp_glow"); pbox(x-0.012,y-0.012,x+0.012,y+0.012,z-0.04,z,"iron")
 import kit as _k
 for _n in ["window","door","lantern_wall","fascia","blade","awning_bay","lamp","bench","planter","barrel","crates","bin_","umbrella_set","bunting","string_lights","shutter"]:
     globals()[_n]=_k.prof(_n,globals()[_n])
