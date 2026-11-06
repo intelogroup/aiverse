@@ -5,18 +5,23 @@ from mathutils import Vector
 HERE=os.path.dirname(os.path.abspath(__file__))
 PAL=json.load(open(f"{HERE}/palette.json")); ATL=json.load(open(f"{HERE}/atlas.json"))
 class MB:
-    def __init__(s): s.v=[]; s.m={}; s.f=[]; s.uv=[]
+    def __init__(s): s.v=[]; s.m={}; s.f=[]; s.uv=[]; s.uv2=[]; s.uv2on=False
     def vi(s,p):
         k=(round(p[0],3),round(p[1],3),round(p[2],3))
         if k not in s.m: s.m[k]=len(s.v); s.v.append(k)
         return s.m[k]
-    def tri(s,a,b,c,ua,ub,uc,out=None):
+    def tri(s,a,b,c,ua,ub,uc,out=None,uv2=None):
         A,B,C=Vector(a),Vector(b),Vector(c); n=(B-A).cross(C-A)
         if n.length<1e-7: return
-        if out is not None and n.dot(Vector(out))<0: b,c,ub,uc=c,b,uc,ub
+        if out is not None and n.dot(Vector(out))<0:
+            b,c,ub,uc=c,b,uc,ub
+            if uv2 is not None: uv2=(uv2[0],uv2[2],uv2[1])
         s.f.append((s.vi(a),s.vi(b),s.vi(c))); s.uv.append((ua,ub,uc))
-    def quad(s,a,b,c,d,ua,ub,uc,ud,out=None):
-        s.tri(a,b,c,ua,ub,uc,out); s.tri(a,c,d,ua,uc,ud,out)
+        s.uv2.append(uv2 if uv2 is not None else (ua,ub,uc))   # second UV channel (facade wall-planar plaster); defaults to a copy of uv so lengths always match
+        if uv2 is not None: s.uv2on=True
+    def quad(s,a,b,c,d,ua,ub,uc,ud,out=None,uv2=None):
+        if uv2 is None: s.tri(a,b,c,ua,ub,uc,out); s.tri(a,c,d,ua,uc,ud,out)
+        else: s.tri(a,b,c,ua,ub,uc,out,(uv2[0],uv2[1],uv2[2])); s.tri(a,c,d,ua,uc,ud,out,(uv2[0],uv2[2],uv2[3]))
 MBS={}; _G=[None]
 @contextmanager
 def grp(name):
@@ -30,7 +35,7 @@ def mb(name):
 def pal_uv(name): i=PAL[name]; c,r=i%8,i//8; return ((c*8+4)/64.0,1-(r*8+4)/64.0)
 def pquad(b,a,bb,c,d,color,out=None): u=pal_uv(color); mb(b).quad(a,bb,c,d,u,u,u,u,out)
 def ptri(b,a,bb,c,color,out=None): u=pal_uv(color); mb(b).tri(a,bb,c,u,u,u,out)
-def tq(b,pts,uvs,out=None): mb(b).quad(pts[0],pts[1],pts[2],pts[3],uvs[0],uvs[1],uvs[2],uvs[3],out)
+def tq(b,pts,uvs,out=None,uv2=None): mb(b).quad(pts[0],pts[1],pts[2],pts[3],uvs[0],uvs[1],uvs[2],uvs[3],out,uv2)
 def pbox(x0,y0,x1,y1,z0,z1,color,b="palette",bottom=False):
     pquad(b,(x0,y0,z0),(x1,y0,z0),(x1,y0,z1),(x0,y0,z1),color,(0,-1,0))
     pquad(b,(x1,y0,z0),(x1,y1,z0),(x1,y1,z1),(x1,y0,z1),color,(1,0,0))

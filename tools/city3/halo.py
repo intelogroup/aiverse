@@ -10,6 +10,7 @@ import mdetails as D
 clear_blender(); Z = 0.2; FH = 4.0; R_ISL = 176.0; TAU = 2 * math.pi
 PB["halo_pave"] = {"rough": PB["plaza_herring"]["rough"]}; PB["halo_terrazzo"] = {"rough": PB["terrazzo"]["rough"]}   # halo_tex.py tints
 for k, tag in (("road", "road_m"), ("sidewalk", "halo_pave"), ("terrazzo", "halo_terrazzo"), ("stone", "plaza_stone")): pbr_mat(k, tag)
+pbr_mat("plaster", "plaster002")   # ambientCG clean stucco on the lathe-built stucco fields (plinths, terrace rings, statue drums, pier caps) — lathe's tile mode gives them true metres UVs; the marble blades/beams keep their solid material (formed elements on palette-point UVs)
 img_mat("glass", "halo_glass.jpg", "glass_emit.jpg", rough=0.06, metal=0.45, emit=1.0)
 palette_mat("palette"); palette_mat("led", emit=3.0); palette_mat("water", rough=0.03); glass_mat("shopglass")
 glass_mat("jet", alpha=0.42, tint=(0.92, 0.97, 1.0, 1.0)); glass_mat("shallow", alpha=0.32, tint=(0.35, 0.88, 0.82, 1.0))
@@ -99,7 +100,7 @@ def plinth(cx, cy, R, h=0.6, steps=2):
     for s in range(steps):
         r = R - s * 1.2; z0 = Z + s * h / steps; z1 = Z + (s + 1) * h / steps; prof += [(r, z0), (r, z1)]
         if s < steps - 1: prof.append((r - 1.2, z1))
-    lathe(cx, cy, prof, 64, "marble"); flat_ring("terrazzo", cx, cy, 0, R - (steps - 1) * 1.2, Z + h, 64, TL["terrazzo"])
+    lathe(cx, cy, prof, 64, "plaster", tile=3.5); flat_ring("terrazzo", cx, cy, 0, R - (steps - 1) * 1.2, Z + h, 64, TL["terrazzo"])
     for q in (0.55, 0.8): flat_ring("palette", cx, cy, (R - (steps - 1) * 1.2) * q, (R - (steps - 1) * 1.2) * q + 0.35, Z + h + 0.03, 64, color="terra")
     OCC.append((cx, cy, R + 2)); return Z + h
 def planter_ring(cx, cy, r0, r1, z, rng, n):
@@ -259,7 +260,7 @@ def terraced_dome(tag, cx, cy, R, rng, levels=4):
     z = plinth(cx, cy, R + 5, 0.5, 2)
     for l in range(levels):
         r = R - 3.2 * l; glass_shell(cx, cy, lambda zz, r=r: r, z, 1, rng); z += FH
-        lathe(cx, cy, [(r + 0.6, z - 0.3), (r + 0.6, z + 0.3), (r - 3.2, z + 0.3)], 64, "marble"); planter_ring(cx, cy, r - 2.8, r + 0.5, z + 0.3, rng, 16)
+        lathe(cx, cy, [(r + 0.6, z - 0.3), (r + 0.6, z + 0.3), (r - 3.2, z + 0.3)], 64, "plaster", tile=3.5); planter_ring(cx, cy, r - 2.8, r + 0.5, z + 0.3, rng, 16)
     rd = R - 3.2 * levels; dome(cx, cy, z + 0.3, rd, rd * 0.8, 16, 2, rib_b="chrome")
     bld(tag, "terraced_dome", cx, cy, R + 5, z + rd * 0.8)
 def hex_tower(tag, cx, cy, r, nfl, rng):
@@ -379,7 +380,7 @@ def monorail(rng):
         x, y, _ = P[k]
         if abs(x) < 13 or not inside(x, y, 3): continue
         cyl(x, y, Z, zt - 2.6, 0.75, 10, "white"); nx, ny = math.cos(TAU * k / N), math.sin(TAU * k / N)
-        lathe(x, y, [(0.75, zt - 2.65), (1.3, zt - 1.5), (1.3, zt - 1.05), (0, zt - 1.05)], 10, "marble")
+        lathe(x, y, [(0.75, zt - 2.65), (1.3, zt - 1.5), (1.3, zt - 1.05), (0, zt - 1.05)], 10, "plaster", tile=3.5)
         PLAN["monorail"].append([round(x, 2), round(y, 2)])
     k0 = 6
     for car in range(4):
@@ -457,7 +458,7 @@ def cafe_cluster(x, y, z, rng, rot=0.0, n=3, cart=True):
         for j in (-1, 0, 1): flowers(bx + j * 0.45 * math.cos(c + math.pi / 2), by + j * 0.45 * math.sin(c + math.pi / 2), z + 0.62, rng, 0.42, rng.randrange(4))
     LIFE["bin"].append((x + 5.5 * math.cos(rot - 0.4), y + 5.5 * math.sin(rot - 0.4), z))
 def statue(key, x, y, z, rot, sc):
-    lathe(x, y, [(1.5, z), (1.5, z + 0.25), (1.15, z + 0.4), (1.0, z + 1.4), (1.25, z + 1.55), (1.25, z + 1.75), (0, z + 1.75)], 24, "marble")
+    lathe(x, y, [(1.5, z), (1.5, z + 0.25), (1.15, z + 0.4), (1.0, z + 1.4), (1.25, z + 1.55), (1.25, z + 1.75), (0, z + 1.75)], 24, "plaster", tile=3.5)
     PLACE[key].append((x, y, z + 1.75, rot, sc))
 def street_life(rng):
     zp = Z + 0.6                                                              # spire plinth top: four cafe terraces between the buttress blades
@@ -526,7 +527,7 @@ with grp("life"): street_life(random.Random(25))
 with grp("lawns"): lawns(random.Random(24), 36)
 with grp("scatter"): scatter(random.Random(23), 55, 0, 36)
 with grp("life"): emit_life()
-realise({"foliage": "Foliage", "bark": "Bark", "road": "Road", "sidewalk": "Sidewalk", "glass": "Glass", "shopglass": "ShopGlass", "palette": "Props", "led": "Led"})
+realise({"foliage": "Foliage", "bark": "Bark", "road": "Road", "sidewalk": "Sidewalk", "glass": "Glass", "shopglass": "ShopGlass", "palette": "Props", "led": "Led", "plaster": "Plaster"})
 agg = {}
 for k, v in MBS.items(): agg[k.rpartition("::")[2]] = agg.get(k.rpartition("::")[2], 0) + len(v.f)
 grpt = {}

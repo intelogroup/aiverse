@@ -84,12 +84,26 @@ def plain_c(pl,ac):
     fill(img,0,0,4,0.45,col("#8d8173"),PPM); fill(img,0,3.45,4,4.1,col(ac),PPM); fill(img,0,3.38,4,3.45,col("#d8cdb8"),PPM); fill(img,0,4.1,4,4.2,col(pl)*0.82,PPM); return img
 ATL={}
 GUT=6
+def plaster_mottle():
+    """ambientCG Plaster002 diffuse as a pure multiplier field — the facades selection's verified
+    recipe: per-channel mean-normalised, clipped to the darkening range, gain-compensated so the
+    field averages 1.0. The strip keeps the wall colour (it IS the palette); the plaster only
+    clouds it. Baked into the strips because a texture x texture multiply cannot survive glTF
+    export (probed on Blender 5.2.3: the exporter silently drops the second texture). One field
+    tile = 3.5 m at strip PPM; the atlas is a vertical stack of wall tiles, so the field runs
+    continuously up the stack (u = metres along the bay, v = metres up the stack)."""
+    src=np.array(Image.open("assets/ambientcg/Plaster002/Plaster002_1K-JPG_Color.jpg").convert("RGB"),float)/255.0
+    n=src/src.mean(axis=(0,1),keepdims=True); c=np.clip(n,0,1); m=c*(1.0/c.mean())
+    px=int(3.5*PPM)
+    return np.array(Image.fromarray((np.clip(m[::-1],0,1)*255).astype(np.uint8)).resize((px,px),Image.BILINEAR),float)/255.0   # row 0 = bottom, atlas-style; clip before the uint8 cast — the gain pushes highlights to 1.016 and an unclipped cast wraps them to black
+MOT=plaster_mottle()
+def mottle_field(h,w): return np.tile(MOT,(int(np.ceil(h/MOT.shape[0])),int(np.ceil(w/MOT.shape[1])),1))[:h,:w]
 for k in PLASTER:
     tiles=[("shopA",shop_a(PLASTER[k],ACC[k])),("shopB",shop_b(PLASTER[k],ACC[k])),("plain",plain_c(PLASTER[k],ACC[k])),("upA",upper_a(PLASTER[k])),("upB",upper_b(PLASTER[k]))]
     AH=2048; atlas=np.zeros((AH,int(4*PPM),3)); atlas[:]=col(PLASTER[k]); y=0; rngs={}
     for name,t in tiles:
         h=t.shape[0]; atlas[y:y+h]=t; rngs[name]=[(y+2)/AH,(y+h-2)/AH]; y+=h+GUT
-    save(atlas,f"facade_{k}"); ATL=rngs
+    save(atlas*mottle_field(AH,int(4*PPM)),f"facade_{k}"); ATL=rngs
 json.dump(ATL,open("atlas.json","w")); print("atlas",ATL, "used px",y)
 
 def interior_wall():

@@ -121,12 +121,13 @@ def pbr(pid, tint=None, px=512, tag=None, hue_mul=None):
     return dict(size=size, rough=round(r, 3))
 # ---------------------------------------------------------------- ambientCG sets -> same tex_m layout
 ACG = f"{HERE}/assets/ambientcg"
-def acg_pbr(aid, tag, tile_m, px=1024):
+def acg_pbr(aid, tag, tile_m, px=1024, ao_map=True):
     """ambientCG 1K JPG set -> tex_m/<tag>_d.jpg (AO multiplied into the diffuse, as in ambientCG's own
     template material), _n.jpg (NormalGL) and _r.jpg (roughness; wired by pbr_override when present).
-    Returns the pbr_m entry: size = the real-world tile the set is proofed at (m), rough = mean roughness."""
+    Returns the pbr_m entry: size = the real-world tile the set is proofed at (m), rough = mean roughness.
+    ao_map=False for sets that ship no AmbientOcclusion map (Plaster002): AO = 1.0 throughout."""
     s = f"{ACG}/{aid}"
-    ao = np.array(Image.open(f"{s}/{aid}_1K-JPG_AmbientOcclusion.jpg").convert("L").resize((px, px), Image.LANCZOS), float) / 255.0
+    ao = np.array(Image.open(f"{s}/{aid}_1K-JPG_AmbientOcclusion.jpg").convert("L").resize((px, px), Image.LANCZOS), float) / 255.0 if ao_map else np.ones((px, px))
     d = np.array(Image.open(f"{s}/{aid}_1K-JPG_Color.jpg").convert("RGB").resize((px, px), Image.LANCZOS), float) * ao[..., None]
     Image.fromarray(np.clip(d, 0, 255).astype(np.uint8)).save(f"{OUT}/{tag}_d.jpg", quality=86)
     Image.open(f"{s}/{aid}_1K-JPG_NormalGL.jpg").convert("RGB").resize((px, px), Image.LANCZOS).save(f"{OUT}/{tag}_n.jpg", quality=88)
@@ -159,13 +160,14 @@ def ph_pbr(pid, tag, tile_m, px=1024):
 # name -> (poly haven id, tint multiplier or None, px)
 SETS = {
  "cladding_dk": ("concrete_tile_facade", None, 512), "ribbed": ("ribbed_concrete_wall", None, 512), "panel_conc": ("brushed_concrete_04", None, 512),
+ "conc_panels": ("concrete_panels", None, 512),
  "tile_dk": ("rectangular_facade_tiles", None, 512), "tile_brown": ("rectangular_facade_tiles_02", None, 512), "plaza_herring": ("herringbone_concrete_tile", None, 512),
  "road_m": ("clean_asphalt", None, 1024), "pave_sq": ("square_concrete_pavers", None, 512), "slab_wall": ("concrete_slab_wall_02", None, 512),
  "metal_red": ("box_profile_metal_sheet", None, 512), "corrugated": ("corrugated_iron_02", None, 512), "brick_blue": ("painted_brick", None, 512),
- "brick_cream": ("plaster_brick_pattern", None, 512), "diamond": ("metal_plate", None, 512), "rust": ("rusty_metal_02", None, 512),
+ "brick_cream": ("worn_brick_wall", (1.5, 1.38, 1.15), 512), "diamond": ("metal_plate", None, 512), "rust": ("rusty_metal_02", None, 512),
  "factory_green": ("factory_wall", None, 512), "bitumen": ("bitumen", None, 512), "stucco": ("white_stucco_02", (1.28, 1.26, 1.2), 512), "wood_slat": ("wood_inlaid_concrete_wall", None, 512),
  "stone_clad": ("patterned_concrete_wall", None, 512), "terrazzo": ("terrazzo_tiles", None, 512), "roof_grey": ("grey_roof_01", None, 512), "concrete_w5": ("concrete_wall_005", None, 512),
- "pavement": ("concrete_pavement_03", None, 512), "brick_red": ("plaster_brick_pattern", (1.0, 0.52, 0.42), 512), "brick_dark": ("plaster_brick_pattern", (0.55, 0.42, 0.38), 512),
+ "pavement": ("concrete_pavement_03", None, 512), "brick_red": ("worn_brick_wall", (1.25, 0.82, 0.62), 512), "brick_dark": ("worn_brick_wall", (0.62, 0.47, 0.40), 512),
  "cont_red": ("corrugated_iron_02", (1.9, 0.55, 0.45), 512), "cont_blue": ("corrugated_iron_02", (0.55, 0.9, 1.9), 512), "cont_green": ("corrugated_iron_02", (0.6, 1.5, 0.8), 512), "cont_ochre": ("corrugated_iron_02", (1.8, 1.3, 0.5), 512),
  "cobble_pbr": ("cobblestone_04", (1.18, 1.02, 0.84), 1024), "roof_clay": ("clay_roof_tiles_03", (1.1, 0.95, 0.9), 512), "roof_clay2": ("clay_roof_tiles_02", None, 512),
  "pave_warm": ("square_concrete_pavers", (1.15, 0.98, 0.8), 512),
@@ -178,6 +180,7 @@ def build_pbr():
     info["plaza_setts"] = acg_pbr("PavingStones150", "plaza_setts", 2.5)   # ambientCG fan setts, proofed tile 2.5 m (Bazaar plaza)
     info["roof_barrel"] = ph_pbr("clay_roof_tiles_02", "roof_barrel", 2.6)   # Poly Haven barrel tile, proofed tile 2.6 m (Bazaar pitched roofs; hall vault at 5.2 m via tile_m 1.5)
     info["grass004"] = acg_pbr("Grass004", "grass004", 2.0)   # ambientCG short grass, tile 2.0 m (Terraces green roofs)
+    info["plaster002"] = acg_pbr("Plaster002", "plaster002", 3.5, ao_map=False)   # ambientCG clean stucco, tile 3.5 m (Bazaar facade normal/roughness on UV2 + strip mottle source; Halo plaster walls)
     json.dump(info, open(f"{HERE}/pbr_m.json", "w"), indent=1); return info
 if __name__ == "__main__":
     build_glass_atlas(); build_signs(); build_palette(); info = build_pbr()
