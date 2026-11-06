@@ -187,6 +187,27 @@ def building(bd,idx):
                 face_(A,B,R1,R2,"x"); face_(C,D,R2,R1,"x"); mb("roof_tile").tri(B,C,R2,(0,0),(1,0),(0.5,sl),(1,0,0.5)); mb("roof_tile").tri(D,A,R1,(0,0),(1,0),(0.5,sl),(-1,0,0.5))
             else:
                 face_(B,C,R1,R2,"y"); face_(D,A,R2,R1,"y"); mb("roof_tile").tri(A,B,R1,(0,0),(1,0),(0.5,sl),(0,-1,0.5)); mb("roof_tile").tri(C,D,R2,(0,0),(1,0),(0.5,sl),(0,1,0.5))
+            def dormer(px,py,pz,nx,ny):
+                """Small gabled dormer standing on the slope at (px,py,pz); (nx,ny) = outward slope direction."""
+                w=0.7; tx,ty=-ny,nx; d=1.0; hgt=1.25
+                P=lambda a,b_,c:(px+tx*a+nx*b_,py+ty*a+ny*b_,pz+c)
+                pquad("palette",P(-w,0,0),P(w,0,0),P(w,0,hgt),P(-w,0,hgt),"stone_lt",(nx,ny,0))
+                pquad("palette",P(-w*0.6,0.02,0.2),P(w*0.6,0.02,0.2),P(w*0.6,0.02,hgt-0.15),P(-w*0.6,0.02,hgt-0.15),"ink",(nx,ny,0))
+                for s in (-1,1):
+                    pquad("palette",P(s*w,0,0),P(s*w,-d,0.45),P(s*w,-d,hgt),P(s*w,0,hgt),"stone_lt",(tx*s,ty*s,0))
+                    pquad("palette",P(s*w,0,hgt),P(s*w,-d,hgt),P(0,-d,hgt+0.6),P(0,0,hgt+0.6),"brick",(tx*s*0.5,ty*s*0.5,1)) if False else None
+                ptri("palette",P(-w,0,hgt),P(w,0,hgt),P(0,0,hgt+0.6),"stone_lt",(nx,ny,0))
+                for s in (-1,1): pquad("palette",P(s*(w+0.1),0.1,hgt-0.05),P(0,0.1,hgt+0.62),P(0,-d,hgt+0.62),P(s*(w+0.1),-d,hgt-0.05),"brick",(tx*s*0.5,ty*s*0.5,1.0) if s>0 else (tx*s*0.5,ty*s*0.5,1.0))
+            if market or rnd.random()<0.5:
+                nd=int((2*max(hx,hy))/7); f=0.55
+                for k in range(nd):
+                    u=(k+0.5)/max(nd,1)
+                    if hx>=hy:
+                        px=x0+0.6+u*(x1-x0-1.2)
+                        for sgn,ye in ((-1,y0),(1,y1)): dormer(px,ye-sgn*f*hy*-1 if False else ye+sgn*(-f*hy)*-1*-1 if False else (ye-sgn*f*hy*-1 if False else ye+(f*hy)*(1 if sgn<0 else -1)),top+f*rise,0,sgn)
+                    else:
+                        py=y0+0.6+u*(y1-y0-1.2)
+                        for sgn,xe in ((-1,x0),(1,x1)): dormer(xe+(f*hx)*(1 if sgn<0 else -1),py,top+f*rise,sgn,0)
             if rnd.random()<0.7:                                                  # chimney
                 mx=(R1[0]+R2[0])/2+rnd.uniform(-1.2,1.2)*(1 if hx>=hy else 0); my=(R1[1]+R2[1])/2+rnd.uniform(-1.2,1.2)*(0 if hx>=hy else 1)
                 pbox(mx-0.45,my-0.45,mx+0.45,my+0.45,top,zr+1.5,"brick"); pbox(mx-0.55,my-0.55,mx+0.55,my+0.55,zr+1.5,zr+1.7,"stone"); pbox(mx-0.3,my-0.3,mx+0.3,my+0.3,zr+1.7,zr+1.8,"ink")
