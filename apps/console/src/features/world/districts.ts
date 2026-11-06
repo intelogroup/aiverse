@@ -30,7 +30,7 @@ export type DistrictManifest = { districts: DistrictDef[]; themes: Record<string
 
 export const LOAD_RADIUS = 330; // m from the focus to a district's edge: load
 export const KEEP_RADIUS = 520; // beyond this: evict (hysteresis)
-export const MAX_STREAMED = 3;
+export const MAX_STREAMED = 4; // all four neighbour islands are 220 m from the Bazaar centre
 
 /** Distance from (x,z) to the district square (0 inside). */
 export function rectDistance(x: number, z: number, d: DistrictDef): number {
