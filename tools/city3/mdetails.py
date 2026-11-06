@@ -3,17 +3,29 @@ z = absolute height of the surface the object stands on. Palette colours come fr
 import math, random
 from mkit import *
 
+import bpy as _bpy, assets_kit as _ak, random as _random
+_trng = _random.Random(20241); _treecoll = None
+def _tree_variants():
+    global _treecoll
+    if _treecoll is not None: return _treecoll
+    _ak.tree_variants("blenderkit-season-tree.blend", 14500, [
+        ("mtree_a", (0.357, 0.604, 0.235), (0.353, 0.255, 0.157)),   # leaf #5b9a3c / trunk
+        ("mtree_b", (0.208, 0.420, 0.165), (0.353, 0.255, 0.157)),   # leaf_dk #356b2a
+        ("mtree_c", (0.545, 0.741, 0.310), (0.353, 0.255, 0.157)),   # leaf_lt #8bbd4f
+    ])
+    _treecoll = _bpy.data.collections.new("Trees"); _bpy.context.scene.collection.children.link(_treecoll)
+    return _treecoll
+
 def tree(x, y, z, rnd, h=None, kind="round"):
-    """Street/park tree: hexagonal trunk + 4-6 jittered ico-ish blobs (about 300 tris)."""
-    h = h or rnd.uniform(4.5, 7.0); cyl(x, y, z, z + h * 0.55, 0.16, 7, "trunk", top=False, r1=0.1)
-    for k in range(3):                                                       # two forking branches
-        a = rnd.uniform(0, 6.28); bx = x + math.cos(a) * 0.9; by = y + math.sin(a) * 0.9
-        pquad("palette", (x - 0.05, y, z + h * 0.45), (x + 0.05, y, z + h * 0.45), (bx + 0.04, by, z + h * 0.78), (bx - 0.04, by, z + h * 0.78), "trunk", (0, -1, 0))
-    cols = ["leaf", "leaf_dk", "leaf_lt"] if kind == "round" else ["moss", "leaf_dk", "leaf"]
-    R = h * (0.42 if kind == "round" else 0.3)
-    for k in range(rnd.choice([3, 4])):
-        a = rnd.uniform(0, 6.28); d = rnd.uniform(0, R * 0.7); cx = x + math.cos(a) * d; cy = y + math.sin(a) * d; cz = z + h * 0.72 + rnd.uniform(-0.4, 0.9) * R * 0.5
-        blob(cx, cy, cz, R * rnd.uniform(0.55, 0.85), rnd.choice(cols), rnd)
+    """Street/park tree: the BlenderKit season tree (flat-re-skinned, see
+    assets_kit.tree_variants) placed as a linked duplicate, scaled so its total
+    height matches the old blob tree's (h * 1.1). Variant/rotation draws come
+    from a dedicated Random so caller rnd sequences barely move."""
+    h = h or rnd.uniform(4.5, 7.0)
+    coll = _tree_variants()
+    key = _trng.choices(["mtree_a", "mtree_b", "mtree_c"], weights=[45, 35, 20])[0]
+    src = _ak.LIB[key]; s = (h * 1.1) / max(src["dims"][2], 1e-3); w = 0.7 if kind == "slim" else 1.0
+    _ak.instantiate(key, coll, x, y, z, _trng.uniform(0, 6.28), (s * w, s * w, s), name=f"Tree_{key}")
 def blob(cx, cy, cz, r, color, rnd, seg=8, ring=5):
     pts = {}
     def P(i, j):

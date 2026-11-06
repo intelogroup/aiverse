@@ -49,3 +49,19 @@ Not used, on purpose:
 | partyTable, partyCup{Red,Blue,Green,Yellow,Pink}_{full,stack,shortStack,used} (USDZ) | uploaded by the project owner (`partycups_usdz.zip`), kept local in `assets/partycups/` (gitignored) | not stated in the upload; confirm before redistributing |
 
 Imported with `assets_kit.load(..., source="usdz")`: cups decimated to 240–380 tris, table to 900, base-colour texture only (128/256 px), GPU-instanced under the `PartyCups` Empty.
+
+## District trees (blob-tree replacement, branch tmp/kaykit-trees — NOT shipped)
+
+The picked set, currently download-blocked (Sketchfab connector token returns 401; search/read work, download does not):
+
+| Asset | Author | Licence | Source |
+|---|---|---|---|
+| Low Poly Forest Tree Pack (3,752 faces, whole pack) | 99.Miles | CC-BY 4.0 | https://sketchfab.com/3d-models/low-poly-forest-tree-pack-5ff5a51e74324845a4e4905f182dfb2b |
+
+Proof-build stand-in actually used on this branch (already in the project's asset library since 2026-11-03):
+
+| Asset | Author | Licence | Source |
+|---|---|---|---|
+| Lowpoly tree (with random season) — file `assets/blendkit/blenderkit-season-tree.blend` (local only, gitignored), decimated to 2,600 tris and flat-re-skinned by `assets_kit.tree_variants` (its SimpleProceduralLeaf shader is procedural and does not survive glTF export) | BlenderKit author (asset b9082156-eca0-4d99-bfae-c5ea20462f9b) | royalty_free (BlenderKit) | https://www.blenderkit.com |
+
+LICENCE FLAG: the "Not used, on purpose" note above records that BlenderKit Royalty Free assets should not ship in a directly extractable web GLB. This branch is an unshipped proof (no push/merge) built at the owner's direction to judge look and budget; before any ship, either the CC-BY Sketchfab pack above replaces the stand-in (same `tree_variants` path) or the owner makes an explicit licence call on the stand-in.

@@ -53,6 +53,16 @@ def load(asset_id,budget,source="polyhaven",name=None,tex=None):
         bpy.ops.wm.usd_import(filepath=os.path.join(dst,root))
         for img in set(bpy.data.images)-imgs_before: img.name=f"{key}_{img.name}"
     elif source=="sketchfab": bpy.ops.import_scene.gltf(filepath=os.path.join(HERE,"assets","sketchfab",asset_id,"scene.gltf"))
+    elif source=="blendkit":
+        # BlenderKit downloads stay local (see .gitignore): append the file's mesh
+        # objects, skipping demo ground discs (a "Ground" material slot gives them away).
+        with bpy.data.libraries.load(os.path.join(HERE,"assets","blendkit",asset_id), link=False) as (src, dst):
+            dst.objects = list(src.objects)   # names inside the with-block; real objects after it
+        for o in dst.objects:
+            if o.type != "MESH" or any(s.material and (s.material.name == "Ground" or s.material.name.startswith("Ground.")) for s in o.material_slots):
+                bpy.data.objects.remove(o, do_unlink=True)
+            else:
+                _lib_collection().objects.link(o)
     else: bpy.ops.import_scene.fbx(filepath=os.path.join(QT,f"{asset_id}.fbx"))
     new=[o for o in bpy.data.objects if o not in before]
     new_names=[o.name for o in new]
@@ -106,4 +116,46 @@ def _recolor(obj):
 def place(key,coll,x,y,z,rot_z=0.0,scale=1.0,name=None):
     src=LIB[key]["obj"]; o=src.copy(); o.data=src.data
     o.name=name or f"{coll.name}_{key}"; o.location=(x,y,z); o.rotation_euler=(0,0,rot_z); o.scale=(scale,scale,scale)
+    coll.objects.link(o); return o
+
+def _flat_mat(name, rgb_srgb):
+    """Flat Principled material from an sRGB hex-style tuple (the districts' shading discipline)."""
+    if name in bpy.data.materials: return bpy.data.materials[name]
+    m = bpy.data.materials.new(name); m.use_nodes = True
+    lin = tuple(((c + 0.055) / 1.055) ** 2.4 if c > 0.04045 else c / 12.92 for c in rgb_srgb)
+    b = m.node_tree.nodes["Principled BSDF"]; b.inputs["Base Color"].default_value = (*lin, 1); b.inputs["Roughness"].default_value = 0.9
+    return m
+
+def tree_variants(asset_id, budget, variants, source="blendkit"):
+    """Load a tree .blend once (decimated by load()), then register one LIB entry per
+    (key, leaf_rgb, bark_rgb): each variant gets its own mesh copy whose material slots are
+    replaced by flat materials — the source's procedural leaf shader does not survive glTF
+    export, and flat colour is the districts' shading discipline anyway. Slot mapping is by
+    material name: *leaf* -> foliage, *bark*/*trunk* -> bark, anything else -> bark."""
+    base = load(asset_id, budget, source=source, name=f"_treebase_{budget}_{asset_id}")
+    src = base["obj"]
+    # Variants are stored as bare MESHES, never as scene objects: both export
+    # paths select scene objects wholesale (mkit selects every object), so a
+    # master object would ship as an unscaled tree at the district origin.
+    # Placements instantiate fresh objects from the mesh (see instantiate()).
+    for key, leaf_rgb, bark_rgb in variants:
+        if key in LIB: continue
+        me = src.data.copy(); me.name = f"LIB_{key}"; me.use_fake_user = True
+        leaf = _flat_mat(f"flat_leaf_{key}", leaf_rgb); bark = _flat_mat(f"flat_bark_{key}", bark_rgb)
+        for i, slot in enumerate(me.materials):
+            n = (slot.name if slot else "").lower()
+            me.materials[i] = leaf if "leaf" in n else bark
+        LIB[key] = {"obj": None, "mesh": me, "dims": base["dims"], "tris_raw": base["tris_raw"], "tris": base["tris"], "source": source, "id": asset_id,
+                    "credit": "https://www.blenderkit.com (asset b9082156-eca0-4d99-bfae-c5ea20462f9b)", "credit_license": "royalty_free (BlenderKit)"}
+    # The base object itself must not reach any export either: it still wears
+    # the source's (unexportable) procedural materials and would ship as a
+    # white tree at the district origin. The variants hold their own meshes.
+    bpy.data.objects.remove(base["obj"], do_unlink=True)
+    return LIB
+
+def instantiate(key, coll, x, y, z, rot_z=0.0, scale=1.0, name=None):
+    """Place a fresh scene object from a mesh-only LIB entry (tree_variants)."""
+    o = bpy.data.objects.new(name or f"{coll.name}_{key}", LIB[key]["mesh"])
+    o.location = (x, y, z); o.rotation_euler = (0, 0, rot_z)
+    o.scale = scale if isinstance(scale, tuple) else (scale, scale, scale)
     coll.objects.link(o); return o

@@ -321,16 +321,35 @@ for s in P["streets"]:                                                       # b
 for k in range(8):                                                           # plaza festoon poles + string lights
     a=2*math.pi*k/8+math.pi/8; P0=(22*math.cos(a),22*math.sin(a)); cyl(P0[0],P0[1],Z,Z+6.0,0.09,6,"iron",top=False)
     a2=2*math.pi*(k+1)/8+math.pi/8; P1=(22*math.cos(a2),22*math.sin(a2)); string_lights((P0[0],P0[1],Z+5.9),(P1[0],P1[1],Z+5.9))
+# Trees: the faceted palette blobs are replaced by the BlenderKit season tree
+# (flat-re-skinned in assets_kit.tree_variants — its procedural leaf shader does
+# not survive glTF export), placed as linked duplicates at the plan positions.
+# A dedicated Random keeps the city rng's downstream draws identical to the
+# blob build everywhere else (state snapshot/restore around the tree loops).
+_trng=random.Random(20240); _treecoll=None
+def _tree_variants():
+    global _treecoll
+    if _treecoll is not None: return _treecoll
+    assets_kit.tree_variants("blenderkit-season-tree.blend",14500,[
+        ("seasontree_a",(0.310,0.604,0.298),(0.231,0.165,0.125)),   # leaf #4f9a4c / trunk_dark
+        ("seasontree_b",(0.180,0.420,0.227),(0.231,0.165,0.125)),   # leaf_dark #2e6b3a
+        ("seasontree_c",(0.790,0.420,0.180),(0.231,0.165,0.125)),   # autumn accent, sparse
+    ])
+    _treecoll=bpy.data.collections.new("Trees"); bpy.context.scene.collection.children.link(_treecoll)
+    return _treecoll
 def tree(x,y):
-    h=rng.uniform(4.0,6.0); cyl(x,y,Z,Z+h*0.6,0.17,7,"trunk_dark",top=False,r1=0.1); R=h*0.4
-    for k in range(rng.choice([3,4])):
-        a=rng.uniform(0,6.28); d=rng.uniform(0,R*0.7); blob(x+math.cos(a)*d,y+math.sin(a)*d,Z+h*0.72+rng.uniform(-0.3,0.8)*R*0.5,R*rng.uniform(0.6,0.9),rng.choice(["leaf","leaf_dark"]))
+    coll=_tree_variants()
+    key=_trng.choices(["seasontree_a","seasontree_b","seasontree_c"],weights=[55,35,10])[0]
+    src=assets_kit.LIB[key]; h=_trng.uniform(5.0,7.0); s=h/max(src["dims"][2],1e-3)
+    assets_kit.instantiate(key,coll,x,y,Z,_trng.uniform(0,6.28),s,name=f"Tree_{key}")
+_rng_state=rng.getstate()
 for (x,y) in P["trees"]: tree(x,y)
 for t_ in range(-52,53,13):                                                  # plaza rim: trees in planters + benches facing the square
     for (x,y,al) in ((t_,-57.0,True),(t_,57.0,True),(-57.0,t_,False),(57.0,t_,False)):
         if abs(t_)<8: continue
         pbox(x-0.9,y-0.9,x+0.9,y+0.9,Z,Z+0.5,"stone_lt"); pbox(x-0.8,y-0.8,x+0.8,y+0.8,Z+0.5,Z+0.52,"trunk_dark"); tree(x,y)
         BENCHES.append((x+(3.2 if not al else 0),y+(3.2 if al and y<0 else (-3.2 if al else 0)),al))
+rng.setstate(_rng_state)    # tree placement drew only from _trng; keep every later rng draw identical to the blob build
 # café sets out front of the hero + a few elsewhere handled in hero
 if "tea" in HERO_INFO:
     fr=HERO_INFO["tea"]["fr"]; du=HERO_INFO["tea"]["door_u"]
@@ -459,7 +478,7 @@ for bid,ps in by_bid.items():
     json.dump({"id":bid,"library":"world-city3-library.glb","props":props},open(f"{HERE}/out/interiors/{bid}.json","w"),separators=(",",":"))
 sz=[os.path.getsize(f"{HERE}/out/interiors/{k}.json") for k in by_bid]
 print("LAYOUTS",len(by_bid),"files; props min/avg/max",min(len(v) for v in by_bid.values()),sum(len(v) for v in by_bid.values())//len(by_bid),max(len(v) for v in by_bid.values()),"| bytes total",sum(sz))
-CREDITS=[{"asset":k,"source":("https://opengameart.org/content/furniture-low-poly" if v["source"]=="quaternius" else (json.load(open(f"{HERE}/assets/sketchfab/{v['id']}/meta.json"))["source"] if v["source"]=="sketchfab" else f"https://polyhaven.com/a/{v['id']}")),"license":"CC0"} for k,v in assets_kit.LIB.items() if v["source"]!="usdz"]
+CREDITS=[{"asset":k,"source":v.get("credit") or ("https://opengameart.org/content/furniture-low-poly" if v["source"]=="quaternius" else (json.load(open(f"{HERE}/assets/sketchfab/{v['id']}/meta.json"))["source"] if v["source"]=="sketchfab" else f"https://polyhaven.com/a/{v['id']}")),"license":v.get("credit_license","CC0")} for k,v in assets_kit.LIB.items() if v["source"]!="usdz"]
 CREDITS+=[{"asset":k,"source":"user-supplied upload (partycups_usdz.zip)","license":"not stated"} for k,v in assets_kit.LIB.items() if v["source"]=="usdz"]
 json.dump(CREDITS,open(f"{HERE}/out/asset-credits.json","w"),indent=1)
 GROUND_TOP=Z+GH+0.05
