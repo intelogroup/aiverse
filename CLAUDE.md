@@ -85,3 +85,10 @@ clean` reports false-clean every time, since the one-line config error never
 matches a filename pattern. Discovered 2026-09-02 after an entire session of
 "clean" results that were never real checks. Use `bunx tsc --noEmit` from
 the repo root instead — no `-p` flag.
+
+## Procedural city (City 3 + districts): read `docs/procedural-city/README.md` first
+
+Memory files for the Blender-headless → glTF → three.js pipeline live in `docs/procedural-city/` (state and commands, environment, Blender/glTF
+and three.js lessons, verification playbook, failures log, asset licences, body controller). Before touching `tools/city3/` or the City 3 runtime
+(`apps/console/src/features/world/`), skim `06-failures-log.md`; update the folder when something new fails or works. Verify by looking at screenshots,
+not counters.

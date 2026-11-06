@@ -91,6 +91,7 @@ export function accentForFigure(label: string | undefined, index: number): strin
 }
 // Time for the walk weight to ramp 0→1 (the Idle↔Walk crossfade).
 const FADE_S = 0.25;
+const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
 // Authored-bob band for the vertical guard below: hips height may
 // wander ±9 cm around rest on the pose's own bob; anything past that is
@@ -299,6 +300,14 @@ export function CastFigure({
   const activeTest = useRef<string | null>(null);
   const testActionRef = useRef<THREE.AnimationAction | null>(null);
   const testWeight = useRef(0);
+  // Body-controller turn clip (bodyController.ts): the catalog's TurnLeft90/TurnRight90 bake the pelvis
+  // rotation into the clip. The controller owns the clip clock and the heading; this figure counter-rotates
+  // the skeleton root by the yaw the clip has swung so far, so the visible facing is the controller's heading
+  // while the legs still step the way the clip authored them (feet planted, no turntable spin). The clips also carry
+  // a constant ~62 degree start offset (TURN_YAW0); `turnYawRef` is the whole baked yaw.
+  const turnWeight = useRef(0);
+  const turnYawRef = useRef(0);
+  const turnActionRef = useRef<THREE.AnimationAction | null>(null);
 
   useEffect(() => {
     return () => {
@@ -437,20 +446,53 @@ export function CastFigure({
       effAction.setEffectiveWeight(0);
     }
     const yieldEff = activeTest.current === body.clips.walk ? 0 : testEff;
+    // ---- Body-controller turn clip ----
+    const ctrl = f?.body && !ov && !activeTest.current && rootMotion ? f.body : null;
+    const bt = ctrl?.turn ?? null;
+    const turnAction = bt ? (byName.get(bt.clip) ?? null) : null;
+    if (bt && turnAction) {
+      if (turnActionRef.current !== turnAction) {
+        if (turnActionRef.current) {
+          turnActionRef.current.setEffectiveWeight(0);
+          turnActionRef.current.stop();
+        }
+        turnAction.reset();
+        turnAction.setLoop(THREE.LoopOnce, 1);
+        turnAction.clampWhenFinished = true;
+        turnAction.play();
+        turnAction.paused = true; // scrubbed: the controller owns the clip clock
+        turnActionRef.current = turnAction;
+      }
+      turnAction.time = bt.t * turnAction.getClip().duration;
+      turnYawRef.current = bt.baked; // the pelvis yaw the pose carries (clip offset + swing)
+    }
+    turnWeight.current = ramp(turnWeight.current, bt && turnAction ? 1 : 0);
+    const tw = turnWeight.current;
+    if (turnActionRef.current) {
+      turnActionRef.current.setEffectiveWeight(tw * (1 - seated));
+      if (tw === 0 && !bt) {
+        turnActionRef.current.stop();
+        turnActionRef.current = null;
+        turnYawRef.current = 0;
+      }
+    }
     if (walk) {
       const testerWalk = activeTest.current === body.clips.walk;
       const walking = f?.state === "walk";
+      const useBody = ctrl !== null && !testerWalk;
       const target = testerWalk || walking ? 1 : 0;
       const w = walkWeight.current;
-      if (w !== target) {
+      if (useBody) {
+        walkWeight.current = ctrl.walkWeight; // the controller already smooths it by speed
+      } else if (w !== target) {
         const step = delta / FADE_S;
         walkWeight.current =
           target > w ? Math.min(target, w + step) : Math.max(target, w - step);
       }
       const weight = walkWeight.current;
       if (weight > 0 && !walk.isRunning()) walk.reset().play();
-      walk.setEffectiveWeight(weight * (1 - seated) * (1 - yieldEff));
-      if (idle) idle.setEffectiveWeight((1 - weight) * (1 - seated) * (1 - yieldEff));
+      walk.setEffectiveWeight(weight * (1 - seated) * (1 - yieldEff) * (1 - tw));
+      if (idle) idle.setEffectiveWeight((1 - weight) * (1 - seated) * (1 - yieldEff) * (1 - tw));
       // Feet match ground speed: the cycle plays at its natural rate
       // when the crowd moves at this body's measured walkSpeed
       // (bodies.ts), scaled proportionally and clamped to a modest
@@ -459,7 +501,9 @@ export function CastFigure({
       // the traveling cycle over its point.
       walk.timeScale = testerWalk
         ? 1
-        : THREE.MathUtils.clamp((f ? f.speed : 0) / body.walkSpeed, 0.7, 1.4);
+        : useBody
+          ? ctrl.walkTimeScale
+          : THREE.MathUtils.clamp((f ? f.speed : 0) / body.walkSpeed, 0.7, 1.4);
       // Fully idle again: stop the Walk action so a resting bot costs
       // no clip evaluation beyond its Idle sway.
       if (weight === 0 && walk.isRunning()) walk.stop();
@@ -477,6 +521,10 @@ export function CastFigure({
         .applyQuaternion(rootMotion.parentQuat);
       d.y = 0;
       rootMotion.parent.position.copy(rootMotion.parentRest).sub(d);
+      // Cancel the pelvis yaw the turn clip has baked in so far (the group already carries it as heading).
+      rootMotion.parent.quaternion
+        .setFromAxisAngle(Y_AXIS, -turnYawRef.current * tw)
+        .multiply(rootMotion.parentQuat);
     }
     // Vertical guard: a baked Walk cycle can carry a large vertical
     // hips ramp under its bob (Summer's sinks ~1.26 m per cycle and

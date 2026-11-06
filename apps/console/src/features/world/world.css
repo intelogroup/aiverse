@@ -691,6 +691,9 @@
   text-transform: uppercase;
   cursor: pointer;
 }
+.world-root .w-glb-poi {
+  top: 62px;
+}
 .world-root .w-glb-toggle button.active {
   background: rgba(110, 168, 255, 0.16);
   border-color: rgba(110, 168, 255, 0.45);

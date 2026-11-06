@@ -22,6 +22,7 @@
 import { Crowd, NavMeshQuery, init, setRandomSeed } from "recast-navigation";
 import { generateSoloNavMesh } from "recast-navigation/generators";
 import type { CrowdAgent, NavMesh } from "@recast-navigation/core";
+import type { BodyOutput } from "./bodyController";
 
 export const AGENT_RADIUS = 0.35; // m
 export const AGENT_MAX_SPEED = 1.4; // m/s
@@ -103,6 +104,8 @@ export interface AgentFrame {
   heading: number;
   state: LocomotionState;
   targetsReached: number;
+  /** Set by the renderer's body controller (bodyController.ts): smoothed heading, turn clip, walk blend. */
+  body?: BodyOutput;
 }
 
 export interface PlatformCrowdOptions {
@@ -156,6 +159,12 @@ export interface PlatformCrowd {
   moveAgentTo: (index: number, x: number, z: number) => void;
   stopAgent: (index: number) => void;
   setHeading: (index: number, heading: number) => void;
+  /**
+   * Body-controller hook: scale this agent's cruise speed (1 = as configured, 0 = stop). The body
+   * controller throttles speed by how far the figure is from facing its direction of travel, so a
+   * reversal decelerates, turns, then sets off again instead of sliding backwards.
+   */
+  setSpeedScale: (index: number, scale: number) => void;
   dispose: () => void;
 }
 
@@ -391,6 +400,9 @@ interface AgentRec {
   heading: number;
   /** Embody v0: true while a skill layer owns this agent (no wandering). */
   controlled: boolean;
+  /** Configured cruise speed and the scale last applied to the crowd agent. */
+  baseSpeed: number;
+  speedScale: number;
 }
 
 /**
@@ -480,18 +492,19 @@ function driveCrowd(
     const spawn = initial ? { x: initial[0], z: initial[1] } : pickSpawn();
     const perSlot = opts.maxSpeedForIndex?.(recs.length);
     const cap = perSlot === undefined ? maxSpeed : Math.min(maxSpeed, perSlot);
+    const baseSpeed = cruiseSpeedForIndex(recs.length, cap);
     const agent = crowd.addAgent(
       { x: spawn.x, y: 0, z: spawn.z },
       {
         radius: agentRadius,
         height: 1.6,
-        maxSpeed: cruiseSpeedForIndex(recs.length, cap),
+        maxSpeed: baseSpeed,
         maxAcceleration: 8,
         collisionQueryRange: 2.5,
         separationWeight: 2.0,
       },
     );
-    const rec: AgentRec = { agent, target: randomPoint(), sinceTarget: 0, targetsReached: 0, heading: 0, controlled: false };
+    const rec: AgentRec = { agent, target: randomPoint(), sinceTarget: 0, targetsReached: 0, heading: 0, controlled: false, baseSpeed, speedScale: 1 };
     agent.requestMoveTarget({ x: rec.target.x, y: 0, z: rec.target.z });
     recs.push(rec);
   };
@@ -546,6 +559,15 @@ function driveCrowd(
     setHeading(index: number, heading: number): void {
       const rec = recs[index];
       if (rec) rec.heading = heading;
+    },
+    setSpeedScale(index: number, scale: number): void {
+      const rec = recs[index];
+      if (!rec) return;
+      const s = Math.min(1, Math.max(0.02, scale)); // never exactly 0: Detour treats a zero max speed as degenerate
+      // updateParameters crosses into WASM: only call it when the scale moved enough to matter.
+      if (Math.abs(s - rec.speedScale) < 0.03 && !(s === 1 && rec.speedScale !== 1)) return;
+      rec.speedScale = s;
+      rec.agent.updateParameters({ maxSpeed: rec.baseSpeed * s });
     },
     step(dt: number): AgentFrame[] {
       if (disposed) return [];

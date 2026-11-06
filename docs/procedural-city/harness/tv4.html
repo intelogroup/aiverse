@@ -1,0 +1,35 @@
+<!doctype html><meta charset=utf-8><body>
+<script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { newBodyState, stepBody, DEG, TURN_YAW0 } from "/bodyController.js";
+const clipName=new URLSearchParams(location.search).get("clip")||"TurnLeft90"; const target=(clipName==="TurnLeft90"?90:-90)*DEG;
+const gltf=await new GLTFLoader().loadAsync("/assets/cast-bodyblock.glb");
+const mk=()=>{const sc=gltf.scene.clone(true); return sc};
+const find=(sc,s)=>{let f=null;sc.traverse(o=>{if(!f&&o.name.endsWith(s))f=o});return f};
+const Y=new THREE.Vector3(0,1,0), DT=1/60, FADE=0.25;
+// NEW: controller-driven (group heading + skeleton counter-rotation), idle blended exactly as CastFigure does
+const sceneN=gltf.scene; const group=new THREE.Group(); group.add(sceneN);
+const hipsN=find(sceneN,"Hips"), parN=hipsN.parent, pqN=parN.quaternion.clone(); const LFn=find(sceneN,"LeftFoot"),RFn=find(sceneN,"RightFoot");
+const mixN=new THREE.AnimationMixer(sceneN); const idle=mixN.clipAction(gltf.animations.find(c=>c.name==="Idle")); idle.play();
+const ta=mixN.clipAction(gltf.animations.find(c=>c.name===clipName));
+const pos=(g,o)=>{g.updateMatrixWorld(true);const v=new THREE.Vector3();o.getWorldPosition(v);return v};
+const st=newBodyState(0); let tw=0, cur=null, baked=0; const ts=[]; const featN=[];
+for(let k=0;k<Math.ceil(1.9/DT);k++){
+  const out=stepBody(st,{vx:0,vz:0,speed:0,intent:target,walkSpeed:0.8746},DT); group.rotation.y=out.heading; const bt=out.turn;
+  if(bt){ if(!cur){ta.reset();ta.setLoop(THREE.LoopOnce,1);ta.clampWhenFinished=true;ta.play();ta.paused=true;cur=ta} ta.time=bt.t*ta.getClip().duration; baked=bt.baked }
+  const goal=bt?1:0; tw=tw<goal?Math.min(goal,tw+DT/FADE):Math.max(goal,tw-DT/FADE); if(cur)cur.setEffectiveWeight(tw); idle.setEffectiveWeight(1-tw);
+  mixN.update(DT); parN.quaternion.setFromAxisAngle(Y,-baked*tw).multiply(pqN);
+  if(bt&&bt.t>0.12&&bt.t<0.97&&tw>0.99){ const L=pos(group,LFn),R=pos(group,RFn); featN.push({t:bt.t,L:[L.x,L.y,L.z],R:[R.x,R.y,R.z]}); ts.push(bt.t) }
+}
+// ORIGINAL: the clip alone, no group rotation, no cancel, scrubbed at the same normalised times
+const sceneO=mk(); const groupO=new THREE.Group(); groupO.add(sceneO); const LFo=find(sceneO,"LeftFoot"),RFo=find(sceneO,"RightFoot");
+const mixO=new THREE.AnimationMixer(sceneO); const ao=mixO.clipAction(gltf.animations.find(c=>c.name===clipName)); ao.play(); ao.paused=true; const featO=[];
+for(const t of ts){ ao.time=t*ao.getClip().duration; mixO.update(0); const L=pos(groupO,LFo),R=pos(groupO,RFo); featO.push({L:[L.x,L.y,L.z],R:[R.x,R.y,R.z]}) }
+// best rigid yaw (about the vertical axis through the origin) taking ORIGINAL onto NEW
+const rot=(p,phi)=>[p[0]*Math.cos(phi)+p[2]*Math.sin(phi),p[1],-p[0]*Math.sin(phi)+p[2]*Math.cos(phi)];
+let best=null; for(let d=-180;d<=180;d+=0.25){ const phi=d*DEG; let e=0; featN.forEach((f,i)=>{for(const s of ["L","R"]){const q=rot(featO[i][s],phi); e=Math.max(e,Math.hypot(q[0]-f[s][0],q[2]-f[s][2]))}}); if(!best||e<best.e)best={e,d} }
+let meanH=0; featN.forEach((f,i)=>{const q=rot(featO[i].L,best.d*DEG); meanH+=Math.hypot(q[0]-f.L[0],q[2]-f.L[2])}); 
+window.__out={clip:clipName,frames:featN.length,bestRigidYawDeg:best.d,expectedDeg:-(TURN_YAW0/DEG),maxFootErrM:+best.e.toFixed(4),meanLeftErrM:+(meanH/featN.length).toFixed(4)};
+</script>

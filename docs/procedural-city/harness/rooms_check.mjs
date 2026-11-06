@@ -1,0 +1,16 @@
+import { chromium } from "playwright";
+const b=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader","--ignore-gpu-blocklist"]});
+const p=await b.newPage({viewport:{width:1400,height:900}}); const errs=[]; const reqs=[];
+p.on("pageerror",e=>errs.push("PAGEERR "+e.message)); p.on("console",m=>{if(m.type()==="error")errs.push(m.text().slice(0,200))});
+p.on("request",r=>{const u=r.url(); if(/interiors|library|city3\.glb/.test(u))reqs.push(u.split("/assets/")[1])});
+await p.goto("http://localhost:5183/?world=city3"); await p.waitForTimeout(25000);
+console.log("buttons:",await p.locator(".w-glb-poi button").allInnerTexts());
+console.log("requests at load:",reqs.join(", "));
+await p.screenshot({path:"../city3/out/r_load.png"});
+await p.getByRole("button",{name:"Kronikler Press"}).click(); await p.waitForTimeout(14000);
+await p.screenshot({path:"../city3/out/r_press.png"});
+await p.getByRole("button",{name:"Matchmaker's Tea House"}).click(); await p.waitForTimeout(12000);
+await p.screenshot({path:"../city3/out/r_tea.png"});
+console.log("requests after:",reqs.filter(r=>/layout|shop|press|tea|library/.test(r)).join(", "));
+console.log(errs.filter(e=>!/api|ECONNREFUSED|WebSocket|Failed to load resource|proxy/i.test(e)).join("\n")||"no non-network errors");
+await b.close();
