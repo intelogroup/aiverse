@@ -290,7 +290,9 @@ def blob(cx,cy,cz,r,nm,seg=8,ring=5):
 # ---------------- stalls ----------------
 ROW={"teal":0,"saffron":1,"crimson":2,"cream":3}
 GOODS=["crimson","gold","leaf","cream","water_deep","trunk_dark","orange","yellow","lime","magenta"]
-for s in P["stalls"]:
+MEDSTALLS={i for i,_ in enumerate(P["stalls"]) if random.Random(4000+i).random()<0.35}   # ~1/3 of stalls are the CC0 Sketchfab village stall
+for si_,s in enumerate(P["stalls"]):
+    if si_ in MEDSTALLS: continue
     cx,cy=s["c"]; w,d=s["size"]; hx,hy=w/2,d/2; z=Z; sg=1 if s["facing"]=="S" else -1
     pbox(cx-hx+0.25,cy-hy+0.2,cx+hx-0.25,cy+hy-0.2,z,z+0.95,"wood"); pbox(cx-hx+0.2,cy-hy+0.15,cx+hx-0.2,cy+hy-0.15,z+0.95,z+1.0,"wood_dark")
     for px_ in (-hx,hx):
@@ -365,12 +367,15 @@ _skc=bpy.data.collections.new("SkProps"); bpy.context.scene.collection.children.
 _rs=random.Random(909)
 for o_ in list(bpy.data.objects):
     pass
-SK={n:_sk(n,h) for n,h in (("lantern",0.42),("pot",0.5),("producecrate",0.3),("med_bench",0.96),("med_crate",0.5))}
+SK={n:_sk(n,h) for n,h in (("lantern",0.42),("pot",0.5),("producecrate",0.3),("med_bench",0.96),("med_crate",0.5),("med_stall",2.3))}
 def _skput(n,x,y,z,rot=0.0):
     src,s=SK[n]; o=src.copy(); o.data=src.data; o.name=f"SK_{n}"; o.location=(x,y,z); o.rotation_euler=(0,0,rot); o.scale=(s,s,s); _skc.objects.link(o)
-for s_ in P["stalls"]:
+for si_,s_ in enumerate(P["stalls"]):
     cx,cy=s_["c"]; w_,d_=s_["size"]; hx_,hy_=w_/2,d_/2
-    _skput("producecrate",cx+_rs.uniform(-0.6,0.6),cy+_rs.uniform(-0.15,0.15),Z+1.0,_rs.uniform(0,6.28))
+    if si_ in MEDSTALLS:                                                      # model front (scalloped awning edge) is -y; facing S keeps it, N turns it round
+        src,_s=SK["med_stall"]; o=src.copy(); o.data=src.data; o.name="SK_med_stall"; o.location=(cx,cy,Z); o.rotation_euler=(0,0,0.0 if s_["facing"]=="S" else math.pi); o.scale=(1.4,1.4,1.2); _skc.objects.link(o)
+        hx_,hy_=1.55,0.9
+    _skput("producecrate",cx+_rs.uniform(-0.6,0.6),cy+_rs.uniform(-0.15,0.15),Z+(1.1 if si_ in MEDSTALLS else 1.0),_rs.uniform(0,6.28))
     for sgn in (-1,1): _skput("lantern",cx+sgn*(hx_-0.1),cy+(hy_+0.35)*(1 if s_["facing"]=="S" else -1),Z+2.2)
     if _rs.random()<0.7: _skput("pot",cx-hx_-0.6,cy+_rs.uniform(-0.8,0.8),Z,_rs.uniform(0,6.28))
 for (bx_,by_,hz_) in BENCHES: _skput("med_bench",bx_,by_,Z,0.0 if hz_ else -math.pi/2)     # backrest on +y (horizontal) / +x, as the procedural bench had it

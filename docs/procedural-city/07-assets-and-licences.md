@@ -36,3 +36,5 @@ low-poly street props are scarce (mostly museum scans); useful hit: "Low Poly Me
 ## Bazaar: Sketchfab "Low Poly Medieval, CC0" props (2026-11-06)
 Fountain-ring and plaza-rim benches are now `med_bench` (616 tris, backrest on +y in Blender axes, rotate -90 deg for the other axis) and ~60% of stalls get a `med_crate`
 (`build_city.py`, `BENCHES` list + `_skput`). Street-front benches along facades stay procedural. Seen in screenshots: benches read well, backrests face outward from the fountain.
+Village stall (`med_stall`, 752 tris): ~35% of the 80 stalls (`MEDSTALLS`, seeded per stall index) use it instead of the procedural stall, scaled (1.4, 1.4, 1.2); the
+scalloped awning edge is its -y side (rot 0 for facing S, pi for N). Verified from the plaza side for S-facing stalls; N-facing orientation not yet checked in a screenshot.
