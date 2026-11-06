@@ -15,7 +15,7 @@
 ## Layout
 - `tools/city3/` — the generator (Python, runs in headless Blender 5.2 + PIL/numpy):
   `plan.py` layout → `textures.py` tileable textures/atlas/palette → `build_city.py` (uses `kit.py` geometry kit, `details.py` facade+street
-  furniture, `hero.py` ground-floor shell, `rooms.py` pieces+templates, `press.py` hand-laid room, `assets_kit.py` CC0 importer) →
+  furniture, `hero.py` ground-floor shell, `doors.py` hero entrance doors (5 styles; static part instanced as `inst_door_*`), `rooms.py` pieces+templates, `press.py` hand-laid room, `assets_kit.py` CC0 importer) →
   `nav3.py`, `check_anchors.py`. Outputs in `tools/city3/out/` (GLBs are gitignored; copies live in `apps/console/public/assets/`).
 - `apps/console/src/features/world/` — runtime: `GlbWorld.tsx` (worlds, `ClipCutaway`, `InteriorStreamer`), `city3.ts` (rooms index types, radii),
   `cutaway.ts`, `interiors.ts` + `interiorBuild.ts`, `bodyController.ts`, `CastFigure.tsx`, `locomotion.ts` (Recast crowd).
