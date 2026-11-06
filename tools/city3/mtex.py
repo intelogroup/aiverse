@@ -126,7 +126,7 @@ SETS = {
  "road_m": ("clean_asphalt", None, 1024), "pave_sq": ("square_concrete_pavers", None, 512), "slab_wall": ("concrete_slab_wall_02", None, 512),
  "metal_red": ("box_profile_metal_sheet", None, 512), "corrugated": ("corrugated_iron_02", None, 512), "brick_blue": ("painted_brick", None, 512),
  "brick_cream": ("plaster_brick_pattern", None, 512), "diamond": ("metal_plate", None, 512), "rust": ("rusty_metal_02", None, 512),
- "factory_green": ("factory_wall", None, 512), "bitumen": ("bitumen", None, 512), "stucco": ("white_stucco_02", None, 512), "wood_slat": ("wood_inlaid_concrete_wall", None, 512),
+ "factory_green": ("factory_wall", None, 512), "bitumen": ("bitumen", None, 512), "stucco": ("white_stucco_02", (1.28, 1.26, 1.2), 512), "wood_slat": ("wood_inlaid_concrete_wall", None, 512),
  "stone_clad": ("patterned_concrete_wall", None, 512), "terrazzo": ("terrazzo_tiles", None, 512), "roof_grey": ("grey_roof_01", None, 512), "concrete_w5": ("concrete_wall_005", None, 512),
  "pavement": ("concrete_pavement_03", None, 512), "brick_red": ("plaster_brick_pattern", (1.0, 0.52, 0.42), 512), "brick_dark": ("plaster_brick_pattern", (0.55, 0.42, 0.38), 512),
  "cont_red": ("corrugated_iron_02", (1.9, 0.55, 0.45), 512), "cont_blue": ("corrugated_iron_02", (0.55, 0.9, 1.9), 512), "cont_green": ("corrugated_iron_02", (0.6, 1.5, 0.8), 512), "cont_ochre": ("corrugated_iron_02", (1.8, 1.3, 0.5), 512),
