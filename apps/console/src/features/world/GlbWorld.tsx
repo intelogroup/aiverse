@@ -923,13 +923,11 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
     return w === "city" || w === "city2" ? w : "agora";
   });
   const agora = place === "agora";
-  // Jim retired the old Body Block bots from the Agora (2026-11-05):
-  // they still walk the City, but the Agora crowd is only the members
-  // wearing an explicit kept body (Summer and the KayKit guests).
-  const visibleCast = useMemo(
-    () => (agora ? excludeBody(cast, BODY_CAST) : cast),
-    [agora, cast],
-  );
+  // Jim retired the old Body Block bots (2026-11-05): first from the
+  // Agora, then from City 1 the same evening. Every walking world's
+  // crowd is only the members wearing an explicit kept body (Summer
+  // and the KayKit guests); City 2 fields no cast at all.
+  const visibleCast = useMemo(() => excludeBody(cast, BODY_CAST), [cast]);
 
   // Embody v0 spike: ?embody=1 turns on the skill layer (Agora only).
   const embodyOn = useMemo(
