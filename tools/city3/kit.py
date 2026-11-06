@@ -70,3 +70,13 @@ def prof(name,fn):
     def w(*a,**k):
         t0=total(); r=fn(*a,**k); PROF[name]=PROF.get(name,0)+total()-t0; return r
     return w
+ANCHORS=[]
+STAND_OFF=0.62   # same stand-off the console's embody layer uses (embody.ts)
+def add_anchor(fr,u,t,face_du,face_dt,seat_h,kind,floor_h=0.0,side=1):
+    """Record a seat: (u,t) in wall-local coords, facing (du,dt) in the same frame.
+    Stored in three.js space (x, z = -blender_y); heading = atan2(fx, fz) as in locomotion.ts."""
+    x,y=fr.xy(u,t); fx,fy,_=fr.o(face_du,face_dt); n=math.hypot(fx,fy) or 1; fx/=n; fy/=n
+    tx,tz,fz=x,-y,-fy
+    ANCHORS.append({"id":f"{kind}-{len(ANCHORS)}","kind":kind,"seat":[round(tx,3),round(tz,3)],
+        "facing":round(math.atan2(fx,fz),4),"approach":[round(tx+side*fx*STAND_OFF,3),round(tz+side*fz*STAND_OFF,3)],"approachSide":"front" if side>0 else "back",
+        "seatHeight":round(seat_h,3),"floorY":round(fr.z0+floor_h,3),"occupiedBy":None})

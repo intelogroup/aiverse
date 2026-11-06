@@ -36,7 +36,7 @@ def in_plaza(r): return r[0]>=px0-0.01 and r[1]>=py0-0.01 and r[2]<=px1+0.01 and
 def pt_in_plaza(x,y): return px0<=x<=px1 and py0<=y<=py1
 for b in P["blocks"]: flat("sidewalk",*b["rect"],Z,4.0)
 flat("cobble",*P["plaza"],Z,6.0)
-for pk in P["parks"]: flat("grass",*pk["rect"],Z+0.03,8.0)
+for pk in P["parks"]: flat("grass",*pk["rect"],Z+0.06,8.0)
 for cy in P["courtyards"]: flat("courtyard",*cy["rect"],Z+0.1,4.0)
 SEG=[(-L,-135),(-125,-70),(-60,-10),(10,60),(70,125),(135,L)]
 for s in P["streets"]:
@@ -51,7 +51,7 @@ for sx in P["streets"]:
     for sy in P["streets"]:
         r=(sx["c"]-sx["w"]/2,sy["c"]-sy["w"]/2,sx["c"]+sx["w"]/2,sy["c"]+sy["w"]/2)
         if not in_plaza(r): flat("road_plain",*r,Z,8.0); INTS.append(r)
-def stripe(x0,y0,x1,y1): pquad("palette",(x0,y0,Z+0.04),(x1,y0,Z+0.04),(x1,y1,Z+0.04),(x0,y1,Z+0.04),"white",(0,0,1))
+def stripe(x0,y0,x1,y1): pquad("palette",(x0,y0,Z+0.05),(x1,y0,Z+0.05),(x1,y1,Z+0.05),(x0,y1,Z+0.05),"white",(0,0,1))
 for (ix0,iy0,ix1,iy1) in INTS:                                              # zebra crossings on all four arms
     for x in [ix0+0.7+0.95*k for k in range(int((ix1-ix0-1.4)/0.95)+1)]:
         for (ya,yb) in ((iy0-4.0,iy0-1.5),(iy1+1.5,iy1+4.0)):
@@ -263,8 +263,16 @@ print({k:len(b.f) for k,b in sorted(MBS.items(),key=lambda kv:-len(kv[1].f))[:8]
 os.makedirs(f"{HERE}/out",exist_ok=True)
 bpy.ops.wm.save_as_mainfile(filepath=f"{HERE}/out/city3.blend")
 for o in bpy.data.objects: o.select_set(True)
+# Blender 5.2's meshopt path hard-codes the POSITION exponential filter to 12 bits with ONE
+# exponent shared by x, y and z (io_scene_gltf2/io/exp/meshopt.py). At x = -37 m that leaves
+# ~6 cm of height precision: a rug 4 cm above a floor snapped onto it. Separate exponents and
+# 20 bits keep sub-millimetre precision; the decoder reads any mode (exponents are per component).
+import io_scene_gltf2.io.exp.meshopt as _meshopt
+_meshopt.EXP_FILTER_BITS=20; _meshopt.ENCODE_EXP_SHARED_VECTOR=_meshopt.ENCODE_EXP_SEPARATE
 bpy.ops.export_scene.gltf(filepath=f"{HERE}/out/world-city3.glb",export_format="GLB",export_yup=True,export_apply=True,export_image_format="AUTO",export_texcoords=True,export_normals=True,export_cameras=False,export_lights=False,export_draco_mesh_compression_enable=False,export_meshopt_compression_enable=True)
 print("EXPORTED",os.path.getsize(f"{HERE}/out/world-city3.glb")//1024,"KB")
 if hero_bd:
     fr=HERO_INFO["fr"]; r=hero_bd["rect"]; dx,dy=fr.xy(HERO_INFO["door_u"],0.0)
+    json.dump({"building":"Matchmaker's Tea House","units":"m, three.js XZ; heading = atan2(fx, fz)","anchors":kit.ANCHORS},open(f"{HERE}/out/hero-anchors.json","w"),indent=1)
+    print("ANCHORS",len(kit.ANCHORS),{k:sum(1 for a in kit.ANCHORS if a["kind"]==k) for k in set(a["kind"] for a in kit.ANCHORS)})
     json.dump({"name":"Matchmaker's Tea House","rect_blender":r,"rect_three":[r[0],-r[3],r[2],-r[1]],"door_three":[round(dx,2),round(-dy,2)],"front":hero_bd["face"],"floors":hero_bd["floors"],"cutaway_object_prefix":"HeroUpper_"},open(f"{HERE}/out/hero.json","w"),indent=1)

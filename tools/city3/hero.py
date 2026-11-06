@@ -49,14 +49,16 @@ def hero_ground(bd,fr,W,D,GH,rnd,plain_sub):
     for (a,b,c_,d_) in ((0,W,-T,0),(0,W,-D,-D+T),(0,T,-D,0),(W-T,W,-D,0)): pquad("palette",fr.p(a,c_,GH),fr.p(b,c_,GH),fr.p(b,d_,GH),fr.p(a,d_,GH),"stone_lt",(0,0,1))
     interior(bd,fr,W,D,GH,rnd,f,db,bw)
     return doorpos
-def table(fr,u,d,f,rnd,Zb):
+def table(fr,u,d,f,rnd,Zb,skip=()):
     x,y=fr.xy(u,-d); cyl(x,y,Zb+f,Zb+f+0.72,0.05,6,"iron",top=False); cyl(x,y,Zb+f+0.72,Zb+f+0.78,0.46,10,"wood")
     cyl(x,y,Zb+f,Zb+f+0.04,0.25,8,"iron")
     pbox(x-0.1,y-0.07,x+0.1,y+0.07,Zb+f+0.78,Zb+f+0.86,rnd.choice(["crimson","teal","yellow","cream"]))
     for (du,dd,back) in ((0.78,0,"+u"),(-0.78,0,"-u"),(0,0.78,"+d"),(0,-0.78,"-d")):
-        if rnd.random()<0.5: continue
+        if back in skip or rnd.random()<0.5: continue
         chair(fr,u+du,d+dd,f,back)
 def chair(fr,u,d,f,back):
+    face={"+u":(-1,0),"-u":(1,0),"+d":(0,1),"-d":(0,-1)}[back]
+    add_anchor(fr,u,-d,face[0],face[1],0.49,"chair",f,side=-1)
     fbox(fr,u-0.2,u+0.2,-d-0.2,-d+0.2,f+0.44,f+0.49,"wood")
     for (a,b) in ((-0.18,-0.18),(0.18,-0.18),(0.18,0.18),(-0.18,0.18)): fbox(fr,u+a-0.02,u+a+0.02,-d+b-0.02,-d+b+0.02,f,f+0.44,"wood_dark",top=False)
     if back=="+u": fbox(fr,u+0.17,u+0.2,-d-0.2,-d+0.2,f+0.49,f+0.95,"wood")
@@ -66,13 +68,14 @@ def chair(fr,u,d,f,back):
 def interior(bd,fr,W,D,GH,rnd,f,db,bw):
     Zb=fr.z0; T=0.3
     # rug
-    cu=W/2; rug=[fr.p(cu-3.2,-3.2,f+0.015),fr.p(cu+3.2,-3.2,f+0.015),fr.p(cu+3.2,-7.2,f+0.015),fr.p(cu-3.2,-7.2,f+0.015)]
+    cu=W/2; rug=[fr.p(cu-3.2,-3.2,f+0.04),fr.p(cu+3.2,-3.2,f+0.04),fr.p(cu+3.2,-7.2,f+0.04),fr.p(cu-3.2,-7.2,f+0.04)]
     tq("rug",rug,[(0,0),(1,0),(1,1),(0,1)],(0,0,1))
     # bar along the back wall + back shelves
     bu0,bu1=2.2,W*0.56; bd0,bd1=D-3.6,D-2.7
     fbox(fr,bu0,bu1,-bd1,-bd0,f,f+1.05,"wood_dark"); fbox(fr,bu0-0.1,bu1+0.1,-bd1-0.12,-bd0+0.12,f+1.05,f+1.12,"wood")
     for u in [bu0+0.7+k*1.1 for k in range(int((bu1-bu0-1.2)/1.1)+1)]:
         x,y=fr.xy(u,-bd0+0.55); cyl(x,y,Zb+f,Zb+f+0.62,0.04,6,"iron",top=False); cyl(x,y,Zb+f+0.62,Zb+f+0.68,0.21,8,"wood_dark")           # stools
+        add_anchor(fr,u,-bd0+0.55,0,-1,0.68,"stool",f,side=-1)
     fbox(fr,1.0,W-1.0,-D+T+0.02,-D+T+0.14,f,f+3.1,"wood_dark")
     for zs in (f+1.1,f+1.8,f+2.5):
         fbox(fr,1.0,W-1.0,-D+T+0.14,-D+T+0.75,zs,zs+0.05,"wood")
@@ -84,17 +87,20 @@ def interior(bd,fr,W,D,GH,rnd,f,db,bw):
         x,y=fr.xy(bu0+1.0+k*1.2,-(bd0+bd1)/2); cyl(x,y,Zb+f+1.12,Zb+f+1.5,0.2,8,"copper",r1=0.15); cyl(x,y,Zb+f+1.5,Zb+f+1.56,0.08,6,"brass")
     fbox(fr,bu1-1.4,bu1-0.4,-(bd0+bd1)/2-0.3,-(bd0+bd1)/2+0.3,f+1.12,f+1.6,"brass"); fbox(fr,bu1-1.3,bu1-0.5,-(bd0+bd1)/2-0.25,-(bd0+bd1)/2+0.25,f+1.6,f+1.7,"copper")
     # tables + chairs (two rows) leaving the door lane free
-    for dd in (2.6,5.4):
-        u=2.3
+    # two staggered rows, 3.6 m pitch: chairs are entered from behind, so neighbouring
+    # stand points stay >= 0.8 m apart; the back row has no bar-side chairs (stools own that aisle)
+    for dd,u0,skip in ((3.4,2.3,()),(5.8,4.1,("+d",))):
+        u=u0
         while u<W-2.0:
-            if (abs(u-(db*bw+bw/2))>1.1 or dd>4) and (dd<4 or u<bu1-1.0): table(fr,u,dd,f,rnd,Zb)
-            u+=3.2
+            if (abs(u-(db*bw+bw/2))>1.1 or dd>4) and (dd<4 or u<bu1-1.0): table(fr,u,dd,f,rnd,Zb,skip)
+            u+=3.6
     lounge(fr,W,D,f,rnd,Zb)
     # window booths along the front wall
     for k in range(max(1,round(W/4.0))):
         if k==db: continue
         c=k*bw+bw/2
         fbox(fr,c-1.2,c+1.2,-1.35,-T-0.02,f,f+0.46,"cloth_red"); fbox(fr,c-1.2,c+1.2,-T-0.1,-T-0.02,f+0.46,f+0.95,"cloth_red")
+        for su in (c-0.6,c+0.6): add_anchor(fr,su,-0.85,0,-1,0.46,"booth",f)
     # fireplace on the east wall
     cd=D/2; fbox(fr,W-1.6,W-T,-(cd+1.3),-(cd-1.3),f,f+1.4,"stone"); fbox(fr,W-1.7,W-T,-(cd+1.4),-(cd-1.4),f+1.4,f+1.5,"wood_dark")
     fbox(fr,W-1.6+0.02,W-T,-(cd+0.8),-(cd-0.8),f+0.05,f+0.9,"ink"); fbox(fr,W-1.45,W-T-0.1,-(cd+0.55),-(cd-0.55),f+0.05,f+0.5,"fire",b="lamp_glow")
@@ -115,19 +121,27 @@ def interior(bd,fr,W,D,GH,rnd,f,db,bw):
     for (u,dd) in ((W*0.25,2.5),(W*0.5,2.5),(W*0.75,2.5),(W*0.25,6.2),(W*0.5,6.2),(W*0.75,6.2)):
         x,y=fr.xy(u,-dd); cyl(x,y,Zb+GH-0.8,Zb+GH,0.012,4,"iron",top=False); pbox(x-0.17,y-0.17,x+0.17,y+0.17,Zb+GH-1.15,Zb+GH-0.8,"lamp",b="lamp_glow"); pbox(x-0.2,y-0.2,x+0.2,y+0.2,Zb+GH-0.82,Zb+GH-0.75,"iron")
 def armchair(fr,u,d,f,face,col):
-    s=1 if face=="+u" else -1                                   # faces +u (toward the fireplace) or -u
+    """Armchair facing +u/-u/+d/-d (d grows into the room)."""
     fbox(fr,u-0.42,u+0.42,-(d+0.42),-(d-0.42),f+0.18,f+0.46,col)                       # seat
-    b0=u-0.42 if s>0 else u+0.28; b1=u-0.28 if s>0 else u+0.42
-    fbox(fr,b0,b1,-(d+0.42),-(d-0.42),f+0.46,f+1.0,col)                               # back
-    fbox(fr,u-0.42,u+0.42,-(d+0.42),-(d+0.3),f+0.46,f+0.68,col); fbox(fr,u-0.42,u+0.42,-(d-0.3),-(d-0.42),f+0.46,f+0.68,col)   # arms
+    if face in ("+u","-u"):
+        s=1 if face=="+u" else -1; b0,b1=(u-0.42,u-0.28) if s>0 else (u+0.28,u+0.42)
+        fbox(fr,b0,b1,-(d+0.42),-(d-0.42),f+0.46,f+1.0,col)
+        fbox(fr,u-0.42,u+0.42,-(d+0.42),-(d+0.3),f+0.46,f+0.68,col); fbox(fr,u-0.42,u+0.42,-(d-0.3),-(d-0.42),f+0.46,f+0.68,col)
+        add_anchor(fr,u,-d,s,0,0.46,"armchair",f)
+    else:
+        s=1 if face=="+d" else -1; t0,t1=(-(d-0.28),-(d-0.42)) if s>0 else (-(d+0.42),-(d+0.28))
+        fbox(fr,u-0.42,u+0.42,t0,t1,f+0.46,f+1.0,col)
+        fbox(fr,u-0.42,u-0.3,-(d+0.42),-(d-0.42),f+0.46,f+0.68,col); fbox(fr,u+0.3,u+0.42,-(d+0.42),-(d-0.42),f+0.46,f+0.68,col)
+        add_anchor(fr,u,-d,0,-s,0.46,"armchair",f)
 
 def lounge(fr,W,D,f,rnd,Zb):
     cu=W*0.8; cd=D/2
-    tq("rug",[fr.p(cu-3.0,-cd+2.2,f+0.015),fr.p(cu+2.2,-cd+2.2,f+0.015),fr.p(cu+2.2,-cd-2.2,f+0.015),fr.p(cu-3.0,-cd-2.2,f+0.015)],[(0,0),(1,0),(1,1),(0,1)],(0,0,1))
-    armchair(fr,cu-1.5,cd+1.4,f,"+u","cloth_blue"); armchair(fr,cu-1.5,cd-1.4,f,"+u","cloth_red")
+    tq("rug",[fr.p(cu-3.0,-cd+2.2,f+0.04),fr.p(cu+2.2,-cd+2.2,f+0.04),fr.p(cu+2.2,-cd-2.2,f+0.04),fr.p(cu-3.0,-cd-2.2,f+0.04)],[(0,0),(1,0),(1,1),(0,1)],(0,0,1))
+    armchair(fr,cu-0.4,cd+1.6,f,"-d","cloth_blue"); armchair(fr,cu-0.4,cd-1.6,f,"+d","cloth_red")
     x,y=fr.xy(cu-0.4,-cd); cyl(x,y,Zb+f,Zb+f+0.4,0.4,10,"wood"); cyl(x,y,Zb+f+0.4,Zb+f+0.45,0.46,10,"wood_dark")
     pbox(x-0.12,y-0.1,x+0.12,y+0.1,Zb+f+0.45,Zb+f+0.55,"copper")
     fbox(fr,cu-2.7,cu-2.0,-(cd+2.0),-(cd-2.0),f,f+0.5,"cloth_gold"); fbox(fr,cu-2.7,cu-2.55,-(cd+2.0),-(cd-2.0),f+0.5,f+1.0,"cloth_gold")      # sofa facing the fire
+    for sd in (-1.0,0.0,1.0): add_anchor(fr,cu-2.3,-(cd+sd),1,0,0.5,"sofa",f)
     x,y=fr.xy(W-1.0,-(D-1.2)); cyl(x,y,Zb+f,Zb+f+1.6,0.03,6,"iron",top=False); cyl(x,y,Zb+f+1.6,Zb+f+1.95,0.2,8,"lamp",b="lamp_glow",r1=0.12)             # floor lamp
 def hero_ceiling(fr,W,D,GH):
     T=0.3

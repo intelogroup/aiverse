@@ -42,6 +42,13 @@ import {
 } from "./cameraRig";
 import { FpsMeter } from "./fpsMeter";
 import {
+  CITY3_HERO_CENTER,
+  CITY3_HERO_NAME,
+  CITY3_HERO_PREFIX,
+  CITY3_HERO_VIEW,
+  cutawayHidden,
+} from "./city3";
+import {
   PROBE_CADENCES,
   PROBE_HEIGHT,
   PROBE_WIDTH,
@@ -151,6 +158,48 @@ function cityHomeFor(i: number, n: number): [number, number, number] {
 function WorldEnv({ url }: { url: string }) {
   const gltf = useGLTF(url);
   return <primitive object={gltf.scene} />;
+}
+
+/**
+ * City 3 cutaway: hides the hero building's upper floors (HeroUpper_*)
+ * while the camera is close, so the furnished ground floor shows from
+ * above. `focusNonce` bumps when the panel asks to fly to the building.
+ * Mounted inside the Suspense with WorldEnv, so the GLB is in the scene.
+ */
+function HeroCutaway({ focusNonce }: { focusNonce: number }) {
+  const scene = useThree((s) => s.scene);
+  const camera = useThree((s) => s.camera);
+  const controls = useThree((s) => s.controls) as unknown as {
+    target: THREE.Vector3;
+    update: () => void;
+  } | null;
+  const parts = useRef<THREE.Object3D[]>([]);
+  const hidden = useRef(false);
+  useEffect(() => {
+    const found: THREE.Object3D[] = [];
+    scene.traverse((o) => {
+      if (o.name.startsWith(CITY3_HERO_PREFIX)) found.push(o);
+    });
+    parts.current = found;
+    return () => {
+      for (const o of found) o.visible = true;
+    };
+  }, [scene]);
+  useEffect(() => {
+    if (focusNonce === 0 || !controls) return;
+    camera.position.set(...CITY3_HERO_VIEW.position);
+    controls.target.set(...CITY3_HERO_VIEW.target);
+    controls.update();
+  }, [focusNonce, camera, controls]);
+  useFrame(() => {
+    const dx = camera.position.x - CITY3_HERO_CENTER[0];
+    const dz = camera.position.z - CITY3_HERO_CENTER[1];
+    const next = cutawayHidden(Math.hypot(dx, camera.position.y, dz), hidden.current);
+    if (next === hidden.current) return;
+    hidden.current = next;
+    for (const o of parts.current) o.visible = !next;
+  });
+  return null;
 }
 
 const SKY_URL = "/assets/sky-equi.jpg";
@@ -991,6 +1040,8 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   // Head-camera mode (Embody spike): state for the panel buttons and
   // OrbitControls, mirrored into a ref the camera rig reads per frame.
   const [camMode, setCamMode] = useState<CameraMode>("wide");
+  // City 3: bumps to fly the camera to the tea house (cutaway shows on arrival).
+  const [heroFocus, setHeroFocus] = useState(0);
   const camModeRef = useRef<CameraMode>("wide");
   useEffect(() => {
     camModeRef.current = camMode;
@@ -1058,6 +1109,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
                     : CITY2_URL
             }
           />
+          {place === "city3" ? <HeroCutaway focusNonce={heroFocus} /> : null}
           <CrowdCast
             place={place}
             cast={visibleCast}
@@ -1126,6 +1178,13 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           City 3
         </button>
       </div>
+      {place === "city3" ? (
+        <div className="w-glb-toggle w-glb-poi" role="group" aria-label="Places in City 3">
+          <button type="button" onClick={() => setHeroFocus((n) => n + 1)}>
+            {CITY3_HERO_NAME}
+          </button>
+        </div>
+      ) : null}
       {embodyOn && agora ? (
         <EmbodyPanel
           cast={visibleCast}
