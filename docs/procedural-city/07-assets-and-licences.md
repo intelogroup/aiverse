@@ -21,3 +21,14 @@ Credits live in `tools/city3/ASSETS.md` (+ `out/asset-credits.json`). Assets are
 API works with a user token (`SKETCHFAB_TOKEN` env var; never commit it). Search: `/v3/search?type=models&downloadable=true&licenses=cc0&q=...&max_face_count=...`
 (the filter is `licenses=<slug>`, not `license=`). `assets/fetch_sketchfab.py name=uid ...` skips anything not CC0 and writes `meta.json` credit.
 Used: Low Poly Medieval CC0 lantern/pot/produce crate, baked into the Bazaar stalls as linked duplicates (`assets_kit.load(source="sketchfab")`).
+
+## Poliigon free models (NOT CC0)
+Microwave002, GlasswareWhiskeySet002, UtensilsJar001 (ToiletModern001 imported but unused) from poliigon.com/free, supplied by the user as zips
+(`tools/city3/assets/poliigon/`, gitignored). Licence terms were not verified (poliigon.com returns 403 to automated fetches) - read the licence
+before any public release; their baked copies live in `world-city3-library.glb`. Loaded via `assets_kit.load(..., source="poliigon")`; used on cafe
+bar counters and the shop cashier counter (`rooms.py`). Scale verified (0.58 m microwave, 0.33 m jar); not yet confirmed visually in a rendered room.
+
+## Sketchfab search notes
+Search needs no token. Result `license` is `{uid,label}` (no slug) - match "CC0" in the label. Server `licenses=cc0` works but CC0 downloadable
+low-poly street props are scarce (mostly museum scans); useful hit: "Low Poly Medieval, CC0" pack (bench, stall, crates; fetched to assets/sketchfab/med_*).
+`max_face_count` server filter returned nothing - filter `faceCount` client-side. Download API needs a token (personal token via env var only).

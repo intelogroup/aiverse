@@ -86,6 +86,9 @@ def cafe(bd,fr,W,D,GH,rnd,f,db,bw,lounge=False):
     bar_end=min(W*0.56,W-3.0) if W>=14 else W-3.2; nseg=max(1,int((bar_end-2.0)/2.0)); bar_d=D-3.15; shelf_d=D-0.45
     for i in range(nseg):
         u=2.0+1.0+2.0*i; put("counter_2m",fr,u,-bar_d,f)
+        if i==0: put("Microwave002",fr,u+0.45,-bar_d,f+1.12,0,-1)                 # Poliigon props sit on the counter top (z 1.12)
+        elif i%2==1: put("UtensilsJar001",fr,u+0.5,-bar_d,f+1.12,0,-1)
+        else: put("GlasswareWhiskeySet002",fr,u-0.3,-bar_d,f+1.12,0,-1)
         put("stool_wood",fr,u-0.5,-(bar_d-1.0),f,0,-1); add_anchor(fr,u-0.5,-(bar_d-1.0),0,-1,0.68,"stool",f,side=-1)
         put("stool_wood",fr,u+0.5,-(bar_d-1.0),f,0,-1); add_anchor(fr,u+0.5,-(bar_d-1.0),0,-1,0.68,"stool",f,side=-1)
     for i in range(int((W-2.0)//2.0)): put(("shelf_bottles_a","shelf_bottles_b","shelf_bottles_c")[i%3],fr,1.0+1.0+2.0*i,-shelf_d,f,0,1)
@@ -110,6 +113,7 @@ def shop(bd,fr,W,D,GH,rnd,f,db,bw):
     build_pieces(); press.build_pieces(rnd); c=_lane(db,bw); a=("shelf_goods_a","shelf_goods_b")
     for i in range(int((W-2.0)//2.0)): put(a[i%2],fr,2.0+2.0*i,-(D-0.42),f,0,1)
     cu=min(W-3.0,c+3.2) if c+3.2<W-2.0 else max(3.0,c-3.2); put("shop_counter",fr,cu,-(D-3.2),f,0,1)
+    put("UtensilsJar001",fr,cu-0.9,-(D-3.2),f+1.06,0,1); put("GlasswareWhiskeySet002",fr,cu+0.1,-(D-3.2),f+1.06,0,1)
     add_anchor(fr,cu,-(D-4.0),0,-1,0.0,"stand",f,side=-1); add_anchor(fr,cu,-(D-2.5),0,1,0.0,"stand",f,side=-1)     # customer / clerk; each walks in from behind
     for dd in (3.2,6.0):
         u=2.4+(1.8 if dd>5 else 0)

@@ -7,6 +7,8 @@ import bpy, math, os
 from mathutils import Vector
 HERE=os.path.dirname(os.path.abspath(__file__))
 PH=os.path.join(HERE,"assets","polyhaven")
+POL=os.path.join(HERE,"assets","poliigon")   # Poliigon free models (licence: NOT CC0 - see docs/procedural-city/07; assets/poliigon is gitignored)
+POLFILE={"Microwave002":"Microwave002_Cycles.blend","GlasswareWhiskeySet002":"GlasswareWhiskeySet002_Blender_Cycles.blend","UtensilsJar001":"UtensilsJar001.blend","ToiletModern001":"ToiletModern001.blend"}
 QT=os.path.join(HERE,"assets","quaternius","Furniture Pack by @Quaternius","FBX")
 TEX=512
 LIB={}
@@ -45,6 +47,10 @@ def load(asset_id,budget,source="polyhaven",name=None,tex=None):
     before=set(bpy.data.objects); imgs_before=set(bpy.data.images)
     if source=="polyhaven": bpy.ops.import_scene.gltf(filepath=os.path.join(PH,asset_id,f"{asset_id}_1k.gltf"))
     elif source=="sketchfab": bpy.ops.import_scene.gltf(filepath=os.path.join(HERE,"assets","sketchfab",asset_id,"scene.gltf"))
+    elif source=="poliigon":
+        with bpy.data.libraries.load(os.path.join(POL,asset_id,POLFILE[asset_id])) as (d,t): t.objects=[n for n in d.objects if not n.endswith("_Empty")]
+        for o in t.objects:
+            if o is not None and o.type=="MESH": bpy.context.scene.collection.objects.link(o)
     else: bpy.ops.import_scene.fbx(filepath=os.path.join(QT,f"{asset_id}.fbx"))
     new=[o for o in bpy.data.objects if o not in before]
     new_names=[o.name for o in new]
@@ -70,7 +76,7 @@ def load(asset_id,budget,source="polyhaven",name=None,tex=None):
     obj.location=(0,0,0); obj.name=f"LIB_{key}"; obj.data.name=f"LIB_{key}"
     for c in list(obj.users_collection): c.objects.unlink(obj)
     _lib_collection().objects.link(obj)
-    if source=="polyhaven": _diffuse_only(obj)
+    if source in ("polyhaven","poliigon"): _diffuse_only(obj)
     T=tex or TEX
     for img in set(bpy.data.images)-imgs_before:
         if img.size[0]>T: img.scale(T,max(1,int(img.size[1]*T/img.size[0])))
