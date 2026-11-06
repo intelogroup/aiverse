@@ -263,17 +263,29 @@ for side,(a,bb) in {"S":((-L,-L),(L,-L)),"E":((L,-L),(L,L)),"N":((L,L),(-L,L)),"
 u=pal_uv("water_deep"); mb("water").quad((-520,-520,-1.2),(520,-520,-1.2),(520,520,-1.2),(-520,520,-1.2),u,u,u,u,(0,0,1))
 # ---------------- realise ----------------
 NAME={"sidewalk":"Sidewalks","cobble":"PlazaCobble","grass":"Parks","courtyard":"Courtyards","road_avenue":"RoadAvenue","road_narrow":"RoadStreet","road_plain":"RoadJunction","roof_tile":"RoofTile","roof_flat":"RoofFlat","awning":"Awnings","palette":"Props","water":"Water","lamp_glow":"LampGlow","shutters":"Shutters","signs":"Signs","blades":"BladeSigns","interior_wall":"InteriorWalls","wood_floor":"WoodFloor","rug":"Rug","glass":"Glass","newsprint":"Newsprint"}
+LIBG={}
 for key,b in MBS.items():
-    g,_,m=key.rpartition("::"); me=bpy.data.meshes.new(key); me.from_pydata(b.v,[],b.f); me.update()
+    g,_,m=key.rpartition("::")
+    if g.startswith("LIB_"): LIBG.setdefault(g,{})[m]=b; continue
+    me=bpy.data.meshes.new(key); me.from_pydata(b.v,[],b.f); me.update()
     uvl=me.uv_layers.new(name="UVMap"); uvl.data.foreach_set("uv",[c for tri in b.uv for uv in tri for c in uv])
     nm=NAME.get(m,"B_"+m.replace("facade_","Facade_")); nm=f"{g}_{nm}" if g else nm
     ob=bpy.data.objects.new(nm,me); bpy.context.scene.collection.objects.link(ob); ob.data.materials.append(MATS[m])
+for g,parts in LIBG.items():                    # procedural library pieces: one object, one material slot per material
+    verts=[]; faces=[]; uvs=[]; midx=[]; mats=list(parts)
+    for mi,m in enumerate(mats):
+        b=parts[m]; off=len(verts); verts+=b.v; faces+=[tuple(i+off for i in f) for f in b.f]; uvs+=[c for tri in b.uv for uv in tri for c in uv]; midx+=[mi]*len(b.f)
+    me=bpy.data.meshes.new(g); me.from_pydata(verts,[],faces); me.update()
+    me.uv_layers.new(name="UVMap").data.foreach_set("uv",uvs)
+    for m in mats: me.materials.append(MATS[m])
+    me.polygons.foreach_set("material_index",midx)
+    ob=bpy.data.objects.new(g,me); bpy.context.scene.collection.objects.link(ob)
 print("PROF",{k:v for k,v in sorted(kit.PROF.items(),key=lambda kv:-kv[1])})
 print("MESHES",len(MBS),"TRIS",sum(len(b.f) for b in MBS.values()))
 print({k:len(b.f) for k,b in sorted(MBS.items(),key=lambda kv:-len(kv[1].f))[:8]})
 os.makedirs(f"{HERE}/out",exist_ok=True)
 bpy.ops.wm.save_as_mainfile(filepath=f"{HERE}/out/city3.blend")
-for o in bpy.data.objects: o.select_set(not o.name.startswith("PressInterior"))     # the press furnishings ship in their own GLB
+for o in bpy.data.objects: o.select_set(not o.name.startswith("LIB_"))     # the shared library ships in its own GLB
 # Blender 5.2's meshopt path hard-codes the POSITION exponential filter to 12 bits with ONE
 # exponent shared by x, y and z (io_scene_gltf2/io/exp/meshopt.py). At x = -37 m that leaves
 # ~6 cm of height precision: a rug 4 cm above a floor snapped onto it. Separate exponents and
@@ -282,20 +294,27 @@ import io_scene_gltf2.io.exp.meshopt as _meshopt
 _meshopt.EXP_FILTER_BITS=20; _meshopt.ENCODE_EXP_SHARED_VECTOR=_meshopt.ENCODE_EXP_SEPARATE
 bpy.ops.export_scene.gltf(filepath=f"{HERE}/out/world-city3.glb",export_format="GLB",export_yup=True,export_apply=True,export_image_format="AUTO",export_texcoords=True,export_normals=True,export_cameras=False,export_lights=False,export_draco_mesh_compression_enable=False,export_meshopt_compression_enable=True,use_selection=True)
 print("EXPORTED",os.path.getsize(f"{HERE}/out/world-city3.glb")//1024,"KB")
-# ---------------- press furnishings: CC0 library assets -> world-city3-press.glb ----------------
+# ---------------- shared library (CC0 imports + procedural pieces) + per-building layouts ----------------
 BUDGET={"wooden_bookshelf_worn":3000,"book_encyclopedia_set_01":4000,"desk_lamp_arm_01":2000,"vintage_grandfather_clock_01":3000,"drawer_cabinet":2500,
-        "vintage_radio_transceiver":2000,"WoodenTable_02":1514,"ArmChair_01":2500,"potted_plant_02":3000,"wooden_crate_01":1500,"vintage_oil_lamp":1500,
-        "wall_clock":1000,"binder_notebook":600,"ChairCushioned":4000}
+        "vintage_radio_transceiver":2000,"WoodenTable_02":1514,"ArmChair_01":2500,"potted_plant_02":3000,"wooden_crate_01":1500,
+        "vintage_oil_lamp":1500,"wall_clock":1000,"binder_notebook":600,"ChairCushioned":4000}
+TEXPX={"wooden_bookshelf_worn":512,"drawer_cabinet":512,"vintage_grandfather_clock_01":512,"ArmChair_01":512,"potted_plant_02":512,"wooden_crate_01":256,
+       "book_encyclopedia_set_01":256,"desk_lamp_arm_01":256,"vintage_radio_transceiver":256,"WoodenTable_02":256,"vintage_oil_lamp":128,"wall_clock":256,"binder_notebook":256}
 QUAT={"ChairCushioned"}
-coll=bpy.data.collections.new("PressAssets"); bpy.context.scene.collection.children.link(coll)
-for (bid,key,x,y,z,rz,sc) in kit.PLACEMENTS:
-    assets_kit.load(key,BUDGET.get(key,2000),source="quaternius" if key in QUAT else "polyhaven")
-    assets_kit.place(key,coll,x,y,z,rz,sc,name=f"PressInterior_{key}")
-bpy.context.view_layer.layer_collection.children["AssetLibrary"].exclude=True
-for o in bpy.data.objects: o.select_set(o.name.startswith("PressInterior"))
-bpy.ops.export_scene.gltf(filepath=f"{HERE}/out/world-city3-press.glb",export_format="GLB",export_yup=True,export_apply=True,export_image_format="JPEG",export_jpeg_quality=82,
+for key in sorted({p[1] for p in kit.PLACEMENTS}-set(press.PIECE_NAMES)):
+    assets_kit.load(key,BUDGET.get(key,2000),source="quaternius" if key in QUAT else "polyhaven",tex=TEXPX.get(key))
+bpy.context.view_layer.layer_collection.children["AssetLibrary"].exclude=False
+for o in bpy.data.objects: o.select_set(o.name.startswith("LIB_"))
+bpy.ops.export_scene.gltf(filepath=f"{HERE}/out/world-city3-library.glb",export_format="GLB",export_yup=True,export_apply=True,export_image_format="JPEG",export_jpeg_quality=80,
     export_texcoords=True,export_normals=True,export_cameras=False,export_lights=False,export_meshopt_compression_enable=True,use_selection=True)
-print("PRESS_EXPORTED",os.path.getsize(f"{HERE}/out/world-city3-press.glb")//1024,"KB",{k:(v["tris_raw"],v["tris"]) for k,v in assets_kit.LIB.items()})
+lib_objs=[o for o in bpy.data.objects if o.name.startswith("LIB_")]
+print("LIBRARY_EXPORTED",os.path.getsize(f"{HERE}/out/world-city3-library.glb")//1024,"KB",len(lib_objs),"assets",
+      {o.name[4:]:sum(len(p.vertices)-2 for p in o.data.polygons) for o in lib_objs})
+os.makedirs(f"{HERE}/out/interiors",exist_ok=True)
+for bid in {p[0] for p in kit.PLACEMENTS}:
+    props=[[p[1],round(p[2],3),round(p[4],3),round(-p[3],3),round(p[5],4),p[6]] for p in kit.PLACEMENTS if p[0]==bid]          # [asset, x, y, z, rotY, scale] in three.js space
+    json.dump({"id":bid,"library":"world-city3-library.glb","props":props},open(f"{HERE}/out/interiors/{bid}.json","w"),separators=(",",":"))
+    print("LAYOUT",bid,len(props),"props",os.path.getsize(f"{HERE}/out/interiors/{bid}.json"),"bytes")
 CREDITS=[{"asset":k,"source":("https://opengameart.org/content/furniture-low-poly" if v["source"]=="quaternius" else f"https://polyhaven.com/a/{v['id']}"),"license":"CC0"} for k,v in assets_kit.LIB.items()]
 json.dump(CREDITS,open(f"{HERE}/out/asset-credits.json","w"),indent=1)
 heroes=[]
@@ -303,7 +322,7 @@ for hid,hi in HERO_INFO.items():
     fr=hi["fr"]; r=hi["bd"]["rect"]; dx,dy=fr.xy(hi["door_u"],0.0)
     heroes.append({"id":hid,"name":hi["spec"]["name"],"rect_blender":r,"rect_three":[r[0],-r[3],r[2],-r[1]],"center_three":[(r[0]+r[2])/2,-(r[1]+r[3])/2],
         "door_three":[round(dx,2),round(-dy,2)],"front":hi["bd"]["face"],"cutaway_object_prefix":hi["spec"]["upper"]+"_",
-        "interior_glb":"world-city3-press.glb" if hid=="press" else None})
+        "layout":f"/assets/interiors/{hid}.json" if hid=="press" else None})
 json.dump(heroes,open(f"{HERE}/out/heroes.json","w"),indent=1)
 json.dump({"units":"m, three.js XZ; heading = atan2(fx, fz)","anchors":kit.ANCHORS},open(f"{HERE}/out/hero-anchors.json","w"),indent=1)
 print("ANCHORS",len(kit.ANCHORS),{h:sum(1 for a in kit.ANCHORS if a["building"]==h) for h in HERO_INFO})

@@ -1,7 +1,7 @@
 [
  {
-  "asset": "wooden_crate_01",
-  "source": "https://polyhaven.com/a/wooden_crate_01",
+  "asset": "ArmChair_01",
+  "source": "https://polyhaven.com/a/ArmChair_01",
   "license": "CC0"
  },
  {
@@ -10,8 +10,8 @@
   "license": "CC0"
  },
  {
-  "asset": "desk_lamp_arm_01",
-  "source": "https://polyhaven.com/a/desk_lamp_arm_01",
+  "asset": "WoodenTable_02",
+  "source": "https://polyhaven.com/a/WoodenTable_02",
   "license": "CC0"
  },
  {
@@ -20,18 +20,13 @@
   "license": "CC0"
  },
  {
-  "asset": "vintage_radio_transceiver",
-  "source": "https://polyhaven.com/a/vintage_radio_transceiver",
-  "license": "CC0"
- },
- {
   "asset": "book_encyclopedia_set_01",
   "source": "https://polyhaven.com/a/book_encyclopedia_set_01",
   "license": "CC0"
  },
  {
-  "asset": "wooden_bookshelf_worn",
-  "source": "https://polyhaven.com/a/wooden_bookshelf_worn",
+  "asset": "desk_lamp_arm_01",
+  "source": "https://polyhaven.com/a/desk_lamp_arm_01",
   "license": "CC0"
  },
  {
@@ -40,23 +35,13 @@
   "license": "CC0"
  },
  {
+  "asset": "potted_plant_02",
+  "source": "https://polyhaven.com/a/potted_plant_02",
+  "license": "CC0"
+ },
+ {
   "asset": "vintage_grandfather_clock_01",
   "source": "https://polyhaven.com/a/vintage_grandfather_clock_01",
-  "license": "CC0"
- },
- {
-  "asset": "wall_clock",
-  "source": "https://polyhaven.com/a/wall_clock",
-  "license": "CC0"
- },
- {
-  "asset": "ArmChair_01",
-  "source": "https://polyhaven.com/a/ArmChair_01",
-  "license": "CC0"
- },
- {
-  "asset": "WoodenTable_02",
-  "source": "https://polyhaven.com/a/WoodenTable_02",
   "license": "CC0"
  },
  {
@@ -65,8 +50,23 @@
   "license": "CC0"
  },
  {
-  "asset": "potted_plant_02",
-  "source": "https://polyhaven.com/a/potted_plant_02",
+  "asset": "vintage_radio_transceiver",
+  "source": "https://polyhaven.com/a/vintage_radio_transceiver",
+  "license": "CC0"
+ },
+ {
+  "asset": "wall_clock",
+  "source": "https://polyhaven.com/a/wall_clock",
+  "license": "CC0"
+ },
+ {
+  "asset": "wooden_bookshelf_worn",
+  "source": "https://polyhaven.com/a/wooden_bookshelf_worn",
+  "license": "CC0"
+ },
+ {
+  "asset": "wooden_crate_01",
+  "source": "https://polyhaven.com/a/wooden_crate_01",
   "license": "CC0"
  }
 ]

@@ -24,7 +24,7 @@
   ],
   "front": "N",
   "cutaway_object_prefix": "PressUpper_",
-  "interior_glb": "world-city3-press.glb"
+  "layout": "/assets/interiors/press.json"
  },
  {
   "id": "tea",
@@ -51,6 +51,6 @@
   ],
   "front": "S",
   "cutaway_object_prefix": "TeaUpper_",
-  "interior_glb": null
+  "layout": null
  }
 ]

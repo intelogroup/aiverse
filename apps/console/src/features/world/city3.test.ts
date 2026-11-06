@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   CITY3_HEROES,
   HIDE_WITHIN,
+  INTERIOR_KEEP_WITHIN,
   INTERIOR_LOAD_WITHIN,
   SHOW_BEYOND,
+  syntheticHeroes,
   cutawayHidden,
   heroDistance,
 } from "./city3";
@@ -39,8 +41,15 @@ describe("hero presets", () => {
       expect(Math.hypot(x - h.center[0], z - h.center[1])).toBeGreaterThan(8);
     }
   });
-  it("loads a furnishings GLB before the cutaway can open", () => {
+  it("starts streaming an interior before its cutaway can open, and keeps it longer than it loads it", () => {
     expect(INTERIOR_LOAD_WITHIN).toBeGreaterThan(SHOW_BEYOND);
+    expect(INTERIOR_KEEP_WITHIN).toBeGreaterThan(INTERIOR_LOAD_WITHIN);
+  });
+  it("synthetic debug rooms get unique ids and never collide with a real prefix", () => {
+    const press = CITY3_HEROES.find((h) => h.id === "press")!;
+    const fake = syntheticHeroes(12, press);
+    expect(new Set(fake.map((h) => h.id)).size).toBe(12);
+    for (const f of fake) expect(CITY3_HEROES.some((h) => f.prefix.startsWith(h.prefix))).toBe(false);
   });
   it("uses distinct cutaway prefixes", () => {
     const p = CITY3_HEROES.map((h) => h.prefix);

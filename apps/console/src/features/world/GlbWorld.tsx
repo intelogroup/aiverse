@@ -41,7 +41,19 @@ import {
   type CameraMode,
 } from "./cameraRig";
 import { FpsMeter } from "./fpsMeter";
-import { CITY3_HEROES, INTERIOR_LOAD_WITHIN, cutawayHidden, heroDistance } from "./city3";
+import {
+  CITY3_HEROES,
+  CITY3_LIBRARY_URL,
+  INTERIOR_KEEP_WITHIN,
+  INTERIOR_LOAD_WITHIN,
+  MAX_LOADED_INTERIORS,
+  cutawayHidden,
+  heroDistance,
+  syntheticHeroes,
+  type City3Hero,
+} from "./city3";
+import { buildInterior, indexLibrary, type InteriorHandle } from "./interiorBuild";
+import { planStreaming, type InteriorLayout } from "./interiors";
 import {
   PROBE_CADENCES,
   PROBE_HEIGHT,
@@ -199,34 +211,184 @@ function HeroCutaway({ focus }: { focus: { id: string; nonce: number } | null })
 }
 
 /**
- * Fetches a hero's furnishings GLB the first time the camera comes within
- * INTERIOR_LOAD_WITHIN m, then keeps it. Until then nothing is downloaded.
+ * Streams City 3's interiors by camera distance. One shared asset library is
+ * fetched the first time any room is near; each room is a small layout JSON
+ * built into instanced meshes over that library. At most MAX_LOADED_INTERIORS
+ * stay resident: farther or surplus rooms are dropped and their instance
+ * buffers disposed (geometry and materials stay with the library).
+ *
+ * `?streamDebug=1` exposes window.__city3Stream (counters, renderer memory,
+ * teleport) for the memory test; `&fake=N` adds N synthetic rooms to arbitrate.
  */
-function LazyInteriors() {
+function InteriorStreamer() {
   const camera = useThree((s) => s.camera);
-  const [loaded, setLoaded] = useState<string[]>([]);
+  const gl = useThree((s) => s.gl);
+  const controls = useThree((s) => s.controls) as unknown as {
+    target: THREE.Vector3;
+    update: () => void;
+  } | null;
+  const debug = useMemo(() => new URLSearchParams(window.location.search).get("streamDebug") === "1", []);
+  const heroes = useMemo<City3Hero[]>(() => {
+    const real = CITY3_HEROES.filter((h) => h.layoutUrl);
+    const n = Number(new URLSearchParams(window.location.search).get("fake") ?? 0);
+    return debug && n > 0 && real[0] ? [...real, ...syntheticHeroes(n, real[0])] : real;
+  }, [debug]);
+  const [wanted, setWanted] = useState<string[]>([]);
+  const wantedRef = useRef<string[]>([]);
+  const layouts = useRef(new Map<string, InteriorLayout>());
+  const inflight = useRef(new Set<string>());
+  const [layoutsReady, setLayoutsReady] = useState<string[]>([]);
   const acc = useRef(1);
+  const stats = useRef({ loads: 0, evictions: 0, maxResident: 0, builds: 0 });
+  const handles = useRef(new Map<string, InteriorHandle>());
+
   useFrame((_, dt) => {
     acc.current += dt;
-    if (acc.current < 0.5) return;
+    if (acc.current < 0.25) return;
     acc.current = 0;
-    for (const hero of CITY3_HEROES) {
-      if (!hero.interiorUrl || loaded.includes(hero.interiorUrl)) continue;
-      if (heroDistance(hero, camera.position) < INTERIOR_LOAD_WITHIN) {
-        const url = hero.interiorUrl;
-        setLoaded((l) => (l.includes(url) ? l : [...l, url]));
-      }
+    const plan = planStreaming({
+      cam: camera.position,
+      heroes: heroes.map((h) => ({ id: h.id, center: h.center })),
+      loaded: wantedRef.current,
+      loadWithin: INTERIOR_LOAD_WITHIN,
+      keepWithin: INTERIOR_KEEP_WITHIN,
+      maxLoaded: MAX_LOADED_INTERIORS,
+    });
+    if (!plan.load.length && !plan.evict.length) return;
+    stats.current.loads += plan.load.length;
+    stats.current.evictions += plan.evict.length;
+    wantedRef.current = wantedRef.current.filter((id) => !plan.evict.includes(id)).concat(plan.load);
+    stats.current.maxResident = Math.max(stats.current.maxResident, wantedRef.current.length);
+    setWanted(wantedRef.current);
+    for (const id of plan.load) {
+      const hero = heroes.find((h) => h.id === id);
+      if (!hero?.layoutUrl || layouts.current.has(hero.layoutUrl) || inflight.current.has(hero.layoutUrl)) continue;
+      const url = hero.layoutUrl;
+      inflight.current.add(url); // rooms that share a layout fetch it once
+      fetch(url)
+        .then((r) => r.json() as Promise<InteriorLayout>)
+        .then((l) => {
+          layouts.current.set(url, l);
+          setLayoutsReady((r) => (r.includes(url) ? r : [...r, url]));
+        })
+        .catch(() => {})
+        .finally(() => inflight.current.delete(url));
     }
   });
+
+  useEffect(() => {
+    if (!debug) return;
+    const w = window as unknown as Record<string, unknown>;
+    w.__city3Stream = {
+      snapshot: () => ({
+        resident: [...wantedRef.current],
+        built: [...handles.current.keys()],
+        ...stats.current,
+        drawCallsInteriors: [...handles.current.values()].reduce((a, h) => a + h.drawCalls, 0),
+        memory: { geometries: gl.info.memory.geometries, textures: gl.info.memory.textures },
+        render: { calls: gl.info.render.calls, triangles: gl.info.render.triangles },
+      }),
+      teleport: (x: number, y: number, z: number) => {
+        camera.position.set(x, y, z);
+        controls?.target.set(x, 0, z - 20);
+        controls?.update();
+      },
+    };
+    return () => {
+      delete w.__city3Stream;
+    };
+  }, [debug, gl, camera, controls]);
+
+  return (
+    <Suspense fallback={null}>
+      {wanted.length ? (
+        <StreamedRooms
+          ids={wanted}
+          heroes={heroes}
+          layouts={layouts.current}
+          ready={layoutsReady}
+          handles={handles.current}
+          stats={stats.current}
+        />
+      ) : null}
+    </Suspense>
+  );
+}
+
+/** Mounts one InteriorRoom per resident id once the shared library has loaded. */
+function StreamedRooms({
+  ids,
+  heroes,
+  layouts,
+  ready,
+  handles,
+  stats,
+}: {
+  ids: string[];
+  heroes: City3Hero[];
+  layouts: Map<string, InteriorLayout>;
+  ready: string[];
+  handles: Map<string, InteriorHandle>;
+  stats: { builds: number };
+}) {
+  const gl = useThree((s) => s.gl);
+  const library = useGLTF(CITY3_LIBRARY_URL);
+  const assets = useMemo(() => indexLibrary(library.scene), [library]);
+  // Pay the texture-upload cost once, here, instead of as a hitch the first time a room draws.
+  useEffect(() => {
+    const seen = new Set<THREE.Texture>();
+    library.scene.traverse((o) => {
+      const mat = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
+      const tex = mat?.map;
+      if (tex && !seen.has(tex)) {
+        seen.add(tex);
+        gl.initTexture(tex);
+      }
+    });
+  }, [library, gl]);
+  const primary = CITY3_HEROES.find((h) => h.layoutUrl);
   return (
     <>
-      {loaded.map((url) => (
-        <Suspense key={url} fallback={null}>
-          <WorldEnv url={url} />
-        </Suspense>
-      ))}
+      {ids.map((id) => {
+        const hero = heroes.find((h) => h.id === id);
+        const layout = hero?.layoutUrl ? layouts.get(hero.layoutUrl) : undefined;
+        if (!hero || !layout || !ready.length) return null;
+        const offset: [number, number] = primary
+          ? [hero.center[0] - primary.center[0], hero.center[1] - primary.center[1]]
+          : [0, 0];
+        return (
+          <InteriorRoom key={id} id={id} layout={layout} assets={assets} offset={id === primary?.id ? [0, 0] : offset} handles={handles} stats={stats} />
+        );
+      })}
     </>
   );
+}
+
+function InteriorRoom({
+  id,
+  layout,
+  assets,
+  offset,
+  handles,
+  stats,
+}: {
+  id: string;
+  layout: InteriorLayout;
+  assets: Map<string, THREE.Object3D>;
+  offset: [number, number];
+  handles: Map<string, InteriorHandle>;
+  stats: { builds: number };
+}) {
+  const handle = useMemo(() => buildInterior(layout, assets, offset), [layout, assets, offset]);
+  useEffect(() => {
+    handles.set(id, handle);
+    stats.builds += 1;
+    return () => {
+      handles.delete(id);
+      handle.dispose();
+    };
+  }, [id, handle, handles, stats]);
+  return <primitive object={handle.group} />;
 }
 
 const SKY_URL = "/assets/sky-equi.jpg";
@@ -1139,7 +1301,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           {place === "city3" ? (
             <>
               <HeroCutaway focus={heroFocus} />
-              <LazyInteriors />
+              <InteriorStreamer />
             </>
           ) : null}
           <CrowdCast

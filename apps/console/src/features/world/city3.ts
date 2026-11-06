@@ -17,8 +17,8 @@ export interface City3Hero {
   center: [number, number];
   /** Camera preset that looks into the cut-away room from the street. */
   view: { position: [number, number, number]; target: [number, number, number] };
-  /** Furnishings GLB, loaded on approach; omitted when they live in the city GLB. */
-  interiorUrl?: string;
+  /** Interior layout JSON (placements into the shared library), streamed on approach; omitted when the furnishings live in the city GLB. */
+  layoutUrl?: string;
 }
 
 export const CITY3_HEROES: City3Hero[] = [
@@ -35,15 +35,40 @@ export const CITY3_HEROES: City3Hero[] = [
     prefix: "PressUpper_",
     center: [-25, 78.5],
     view: { position: [-6, 17, 54], target: [-25, 0.6, 78.5] },
-    interiorUrl: "/assets/world-city3-press.glb",
+    layoutUrl: "/assets/interiors/press.json",
   },
 ];
 
 /** Hide the upper floors inside HIDE_WITHIN m, show them again past SHOW_BEYOND m. */
 export const HIDE_WITHIN = 48;
 export const SHOW_BEYOND = 60;
-/** Fetch a hero's furnishings GLB once the camera is this close (m). */
+/** One shared asset library for every streamed interior (loaded once, kept). */
+export const CITY3_LIBRARY_URL = "/assets/world-city3-library.glb";
+/** Start streaming an interior once the camera is this close (m). */
 export const INTERIOR_LOAD_WITHIN = 140;
+/** ...and keep it until the camera is farther than this (m); wider than the load radius so edges don't thrash. */
+export const INTERIOR_KEEP_WITHIN = 200;
+/** Interiors resident at once; the farthest are evicted first. */
+export const MAX_LOADED_INTERIORS = 3;
+
+/**
+ * Debug/test only (?streamDebug=1&fake=N): N extra "rooms" that reuse one layout at
+ * deterministic spots across the island, so streaming has competition to arbitrate.
+ */
+export function syntheticHeroes(n: number, source: City3Hero): City3Hero[] {
+  return Array.from({ length: n }, (_, i) => {
+    const col = i % 5;
+    const row = Math.floor(i / 5);
+    return {
+      id: `fake-${i}`,
+      name: `Fake room ${i}`,
+      prefix: `__none_${i}__`,
+      center: [-150 + col * 75, -120 + row * 80] as [number, number],
+      view: source.view,
+      layoutUrl: source.layoutUrl,
+    };
+  });
+}
 
 /**
  * Whether a hero building's upper floors should be hidden for this camera

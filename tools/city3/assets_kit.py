@@ -15,7 +15,31 @@ def _lib_collection():
     if not c: c=bpy.data.collections.new("AssetLibrary"); bpy.context.scene.collection.children.link(c)
     return c
 def _tris(o): return sum(len(p.vertices)-2 for p in o.data.polygons)
-def load(asset_id,budget,source="polyhaven",name=None):
+def _diffuse_only(obj):
+    """Streaming budget: keep each material's base-colour texture, drop normal/ARM maps, use constant roughness.
+    Three maps per Poly Haven asset would triple texture memory for detail nobody sees from a spectator camera."""
+    for slot in obj.material_slots:
+        m=slot.material
+        if not m or not m.use_nodes: continue
+        nt=m.node_tree; b=next((n for n in nt.nodes if n.type=='BSDF_PRINCIPLED'),None)
+        if not b: continue
+        keep=set()
+        for l in nt.links:
+            if l.to_node==b and l.to_socket.name=='Base Color':
+                src=l.from_node
+                while src and src.type not in ('TEX_IMAGE',):
+                    ins=[x for x in src.inputs if x.is_linked]; src=ins[0].links[0].from_node if ins else None
+                if src: keep.add(src)
+        for n in list(nt.nodes):
+            if n.type in ('TEX_IMAGE','NORMAL_MAP','SEPARATE_COLOR','MIX','MAPPING','TEX_COORD','MATH') and n not in keep and n.type!='TEX_IMAGE':
+                pass
+        for l in list(nt.links):
+            if l.to_node==b and l.to_socket.name in ('Normal','Roughness','Metallic'): nt.links.remove(l)
+        for n in list(nt.nodes):
+            if n.type=='TEX_IMAGE' and n not in keep: nt.nodes.remove(n)
+            elif n.type=='NORMAL_MAP': nt.nodes.remove(n)
+        b.inputs['Roughness'].default_value=0.8; b.inputs['Metallic'].default_value=0.0
+def load(asset_id,budget,source="polyhaven",name=None,tex=None):
     key=name or asset_id
     if key in LIB: return LIB[key]
     before=set(bpy.data.objects); imgs_before=set(bpy.data.images)
@@ -45,8 +69,10 @@ def load(asset_id,budget,source="polyhaven",name=None):
     obj.location=(0,0,0); obj.name=f"LIB_{key}"; obj.data.name=f"LIB_{key}"
     for c in list(obj.users_collection): c.objects.unlink(obj)
     _lib_collection().objects.link(obj)
+    if source=="polyhaven": _diffuse_only(obj)
+    T=tex or TEX
     for img in set(bpy.data.images)-imgs_before:
-        if img.size[0]>TEX: img.scale(TEX,max(1,int(img.size[1]*TEX/img.size[0])))
+        if img.size[0]>T: img.scale(T,max(1,int(img.size[1]*T/img.size[0])))
     if source=="quaternius": _recolor(obj)
     LIB[key]={"obj":obj,"dims":tuple(round(d,3) for d in (mx-mn)),"tris_raw":raw,"tris":_tris(obj),"source":source,"id":asset_id}
     return LIB[key]
