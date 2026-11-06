@@ -16,6 +16,9 @@ cp <repo>/docs/procedural-city/harness/* .
 | `tv4.html/.mjs`, `turn_verify.html/.mjs` | Turn-clip planting and pelvis-vs-heading checks |
 | `agora_rev.mjs` | Live Agora reversal with Embody (`?embody=1&bodyDebug=1`), 480x320 viewport |
 | `skin.html/.mjs` | CPU cost of N skinned characters (mixer + submit) |
+| `gait_stride.mjs` | Headless (node + three, textures stripped): Walk/Run stance-foot speed, foot heights, touchdown phases, hips drift. Copy into `apps/console/` (ESM needs its `three`), `node gait_stride.mjs public/assets/cast-summer.glb 0.02` (arg 2 = contact band; calibrate on Walk) |
+| `gait_slip.mjs` | Headless foot-slip of the CastFigure gait blend (Walk 1.3, blend 1.9, Run 2.7, backpedal; `FLOOR=1` = each clip at its natural speed). Run from `apps/console/` |
+| `walkshots.cjs` | Real console City 3 walker: follow-cam screenshot sequences of idle/walk/run/strafe/backward (`NODE_PATH=/opt/node22/lib/node_modules node walkshots.cjs <vite port> <outdir> [phase,...]`) |
 
 Inspect a GLB's JSON in Python:
 ```python

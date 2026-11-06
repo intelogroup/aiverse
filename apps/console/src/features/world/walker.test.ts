@@ -2,7 +2,7 @@
 // Pure kinematics against fake worlds — no three, no DOM.
 
 import { describe, expect, it } from "vitest";
-import { MOVING_SPEED, WALK_CONFIG, clipFor, findSpawn, makeWalker, moveToIntent, step, wrapAngle, type Hit, type World, type WalkInput } from "./walker";
+import { MOVING_SPEED, WALK_CONFIG, clipFor, findSpawn, makeWalker, moveToIntent, step, stepBody, wrapAngle, type Hit, type World, type WalkInput } from "./walker";
 
 const IDLE: WalkInput = { forward: 0, strafe: 0, turn: 0, run: false };
 const FWD: WalkInput = { forward: 1, strafe: 0, turn: 0, run: false };
@@ -210,5 +210,69 @@ describe("findSpawn", () => {
   });
   it("returns null when nothing is free", () => {
     expect(findSpawn({ groundY: () => null, blocked: () => null })).toBeNull();
+  });
+});
+
+describe("body heading (third person: body faces travel, view stays)", () => {
+  const BACK: WalkInput = { forward: -1, strafe: 0, turn: 0, run: false };
+  const deg = (r: number) => (r * 180) / Math.PI;
+
+  it("clipFor reads run at run speed", () => {
+    const s = run(makeWalker(0, 0.2, 0, 0), { ...FWD, run: true }, 1, fakeWorld());
+    expect(clipFor(s.speed)).toBe("run");
+    expect(clipFor(WALK_CONFIG.walkSpeed)).toBe("walk");
+  });
+
+  it("strafe right turns the body to the right (-x) while the view heading stays", () => {
+    const s = run(makeWalker(0, 0.2, 0, 0), { ...IDLE, strafe: 1 }, 1, fakeWorld());
+    expect(s.heading).toBeCloseTo(0, 9);
+    expect(deg(s.body)).toBeCloseTo(-90, 3); // facing (sin, cos) = (-1, 0)
+    expect(s.backward).toBe(false);
+  });
+
+  it("turns at the body turn rate, not instantly", () => {
+    const s = makeWalker(0, 0.2, 0, 0);
+    step(s, { ...IDLE, strafe: 1 }, 0.05, fakeWorld());
+    expect(Math.abs(s.body)).toBeCloseTo(WALK_CONFIG.bodyTurnRate * 0.05, 6);
+  });
+
+  it("walking backward backpedals: body keeps facing the view, flagged backward", () => {
+    const s = run(makeWalker(0, 0.2, 0, 0.5), BACK, 1, fakeWorld());
+    expect(s.backward).toBe(true);
+    expect(s.body).toBeCloseTo(0.5, 6);
+    expect(s.heading).toBeCloseTo(0.5, 9);
+  });
+
+  it("back-diagonal backpedals facing 45 deg off the view; side-strafe does not", () => {
+    const s = run(makeWalker(0, 0.2, 0, 0), { ...BACK, strafe: 1 }, 1, fakeWorld());
+    expect(s.backward).toBe(true);
+    expect(deg(s.body)).toBeCloseTo(45, 3); // travel is back-right (-x,-z); faces away from it: front-left
+  });
+
+  it("running backward turns the body round instead of backpedalling", () => {
+    const s = run(makeWalker(0, 0.2, 0, 0), { ...BACK, run: true }, 1, fakeWorld());
+    expect(s.backward).toBe(false);
+    expect(Math.abs(deg(s.body))).toBeCloseTo(180, 3);
+    expect(clipFor(s.speed)).toBe("run");
+  });
+
+  it("standing still the body returns to the view heading", () => {
+    const w = fakeWorld();
+    const s = run(makeWalker(0, 0.2, 0, 0), { ...IDLE, strafe: 1 }, 1, w);
+    run(s, IDLE, 1, w);
+    expect(s.body).toBeCloseTo(0, 6);
+    expect(s.backward).toBe(false);
+  });
+
+  it("backpedal hysteresis: 110 deg off the view keeps an existing backpedal, does not start one", () => {
+    const a = makeWalker(0, 0.2, 0, 0);
+    a.backward = true;
+    const off = (110 * Math.PI) / 180;
+    const wish: [number, number] = [Math.sin(off), Math.cos(off)];
+    stepBody(a, wish, false, 0.01);
+    expect(a.backward).toBe(true);
+    const b = makeWalker(0, 0.2, 0, 0);
+    stepBody(b, wish, false, 0.01);
+    expect(b.backward).toBe(false);
   });
 });

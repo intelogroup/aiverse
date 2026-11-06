@@ -177,7 +177,9 @@ export function CityWalker({
     const f = frames.current[0];
     f.position[0] = s.x; f.position[1] = s.z;
     f.velocity[0] = s.vx; f.velocity[1] = s.vz;
-    f.speed = s.speed; f.heading = s.heading; f.state = clipFor(s.speed);
+    // Figure faces the BODY heading (turns toward travel; backpedal reverses Walk); cameras below use the VIEW heading.
+    f.speed = s.speed; f.heading = s.body; f.state = clipFor(s.speed);
+    (f.gait ??= { reverse: false }).reverse = s.backward;
     if (figure.current) figure.current.position.y = s.y;
 
     // Streaming/theme follow the bot, not the (parked) orbit camera.
