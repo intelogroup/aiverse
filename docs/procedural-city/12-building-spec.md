@@ -24,6 +24,11 @@ Companion to 10-building-inventory.md (what exists) and 11-decor-probe-*.md (can
 Avoid trademarked bottle packs (Absolut, Jack Daniels, Heineken, Coca-Cola).
 Order: bottles -> furniture -> wall decor.
 
+## Bazaar stalls (done 2026-11-06)
+Goods live in `tools/city3/goods.py` (procedural pieces) and `goods_stock.py` (stock per stall + row layout). Counter geometry the layout assumes: procedural stall = counter top Z+1.0, 3.6 x 2.7 m,
+awning front edge Z+2.35 at d=+1.9 (customer side, -y for facing S), hung goods at d=+1.55, top Z+2.375; village stall (`MEDSTALLS`) = counter top Z+1.164, +-1.15 m x +-0.6 m, rows d=-0.22 / +0.28, no hung goods.
+Rules: new stock = add a piece to `goods.REG` and a branch to `goods_stock.layout`; keep the dedicated Random streams (5150+i, 6100+i, 5300); the old stall loop still *draws* its removed cuboids / sack blobs / price panel from the city rng so later layouts do not shift.
+
 ## Entrances
 Geometry-only doors, 4-6 instanced styles (frame, leaf, handle, step, awning/lamp). Bazaar shops first, then Glass podiums, Foundry bays, Terraces gates, 11 grand Halo entrances. Doors do not open yet; `heroes.json` door positions must not move.
 

@@ -42,6 +42,19 @@ Not used, on purpose:
 - **Synty POLYGON**: paid EULA, no clear answer on shipping raw models in a browser build.
 - **Kenney**: CC0, but kenney.nl and its GitHub return 403 from this build environment.
 
+## Bazaar stall goods (world-city3.glb, `goods.py` + `goods_stock.py`)
+
+| Asset | Source | Licence | Use |
+|---|---|---|---|
+| Basket (2180 -> 240 tris), Grain Sack (938 -> 320), Sack (1529 -> 340), Roll (190), Cheese Wheel (1270 -> 260), Barrel (2348 -> 320) | Sketchfab "Low Poly Medieval, CC0" pack by Avramania (uids aef0f7e9, 7db2a145, 3deb43fe, 9cd0c6d3, c66175e5, 72b75758), fetched with `fetch_sketchfab.py` into `assets/sketchfab/g_*` (gitignored) | CC0 | baskets (with procedural fruit / bread heaps), sacks of grain, bread rolls, cheese, wine barrels |
+| Pot (680 -> 320), Lantern (338 -> 170) | same pack, already local (`assets/sketchfab/pot`, `lantern`) | CC0 | pottery stalls, lamp stalls and hung lanterns |
+| Wooden Bucket 01 (5116 -> 300), Metal Jug (6040 -> 300) | Poly Haven (`wooden_bucket_01`, `metal_jug`) via `assets/fetch_polyhaven.py` | CC0 | dairy / basket stalls |
+| 61 procedural pieces (fruit and veg crates, fruit heaps, pyramids, spice trays, bolts and rolls of cloth, folded cloth, drapes, pots, bowls, plates, bottles, goblets, ewers, loaves, baguettes, cheese wedges, hanging chilli / garlic / onion / pepper / herb strings) | `goods.py`, palette material, no texture | n/a | everything with real colour variation (icosphere fruit, 20 tris each) |
+
+`g_fruitbasket` (Fruit Basket, 3646 tris, uid 736ae73e) is fetched but unused (the procedural heaps in a real basket read better and cost less).
+Every piece is a linked duplicate under an `inst_goods_<key>` Empty (GPU instancing). Stock per stall = `goods_stock.stock_of(i)` (11 stocks, `random.Random(5150+i)`),
+layout = `goods_stock.layout(i, med)` (`random.Random(6100+i)`); neither touches the city rng. Run `python3 -I goods_report.py out.json` to list stall -> stock.
+
 ## Bazaar party corner (world-city3.glb)
 
 | Asset | Source | Licence |

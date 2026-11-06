@@ -306,6 +306,7 @@ def blob(cx,cy,cz,r,nm,seg=8,ring=5):
 # ---------------- stalls ----------------
 ROW={"teal":0,"saffron":1,"crimson":2,"cream":3}
 GOODS=["crimson","gold","leaf","cream","water_deep","trunk_dark","orange","yellow","lime","magenta"]
+SIDE_SACKS=[]
 MEDSTALLS={i for i,_ in enumerate(P["stalls"]) if random.Random(4000+i).random()<0.35}   # ~1/3 of stalls are the CC0 Sketchfab village stall
 for si_,s in enumerate(P["stalls"]):
     if si_ in MEDSTALLS: continue
@@ -315,12 +316,12 @@ for si_,s in enumerate(P["stalls"]):
         for py_ in (-hy,hy): pbox(cx+px_-0.06,cy+py_-0.06,cx+px_+0.06,cy+py_+0.06,z,z+2.7,"trunk")
     row=ROW[s["canopy"]]; v0=row/4+0.02; v1=(row+1)/4-0.02; hi=z+2.85; lo=z+2.35; yb=cy+sg*(hy+0.4); yf=cy-sg*(hy+0.4)
     for sgn in (1,-1): mb("awning").quad((cx-hx-0.3,yb,hi),(cx+hx+0.3,yb,hi),(cx+hx+0.3,yf,lo),(cx-hx-0.3,yf,lo),(0,v1),(w/2.2,v1),(w/2.2,v0),(0,v0),(0,sgn*sg*-0.45,sgn*0.9))
-    for gi in range(5): gx=cx-hx+0.45+gi*0.6; pbox(gx,cy-0.35,gx+0.45,cy+0.35,z+1.0,z+1.0+rng.uniform(0.18,0.34),rng.choice(GOODS))
+    for gi in range(5): rng.uniform(0.18,0.34); rng.choice(GOODS)               # the old tinted cuboids: draws kept so the city rng stream is unchanged; real goods are placed by goods.py below
     if rng.random()<0.5: barrel(cx+sg*0+hx+0.7,cy,z)
     for q in range(rng.choice([0,1,2])):                                       # sacks + crate stack beside the stall
-        sx=cx+hx+0.9+q*0.8; pbox(sx-0.3,cy-0.9,sx+0.3,cy-0.3,z,z+0.35,"wood"); pbox(sx-0.25,cy-0.85,sx+0.25,cy-0.35,z+0.35,z+0.7,"wood_dark"); blob(sx,cy+0.6,z+0.3,0.32,rng.choice(["cream","sand","cloth_gold"]),6,4) if False else blob(sx,cy+0.6,z+0.3,0.32,rng.choice(["cream","orange","crimson"]),6,4)
-    if rng.random()<0.6: pbox(cx-0.9,cy-hy-0.5,cx+0.9,cy-hy-0.46,z+1.2,z+1.7,rng.choice(["crimson","teal","cloth_gold"]) if False else "crimson"); pbox(cx-0.05,cy-hy-0.5,cx+0.05,cy-hy-0.44,z+1.0,z+1.2,"wood_dark")
-    for gi in range(3): blob(cx-hx+0.7+gi*1.2,cy-0.0,z+1.12,0.2,rng.choice(["orange","lime","crimson","yellow"]),6,4)
+        sx=cx+hx+0.9+q*0.8; pbox(sx-0.3,cy-0.9,sx+0.3,cy-0.3,z,z+0.35,"wood"); pbox(sx-0.25,cy-0.85,sx+0.25,cy-0.35,z+0.35,z+0.7,"wood_dark"); rng.choice(["cream","orange","crimson"]); SIDE_SACKS.append((sx,cy+0.6))   # blob sack -> real sack (goods.py section)
+    rng.random()                                                                # the floating red price panel is gone (it hid the goods at eye height); draw kept
+    for gi in range(3): rng.choice(["orange","lime","crimson","yellow"])
 # ---------------- lamps, bunting, trees ----------------
 for (lx,ly) in P["lamps"]:
     if abs(lx)<58 and abs(ly)<58: continue
@@ -428,13 +429,40 @@ for si_,s_ in enumerate(P["stalls"]):
     if si_ in MEDSTALLS:                                                      # model front (scalloped awning edge) is -y; facing S keeps it, N turns it round
         src,_s=SK["med_stall"]; o=src.copy(); o.data=src.data; o.name="SK_med_stall"; o.location=(cx,cy,Z); o.rotation_euler=(0,0,0.0 if s_["facing"]=="S" else math.pi); o.scale=(1.4,1.4,1.2); _skc.objects.link(o)
         hx_,hy_=1.55,0.9
-    _skput("producecrate",cx+_rs.uniform(-0.6,0.6),cy+_rs.uniform(-0.15,0.15),Z+(1.1 if si_ in MEDSTALLS else 1.0),_rs.uniform(0,6.28))
+    _rs.uniform(-0.6,0.6); _rs.uniform(-0.15,0.15); _rs.uniform(0,6.28)          # the old produce crate (tinted cuboids): draws kept, goods come from goods.py
     for sgn in (-1,1): _skput("lantern",cx+sgn*(hx_-0.1),cy+(hy_+0.35)*(1 if s_["facing"]=="S" else -1),Z+2.2)
     if _rs.random()<0.7: _skput("pot",cx-hx_-0.6,cy+_rs.uniform(-0.8,0.8),Z,_rs.uniform(0,6.28))
 for (bx_,by_,hz_) in BENCHES: _skput("med_bench",bx_,by_,Z,0.0 if hz_ else -math.pi/2)     # backrest on +y (horizontal) / +x, as the procedural bench had it
 for s_ in P["stalls"]:
     cx,cy=s_["c"]; w_,d_=s_["size"]
     if _rs.random()<0.6: _skput("med_crate",cx+(w_/2+0.45)*_rs.choice([-1,1]),cy+_rs.uniform(-0.5,0.5),Z,_rs.uniform(0,6.28))
+# ---------------- stall goods (goods.py / goods_stock.py): every stall sells something; own Random streams, linked duplicates under inst_goods_* Empties ----------------
+import goods, goods_stock
+_gc=bpy.data.collections.new("StallGoods"); bpy.context.scene.collection.children.link(_gc)
+GP=goods.make_objects(bpy,MATS["palette"],assets_kit._lib_collection())
+GR={k:(assets_kit.load(d,b,source=src,name=f"goods_{d}",tex=tx)["obj"],sc) for k,(d,src,b,tx,sc,wd) in goods.REAL.items()}
+GROOT={}
+def _gput(key,x,y,z,rot,sc=1.0):
+    src,k0=(GP[key][0],1.0) if key in GP else GR[key]
+    if key not in GROOT: GROOT[key]=bpy.data.objects.new(f"inst_goods_{key}",None); bpy.context.scene.collection.objects.link(GROOT[key])
+    o=src.copy(); o.data=src.data; o.name=f"G_{key}"; o.location=(x,y,z); o.rotation_euler=(0,0,rot); o.scale=(k0*sc,)*3; o.parent=GROOT[key]; _gc.objects.link(o)
+    GCOUNT[key]=GCOUNT.get(key,0)+1
+GCOUNT={}; GTRI=0
+for si_,s_ in enumerate(P["stalls"]):
+    cx,cy=s_["c"]; med=si_ in MEDSTALLS; r0=0.0 if s_["facing"]=="S" else math.pi; c0,s0=math.cos(r0),math.sin(r0); zc=Z+(1.164 if med else 1.0)
+    for (key,u,d,rot,sc,dz,hang) in goods_stock.layout(si_,med):
+        lx,ly=u,-d; wx=cx+lx*c0-ly*s0; wy=cy+lx*s0+ly*c0
+        if hang:
+            h=GP[key][1] if key in GP else 0.0
+            if key=="r_basket": h=0.37
+            if key=="r_lantern": h=0.29
+            _gput(key,wx,wy,Z+2.375-(0.0 if key in GP else h),r0+rot,sc)
+        else: _gput(key,wx,wy,zc+dz,r0+rot+(math.pi if False else 0.0),sc)
+_gr=random.Random(5300)
+for (sx_,sy_) in SIDE_SACKS: _gput(_gr.choice(["r_grainsack","r_sack"]),sx_,sy_,Z,_gr.uniform(0,6.28),_gr.uniform(1.0,1.25))
+def _gt(k): return GP[k][2] if k in GP else next(v["tris"] for v in assets_kit.LIB.values() if v["obj"] is GR[k][0])
+print("GOODS stocks",{k:sum(1 for i in range(len(P["stalls"])) if goods_stock.stock_of(i)==k) for k in goods_stock.STOCK_W},"instances",sum(GCOUNT.values()),"meshes",len(GCOUNT),"tris",sum(GCOUNT[k]*_gt(k) for k in GCOUNT))
+print("GOODS top",sorted(((GCOUNT[k]*_gt(k),k,GCOUNT[k],_gt(k)) for k in GCOUNT),reverse=True)[:22])
 # ---------------- party corner: user-supplied party cups + beer-pong tables (USDZ), GPU-instanced under one Empty ----------------
 _pe=bpy.data.objects.new("PartyCups",None); bpy.context.scene.collection.objects.link(_pe)
 def _pc(n,b=320): return assets_kit.load(f"partycups/{n}",b,source="usdz",name=f"pc_{n}",tex=128)

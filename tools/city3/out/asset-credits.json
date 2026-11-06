@@ -45,6 +45,56 @@
   "license": "CC0"
  },
  {
+  "asset": "goods_g_basket",
+  "source": "https://sketchfab.com/3d-models/basket-low-poly-medieval-cc0-aef0f7e9add24013acd7c7d9867d800d",
+  "license": "CC0"
+ },
+ {
+  "asset": "goods_g_grainsack",
+  "source": "https://sketchfab.com/3d-models/grain-sack-low-poly-medieval-cc0-7db2a14529fd4e1f9391c68337f71eac",
+  "license": "CC0"
+ },
+ {
+  "asset": "goods_g_sack",
+  "source": "https://sketchfab.com/3d-models/sack-low-poly-medieval-cc0-3deb43fe85ea43248cae8ed12837ea4e",
+  "license": "CC0"
+ },
+ {
+  "asset": "goods_g_roll",
+  "source": "https://sketchfab.com/3d-models/roll-low-poly-medieval-cc0-9cd0c6d36336456e86c2a79e968e47b6",
+  "license": "CC0"
+ },
+ {
+  "asset": "goods_g_cheese",
+  "source": "https://sketchfab.com/3d-models/cheese-wheel-low-poly-medieval-cc0-c66175e51d044dfda9e6edff21d4d38a",
+  "license": "CC0"
+ },
+ {
+  "asset": "goods_g_barrel",
+  "source": "https://sketchfab.com/3d-models/barrel-low-poly-medieval-cc0-72b757582d034946bf5cb44226b471a5",
+  "license": "CC0"
+ },
+ {
+  "asset": "goods_pot",
+  "source": "https://sketchfab.com/3d-models/pot-low-poly-medieval-cc0-6f619f25f5454455b9d86873160937aa",
+  "license": "CC0"
+ },
+ {
+  "asset": "goods_lantern",
+  "source": "https://sketchfab.com/3d-models/lantern-low-poly-medieval-cc0-8a3dc887ea9d48c19ad48469ba11e753",
+  "license": "CC0"
+ },
+ {
+  "asset": "goods_wooden_bucket_01",
+  "source": "https://polyhaven.com/a/wooden_bucket_01",
+  "license": "CC0"
+ },
+ {
+  "asset": "goods_metal_jug",
+  "source": "https://polyhaven.com/a/metal_jug",
+  "license": "CC0"
+ },
+ {
   "asset": "ArmChair_01",
   "source": "https://polyhaven.com/a/ArmChair_01",
   "license": "CC0"
