@@ -254,6 +254,17 @@ for k in range(N):
 for k in range(8):                                                           # fountain jets + benches around the basin
     a=2*math.pi*k/8+math.pi/8; x=8.0*math.cos(a); y=8.0*math.sin(a); cyl(x,y,Z+0.6,Z+1.5,0.08,6,"stone_lt",r1=0.05); cyl(x,y,Z+1.5,Z+1.55,0.18,6,"water")
     bx=13.0*math.cos(a); by=13.0*math.sin(a); bench(bx,by,Z,abs(math.cos(a))<0.7)
+def blob(cx,cy,cz,r,nm,seg=8,ring=5):
+    def Pt(i,j):
+        if j==0: return (cx,cy,cz-r*0.8)
+        if j==ring: return (cx,cy,cz+r)
+        ph=math.pi*j/ring; th=2*math.pi*(i%seg)/seg; rr=r*(0.93+0.14*((i*7+j*13)%5)/5); return (cx+rr*math.sin(ph)*math.cos(th),cy+rr*math.sin(ph)*math.sin(th),cz+rr*math.cos(ph))
+    for j in range(ring):
+        for i in range(seg):
+            a,b_,c,d=Pt(i,j),Pt(i+1,j),Pt(i+1,j+1),Pt(i,j+1); o=((a[0]+c[0])/2-cx,(a[1]+c[1])/2-cy,(a[2]+c[2])/2-cz)
+            if j==0: ptri("palette",a,c,d,nm,o)
+            elif j==ring-1: ptri("palette",a,b_,c,nm,o)
+            else: pquad("palette",a,b_,c,d,nm,o)
 # ---------------- stalls ----------------
 ROW={"teal":0,"saffron":1,"crimson":2,"cream":3}
 GOODS=["crimson","gold","leaf","cream","water_deep","trunk_dark","orange","yellow","lime","magenta"]
@@ -266,6 +277,10 @@ for s in P["stalls"]:
     for sgn in (1,-1): mb("awning").quad((cx-hx-0.3,yb,hi),(cx+hx+0.3,yb,hi),(cx+hx+0.3,yf,lo),(cx-hx-0.3,yf,lo),(0,v1),(w/2.2,v1),(w/2.2,v0),(0,v0),(0,sgn*sg*-0.45,sgn*0.9))
     for gi in range(5): gx=cx-hx+0.45+gi*0.6; pbox(gx,cy-0.35,gx+0.45,cy+0.35,z+1.0,z+1.0+rng.uniform(0.18,0.34),rng.choice(GOODS))
     if rng.random()<0.5: barrel(cx+sg*0+hx+0.7,cy,z)
+    for q in range(rng.choice([0,1,2])):                                       # sacks + crate stack beside the stall
+        sx=cx+hx+0.9+q*0.8; pbox(sx-0.3,cy-0.9,sx+0.3,cy-0.3,z,z+0.35,"wood"); pbox(sx-0.25,cy-0.85,sx+0.25,cy-0.35,z+0.35,z+0.7,"wood_dark"); blob(sx,cy+0.6,z+0.3,0.32,rng.choice(["cream","sand","cloth_gold"]),6,4) if False else blob(sx,cy+0.6,z+0.3,0.32,rng.choice(["cream","orange","crimson"]),6,4)
+    if rng.random()<0.6: pbox(cx-0.9,cy-hy-0.5,cx+0.9,cy-hy-0.46,z+1.2,z+1.7,rng.choice(["crimson","teal","cloth_gold"]) if False else "crimson"); pbox(cx-0.05,cy-hy-0.5,cx+0.05,cy-hy-0.44,z+1.0,z+1.2,"wood_dark")
+    for gi in range(3): blob(cx-hx+0.7+gi*1.2,cy-0.0,z+1.12,0.2,rng.choice(["orange","lime","crimson","yellow"]),6,4)
 # ---------------- lamps, bunting, trees ----------------
 for (lx,ly) in P["lamps"]:
     if abs(lx)<58 and abs(ly)<58: continue
@@ -283,10 +298,9 @@ for k in range(8):                                                           # p
     a=2*math.pi*k/8+math.pi/8; P0=(22*math.cos(a),22*math.sin(a)); cyl(P0[0],P0[1],Z,Z+6.0,0.09,6,"iron",top=False)
     a2=2*math.pi*(k+1)/8+math.pi/8; P1=(22*math.cos(a2),22*math.sin(a2)); string_lights((P0[0],P0[1],Z+5.9),(P1[0],P1[1],Z+5.9))
 def tree(x,y):
-    h=rng.uniform(2.0,2.8); pbox(x-0.18,y-0.18,x+0.18,y+0.18,Z,Z+h,"trunk_dark"); R=rng.uniform(1.6,2.3); H=rng.uniform(3.0,4.2); nm=rng.choice(["leaf","leaf_dark"]); k=7
-    for i in range(k):
-        a0=2*math.pi*i/k; a1=2*math.pi*(i+1)/k; am=(a0+a1)/2; t=(x,y,Z+h+H); b=(x,y,Z+h-0.3); m=(x+R*math.cos(a0),y+R*math.sin(a0),Z+h+H*0.35); m2=(x+R*math.cos(a1),y+R*math.sin(a1),Z+h+H*0.35)
-        ptri("palette",m,m2,t,nm,(math.cos(am),math.sin(am),0.5)); ptri("palette",m2,m,b,nm,(math.cos(am),math.sin(am),-0.5))
+    h=rng.uniform(4.0,6.0); cyl(x,y,Z,Z+h*0.6,0.17,7,"trunk_dark",top=False,r1=0.1); R=h*0.4
+    for k in range(rng.choice([3,4])):
+        a=rng.uniform(0,6.28); d=rng.uniform(0,R*0.7); blob(x+math.cos(a)*d,y+math.sin(a)*d,Z+h*0.72+rng.uniform(-0.3,0.8)*R*0.5,R*rng.uniform(0.6,0.9),rng.choice(["leaf","leaf_dark"]))
 for (x,y) in P["trees"]: tree(x,y)
 for t_ in range(-52,53,13):                                                  # plaza rim: trees in planters + benches facing the square
     for (x,y,al) in ((t_,-57.0,True),(t_,57.0,True),(-57.0,t_,False),(57.0,t_,False)):
@@ -322,6 +336,21 @@ for g,parts in LIBG.items():                    # procedural library pieces: one
     for m in mats: me.materials.append(MATS[m])
     me.polygons.foreach_set("material_index",midx)
     ob=bpy.data.objects.new(g,me); bpy.context.scene.collection.objects.link(ob)
+# ---------------- Sketchfab CC0 props baked into the city (linked duplicates: one mesh, many nodes) ----------------
+def _sk(name,h):
+    L=assets_kit.load(name,600,source="sketchfab",name=f"sk_{name}",tex=256); return L["obj"],h/max(L["dims"][2],1e-3)
+_skc=bpy.data.collections.new("SkProps"); bpy.context.scene.collection.children.link(_skc)
+_rs=random.Random(909)
+for o_ in list(bpy.data.objects):
+    pass
+SK={n:_sk(n,h) for n,h in (("lantern",0.42),("pot",0.5),("producecrate",0.3))}
+def _skput(n,x,y,z,rot=0.0):
+    src,s=SK[n]; o=src.copy(); o.data=src.data; o.name=f"SK_{n}"; o.location=(x,y,z); o.rotation_euler=(0,0,rot); o.scale=(s,s,s); _skc.objects.link(o)
+for s_ in P["stalls"]:
+    cx,cy=s_["c"]; w_,d_=s_["size"]; hx_,hy_=w_/2,d_/2
+    _skput("producecrate",cx+_rs.uniform(-0.6,0.6),cy+_rs.uniform(-0.15,0.15),Z+1.0,_rs.uniform(0,6.28))
+    for sgn in (-1,1): _skput("lantern",cx+sgn*(hx_-0.1),cy+(hy_+0.35)*(1 if s_["facing"]=="S" else -1),Z+2.2)
+    if _rs.random()<0.7: _skput("pot",cx-hx_-0.6,cy+_rs.uniform(-0.8,0.8),Z,_rs.uniform(0,6.28))
 print("PROF",{k:v for k,v in sorted(kit.PROF.items(),key=lambda kv:-kv[1])})
 print("MESHES",len(MBS),"TRIS",sum(len(b.f) for b in MBS.values()))
 print({k:len(b.f) for k,b in sorted(MBS.items(),key=lambda kv:-len(kv[1].f))[:8]})
@@ -364,7 +393,7 @@ for bid,ps in by_bid.items():
     json.dump({"id":bid,"library":"world-city3-library.glb","props":props},open(f"{HERE}/out/interiors/{bid}.json","w"),separators=(",",":"))
 sz=[os.path.getsize(f"{HERE}/out/interiors/{k}.json") for k in by_bid]
 print("LAYOUTS",len(by_bid),"files; props min/avg/max",min(len(v) for v in by_bid.values()),sum(len(v) for v in by_bid.values())//len(by_bid),max(len(v) for v in by_bid.values()),"| bytes total",sum(sz))
-CREDITS=[{"asset":k,"source":("https://opengameart.org/content/furniture-low-poly" if v["source"]=="quaternius" else f"https://polyhaven.com/a/{v['id']}"),"license":"CC0"} for k,v in assets_kit.LIB.items()]
+CREDITS=[{"asset":k,"source":("https://opengameart.org/content/furniture-low-poly" if v["source"]=="quaternius" else (json.load(open(f"{HERE}/assets/sketchfab/{v['id']}/meta.json"))["source"] if v["source"]=="sketchfab" else f"https://polyhaven.com/a/{v['id']}")),"license":"CC0"} for k,v in assets_kit.LIB.items()]
 json.dump(CREDITS,open(f"{HERE}/out/asset-credits.json","w"),indent=1)
 GROUND_TOP=Z+GH+0.05
 rooms_idx=[]

@@ -1,5 +1,20 @@
 [
  {
+  "asset": "sk_lantern",
+  "source": "https://sketchfab.com/3d-models/lantern-low-poly-medieval-cc0-8a3dc887ea9d48c19ad48469ba11e753",
+  "license": "CC0"
+ },
+ {
+  "asset": "sk_pot",
+  "source": "https://sketchfab.com/3d-models/pot-low-poly-medieval-cc0-6f619f25f5454455b9d86873160937aa",
+  "license": "CC0"
+ },
+ {
+  "asset": "sk_producecrate",
+  "source": "https://sketchfab.com/3d-models/produce-crate-low-poly-medieval-cc0-bcf35bfc9d584d65a0bc886f52a656c2",
+  "license": "CC0"
+ },
+ {
   "asset": "ArmChair_01",
   "source": "https://polyhaven.com/a/ArmChair_01",
   "license": "CC0"
