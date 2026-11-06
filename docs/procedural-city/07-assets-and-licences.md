@@ -22,11 +22,11 @@ API works with a user token (`SKETCHFAB_TOKEN` env var; never commit it). Search
 (the filter is `licenses=<slug>`, not `license=`). `assets/fetch_sketchfab.py name=uid ...` skips anything not CC0 and writes `meta.json` credit.
 Used: Low Poly Medieval CC0 lantern/pot/produce crate, baked into the Bazaar stalls as linked duplicates (`assets_kit.load(source="sketchfab")`).
 
-## Poliigon free models (NOT CC0)
-Microwave002, GlasswareWhiskeySet002, UtensilsJar001 (ToiletModern001 imported but unused) from poliigon.com/free, supplied by the user as zips
-(`tools/city3/assets/poliigon/`, gitignored). Licence terms were not verified (poliigon.com returns 403 to automated fetches) - read the licence
-before any public release; their baked copies live in `world-city3-library.glb`. Loaded via `assets_kit.load(..., source="poliigon")`; used on cafe
-bar counters and the shop cashier counter (`rooms.py`). Scale verified (0.58 m microwave, 0.33 m jar); not yet confirmed visually in a rendered room.
+## Poliigon: NOT usable in shipped output (decision 2026-11-06)
+Poliigon's licence (help.poliigon.com/en/articles/8749749) allows free assets on commercial projects but forbids redistribution, explicitly
+"baking textures or embedding models and textures". Our GLBs are public downloads, so no Poliigon asset may be baked into them or committed.
+Removed from the build; counters now use Poly Haven CC0 (CashRegister_01, ceramic_pot, metal_jug, brass_goblets). Poliigon is fine for private
+offline renders only. The earlier commit 9d61a42..(this branch) still holds the old library GLB in git history.
 
 ## Sketchfab search notes
 Search needs no token. Result `license` is `{uid,label}` (no slug) - match "CC0" in the label. Server `licenses=cc0` works but CC0 downloadable

@@ -392,10 +392,10 @@ BUDGET={"wooden_bookshelf_worn":3000,"book_encyclopedia_set_01":4000,"desk_lamp_
         "vintage_oil_lamp":1500,"wall_clock":1000,"binder_notebook":600,"ChairCushioned":4000}
 TEXPX={"wooden_bookshelf_worn":512,"drawer_cabinet":512,"vintage_grandfather_clock_01":512,"ArmChair_01":512,"potted_plant_02":512,"wooden_crate_01":256,
        "book_encyclopedia_set_01":256,"desk_lamp_arm_01":256,"vintage_radio_transceiver":256,"WoodenTable_02":256,"vintage_oil_lamp":128,"wall_clock":256,"binder_notebook":256}
-QUAT={"ChairCushioned"}; POLI={"Microwave002","GlasswareWhiskeySet002","UtensilsJar001","ToiletModern001"}
+QUAT={"ChairCushioned"}
 USED={p[1] for p in kit.PLACEMENTS}
 for key in sorted(USED-set(press.PIECE_NAMES)-set(rooms.PIECES)):
-    assets_kit.load(key,BUDGET.get(key,2000),source="quaternius" if key in QUAT else ("poliigon" if key in POLI else "polyhaven"),tex=TEXPX.get(key,256))
+    assets_kit.load(key,BUDGET.get(key,2000),source="quaternius" if key in QUAT else "polyhaven",tex=TEXPX.get(key,256))
 bpy.context.view_layer.layer_collection.children["AssetLibrary"].exclude=False
 for o in list(bpy.data.objects):
     if o.name.startswith("LIB_") and o.name[4:] not in USED: bpy.data.objects.remove(o,do_unlink=True)      # pieces no room placed
@@ -414,7 +414,7 @@ for bid,ps in by_bid.items():
     json.dump({"id":bid,"library":"world-city3-library.glb","props":props},open(f"{HERE}/out/interiors/{bid}.json","w"),separators=(",",":"))
 sz=[os.path.getsize(f"{HERE}/out/interiors/{k}.json") for k in by_bid]
 print("LAYOUTS",len(by_bid),"files; props min/avg/max",min(len(v) for v in by_bid.values()),sum(len(v) for v in by_bid.values())//len(by_bid),max(len(v) for v in by_bid.values()),"| bytes total",sum(sz))
-CREDITS=[{"asset":k,"source":("https://opengameart.org/content/furniture-low-poly" if v["source"]=="quaternius" else (json.load(open(f"{HERE}/assets/sketchfab/{v['id']}/meta.json"))["source"] if v["source"]=="sketchfab" else ("https://www.poliigon.com/free" if v["source"]=="poliigon" else f"https://polyhaven.com/a/{v['id']}"))),"license":"Poliigon free licence (verify before public release)" if v["source"]=="poliigon" else "CC0"} for k,v in assets_kit.LIB.items()]
+CREDITS=[{"asset":k,"source":("https://opengameart.org/content/furniture-low-poly" if v["source"]=="quaternius" else (json.load(open(f"{HERE}/assets/sketchfab/{v['id']}/meta.json"))["source"] if v["source"]=="sketchfab" else f"https://polyhaven.com/a/{v['id']}")),"license":"CC0"} for k,v in assets_kit.LIB.items()]
 json.dump(CREDITS,open(f"{HERE}/out/asset-credits.json","w"),indent=1)
 GROUND_TOP=Z+GH+0.05
 rooms_idx=[]
