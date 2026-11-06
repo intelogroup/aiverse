@@ -10,6 +10,7 @@ import {
   dampFactor,
   followTarget,
   rideTarget,
+  rideTargetFromHead,
   botView,
 } from "./cameraRig";
 import type { FigureOverride } from "./embody";
@@ -91,6 +92,24 @@ describe("rideTarget", () => {
     expect(cam[1]).toBeCloseTo(0.84 + 0.45 + 1.0);
     // Facing PI looks toward -Z from the seat.
     expect(look[2]).toBeLessThan(cam[2]);
+  });
+});
+
+describe("rideTargetFromHead", () => {
+  it("anchors the camera on the head bone's world position, pushed to the face plane", () => {
+    // Head bone at (3, 1.62, -2), body facing +X (heading PI/2).
+    const { cam, look } = rideTargetFromHead([3, 1.62, -2], Math.PI / 2);
+    expect(cam[0]).toBeCloseTo(3 + EYE_FORWARD);
+    expect(cam[1]).toBeCloseTo(1.62); // the bone's height, not feet + a constant
+    expect(cam[2]).toBeCloseTo(-2);
+    expect(look[0]).toBeCloseTo(cam[0] + 4);
+    expect(look[1]).toBeCloseTo(cam[1]); // gaze stays level along the heading
+  });
+
+  it("inherits head motion: a bobbing bone moves the camera with it", () => {
+    const still = rideTargetFromHead([0, 1.6, 0], 0);
+    const bobbed = rideTargetFromHead([0, 1.52, 0], 0);
+    expect(bobbed.cam[1]).toBeCloseTo(still.cam[1] - 0.08);
   });
 });
 

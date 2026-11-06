@@ -16,7 +16,7 @@ import {
 } from "./locomotion";
 import { CITY_FOOTPRINTS, insideFootprint } from "./cityFootprints";
 import { CastFigure } from "./CastFigure";
-import { BODY_CAST, bodyForMember, cruiseCapForBody, excludeBody } from "./bodies";
+import { BODY_CAST, BODY_SUMMER, bodyForMember, cruiseCapForBody, excludeBody } from "./bodies";
 import { CLIP_CATALOG, ClipTestState } from "./clips";
 import {
   AGORA_BENCH_ANCHORS,
@@ -36,8 +36,11 @@ import {
   dampAngle,
   followTarget,
   rideTarget,
+  rideTargetFromHead,
+  type BotView,
   type CameraMode,
 } from "./cameraRig";
+import { FpsMeter } from "./fpsMeter";
 import {
   PROBE_CADENCES,
   PROBE_HEIGHT,
@@ -290,13 +293,21 @@ function CameraRig({
   groundY,
   camModeRef,
   index = 0,
+  headPoseRef,
 }: {
   framesRef: RefObject<AgentFrame[]>;
   overridesRef: RefObject<Map<number, FigureOverride>>;
   groundY: number;
   camModeRef: RefObject<CameraMode>;
-  /** The selected bot — cast[0], the same one the panel drives. */
+  /** The selected bot — the panel's focus figure (Summer by default). */
   index?: number;
+  /**
+   * The focus figure's head-bone world position, streamed per frame
+   * by its CastFigure. In ride mode the camera anchors on the bone
+   * itself (cameraRig.rideTargetFromHead) whenever a value has
+   * landed; until then it falls back to the feet + eye-height pose.
+   */
+  headPoseRef?: { current: [number, number, number] | null };
 }) {
   const camera = useThree((s) => s.camera);
   const rig = useRef<{
@@ -324,13 +335,23 @@ function CameraRig({
     );
     if (!view) return;
     const dt = Math.min(delta, 0.05);
+    // Ride anchors on the head bone when the figure is streaming it
+    // (Summer does — `mixamorig:Head`); the gaze stays level along
+    // the damped heading either way.
+    const headPos = mode === "ride" ? (headPoseRef?.current ?? null) : null;
+    const targetFor = (v: BotView, heading: number) =>
+      mode === "ride"
+        ? headPos
+          ? rideTargetFromHead(headPos, heading)
+          : rideTarget(v, heading)
+        : followTarget(v);
 
     let st = rig.current;
     if (!st || st.mode !== mode) {
       // Entering a mode: adopt the bot's pose outright (a cut, like
       // games cut to first person) instead of swooping across the deck
       // from wherever the spectator camera happened to rest.
-      const t = mode === "ride" ? rideTarget(view, view.heading) : followTarget(view);
+      const t = targetFor(view, view.heading);
       st = rig.current = {
         mode,
         camPos: new THREE.Vector3(...t.cam),
@@ -339,7 +360,7 @@ function CameraRig({
       };
     }
     if (mode === "ride") st.heading = dampAngle(st.heading, view.heading, DAMP_HEADING, dt);
-    const target = mode === "ride" ? rideTarget(view, st.heading) : followTarget(view);
+    const target = targetFor(view, st.heading);
     const posRate = mode === "ride" ? DAMP_POS_RIDE : DAMP_POS_FOLLOW;
     st.camPos.set(
       damp(st.camPos.x, target.cam[0], posRate, dt),
@@ -363,6 +384,20 @@ function CameraRig({
   return null;
 }
 
+/**
+ * Render-rate tracker (Embody spike): one timestamp per rendered
+ * frame into the shared FpsMeter (fpsMeter.ts); the panel reads the
+ * ~0.5 s rolling average off it on its 400 ms pulse while a bot
+ * camera mode is active. Mounted only in embody mode — the meter
+ * costs one array push per frame.
+ */
+function FpsTracker({ meterRef }: { meterRef: RefObject<FpsMeter | null> }) {
+  useFrame((state) => {
+    meterRef.current?.push(state.clock.elapsedTime * 1000);
+  });
+  return null;
+}
+
 /** Owns one Recast crowd for the active place and steps it every frame. */
 function CrowdCast({
   place,
@@ -374,13 +409,20 @@ function CrowdCast({
   camMode,
   framesRef,
   clipTester,
+  focusIndex,
+  headPoseRef,
 }: {
   place: Place;
   cast: CastMember[];
   /** Embody v0 spike (?embody=1): skill layer + spike benches, Agora only. */
   embodyOn: boolean;
-  /** Clip tester state (panel-fired catalog clips) for cast[0]. */
+  /** Clip tester state (panel-fired catalog clips) for the focus figure. */
   clipTester?: ClipTestState;
+  /** The panel's focus figure: camera target, clip-tester consumer
+   * and head-bone streamer. Defaults to the Summer-bodied member. */
+  focusIndex: number;
+  /** Focus figure's head-bone world position stream (ride camera). */
+  headPoseRef: { current: [number, number, number] | null };
   controllerRef: RefObject<EmbodyController | null>;
   overridesRef: RefObject<Map<number, FigureOverride>>;
   camModeRef: RefObject<CameraMode>;
@@ -535,6 +577,8 @@ function CrowdCast({
           overridesRef={overridesRef}
           groundY={groundY}
           camModeRef={camModeRef}
+          index={focusIndex}
+          headPoseRef={headPoseRef}
         />
       ) : null}
       {embodyOn && place === "agora"
@@ -578,8 +622,9 @@ function CrowdCast({
               home={place === "city" ? cityHomeFor(i, count) : homeFor(place, i, count)}
               label={member.name}
               body={bodyForMember(member)}
-              clipTester={i === 0 ? clipTester : undefined}
-              hidden={embodyOn && i === 0 && camMode === "ride"}
+              clipTester={i === focusIndex ? clipTester : undefined}
+              headPoseRef={i === focusIndex ? headPoseRef : undefined}
+              hidden={embodyOn && i === focusIndex && camMode === "ride"}
             />
           ))}
     </>
@@ -599,10 +644,18 @@ function EmbodyPanel({
   camMode,
   onCamMode,
   clipTester,
+  focusIndex,
+  onFocus,
+  fpsMeter,
 }: {
   cast: CastMember[];
-  /** Clip tester: fires catalog clips on cast[0] (clips.ts). */
+  /** Clip tester: fires catalog clips on the focus figure (clips.ts). */
   clipTester: ClipTestState;
+  /** Which cast member the cameras + clip tester ride (Summer default). */
+  focusIndex: number;
+  onFocus: (memberId: string) => void;
+  /** Shared render-rate meter — read on the panel's 400 ms pulse. */
+  fpsMeter: FpsMeter;
   controllerRef: RefObject<EmbodyController | null>;
   /** Latest crowd frames — the harness reads Amara's anim state/speed. */
   framesRef: RefObject<AgentFrame[]>;
@@ -620,7 +673,20 @@ function EmbodyPanel({
   const st = ctl?.stateFor(0);
   const last = ctl?.events[ctl.events.length - 1];
   const name = cast[0]?.name ?? "first bot";
+  const focusName = cast[focusIndex]?.name ?? name;
   const benchB = AGORA_BENCH_ANCHORS[1];
+
+  // Clip stepping: prev/next walk the catalog in order and fire each
+  // clip on the focus figure, so the whole 45 can be auditioned in
+  // sequence without hunting the list. Clicking a list entry moves
+  // the step position to it.
+  const [clipIdx, setClipIdx] = useState(0);
+  const stepClip = (d: number) => {
+    const next = (clipIdx + d + CLIP_CATALOG.length) % CLIP_CATALOG.length;
+    setClipIdx(next);
+    clipTester.fire(CLIP_CATALOG[next].name);
+    setPulse((p) => p + 1);
+  };
 
   // ---- "Own Amara" test harness -------------------------------------
   // Animation tester: Patrol keeps issuing go_to legs between the two
@@ -733,6 +799,27 @@ function EmbodyPanel({
         {last ? ` — last event: ${last.type} ${last.skill}` : ""}
         {` · camera: ${camMode}`}
       </div>
+      {camMode !== "wide" ? (
+        <div className="w-embody-status">
+          {`render ${fpsMeter.fps().toFixed(0)} fps · 0.5 s rolling average · riding ${focusName}`}
+        </div>
+      ) : null}
+      <div className="w-embody-title w-embody-section">Camera & clip focus</div>
+      <div className="w-embody-row" role="group" aria-label="Focus member">
+        {cast.map((m, i) => (
+          <button
+            key={m.id}
+            type="button"
+            className={i === focusIndex ? "active" : ""}
+            onClick={() => onFocus(m.id)}
+          >
+            {m.name}
+          </button>
+        ))}
+      </div>
+      <div className="w-embody-status">
+        {`Follow / Ride cameras and the clip tester target ${focusName} — the skill buttons above still drive ${name}`}
+      </div>
       <div className="w-embody-title w-embody-section">Test harness — {name}</div>
       <div className="w-embody-row" role="group" aria-label="Animation tester">
         <button
@@ -751,9 +838,21 @@ function EmbodyPanel({
           ? `anim ${frame0.state} · ${frame0.speed.toFixed(2)} m/s · ${st?.posture ?? "standing"} · ${st?.current ?? "no skill"}`
           : "anim — · no frame yet"}
       </div>
-      <div className="w-embody-title w-embody-section">Clip tester — {name}</div>
+      <div className="w-embody-title w-embody-section">Clip tester — {focusName}</div>
+      <div className="w-embody-row" role="group" aria-label="Step clips">
+        <button type="button" onClick={() => stepClip(-1)}>
+          ← Prev clip
+        </button>
+        <button type="button" onClick={() => stepClip(1)}>
+          Next clip →
+        </button>
+      </div>
+      <div className="w-embody-status">
+        {`clip ${clipIdx + 1} / ${CLIP_CATALOG.length} — ${CLIP_CATALOG[clipIdx].name}`}
+        {clipTester.current ? ` · firing ${clipTester.current} on ${focusName}` : ""}
+      </div>
       <div className="w-embody-row w-clip-list" role="group" aria-label="Clip tester">
-        {CLIP_CATALOG.map((c) => {
+        {CLIP_CATALOG.map((c, ci) => {
           const active =
             c.name === "Idle" ? clipTester.current === null : clipTester.current === c.name;
           return (
@@ -763,6 +862,7 @@ function EmbodyPanel({
               className={active ? "active" : ""}
               onClick={() => {
                 clipTester.fire(c.name);
+                setClipIdx(ci);
                 setPulse((p) => p + 1);
               }}
             >
@@ -838,13 +938,32 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   );
   const controllerRef = useRef<EmbodyController | null>(null);
   // Clip tester for the Embody panel: one shared state object — the
-  // panel fires clips into it, cast[0]'s figure blends toward them.
+  // panel fires clips into it, the focus figure blends toward them.
   const clipTesterRef = useRef<ClipTestState | null>(null);
   if (clipTesterRef.current === null) clipTesterRef.current = new ClipTestState();
   const overridesRef = useRef(new Map<number, FigureOverride>());
   // Latest crowd frames, shared between CrowdCast (writer), the camera
   // rig and CastFigure (readers), and the panel's "Own Amara" harness.
   const framesRef = useRef<AgentFrame[]>([]);
+  // Camera + clip-tester focus: which cast member the Follow/Ride
+  // cameras ride and the tester fires on. Defaults to the member
+  // wearing Summer's body (WorldView always fields her); the panel
+  // can move it to any member by id.
+  const [focusPick, setFocusPick] = useState<string | null>(null);
+  const focusIndex = useMemo(() => {
+    if (focusPick) {
+      const picked = visibleCast.findIndex((m) => m.id === focusPick);
+      if (picked >= 0) return picked;
+    }
+    const summer = visibleCast.findIndex((m) => bodyForMember(m) === BODY_SUMMER);
+    return summer >= 0 ? summer : 0;
+  }, [visibleCast, focusPick]);
+  // The focus figure's head-bone world position, streamed per frame
+  // by its CastFigure — the ride camera's anchor.
+  const headPoseRef = useRef<[number, number, number] | null>(null);
+  // Render-rate meter: FpsTracker (in-Canvas) writes, the panel reads.
+  const fpsMeterRef = useRef<FpsMeter | null>(null);
+  if (fpsMeterRef.current === null) fpsMeterRef.current = new FpsMeter();
   // The WebGL canvas element, captured by Canvas onCreated — the vision
   // probe's frame source. preserveDrawingBuffer (embody only) is what
   // makes reading it back outside the render loop meaningful.
@@ -893,6 +1012,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
         <StageEnvironment place={place} />
         <KeyLight place={place} />
         <ShadowTagger />
+        {embodyOn && agora ? <FpsTracker meterRef={fpsMeterRef} /> : null}
         {agora ? (
           <EffectComposer>
             <Bloom
@@ -915,6 +1035,8 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
             camMode={camMode}
             framesRef={framesRef}
             clipTester={agora ? (clipTesterRef.current ?? undefined) : undefined}
+            focusIndex={focusIndex}
+            headPoseRef={headPoseRef}
           />
         </Suspense>
         <OrbitControls
@@ -970,6 +1092,9 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           camMode={camMode}
           onCamMode={setCamMode}
           clipTester={clipTesterRef.current}
+          focusIndex={focusIndex}
+          onFocus={setFocusPick}
+          fpsMeter={fpsMeterRef.current}
         />
       ) : null}
     </div>

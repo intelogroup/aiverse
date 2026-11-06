@@ -107,12 +107,22 @@ export function CastFigure({
   hidden = false,
   body = BODY_CAST,
   clipTester,
+  headPoseRef,
 }: {
+  /**
+   * Head-bone stream for the first-person camera (cameraRig): when
+   * present (the Embody panel's focus figure only), the figure writes
+   * its head bone's world position here every frame — Summer's rig
+   * names it `mixamorig:Head` — and the ride camera anchors on it, so
+   * the view carries the head's own motion. Figures without the prop
+   * never pay for the lookup.
+   */
+  headPoseRef?: { current: [number, number, number] | null };
   /** The body this member wears (bodies.ts registry). */
   body?: BodyDef;
   /**
-   * Embody panel clip tester (clips.ts): when present (cast[0] in
-   * embody mode), the figure blends toward the fired catalog clip —
+   * Embody panel clip tester (clips.ts): when present (the panel's
+   * focus figure in embody mode), the figure blends toward the fired catalog clip —
    * one-shots once, loops held — and yields back to the body layer
    * afterwards. The sit choreography always wins: while a sit
    * override is active the tester is suppressed, never blended.
@@ -207,6 +217,21 @@ export function CastFigure({
   }, [scene, fit]);
   const rmDelta = useRef(new THREE.Vector3());
   const hipsWorldTmp = useRef(new THREE.Vector3());
+
+  // The head bone, for the first-person camera stream (see the
+  // headPoseRef prop). Matched by name suffix: Summer's Mixamo rig
+  // calls it `mixamorig:Head`, the KayKit Rig_Medium `Head` — while
+  // `mixamorig:HeadTop_End` (the scalp terminus above it) must NOT
+  // match, hence the exact-suffix test rather than a substring.
+  const headBone = useMemo(() => {
+    if (!headPoseRef) return null;
+    const matches: THREE.Object3D[] = [];
+    scene.traverse((o) => {
+      if (o.name.endsWith("Head")) matches.push(o);
+    });
+    return matches[0] ?? null;
+  }, [scene, headPoseRef]);
+  const headWorldTmp = useRef(new THREE.Vector3());
 
   const mixer = useMemo(() => new THREE.AnimationMixer(scene), [scene]);
   const actions = useMemo(() => {
@@ -323,7 +348,7 @@ export function CastFigure({
       const step = delta / FADE_S;
       return target > cur ? Math.min(target, cur + step) : Math.max(target, cur - step);
     };
-    // ---- Clip tester sync (Embody panel, cast[0] only) ----
+    // ---- Clip tester sync (Embody panel, focus figure only) ----
     // This figure is the tester state's only consumer, so it ticks
     // the clock that expires one-shots. While a sit override owns the
     // body the sync is skipped outright — the choreography is never
@@ -465,6 +490,23 @@ export function CastFigure({
       rootMotion.hips.getWorldPosition(hw);
       const dy = grp.worldToLocal(hw).y - rootMotion.restHipsLocalY;
       grp.position.y = baseY - verticalExcess(dy, HIPS_Y_BAND);
+    }
+    // Head-bone stream for the ride camera: written AFTER the mixer
+    // and every position adjustment above, so the camera anchors on
+    // the head as it actually renders this frame (bob, sway and seat
+    // drop included). One frame of lag vs the camera rig is fine —
+    // the rig damps its pose anyway.
+    if (headPoseRef && headBone) {
+      const hw = headWorldTmp.current;
+      headBone.getWorldPosition(hw);
+      const cur = headPoseRef.current;
+      if (cur) {
+        cur[0] = hw.x;
+        cur[1] = hw.y;
+        cur[2] = hw.z;
+      } else {
+        headPoseRef.current = [hw.x, hw.y, hw.z];
+      }
     }
   });
 

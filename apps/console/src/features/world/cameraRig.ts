@@ -126,6 +126,26 @@ export function rideTarget(view: BotView, heading: number): { cam: Vec3; look: V
   return { cam, look };
 }
 
+/**
+ * First-person pose anchored on the figure's actual head bone: the
+ * camera sits at the bone's world position (pushed to the face plane
+ * by EYE_FORWARD, like rideTarget), so the view inherits the head's
+ * own motion — the Idle sway, a clip's look-around, the seat drop —
+ * instead of a fixed offset above the feet. The gaze stays level
+ * along the body heading (the crowd owns facing; a bone's local
+ * orientation would pitch and roll with every clip). Summer's rig
+ * exposes the bone as `mixamorig:Head`; CastFigure resolves it and
+ * streams its world position into the rig. Falls back to rideTarget
+ * until the bone's first frame lands.
+ */
+export function rideTargetFromHead(head: Vec3, heading: number): { cam: Vec3; look: Vec3 } {
+  const fx = Math.sin(heading);
+  const fz = Math.cos(heading);
+  const cam: Vec3 = [head[0] + fx * EYE_FORWARD, head[1], head[2] + fz * EYE_FORWARD];
+  const look: Vec3 = [cam[0] + fx * RIDE_LOOK_AHEAD, cam[1], cam[2] + fz * RIDE_LOOK_AHEAD];
+  return { cam, look };
+}
+
 /** Trail pose: camera behind/above the bot, aimed at its chest. */
 export function followTarget(view: BotView): { cam: Vec3; look: Vec3 } {
   const fx = Math.sin(view.heading);

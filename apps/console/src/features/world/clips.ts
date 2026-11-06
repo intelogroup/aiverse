@@ -86,7 +86,8 @@ export function clipDef(name: string): ClipDef | undefined {
 
 /**
  * The Embody panel's clip-tester state: which catalog clip is
- * currently fired on the embodied figure (cast[0]).
+ * currently fired on the embodied figure (the panel's focus figure —
+ * Summer by default).
  *
  * Firing a loop holds it until another clip is fired (or Idle clears
  * the tester — Idle IS the rest state, so firing it just hands the
