@@ -80,17 +80,26 @@ export function DistrictWorld({ residentUrl, light }: { residentUrl: string; lig
     const m = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), new THREE.MeshStandardMaterial({ color: "#1c6a84", roughness: 0.12, metalness: 0.0 }));
     m.rotation.x = -Math.PI / 2; m.position.y = -1.25; m.receiveShadow = true; return m;
   }, []);
+  // Warm hemisphere fill (deeper-grade tune): with envIntensity lowered the
+  // RoomEnvironment wash no longer flattens the palette, and this fill —
+  // sky warm, ground earth — keeps shade readable without desaturating it.
+  // Intensity comes from the theme's ambient field in the frame loop.
+  const hemi = useMemo(() => {
+    const h = new THREE.HemisphereLight();
+    h.color.setRGB(1.0, 0.85, 0.62); h.groundColor.setRGB(0.45, 0.36, 0.22); h.intensity = 0;
+    return h;
+  }, []);
   useEffect(() => {
-    scene.add(sky); scene.add(water);
+    scene.add(sky); scene.add(water); scene.add(hemi);
     scene.fog = new THREE.FogExp2(0xb0b8c8, 0.0006);
     resident.scene.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && (m.material as THREE.Material).name === "water") m.visible = false; });
     gl.toneMapping = THREE.AgXToneMapping;
     return () => {
-      scene.remove(sky); scene.remove(water); scene.fog = null; scene.background = null; scene.environment = null;
+      scene.remove(sky); scene.remove(water); scene.remove(hemi); scene.fog = null; scene.background = null; scene.environment = null;
       for (const g of groups.current.values()) { scene.remove(g); disposeTree(g); }
       groups.current.clear(); (sky.material as THREE.Material).dispose(); sky.geometry.dispose(); (water.material as THREE.Material).dispose(); water.geometry.dispose();
     };
-  }, [scene, sky, water, gl, resident]);
+  }, [scene, sky, water, hemi, gl, resident]);
 
   useEffect(() => {
     if (!manifest?.links) return;
@@ -141,6 +150,7 @@ export function DistrictWorld({ residentUrl, light }: { residentUrl: string; lig
     (scene.fog as THREE.FogExp2).color.setRGB(...t.fog); (scene.fog as THREE.FogExp2).density = t.fogDensity;
     (water.material as THREE.MeshStandardMaterial).color.setRGB(...t.water);
     gl.toneMappingExposure = t.exposure; scene.environmentIntensity = t.envIntensity;
+    hemi.intensity = t.ambient * 5;
     const l = light.current;
     if (l) {
       const sd = new THREE.Vector3(...t.sunDir).normalize(); const tx = Math.round(controls.target.x / 40) * 40; const tz = Math.round(controls.target.z / 40) * 40;
