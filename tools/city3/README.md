@@ -13,14 +13,17 @@ Procedural pipeline for `apps/console/public/assets/world-city3.glb` (headless B
 Notes
 - Units are metres. Blender Y is negated into three.js Z by the glTF export; every walkable surface sits at y = 0.2.
 - `kit.py` geometry kit, `details.py` facade/street furniture, `hero.py` the Matchmaker's Tea House interior.
-- Hero buildings (`heroes.json`): `TeaUpper_*` / `PressUpper_*` objects are their upper floors, roof and ceiling;
-  the console hides them near the building.
-- Interiors stream. `world-city3-library.glb` holds every furnishing once (CC0 imports + procedural pieces, node names `LIB_*`;
-  Poly Haven maps reduced to base colour only). Each building is a layout `interiors/<id>.json`:
-  `props: [asset, x, y, z, rotY, scale]` in three.js space. The console builds one InstancedMesh per asset primitive over the
-  shared library, keeps at most 3 rooms resident, and disposes the instance buffers on eviction (`interiorBuild.ts`, `interiors.ts`).
-  To add a room: queue `put(...)` placements in a template, add it to `HERO_SPECS`, rebuild. The tea house still bakes its fittings
-  into the city GLB (`hero.py`); converting it to library pieces is the same move as the press.
+- Rooms: every market-block building (77) gets real openings, glazing, a door and a furnished ground floor. `rooms.py` holds the
+  reusable fittings (`piece()`, built once at the origin, front = -Y) and five templates (`tea`, `cafe`, `shop`, `library`, `workshop`);
+  `press.py` is the hand-laid Kronikler Press. A template builds no geometry: it queues `put()` placements and records seat anchors.
+- Interiors stream. `world-city3-library.glb` holds each furnishing once (CC0 imports reduced to base colour + the procedural pieces, node names
+  `LIB_*`). Each room is `interiors/<id>.json` (`props: [asset, x, y, z, rotY, scale]`, three.js space) and `interiors/index.json` lists them with
+  footprint, door, lot id and the cut box. The console builds one InstancedMesh per asset primitive over the shared library, keeps at most 3 rooms
+  resident, and disposes only the instance buffers on eviction (`interiorBuild.ts`, `interiors.ts`).
+- Cutaway: upper floors stay in the merged city meshes. The console clips one building at a time with six shared clipping planes
+  (`clipIntersection`, `cutaway.ts`), picked by the orbit target. The box is inset on party-wall sides (a plane lying on a neighbour's wall dithers it)
+  and extended past the eaves on street/back sides.
+- To add a room type: write a template in `rooms.py` (pieces + `put()` + `add_anchor()`), add it to `TEMPLATES`, rebuild, run `check_anchors.py`.
 - Export patches Blender 5.2's meshopt POSITION filter (12-bit shared exponent -> 20-bit separate); without it small
   height offsets (rugs, signs, shutters) snap onto their surfaces.
 - Materials are single-sided except glass; anything seen from both sides is emitted twice.

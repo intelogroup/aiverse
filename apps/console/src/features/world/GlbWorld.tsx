@@ -42,16 +42,18 @@ import {
 } from "./cameraRig";
 import { FpsMeter } from "./fpsMeter";
 import {
-  CITY3_HEROES,
+  CITY3_INDEX_URL,
   CITY3_LIBRARY_URL,
+  HIDE_WITHIN,
   INTERIOR_KEEP_WITHIN,
   INTERIOR_LOAD_WITHIN,
   MAX_LOADED_INTERIORS,
-  cutawayHidden,
-  heroDistance,
-  syntheticHeroes,
-  type City3Hero,
+  SHOW_BEYOND,
+  roomView,
+  syntheticRooms,
+  type City3Room,
 } from "./city3";
+import { boxPlanes, inactivePlanes, pickCutRoom } from "./cutaway";
 import { buildInterior, indexLibrary, type InteriorHandle } from "./interiorBuild";
 import { planStreaming, type InteriorLayout } from "./interiors";
 import {
@@ -166,45 +168,100 @@ function WorldEnv({ url }: { url: string }) {
   return <primitive object={gltf.scene} />;
 }
 
+/** City 3's room index (generated: tools/city3/out/interiors/index.json); empty until fetched. */
+function useCity3Rooms(enabled: boolean): City3Room[] {
+  const [rooms, setRooms] = useState<City3Room[]>([]);
+  useEffect(() => {
+    if (!enabled || rooms.length) return;
+    let live = true;
+    fetch(CITY3_INDEX_URL)
+      .then((r) => r.json() as Promise<City3Room[]>)
+      .then((r) => live && setRooms(r))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [enabled, rooms.length]);
+  return rooms;
+}
+
 /**
- * City 3 cutaway: hides each hero building's upper floors (its prefix
- * objects) while the camera is close, so the furnished ground floor shows
- * from above. `focus` names a hero to fly to; its nonce bumps per click.
- * Mounted inside the Suspense with WorldEnv, so the GLB is in the scene.
+ * City 3 cutaway: opens one building at a time with a clipping box. Every room building's upper
+ * floors and roof sit in the merged city meshes, so instead of hiding objects the city materials get
+ * six shared clipping planes with clipIntersection (a fragment is discarded only inside the box);
+ * moving the box updates uniforms and never recompiles a shader. `focus` flies to a room.
  */
-function HeroCutaway({ focus }: { focus: { id: string; nonce: number } | null }) {
+function ClipCutaway({
+  rooms,
+  focus,
+}: {
+  rooms: City3Room[];
+  focus: { id: string; nonce: number } | null;
+}) {
   const scene = useThree((s) => s.scene);
   const camera = useThree((s) => s.camera);
+  const gl = useThree((s) => s.gl);
   const controls = useThree((s) => s.controls) as unknown as {
     target: THREE.Vector3;
     update: () => void;
   } | null;
-  const parts = useRef<THREE.Object3D[][]>([]);
-  const hidden = useRef<boolean[]>(CITY3_HEROES.map(() => false));
+  const planes = useMemo(
+    () => inactivePlanes().map(([x, y, z, c]) => new THREE.Plane(new THREE.Vector3(x, y, z), c)),
+    [],
+  );
+  const open = useRef<string | null>(null);
+  const cutRooms = useMemo(() => rooms.map((r) => ({ id: r.id, center: r.center, rect: r.rect, cut: r.cut })), [rooms]);
   useEffect(() => {
-    const found = CITY3_HEROES.map(() => [] as THREE.Object3D[]);
+    gl.localClippingEnabled = true;
+    const mats = new Set<THREE.Material>();
     scene.traverse((o) => {
-      const k = CITY3_HEROES.findIndex((h) => o.name.startsWith(h.prefix));
-      if (k >= 0) found[k].push(o);
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || (m as THREE.InstancedMesh).isInstancedMesh) return; // library furnishings are never clipped
+      for (const mat of Array.isArray(m.material) ? m.material : [m.material]) mats.add(mat);
     });
-    parts.current = found;
+    for (const mat of mats) {
+      mat.clippingPlanes = planes;
+      mat.clipIntersection = true;
+      mat.clipShadows = true;
+      mat.needsUpdate = true;
+    }
     return () => {
-      for (const list of found) for (const o of list) o.visible = true;
+      for (const mat of mats) {
+        mat.clippingPlanes = null;
+        mat.clipIntersection = false;
+        mat.clipShadows = false;
+        mat.needsUpdate = true;
+      }
+      gl.localClippingEnabled = false;
     };
-  }, [scene]);
+  }, [scene, gl, planes]);
   useEffect(() => {
-    const hero = focus && CITY3_HEROES.find((h) => h.id === focus.id);
-    if (!hero || !controls) return;
-    camera.position.set(...hero.view.position);
-    controls.target.set(...hero.view.target);
+    const room = focus && rooms.find((r) => r.id === focus.id);
+    if (!room || !controls) return;
+    const v = roomView(room);
+    camera.position.set(...v.position);
+    controls.target.set(...v.target);
     controls.update();
-  }, [focus, camera, controls]);
+  }, [focus, rooms, camera, controls]);
   useFrame(() => {
-    CITY3_HEROES.forEach((hero, k) => {
-      const next = cutawayHidden(heroDistance(hero, camera.position), hidden.current[k]);
-      if (next === hidden.current[k]) return;
-      hidden.current[k] = next;
-      for (const o of parts.current[k] ?? []) o.visible = !next;
+    // What the camera is looking at decides which building opens, not where the camera stands
+    // (from a street-side viewpoint the nearest building centre is often across the road).
+    const target = controls?.target;
+    if (!target) return;
+    const next = pickCutRoom(
+      cutRooms,
+      { x: target.x, z: target.z },
+      camera.position.distanceTo(target),
+      open.current,
+      HIDE_WITHIN,
+      SHOW_BEYOND,
+    );
+    if (next === open.current) return;
+    open.current = next;
+    const spec = next ? boxPlanes(rooms.find((r) => r.id === next)!.cut) : inactivePlanes();
+    spec.forEach(([x, y, z, c], i) => {
+      planes[i].normal.set(x, y, z);
+      planes[i].constant = c;
     });
   });
   return null;
@@ -220,19 +277,20 @@ function HeroCutaway({ focus }: { focus: { id: string; nonce: number } | null })
  * `?streamDebug=1` exposes window.__city3Stream (counters, renderer memory,
  * teleport) for the memory test; `&fake=N` adds N synthetic rooms to arbitrate.
  */
-function InteriorStreamer() {
+function InteriorStreamer({ rooms: realRooms }: { rooms: City3Room[] }) {
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
   const controls = useThree((s) => s.controls) as unknown as {
     target: THREE.Vector3;
     update: () => void;
   } | null;
   const debug = useMemo(() => new URLSearchParams(window.location.search).get("streamDebug") === "1", []);
-  const heroes = useMemo<City3Hero[]>(() => {
-    const real = CITY3_HEROES.filter((h) => h.layoutUrl);
+  const heroes = useMemo<City3Room[]>(() => {
     const n = Number(new URLSearchParams(window.location.search).get("fake") ?? 0);
-    return debug && n > 0 && real[0] ? [...real, ...syntheticHeroes(n, real[0])] : real;
-  }, [debug]);
+    const src = realRooms.find((r) => r.id === "press") ?? realRooms[0];
+    return debug && n > 0 && src ? [...realRooms, ...syntheticRooms(n, src)] : realRooms;
+  }, [debug, realRooms]);
   const [wanted, setWanted] = useState<string[]>([]);
   const wantedRef = useRef<string[]>([]);
   const layouts = useRef(new Map<string, InteriorLayout>());
@@ -262,8 +320,8 @@ function InteriorStreamer() {
     setWanted(wantedRef.current);
     for (const id of plan.load) {
       const hero = heroes.find((h) => h.id === id);
-      if (!hero?.layoutUrl || layouts.current.has(hero.layoutUrl) || inflight.current.has(hero.layoutUrl)) continue;
-      const url = hero.layoutUrl;
+      if (!hero || layouts.current.has(hero.layout) || inflight.current.has(hero.layout)) continue;
+      const url = hero.layout;
       inflight.current.add(url); // rooms that share a layout fetch it once
       fetch(url)
         .then((r) => r.json() as Promise<InteriorLayout>)
@@ -287,6 +345,22 @@ function InteriorStreamer() {
         drawCallsInteriors: [...handles.current.values()].reduce((a, h) => a + h.drawCalls, 0),
         memory: { geometries: gl.info.memory.geometries, textures: gl.info.memory.textures },
         render: { calls: gl.info.render.calls, triangles: gl.info.render.triangles },
+        scene: (() => {
+          const ims: THREE.InstancedMesh[] = [];
+          scene.traverse((o) => {
+            if ((o as THREE.InstancedMesh).isInstancedMesh) ims.push(o as THREE.InstancedMesh);
+          });
+          const f = ims[0];
+          const m = new THREE.Matrix4();
+          const p = new THREE.Vector3();
+          if (f) f.getMatrixAt(0, m);
+          p.setFromMatrixPosition(m);
+          return {
+            instancedMeshes: ims.length,
+            visible: ims.filter((i) => i.visible).length,
+            first: f ? { name: f.name, count: f.count, pos0: p.toArray(), sphere: f.boundingSphere ? [f.boundingSphere.center.toArray(), f.boundingSphere.radius] : null, parent: f.parent?.name, matWorldPos: new THREE.Vector3().setFromMatrixPosition(f.matrixWorld).toArray() } : null,
+          };
+        })(),
       }),
       teleport: (x: number, y: number, z: number) => {
         camera.position.set(x, y, z);
@@ -297,7 +371,7 @@ function InteriorStreamer() {
     return () => {
       delete w.__city3Stream;
     };
-  }, [debug, gl, camera, controls]);
+  }, [debug, gl, scene, camera, controls]);
 
   return (
     <Suspense fallback={null}>
@@ -325,7 +399,7 @@ function StreamedRooms({
   stats,
 }: {
   ids: string[];
-  heroes: City3Hero[];
+  heroes: City3Room[];
   layouts: Map<string, InteriorLayout>;
   ready: string[];
   handles: Map<string, InteriorHandle>;
@@ -346,23 +420,21 @@ function StreamedRooms({
       }
     });
   }, [library, gl]);
-  const primary = CITY3_HEROES.find((h) => h.layoutUrl);
   return (
     <>
       {ids.map((id) => {
         const hero = heroes.find((h) => h.id === id);
-        const layout = hero?.layoutUrl ? layouts.get(hero.layoutUrl) : undefined;
+        const layout = hero ? layouts.get(hero.layout) : undefined;
         if (!hero || !layout || !ready.length) return null;
-        const offset: [number, number] = primary
-          ? [hero.center[0] - primary.center[0], hero.center[1] - primary.center[1]]
-          : [0, 0];
         return (
-          <InteriorRoom key={id} id={id} layout={layout} assets={assets} offset={id === primary?.id ? [0, 0] : offset} handles={handles} stats={stats} />
+          <InteriorRoom key={id} id={id} layout={layout} assets={assets} offset={hero.shift ?? ZERO_SHIFT} handles={handles} stats={stats} />
         );
       })}
     </>
   );
 }
+
+const ZERO_SHIFT: [number, number] = [0, 0];
 
 function InteriorRoom({
   id,
@@ -379,16 +451,21 @@ function InteriorRoom({
   handles: Map<string, InteriorHandle>;
   stats: { builds: number };
 }) {
-  const handle = useMemo(() => buildInterior(layout, assets, offset), [layout, assets, offset]);
+  // Built inside the effect, not memoised: React (StrictMode in dev) runs cleanup then the effect
+  // again on the same render, and a memoised handle would come back already disposed and empty.
+  const [handle, setHandle] = useState<InteriorHandle | null>(null);
   useEffect(() => {
-    handles.set(id, handle);
+    const h = buildInterior(layout, assets, offset);
+    handles.set(id, h);
     stats.builds += 1;
+    setHandle(h);
     return () => {
       handles.delete(id);
-      handle.dispose();
+      h.dispose();
+      setHandle(null);
     };
-  }, [id, handle, handles, stats]);
-  return <primitive object={handle.group} />;
+  }, [id, layout, assets, offset, handles, stats]);
+  return handle ? <primitive object={handle.group} /> : null;
 }
 
 const SKY_URL = "/assets/sky-equi.jpg";
@@ -1228,6 +1305,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
 
   // Head-camera mode (Embody spike): state for the panel buttons and
   // OrbitControls, mirrored into a ref the camera rig reads per frame.
+  const city3Rooms = useCity3Rooms(place === "city3");
   const [camMode, setCamMode] = useState<CameraMode>("wide");
   // City 3: which hero building to fly to (cutaway shows on arrival); nonce re-fires a repeat click.
   const [heroFocus, setHeroFocus] = useState<{ id: string; nonce: number } | null>(null);
@@ -1300,8 +1378,8 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           />
           {place === "city3" ? (
             <>
-              <HeroCutaway focus={heroFocus} />
-              <InteriorStreamer />
+              <ClipCutaway rooms={city3Rooms} focus={heroFocus} />
+              <InteriorStreamer rooms={city3Rooms} />
             </>
           ) : null}
           <CrowdCast
@@ -1374,7 +1452,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
       </div>
       {place === "city3" ? (
         <div className="w-glb-toggle w-glb-poi" role="group" aria-label="Places in City 3">
-          {CITY3_HEROES.map((hero) => (
+          {city3Rooms.filter((r) => r.featured).map((hero) => (
             <button
               key={hero.id}
               type="button"

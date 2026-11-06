@@ -1,7 +1,7 @@
 import bpy, json, math, os, random, sys
 HERE=os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0,HERE)
 from kit import *
-import kit, details, hero, press, assets_kit
+import kit, details, hero, press, rooms, assets_kit
 from details import *
 P=json.load(open(f"{HERE}/plan.json")); rng=random.Random(77)
 Z=P["walk_z"]; L=P["land"]; GH=4.2; FH=3.5
@@ -68,21 +68,35 @@ block_kind={(b["i"],b["j"]):b["kind"] for b in P["blocks"]}
 SUB={k:tuple(v) for k,v in ATL.items()}
 def wallq(mat,fr,s0,s1,z0,z1,sub,u1=1.0):
     v0,v1=SUB[sub]; tq(mat,[fr.p(s0,0,z0),fr.p(s1,0,z0),fr.p(s1,0,z1),fr.p(s0,0,z1)],[(0,v0),(u1,v0),(u1,v1),(0,v1)],fr.o(0,1))
-# Hero buildings: furnished ground floors with real openings. Each one's upper floors, roof and
-# ceiling go to a "<Upper>_*" group so the console can cut the building away.
-HERO_SPECS=[dict(id="tea",name="Matchmaker's Tea House",block=(2,4),face="S",sign=3,blade=0,door="door_green",fn=hero.interior,upper="TeaUpper"),
-            dict(id="press",name="Kronikler Press",block=(2,1),face="N",sign=2,blade=2,door="door_blue",fn=press.interior,upper="PressUpper")]
+# Room buildings: every market-block building gets real openings, glazing and a furnished ground floor
+# (a template -> a streamed layout). Upper floors stay in the merged meshes; the console cuts a building
+# away with a clipping box, so no per-building objects exist.
+SIGN_NAMES=["Sage's Library","Fixer's Forge","Kronikler Press","Matchmaker's Tea House","Provokatov Hall","Kova's Spices","Rekinder Lamps","The Golden Scale","Bakery","Apothecary","Ink & Quill","Cloth & Dye","Coffee","Fruit & Fig","Today's Tea","Salt Road Trading"]
+TPL_SIGNS={"cafe":[12,8,13,14],"shop":[5,6,7,9,11,15],"library":[0,10],"workshop":[1]}
+rr_=random.Random(2026)
+SPECIAL={(2,4,"S"):dict(id="tea",template="tea",sign=3,blade=0,door="door_green",fn=rooms.TEMPLATES["tea"]),
+         (2,1,"N"):dict(id="press",template="press",sign=2,blade=2,door="door_blue",fn=press.interior)}
+widest={}
+for bd in P["buildings"]:
+    k=(*tuple(bd["block"]),bd["face"])
+    if k in SPECIAL and bd["rect"][2]-bd["rect"][0]+bd["rect"][3]-bd["rect"][1]>widest.get(k,(0,))[0]: widest[k]=(bd["rect"][2]-bd["rect"][0]+bd["rect"][3]-bd["rect"][1],bd)
 HERO_OF={}
-for spec in HERO_SPECS:
-    cands=[b for b in P["buildings"] if tuple(b["block"])==spec["block"] and b["face"]==spec["face"]]
-    if cands: HERO_OF[id(max(cands,key=lambda b:b["rect"][2]-b["rect"][0]))]=spec
+for idx,bd in enumerate(P["buildings"]):
+    if block_kind[tuple(bd["block"])]!="market": continue
+    k=(*tuple(bd["block"]),bd["face"])
+    if k in SPECIAL and widest[k][1] is bd: spec=dict(SPECIAL[k])
+    else:
+        t=rr_.choices(["cafe","shop","library","workshop"],[0.3,0.4,0.15,0.15])[0]
+        spec=dict(id=f"shop-{idx}",template=t,sign=rr_.choice(TPL_SIGNS[t]),blade=rr_.randrange(16),door=rr_.choice(details.DOORS),fn=rooms.TEMPLATES[t])
+    spec["lot"]=f"shop-{idx}"; spec["name"]=SIGN_NAMES[spec["sign"]]; spec["upper"]=None
+    HERO_OF[id(bd)]=spec
 HERO_INFO={}
 def building(bd,idx):
     global HERO_INFO
     rnd=random.Random(5000+idx); r=bd["rect"]; n=bd["floors"]; mat=f"facade_{bd['mat']}"
     kind=block_kind[tuple(bd["block"])]; market=kind in ("market","citadel"); spec=HERO_OF.get(id(bd)); is_hero=spec is not None
     style="B" if rnd.random()<0.35 else "A"; cell=rnd.randrange(8); H=GH+(n-1)*FH
-    UG=spec["upper"] if is_hero else None
+    UG=None
     for side in ("S","E","N","W"):
         fr,length=frame_for(r,side,Z); face=(side==bd["face"]); bays=max(1,round(length/4.0)); bw=length/bays
         if face:
@@ -301,28 +315,40 @@ BUDGET={"wooden_bookshelf_worn":3000,"book_encyclopedia_set_01":4000,"desk_lamp_
 TEXPX={"wooden_bookshelf_worn":512,"drawer_cabinet":512,"vintage_grandfather_clock_01":512,"ArmChair_01":512,"potted_plant_02":512,"wooden_crate_01":256,
        "book_encyclopedia_set_01":256,"desk_lamp_arm_01":256,"vintage_radio_transceiver":256,"WoodenTable_02":256,"vintage_oil_lamp":128,"wall_clock":256,"binder_notebook":256}
 QUAT={"ChairCushioned"}
-for key in sorted({p[1] for p in kit.PLACEMENTS}-set(press.PIECE_NAMES)):
+USED={p[1] for p in kit.PLACEMENTS}
+for key in sorted(USED-set(press.PIECE_NAMES)-set(rooms.PIECES)):
     assets_kit.load(key,BUDGET.get(key,2000),source="quaternius" if key in QUAT else "polyhaven",tex=TEXPX.get(key))
 bpy.context.view_layer.layer_collection.children["AssetLibrary"].exclude=False
+for o in list(bpy.data.objects):
+    if o.name.startswith("LIB_") and o.name[4:] not in USED: bpy.data.objects.remove(o,do_unlink=True)      # pieces no room placed
 for o in bpy.data.objects: o.select_set(o.name.startswith("LIB_"))
 bpy.ops.export_scene.gltf(filepath=f"{HERE}/out/world-city3-library.glb",export_format="GLB",export_yup=True,export_apply=True,export_image_format="JPEG",export_jpeg_quality=80,
     export_texcoords=True,export_normals=True,export_cameras=False,export_lights=False,export_meshopt_compression_enable=True,use_selection=True)
 lib_objs=[o for o in bpy.data.objects if o.name.startswith("LIB_")]
 print("LIBRARY_EXPORTED",os.path.getsize(f"{HERE}/out/world-city3-library.glb")//1024,"KB",len(lib_objs),"assets",
       {o.name[4:]:sum(len(p.vertices)-2 for p in o.data.polygons) for o in lib_objs})
-os.makedirs(f"{HERE}/out/interiors",exist_ok=True)
-for bid in {p[0] for p in kit.PLACEMENTS}:
-    props=[[p[1],round(p[2],3),round(p[4],3),round(-p[3],3),round(p[5],4),p[6]] for p in kit.PLACEMENTS if p[0]==bid]          # [asset, x, y, z, rotY, scale] in three.js space
+import shutil
+shutil.rmtree(f"{HERE}/out/interiors",ignore_errors=True); os.makedirs(f"{HERE}/out/interiors",exist_ok=True)
+by_bid={}
+for p in kit.PLACEMENTS: by_bid.setdefault(p[0],[]).append(p)
+for bid,ps in by_bid.items():
+    props=[[p[1],round(p[2],3),round(p[4],3),round(-p[3],3),round(p[5],4),p[6]] for p in ps]          # [asset, x, y, z, rotY, scale] in three.js space
     json.dump({"id":bid,"library":"world-city3-library.glb","props":props},open(f"{HERE}/out/interiors/{bid}.json","w"),separators=(",",":"))
-    print("LAYOUT",bid,len(props),"props",os.path.getsize(f"{HERE}/out/interiors/{bid}.json"),"bytes")
+sz=[os.path.getsize(f"{HERE}/out/interiors/{k}.json") for k in by_bid]
+print("LAYOUTS",len(by_bid),"files; props min/avg/max",min(len(v) for v in by_bid.values()),sum(len(v) for v in by_bid.values())//len(by_bid),max(len(v) for v in by_bid.values()),"| bytes total",sum(sz))
 CREDITS=[{"asset":k,"source":("https://opengameart.org/content/furniture-low-poly" if v["source"]=="quaternius" else f"https://polyhaven.com/a/{v['id']}"),"license":"CC0"} for k,v in assets_kit.LIB.items()]
 json.dump(CREDITS,open(f"{HERE}/out/asset-credits.json","w"),indent=1)
-heroes=[]
+GROUND_TOP=Z+GH+0.05
+rooms_idx=[]
 for hid,hi in HERO_INFO.items():
-    fr=hi["fr"]; r=hi["bd"]["rect"]; dx,dy=fr.xy(hi["door_u"],0.0)
-    heroes.append({"id":hid,"name":hi["spec"]["name"],"rect_blender":r,"rect_three":[r[0],-r[3],r[2],-r[1]],"center_three":[(r[0]+r[2])/2,-(r[1]+r[3])/2],
-        "door_three":[round(dx,2),round(-dy,2)],"front":hi["bd"]["face"],"cutaway_object_prefix":hi["spec"]["upper"]+"_",
-        "layout":f"/assets/interiors/{hid}.json" if hid=="press" else None})
-json.dump(heroes,open(f"{HERE}/out/heroes.json","w"),indent=1)
+    fr=hi["fr"]; bd=hi["bd"]; r=bd["rect"]; dx,dy=fr.xy(hi["door_u"],0.0); sp=hi["spec"]
+    e=0.7; ins=0.12; x0,y0,x1,y1=r                                                    # past the eaves on the street/back sides; INSET on the party-wall sides:
+    if bd["face"] in ("S","N"): cut=[x0+ins,-(y1+e),x1-ins,-(y0-e)]                    # a clip plane lying exactly on a neighbour's wall would dither it
+    else: cut=[x0-e,-(y1-ins),x1+e,-(y0+ins)]
+    rooms_idx.append({"id":hid,"lot":sp["lot"],"name":sp["name"],"template":sp["template"],"front":bd["face"],"center":[round((r[0]+r[2])/2,2),round(-(r[1]+r[3])/2,2)],
+        "door":[round(dx,2),round(-dy,2)],"rect":[r[0],-r[3],r[2],-r[1]],"cut":{"rect":[round(v,2) for v in cut],"y":round(GROUND_TOP,2)},
+        "layout":f"/assets/interiors/{hid}.json","featured":hid in ("tea","press")})
+json.dump(rooms_idx,open(f"{HERE}/out/interiors/index.json","w"),separators=(",",":"))
+json.dump(rooms_idx,open(f"{HERE}/out/heroes.json","w"),indent=1)
 json.dump({"units":"m, three.js XZ; heading = atan2(fx, fz)","anchors":kit.ANCHORS},open(f"{HERE}/out/hero-anchors.json","w"),indent=1)
 print("ANCHORS",len(kit.ANCHORS),{h:sum(1 for a in kit.ANCHORS if a["building"]==h) for h in HERO_INFO})

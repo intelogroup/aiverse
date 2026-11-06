@@ -71,12 +71,14 @@ def prof(name,fn):
         t0=total(); r=fn(*a,**k); PROF[name]=PROF.get(name,0)+total()-t0; return r
     return w
 ANCHORS=[]
+ANCHORS_ON=[True]   # off while library pieces are built (a piece has no seats until it is placed)
 CUR=[None]          # building id the next anchors belong to
 PLACEMENTS=[]       # (building, asset_key, x, y, z, rot_z, scale) resolved after the main export
 STAND_OFF=0.62   # same stand-off the console's embody layer uses (embody.ts)
 def add_anchor(fr,u,t,face_du,face_dt,seat_h,kind,floor_h=0.0,side=1):
     """Record a seat: (u,t) in wall-local coords, facing (du,dt) in the same frame.
     Stored in three.js space (x, z = -blender_y); heading = atan2(fx, fz) as in locomotion.ts."""
+    if not ANCHORS_ON[0]: return
     x,y=fr.xy(u,t); fx,fy,_=fr.o(face_du,face_dt); n=math.hypot(fx,fy) or 1; fx/=n; fy/=n
     tx,tz,fz=x,-y,-fy
     ANCHORS.append({"id":f"{CUR[0]}-{kind}-{len(ANCHORS)}","building":CUR[0],"kind":kind,"seat":[round(tx,3),round(tz,3)],

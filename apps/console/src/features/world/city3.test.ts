@@ -1,58 +1,64 @@
 import { describe, expect, it } from "vitest";
 import {
-  CITY3_HEROES,
   HIDE_WITHIN,
   INTERIOR_KEEP_WITHIN,
   INTERIOR_LOAD_WITHIN,
   SHOW_BEYOND,
-  syntheticHeroes,
-  cutawayHidden,
-  heroDistance,
+  roomDistance,
+  roomView,
+  syntheticRooms,
+  type City3Room,
+  type Side,
 } from "./city3";
 
-describe("cutawayHidden", () => {
-  it("hides inside the near threshold and shows past the far one", () => {
-    expect(cutawayHidden(HIDE_WITHIN - 1, false)).toBe(true);
-    expect(cutawayHidden(SHOW_BEYOND + 1, true)).toBe(false);
-  });
-  it("keeps its previous state inside the hysteresis band", () => {
-    const mid = (HIDE_WITHIN + SHOW_BEYOND) / 2;
-    expect(cutawayHidden(mid, true)).toBe(true);
-    expect(cutawayHidden(mid, false)).toBe(false);
-  });
-  it("never flickers while the camera hovers around one distance", () => {
-    let hidden = false;
-    const flips: boolean[] = [];
-    for (const d of [70, 47, 50, 52, 49, 55, 58, 61, 59, 57]) {
-      const next = cutawayHidden(d, hidden);
-      if (next !== hidden) flips.push(next);
-      hidden = next;
-    }
-    expect(flips).toEqual([true, false]);
+const room = (front: Side): City3Room => ({
+  id: "r",
+  lot: "shop-1",
+  name: "R",
+  template: "cafe",
+  front,
+  center: [-25, -78.5],
+  door: [-27, -72.5],
+  rect: [-37.5, -84.5, -12.5, -72.5],
+  cut: { rect: [-37.5, -85.2, -12.5, -71.8], y: 4.45 },
+  layout: "/assets/interiors/r.json",
+  featured: false,
+});
+
+describe("radii", () => {
+  it("starts streaming before the cutaway can open, and keeps a room longer than it loads it", () => {
+    expect(INTERIOR_LOAD_WITHIN).toBeGreaterThan(SHOW_BEYOND);
+    expect(INTERIOR_KEEP_WITHIN).toBeGreaterThan(INTERIOR_LOAD_WITHIN);
+    expect(SHOW_BEYOND).toBeGreaterThan(HIDE_WITHIN);
   });
 });
 
-describe("hero presets", () => {
-  it("each preset camera opens the cutaway and sits outside the building", () => {
-    for (const h of CITY3_HEROES) {
-      const [x, y, z] = h.view.position;
-      const d = heroDistance(h, { x, y, z });
+describe("roomView", () => {
+  it("puts the camera on the street side, inside the cutaway radius, looking at the room", () => {
+    for (const side of ["S", "N", "E", "W"] as Side[]) {
+      const r = room(side);
+      const v = roomView(r);
+      const d = roomDistance(r, { x: v.position[0], y: v.position[1], z: v.position[2] });
       expect(d).toBeLessThan(HIDE_WITHIN);
-      expect(Math.hypot(x - h.center[0], z - h.center[1])).toBeGreaterThan(8);
+      expect(v.target[0]).toBe(r.center[0]);
+      expect(v.target[2]).toBe(r.center[1]);
     }
+    // S faces +Z (three.js), N faces -Z, E faces +X, W faces -X
+    expect(roomView(room("S")).position[2]).toBeGreaterThan(-78.5);
+    expect(roomView(room("N")).position[2]).toBeLessThan(-78.5);
+    expect(roomView(room("E")).position[0]).toBeGreaterThan(-25);
+    expect(roomView(room("W")).position[0]).toBeLessThan(-25);
   });
-  it("starts streaming an interior before its cutaway can open, and keeps it longer than it loads it", () => {
-    expect(INTERIOR_LOAD_WITHIN).toBeGreaterThan(SHOW_BEYOND);
-    expect(INTERIOR_KEEP_WITHIN).toBeGreaterThan(INTERIOR_LOAD_WITHIN);
-  });
-  it("synthetic debug rooms get unique ids and never collide with a real prefix", () => {
-    const press = CITY3_HEROES.find((h) => h.id === "press")!;
-    const fake = syntheticHeroes(12, press);
-    expect(new Set(fake.map((h) => h.id)).size).toBe(12);
-    for (const f of fake) expect(CITY3_HEROES.some((h) => f.prefix.startsWith(h.prefix))).toBe(false);
-  });
-  it("uses distinct cutaway prefixes", () => {
-    const p = CITY3_HEROES.map((h) => h.prefix);
-    expect(new Set(p).size).toBe(p.length);
+});
+
+describe("syntheticRooms", () => {
+  it("gives unique ids and shifts the source layout onto each new centre", () => {
+    const fake = syntheticRooms(12, room("S"));
+    expect(new Set(fake.map((f) => f.id)).size).toBe(12);
+    for (const f of fake) {
+      expect(f.layout).toBe("/assets/interiors/r.json");
+      expect(f.center[0] - room("S").center[0]).toBeCloseTo(f.shift![0]);
+      expect(f.center[1] - room("S").center[1]).toBeCloseTo(f.shift![1]);
+    }
   });
 });
