@@ -34,3 +34,5 @@ re-deriving it. Written 2026-11-06 at the end of a long build; update it, don't 
 2. `bun install` at the repo root (3 s), `cd apps/console && bunx tsc -b && bunx vitest run`.
 3. Blender: see `02-environment.md` (tarball + `apt install libegl1 libgl1 ...`), then `tools/city3/README.md` run order.
 4. Look at the latest screenshots you produce before believing any number.
+
+- [09-districts.md](09-districts.md) — Glass Quarter, Foundry Wharf, bridges, district streaming + themes (read before touching `districts.ts`/`DistrictWorld.tsx`).
