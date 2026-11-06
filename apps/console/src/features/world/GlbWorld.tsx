@@ -527,11 +527,10 @@ function StageEnvironment({ place }: { place: Place }) {
     // different curve than the one it was authored under.
     gl.toneMapping = THREE.AgXToneMapping;
     gl.toneMappingExposure = 1.1;
-    // City 3 takes the RoomEnvironment path too: with no environment at all,
-    // AgX + the single key light washed the district foliage pale (the
-    // districts' palette data was intact in the GLBs). DistrictWorld drives
-    // scene.environmentIntensity from the blended theme's envIntensity, so
-    // the 0.6 set here is only the pre-first-tick value for city3.
+    if (place === "city3") {
+      pmrem.dispose();
+      return () => {};
+    }
     if (place !== "agora") {
       const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
       scene.environment = envMap;

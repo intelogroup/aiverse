@@ -33,29 +33,18 @@ for n,r in (("roof_tile",0.85),("roof_flat",0.95),("cobble",0.88),("sidewalk",0.
     MATS[n]=make_mat(n,n,r)
 # PBR re-skin (Poly Haven CC0 via mtex.py): ground and roofs get normal maps; UV stays 1 unit = tile_m metres, a Mapping node rescales to the scan size.
 PBRM=json.load(open(f"{HERE}/pbr_m.json")) if os.path.exists(f"{HERE}/pbr_m.json") else {}
-def pbr_override(key,tag,tile_m,rough=None,tint=None):
+def pbr_override(key,tag,tile_m,rough=None):
     if tag not in PBRM: return
     m=bpy.data.materials.new(key); m.use_nodes=True; nt=m.node_tree
     for n in list(nt.nodes):
         if n.type not in ("OUTPUT_MATERIAL","BSDF_PRINCIPLED"): nt.nodes.remove(n)
     bs=nt.nodes["Principled BSDF"]; tc=nt.nodes.new("ShaderNodeTexCoord"); mp=nt.nodes.new("ShaderNodeMapping"); sc=tile_m/PBRM[tag]["size"]; mp.inputs["Scale"].default_value=(sc,sc,1)
     nt.links.new(tc.outputs["UV"],mp.inputs["Vector"])
-    d=nt.nodes.new("ShaderNodeTexImage"); d.image=bpy.data.images.load(f"{HERE}/tex_m/{tag}_d.jpg"); d.extension="REPEAT"; nt.links.new(mp.outputs["Vector"],d.inputs["Vector"])
-    if tint is None: nt.links.new(d.outputs["Color"],bs.inputs["Base Color"])
-    else:                                                                 # per-variant tint: texture x colour via the Mix node (RGBA/MULTIPLY) — the one pattern the glTF exporter folds into baseColorFactor (probed on 5.2.3: legacy MixRGB and channel-math chains both export untinted)
-        mx=nt.nodes.new("ShaderNodeMix"); mx.data_type="RGBA"; mx.blend_type="MULTIPLY"; mx.inputs[0].default_value=1.0; mx.inputs[7].default_value=(*tint,1.0)
-        nt.links.new(d.outputs["Color"],mx.inputs[6]); nt.links.new(mx.outputs[2],bs.inputs["Base Color"])
+    d=nt.nodes.new("ShaderNodeTexImage"); d.image=bpy.data.images.load(f"{HERE}/tex_m/{tag}_d.jpg"); d.extension="REPEAT"; nt.links.new(mp.outputs["Vector"],d.inputs["Vector"]); nt.links.new(d.outputs["Color"],bs.inputs["Base Color"])
     n=nt.nodes.new("ShaderNodeTexImage"); n.image=bpy.data.images.load(f"{HERE}/tex_m/{tag}_n.jpg"); n.image.colorspace_settings.name="Non-Color"; n.extension="REPEAT"; nt.links.new(mp.outputs["Vector"],n.inputs["Vector"])
     nm=nt.nodes.new("ShaderNodeNormalMap"); nt.links.new(n.outputs["Color"],nm.inputs["Color"]); nt.links.new(nm.outputs["Normal"],bs.inputs["Normal"])
-    bs.inputs["Roughness"].default_value=PBRM[tag]["rough"] if rough is None else rough
-    rp=f"{HERE}/tex_m/{tag}_r.jpg"                                                                 # optional channel-packed map (ambientCG sets): G = roughness, B = metalness, same mapping; wins over the scalars
-    if os.path.exists(rp):
-        rt=nt.nodes.new("ShaderNodeTexImage"); rt.image=bpy.data.images.load(rp); rt.image.colorspace_settings.name="Non-Color"; rt.extension="REPEAT"; nt.links.new(mp.outputs["Vector"],rt.inputs["Vector"])
-        sep=nt.nodes.new("ShaderNodeSeparateColor"); nt.links.new(rt.outputs["Color"],sep.inputs["Color"]); nt.links.new(sep.outputs["Green"],bs.inputs["Roughness"]); nt.links.new(sep.outputs["Blue"],bs.inputs["Metallic"])
-    m.use_backface_culling=True; MATS[key]=m
-for _k,_t,_s in (("cobble","plaza_setts",6.0),("sidewalk","pave_warm",4.0),("courtyard","pave_warm",4.0),("roof_tile","roof_barrel",3.0),("roof_flat","roof_clay2",4.0)): pbr_override(_k,_t,_s)
-for _v,_tint in enumerate(((0.93,0.90,0.90),(1.05,1.01,0.95),(0.96,0.94,1.00),(1.02,0.96,0.88)),1): pbr_override(f"roof_tile_v{_v}","roof_barrel",3.0,tint=_tint)   # per-building tint variants of the barrel tile: subtle value/hue jitter on the shared set, assigned by building index in building()
-pbr_override("roof_hall","roof_barrel",1.5)   # market-hall vault: same set at a 5.2 m repeat (hall UVs are true metres/3 after the arc-length rewrite in the halls loop)
+    bs.inputs["Roughness"].default_value=PBRM[tag]["rough"] if rough is None else rough; m.use_backface_culling=True; MATS[key]=m
+for _k,_t,_s in (("cobble","plaza_stone",6.0),("sidewalk","pave_warm",4.0),("courtyard","pave_warm",4.0),("roof_tile","roof_clay",3.0),("roof_flat","roof_clay2",4.0)): pbr_override(_k,_t,_s)
 MATS["water"]=make_mat("water","palette",0.45); MATS["lamp_glow"]=make_mat("lamp_glow","palette",0.5,emit=True,strength=3.0)
 MATS["glass"]=make_mat("glass",None,0.05,alpha=0.22,base=(0.72,0.86,0.95,1.0))
 # ---------------- flat surfaces & roads ----------------
@@ -182,7 +171,6 @@ def building(bd,idx):
             pquad("palette",fr.p(0,0,H-0.55),fr.p(length,0,H-0.55),fr.p(length,0,H),fr.p(0,0,H),"stone_lt",fr.o(0,1))
             pquad("palette",fr.p(0,0,H-0.55),fr.p(length,0,H-0.55),fr.p(length,-e,H-0.55),fr.p(0,-e,H-0.55),"stone",(0,0,-1))
         top=Z+H
-        rtv=((idx*2654435761)&0xFFFFFFFF)%5; rtb="roof_tile" if rtv==0 else f"roof_tile_v{rtv}"   # this building's barrel-tile tint variant (pure function of idx — consumes no RNG, so dormers/chimneys/props roll exactly as before)
         if bd["roof"]=="flat":
             x0,y0,x1,y1=cr; mb("roof_flat").quad((x0,y0,top),(x1,y0,top),(x1,y1,top),(x0,y1,top),(x0/4,y0/4),(x1/4,y0/4),(x1/4,y1/4),(x0/4,y1/4),(0,0,1))
             if rnd.random()<0.5:
@@ -196,11 +184,11 @@ def building(bd,idx):
             def face_(E0,E1,T0,T1,axis):
                 u=lambda p:(p[0]/t if axis=="x" else p[1]/t)
                 c=((E0[0]+E1[0]+T0[0]+T1[0])/4,(E0[1]+E1[1]+T0[1]+T1[1])/4); out=(c[0]-cx,c[1]-cy,0.6)
-                mb(rtb).quad(E0,E1,T1,T0,(u(E0),0),(u(E1),0),(u(T1),sl),(u(T0),sl),out)
+                mb("roof_tile").quad(E0,E1,T1,T0,(u(E0),0),(u(E1),0),(u(T1),sl),(u(T0),sl),out)
             if hx>=hy:
-                face_(A,B,R1,R2,"x"); face_(C,D,R2,R1,"x"); mb(rtb).tri(B,C,R2,(0,0),(1,0),(0.5,sl),(1,0,0.5)); mb(rtb).tri(D,A,R1,(0,0),(1,0),(0.5,sl),(-1,0,0.5))
+                face_(A,B,R1,R2,"x"); face_(C,D,R2,R1,"x"); mb("roof_tile").tri(B,C,R2,(0,0),(1,0),(0.5,sl),(1,0,0.5)); mb("roof_tile").tri(D,A,R1,(0,0),(1,0),(0.5,sl),(-1,0,0.5))
             else:
-                face_(B,C,R1,R2,"y"); face_(D,A,R2,R1,"y"); mb(rtb).tri(A,B,R1,(0,0),(1,0),(0.5,sl),(0,-1,0.5)); mb(rtb).tri(C,D,R2,(0,0),(1,0),(0.5,sl),(0,1,0.5))
+                face_(B,C,R1,R2,"y"); face_(D,A,R2,R1,"y"); mb("roof_tile").tri(A,B,R1,(0,0),(1,0),(0.5,sl),(0,-1,0.5)); mb("roof_tile").tri(C,D,R2,(0,0),(1,0),(0.5,sl),(0,1,0.5))
             def dormer(px,py,pz,nx,ny):
                 """Small gabled dormer standing on the slope at (px,py,pz); (nx,ny) = outward slope direction."""
                 w=0.7; tx,ty=-ny,nx; d=1.0; hgt=1.25
@@ -239,11 +227,9 @@ def tall_block(mat,r,floors):
 for h in P["halls"]:
     r=h["rect"]; x0,y0,x1,y1=r; top=tall_block("facade_rose",r,2); cx=(x0+x1)/2; rise=7.0; N=16
     pts=[(y0+(y1-y0)*k/N,top+rise*math.sin(math.pi*k/N)) for k in range(N+1)]
-    arc=[0.0]
-    for k in range(N): arc.append(arc[-1]+math.hypot(pts[k+1][0]-pts[k][0],pts[k+1][1]-pts[k][1]))   # cumulative vault arc (m): the hall's UVs become true metres/3, the pitched-roof convention, so roof_hall's tile_m 1.5 lands a 5.2 m repeat on the curve
     for k in range(N):
         (ya,za),(yb,zb)=pts[k],pts[k+1]; mid=((ya+yb)/2-(y0+y1)/2,((za+zb)/2-top)); out=(0,mid[0],max(mid[1],0.01)*3)
-        mb("roof_hall").quad((x0-0.5,ya,za),(x1+0.5,ya,za),(x1+0.5,yb,zb),(x0-0.5,yb,zb),(x0/3,arc[k]/3),(x1/3,arc[k]/3),(x1/3,arc[k+1]/3),(x0/3,arc[k+1]/3),out)
+        mb("roof_tile").quad((x0-0.5,ya,za),(x1+0.5,ya,za),(x1+0.5,yb,zb),(x0-0.5,yb,zb),(x0/3,k*2),(x1/3,k*2),(x1/3,k*2+2),(x0/3,k*2+2),out)
     for xe,sg in ((x0-0.5,-1),(x1+0.5,1)):
         for k in range(N):
             (ya,za),(yb,zb)=pts[k],pts[k+1]
@@ -337,38 +323,16 @@ for s in P["streets"]:                                                       # b
 for k in range(8):                                                           # plaza festoon poles + string lights
     a=2*math.pi*k/8+math.pi/8; P0=(22*math.cos(a),22*math.sin(a)); cyl(P0[0],P0[1],Z,Z+6.0,0.09,6,"iron",top=False)
     a2=2*math.pi*(k+1)/8+math.pi/8; P1=(22*math.cos(a2),22*math.sin(a2)); string_lights((P0[0],P0[1],Z+5.9),(P1[0],P1[1],Z+5.9))
-# Trees: the faceted palette blobs are replaced by the Sketchfab "Low Poly
-# Forest Tree Pack" (99.Miles, CC-BY 4.0 — assets_kit.tree_variants_sketchfab,
-# ASSETS.md), loaded with its own atlas textures: study frames showed a flat
-# palette re-skin collapses the pack's branch cards into slabs, while the
-# textured original reads as a proper low-poly tree. Placed as linked
-# duplicates at the plan positions. A dedicated Random keeps the city rng's
-# downstream draws identical to the blob build everywhere else (state
-# snapshot/restore around the tree loops).
-_trng=random.Random(20240); _treecoll=None
-def _tree_variants():
-    global _treecoll
-    if _treecoll is not None: return _treecoll
-    assets_kit.tree_variants_sketchfab([
-        ("packtree_a","hero_full",None),     # full pine, the workhorse
-        ("packtree_b","hero_tall",None),     # tall pine
-        ("packtree_c","hero_birch",None),    # autumn birch accent, sparse (the old blob build's orange slot)
-    ])
-    _treecoll=bpy.data.collections.new("Trees"); bpy.context.scene.collection.children.link(_treecoll)
-    return _treecoll
 def tree(x,y):
-    coll=_tree_variants()
-    key=_trng.choices(["packtree_a","packtree_b","packtree_c"],weights=[55,35,10])[0]
-    src=assets_kit.LIB[key]; h=_trng.uniform(5.0,7.0); s=h/max(src["dims"][2],1e-3)
-    assets_kit.instantiate(key,coll,x,y,Z,_trng.uniform(0,6.28),s,name=f"Tree_{key}")
-_rng_state=rng.getstate()
+    h=rng.uniform(4.0,6.0); cyl(x,y,Z,Z+h*0.6,0.17,7,"trunk_dark",top=False,r1=0.1); R=h*0.4
+    for k in range(rng.choice([3,4])):
+        a=rng.uniform(0,6.28); d=rng.uniform(0,R*0.7); blob(x+math.cos(a)*d,y+math.sin(a)*d,Z+h*0.72+rng.uniform(-0.3,0.8)*R*0.5,R*rng.uniform(0.6,0.9),rng.choice(["leaf","leaf_dark"]))
 for (x,y) in P["trees"]: tree(x,y)
 for t_ in range(-52,53,13):                                                  # plaza rim: trees in planters + benches facing the square
     for (x,y,al) in ((t_,-57.0,True),(t_,57.0,True),(-57.0,t_,False),(57.0,t_,False)):
         if abs(t_)<8: continue
         pbox(x-0.9,y-0.9,x+0.9,y+0.9,Z,Z+0.5,"stone_lt"); pbox(x-0.8,y-0.8,x+0.8,y+0.8,Z+0.5,Z+0.52,"trunk_dark"); tree(x,y)
         BENCHES.append((x+(3.2 if not al else 0),y+(3.2 if al and y<0 else (-3.2 if al else 0)),al))
-rng.setstate(_rng_state)    # tree placement drew only from _trng; keep every later rng draw identical to the blob build
 # café sets out front of the hero + a few elsewhere handled in hero
 if "tea" in HERO_INFO:
     fr=HERO_INFO["tea"]["fr"]; du=HERO_INFO["tea"]["door_u"]
@@ -388,7 +352,7 @@ LF=Frame((0.0,0.0),(1.0,0.0),(0.0,-1.0),0.0)
 for _st in sorted({i[0] for i in doors.INST}):
     with grp(f"DI_{_st}"): doors.door_static(_st,LF)
 # ---------------- realise ----------------
-NAME={"sidewalk":"Sidewalks","cobble":"PlazaCobble","grass":"Parks","courtyard":"Courtyards","road_avenue":"RoadAvenue","road_narrow":"RoadStreet","road_plain":"RoadJunction","roof_tile":"RoofTile","roof_tile_v1":"RoofTileV1","roof_tile_v2":"RoofTileV2","roof_tile_v3":"RoofTileV3","roof_tile_v4":"RoofTileV4","roof_hall":"RoofHall","roof_flat":"RoofFlat","awning":"Awnings","palette":"Props","water":"Water","lamp_glow":"LampGlow","shutters":"Shutters","signs":"Signs","blades":"BladeSigns","interior_wall":"InteriorWalls","wood_floor":"WoodFloor","rug":"Rug","glass":"Glass","newsprint":"Newsprint"}
+NAME={"sidewalk":"Sidewalks","cobble":"PlazaCobble","grass":"Parks","courtyard":"Courtyards","road_avenue":"RoadAvenue","road_narrow":"RoadStreet","road_plain":"RoadJunction","roof_tile":"RoofTile","roof_flat":"RoofFlat","awning":"Awnings","palette":"Props","water":"Water","lamp_glow":"LampGlow","shutters":"Shutters","signs":"Signs","blades":"BladeSigns","interior_wall":"InteriorWalls","wood_floor":"WoodFloor","rug":"Rug","glass":"Glass","newsprint":"Newsprint"}
 LIBG={}
 for key,b in MBS.items():
     g,_,m=key.rpartition("::")
@@ -508,7 +472,7 @@ for bid,ps in by_bid.items():
     json.dump({"id":bid,"library":"world-city3-library.glb","props":props},open(f"{HERE}/out/interiors/{bid}.json","w"),separators=(",",":"))
 sz=[os.path.getsize(f"{HERE}/out/interiors/{k}.json") for k in by_bid]
 print("LAYOUTS",len(by_bid),"files; props min/avg/max",min(len(v) for v in by_bid.values()),sum(len(v) for v in by_bid.values())//len(by_bid),max(len(v) for v in by_bid.values()),"| bytes total",sum(sz))
-CREDITS=[{"asset":k,"source":v.get("credit") or ("https://opengameart.org/content/furniture-low-poly" if v["source"]=="quaternius" else (json.load(open(f"{HERE}/assets/sketchfab/{v['id']}/meta.json"))["source"] if v["source"]=="sketchfab" else f"https://polyhaven.com/a/{v['id']}")),"license":v.get("credit_license","CC0")} for k,v in assets_kit.LIB.items() if v["source"] not in ("usdz","blendswap")]
+CREDITS=[{"asset":k,"source":("https://opengameart.org/content/furniture-low-poly" if v["source"]=="quaternius" else (json.load(open(f"{HERE}/assets/sketchfab/{v['id']}/meta.json"))["source"] if v["source"]=="sketchfab" else f"https://polyhaven.com/a/{v['id']}")),"license":"CC0"} for k,v in assets_kit.LIB.items() if v["source"] not in ("usdz","blendswap")]
 CREDITS+=[{"asset":k,"source":"https://blendswap.com/blend/33793","license":"CC0 (uploader-declared), coldpengu"} for k,v in assets_kit.LIB.items() if v["source"]=="blendswap"]
 CREDITS+=[{"asset":k,"source":"user-supplied upload (partycups_usdz.zip)","license":"not stated"} for k,v in assets_kit.LIB.items() if v["source"]=="usdz"]
 json.dump(CREDITS,open(f"{HERE}/out/asset-credits.json","w"),indent=1)
