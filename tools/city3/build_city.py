@@ -272,9 +272,10 @@ cylwall(f["r_out"],Z,Z+0.9,"stone"); cylwall(f["r_in"],Z,Z+0.9,"stone")
 ring(f["r_out"],f["r_out"]+0.5,Z+0.9,"stone_lt"); ring(f["r_in"]-0.5,f["r_in"],Z+0.9,"stone_lt"); ring(f["r_in"],f["r_out"],Z+0.6,"water")
 for k in range(N):
     a0=2*math.pi*k/N; a1=2*math.pi*(k+1)/N; ptri("palette",(0,0,Z+0.9),(f["r_in"]*math.cos(a0),f["r_in"]*math.sin(a0),Z+0.9),(f["r_in"]*math.cos(a1),f["r_in"]*math.sin(a1),Z+0.9),"stone",(0,0,1))
+BENCHES=[]                                                                  # plaza benches become CC0 Sketchfab "Low Poly Medieval" benches (placed with the other SK props)
 for k in range(8):                                                           # fountain jets + benches around the basin
     a=2*math.pi*k/8+math.pi/8; x=8.0*math.cos(a); y=8.0*math.sin(a); cyl(x,y,Z+0.6,Z+1.5,0.08,6,"stone_lt",r1=0.05); cyl(x,y,Z+1.5,Z+1.55,0.18,6,"water")
-    bx=13.0*math.cos(a); by=13.0*math.sin(a); bench(bx,by,Z,abs(math.cos(a))<0.7)
+    bx=13.0*math.cos(a); by=13.0*math.sin(a); BENCHES.append((bx,by,abs(math.cos(a))<0.7))
 def blob(cx,cy,cz,r,nm,seg=8,ring=5):
     def Pt(i,j):
         if j==0: return (cx,cy,cz-r*0.8)
@@ -327,7 +328,7 @@ for t_ in range(-52,53,13):                                                  # p
     for (x,y,al) in ((t_,-57.0,True),(t_,57.0,True),(-57.0,t_,False),(57.0,t_,False)):
         if abs(t_)<8: continue
         pbox(x-0.9,y-0.9,x+0.9,y+0.9,Z,Z+0.5,"stone_lt"); pbox(x-0.8,y-0.8,x+0.8,y+0.8,Z+0.5,Z+0.52,"trunk_dark"); tree(x,y)
-        bench(x+(3.2 if not al else 0),y+(3.2 if al and y<0 else (-3.2 if al else 0)),Z,al)
+        BENCHES.append((x+(3.2 if not al else 0),y+(3.2 if al and y<0 else (-3.2 if al else 0)),al))
 # café sets out front of the hero + a few elsewhere handled in hero
 if "tea" in HERO_INFO:
     fr=HERO_INFO["tea"]["fr"]; du=HERO_INFO["tea"]["door_u"]
@@ -364,7 +365,7 @@ _skc=bpy.data.collections.new("SkProps"); bpy.context.scene.collection.children.
 _rs=random.Random(909)
 for o_ in list(bpy.data.objects):
     pass
-SK={n:_sk(n,h) for n,h in (("lantern",0.42),("pot",0.5),("producecrate",0.3))}
+SK={n:_sk(n,h) for n,h in (("lantern",0.42),("pot",0.5),("producecrate",0.3),("med_bench",0.96),("med_crate",0.5))}
 def _skput(n,x,y,z,rot=0.0):
     src,s=SK[n]; o=src.copy(); o.data=src.data; o.name=f"SK_{n}"; o.location=(x,y,z); o.rotation_euler=(0,0,rot); o.scale=(s,s,s); _skc.objects.link(o)
 for s_ in P["stalls"]:
@@ -372,6 +373,10 @@ for s_ in P["stalls"]:
     _skput("producecrate",cx+_rs.uniform(-0.6,0.6),cy+_rs.uniform(-0.15,0.15),Z+1.0,_rs.uniform(0,6.28))
     for sgn in (-1,1): _skput("lantern",cx+sgn*(hx_-0.1),cy+(hy_+0.35)*(1 if s_["facing"]=="S" else -1),Z+2.2)
     if _rs.random()<0.7: _skput("pot",cx-hx_-0.6,cy+_rs.uniform(-0.8,0.8),Z,_rs.uniform(0,6.28))
+for (bx_,by_,hz_) in BENCHES: _skput("med_bench",bx_,by_,Z,0.0 if hz_ else -math.pi/2)     # backrest on +y (horizontal) / +x, as the procedural bench had it
+for s_ in P["stalls"]:
+    cx,cy=s_["c"]; w_,d_=s_["size"]
+    if _rs.random()<0.6: _skput("med_crate",cx+(w_/2+0.45)*_rs.choice([-1,1]),cy+_rs.uniform(-0.5,0.5),Z,_rs.uniform(0,6.28))
 print("PROF",{k:v for k,v in sorted(kit.PROF.items(),key=lambda kv:-kv[1])})
 print("MESHES",len(MBS),"TRIS",sum(len(b.f) for b in MBS.values()))
 print({k:len(b.f) for k,b in sorted(MBS.items(),key=lambda kv:-len(kv[1].f))[:8]})

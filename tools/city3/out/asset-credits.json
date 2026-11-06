@@ -15,6 +15,16 @@
   "license": "CC0"
  },
  {
+  "asset": "sk_med_bench",
+  "source": "https://sketchfab.com/3d-models/bench-low-poly-medieval-cc0-00a5bc01eb254b1cadc51fbb3394b5b2",
+  "license": "CC0"
+ },
+ {
+  "asset": "sk_med_crate",
+  "source": "https://sketchfab.com/3d-models/crate-low-poly-medieval-cc0-d54d8752e2724d16b4b45f2afa929e28",
+  "license": "CC0"
+ },
+ {
   "asset": "ArmChair_01",
   "source": "https://polyhaven.com/a/ArmChair_01",
   "license": "CC0"

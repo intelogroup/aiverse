@@ -32,3 +32,7 @@ offline renders only. The earlier commit 9d61a42..(this branch) still holds the 
 Search needs no token. Result `license` is `{uid,label}` (no slug) - match "CC0" in the label. Server `licenses=cc0` works but CC0 downloadable
 low-poly street props are scarce (mostly museum scans); useful hit: "Low Poly Medieval, CC0" pack (bench, stall, crates; fetched to assets/sketchfab/med_*).
 `max_face_count` server filter returned nothing - filter `faceCount` client-side. Download API needs a token (personal token via env var only).
+
+## Bazaar: Sketchfab "Low Poly Medieval, CC0" props (2026-11-06)
+Fountain-ring and plaza-rim benches are now `med_bench` (616 tris, backrest on +y in Blender axes, rotate -90 deg for the other axis) and ~60% of stalls get a `med_crate`
+(`build_city.py`, `BENCHES` list + `_skput`). Street-front benches along facades stay procedural. Seen in screenshots: benches read well, backrests face outward from the fountain.
