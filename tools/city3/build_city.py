@@ -31,6 +31,20 @@ def make_mat(name,img,rough=0.9,emit=False,strength=0.0,alpha=None,base=None):
 for k in ("sand","ochre","white","rose","blue"): MATS[f"facade_{k}"]=make_mat(f"Facade_{k}",f"facade_{k}",0.92)
 for n,r in (("roof_tile",0.85),("roof_flat",0.95),("cobble",0.88),("sidewalk",0.9),("road_plain",0.9),("road_narrow",0.9),("road_avenue",0.9),("grass",1.0),("courtyard",0.95),("awning",0.8),("palette",0.8),("shutters",0.7),("signs",0.6),("blades",0.6),("interior_wall",0.95),("wood_floor",0.7),("rug",0.95),("newsprint",0.9)):
     MATS[n]=make_mat(n,n,r)
+# PBR re-skin (Poly Haven CC0 via mtex.py): ground and roofs get normal maps; UV stays 1 unit = tile_m metres, a Mapping node rescales to the scan size.
+PBRM=json.load(open(f"{HERE}/pbr_m.json")) if os.path.exists(f"{HERE}/pbr_m.json") else {}
+def pbr_override(key,tag,tile_m,rough=None):
+    if tag not in PBRM: return
+    m=bpy.data.materials.new(key); m.use_nodes=True; nt=m.node_tree
+    for n in list(nt.nodes):
+        if n.type not in ("OUTPUT_MATERIAL","BSDF_PRINCIPLED"): nt.nodes.remove(n)
+    bs=nt.nodes["Principled BSDF"]; tc=nt.nodes.new("ShaderNodeTexCoord"); mp=nt.nodes.new("ShaderNodeMapping"); sc=tile_m/PBRM[tag]["size"]; mp.inputs["Scale"].default_value=(sc,sc,1)
+    nt.links.new(tc.outputs["UV"],mp.inputs["Vector"])
+    d=nt.nodes.new("ShaderNodeTexImage"); d.image=bpy.data.images.load(f"{HERE}/tex_m/{tag}_d.jpg"); d.extension="REPEAT"; nt.links.new(mp.outputs["Vector"],d.inputs["Vector"]); nt.links.new(d.outputs["Color"],bs.inputs["Base Color"])
+    n=nt.nodes.new("ShaderNodeTexImage"); n.image=bpy.data.images.load(f"{HERE}/tex_m/{tag}_n.jpg"); n.image.colorspace_settings.name="Non-Color"; n.extension="REPEAT"; nt.links.new(mp.outputs["Vector"],n.inputs["Vector"])
+    nm=nt.nodes.new("ShaderNodeNormalMap"); nt.links.new(n.outputs["Color"],nm.inputs["Color"]); nt.links.new(nm.outputs["Normal"],bs.inputs["Normal"])
+    bs.inputs["Roughness"].default_value=PBRM[tag]["rough"] if rough is None else rough; m.use_backface_culling=True; MATS[key]=m
+for _k,_t,_s in (("cobble","cobble_pbr",6.0),("sidewalk","pave_warm",4.0),("courtyard","pave_warm",4.0),("roof_tile","roof_clay",3.0),("roof_flat","roof_clay2",4.0)): pbr_override(_k,_t,_s)
 MATS["water"]=make_mat("water","palette",0.45); MATS["lamp_glow"]=make_mat("lamp_glow","palette",0.5,emit=True,strength=3.0)
 MATS["glass"]=make_mat("glass",None,0.05,alpha=0.22,base=(0.72,0.86,0.95,1.0))
 # ---------------- flat surfaces & roads ----------------
@@ -139,6 +153,15 @@ def building(bd,idx):
             wallq(mat,fr,0,length,0,GH,"upA",u1=bays)
             with grp(UG):
                 for f in range(1,n): wallq(mat,fr,0,length,GH+(f-1)*FH,GH+f*FH,"upA",u1=bays)
+    with grp(UG):                                                             # wall relief: string courses at every floor line + alternating corner quoins
+        for side in ("S","E","N","W"):
+            fr,length=frame_for(r,side,Z)
+            for f in range(1,n): fbox(fr,0,length,0,0.07,GH+(f-1)*FH-0.1,GH+(f-1)*FH+0.1,"stone_lt",top=True)
+            fbox(fr,0,length,0,0.1,GH-0.12,GH+0.12,"stone_lt")
+            if side!=bd["face"]: continue
+            for q in range(int(H/1.4)):
+                z0=q*1.4+0.1; w=0.5 if q%2==0 else 0.34
+                fbox(fr,0,w,-0.01,0.06,z0,z0+0.66,"stone_lt",top=False); fbox(fr,length-w,length,-0.01,0.06,z0,z0+0.66,"stone_lt",top=False)
     with grp(UG):
         e=0.28; cr=(r[0]-e,r[1]-e,r[2]+e,r[3]+e)
         for side in ("S","E","N","W"):
