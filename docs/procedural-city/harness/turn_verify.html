@@ -1,0 +1,46 @@
+<!doctype html><meta charset=utf-8><body>
+<script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { newBodyState, stepBody, DEG, wrapAngle } from "/bodyController.js";
+const q=new URLSearchParams(location.search); const variant=q.get("v")||"new"; const target=Number(q.get("deg")||180)*DEG;
+const gltf=await new GLTFLoader().loadAsync("/assets/cast-bodyblock.glb");
+const scene=gltf.scene; const group=new THREE.Group(); group.add(scene);
+const find=s=>{let f=null;scene.traverse(o=>{if(!f&&o.name.endsWith(s))f=o});return f};
+const hips=find("Hips"), parent=hips.parent, parentQuat=parent.quaternion.clone(), parentRest=parent.position.clone(), hipsRest=hips.position.clone();
+const LF=find("LeftFoot"), RF=find("RightFoot"), LU=find("LeftUpLeg"), RU=find("RightUpLeg");
+const mixer=new THREE.AnimationMixer(scene);
+const act=n=>mixer.clipAction(gltf.animations.find(c=>c.name===n));
+const idle=act("Idle"); idle.play(); idle.setEffectiveWeight(1);
+const turnAct={TurnLeft90:act("TurnLeft90"),TurnRight90:act("TurnRight90")};
+const Y=new THREE.Vector3(0,1,0); const DT=1/60; const FADE=0.25;
+const st=newBodyState(0); let tw=0, turnYaw=0, curTurn=null, heading=0;
+const pos=o=>{group.updateMatrixWorld(true);const v=new THREE.Vector3();o.getWorldPosition(v);return v};
+const yawOf=()=>{const a=pos(LU),b=pos(RU);const lat=a.sub(b);return Math.atan2(-lat.z,lat.x)};
+const rows=[]; const feet=[];
+const tick=(k)=>{
+  const t=k*DT;
+  if(variant==="new"){
+    const out=stepBody(st,{vx:0,vz:0,speed:0,intent:target,walkSpeed:0.8746},DT);
+    heading=out.heading; group.rotation.y=heading;
+    const bt=out.turn; const ta=bt?turnAct[bt.clip]:null;
+    if(bt&&ta){ if(curTurn!==ta){ if(curTurn){curTurn.setEffectiveWeight(0);curTurn.stop()} ta.reset();ta.setLoop(THREE.LoopOnce,1);ta.clampWhenFinished=true;ta.play();ta.paused=true;curTurn=ta } ta.time=bt.t*ta.getClip().duration; turnYaw=bt.baked }
+    const goal=bt&&ta?1:0; tw= tw<goal?Math.min(goal,tw+DT/FADE):Math.max(goal,tw-DT/FADE);
+    if(curTurn){curTurn.setEffectiveWeight(tw); if(tw===0&&!bt){curTurn.stop();curTurn=null;turnYaw=0}}
+    idle.setEffectiveWeight(1-tw);
+    mixer.update(DT);
+    parent.quaternion.setFromAxisAngle(Y,-turnYaw*tw).multiply(parentQuat);
+  } else { // legacy: embody's face turn at 180 deg/s with Idle legs (turntable)
+    const err=wrapAngle(target-heading); const step=Math.PI*DT; heading=Math.abs(err)<=step?target:heading+Math.sign(err)*step; group.rotation.y=heading; mixer.update(DT);
+  }
+  { const L=pos(LF),R=pos(RF); const prevH=rows.length?rows[rows.length-1].heading:0; feet.push([L.x,L.y,L.z,R.x,R.y,R.z,Math.abs(heading/DEG-prevH)>0.02?1:0]); }
+  rows.push({t:+t.toFixed(3),heading:+(heading/DEG).toFixed(1),pelvis:+(yawOf()/DEG).toFixed(1),tw:+tw.toFixed(2),turnYaw:+(turnYaw/DEG).toFixed(1),aTime:curTurn?+curTurn.time.toFixed(3):null,aW:curTurn?+curTurn.getEffectiveWeight().toFixed(2):null,idleW:+idle.getEffectiveWeight().toFixed(2),parentY:+(new THREE.Euler().setFromQuaternion(parent.quaternion,'YXZ').y/DEG).toFixed(1)});
+};
+const N=Math.ceil((variant==="new"?4.5:2.2)/DT); for(let k=0;k<N;k++)tick(k);
+// after a settle period the body must face the target and the rig must not be twisted
+let minY=1e9; for(const f of feet){minY=Math.min(minY,f[1],f[4])} const thr=minY+0.035; let slide=0, contactFrames=0;
+for(let k=1;k<feet.length;k++){ for(const o of [0,3]){ if(feet[k][6]&&feet[k][o+1]<thr&&feet[k-1][o+1]<thr){ slide+=Math.hypot(feet[k][o]-feet[k-1][o],feet[k][o+2]-feet[k-1][o+2]); contactFrames++ } } }
+const turningFrames=feet.reduce((a,f)=>a+f[6],0); const fin=rows[rows.length-1]; const err=rows.map(r=>Math.abs(wrapAngle((r.pelvis-r.heading)*DEG))/DEG);
+window.__out={variant,targetDeg:target/DEG,finalHeading:fin.heading,finalPelvis:fin.pelvis,slideM:+slide.toFixed(3),contactFrames,turningSeconds:+(turningFrames*DT).toFixed(2),slidePerDegM:+(slide/Math.abs(target/DEG)).toFixed(4),maxPelvisVsHeadingDeg:+Math.max(...err).toFixed(1),meanPelvisVsHeadingDeg:+(err.reduce((a,b)=>a+b,0)/err.length).toFixed(1),sample:rows.filter((_,i)=>i%30===0)};
+</script>

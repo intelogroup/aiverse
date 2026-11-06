@@ -1,0 +1,29 @@
+<!doctype html><meta charset=utf-8><body style="margin:0">
+<script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
+const q=new URLSearchParams(location.search);
+const gltf=await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync("/city3out/"+(q.get("glb")||"world-city3")+".glb");
+const W=1400,H=900; const r=new THREE.WebGLRenderer({antialias:q.get('aa')!=='0'}); const _gl=r.getContext(); r.setSize(W,H); r.shadowMap.enabled=q.get('sh')!=='0'; r.toneMapping=THREE.AgXToneMapping; r.toneMappingExposure=1.1; r.outputColorSpace=THREE.SRGBColorSpace; document.body.appendChild(r.domElement);
+const sc=new THREE.Scene(); sc.background=new THREE.Color(0x9fc3e8); sc.fog=new THREE.FogExp2(0x9fc3e8,0.0009);
+sc.add(new THREE.HemisphereLight(0xdfeaff,0x806850,1.1));
+const sun=new THREE.DirectionalLight(0xfff1d6,2.6); sun.position.set(120,220,90); sun.castShadow=true; sun.shadow.mapSize.set(4096,4096);
+const c=sun.shadow.camera; c.left=-220;c.right=220;c.top=220;c.bottom=-220;c.near=10;c.far=700; sun.shadow.bias=-0.0004; sun.shadow.normalBias=0.8; sc.add(sun);
+let tris=0,meshes=0,mats=new Set(); gltf.scene.traverse(o=>{if(o.isMesh){meshes++;o.castShadow=o.receiveShadow=true; if(o.name==='Water'){o.receiveShadow=false;o.castShadow=false;}mats.add(o.material);const g=o.geometry;tris+=(g.index?g.index.count:g.attributes.position.count)/3;}});
+sc.add(gltf.scene);
+if(q.get('extra')){const g2=await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync('/city3out/'+q.get('extra')+'.glb'); g2.scene.traverse(o=>{if(o.isMesh){o.castShadow=o.receiveShadow=true;}}); sc.add(g2.scene);}
+const box=new THREE.Box3().setFromObject(gltf.scene);
+const cam=new THREE.PerspectiveCamera(45,W/H,1,3000);
+if(q.get('cut')==='1') gltf.scene.traverse(o=>{if((o.name.startsWith('HeroUpper')||o.name.startsWith('TeaUpper')||o.name.startsWith('PressUpper')))o.visible=false;});
+if(q.get('anchors')){const A=(await (await fetch('/city3out/hero-anchors.json')).json()).anchors;
+ for(const a of A){const m=new THREE.Mesh(new THREE.SphereGeometry(0.16,10,8),new THREE.MeshBasicMaterial({color:0xff2a2a,depthTest:false}));m.position.set(a.seat[0],a.floorY+a.seatHeight,a.seat[1]);m.renderOrder=10;sc.add(m);
+ const g=new THREE.Mesh(new THREE.SphereGeometry(0.12,10,8),new THREE.MeshBasicMaterial({color:0x22ff66,depthTest:false}));g.position.set(a.approach[0],a.floorY+0.05,a.approach[1]);g.renderOrder=10;sc.add(g);
+ const dir=new THREE.ArrowHelper(new THREE.Vector3(Math.sin(a.facing),0,Math.cos(a.facing)),m.position,0.5,0xffff00);dir.renderOrder=11;sc.add(dir);}}
+if(q.get('hide')){const H=q.get('hide').split(',');gltf.scene.traverse(o=>{if(H.includes(o.name))o.visible=false;});}
+const V=JSON.parse(q.get('v')); const views=V;
+const out={meshes,tris:Math.round(tris),materials:mats.size,bbox:[box.min.toArray().map(v=>+v.toFixed(1)),box.max.toArray().map(v=>+v.toFixed(1))],shots:{}};
+for(const [k,[p,t]] of Object.entries(views)){cam.position.set(...p);cam.lookAt(...t);r.render(sc,cam);out.shots[k]=r.domElement.toDataURL("image/png");}
+out.calls=r.info.render.calls; out.depthBits=_gl.getParameter(_gl.DEPTH_BITS); out.aa=q.get('aa'); out.__dbg={}; gltf.scene.traverse(o=>{if(o.name==='Rug'||o.name==='WoodFloor'){const b=new THREE.Box3().setFromObject(o);out.__dbg[o.name]={min:b.min.toArray().map(v=>+v.toFixed(3)),max:b.max.toArray().map(v=>+v.toFixed(3)),visible:o.visible,mat:o.material.name,map:!!o.material.map,side:o.material.side,transparent:o.material.transparent,count:o.geometry.index?o.geometry.index.count:o.geometry.attributes.position.count,pos:Array.from(o.geometry.attributes.position.array).map(v=>+v.toFixed(3)),idx:o.geometry.index?Array.from(o.geometry.index.array):null,attrs:Object.keys(o.geometry.attributes),world:o.matrixWorld.elements.map(v=>+v.toFixed(3)),renderOrder:o.renderOrder,depthWrite:o.material.depthWrite,depthTest:o.material.depthTest,po:o.material.polygonOffset}}}); window.__out=out;
+</script>
