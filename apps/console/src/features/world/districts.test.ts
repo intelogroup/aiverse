@@ -19,8 +19,8 @@ describe("districts", () => {
   });
   it("loads only near districts, never residents, nearest first", () => {
     const p = planDistricts([0, 0], defs, new Set());
-    expect(p.load).toEqual(["n", "e", "w", "s"].slice(0, 3).filter((x) => p.load.includes(x)));
-    expect(p.load.length).toBe(3); // cap
+    expect(p.load).toEqual(["n", "e", "w", "s"]); // all four neighbours are 220 m away: none may be dropped
+    expect(planDistricts([0, 0], defs, new Set(), { cap: 3 }).load.length).toBe(3); // cap still applies
     expect(p.load).not.toContain("bazaar");
   });
   it("hysteresis: keeps a loaded district until beyond keepR", () => {
