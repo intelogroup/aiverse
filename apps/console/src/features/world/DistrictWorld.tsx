@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { useGLTF } from "@react-three/drei";
-import { blendTheme, planDistricts, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
+import { blendTheme, planDistricts, themeDelta, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
 
 export const DISTRICTS_URL = "/assets/districts.json";
 
@@ -45,8 +45,7 @@ void main(){ float h = clamp(vDir.y, -0.2, 1.0); vec3 c = mix(horizon, top, pow(
 /**
  * The district world: the Bazaar stays resident (useGLTF); other islands stream by the orbit target's distance
  * (planDistricts) and are fully disposed on eviction. Per frame the focus blends the district themes into the sky dome,
- * fog, key light, water, exposure, environment intensity and emissive "night" amount. The environment map itself is
- * GlbWorld StageEnvironment's RoomEnvironment (shared with the other places).
+ * fog, key light, water, exposure and emissive "night" amount; the PMREM environment is rebuilt only when the sky moves.
  * `window.__districts` exposes counters for the memory test (?districtDebug=1).
  */
 export function DistrictWorld({ residentUrl, light }: { residentUrl: string; light: React.RefObject<THREE.DirectionalLight | null> }) {
@@ -60,6 +59,7 @@ export function DistrictWorld({ residentUrl, light }: { residentUrl: string; lig
   const loading = useRef(new Set<string>());
   const stats = useRef({ loads: 0, evictions: 0, loadMs: [] as number[] });
   const themeRef = useRef<Theme | null>(null);
+  const envTheme = useRef<Theme | null>(null);
   const clock = useRef(0);
   const camera = useThree((s) => s.camera);
 
@@ -80,26 +80,20 @@ export function DistrictWorld({ residentUrl, light }: { residentUrl: string; lig
     const m = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), new THREE.MeshStandardMaterial({ color: "#1c6a84", roughness: 0.12, metalness: 0.0 }));
     m.rotation.x = -Math.PI / 2; m.position.y = -1.25; m.receiveShadow = true; return m;
   }, []);
-  // Warm hemisphere fill (deeper-grade tune): with envIntensity lowered the
-  // RoomEnvironment wash no longer flattens the palette, and this fill —
-  // sky warm, ground earth — keeps shade readable without desaturating it.
-  // Intensity comes from the theme's ambient field in the frame loop.
-  const hemi = useMemo(() => {
-    const h = new THREE.HemisphereLight();
-    h.color.setRGB(1.0, 0.85, 0.62); h.groundColor.setRGB(0.45, 0.36, 0.22); h.intensity = 0;
-    return h;
-  }, []);
+  const pm = useMemo(() => new THREE.PMREMGenerator(gl), [gl]);
+  const envScene = useMemo(() => { const s = new THREE.Scene(); s.add(new THREE.Mesh(sky.geometry, sky.material)); s.children[0].scale.setScalar(50); return s; }, [sky]);
+
   useEffect(() => {
-    scene.add(sky); scene.add(water); scene.add(hemi);
+    scene.add(sky); scene.add(water);
     scene.fog = new THREE.FogExp2(0xb0b8c8, 0.0006);
     resident.scene.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && (m.material as THREE.Material).name === "water") m.visible = false; });
     gl.toneMapping = THREE.AgXToneMapping;
     return () => {
-      scene.remove(sky); scene.remove(water); scene.remove(hemi); scene.fog = null; scene.background = null; scene.environment = null;
+      scene.remove(sky); scene.remove(water); scene.fog = null; scene.background = null; scene.environment = null;
       for (const g of groups.current.values()) { scene.remove(g); disposeTree(g); }
-      groups.current.clear(); (sky.material as THREE.Material).dispose(); sky.geometry.dispose(); (water.material as THREE.Material).dispose(); water.geometry.dispose();
+      groups.current.clear(); pm.dispose(); (sky.material as THREE.Material).dispose(); sky.geometry.dispose(); (water.material as THREE.Material).dispose(); water.geometry.dispose();
     };
-  }, [scene, sky, water, hemi, gl, resident]);
+  }, [scene, sky, water, gl, pm, resident]);
 
   useEffect(() => {
     if (!manifest?.links) return;
@@ -150,7 +144,6 @@ export function DistrictWorld({ residentUrl, light }: { residentUrl: string; lig
     (scene.fog as THREE.FogExp2).color.setRGB(...t.fog); (scene.fog as THREE.FogExp2).density = t.fogDensity;
     (water.material as THREE.MeshStandardMaterial).color.setRGB(...t.water);
     gl.toneMappingExposure = t.exposure; scene.environmentIntensity = t.envIntensity;
-    hemi.intensity = t.ambient * 5;
     const l = light.current;
     if (l) {
       const sd = new THREE.Vector3(...t.sunDir).normalize(); const tx = Math.round(controls.target.x / 40) * 40; const tz = Math.round(controls.target.z / 40) * 40;
@@ -158,10 +151,9 @@ export function DistrictWorld({ residentUrl, light }: { residentUrl: string; lig
       l.color.setRGB(...t.sun); l.intensity = t.sunIntensity;
     }
     if (!prev || Math.abs(prev.night - t.night) > 0.02) { applyNight(resident.scene, t.night); groups.current.forEach((g) => applyNight(g, t.night)); }
-    // scene.environment itself is owned by GlbWorld's StageEnvironment
-    // (RoomEnvironment, same as the other places) — a sky-gradient-only
-    // PMREM here left the foliage with no real fill and read pale under
-    // AgX. This loop still drives environmentIntensity from the theme.
+    if (!envTheme.current || themeDelta(envTheme.current, t) > 0.04) {
+      const old = scene.environment; scene.environment = pm.fromScene(envScene, 0, 0.1, 100).texture; old?.dispose(); envTheme.current = t;
+    }
   });
   return <primitive object={resident.scene} />;
 }

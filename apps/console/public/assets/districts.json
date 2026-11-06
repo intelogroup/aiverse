@@ -93,8 +93,8 @@
     0.32
    ],
    "ambient": 0.14,
-   "envIntensity": 0.35,
-   "exposure": 1.02,
+   "envIntensity": 0.7,
+   "exposure": 1.08,
    "night": 0.7
   },
   "glass": {
@@ -131,8 +131,8 @@
     0.5
    ],
    "ambient": 0.16,
-   "envIntensity": 0.45,
-   "exposure": 0.94,
+   "envIntensity": 0.9,
+   "exposure": 1.0,
    "night": 0.9
   },
   "foundry": {
@@ -169,8 +169,8 @@
     0.2
    ],
    "ambient": 0.14,
-   "envIntensity": 0.4,
-   "exposure": 1.02,
+   "envIntensity": 0.8,
+   "exposure": 1.08,
    "night": 0.25
   },
   "terraces": {
@@ -207,8 +207,8 @@
     0.3
    ],
    "ambient": 0.15,
-   "envIntensity": 0.43,
-   "exposure": 1.04,
+   "envIntensity": 0.85,
+   "exposure": 1.1,
    "night": 0.0
   },
   "halo": {
@@ -245,8 +245,8 @@
     0.55
    ],
    "ambient": 0.16,
-   "envIntensity": 0.48,
-   "exposure": 1.02,
+   "envIntensity": 0.95,
+   "exposure": 1.08,
    "night": 0.75
   }
  }
