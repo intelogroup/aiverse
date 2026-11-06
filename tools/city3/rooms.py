@@ -3,7 +3,7 @@
 A piece faces -Y (the 'front'), sits on z = 0 and is centred on x = y = 0. A template never builds
 geometry: it queues kit.put() placements of pieces / CC0 assets and records seat anchors, so a room is
 only a few KB of layout. Frame coordinates: u along the shop front, d = depth into the room (t = -d)."""
-import math, random
+import math, os, random
 from kit import *
 import hero, press
 import details
@@ -12,12 +12,23 @@ from details import FLOWERS
 PIECES=["table_round","chair_wood","stool_wood","counter_2m","shelf_bottles_a","shelf_bottles_b","shelf_bottles_c","booth_2m","armchair_blue","armchair_red",
         "sofa_3","fireplace","rug_6x4","rug_4x3","floor_lamp","frames_wall","menu_board","display_table_a","display_table_b","shop_counter","shelf_goods_a","shelf_goods_b"]
 _BUILT=[False]
+# Real bottles (BlendSwap #33793, CC0, coldpengu) replace the coloured-box shelf stock. 4 shapes x 5 colours = 20 small library meshes.
+BOTTLE_BLEND=os.path.join(HERE,"assets","blendswap","bottles_33793","pack.blend")
+BOTTLE_SHAPES=(("Cube",0.32),("Cube.001",0.29),("Cube.002",0.22),("Cube.003",0.36))     # source object, height m (shape 2 is the squat jug)
+BOTTLE_COLS={"green":(0.04,0.20,0.07),"amber":(0.36,0.16,0.03),"clear":(0.62,0.70,0.72),"cobalt":(0.04,0.09,0.34),"wine":(0.22,0.02,0.05)}
+BOTTLE_KEYS=[f"bottle_{i}_{c}" for i in range(4) for c in BOTTLE_COLS]
+def build_bottles():
+    import assets_kit
+    for i,(nm,h) in enumerate(BOTTLE_SHAPES):
+        for c,rgb in BOTTLE_COLS.items():
+            k=f"bottle_{i}_{c}"
+            if k not in assets_kit.LIB: assets_kit.load_blend(k,BOTTLE_BLEND,nm,h,rgb,rough=0.12 if c!="clear" else 0.05,src_id="blendswap:33793")
 def _origin(): return Frame((0,0),(1,0),(0,-1),0.0)
 def piece(name,fn):
     with grp("LIB_"+name): fn(_origin())
 def build_pieces():
     if _BUILT[0]: return
-    _BUILT[0]=True; ANCHORS_ON[0]=False; r=random.Random(21)
+    _BUILT[0]=True; ANCHORS_ON[0]=False; r=random.Random(21); build_bottles()
     piece("table_round",lambda fr:hero.table(fr,0,0,0,r,0.0,skip=("+u","-u","+d","-d")))
     piece("chair_wood",lambda fr:hero.chair(fr,0,0,0,"+d"))
     def stool(fr): cyl(0,0,0,0.62,0.04,6,"iron",top=False); cyl(0,0,0.62,0.68,0.21,8,"wood_dark")
@@ -29,8 +40,7 @@ def build_pieces():
             rr=random.Random(seed); fbox(fr,-1.0,1.0,-0.14,0.0,0,3.1,"wood_dark")                  # back panel on the wall side (t < 0)
             for zs in (1.1,1.8,2.5):
                 fbox(fr,-1.0,1.0,0.0,0.6,zs,zs+0.05,"wood"); u=-0.9
-                while u<0.85:
-                    hh=rr.uniform(0.22,0.4); fbox(fr,u,u+0.12,0.2,0.32,zs+0.05,zs+0.05+hh,rr.choice(["crimson","teal","yellow","orange","magenta","cloth_blue","lime","copper","paper"])); u+=rr.uniform(0.2,0.45)
+                pass                                                                         # bottles are real library meshes, see stock_bottles()
         return f
     for nm,s in (("shelf_bottles_a",1),("shelf_bottles_b",2),("shelf_bottles_c",3)): piece(nm,shelf_b(s))
     def booth(fr): fbox(fr,-1.0,1.0,-1.05,0.0,0,0.46,"cloth_red"); fbox(fr,-1.0,1.0,-1.05,-0.95,0.46,0.95,"cloth_red")
@@ -70,6 +80,14 @@ def build_pieces():
     piece("shelf_goods_a",goods(8)); piece("shelf_goods_b",goods(9))
     ANCHORS_ON[0]=True
 # ---------------- templates ----------------
+def stock_bottles(fr,u,d,f,seed):
+    """Fill one 2 m shelf (3 rows at z 1.15/1.85/2.55 above floor f) with real bottles; deterministic per shelf."""
+    rr=random.Random(seed*7919+int(u*13)); pal=list(BOTTLE_COLS)
+    for zs in (1.15,1.85,2.55):
+        x=-0.88; fav=rr.choice(pal)
+        while x<0.88:
+            sh=rr.randrange(4) if rr.random()<0.8 else 2; col=fav if rr.random()<0.55 else rr.choice(pal)
+            put(f"bottle_{sh}_{col}",fr,u+x,-(d-0.26),f+zs,0,1); x+=rr.uniform(0.13,0.2)
 def _lane(db,bw): return db*bw+bw/2
 def seat_table(fr,u,d,f,rnd,chairs):
     put("table_round",fr,u,-d,f)
@@ -91,7 +109,8 @@ def cafe(bd,fr,W,D,GH,rnd,f,db,bw,lounge=False):
         else: put("brass_goblets",fr,u-0.3,-bar_d,f+1.12,0,-1)
         put("stool_wood",fr,u-0.5,-(bar_d-1.0),f,0,-1); add_anchor(fr,u-0.5,-(bar_d-1.0),0,-1,0.68,"stool",f,side=-1)
         put("stool_wood",fr,u+0.5,-(bar_d-1.0),f,0,-1); add_anchor(fr,u+0.5,-(bar_d-1.0),0,-1,0.68,"stool",f,side=-1)
-    for i in range(int((W-2.0)//2.0)): put(("shelf_bottles_a","shelf_bottles_b","shelf_bottles_c")[i%3],fr,1.0+1.0+2.0*i,-shelf_d,f,0,1)
+    for i in range(int((W-2.0)//2.0)):
+        put(("shelf_bottles_a","shelf_bottles_b","shelf_bottles_c")[i%3],fr,1.0+1.0+2.0*i,-shelf_d,f,0,1); stock_bottles(fr,1.0+1.0+2.0*i,shelf_d,f,i+1)
     for dd,u0,chairs in ((3.4,2.3,None),(5.8,4.1,"back")):
         u=u0
         while u<W-2.0:
