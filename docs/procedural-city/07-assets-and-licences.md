@@ -39,6 +39,13 @@ Fountain-ring and plaza-rim benches are now `med_bench` (616 tris, backrest on +
 Village stall (`med_stall`, 752 tris): ~35% of the 80 stalls (`MEDSTALLS`, seeded per stall index) use it instead of the procedural stall, scaled (1.4, 1.4, 1.2); the
 scalloped awning edge is its -y side (rot 0 for facing S, pi for N). Verified from the plaza side for S-facing stalls; N-facing orientation not yet checked in a screenshot.
 
+## Bazaar stall goods (2026-11-06, branch decor/stall-goods)
+Replaced the tinted-cuboid goods (and the 80 `SK_producecrate` with their boxes) with 11 stall stocks: fruit, veg, grain, spice, cloth, pottery, bakery, dairy, wine, lamps, baskets.
+- Sketchfab Avramania "Low Poly Medieval, CC0" (all CC0): Basket aef0f7e9, Grain Sack 7db2a145, Sack 3deb43fe, Roll 9cd0c6d3, Cheese Wheel c66175e5, Barrel 72b75758 (+ Pot / Lantern already in use); `Fruit Basket` 736ae73e fetched, unused. Search recipe: the public search finds the pack only with its full title, e.g. `q="Basket Low Poly Medieval CC0"`, then filter `user.displayName == "Avramania"` (plain "basket" / "sack" returns other authors).
+- Poly Haven CC0: `wooden_bucket_01`, `metal_jug` (the jug key is also used by the interior library, so the goods copy is loaded under its own name `g_metal_jug` at 300 tris; the library keeps its 2000-tri version).
+- Procedural (palette, no texture): fruit / veg crates and heaps (icosphere 20 tris, per-fruit colour from the palette), spice trays, cloth, pottery, bottles, bread, hanging strings. No CC-BY used, nothing new in `asset-credits.json` except the CC0 entries of the loaded assets.
+- Budgets: real assets decimated to 170-340 tris, textures 128 px (the pack's palette image is 256 px, 1 KB); procedural pieces 100-560 tris.
+
 ## Agora 2 spike sources (2026-11-06, not shipped)
 - Quaternius Modular Sci-Fi MegaKit Standard (CC0, 190 glTF): itch.io `POST <page>/download_url` -> download page -> `POST <page>/file/<upload_id>?source=game_download` (60 s signed URL).
 - Kenney Modular Space Kit (CC0): direct zip on OpenGameArt (`kenney_modular-space-kit_1.0.zip`).
