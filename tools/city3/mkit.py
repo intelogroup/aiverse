@@ -130,10 +130,11 @@ def realise(names, extra_mats=None):
         me.uv_layers.new(name="UVMap").data.foreach_set("uv", [c for tri in b.uv for uv in tri for c in uv])
         ob = bpy.data.objects.new((f"{g}_" if g else "") + names.get(m, m), me); bpy.context.scene.collection.objects.link(ob); ob.data.materials.append(MATS[m])
 
-def export_glb(path):
+def export_glb(path, gpu_instances=False):
     import io_scene_gltf2.io.exp.meshopt as _m          # see 03-blender-gltf-lessons.md: Blender 5.2 meshopt POSITION precision
     _m.EXP_FILTER_BITS = 20; _m.ENCODE_EXP_SHARED_VECTOR = _m.ENCODE_EXP_SEPARATE
     for o in bpy.data.objects: o.select_set(True)
     bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", export_yup=True, export_apply=True, export_image_format="AUTO", export_texcoords=True,
-        export_normals=True, export_cameras=False, export_lights=False, export_meshopt_compression_enable=True, use_selection=True)
+        export_normals=True, export_cameras=False, export_lights=False, export_meshopt_compression_enable=True, use_selection=True,
+        export_gpu_instances=gpu_instances)
     print("EXPORTED", path, os.path.getsize(path) // 1024, "KB")

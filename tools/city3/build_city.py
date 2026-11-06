@@ -341,6 +341,10 @@ if "tea" in HERO_INFO:
 for side,(a,bb) in {"S":((-L,-L),(L,-L)),"E":((L,-L),(L,L)),"N":((L,L),(-L,L)),"W":((-L,L),(-L,-L))}.items():
     o={"S":(0,-1),"E":(1,0),"N":(0,1),"W":(-1,0)}[side]; pquad("palette",(a[0],a[1],-3),(bb[0],bb[1],-3),(bb[0],bb[1],Z),(a[0],a[1],Z),"stone",(o[0],o[1],0))
 u=pal_uv("water_deep"); mb("water").quad((-520,-520,-1.2),(520,-520,-1.2),(520,520,-1.2),(-520,520,-1.2),u,u,u,u,(0,0,1))
+for k in range(3):                                                           # party corner festoon (cups placed later)
+    string_lights((-7.6,27+k*9.0,Z+5.0),(7.6,27+k*9.0,Z+5.0),sag=0.6)
+for k in (-1,1):
+    for y_ in (27,36,45): cyl(k*7.6,y_,Z,Z+5.1,0.07,6,"iron",top=False)
 # ---------------- realise ----------------
 NAME={"sidewalk":"Sidewalks","cobble":"PlazaCobble","grass":"Parks","courtyard":"Courtyards","road_avenue":"RoadAvenue","road_narrow":"RoadStreet","road_plain":"RoadJunction","roof_tile":"RoofTile","roof_flat":"RoofFlat","awning":"Awnings","palette":"Props","water":"Water","lamp_glow":"LampGlow","shutters":"Shutters","signs":"Signs","blades":"BladeSigns","interior_wall":"InteriorWalls","wood_floor":"WoodFloor","rug":"Rug","glass":"Glass","newsprint":"Newsprint"}
 LIBG={}
@@ -382,6 +386,37 @@ for (bx_,by_,hz_) in BENCHES: _skput("med_bench",bx_,by_,Z,0.0 if hz_ else -math
 for s_ in P["stalls"]:
     cx,cy=s_["c"]; w_,d_=s_["size"]
     if _rs.random()<0.6: _skput("med_crate",cx+(w_/2+0.45)*_rs.choice([-1,1]),cy+_rs.uniform(-0.5,0.5),Z,_rs.uniform(0,6.28))
+# ---------------- party corner: user-supplied party cups + beer-pong tables (USDZ), GPU-instanced under one Empty ----------------
+_pe=bpy.data.objects.new("PartyCups",None); bpy.context.scene.collection.objects.link(_pe)
+def _pc(n,b=320): return assets_kit.load(f"partycups/{n}",b,source="usdz",name=f"pc_{n}",tex=128)
+_PT=assets_kit.load("partycups/partyTable",900,source="usdz",name="pc_table",tex=256); _TH=_PT["dims"][2]
+_CR=0.072                                                                    # cup rim radius (0.141 m across)
+def _put(key,x,y,z,rot=0.0,tilt=None):
+    src=assets_kit.LIB[key]["obj"]; o=src.copy(); o.data=src.data; o.name=f"PC_{key}"; o.location=(x,y,z)
+    o.rotation_euler=(tilt or 0.0,0,rot); o.parent=_pe; _skc.objects.link(o); return o
+_pr=random.Random(4242); COLS=["Red","Blue","Green","Yellow","Pink"]
+def pong_table(cx,cy,rot,c1,c2):
+    _put("pc_table",cx,cy,Z,rot); ca,sa=math.cos(rot),math.sin(rot); L=_PT["dims"][1]/2-0.12
+    for end,col in ((1,c1),(-1,c2)):
+        k=_pc(f"partyCup{col}_full",380)
+        for row in range(4):                                                 # 4-3-2-1 rack, apex toward the centre line
+            for j in range(4-row):
+                lx=(j-(3-row)/2)*_CR*2.02; ly=end*(L-row*_CR*1.75)
+                if _pr.random()<0.18 and row<2: continue                     # a few cups already sunk
+                _put(f"pc_partyCup{col}_full",cx+lx*ca-ly*sa,cy+lx*sa+ly*ca,Z+_TH,rot+_pr.uniform(0,6.28))
+    for sx in (-1,1):                                                        # spare stacks on the near corners
+        col=_pr.choice(COLS); n=_pr.choice(["stack","shortStack"]); _pc(f"partyCup{col}_{n}")
+        lx=sx*(_PT["dims"][0]/2-0.12); _put(f"pc_partyCup{col}_{n}",cx+lx*ca,cy+lx*sa,Z+_TH,_pr.uniform(0,6.28))
+def litter(x,y,n):
+    for _ in range(n):
+        col=_pr.choice(COLS); _pc(f"partyCup{col}_used",240)
+        a=_pr.uniform(0,6.28); d=_pr.uniform(0.3,2.5); up=_pr.random()<0.5
+        _put(f"pc_partyCup{col}_used",x+d*math.cos(a),y+d*math.sin(a),Z+(0.0 if up else _CR*0.95),_pr.uniform(0,6.28),None if up else math.pi/2)
+PARTY=[(-4.2,31.0,0.0,"Red","Blue"),(4.2,31.0,0.0,"Pink","Green"),(0.0,40.5,math.pi/2,"Yellow","Red")]
+for t in PARTY:
+    pong_table(*t); litter(t[0],t[1],3); ca,sa=math.cos(t[2]),math.sin(t[2])
+    _skput("med_crate",t[0]+1.1*ca,t[1]+1.1*sa,Z,_pr.uniform(0,6.28))                       # the cooler
+    _skput("med_bench",t[0]-2.0*ca,t[1]-2.0*sa,Z,t[2]+math.pi/2)                             # spectators' bench along the long side
 print("PROF",{k:v for k,v in sorted(kit.PROF.items(),key=lambda kv:-kv[1])})
 print("MESHES",len(MBS),"TRIS",sum(len(b.f) for b in MBS.values()))
 print({k:len(b.f) for k,b in sorted(MBS.items(),key=lambda kv:-len(kv[1].f))[:8]})
@@ -394,7 +429,7 @@ for o in bpy.data.objects: o.select_set(not o.name.startswith("LIB_"))     # the
 # 20 bits keep sub-millimetre precision; the decoder reads any mode (exponents are per component).
 import io_scene_gltf2.io.exp.meshopt as _meshopt
 _meshopt.EXP_FILTER_BITS=20; _meshopt.ENCODE_EXP_SHARED_VECTOR=_meshopt.ENCODE_EXP_SEPARATE
-bpy.ops.export_scene.gltf(filepath=f"{HERE}/out/world-city3.glb",export_format="GLB",export_yup=True,export_apply=True,export_image_format="AUTO",export_texcoords=True,export_normals=True,export_cameras=False,export_lights=False,export_draco_mesh_compression_enable=False,export_meshopt_compression_enable=True,use_selection=True)
+bpy.ops.export_scene.gltf(filepath=f"{HERE}/out/world-city3.glb",export_format="GLB",export_yup=True,export_apply=True,export_image_format="AUTO",export_texcoords=True,export_normals=True,export_cameras=False,export_lights=False,export_draco_mesh_compression_enable=False,export_meshopt_compression_enable=True,export_gpu_instances=True,use_selection=True)
 print("EXPORTED",os.path.getsize(f"{HERE}/out/world-city3.glb")//1024,"KB")
 # ---------------- shared library (CC0 imports + procedural pieces) + per-building layouts ----------------
 BUDGET={"wooden_bookshelf_worn":3000,"book_encyclopedia_set_01":4000,"desk_lamp_arm_01":2000,"vintage_grandfather_clock_01":3000,"drawer_cabinet":2500,
@@ -424,7 +459,8 @@ for bid,ps in by_bid.items():
     json.dump({"id":bid,"library":"world-city3-library.glb","props":props},open(f"{HERE}/out/interiors/{bid}.json","w"),separators=(",",":"))
 sz=[os.path.getsize(f"{HERE}/out/interiors/{k}.json") for k in by_bid]
 print("LAYOUTS",len(by_bid),"files; props min/avg/max",min(len(v) for v in by_bid.values()),sum(len(v) for v in by_bid.values())//len(by_bid),max(len(v) for v in by_bid.values()),"| bytes total",sum(sz))
-CREDITS=[{"asset":k,"source":("https://opengameart.org/content/furniture-low-poly" if v["source"]=="quaternius" else (json.load(open(f"{HERE}/assets/sketchfab/{v['id']}/meta.json"))["source"] if v["source"]=="sketchfab" else f"https://polyhaven.com/a/{v['id']}")),"license":"CC0"} for k,v in assets_kit.LIB.items()]
+CREDITS=[{"asset":k,"source":("https://opengameart.org/content/furniture-low-poly" if v["source"]=="quaternius" else (json.load(open(f"{HERE}/assets/sketchfab/{v['id']}/meta.json"))["source"] if v["source"]=="sketchfab" else f"https://polyhaven.com/a/{v['id']}")),"license":"CC0"} for k,v in assets_kit.LIB.items() if v["source"]!="usdz"]
+CREDITS+=[{"asset":k,"source":"user-supplied upload (partycups_usdz.zip)","license":"not stated"} for k,v in assets_kit.LIB.items() if v["source"]=="usdz"]
 json.dump(CREDITS,open(f"{HERE}/out/asset-credits.json","w"),indent=1)
 GROUND_TOP=Z+GH+0.05
 rooms_idx=[]

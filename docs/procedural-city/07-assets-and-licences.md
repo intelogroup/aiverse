@@ -6,7 +6,7 @@
 | **Quaternius** | CC0 | site yes; packs mostly on Google Drive (302, not followed). The "Furniture Pack" mirrors on **OpenGameArt** (`opengameart.org/sites/default/files/Furniture%20Pack%20by%20%40Quaternius.zip`) | OBJ/FBX are flat grey; colours only in .blend → recolour by slot name (`assets_kit._recolor`) |
 | **Kenney** | CC0 | **blocked (403)** | itch.io mirrors untested |
 | **Poly Pizza** | per-model | **blocked (403)** | |
-| **BlenderKit** | "Royalty Free" (not extractable in a shipped game) or CC0 | needs account/add-on | its FAQ says assets in a distributed game "shouldn't be directly extractable"; a web GLB is extractable → CC0 items only |
+| **BlenderKit** | "Royalty Free" (not extractable in a shipped game) or CC0 | REST API works (see Halo section, `02-environment.md`) | its FAQ says assets in a distributed game "shouldn't be directly extractable"; a web GLB is extractable → CC0 items only |
 | **Synty POLYGON** | paid EULA | page only | unclear for raw models in a browser build; don't use without reading the One-Time-Purchase licence |
 | **OpenGameArt** | per item (many CC0) | yes | check each listing's licence |
 
@@ -44,3 +44,13 @@ scalloped awning edge is its -y side (rot 0 for facing S, pi for N). Verified fr
 - Kenney Modular Space Kit (CC0): direct zip on OpenGameArt (`kenney_modular-space-kit_1.0.zip`).
 - BlenderKit: API search works without a key. Free assets are mostly **royalty-free, not CC0**; FAQ allows them in games only "if the models can't be extracted easily" -> a public web GLB is easy to extract -> excluded (same reasoning as Poliigon). CC0 BlenderKit assets only.
 - BlendSwap MCP: CC0 filter works, licences are uploader-declared; useful hits: Round Robot (rigged), Low Poly Rock Formation #2, Beach Cliff scan.
+
+## Halo Lagoon sources (2026-11-06)
+- **BlenderKit CC0 works end-to-end** (recipe in `02-environment.md`): downloaded "Blue Striped beach chair" glb (`assets/blendkit/beach_chair/`).
+  Branded cars (Ferrari/BMW etc.) are CC0-tagged but avoid them (trademarks); generic "car" is batmobile-styled -> skipped.
+- **BlendSwap CC0** (`assets/blendswap/`): #20393 "Tropical Palm Tree (Cycles)" by TheMav — 37k tris of geometric leaves; decimating to game budget shreds the
+  fronds -> not used as mesh. #5812 "Palm Tree Cycles Ready" by SSimpossible — `PalmFrondDiffuse.png`/`PalmFrondAlpha.png` alpha-masked frond texture -> used on
+  procedural alpha-card fronds.
+- **Sketchfab** CC0 searches for palm/tropical/plant/bush/parasol/car/yacht return almost only museum scans -> not useful.
+- **Poly Haven** fetched: models outdoor_table_chair_set_01, bronze_whale_statue, bronze_ray_statue, bronze_shark_statue, CoffeeCart_01, planter_box_01,
+  potted_plant_04, lifebuoy; texture palm_tree_bark.

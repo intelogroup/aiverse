@@ -21,7 +21,31 @@ textures to 512 px before export into `world-city3-press.glb`.
 | Vintage Oil Lamp | Monsta3D | CC0 | https://polyhaven.com/a/vintage_oil_lamp |
 | Potted Plant 02 | Rico Cilliers | CC0 | https://polyhaven.com/a/potted_plant_02 |
 
+## Halo Lagoon (world-halo.glb)
+
+| Asset | Author | Licence | Source |
+|---|---|---|---|
+| Outdoor Table Chair Set 01 | James Ray Cock | CC0 | https://polyhaven.com/a/outdoor_table_chair_set_01 |
+| Coffee Cart 01 | Joe Seabuhr | CC0 | https://polyhaven.com/a/CoffeeCart_01 |
+| Planter Box 01 | James Ray Cock | CC0 | https://polyhaven.com/a/planter_box_01 |
+| Bronze Whale Statue | Tina | CC0 | https://polyhaven.com/a/bronze_whale_statue |
+| Bronze Ray Statue | Tina | CC0 | https://polyhaven.com/a/bronze_ray_statue |
+| Bronze Shark Statue | Tina | CC0 | https://polyhaven.com/a/bronze_shark_statue |
+| Lifebuoy | Hank Kaamura | CC0 | https://polyhaven.com/a/lifebuoy |
+| Palm Tree Bark (texture) | Dimitrios Savva, Rico Cilliers | CC0 | https://polyhaven.com/a/palm_tree_bark |
+| Palm frond diffuse + alpha (PalmFrondDiffuse/Alpha.png), recoloured into tex_m/halo_foliage.png | SSimpossible | CC0 (uploader-declared) | https://blendswap.com/blend/5812 |
+
+Flower tiles in halo_foliage.png, cars, yachts, parasols, kiosks, bins: procedural (halo_tex.py, halo_props.py).
+
 Not used, on purpose:
 - **BlenderKit** "Royalty Free" assets: its licensing FAQ says assets in a distributed game "shouldn't be directly extractable"; a web GLB is extractable. Its CC0 assets would be fine but need a signed-in add-on.
 - **Synty POLYGON**: paid EULA, no clear answer on shipping raw models in a browser build.
 - **Kenney**: CC0, but kenney.nl and its GitHub return 403 from this build environment.
+
+## Bazaar party corner (world-city3.glb)
+
+| Asset | Source | Licence |
+|---|---|---|
+| partyTable, partyCup{Red,Blue,Green,Yellow,Pink}_{full,stack,shortStack,used} (USDZ) | uploaded by the project owner (`partycups_usdz.zip`), kept local in `assets/partycups/` (gitignored) | not stated in the upload; confirm before redistributing |
+
+Imported with `assets_kit.load(..., source="usdz")`: cups decimated to 240–380 tris, table to 900, base-colour texture only (128/256 px), GPU-instanced under the `PartyCups` Empty.

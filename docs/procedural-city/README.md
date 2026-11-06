@@ -35,4 +35,4 @@ re-deriving it. Written 2026-11-06 at the end of a long build; update it, don't 
 3. Blender: see `02-environment.md` (tarball + `apt install libegl1 libgl1 ...`), then `tools/city3/README.md` run order.
 4. Look at the latest screenshots you produce before believing any number.
 
-- [09-districts.md](09-districts.md) — Glass Quarter, Foundry Wharf, bridges, district streaming + themes (read before touching `districts.ts`/`DistrictWorld.tsx`).
+- [09-districts.md](09-districts.md) — Glass Quarter (N), Foundry Wharf (E), Garden Terraces (W), Halo Lagoon (S), bridges, district streaming + themes (read before touching `districts.ts`/`DistrictWorld.tsx`).

@@ -1,9 +1,9 @@
-# Districts (beyond 1000 m): Glass Quarter, Foundry Wharf, bridges, themes
+# Districts (beyond 1000 m): Glass Quarter, Foundry Wharf, Garden Terraces, Halo Lagoon, bridges, themes
 
 ## World
 Islands of 360x360 m on a 400 m pitch joined by 40 m water gaps + 20 m road bridges (`links.py`). Bazaar (0,0) resident; Glass Quarter north
 (three z=-400), Foundry Wharf east (x=+400). Total span 1160 m. Manifest: `apps/console/public/assets/districts.json` (districts, themes, links).
-Garden Terraces west (x=-400) is built (`terraces.py`: stepped stucco terraces with timber screens and green roofs, pool villas, canal gardens, 258k tris / 8.8 MB). South is NOT built yet; run `links.py -- N E W S` only for islands that exist (a bridge to nothing looks wrong).
+Garden Terraces west (x=-400) is built (`terraces.py`: stepped stucco terraces with timber screens and green roofs, pool villas, canal gardens, 258k tris / 8.8 MB). Halo Lagoon south (z=+400) is built (see below). Run `links.py -- N E W S` only for islands that exist (a bridge to nothing looks wrong); `world-links.glb` now has N, E, W, S bridges.
 
 ## Pipeline (all under tools/city3, run in this order)
 `python3 assets/fetch_textures.py <ids>` (Poly Haven CC0, UA header) -> `python3 mtex.py` (tex_m/, atlases, palette_m, tinted/grayed PBR sets)
@@ -12,7 +12,7 @@ Preview: `mprev.py` (Blender EEVEE, ~30 s/shot, CPU-heavy) — prefer the web ha
 (`window.__districts.cam(pos,target)`), and only render Blender for final looks.
 
 ## Runtime
-`districts.ts` (pure, tested): `planDistricts` (load<=330 m from the orbit target, keep<=520 m, cap 3 streamed), `blendTheme` (smoothstep over 140 m).
+`districts.ts` (pure, tested): `planDistricts` (load<=330 m from the orbit target, keep<=520 m, cap 4 streamed; was 3, see Halo notes), `blendTheme` (smoothstep over 140 m).
 `DistrictWorld.tsx`: GLTFLoader+meshopt, full dispose on eviction, sky dome shader, water plane at y=-1.25 (Bazaar's own water hidden), PMREM env rebuilt only when
 the sky moves (`themeDelta>0.04`), key light follows the target on a 40 m snap grid, `night` scales emissive of materials named glass/msign/led.
 
@@ -34,7 +34,18 @@ Poly Haven (CC0, API ok), ambientCG (API reachable, CC0; not used yet — good n
 Quaternius Downtown MegaKit (CC0, free part via itch.io page, interactive), BlenderKit (needs account sign-in; not scriptable here).
 
 ## Next
-Garden Terraces (W) + a south district; instancing for trees/lamps; 1024 px glass tiles; sidewalk crowd/navmesh per district; memory test across district load/evict (counters in `window.__districts.stats()`).
+Halo refinement (below); instancing for trees/lamps; 1024 px glass tiles; sidewalk crowd/navmesh per district; memory test across district load/evict (counters in `window.__districts.stats()`).
 
 ## Terraces notes
 Bug that cost a build: drawing the recessed stucco quad over the whole window opening hid the glass; build the wall AROUND the opening (side/sill/head strips). Stucco set is tinted x1.28 to read white; the sidewalk uses neutral herringbone, not the warm paver set.
+
+## Halo Lagoon (id "halo", south slot, 2026-11-06)
+Centre [0,400], half 180, theme `halo` (golden hour: skyTop [0.2,0.32,0.62], horizon [1.0,0.66,0.4], sun [1.0,0.72,0.46] x2.2, night 0.75).
+Build: `python3 mtex.py` -> `python3 halo_tex.py` (MUST be after mtex, before halo: tints plaza_herring->halo_pave, terrazzo->halo_terrazzo,
+glass_atlas->halo_glass.jpg into gitignored `tex_m/`) -> `blender -b --python halo.py` (-> `out/world-halo.glb`, `out/halo-plan.json`) -> copy GLB to
+`apps/console/public/assets/world-halo.glb`.
+Contents: superellipse (n=4) island R 176; hero buttress spire with chrome halo rings at the origin; ringA/ringB ring towers; flareA/flareB flared towers with fins;
+three diagrid drums with ribbed glass domes; terraced dome; hex tower; wave terraces; lagoon pool; ring road r60-74; N/S boulevards; green ring; south plaza
+fountain; static elevated monorail loop (ellipse 104x100, deck z 9.7) with a parked train; lawns; piers. First pass ~216k tris / 7.8 MB.
+`districts.ts` MAX_STREAMED 3->4: all four neighbours are exactly 220 m from the Bazaar centre, so cap 3 always dropped one (cost: ~40 MB of GLBs resident).
+In progress: refinement pass (palms = procedural alpha cards with the CC0 BlendSwap frond texture, CC0 street props, cars, yachts). Sources: `07-assets-and-licences.md`.

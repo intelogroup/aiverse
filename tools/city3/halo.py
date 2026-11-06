@@ -106,24 +106,69 @@ def planter_ring(cx, cy, r0, r1, z, rng, n):
     lathe(cx, cy, [(r1, z), (r1, z + 0.7), (r1 - 0.25, z + 0.7)], 64, color="cream"); flat_ring("palette", cx, cy, r0, r1 - 0.25, z + 0.55, 64, color="moss")
     for k in range(n):
         t = rng.uniform(0, TAU); r = rng.uniform(r0 + 0.5, r1 - 0.8)
-        D.shrub(cx + r * math.cos(t), cy + r * math.sin(t), z + 0.55, rng, rng.uniform(0.45, 0.8), rng.choice(["leaf", "leaf_dk", "leaf_lt", "pink", "lilac", "moss"]))
+        shrub_any(cx + r * math.cos(t), cy + r * math.sin(t), z + 0.55, rng, rng.uniform(0.45, 0.8), rng.choice(["leaf", "leaf_dk", "leaf_lt", "pink", "lilac", "moss"]))
 
+def foliage_mat():
+    """Alpha-clipped, double-sided atlas (halo_tex.py: frond rows + flower tiles). Math:Round on alpha -> glTF alphaMode MASK, cutoff 0.5."""
+    m, nt, b = _principled("foliage"); t = nt.nodes.new("ShaderNodeTexImage"); t.image = bpy.data.images.load(f"{TEX}/halo_foliage.png"); t.extension = "CLIP"
+    r = nt.nodes.new("ShaderNodeMath"); r.operation = "ROUND"; nt.links.new(t.outputs["Alpha"], r.inputs[0]); nt.links.new(r.outputs[0], b.inputs["Alpha"])
+    nt.links.new(t.outputs["Color"], b.inputs["Base Color"]); b.inputs["Roughness"].default_value = 0.75; m.use_backface_culling = False
+    for a, v in (("surface_render_method", "DITHERED"), ("blend_method", "CLIP")):
+        try: setattr(m, a, v)
+        except Exception: pass
+    MATS["foliage"] = m
+foliage_mat(); img_mat("bark", "halo_bark.jpg", rough=0.9, ext="REPEAT")
+FROW = lambda i: (1 - (i + 1) / 4 + 0.004, 1 - i / 4 - 0.004)              # atlas v-range of frond row i
+def frond(o, d, L, W, rise, droop, row, segs=5, fold=0.28, twist=0.0):
+    """One textured frond card from o along horizontal unit dir d: arcs up by `rise`, falls by `droop`; V-folded along the spine."""
+    v0, v1 = FROW(row); vc = (v0 + v1) / 2; px, py = -d[1], d[0]
+    Q = lambda s: (o[0] + d[0] * L * s, o[1] + d[1] * L * s, o[2] + L * (rise * s - droop * s * s))
+    for i in range(segs):
+        s0, s1 = i / segs, (i + 1) / segs; q0, q1 = Q(s0), Q(s1); w0 = W * (0.55 + 0.45 * math.sin(math.pi * min(s0 * 1.25 + 0.15, 1))); w1 = W * (0.55 + 0.45 * math.sin(math.pi * min(s1 * 1.25 + 0.15, 1)))
+        for side, vv in ((1, v1), (-1, v0)):
+            e0 = (q0[0] + px * w0 / 2 * side, q0[1] + py * w0 / 2 * side, q0[2] - fold * w0 / 2 + twist * side * w0); e1 = (q1[0] + px * w1 / 2 * side, q1[1] + py * w1 / 2 * side, q1[2] - fold * w1 / 2 + twist * side * w1)
+            quad = [q0, q1, e1, e0] if side > 0 else [q0, e0, e1, q1]
+            uv = [(s0, vc), (s1, vc), (s1, vv), (s0, vv)] if side > 0 else [(s0, vc), (s0, vv), (s1, vv), (s1, vc)]
+            tquad("foliage", *quad, uv, (0, 0, 1))
 def palm(x, y, z, rng, h=None):
-    """Low-poly palm (~190 tris): leaning 4-sided trunk, 8 drooping fronds emitted on both faces."""
-    h = h or rng.uniform(7, 11); a = rng.uniform(0, TAU); lean = rng.uniform(0.04, 0.12) * h
+    """Palm v2 (~360 tris): curved 7-sided bark trunk (Poly Haven palm_tree_bark) with a swollen foot, 12 textured alpha-card fronds
+    (BlendSwap #5812 CC0 frond) in two tiers, a few drooping old fronds, and a crown shank."""
+    h = h or rng.uniform(7, 11.5); a = rng.uniform(0, TAU); lean = rng.uniform(0.05, 0.16) * h; S = 8; N = 7
     T = lambda t: (x + math.cos(a) * lean * t * t, y + math.sin(a) * lean * t * t, z + h * t)
-    pts = [T(i / 5) for i in range(6)]
-    for i in range(5): beam(pts[i], pts[i + 1], 0.42 - 0.04 * i, 0.42 - 0.04 * i, "trunk" if i % 2 else "wood_dk")
-    top = pts[-1]; L = rng.uniform(3.6, 4.6)
-    for k in range(8):
-        t = TAU * k / 8 + rng.uniform(-0.2, 0.2); dx, dy = math.cos(t), math.sin(t); px, py = -dy, dx; col = "leaf" if k % 2 else "leaf_dk"
-        Q = lambda s: (top[0] + dx * L * s, top[1] + dy * L * s, top[2] + L * (0.42 * s - 0.95 * s * s))
-        Wd = lambda s: 0.08 + 0.55 * math.sin(math.pi * min(s * 1.15, 1))
-        for i in range(4):
-            s0, s1 = i / 4, (i + 1) / 4; q0, q1 = Q(s0), Q(s1); w0, w1 = Wd(s0), Wd(s1)
-            quad = [(q0[0] + px * w0, q0[1] + py * w0, q0[2] - 0.1 * w0), (q1[0] + px * w1, q1[1] + py * w1, q1[2] - 0.1 * w1), (q1[0] - px * w1, q1[1] - py * w1, q1[2] - 0.1 * w1), (q0[0] - px * w0, q0[1] - py * w0, q0[2] - 0.1 * w0)]
-            pquad("palette", *quad, col, (0, 0, 1)); pquad("palette", *quad, col, (0, 0, -1))
+    R = lambda t: 0.2 + 0.1 * (1 - t) + 0.22 * max(0, 1 - t * 7) ** 2
+    rings = []
+    for i in range(S + 1):
+        t = i / S; c = T(t); rings.append([(c[0] + R(t) * math.cos(TAU * k / N), c[1] + R(t) * math.sin(TAU * k / N), c[2]) for k in range(N + 1)])
+    for i in range(S):
+        for k in range(N):
+            tm = TAU * (k + 0.5) / N; u0, u1 = k / N * 1.6, (k + 1) / N * 1.6; w0, w1 = h * i / S / 1.3, h * (i + 1) / S / 1.3
+            tquad("bark", rings[i][k], rings[i][k + 1], rings[i + 1][k + 1], rings[i + 1][k], [(u0, w0), (u1, w0), (u1, w1), (u0, w1)], (math.cos(tm), math.sin(tm), 0))
+    top = T(1.0); cone = [(top[0] + 0.32 * math.cos(TAU * k / 6), top[1] + 0.32 * math.sin(TAU * k / 6), top[2]) for k in range(7)]
+    for k in range(6): pquad("palette", cone[k], cone[k + 1], (top[0], top[1], top[2] + 0.9), (top[0], top[1], top[2] + 0.9), "leaf_dk", (math.cos(TAU * (k + .5) / 6), math.sin(TAU * (k + .5) / 6), 0.3))
+    L0 = rng.uniform(3.8, 4.8); row = 0 if rng.random() < 0.7 else 1; ph = rng.uniform(0, TAU)
+    for k in range(12):
+        t = ph + TAU * k / 7 + rng.uniform(-0.15, 0.15) if k < 7 else ph + TAU * (k - 6.5) / 5 + rng.uniform(-0.2, 0.2); d = (math.cos(t), math.sin(t))
+        if k < 7: frond((top[0], top[1], top[2] + 0.55), d, L0 * rng.uniform(0.9, 1.08), 1.05, rng.uniform(0.05, 0.22), rng.uniform(0.75, 1.05), row)
+        else: frond((top[0], top[1], top[2] + 0.8), d, L0 * rng.uniform(0.62, 0.8), 0.9, rng.uniform(0.55, 0.8), rng.uniform(0.45, 0.7), row)
+    for k in range(rng.choice([0, 1, 2])):                                    # old fronds hanging against the trunk
+        t = rng.uniform(0, TAU); frond((top[0], top[1], top[2] + 0.3), (math.cos(t), math.sin(t)), L0 * 0.6, 0.8, -0.6, 0.9, 1, 3, 0.15)
     PLAN["trees"].append([round(x, 2), round(y, 2)])
+def shrub(x, y, z, rng, s=1.0, kind=None):
+    """Ornamental rosette (cordyline / cycad look): 6-8 short textured fronds rising steeply then arching out (~70 tris)."""
+    kind = kind if kind is not None else rng.choice([0, 0, 1, 2]); n = rng.randint(6, 8); ph = rng.uniform(0, TAU)
+    for k in range(n):
+        t = ph + TAU * k / n + rng.uniform(-0.2, 0.2); frond((x, y, z + 0.05), (math.cos(t), math.sin(t)), s * rng.uniform(1.0, 1.5), 0.42 * s, rng.uniform(1.1, 1.6), rng.uniform(0.9, 1.3), kind, 3, 0.18)
+def flowers(x, y, z, rng, s=1.0, col=None):
+    """Flower clump: three crossed vertical cards with a flower tile + a low top card (12 tris)."""
+    j = col if col is not None else rng.randrange(4); u0, u1 = j / 4 + 0.004, (j + 1) / 4 - 0.004; W = 1.3 * s; H = 1.3 * s; ph = rng.uniform(0, math.pi)
+    lathe(x, y, [(0.46 * W, z), (0.4 * W, z + 0.3 * H), (0.22 * W, z + 0.55 * H), (0, z + 0.62 * H)], 7, color=rng.choice(["leaf_dk", "leaf"]))
+    for k in range(3):
+        t = ph + math.pi * k / 3; dx, dy = math.cos(t) * W / 2, math.sin(t) * W / 2
+        tquad("foliage", (x - dx, y - dy, z - 0.05), (x + dx, y + dy, z - 0.05), (x + dx, y + dy, z + H * 0.92), (x - dx, y - dy, z + H * 0.92), [(u0, 0.004), (u1, 0.004), (u1, 0.246), (u0, 0.246)], (-dy, dx, 0))
+def shrub_any(x, y, z, rng, sz, color):
+    """Old blob call sites -> 55% flower clumps (colour from the old swatch), else a textured rosette."""
+    if color in ("pink", "lilac", "yellow") or rng.random() < 0.35: flowers(x, y, z, rng, 0.85 + sz * 0.6, {"pink": 0, "lilac": 3, "yellow": 2}.get(color, rng.randrange(4)))
+    else: shrub(x, y, z, rng, 1.0 + sz * 0.9, 2 if color == "moss" else None)
 def fountain(cx, cy, z, R, rng, jets=12):
     lathe(cx, cy, [(R, z), (R, z + 0.6), (R - 0.45, z + 0.6), (R - 0.45, z + 0.3)], 64, "marble")
     flat_ring("water", cx, cy, 0, R - 0.45, z + 0.32, 64, color="water")
@@ -272,20 +317,33 @@ def island(rng):
         for s in range(0, int(L), 4):
             for side in (-1, 1): x = a[0] + u[0] * s - u[1] * 1.2 * side; y = a[1] + u[1] * s + u[0] * 1.2 * side; cyl(x, y, -2.5, Z + 0.05, 0.14, 6, "wood_dk", top=False)
         beam((b[0] - u[1] * 3, b[1] + u[0] * 3, Z - 0.1), (b[0] + u[1] * 3, b[1] - u[0] * 3, Z - 0.1), 2.0, 0.3, "wood")
+def floor_quad_c(x0, y0, x1, y1, z, color): pquad("palette", (x0, y0, z), (x1, y0, z), (x1, y1, z), (x0, y1, z), color, (0, 0, 1))
 def roads(rng):
     flat_ring("road", 0, 0, 60, 74, Z + 0.03, 128, TL["road"])
+    for r0, r1 in ((59.72, 60.0), (74.0, 74.28)):                          # kerbs both sides of the ring road
+        lathe(0, 0, [(r1, Z), (r1, Z + 0.17)], 160, color="concrete"); lathe(0, 0, [(r0, Z + 0.17), (r0, Z)], 160, color="concrete")
+        flat_ring("palette", 0, 0, r0, r1, Z + 0.17, 160, color="concrete")
     for k in range(64):                                                      # dashed lane line
         t0 = TAU * k / 64; t1 = t0 + TAU / 64 * 0.5; pts = [(r * math.cos(t), r * math.sin(t), Z + 0.06) for r, t in ((66.9, t0), (66.9, t1), (67.1, t1), (67.1, t0))]; pquad("palette", *pts, "paint_white", (0, 0, 1))
     for (y0, y1) in ((74, R_ISL + 2), (-R_ISL - 2, -152)):
         floor_quad("road", -8, y0, 8, y1, Z + 0.03, TL["road"]); D.stripe(-0.08, y0, 0.08, y1, Z + 0.06, "paint_yellow")
         for s in (-1, 1):
             D.stripe(s * 7.6 - 0.07, y0, s * 7.6 + 0.07, y1, Z + 0.06, "paint_white"); pbox(-8.0 if s < 0 else 7.75, y0, -7.75 if s < 0 else 8.0, y1, Z, Z + 0.16, "concrete")
-            for k in range(int((y1 - y0) // 11)):
-                y = y0 + 6 + k * 11
+            for k in range(int((y1 - y0) // 15)):
+                y = y0 + 6 + k * 15
                 if inside(s * 11, y, 4): palm(s * 11.0, y, Z, rng)
             for k in range(int((y1 - y0) // 22)):
                 y = y0 + 11 + k * 22
                 if inside(s * 9.2, y, 4): D.lamp(s * 9.2, y, Z, (-s, 0)); PLAN["lamps"].append([s * 9.2, y])
+        for s in (-1, 1):                                                   # grass verges with a cream kerb under the palm rows
+            xa, xb = (8.3, 14.2) if s > 0 else (-14.2, -8.3); ya, yb = (y0 + 9, y1 - 3) if y0 > 0 else (y0 + 3, y1 - 9)
+            floor_quad_c(xa, ya, xb, yb, Z + 0.05, "grass")
+            for xx in (xa, xb - 0.25): pbox(xx, ya, xx + 0.25, yb, Z, Z + 0.3, "cream")
+            for yy in (ya, yb - 0.25): pbox(xa, yy, xb, yy + 0.25, Z, Z + 0.3, "cream")
+            y = ya + 3
+            while y < yb - 2:
+                if abs((y - y0 - 6) % 15 - 7.5) > 2.2: shrub_any(s * rng.uniform(9.4, 13.0), y, Z + 0.05, rng, rng.uniform(0.3, 0.7), rng.choice(["pink", "lilac", "leaf", "yellow", "moss"]))
+                y += rng.uniform(2.2, 3.6)
         D.crossing(-7.5, y0 + 2 if y0 > 0 else y1 - 6, 7.5, y0 + 6 if y0 > 0 else y1 - 2, Z + 0.06, False)
     OCC.append(("rect", -12, 74, 12, R_ISL)); OCC.append(("rect", -12, -R_ISL, 12, -152)); OCC.append(("ring", 58, 76))
 def south_plaza(rng):
@@ -304,10 +362,10 @@ def green_ring(rng):
         t = TAU * (k + 0.5) / 20
         if abs(math.sin(t)) > 0.97: continue
         palm(52 * math.cos(t), 52 * math.sin(t), Z + 0.03, rng)
-    for k in range(40):
+    for k in range(28):
         t = rng.uniform(0, TAU); r = rng.uniform(48, 57)
         if abs(math.cos(t)) < 0.14: continue
-        D.shrub(r * math.cos(t), r * math.sin(t), Z + 0.03, rng, rng.uniform(0.5, 0.9), rng.choice(["pink", "lilac", "leaf_lt", "leaf", "yellow"]))
+        shrub_any(r * math.cos(t), r * math.sin(t), Z + 0.03, rng, rng.uniform(0.5, 0.9), rng.choice(["pink", "lilac", "leaf_lt", "leaf", "yellow"]))
     for s in (-1, 1):                                                         # paved paths across the ring to the spire stairs
         floor_quad("terrazzo", -6, s * 46.0 if s > 0 else -58.6, 6, 58.6 if s > 0 else -46.0, Z + 0.035, TL["terrazzo"])
 def monorail(rng):
@@ -348,10 +406,10 @@ def lawns(rng, n):
         tries += 1; x, y = rng.uniform(-R_ISL, R_ISL), rng.uniform(-R_ISL, R_ISL); r = rng.uniform(5, 9)
         if not free(x, y, r): continue
         flat_ring("palette", x, y, 0, r, Z + 0.04, 28, color="grass"); lathe(x, y, [(r + 0.3, Z), (r + 0.3, Z + 0.3), (r, Z + 0.3)], 28, color="cream")
-        for k in range(rng.choice([2, 3, 4])): a = rng.uniform(0, TAU); d = rng.uniform(0, r * 0.55); palm(x + d * math.cos(a), y + d * math.sin(a), Z + 0.04, rng)
-        for k in range(int(r * 1.6)):
+        for k in range(rng.choice([1, 2, 2, 3])): a = rng.uniform(0, TAU); d = rng.uniform(0, r * 0.55); palm(x + d * math.cos(a), y + d * math.sin(a), Z + 0.04, rng)
+        for k in range(int(r * 1.3)):
             a = rng.uniform(0, TAU); d = rng.uniform(r * 0.4, r - 0.7)
-            D.shrub(x + d * math.cos(a), y + d * math.sin(a), Z + 0.04, rng, rng.uniform(0.4, 0.75), rng.choice(["pink", "lilac", "leaf_lt", "leaf", "yellow", "pink"]))
+            shrub_any(x + d * math.cos(a), y + d * math.sin(a), Z + 0.04, rng, rng.uniform(0.4, 0.75), rng.choice(["pink", "lilac", "leaf_lt", "leaf", "yellow", "pink"]))
         OCC.append((x, y, r + 2.5)); placed += 1
 def scatter(rng, n_palm, n_shrub, n_lamp):
     placed = 0; tries = 0
@@ -361,10 +419,83 @@ def scatter(rng, n_palm, n_shrub, n_lamp):
     placed = 0; tries = 0
     while placed < n_shrub and tries < n_shrub * 30:
         tries += 1; x, y = rng.uniform(-R_ISL, R_ISL), rng.uniform(-R_ISL, R_ISL)
-        if free(x, y, 1.0): D.shrub(x, y, Z, rng, rng.uniform(0.5, 1.0), rng.choice(["pink", "lilac", "leaf", "leaf_lt", "moss", "pink"])); placed += 1
+        if free(x, y, 1.0): shrub_any(x, y, Z, rng, rng.uniform(0.5, 1.0), rng.choice(["pink", "lilac", "leaf", "leaf_lt", "moss", "pink"])); placed += 1
     for k in range(n_lamp):
         t = TAU * k / n_lamp; x, y = 82 * math.cos(t), 82 * math.sin(t)
         if free(x, y, 0.8): D.lamp(x, y, Z, (-math.cos(t), -math.sin(t))); PLAN["lamps"].append([round(x, 2), round(y, 2)])
+
+# ---------------------------------------------------------------- CC0 assets + street life
+import assets_kit as AK
+ASSETS = {   # key: (source, id, tri budget, texture px)  -- credits in ASSETS.md
+    "cafe": ("polyhaven", "outdoor_table_chair_set_01", 1400, 256), "cart": ("polyhaven", "CoffeeCart_01", 2600, 512),
+    "planter": ("polyhaven", "planter_box_01", 700, 256), "whale": ("polyhaven", "bronze_whale_statue", 2400, 512),
+    "ray": ("polyhaven", "bronze_ray_statue", 1844, 512), "shark": ("polyhaven", "bronze_shark_statue", 2200, 512),
+    "buoy": ("polyhaven", "lifebuoy", 360, 128)}
+PLACE = {k: [] for k in ASSETS}                                          # key -> [(x, y, z, rot, scale)]
+LIFE = {"parasol": [], "kiosk": [], "bin": [], "car": [], "yacht": [], "lounger": []}   # procedural (halo_props.py) placements
+def bake_assets():
+    """Each asset = one Empty with linked-duplicate children -> glTF EXT_mesh_gpu_instancing (mesh stored once, one draw call per material;
+    three's GLTFLoader builds an InstancedMesh). Merging copies instead cost ~45 B/tri after meshopt (decimated meshes reuse few vertices)."""
+    for key, places in PLACE.items():
+        if not places: continue
+        src, aid, budget, px = ASSETS[key]; lib = AK.load(aid, budget, source=src, name=key, tex=px)["obj"]
+        root = bpy.data.objects.new(f"inst_{key}", None); bpy.context.scene.collection.objects.link(root)
+        for i, (x, y, z, r, sc) in enumerate(places):
+            o = lib.copy(); o.data = lib.data; o.name = f"{key}_{i}"; o.location = (x, y, z); o.rotation_euler = (0, 0, r); o.scale = (sc, sc, sc)
+            bpy.context.scene.collection.objects.link(o); o.parent = root
+        bpy.data.objects.remove(lib, do_unlink=True)
+        print("ASSET", key, len(places), "x", AK.LIB[key]["tris"], "tris")
+def cafe_cluster(x, y, z, rng, rot=0.0, n=3, cart=True):
+    """Outdoor cafe: n table sets each under a parasol, a coffee cart, two planter boxes with flowers, a bin."""
+    for k in range(n):
+        a = rot + TAU * k / n + rng.uniform(-0.2, 0.2); r = rng.uniform(2.6, 3.4); px, py = x + r * math.cos(a), y + r * math.sin(a)
+        PLACE["cafe"].append((px, py, z, a + math.pi / 2, 1.0)); LIFE["parasol"].append((px, py, z))
+    if cart: c = rot + math.pi / n; PLACE["cart"].append((x + 6.2 * math.cos(c), y + 6.2 * math.sin(c), z, c + math.pi / 2, 1.0))
+    for s in (-1, 1):
+        c = rot + math.pi + s * 0.9; bx, by = x + 6.0 * math.cos(c), y + 6.0 * math.sin(c); PLACE["planter"].append((bx, by, z, c + math.pi / 2, 1.6))
+        for j in (-1, 0, 1): flowers(bx + j * 0.45 * math.cos(c + math.pi / 2), by + j * 0.45 * math.sin(c + math.pi / 2), z + 0.62, rng, 0.42, rng.randrange(4))
+    LIFE["bin"].append((x + 5.5 * math.cos(rot - 0.4), y + 5.5 * math.sin(rot - 0.4), z))
+def statue(key, x, y, z, rot, sc):
+    lathe(x, y, [(1.5, z), (1.5, z + 0.25), (1.15, z + 0.4), (1.0, z + 1.4), (1.25, z + 1.55), (1.25, z + 1.75), (0, z + 1.75)], 24, "marble")
+    PLACE[key].append((x, y, z + 1.75, rot, sc))
+def street_life(rng):
+    zp = Z + 0.6                                                              # spire plinth top: four cafe terraces between the buttress blades
+    for deg in (60, 120, 240, 300): t = math.radians(deg); cafe_cluster(36.5 * math.cos(t), 36.5 * math.sin(t), zp, rng, t + math.pi)
+    for k, key in enumerate(("whale", "ray", "shark", "whale")):              # south plaza: bronze marine statues on marble drums
+        t = TAU * k / 4 + TAU / 16; statue(key, 15.5 * math.cos(t), -130 + 15.5 * math.sin(t), Z + 0.03, t + math.pi / 2, {"whale": 2.2, "ray": 2.6, "shark": 3.0}[key])
+    for sx in (-1, 1): statue("ray" if sx < 0 else "whale", sx * 16.5, 163, Z, math.pi / 2 * sx, 2.4)   # north gateway, flanking the boulevard
+    placed = 0; tries = 0                                                     # cafe pockets in the open paving
+    while placed < 9 and tries < 4000:
+        tries += 1; x, y = rng.uniform(-R_ISL, R_ISL), rng.uniform(-R_ISL, R_ISL)
+        if not free(x, y, 8): continue
+        flat_ring("terrazzo", x, y, 0, 7.6, Z + 0.035, 40, TL["terrazzo"]); flat_ring("palette", x, y, 7.6, 7.95, Z + 0.05, 40, color="terra")
+        cafe_cluster(x, y, Z + 0.035, rng, rng.uniform(0, TAU), rng.choice([3, 4])); OCC.append((x, y, 9.5)); placed += 1
+    for r, n in ((63.4, 12), (70.6, 12)):                                     # cars on the ring road, in loose platoons, both directions
+        for k in range(n):
+            t = TAU * (k + rng.uniform(-0.25, 0.25)) / n + (0.11 if r > 66 else 0)
+            if min(abs(math.cos(t)), 1) < 0.12 and math.sin(t) > 0: continue  # keep the crossings clear
+            LIFE["car"].append((r * math.cos(t), r * math.sin(t), Z + 0.03, t + (math.pi / 2 if r < 66 else -math.pi / 2)))
+    for (y0, y1) in ((80, 170), (-172, -156)):                                 # boulevards: one lane each way
+        y = y0 + 4
+        while y < y1 - 4:
+            for s in (-1, 1):
+                if rng.random() < 0.45: LIFE["car"].append((s * 3.8, y + rng.uniform(-2, 2), Z + 0.03, math.pi / 2 if s > 0 else -math.pi / 2))
+            y += rng.uniform(9, 14)
+    for k, t in enumerate([0.25, 0.75, 1.3, 2.2, 2.85, 3.5, 4.2, 5.25, 5.75]):   # boats moored alongside the piers
+        a = edge_pt(t, R_ISL + 8); b = edge_pt(t, R_ISL + 22); d = (b[0] - a[0], b[1] - a[1]); L = math.hypot(*d); u = (d[0] / L, d[1] / L)
+        for side in ((-1, 1) if k % 3 else (1,)):
+            if rng.random() < 0.3: continue
+            f = rng.uniform(0.3, 0.7); LIFE["yacht"].append((a[0] + d[0] * f - u[1] * 4.6 * side, a[1] + d[1] * f + u[0] * 4.6 * side, -1.1, math.atan2(u[1], u[0]) + (math.pi if rng.random() < 0.5 else 0)))
+            PLACE["buoy"].append((a[0] + d[0] * (f + 0.15) - u[1] * 1.33 * side, a[1] + d[1] * (f + 0.15) + u[0] * 1.33 * side, Z - 0.25, math.atan2(u[1], u[0]), 1.0))
+def emit_life():
+    """Procedural street life from halo_props.py (sub-module, optional while it is being written)."""
+    try: import halo_props as HP
+    except Exception as e: print("halo_props missing:", e); return
+    rng = random.Random(77)
+    for (x, y, z) in LIFE["parasol"]: HP.parasol(x, y, z, rng)
+    for (x, y, z) in LIFE["bin"]: HP.bin(x, y, z)
+    for (x, y, z, h) in LIFE["car"]: HP.car(x, y, z, h, rng)
+    for (x, y, z, h) in LIFE["yacht"]: HP.yacht(x, y, z, h, rng)
 
 # ---------------------------------------------------------------- compose
 rng = random.Random(9090)
@@ -382,13 +513,16 @@ with grp("hexT"): hex_tower("hexT", -146, 46, 12, 24, random.Random(19))
 with grp("wave"): wave_terraces("wave", -104, -120, 22, 14, random.Random(20))
 with grp("pool"): lagoon_pool(-52, -150, random.Random(21))
 with grp("rail"): monorail(random.Random(22))
-with grp("lawns"): lawns(random.Random(24), 46)
-with grp("scatter"): scatter(random.Random(23), 110, 160, 36)
-realise({"road": "Road", "sidewalk": "Sidewalk", "glass": "Glass", "shopglass": "ShopGlass", "palette": "Props", "led": "Led"})
+with grp("life"): street_life(random.Random(25))
+with grp("lawns"): lawns(random.Random(24), 36)
+with grp("scatter"): scatter(random.Random(23), 55, 0, 36)
+with grp("life"): emit_life()
+realise({"foliage": "Foliage", "bark": "Bark", "road": "Road", "sidewalk": "Sidewalk", "glass": "Glass", "shopglass": "ShopGlass", "palette": "Props", "led": "Led"})
 agg = {}
 for k, v in MBS.items(): agg[k.rpartition("::")[2]] = agg.get(k.rpartition("::")[2], 0) + len(v.f)
 grpt = {}
 for k, v in MBS.items(): grpt[k.rpartition("::")[0]] = grpt.get(k.rpartition("::")[0], 0) + len(v.f)
 print("TRIS", sum(agg.values()), dict(sorted(agg.items(), key=lambda kv: -kv[1])[:10])); print("GROUPS", dict(sorted(grpt.items(), key=lambda kv: -kv[1])))
+bake_assets()
 os.makedirs(f"{HERE}/out", exist_ok=True); bpy.ops.wm.save_as_mainfile(filepath=f"{HERE}/out/halo.blend")
-export_glb(f"{HERE}/out/world-halo.glb"); json.dump(PLAN, open(f"{HERE}/out/halo-plan.json", "w"))
+export_glb(f"{HERE}/out/world-halo.glb", gpu_instances=True); json.dump(PLAN, open(f"{HERE}/out/halo-plan.json", "w"))

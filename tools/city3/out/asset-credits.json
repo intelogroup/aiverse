@@ -118,5 +118,85 @@
   "asset": "wooden_crate_01",
   "source": "https://polyhaven.com/a/wooden_crate_01",
   "license": "CC0"
+ },
+ {
+  "asset": "pc_table",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupRed_full",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupBlue_full",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupBlue_stack",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupYellow_shortStack",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupRed_used",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupBlue_used",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupYellow_used",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupPink_full",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupGreen_full",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupGreen_shortStack",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupGreen_stack",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupGreen_used",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupPink_used",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupYellow_full",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupRed_shortStack",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
  }
 ]

@@ -44,6 +44,14 @@ def load(asset_id,budget,source="polyhaven",name=None,tex=None):
     if key in LIB: return LIB[key]
     before=set(bpy.data.objects); imgs_before=set(bpy.data.images)
     if source=="polyhaven": bpy.ops.import_scene.gltf(filepath=os.path.join(PH,asset_id,f"{asset_id}_1k.gltf"))
+    elif source=="usdz":
+        # every cup's USDZ holds textures/Texture_4_ffffff.png; importing the .usdz directly unpacks into one shared temp dir and
+        # the importer reuses the first image with that path, so all cups came out red. Unpack each asset into its own folder.
+        import zipfile; dst=os.path.join(HERE,"assets","_usdx",key); zf=zipfile.ZipFile(os.path.join(HERE,"assets",asset_id+".usdz"))
+        if not os.path.isdir(dst): zf.extractall(dst)
+        root=[n for n in zf.namelist() if "/" not in n and n.rsplit(".",1)[-1] in ("usda","usdc","usd")][0]
+        bpy.ops.wm.usd_import(filepath=os.path.join(dst,root))
+        for img in set(bpy.data.images)-imgs_before: img.name=f"{key}_{img.name}"
     elif source=="sketchfab": bpy.ops.import_scene.gltf(filepath=os.path.join(HERE,"assets","sketchfab",asset_id,"scene.gltf"))
     else: bpy.ops.import_scene.fbx(filepath=os.path.join(QT,f"{asset_id}.fbx"))
     new=[o for o in bpy.data.objects if o not in before]
@@ -54,7 +62,8 @@ def load(asset_id,budget,source="polyhaven",name=None,tex=None):
     bpy.context.view_layer.objects.active=meshes[0]
     if len(meshes)>1: bpy.ops.object.join()
     obj=bpy.context.view_layer.objects.active
-    obj.parent=None
+    if source=="usdz": mw=obj.matrix_world.copy(); obj.parent=None; obj.matrix_world=mw   # USD's Y-up fix lives on the parent Empty
+    else: obj.parent=None
     bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
     for nm in new_names:                                  # joined parts are already gone; drop leftover empties
         o=bpy.data.objects.get(nm)
@@ -70,7 +79,7 @@ def load(asset_id,budget,source="polyhaven",name=None,tex=None):
     obj.location=(0,0,0); obj.name=f"LIB_{key}"; obj.data.name=f"LIB_{key}"
     for c in list(obj.users_collection): c.objects.unlink(obj)
     _lib_collection().objects.link(obj)
-    if source=="polyhaven": _diffuse_only(obj)
+    if source in ("polyhaven","usdz"): _diffuse_only(obj)
     T=tex or TEX
     for img in set(bpy.data.images)-imgs_before:
         if img.size[0]>T: img.scale(T,max(1,int(img.size[1]*T/img.size[0])))
