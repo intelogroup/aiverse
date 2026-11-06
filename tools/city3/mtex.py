@@ -33,7 +33,10 @@ def glass_tile(seed, lit_prob):
     base = col("#16283a")[None, None, :] * (1 - g[..., None]) + col("#5f8fae")[None, None, :] * g[..., None]
     cloud = noise(TH, TW, 2.2, seed)[..., None]; base = base * (1 + 0.16 * cloud)
     smear = noise(8, TW, 0.8, seed + 7); smear = np.array(Image.fromarray(((smear - smear.min()) / (np.ptp(smear) + 1e-9) * 255).astype(np.uint8)).resize((TW, TH), Image.BICUBIC), float) / 255
-    base = base * (0.88 + 0.22 * smear[..., None])
+    base = base * (0.95 + 0.1 * smear[..., None])
+    for _ in range(int(r.integers(2, 5))):                                    # reflected neighbours: hard-edged lighter/darker slabs crossing bays
+        x0 = int(r.integers(0, TW - 80)); w = int(r.integers(60, 260)); y0 = int(SPAN * ppm_y); h = int(r.integers(120, TH - y0))
+        base[y0:y0 + h, x0:x0 + w] *= r.uniform(0.82, 1.14)
     img[:] = base
     lit_bays = r.random(BAYS) < lit_prob; blind = r.random(BAYS) < 0.2
     for b in range(BAYS):
@@ -73,16 +76,18 @@ def build_glass_atlas():
 
 # ---------------------------------------------------------------- signage atlas (8 tiles, 512x128, y-up rows)
 SIGNS = [("NOVA", "#0e1b2c", "#7fd8ff"), ("HELIX BANK", "#f2f2ee", "#0e3b5c"), ("VERTEX", "#1d1d1f", "#ffffff"), ("MERIDIAN", "#0f5f55", "#e8fff8"),
-         ("ORBITAL", "#d8402d", "#fff4e8"), ("LUMEN CAFE", "#f4e4c4", "#3a2a1a"), ("PARALLAX", "#26224a", "#c8b8ff"), ("ARCADIA", "#e9ecef", "#1a2a3a")]
+         ("ORBITAL", "#d8402d", "#fff4e8"), ("LUMEN CAFE", "#f4e4c4", "#3a2a1a"), ("PARALLAX", "#26224a", "#c8b8ff"), ("ARCADIA", "#e9ecef", "#1a2a3a"),
+         ("KILN & CO", "#2b2623", "#f0b060"), ("ANVIL STUDIOS", "#c9552b", "#1c1411"), ("FOUNDRY BREWERY", "#1e3a2f", "#f4e3b0"), ("COPPER ROW", "#b87333", "#fff3e0"),
+         ("SMELTER BAR", "#111111", "#ff7a30"), ("WHARF MARKET", "#e8e0cc", "#27414f"), ("TIN LOFTS", "#9aa5ab", "#16222a"), ("IRONWORKS", "#3a3f44", "#e8e8e8")]
 def build_signs():
-    W, H = 512, 128; A = Image.new("RGB", (W, H * 8), (0, 0, 0)); d = ImageDraw.Draw(A)
+    W, H = 512, 128; A = Image.new("RGB", (W, H * 16), (0, 0, 0)); d = ImageDraw.Draw(A)
     try: f = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 62); f2 = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 50)
     except Exception: f = f2 = ImageFont.load_default()
     for k, (t, bg, fg) in enumerate(SIGNS):
         y = k * H; d.rectangle([0, y, W, y + H], fill=bg); d.rectangle([5, y + 5, W - 6, y + H - 6], outline=fg, width=2)
         ff = f if len(t) < 8 else f2; d.text((W / 2, y + H / 2), t, fill=fg, font=ff, anchor="mm")
     A.save(f"{OUT}/msigns.jpg", quality=90)                        # image row 0 = top; tile k is rows k*128 from the top -> v from the bottom = 1-(k+1)/8
-    json.dump({str(k): [0.0, 1 - (k + 1) / 8 + 0.004, 1.0, 1 - k / 8 - 0.004] for k in range(8)}, open(f"{HERE}/msigns.json", "w"))
+    json.dump({str(k): [0.0, 1 - (k + 1) / 16 + 0.002, 1.0, 1 - k / 16 - 0.002] for k in range(16)}, open(f"{HERE}/msigns.json", "w"))
 
 # ---------------------------------------------------------------- palette (8x8 swatches of 8 px: 64 colours)
 PALM = {  # concrete / metal / glass trims
@@ -102,10 +107,13 @@ def build_palette():
 
 # ---------------------------------------------------------------- Poly Haven PBR sets -> 512 px, optionally tinted
 PT = f"{HERE}/assets/ptex"
+GRAY = {"pave_sq": 0.85, "terrazzo": 0.85, "tile_brown": 0.8, "plaza_herring": 0.3, "panel_conc": 0.55, "cladding_dk": 0.3}
 def pbr(pid, tint=None, px=512, tag=None, hue_mul=None):
     """Writes tex_m/<tag>_d.jpg and _n.jpg; returns (tile_size_m, mean_roughness)."""
     tag = tag or pid; meta = json.load(open(f"{PT}/{pid}/meta.json")); size = meta["size_m"][1] or meta["size_m"][0] or 2.0
     d = Image.open(f"{PT}/{pid}/d.jpg").convert("RGB").resize((px, px), Image.LANCZOS); a = np.array(d, float)
+    g = GRAY.get(tag, 0.0)
+    if g: a = a * (1 - g) + a.mean(axis=2, keepdims=True) * g
     if tint is not None: a = a * (np.array(tint)[None, None, :] if not isinstance(tint, str) else col(tint)[None, None, :] / 255.0 * 2)
     Image.fromarray(np.clip(a, 0, 255).astype(np.uint8)).save(f"{OUT}/{tag}_d.jpg", quality=86)
     Image.open(f"{PT}/{pid}/n.jpg").convert("RGB").resize((px, px), Image.LANCZOS).save(f"{OUT}/{tag}_n.jpg", quality=88)
@@ -120,7 +128,9 @@ SETS = {
  "brick_cream": ("plaster_brick_pattern", None, 512), "diamond": ("metal_plate", None, 512), "rust": ("rusty_metal_02", None, 512),
  "factory_green": ("factory_wall", None, 512), "bitumen": ("bitumen", None, 512), "stucco": ("white_stucco_02", None, 512), "wood_slat": ("wood_inlaid_concrete_wall", None, 512),
  "stone_clad": ("patterned_concrete_wall", None, 512), "terrazzo": ("terrazzo_tiles", None, 512), "roof_grey": ("grey_roof_01", None, 512), "concrete_w5": ("concrete_wall_005", None, 512),
- "pavement": ("concrete_pavement_03", None, 512), "floor_conc": ("concrete_floor_02", None, 512),
+ "pavement": ("concrete_pavement_03", None, 512), "brick_red": ("plaster_brick_pattern", (1.0, 0.52, 0.42), 512), "brick_dark": ("plaster_brick_pattern", (0.55, 0.42, 0.38), 512),
+ "cont_red": ("corrugated_iron_02", (1.9, 0.55, 0.45), 512), "cont_blue": ("corrugated_iron_02", (0.55, 0.9, 1.9), 512), "cont_green": ("corrugated_iron_02", (0.6, 1.5, 0.8), 512), "cont_ochre": ("corrugated_iron_02", (1.8, 1.3, 0.5), 512),
+ "metal_teal": ("box_profile_metal_sheet", (0.25, 2.6, 2.6), 512), "floor_conc": ("concrete_floor_02", None, 512),
 }
 def build_pbr():
     info = {}

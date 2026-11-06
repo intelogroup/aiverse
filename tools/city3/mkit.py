@@ -110,6 +110,15 @@ def edge_frames(poly, z0=0.0):
     return out
 def poly_area(poly): return abs(sum(poly[k][0] * poly[(k + 1) % len(poly)][1] - poly[(k + 1) % len(poly)][0] * poly[k][1] for k in range(len(poly)))) / 2
 def poly_center(poly): return (sum(p[0] for p in poly) / len(poly), sum(p[1] for p in poly) / len(poly))
+def beam(p0, p1, w, h, color, b="palette"):
+    """Oriented box between two 3D points (cross-section w x h, h roughly vertical)."""
+    d = Vector(p1) - Vector(p0); d.normalize(); side = d.cross(Vector((0, 0, 1)))
+    if side.length < 1e-4: side = Vector((1, 0, 0))
+    side.normalize(); up = side.cross(d); up.normalize()
+    c = [[Vector(p) + side * sx * w / 2 + up * sy * h / 2 for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))] for p in (p0, p1)]
+    ctr = (Vector(p0) + Vector(p1)) / 2
+    for a, bb in ((0, 1), (1, 2), (2, 3), (3, 0)):
+        q = [c[0][a], c[1][a], c[1][bb], c[0][bb]]; m = sum(q, Vector()) / 4 - ctr; pquad(b, *[tuple(v) for v in q], color, tuple(m))
 def clear_blender(): bpy.ops.wm.read_factory_settings(use_empty=True)
 
 def realise(names, extra_mats=None):

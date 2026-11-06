@@ -14,7 +14,7 @@ rng = random.Random(1818); T = {k: v["size"] for k, v in PB.items()}
 for k, tag in (("sidewalk", "plaza_herring"), ("road", "road_m"), ("cladding", "cladding_dk"), ("ribbed", None), ("panel", "panel_conc"), ("tiledk", "tile_dk"),
                ("pave", "pave_sq"), ("bitumen", None), ("terrazzo", None), ("stone", "stone_clad"), ("roofgrey", "roof_grey")):
     pbr_mat(k, tag or k if tag else {"ribbed": "ribbed", "bitumen": "bitumen", "terrazzo": "terrazzo"}[k])
-img_mat("glass", "glass_atlas.jpg", "glass_emit.jpg", rough=0.08, metal=0.55, emit=1.0)
+img_mat("glass", "glass_atlas.jpg", "glass_emit.jpg", rough=0.06, metal=0.72, emit=1.0)
 img_mat("msign", "msigns.jpg", "msigns.jpg", rough=0.4, emit=0.5)
 palette_mat("palette"); palette_mat("led", emit=3.0); palette_mat("water", rough=0.03); palette_mat("metal", rough=0.3, metal=0.9); glass_mat("shopglass")
 TILE = {"sidewalk": 1.8, "road": 2.1, "cladding": 2.09, "ribbed": 2.0, "panel": 2.0, "tiledk": 2.0, "pave": 1.8, "bitumen": 6.0, "terrazzo": 2.0, "stone": 2.0, "roofgrey": 4.0}

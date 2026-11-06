@@ -95,6 +95,13 @@ export function DistrictWorld({ residentUrl, light }: { residentUrl: string; lig
     };
   }, [scene, sky, water, gl, pm, resident]);
 
+  useEffect(() => {
+    if (!manifest?.links) return;
+    let live = true; let root: THREE.Object3D | null = null;
+    loader.load(manifest.links, (g) => { if (!live) { disposeTree(g.scene); return; } root = g.scene; scene.add(root); applyNight(root, themeRef.current?.night ?? 0); });
+    return () => { live = false; if (root) { scene.remove(root); disposeTree(root); } };
+  }, [manifest, loader, scene]);
+
   const defs = manifest?.districts ?? [];
   const w = typeof window !== "undefined" ? (window as unknown as Record<string, unknown>) : null;
   useEffect(() => {
