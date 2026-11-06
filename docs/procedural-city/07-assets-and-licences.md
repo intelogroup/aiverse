@@ -38,3 +38,9 @@ Fountain-ring and plaza-rim benches are now `med_bench` (616 tris, backrest on +
 (`build_city.py`, `BENCHES` list + `_skput`). Street-front benches along facades stay procedural. Seen in screenshots: benches read well, backrests face outward from the fountain.
 Village stall (`med_stall`, 752 tris): ~35% of the 80 stalls (`MEDSTALLS`, seeded per stall index) use it instead of the procedural stall, scaled (1.4, 1.4, 1.2); the
 scalloped awning edge is its -y side (rot 0 for facing S, pi for N). Verified from the plaza side for S-facing stalls; N-facing orientation not yet checked in a screenshot.
+
+## Agora 2 spike sources (2026-11-06, not shipped)
+- Quaternius Modular Sci-Fi MegaKit Standard (CC0, 190 glTF): itch.io `POST <page>/download_url` -> download page -> `POST <page>/file/<upload_id>?source=game_download` (60 s signed URL).
+- Kenney Modular Space Kit (CC0): direct zip on OpenGameArt (`kenney_modular-space-kit_1.0.zip`).
+- BlenderKit: API search works without a key. Free assets are mostly **royalty-free, not CC0**; FAQ allows them in games only "if the models can't be extracted easily" -> a public web GLB is easy to extract -> excluded (same reasoning as Poliigon). CC0 BlenderKit assets only.
+- BlendSwap MCP: CC0 filter works, licences are uploader-declared; useful hits: Round Robot (rigged), Low Poly Rock Formation #2, Beach Cliff scan.
