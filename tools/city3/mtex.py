@@ -132,6 +132,7 @@ SETS = {
  "cont_red": ("corrugated_iron_02", (1.9, 0.55, 0.45), 512), "cont_blue": ("corrugated_iron_02", (0.55, 0.9, 1.9), 512), "cont_green": ("corrugated_iron_02", (0.6, 1.5, 0.8), 512), "cont_ochre": ("corrugated_iron_02", (1.8, 1.3, 0.5), 512),
  "cobble_pbr": ("cobblestone_04", (1.18, 1.02, 0.84), 1024), "roof_clay": ("clay_roof_tiles_03", (1.1, 0.95, 0.9), 512), "roof_clay2": ("clay_roof_tiles_02", None, 512),
  "pave_warm": ("square_concrete_pavers", (1.15, 0.98, 0.8), 512),
+ "plaza_stone": ("herringbone_concrete_tile", (1.22, 1.06, 0.86), 1024),
  "metal_teal": ("box_profile_metal_sheet", (0.25, 2.6, 2.6), 512), "floor_conc": ("concrete_floor_02", None, 512),
 }
 def build_pbr():
