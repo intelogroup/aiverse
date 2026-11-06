@@ -41,6 +41,7 @@ import {
   type CameraMode,
 } from "./cameraRig";
 import { FpsMeter } from "./fpsMeter";
+import { newBodyState, stepBody, type BodyState } from "./bodyController";
 import {
   CITY3_INDEX_URL,
   CITY3_LIBRARY_URL,
@@ -760,6 +761,12 @@ function CrowdCast({
   framesRef: RefObject<AgentFrame[]>;
 }) {
   const crowdRef = useRef<PlatformCrowd | null>(null);
+  // Body controller (bodyController.ts): smooth heading, turn-in-place clips, speed throttle. ?body=legacy
+  // restores the old snap-to-velocity behaviour for A/B comparison; ?bodyDebug=1 logs headings for tests.
+  const bodyOn = useMemo(() => new URLSearchParams(window.location.search).get("body") !== "legacy", []);
+  const bodyDebug = useMemo(() => new URLSearchParams(window.location.search).get("bodyDebug") === "1", []);
+  const bodyStates = useRef<BodyState[]>([]);
+  const bodyClock = useRef(0);
   const [crowdReady, setCrowdReady] = useState(false);
   const count = cast.length;
   // Latest cast, for the controller's per-member body lookups (the
@@ -882,6 +889,51 @@ function CrowdCast({
       for (const fr of framesRef.current) {
         fr.position = clampPositionToRadius(fr.position, AGORA_FRAME_RMAX);
       }
+    }
+    if (bodyOn) {
+      const frames = framesRef.current;
+      while (bodyStates.current.length < frames.length) {
+        bodyStates.current.push(newBodyState(frames[bodyStates.current.length]?.heading ?? 0));
+      }
+      for (let i = 0; i < frames.length; i++) {
+        const fr = frames[i];
+        const m = castRef.current[i];
+        const out = stepBody(
+          bodyStates.current[i],
+          {
+            vx: fr.velocity[0],
+            vz: fr.velocity[1],
+            speed: fr.speed,
+            // standing: the crowd's retained heading is the wish (a face skill sets it; a reversal leaves it pointing the new way)
+            intent: fr.speed > 0.1 ? null : fr.heading,
+            walkSpeed: (m ? bodyForMember(m) : BODY_CAST).walkSpeed,
+          },
+          dt,
+        );
+        fr.heading = out.heading;
+        fr.body = out;
+        crowd.setSpeedScale(i, out.speedScale);
+      }
+      if (bodyDebug) {
+        bodyClock.current += dt;
+        const w = window as unknown as { __bodyLog?: { t: number; dt: number; h: number[]; v: number[]; p: [number, number][]; turn: number[] }[] };
+        const log = (w.__bodyLog ??= []);
+        log.push({
+          t: bodyClock.current,
+          dt,
+          h: frames.map((f) => f.heading),
+          v: frames.map((f) => f.speed),
+          p: frames.map((f) => f.position),
+          turn: frames.map((f) => (f.body?.turn ? (f.body.turn.clip === "TurnLeft90" ? 1 : -1) : 0)),
+        });
+        if (log.length > 6000) log.shift();
+      }
+    } else if (bodyDebug) {
+      bodyClock.current += dt;
+      const w = window as unknown as { __bodyLog?: { t: number; dt: number; h: number[]; v: number[]; p: [number, number][]; turn: number[] }[] };
+      const log = (w.__bodyLog ??= []);
+      log.push({ t: bodyClock.current, dt, h: framesRef.current.map((f) => f.heading), v: framesRef.current.map((f) => f.speed), p: framesRef.current.map((f) => f.position), turn: [] });
+      if (log.length > 6000) log.shift();
     }
     const ctl = controllerRef.current;
     if (ctl) {
