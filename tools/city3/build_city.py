@@ -321,25 +321,28 @@ for s in P["streets"]:                                                       # b
 for k in range(8):                                                           # plaza festoon poles + string lights
     a=2*math.pi*k/8+math.pi/8; P0=(22*math.cos(a),22*math.sin(a)); cyl(P0[0],P0[1],Z,Z+6.0,0.09,6,"iron",top=False)
     a2=2*math.pi*(k+1)/8+math.pi/8; P1=(22*math.cos(a2),22*math.sin(a2)); string_lights((P0[0],P0[1],Z+5.9),(P1[0],P1[1],Z+5.9))
-# Trees: the faceted palette blobs are replaced by the BlenderKit season tree
-# (flat-re-skinned in assets_kit.tree_variants — its procedural leaf shader does
-# not survive glTF export), placed as linked duplicates at the plan positions.
-# A dedicated Random keeps the city rng's downstream draws identical to the
-# blob build everywhere else (state snapshot/restore around the tree loops).
+# Trees: the faceted palette blobs are replaced by the Sketchfab "Low Poly
+# Forest Tree Pack" (99.Miles, CC-BY 4.0 — assets_kit.tree_variants_sketchfab,
+# ASSETS.md), loaded with its own atlas textures: study frames showed a flat
+# palette re-skin collapses the pack's branch cards into slabs, while the
+# textured original reads as a proper low-poly tree. Placed as linked
+# duplicates at the plan positions. A dedicated Random keeps the city rng's
+# downstream draws identical to the blob build everywhere else (state
+# snapshot/restore around the tree loops).
 _trng=random.Random(20240); _treecoll=None
 def _tree_variants():
     global _treecoll
     if _treecoll is not None: return _treecoll
-    assets_kit.tree_variants("blenderkit-season-tree.blend",14500,[
-        ("seasontree_a",(0.310,0.604,0.298),(0.231,0.165,0.125)),   # leaf #4f9a4c / trunk_dark
-        ("seasontree_b",(0.180,0.420,0.227),(0.231,0.165,0.125)),   # leaf_dark #2e6b3a
-        ("seasontree_c",(0.790,0.420,0.180),(0.231,0.165,0.125)),   # autumn accent, sparse
+    assets_kit.tree_variants_sketchfab([
+        ("packtree_a","hero_full",None),     # full pine, the workhorse
+        ("packtree_b","hero_tall",None),     # tall pine
+        ("packtree_c","hero_birch",None),    # autumn birch accent, sparse (the old blob build's orange slot)
     ])
     _treecoll=bpy.data.collections.new("Trees"); bpy.context.scene.collection.children.link(_treecoll)
     return _treecoll
 def tree(x,y):
     coll=_tree_variants()
-    key=_trng.choices(["seasontree_a","seasontree_b","seasontree_c"],weights=[55,35,10])[0]
+    key=_trng.choices(["packtree_a","packtree_b","packtree_c"],weights=[55,35,10])[0]
     src=assets_kit.LIB[key]; h=_trng.uniform(5.0,7.0); s=h/max(src["dims"][2],1e-3)
     assets_kit.instantiate(key,coll,x,y,Z,_trng.uniform(0,6.28),s,name=f"Tree_{key}")
 _rng_state=rng.getstate()

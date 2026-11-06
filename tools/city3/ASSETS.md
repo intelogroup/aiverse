@@ -52,16 +52,20 @@ Imported with `assets_kit.load(..., source="usdz")`: cups decimated to 240–380
 
 ## District trees (blob-tree replacement, branch tmp/kaykit-trees — NOT shipped)
 
-The picked set, currently download-blocked (Sketchfab connector token returns 401; search/read work, download does not):
+The district-tree source on this branch (Bazaar via `build_city.py`, the modern districts via `mdetails.py`):
 
 | Asset | Author | Licence | Source |
 |---|---|---|---|
 | Low Poly Forest Tree Pack (3,752 faces, whole pack) | 99.Miles | CC-BY 4.0 | https://sketchfab.com/3d-models/low-poly-forest-tree-pack-5ff5a51e74324845a4e4905f182dfb2b |
 
-Proof-build stand-in actually used on this branch (already in the project's asset library since 2026-11-03):
+Downloaded with the owner's Sketchfab account (the connector download route returned 401; the files arrived by a one-off authenticated download). Extracted zip kept local in `assets/sketchfab/low-poly-forest-tree-pack/` (gitignored, like the blendkit downloads): `scene.gltf` + `scene.bin` + `textures/` + the pack's own `license.txt` (CC-BY 4.0, author 99.Miles). Attribution rides in the build's `asset-credits.json` via the LIB entries' credit fields.
+
+Loaded by `assets_kit.tree_variants_sketchfab`: trunk/branch part pairs are joined into whole trees — `hero_full` (624 tris), `hero_tall` (630), `hero_stocky` (624), `hero_birch` (285; grey trunk, golden autumn crown) — plus the pack's atlas-card background trees (`bg_*`, registered but currently unused: they read as painted cards up close). No decimation (the heroes are already at budget) and NO palette re-skin: the pack ships with its own atlas textures, downsized to the 512 px pipeline budget, diffuse-only; study frames showed a flat re-skin collapses its branch cards into slabs while the textured original reads as a proper low-poly tree. Foliage keeps alpha cutout (source alphaMode BLEND → Math ROUND on alpha in the material → glTF alphaMode MASK, the halo-palm pattern). The pack's rocks and shrubs are not used. Placement weights mirror the old blob build's three-variant mix, with the birch in the accent slot.
+
+Fallback stand-in (NOT shipped — superseded by the pack above; kept here as the record of the earlier proof build on this branch):
 
 | Asset | Author | Licence | Source |
 |---|---|---|---|
-| Lowpoly tree (with random season) — file `assets/blendkit/blenderkit-season-tree.blend` (local only, gitignored), decimated to 2,600 tris and flat-re-skinned by `assets_kit.tree_variants` (its SimpleProceduralLeaf shader is procedural and does not survive glTF export) | BlenderKit author (asset b9082156-eca0-4d99-bfae-c5ea20462f9b) | royalty_free (BlenderKit) | https://www.blenderkit.com |
+| Lowpoly tree (with random season) — file `assets/blendkit/blenderkit-season-tree.blend` (local only, gitignored), decimated to 14,500 tris and flat-re-skinned by `assets_kit.tree_variants` (its SimpleProceduralLeaf shader is procedural and does not survive glTF export) | BlenderKit author (asset b9082156-eca0-4d99-bfae-c5ea20462f9b) | royalty_free (BlenderKit) | https://www.blenderkit.com |
 
-LICENCE FLAG: the "Not used, on purpose" note above records that BlenderKit Royalty Free assets should not ship in a directly extractable web GLB. This branch is an unshipped proof (no push/merge) built at the owner's direction to judge look and budget; before any ship, either the CC-BY Sketchfab pack above replaces the stand-in (same `tree_variants` path) or the owner makes an explicit licence call on the stand-in.
+LICENCE FLAG (unchanged, and the reason for the swap): BlenderKit Royalty Free assets should not ship in a directly extractable web GLB (see the "Not used, on purpose" note above). The conifer was an unshipped proof only; the CC-BY pack above is the shippable source. This branch remains unpushed/unmerged until the owner gives the ship word.

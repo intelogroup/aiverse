@@ -8,19 +8,19 @@ _trng = _random.Random(20241); _treecoll = None
 def _tree_variants():
     global _treecoll
     if _treecoll is not None: return _treecoll
-    _ak.tree_variants("blenderkit-season-tree.blend", 14500, [
-        ("mtree_a", (0.357, 0.604, 0.235), (0.353, 0.255, 0.157)),   # leaf #5b9a3c / trunk
-        ("mtree_b", (0.208, 0.420, 0.165), (0.353, 0.255, 0.157)),   # leaf_dk #356b2a
-        ("mtree_c", (0.545, 0.741, 0.310), (0.353, 0.255, 0.157)),   # leaf_lt #8bbd4f
+    _ak.tree_variants_sketchfab([
+        ("mtree_a", "hero_full", None),      # full pine, the workhorse
+        ("mtree_b", "hero_stocky", None),    # stocky pine
+        ("mtree_c", "hero_birch", None),     # autumn birch accent (grey trunk, golden crown)
     ])
     _treecoll = _bpy.data.collections.new("Trees"); _bpy.context.scene.collection.children.link(_treecoll)
     return _treecoll
 
 def tree(x, y, z, rnd, h=None, kind="round"):
-    """Street/park tree: the BlenderKit season tree (flat-re-skinned, see
-    assets_kit.tree_variants) placed as a linked duplicate, scaled so its total
-    height matches the old blob tree's (h * 1.1). Variant/rotation draws come
-    from a dedicated Random so caller rnd sequences barely move."""
+    """Street/park tree: the Sketchfab forest pack tree (textured, see
+    assets_kit.tree_variants_sketchfab) placed as a linked duplicate, scaled so
+    its total height matches the old blob tree's (h * 1.1). Variant/rotation
+    draws come from a dedicated Random so caller rnd sequences barely move."""
     h = h or rnd.uniform(4.5, 7.0)
     coll = _tree_variants()
     key = _trng.choices(["mtree_a", "mtree_b", "mtree_c"], weights=[45, 35, 20])[0]

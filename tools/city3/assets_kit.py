@@ -159,3 +159,132 @@ def instantiate(key, coll, x, y, z, rot_z=0.0, scale=1.0, name=None):
     o.location = (x, y, z); o.rotation_euler = (0, 0, rot_z)
     o.scale = scale if isinstance(scale, tuple) else (scale, scale, scale)
     coll.objects.link(o); return o
+
+# ---- Sketchfab tree pack: "Low Poly Forest Tree Pack" by 99.Miles, CC-BY 4.0 ----
+# Kept local under assets/sketchfab/ (gitignored, like blendkit downloads); the
+# download is a zip whose scene.gltf + scene.bin + textures/ land in the folder.
+PACK_ID = "low-poly-forest-tree-pack"
+PACK_CREDIT = "https://sketchfab.com/3d-models/low-poly-forest-tree-pack-5ff5a51e74324845a4e4905f182dfb2b"
+PACK_LICENSE = "CC-BY 4.0"
+_PACK_MODELS = None
+
+def _base_image(m):
+    """The image feeding a Principled material's Base Color, or None."""
+    if not m or not m.use_nodes: return None
+    b = next((n for n in m.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'), None)
+    if not b: return None
+    src = next((l.from_node for l in m.node_tree.links if l.to_node == b and l.to_socket.name == 'Base Color'), None)
+    while src and src.type != 'TEX_IMAGE':
+        ins = [x for x in src.inputs if x.is_linked]; src = ins[0].links[0].from_node if ins else None
+    return src.image if src else None
+
+def _diffuse_mat(m):
+    """Material-level _diffuse_only: drop normal/roughness/metallic feeds, constant roughness."""
+    if not m or not m.use_nodes: return
+    nt = m.node_tree; b = next((n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'), None)
+    if not b: return
+    for l in list(nt.links):
+        if l.to_node == b and l.to_socket.name in ('Normal', 'Roughness', 'Metallic'): nt.links.remove(l)
+    for n in list(nt.nodes):
+        if n.type == 'NORMAL_MAP': nt.nodes.remove(n)
+    b.inputs['Roughness'].default_value = 0.85; b.inputs['Metallic'].default_value = 0.0
+
+def _pack_models(tex):
+    """Split the pack glTF into {model: (mesh, dims, tris, roles)} — origin at bottom
+    centre, world transforms baked. Models: 4 hero trees (trunk+branches pairs,
+    grouped by nearest XZ centre) named by form (hero_tall/hero_full/hero_stocky/
+    hero_slim) + the tall single-mesh atlas trees bg_a..bg_h. Rocks and the pack's
+    small shrub meshes are skipped — the districts keep their own shrubs."""
+    global _PACK_MODELS
+    if _PACK_MODELS is not None: return _PACK_MODELS
+    import json as _json, re as _re
+    src = _json.load(open(os.path.join(HERE, "assets", "sketchfab", PACK_ID, "scene.gltf")))
+    foliage = {mt.get("name") for mt in src.get("materials", []) if mt.get("alphaMode") == "BLEND"}
+    before = set(bpy.data.objects); imgs_before = set(bpy.data.images)
+    bpy.ops.import_scene.gltf(filepath=os.path.join(HERE, "assets", "sketchfab", PACK_ID, "scene.gltf"))
+    new = [o for o in bpy.data.objects if o not in before]
+    meshes = [o for o in new if o.type == "MESH"]
+    # canonical material per base-colour image (the FBX->glTF split duplicates
+    # materials per part instance; they share textures, so unify before stripping)
+    canon = {}
+    for o in meshes:
+        for i, slot in enumerate(o.data.materials):
+            img = _base_image(slot); k = img.name if img else (slot.name if slot else None)
+            if k in canon: o.data.materials[i] = canon[k]
+            elif slot: canon[k] = slot
+    for m in set(canon.values()):
+        _diffuse_mat(m)
+        if _re.sub(r"\.\d{3}$", "", m.name) in foliage:
+            # foliage alpha cards: route texture alpha through Math ROUND into the
+            # Principled Alpha socket — the pattern the glTF exporter turns into
+            # alphaMode MASK, cutoff 0.5 (halo.py's palm discipline; the material
+            # blend/render-method switches alone still export as BLEND on 5.2)
+            nt = m.node_tree; b = next((n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'), None)
+            link = next((l for l in nt.links if l.to_node == b and l.to_socket.name == 'Alpha'), None)
+            texnode = next((n for n in nt.nodes if n.type == 'TEX_IMAGE' and n.image is _base_image(m)), None)
+            if b and texnode:
+                rnd = nt.nodes.new("ShaderNodeMath"); rnd.operation = "ROUND"
+                if link: nt.links.remove(link)
+                nt.links.new(texnode.outputs["Alpha"], rnd.inputs[0]); nt.links.new(rnd.outputs[0], b.inputs["Alpha"])
+    for img in set(bpy.data.images) - imgs_before:
+        if img.size[0] > tex: img.scale(tex, max(1, int(img.size[1] * tex / img.size[0])))
+    def wb(o):
+        bb = [o.matrix_world @ Vector(c) for c in o.bound_box]
+        mn = Vector([min(v[i] for v in bb) for i in range(3)]); mx = Vector([max(v[i] for v in bb) for i in range(3)])
+        return mn, mx
+    info = {}
+    for o in meshes:
+        mn, mx = wb(o); info[o.name] = (o, mn, mx, (mn + mx) / 2)
+    groups = {}   # model -> [objects]
+    trunks = [n for n in info if n.startswith("Tree_Trunk")]; branches = [n for n in info if n.startswith("Tree_Branches")]
+    for tn in trunks:
+        tc = info[tn][3]
+        bn = min(branches, key=lambda b: (info[b][3].x - tc.x) ** 2 + (info[b][3].y - tc.y) ** 2)
+        assert (info[bn][3].x - tc.x) ** 2 + (info[bn][3].y - tc.y) ** 2 < 6.25, f"no branch near {tn}"
+        groups.setdefault(f"hero@{tn}", []).extend([info[tn][0], info[bn][0]]); branches.remove(bn)
+    bgs = sorted((n for n in info if n.startswith("Background_Tree_Atlas") and (info[n][2].z - info[n][1].z) >= 10), key=lambda n: info[n][3].x)
+    for i, n in enumerate(bgs): groups[f"bg_{chr(97 + i)}"] = [info[n][0]]
+    models = {}
+    for gname, objs in groups.items():
+        for o in objs: o.data.transform(o.matrix_world); o.matrix_world = __import__('mathutils').Matrix.Identity(4)
+        for o in bpy.context.selected_objects: o.select_set(False)
+        for o in objs: o.select_set(True)
+        bpy.context.view_layer.objects.active = objs[0]
+        if len(objs) > 1: bpy.ops.object.join()
+        obj = bpy.context.view_layer.objects.active
+        vs = [v.co for v in obj.data.vertices]
+        mn = Vector([min(v[i] for v in vs) for i in range(3)]); mx = Vector([max(v[i] for v in vs) for i in range(3)])
+        off = Vector(((mn.x + mx.x) / 2, (mn.y + mx.y) / 2, mn.z))
+        for v in obj.data.vertices: v.co -= off
+        me = obj.data; tris = sum(len(p.vertices) - 2 for p in me.polygons)
+        roles = ["trunk" if "trunk" in ((_base_image(mt).name if _base_image(mt) else (mt.name if mt else "")).lower()) else "leaf" for mt in me.materials]
+        if gname.startswith("hero@"):
+            h = mx.z - mn.z
+            key = "hero_tall" if h >= 22 else "hero_full" if h >= 15 else "hero_birch" if tris <= 300 else "hero_stocky"
+        else: key = gname
+        me.name = f"LIB_{key}"; me.use_fake_user = True
+        models[key] = (me, tuple(round(d, 3) for d in (mx - mn)), tris, roles)
+        bpy.data.objects.remove(obj, do_unlink=True)
+    for o in list(bpy.data.objects):     # rocks, shrubs, empties, pair leftovers — nothing stray ships
+        if o not in before: bpy.data.objects.remove(o, do_unlink=True)
+    _PACK_MODELS = models
+    return models
+
+def tree_variants_sketchfab(variants, tex=TEX):
+    """Register one LIB entry per (key, model, skin) from the Sketchfab tree pack.
+    skin=None keeps the pack's own materials — downsized to tex px, diffuse-only,
+    foliage alpha converted from blend to cutout (the Halo palm discipline).
+    skin=(leaf_rgb, bark_rgb) flat-re-skins by slot role instead. Mesh-only
+    entries, placed via instantiate(), same as tree_variants."""
+    models = _pack_models(tex)
+    for key, model, skin in variants:
+        if key in LIB: continue
+        me, dims, tris, roles = models[model]
+        if skin is None: out = me
+        else:
+            out = me.copy(); out.name = f"LIB_{key}"; out.use_fake_user = True
+            leaf = _flat_mat(f"flat_leaf_{key}", skin[0]); bark = _flat_mat(f"flat_bark_{key}", skin[1])
+            for i, role in enumerate(roles): out.materials[i] = bark if role == "trunk" else leaf
+        LIB[key] = {"obj": None, "mesh": out, "dims": dims, "tris_raw": tris, "tris": tris, "source": "sketchfab", "id": PACK_ID,
+                    "credit": PACK_CREDIT, "credit_license": PACK_LICENSE}
+    return LIB
