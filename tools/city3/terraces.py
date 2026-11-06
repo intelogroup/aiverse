@@ -7,6 +7,7 @@ import mdetails as D
 clear_blender(); Z = 0.2; FH = 3.4; LAND = 180.0; SW = 3.5; rng = random.Random(7071)
 for k, tag in (("road", "road_m"), ("sidewalk", "plaza_herring"), ("stucco", None), ("slat", "wood_slat"), ("stone", "stone_clad"), ("panel", "panel_conc"), ("terrazzo", None), ("roofgrey", "roof_grey"), ("bitumen", None)):
     pbr_mat(k, tag or k)
+pbr_mat("greenroof", "grass004", rough=0.95)   # ambientCG short grass on the planted roofs (was a flat palette-moss quad); rough overridden — the set's authored roughness map averages 0.26, a sheen no lawn has, and mkit materials take the scalar
 img_mat("glass", "glass_atlas.jpg", "glass_emit.jpg", rough=0.07, metal=0.6, emit=1.0); img_mat("msign", "msigns.jpg", "msigns.jpg", rough=0.4, emit=0.5)
 palette_mat("palette"); palette_mat("led", emit=3.0); palette_mat("water", rough=0.03); glass_mat("shopglass")
 TL = {"road": 2.1, "sidewalk": 2.0, "stucco": 1.8, "slat": 1.7, "stone": 2.0, "panel": 2.0, "terrazzo": 2.0, "roofgrey": 4.0, "bitumen": 6.0}
@@ -53,7 +54,7 @@ def modern_wall(fr, L, nfl, r, z0=0.0, slat_share=0.3, big=True):
         fbox(fr, 0, L, 0, 0.08, z + FH - 0.12, z + FH, "white")
 def green_roof(rect, z, r, shrubs=0.04):
     x0, y0, x1, y1 = rect; poly = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
-    tquad("palette", (x0, y0, z), (x1, y0, z), (x1, y1, z), (x0, y1, z), [pal_uv("moss")] * 4, (0, 0, 1))
+    tquad("greenroof", (x0, y0, z), (x1, y0, z), (x1, y1, z), (x0, y1, z), [(x0 / 2, y0 / 2), (x1 / 2, y0 / 2), (x1 / 2, y1 / 2), (x0 / 2, y1 / 2)], (0, 0, 1))
     for fr, L in edge_frames(poly, z): wbox(fr, 0, L, -0.3, 0.0, 0.0, 0.5, "stucco", TL["stucco"])
     for _ in range(int((x1 - x0) * (y1 - y0) * shrubs)): D.shrub(r.uniform(x0 + 1, x1 - 1), r.uniform(y0 + 1, y1 - 1), z, r, r.uniform(0.4, 0.8), r.choice(["leaf", "moss", "leaf_lt", "pink", "lilac"]))
 def deck(rect, z, r, trees=2):
@@ -139,7 +140,7 @@ only = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 for (i, j), k in KIND.items():
     if only and f"{i}{j}" not in only: continue
     BUILD[k](i, j, random.Random(300 + i * 10 + j))
-realise({"road": "Road", "sidewalk": "Sidewalk", "glass": "Glass", "shopglass": "ShopGlass", "palette": "Props", "led": "Led", "msign": "Signs"})
+realise({"road": "Road", "sidewalk": "Sidewalk", "glass": "Glass", "shopglass": "ShopGlass", "palette": "Props", "led": "Led", "msign": "Signs", "greenroof": "GreenRoof"})
 agg = {}
 for k, v in MBS.items(): agg[k.rpartition("::")[2]] = agg.get(k.rpartition("::")[2], 0) + len(v.f)
 print("TRIS", sum(agg.values()), dict(sorted(agg.items(), key=lambda kv: -kv[1])[:8]))

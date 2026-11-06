@@ -33,14 +33,18 @@ for n,r in (("roof_tile",0.85),("roof_flat",0.95),("cobble",0.88),("sidewalk",0.
     MATS[n]=make_mat(n,n,r)
 # PBR re-skin (Poly Haven CC0 via mtex.py): ground and roofs get normal maps; UV stays 1 unit = tile_m metres, a Mapping node rescales to the scan size.
 PBRM=json.load(open(f"{HERE}/pbr_m.json")) if os.path.exists(f"{HERE}/pbr_m.json") else {}
-def pbr_override(key,tag,tile_m,rough=None):
+def pbr_override(key,tag,tile_m,rough=None,tint=None):
     if tag not in PBRM: return
     m=bpy.data.materials.new(key); m.use_nodes=True; nt=m.node_tree
     for n in list(nt.nodes):
         if n.type not in ("OUTPUT_MATERIAL","BSDF_PRINCIPLED"): nt.nodes.remove(n)
     bs=nt.nodes["Principled BSDF"]; tc=nt.nodes.new("ShaderNodeTexCoord"); mp=nt.nodes.new("ShaderNodeMapping"); sc=tile_m/PBRM[tag]["size"]; mp.inputs["Scale"].default_value=(sc,sc,1)
     nt.links.new(tc.outputs["UV"],mp.inputs["Vector"])
-    d=nt.nodes.new("ShaderNodeTexImage"); d.image=bpy.data.images.load(f"{HERE}/tex_m/{tag}_d.jpg"); d.extension="REPEAT"; nt.links.new(mp.outputs["Vector"],d.inputs["Vector"]); nt.links.new(d.outputs["Color"],bs.inputs["Base Color"])
+    d=nt.nodes.new("ShaderNodeTexImage"); d.image=bpy.data.images.load(f"{HERE}/tex_m/{tag}_d.jpg"); d.extension="REPEAT"; nt.links.new(mp.outputs["Vector"],d.inputs["Vector"])
+    if tint is None: nt.links.new(d.outputs["Color"],bs.inputs["Base Color"])
+    else:                                                                 # per-variant tint: texture x colour via the Mix node (RGBA/MULTIPLY) — the one pattern the glTF exporter folds into baseColorFactor (probed on 5.2.3: legacy MixRGB and channel-math chains both export untinted)
+        mx=nt.nodes.new("ShaderNodeMix"); mx.data_type="RGBA"; mx.blend_type="MULTIPLY"; mx.inputs[0].default_value=1.0; mx.inputs[7].default_value=(*tint,1.0)
+        nt.links.new(d.outputs["Color"],mx.inputs[6]); nt.links.new(mx.outputs[2],bs.inputs["Base Color"])
     n=nt.nodes.new("ShaderNodeTexImage"); n.image=bpy.data.images.load(f"{HERE}/tex_m/{tag}_n.jpg"); n.image.colorspace_settings.name="Non-Color"; n.extension="REPEAT"; nt.links.new(mp.outputs["Vector"],n.inputs["Vector"])
     nm=nt.nodes.new("ShaderNodeNormalMap"); nt.links.new(n.outputs["Color"],nm.inputs["Color"]); nt.links.new(nm.outputs["Normal"],bs.inputs["Normal"])
     bs.inputs["Roughness"].default_value=PBRM[tag]["rough"] if rough is None else rough
@@ -49,7 +53,9 @@ def pbr_override(key,tag,tile_m,rough=None):
         rt=nt.nodes.new("ShaderNodeTexImage"); rt.image=bpy.data.images.load(rp); rt.image.colorspace_settings.name="Non-Color"; rt.extension="REPEAT"; nt.links.new(mp.outputs["Vector"],rt.inputs["Vector"])
         sep=nt.nodes.new("ShaderNodeSeparateColor"); nt.links.new(rt.outputs["Color"],sep.inputs["Color"]); nt.links.new(sep.outputs["Green"],bs.inputs["Roughness"]); nt.links.new(sep.outputs["Blue"],bs.inputs["Metallic"])
     m.use_backface_culling=True; MATS[key]=m
-for _k,_t,_s in (("cobble","plaza_setts",6.0),("sidewalk","pave_warm",4.0),("courtyard","pave_warm",4.0),("roof_tile","roof_clay",3.0),("roof_flat","roof_clay2",4.0)): pbr_override(_k,_t,_s)
+for _k,_t,_s in (("cobble","plaza_setts",6.0),("sidewalk","pave_warm",4.0),("courtyard","pave_warm",4.0),("roof_tile","roof_barrel",3.0),("roof_flat","roof_clay2",4.0)): pbr_override(_k,_t,_s)
+for _v,_tint in enumerate(((0.93,0.90,0.90),(1.05,1.01,0.95),(0.96,0.94,1.00),(1.02,0.96,0.88)),1): pbr_override(f"roof_tile_v{_v}","roof_barrel",3.0,tint=_tint)   # per-building tint variants of the barrel tile: subtle value/hue jitter on the shared set, assigned by building index in building()
+pbr_override("roof_hall","roof_barrel",1.5)   # market-hall vault: same set at a 5.2 m repeat (hall UVs are true metres/3 after the arc-length rewrite in the halls loop)
 MATS["water"]=make_mat("water","palette",0.45); MATS["lamp_glow"]=make_mat("lamp_glow","palette",0.5,emit=True,strength=3.0)
 MATS["glass"]=make_mat("glass",None,0.05,alpha=0.22,base=(0.72,0.86,0.95,1.0))
 # ---------------- flat surfaces & roads ----------------
@@ -174,6 +180,7 @@ def building(bd,idx):
             pquad("palette",fr.p(0,0,H-0.55),fr.p(length,0,H-0.55),fr.p(length,0,H),fr.p(0,0,H),"stone_lt",fr.o(0,1))
             pquad("palette",fr.p(0,0,H-0.55),fr.p(length,0,H-0.55),fr.p(length,-e,H-0.55),fr.p(0,-e,H-0.55),"stone",(0,0,-1))
         top=Z+H
+        rtv=((idx*2654435761)&0xFFFFFFFF)%5; rtb="roof_tile" if rtv==0 else f"roof_tile_v{rtv}"   # this building's barrel-tile tint variant (pure function of idx — consumes no RNG, so dormers/chimneys/props roll exactly as before)
         if bd["roof"]=="flat":
             x0,y0,x1,y1=cr; mb("roof_flat").quad((x0,y0,top),(x1,y0,top),(x1,y1,top),(x0,y1,top),(x0/4,y0/4),(x1/4,y0/4),(x1/4,y1/4),(x0/4,y1/4),(0,0,1))
             if rnd.random()<0.5:
@@ -187,11 +194,11 @@ def building(bd,idx):
             def face_(E0,E1,T0,T1,axis):
                 u=lambda p:(p[0]/t if axis=="x" else p[1]/t)
                 c=((E0[0]+E1[0]+T0[0]+T1[0])/4,(E0[1]+E1[1]+T0[1]+T1[1])/4); out=(c[0]-cx,c[1]-cy,0.6)
-                mb("roof_tile").quad(E0,E1,T1,T0,(u(E0),0),(u(E1),0),(u(T1),sl),(u(T0),sl),out)
+                mb(rtb).quad(E0,E1,T1,T0,(u(E0),0),(u(E1),0),(u(T1),sl),(u(T0),sl),out)
             if hx>=hy:
-                face_(A,B,R1,R2,"x"); face_(C,D,R2,R1,"x"); mb("roof_tile").tri(B,C,R2,(0,0),(1,0),(0.5,sl),(1,0,0.5)); mb("roof_tile").tri(D,A,R1,(0,0),(1,0),(0.5,sl),(-1,0,0.5))
+                face_(A,B,R1,R2,"x"); face_(C,D,R2,R1,"x"); mb(rtb).tri(B,C,R2,(0,0),(1,0),(0.5,sl),(1,0,0.5)); mb(rtb).tri(D,A,R1,(0,0),(1,0),(0.5,sl),(-1,0,0.5))
             else:
-                face_(B,C,R1,R2,"y"); face_(D,A,R2,R1,"y"); mb("roof_tile").tri(A,B,R1,(0,0),(1,0),(0.5,sl),(0,-1,0.5)); mb("roof_tile").tri(C,D,R2,(0,0),(1,0),(0.5,sl),(0,1,0.5))
+                face_(B,C,R1,R2,"y"); face_(D,A,R2,R1,"y"); mb(rtb).tri(A,B,R1,(0,0),(1,0),(0.5,sl),(0,-1,0.5)); mb(rtb).tri(C,D,R2,(0,0),(1,0),(0.5,sl),(0,1,0.5))
             def dormer(px,py,pz,nx,ny):
                 """Small gabled dormer standing on the slope at (px,py,pz); (nx,ny) = outward slope direction."""
                 w=0.7; tx,ty=-ny,nx; d=1.0; hgt=1.25
@@ -230,9 +237,11 @@ def tall_block(mat,r,floors):
 for h in P["halls"]:
     r=h["rect"]; x0,y0,x1,y1=r; top=tall_block("facade_rose",r,2); cx=(x0+x1)/2; rise=7.0; N=16
     pts=[(y0+(y1-y0)*k/N,top+rise*math.sin(math.pi*k/N)) for k in range(N+1)]
+    arc=[0.0]
+    for k in range(N): arc.append(arc[-1]+math.hypot(pts[k+1][0]-pts[k][0],pts[k+1][1]-pts[k][1]))   # cumulative vault arc (m): the hall's UVs become true metres/3, the pitched-roof convention, so roof_hall's tile_m 1.5 lands a 5.2 m repeat on the curve
     for k in range(N):
         (ya,za),(yb,zb)=pts[k],pts[k+1]; mid=((ya+yb)/2-(y0+y1)/2,((za+zb)/2-top)); out=(0,mid[0],max(mid[1],0.01)*3)
-        mb("roof_tile").quad((x0-0.5,ya,za),(x1+0.5,ya,za),(x1+0.5,yb,zb),(x0-0.5,yb,zb),(x0/3,k*2),(x1/3,k*2),(x1/3,k*2+2),(x0/3,k*2+2),out)
+        mb("roof_hall").quad((x0-0.5,ya,za),(x1+0.5,ya,za),(x1+0.5,yb,zb),(x0-0.5,yb,zb),(x0/3,arc[k]/3),(x1/3,arc[k]/3),(x1/3,arc[k+1]/3),(x0/3,arc[k+1]/3),out)
     for xe,sg in ((x0-0.5,-1),(x1+0.5,1)):
         for k in range(N):
             (ya,za),(yb,zb)=pts[k],pts[k+1]
@@ -373,7 +382,7 @@ for k in range(3):                                                           # p
 for k in (-1,1):
     for y_ in (27,36,45): cyl(k*7.6,y_,Z,Z+5.1,0.07,6,"iron",top=False)
 # ---------------- realise ----------------
-NAME={"sidewalk":"Sidewalks","cobble":"PlazaCobble","grass":"Parks","courtyard":"Courtyards","road_avenue":"RoadAvenue","road_narrow":"RoadStreet","road_plain":"RoadJunction","roof_tile":"RoofTile","roof_flat":"RoofFlat","awning":"Awnings","palette":"Props","water":"Water","lamp_glow":"LampGlow","shutters":"Shutters","signs":"Signs","blades":"BladeSigns","interior_wall":"InteriorWalls","wood_floor":"WoodFloor","rug":"Rug","glass":"Glass","newsprint":"Newsprint"}
+NAME={"sidewalk":"Sidewalks","cobble":"PlazaCobble","grass":"Parks","courtyard":"Courtyards","road_avenue":"RoadAvenue","road_narrow":"RoadStreet","road_plain":"RoadJunction","roof_tile":"RoofTile","roof_tile_v1":"RoofTileV1","roof_tile_v2":"RoofTileV2","roof_tile_v3":"RoofTileV3","roof_tile_v4":"RoofTileV4","roof_hall":"RoofHall","roof_flat":"RoofFlat","awning":"Awnings","palette":"Props","water":"Water","lamp_glow":"LampGlow","shutters":"Shutters","signs":"Signs","blades":"BladeSigns","interior_wall":"InteriorWalls","wood_floor":"WoodFloor","rug":"Rug","glass":"Glass","newsprint":"Newsprint"}
 LIBG={}
 for key,b in MBS.items():
     g,_,m=key.rpartition("::")

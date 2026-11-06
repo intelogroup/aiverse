@@ -137,6 +137,25 @@ def acg_pbr(aid, tag, tile_m, px=1024):
     packed = np.dstack([ao * 255, g, np.zeros_like(g)]).astype(np.uint8)
     Image.fromarray(packed).save(f"{OUT}/{tag}_r.jpg", quality=90, subsampling=0)
     return dict(size=tile_m, rough=round(float(g.mean() / 255), 3))
+# ---------------------------------------------------------------- Poly Haven full sets (d/n/r + ARM) -> 1K, packed companion
+def ph_pbr(pid, tag, tile_m, px=1024):
+    """Poly Haven 1K set from assets/ptex/<pid> (d/n/r.jpg + arm.jpg) -> tex_m/<tag>_d.jpg (AO from the ARM
+    red channel multiplied into the diffuse, ambientCG-template style), _n.jpg and _r.jpg — a channel-packed
+    companion in glTF metallicRoughness layout (R = AO, G = roughness, B = 0 metalness) that pbr_override
+    wires G/B from when present, so the exporter ships it verbatim instead of re-combining. Returns the
+    pbr_m entry: size = the tile the set is applied at (m), rough = mean roughness."""
+    s = f"{PT}/{pid}"
+    d = np.array(Image.open(f"{s}/d.jpg").convert("RGB").resize((px, px), Image.LANCZOS), float)
+    g = np.array(Image.open(f"{s}/r.jpg").convert("L").resize((px, px), Image.LANCZOS), float)
+    if os.path.exists(f"{s}/arm.jpg"):
+        ao = np.array(Image.open(f"{s}/arm.jpg").convert("RGB").resize((px, px), Image.LANCZOS), float)[:, :, 0] / 255.0
+    else:
+        ao = np.ones((px, px))
+    Image.fromarray(np.clip(d * ao[..., None], 0, 255).astype(np.uint8)).save(f"{OUT}/{tag}_d.jpg", quality=86)
+    Image.open(f"{s}/n.jpg").convert("RGB").resize((px, px), Image.LANCZOS).save(f"{OUT}/{tag}_n.jpg", quality=88)
+    packed = np.dstack([ao * 255, g, np.zeros_like(g)]).astype(np.uint8)
+    Image.fromarray(packed).save(f"{OUT}/{tag}_r.jpg", quality=90, subsampling=0)
+    return dict(size=tile_m, rough=round(float(g.mean() / 255), 3))
 # name -> (poly haven id, tint multiplier or None, px)
 SETS = {
  "cladding_dk": ("concrete_tile_facade", None, 512), "ribbed": ("ribbed_concrete_wall", None, 512), "panel_conc": ("brushed_concrete_04", None, 512),
@@ -157,6 +176,8 @@ def build_pbr():
     info = {}
     for tag, (pid, tint, px) in SETS.items(): info[tag] = pbr(pid, tint, px, tag)
     info["plaza_setts"] = acg_pbr("PavingStones150", "plaza_setts", 2.5)   # ambientCG fan setts, proofed tile 2.5 m (Bazaar plaza)
+    info["roof_barrel"] = ph_pbr("clay_roof_tiles_02", "roof_barrel", 2.6)   # Poly Haven barrel tile, proofed tile 2.6 m (Bazaar pitched roofs; hall vault at 5.2 m via tile_m 1.5)
+    info["grass004"] = acg_pbr("Grass004", "grass004", 2.0)   # ambientCG short grass, tile 2.0 m (Terraces green roofs)
     json.dump(info, open(f"{HERE}/pbr_m.json", "w"), indent=1); return info
 if __name__ == "__main__":
     build_glass_atlas(); build_signs(); build_palette(); info = build_pbr()
