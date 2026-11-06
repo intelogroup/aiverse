@@ -4,10 +4,12 @@ import * as THREE from "three";
 import { CastFigure } from "./CastFigure";
 import { BODY_SUMMER } from "./bodies";
 import { createBvhWorld } from "./bvhWorld";
+import { createCapsuleWorld } from "./capsuleWorld";
+import type { WalkColliders } from "./walkColliders";
 import { COLLIDE_FLOOR, resolveCamera } from "./cameraCollision";
 import { DAMP_FOV, DAMP_POS_FOLLOW, FOV_RIDE, FOV_WIDE, EYE_FORWARD, FOLLOW_BACK, FOLLOW_LOOK_UP, FOLLOW_UP, HEAD_HEIGHT, RIDE_LOOK_AHEAD, damp } from "./cameraRig";
 import type { AgentFrame } from "./locomotion";
-import { clipFor, findSpawn, makeWalker, step, type WalkInput } from "./walker";
+import { clipFor, findSpawn, makeWalker, step, type World, type WalkInput } from "./walker";
 
 // CityWalker — the user-driven bot in City 3 (?world=city3&walk=1). A thin adapter around walker.ts:
 //   keyboard/mouse -> abstract intent {forward, strafe, turn, run, look} -> walker.step(world = BVH raycasts)
@@ -39,16 +41,31 @@ export function CityWalker({
   onMode,
   onExit,
   getMeshes,
+  walk,
 }: {
   mode: WalkMode;
   onMode: (m: WalkMode) => void;
   onExit: () => void;
+  /** Visual/camera meshes: the follow-cam wall ray, and the raycast fallback world if the collision GLB failed to load. */
   getMeshes: () => THREE.Mesh[];
+  /** The walker's collision list (capsule world). Without it (tests, older hosts) the raycast world over `getMeshes` is used. */
+  walk?: WalkColliders;
 }) {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   const gl = useThree((s) => s.gl);
   const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3; update?: () => void } | null;
-  const world = useMemo(() => createBvhWorld(getMeshes), [getMeshes]);
+  // Capsule shapecast over the collision GLBs; the old raycast world over the visual meshes only if collision failed to load.
+  const world = useMemo<World & { kind: () => "capsule" | "raycast" | "pending" }>(() => {
+    const ray = createBvhWorld(getMeshes);
+    if (!walk) return Object.assign(ray, { kind: () => "raycast" as const });
+    const cap = createCapsuleWorld(walk.list);
+    const pick = (): World => (walk.status === "failed" ? ray : cap);
+    return {
+      groundY: (x, z, fromY) => pick().groundY(x, z, fromY),
+      blocked: (a, b, r) => pick().blocked(a, b, r),
+      kind: () => (walk.status === "ready" ? "capsule" : walk.status === "failed" ? "raycast" : "pending"),
+    };
+  }, [getMeshes, walk]);
 
   const state = useRef<ReturnType<typeof makeWalker> | null>(null);
   const pitch = useRef(0);
@@ -156,13 +173,30 @@ export function CityWalker({
       },
       pitch: (p: number) => { pitch.current = p; },
       ground: (x: number, z: number, fromY: number) => world.groundY(x, z, fromY),
+      worldKind: () => world.kind(),
+      /** Place the walker exactly (no ground lookup). */
+      put: (x: number, y: number, z: number, heading = 0) => { state.current = makeWalker(x, y, z, heading); rig.current = null; },
+      /**
+       * Fixed-dt simulation without rendering: inputs = [forward, strafe, turn, run(0/1), dt][]; returns the trace
+       * [x, y, z, speed] per input (flat). The same `step` the frame loop calls.
+       */
+      script: (inputs: number[][]) => {
+        const s = state.current;
+        if (!s) return null;
+        const out = new Array<number>(inputs.length * 4);
+        inputs.forEach(([f, r, t, run, dt], i) => {
+          step(s, { forward: f, strafe: r, turn: t, run: run > 0 }, dt, world);
+          out[i * 4] = s.x; out[i * 4 + 1] = s.y; out[i * 4 + 2] = s.z; out[i * 4 + 3] = s.speed;
+        });
+        return out;
+      },
     };
     return () => { delete w.__walk; };
   }, [world]);
 
   useFrame((_, delta) => {
     const meshes = getMeshes();
-    if (!meshes.length) return; // resident world still loading
+    if (!meshes.length || world.kind() === "pending") return; // resident world / collision still loading
     let s = state.current;
     if (!s) {
       const sp = findSpawn(world);

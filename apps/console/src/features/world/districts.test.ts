@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blendTheme, planDistricts, rectDistance, themeDelta, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
+import { RESIDENT_COLLISION_URL, blendTheme, collisionJobs, planDistricts, residentCollisionUrl, rectDistance, themeDelta, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
 
 const th = (r: number, night = 0): Theme => ({ skyTop: [r, 0, 0], skyHorizon: [r, 0, 0], fog: [r, 0, 0], fogDensity: 0.001, water: [0, 0, 0], sun: [1, 1, 1],
   sunIntensity: 2, sunDir: [0, 1, 0], ambient: 0.1, envIntensity: 0.5, exposure: 1, night });
@@ -41,4 +41,20 @@ describe("districts", () => {
     expect(gap.night).toBeGreaterThan(0.3); expect(gap.night).toBeLessThan(0.7);
   });
   it("themeDelta", () => { expect(themeDelta(th(0), th(0))).toBe(0); expect(themeDelta(th(0), th(0.5))).toBeCloseTo(0.5, 5); });
+});
+
+describe("district collision urls", () => {
+  const withCol: DistrictDef[] = defs.map((d) => (d.id === "bazaar" || d.id === "n" || d.id === "e" ? { ...d, collisionUrl: `/c/${d.id}.glb` } : d));
+  it("jobs follow the plan: only districts being loaded, only those that declare a collisionUrl", () => {
+    const p = planDistricts([0, 0], withCol, new Set());
+    expect([...collisionJobs(p.load, withCol)]).toEqual([["n", "/c/n.glb"], ["e", "/c/e.glb"]]); // w and s have none
+    expect(collisionJobs(["bazaar", "nope"], withCol).get("bazaar")).toBe("/c/bazaar.glb");
+  });
+  it("evicted districts have nothing to load; the resident url falls back to the default", () => {
+    const p = planDistricts([3000, 3000], withCol, new Set(["n"]));
+    expect(p.unload).toEqual(["n"]);
+    expect(collisionJobs(p.load, withCol).size).toBe(0);
+    expect(residentCollisionUrl(withCol)).toBe("/c/bazaar.glb");
+    expect(residentCollisionUrl(defs)).toBe(RESIDENT_COLLISION_URL);
+  });
 });

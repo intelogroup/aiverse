@@ -25,6 +25,8 @@ export type DistrictDef = {
   half: number;
   theme: string;
   resident?: boolean; // always loaded (the Bazaar)
+  /** Walker collision GLB (closed solids, `col_*`), same frame as `url`; loaded and dropped with the district. Never rendered. */
+  collisionUrl?: string;
 };
 export type DistrictManifest = { districts: DistrictDef[]; themes: Record<string, Theme>; links?: string };
 
@@ -63,6 +65,22 @@ export function planDistricts(
   }
   const unload = [...loaded].filter((id) => defs.some((d) => d.id === id && !d.resident) && !keep.has(id));
   return { load, unload };
+}
+
+/** Collision GLB to fetch for each district id in `ids` (those without a `collisionUrl` are simply absent). */
+export function collisionJobs(ids: readonly string[], defs: readonly DistrictDef[]): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const id of ids) {
+    const d = defs.find((x) => x.id === id);
+    if (d?.collisionUrl) out.set(id, d.collisionUrl);
+  }
+  return out;
+}
+
+/** Resident (Bazaar) collision GLB: the manifest's, else this default. */
+export const RESIDENT_COLLISION_URL = "/assets/world-city3-collision.glb";
+export function residentCollisionUrl(defs: readonly DistrictDef[]): string {
+  return defs.find((d) => d.resident)?.collisionUrl ?? RESIDENT_COLLISION_URL;
 }
 
 const smooth = (t: number) => t * t * (3 - 2 * t);

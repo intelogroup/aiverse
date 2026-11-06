@@ -10,7 +10,8 @@
    ],
    "half": 180,
    "theme": "bazaar",
-   "resident": true
+   "resident": true,
+   "collisionUrl": "/assets/world-city3-collision.glb"
   },
   {
    "id": "glassq",
@@ -21,7 +22,8 @@
     -400
    ],
    "half": 180,
-   "theme": "glass"
+   "theme": "glass",
+   "collisionUrl": "/assets/world-glassq-collision.glb"
   },
   {
    "id": "foundry",
@@ -32,7 +34,8 @@
     0
    ],
    "half": 180,
-   "theme": "foundry"
+   "theme": "foundry",
+   "collisionUrl": "/assets/world-foundry-collision.glb"
   },
   {
    "id": "terraces",
@@ -43,7 +46,8 @@
     0
    ],
    "half": 180,
-   "theme": "terraces"
+   "theme": "terraces",
+   "collisionUrl": "/assets/world-terraces-collision.glb"
   },
   {
    "id": "halo",
@@ -54,7 +58,8 @@
     400
    ],
    "half": 180,
-   "theme": "halo"
+   "theme": "halo",
+   "collisionUrl": "/assets/world-halo-collision.glb"
   }
  ],
  "links": "/assets/world-links.glb",

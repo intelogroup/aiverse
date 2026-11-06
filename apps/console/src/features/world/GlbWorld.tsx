@@ -58,7 +58,9 @@ import {
 } from "./city3";
 import { boxPlanes, inactivePlanes, pickCutRoom } from "./cutaway";
 import { buildInterior, indexLibrary, type InteriorHandle } from "./interiorBuild";
-import { planStreaming, type InteriorLayout } from "./interiors";
+import { colUrl, parseColBoxes, planStreaming, type InteriorLayout } from "./interiors";
+import { boxesMesh } from "./capsuleWorld";
+import { WalkColliders } from "./walkColliders";
 import {
   PROBE_CADENCES,
   PROBE_HEIGHT,
@@ -280,7 +282,7 @@ function ClipCutaway({
  * `?streamDebug=1` exposes window.__city3Stream (counters, renderer memory,
  * teleport) for the memory test; `&fake=N` adds N synthetic rooms to arbitrate.
  */
-function InteriorStreamer({ rooms: realRooms }: { rooms: City3Room[] }) {
+function InteriorStreamer({ rooms: realRooms, walk }: { rooms: City3Room[]; walk?: WalkColliders }) {
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
@@ -386,6 +388,7 @@ function InteriorStreamer({ rooms: realRooms }: { rooms: City3Room[] }) {
           ready={layoutsReady}
           handles={handles.current}
           stats={stats.current}
+          walk={walk}
         />
       ) : null}
     </Suspense>
@@ -400,6 +403,7 @@ function StreamedRooms({
   ready,
   handles,
   stats,
+  walk,
 }: {
   ids: string[];
   heroes: City3Room[];
@@ -407,6 +411,7 @@ function StreamedRooms({
   ready: string[];
   handles: Map<string, InteriorHandle>;
   stats: { builds: number };
+  walk?: WalkColliders;
 }) {
   const gl = useThree((s) => s.gl);
   const library = useGLTF(CITY3_LIBRARY_URL);
@@ -430,7 +435,7 @@ function StreamedRooms({
         const layout = hero ? layouts.get(hero.layout) : undefined;
         if (!hero || !layout || !ready.length) return null;
         return (
-          <InteriorRoom key={id} id={id} layout={layout} assets={assets} offset={hero.shift ?? ZERO_SHIFT} handles={handles} stats={stats} />
+          <InteriorRoom key={id} id={id} layout={layout} layoutUrl={hero.layout} assets={assets} offset={hero.shift ?? ZERO_SHIFT} handles={handles} stats={stats} walk={walk} />
         );
       })}
     </>
@@ -442,17 +447,21 @@ const ZERO_SHIFT: [number, number] = [0, 0];
 function InteriorRoom({
   id,
   layout,
+  layoutUrl,
   assets,
   offset,
   handles,
   stats,
+  walk,
 }: {
   id: string;
   layout: InteriorLayout;
+  layoutUrl: string;
   assets: Map<string, THREE.Object3D>;
   offset: [number, number];
   handles: Map<string, InteriorHandle>;
   stats: { builds: number };
+  walk?: WalkColliders;
 }) {
   // Built inside the effect, not memoised: React (StrictMode in dev) runs cleanup then the effect
   // again on the same render, and a memoised handle would come back already disposed and empty.
@@ -468,6 +477,21 @@ function InteriorRoom({
       setHandle(null);
     };
   }, [id, layout, assets, offset, handles, stats]);
+  // Invisible furniture boxes for the walker (one merged BVH), fetched with the room and dropped on eviction.
+  useEffect(() => {
+    if (!walk) return;
+    let live = true;
+    const key = `interior:${id}`;
+    fetch(colUrl(layoutUrl))
+      .then((r) => (r.ok ? r.json() : []))
+      .then((j) => {
+        if (!live) return;
+        const m = boxesMesh(parseColBoxes(j), offset, key);
+        if (m) walk.set(key, [m]);
+      })
+      .catch(() => {});
+    return () => { live = false; walk.drop(key); };
+  }, [id, layoutUrl, offset, walk]);
   return handle ? <primitive object={handle.group} /> : null;
 }
 
@@ -1373,6 +1397,8 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   // City 3 collider meshes (DistrictWorld fills it), read by the walker.
   const colliderMeshesRef = useRef<(() => THREE.Mesh[]) | null>(null);
   const getColliderMeshes = useCallback(() => colliderMeshesRef.current?.() ?? [], []);
+  // The walker's own collision list (collision GLBs + interior boxes), separate from the camera's.
+  const walkColliders = useMemo(() => new WalkColliders(), []);
   const walking = place === "city3" && camMode !== "wide";
   // City 3: which hero building to fly to (cutaway shows on arrival); nonce re-fires a repeat click.
   const [heroFocus, setHeroFocus] = useState<{ id: string; nonce: number } | null>(null);
@@ -1433,7 +1459,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
         ) : null}
         <Suspense fallback={null}>
           {place === "city3" ? (
-            <DistrictWorld residentUrl={CITY3_URL} light={keyLightRef} collide={camMode === "wide"} meshesRef={colliderMeshesRef} />
+            <DistrictWorld residentUrl={CITY3_URL} light={keyLightRef} collide={camMode === "wide"} meshesRef={colliderMeshesRef} walk={walkColliders} />
           ) : (
           <WorldEnv
             url={
@@ -1448,7 +1474,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           {place === "city3" ? (
             <>
               <ClipCutaway rooms={city3Rooms} focus={heroFocus} />
-              <InteriorStreamer rooms={city3Rooms} />
+              <InteriorStreamer rooms={city3Rooms} walk={walkColliders} />
             </>
           ) : null}
           {walking ? (
@@ -1457,6 +1483,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
               onMode={setCamMode}
               onExit={() => setCamMode("wide")}
               getMeshes={getColliderMeshes}
+              walk={walkColliders}
             />
           ) : null}
           <CrowdCast
