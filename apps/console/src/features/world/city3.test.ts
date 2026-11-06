@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { HIDE_WITHIN, SHOW_BEYOND, cutawayHidden } from "./city3";
+import {
+  CITY3_HEROES,
+  HIDE_WITHIN,
+  INTERIOR_LOAD_WITHIN,
+  SHOW_BEYOND,
+  cutawayHidden,
+  heroDistance,
+} from "./city3";
 
 describe("cutawayHidden", () => {
   it("hides inside the near threshold and shows past the far one", () => {
@@ -20,5 +27,23 @@ describe("cutawayHidden", () => {
       hidden = next;
     }
     expect(flips).toEqual([true, false]);
+  });
+});
+
+describe("hero presets", () => {
+  it("each preset camera opens the cutaway and sits outside the building", () => {
+    for (const h of CITY3_HEROES) {
+      const [x, y, z] = h.view.position;
+      const d = heroDistance(h, { x, y, z });
+      expect(d).toBeLessThan(HIDE_WITHIN);
+      expect(Math.hypot(x - h.center[0], z - h.center[1])).toBeGreaterThan(8);
+    }
+  });
+  it("loads a furnishings GLB before the cutaway can open", () => {
+    expect(INTERIOR_LOAD_WITHIN).toBeGreaterThan(SHOW_BEYOND);
+  });
+  it("uses distinct cutaway prefixes", () => {
+    const p = CITY3_HEROES.map((h) => h.prefix);
+    expect(new Set(p).size).toBe(p.length);
   });
 });

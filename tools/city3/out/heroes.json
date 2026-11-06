@@ -1,0 +1,56 @@
+[
+ {
+  "id": "press",
+  "name": "Kronikler Press",
+  "rect_blender": [
+   -37.5,
+   -84.5,
+   -12.5,
+   -72.5
+  ],
+  "rect_three": [
+   -37.5,
+   72.5,
+   -12.5,
+   84.5
+  ],
+  "center_three": [
+   -25.0,
+   78.5
+  ],
+  "door_three": [
+   -27.08,
+   72.5
+  ],
+  "front": "N",
+  "cutaway_object_prefix": "PressUpper_",
+  "interior_glb": "world-city3-press.glb"
+ },
+ {
+  "id": "tea",
+  "name": "Matchmaker's Tea House",
+  "rect_blender": [
+   -37.5,
+   72.5,
+   -12.5,
+   84.5
+  ],
+  "rect_three": [
+   -37.5,
+   -84.5,
+   -12.5,
+   -72.5
+  ],
+  "center_three": [
+   -25.0,
+   -78.5
+  ],
+  "door_three": [
+   -22.92,
+   -72.5
+  ],
+  "front": "S",
+  "cutaway_object_prefix": "TeaUpper_",
+  "interior_glb": null
+ }
+]

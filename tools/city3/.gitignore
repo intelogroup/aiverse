@@ -6,3 +6,5 @@ palette.json
 out/*.glb
 out/*.blend
 out/*.png
+assets/polyhaven/
+assets/quaternius/

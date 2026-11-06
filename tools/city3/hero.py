@@ -3,7 +3,7 @@ import math, random
 from kit import *
 from details import *
 GLASS="glass"
-def hero_ground(bd,fr,W,D,GH,rnd,plain_sub):
+def hero_ground(bd,fr,W,D,GH,rnd,plain_sub,sign=3,blade_k=0,door_col="door_green",interior_fn=None):
     v0,v1=plain_sub; T=0.3; f=0.28
     bays=max(1,round(W/4.0)); bw=W/bays; db=bays//2
     def outer(s0,s1,z0,z1,bs0):
@@ -35,19 +35,19 @@ def hero_ground(bd,fr,W,D,GH,rnd,plain_sub):
             fbox(fr,ou0,ou1,-T,0.0,0,f,"stone"); fbox(fr,c-1.3,c+1.3,0,0.85,0,f,"stone")
             fbox(fr,c-1.0,c-0.8,0,0.14,f,zt+0.25,"stone_lt"); fbox(fr,c+0.8,c+1.0,0,0.14,f,zt+0.25,"stone_lt"); fbox(fr,c-1.0,c+1.0,0,0.16,zt,zt+0.26,"stone_lt")
             th=1.25; hu=ou0+0.04; tu=hu+1.5*math.cos(th); tt=-0.1-1.5*math.sin(th)                    # leaf swung open into the room
-            col="door_green"
+            col=door_col
             two_sided("palette",[fr.p(hu,-0.1,f),fr.p(tu,tt,f),fr.p(tu,tt,zt-0.05),fr.p(hu,-0.1,zt-0.05)],[pal_uv(col)]*4,fr.o(-(tt+0.1),tu-hu))
             lantern_wall(fr,c+1.35,2.5); lantern_wall(fr,c-1.35,2.5)
     cu=db*bw+bw/2
-    fascia(fr,cu-2.0,cu+2.0,3.3,4.3,3)                                                                     # MATCHMAKER'S TEA HOUSE (4:1, matches the sign cell)
-    blade(fr,cu+2.4,3.0,0)
+    fascia(fr,cu-2.0,cu+2.0,3.3,4.3,sign)                                                                  # 4:1, matches the sign cell
+    blade(fr,cu+2.4,3.0,blade_k)
     # ---- inner shell: side + back walls, floor, cap ring ----
     for (u,t0,t1,o) in ((T,-T,-D+T,fr.o(1,0)),(W-T,-T,-D+T,fr.o(-1,0))):
         tq("interior_wall",[fr.p(u,t0,0),fr.p(u,t1,0),fr.p(u,t1,GH),fr.p(u,t0,GH)],[((abs(t0))/4,0),(abs(t1)/4,0),(abs(t1)/4,1),(abs(t0)/4,1)],o)
     tq("interior_wall",[fr.p(T,-D+T,0),fr.p(W-T,-D+T,0),fr.p(W-T,-D+T,GH),fr.p(T,-D+T,GH)],[(T/4,0),((W-T)/4,0),((W-T)/4,1),(T/4,1)],fr.o(0,1))
     tq("wood_floor",[fr.p(T,-T,f),fr.p(W-T,-T,f),fr.p(W-T,-D+T,f),fr.p(T,-D+T,f)],[(0,0),((W-2*T)/2.56,0),((W-2*T)/2.56,(D-2*T)/2.56),(0,(D-2*T)/2.56)],(0,0,1))
     for (a,b,c_,d_) in ((0,W,-T,0),(0,W,-D,-D+T),(0,T,-D,0),(W-T,W,-D,0)): pquad("palette",fr.p(a,c_,GH),fr.p(b,c_,GH),fr.p(b,d_,GH),fr.p(a,d_,GH),"stone_lt",(0,0,1))
-    interior(bd,fr,W,D,GH,rnd,f,db,bw)
+    (interior_fn or interior)(bd,fr,W,D,GH,rnd,f,db,bw)
     return doorpos
 def table(fr,u,d,f,rnd,Zb,skip=()):
     x,y=fr.xy(u,-d); cyl(x,y,Zb+f,Zb+f+0.72,0.05,6,"iron",top=False); cyl(x,y,Zb+f+0.72,Zb+f+0.78,0.46,10,"wood")

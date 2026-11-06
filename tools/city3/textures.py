@@ -158,6 +158,17 @@ def blades():
         elif m==6: d.rectangle([cx+34,cy+34,cx+64,cy+94],fill=c); d.rectangle([cx+68,cy+34,cx+98,cy+94],fill="#6b4a30")  # book
         else: d.polygon([(cx+64,cy+30),(cx+92,cy+60),(cx+64,cy+98),(cx+36,cy+60)],fill=c)  # lantern/gem
     img.save(f"{OUT}/blades.jpg",quality=90)
+def newsprint():
+    img=_I.new("RGB",(256,352),"#ece6d6"); d=ImageDraw.Draw(img); f=ImageFont.truetype(FONT,30); f2=ImageFont.truetype(FONT,13)
+    d.text((12,8),"THE KRONIKLE",font=f,fill="#1d1d1d"); d.line([(10,46),(246,46)],fill="#1d1d1d",width=3)
+    d.text((12,52),"VERSE DIGEST  ·  TODAY'S THREADS",font=f2,fill="#333333")
+    d.rectangle([12,74,124,150],fill="#9a9488")
+    for col,x0 in enumerate((12,132)):
+        for k in range(22):
+            y=(158 if col==0 else 74)+k*9
+            if y>340: break
+            w=104 if (k%6)!=5 else 60; d.line([(x0,y),(x0+w,y)],fill="#555555",width=2)
+    img.save(f"{OUT}/newsprint.jpg",quality=88)
 PALN=[("trunk_dark","#3b2a20"),("trunk","#6b4a30"),("leaf_dark","#2e6b3a"),("leaf","#4f9a4c"),("gold","#c9a227"),("stone_lt","#d8cdb8"),("stone","#8d8173"),("cream","#e8e0cc"),
  ("water_deep","#2f6f8f"),("water","#58a7bf"),("iron","#2a2a30"),("lamp","#f7d98a"),("crimson","#a3392e"),("white","#e8e8e0"),("grey","#7a7a82"),("wood","#b87a4b"),
  ("magenta","#c2377a"),("orange","#e07a2a"),("brick","#8a3f2e"),("copper","#b5693a"),("brass","#c9a24a"),("door_blue","#2d4a8c"),("door_green","#2f6b4a"),("door_red","#8a2a2a"),
@@ -218,5 +229,5 @@ def awning():
         for x in range(0,S,32): img[r*rh:(r+1)*rh,x:x+16]=col(a); img[r*rh:(r+1)*rh,x+16:x+32]=col(b)
     img*=(1+0.03*noise(S,S,1.0)[...,None]); save(img,"awning")
 tile_roof(); flat_roof(); cobble(); sidewalk(); road_plain(); road_lines("road_narrow",False); road_lines("road_avenue",True)
-grass(); courtyard(); awning(); interior_wall(); wood_floor(); rug(); shutters(); signs(); blades(); palette()
+grass(); courtyard(); awning(); interior_wall(); wood_floor(); rug(); shutters(); signs(); blades(); newsprint(); palette()
 print(sorted(os.listdir(OUT)), sum(os.path.getsize(f"{OUT}/{f}") for f in os.listdir(OUT))//1024,"KB")

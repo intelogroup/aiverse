@@ -71,12 +71,28 @@ def prof(name,fn):
         t0=total(); r=fn(*a,**k); PROF[name]=PROF.get(name,0)+total()-t0; return r
     return w
 ANCHORS=[]
+CUR=[None]          # building id the next anchors belong to
+PLACEMENTS=[]       # (building, asset_key, x, y, z, rot_z, scale) resolved after the main export
 STAND_OFF=0.62   # same stand-off the console's embody layer uses (embody.ts)
 def add_anchor(fr,u,t,face_du,face_dt,seat_h,kind,floor_h=0.0,side=1):
     """Record a seat: (u,t) in wall-local coords, facing (du,dt) in the same frame.
     Stored in three.js space (x, z = -blender_y); heading = atan2(fx, fz) as in locomotion.ts."""
     x,y=fr.xy(u,t); fx,fy,_=fr.o(face_du,face_dt); n=math.hypot(fx,fy) or 1; fx/=n; fy/=n
     tx,tz,fz=x,-y,-fy
-    ANCHORS.append({"id":f"{kind}-{len(ANCHORS)}","kind":kind,"seat":[round(tx,3),round(tz,3)],
+    ANCHORS.append({"id":f"{CUR[0]}-{kind}-{len(ANCHORS)}","building":CUR[0],"kind":kind,"seat":[round(tx,3),round(tz,3)],
         "facing":round(math.atan2(fx,fz),4),"approach":[round(tx+side*fx*STAND_OFF,3),round(tz+side*fz*STAND_OFF,3)],"approachSide":"front" if side>0 else "back",
         "seatHeight":round(seat_h,3),"floorY":round(fr.z0+floor_h,3),"occupiedBy":None})
+
+def face_rot(fx,fy):
+    """Z rotation that turns an asset whose front faces -Y toward world direction (fx, fy)."""
+    return math.atan2(fx,-fy)
+def put(key,fr,u,t,z,face_du=0.0,face_dt=1.0,scale=1.0):
+    """Queue a library asset at wall-local (u,t,z) with its front facing (du,dt) in the same frame."""
+    x,y=fr.xy(u,t); fx,fy,_=fr.o(face_du,face_dt)
+    PLACEMENTS.append((CUR[0],key,x,y,fr.z0+z,face_rot(fx,fy),scale))
+def hcyl(fr,u0,u1,t,z,r,color,seg=10,b="palette"):
+    """Horizontal cylinder along the frame's u axis (rollers)."""
+    for k in range(seg):
+        a0=2*math.pi*k/seg; a1=2*math.pi*(k+1)/seg; am=(a0+a1)/2
+        p=lambda u,a:fr.p(u,t+r*math.cos(a),z+r*math.sin(a))
+        pquad(b,p(u0,a0),p(u1,a0),p(u1,a1),p(u0,a1),color,fr.o(0,math.cos(am),math.sin(am)))

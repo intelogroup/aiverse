@@ -1,7 +1,7 @@
 import bpy, json, math, os, random, sys
 HERE=os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0,HERE)
 from kit import *
-import kit, details, hero
+import kit, details, hero, press, assets_kit
 from details import *
 P=json.load(open(f"{HERE}/plan.json")); rng=random.Random(77)
 Z=P["walk_z"]; L=P["land"]; GH=4.2; FH=3.5
@@ -18,6 +18,10 @@ def make_mat(name,img,rough=0.9,emit=False,strength=0.0,alpha=None,base=None):
         nt.links.new(t.outputs["Color"],b.inputs["Base Color"])
         if emit: nt.links.new(t.outputs["Color"],b.inputs["Emission Color"]); b.inputs["Emission Strength"].default_value=strength
     if base: b.inputs["Base Color"].default_value=base
+    # Single-sided by default: every surface that must read from both sides is emitted twice with
+    # opposite windings (shutters, signs, flags, awnings, newsprint). Left double-sided, those pairs
+    # z-fight and printed sheets show mirrored text. Glass stays double-sided.
+    m.use_backface_culling = alpha is None
     if alpha is not None:
         b.inputs["Alpha"].default_value=alpha
         for attr,val in (("surface_render_method","BLENDED"),("blend_method","BLEND")):
@@ -25,7 +29,7 @@ def make_mat(name,img,rough=0.9,emit=False,strength=0.0,alpha=None,base=None):
             except Exception: pass
     return m
 for k in ("sand","ochre","white","rose","blue"): MATS[f"facade_{k}"]=make_mat(f"Facade_{k}",f"facade_{k}",0.92)
-for n,r in (("roof_tile",0.85),("roof_flat",0.95),("cobble",0.88),("sidewalk",0.9),("road_plain",0.9),("road_narrow",0.9),("road_avenue",0.9),("grass",1.0),("courtyard",0.95),("awning",0.8),("palette",0.8),("shutters",0.7),("signs",0.6),("blades",0.6),("interior_wall",0.95),("wood_floor",0.7),("rug",0.95)):
+for n,r in (("roof_tile",0.85),("roof_flat",0.95),("cobble",0.88),("sidewalk",0.9),("road_plain",0.9),("road_narrow",0.9),("road_avenue",0.9),("grass",1.0),("courtyard",0.95),("awning",0.8),("palette",0.8),("shutters",0.7),("signs",0.6),("blades",0.6),("interior_wall",0.95),("wood_floor",0.7),("rug",0.95),("newsprint",0.9)):
     MATS[n]=make_mat(n,n,r)
 MATS["water"]=make_mat("water","palette",0.45); MATS["lamp_glow"]=make_mat("lamp_glow","palette",0.5,emit=True,strength=3.0)
 MATS["glass"]=make_mat("glass",None,0.05,alpha=0.22,base=(0.72,0.86,0.95,1.0))
@@ -64,23 +68,29 @@ block_kind={(b["i"],b["j"]):b["kind"] for b in P["blocks"]}
 SUB={k:tuple(v) for k,v in ATL.items()}
 def wallq(mat,fr,s0,s1,z0,z1,sub,u1=1.0):
     v0,v1=SUB[sub]; tq(mat,[fr.p(s0,0,z0),fr.p(s1,0,z0),fr.p(s1,0,z1),fr.p(s0,0,z1)],[(0,v0),(u1,v0),(u1,v1),(0,v1)],fr.o(0,1))
-hero_bd=None
-cands=[b for b in P["buildings"] if tuple(b["block"])==(2,4) and b["face"]=="S"]
-if cands: hero_bd=max(cands,key=lambda b:b["rect"][2]-b["rect"][0])
+# Hero buildings: furnished ground floors with real openings. Each one's upper floors, roof and
+# ceiling go to a "<Upper>_*" group so the console can cut the building away.
+HERO_SPECS=[dict(id="tea",name="Matchmaker's Tea House",block=(2,4),face="S",sign=3,blade=0,door="door_green",fn=hero.interior,upper="TeaUpper"),
+            dict(id="press",name="Kronikler Press",block=(2,1),face="N",sign=2,blade=2,door="door_blue",fn=press.interior,upper="PressUpper")]
+HERO_OF={}
+for spec in HERO_SPECS:
+    cands=[b for b in P["buildings"] if tuple(b["block"])==spec["block"] and b["face"]==spec["face"]]
+    if cands: HERO_OF[id(max(cands,key=lambda b:b["rect"][2]-b["rect"][0]))]=spec
 HERO_INFO={}
 def building(bd,idx):
     global HERO_INFO
     rnd=random.Random(5000+idx); r=bd["rect"]; n=bd["floors"]; mat=f"facade_{bd['mat']}"
-    kind=block_kind[tuple(bd["block"])]; market=kind in ("market","citadel"); is_hero=bd is hero_bd
+    kind=block_kind[tuple(bd["block"])]; market=kind in ("market","citadel"); spec=HERO_OF.get(id(bd)); is_hero=spec is not None
     style="B" if rnd.random()<0.35 else "A"; cell=rnd.randrange(8); H=GH+(n-1)*FH
-    UG="HeroUpper" if is_hero else None
+    UG=spec["upper"] if is_hero else None
     for side in ("S","E","N","W"):
         fr,length=frame_for(r,side,Z); face=(side==bd["face"]); bays=max(1,round(length/4.0)); bw=length/bays
         if face:
             db=bays//2; doorpos=None
             if is_hero:
-                wc=bd["rect"][2]-bd["rect"][0]; HERO_INFO={"fr":fr,"W":length,"D":bd["rect"][3]-bd["rect"][1]}
-                dp=hero.hero_ground(bd,fr,length,bd["rect"][3]-bd["rect"][1],GH,rnd,SUB["plain"]); HERO_INFO["door_u"]=dp
+                D_=bd["rect"][3]-bd["rect"][1] if side in ("S","N") else bd["rect"][2]-bd["rect"][0]
+                HERO_INFO[spec["id"]]={"fr":fr,"W":length,"D":D_,"bd":bd,"spec":spec}; kit.CUR[0]=spec["id"]
+                dp=hero.hero_ground(bd,fr,length,D_,GH,rnd,SUB["plain"],sign=spec["sign"],blade_k=spec["blade"],door_col=spec["door"],interior_fn=spec["fn"]); HERO_INFO[spec["id"]]["door_u"]=dp
             else:
                 for k in range(bays):
                     s0=k*bw; s1=s0+bw; c=(s0+s1)/2
@@ -144,7 +154,8 @@ def building(bd,idx):
                 mx=(R1[0]+R2[0])/2+rnd.uniform(-1.2,1.2)*(1 if hx>=hy else 0); my=(R1[1]+R2[1])/2+rnd.uniform(-1.2,1.2)*(0 if hx>=hy else 1)
                 pbox(mx-0.45,my-0.45,mx+0.45,my+0.45,top,zr+1.5,"brick"); pbox(mx-0.55,my-0.55,mx+0.55,my+0.55,zr+1.5,zr+1.7,"stone"); pbox(mx-0.3,my-0.3,mx+0.3,my+0.3,zr+1.7,zr+1.8,"ink")
     if is_hero:
-        with grp("HeroUpper"): hero.hero_ceiling(HERO_INFO["fr"],HERO_INFO["W"],HERO_INFO["D"],GH)
+        hi=HERO_INFO[spec["id"]]
+        with grp(UG): hero.hero_ceiling(hi["fr"],hi["W"],hi["D"],GH)
 for i,bd in enumerate(P["buildings"]): building(bd,i)
 # ---------------- hall, towers, fountain ----------------
 def tall_block(mat,r,floors):
@@ -241,8 +252,8 @@ def tree(x,y):
         ptri("palette",m,m2,t,nm,(math.cos(am),math.sin(am),0.5)); ptri("palette",m2,m,b,nm,(math.cos(am),math.sin(am),-0.5))
 for (x,y) in P["trees"]: tree(x,y)
 # café sets out front of the hero + a few elsewhere handled in hero
-if hero_bd:
-    fr=HERO_INFO["fr"]; du=HERO_INFO["door_u"]
+if "tea" in HERO_INFO:
+    fr=HERO_INFO["tea"]["fr"]; du=HERO_INFO["tea"]["door_u"]
     for sg in (-1,1):
         for dd in (3.0,5.2):
             x,y=fr.xy(du+sg*dd,1.55); umbrella_set(x,y,Z,rng)
@@ -251,7 +262,7 @@ for side,(a,bb) in {"S":((-L,-L),(L,-L)),"E":((L,-L),(L,L)),"N":((L,L),(-L,L)),"
     o={"S":(0,-1),"E":(1,0),"N":(0,1),"W":(-1,0)}[side]; pquad("palette",(a[0],a[1],-3),(bb[0],bb[1],-3),(bb[0],bb[1],Z),(a[0],a[1],Z),"stone",(o[0],o[1],0))
 u=pal_uv("water_deep"); mb("water").quad((-520,-520,-1.2),(520,-520,-1.2),(520,520,-1.2),(-520,520,-1.2),u,u,u,u,(0,0,1))
 # ---------------- realise ----------------
-NAME={"sidewalk":"Sidewalks","cobble":"PlazaCobble","grass":"Parks","courtyard":"Courtyards","road_avenue":"RoadAvenue","road_narrow":"RoadStreet","road_plain":"RoadJunction","roof_tile":"RoofTile","roof_flat":"RoofFlat","awning":"Awnings","palette":"Props","water":"Water","lamp_glow":"LampGlow","shutters":"Shutters","signs":"Signs","blades":"BladeSigns","interior_wall":"InteriorWalls","wood_floor":"WoodFloor","rug":"Rug","glass":"Glass"}
+NAME={"sidewalk":"Sidewalks","cobble":"PlazaCobble","grass":"Parks","courtyard":"Courtyards","road_avenue":"RoadAvenue","road_narrow":"RoadStreet","road_plain":"RoadJunction","roof_tile":"RoofTile","roof_flat":"RoofFlat","awning":"Awnings","palette":"Props","water":"Water","lamp_glow":"LampGlow","shutters":"Shutters","signs":"Signs","blades":"BladeSigns","interior_wall":"InteriorWalls","wood_floor":"WoodFloor","rug":"Rug","glass":"Glass","newsprint":"Newsprint"}
 for key,b in MBS.items():
     g,_,m=key.rpartition("::"); me=bpy.data.meshes.new(key); me.from_pydata(b.v,[],b.f); me.update()
     uvl=me.uv_layers.new(name="UVMap"); uvl.data.foreach_set("uv",[c for tri in b.uv for uv in tri for c in uv])
@@ -262,17 +273,37 @@ print("MESHES",len(MBS),"TRIS",sum(len(b.f) for b in MBS.values()))
 print({k:len(b.f) for k,b in sorted(MBS.items(),key=lambda kv:-len(kv[1].f))[:8]})
 os.makedirs(f"{HERE}/out",exist_ok=True)
 bpy.ops.wm.save_as_mainfile(filepath=f"{HERE}/out/city3.blend")
-for o in bpy.data.objects: o.select_set(True)
+for o in bpy.data.objects: o.select_set(not o.name.startswith("PressInterior"))     # the press furnishings ship in their own GLB
 # Blender 5.2's meshopt path hard-codes the POSITION exponential filter to 12 bits with ONE
 # exponent shared by x, y and z (io_scene_gltf2/io/exp/meshopt.py). At x = -37 m that leaves
 # ~6 cm of height precision: a rug 4 cm above a floor snapped onto it. Separate exponents and
 # 20 bits keep sub-millimetre precision; the decoder reads any mode (exponents are per component).
 import io_scene_gltf2.io.exp.meshopt as _meshopt
 _meshopt.EXP_FILTER_BITS=20; _meshopt.ENCODE_EXP_SHARED_VECTOR=_meshopt.ENCODE_EXP_SEPARATE
-bpy.ops.export_scene.gltf(filepath=f"{HERE}/out/world-city3.glb",export_format="GLB",export_yup=True,export_apply=True,export_image_format="AUTO",export_texcoords=True,export_normals=True,export_cameras=False,export_lights=False,export_draco_mesh_compression_enable=False,export_meshopt_compression_enable=True)
+bpy.ops.export_scene.gltf(filepath=f"{HERE}/out/world-city3.glb",export_format="GLB",export_yup=True,export_apply=True,export_image_format="AUTO",export_texcoords=True,export_normals=True,export_cameras=False,export_lights=False,export_draco_mesh_compression_enable=False,export_meshopt_compression_enable=True,use_selection=True)
 print("EXPORTED",os.path.getsize(f"{HERE}/out/world-city3.glb")//1024,"KB")
-if hero_bd:
-    fr=HERO_INFO["fr"]; r=hero_bd["rect"]; dx,dy=fr.xy(HERO_INFO["door_u"],0.0)
-    json.dump({"building":"Matchmaker's Tea House","units":"m, three.js XZ; heading = atan2(fx, fz)","anchors":kit.ANCHORS},open(f"{HERE}/out/hero-anchors.json","w"),indent=1)
-    print("ANCHORS",len(kit.ANCHORS),{k:sum(1 for a in kit.ANCHORS if a["kind"]==k) for k in set(a["kind"] for a in kit.ANCHORS)})
-    json.dump({"name":"Matchmaker's Tea House","rect_blender":r,"rect_three":[r[0],-r[3],r[2],-r[1]],"door_three":[round(dx,2),round(-dy,2)],"front":hero_bd["face"],"floors":hero_bd["floors"],"cutaway_object_prefix":"HeroUpper_"},open(f"{HERE}/out/hero.json","w"),indent=1)
+# ---------------- press furnishings: CC0 library assets -> world-city3-press.glb ----------------
+BUDGET={"wooden_bookshelf_worn":3000,"book_encyclopedia_set_01":4000,"desk_lamp_arm_01":2000,"vintage_grandfather_clock_01":3000,"drawer_cabinet":2500,
+        "vintage_radio_transceiver":2000,"WoodenTable_02":1514,"ArmChair_01":2500,"potted_plant_02":3000,"wooden_crate_01":1500,"vintage_oil_lamp":1500,
+        "wall_clock":1000,"binder_notebook":600,"ChairCushioned":4000}
+QUAT={"ChairCushioned"}
+coll=bpy.data.collections.new("PressAssets"); bpy.context.scene.collection.children.link(coll)
+for (bid,key,x,y,z,rz,sc) in kit.PLACEMENTS:
+    assets_kit.load(key,BUDGET.get(key,2000),source="quaternius" if key in QUAT else "polyhaven")
+    assets_kit.place(key,coll,x,y,z,rz,sc,name=f"PressInterior_{key}")
+bpy.context.view_layer.layer_collection.children["AssetLibrary"].exclude=True
+for o in bpy.data.objects: o.select_set(o.name.startswith("PressInterior"))
+bpy.ops.export_scene.gltf(filepath=f"{HERE}/out/world-city3-press.glb",export_format="GLB",export_yup=True,export_apply=True,export_image_format="JPEG",export_jpeg_quality=82,
+    export_texcoords=True,export_normals=True,export_cameras=False,export_lights=False,export_meshopt_compression_enable=True,use_selection=True)
+print("PRESS_EXPORTED",os.path.getsize(f"{HERE}/out/world-city3-press.glb")//1024,"KB",{k:(v["tris_raw"],v["tris"]) for k,v in assets_kit.LIB.items()})
+CREDITS=[{"asset":k,"source":("https://opengameart.org/content/furniture-low-poly" if v["source"]=="quaternius" else f"https://polyhaven.com/a/{v['id']}"),"license":"CC0"} for k,v in assets_kit.LIB.items()]
+json.dump(CREDITS,open(f"{HERE}/out/asset-credits.json","w"),indent=1)
+heroes=[]
+for hid,hi in HERO_INFO.items():
+    fr=hi["fr"]; r=hi["bd"]["rect"]; dx,dy=fr.xy(hi["door_u"],0.0)
+    heroes.append({"id":hid,"name":hi["spec"]["name"],"rect_blender":r,"rect_three":[r[0],-r[3],r[2],-r[1]],"center_three":[(r[0]+r[2])/2,-(r[1]+r[3])/2],
+        "door_three":[round(dx,2),round(-dy,2)],"front":hi["bd"]["face"],"cutaway_object_prefix":hi["spec"]["upper"]+"_",
+        "interior_glb":"world-city3-press.glb" if hid=="press" else None})
+json.dump(heroes,open(f"{HERE}/out/heroes.json","w"),indent=1)
+json.dump({"units":"m, three.js XZ; heading = atan2(fx, fz)","anchors":kit.ANCHORS},open(f"{HERE}/out/hero-anchors.json","w"),indent=1)
+print("ANCHORS",len(kit.ANCHORS),{h:sum(1 for a in kit.ANCHORS if a["building"]==h) for h in HERO_INFO})

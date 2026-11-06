@@ -41,13 +41,7 @@ import {
   type CameraMode,
 } from "./cameraRig";
 import { FpsMeter } from "./fpsMeter";
-import {
-  CITY3_HERO_CENTER,
-  CITY3_HERO_NAME,
-  CITY3_HERO_PREFIX,
-  CITY3_HERO_VIEW,
-  cutawayHidden,
-} from "./city3";
+import { CITY3_HEROES, INTERIOR_LOAD_WITHIN, cutawayHidden, heroDistance } from "./city3";
 import {
   PROBE_CADENCES,
   PROBE_HEIGHT,
@@ -161,45 +155,78 @@ function WorldEnv({ url }: { url: string }) {
 }
 
 /**
- * City 3 cutaway: hides the hero building's upper floors (HeroUpper_*)
- * while the camera is close, so the furnished ground floor shows from
- * above. `focusNonce` bumps when the panel asks to fly to the building.
+ * City 3 cutaway: hides each hero building's upper floors (its prefix
+ * objects) while the camera is close, so the furnished ground floor shows
+ * from above. `focus` names a hero to fly to; its nonce bumps per click.
  * Mounted inside the Suspense with WorldEnv, so the GLB is in the scene.
  */
-function HeroCutaway({ focusNonce }: { focusNonce: number }) {
+function HeroCutaway({ focus }: { focus: { id: string; nonce: number } | null }) {
   const scene = useThree((s) => s.scene);
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls) as unknown as {
     target: THREE.Vector3;
     update: () => void;
   } | null;
-  const parts = useRef<THREE.Object3D[]>([]);
-  const hidden = useRef(false);
+  const parts = useRef<THREE.Object3D[][]>([]);
+  const hidden = useRef<boolean[]>(CITY3_HEROES.map(() => false));
   useEffect(() => {
-    const found: THREE.Object3D[] = [];
+    const found = CITY3_HEROES.map(() => [] as THREE.Object3D[]);
     scene.traverse((o) => {
-      if (o.name.startsWith(CITY3_HERO_PREFIX)) found.push(o);
+      const k = CITY3_HEROES.findIndex((h) => o.name.startsWith(h.prefix));
+      if (k >= 0) found[k].push(o);
     });
     parts.current = found;
     return () => {
-      for (const o of found) o.visible = true;
+      for (const list of found) for (const o of list) o.visible = true;
     };
   }, [scene]);
   useEffect(() => {
-    if (focusNonce === 0 || !controls) return;
-    camera.position.set(...CITY3_HERO_VIEW.position);
-    controls.target.set(...CITY3_HERO_VIEW.target);
+    const hero = focus && CITY3_HEROES.find((h) => h.id === focus.id);
+    if (!hero || !controls) return;
+    camera.position.set(...hero.view.position);
+    controls.target.set(...hero.view.target);
     controls.update();
-  }, [focusNonce, camera, controls]);
+  }, [focus, camera, controls]);
   useFrame(() => {
-    const dx = camera.position.x - CITY3_HERO_CENTER[0];
-    const dz = camera.position.z - CITY3_HERO_CENTER[1];
-    const next = cutawayHidden(Math.hypot(dx, camera.position.y, dz), hidden.current);
-    if (next === hidden.current) return;
-    hidden.current = next;
-    for (const o of parts.current) o.visible = !next;
+    CITY3_HEROES.forEach((hero, k) => {
+      const next = cutawayHidden(heroDistance(hero, camera.position), hidden.current[k]);
+      if (next === hidden.current[k]) return;
+      hidden.current[k] = next;
+      for (const o of parts.current[k] ?? []) o.visible = !next;
+    });
   });
   return null;
+}
+
+/**
+ * Fetches a hero's furnishings GLB the first time the camera comes within
+ * INTERIOR_LOAD_WITHIN m, then keeps it. Until then nothing is downloaded.
+ */
+function LazyInteriors() {
+  const camera = useThree((s) => s.camera);
+  const [loaded, setLoaded] = useState<string[]>([]);
+  const acc = useRef(1);
+  useFrame((_, dt) => {
+    acc.current += dt;
+    if (acc.current < 0.5) return;
+    acc.current = 0;
+    for (const hero of CITY3_HEROES) {
+      if (!hero.interiorUrl || loaded.includes(hero.interiorUrl)) continue;
+      if (heroDistance(hero, camera.position) < INTERIOR_LOAD_WITHIN) {
+        const url = hero.interiorUrl;
+        setLoaded((l) => (l.includes(url) ? l : [...l, url]));
+      }
+    }
+  });
+  return (
+    <>
+      {loaded.map((url) => (
+        <Suspense key={url} fallback={null}>
+          <WorldEnv url={url} />
+        </Suspense>
+      ))}
+    </>
+  );
 }
 
 const SKY_URL = "/assets/sky-equi.jpg";
@@ -1040,8 +1067,8 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   // Head-camera mode (Embody spike): state for the panel buttons and
   // OrbitControls, mirrored into a ref the camera rig reads per frame.
   const [camMode, setCamMode] = useState<CameraMode>("wide");
-  // City 3: bumps to fly the camera to the tea house (cutaway shows on arrival).
-  const [heroFocus, setHeroFocus] = useState(0);
+  // City 3: which hero building to fly to (cutaway shows on arrival); nonce re-fires a repeat click.
+  const [heroFocus, setHeroFocus] = useState<{ id: string; nonce: number } | null>(null);
   const camModeRef = useRef<CameraMode>("wide");
   useEffect(() => {
     camModeRef.current = camMode;
@@ -1109,7 +1136,12 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
                     : CITY2_URL
             }
           />
-          {place === "city3" ? <HeroCutaway focusNonce={heroFocus} /> : null}
+          {place === "city3" ? (
+            <>
+              <HeroCutaway focus={heroFocus} />
+              <LazyInteriors />
+            </>
+          ) : null}
           <CrowdCast
             place={place}
             cast={visibleCast}
@@ -1180,9 +1212,15 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
       </div>
       {place === "city3" ? (
         <div className="w-glb-toggle w-glb-poi" role="group" aria-label="Places in City 3">
-          <button type="button" onClick={() => setHeroFocus((n) => n + 1)}>
-            {CITY3_HERO_NAME}
-          </button>
+          {CITY3_HEROES.map((hero) => (
+            <button
+              key={hero.id}
+              type="button"
+              onClick={() => setHeroFocus((f) => ({ id: hero.id, nonce: (f?.nonce ?? 0) + 1 }))}
+            >
+              {hero.name}
+            </button>
+          ))}
         </div>
       ) : null}
       {embodyOn && agora ? (
