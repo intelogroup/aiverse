@@ -80,7 +80,12 @@ def deck(rect, z, r, trees=2):
     for _ in range(trees): D.planter(r.uniform(x0 + 3, x1 - 3), r.uniform(y0 + 2, y1 - 2), z, 2.6, 1.1, r)
     for _ in range(2): D.bench(r.uniform(x0 + 3, x1 - 3), r.uniform(y0 + 2, y1 - 2), z, True)
 def terrace_building(x0, y0, x1, y1, r, base_floors, tag):
-    """Three stacked slabs stepping back (north) so every level has a planted roof deck in front of the next."""
+    """Three stacked slabs stepping back (north) so every level has a planted roof deck in front of the next.
+    DELETED as buildings (Jim's order, physics census 2026-11-06): each tier steps north AND grows, so
+    tier 1 bears on 16-20% of its footprint and tier 2 on 24-29%, north walls float 7.0-23.8 m, no wall
+    lands on a wall. terrace() still runs this builder into a throwaway group and discards the result --
+    geometry buckets purged, plan entries truncated -- purely so the block's RNG stream is consumed
+    identically and every surviving placement (dress(), villas, gardens) stays byte-identical."""
     step = (y1 - y0) / 3.0; z = Z
     for k in range(3):
         ya = y0 + k * step * 0.9; fl = base_floors + (1 if k == 1 else 0)
@@ -113,9 +118,30 @@ def terrace(i, j, r):
         while xs < x1 - 20:
             w = min(r.choice([26, 32, 38]), x1 - 4 - xs)
             if w < 18: break
-            terrace_building(xs, y0 + 8, xs + w, y1 - 8, r, r.choice([2, 2, 3]), f"t{i}{j}_{int(xs)}")
+            nb_ = len(PLAN["buildings"]); nt_ = len(PLAN["trees"])
+            with grp(f"gone{i}{j}"):   # deleted stacks: build only to consume the RNG draws, then discard
+                terrace_building(xs, y0 + 8, xs + w, y1 - 8, r, r.choice([2, 2, 3]), f"t{i}{j}_{int(xs)}")
+            del PLAN["buildings"][nb_:]; del PLAN["trees"][nt_:]
+            for key in [k for k in MBS if k.startswith(f"gone{i}{j}::")]: del MBS[key]
             xs += w + 6
         dress((x0, y0, x1, y1), r)
+        garden_infill((x0, y0, x1, y1), r)
+def garden_infill(rect, r):
+    """Freed stack plots become garden ground, on the garden blocks' own pattern (garden() minus the
+    canal): lawn over the block interior, scattered pack trees + shrubs, benches along the south edge.
+    Runs after dress() on the block's RNG stream, so no surviving placement moves; its trees append
+    to PLAN["trees"] and pick up collision trunks from the plan like every other tree. D.tree() draws
+    variants/rotations from mdetails' district-global _trng, so that stream is snapshotted and restored
+    around the infill -- otherwise every later block's trees would re-roll their variants."""
+    x0, y0, x1, y1 = rect; cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    _ts = D._trng.getstate()
+    tquad("palette", (x0, y0, Z + 0.04), (x1, y0, Z + 0.04), (x1, y1, Z + 0.04), (x0, y1, Z + 0.04), [pal_uv("grass")] * 4, (0, 0, 1))
+    for _ in range(36):
+        x, y = r.uniform(x0 + 3, x1 - 3), r.uniform(y0 + 3, y1 - 3)
+        D.tree(x, y, Z + 0.04, r, r.uniform(5, 9), r.choice(["round", "slim"])); PLAN["trees"].append([x, y])
+    for k in range(8): px = x0 + 10 + k * (x1 - x0 - 20) / 7; D.bench(px, y0 + 6 if k % 2 else y1 - 6, Z + 0.04, True)
+    for _ in range(16): D.shrub(r.uniform(x0 + 3, x1 - 3), r.uniform(y0 + 3, y1 - 3), Z + 0.04, r, r.uniform(0.5, 1.0), r.choice(["pink", "lilac", "leaf_lt", "yellow"]))
+    D._trng.setstate(_ts)
 def villas(i, j, r):
     x0, y0, x1, y1 = block_rect(i, j)
     with grp(f"b{i}{j}"):
