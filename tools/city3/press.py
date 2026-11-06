@@ -79,7 +79,7 @@ def interior(bd,fr,W,D,GH,rnd,f,db,bw):
     for d in (3.4,4.3): put("newspaper_line",fr,mid,-d,f+2.85,0,1)
     for i,(u,d) in enumerate(((2.6,3.6),(5.4,3.6),(2.6,6.6),(5.4,6.6))):
         put("press_desk",fr,u,-d,f,0,1)
-        put("ChairCushioned",fr,u,-(d+1.0),f,0,1); add_anchor(fr,u,-(d+0.95),0,1,0.46,"chair",f)
+        put("ChairCushioned",fr,u,-(d+1.0),f,0,1); add_anchor(fr,u,-(d+0.95),0,1,0.46,"chair",f,side=-1)         # approach from behind the chair: the desk occupies the front side (collision boxes)
         put("desk_lamp_arm_01",fr,u-0.55,-(d-0.15),f+0.77,0.4,1)
         put("binder_notebook",fr,u-0.05,-(d+0.05),f+0.775,0,1)
         if i==1: put("vintage_radio_transceiver",fr,u+0.45,-(d-0.1),f+0.77,0,1)

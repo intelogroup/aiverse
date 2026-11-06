@@ -384,8 +384,9 @@ _rs=random.Random(909)
 for o_ in list(bpy.data.objects):
     pass
 SK={n:_sk(n,h) for n,h in (("lantern",0.42),("pot",0.5),("producecrate",0.3),("med_bench",0.96),("med_crate",0.5),("med_stall",2.3))}
+SKP=[]                                                                      # (asset, x, y, z, rot) of every placed Sketchfab prop (collision.py)
 def _skput(n,x,y,z,rot=0.0):
-    src,s=SK[n]; o=src.copy(); o.data=src.data; o.name=f"SK_{n}"; o.location=(x,y,z); o.rotation_euler=(0,0,rot); o.scale=(s,s,s); _skc.objects.link(o)
+    SKP.append((n,x,y,z,rot)); src,s=SK[n]; o=src.copy(); o.data=src.data; o.name=f"SK_{n}"; o.location=(x,y,z); o.rotation_euler=(0,0,rot); o.scale=(s,s,s); _skc.objects.link(o)
 for si_,s_ in enumerate(P["stalls"]):
     cx,cy=s_["c"]; w_,d_=s_["size"]; hx_,hy_=w_/2,d_/2
     if si_ in MEDSTALLS:                                                      # model front (scalloped awning edge) is -y; facing S keeps it, N turns it round
@@ -489,3 +490,10 @@ json.dump(rooms_idx,open(f"{HERE}/out/interiors/index.json","w"),separators=(","
 json.dump(rooms_idx,open(f"{HERE}/out/heroes.json","w"),indent=1)
 json.dump({"units":"m, three.js XZ; heading = atan2(fx, fz)","anchors":kit.ANCHORS},open(f"{HERE}/out/hero-anchors.json","w"),indent=1)
 print("ANCHORS",len(kit.ANCHORS),{h:sum(1 for a in kit.ANCHORS if a["building"]==h) for h in HERO_INFO})
+
+# ---------------- collision (collision.py / col_interiors.py): closed solids + hero rooms, and furniture boxes per room ----------------
+import collision, col_interiors
+def _skdim(n):
+    d=assets_kit.LIB[f"sk_{n}"]["dims"]; k=SK[n][1]; return (d[0]*k,d[1]*k,d[2]*k)
+collision.bazaar(dict(P=P,GH=GH,FH=FH,HERO_INFO=HERO_INFO,SKP=SKP,SKDIM={n:_skdim(n) for n in ("med_bench","med_crate","pot")},PARTY=PARTY,PT_DIMS=_PT["dims"],MEDSTALLS=MEDSTALLS),f"{HERE}/out/world-city3-collision.glb")
+col_interiors.write(HERO_INFO,f"{HERE}/out/interiors")

@@ -29,7 +29,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-44.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-44.col.json"
  },
  {
   "id": "shop-45",
@@ -61,7 +62,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-45.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-45.col.json"
  },
  {
   "id": "shop-46",
@@ -93,7 +95,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-46.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-46.col.json"
  },
  {
   "id": "shop-47",
@@ -125,7 +128,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-47.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-47.col.json"
  },
  {
   "id": "shop-48",
@@ -157,7 +161,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-48.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-48.col.json"
  },
  {
   "id": "shop-49",
@@ -189,7 +194,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-49.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-49.col.json"
  },
  {
   "id": "shop-50",
@@ -221,7 +227,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-50.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-50.col.json"
  },
  {
   "id": "shop-51",
@@ -253,7 +260,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-51.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-51.col.json"
  },
  {
   "id": "shop-52",
@@ -285,7 +293,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-52.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-52.col.json"
  },
  {
   "id": "shop-53",
@@ -317,7 +326,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-53.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-53.col.json"
  },
  {
   "id": "shop-54",
@@ -349,7 +359,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-54.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-54.col.json"
  },
  {
   "id": "shop-55",
@@ -381,7 +392,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-55.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-55.col.json"
  },
  {
   "id": "shop-56",
@@ -413,7 +425,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-56.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-56.col.json"
  },
  {
   "id": "shop-57",
@@ -445,7 +458,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-57.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-57.col.json"
  },
  {
   "id": "shop-58",
@@ -477,7 +491,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-58.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-58.col.json"
  },
  {
   "id": "shop-59",
@@ -509,7 +524,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-59.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-59.col.json"
  },
  {
   "id": "shop-60",
@@ -541,7 +557,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-60.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-60.col.json"
  },
  {
   "id": "shop-61",
@@ -573,7 +590,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-61.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-61.col.json"
  },
  {
   "id": "shop-62",
@@ -605,7 +623,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-62.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-62.col.json"
  },
  {
   "id": "shop-63",
@@ -637,7 +656,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-63.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-63.col.json"
  },
  {
   "id": "shop-64",
@@ -669,7 +689,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-64.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-64.col.json"
  },
  {
   "id": "shop-65",
@@ -701,7 +722,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-65.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-65.col.json"
  },
  {
   "id": "shop-66",
@@ -733,7 +755,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-66.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-66.col.json"
  },
  {
   "id": "shop-67",
@@ -765,7 +788,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-67.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-67.col.json"
  },
  {
   "id": "shop-68",
@@ -797,7 +821,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-68.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-68.col.json"
  },
  {
   "id": "shop-69",
@@ -829,7 +854,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-69.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-69.col.json"
  },
  {
   "id": "shop-70",
@@ -861,7 +887,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-70.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-70.col.json"
  },
  {
   "id": "shop-71",
@@ -893,7 +920,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-71.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-71.col.json"
  },
  {
   "id": "shop-72",
@@ -925,7 +953,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-72.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-72.col.json"
  },
  {
   "id": "shop-73",
@@ -957,7 +986,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-73.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-73.col.json"
  },
  {
   "id": "shop-74",
@@ -989,7 +1019,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-74.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-74.col.json"
  },
  {
   "id": "shop-75",
@@ -1021,7 +1052,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-75.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-75.col.json"
  },
  {
   "id": "shop-76",
@@ -1053,7 +1085,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-76.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-76.col.json"
  },
  {
   "id": "shop-94",
@@ -1085,7 +1118,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-94.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-94.col.json"
  },
  {
   "id": "shop-95",
@@ -1117,7 +1151,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-95.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-95.col.json"
  },
  {
   "id": "shop-96",
@@ -1149,7 +1184,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-96.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-96.col.json"
  },
  {
   "id": "shop-97",
@@ -1181,7 +1217,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-97.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-97.col.json"
  },
  {
   "id": "press",
@@ -1213,7 +1250,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/press.json",
-  "featured": true
+  "featured": true,
+  "collision": "/assets/interiors/press.col.json"
  },
  {
   "id": "shop-99",
@@ -1245,7 +1283,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-99.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-99.col.json"
  },
  {
   "id": "shop-100",
@@ -1277,7 +1316,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-100.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-100.col.json"
  },
  {
   "id": "shop-101",
@@ -1309,7 +1349,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-101.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-101.col.json"
  },
  {
   "id": "tea",
@@ -1341,7 +1382,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/tea.json",
-  "featured": true
+  "featured": true,
+  "collision": "/assets/interiors/tea.col.json"
  },
  {
   "id": "shop-103",
@@ -1373,7 +1415,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-103.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-103.col.json"
  },
  {
   "id": "shop-104",
@@ -1405,7 +1448,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-104.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-104.col.json"
  },
  {
   "id": "shop-105",
@@ -1437,7 +1481,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-105.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-105.col.json"
  },
  {
   "id": "shop-106",
@@ -1469,7 +1514,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-106.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-106.col.json"
  },
  {
   "id": "shop-124",
@@ -1501,7 +1547,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-124.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-124.col.json"
  },
  {
   "id": "shop-125",
@@ -1533,7 +1580,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-125.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-125.col.json"
  },
  {
   "id": "shop-126",
@@ -1565,7 +1613,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-126.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-126.col.json"
  },
  {
   "id": "shop-127",
@@ -1597,7 +1646,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-127.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-127.col.json"
  },
  {
   "id": "shop-128",
@@ -1629,7 +1679,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-128.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-128.col.json"
  },
  {
   "id": "shop-129",
@@ -1661,7 +1712,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-129.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-129.col.json"
  },
  {
   "id": "shop-156",
@@ -1693,7 +1745,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-156.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-156.col.json"
  },
  {
   "id": "shop-157",
@@ -1725,7 +1778,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-157.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-157.col.json"
  },
  {
   "id": "shop-158",
@@ -1757,7 +1811,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-158.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-158.col.json"
  },
  {
   "id": "shop-159",
@@ -1789,7 +1844,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-159.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-159.col.json"
  },
  {
   "id": "shop-160",
@@ -1821,7 +1877,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-160.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-160.col.json"
  },
  {
   "id": "shop-161",
@@ -1853,7 +1910,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-161.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-161.col.json"
  },
  {
   "id": "shop-162",
@@ -1885,7 +1943,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-162.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-162.col.json"
  },
  {
   "id": "shop-163",
@@ -1917,7 +1976,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-163.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-163.col.json"
  },
  {
   "id": "shop-164",
@@ -1949,7 +2009,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-164.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-164.col.json"
  },
  {
   "id": "shop-165",
@@ -1981,7 +2042,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-165.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-165.col.json"
  },
  {
   "id": "shop-166",
@@ -2013,7 +2075,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-166.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-166.col.json"
  },
  {
   "id": "shop-167",
@@ -2045,7 +2108,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-167.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-167.col.json"
  },
  {
   "id": "shop-168",
@@ -2077,7 +2141,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-168.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-168.col.json"
  },
  {
   "id": "shop-169",
@@ -2109,7 +2174,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-169.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-169.col.json"
  },
  {
   "id": "shop-170",
@@ -2141,7 +2207,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-170.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-170.col.json"
  },
  {
   "id": "shop-171",
@@ -2173,7 +2240,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-171.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-171.col.json"
  },
  {
   "id": "shop-172",
@@ -2205,7 +2273,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-172.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-172.col.json"
  },
  {
   "id": "shop-173",
@@ -2237,7 +2306,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-173.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-173.col.json"
  },
  {
   "id": "shop-174",
@@ -2269,7 +2339,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-174.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-174.col.json"
  },
  {
   "id": "shop-175",
@@ -2301,7 +2372,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-175.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-175.col.json"
  },
  {
   "id": "shop-176",
@@ -2333,7 +2405,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-176.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-176.col.json"
  },
  {
   "id": "shop-177",
@@ -2365,7 +2438,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-177.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-177.col.json"
  },
  {
   "id": "shop-178",
@@ -2397,7 +2471,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-178.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-178.col.json"
  },
  {
   "id": "shop-179",
@@ -2429,7 +2504,8 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-179.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-179.col.json"
  },
  {
   "id": "shop-180",
@@ -2461,6 +2537,7 @@
    "y": 4.45
   },
   "layout": "/assets/interiors/shop-180.json",
-  "featured": false
+  "featured": false,
+  "collision": "/assets/interiors/shop-180.col.json"
  }
 ]
