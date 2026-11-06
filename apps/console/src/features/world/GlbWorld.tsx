@@ -1423,7 +1423,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
         ) : null}
         <Suspense fallback={null}>
           {place === "city3" ? (
-            <DistrictWorld residentUrl={CITY3_URL} light={keyLightRef} />
+            <DistrictWorld residentUrl={CITY3_URL} light={keyLightRef} collide={camMode === "wide"} />
           ) : (
           <WorldEnv
             url={
@@ -1463,7 +1463,8 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           // updates controls when enabled, so the rig never fights it).
           enabled={!embodyOn || !agora || camMode === "wide"}
           maxPolarAngle={Math.PI / 2 - 0.04}
-          minDistance={agora ? 6 : 20}
+          // City 3: 3 m close-ups; CameraCollider (in DistrictWorld) keeps the camera out of walls.
+          minDistance={agora ? 6 : place === "city3" ? 3 : 20}
           maxDistance={agora ? 55 : place === "city3" ? 1100 : 450}
         />
       </Canvas>

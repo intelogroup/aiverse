@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { useGLTF } from "@react-three/drei";
+import { CameraCollider, buildColliders, type ColliderStats } from "./CameraCollider";
 import { blendTheme, planDistricts, themeDelta, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
 
 export const DISTRICTS_URL = "/assets/districts.json";
@@ -12,6 +13,7 @@ const disposeTree = (root: THREE.Object3D) =>
   root.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
+    if (m.geometry.boundsTree) m.geometry.disposeBoundsTree();
     m.geometry.dispose();
     for (const mat of Array.isArray(m.material) ? m.material : [m.material]) {
       for (const v of Object.values(mat as unknown as Record<string, unknown>)) if (v && (v as THREE.Texture).isTexture) (v as THREE.Texture).dispose();
@@ -48,7 +50,7 @@ void main(){ float h = clamp(vDir.y, -0.2, 1.0); vec3 c = mix(horizon, top, pow(
  * fog, key light, water, exposure and emissive "night" amount; the PMREM environment is rebuilt only when the sky moves.
  * `window.__districts` exposes counters for the memory test (?districtDebug=1).
  */
-export function DistrictWorld({ residentUrl, light }: { residentUrl: string; light: React.RefObject<THREE.DirectionalLight | null> }) {
+export function DistrictWorld({ residentUrl, light, collide = true }: { residentUrl: string; light: React.RefObject<THREE.DirectionalLight | null>; collide?: boolean }) {
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
   const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3 } | null;
@@ -57,7 +59,18 @@ export function DistrictWorld({ residentUrl, light }: { residentUrl: string; lig
   const resident = useGLTF(residentUrl);
   const groups = useRef(new Map<string, THREE.Group>());
   const loading = useRef(new Set<string>());
-  const stats = useRef({ loads: 0, evictions: 0, loadMs: [] as number[] });
+  const stats = useRef({ loads: 0, evictions: 0, loadMs: [] as number[], bvhMs: {} as Record<string, number>, colliderHits: 0, colliderFrames: 0, colliderMs: 0, colliderMeshes: 0 } satisfies ColliderStats & Record<string, unknown>);
+  // Camera-collision meshes per root (resident, links, each streamed district); flattened lazily for the collider.
+  const colliderSets = useRef(new Map<string, THREE.Mesh[]>());
+  const colliderFlat = useRef<THREE.Mesh[] | null>(null);
+  const addColliders = (key: string, root: THREE.Object3D) => {
+    const { meshes, ms } = buildColliders(root);
+    colliderSets.current.set(key, meshes); colliderFlat.current = null; if (meshes.length) stats.current.bvhMs[key] = Math.max(stats.current.bvhMs[key] ?? 0, Math.round(ms));
+    stats.current.colliderMeshes = [...colliderSets.current.values()].reduce((n, x) => n + x.length, 0);
+  };
+  const dropColliders = (key: string) => { colliderSets.current.delete(key); colliderFlat.current = null; };
+  const collideDebug = useRef(true);
+  const getMeshes = () => (colliderFlat.current ??= [...colliderSets.current.values()].flat());
   const themeRef = useRef<Theme | null>(null);
   const envTheme = useRef<Theme | null>(null);
   const clock = useRef(0);
@@ -88,9 +101,12 @@ export function DistrictWorld({ residentUrl, light }: { residentUrl: string; lig
     scene.fog = new THREE.FogExp2(0xb0b8c8, 0.0006);
     resident.scene.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && (m.material as THREE.Material).name === "water") m.visible = false; });
     gl.toneMapping = THREE.AgXToneMapping;
+    // useGLTF caches the resident, so its BVHs are built once and kept with it (buildColliders is idempotent).
+    addColliders("resident", resident.scene);
     return () => {
+      dropColliders("resident");
       scene.remove(sky); scene.remove(water); scene.fog = null; scene.background = null; scene.environment = null;
-      for (const g of groups.current.values()) { scene.remove(g); disposeTree(g); }
+      for (const [id, g] of groups.current) { scene.remove(g); dropColliders(id); disposeTree(g); }
       groups.current.clear(); pm.dispose(); (sky.material as THREE.Material).dispose(); sky.geometry.dispose(); (water.material as THREE.Material).dispose(); water.geometry.dispose();
     };
   }, [scene, sky, water, gl, pm, resident]);
@@ -98,8 +114,8 @@ export function DistrictWorld({ residentUrl, light }: { residentUrl: string; lig
   useEffect(() => {
     if (!manifest?.links) return;
     let live = true; let root: THREE.Object3D | null = null;
-    loader.load(manifest.links, (g) => { if (!live) { disposeTree(g.scene); return; } root = g.scene; scene.add(root); applyNight(root, themeRef.current?.night ?? 0); });
-    return () => { live = false; if (root) { scene.remove(root); disposeTree(root); } };
+    loader.load(manifest.links, (g) => { if (!live) { disposeTree(g.scene); return; } root = g.scene; scene.add(root); applyNight(root, themeRef.current?.night ?? 0); addColliders("links", root); });
+    return () => { live = false; if (root) { scene.remove(root); dropColliders("links"); disposeTree(root); } };
   }, [manifest, loader, scene]);
 
   const defs = manifest?.districts ?? [];
@@ -109,6 +125,12 @@ export function DistrictWorld({ residentUrl, light }: { residentUrl: string; lig
     w.__districts = {
       stats: () => ({ loaded: [...groups.current.keys()], ...stats.current, geometries: gl.info.memory.geometries, textures: gl.info.memory.textures, calls: gl.info.render.calls, triangles: gl.info.render.triangles }),
       theme: () => themeRef.current,
+      // Debug: first collider hit distance along o->dir (null = none), and switch the camera collider off/on.
+      probe: (o: number[], d: number[], far = 500) => {
+        const rc = Object.assign(new THREE.Raycaster(new THREE.Vector3(o[0], o[1], o[2]), new THREE.Vector3(d[0], d[1], d[2]).normalize(), 0, far), { firstHitOnly: true });
+        return rc.intersectObjects(getMeshes(), false)[0]?.distance ?? null;
+      },
+      collide: (on: boolean) => { collideDebug.current = on; bump((n) => n + 1); },
       focus: (x: number, z: number) => { if (controls) { controls.target.set(x, 8, z); } },
       cam: (p: number[], t: number[]) => { camera.position.set(p[0], p[1], p[2]); controls?.target.set(t[0], t[1], t[2]); camera.lookAt(t[0], t[1], t[2]); (controls as unknown as { update?: () => void })?.update?.(); },
     };
@@ -122,12 +144,13 @@ export function DistrictWorld({ residentUrl, light }: { residentUrl: string; lig
       loading.current.delete(d.id);
       const g = new THREE.Group(); g.name = `district:${d.id}`; g.position.set(d.center[0], 0, d.center[1]); g.add(gltf.scene);
       applyNight(g, themeRef.current?.night ?? 0);
+      g.updateMatrixWorld(true); addColliders(d.id, g);
       groups.current.set(d.id, g); scene.add(g); stats.current.loads++; stats.current.loadMs.push(Math.round(performance.now() - t0)); bump((n) => n + 1);
     }, undefined, () => loading.current.delete(d.id));
   };
   const unload = (id: string) => {
     const g = groups.current.get(id); if (!g) return;
-    scene.remove(g); disposeTree(g); groups.current.delete(id); stats.current.evictions++; bump((n) => n + 1);
+    scene.remove(g); dropColliders(id); disposeTree(g); groups.current.delete(id); stats.current.evictions++; bump((n) => n + 1);
   };
 
   useFrame((_, dt) => {
@@ -155,5 +178,10 @@ export function DistrictWorld({ residentUrl, light }: { residentUrl: string; lig
       const old = scene.environment; scene.environment = pm.fromScene(envScene, 0, 0.1, 100).texture; old?.dispose(); envTheme.current = t;
     }
   });
-  return <primitive object={resident.scene} />;
+  return (
+    <>
+      <primitive object={resident.scene} />
+      <CameraCollider getMeshes={getMeshes} enabled={collide && collideDebug.current} stats={stats.current} />
+    </>
+  );
 }
