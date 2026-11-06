@@ -38,7 +38,7 @@ const fps = [
   ...plan.halls.map((h) => flip(h.rect)),
   ...plan.towers.map((t) => flip(t.rect)),
   // stalls: the collision box is size[0] x size[1] turned by facing; the square of the smaller half-size lies inside either way
-  ...plan.stalls.map((s) => { const h = Math.min(...s.size) / 2 - stallInset; return flip([s.c[0] - h, s.c[1] - h, s.c[0] + h, s.c[1] + h]); }),
+  ...plan.stalls.map((s) => { const h = 0.9 - stallInset; /* collision counter ~3.1 x 1.8 */ return flip([s.c[0] - h, s.c[1] - h, s.c[0] + h, s.c[1] + h]); }),
 ];
 const inRect = (x, z, r, m = 0) => x > r[0] + m && x < r[2] - m && z > r[1] + m && z < r[3] - m;
 const fountain = { c: [0, 0], r: plan.fountain.r_out }; // solid cylinders: outer ring + platform
@@ -196,6 +196,21 @@ for (const f of fps) {
   }
   fi++;
 }
+// hero rooms: start 3 m outside each door, walk in through it, then wander inside; counts how many rooms were really entered
+let entered = 0, ri = 0;
+for (const r of rooms) {
+  const cx = (r.rect[0] + r.rect[2]) / 2, cz = (r.rect[1] + r.rect[3]) / 2;
+  let dx = r.door[0] - cx, dz = r.door[1] - cz; const dl = Math.hypot(dx, dz) || 1; dx /= dl; dz /= dl;
+  const x = r.door[0] + dx * 3, z = r.door[1] + dz * 3;
+  const g = await ground(x, z, 1.0);
+  if (g === null) continue;
+  await put(x, g, z, Math.atan2(-dx, -dz));
+  const inputs = [...Array.from({ length: 120 }, () => [1, 0, 0, 0, 0.05]), ...randomInputs(25, DT)];
+  const tr = await runScript(inputs);
+  record(`room#${ri++}:${r.id}`, tr, { room: r.id });
+  if (tr.some((_, i) => i % 6 === 0 && inRect(tr[i], tr[i + 2], r.rect, 0.3))) entered++; else report.violations.push({ label: `room:${r.id}`, kind: "could not enter via door", door: r.door });
+}
+console.log(`hero rooms entered through the door: ${entered}/${rooms.length}`);
 console.log(`ran ${report.runs} scripts, ${report.simSeconds.toFixed(0)} sim seconds in ${((Date.now() - t0) / 1000).toFixed(0)} s wall`);
 const byKind = {};
 for (const v of report.violations) byKind[v.kind] = (byKind[v.kind] || 0) + 1;
