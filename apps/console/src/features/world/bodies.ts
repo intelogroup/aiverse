@@ -129,6 +129,19 @@ export function bodyForMember(member: { body?: string } | null | undefined): Bod
 }
 
 /**
+ * A roster with one body removed: every member wearing it goes,
+ * including members who wear it by default (no `body` named, or a
+ * name the registry does not know). Used to retire a body from one
+ * world without touching the others.
+ */
+export function excludeBody<T extends { body?: string }>(
+  members: readonly T[],
+  excluded: BodyDef,
+): T[] {
+  return members.filter((member) => bodyForMember(member) !== excluded);
+}
+
+/**
  * Fastest ground speed a body may cruise: its measured walkSpeed plus a
  * small stride headroom. Past it the walk cycle visibly skates, so the
  * crowd caps each slot at its wearer's value (locomotion's

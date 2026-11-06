@@ -13,6 +13,7 @@ import {
   SUMMER_HIPS_Y,
   bodyForMember,
   cruiseCapForBody,
+  excludeBody,
   sitClipForPhase,
 } from "./bodies";
 
@@ -89,6 +90,28 @@ describe("body registry", () => {
     expect(seatedRootY(bench, BODY_SUMMER.hipsY)).toBeCloseTo(bench.seatHeight - SUMMER_HIPS_Y);
     expect(seatedRootY(bench, BODY_SUMMER.hipsY)).not.toBeCloseTo(seatedRootY(bench));
     expect(seatedRootY(bench, BODY_MAGE.hipsY)).toBeCloseTo(bench.seatHeight - MAGE_HIPS_Y);
+  });
+});
+
+describe("excludeBody — retiring a body from a roster", () => {
+  it("drops default, explicit and unknown-body wearers of the excluded body", () => {
+    const roster = [
+      { id: "native-1", name: "Native One" },
+      { id: "native-2", name: "Native Two", body: "cast" },
+      { id: "native-3", name: "Native Three", body: "retired-name" },
+      { id: "summer-guest", name: "Summer (new)", body: "summer" },
+      { id: "mage-guest", name: "Mage (new)", body: "mage" },
+      { id: "barbarian-guest", name: "Barbarian (new)", body: "barbarian" },
+      { id: "knight-guest", name: "Knight (new)", body: "knight" },
+    ];
+    expect(excludeBody(roster, BODY_CAST).map((m) => m.id)).toEqual([
+      "summer-guest",
+      "mage-guest",
+      "barbarian-guest",
+      "knight-guest",
+    ]);
+    // The input roster is not mutated — other worlds keep everyone.
+    expect(roster).toHaveLength(7);
   });
 });
 
