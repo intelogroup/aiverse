@@ -237,3 +237,30 @@ export function moveToIntent(s: WalkerState, target: Vec2, arrive = 0.4, run = f
   const forward = off > 1.2 ? 0 : clamp(1 - off / 1.2, 0.2, 1);
   return { input: { forward, strafe: 0, turn: 0, run, faceHeading: want }, arrived: false };
 }
+
+/**
+ * Free standing spot near (cx, cz): level ground at plaza height, no wall within `clear`, and NOTHING solid above the feet within the
+ * body height. The last check is what the first version missed: the Bazaar fountain is a raised platform of one-sided quads, so a
+ * ray started at 0.65 m passed under its top (1.1 m) and the bot spawned INSIDE it (only the torso showed).
+ */
+export function findSpawn(
+  world: World,
+  opts: { cx?: number; cz?: number; groundMin?: number; groundMax?: number; maxR?: number; clear?: number; headroom?: number } = {},
+): { x: number; y: number; z: number } | null {
+  const { cx = 0, cz = 0, groundMin = 0.1, groundMax = 0.3, maxR = 40, clear = 0.9, headroom = 2.2 } = opts;
+  for (let r = 0; r <= maxR; r += 1.5) {
+    const n = r === 0 ? 1 : Math.ceil((r * Math.PI * 2) / 1.5);
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const x = cx + Math.sin(a) * r;
+      const z = cz + Math.cos(a) * r;
+      const g = world.groundY(x, z, groundMax + 0.35);
+      if (g === null || g < groundMin || g > groundMax) continue;
+      const top = world.groundY(x, z, g + headroom);       // highest surface within head height: must be the ground itself
+      if (top === null || top > g + 0.05) continue;
+      if (world.blocked([x, g, z], [x, g, z], clear)) continue;
+      return { x, y: g, z };
+    }
+  }
+  return null;
+}

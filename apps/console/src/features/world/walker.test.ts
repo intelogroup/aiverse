@@ -2,7 +2,7 @@
 // Pure kinematics against fake worlds — no three, no DOM.
 
 import { describe, expect, it } from "vitest";
-import { MOVING_SPEED, WALK_CONFIG, clipFor, makeWalker, moveToIntent, step, wrapAngle, type Hit, type World, type WalkInput } from "./walker";
+import { MOVING_SPEED, WALK_CONFIG, clipFor, findSpawn, makeWalker, moveToIntent, step, wrapAngle, type Hit, type World, type WalkInput } from "./walker";
 
 const IDLE: WalkInput = { forward: 0, strafe: 0, turn: 0, run: false };
 const FWD: WalkInput = { forward: 1, strafe: 0, turn: 0, run: false };
@@ -190,5 +190,25 @@ describe("agent intents", () => {
     expect(s.heading).toBeCloseTo(WALK_CONFIG.turnRate * 0.1, 6);
     run(s, { ...IDLE, faceHeading: 1 }, 2, fakeWorld());
     expect(s.heading).toBeCloseTo(1, 6);
+  });
+});
+
+describe("findSpawn", () => {
+  // Plaza at 0.2 with a raised solid platform (the fountain) r<10 whose top is 1.1: a ray from 0.65 passes under it.
+  const fountain: World = {
+    groundY: (x, z, fromY) => (Math.hypot(x, z) < 10 && fromY >= 1.1 ? 1.1 : fromY >= 0.2 ? 0.2 : null),
+    blocked: () => null,
+  };
+  it("never spawns inside a raised solid above the ground", () => {
+    const sp = findSpawn(fountain)!;
+    expect(sp).not.toBeNull();
+    expect(Math.hypot(sp.x, sp.z)).toBeGreaterThanOrEqual(10);
+    expect(sp.y).toBeCloseTo(0.2, 5);
+  });
+  it("spawns at the origin on open ground", () => {
+    expect(findSpawn(fakeWorld())).toEqual({ x: 0, y: 0.2, z: 0 });
+  });
+  it("returns null when nothing is free", () => {
+    expect(findSpawn({ groundY: () => null, blocked: () => null })).toBeNull();
   });
 });

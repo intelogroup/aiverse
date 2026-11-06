@@ -7,7 +7,7 @@ import { createBvhWorld } from "./bvhWorld";
 import { COLLIDE_FLOOR, resolveCamera } from "./cameraCollision";
 import { DAMP_FOV, DAMP_POS_FOLLOW, FOV_RIDE, FOV_WIDE, EYE_FORWARD, FOLLOW_BACK, FOLLOW_LOOK_UP, FOLLOW_UP, HEAD_HEIGHT, RIDE_LOOK_AHEAD, damp } from "./cameraRig";
 import type { AgentFrame } from "./locomotion";
-import { clipFor, makeWalker, step, type WalkInput, type World } from "./walker";
+import { clipFor, findSpawn, makeWalker, step, type WalkInput } from "./walker";
 
 // CityWalker — the user-driven bot in City 3 (?world=city3&walk=1). A thin adapter around walker.ts:
 //   keyboard/mouse -> abstract intent {forward, strafe, turn, run, look} -> walker.step(world = BVH raycasts)
@@ -32,23 +32,6 @@ export function intentFromKeys(k: Held, look: number): WalkInput {
     run: k.run,
     look,
   };
-}
-
-/** Find a free standing spot near (0,0): level ground at plaza height and no wall within the body radius. */
-function findSpawn(world: World): { x: number; y: number; z: number } | null {
-  for (let r = 0; r <= 24; r += 1.5) {
-    const n = r === 0 ? 1 : Math.ceil((r * Math.PI * 2) / 1.5);
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2;
-      const x = Math.sin(a) * r;
-      const z = Math.cos(a) * r;
-      const g = world.groundY(x, z, 0.65);
-      if (g === null || g < 0.1 || g > 0.3) continue;
-      if (world.blocked([x, g, z], [x, g, z], 0.9)) continue;
-      return { x, y: g, z };
-    }
-  }
-  return null;
 }
 
 export function CityWalker({
