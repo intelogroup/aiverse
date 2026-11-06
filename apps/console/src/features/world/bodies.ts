@@ -68,50 +68,60 @@ export const BODY_SUMMER: BodyDef = {
 // ---------------------------------------------------------------------------
 // Character wave (2026-11-05): KayKit "Character Pack: Adventurers"
 // (CC0) bodies, Rig_Medium skeletons retargeted with the full 45-clip
-// catalog. KayKit proportions are chibi — a bbox normalization would
-// shrink the body to a child next to the cast (the Mage is mostly
-// hat), so each body is scaled by the HEAD-JOINT landmark instead:
-// head joint pinned to 1.10 m (cast 1.0956 / summer 1.0816 class).
+// catalog. KayKit proportions are chibi — short legs, a head that is
+// half the figure, tall headgear — so the wave's first scaling rule
+// (head joint pinned to 1.10 m, like the cast's 1.0956) left the
+// TOTALS at 2.15–2.45 m next to the cast's ~1.3 m, and Jim called it:
+// "why are the mage and barbarian so big". Rescaled the same evening
+// at his word ("Shrink all three to match the others (~1.3 m)"): each
+// GLB uniformly scaled so its total height is exactly 1.30 m — Mage
+// x0.53391 (was 2.4349 m at rest), Barbarian x0.60375 (2.1532 m),
+// Knight x0.58713 (2.2142 m) — and the registry facts below scaled by
+// the same factor. The bone-parented attachments (hat, helmet, cape,
+// shield) were first converted to rigid skinning on their bone: the
+// exporter's bone-parent path mis-scales them ~10%, which had the
+// rescaled figures still standing 1.42 m at the hat tip.
 // Hips Y is the measured pelvis (upperleg) joint height of the
-// exported GLB — the seat drop uses it exactly like the other bodies;
-// the seated proof render sits the pelvis on the bench top.
+// exported GLB — the seat drop uses it exactly like the other bodies.
 // Walk speed: the cast Walk joint motion retargeted verbatim, so the
-// natural speed scales with the stride the smaller rig performs —
+// natural speed scales with the stride the rig performs — originally
 // cast walkSpeed x (this body's Walk foot fore-aft travel / cast's),
-// both measured on the shipped GLBs (cast avg 0.4466 m).
+// both measured on the shipped GLBs (cast avg 0.4466 m), then x the
+// shrink factor above.
 // ---------------------------------------------------------------------------
 
-export const MAGE_HIPS_Y = 0.4601; // m
+export const MAGE_HIPS_Y = 0.2457; // m (0.4601 x 0.53391 shrink)
 
 export const BODY_MAGE: BodyDef = {
   id: "mage",
   url: "/assets/cast-mage.glb",
   hipsY: MAGE_HIPS_Y,
-  // 0.8746 x (0.2936 / 0.4466) — see note above.
-  walkSpeed: 0.5749,
+  // 0.5749 x 0.53391 shrink — see note above.
+  walkSpeed: 0.3069,
   clips: CATALOG,
 };
 
-export const BARBARIAN_HIPS_Y = 0.4601; // m
+export const BARBARIAN_HIPS_Y = 0.2778; // m (0.4601 x 0.60375 shrink)
 
 export const BODY_BARBARIAN: BodyDef = {
   id: "barbarian",
   url: "/assets/cast-barbarian.glb",
   hipsY: BARBARIAN_HIPS_Y,
   // Same Rig_Medium skeleton as the Mage — identical measured Walk
-  // foot travel (0.2936 m avg), so the same derived speed.
-  walkSpeed: 0.5749,
+  // foot travel, shrunk by its own factor: 0.5749 x 0.60375.
+  walkSpeed: 0.3471,
   clips: CATALOG,
 };
 
-export const KNIGHT_HIPS_Y = 0.4601; // m
+export const KNIGHT_HIPS_Y = 0.2702; // m (0.4601 x 0.58713 shrink)
 
 export const BODY_KNIGHT: BodyDef = {
   id: "knight",
   url: "/assets/cast-knight.glb",
   hipsY: KNIGHT_HIPS_Y,
-  // Same Rig_Medium skeleton — identical measured Walk foot travel.
-  walkSpeed: 0.5749,
+  // Same Rig_Medium skeleton — identical measured Walk foot travel,
+  // shrunk by its own factor: 0.5749 x 0.58713.
+  walkSpeed: 0.3375,
   clips: CATALOG,
 };
 
