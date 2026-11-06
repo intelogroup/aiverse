@@ -22,6 +22,10 @@ def shutter(fr,hinge_u,tip_sign,w,z0,z1,theta,cell,t0=0.04):
 def window(fr,cu,ww,zb,rnd,style,cell,balcony_ok=True,tall=1.0):
     """Proud geometry around one window whose painted opening is centred on u=cu, sill line at z=zb."""
     fbox(fr,cu-ww/2-0.14,cu+ww/2+0.14,0,0.2,zb-0.13,zb,"stone_lt",top=True)
+    if style=="A":                                                                       # lintel with a keystone block above the opening + sill corbels
+        zt=zb+1.62*tall; fbox(fr,cu-ww/2-0.12,cu+ww/2+0.12,0,0.13,zt,zt+0.14,"stone_lt",top=True)
+        fbox(fr,cu-0.1,cu+0.1,0,0.17,zt-0.02,zt+0.24,"stone",top=False)
+        for s_ in (-1,1): fbox(fr,cu+s_*(ww/2-0.08)-0.05,cu+s_*(ww/2-0.08)+0.05,0,0.14,zb-0.3,zb-0.13,"stone",top=False)
     if style=="A" and rnd.random()<0.8:
         th=rnd.choice([0,0,0,0.6,1.1]); sw=ww/2+0.02
         shutter(fr,cu-ww/2-0.04,-1,sw,zb-0.02,zb+1.62*tall,th,cell); shutter(fr,cu+ww/2+0.04,1,sw,zb-0.02,zb+1.62*tall,th,cell)
