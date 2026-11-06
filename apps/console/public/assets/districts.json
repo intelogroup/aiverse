@@ -1,0 +1,10 @@
+{
+ "districts": [
+  {"id":"bazaar","name":"Sunstone Bazaar","url":"/assets/world-city3.glb","center":[0,0],"half":180,"theme":"bazaar","resident":true},
+  {"id":"glassq","name":"Glass Quarter","url":"/assets/world-glassq.glb","center":[0,-400],"half":180,"theme":"glass"}
+ ],
+ "themes": {
+  "bazaar": {"skyTop":[0.30,0.52,0.86],"skyHorizon":[0.96,0.88,0.72],"fog":[0.90,0.80,0.66],"fogDensity":0.0006,"water":[0.10,0.42,0.52],"sun":[1.0,0.94,0.82],"sunIntensity":2.6,"sunDir":[0.45,0.8,0.35],"ambient":0.12,"envIntensity":0.7,"exposure":1.1,"night":0.0},
+  "glass":  {"skyTop":[0.10,0.17,0.40],"skyHorizon":[0.98,0.58,0.38],"fog":[0.55,0.47,0.62],"fogDensity":0.0007,"water":[0.08,0.25,0.38],"sun":[1.0,0.66,0.45],"sunIntensity":1.7,"sunDir":[-0.7,0.38,0.5],"ambient":0.16,"envIntensity":0.9,"exposure":1.0,"night":0.9}
+ }
+}

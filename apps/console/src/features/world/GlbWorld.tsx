@@ -3,6 +3,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
+import { DistrictWorld } from "./DistrictWorld";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import {
   AGENT_RADIUS,
@@ -501,6 +502,10 @@ function StageEnvironment({ place }: { place: Place }) {
     // different curve than the one it was authored under.
     gl.toneMapping = THREE.AgXToneMapping;
     gl.toneMappingExposure = 1.1;
+    if (place === "city3") {
+      pmrem.dispose();
+      return () => {};
+    }
     if (place !== "agora") {
       const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
       scene.environment = envMap;
@@ -542,8 +547,9 @@ function StageEnvironment({ place }: { place: Place }) {
  * to the play area. The target is added to the scene graph explicitly —
  * three only tracks a light's aim if the target's matrixWorld updates.
  */
-function KeyLight({ place }: { place: Place }) {
-  const light = useRef<THREE.DirectionalLight>(null!);
+function KeyLight({ place, lightRef }: { place: Place; lightRef?: React.RefObject<THREE.DirectionalLight | null> }) {
+  const ownRef = useRef<THREE.DirectionalLight>(null!);
+  const light = (lightRef ?? ownRef) as React.RefObject<THREE.DirectionalLight>;
   const scene = useThree((s) => s.scene);
   const agora = place === "agora";
   const city2 = place === "city2";
@@ -1357,6 +1363,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
 
   // Head-camera mode (Embody spike): state for the panel buttons and
   // OrbitControls, mirrored into a ref the camera rig reads per frame.
+  const keyLightRef = useRef<THREE.DirectionalLight | null>(null);
   const city3Rooms = useCity3Rooms(place === "city3");
   const [camMode, setCamMode] = useState<CameraMode>("wide");
   // City 3: which hero building to fly to (cutaway shows on arrival); nonce re-fires a repeat click.
@@ -1377,7 +1384,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
         : place === "city"
           ? { position: [-103, 74, -33] as [number, number, number], fov: 45, near: 0.5, far: 3000 }
           : place === "city3"
-            ? { position: [290, 250, 340] as [number, number, number], fov: 45, near: 0.5, far: 3000 }
+            ? { position: [290, 250, 340] as [number, number, number], fov: 45, near: 0.5, far: 6000 }
             : { position: [128, 96, 88] as [number, number, number], fov: 45, near: 0.5, far: 3000 },
     [place],
   );
@@ -1403,7 +1410,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
       >
         <ambientLight intensity={0.12} color="#8fa3cc" />
         <StageEnvironment place={place} />
-        <KeyLight place={place} />
+        <KeyLight place={place} lightRef={keyLightRef} />
         <ShadowTagger />
         {embodyOn && agora ? <FpsTracker meterRef={fpsMeterRef} /> : null}
         {agora ? (
@@ -1417,17 +1424,19 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           </EffectComposer>
         ) : null}
         <Suspense fallback={null}>
+          {place === "city3" ? (
+            <DistrictWorld residentUrl={CITY3_URL} light={keyLightRef} />
+          ) : (
           <WorldEnv
             url={
               agora
                 ? AGORA_URL
                 : place === "city"
                   ? CITY_URL
-                  : place === "city3"
-                    ? CITY3_URL
-                    : CITY2_URL
+                  : CITY2_URL
             }
           />
+          )}
           {place === "city3" ? (
             <>
               <ClipCutaway rooms={city3Rooms} focus={heroFocus} />
@@ -1457,7 +1466,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           enabled={!embodyOn || !agora || camMode === "wide"}
           maxPolarAngle={Math.PI / 2 - 0.04}
           minDistance={agora ? 6 : 20}
-          maxDistance={agora ? 55 : place === "city3" ? 650 : 450}
+          maxDistance={agora ? 55 : place === "city3" ? 1100 : 450}
         />
       </Canvas>
       <div className="w-glb-toggle" role="group" aria-label="Choose world">
