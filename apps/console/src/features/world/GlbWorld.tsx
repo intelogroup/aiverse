@@ -16,7 +16,7 @@ import {
 } from "./locomotion";
 import { CITY_FOOTPRINTS, insideFootprint } from "./cityFootprints";
 import { CastFigure } from "./CastFigure";
-import { bodyForMember, cruiseCapForBody } from "./bodies";
+import { BODY_CAST, bodyForMember, cruiseCapForBody, excludeBody } from "./bodies";
 import { CLIP_CATALOG, ClipTestState } from "./clips";
 import {
   AGORA_BENCH_ANCHORS,
@@ -823,6 +823,13 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
     return w === "city" || w === "city2" ? w : "agora";
   });
   const agora = place === "agora";
+  // Jim retired the old Body Block bots from the Agora (2026-11-05):
+  // they still walk the City, but the Agora crowd is only the members
+  // wearing an explicit kept body (Summer and the KayKit guests).
+  const visibleCast = useMemo(
+    () => (agora ? excludeBody(cast, BODY_CAST) : cast),
+    [agora, cast],
+  );
 
   // Embody v0 spike: ?embody=1 turns on the skill layer (Agora only).
   const embodyOn = useMemo(
@@ -900,7 +907,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           <WorldEnv url={agora ? AGORA_URL : place === "city" ? CITY_URL : CITY2_URL} />
           <CrowdCast
             place={place}
-            cast={cast}
+            cast={visibleCast}
             embodyOn={embodyOn}
             controllerRef={controllerRef}
             overridesRef={overridesRef}
@@ -956,7 +963,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
       </div>
       {embodyOn && agora ? (
         <EmbodyPanel
-          cast={cast}
+          cast={visibleCast}
           controllerRef={controllerRef}
           framesRef={framesRef}
           glCanvasRef={glCanvasRef}
