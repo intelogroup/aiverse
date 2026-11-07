@@ -118,4 +118,17 @@ describe("shipped body GLBs — clip inventory", () => {
     expect(g.joints).toBe(67);
     expect(g.tris).toBe(35196);
   });
+
+  // Skeleton Warrior (KayKit "Character Pack: Skeletons", CC0, Rig_Medium, 41 joints):
+  // the character wave's matrix-delta bake of the full 45-clip catalog, scaled by total
+  // figure height (head top, horns excluded) to exactly 1.30 m; helmet rigid-skinned.
+  it("cast-skeleton-warrior.glb: full catalog, exact durations, 41 joints, 5,934 tris", () => {
+    const g = readGlb("../public/assets/cast-skeleton-warrior.glb");
+    expect(Object.keys(g.anims).sort()).toEqual(Object.keys(EXPECTED_CLIPS).sort());
+    for (const [name, dur] of Object.entries(EXPECTED_CLIPS)) {
+      expect(g.anims[name], name).toBeCloseTo(dur, 2);
+    }
+    expect(g.joints).toBe(41);
+    expect(g.tris).toBe(5934);
+  });
 });

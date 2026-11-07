@@ -9,6 +9,7 @@ import { BODY_CAST, sitClipForPhase, type BodyDef } from "./bodies";
 import { CLIP_CATALOG, clipDef, type ClipTestState } from "./clips";
 import { approach, cycleRateFor, gaitTargets, runTimeForWalkPhase, type GaitSpec } from "./gait";
 import { clipMinClearance, contactPoints, groundingOffset, rootMotionDelta, soleClearance } from "./grounding";
+import { FootLock, footLockEnabled } from "./footLock";
 
 // CastFigure — a cast bot (a "body" from bodies.ts: a rigged GLB plus
 // its measured hips and clip catalog) driven by the same AgentFrame
@@ -24,7 +25,7 @@ import { clipMinClearance, contactPoints, groundingOffset, rootMotionDelta, sole
 // it counter-translates the posed hips XZ on the skeleton's parent
 // node, leaving the gait, the bob and the foot plants in the pose
 // while the figure stays over its crowd point),
-// "Idle" (a subtle sway), "SittingTalking" (a 44 s seated loop,
+// "IdleLong" (the resting stand; body.clips.idle — the catalog's plain "Idle" is a walk in place and is not played), "SittingTalking" (a 44 s seated loop,
 // rotations only — the embody override owns seat placement),
 // "SitDown" (the authored stand-to-sit transition, played once while
 // the override mounts) and "StandUp" (its dedicated sit-to-stand
@@ -228,6 +229,8 @@ export function CastFigure({
     const clip = body.run ? gltf.animations.find((a) => a.name === "Run") : undefined;
     return clip ? clipMinClearance(scene, clip, contacts) : 0;
   }, [scene, contacts, gltf, body]);
+  // Runtime foot lock (footLock.ts): pins a planted foot in the world while the gait-driven body travels over it.
+  const footLock = useMemo(() => new FootLock(scene, contacts), [scene, contacts]);
   const rmDelta = useRef(new THREE.Vector3());
   const hipsWorldTmp = useRef(new THREE.Vector3());
 
@@ -618,6 +621,13 @@ export function CastFigure({
         drop = drop * seated + ground * (1 - seated);
       }
       grp.position.y = baseY - drop;
+    }
+    // Foot lock (footLock.ts), last of the leg edits: only the City 3 walker's gait path, never while a sit override,
+    // a tester clip or the body controller owns the pose (their feet are not travelling over the ground).
+    if (gaitOn && f && footLock.usable && footLockEnabled()) {
+      footLock.update(grp, scene, f.speed, delta, baseY - grp.position.y);
+    } else if (footLock.usable) {
+      footLock.reset();
     }
     // Head-bone stream for the ride camera: written AFTER the mixer
     // and every position adjustment above, so the camera anchors on

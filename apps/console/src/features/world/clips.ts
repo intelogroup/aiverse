@@ -104,6 +104,8 @@ export class ClipTestState {
 
   /** Fire a catalog clip. Returns false for an unknown clip name. */
   fire(name: string): boolean {
+    // "Idle" is the tester's REST button (clear the tester; the body falls back to its resting clip, bodies.ts clips.idle
+    // = "IdleLong"). The catalog clip of that name is a walk in place, so it is deliberately never played by name.
     if (name === "Idle") {
       this.clear();
       return true;

@@ -235,6 +235,8 @@ export function WorldView({
     capped.push({ id: "knight-guest", name: "Knight (new)", body: "knight" });
     // Remy (Jim's Mixamo character, 2026-11-07), same treatment.
     capped.push({ id: "remy-guest", name: "Remy (new)", body: "remy" });
+    // Skeleton Warrior (KayKit Skeletons pack, CC0, 2026-11-07), same treatment.
+    capped.push({ id: "skeleton-warrior-guest", name: "Skeleton Warrior (new)", body: "skeleton-warrior" });
     return capped;
   }, [agents, names]);
 

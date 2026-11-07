@@ -1,0 +1,41 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#dfe6ea}canvas{display:block}</style></head><body>
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { clone as skClone } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { rootMotionDelta } from "/src/features/world/grounding.ts";
+const q = new URLSearchParams(location.search); const bodyId = q.get("body"), clipName = q.get("clip"), td = Number(q.get("td")), offs = (q.get("offs") ?? "0,.08,.2,.34,.5,.58").split(",").map(Number);
+function strip(ab) { const dv = new DataView(ab); const jl = dv.getUint32(12, true); const json = JSON.parse(new TextDecoder().decode(new Uint8Array(ab, 20, jl)));
+  delete json.images; delete json.textures; delete json.samplers; for (const k of ["extensionsUsed", "extensionsRequired"]) if (json[k]) json[k] = json[k].filter((e) => !/texture|basisu|webp/i.test(e));
+  const kill = (o) => { if (o && typeof o === "object") for (const k of Object.keys(o)) { if (/Texture$/.test(k)) delete o[k]; else kill(o[k]); } }; kill(json.materials);
+  let js = new TextEncoder().encode(JSON.stringify(json)); const pad = (4 - js.length % 4) % 4; const j2 = new Uint8Array(js.length + pad).fill(32); j2.set(js);
+  const rest = new Uint8Array(ab, 20 + jl); const out = new Uint8Array(20 + j2.length + rest.length); const o = new DataView(out.buffer);
+  o.setUint32(0, 0x46546c67, true); o.setUint32(4, 2, true); o.setUint32(8, out.length, true); o.setUint32(12, j2.length, true); o.setUint32(16, 0x4e4f534a, true); out.set(j2, 20); out.set(rest, 20 + j2.length); return out.buffer; }
+const buf = await (await fetch(`/assets/cast-${bodyId}.glb`)).arrayBuffer();
+const gltf = await new Promise((r, j) => new GLTFLoader().parse(strip(buf), "", r, j));
+const clip = gltf.animations.find((a) => a.name === clipName);
+const W = 1500, H = 520; const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); renderer.setSize(W, H); renderer.setPixelRatio(1); document.body.appendChild(renderer.domElement);
+const sc = new THREE.Scene(); sc.background = new THREE.Color("#dfe6ea"); sc.add(new THREE.HemisphereLight("#fff", "#889", 2.4)); const dl = new THREE.DirectionalLight("#fff", 1.4); dl.position.set(3, 4, 2); sc.add(dl);
+const sp = 0.85; const N = offs.length;
+const floor = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 40), new THREE.MeshBasicMaterial({ color: "#4a5a3c" })); floor.position.set(-0.3, -0.1, 0); sc.add(floor);
+const sph = (c, r) => new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8), new THREE.MeshBasicMaterial({ color: c, depthTest: false }));
+const info = [];
+for (let k = 0; k < N; k++) {
+  const scene = skClone(gltf.scene); scene.traverse((o) => { if (o.isMesh) { o.material = new THREE.MeshLambertMaterial({ color: "#c9a27e", transparent: true, opacity: 0.85 }); o.frustumCulled = false; } });
+  scene.updateMatrixWorld(true); const lift = -new THREE.Box3().setFromObject(scene).min.y; const grp = new THREE.Group(); grp.add(scene); scene.position.y = lift;
+  let hips; scene.traverse((o) => { if (!hips && o.name.endsWith("Hips")) hips = o; });
+  const parent = hips.parent, hipsRest = hips.position.clone(), parentRest = parent.position.clone(), pq = parent.quaternion.clone();
+  const mixer = new THREE.AnimationMixer(scene); const a = mixer.clipAction(clip); a.play(); const ph = (td + offs[k]) % 1; a.time = ph * clip.duration; mixer.update(0);
+  const d = new THREE.Vector3(); rootMotionDelta(hips.position, hipsRest, parent.scale, pq, d); parent.position.copy(parentRest).sub(d);
+  grp.position.set(0, 0, k * sp); sc.add(grp); grp.updateMatrixWorld(true);
+  // live pelvis offset: lowest skinned vertex to the floor
+  const v = new THREE.Vector3(); let lo = 1e9; scene.traverse((o) => { if (o.isSkinnedMesh) { const p = o.geometry.attributes.position; for (let i = 0; i < p.count; i += 1) { o.getVertexPosition(i, v); o.localToWorld(v); if (v.y < lo) lo = v.y; } } });
+  grp.position.y = -lo; grp.updateMatrixWorld(true);
+  for (const [n, c, r] of [["Foot", "#00aa00", 0.012], ["ToeBase", "#e0b000", 0.012], ["Toe_End", "#d00000", 0.012]]) for (const s of ["Left", "Right"]) { let b; scene.traverse((o) => { if (!b && o.name.replace(/mixamorig[:_]?/, "") === s + n) b = o; }); const m = sph(c, r); m.position.copy(b.getWorldPosition(new THREE.Vector3())); m.renderOrder = 9; sc.add(m); }
+  info.push(ph.toFixed(2));
+}
+const mid = ((N - 1) * sp) / 2, w = mid + 0.55, hh = (w * H) / W; const cam = new THREE.OrthographicCamera(-w, w, hh, -hh, 0.1, 50);
+const cy = 0.45; cam.position.set(6, cy, mid); cam.lookAt(0, cy, mid); cam.updateProjectionMatrix(); renderer.render(sc, cam);
+const lbl = document.createElement("div"); lbl.style.cssText = "position:absolute;top:6px;left:8px;font:15px monospace;background:#fffc;padding:3px 6px";
+lbl.textContent = `${bodyId} ${clipName}  phases ${info.join(" ")}  (green ankle, yellow toe base, red toe tip; figure lowered so the lowest vertex touches the floor)`; document.body.appendChild(lbl); window.__done = true;
+</script></body></html>
