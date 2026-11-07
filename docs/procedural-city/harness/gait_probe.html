@@ -1,5 +1,5 @@
 <!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#dfe6ea}canvas{display:block}</style></head><body>
-<!-- Gait filmstrip (2026-11-07): copy to apps/console/, serve with vite, open /gait_probe.html?body=summer|remy&mode=before|after&v=1.3 ; seven phases side view, red line = floor, label = lowest skinned vertex per frame. -->
+<!-- Gait filmstrip (2026-11-07): copy to apps/console/, serve with vite, open /gait_probe.html?body=summer|remy&mode=before|after&v=1.3[&ik=1] (ik=1 = runtime foot lock, footLock.ts) ; seven phases side view, red line = floor, label = lowest skinned vertex per frame. -->
 <script type="module">
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -7,8 +7,10 @@ import { clone as skClone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { contactPoints, soleClearance, clipMinClearance, groundingOffset, rootMotionDelta } from "/src/features/world/grounding.ts";
 import { gaitTargets, cycleRateFor } from "/src/features/world/gait.ts";
 import { verticalExcess } from "/src/features/world/locomotion.ts";
+import { FootLock } from "/src/features/world/footLock.ts";
 import { BODY_SUMMER, BODY_REMY } from "/src/features/world/bodies.ts";
 const q = new URLSearchParams(location.search);
+const IK = q.get("ik") === "1";
 const body = q.get("body") === "remy" ? BODY_REMY : BODY_SUMMER, mode = q.get("mode") ?? "after", v = Number(q.get("v") ?? 1.3), N = 7;
 function strip(ab) { const dv = new DataView(ab); const jl = dv.getUint32(12, true); const json = JSON.parse(new TextDecoder().decode(new Uint8Array(ab, 20, jl)));
   delete json.images; delete json.textures; delete json.samplers; for (const k of ["extensionsUsed", "extensionsRequired"]) if (json[k]) json[k] = json[k].filter((e) => !/texture|basisu|webp/i.test(e));
@@ -40,12 +42,16 @@ for (let k = 0; k < N; k++) {
   walk.setEffectiveWeight(moving * (1 - rm)); run.setEffectiveWeight(moving * rm); idle.setEffectiveWeight(1 - moving);
   walk.timeScale = rate * SPEC.walkDuration; run.timeScale = rate * SPEC.runDuration;
   const T = 2 + (k / N) * period; const d = new THREE.Vector3(), hw = new THREE.Vector3();
-  for (let t = 0; t < T; t += dt) { run.time = ((((walk.time / SPEC.walkDuration + body.run.phaseOffset) % 1) + 1) % 1) * SPEC.runDuration; mixer.update(dt); }
-  if (mode === "after") rootMotionDelta(hips.position, hipsRest, parent.scale, pq, d); else { d.copy(hips.position).sub(hipsRest).applyQuaternion(pq); d.y = 0; }
-  parent.position.copy(parentRest).sub(d);
-  grp.position.set(0, 0, k * spacing); grp.updateMatrixWorld(true);
-  if (mode === "after") { grp.position.y = -groundingOffset(soleClearance(pts, scene), runMin, moving * rm); }
-  else { hips.getWorldPosition(hw); const dy = grp.worldToLocal(hw).y - restHipsY; grp.position.y = -verticalExcess(dy, 0.09) - body.run.footLift * moving * rm; }
+  const lock = IK ? new FootLock(scene, pts) : null; const zEnd = k * spacing, z0 = zEnd - v * T;
+  const ground = () => { grp.updateMatrixWorld(true);
+    if (mode === "after") { grp.position.y = -groundingOffset(soleClearance(pts, scene), runMin, moving * rm); }
+    else { hips.getWorldPosition(hw); const dy = grp.worldToLocal(hw).y - restHipsY; grp.position.y = -verticalExcess(dy, 0.09) - body.run.footLift * moving * rm; } };
+  for (let t = 0; t < T; t += dt) { run.time = ((((walk.time / SPEC.walkDuration + body.run.phaseOffset) % 1) + 1) % 1) * SPEC.runDuration; mixer.update(dt);
+    if (lock) { // the full per-frame stack, so the lock sees the body travel
+      if (mode === "after") rootMotionDelta(hips.position, hipsRest, parent.scale, pq, d); else { d.copy(hips.position).sub(hipsRest).applyQuaternion(pq); d.y = 0; }
+      parent.position.copy(parentRest).sub(d); grp.position.set(0, 0, z0 + v * t); ground(); lock.update(grp, scene, v, dt, -grp.position.y); grp.updateMatrixWorld(true); } }
+  if (!lock) { if (mode === "after") rootMotionDelta(hips.position, hipsRest, parent.scale, pq, d); else { d.copy(hips.position).sub(hipsRest).applyQuaternion(pq); d.y = 0; }
+    parent.position.copy(parentRest).sub(d); grp.position.set(0, 0, k * spacing); ground(); }
   sc.add(grp); grp.updateMatrixWorld(true);
   const lo = new THREE.Vector3(); let min = 1e9; scene.traverse((o) => { if (o.isSkinnedMesh) { const p = o.geometry.attributes.position; for (let i = 0; i < p.count; i += 2) { o.getVertexPosition(i, lo); o.localToWorld(lo); if (lo.y < min) min = lo.y; } } });
   info.push(min);
@@ -62,6 +68,6 @@ view(0, 520, -0.12, 1.4);
   const cz = 1.5 * spacing; cam.position.set(6, half - 0.05, cz); cam.lookAt(0, half - 0.05, cz); cam.updateProjectionMatrix();
   renderer.setViewport(0, 0, 1400, h); renderer.setScissor(0, 0, 1400, h); renderer.render(sc, cam); }
 const lbl = document.createElement("div"); lbl.style.cssText = "position:absolute;top:6px;left:8px;font:16px monospace;background:#fffc;padding:3px 6px";
-lbl.textContent = `${body.id} ${mode.toUpperCase()} v=${v} m/s  lowest vertex per frame (cm): ` + info.map((m) => (m * 100).toFixed(1)).join("  "); document.body.appendChild(lbl);
+lbl.textContent = `${body.id} ${mode.toUpperCase()}${IK ? " +FOOTLOCK" : ""} v=${v} m/s  lowest vertex per frame (cm): ` + info.map((m) => (m * 100).toFixed(1)).join("  "); document.body.appendChild(lbl);
 window.__done = true;
 </script></body></html>

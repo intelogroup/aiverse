@@ -122,3 +122,37 @@ stand (feet constant to 1 cm, thigh within ~5 deg, seam 0.2-0.5 deg, pelvis yaw 
   them) get the same clip swap. Software GL cannot show this in the console (one animation frame per screenshot); the filmstrips run the same
   CastFigure logic headlessly.
 
+
+## Runtime foot lock (2026-11-07, `footLock.ts`, branch `anim/footlock-ik`; `?footlock=0` / `window.__footlock(false)` switches it off)
+Why: after grounding the planted sole still skated (Summer walk 0.2 m/s, run 0.37; Remy walk 0.7, run ~1). Recipe = Kovar-Schreiner-Gleicher 2002
++ ozz-animation foot IK, adapted to a mixer-driven rig (CCDIKSolver rejected: no pole vector, MMD-oriented, demo has no AnimationMixer).
+Per leg, each frame, after the mixer, root-motion cancel and grounding (only on the walker's gait path; sit/tester/turn clips never reach it):
+1. **Landmarks**: heel (rearmost low sole vertex, read from the bind data), ball and toe tip (contact joints), plus the toe-tip vertex.
+   One is **pinned** at its world XZ while it is within 1 cm of the floor (after the grounding drop) and not moving forward past the body
+   (lift-off, > 0.5 x body travel); it lets go above 3 cm. The foot is translated by the mean offset of its pinned landmarks.
+   Pinning the ankle was tried first and was worse at heel strike / toe-off (the sole pivots about a fixed ankle): 0.14 vs 0.06 m/s walking.
+2. **Two-bone IK** (law of cosines) with the knee on the clip's own side (pole = the original knee direction), the foot keeps its world
+   orientation, blend in 0.04 s / out 0.1 s with the cubic ease alpha(t) = 2t^3 - 3t^2 + 1.
+3. **Pelvis dip**: the baked legs run at 0.98-0.999 of full extension through the whole stance (Summer's legs on Body Block's clips), so a
+   foot held in place needs slack: the pelvis dips (smoothed, <= 6 cm, 1-4 cm typical) until each locked foot is inside 98 % reach, and every
+   leg is re-aimed at its world target so the dip bends knees instead of sinking feet. A lock that needs more lets go.
+4. **Swing clearance**: an unpinned foot keeps its lowest landmark >= 1.5 cm (the baked toes graze the floor mid-swing; Remy's Walk at 1.41x
+   scraped it at 5 m/s).
+Cost: 0.017 ms/frame Summer, 0.025 ms Remy (node, one figure; the heel search runs once, lazily, on the first gait frame).
+
+Measured (`harness/gait_full.mjs`, planted-sole skate of skinned vertices < 1 cm, mean m/s; A = grounding only (main), C = + foot lock):
+| speed | Summer A -> C | Remy A -> C |
+|---|---|---|
+| walk 0.3 | 0.057 -> 0.012 | 0.128 -> 0.018 |
+| walk 0.7 | 0.108 -> 0.028 | 0.306 -> 0.062 |
+| walk 1.3 (Remy: blend 0.17) | 0.205 -> 0.058 | 0.713 -> 0.088 |
+| blend 1.9 | 0.785 -> 0.202 (contact 96 -> 80 %, floats to 4.7 cm) | 0.533 -> 0.095 |
+| run 2.7 | 0.368 -> 0.158 | 0.366 -> 0.182 |
+| backpedal 1.3 | 0.204 -> 0.054 | 0.553 -> 0.154 |
+| circle r 1.5 | 0.233 -> 0.066 | 0.745 -> 0.099 |
+Lowest vertex stays within -4..+7 mm (sole never sinks). `footprint_trace.png` (world Z of each foot's floor vertices: flat steps = planted)
+shows Remy's four sliding ramps per 3 s gone. Filmstrips (`gait_probe.html?...&ik=1`) show no knee flip or stretched leg.
+Not fixed: the Walk -> Run blend (1.6-2.4 m/s), where the clip's stance feet disagree with the travel by up to 22 cm (the lock then asks for
+more than the pelvis can give, lets go, and the foot floats up to 4.7 cm for 4 % of the cycle; capping the correction at 12 cm was worse:
+17 % airborne); Run's left/right stance asymmetry (still 0.16-0.18 m/s). Both live in the clips: the bake-time fix (equalise the Run's two
+stances, re-measure `bodies.ts`) is the next step if they matter. Real-console motion cannot be seen under software GL (one frame per screenshot).
