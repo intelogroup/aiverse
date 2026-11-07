@@ -20,6 +20,7 @@ import { CastFigure } from "./CastFigure";
 import { CityWalker } from "./CityWalker";
 import { BODY_CAST, BODY_SUMMER, bodyForMember, cruiseCapForBody, excludeBody } from "./bodies";
 import { CLIP_CATALOG, ClipTestState } from "./clips";
+import { WalkClipOverride, type WalkFrameInfo } from "./walkOverride";
 import {
   AGORA_BENCH_ANCHORS,
   EmbodyController,
@@ -1040,6 +1041,80 @@ function CrowdCast({
 }
 
 /**
+ * Walk-mode clip HUD (City 3, shown while walking, ride and follow
+ * alike): Jim's test buttons for the clips speed alone cannot reach on
+ * the walk bot — the Run loop (the bot's walk pace never crosses the
+ * run threshold) and the two door one-shots the door work performs
+ * with. The buttons drive a WalkClipOverride (walkOverride.ts); the
+ * bot's CastFigure consumes it as its clip tester, the same
+ * clip-firing path as the Embody panel's tester below.
+ */
+function WalkHudPanel({
+  override,
+  frameRef,
+}: {
+  /** The shared override state the buttons drive (walkOverride.ts). */
+  override: WalkClipOverride;
+  /** The walker's latest frame (state + speed), written per frame by CityWalker — read on the 400 ms pulse. */
+  frameRef: RefObject<WalkFrameInfo | null>;
+}) {
+  const [, setPulse] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setPulse((p) => p + 1), 400);
+    return () => clearInterval(id);
+  }, []);
+  const bump = () => setPulse((p) => p + 1);
+  const fr = frameRef.current;
+  return (
+    <div className="w-embody-panel w-walk-panel">
+      <div className="w-embody-title">Walk clips — test</div>
+      <div className="w-embody-row" role="group" aria-label="Walk clip tests">
+        <button
+          type="button"
+          className={override.runHeld ? "active" : ""}
+          onClick={() => {
+            override.toggleRun();
+            bump();
+          }}
+        >
+          Run
+        </button>
+        <button
+          type="button"
+          className={override.doorClip === "OpenDoorInwards" ? "active" : ""}
+          onClick={() => {
+            override.fireDoor("OpenDoorInwards");
+            bump();
+          }}
+        >
+          Open door in
+        </button>
+        <button
+          type="button"
+          className={override.doorClip === "OpenDoorOutwards" ? "active" : ""}
+          onClick={() => {
+            override.fireDoor("OpenDoorOutwards");
+            bump();
+          }}
+        >
+          Open door out
+        </button>
+      </div>
+      <div className="w-embody-status">
+        {fr
+          ? `anim ${override.displayClip(fr.state)} · ${fr.speed.toFixed(2)} m/s`
+          : "anim — · no frame yet"}
+        {override.doorPlaying
+          ? " · door one-shot — bot standing"
+          : override.runHeld
+            ? " · Run held"
+            : ""}
+      </div>
+    </div>
+  );
+}
+
+/**
  * Embody v0 spike panel (?embody=1, Agora only): hand-drives the first
  * cast member through the skill menu so the body layer can be watched
  * without the gateway. The same controller sits on window.__embody.
@@ -1347,6 +1422,12 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   // panel fires clips into it, the focus figure blends toward them.
   const clipTesterRef = useRef<ClipTestState | null>(null);
   if (clipTesterRef.current === null) clipTesterRef.current = new ClipTestState();
+  // Walk-mode HUD (City 3): one shared override state — the panel's
+  // Run/door buttons drive it, the walk bot's CastFigure consumes it as
+  // its clip tester. Plus the walker's latest frame for the status line.
+  const walkOverrideRef = useRef<WalkClipOverride | null>(null);
+  if (walkOverrideRef.current === null) walkOverrideRef.current = new WalkClipOverride();
+  const walkFrameRef = useRef<WalkFrameInfo | null>(null);
   const overridesRef = useRef(new Map<number, FigureOverride>());
   // Latest crowd frames, shared between CrowdCast (writer), the camera
   // rig and CastFigure (readers), and the panel's "Own Amara" harness.
@@ -1463,6 +1544,8 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
               onExit={() => setCamMode("wide")}
               getMeshes={getColliderMeshes}
               walk={walkColliders}
+              override={walkOverrideRef.current}
+              frameRef={walkFrameRef}
             />
           ) : null}
           <CrowdCast
@@ -1541,6 +1624,9 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
         <div className="w-walk-hint" aria-hidden="true">
           click to look · W A S D move · Shift run · V camera · Esc leave
         </div>
+      ) : null}
+      {walking ? (
+        <WalkHudPanel override={walkOverrideRef.current} frameRef={walkFrameRef} />
       ) : null}
       {place === "city3" && !walking ? (
         <div className="w-glb-toggle w-glb-poi" role="group" aria-label="Places in City 3">
