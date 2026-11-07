@@ -1,15 +1,14 @@
 import { useFrame, useThree } from "@react-three/fiber";
-import { Suspense, useEffect, useMemo, useRef } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import * as THREE from "three";
 import { CastFigure } from "./CastFigure";
 import { BODY_SUMMER } from "./bodies";
-import { createBvhWorld } from "./bvhWorld";
-import { createCapsuleWorld } from "./capsuleWorld";
 import type { WalkColliders } from "./walkColliders";
+import { newWalkerFrame, useWalkWorld, writeWalkerFrame } from "./walkerBody";
 import { COLLIDE_FLOOR, resolveCamera } from "./cameraCollision";
 import { DAMP_FOV, DAMP_POS_FOLLOW, FOV_RIDE, FOV_WIDE, EYE_FORWARD, FOLLOW_BACK, FOLLOW_LOOK_UP, FOLLOW_UP, HEAD_HEIGHT, RIDE_LOOK_AHEAD, damp } from "./cameraRig";
 import type { AgentFrame } from "./locomotion";
-import { clipFor, findSpawn, makeWalker, step, type World, type WalkInput } from "./walker";
+import { findSpawn, makeWalker, step, type WalkInput } from "./walker";
 import { WalkClipOverride, type WalkFrameInfo } from "./walkOverride";
 import type { TeaDoorController } from "./teaDoor";
 
@@ -78,25 +77,13 @@ export function CityWalker({
   const gl = useThree((s) => s.gl);
   const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3; update?: () => void } | null;
   // Capsule shapecast over the collision GLBs; the old raycast world over the visual meshes only if collision failed to load.
-  const world = useMemo<World & { kind: () => "capsule" | "raycast" | "pending" }>(() => {
-    const ray = createBvhWorld(getMeshes);
-    if (!walk) return Object.assign(ray, { kind: () => "raycast" as const });
-    const cap = createCapsuleWorld(walk.list);
-    const pick = (): World => (walk.status === "failed" ? ray : cap);
-    return {
-      groundY: (x, z, fromY) => pick().groundY(x, z, fromY),
-      blocked: (a, b, r) => pick().blocked(a, b, r),
-      kind: () => (walk.status === "ready" ? "capsule" : walk.status === "failed" ? "raycast" : "pending"),
-    };
-  }, [getMeshes, walk]);
+  const world = useWalkWorld(getMeshes, walk);
 
   const state = useRef<ReturnType<typeof makeWalker> | null>(null);
   const pitch = useRef(0);
   const keys = useRef<Held>(noKeys());
   const lookAcc = useRef(0);
-  const frames = useRef<AgentFrame[]>([
-    { position: [0, 0], velocity: [0, 0], speed: 0, heading: 0, state: "idle", targetsReached: 0 },
-  ]);
+  const frames = useRef<AgentFrame[]>([newWalkerFrame()]);
   const figure = useRef<THREE.Group>(null);
   const rig = useRef<{ mode: WalkMode; y: number; pos: THREE.Vector3; look: THREE.Vector3; shown: number } | null>(null);
   const modeRef = useRef(mode);
@@ -252,13 +239,9 @@ export function CityWalker({
     cbs.current.onPosition?.(s.x, s.z);
 
     // Frame for CastFigure (clip from speed) and the figure group's height.
-    const f = frames.current[0];
-    f.position[0] = s.x; f.position[1] = s.z;
-    f.velocity[0] = s.vx; f.velocity[1] = s.vz;
     // Figure faces the BODY heading (turns toward travel; backpedal reverses Walk); cameras below use the VIEW heading.
-    f.speed = s.speed; f.heading = s.body; f.state = clipFor(s.speed);
+    const f = writeWalkerFrame(frames.current[0], s);
     if (frameRef) frameRef.current = { state: f.state, speed: f.speed };
-    (f.gait ??= { reverse: false }).reverse = s.backward;
     if (figure.current) figure.current.position.y = s.y;
 
     // Streaming/theme follow the bot, not the (parked) orbit camera.

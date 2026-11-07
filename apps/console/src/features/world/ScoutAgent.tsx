@@ -42,12 +42,10 @@
 // time.
 
 import { useFrame, useThree } from "@react-three/fiber";
-import { Suspense, useEffect, useMemo, useRef } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import * as THREE from "three";
 import { CastFigure } from "./CastFigure";
 import { BODY_REMY } from "./bodies";
-import { createBvhWorld } from "./bvhWorld";
-import { createCapsuleWorld } from "./capsuleWorld";
 import { EYE_FORWARD, HEAD_HEIGHT, damp } from "./cameraRig";
 import type { City3Room } from "./city3";
 import { ClipTestState } from "./clips";
@@ -66,7 +64,8 @@ import {
   type Sittable,
 } from "./scout";
 import type { WalkColliders } from "./walkColliders";
-import { clipFor, findSpawn, makeWalker, type WalkerState, type World } from "./walker";
+import { newWalkerFrame, useWalkWorld, writeWalkerFrame } from "./walkerBody";
+import { clipFor, findSpawn, makeWalker, type WalkerState } from "./walker";
 
 export interface ScoutSnapshot {
   t: number;
@@ -117,26 +116,14 @@ export function ScoutAgent({
   const invalidate = useThree((s) => s.invalidate);
   const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3; update?: () => void } | null;
 
-  const world = useMemo<World & { kind: () => "capsule" | "raycast" | "pending" }>(() => {
-    const ray = createBvhWorld(getMeshes);
-    if (!walk) return Object.assign(ray, { kind: () => "raycast" as const });
-    const cap = createCapsuleWorld(walk.list);
-    const pick = (): World => (walk.status === "failed" ? ray : cap);
-    return {
-      groundY: (x, z, fromY) => pick().groundY(x, z, fromY),
-      blocked: (a, b, r) => pick().blocked(a, b, r),
-      kind: () => (walk.status === "ready" ? "capsule" : walk.status === "failed" ? "raycast" : "pending"),
-    };
-  }, [getMeshes, walk]);
+  const world = useWalkWorld(getMeshes, walk);
 
   const data = useRef<{ places: ScoutPlace[]; sittables: Sittable[]; districts: ScoutDistrict[] } | null>(null);
   const clips = useRef<ClipTestState | null>(null);
   if (clips.current === null) clips.current = new ClipTestState();
   const exec = useRef<ScoutExecutor | null>(null);
   const state = useRef<WalkerState | null>(null);
-  const frames = useRef<AgentFrame[]>([
-    { position: [0, 0], velocity: [0, 0], speed: 0, heading: 0, state: "idle", targetsReached: 0 },
-  ]);
+  const frames = useRef<AgentFrame[]>([newWalkerFrame()]);
   const figure = useRef<THREE.Group>(null);
   const headPose = useRef<[number, number, number] | null>(null);
   const looksUsed = useRef(0);
@@ -338,17 +325,9 @@ export function ScoutAgent({
 
     // Figure transform: the walker state, or the executor's seat override.
     const ov = ex.frameOverride();
-    const f = frames.current[0];
-    const fx = ov ? ov.x : s.x;
-    const fz = ov ? ov.z : s.z;
-    f.position[0] = fx;
-    f.position[1] = fz;
-    f.velocity[0] = s.vx;
-    f.velocity[1] = s.vz;
-    f.speed = ov ? 0 : s.speed;
-    f.heading = ov ? ov.heading : s.body;
-    f.state = ov ? "idle" : clipFor(s.speed);
-    (f.gait ??= { reverse: false }).reverse = s.backward;
+    const f = writeWalkerFrame(frames.current[0], s, ov);
+    const fx = f.position[0];
+    const fz = f.position[1];
     if (figure.current) figure.current.position.y = ov ? ov.y + ov.drop : s.y;
 
     // Streaming + theme follow Scout; the follow camera keeps interiors

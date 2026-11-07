@@ -3,8 +3,6 @@ import { Suspense, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { CastFigure } from "./CastFigure";
 import { BODY_MAGE, BODY_REMY } from "./bodies";
-import { createBvhWorld } from "./bvhWorld";
-import { createCapsuleWorld } from "./capsuleWorld";
 import { ClipTestState } from "./clips";
 import {
   KEEPER_HOME_HEADING,
@@ -17,14 +15,13 @@ import {
 } from "./keeper";
 import type { AgentFrame } from "./locomotion";
 import type { WalkColliders } from "./walkColliders";
+import { newWalkerFrame, useWalkWorld, writeWalkerFrame } from "./walkerBody";
 import {
-  clipFor,
   makeWalker,
   moveToIntent,
   step,
   type WalkInput,
   type WalkerState,
-  type World,
 } from "./walker";
 
 // BazaarLife — the first residents of City 3 (which otherwise places no
@@ -60,32 +57,18 @@ export function BazaarLife({
 }) {
   // Same world stack as CityWalker: capsule shapecast over the collision
   // GLBs, raycast over the visual meshes only if collision failed.
-  const world = useMemo<World & { kind: () => "capsule" | "raycast" | "pending" }>(() => {
-    const ray = createBvhWorld(getMeshes);
-    if (!walk) return Object.assign(ray, { kind: () => "raycast" as const });
-    const cap = createCapsuleWorld(walk.list);
-    const pick = (): World => (walk.status === "failed" ? ray : cap);
-    return {
-      groundY: (x, z, fromY) => pick().groundY(x, z, fromY),
-      blocked: (a, b, r) => pick().blocked(a, b, r),
-      kind: () => (walk.status === "ready" ? "capsule" : walk.status === "failed" ? "raycast" : "pending"),
-    };
-  }, [getMeshes, walk]);
+  const world = useWalkWorld(getMeshes, walk);
 
   const keeperClips = useMemo(() => new ClipTestState(), []);
   const keeper = useRef<KeeperState | null>(null);
   if (keeper.current === null) keeper.current = createKeeper(KEEPER_HOME_HEADING);
-  const keeperFrames = useRef<AgentFrame[]>([
-    { position: [KEEPER_POS[0], KEEPER_POS[1]], velocity: [0, 0], speed: 0, heading: KEEPER_HOME_HEADING, state: "idle", targetsReached: 0 },
-  ]);
+  const keeperFrames = useRef<AgentFrame[]>([newWalkerFrame(KEEPER_POS[0], KEEPER_POS[1], KEEPER_HOME_HEADING)]);
   const keeperGroup = useRef<THREE.Group>(null);
   const keeperY = useRef<number | null>(null);
 
   const patrol = useRef<WalkerState | null>(null);
   const patrolDriver = useRef({ stop: 0, dwell: PATROL_STOPS[0].dwell });
-  const patrolFrames = useRef<AgentFrame[]>([
-    { position: [PATROL_STOPS[0].pos[0], PATROL_STOPS[0].pos[1]], velocity: [0, 0], speed: 0, heading: PATROL_STOPS[0].face, state: "idle", targetsReached: 0 },
-  ]);
+  const patrolFrames = useRef<AgentFrame[]>([newWalkerFrame(PATROL_STOPS[0].pos[0], PATROL_STOPS[0].pos[1], PATROL_STOPS[0].face)]);
   const patrolGroup = useRef<THREE.Group>(null);
 
   useFrame((_, delta) => {
@@ -117,15 +100,7 @@ export function BazaarLife({
           step(s, input, dt, world, PATROL_CONFIG);
           if (arrived) drv.dwell = stopDef.dwell;
         }
-        const f = patrolFrames.current[0];
-        f.position[0] = s.x;
-        f.position[1] = s.z;
-        f.velocity[0] = s.vx;
-        f.velocity[1] = s.vz;
-        f.speed = s.speed;
-        f.heading = s.body;
-        f.state = clipFor(s.speed);
-        (f.gait ??= { reverse: false }).reverse = s.backward;
+        writeWalkerFrame(patrolFrames.current[0], s);
         if (patrolGroup.current) patrolGroup.current.position.y = s.y;
       }
       if (keeperY.current === null) {
