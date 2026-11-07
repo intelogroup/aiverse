@@ -35,6 +35,9 @@ const isDoorClip = (name: string): name is WalkDoorClip =>
 export interface WalkFrameInfo {
   state: LocomotionState;
   speed: number;
+  /** World XZ of the bot (the sound layer's listener position). */
+  x?: number;
+  z?: number;
 }
 
 export class WalkClipOverride extends ClipTestState {

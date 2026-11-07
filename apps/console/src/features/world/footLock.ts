@@ -26,6 +26,7 @@
 // while the gait drives the figure at walking pace: standing, turning and the sit/tester clips never reach `update`.
 import * as THREE from "three";
 import type { ContactPoint } from "./grounding";
+import { emitPlant } from "./soundPlants";
 
 /** Bone names: Mixamo (`mixamorig:LeftUpLeg`, `mixamorig_LeftLeg`, ...) and KayKit (`upperleg.l`, `lowerleg.l`, `foot.l`). */
 export const THIGH_BONE = /(?:Left|Right)UpLeg$|^upperleg\.?[lr]$/;
@@ -415,6 +416,7 @@ export class FootLock {
       this.dEff.identity().slerp(this.holdD, easeBlend(leg.hold));
       leg.footQ.copy(this.dEff).multiply(this.clipQ);
       let changed = false;
+      let planted = false;
       let lowest = Infinity;
       for (const m of leg.landmarks) {
         m.pos.copy(m.local).applyMatrix4(m.bone.matrixWorld);
@@ -443,6 +445,14 @@ export class FootLock {
           if (ready && clearance < PLANT_CLEARANCE) {
             m.pinned = true;
             changed = true;
+            // A fresh pin IS a foot plant (heel strike / forefoot
+            // down — including a turn step re-planting under the
+            // body): report it once per leg per update to the sound
+            // layer's sink (silent when nobody registered one).
+            if (!planted) {
+              planted = true;
+              emitPlant(m.pos.x, m.pos.z);
+            }
           }
         }
       }

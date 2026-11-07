@@ -241,7 +241,7 @@ export function CityWalker({
     // Frame for CastFigure (clip from speed) and the figure group's height.
     // Figure faces the BODY heading (turns toward travel; backpedal reverses Walk); cameras below use the VIEW heading.
     const f = writeWalkerFrame(frames.current[0], s);
-    if (frameRef) frameRef.current = { state: f.state, speed: f.speed };
+    if (frameRef) frameRef.current = { state: f.state, speed: f.speed, x: s.x, z: s.z };
     if (figure.current) figure.current.position.y = s.y;
 
     // Streaming/theme follow the bot, not the (parked) orbit camera.

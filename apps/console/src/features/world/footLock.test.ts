@@ -5,6 +5,7 @@ import {
   FOOT_BONE,
   FootLock,
   MAX_DIP,
+  MIN_LOCK_SPEED,
   STEP_LIFT,
   STEP_YAW,
   SWING_CLEARANCE,
@@ -15,6 +16,7 @@ import {
   solveTwoBone,
 } from "./footLock";
 import type { ContactPoint } from "./grounding";
+import { setPlantSink } from "./soundPlants";
 
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 
@@ -327,5 +329,53 @@ describe("FootLock", () => {
     locked.lock.reset();
     expect(locked.lock.legs[0].landmarks[0].pinned).toBe(false);
     expect(locked.lock.legs[0].w).toBe(0);
+  });
+});
+
+describe("foot plants (sound v1 hook)", () => {
+  const dt = 1 / 60;
+  // The pin cadence proven above: body at 1.3 m/s, clip ankle sweeping
+  // back at 1.0 m/s, 5 mm over the ground.
+  function walk(lock: FootLock, r: ReturnType<typeof rig>, frames: number, speed = 1.3): void {
+    for (let i = 0; i < frames; i++) {
+      r.group.position.z = 1.3 * dt * i;
+      poseClip(r, V(0, 0.005, 0.2 - 1.0 * dt * i));
+      lock.update(r.group, r.scene, speed, dt);
+    }
+  }
+
+  it("emits a plant at the pin, at the foot's world spot", () => {
+    const plants: Array<{ x: number; z: number }> = [];
+    setPlantSink((x, z) => plants.push({ x, z }));
+    try {
+      const r = rig();
+      walk(new FootLock(r.scene, r.points), r, 24);
+    } finally {
+      setPlantSink(null);
+    }
+    expect(plants.length).toBeGreaterThanOrEqual(1);
+    for (const p of plants) {
+      expect(Number.isFinite(p.x)).toBe(true);
+      expect(Number.isFinite(p.z)).toBe(true);
+      expect(Math.abs(p.x)).toBeLessThan(0.05); // the rig's leg is on x=0
+      expect(p.z).toBeGreaterThan(-0.2);
+      expect(p.z).toBeLessThan(0.8);
+    }
+  });
+
+  it("a standing foot engages exactly once (main's hold pin), and nothing fires once the sink is cleared", () => {
+    // On current main a standing foot pins too (the turn-stepping
+    // hold): the engagement is a single plant at the foot's spot,
+    // not a repeating one while it stays held.
+    const plants: Array<{ x: number; z: number }> = [];
+    setPlantSink((x, z) => plants.push({ x, z }));
+    const slow = rig();
+    walk(new FootLock(slow.scene, slow.points), slow, 24, MIN_LOCK_SPEED - 0.05);
+    expect(plants).toHaveLength(1);
+    expect(plants[0].z).toBeCloseTo(0.205, 1);
+    setPlantSink(null);
+    const r = rig();
+    walk(new FootLock(r.scene, r.points), r, 24);
+    expect(plants).toHaveLength(1);
   });
 });

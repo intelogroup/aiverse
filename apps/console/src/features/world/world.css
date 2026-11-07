@@ -781,6 +781,17 @@
   left: auto;
   right: 14px;
 }
+/* Sound v1: the central-PA banner inside the walk HUD panel. */
+.world-root .w-pa-banner {
+  background: rgba(255, 190, 84, 0.16);
+  border: 1px solid rgba(255, 190, 84, 0.55);
+  border-radius: 9px;
+  color: var(--w-text);
+  font-size: 12.5px;
+  line-height: 1.35;
+  padding: 7px 10px;
+  margin-bottom: 8px;
+}
 @media (max-width: 720px) {
   /* Narrow screens: keep the panel clear of the toggle by sitting above it. */
   .world-root .w-walk-panel {

@@ -23,6 +23,7 @@ import { ScoutAgent } from "./ScoutAgent";
 import { BODY_CAST, BODY_SUMMER, bodyForMember, cruiseCapForBody, excludeBody } from "./bodies";
 import { CLIP_CATALOG, ClipTestState } from "./clips";
 import { WalkClipOverride, type WalkFrameInfo } from "./walkOverride";
+import { SoundDirector } from "./soundDirector";
 import {
   AGORA_BENCH_ANCHORS,
   EmbodyController,
@@ -1057,6 +1058,7 @@ function WalkHudPanel({
   override,
   frameRef,
   door,
+  sound,
 }: {
   /** The shared override state the buttons drive (walkOverride.ts). */
   override: WalkClipOverride;
@@ -1069,6 +1071,8 @@ function WalkHudPanel({
    * status (aligning / opening / too far …) joins the status line.
    */
   door?: TeaDoorController;
+  /** Sound v1: the PA banner + mute state come from the director. */
+  sound?: SoundDirector;
 }) {
   const [, setPulse] = useState(0);
   useEffect(() => {
@@ -1078,8 +1082,14 @@ function WalkHudPanel({
   const bump = () => setPulse((p) => p + 1);
   const fr = frameRef.current;
   const doorStatus = door?.status() ?? null;
+  const banner = sound?.bannerText() ?? null;
   return (
     <div className="w-embody-panel w-walk-panel">
+      {banner ? (
+        <div className="w-pa-banner" role="status">
+          📣 {banner}
+        </div>
+      ) : null}
       <div className="w-embody-title">Walk clips — test</div>
       <div className="w-embody-row" role="group" aria-label="Walk clip tests">
         <button
@@ -1115,6 +1125,20 @@ function WalkHudPanel({
           Open door out
         </button>
       </div>
+      {sound ? (
+        <div className="w-embody-row" role="group" aria-label="Sound">
+          <button
+            type="button"
+            className={sound.muted ? "" : "active"}
+            onClick={() => {
+              sound.setMuted(!sound.muted);
+              bump();
+            }}
+          >
+            {sound.muted ? "Sound: off" : "Sound: on"}
+          </button>
+        </div>
+      ) : null}
       <div className="w-embody-status">
         {fr
           ? `anim ${override.displayClip(fr.state)} · ${fr.speed.toFixed(2)} m/s`
@@ -1514,6 +1538,12 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
       },
     });
   }
+  // Sound v1 (soundDirector.ts): one director per mount. It arms on
+  // the first gesture inside walk mode (autoplay policy), is driven
+  // at ~10 Hz from the walker's frame + the tea door machine, and
+  // feeds the walk HUD its PA banner + mute state.
+  const soundRef = useRef<SoundDirector | null>(null);
+  if (soundRef.current === null) soundRef.current = new SoundDirector();
   const walking = place === "city3" && camMode !== "wide";
   // The walk bot's latest position, published by CityWalker per stepped
   // frame and read by BazaarLife (the stall keeper's approach trigger).
@@ -1529,6 +1559,60 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   useEffect(() => {
     camModeRef.current = camMode;
   }, [camMode]);
+
+  // Sound v1 lifecycle: while walking, the first pointer/key gesture
+  // arms the director (AudioContext creation needs the gesture); a
+  // 100 ms driver feeds it the listener + door + room facts; entering
+  // walk mode starts a fresh session (the tea announcement re-arms).
+  useEffect(() => {
+    if (!walking) return;
+    const sound = soundRef.current;
+    if (!sound) return;
+    sound.resetSession();
+    const arm = () => sound.arm();
+    window.addEventListener("pointerdown", arm);
+    window.addEventListener("keydown", arm);
+    let last = performance.now();
+    const id = setInterval(() => {
+      const nowMs = performance.now();
+      const dt = (nowMs - last) / 1000;
+      last = nowMs;
+      const fr = walkFrameRef.current;
+      const door = teaDoorRef.current;
+      const tea = city3Rooms.find((r) => r.id === "tea");
+      sound.tick({
+        dt,
+        listener: fr && fr.x !== undefined && fr.z !== undefined ? { x: fr.x, z: fr.z } : null,
+        doorAngle: door?.angle ?? 0,
+        doorState: door?.state ?? "closed",
+        teaRect: tea?.rect ?? null,
+      });
+    }, 100);
+    // ?soundDebug=1: drive/inspect the sound layer from tests.
+    const debug = new URLSearchParams(window.location.search).has("soundDebug");
+    if (debug) {
+      const w = window as unknown as Record<string, unknown>;
+      w.__sound = {
+        snapshot: () => sound.snapshot(),
+        announce: (text: string, scope: string, clip?: string) =>
+          sound.announce(text, scope, clip ?? null),
+        setMuted: (m: boolean) => sound.setMuted(m),
+        arm: () => sound.arm(),
+      };
+    }
+    return () => {
+      window.removeEventListener("pointerdown", arm);
+      window.removeEventListener("keydown", arm);
+      clearInterval(id);
+      if (debug) delete (window as unknown as Record<string, unknown>).__sound;
+    };
+  }, [walking, city3Rooms]);
+  useEffect(() => {
+    return () => {
+      soundRef.current?.dispose();
+      soundRef.current = null;
+    };
+  }, []);
 
   // Elevated three-quarter spectator defaults, worked out from the play
   // areas: Agora from 25 m at ~37° elevation frames the whole 9.7 m deck
@@ -1687,7 +1771,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
         </div>
       ) : null}
       {walking ? (
-        <WalkHudPanel override={walkOverrideRef.current} frameRef={walkFrameRef} door={teaDoorRef.current} />
+        <WalkHudPanel override={walkOverrideRef.current} frameRef={walkFrameRef} door={teaDoorRef.current} sound={soundRef.current} />
       ) : null}
       {place === "city3" && !walking ? (
         <div className="w-glb-toggle w-glb-poi" role="group" aria-label="Places in City 3">
