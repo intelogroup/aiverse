@@ -117,6 +117,40 @@ const realSleep = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /**
+ * Prepare ONE line for the voice emitter without ever waiting on the engine: cached PCM (warmPhonon) -> live synth once the
+ * engine is loaded -> the pre-rendered clip at `clipUrl` (if any). Never throws; a line that cannot be made is "silent".
+ */
+export async function prepareLine(director: SoundDirector, text: string, voice: string, clipUrl: string | null): Promise<PreparedLine> {
+  const clip = async (reason: string): Promise<PreparedLine> => {
+    if (!clipUrl) return { shape: "silent", error: `${reason}; no clip` };
+    try {
+      const res = await fetch(clipUrl);
+      if (!res.ok) return { shape: "silent", error: `${reason}; clip HTTP ${res.status}` };
+      const buf = await director.decodeAudio(await res.arrayBuffer());
+      return buf ? { shape: "clip", buffer: buf } : { shape: "silent", error: `${reason}; clip undecodable` };
+    } catch (e2) {
+      return { shape: "silent", error: `${reason}; clip: ${e2 instanceof Error ? e2.message : String(e2)}` };
+    }
+  };
+  const hit = cachedLine(text, voice);
+  if (hit) return { shape: "live", pcm: hit.pcm, sampleRate: hit.sampleRate };
+  if (!phononReady()) return clip("engine still warming");
+  try {
+    const r = await synthLine(text, voice);
+    return { shape: "live", pcm: r.pcm, sampleRate: r.sampleRate };
+  } catch (e) {
+    return clip(e instanceof Error ? e.message : String(e));
+  }
+}
+
+/** Play a prepared line on the director's positional voice emitter; returns its seconds (0 = nothing played). */
+export function playLine(director: SoundDirector, line: PreparedLine, pos: { x: number; z: number }, speaker: string): number {
+  if (line.shape === "live") return director.playVoicePcm(line.pcm, line.sampleRate, pos, speaker);
+  if (line.shape === "clip") return director.playVoiceBuffer(line.buffer, pos, speaker);
+  return 0;
+}
+
+/**
  * The production speech path. It NEVER waits on the engine: a line synthesized ahead of time (warmPhonon) plays at once;
  * with the engine loaded, the line is synthesized live; otherwise (model still downloading, WASM failed, a line failed) the
  * pre-rendered clip of the same voice plays now. Waiting for the 64.5 MB model on the first greeting is exactly what left the
@@ -126,35 +160,9 @@ const realSleep = (ms: number) =>
 export function makeLiveSpeech(
   director: SoundDirector,
 ): Pick<PlazaDeps, "prepare" | "play"> {
-  const clip = async (msg: A2aMessage, reason: string): Promise<PreparedLine> => {
-    try {
-      const res = await fetch(`/assets/tts/lines/${msg.clip}.mp3`);
-      if (!res.ok) return { shape: "silent", error: `${reason}; clip HTTP ${res.status}` };
-      const buf = await director.decodeAudio(await res.arrayBuffer());
-      return buf ? { shape: "clip", buffer: buf } : { shape: "silent", error: `${reason}; clip undecodable` };
-    } catch (e2) {
-      return { shape: "silent", error: `${reason}; clip: ${e2 instanceof Error ? e2.message : String(e2)}` };
-    }
-  };
   return {
-    async prepare(msg: A2aMessage): Promise<PreparedLine> {
-      const hit = cachedLine(msg.text, msg.voiceId);
-      if (hit) return { shape: "live", pcm: hit.pcm, sampleRate: hit.sampleRate };
-      if (!phononReady()) return clip(msg, "engine still warming");
-      try {
-        const r = await synthLine(msg.text, msg.voiceId);
-        return { shape: "live", pcm: r.pcm, sampleRate: r.sampleRate };
-      } catch (e) {
-        return clip(msg, e instanceof Error ? e.message : String(e));
-      }
-    },
-    play(line, pos, speaker) {
-      if (line.shape === "live")
-        return director.playVoicePcm(line.pcm, line.sampleRate, pos, speaker);
-      if (line.shape === "clip")
-        return director.playVoiceBuffer(line.buffer, pos, speaker);
-      return 0;
-    },
+    prepare: (msg: A2aMessage) => prepareLine(director, msg.text, msg.voiceId, `/assets/tts/lines/${msg.clip}.mp3`),
+    play: (line, pos, speaker) => playLine(director, line, pos, speaker),
   };
 }
 

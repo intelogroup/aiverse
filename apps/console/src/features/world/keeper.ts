@@ -65,6 +65,8 @@ export function stepKeeper(
   dt: number,
   self: [number, number],
   movers: readonly [number, number][],
+  /** Trigger radii (m); the stall keeper's by default. Other greeters (the bartender) pass their own. */
+  radii: { enter: number; exit: number } = { enter: KEEPER_ENTER_RADIUS, exit: KEEPER_EXIT_RADIUS },
 ): KeeperEvents {
   let best: [number, number] | null = null;
   let bestD = Infinity;
@@ -78,10 +80,10 @@ export function stepKeeper(
 
   let entered = false;
   let exited = false;
-  if (!k.talking && best !== null && bestD <= KEEPER_ENTER_RADIUS) {
+  if (!k.talking && best !== null && bestD <= radii.enter) {
     k.talking = true;
     entered = true;
-  } else if (k.talking && (best === null || bestD > KEEPER_EXIT_RADIUS)) {
+  } else if (k.talking && (best === null || bestD > radii.exit)) {
     k.talking = false;
     exited = true;
   }

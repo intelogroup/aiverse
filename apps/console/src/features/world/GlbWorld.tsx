@@ -18,13 +18,15 @@ import {
 import { CITY_FOOTPRINTS, insideFootprint } from "./cityFootprints";
 import { CastFigure } from "./CastFigure";
 import { BazaarLife } from "./BazaarLife";
+import { TeaBartender } from "./TeaBartender";
+import { BARTENDER_LINES } from "./bartender";
 import { CityWalker } from "./CityWalker";
 import { ScoutAgent } from "./ScoutAgent";
 import { BODY_CAST, BODY_SUMMER, bodyForMember, cruiseCapForBody, excludeBody } from "./bodies";
 import { CLIP_CATALOG, ClipTestState } from "./clips";
 import { WalkClipOverride, type WalkFrameInfo } from "./walkOverride";
 import { SoundDirector } from "./soundDirector";
-import { benchPhonon, phononWarmth, warmPhonon } from "./phononTts";
+import { VOICE_BARTENDER, benchPhonon, phononWarmth, synthLine, warmPhonon } from "./phononTts";
 import { GREETING_SCRIPT, createPlazaGreeting, type PlazaGreeting } from "./plazaTts";
 import {
   AGORA_BENCH_ANCHORS,
@@ -1608,7 +1610,10 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   useEffect(() => {
     if (place !== "city3") return;
     const id = window.setTimeout(() => {
-      void warmPhonon(GREETING_SCRIPT.map((m) => ({ text: m.text, voice: m.voiceId }))).catch((e: unknown) => {
+      void warmPhonon([
+        ...GREETING_SCRIPT.map((m) => ({ text: m.text, voice: m.voiceId })),
+        ...BARTENDER_LINES.map((l) => ({ text: l.text, voice: VOICE_BARTENDER })),
+      ]).catch((e: unknown) => {
         console.warn("[tts] warm-up failed; the pre-rendered clips will speak", e);
       });
     }, 1500); // after the first frames, not competing with the world GLB download
@@ -1620,6 +1625,8 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   // Cleared when walk mode ends so a stale position can't hold a
   // conversation open forever.
   const botPosRef = useRef<{ x: number; z: number } | null>(null);
+  // Scout's latest position (agent mode), for the Tea House bartender.
+  const scoutPosRef = useRef<{ x: number; z: number } | null>(null);
   useEffect(() => {
     if (!walking) botPosRef.current = null;
   }, [walking]);
@@ -1695,6 +1702,11 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
         log: () => plazaRef.current?.log ?? [],
         status: () => plazaRef.current?.status ?? "none",
         warmth: () => phononWarmth(),
+        /** Synthesize one line (tools: render pre-recorded fallback clips with the same engine + voice). */
+        synth: async (text: string, voice: string) => {
+          const r = await synthLine(text, voice);
+          return { sampleRate: r.sampleRate, pcm: Array.from(r.pcm) };
+        },
         bench: () =>
           benchPhonon(GREETING_SCRIPT.map((m) => ({ text: m.text, voice: m.voiceId }))),
       };
@@ -1772,6 +1784,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
               <ClipCutaway rooms={city3Rooms} focus={heroFocus} />
               <InteriorStreamer rooms={city3Rooms} walk={walkColliders} />
               <BazaarLife getMeshes={getColliderMeshes} walk={walkColliders} botPosRef={botPosRef} keeperVoiceRef={mageVoiceRef} />
+              <TeaBartender visitors={[botPosRef, scoutPosRef]} walk={walkColliders} getDirector={() => soundRef.current} />
               <TeaDoorLeaf controller={teaDoorRef.current} />
               {!agentOn ? <TeaDoorTicker controller={teaDoorRef.current} /> : null}
             </>
@@ -1792,7 +1805,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
             />
           ) : null}
           {agentOn ? (
-            <ScoutAgent getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} door={teaDoorRef.current} />
+            <ScoutAgent getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} door={teaDoorRef.current} positionRef={scoutPosRef} />
           ) : null}
           <CrowdCast
             place={place}

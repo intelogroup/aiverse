@@ -111,12 +111,15 @@ export function ScoutAgent({
   walk,
   rooms,
   door,
+  positionRef,
 }: {
   getMeshes: () => THREE.Mesh[];
   walk?: WalkColliders;
   rooms: City3Room[];
   /** The Tea House door (teaDoor.ts): Scout walks through it with the full open-door performance, on Scout's clock. */
   door?: TeaDoorController;
+  /** Scout's latest position, written every sim step (the Tea House bartender greets Scout too). */
+  positionRef?: { current: { x: number; z: number } | null };
 }) {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   const gl = useThree((s) => s.gl);
@@ -327,6 +330,7 @@ export function ScoutAgent({
       while (dt > 0) {
         const stepDt = Math.min(dt, 1 / 30);
         ex.tick(stepDt, s, world);
+        if (positionRef) positionRef.current = { x: s.x, z: s.z };
         door?.tick(stepDt); // agent mode: the door runs on Scout's sim clock (GlbWorld's frame ticker is off)
         dt -= stepDt;
       }

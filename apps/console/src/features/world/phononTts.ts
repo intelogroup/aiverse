@@ -31,6 +31,8 @@ export const PHONON_MODEL_REVISION = "8c64b55ec301728e2d1695bfea87a08a267d0c2d";
 /** The two designed voices of the plaza greeting (catalog names). */
 export const VOICE_SUMMER = "Zoey";
 export const VOICE_MAGE = "Master Aldric";
+/** The Tea House bartender (catalog voice "Hugh": soft, close, sincere, middle-aged British). */
+export const VOICE_BARTENDER = "Hugh";
 
 /** Where the checkpoint is fetched from (see the header). */
 export const PHONON_MODEL_URL: string =
@@ -98,10 +100,11 @@ export function loadPhonon(): Promise<PhononEngine> {
         voices: {
           [VOICE_SUMMER]: `${TTS_ASSETS}/voices/zoey.safetensors`,
           [VOICE_MAGE]: `${TTS_ASSETS}/voices/aldric.safetensors`,
+          [VOICE_BARTENDER]: `${TTS_ASSETS}/voices/hugh.safetensors`,
         },
         defaultVoice: VOICE_SUMMER,
       },
-      voices: [VOICE_SUMMER, VOICE_MAGE],
+      voices: [VOICE_SUMMER, VOICE_MAGE, VOICE_BARTENDER],
     });
     engineReady = true;
     return engine;
