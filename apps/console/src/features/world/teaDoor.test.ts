@@ -22,6 +22,9 @@ import {
   TEA_OPEN_ANGLE,
   TEA_REQUEST_RANGE,
   TeaDoorController,
+  alignInput,
+  teaAutoClip,
+  TEA_AUTO_RANGE,
   teaDoorwayOccupied,
   teaExitPoint,
   teaLeafAngleAt,
@@ -29,6 +32,7 @@ import {
   type TeaDoorChannel,
 } from "./teaDoor";
 import type { WalkDoorClip } from "./walkOverride";
+import { angleTo } from "./walker";
 
 const DT = 1 / 60;
 const IN: WalkDoorClip = "OpenDoorInwards";
@@ -86,14 +90,14 @@ function makeRig(
     s,
     blockerLog,
     /** One frame: controller input (or idle keys) through the production walker. */
-    frame() {
+    frame(keys: typeof ZERO | { forward: number; strafe: number; turn: number; run: boolean } = ZERO) {
       t += DT;
-      const input = ctl.drive(s, DT);
-      step(s, input ?? ZERO, DT, world);
+      const input = ctl.drive(s, DT, keys.forward > 0);
+      step(s, input ?? keys, DT, world);
       return input;
     },
-    frames(n: number) {
-      for (let i = 0; i < n; i++) this.frame();
+    frames(n: number, keys?: { forward: number; strafe: number; turn: number; run: boolean }) {
+      for (let i = 0; i < n; i++) this.frame(keys);
     },
   };
 }
@@ -287,6 +291,51 @@ describe("blocker rule + state machine", () => {
   });
 });
 
+describe("auto-open: walking at the door starts the performance", () => {
+  const WALK = { forward: 1, strafe: 0, turn: 0, run: false };
+  const dx = TEA_DOOR_ORIGIN.x;
+  const dz = TEA_DOOR_ORIGIN.z;
+
+  it("truth table: street Inwards, inside Outwards, never when idle, passing, backing or far", () => {
+    expect(teaAutoClip({ x: dx, z: dz + 1.5, heading: Math.PI }, true)).toBe(IN);
+    expect(teaAutoClip({ x: dx, z: dz - 1.5, heading: 0 }, true)).toBe(OUT);
+    expect(teaAutoClip({ x: dx, z: dz + 1.5, heading: Math.PI }, false)).toBeNull(); // not pushing forward
+    expect(teaAutoClip({ x: dx, z: dz + 1.5, heading: Math.PI / 2 }, true)).toBeNull(); // walking along the street
+    expect(teaAutoClip({ x: dx, z: dz + 1.5, heading: 0 }, true)).toBeNull(); // walking away
+    expect(teaAutoClip({ x: dx, z: dz + TEA_AUTO_RANGE + 0.3, heading: Math.PI }, true)).toBeNull(); // too far
+    expect(teaAutoClip({ x: dx + 2, z: dz + 1.5, heading: Math.PI }, true)).toBeNull(); // beside the door
+  });
+
+  it("holding forward at the shut door opens it and walks the bot in, no button", () => {
+    const rig = makeRig({ x: dx + 0.1, z: dz + 2.4, heading: Math.PI });
+    rig.frames(2);
+    let started = false;
+    for (let i = 0; i < 60 * 20; i++) {
+      rig.frame(WALK);
+      if (rig.ctl.phase !== "idle") started = true;
+      if (started && rig.ctl.phase === "idle") break;
+    }
+    expect(started).toBe(true);
+    expect(rig.channel.lastFired()).toBe(IN);
+    expect(rig.s.z).toBeLessThan(dz - 1.2); // inside the room
+  });
+
+  it("walking along the street past the door never starts it", () => {
+    const rig = makeRig({ x: dx - 5, z: dz + 1.2, heading: Math.PI / 2 }); // facing +x
+    for (let i = 0; i < 60 * 6; i++) rig.frame(WALK);
+    expect(rig.ctl.phase).toBe("idle");
+    expect(rig.channel.lastFired()).toBeNull();
+  });
+
+  it("standing at the door facing it does nothing until the player pushes forward", () => {
+    const rig = makeRig({ x: dx, z: dz + 1.2, heading: Math.PI });
+    rig.frames(120);
+    expect(rig.ctl.phase).toBe("idle");
+    rig.frames(2, WALK);
+    expect(rig.ctl.phase).not.toBe("idle");
+  });
+});
+
 describe("headless walker proof (production walker + capsule world)", () => {
   function walkAtDoor(world: World, seconds: number): WalkerState {
     // Start 1.2 m street-side of the door, walk straight at it.
@@ -309,5 +358,24 @@ describe("headless walker proof (production walker + capsule world)", () => {
     expect(s.z).toBeLessThan(TEA_DOOR_ORIGIN.z - 1.0); // crossed to the room side
     expect(s.y).toBeCloseTo(0.2, 6);
     expect(WALK_CONFIG.radius).toBe(0.4);
+  });
+});
+
+describe("alignInput (fine alignment into the stand pose)", () => {
+  it("never hunts: from a fast approach it settles at the pose with the pose heading, from both sides", () => {
+    for (const clip of [IN, OUT]) {
+      const pose = teaStandPose(clip);
+      const start = clip === IN ? { x: pose.x + 0.05, z: pose.z + 2.0 } : { x: pose.x - 0.04, z: pose.z - 2.0 };
+      const rig = makeRig({ ...start, heading: pose.heading });
+      let settled = -1;
+      for (let i = 0; i < 60 * 15; i++) {
+        const input = alignInput(rig.s, pose);
+        step(rig.s, input, DT, groundWorld());
+        const d = Math.hypot(rig.s.x - pose.x, rig.s.z - pose.z);
+        if (d <= 0.03 && Math.abs(angleTo(rig.s.heading, pose.heading)) <= 0.03) { settled = i; break; }
+      }
+      expect(settled).toBeGreaterThan(0);
+      expect(Math.abs(angleTo(rig.s.heading, pose.heading))).toBeLessThan(0.05); // never turned round
+    }
   });
 });

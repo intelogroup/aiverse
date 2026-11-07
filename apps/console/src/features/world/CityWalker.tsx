@@ -200,6 +200,8 @@ export function CityWalker({
         return true;
       },
       pitch: (p: number) => { pitch.current = p; },
+      /** Tea door controller snapshot (phase/state/angle) for headless checks. */
+      door: () => (door ? { phase: door.phase, state: door.state, angle: door.angle, clip: clipOverride.current, doorPlaying: clipOverride.doorPlaying } : null),
       ground: (x: number, z: number, fromY: number) => world.groundY(x, z, fromY),
       worldKind: () => world.kind(),
       /** Place the walker exactly (no ground lookup). */
@@ -237,7 +239,7 @@ export function CityWalker({
     // Tea door session (align / performance / step-through): the
     // controller's input replaces the keys outright. Consulted every
     // frame, session or not, so the door machine ticks.
-    const doorInput = door?.drive(s, Math.min(delta, 0.05)) ?? null;
+    const doorInput = door?.drive(s, Math.min(delta, 0.25), input.forward > 0) ?? null;
     if (doorInput) {
       input = doorInput;
     } else if (clipOverride.doorPlaying) {

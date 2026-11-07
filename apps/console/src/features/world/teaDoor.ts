@@ -119,6 +119,29 @@ const PASSIVE_FOLLOW_RATE = 300;
 const CLOSE_RATE = 55;
 /** HUD request range: the bot must be within this of its stand pose. */
 export const TEA_REQUEST_RANGE = 2.5;
+/** Auto-open: the player is walking at the door within this distance of its plane (m)... */
+export const TEA_AUTO_RANGE = 1.8;
+/** ...and within this half-width of its centre line (m)... */
+const TEA_AUTO_HALF_WIDTH = 0.9;
+/** ...facing it within this (cos of the angle; 0.8 = 37 degrees). */
+const TEA_AUTO_FACING = 0.8;
+
+/**
+ * Which door clip a player walking forward at the tea door should trigger, or null. Pure: position, view heading and
+ * whether the player is pushing forward. From the street (z above the door plane) facing -z it is Inwards; from inside
+ * facing +z it is Outwards. Walking past, backing off or standing still never triggers it.
+ */
+export function teaAutoClip(s: Pick<WalkerState, "x" | "z" | "heading">, wantsForward: boolean): WalkDoorClip | null {
+  if (!wantsForward) return null;
+  if (Math.abs(s.x - TEA_DOOR_ORIGIN.x) > TEA_AUTO_HALF_WIDTH) return null;
+  const dz = s.z - TEA_DOOR_ORIGIN.z; // > 0: street side
+  if (Math.abs(dz) > TEA_AUTO_RANGE) return null;
+  const facingZ = Math.cos(s.heading);
+  if (dz > 0 && facingZ < -TEA_AUTO_FACING) return "OpenDoorInwards";
+  if (dz < 0 && facingZ > TEA_AUTO_FACING) return "OpenDoorOutwards";
+  return null;
+}
+
 /** Auto-close dwell: door stays open this long after the last
  * occupancy before it starts closing. */
 const AUTOCLOSE_DELAY = 0.8;
@@ -307,6 +330,34 @@ export interface TeaDoorChannel {
   readonly doorPlaying: boolean;
 }
 
+/** Inside this distance (m) of the stand pose the bot stops walking toward it and shuffles into place facing the door. */
+const FINE_ALIGN_RADIUS = 0.6;
+
+/**
+ * Align-phase input. Far from the pose: walk to it (turn, then go). Near it: hold the pose heading and move in the
+ * POSE's frame (forward / strafe / backward), so the bot never turns round to chase a point a few centimetres away.
+ * (The first version kept facing the target; walking in at 1.3 m/s it overshot, turned to go back, and hunted for ever.)
+ */
+export function alignInput(s: WalkerState, pose: StandPose): WalkInput {
+  const ex = pose.x - s.x;
+  const ez = pose.z - s.z;
+  const dist = Math.hypot(ex, ez);
+  if (dist > FINE_ALIGN_RADIUS) return moveToIntent(s, [pose.x, pose.z], 0.02).input;
+  const sn = Math.sin(s.heading);
+  const cs = Math.cos(s.heading);
+  // The walker's world velocity is (sn*f - cs*r, cs*f + sn*r): solve f and r for the wanted displacement.
+  let f = ex * sn + ez * cs;
+  let r = -ex * cs + ez * sn;
+  const m = Math.hypot(f, r);
+  if (m > 1e-6) {
+    const k = Math.min(1, Math.max(0.12, m * 2.5)) / m; // slow down into the pose, never stall short of it
+    f *= k;
+    r *= k;
+  }
+  if (dist <= 0.015) { f = 0; r = 0; }
+  return { forward: f, strafe: r, turn: 0, run: false, faceHeading: pose.heading };
+}
+
 const ZERO_INPUT: WalkInput = { forward: 0, strafe: 0, turn: 0, run: false };
 
 /**
@@ -404,10 +455,16 @@ export class TeaDoorController {
    * or null when the player keeps control (no session). Also advances
    * the door machine (swing, auto-close) and the blocker.
    */
-  drive(s: WalkerState, dt: number): WalkInput | null {
+  drive(s: WalkerState, dt: number, wantsForward = false): WalkInput | null {
     this.now += dt;
     this.bot = { x: s.x, z: s.z };
     let input: WalkInput | null = null;
+
+    // Walking at a shut door starts the performance by itself (the HUD buttons stay as a manual override).
+    if (this.phase === "idle" && this.state === "closed") {
+      const auto = teaAutoClip(s, wantsForward);
+      if (auto) this.request(auto);
+    }
 
     if (this.phase === "align" && this.clip) {
       const pose = teaStandPose(this.clip);
@@ -423,14 +480,13 @@ export class TeaDoorController {
         }
         input = ZERO_INPUT;
       } else {
-        const mv = moveToIntent(s, [pose.x, pose.z], 0.02);
-        input = mv.arrived
-          ? { forward: 0, strafe: 0, turn: 0, run: false, faceHeading: pose.heading }
-          : mv.input;
+        input = alignInput(s, pose);
       }
     } else if (this.phase === "perform" && this.clip) {
       const g = TEA_GRASP[this.clip];
       this.clipT += dt;
+      // The one-shot runs on the figure's own frame clock; if it has already ended (slow frames), do not lag behind it.
+      if (!this.channel.doorPlaying && this.clipT > 0.25) this.clipT = Math.max(this.clipT, g.travelAt);
       this.angle = teaLeafAngleAt(this.clip, this.clipT);
       if (this.clipT >= g.travelAt || this.clipT >= g.duration) {
         this.phase = "travel";
