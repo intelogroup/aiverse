@@ -78,6 +78,33 @@ User-driven "summer" cast body with first-person (ride) and follow cameras. No c
   walker or give the walker a per-body walk speed). The fix for the rest is foot locking: pin the planted foot in world space with a
   two-bone leg IK until lift-off (UE Foot Placement "plant" settings; three.js has CCDIKSolver in examples).
 
+## Contact-pose / foot-rig / skating audit (2026-11-07, `harness/contact_probe.mjs` + `contact_probe.html`)
+Why the planted foot still slides after grounding, measured on the shipped GLBs (lowest skinned foot vertex = the rolling contact point, in
+the in-place body frame; a planted foot must move back at constant speed, so `z + v t` must be flat; live pelvis offset as the walker applies).
+- **Rig.** All bodies share the Mixamo chain UpLeg > Leg > Foot > ToeBase > Toe_End; no heel/ball/IK bones in the GLBs, the heel is the shoe
+  geometry. Proportions differ a lot: Body Block (source of every clip) leg 0.522 m (0.39 of height), ankle 12.5 cm high, foot 17 cm, flat
+  "plate" feet; Summer leg 0.691 m (0.545), ankle 6.8 cm, wedge sandals; Remy 0.587 m (0.451), ankle 8.5 cm. Clips are retargeted by joint
+  ROTATION only (`bake_remy.py` rest-delta), so foot height, stride and hip height do not carry over: Summer's legs are 32 % longer than
+  the clips' author's, hence the floating/sinking the pelvis offset now hides.
+- **Walk contact pose.** Heel strike (toe pitched +47 deg Summer, +37 Remy), flat by mid-stance, then the foot leaves flat (pitch ~0 deg at
+  lift-off, no heel rise/toe-off roll before it; toe-off plantarflexion happens in the air). Stance 53-60 % of the cycle per foot,
+  symmetric. Stance speed L/R: Summer 1.14/1.11 m/s (bodies.ts 1.107: playback is right), Remy 0.82/0.80 (bodies.ts 0.77: 5 % low).
+  Remaining skate = the contact point's path is not straight: residual RMS 1.3-1.7 cm (Summer), 1.9-2.5 cm (Remy), peaks 4.5-5.4 cm at
+  the end of stance (flat lift-off).
+- **Run contact pose is asymmetric** (inherited from Body Block's Run: stance L 58 % / R 45 %, Summer 56/48, Remy 57/46). Stance speed L/R:
+  Summer 2.16/2.74 m/s, Remy 1.73/2.44 (Body Block 1.51/2.25; its plate feet make it unreliable). No single ground speed fits both feet:
+  at the walker's 2.7 m/s Summer's left foot skates ~0.5 m/s, Remy's left ~1 m/s (matches the measured 0.37 / 0.77-0.93 means).
+  bodies.ts `run.speed` (Summer 2.7755, Remy 2.66) sits near the right foot only.
+- **Swing clearance** mid-swing is 1.6-1.7 cm (Walk, both bodies), inside normal human minimum toe clearance (1-2 cm): not a defect, but it
+  reads as toe drag.
+- **Consequences for the fix** (research: Kovar, Schreiner, Gleicher 2002 + ozz-animation Foot IK): equalise/handle per-foot stance
+  speed (retime the Run so both stances last the same, then IK for the residual stride-length difference); lock each foot's world position
+  during stance, take the knee pole from the original knee direction, soften near full extension, blend the correction over a window
+  around constraint on/off (Kovar: 5-10 frames, cubic ease alpha(t) = 2t^3-3t^2+1; max leg stretch they needed 2.6 %); plant intervals are
+  supplied, not detected, in both references (here: lowest-vertex height < 1.5 cm after the pelvis offset, measured by this probe).
+- Caveat: the 1.5 cm contact threshold and the live pelvis offset are my choices; the "fixed floor" columns of the probe (one offset per
+  cycle) show how little of the Walk touches an unmoving floor (13-18 %), i.e. the pelvis really must move with the stance foot.
+
 ## The resting clip was a walk in place (2026-11-07, `bodies.ts` `clips.idle`, `tests/idle-clip.test.ts`)
 Found while checking the grounding fix: the catalog's 2.7 s **"Idle" is not a rest pose**. Its ankles swing 0.1-0.6 m apart in a repeating step
 (period 1.33 s, thigh +-36 deg Summer, +-27 deg Remy/Body Block; checked in three.js, in Blender (independent evaluator) and in a side-view
