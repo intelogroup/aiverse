@@ -14,7 +14,9 @@ PB["halo_pave"] = {"rough": PB["plaza_herring"]["rough"]}; PB["halo_terrazzo"] =
 for k, tag in (("road", "road_m"), ("sidewalk", "halo_pave"), ("terrazzo", "halo_terrazzo"), ("stone", "plaza_stone")): pbr_mat(k, tag)
 pbr_mat("plaster", "plaster002")   # ambientCG clean stucco on the lathe-built stucco fields (plinths, terrace rings, statue drums, pier caps) — lathe's tile mode gives them true metres UVs; the marble blades/beams keep their solid material (formed elements on palette-point UVs)
 img_mat("glass", "halo_glass.jpg", "glass_emit.jpg", rough=0.06, metal=0.45, emit=1.0)
-palette_mat("palette"); palette_mat("led", emit=3.0); palette_mat("water", rough=0.03); glass_mat("shopglass")
+palette_mat("palette"); palette_mat("led", emit=3.0); glass_mat("shopglass")
+pbr_mat("water", "water002", rough_map=True)   # Calm swell (3DTextures.me Water 002, CC0): diffuse + GL normal + its own roughness MAP via the packed companion — the proofed Halo material, not the old flat palette water
+_wb = next(n for n in MATS["water"].node_tree.nodes if n.type == "BSDF_PRINCIPLED"); _wb.inputs["Specular IOR Level"].default_value = 0.25; _wb.inputs["IOR"].default_value = 1.333   # water F0 0.02 (IOR 1.333), not the 0.04 dielectric default -> KHR_materials_specular ~0.5
 glass_mat("jet", alpha=0.42, tint=(0.92, 0.97, 1.0, 1.0)); glass_mat("shallow", alpha=0.32, tint=(0.35, 0.88, 0.82, 1.0))
 def solid_mat(key, rgb, rough, metal):
     m, nt, b = _principled(key); b.inputs["Base Color"].default_value = (*rgb, 1.0); b.inputs["Roughness"].default_value = rough; b.inputs["Metallic"].default_value = metal
@@ -176,10 +178,10 @@ def shrub_any(x, y, z, rng, sz, color):
 def fountain(cx, cy, z, R, rng, jets=12):
     COL.cyl("props", cx, cy, Z - 0.3, z + 2.0, R + 0.1, 32)                              # basin + centrepiece: solid (no ground over water)
     lathe(cx, cy, [(R, z), (R, z + 0.6), (R - 0.45, z + 0.6), (R - 0.45, z + 0.3)], 64, "marble")
-    flat_ring("water", cx, cy, 0, R - 0.45, z + 0.32, 64, color="water")
+    flat_ring("water", cx, cy, 0, R - 0.45, z + 0.32, 64, tile=7, color="water")
     for q in (0.42, 0.7): flat_ring("palette", cx, cy, R * q, R * q + 0.25, z + 0.36, 64, color="white")
     lathe(cx, cy, [(R * 0.16, z + 0.3), (R * 0.12, z + 1.4), (R * 0.4, z + 1.7), (R * 0.42, z + 1.9), (R * 0.36, z + 1.9)], 40, "marble")
-    flat_ring("water", cx, cy, 0, R * 0.36, z + 1.86, 40, color="water")
+    flat_ring("water", cx, cy, 0, R * 0.36, z + 1.86, 40, tile=7, color="water")
     lathe(cx, cy, [(R * 0.08, z + 1.86), (R * 0.03, z + 1.86 + R * 0.55), (0, z + 1.9 + R * 0.6)], 16, "jet")
     for k in range(jets):
         t = TAU * k / jets; r0 = R * 0.62; x0, y0 = cx + r0 * math.cos(t), cy + r0 * math.sin(t)
@@ -286,7 +288,7 @@ def wave_terraces(tag, cx, cy, rx, ry, rng, levels=4):
         for fr, L in edge_frames(rim, z): fbox(fr, 0, L, -0.9, 0.0, 0.0, 0.55, "leaf_dk")
     pool = ellipse_poly(cx, cy, rx - 2.6 * levels - 1, ry - 2.0 * levels - 1, 24)
     cxp, cyp = poly_center(pool)
-    for k in range(len(pool)): a = pool[k]; b = pool[(k + 1) % len(pool)]; mb("water").tri((cxp, cyp, z + 0.08), (a[0], a[1], z + 0.08), (b[0], b[1], z + 0.08), pal_uv("water"), pal_uv("water"), pal_uv("water"), (0, 0, 1))
+    for k in range(len(pool)): a = pool[k]; b = pool[(k + 1) % len(pool)]; mb("water").tri((cxp, cyp, z + 0.08), (a[0], a[1], z + 0.08), (b[0], b[1], z + 0.08), (cxp / 7, cyp / 7), (a[0] / 7, a[1] / 7), (b[0] / 7, b[1] / 7), (0, 0, 1))
     bld(tag, "wave_terraces", cx, cy, max(rx, ry), z)
 def lagoon_pool(cx, cy, rng):
     """Freeform resort pool: lobed outline (star-shaped from its centre), marble coping, loungers and parasols."""
@@ -295,8 +297,8 @@ def lagoon_pool(cx, cy, rng):
         t = TAU * k / n; r = 15 + 4.5 * math.sin(2 * t + 0.6) + 2.5 * math.sin(3 * t + 1.7); pts.append((cx + r * 1.3 * math.cos(t), cy + r * math.sin(t)))
     COL.prism("props", pts, Z - 0.3, Z + 0.7)                                          # freeform pool: solid block, no ground over water
     for k in range(n):
-        a = pts[k]; b = pts[(k + 1) % n]; u = pal_uv("water")
-        mb("water").tri((cx, cy, Z + 0.1), (a[0], a[1], Z + 0.1), (b[0], b[1], Z + 0.1), u, u, u, (0, 0, 1)); beam((a[0], a[1], Z + 0.18), (b[0], b[1], Z + 0.18), 0.9, 0.3, "white", "marble")
+        a = pts[k]; b = pts[(k + 1) % n]
+        mb("water").tri((cx, cy, Z + 0.1), (a[0], a[1], Z + 0.1), (b[0], b[1], Z + 0.1), (cx / 7, cy / 7), (a[0] / 7, a[1] / 7), (b[0] / 7, b[1] / 7), (0, 0, 1)); beam((a[0], a[1], Z + 0.18), (b[0], b[1], Z + 0.18), 0.9, 0.3, "white", "marble")
     for k in range(16):                                                      # parasol + lounger pairs ring the coping (inland side survives inside())
         t = TAU * k / 16 + 0.2; r = 15 + 4.5 * math.sin(2 * t + 0.6) + 2.5 * math.sin(3 * t + 1.7) + 4.2 + rng.uniform(0, 1.2); x, y = cx + 1.3 * r * math.cos(t), cy + r * math.sin(t)
         if not inside(x, y, 6): continue

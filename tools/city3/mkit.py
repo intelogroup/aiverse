@@ -21,13 +21,19 @@ def _principled(name):
     for n in list(nt.nodes):
         if n.type not in ("OUTPUT_MATERIAL", "BSDF_PRINCIPLED"): nt.nodes.remove(n)
     m.use_backface_culling = True; return m, nt, nt.nodes["Principled BSDF"]
-def pbr_mat(key, tag=None, rough=None, metal=0.0):
-    """Poly Haven set `tag` (tex_m/<tag>_d.jpg + _n.jpg) as a PBR material named `key`."""
+def pbr_mat(key, tag=None, rough=None, metal=0.0, rough_map=False):
+    """Poly Haven set `tag` (tex_m/<tag>_d.jpg + _n.jpg) as a PBR material named `key`.
+    rough_map=True additionally wires the set's packed companion (tex_m/<tag>_r.jpg, glTF
+    metallicRoughness layout) G -> Roughness / B -> Metallic, overriding the scalars — opt-in,
+    so existing callers' node graphs (and exports) are unchanged."""
     tag = tag or key; m, nt, b = _principled(key); info = PB[tag]
     t = nt.nodes.new("ShaderNodeTexImage"); t.image = _img(f"{TEX}/{tag}_d.jpg"); t.extension = "REPEAT"; nt.links.new(t.outputs["Color"], b.inputs["Base Color"])
     n = nt.nodes.new("ShaderNodeTexImage"); n.image = _img(f"{TEX}/{tag}_n.jpg", True); n.extension = "REPEAT"
     nm = nt.nodes.new("ShaderNodeNormalMap"); nt.links.new(n.outputs["Color"], nm.inputs["Color"]); nt.links.new(nm.outputs["Normal"], b.inputs["Normal"])
     b.inputs["Roughness"].default_value = info["rough"] if rough is None else rough; b.inputs["Metallic"].default_value = metal
+    if rough_map:
+        rt = nt.nodes.new("ShaderNodeTexImage"); rt.image = _img(f"{TEX}/{tag}_r.jpg", True); rt.extension = "REPEAT"
+        sep = nt.nodes.new("ShaderNodeSeparateColor"); nt.links.new(rt.outputs["Color"], sep.inputs["Color"]); nt.links.new(sep.outputs["Green"], b.inputs["Roughness"]); nt.links.new(sep.outputs["Blue"], b.inputs["Metallic"])
     MATS[key] = m; return m
 def img_mat(key, img, emit_img=None, rough=0.3, metal=0.0, emit=1.0, ext="EXTEND"):
     m, nt, b = _principled(key)
