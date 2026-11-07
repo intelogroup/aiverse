@@ -65,7 +65,9 @@ describe("shipped body GLBs — clip inventory", () => {
       expect(g.anims[name], name).toBeCloseTo(dur, 2);
     }
     expect(g.joints).toBe(33);
-    expect(g.tris).toBeLessThanOrEqual(120000);
+    // Diet ceiling raised 2026-11-06: the 200k-tri surface fix (bind-pivot
+    // rebuild) supersedes the old 95k crunch; still well under the 500k source.
+    expect(g.tris).toBeLessThanOrEqual(210000);
     expect(g.tris).toBeGreaterThan(40000);
   });
 
