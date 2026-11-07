@@ -484,11 +484,6 @@ export class FootLock {
             m.armed = false;
           }
         }
-        // The lock cannot hold this stance: drop the offset too, or a standing re-pin re-bases onto the stale one.
-        leg.offX = 0;
-        leg.offZ = 0;
-        leg.w = 0;
-        leg.hold = 0;
         continue;
       }
       need = Math.max(need, ask);
