@@ -10,6 +10,7 @@ import {
   PATROL_CONFIG,
   PATROL_STOPS,
   createKeeper,
+  keeperGesture,
   stepKeeper,
   type KeeperState,
 } from "./keeper";
@@ -47,6 +48,7 @@ export function BazaarLife({
   getMeshes,
   walk,
   botPosRef,
+  keeperVoiceRef,
 }: {
   /** Visual/camera meshes: the raycast fallback world if the collision GLB failed to load. */
   getMeshes: () => THREE.Mesh[];
@@ -54,6 +56,8 @@ export function BazaarLife({
   walk?: WalkColliders;
   /** The walk bot's latest position, published by CityWalker (null while nobody is walking). */
   botPosRef: { current: { x: number; z: number } | null };
+  /** True while the Mage's voice line is playing (plazaTts): his Talking clip follows it, so he never talks in silence. */
+  keeperVoiceRef?: { current: boolean };
 }) {
   // Same world stack as CityWalker: capsule shapecast over the collision
   // GLBs, raycast over the visual meshes only if collision failed.
@@ -116,8 +120,12 @@ export function BazaarLife({
     if (bot) movers.push([bot.x, bot.z]);
     if (patrol.current) movers.push([patrol.current.x, patrol.current.z]);
     const ev = stepKeeper(ks, dt, KEEPER_POS, movers);
-    if (ev.entered) keeperClips.fire("Talking");
-    if (ev.exited) keeperClips.clear();
+    // Someone walks up: he turns to them and waves at once (a greeting needs no audio). He TALKS only while his voice line
+    // actually plays (keeperVoiceRef, set by the speech runner): with nobody speaking (the patrol, no sound consent, a line
+    // that could not be made) he never gestures talking in silence.
+    const g = keeperGesture(keeperClips.current, keeperVoiceRef?.current ?? false, ev.entered);
+    if (g === "clear") keeperClips.clear();
+    else if (g) keeperClips.fire(g);
     const kf = keeperFrames.current[0];
     kf.heading = ks.heading;
   });

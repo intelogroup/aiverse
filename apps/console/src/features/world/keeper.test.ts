@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
+import { keeperGesture,
   KEEPER_ENTER_RADIUS,
   KEEPER_EXIT_RADIUS,
   KEEPER_TURN_RATE,
@@ -115,5 +115,24 @@ describe("keeper trigger", () => {
     for (let i = 0; i < 60; i++) stepKeeper(k, DT, SELF, [at(9)]);
     expect(k.talking).toBe(false);
     expect(k.heading).toBeCloseTo(1.25, 9);
+  });
+});
+
+describe("keeperGesture: he talks only while his voice plays", () => {
+  it("waves at someone walking up when there is no voice", () => {
+    expect(keeperGesture(null, false, true)).toBe("Waving");
+  });
+  it("talks while the voice plays, and keeps talking without re-firing", () => {
+    expect(keeperGesture(null, true, false)).toBe("Talking");
+    expect(keeperGesture("Waving", true, false)).toBe("Talking");
+    expect(keeperGesture("Talking", true, false)).toBeNull();
+    expect(keeperGesture("Talking", true, true)).toBeNull();
+  });
+  it("stops talking the moment the voice stops (never a silent Talking loop)", () => {
+    expect(keeperGesture("Talking", false, false)).toBe("clear");
+  });
+  it("does nothing otherwise", () => {
+    expect(keeperGesture(null, false, false)).toBeNull();
+    expect(keeperGesture("Waving", false, false)).toBeNull();
   });
 });

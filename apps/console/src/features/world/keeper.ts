@@ -95,6 +95,17 @@ export function stepKeeper(
   return { entered, exited };
 }
 
+/**
+ * The keeper's gesture for this frame. He TALKS only while his voice line plays (`voice`); someone walking up gets a wave
+ * (a greeting needs no audio); a Talking clip with no voice behind it is cleared. Returns the clip to fire, "clear", or null.
+ */
+export function keeperGesture(current: string | null, voice: boolean, entered: boolean): "Talking" | "Waving" | "clear" | null {
+  if (voice) return current === "Talking" ? null : "Talking";
+  if (entered) return "Waving";
+  if (current === "Talking") return "clear";
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // The patrol: a second cast figure walking a circuit of stall fronts so
 // the keeper has someone to talk to even when nobody is driving the

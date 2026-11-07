@@ -202,3 +202,18 @@ session. New positional **voice emitter** (`playVoiceBuffer` / `playVoicePcm`): 
 every tick (the same law as the Mage's stall music), not PA-ducked, with its own analyser (`snapshot().voice`). Nothing speaks yet: the speech engine and
 the Mage-Summer greeting stay in PR #37 until they are split out. Known cosmetic: with the consent ask showing, the HUD grows and overlaps the centre hint pill at
 900 px wide. Tests: `soundDirector.test.ts` (consent), `soundLogic.test.ts` (emitter law).
+
+## Speech that never waits, gestures that follow the voice (2026-11-07, branch `feat/tts-warm`)
+- **Warm on entry.** Entering City 3 starts `warmPhonon()` 1.5 s after mount: the Phonon engine loads (64.5 MB from the pinned Hugging Face
+  revision or `VITE_PHONON_MODEL_URL`) and the scripted greeting is pre-synthesized into a PCM cache; the engine then stays loaded for the
+  page. No audio plays, so no sound consent is needed for it. Cost: every City 3 visitor downloads the model (browser-cached afterwards).
+- **Never wait.** `prepare()` order: cached PCM -> live synth (only once the engine is loaded) -> the pre-rendered clip of the same voice.
+  Before this, the first greeting waited on the model download (~12 s here), the Mage gestured in silence and the visitor walked off.
+  Live: warm = first line 1 ms after the trigger, all 4 lines from the cache; model unreachable = clips, first line 59 ms after the trigger.
+- **Gesture follows voice.** The Mage waves when someone walks up (`keeperGesture`, keeper.ts) and plays `Talking` only while his line plays
+  (`setMageTalking` -> `mageVoiceRef` -> BazaarLife). Same for Summer. A line that cannot be made gets no gesture. The patrol (no speech)
+  now gets a wave, not a silent Talking loop.
+- **Fixed on the way:** the greeting was bound to the sound director it was built with; React StrictMode's unmount effect disposes and
+  re-creates the director, so the greeting kept asking a dead director for consent and never spoke. It is rebuilt when the director changes.
+- Debug (`?ttsDebug=1`): `window.__tts.warmth()` -> `{ready, cached, warming}`; `log()`, `status()`, `start()` read the live greeting.
+- Tests: `plazaSpeech.test.ts` (never-wait order, gesture follows voice), `keeper.test.ts` (`keeperGesture`).
