@@ -97,6 +97,14 @@ export const EMITTER_FULL_M = 2.5;
 export const EMITTER_AUDIBLE_M = 16;
 
 /**
+ * Loudness of a SWITCHED positional emitter (a radio): the shared distance law while it is on, silence when off.
+ * (The fade between the two is the director's job; this is only the target.)
+ */
+export function switchedEmitterGain(on: boolean, distance: number): number {
+  return on ? emitterGain(distance) : 0;
+}
+
+/**
  * Emitter loudness by distance: full inside the core radius, then
  * the same squared falloff as distanceGain across the remaining
  * span to silence. Non-finite distances are silent (the director's

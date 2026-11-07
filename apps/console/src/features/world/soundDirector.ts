@@ -44,6 +44,7 @@ import {
   districtAt,
   duckedGain,
   emitterGain,
+  switchedEmitterGain,
   paAudible,
   stepFade,
   DOOR_AUDIBLE_M,
@@ -87,6 +88,28 @@ export interface SoundFrame {
   doorState: TeaDoorState;
   /** Tea room footprint [minX, minZ, maxX, maxZ], once rooms load. */
   teaRect: readonly [number, number, number, number] | null;
+  /** Switchable positional emitters (the Tea House radio): where they stand and whether they are on. */
+  emitters?: readonly SoundEmitter[];
+}
+
+/** A switchable positional emitter: loops the radio clip at (x, z) while `on`, loudness by distance (emitterGain). */
+export interface SoundEmitter {
+  id: string;
+  x: number;
+  z: number;
+  on: boolean;
+}
+
+/** The clip a radio plays (test audio: the Mage's stall music; swap for real radio content later). */
+export const RADIO_CLIP = "stall-music";
+
+interface EmitterNode {
+  gain: GainNode;
+  analyser: AnalyserNode;
+  src: AudioBufferSourceNode | null;
+  level: number;
+  rms: number;
+  on: boolean;
 }
 
 /** The user's sound permission for this session (see header). */
@@ -108,6 +131,8 @@ export interface SoundSnapshot {
   masterLevel: number;
   /** The stall emitter's analyser RMS (its own voice, pre-bus). */
   stallLevel: number;
+  /** Switchable emitters (radios): on flag, the gain applied to the node now, analyser RMS. */
+  emitters: Record<string, { on: boolean; gain: number; level: number }>;
   gains: { pa: number; music: number; wind: number; creak: number; stall: number; master: number };
   steps: number;
   lastStep: { d: number; gain: number } | null;
@@ -146,6 +171,7 @@ export class SoundDirector {
   private stallGainNode: GainNode | null = null;
   private stallAnalyser: AnalyserNode | null = null;
   private stallStarted = false;
+  private readonly emitterNodes = new Map<string, EmitterNode>();
   private stallLevel = 0;
   private stallRms = 0;
 
@@ -258,6 +284,11 @@ export class SoundDirector {
   /** Release the plant sink (GlbWorld unmount). */
   dispose(): void {
     setPlantSink(null);
+    for (const n of this.emitterNodes.values()) {
+      try { n.src?.stop(); } catch { /* already stopped */ }
+      n.gain.disconnect();
+    }
+    this.emitterNodes.clear();
     if (this.ctx) void this.ctx.close().catch(() => {});
     this.ctx = null;
   }
@@ -366,6 +397,36 @@ export class SoundDirector {
     src.loop = true;
     src.connect(this.musicBus);
     src.start();
+  }
+
+  private ensureEmitter(id: string): EmitterNode | null {
+    const ctx = this.ctx;
+    if (!ctx || !this.master) return null;
+    let n = this.emitterNodes.get(id);
+    if (!n) {
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 1024;
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      gain.connect(analyser);
+      analyser.connect(this.master);
+      n = { gain, analyser, src: null, level: 0, rms: 0, on: false };
+      this.emitterNodes.set(id, n);
+    }
+    return n;
+  }
+
+  /** Start an emitter's looping source the first time it is switched on (it then runs silent while off). */
+  private startEmitterSource(n: EmitterNode): void {
+    const ctx = this.ctx;
+    const buf = this.buffers.get(RADIO_CLIP);
+    if (!ctx || !buf || n.src) return;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    src.connect(n.gain);
+    src.start();
+    n.src = src;
   }
 
   private startStallMusic(): void {
@@ -649,7 +710,7 @@ export class SoundDirector {
         this.musicBus.gain.setTargetAtTime(duckedGain(this.musicLevel, pa), this.ctx.currentTime, 0.05);
       if (this.stallGainNode)
         this.stallGainNode.gain.setTargetAtTime(duckedGain(this.stallLevel, pa), this.ctx.currentTime, 0.05);
-            // Voice emitter: positional gain for the line on stage right
+      // Voice emitter: positional gain for the line on stage right
       // now (no listener yet reads as infinitely far, hence silent;
       // an utterance past its end is retired even if onended lagged).
       if (this.voiceUtter && this.ctx.currentTime > this.voiceUtter.endsAt + 0.25) {
@@ -665,7 +726,27 @@ export class SoundDirector {
       this.voiceGain = this.voiceUtter ? VOICE_GAIN * emitterGain(vDist) : 0;
       if (this.voiceGainNode)
         this.voiceGainNode.gain.setTargetAtTime(this.voiceGain, this.ctx.currentTime, 0.05);
-            this.paLevel = this.readRms(this.paAnalyser);
+      // Switchable emitters (the radio): a looping source per emitter, loudness by distance while on, faded, PA-ducked.
+      const seenEmitters = new Set<string>();
+      for (const e of frame.emitters ?? []) {
+        if (!Number.isFinite(e.x) || !Number.isFinite(e.z)) continue;
+        seenEmitters.add(e.id);
+        const n = this.ensureEmitter(e.id);
+        if (!n) continue;
+        n.on = e.on;
+        if (e.on) this.startEmitterSource(n);
+        const dist = this.listener ? Math.hypot(this.listener.x - e.x, this.listener.z - e.z) : Infinity;
+        n.level = stepFade(n.level, MUSIC_GAIN * switchedEmitterGain(e.on, dist), dt, 0.5);
+      }
+      for (const [id, n] of this.emitterNodes) {
+        if (!seenEmitters.has(id)) {
+          n.on = false;
+          n.level = stepFade(n.level, 0, dt, 0.5);
+        }
+        n.gain.gain.setTargetAtTime(duckedGain(n.level, pa), this.ctx.currentTime, 0.05);
+        n.rms = this.readRms(n.analyser);
+      }
+      this.paLevel = this.readRms(this.paAnalyser);
       this.masterLevel = this.readRms(this.masterAnalyser);
       this.stallRms = this.readRms(this.stallAnalyser);
       this.voiceLevel = this.readRms(this.voiceAnalyser);
@@ -700,6 +781,9 @@ export class SoundDirector {
       paLevel: this.paLevel,
       masterLevel: this.masterLevel,
       stallLevel: this.stallRms,
+      emitters: Object.fromEntries(
+        [...this.emitterNodes].map(([id, n]) => [id, { on: n.on, gain: duckedGain(n.level, this.paActive()), level: n.rms }]),
+      ),
       gains: {
         pa: PA_GAIN,
         music: duckedGain(this.musicLevel, this.paActive()),

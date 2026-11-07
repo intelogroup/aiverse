@@ -145,7 +145,7 @@ export function bearingDeg(heading: number, dx: number, dz: number): number {
 }
 
 export interface OracleObject {
-  kind: "place" | "door" | "room";
+  kind: "place" | "door" | "room" | "interactable";
   id: string;
   name: string;
   bearingDeg: number;
@@ -153,6 +153,18 @@ export interface OracleObject {
   /** Doors are enterable by walking through them. */
   enterable?: boolean;
   note?: string;
+  /** Interactables: the prop's current state ("on" / "off"). */
+  state?: string;
+}
+
+/** A usable prop as Scout perceives it (structural subset of interactables.ts InteractableDef + its state). */
+export interface ScoutInteractable {
+  id: string;
+  label: string;
+  kind: string;
+  /** Prop position XZ. */
+  pos: Vec2;
+  on: boolean;
 }
 
 export interface OracleOpts {
@@ -170,6 +182,7 @@ export function oracleScene(
   rooms: ScoutRoomShape[],
   self: { x: number; z: number; heading: number },
   opts: OracleOpts = {},
+  interactables: ScoutInteractable[] = [],
 ): OracleObject[] {
   const range = opts.range ?? 25;
   const halfFov = opts.halfFovDeg ?? 65;
@@ -196,6 +209,10 @@ export function oracleScene(
     const s = seen(r.door[0], r.door[1]);
     if (s) out.push({ kind: "door", id: r.id, name: `${r.name} door`, enterable: true, ...s });
   }
+  for (const i of interactables) {
+    const s = seen(i.pos[0], i.pos[1]);
+    if (s) out.push({ kind: "interactable", id: i.id, name: i.label, state: i.on ? "on" : "off", note: "use with interact", ...s });
+  }
   out.sort((a, b) => a.distance - b.distance);
   return out;
 }
@@ -215,6 +232,7 @@ export type ScoutAction =
   | { type: "sit"; sittable?: string }
   | { type: "stand" }
   | { type: "play"; clip: string; seconds?: number }
+  | { type: "interact"; target: string }
   | { type: "say"; text: string }
   | { type: "finish" };
 
@@ -263,7 +281,7 @@ export function nearestSittable(sittables: Sittable[], x: number, z: number, ran
 // ---------------------------------------------------------------------------
 // Executor
 
-type SitPhase = "to-approach" | "turn" | "down" | "up";
+type SitPhase = "to-approach" | "turn" | "down" | "up" | "to-stand" | "use";
 
 interface Pending {
   action: ScoutAction;
@@ -281,6 +299,8 @@ interface Pending {
   sittable?: Sittable;
   phase?: SitPhase;
   phaseT?: number;
+  /** interact: the prop's state when the session started (the outcome is whether it flipped). */
+  wasOn?: boolean;
 }
 
 const SIT_DOWN_S = clipDef("SitDown")?.duration ?? 2.2333;
@@ -300,6 +320,18 @@ export interface ExecutorDeps {
    * the action's clocks pause: a door is not "no progress".
    */
   door?: (state: WalkerState, wanted: WalkInput, dt: number) => WalkInput | null;
+  /**
+   * Usable props (interactables.ts): `interact` walks to the prop's stand point itself, then hands the body to the
+   * controller (align, the Interact clip, the state flip). While a session holds the body the action's clocks pause.
+   */
+  interact?: {
+    defs: () => { id: string; label: string; kind: string; stand: Vec2 }[];
+    isOn: (id: string) => boolean;
+    /** Start a session for this actor at `at`; "started" or a refusal reason. */
+    request: (id: string, at: { x: number; z: number }) => string;
+    /** Per-frame input while the session holds the body, null when it is over (or there is none). */
+    drive: (state: WalkerState, dt: number) => WalkInput | null;
+  };
 }
 
 /**
@@ -398,6 +430,24 @@ export class ScoutExecutor {
         const hold = def.loop ? Math.max(0.5, Math.min(30, action.seconds ?? 4)) : def.duration;
         this.deps.clips.fire(action.clip);
         return this.begin(action, state, { tLeft: hold });
+      }
+      case "interact": {
+        if (this.posture !== "standing") {
+          return Promise.resolve({ ok: false, status: "rejected", detail: "seated — stand first" });
+        }
+        const ia = this.deps.interact;
+        if (!ia) return Promise.resolve({ ok: false, status: "unavailable", detail: "nothing here can be used" });
+        const def = ia.defs().find((d) => d.id === action.target || d.kind === action.target || d.label.toLowerCase() === action.target.toLowerCase());
+        if (!def) return Promise.resolve({ ok: false, status: "unavailable", detail: `unknown prop: ${action.target}` });
+        const dist = Math.hypot(def.stand[0] - state.x, def.stand[1] - state.z);
+        return this.begin(action, state, {
+          phase: "to-stand",
+          target: def.stand,
+          targetId: def.id,
+          run: false,
+          tLeft: Math.min(180, dist / 0.8 + 30),
+          bestDist: dist,
+        });
       }
       case "sit": {
         if (this.posture !== "standing") {
@@ -551,7 +601,26 @@ export class ScoutExecutor {
       }
       case "go_to":
       case "run_to":
+      case "interact":
       case "sit": {
+        if (p.action.type === "interact" && p.phase === "use") {
+          // The controller owns the body: align, the Interact clip, the flip. Clocks pause while it does.
+          const held = this.deps.interact!.drive(state, dt);
+          if (held) {
+            step(state, held, dt, world);
+            p.tLeft += dt;
+            p.staleFor = 0;
+            return;
+          }
+          step(state, ZERO_INPUT, dt, world);
+          const now = this.deps.interact!.isOn(p.targetId!);
+          this.settle(
+            now !== p.wasOn
+              ? { ok: true, status: "done", target: p.targetId, detail: now ? "on" : "off" }
+              : { ok: false, status: "blocked", target: p.targetId, detail: "the interaction did not complete" },
+          );
+          return;
+        }
         if (p.action.type === "sit" && p.phase === "turn") {
           step(state, { ...ZERO_INPUT, faceHeading: p.sittable!.facing }, dt, world);
           if (Math.abs(angleTo(state.heading, p.sittable!.facing)) < 0.05) {
@@ -572,7 +641,7 @@ export class ScoutExecutor {
           return;
         }
         const target = p.target!;
-        const arriveR = p.phase === "to-approach" ? 0.25 : 0.45;
+        const arriveR = p.phase === "to-approach" || p.phase === "to-stand" ? 0.25 : 0.45;
         const { input, arrived } = moveToIntent(state, target, arriveR, !!p.run);
         const held = this.deps.door?.(state, input, dt) ?? null;
         if (held) {
@@ -592,6 +661,17 @@ export class ScoutExecutor {
         if (arrived || dist <= arriveR + 0.1) {
           if (p.action.type === "sit" && p.phase === "to-approach") {
             p.phase = "turn";
+            return;
+          }
+          if (p.action.type === "interact" && p.phase === "to-stand") {
+            const ia = this.deps.interact!;
+            const r = ia.request(p.targetId!, { x: state.x, z: state.z });
+            if (r !== "started") {
+              this.settle({ ok: false, status: "blocked", target: p.targetId, detail: `could not start: ${r}` });
+              return;
+            }
+            p.phase = "use";
+            p.wasOn = ia.isOn(p.targetId!);
             return;
           }
           this.settle({ ok: true, status: "arrived", target: p.targetId });

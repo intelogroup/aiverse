@@ -5,6 +5,7 @@
 // A "room" is one market-block building with a furnished ground floor. Its layout is a small JSON
 // of placements into the shared asset library; only the nearest few are ever resident.
 import type { CutBox } from "./cutaway";
+import type { InteractableDef } from "./interactables";
 
 export type Side = "S" | "N" | "E" | "W";
 
@@ -26,6 +27,8 @@ export interface City3Room {
   featured: boolean;
   /** Debug only: shift a reused layout to this room's place. */
   shift?: [number, number];
+  /** Usable props (the Tea House radio): static data from tools/city3, known before the room streams in. */
+  interactables?: InteractableDef[];
 }
 
 export const CITY3_INDEX_URL = "/assets/interiors/index.json";

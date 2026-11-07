@@ -67,7 +67,10 @@ import { buildInterior, indexLibrary, type InteriorHandle } from "./interiorBuil
 import { colUrl, parseColBoxes, planStreaming, type InteriorLayout } from "./interiors";
 import { boxesMesh } from "./capsuleWorld";
 import { WalkColliders } from "./walkColliders";
-import { TEA_BLOCKER_BOX, TeaDoorController } from "./teaDoor";
+import { PLAYER, TEA_BLOCKER_BOX, TeaDoorController } from "./teaDoor";
+import { InteractController, type InteractableDef } from "./interactables";
+import { buildInteractableVisual } from "./interactableMesh";
+import { InteractTicker } from "./InteractTicker";
 import { TeaDoorLeaf, TeaDoorTicker } from "./TeaDoorLeaf";
 import {
   PROBE_CADENCES,
@@ -283,7 +286,7 @@ function ClipCutaway({
  * `?streamDebug=1` exposes window.__city3Stream (counters, renderer memory,
  * teleport) for the memory test; `&fake=N` adds N synthetic rooms to arbitrate.
  */
-function InteriorStreamer({ rooms: realRooms, walk }: { rooms: City3Room[]; walk?: WalkColliders }) {
+function InteriorStreamer({ rooms: realRooms, walk, interact }: { rooms: City3Room[]; walk?: WalkColliders; interact?: InteractController }) {
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
@@ -390,6 +393,7 @@ function InteriorStreamer({ rooms: realRooms, walk }: { rooms: City3Room[]; walk
           handles={handles.current}
           stats={stats.current}
           walk={walk}
+          interact={interact}
         />
       ) : null}
     </Suspense>
@@ -405,6 +409,7 @@ function StreamedRooms({
   handles,
   stats,
   walk,
+  interact,
 }: {
   ids: string[];
   heroes: City3Room[];
@@ -413,6 +418,7 @@ function StreamedRooms({
   handles: Map<string, InteriorHandle>;
   stats: { builds: number };
   walk?: WalkColliders;
+  interact?: InteractController;
 }) {
   const gl = useThree((s) => s.gl);
   const library = useGLTF(CITY3_LIBRARY_URL);
@@ -436,7 +442,7 @@ function StreamedRooms({
         const layout = hero ? layouts.get(hero.layout) : undefined;
         if (!hero || !layout || !ready.length) return null;
         return (
-          <InteriorRoom key={id} id={id} layout={layout} layoutUrl={hero.layout} assets={assets} offset={hero.shift ?? ZERO_SHIFT} handles={handles} stats={stats} walk={walk} />
+          <InteriorRoom key={id} id={id} layout={layout} layoutUrl={hero.layout} assets={assets} offset={hero.shift ?? ZERO_SHIFT} handles={handles} stats={stats} walk={walk} interactables={hero.interactables} interact={interact} />
         );
       })}
     </>
@@ -454,6 +460,8 @@ function InteriorRoom({
   handles,
   stats,
   walk,
+  interactables,
+  interact,
 }: {
   id: string;
   layout: InteriorLayout;
@@ -463,6 +471,9 @@ function InteriorRoom({
   handles: Map<string, InteriorHandle>;
   stats: { builds: number };
   walk?: WalkColliders;
+  /** Usable props of this room (the radio): cloned from the library, owned by this room's lifecycle. */
+  interactables?: InteractableDef[];
+  interact?: InteractController;
 }) {
   // Built inside the effect, not memoised: React (StrictMode in dev) runs cleanup then the effect
   // again on the same render, and a memoised handle would come back already disposed and empty.
@@ -471,13 +482,24 @@ function InteriorRoom({
     const h = buildInterior(layout, assets, offset);
     handles.set(id, h);
     stats.builds += 1;
+    // Usable props: plain meshes over the shared library + a pilot light of our own, wired to the controller's state.
+    const visuals: { stop: () => void; dispose: () => void }[] = [];
+    for (const def of interactables ?? []) {
+      const v = buildInteractableVisual(def, assets, offset);
+      if (!v) continue;
+      h.group.add(v.group);
+      v.setOn(interact?.isOn(def.id) ?? false);
+      const unsub = interact?.subscribe((pid, on) => { if (pid === def.id) v.setOn(on); });
+      visuals.push({ stop: () => unsub?.(), dispose: v.dispose });
+    }
     setHandle(h);
     return () => {
+      for (const v of visuals) { v.stop(); v.dispose(); }
       handles.delete(id);
       h.dispose();
       setHandle(null);
     };
-  }, [id, layout, assets, offset, handles, stats]);
+  }, [id, layout, assets, offset, handles, stats, interactables, interact]);
   // Invisible furniture boxes for the walker (one merged BVH), fetched with the room and dropped on eviction.
   useEffect(() => {
     if (!walk) return;
@@ -1060,6 +1082,7 @@ function WalkHudPanel({
   override,
   frameRef,
   door,
+  interact,
   sound,
 }: {
   /** The shared override state the buttons drive (walkOverride.ts). */
@@ -1073,6 +1096,8 @@ function WalkHudPanel({
    * status (aligning / opening / too far …) joins the status line.
    */
   door?: TeaDoorController;
+  /** Usable props: the status line shows the E prompt / session state. */
+  interact?: InteractController;
   /** Sound v1: the PA banner + mute state come from the director. */
   sound?: SoundDirector;
 }) {
@@ -1084,6 +1109,7 @@ function WalkHudPanel({
   const bump = () => setPulse((p) => p + 1);
   const fr = frameRef.current;
   const doorStatus = door?.status() ?? null;
+  const interactStatus = interact?.status(PLAYER) ?? null;
   const banner = sound?.bannerText() ?? null;
   return (
     <div className="w-embody-panel w-walk-panel">
@@ -1178,6 +1204,7 @@ function WalkHudPanel({
             ? " · Run held"
             : ""}
         {doorStatus ? ` · ${doorStatus}` : ""}
+        {interactStatus ? ` · ${interactStatus}` : ""}
       </div>
     </div>
   );
@@ -1568,6 +1595,13 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
       },
     });
   }
+  // Usable props (interactables.ts): one controller per mount. Definitions come from the room index (static, known before a
+  // room streams in); on/off state lives here, so the sound layer plays a radio nobody is looking at.
+  const interactRef = useRef<InteractController | null>(null);
+  if (interactRef.current === null) interactRef.current = new InteractController();
+  useEffect(() => {
+    interactRef.current?.register(city3Rooms.flatMap((r) => r.interactables ?? []));
+  }, [city3Rooms]);
   // Sound (soundDirector.ts): one director per mount. It arms only
   // on the user's explicit sound consent (the HUD button below),
   // is driven at ~10 Hz from the walker's frame + the tea door
@@ -1636,6 +1670,9 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
         doorAngle: door?.angle ?? 0,
         doorState: door?.state ?? "closed",
         teaRect: tea?.rect ?? null,
+        emitters: (interactRef.current?.list() ?? [])
+          .filter((d) => d.kind === "radio")
+          .map((d) => ({ id: d.id, x: d.pos[0], z: d.pos[2], on: interactRef.current!.isOn(d.id) })),
       });
       // Plaza TTS: the greeting's trigger reads the same frame.
       plazaRef.current?.maybeTrigger(
@@ -1746,10 +1783,11 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           {place === "city3" ? (
             <>
               <ClipCutaway rooms={city3Rooms} focus={heroFocus} />
-              <InteriorStreamer rooms={city3Rooms} walk={walkColliders} />
+              <InteriorStreamer rooms={city3Rooms} walk={walkColliders} interact={interactRef.current} />
               <BazaarLife getMeshes={getColliderMeshes} walk={walkColliders} botPosRef={botPosRef} />
               <TeaDoorLeaf controller={teaDoorRef.current} />
               {!agentOn ? <TeaDoorTicker controller={teaDoorRef.current} /> : null}
+              {!agentOn ? <InteractTicker controller={interactRef.current} /> : null}
             </>
           ) : null}
           {walking && !agentOn ? (
@@ -1765,10 +1803,11 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
               override={walkOverrideRef.current}
               frameRef={walkFrameRef}
               door={teaDoorRef.current}
+              interact={interactRef.current}
             />
           ) : null}
           {agentOn ? (
-            <ScoutAgent getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} door={teaDoorRef.current} />
+            <ScoutAgent getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} door={teaDoorRef.current} interact={interactRef.current} />
           ) : null}
           <CrowdCast
             place={place}
@@ -1848,7 +1887,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
         </div>
       ) : null}
       {walking ? (
-        <WalkHudPanel override={walkOverrideRef.current} frameRef={walkFrameRef} door={teaDoorRef.current} sound={soundRef.current} />
+        <WalkHudPanel override={walkOverrideRef.current} frameRef={walkFrameRef} door={teaDoorRef.current} interact={interactRef.current} sound={soundRef.current} />
       ) : null}
       {place === "city3" && !walking ? (
         <div className="w-glb-toggle w-glb-poi" role="group" aria-label="Places in City 3">

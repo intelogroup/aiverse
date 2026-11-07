@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { ClipTestState } from "./clips";
 import { TeaDoorController, clipChannel } from "./teaDoor";
+import { InteractController, type InteractableDef } from "./interactables";
 import {
   ScoutExecutor,
   bearingDeg,
@@ -317,5 +318,87 @@ describe("executor: doors", () => {
     expect(out.status).toBe("arrived");
     expect(sessions).toBe(1);
     expect(Math.hypot(s.x - inside[0], s.z - inside[1])).toBeLessThan(0.6);
+  });
+});
+
+describe("executor: interact", () => {
+  const RADIO: InteractableDef = {
+    id: "tea-radio", room: "tea", kind: "radio", asset: "vintage_radio_transceiver", label: "Radio",
+    pos: [-17.9, 1.26, -78.5], rotY: 1.5708, stand: [-16.9, -78.5], heading: -1.5708, floorY: 0.48,
+  };
+  function rig(withInteract = true) {
+    const clips = new ClipTestState();
+    const ctl = new InteractController();
+    ctl.register([RADIO]);
+    const exec = new ScoutExecutor({
+      places: PLACES,
+      sittables: [SITTING],
+      clips,
+      hipsY: 0.718,
+      interact: withInteract
+        ? {
+            defs: () => ctl.list(),
+            isOn: (id) => ctl.isOn(id),
+            request: (id, at) => ctl.request(id, "scout", clips, at),
+            drive: (st, dt) => ctl.drive(st, dt, "scout"),
+          }
+        : undefined,
+    });
+    return { exec, clips, ctl };
+  }
+
+  it("walks to the stand point, uses the radio, settles done (on); a second use settles done (off)", async () => {
+    const { exec, clips, ctl } = rig();
+    const fired: string[] = [];
+    const realFire = clips.fire.bind(clips);
+    clips.fire = (n: string) => (fired.push(n), realFire(n));
+    const s = makeWalker(-21.0, 0.2, -76.0, 0.5);
+    const out = (await drive(exec, s, fakeWorld(), exec.submit({ type: "interact", target: "tea-radio" }, s))) as { status: string; detail?: string; target?: string };
+    expect(out).toMatchObject({ status: "done", detail: "on", target: "tea-radio" });
+    expect(ctl.isOn("tea-radio")).toBe(true);
+    expect(fired.filter((n) => n === "Interact")).toHaveLength(1);
+    expect(Math.hypot(s.x - RADIO.stand[0], s.z - RADIO.stand[1])).toBeLessThan(0.1);
+    const out2 = (await drive(exec, s, fakeWorld(), exec.submit({ type: "interact", target: "radio" }, s))) as { status: string; detail?: string };
+    expect(out2).toMatchObject({ status: "done", detail: "off" }); // addressed by kind this time
+    expect(ctl.isOn("tea-radio")).toBe(false);
+  });
+
+  it("is not read as timeout/blocked while the session holds the body (clocks pause)", async () => {
+    const { exec, ctl } = rig();
+    // Far start: the walk plus the 3.2 s clip is long; the outcome must still be done.
+    const s = makeWalker(-27.0, 0.2, -72.5, 0.0);
+    const out = (await drive(exec, s, fakeWorld(), exec.submit({ type: "interact", target: "Radio" }, s))) as { status: string };
+    expect(out.status).toBe("done");
+    expect(ctl.isOn("tea-radio")).toBe(true);
+  });
+
+  it("rejects unknown props, a world without props, and a seated Scout", async () => {
+    const { exec } = rig();
+    const s = makeWalker(-21.0, 0.2, -76.0, 0.5);
+    expect(await exec.submit({ type: "interact", target: "jukebox" }, s)).toMatchObject({ ok: false, status: "unavailable" });
+    const none = rig(false);
+    expect(await none.exec.submit({ type: "interact", target: "tea-radio" }, s)).toMatchObject({ ok: false, status: "unavailable" });
+  });
+
+  it("an unreachable stand point ends blocked, never hangs", async () => {
+    const { exec, ctl } = rig();
+    const s = makeWalker(-22.0, 0.2, -78.5, Math.PI / 2); // west of a wall slab at x >= -18; the stand point (-16.9) is behind it
+    const out = (await drive(exec, s, fakeWorld({ wallX: -18 }), exec.submit({ type: "interact", target: "tea-radio" }, s))) as { status: string };
+    expect(["blocked", "timeout"]).toContain(out.status);
+    expect(ctl.isOn("tea-radio")).toBe(false);
+  });
+});
+
+describe("oracleScene: interactables", () => {
+  const radio = { id: "tea-radio", label: "Radio", kind: "radio", pos: [-17.9, -78.5] as [number, number], on: false };
+  it("lists a prop in view with its state, and always within touch range", () => {
+    const inView = oracleScene([], ROOMS, { x: -17.9, z: -75.5, heading: Math.PI }, {}, [radio]);
+    const o = inView.find((x) => x.kind === "interactable");
+    expect(o).toMatchObject({ id: "tea-radio", name: "Radio", state: "off" });
+    expect(o!.distance).toBeCloseTo(3, 1);
+    const behind = oracleScene([], ROOMS, { x: -17.9, z: -75.5, heading: 0 }, {}, [radio]);
+    expect(behind.find((x) => x.kind === "interactable")).toBeUndefined(); // behind, > 2.5 m
+    const touch = oracleScene([], ROOMS, { x: -17.9, z: -77.0, heading: 0 }, {}, [{ ...radio, on: true }]);
+    expect(touch.find((x) => x.kind === "interactable")).toMatchObject({ state: "on" }); // 1.5 m: perceived regardless of the cone
   });
 });

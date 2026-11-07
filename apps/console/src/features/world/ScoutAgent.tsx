@@ -66,6 +66,7 @@ import {
 import type { WalkColliders } from "./walkColliders";
 import { newWalkerFrame, useWalkWorld, writeWalkerFrame } from "./walkerBody";
 import { clipChannel, type TeaDoorChannel, type TeaDoorController } from "./teaDoor";
+import type { InteractController } from "./interactables";
 
 const SCOUT_ACTOR = "scout";
 import { clipFor, findSpawn, makeWalker, type WalkerState } from "./walker";
@@ -95,6 +96,8 @@ export interface ScoutApi {
   ready: () => boolean;
   /** The Tea House door (headless checks); null without one. */
   door: () => { phase: string; state: string; angle: number; owner: string | null } | null;
+  /** The interactables (headless checks); null without a controller. */
+  interact: () => { session: { id: string; phase: string; t: number } | null; props: { id: string; on: boolean }[] } | null;
   snapshot: () => ScoutSnapshot | null;
   look: () => Promise<{ image: string | null; scene: OracleObject[] }>;
   act: (action: ScoutAction) => Promise<(ScoutOutcome & { snapshot: ScoutSnapshot | null }) | null>;
@@ -111,12 +114,15 @@ export function ScoutAgent({
   walk,
   rooms,
   door,
+  interact,
 }: {
   getMeshes: () => THREE.Mesh[];
   walk?: WalkColliders;
   rooms: City3Room[];
   /** The Tea House door (teaDoor.ts): Scout walks through it with the full open-door performance, on Scout's clock. */
   door?: TeaDoorController;
+  /** Usable props (interactables.ts): Scout walks to one and uses it (`interact` action), on Scout's clock. */
+  interact?: InteractController;
 }) {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   const gl = useThree((s) => s.gl);
@@ -164,6 +170,14 @@ export function ScoutAgent({
           hipsY: BODY_REMY.hipsY,
           door: door
             ? (s, wanted, dt) => door.drive(s, dt, wanted.forward > 0, SCOUT_ACTOR, scoutChannel.current!)
+            : undefined,
+          interact: interact
+            ? {
+                defs: () => interact.list(),
+                isOn: (id) => interact.isOn(id),
+                request: (id, at) => interact.request(id, SCOUT_ACTOR, clips.current!, at),
+                drive: (s, dt) => interact.drive(s, dt, SCOUT_ACTOR),
+              }
             : undefined,
         });
       } catch (e) {
@@ -269,13 +283,17 @@ export function ScoutAgent({
       ready: () => state.current !== null && exec.current !== null,
       /** The Tea House door as Scout sees it (headless checks). */
       door: () => (door ? { phase: door.phase, state: door.state, angle: Math.round(door.angle), owner: door.sessionOwner } : null),
+      /** The interactables as Scout sees them (headless checks): its session + every prop's state. */
+      interact: () => (interact ? { session: interact.sessionOf(SCOUT_ACTOR), props: interact.list().map((i) => ({ id: i.id, on: interact.isOn(i.id) })) } : null),
       snapshot: () => snapshot(),
       look: async () => {
         looksUsed.current += 1;
         const s = state.current;
         const d = data.current;
         const sceneObjs =
-          s && d ? oracleScene(d.places, rooms, { x: s.x, z: s.z, heading: s.body }) : [];
+          s && d
+            ? oracleScene(d.places, rooms, { x: s.x, z: s.z, heading: s.body }, {}, (interact?.list() ?? []).map((i) => ({ id: i.id, label: i.label, kind: i.kind, pos: [i.pos[0], i.pos[2]] as [number, number], on: interact!.isOn(i.id) })))
+            : [];
         return { image: captureLook(), scene: sceneObjs };
       },
       act: async (action) => {
@@ -328,6 +346,7 @@ export function ScoutAgent({
         const stepDt = Math.min(dt, 1 / 30);
         ex.tick(stepDt, s, world);
         door?.tick(stepDt); // agent mode: the door runs on Scout's sim clock (GlbWorld's frame ticker is off)
+        interact?.tick(stepDt); // same for the interactables (InteractTicker is off in agent mode)
         dt -= stepDt;
       }
     }, 100);

@@ -10,7 +10,8 @@ import { DAMP_FOV, DAMP_POS_FOLLOW, FOV_RIDE, FOV_WIDE, EYE_FORWARD, FOLLOW_BACK
 import type { AgentFrame } from "./locomotion";
 import { findSpawn, makeWalker, step, type WalkInput } from "./walker";
 import { WalkClipOverride, type WalkFrameInfo } from "./walkOverride";
-import type { TeaDoorController } from "./teaDoor";
+import { PLAYER, type TeaDoorController } from "./teaDoor";
+import type { InteractController } from "./interactables";
 
 // CityWalker — the user-driven bot in City 3 (?world=city3&walk=1). A thin adapter around walker.ts:
 //   keyboard/mouse -> abstract intent {forward, strafe, turn, run, look} -> walker.step(world = BVH raycasts)
@@ -47,6 +48,7 @@ export function CityWalker({
   override,
   frameRef,
   door,
+  interact,
 }: {
   mode: WalkMode;
   onMode: (m: WalkMode) => void;
@@ -72,6 +74,11 @@ export function CityWalker({
    * door machine and its blocker stay current. Absent = no door.
    */
   door?: TeaDoorController;
+  /**
+   * Usable props (interactables.ts): E uses the nearest one within reach; while its session runs, drive() replaces the key
+   * input (walk to the stand pose, face it, the Interact clip). Consulted every frame so the controller sees the player.
+   */
+  interact?: InteractController;
 }) {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   const gl = useThree((s) => s.gl);
@@ -95,6 +102,8 @@ export function CityWalker({
   const ownOverride = useRef<WalkClipOverride | null>(null);
   if (override === undefined && ownOverride.current === null) ownOverride.current = new WalkClipOverride();
   const clipOverride = override ?? (ownOverride.current as WalkClipOverride);
+  const interactRef = useRef(interact);
+  interactRef.current = interact;
 
   // Leave the wide camera exactly where it was.
   useEffect(() => {
@@ -137,6 +146,12 @@ export function CityWalker({
       if (typing(e)) return;
       if (e.code === "Escape") { cbs.current.onExit(); return; }
       if (e.code === "KeyV" && !e.repeat) { cbs.current.onMode(modeRef.current === "ride" ? "follow" : "ride"); return; }
+      if (e.code === "KeyE" && !e.repeat) {
+        const s = state.current;
+        const ia = interactRef.current;
+        if (s && ia) ia.requestNearest(PLAYER, clipOverride, s);
+        return;
+      }
       if (set(e.code, true)) e.preventDefault();
     };
     const onUp = (e: KeyboardEvent) => { set(e.code, false); };
@@ -188,6 +203,8 @@ export function CityWalker({
       },
       pitch: (p: number) => { pitch.current = p; },
       /** Tea door controller snapshot (phase/state/angle) for headless checks. */
+      /** Interactable controller snapshot for headless checks: this actor's session + every prop's state. */
+      interact: () => (interact ? { session: interact.sessionOf(PLAYER), props: interact.list().map((d) => ({ id: d.id, on: interact.isOn(d.id) })), clip: clipOverride.current } : null),
       door: () => (door ? { phase: door.phase, state: door.state, angle: door.angle, clip: clipOverride.current, doorPlaying: clipOverride.doorPlaying } : null),
       ground: (x: number, z: number, fromY: number) => world.groundY(x, z, fromY),
       worldKind: () => world.kind(),
@@ -226,8 +243,12 @@ export function CityWalker({
     // Tea door session (align / performance / step-through): the
     // controller's input replaces the keys outright. Consulted every
     // frame, session or not, so the door machine ticks.
-    const doorInput = door?.drive(s, Math.min(delta, 0.25), input.forward > 0) ?? null;
-    if (doorInput) {
+    const dtc = Math.min(delta, 0.25);
+    const interactInput = interact?.drive(s, dtc, PLAYER) ?? null;
+    const doorInput = door?.drive(s, dtc, input.forward > 0) ?? null;
+    if (interactInput) {
+      input = interactInput;
+    } else if (doorInput) {
       input = doorInput;
     } else if (clipOverride.doorPlaying) {
       // A door one-shot owns the stage: travel intent is suppressed so the

@@ -8,6 +8,7 @@ import {
   districtAt,
   duckedGain,
   emitterGain,
+  switchedEmitterGain,
   paAudible,
   stepFade,
   DUCK_FACTOR,
@@ -232,5 +233,18 @@ describe("bannerVisible", () => {
     const v: Announcement = { ...a, scope: "verse" };
     expect(bannerVisible(v, 101, null)).toBe(true);
     expect(bannerVisible(null, 101, "bazaar")).toBe(false);
+  });
+});
+
+describe("switchedEmitterGain (the radio)", () => {
+  it("follows the emitter law while on", () => {
+    for (const d of [0, 2, 8, 14, 16, 30]) expect(switchedEmitterGain(true, d)).toBe(emitterGain(d));
+  });
+  it("is silent when off, at any distance", () => {
+    for (const d of [0, 2, 8, 30, NaN]) expect(switchedEmitterGain(false, d)).toBe(0);
+  });
+  it("poisoned distances stay silent when on", () => {
+    expect(switchedEmitterGain(true, NaN)).toBe(0);
+    expect(switchedEmitterGain(true, Infinity)).toBe(0);
   });
 });
