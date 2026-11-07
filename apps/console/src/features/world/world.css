@@ -781,6 +781,14 @@
   left: auto;
   right: 14px;
 }
+/* Sound permission: the consent ask inside the walk HUD panel —
+   the label sits on its own line above the two choice buttons. */
+.world-root .w-sound-ask {
+  flex-basis: 100%;
+  color: var(--w-text);
+  font-size: 12.5px;
+  line-height: 1.35;
+}
 /* Sound v1: the central-PA banner inside the walk HUD panel. */
 .world-root .w-pa-banner {
   background: rgba(255, 190, 84, 0.16);

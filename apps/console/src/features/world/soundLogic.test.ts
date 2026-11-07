@@ -7,6 +7,7 @@ import {
   distanceGain,
   districtAt,
   duckedGain,
+  emitterGain,
   paAudible,
   stepFade,
   DUCK_FACTOR,
@@ -77,6 +78,33 @@ describe("distanceGain", () => {
       expect(g).toBeLessThanOrEqual(prev);
       prev = g;
     }
+  });
+});
+
+describe("emitterGain (positional emitter law)", () => {
+  it("is full inside the core radius, including at the source", () => {
+    expect(emitterGain(0)).toBe(1);
+    expect(emitterGain(2)).toBe(1);
+    expect(emitterGain(2.5)).toBe(1);
+  });
+  it("is silent at and past the audible radius", () => {
+    expect(emitterGain(16)).toBe(0);
+    expect(emitterGain(40)).toBe(0);
+  });
+  it("falls off quadratically across the span (the PR #35 proof values)", () => {
+    // 8 m was a measured proof stop on the stall emitter: (1 − 5.5/13.5)²
+    expect(emitterGain(8)).toBeCloseTo(0.3512, 3);
+    expect(emitterGain(14)).toBeCloseTo(0.0221, 3);
+  });
+  it("decreases monotonically and treats non-finite distance as silence", () => {
+    let prev = Infinity;
+    for (let d = 0; d <= 16; d += 0.5) {
+      const g = emitterGain(d);
+      expect(g).toBeLessThanOrEqual(prev);
+      prev = g;
+    }
+    expect(emitterGain(NaN)).toBe(0);
+    expect(emitterGain(Infinity)).toBe(0);
   });
 });
 
