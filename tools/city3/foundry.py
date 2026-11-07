@@ -5,6 +5,7 @@ HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 from mkit import *
 import mdetails as D
 import collision as CX
+import industrial as IND
 COL = CX.Col()                                                  # collision solids (collision.py); exported after the visual GLB
 clear_blender()
 Z = 0.2; FH = 4.6; LAND = 180.0; SW = 3.0
@@ -14,6 +15,7 @@ for k, tag in (("road", "road_m"), ("sidewalk", "pavement"), ("brick_red", None)
     pbr_mat(k, tag or k)
 img_mat("glass", "glass_atlas.jpg", "glass_emit.jpg", rough=0.08, metal=0.6, emit=1.0); img_mat("msign", "msigns.jpg", "msigns.jpg", rough=0.4, emit=0.5)
 palette_mat("palette"); palette_mat("led", emit=3.0); palette_mat("water", rough=0.03); glass_mat("shopglass")
+IND.build_libs(); CXI = IND.Ctx(COL, Z); BAYS = []                     # industrial pass: door / container / prop libraries; BAYS = roller-door bays (prop clusters go in front of free ones)
 TL = {"road": 2.1, "sidewalk": 2.1, "brick_red": 2.0, "brick_dark": 2.0, "brick_cream": 2.0, "slab": 2.1, "metal_red": 2.0, "corrugated": 2.7, "rust": 1.0, "bitumen": 6.0, "panel": 2.0, "floor": 2.0, "diamond": 0.5,
       "cont_red": 2.7, "cont_blue": 2.7, "cont_green": 2.7, "cont_ochre": 2.7, "metal_teal": 2.0}
 LINES = [(-100, 12), (0, 24), (100, 12)]
@@ -51,8 +53,7 @@ def brick_bay_wall(fr, L, nfl, r, mat, z0=0.0, ground="doors", pitch=4.2):
             door = g and ground == "doors" and r.random() < 0.45
             reveal(fr, a, d, z + sill, z + head, 0.0, -0.35, "slab", TL["slab"])
             if door:
-                wall(fr, a, d, z + sill, z + head, "metal_red", TL["metal_red"], t=-0.2)
-                fbox(fr, a - 0.08, d + 0.08, -0.25, 0.08, z + head, z + head + 0.2, "steel")
+                IND.door(fr, a, d, 0.0); BAYS.append((fr.a, fr.r, fr.n, (a + d) / 2))                                   # roller door (instanced, industrial.py)
                 continue
             gu = glaze_uv(r.randrange(8), r.randrange(3)); P = fr.p
             tquad("glass", P(a, -0.35, z + sill), P(d, -0.35, z + sill), P(d, -0.35, z + head), P(a, -0.35, z + head), [(gu[0], gu[1]), (gu[2], gu[1]), (gu[2], gu[3]), (gu[0], gu[3])], fr.o(0, 1))
@@ -62,6 +63,7 @@ def brick_bay_wall(fr, L, nfl, r, mat, z0=0.0, ground="doors", pitch=4.2):
         fbox(fr, 0, L, 0, 0.1, z + FH - 0.15, z + FH, "concrete_dk")
 def downpipe(fr, u, h): x, y = fr.xy(u, 0.12); cyl(x, y, fr.z0, fr.z0 + h, 0.07, 6, "steel", top=False)
 def fire_escape(fr, u0, nfl):
+    CXI.obst.append(IND._aabb([fr.p(u0 - 0.3, -0.1, 0), fr.p(u0 + 3.3, 1.6, 0)]))
     for f in range(1, nfl):
         z = f * FH; fbox(fr, u0, u0 + 3.0, 0.0, 1.2, z - 0.07, z, "steel"); fbox(fr, u0, u0 + 3.0, 1.15, 1.2, z, z + 1.0, "steel", top=False)
         fbox(fr, u0, u0 + 0.05, 0.0, 1.2, z, z + 1.0, "steel", top=False)
@@ -69,6 +71,7 @@ def fire_escape(fr, u0, nfl):
             P = fr.p; beam(P(u0 + 2.6, 0.55, z - FH + 0.0), P(u0 + 0.4, 0.55, z), 0.12, 0.08, "steel")
     for s in (0.05, 2.95): x, y = fr.xy(u0 + s, 1.15); cyl(x, y, fr.z0, fr.z0 + (nfl - 1) * FH, 0.04, 5, "steel", top=False)
 def chimney(x, y, z, h):
+    CXI.obst.append((x - 3.5, y - 3.5, x + 3.5, y + 3.5))
     COL.cyl("props", x, y, z - 0.3, z + h, 2.7, 14); seg = 14
     for k in range(6):
         r0 = 2.6 - k * 0.26; r1 = 2.6 - (k + 1) * 0.26; cyl(x, y, z + h * k / 6, z + h * (k + 1) / 6, r0, seg, "brick" if False else "brick_dk" if False else "rust", r1=r1, top=False)
@@ -113,15 +116,14 @@ def loft(rect, r, nfl, mat, i, j, tag, sign=True):
     return top
 def container(x, y, z, r, along_x=True, ci=None):
     col = ci or r.choice(["cont_red", "cont_blue", "cont_green", "cont_ochre"]); L, W, H = (12.2, 2.44, 2.6) if along_x else (2.44, 12.2, 2.6); tl = TL[col]
-    x0, x1, y0, y1 = x - L / 2, x + L / 2, y - W / 2, y + W / 2
-    for (p0, p1, ax, nrm) in (((x0, y0), (x1, y0), 0, (0, -1, 0)), ((x1, y1), (x0, y1), 0, (0, 1, 0)), ((x1, y0), (x1, y1), 1, (1, 0, 0)), ((x0, y1), (x0, y0), 1, (-1, 0, 0))):
-        ln = math.hypot(p1[0] - p0[0], p1[1] - p0[1]); tquad(col, (p0[0], p0[1], z), (p1[0], p1[1], z), (p1[0], p1[1], z + H), (p0[0], p0[1], z + H), [(0, 0), (ln / tl, 0), (ln / tl, H / tl), (0, H / tl)], nrm)
-    pquad("palette", (x0, y0, z + H), (x1, y0, z + H), (x1, y1, z + H), (x0, y1, z + H), "container_grey", (0, 0, 1))
+    IND.container(col, x, y, z, along_x)                                                              # container v2: instanced mesh with ribs / castings / lock rods
 def stack(x, y, z, r, along_x, n):
     COL.box("props", x - (6.1 if along_x else 1.22), y - (1.22 if along_x else 6.1), z - 0.1, x + (6.1 if along_x else 1.22), y + (1.22 if along_x else 6.1), z + n * 2.6)
+    CXI.obst.append((x - (6.3 if along_x else 1.4), y - (1.4 if along_x else 6.3), x + (6.3 if along_x else 1.4), y + (1.4 if along_x else 6.3)))
     for k in range(n): container(x, y, z + k * 2.6, r, along_x)
 def gantry_crane(x, y, z, reach=-1):
     """Portal crane at the quay edge; boom reaches over the water (reach = +-1 along x)."""
+    CXI.obst.append((x - 7.5, y - 8.2, x + 7.5, y + 8.2))
     for sx in (-6, 6):
         for sy in (-7, 7): COL.box("props", x + sx - 0.6, y + sy - 0.6, z - 0.1, x + sx + 0.6, y + sy + 0.6, z + 24); beam((x + sx, y + sy, z), (x + sx * 0.8, y + sy * 0.9, z + 24), 0.8, 0.8, "orange")
     for sy in (-7, 7): pbox(x - 7.5, y + sy - 0.5, x + 7.5, y + sy + 0.5, z + 23.6, z + 24.6, "orange"); pbox(x - 7.5, y + sy - 0.6, x + 7.5, y + sy + 0.6, z, z + 0.5, "steel")
@@ -132,6 +134,7 @@ def gantry_crane(x, y, z, reach=-1):
     pbox(x + reach * 20 - 2.0, y - 1.6, x + reach * 20 + 2.0, y + 1.6, z + 24.2, z + 26.0, "safety"); cyl(x + reach * 20, y, z + 10, z + 24.2, 0.04, 5, "black")
     pbox(x + reach * 20 - 1.5, y - 1.2, x + reach * 20 + 1.5, y + 1.2, z + 9.2, z + 10.0, "steel")
 def silo_group(cx, cy, z, r):
+    CXI.obst.append((cx - 16, cy - 10, cx + 16, cy + 10))
     for a in range(3):
         for b in range(2):
             x, y = cx - 10 + a * 10, cy - 5 + b * 10; h = 24 + r.choice([0, 3, 6]); COL.cyl("props", x, y, z - 0.1, z + h + 2.2, 4.5, 20)
@@ -141,12 +144,15 @@ def silo_group(cx, cy, z, r):
     pbox(cx - 16, cy - 0.8, cx + 16, cy + 0.8, z + 26, z + 26.5, "steel"); [beam((cx - 16 + k * 4, cy, z + 26.5), (cx - 14 + k * 4, cy, z + 29.5), 0.1, 0.1, "steel") for k in range(8)]
     pbox(cx - 16, cy - 0.5, cx + 16, cy + 0.5, z + 29.5, z + 30.0, "steel")
 def pipe_rack(x0, x1, y, z, h=6.0, n=3):
+    CXI.obst.append((x0, y - 1.6, x1, y + 1.6))
     for xx in range(int(x0), int(x1) + 1, 8): pbox(xx - 0.2, y - 1.2, xx + 0.2, y - 0.8, z, z + h, "steel"); pbox(xx - 0.2, y + 0.8, xx + 0.2, y + 1.2, z, z + h, "steel"); pbox(xx - 0.2, y - 1.2, xx + 0.2, y + 1.2, z + h - 0.2, z + h, "steel")
     for k in range(n): fr = Frame((x0, y + (k - 1) * 0.5), (1, 0), (0, 1), z); hcyl(fr, 0, x1 - x0, 0, h + 0.3 + (k % 2) * 0.4, 0.22, ["rust", "orange", "alu"][k % 3], seg=10)
 def rail(y, x0, x1, z, r):
+    CXI.obst.append((x0, y - 1.6, x1, y + 1.6))
     for k in range(int((x1 - x0) / 0.7)): pbox(x0 + k * 0.7, y - 1.3, x0 + k * 0.7 + 0.25, y + 1.3, z, z + 0.13, "trunk")
     for s in (-0.72, 0.72): pbox(x0, y + s - 0.04, x1, y + s + 0.04, z + 0.13, z + 0.26, "steel")
 def boxcar(x, y, z, r):
+    CXI.obst.append((x - 7.5, y - 1.8, x + 7.5, y + 1.8))
     col = r.choice(["container_red", "rust", "container_green", "container_grey"]); COL.box("props", x - 7.2, y - 1.5, z, x + 7.2, y + 1.5, z + 4.0); pbox(x - 7, y - 1.4, x + 7, y + 1.4, z + 0.8, z + 4.0, col); pbox(x - 7.2, y - 1.5, x + 7.2, y + 1.5, z + 0.5, z + 0.8, "black")
     for sx in (-5, -4.2, 4.2, 5): cyl(x + sx, y - 1.45, z + 0.5, z + 0.9, 0.5, 10, "steel")
     pbox(x - 1.0, y - 1.45, x + 1.0, y - 1.38, z + 0.9, z + 3.8, "black")
@@ -244,12 +250,27 @@ only = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 for (i, j), k in KIND.items():
     if only and f"{i}{j}" not in only: continue
     BUILD[k](i, j, random.Random(200 + i * 10 + j))
+# ------------------------------------------------------------------ industrial pass: loose props (own Random; clusters never on roads, block entrances, rails or footprints)
+prng = random.Random(9090); rects = [(min(p[0] for p in b["poly"]), min(p[1] for p in b["poly"]), max(p[0] for p in b["poly"]), max(p[1] for p in b["poly"])) for b in PLAN["buildings"]]
+cells = [(x0, y0, x1, y1) for (x0, x1) in BL for (y0, y1) in BL]
+NPROP = {"bays": IND.place_bay_props(CXI, BAYS, rects, cells, prng)}
+CXI.obst += [(a - 1.0, b - 1.0, c_ + 1.0, d_ + 1.0) for (a, b, c_, d_) in rects]
+for (i, j), k in KIND.items():
+    if only and f"{i}{j}" not in only: continue
+    x0, y0, x1, y1 = block_rect(i, j); cy = (y0 + y1) / 2
+    if k == "cont":                                                                   # quay edge (headings run along the quay, clusters face the water) + the open yard behind the stacks
+        NPROP[f"quay{i}{j}"] = IND.scatter(CXI, (x1 - 6.3, y0 + 3, x1 - 5.7, y1 - 3), 4, ["pallets", "drums", "crates", "forklift"], [3, 3, 2, 1.2], prng, margin=0.0, clear=2.3, rots=[math.pi / 2])
+        NPROP[f"yard{i}{j}"] = IND.scatter(CXI, (x0, y0, x1 - 6.5, y1), 4, ["pallets", "drums", "crates", "forklift"], [3, 3, 2, 1.2], prng, margin=2.5)
+    elif k == "rail":                                                                 # sidings
+        NPROP[f"rail{i}{j}"] = IND.scatter(CXI, (x0, y0, x1, y1), 7, ["pallets", "drums", "crates", "forklift"], [3, 3, 3, 0.8], prng, margin=2.5, clear=2.2)
+if os.environ.get("FOUNDRY_DUMP"): json.dump({"place": IND.PLACE, "doors": IND.DOORS}, open(os.environ["FOUNDRY_DUMP"], "w"))      # debug: where everything went
+INSTN = IND.bake(); print("INDUSTRIAL", INSTN, NPROP, {k: v for k, v in IND.TRIS.items()}, IND.STATS)
 realise({"road": "Road", "sidewalk": "Sidewalk", "glass": "Glass", "shopglass": "ShopGlass", "palette": "Props", "led": "Led", "msign": "Signs"})
 agg = {}
 for k, v in MBS.items(): agg[k.rpartition("::")[2]] = agg.get(k.rpartition("::")[2], 0) + len(v.f)
 print("TRIS", sum(agg.values()), dict(sorted(agg.items(), key=lambda kv: -kv[1])[:8]))
 os.makedirs(f"{HERE}/out", exist_ok=True); bpy.ops.wm.save_as_mainfile(filepath=f"{HERE}/out/foundry.blend")
-export_glb(f"{HERE}/out/world-foundry.glb"); json.dump(PLAN, open(f"{HERE}/out/foundry-plan.json", "w"))
+export_glb(f"{HERE}/out/world-foundry.glb", gpu_instances=True); json.dump(PLAN, open(f"{HERE}/out/foundry-plan.json", "w"))
 # ---- collision: ground, quay (open where the Bazaar bridge lands: west edge), plan footprints (height = floors x FH), trunks, lamps; chimneys / container stacks / silos / cranes / box cars come from the builders above
 COL.ground_rect("ground", -LAND, -LAND, LAND, LAND, Z); CX.quay(COL, LAND, Z, "W")
 for b in PLAN["buildings"]: COL.prism("buildings", b["poly"], Z - 0.3, Z + b["floors"] * FH)
