@@ -18,13 +18,15 @@ import {
 import { CITY_FOOTPRINTS, insideFootprint } from "./cityFootprints";
 import { CastFigure } from "./CastFigure";
 import { BazaarLife } from "./BazaarLife";
+import { TeaBartender } from "./TeaBartender";
+import { BARTENDER_LINES } from "./bartender";
 import { CityWalker } from "./CityWalker";
 import { ScoutAgent } from "./ScoutAgent";
 import { BODY_CAST, BODY_SUMMER, bodyForMember, cruiseCapForBody, excludeBody } from "./bodies";
 import { CLIP_CATALOG, ClipTestState } from "./clips";
 import { WalkClipOverride, type WalkFrameInfo } from "./walkOverride";
 import { SoundDirector } from "./soundDirector";
-import { benchPhonon } from "./phononTts";
+import { VOICE_BARTENDER, benchPhonon, phononWarmth, synthLine, warmPhonon } from "./phononTts";
 import { GREETING_SCRIPT, createPlazaGreeting, type PlazaGreeting } from "./plazaTts";
 import {
   AGORA_BENCH_ANCHORS,
@@ -1625,21 +1627,50 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   // the user grants sound consent (the runner checks, the director
   // enforces). Summer's Talking clip rides the walk override, the
   // same channel the HUD's clip tests use.
+  // The Mage's voice state: true while one of his lines plays; BazaarLife's keeper talks only then.
+  const mageVoiceRef = useRef(false);
   const plazaRef = useRef<PlazaGreeting | null>(null);
-  if (plazaRef.current === null) {
-    plazaRef.current = createPlazaGreeting(soundRef.current, (on) => {
-      const ov = walkOverrideRef.current;
-      if (!ov) return;
-      if (on) ov.fire("Talking");
-      else ov.clear();
-    });
+  // Bound to the director it was built with: the director is disposed and re-created when its unmount effect runs (React
+  // StrictMode runs that once on every dev mount), so a greeting kept from before would ask a DEAD director for consent
+  // ("unknown" for ever) and never speak. Rebuild it whenever the director instance changes.
+  const plazaDirectorRef = useRef<SoundDirector | null>(null);
+  if (plazaRef.current === null || plazaDirectorRef.current !== soundRef.current) {
+    plazaDirectorRef.current = soundRef.current;
+    plazaRef.current = createPlazaGreeting(
+      soundRef.current,
+      (on) => {
+        const ov = walkOverrideRef.current;
+        if (!ov) return;
+        if (on) ov.fire("Talking");
+        else ov.clear();
+      },
+      (on) => {
+        mageVoiceRef.current = on;
+      },
+    );
   }
+  // Keep speech warm: entering City 3 starts the engine load + pre-synthesis of the scripted greeting in the background, so
+  // nobody waits on the 64.5 MB model when they walk up to the Mage (until then the pre-rendered clips cover every line).
+  useEffect(() => {
+    if (place !== "city3") return;
+    const id = window.setTimeout(() => {
+      void warmPhonon([
+        ...GREETING_SCRIPT.map((m) => ({ text: m.text, voice: m.voiceId })),
+        ...BARTENDER_LINES.map((l) => ({ text: l.text, voice: VOICE_BARTENDER })),
+      ]).catch((e: unknown) => {
+        console.warn("[tts] warm-up failed; the pre-rendered clips will speak", e);
+      });
+    }, 1500); // after the first frames, not competing with the world GLB download
+    return () => window.clearTimeout(id);
+  }, [place]);
   const walking = place === "city3" && camMode !== "wide";
   // The walk bot's latest position, published by CityWalker per stepped
   // frame and read by BazaarLife (the stall keeper's approach trigger).
   // Cleared when walk mode ends so a stale position can't hold a
   // conversation open forever.
   const botPosRef = useRef<{ x: number; z: number } | null>(null);
+  // Scout's latest position (agent mode), for the Tea House bartender.
+  const scoutPosRef = useRef<{ x: number; z: number } | null>(null);
   useEffect(() => {
     if (!walking) botPosRef.current = null;
   }, [walking]);
@@ -1707,17 +1738,22 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
     const ttsDebug = new URLSearchParams(window.location.search).has("ttsDebug");
     if (ttsDebug) {
       const w = window as unknown as Record<string, unknown>;
-      const plaza = plazaRef.current;
       w.__tts = {
         start: () =>
-          plaza?.start(() => {
+          plazaRef.current?.start(() => {
             const fr = walkFrameRef.current;
             return fr && fr.x !== undefined && fr.z !== undefined
               ? { x: fr.x, z: fr.z }
               : null;
           }),
-        log: () => plaza?.log ?? [],
-        status: () => plaza?.status ?? "none",
+        log: () => plazaRef.current?.log ?? [],
+        status: () => plazaRef.current?.status ?? "none",
+        warmth: () => phononWarmth(),
+        /** Synthesize one line (tools: render pre-recorded fallback clips with the same engine + voice). */
+        synth: async (text: string, voice: string) => {
+          const r = await synthLine(text, voice);
+          return { sampleRate: r.sampleRate, pcm: Array.from(r.pcm) };
+        },
         bench: () =>
           benchPhonon(GREETING_SCRIPT.map((m) => ({ text: m.text, voice: m.voiceId }))),
       };
@@ -1794,7 +1830,8 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
             <>
               <ClipCutaway rooms={city3Rooms} focus={heroFocus} />
               <InteriorStreamer rooms={city3Rooms} walk={walkColliders} interact={interactRef.current} />
-              <BazaarLife getMeshes={getColliderMeshes} walk={walkColliders} botPosRef={botPosRef} />
+              <BazaarLife getMeshes={getColliderMeshes} walk={walkColliders} botPosRef={botPosRef} keeperVoiceRef={mageVoiceRef} />
+              <TeaBartender visitors={[botPosRef, scoutPosRef]} walk={walkColliders} getDirector={() => soundRef.current} />
               <TeaDoorLeaf controller={teaDoorRef.current} />
               {!agentOn ? <TeaDoorTicker controller={teaDoorRef.current} /> : null}
               {!agentOn ? <InteractTicker controller={interactRef.current} /> : null}
@@ -1817,7 +1854,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
             />
           ) : null}
           {agentOn ? (
-            <ScoutAgent getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} door={teaDoorRef.current} interact={interactRef.current} />
+            <ScoutAgent getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} door={teaDoorRef.current} positionRef={scoutPosRef} interact={interactRef.current} />
           ) : null}
           <CrowdCast
             place={place}

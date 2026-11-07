@@ -115,6 +115,7 @@ export function ScoutAgent({
   rooms,
   door,
   interact,
+  positionRef,
 }: {
   getMeshes: () => THREE.Mesh[];
   walk?: WalkColliders;
@@ -123,6 +124,8 @@ export function ScoutAgent({
   door?: TeaDoorController;
   /** Usable props (interactables.ts): Scout walks to one and uses it (`interact` action), on Scout's clock. */
   interact?: InteractController;
+  /** Scout's latest position, written every sim step (the Tea House bartender greets Scout too). */
+  positionRef?: { current: { x: number; z: number } | null };
 }) {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   const gl = useThree((s) => s.gl);
@@ -345,6 +348,7 @@ export function ScoutAgent({
       while (dt > 0) {
         const stepDt = Math.min(dt, 1 / 30);
         ex.tick(stepDt, s, world);
+        if (positionRef) positionRef.current = { x: s.x, z: s.z };
         door?.tick(stepDt); // agent mode: the door runs on Scout's sim clock (GlbWorld's frame ticker is off)
         interact?.tick(stepDt); // same for the interactables (InteractTicker is off in agent mode)
         dt -= stepDt;

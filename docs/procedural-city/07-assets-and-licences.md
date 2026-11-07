@@ -77,3 +77,12 @@ Roller doors, containers v2, pallets, loaded pallets, oil drums and bollards are
 |---|---|---|---|
 | Skeleton Warrior (`cast-skeleton-warrior.glb`) | KayKit "Character Pack: Skeletons" 1.0, Kay Lousberg | CC0 (LICENSE.txt in the pack) | PR #30; Body Block's 45 clips retargeted with the Adventurers wave's matrix-delta bake; no attribution required |
 | Remy (`cast-remy.glb`) | Mixamo (Adobe) `Remy.fbx` | Mixamo terms, not CC0 | PR #29. Free for commercial and non-commercial use inside a finished product; **you may not distribute the raw character or animation files** (asset packs, stores), no ML-training use; attribution not required. Source: Adobe Mixamo FAQ as reposted on the Adobe community forum, Sept 2022 (https://community.adobe.com/t5/mixamo-discussions/mixamo-faq-licensing-royalties-ownership-eula-and-tos/td-p/13234775); could not confirm it is still current, check Adobe's Terms of Use. Open question: a GLB committed to a public repo and served from `public/assets/` is arguably "distributing the raw character"; decide before the repo goes public or the console is shared widely. Summer is a Mixamo-rigged character of the user's own (`Sitting_small_0_ex78.fbx`) with the same caveat. |
+
+## Speech (Phonon TTS, 2026-11-07)
+| Asset | Source | Licence | Notes |
+|---|---|---|---|
+| `phonon-tts` engine (npm 0.6.0) | gradium-ai/xn-ptts | MIT OR Apache-2.0 | runs in the tab (WASM worker) |
+| Model `gradium/phonon-31m-en` q8 GGUF, pinned revision 8c64b55e | Hugging Face | Apache-2.0 (per the model card; the 40M / multilingual checkpoints are CC-BY-NC and NOT used) | fetched at runtime, not in git |
+| Voices "Zoey", "Master Aldric", "Hugh" (`public/assets/tts/voices/*.safetensors`) | Hugging Face `gradium/phonon-voices` @ 0ee17205 (`voices.jsonl`) | Apache-2.0 (repo licence) | designed catalog voices, not clones of real people |
+| Clips `public/assets/tts/lines/{mage,summer}*.mp3` | rendered locally with the engine + voices above | as the model | fallback while the engine warms |
+| Clips `public/assets/tts/lines/bartender{1,2}.mp3` | rendered in this repo's console with "Hugh" (ffmpeg, 24 kHz mono 48 kbps) | as the model | fallback while the engine warms |

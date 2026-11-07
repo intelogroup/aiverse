@@ -228,3 +228,33 @@ known before the room streams in, so Scout can plan against it and the sound lay
   copies in `apps/console/public/assets/interiors/`; they must be identical (the library GLB and all layouts are unchanged: the radio asset is already in the library).
 - Tests: `interactables.test.ts` (12), `interactableMesh.test.ts` (6), `scout.test.ts` (interact + oracle), `soundLogic.test.ts` (switched emitter),
   `tests/interactables-assets.test.ts` (the shipped definition against the real furniture collision: reachable from three sides).
+
+## Speech that never waits, gestures that follow the voice (2026-11-07, branch `feat/tts-warm`)
+- **Warm on entry.** Entering City 3 starts `warmPhonon()` 1.5 s after mount: the Phonon engine loads (64.5 MB from the pinned Hugging Face
+  revision or `VITE_PHONON_MODEL_URL`) and the scripted greeting is pre-synthesized into a PCM cache; the engine then stays loaded for the
+  page. No audio plays, so no sound consent is needed for it. Cost: every City 3 visitor downloads the model (browser-cached afterwards).
+- **Never wait.** `prepare()` order: cached PCM -> live synth (only once the engine is loaded) -> the pre-rendered clip of the same voice.
+  Before this, the first greeting waited on the model download (~12 s here), the Mage gestured in silence and the visitor walked off.
+  Live: warm = first line 1 ms after the trigger, all 4 lines from the cache; model unreachable = clips, first line 59 ms after the trigger.
+- **Gesture follows voice.** The Mage waves when someone walks up (`keeperGesture`, keeper.ts) and plays `Talking` only while his line plays
+  (`setMageTalking` -> `mageVoiceRef` -> BazaarLife). Same for Summer. A line that cannot be made gets no gesture. The patrol (no speech)
+  now gets a wave, not a silent Talking loop.
+- **Fixed on the way:** the greeting was bound to the sound director it was built with; React StrictMode's unmount effect disposes and
+  re-creates the director, so the greeting kept asking a dead director for consent and never spoke. It is rebuilt when the director changes.
+- Debug (`?ttsDebug=1`): `window.__tts.warmth()` -> `{ready, cached, warming}`; `log()`, `status()`, `start()` read the live greeting.
+- Tests: `plazaSpeech.test.ts` (never-wait order, gesture follows voice), `keeper.test.ts` (`keeperGesture`).
+
+## The Tea House bartender (2026-11-07, `bartender.ts`, `TeaBartender.tsx`; branch `feat/bartender`)
+Remy stands behind the bar (x -29.5, z -82.69: the middle of the 1.53 m corridor between counter and bottle shelves, middle of the 12 m bar),
+on a 0.35 m duckboard hidden by the counter, voice "Hugh". Whoever reaches the bar (the zone in front of the whole counter run, 3 m deep, or
+within 3.2 m of him; leaving needs the zone + 1 m / 4.2 m) gets a turn toward them, a wave, and a greeting: "Welcome to the Matchmaker's
+Tea House..." first, "Back again? ..." for a returning visitor, never the same visitor twice within 45 s. He TALKS only while the line plays
+(`keeperGesture`); the line comes from the warm cache, else live synth, else the pre-rendered clip. Visitors: the player's bot and Scout
+(`ScoutAgent positionRef`). Body + board are one walker collider (`npc:bartender`). Debug: `window.__bartender.info()` (walkDebug / agent /
+ttsDebug). Live: player at the bar -> greeted 15 ms after the trigger from the cache, Talking only while speaking; Scout (agent mode, no sound
+consent) -> turned + waved, line logged `silent`.
+- **Scale note (not fixed):** the cast is ~1.30-1.45 m tall (KayKit bodies and Remy normalised to 1.30 m, Summer ~1.45 m) while the hero
+  rooms are real-size (counter 1.12 m, tables 0.78 m, door knob 0.80 m). On the floor only the bartender's head cleared the counter. The
+  duckboard hides it here; a city-wide decision (scale the cast to ~1.75 m, or the rooms down) is open.
+- Tests: `bartender.test.ts` (trigger zone, facing, cooldown, returning visitor, hysteresis), `tests/bartender-placement.test.ts`
+  (the spot and collider against the shipped `tea.col.json`).

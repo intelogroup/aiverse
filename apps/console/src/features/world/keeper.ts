@@ -65,6 +65,8 @@ export function stepKeeper(
   dt: number,
   self: [number, number],
   movers: readonly [number, number][],
+  /** Trigger radii (m); the stall keeper's by default. Other greeters (the bartender) pass their own. */
+  radii: { enter: number; exit: number } = { enter: KEEPER_ENTER_RADIUS, exit: KEEPER_EXIT_RADIUS },
 ): KeeperEvents {
   let best: [number, number] | null = null;
   let bestD = Infinity;
@@ -78,10 +80,10 @@ export function stepKeeper(
 
   let entered = false;
   let exited = false;
-  if (!k.talking && best !== null && bestD <= KEEPER_ENTER_RADIUS) {
+  if (!k.talking && best !== null && bestD <= radii.enter) {
     k.talking = true;
     entered = true;
-  } else if (k.talking && (best === null || bestD > KEEPER_EXIT_RADIUS)) {
+  } else if (k.talking && (best === null || bestD > radii.exit)) {
     k.talking = false;
     exited = true;
   }
@@ -93,6 +95,17 @@ export function stepKeeper(
   const turn = clamp(angleTo(k.heading, target), -KEEPER_TURN_RATE * dt, KEEPER_TURN_RATE * dt);
   k.heading = wrapAngle(k.heading + turn);
   return { entered, exited };
+}
+
+/**
+ * The keeper's gesture for this frame. He TALKS only while his voice line plays (`voice`); someone walking up gets a wave
+ * (a greeting needs no audio); a Talking clip with no voice behind it is cleared. Returns the clip to fire, "clear", or null.
+ */
+export function keeperGesture(current: string | null, voice: boolean, entered: boolean): "Talking" | "Waving" | "clear" | null {
+  if (voice) return current === "Talking" ? null : "Talking";
+  if (entered) return "Waving";
+  if (current === "Talking") return "clear";
+  return null;
 }
 
 // ---------------------------------------------------------------------------

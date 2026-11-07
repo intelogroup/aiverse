@@ -27,7 +27,7 @@
  */
 
 import { KEEPER_ENTER_RADIUS, KEEPER_POS } from "./keeper";
-import { synthLine, VOICE_MAGE, VOICE_SUMMER } from "./phononTts";
+import { cachedLine, phononReady, synthLine, VOICE_MAGE, VOICE_SUMMER } from "./phononTts";
 import type { SoundDirector } from "./soundDirector";
 
 export type PlazaBotId = "mage" | "summer";
@@ -104,6 +104,8 @@ export interface PlazaDeps {
   director: SoundDirector;
   /** Fire/clear Summer's Talking clip on the walk override. */
   setSummerTalking: (on: boolean) => void;
+  /** The Mage's Talking clip runs only while his line plays (BazaarLife reads it). Optional for older callers. */
+  setMageTalking?: (on: boolean) => void;
   /** Synthesize (or fetch the fallback clip for) one line. */
   prepare: (msg: A2aMessage) => Promise<PreparedLine>;
   /** Play a prepared line positionally; returns its seconds. */
@@ -115,44 +117,52 @@ const realSleep = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /**
- * The production speech path: live Phonon synthesis first; any
- * failure (engine load, WASM, a single line) falls back to the
- * pre-rendered clip for that line, decoded on the director's own
- * context. Nothing here throws — a line that cannot be made is a
- * silent beat, with the reason kept on the result.
+ * Prepare ONE line for the voice emitter without ever waiting on the engine: cached PCM (warmPhonon) -> live synth once the
+ * engine is loaded -> the pre-rendered clip at `clipUrl` (if any). Never throws; a line that cannot be made is "silent".
+ */
+export async function prepareLine(director: SoundDirector, text: string, voice: string, clipUrl: string | null): Promise<PreparedLine> {
+  const clip = async (reason: string): Promise<PreparedLine> => {
+    if (!clipUrl) return { shape: "silent", error: `${reason}; no clip` };
+    try {
+      const res = await fetch(clipUrl);
+      if (!res.ok) return { shape: "silent", error: `${reason}; clip HTTP ${res.status}` };
+      const buf = await director.decodeAudio(await res.arrayBuffer());
+      return buf ? { shape: "clip", buffer: buf } : { shape: "silent", error: `${reason}; clip undecodable` };
+    } catch (e2) {
+      return { shape: "silent", error: `${reason}; clip: ${e2 instanceof Error ? e2.message : String(e2)}` };
+    }
+  };
+  const hit = cachedLine(text, voice);
+  if (hit) return { shape: "live", pcm: hit.pcm, sampleRate: hit.sampleRate };
+  if (!phononReady()) return clip("engine still warming");
+  try {
+    const r = await synthLine(text, voice);
+    return { shape: "live", pcm: r.pcm, sampleRate: r.sampleRate };
+  } catch (e) {
+    return clip(e instanceof Error ? e.message : String(e));
+  }
+}
+
+/** Play a prepared line on the director's positional voice emitter; returns its seconds (0 = nothing played). */
+export function playLine(director: SoundDirector, line: PreparedLine, pos: { x: number; z: number }, speaker: string): number {
+  if (line.shape === "live") return director.playVoicePcm(line.pcm, line.sampleRate, pos, speaker);
+  if (line.shape === "clip") return director.playVoiceBuffer(line.buffer, pos, speaker);
+  return 0;
+}
+
+/**
+ * The production speech path. It NEVER waits on the engine: a line synthesized ahead of time (warmPhonon) plays at once;
+ * with the engine loaded, the line is synthesized live; otherwise (model still downloading, WASM failed, a line failed) the
+ * pre-rendered clip of the same voice plays now. Waiting for the 64.5 MB model on the first greeting is exactly what left the
+ * Mage gesturing in silence while the visitor walked off. Nothing here throws: a line that cannot be made is a silent beat,
+ * with the reason kept on the result.
  */
 export function makeLiveSpeech(
   director: SoundDirector,
 ): Pick<PlazaDeps, "prepare" | "play"> {
   return {
-    async prepare(msg: A2aMessage): Promise<PreparedLine> {
-      try {
-        const r = await synthLine(msg.text, msg.voiceId);
-        return { shape: "live", pcm: r.pcm, sampleRate: r.sampleRate };
-      } catch (e) {
-        const reason = e instanceof Error ? e.message : String(e);
-        try {
-          const res = await fetch(`/assets/tts/lines/${msg.clip}.mp3`);
-          if (!res.ok) return { shape: "silent", error: `${reason}; clip HTTP ${res.status}` };
-          const buf = await director.decodeAudio(await res.arrayBuffer());
-          return buf
-            ? { shape: "clip", buffer: buf }
-            : { shape: "silent", error: `${reason}; clip undecodable` };
-        } catch (e2) {
-          return {
-            shape: "silent",
-            error: `${reason}; clip: ${e2 instanceof Error ? e2.message : String(e2)}`,
-          };
-        }
-      }
-    },
-    play(line, pos, speaker) {
-      if (line.shape === "live")
-        return director.playVoicePcm(line.pcm, line.sampleRate, pos, speaker);
-      if (line.shape === "clip")
-        return director.playVoiceBuffer(line.buffer, pos, speaker);
-      return 0;
-    },
+    prepare: (msg: A2aMessage) => prepareLine(director, msg.text, msg.voiceId, `/assets/tts/lines/${msg.clip}.mp3`),
+    play: (line, pos, speaker) => playLine(director, line, pos, speaker),
   };
 }
 
@@ -169,6 +179,11 @@ export class PlazaGreeting {
 
   constructor(deps: PlazaDeps) {
     this.deps = deps;
+  }
+
+  private talking(who: PlazaBotId, on: boolean): void {
+    if (who === "summer") this.deps.setSummerTalking(on);
+    else this.deps.setMageTalking?.(on);
   }
 
   /** The greeting fires at most once per session. */
@@ -220,19 +235,22 @@ export class PlazaGreeting {
           msg.from === "mage"
             ? { x: KEEPER_POS[0], z: KEEPER_POS[1] }
             : (getBotPos() ?? { x: KEEPER_POS[0], z: KEEPER_POS[1] - 2 });
-        if (msg.from === "summer") this.deps.setSummerTalking(true);
         const seconds = this.deps.play(line, pos, msg.from);
+        // The gesture follows the voice: only a line that actually plays gets the Talking clip (a silent beat gets none).
+        if (seconds > 0) this.talking(msg.from, true);
         this.log.push({
           ...msg,
           shape: line.shape,
           seconds,
           atMs: performance.now() - t0,
         });
-        await this.deps.sleep(Math.max(0, seconds * 1000) + LINE_GAP_MS);
-        if (msg.from === "summer") this.deps.setSummerTalking(false);
+        await this.deps.sleep(Math.max(0, seconds * 1000));
+        this.talking(msg.from, false);
+        await this.deps.sleep(LINE_GAP_MS);
       }
     } finally {
-      this.deps.setSummerTalking(false);
+      this.talking("summer", false);
+      this.talking("mage", false);
       this.status = "done";
     }
   }
@@ -242,10 +260,12 @@ export class PlazaGreeting {
 export function createPlazaGreeting(
   director: SoundDirector,
   setSummerTalking: (on: boolean) => void,
+  setMageTalking?: (on: boolean) => void,
 ): PlazaGreeting {
   return new PlazaGreeting({
     director,
     setSummerTalking,
+    setMageTalking,
     ...makeLiveSpeech(director),
     sleep: realSleep,
   });
