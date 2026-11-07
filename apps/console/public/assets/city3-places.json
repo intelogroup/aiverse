@@ -1,0 +1,2599 @@
+[
+ {
+  "id": "stall-0",
+  "kind": "stall",
+  "name": "stall-0",
+  "pos": [
+   -17,
+   18
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -17.0,
+   15.2
+  ]
+ },
+ {
+  "id": "stall-1",
+  "kind": "stall",
+  "name": "stall-1",
+  "pos": [
+   -17,
+   30
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -17.0,
+   27.2
+  ]
+ },
+ {
+  "id": "stall-2",
+  "kind": "stall",
+  "name": "stall-2",
+  "pos": [
+   -17,
+   42
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -17.0,
+   39.2
+  ]
+ },
+ {
+  "id": "stall-3",
+  "kind": "stall",
+  "name": "stall-3",
+  "pos": [
+   -17,
+   54
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -17.0,
+   51.2
+  ]
+ },
+ {
+  "id": "stall-4",
+  "kind": "stall",
+  "name": "stall-4",
+  "pos": [
+   -26,
+   18
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -26.0,
+   15.2
+  ]
+ },
+ {
+  "id": "stall-5",
+  "kind": "stall",
+  "name": "stall-5",
+  "pos": [
+   -26,
+   30
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -26.0,
+   27.2
+  ]
+ },
+ {
+  "id": "stall-6",
+  "kind": "stall",
+  "name": "stall-6",
+  "pos": [
+   -26,
+   42
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -26.0,
+   39.2
+  ]
+ },
+ {
+  "id": "stall-7",
+  "kind": "stall",
+  "name": "stall-7",
+  "pos": [
+   -26,
+   54
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -26.0,
+   51.2
+  ]
+ },
+ {
+  "id": "stall-8",
+  "kind": "stall",
+  "name": "stall-8",
+  "pos": [
+   -35,
+   18
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -35.0,
+   15.2
+  ]
+ },
+ {
+  "id": "stall-9",
+  "kind": "stall",
+  "name": "stall-9",
+  "pos": [
+   -35,
+   30
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -35.0,
+   27.2
+  ]
+ },
+ {
+  "id": "stall-10",
+  "kind": "stall",
+  "name": "stall-10",
+  "pos": [
+   -35,
+   42
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -35.0,
+   39.2
+  ]
+ },
+ {
+  "id": "stall-11",
+  "kind": "stall",
+  "name": "stall-11",
+  "pos": [
+   -35,
+   54
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -35.0,
+   51.2
+  ]
+ },
+ {
+  "id": "stall-12",
+  "kind": "stall",
+  "name": "stall-12",
+  "pos": [
+   -44,
+   18
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -44.0,
+   15.2
+  ]
+ },
+ {
+  "id": "stall-13",
+  "kind": "stall",
+  "name": "stall-13",
+  "pos": [
+   -44,
+   30
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -44.0,
+   27.2
+  ]
+ },
+ {
+  "id": "stall-14",
+  "kind": "stall",
+  "name": "stall-14",
+  "pos": [
+   -44,
+   42
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -44.0,
+   39.2
+  ]
+ },
+ {
+  "id": "stall-15",
+  "kind": "stall",
+  "name": "stall-15",
+  "pos": [
+   -44,
+   54
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -44.0,
+   51.2
+  ]
+ },
+ {
+  "id": "stall-16",
+  "kind": "stall",
+  "name": "stall-16",
+  "pos": [
+   -53,
+   18
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -53.0,
+   15.2
+  ]
+ },
+ {
+  "id": "stall-17",
+  "kind": "stall",
+  "name": "stall-17",
+  "pos": [
+   -53,
+   30
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -53.0,
+   27.2
+  ]
+ },
+ {
+  "id": "stall-18",
+  "kind": "stall",
+  "name": "stall-18",
+  "pos": [
+   -53,
+   42
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -53.0,
+   39.2
+  ]
+ },
+ {
+  "id": "stall-19",
+  "kind": "stall",
+  "name": "stall-19",
+  "pos": [
+   -53,
+   54
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -53.0,
+   51.2
+  ]
+ },
+ {
+  "id": "stall-20",
+  "kind": "stall",
+  "name": "stall-20",
+  "pos": [
+   -17,
+   -18
+  ],
+  "heading": 0.0,
+  "stand": [
+   -17.0,
+   -15.2
+  ]
+ },
+ {
+  "id": "stall-21",
+  "kind": "stall",
+  "name": "stall-21",
+  "pos": [
+   -17,
+   -30
+  ],
+  "heading": 0.0,
+  "stand": [
+   -17.0,
+   -27.2
+  ]
+ },
+ {
+  "id": "stall-22",
+  "kind": "stall",
+  "name": "stall-22",
+  "pos": [
+   -17,
+   -42
+  ],
+  "heading": 0.0,
+  "stand": [
+   -17.0,
+   -39.2
+  ]
+ },
+ {
+  "id": "stall-23",
+  "kind": "stall",
+  "name": "stall-23",
+  "pos": [
+   -17,
+   -54
+  ],
+  "heading": 0.0,
+  "stand": [
+   -17.0,
+   -51.2
+  ]
+ },
+ {
+  "id": "stall-24",
+  "kind": "stall",
+  "name": "stall-24",
+  "pos": [
+   -26,
+   -18
+  ],
+  "heading": 0.0,
+  "stand": [
+   -26.0,
+   -15.2
+  ]
+ },
+ {
+  "id": "stall-25",
+  "kind": "stall",
+  "name": "stall-25",
+  "pos": [
+   -26,
+   -30
+  ],
+  "heading": 0.0,
+  "stand": [
+   -26.0,
+   -27.2
+  ]
+ },
+ {
+  "id": "stall-26",
+  "kind": "stall",
+  "name": "stall-26",
+  "pos": [
+   -26,
+   -42
+  ],
+  "heading": 0.0,
+  "stand": [
+   -26.0,
+   -39.2
+  ]
+ },
+ {
+  "id": "stall-27",
+  "kind": "stall",
+  "name": "stall-27",
+  "pos": [
+   -26,
+   -54
+  ],
+  "heading": 0.0,
+  "stand": [
+   -26.0,
+   -51.2
+  ]
+ },
+ {
+  "id": "stall-28",
+  "kind": "stall",
+  "name": "stall-28",
+  "pos": [
+   -35,
+   -18
+  ],
+  "heading": 0.0,
+  "stand": [
+   -35.0,
+   -15.2
+  ]
+ },
+ {
+  "id": "stall-29",
+  "kind": "stall",
+  "name": "stall-29",
+  "pos": [
+   -35,
+   -30
+  ],
+  "heading": 0.0,
+  "stand": [
+   -35.0,
+   -27.2
+  ]
+ },
+ {
+  "id": "stall-30",
+  "kind": "stall",
+  "name": "stall-30",
+  "pos": [
+   -35,
+   -42
+  ],
+  "heading": 0.0,
+  "stand": [
+   -35.0,
+   -39.2
+  ]
+ },
+ {
+  "id": "stall-31",
+  "kind": "stall",
+  "name": "stall-31",
+  "pos": [
+   -35,
+   -54
+  ],
+  "heading": 0.0,
+  "stand": [
+   -35.0,
+   -51.2
+  ]
+ },
+ {
+  "id": "stall-32",
+  "kind": "stall",
+  "name": "stall-32",
+  "pos": [
+   -44,
+   -18
+  ],
+  "heading": 0.0,
+  "stand": [
+   -44.0,
+   -15.2
+  ]
+ },
+ {
+  "id": "stall-33",
+  "kind": "stall",
+  "name": "stall-33",
+  "pos": [
+   -44,
+   -30
+  ],
+  "heading": 0.0,
+  "stand": [
+   -44.0,
+   -27.2
+  ]
+ },
+ {
+  "id": "stall-34",
+  "kind": "stall",
+  "name": "stall-34",
+  "pos": [
+   -44,
+   -42
+  ],
+  "heading": 0.0,
+  "stand": [
+   -44.0,
+   -39.2
+  ]
+ },
+ {
+  "id": "stall-35",
+  "kind": "stall",
+  "name": "stall-35",
+  "pos": [
+   -44,
+   -54
+  ],
+  "heading": 0.0,
+  "stand": [
+   -44.0,
+   -51.2
+  ]
+ },
+ {
+  "id": "stall-36",
+  "kind": "stall",
+  "name": "stall-36",
+  "pos": [
+   -53,
+   -18
+  ],
+  "heading": 0.0,
+  "stand": [
+   -53.0,
+   -15.2
+  ]
+ },
+ {
+  "id": "stall-37",
+  "kind": "stall",
+  "name": "stall-37",
+  "pos": [
+   -53,
+   -30
+  ],
+  "heading": 0.0,
+  "stand": [
+   -53.0,
+   -27.2
+  ]
+ },
+ {
+  "id": "stall-38",
+  "kind": "stall",
+  "name": "stall-38",
+  "pos": [
+   -53,
+   -42
+  ],
+  "heading": 0.0,
+  "stand": [
+   -53.0,
+   -39.2
+  ]
+ },
+ {
+  "id": "stall-39",
+  "kind": "stall",
+  "name": "stall-39",
+  "pos": [
+   -53,
+   -54
+  ],
+  "heading": 0.0,
+  "stand": [
+   -53.0,
+   -51.2
+  ]
+ },
+ {
+  "id": "stall-40",
+  "kind": "stall",
+  "name": "stall-40",
+  "pos": [
+   17,
+   18
+  ],
+  "heading": 3.14159,
+  "stand": [
+   17.0,
+   15.2
+  ]
+ },
+ {
+  "id": "stall-41",
+  "kind": "stall",
+  "name": "stall-41",
+  "pos": [
+   17,
+   30
+  ],
+  "heading": 3.14159,
+  "stand": [
+   17.0,
+   27.2
+  ]
+ },
+ {
+  "id": "stall-42",
+  "kind": "stall",
+  "name": "stall-42",
+  "pos": [
+   17,
+   42
+  ],
+  "heading": 3.14159,
+  "stand": [
+   17.0,
+   39.2
+  ]
+ },
+ {
+  "id": "stall-43",
+  "kind": "stall",
+  "name": "stall-43",
+  "pos": [
+   17,
+   54
+  ],
+  "heading": 3.14159,
+  "stand": [
+   17.0,
+   51.2
+  ]
+ },
+ {
+  "id": "stall-44",
+  "kind": "stall",
+  "name": "stall-44",
+  "pos": [
+   26,
+   18
+  ],
+  "heading": 3.14159,
+  "stand": [
+   26.0,
+   15.2
+  ]
+ },
+ {
+  "id": "stall-45",
+  "kind": "stall",
+  "name": "stall-45",
+  "pos": [
+   26,
+   30
+  ],
+  "heading": 3.14159,
+  "stand": [
+   26.0,
+   27.2
+  ]
+ },
+ {
+  "id": "stall-46",
+  "kind": "stall",
+  "name": "stall-46",
+  "pos": [
+   26,
+   42
+  ],
+  "heading": 3.14159,
+  "stand": [
+   26.0,
+   39.2
+  ]
+ },
+ {
+  "id": "stall-47",
+  "kind": "stall",
+  "name": "stall-47",
+  "pos": [
+   26,
+   54
+  ],
+  "heading": 3.14159,
+  "stand": [
+   26.0,
+   51.2
+  ]
+ },
+ {
+  "id": "stall-48",
+  "kind": "stall",
+  "name": "stall-48",
+  "pos": [
+   35,
+   18
+  ],
+  "heading": 3.14159,
+  "stand": [
+   35.0,
+   15.2
+  ]
+ },
+ {
+  "id": "stall-49",
+  "kind": "stall",
+  "name": "stall-49",
+  "pos": [
+   35,
+   30
+  ],
+  "heading": 3.14159,
+  "stand": [
+   35.0,
+   27.2
+  ]
+ },
+ {
+  "id": "stall-50",
+  "kind": "stall",
+  "name": "stall-50",
+  "pos": [
+   35,
+   42
+  ],
+  "heading": 3.14159,
+  "stand": [
+   35.0,
+   39.2
+  ]
+ },
+ {
+  "id": "stall-51",
+  "kind": "stall",
+  "name": "stall-51",
+  "pos": [
+   35,
+   54
+  ],
+  "heading": 3.14159,
+  "stand": [
+   35.0,
+   51.2
+  ]
+ },
+ {
+  "id": "stall-52",
+  "kind": "stall",
+  "name": "stall-52",
+  "pos": [
+   44,
+   18
+  ],
+  "heading": 3.14159,
+  "stand": [
+   44.0,
+   15.2
+  ]
+ },
+ {
+  "id": "stall-53",
+  "kind": "stall",
+  "name": "stall-53",
+  "pos": [
+   44,
+   30
+  ],
+  "heading": 3.14159,
+  "stand": [
+   44.0,
+   27.2
+  ]
+ },
+ {
+  "id": "stall-54",
+  "kind": "stall",
+  "name": "stall-54",
+  "pos": [
+   44,
+   42
+  ],
+  "heading": 3.14159,
+  "stand": [
+   44.0,
+   39.2
+  ]
+ },
+ {
+  "id": "stall-55",
+  "kind": "stall",
+  "name": "stall-55",
+  "pos": [
+   44,
+   54
+  ],
+  "heading": 3.14159,
+  "stand": [
+   44.0,
+   51.2
+  ]
+ },
+ {
+  "id": "stall-56",
+  "kind": "stall",
+  "name": "stall-56",
+  "pos": [
+   53,
+   18
+  ],
+  "heading": 3.14159,
+  "stand": [
+   53.0,
+   15.2
+  ]
+ },
+ {
+  "id": "stall-57",
+  "kind": "stall",
+  "name": "stall-57",
+  "pos": [
+   53,
+   30
+  ],
+  "heading": 3.14159,
+  "stand": [
+   53.0,
+   27.2
+  ]
+ },
+ {
+  "id": "stall-58",
+  "kind": "stall",
+  "name": "stall-58",
+  "pos": [
+   53,
+   42
+  ],
+  "heading": 3.14159,
+  "stand": [
+   53.0,
+   39.2
+  ]
+ },
+ {
+  "id": "stall-59",
+  "kind": "stall",
+  "name": "stall-59",
+  "pos": [
+   53,
+   54
+  ],
+  "heading": 3.14159,
+  "stand": [
+   53.0,
+   51.2
+  ]
+ },
+ {
+  "id": "stall-60",
+  "kind": "stall",
+  "name": "stall-60",
+  "pos": [
+   17,
+   -18
+  ],
+  "heading": 0.0,
+  "stand": [
+   17.0,
+   -15.2
+  ]
+ },
+ {
+  "id": "stall-61",
+  "kind": "stall",
+  "name": "stall-61",
+  "pos": [
+   17,
+   -30
+  ],
+  "heading": 0.0,
+  "stand": [
+   17.0,
+   -27.2
+  ]
+ },
+ {
+  "id": "stall-62",
+  "kind": "stall",
+  "name": "stall-62",
+  "pos": [
+   17,
+   -42
+  ],
+  "heading": 0.0,
+  "stand": [
+   17.0,
+   -39.2
+  ]
+ },
+ {
+  "id": "stall-63",
+  "kind": "stall",
+  "name": "stall-63",
+  "pos": [
+   17,
+   -54
+  ],
+  "heading": 0.0,
+  "stand": [
+   17.0,
+   -51.2
+  ]
+ },
+ {
+  "id": "stall-64",
+  "kind": "stall",
+  "name": "stall-64",
+  "pos": [
+   26,
+   -18
+  ],
+  "heading": 0.0,
+  "stand": [
+   26.0,
+   -15.2
+  ]
+ },
+ {
+  "id": "stall-65",
+  "kind": "stall",
+  "name": "stall-65",
+  "pos": [
+   26,
+   -30
+  ],
+  "heading": 0.0,
+  "stand": [
+   26.0,
+   -27.2
+  ]
+ },
+ {
+  "id": "stall-66",
+  "kind": "stall",
+  "name": "stall-66",
+  "pos": [
+   26,
+   -42
+  ],
+  "heading": 0.0,
+  "stand": [
+   26.0,
+   -39.2
+  ]
+ },
+ {
+  "id": "stall-67",
+  "kind": "stall",
+  "name": "stall-67",
+  "pos": [
+   26,
+   -54
+  ],
+  "heading": 0.0,
+  "stand": [
+   26.0,
+   -51.2
+  ]
+ },
+ {
+  "id": "stall-68",
+  "kind": "stall",
+  "name": "stall-68",
+  "pos": [
+   35,
+   -18
+  ],
+  "heading": 0.0,
+  "stand": [
+   35.0,
+   -15.2
+  ]
+ },
+ {
+  "id": "stall-69",
+  "kind": "stall",
+  "name": "stall-69",
+  "pos": [
+   35,
+   -30
+  ],
+  "heading": 0.0,
+  "stand": [
+   35.0,
+   -27.2
+  ]
+ },
+ {
+  "id": "stall-70",
+  "kind": "stall",
+  "name": "stall-70",
+  "pos": [
+   35,
+   -42
+  ],
+  "heading": 0.0,
+  "stand": [
+   35.0,
+   -39.2
+  ]
+ },
+ {
+  "id": "stall-71",
+  "kind": "stall",
+  "name": "stall-71",
+  "pos": [
+   35,
+   -54
+  ],
+  "heading": 0.0,
+  "stand": [
+   35.0,
+   -51.2
+  ]
+ },
+ {
+  "id": "stall-72",
+  "kind": "stall",
+  "name": "stall-72",
+  "pos": [
+   44,
+   -18
+  ],
+  "heading": 0.0,
+  "stand": [
+   44.0,
+   -15.2
+  ]
+ },
+ {
+  "id": "stall-73",
+  "kind": "stall",
+  "name": "stall-73",
+  "pos": [
+   44,
+   -30
+  ],
+  "heading": 0.0,
+  "stand": [
+   44.0,
+   -27.2
+  ]
+ },
+ {
+  "id": "stall-74",
+  "kind": "stall",
+  "name": "stall-74",
+  "pos": [
+   44,
+   -42
+  ],
+  "heading": 0.0,
+  "stand": [
+   44.0,
+   -39.2
+  ]
+ },
+ {
+  "id": "stall-75",
+  "kind": "stall",
+  "name": "stall-75",
+  "pos": [
+   44,
+   -54
+  ],
+  "heading": 0.0,
+  "stand": [
+   44.0,
+   -51.2
+  ]
+ },
+ {
+  "id": "stall-76",
+  "kind": "stall",
+  "name": "stall-76",
+  "pos": [
+   53,
+   -18
+  ],
+  "heading": 0.0,
+  "stand": [
+   53.0,
+   -15.2
+  ]
+ },
+ {
+  "id": "stall-77",
+  "kind": "stall",
+  "name": "stall-77",
+  "pos": [
+   53,
+   -30
+  ],
+  "heading": 0.0,
+  "stand": [
+   53.0,
+   -27.2
+  ]
+ },
+ {
+  "id": "stall-78",
+  "kind": "stall",
+  "name": "stall-78",
+  "pos": [
+   53,
+   -42
+  ],
+  "heading": 0.0,
+  "stand": [
+   53.0,
+   -39.2
+  ]
+ },
+ {
+  "id": "stall-79",
+  "kind": "stall",
+  "name": "stall-79",
+  "pos": [
+   53,
+   -54
+  ],
+  "heading": 0.0,
+  "stand": [
+   53.0,
+   -51.2
+  ]
+ },
+ {
+  "id": "shop-44",
+  "kind": "shopfront",
+  "name": "Coffee",
+  "pos": [
+   -116.5,
+   122.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   -116.5,
+   122.5
+  ],
+  "room": "shop-44",
+  "door": [
+   -116.5,
+   122.5
+  ]
+ },
+ {
+  "id": "shop-45",
+  "kind": "shopfront",
+  "name": "Apothecary",
+  "pos": [
+   -104.5,
+   122.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   -104.5,
+   122.5
+  ],
+  "room": "shop-45",
+  "door": [
+   -104.5,
+   122.5
+  ]
+ },
+ {
+  "id": "shop-46",
+  "kind": "shopfront",
+  "name": "Kova's Spices",
+  "pos": [
+   -85.5,
+   122.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   -85.5,
+   122.5
+  ],
+  "room": "shop-46",
+  "door": [
+   -83.33,
+   122.5
+  ]
+ },
+ {
+  "id": "shop-47",
+  "kind": "shopfront",
+  "name": "Coffee",
+  "pos": [
+   -112.5,
+   72.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -112.5,
+   72.5
+  ],
+  "room": "shop-47",
+  "door": [
+   -112.5,
+   72.5
+  ]
+ },
+ {
+  "id": "shop-48",
+  "kind": "shopfront",
+  "name": "Ink & Quill",
+  "pos": [
+   -94.5,
+   72.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -94.5,
+   72.5
+  ],
+  "room": "shop-48",
+  "door": [
+   -96.5,
+   72.5
+  ]
+ },
+ {
+  "id": "shop-49",
+  "kind": "shopfront",
+  "name": "The Golden Scale",
+  "pos": [
+   -79.5,
+   72.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -79.5,
+   72.5
+  ],
+  "room": "shop-49",
+  "door": [
+   -81.25,
+   72.5
+  ]
+ },
+ {
+  "id": "shop-50",
+  "kind": "shopfront",
+  "name": "Fixer's Forge",
+  "pos": [
+   -122.5,
+   97.5
+  ],
+  "heading": -1.5708,
+  "stand": [
+   -122.5,
+   97.5
+  ],
+  "room": "shop-50",
+  "door": [
+   -122.5,
+   99.67
+  ]
+ },
+ {
+  "id": "shop-51",
+  "kind": "shopfront",
+  "name": "The Golden Scale",
+  "pos": [
+   -72.5,
+   97.5
+  ],
+  "heading": 1.5708,
+  "stand": [
+   -72.5,
+   97.5
+  ],
+  "room": "shop-51",
+  "door": [
+   -72.5,
+   95.33
+  ]
+ },
+ {
+  "id": "shop-52",
+  "kind": "shopfront",
+  "name": "Fruit & Fig",
+  "pos": [
+   -114.5,
+   57.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   -114.5,
+   57.5
+  ],
+  "room": "shop-52",
+  "door": [
+   -112.5,
+   57.5
+  ]
+ },
+ {
+  "id": "shop-53",
+  "kind": "shopfront",
+  "name": "Apothecary",
+  "pos": [
+   -98.5,
+   57.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   -98.5,
+   57.5
+  ],
+  "room": "shop-53",
+  "door": [
+   -96.5,
+   57.5
+  ]
+ },
+ {
+  "id": "shop-54",
+  "kind": "shopfront",
+  "name": "Cloth & Dye",
+  "pos": [
+   -81.5,
+   57.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   -81.5,
+   57.5
+  ],
+  "room": "shop-54",
+  "door": [
+   -79.25,
+   57.5
+  ]
+ },
+ {
+  "id": "shop-55",
+  "kind": "shopfront",
+  "name": "Cloth & Dye",
+  "pos": [
+   -114.5,
+   12.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -114.5,
+   12.5
+  ],
+  "room": "shop-55",
+  "door": [
+   -116.5,
+   12.5
+  ]
+ },
+ {
+  "id": "shop-56",
+  "kind": "shopfront",
+  "name": "Fixer's Forge",
+  "pos": [
+   -102.5,
+   12.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -102.5,
+   12.5
+  ],
+  "room": "shop-56",
+  "door": [
+   -104.5,
+   12.5
+  ]
+ },
+ {
+  "id": "shop-57",
+  "kind": "shopfront",
+  "name": "Fixer's Forge",
+  "pos": [
+   -85.5,
+   12.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -85.5,
+   12.5
+  ],
+  "room": "shop-57",
+  "door": [
+   -87.67,
+   12.5
+  ]
+ },
+ {
+  "id": "shop-58",
+  "kind": "shopfront",
+  "name": "Bakery",
+  "pos": [
+   -122.5,
+   35.0
+  ],
+  "heading": -1.5708,
+  "stand": [
+   -122.5,
+   35.0
+  ],
+  "room": "shop-58",
+  "door": [
+   -122.5,
+   35.0
+  ]
+ },
+ {
+  "id": "shop-59",
+  "kind": "shopfront",
+  "name": "Salt Road Trading",
+  "pos": [
+   -72.5,
+   35.0
+  ],
+  "heading": 1.5708,
+  "stand": [
+   -72.5,
+   35.0
+  ],
+  "room": "shop-59",
+  "door": [
+   -72.5,
+   35.0
+  ]
+ },
+ {
+  "id": "shop-60",
+  "kind": "shopfront",
+  "name": "Apothecary",
+  "pos": [
+   -114.5,
+   -12.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   -114.5,
+   -12.5
+  ],
+  "room": "shop-60",
+  "door": [
+   -112.5,
+   -12.5
+  ]
+ },
+ {
+  "id": "shop-61",
+  "kind": "shopfront",
+  "name": "Fixer's Forge",
+  "pos": [
+   -102.5,
+   -12.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   -102.5,
+   -12.5
+  ],
+  "room": "shop-61",
+  "door": [
+   -100.5,
+   -12.5
+  ]
+ },
+ {
+  "id": "shop-62",
+  "kind": "shopfront",
+  "name": "Cloth & Dye",
+  "pos": [
+   -85.5,
+   -12.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   -85.5,
+   -12.5
+  ],
+  "room": "shop-62",
+  "door": [
+   -83.33,
+   -12.5
+  ]
+ },
+ {
+  "id": "shop-63",
+  "kind": "shopfront",
+  "name": "The Golden Scale",
+  "pos": [
+   -114.5,
+   -57.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -114.5,
+   -57.5
+  ],
+  "room": "shop-63",
+  "door": [
+   -116.5,
+   -57.5
+  ]
+ },
+ {
+  "id": "shop-64",
+  "kind": "shopfront",
+  "name": "The Golden Scale",
+  "pos": [
+   -102.5,
+   -57.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -102.5,
+   -57.5
+  ],
+  "room": "shop-64",
+  "door": [
+   -104.5,
+   -57.5
+  ]
+ },
+ {
+  "id": "shop-65",
+  "kind": "shopfront",
+  "name": "Today's Tea",
+  "pos": [
+   -85.5,
+   -57.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -85.5,
+   -57.5
+  ],
+  "room": "shop-65",
+  "door": [
+   -87.67,
+   -57.5
+  ]
+ },
+ {
+  "id": "shop-66",
+  "kind": "shopfront",
+  "name": "Fixer's Forge",
+  "pos": [
+   -122.5,
+   -35.0
+  ],
+  "heading": -1.5708,
+  "stand": [
+   -122.5,
+   -35.0
+  ],
+  "room": "shop-66",
+  "door": [
+   -122.5,
+   -35.0
+  ]
+ },
+ {
+  "id": "shop-67",
+  "kind": "shopfront",
+  "name": "Apothecary",
+  "pos": [
+   -72.5,
+   -35.0
+  ],
+  "heading": 1.5708,
+  "stand": [
+   -72.5,
+   -35.0
+  ],
+  "room": "shop-67",
+  "door": [
+   -72.5,
+   -35.0
+  ]
+ },
+ {
+  "id": "shop-68",
+  "kind": "shopfront",
+  "name": "Kova's Spices",
+  "pos": [
+   -118.5,
+   -72.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   -118.5,
+   -72.5
+  ],
+  "room": "shop-68",
+  "door": [
+   -116.5,
+   -72.5
+  ]
+ },
+ {
+  "id": "shop-69",
+  "kind": "shopfront",
+  "name": "Kova's Spices",
+  "pos": [
+   -110.5,
+   -72.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   -110.5,
+   -72.5
+  ],
+  "room": "shop-69",
+  "door": [
+   -108.5,
+   -72.5
+  ]
+ },
+ {
+  "id": "shop-70",
+  "kind": "shopfront",
+  "name": "Ink & Quill",
+  "pos": [
+   -96.5,
+   -72.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   -96.5,
+   -72.5
+  ],
+  "room": "shop-70",
+  "door": [
+   -96.5,
+   -72.5
+  ]
+ },
+ {
+  "id": "shop-71",
+  "kind": "shopfront",
+  "name": "Fixer's Forge",
+  "pos": [
+   -79.5,
+   -72.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   -79.5,
+   -72.5
+  ],
+  "room": "shop-71",
+  "door": [
+   -77.75,
+   -72.5
+  ]
+ },
+ {
+  "id": "shop-72",
+  "kind": "shopfront",
+  "name": "Today's Tea",
+  "pos": [
+   -116.5,
+   -122.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -116.5,
+   -122.5
+  ],
+  "room": "shop-72",
+  "door": [
+   -116.5,
+   -122.5
+  ]
+ },
+ {
+  "id": "shop-73",
+  "kind": "shopfront",
+  "name": "Today's Tea",
+  "pos": [
+   -104.5,
+   -122.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -104.5,
+   -122.5
+  ],
+  "room": "shop-73",
+  "door": [
+   -104.5,
+   -122.5
+  ]
+ },
+ {
+  "id": "shop-74",
+  "kind": "shopfront",
+  "name": "Fixer's Forge",
+  "pos": [
+   -85.5,
+   -122.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -85.5,
+   -122.5
+  ],
+  "room": "shop-74",
+  "door": [
+   -87.67,
+   -122.5
+  ]
+ },
+ {
+  "id": "shop-75",
+  "kind": "shopfront",
+  "name": "Kova's Spices",
+  "pos": [
+   -122.5,
+   -97.5
+  ],
+  "heading": -1.5708,
+  "stand": [
+   -122.5,
+   -97.5
+  ],
+  "room": "shop-75",
+  "door": [
+   -122.5,
+   -95.33
+  ]
+ },
+ {
+  "id": "shop-76",
+  "kind": "shopfront",
+  "name": "Coffee",
+  "pos": [
+   -72.5,
+   -97.5
+  ],
+  "heading": 1.5708,
+  "stand": [
+   -72.5,
+   -97.5
+  ],
+  "room": "shop-76",
+  "door": [
+   -72.5,
+   -99.67
+  ]
+ },
+ {
+  "id": "shop-94",
+  "kind": "shopfront",
+  "name": "Ink & Quill",
+  "pos": [
+   -51.5,
+   122.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   -51.5,
+   122.5
+  ],
+  "room": "shop-94",
+  "door": [
+   -51.5,
+   122.5
+  ]
+ },
+ {
+  "id": "shop-95",
+  "kind": "shopfront",
+  "name": "Cloth & Dye",
+  "pos": [
+   -41.5,
+   122.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   -41.5,
+   122.5
+  ],
+  "room": "shop-95",
+  "door": [
+   -39.5,
+   122.5
+  ]
+ },
+ {
+  "id": "shop-96",
+  "kind": "shopfront",
+  "name": "Sage's Library",
+  "pos": [
+   -25.0,
+   122.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   -25.0,
+   122.5
+  ],
+  "room": "shop-96",
+  "door": [
+   -22.92,
+   122.5
+  ]
+ },
+ {
+  "id": "shop-97",
+  "kind": "shopfront",
+  "name": "Cloth & Dye",
+  "pos": [
+   -47.5,
+   72.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -47.5,
+   72.5
+  ],
+  "room": "shop-97",
+  "door": [
+   -47.5,
+   72.5
+  ]
+ },
+ {
+  "id": "shop-98",
+  "kind": "shopfront",
+  "name": "Kronikler Press",
+  "pos": [
+   -25.0,
+   72.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -25.0,
+   72.5
+  ],
+  "room": "press",
+  "door": [
+   -27.08,
+   72.5
+  ]
+ },
+ {
+  "id": "shop-99",
+  "kind": "shopfront",
+  "name": "Rekinder Lamps",
+  "pos": [
+   -57.5,
+   97.5
+  ],
+  "heading": -1.5708,
+  "stand": [
+   -57.5,
+   97.5
+  ],
+  "room": "shop-99",
+  "door": [
+   -57.5,
+   99.67
+  ]
+ },
+ {
+  "id": "shop-100",
+  "kind": "shopfront",
+  "name": "Apothecary",
+  "pos": [
+   -12.5,
+   97.5
+  ],
+  "heading": 1.5708,
+  "stand": [
+   -12.5,
+   97.5
+  ],
+  "room": "shop-100",
+  "door": [
+   -12.5,
+   95.33
+  ]
+ },
+ {
+  "id": "shop-101",
+  "kind": "shopfront",
+  "name": "Rekinder Lamps",
+  "pos": [
+   -47.5,
+   -72.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   -47.5,
+   -72.5
+  ],
+  "room": "shop-101",
+  "door": [
+   -47.5,
+   -72.5
+  ]
+ },
+ {
+  "id": "shop-102",
+  "kind": "shopfront",
+  "name": "Matchmaker's Tea House",
+  "pos": [
+   -25.0,
+   -72.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   -25.0,
+   -72.5
+  ],
+  "room": "tea",
+  "door": [
+   -22.92,
+   -72.5
+  ]
+ },
+ {
+  "id": "shop-103",
+  "kind": "shopfront",
+  "name": "Fixer's Forge",
+  "pos": [
+   -47.5,
+   -122.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -47.5,
+   -122.5
+  ],
+  "room": "shop-103",
+  "door": [
+   -47.5,
+   -122.5
+  ]
+ },
+ {
+  "id": "shop-104",
+  "kind": "shopfront",
+  "name": "Ink & Quill",
+  "pos": [
+   -25.0,
+   -122.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -25.0,
+   -122.5
+  ],
+  "room": "shop-104",
+  "door": [
+   -27.08,
+   -122.5
+  ]
+ },
+ {
+  "id": "shop-105",
+  "kind": "shopfront",
+  "name": "The Golden Scale",
+  "pos": [
+   -57.5,
+   -97.5
+  ],
+  "heading": -1.5708,
+  "stand": [
+   -57.5,
+   -97.5
+  ],
+  "room": "shop-105",
+  "door": [
+   -57.5,
+   -95.33
+  ]
+ },
+ {
+  "id": "shop-106",
+  "kind": "shopfront",
+  "name": "Kova's Spices",
+  "pos": [
+   -12.5,
+   -97.5
+  ],
+  "heading": 1.5708,
+  "stand": [
+   -12.5,
+   -97.5
+  ],
+  "room": "shop-106",
+  "door": [
+   -12.5,
+   -99.67
+  ]
+ },
+ {
+  "id": "shop-124",
+  "kind": "shopfront",
+  "name": "Rekinder Lamps",
+  "pos": [
+   22.5,
+   122.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   22.5,
+   122.5
+  ],
+  "room": "shop-124",
+  "door": [
+   22.5,
+   122.5
+  ]
+ },
+ {
+  "id": "shop-125",
+  "kind": "shopfront",
+  "name": "Apothecary",
+  "pos": [
+   45.0,
+   122.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   45.0,
+   122.5
+  ],
+  "room": "shop-125",
+  "door": [
+   47.08,
+   122.5
+  ]
+ },
+ {
+  "id": "shop-126",
+  "kind": "shopfront",
+  "name": "Salt Road Trading",
+  "pos": [
+   22.5,
+   72.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   22.5,
+   72.5
+  ],
+  "room": "shop-126",
+  "door": [
+   22.5,
+   72.5
+  ]
+ },
+ {
+  "id": "shop-127",
+  "kind": "shopfront",
+  "name": "Rekinder Lamps",
+  "pos": [
+   45.0,
+   72.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   45.0,
+   72.5
+  ],
+  "room": "shop-127",
+  "door": [
+   42.92,
+   72.5
+  ]
+ },
+ {
+  "id": "shop-128",
+  "kind": "shopfront",
+  "name": "Kova's Spices",
+  "pos": [
+   12.5,
+   97.5
+  ],
+  "heading": -1.5708,
+  "stand": [
+   12.5,
+   97.5
+  ],
+  "room": "shop-128",
+  "door": [
+   12.5,
+   99.67
+  ]
+ },
+ {
+  "id": "shop-129",
+  "kind": "shopfront",
+  "name": "Coffee",
+  "pos": [
+   57.5,
+   97.5
+  ],
+  "heading": 1.5708,
+  "stand": [
+   57.5,
+   97.5
+  ],
+  "room": "shop-129",
+  "door": [
+   57.5,
+   95.33
+  ]
+ },
+ {
+  "id": "shop-156",
+  "kind": "shopfront",
+  "name": "Cloth & Dye",
+  "pos": [
+   82.5,
+   57.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   82.5,
+   57.5
+  ],
+  "room": "shop-156",
+  "door": [
+   82.5,
+   57.5
+  ]
+ },
+ {
+  "id": "shop-157",
+  "kind": "shopfront",
+  "name": "Rekinder Lamps",
+  "pos": [
+   102.5,
+   57.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   102.5,
+   57.5
+  ],
+  "room": "shop-157",
+  "door": [
+   102.5,
+   57.5
+  ]
+ },
+ {
+  "id": "shop-158",
+  "kind": "shopfront",
+  "name": "Apothecary",
+  "pos": [
+   117.5,
+   57.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   117.5,
+   57.5
+  ],
+  "room": "shop-158",
+  "door": [
+   120.0,
+   57.5
+  ]
+ },
+ {
+  "id": "shop-159",
+  "kind": "shopfront",
+  "name": "The Golden Scale",
+  "pos": [
+   78.5,
+   12.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   78.5,
+   12.5
+  ],
+  "room": "shop-159",
+  "door": [
+   78.5,
+   12.5
+  ]
+ },
+ {
+  "id": "shop-160",
+  "kind": "shopfront",
+  "name": "Apothecary",
+  "pos": [
+   92.5,
+   12.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   92.5,
+   12.5
+  ],
+  "room": "shop-160",
+  "door": [
+   90.5,
+   12.5
+  ]
+ },
+ {
+  "id": "shop-161",
+  "kind": "shopfront",
+  "name": "Today's Tea",
+  "pos": [
+   111.5,
+   12.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   111.5,
+   12.5
+  ],
+  "room": "shop-161",
+  "door": [
+   109.67,
+   12.5
+  ]
+ },
+ {
+  "id": "shop-162",
+  "kind": "shopfront",
+  "name": "Cloth & Dye",
+  "pos": [
+   72.5,
+   35.0
+  ],
+  "heading": -1.5708,
+  "stand": [
+   72.5,
+   35.0
+  ],
+  "room": "shop-162",
+  "door": [
+   72.5,
+   35.0
+  ]
+ },
+ {
+  "id": "shop-163",
+  "kind": "shopfront",
+  "name": "Sage's Library",
+  "pos": [
+   122.5,
+   35.0
+  ],
+  "heading": 1.5708,
+  "stand": [
+   122.5,
+   35.0
+  ],
+  "room": "shop-163",
+  "door": [
+   122.5,
+   35.0
+  ]
+ },
+ {
+  "id": "shop-164",
+  "kind": "shopfront",
+  "name": "Fixer's Forge",
+  "pos": [
+   76.5,
+   -12.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   76.5,
+   -12.5
+  ],
+  "room": "shop-164",
+  "door": [
+   78.5,
+   -12.5
+  ]
+ },
+ {
+  "id": "shop-165",
+  "kind": "shopfront",
+  "name": "Sage's Library",
+  "pos": [
+   88.5,
+   -12.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   88.5,
+   -12.5
+  ],
+  "room": "shop-165",
+  "door": [
+   90.5,
+   -12.5
+  ]
+ },
+ {
+  "id": "shop-166",
+  "kind": "shopfront",
+  "name": "Ink & Quill",
+  "pos": [
+   109.5,
+   -12.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   109.5,
+   -12.5
+  ],
+  "room": "shop-166",
+  "door": [
+   111.67,
+   -12.5
+  ]
+ },
+ {
+  "id": "shop-167",
+  "kind": "shopfront",
+  "name": "The Golden Scale",
+  "pos": [
+   76.5,
+   -57.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   76.5,
+   -57.5
+  ],
+  "room": "shop-167",
+  "door": [
+   74.5,
+   -57.5
+  ]
+ },
+ {
+  "id": "shop-168",
+  "kind": "shopfront",
+  "name": "Fruit & Fig",
+  "pos": [
+   90.5,
+   -57.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   90.5,
+   -57.5
+  ],
+  "room": "shop-168",
+  "door": [
+   90.5,
+   -57.5
+  ]
+ },
+ {
+  "id": "shop-169",
+  "kind": "shopfront",
+  "name": "Sage's Library",
+  "pos": [
+   111.5,
+   -57.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   111.5,
+   -57.5
+  ],
+  "room": "shop-169",
+  "door": [
+   109.67,
+   -57.5
+  ]
+ },
+ {
+  "id": "shop-170",
+  "kind": "shopfront",
+  "name": "Coffee",
+  "pos": [
+   72.5,
+   -35.0
+  ],
+  "heading": -1.5708,
+  "stand": [
+   72.5,
+   -35.0
+  ],
+  "room": "shop-170",
+  "door": [
+   72.5,
+   -35.0
+  ]
+ },
+ {
+  "id": "shop-171",
+  "kind": "shopfront",
+  "name": "Sage's Library",
+  "pos": [
+   122.5,
+   -35.0
+  ],
+  "heading": 1.5708,
+  "stand": [
+   122.5,
+   -35.0
+  ],
+  "room": "shop-171",
+  "door": [
+   122.5,
+   -35.0
+  ]
+ },
+ {
+  "id": "shop-172",
+  "kind": "shopfront",
+  "name": "Kova's Spices",
+  "pos": [
+   78.5,
+   -72.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   78.5,
+   -72.5
+  ],
+  "room": "shop-172",
+  "door": [
+   78.5,
+   -72.5
+  ]
+ },
+ {
+  "id": "shop-173",
+  "kind": "shopfront",
+  "name": "Fruit & Fig",
+  "pos": [
+   88.5,
+   -72.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   88.5,
+   -72.5
+  ],
+  "room": "shop-173",
+  "door": [
+   90.5,
+   -72.5
+  ]
+ },
+ {
+  "id": "shop-174",
+  "kind": "shopfront",
+  "name": "The Golden Scale",
+  "pos": [
+   100.5,
+   -72.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   100.5,
+   -72.5
+  ],
+  "room": "shop-174",
+  "door": [
+   102.5,
+   -72.5
+  ]
+ },
+ {
+  "id": "shop-175",
+  "kind": "shopfront",
+  "name": "Bakery",
+  "pos": [
+   115.5,
+   -72.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   115.5,
+   -72.5
+  ],
+  "room": "shop-175",
+  "door": [
+   117.25,
+   -72.5
+  ]
+ },
+ {
+  "id": "shop-176",
+  "kind": "shopfront",
+  "name": "Fruit & Fig",
+  "pos": [
+   80.5,
+   -122.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   80.5,
+   -122.5
+  ],
+  "room": "shop-176",
+  "door": [
+   78.5,
+   -122.5
+  ]
+ },
+ {
+  "id": "shop-177",
+  "kind": "shopfront",
+  "name": "Salt Road Trading",
+  "pos": [
+   92.5,
+   -122.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   92.5,
+   -122.5
+  ],
+  "room": "shop-177",
+  "door": [
+   90.5,
+   -122.5
+  ]
+ },
+ {
+  "id": "shop-178",
+  "kind": "shopfront",
+  "name": "Rekinder Lamps",
+  "pos": [
+   109.5,
+   -122.5
+  ],
+  "heading": 3.14159,
+  "stand": [
+   109.5,
+   -122.5
+  ],
+  "room": "shop-178",
+  "door": [
+   107.33,
+   -122.5
+  ]
+ },
+ {
+  "id": "shop-179",
+  "kind": "shopfront",
+  "name": "Fixer's Forge",
+  "pos": [
+   72.5,
+   -97.5
+  ],
+  "heading": -1.5708,
+  "stand": [
+   72.5,
+   -97.5
+  ],
+  "room": "shop-179",
+  "door": [
+   72.5,
+   -95.33
+  ]
+ },
+ {
+  "id": "shop-180",
+  "kind": "shopfront",
+  "name": "The Golden Scale",
+  "pos": [
+   122.5,
+   -97.5
+  ],
+  "heading": 1.5708,
+  "stand": [
+   122.5,
+   -97.5
+  ],
+  "room": "shop-180",
+  "door": [
+   122.5,
+   -99.67
+  ]
+ },
+ {
+  "id": "hall-0",
+  "kind": "hall",
+  "name": "Great Hall",
+  "pos": [
+   35.0,
+   -76.5
+  ],
+  "heading": 0.0,
+  "stand": [
+   35.0,
+   -76.5
+  ]
+ }
+]

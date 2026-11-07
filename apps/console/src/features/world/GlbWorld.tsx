@@ -18,6 +18,7 @@ import {
 import { CITY_FOOTPRINTS, insideFootprint } from "./cityFootprints";
 import { CastFigure } from "./CastFigure";
 import { CityWalker } from "./CityWalker";
+import { ScoutAgent } from "./ScoutAgent";
 import { BODY_CAST, BODY_SUMMER, bodyForMember, cruiseCapForBody, excludeBody } from "./bodies";
 import { CLIP_CATALOG, ClipTestState } from "./clips";
 import {
@@ -1384,6 +1385,15 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
     const q = new URLSearchParams(window.location.search);
     return q.get("world") === "city3" && q.get("walk") === "1";
   }, []);
+  // ?agent=1 (with ?world=city3): the Phase 0 agent-experiment harness —
+  // Scout spawns at the fountain and window.__scout drives it (scout.ts).
+  // Dev-only: without the flag nothing mounts and behavior is unchanged.
+  // Agent mode wins over walk mode if both flags are set (one bot, one
+  // camera owner).
+  const agentOn = useMemo(() => {
+    const q = new URLSearchParams(window.location.search);
+    return place === "city3" && q.get("agent") === "1";
+  }, [place]);
   const [camMode, setCamMode] = useState<CameraMode>(walkLink ? "ride" : "wide");
   // City 3 collider meshes (DistrictWorld fills it), read by the walker.
   const colliderMeshesRef = useRef<(() => THREE.Mesh[]) | null>(null);
@@ -1422,7 +1432,8 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
       <Canvas
         key={place}
         camera={camera}
-        shadows="soft"
+        frameloop={agentOn ? "demand" : "always"}
+        shadows={agentOn ? false : "soft"}
         gl={{ antialias: true, preserveDrawingBuffer: embodyOn }}
         onCreated={({ gl }) => {
           glCanvasRef.current = gl.domElement;
@@ -1456,7 +1467,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
               <InteriorStreamer rooms={city3Rooms} walk={walkColliders} />
             </>
           ) : null}
-          {walking ? (
+          {walking && !agentOn ? (
             <CityWalker
               mode={camMode === "follow" ? "follow" : "ride"}
               onMode={setCamMode}
@@ -1464,6 +1475,9 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
               getMeshes={getColliderMeshes}
               walk={walkColliders}
             />
+          ) : null}
+          {agentOn ? (
+            <ScoutAgent getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} />
           ) : null}
           <CrowdCast
             place={place}
@@ -1485,7 +1499,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           enableDamping
           // Parked while a bot camera mode owns the camera (drei only
           // updates controls when enabled, so the rig never fights it).
-          enabled={(!embodyOn || !agora || camMode === "wide") && !walking}
+          enabled={(!embodyOn || !agora || camMode === "wide") && !walking && !agentOn}
           maxPolarAngle={Math.PI / 2 - 0.04}
           // City 3: 3 m close-ups; CameraCollider (in DistrictWorld) keeps the camera out of walls.
           minDistance={agora ? 6 : place === "city3" ? 3 : 20}
