@@ -68,10 +68,30 @@ def pbr_override(key,tag,tile_m,rough=None,tint=None):
         rt=nt.nodes.new("ShaderNodeTexImage"); rt.image=bpy.data.images.load(rp); rt.image.colorspace_settings.name="Non-Color"; rt.extension="REPEAT"; nt.links.new(mp.outputs["Vector"],rt.inputs["Vector"])
         sep=nt.nodes.new("ShaderNodeSeparateColor"); nt.links.new(rt.outputs["Color"],sep.inputs["Color"]); nt.links.new(sep.outputs["Green"],bs.inputs["Roughness"]); nt.links.new(sep.outputs["Blue"],bs.inputs["Metallic"])
     m.use_backface_culling=True; MATS[key]=m
+def water_mat(key,tag,tile_m,nstrength=1.0):
+    """Water surface (3DTextures.me set via mtex.py): pbr_override's wiring (diffuse + GL normal +
+    packed metallicRoughness, G = roughness / B = metalness) plus the physical F0 fix — water's
+    reflectance at normal incidence is 0.02 (IOR 1.333), half the dielectric default 0.04, so
+    Specular IOR Level 0.25 / IOR 1.333 export as KHR_materials_specular with factor ~0.5."""
+    if tag not in PBRM: return
+    m=bpy.data.materials.new(key); m.use_nodes=True; nt=m.node_tree
+    for n in list(nt.nodes):
+        if n.type not in ("OUTPUT_MATERIAL","BSDF_PRINCIPLED"): nt.nodes.remove(n)
+    bs=nt.nodes["Principled BSDF"]; tc=nt.nodes.new("ShaderNodeTexCoord"); mp=nt.nodes.new("ShaderNodeMapping"); sc=tile_m/PBRM[tag]["size"]; mp.inputs["Scale"].default_value=(sc,sc,1)
+    nt.links.new(tc.outputs["UV"],mp.inputs["Vector"])
+    d=nt.nodes.new("ShaderNodeTexImage"); d.image=bpy.data.images.load(f"{HERE}/tex_m/{tag}_d.jpg"); d.extension="REPEAT"; nt.links.new(mp.outputs["Vector"],d.inputs["Vector"]); nt.links.new(d.outputs["Color"],bs.inputs["Base Color"])
+    n=nt.nodes.new("ShaderNodeTexImage"); n.image=bpy.data.images.load(f"{HERE}/tex_m/{tag}_n.jpg"); n.image.colorspace_settings.name="Non-Color"; n.extension="REPEAT"; nt.links.new(mp.outputs["Vector"],n.inputs["Vector"])
+    nm=nt.nodes.new("ShaderNodeNormalMap"); nm.inputs["Strength"].default_value=nstrength; nt.links.new(n.outputs["Color"],nm.inputs["Color"]); nt.links.new(nm.outputs["Normal"],bs.inputs["Normal"])
+    rt=nt.nodes.new("ShaderNodeTexImage"); rt.image=bpy.data.images.load(f"{HERE}/tex_m/{tag}_r.jpg"); rt.image.colorspace_settings.name="Non-Color"; rt.extension="REPEAT"; nt.links.new(mp.outputs["Vector"],rt.inputs["Vector"])
+    sep=nt.nodes.new("ShaderNodeSeparateColor"); nt.links.new(rt.outputs["Color"],sep.inputs["Color"]); nt.links.new(sep.outputs["Green"],bs.inputs["Roughness"]); nt.links.new(sep.outputs["Blue"],bs.inputs["Metallic"])
+    bs.inputs["Specular IOR Level"].default_value=0.25; bs.inputs["IOR"].default_value=1.333
+    m.use_backface_culling=True; MATS[key]=m
 for _k,_t,_s in (("cobble","plaza_setts",6.0),("sidewalk","pave_warm",4.0),("courtyard","pave_warm",4.0),("roof_tile","roof_barrel",3.0),("roof_flat","roof_clay2",4.0)): pbr_override(_k,_t,_s)
 for _v,_tint in enumerate(((0.93,0.90,0.90),(1.05,1.01,0.95),(0.96,0.94,1.00),(1.02,0.96,0.88)),1): pbr_override(f"roof_tile_v{_v}","roof_barrel",3.0,tint=_tint)   # per-building tint variants of the barrel tile: subtle value/hue jitter on the shared set, assigned by building index in building()
 pbr_override("roof_hall","roof_barrel",1.5)   # market-hall vault: same set at a 5.2 m repeat (hall UVs are true metres/3 after the arc-length rewrite in the halls loop)
-MATS["water"]=make_mat("water","palette",0.45); MATS["lamp_glow"]=make_mat("lamp_glow","palette",0.5,emit=True,strength=3.0)
+water_mat("water","water002",5.0,nstrength=1.25)   # fountain moat: Water 002 at the re-proofed lever settings (tile 5 m / normal strength 1.25 — rig re-proof, texture-pass water BUILD.md)
+water_mat("sea","water002",7.0)                    # open sea: the same set as proofed (tile 7 m, strength 1.0)
+MATS["lamp_glow"]=make_mat("lamp_glow","palette",0.5,emit=True,strength=3.0)
 MATS["glass"]=make_mat("glass",None,0.05,alpha=0.22,base=(0.72,0.86,0.95,1.0))
 # ---------------- flat surfaces & roads ----------------
 def flat(b,x0,y0,x1,y1,z,tile): mb(b).quad((x0,y0,z),(x1,y0,z),(x1,y1,z),(x0,y1,z),(x0/tile,y0/tile),(x1/tile,y0/tile),(x1/tile,y1/tile),(x0/tile,y1/tile),(0,0,1))
@@ -297,12 +317,18 @@ def ring(ra,rb,z,name):
     for k in range(N):
         a0=2*math.pi*k/N; a1=2*math.pi*(k+1)/N; p=lambda r,a:(r*math.cos(a),r*math.sin(a),z)
         pquad("water" if name=="water" else "palette",p(ra,a0),p(rb,a0),p(rb,a1),p(ra,a1),name,(0,0,1))
+def ring_water(ra,rb,z,tile=5.0):
+    """The moat: ring()'s geometry with per-corner planar UVs (x, y)/tile fed straight to the water bucket."""
+    for k in range(N):
+        a0=2*math.pi*k/N; a1=2*math.pi*(k+1)/N; p=lambda r,a:(r*math.cos(a),r*math.sin(a),z)
+        A,B,C,D=p(ra,a0),p(rb,a0),p(rb,a1),p(ra,a1)
+        mb("water").quad(A,B,C,D,(A[0]/tile,A[1]/tile),(B[0]/tile,B[1]/tile),(C[0]/tile,C[1]/tile),(D[0]/tile,D[1]/tile),(0,0,1))
 def cylwall(r,z0,z1,name):
     for k in range(N):
         a0=2*math.pi*k/N; a1=2*math.pi*(k+1)/N; am=(a0+a1)/2
         pquad("palette",(r*math.cos(a0),r*math.sin(a0),z0),(r*math.cos(a1),r*math.sin(a1),z0),(r*math.cos(a1),r*math.sin(a1),z1),(r*math.cos(a0),r*math.sin(a0),z1),name,(math.cos(am),math.sin(am),0))
 cylwall(f["r_out"],Z,Z+0.9,"stone"); cylwall(f["r_in"],Z,Z+0.9,"stone")
-ring(f["r_out"],f["r_out"]+0.5,Z+0.9,"stone_lt"); ring(f["r_in"]-0.5,f["r_in"],Z+0.9,"stone_lt"); ring(f["r_in"],f["r_out"],Z+0.6,"water")
+ring(f["r_out"],f["r_out"]+0.5,Z+0.9,"stone_lt"); ring(f["r_in"]-0.5,f["r_in"],Z+0.9,"stone_lt"); ring_water(f["r_in"]-0.05,f["r_out"]+0.05,Z+0.6)   # water tucked 0.05 m under both basin walls so no pinhole seam opens at grazing angles
 for k in range(N):
     a0=2*math.pi*k/N; a1=2*math.pi*(k+1)/N; ptri("palette",(0,0,Z+0.9),(f["r_in"]*math.cos(a0),f["r_in"]*math.sin(a0),Z+0.9),(f["r_in"]*math.cos(a1),f["r_in"]*math.sin(a1),Z+0.9),"stone",(0,0,1))
 BENCHES=[]                                                                  # plaza benches become CC0 Sketchfab "Low Poly Medieval" benches (placed with the other SK props)
@@ -396,7 +422,7 @@ if "tea" in HERO_INFO:
 # ---------------- land (open-top quay box) + water ----------------
 for side,(a,bb) in {"S":((-L,-L),(L,-L)),"E":((L,-L),(L,L)),"N":((L,L),(-L,L)),"W":((-L,L),(-L,-L))}.items():
     o={"S":(0,-1),"E":(1,0),"N":(0,1),"W":(-1,0)}[side]; pquad("palette",(a[0],a[1],-3),(bb[0],bb[1],-3),(bb[0],bb[1],Z),(a[0],a[1],Z),"stone",(o[0],o[1],0))
-u=pal_uv("water_deep"); mb("water").quad((-520,-520,-1.2),(520,-520,-1.2),(520,520,-1.2),(-520,520,-1.2),u,u,u,u,(0,0,1))
+mb("sea").quad((-520,-520,-1.2),(520,-520,-1.2),(520,520,-1.2),(-520,520,-1.2),(-520/7.0,-520/7.0),(520/7.0,-520/7.0),(520/7.0,520/7.0),(-520/7.0,520/7.0),(0,0,1))   # the sea is its own bucket/mesh: one quad, planar UVs at the 7 m proof tile, REPEAT does the rest
 for k in range(3):                                                           # party corner festoon (cups placed later)
     string_lights((-7.6,27+k*9.0,Z+5.0),(7.6,27+k*9.0,Z+5.0),sag=0.6)
 for k in (-1,1):
@@ -406,7 +432,7 @@ LF=Frame((0.0,0.0),(1.0,0.0),(0.0,-1.0),0.0)
 for _st in sorted({i[0] for i in doors.INST}):
     with grp(f"DI_{_st}"): doors.door_static(_st,LF)
 # ---------------- realise ----------------
-NAME={"sidewalk":"Sidewalks","cobble":"PlazaCobble","grass":"Parks","courtyard":"Courtyards","road_avenue":"RoadAvenue","road_narrow":"RoadStreet","road_plain":"RoadJunction","roof_tile":"RoofTile","roof_tile_v1":"RoofTileV1","roof_tile_v2":"RoofTileV2","roof_tile_v3":"RoofTileV3","roof_tile_v4":"RoofTileV4","roof_hall":"RoofHall","roof_flat":"RoofFlat","awning":"Awnings","palette":"Props","water":"Water","lamp_glow":"LampGlow","shutters":"Shutters","signs":"Signs","blades":"BladeSigns","interior_wall":"InteriorWalls","wood_floor":"WoodFloor","rug":"Rug","glass":"Glass","newsprint":"Newsprint"}
+NAME={"sidewalk":"Sidewalks","cobble":"PlazaCobble","grass":"Parks","courtyard":"Courtyards","road_avenue":"RoadAvenue","road_narrow":"RoadStreet","road_plain":"RoadJunction","roof_tile":"RoofTile","roof_tile_v1":"RoofTileV1","roof_tile_v2":"RoofTileV2","roof_tile_v3":"RoofTileV3","roof_tile_v4":"RoofTileV4","roof_hall":"RoofHall","roof_flat":"RoofFlat","awning":"Awnings","palette":"Props","water":"Water","sea":"Sea","lamp_glow":"LampGlow","shutters":"Shutters","signs":"Signs","blades":"BladeSigns","interior_wall":"InteriorWalls","wood_floor":"WoodFloor","rug":"Rug","glass":"Glass","newsprint":"Newsprint"}
 LIBG={}
 for key,b in MBS.items():
     g,_,m=key.rpartition("::")

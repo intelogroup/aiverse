@@ -157,6 +157,22 @@ def ph_pbr(pid, tag, tile_m, px=1024):
     packed = np.dstack([ao * 255, g, np.zeros_like(g)]).astype(np.uint8)
     Image.fromarray(packed).save(f"{OUT}/{tag}_r.jpg", quality=90, subsampling=0)
     return dict(size=tile_m, rough=round(float(g.mean() / 255), 3))
+# ---------------------------------------------------------------- 3DTextures.me sets -> same tex_m layout
+TDT = f"{HERE}/assets/3dtextures"
+def tdt_pbr(aid, tag, tile_m, px=1024):
+    """3DTextures.me 1K set (CC0) -> tex_m/<tag>_d.jpg (diffuse as downloaded — the selection rig proofed
+    it unmodified), _n.jpg (OpenGL normal, same convention) and _r.jpg channel-packed in glTF
+    metallicRoughness layout (R = AO, G = roughness, B = 0 metalness), wired by pbr_override / pbr_mat
+    when present. Returns the pbr_m entry: size = the world repeat period (m), rough = mean roughness."""
+    s = f"{TDT}/{aid}"
+    ao = np.array(Image.open(f"{s}/{aid}_OCC.jpg").convert("L").resize((px, px), Image.LANCZOS), float)
+    d = np.array(Image.open(f"{s}/{aid}_COLOR.jpg").convert("RGB").resize((px, px), Image.LANCZOS), float)
+    Image.fromarray(np.clip(d, 0, 255).astype(np.uint8)).save(f"{OUT}/{tag}_d.jpg", quality=86)
+    Image.open(f"{s}/{aid}_NORM.jpg").convert("RGB").resize((px, px), Image.LANCZOS).save(f"{OUT}/{tag}_n.jpg", quality=88)
+    g = np.array(Image.open(f"{s}/{aid}_ROUGH.jpg").convert("L").resize((px, px), Image.LANCZOS), float)
+    packed = np.dstack([ao, g, np.zeros_like(g)]).astype(np.uint8)
+    Image.fromarray(packed).save(f"{OUT}/{tag}_r.jpg", quality=90, subsampling=0)
+    return dict(size=tile_m, rough=round(float(g.mean() / 255), 3))
 # name -> (poly haven id, tint multiplier or None, px)
 SETS = {
  "cladding_dk": ("concrete_tile_facade", None, 512), "ribbed": ("ribbed_concrete_wall", None, 512), "panel_conc": ("brushed_concrete_04", None, 512),
@@ -181,6 +197,7 @@ def build_pbr():
     info["roof_barrel"] = ph_pbr("clay_roof_tiles_02", "roof_barrel", 2.6)   # Poly Haven barrel tile, proofed tile 2.6 m (Bazaar pitched roofs; hall vault at 5.2 m via tile_m 1.5)
     info["grass004"] = acg_pbr("Grass004", "grass004", 2.0)   # ambientCG short grass, tile 2.0 m (Terraces green roofs)
     info["plaster002"] = acg_pbr("Plaster002", "plaster002", 3.5, ao_map=False)   # ambientCG clean stucco, tile 3.5 m (Bazaar facade normal/roughness on UV2 + strip mottle source; Halo plaster walls)
+    info["water002"] = tdt_pbr("Water_002", "water002", 7.0)   # 3DTextures.me Water 002 calm swell (CC0), proofed tile 7.0 m (Bazaar sea + Halo; Bazaar moat at the 5.0 m lever via tile_m)
     json.dump(info, open(f"{HERE}/pbr_m.json", "w"), indent=1); return info
 if __name__ == "__main__":
     build_glass_atlas(); build_signs(); build_palette(); info = build_pbr()
