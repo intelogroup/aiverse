@@ -24,6 +24,8 @@ import { BODY_CAST, BODY_SUMMER, bodyForMember, cruiseCapForBody, excludeBody } 
 import { CLIP_CATALOG, ClipTestState } from "./clips";
 import { WalkClipOverride, type WalkFrameInfo } from "./walkOverride";
 import { SoundDirector } from "./soundDirector";
+import { benchPhonon } from "./phononTts";
+import { GREETING_SCRIPT, createPlazaGreeting, type PlazaGreeting } from "./plazaTts";
 import {
   AGORA_BENCH_ANCHORS,
   EmbodyController,
@@ -1572,6 +1574,22 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   // machine, and feeds the walk HUD its PA banner + mute state.
   const soundRef = useRef<SoundDirector | null>(null);
   if (soundRef.current === null) soundRef.current = new SoundDirector();
+  // Plaza TTS probe (plazaTts.ts): the Mage↔Summer greeting. One
+  // runner per mount; the 100 ms driver below feeds it the bot's
+  // position (its trigger is the keeper's greeting radius) and it
+  // speaks through the director's voice emitter — but only after
+  // the user grants sound consent (the runner checks, the director
+  // enforces). Summer's Talking clip rides the walk override, the
+  // same channel the HUD's clip tests use.
+  const plazaRef = useRef<PlazaGreeting | null>(null);
+  if (plazaRef.current === null) {
+    plazaRef.current = createPlazaGreeting(soundRef.current, (on) => {
+      const ov = walkOverrideRef.current;
+      if (!ov) return;
+      if (on) ov.fire("Talking");
+      else ov.clear();
+    });
+  }
   const walking = place === "city3" && camMode !== "wide";
   // The walk bot's latest position, published by CityWalker per stepped
   // frame and read by BazaarLife (the stall keeper's approach trigger).
@@ -1619,6 +1637,10 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
         doorState: door?.state ?? "closed",
         teaRect: tea?.rect ?? null,
       });
+      // Plaza TTS: the greeting's trigger reads the same frame.
+      plazaRef.current?.maybeTrigger(
+        fr && fr.x !== undefined && fr.z !== undefined ? { x: fr.x, z: fr.z } : null,
+      );
     }, 100);
     // ?soundDebug=1: drive/inspect the sound layer from tests.
     const debug = new URLSearchParams(window.location.search).has("soundDebug");
@@ -1634,11 +1656,31 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
         declineConsent: () => sound.declineConsent(),
       };
     }
+    // ?ttsDebug=1: drive/inspect the plaza greeting + Phonon bench.
+    const ttsDebug = new URLSearchParams(window.location.search).has("ttsDebug");
+    if (ttsDebug) {
+      const w = window as unknown as Record<string, unknown>;
+      const plaza = plazaRef.current;
+      w.__tts = {
+        start: () =>
+          plaza?.start(() => {
+            const fr = walkFrameRef.current;
+            return fr && fr.x !== undefined && fr.z !== undefined
+              ? { x: fr.x, z: fr.z }
+              : null;
+          }),
+        log: () => plaza?.log ?? [],
+        status: () => plaza?.status ?? "none",
+        bench: () =>
+          benchPhonon(GREETING_SCRIPT.map((m) => ({ text: m.text, voice: m.voiceId }))),
+      };
+    }
     return () => {
       window.removeEventListener("pointerdown", arm);
       window.removeEventListener("keydown", arm);
       clearInterval(id);
       if (debug) delete (window as unknown as Record<string, unknown>).__sound;
+      if (ttsDebug) delete (window as unknown as Record<string, unknown>).__tts;
     };
   }, [walking, city3Rooms]);
   useEffect(() => {
