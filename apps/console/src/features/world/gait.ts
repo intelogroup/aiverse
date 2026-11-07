@@ -28,6 +28,8 @@ export interface GaitTargets {
 /** Below this the body counts as standing; the Idle -> moving fade spans MOVE_LO..MOVE_HI m/s. */
 export const MOVE_LO = 0.08;
 export const MOVE_HI = 0.35;
+/** Slowest Walk playback, as a fraction of the clip's own rate (see cycleRateFor). */
+export const MIN_WALK_RATE = 0.3;
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 export function smoothstep(lo: number, hi: number, x: number): number {
@@ -50,14 +52,16 @@ export function gaitTargets(speed: number, spec: GaitSpec): GaitTargets {
 
 /**
  * Cycles per second at ground speed `speed` when Run is `runMix` (0..1) of the locomotion blend: speed / the
- * mixed stride. Starting/stopping never plays slower than 0.6x the walk cycle (no slow-motion shuffle) nor faster
- * than 1.5x the run cycle.
+ * mixed stride. Starting/stopping never plays slower than MIN_WALK_RATE x the walk cycle nor faster than 1.5x the
+ * run cycle. The floor was 0.6 until 2026-11-07: at 0.3 m/s it played the cycle twice as fast as the body moved
+ * (planted-sole skate 0.36 m/s, measured with gait_full.mjs); at 0.3 the skate is 0.11 m/s, and the Idle fade
+ * (MOVE_LO..MOVE_HI) still hides the slowest part of a start or stop.
  */
 export function cycleRateFor(speed: number, runMix: number, spec: GaitSpec): number {
   const walkStride = spec.walkSpeed * spec.walkDuration;
   const runStride = spec.runSpeed * spec.runDuration;
   const stride = walkStride + (runStride - walkStride) * clamp(runMix, 0, 1);
-  return clamp(Math.max(0, speed) / stride, 0.6 / spec.walkDuration, 1.5 / spec.runDuration);
+  return clamp(Math.max(0, speed) / stride, MIN_WALK_RATE / spec.walkDuration, 1.5 / spec.runDuration);
 }
 
 /** Rate-limited approach of `cur` to `target` (a crossfade of `fadeS` seconds for a full 0 -> 1). */

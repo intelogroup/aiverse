@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { BODY_SUMMER } from "./bodies";
 import { clipDef } from "./clips";
-import { approach, gaitTargets, runBand, runTimeForWalkPhase, type GaitSpec } from "./gait";
+import { approach, gaitTargets, runBand, runTimeForWalkPhase, type GaitSpec, MIN_WALK_RATE } from "./gait";
 import { WALK_CONFIG } from "./walker";
 
 const SPEC: GaitSpec = {
@@ -52,8 +52,13 @@ describe("gaitTargets (speed -> Idle/Walk/Run weights + cycle rate)", () => {
     expect(m.cycleRate * stride).toBeCloseTo(v, 6);
   });
 
-  it("starting from rest never plays slow-motion", () => {
-    expect(gaitTargets(0.1, SPEC).cycleRate * SPEC.walkDuration).toBeCloseTo(0.6, 6);
+  it("starting from rest never plays slower than MIN_WALK_RATE", () => {
+    expect(gaitTargets(0.1, SPEC).cycleRate * SPEC.walkDuration).toBeCloseTo(MIN_WALK_RATE, 6);
+  });
+
+  it("a slow walk above the floor plays at ground speed (no skate from the floor)", () => {
+    const v = SPEC.walkSpeed * 0.45; // 0.6 floor used to play this at 0.6x: feet ran ahead of the body
+    expect(gaitTargets(v, SPEC).cycleRate * SPEC.walkSpeed * SPEC.walkDuration).toBeCloseTo(v, 6);
   });
 });
 

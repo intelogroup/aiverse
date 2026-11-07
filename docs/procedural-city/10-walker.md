@@ -53,7 +53,27 @@ User-driven "summer" cast body with first-person (ride) and follow cameras. No c
   0.088 x Run weight. Touchdowns (cycle phase) Walk L 0.375 / R 0.871, Run L 0.283 / R 0.846 -> `phaseOffset` -0.067.
 - **Vertical guard / root-motion cancel.** In the current cast-summer.glb BOTH Walk and Run have a constant hips track (no bob, no ramp, no XZ
   travel: hips dy within +-1 mm over the cycle), so `verticalExcess`/HIPS_Y_BAND and the XZ cancel are no-ops for both (kept for other bodies).
-- **Headless slip check** (figure translated at ground speed, the exact CastFigure blend; mean |world dz/dt| of foot joints within 2 cm of
-  their lowest; the joint rolls through contact, so the floor is not 0): Walk at its natural 1.0796 m/s = 0.14-0.28 m/s (method floor);
-  walk 1.3 = 0.16-0.27; blend 1.9 = 0.12-0.29; run 2.7 = 0.24-0.53 (right toe worst: asymmetric clip); backpedal 1.3 = 0.17-0.29.
-  Old path at 2.7 (Walk capped at 1.4x) = 1.31 m/s. Planted-toe heights: Walk 0.028, Run (after the lift) 0.029-0.032.
+- **Headless slip check (superseded 2026-11-07, `gait_slip.mjs`)**: mean |dz/dt| of foot JOINTS within 2 cm of their lowest. It hid
+  two faults: it never ran the vertical guard, and joints near their own minimum are not feet on the floor (Summer's sole touched the floor
+  in only 6 % of Walk frames). Use `harness/gait_full.mjs` (skinned vertices on the floor) instead.
+- **Foot grounding + Remy fix (2026-11-07, `grounding.ts`, `harness/gait_full.mjs`, `harness/gait_probe.html`).** Three faults, measured
+  on the shipped GLBs with the real CastFigure stack:
+  1. **Air-walk.** No pose kept a sole on the floor: Summer's Walk floated 0.6-8.8 cm (contact 6 % of frames), Remy's 0-7 cm, Summer's
+     Idle 1.3 cm up, Body Block's Idle 1.8 cm under. Fix: engine-style pelvis offset. Contact joints (Foot, ToeBase, Toe_End / KayKit
+     `footl`, `toesl`) are read in the bind pose; each frame the figure is lowered by the lowest joint's rise over its bind height, on the
+     live blended pose. Run's share uses the Run clip's own cycle minimum (sampled once at load; Summer 0.101, Remy 0.088, close to the
+     old `footLift` 0.0967 / 0.082) so the flight phase stays airborne; capped at the live clearance so the Walk -> Run blend cannot sink
+     (it sank 3 cm without the cap). Replaces the hips guard + `footLift` for every rig with contact joints; the sitting family keeps the
+     guard, blended by the seated weight. Result: Walk contact 100 % of frames, lowest vertex within +-4 mm (Summer and Remy, fwd, back,
+     circle r 1.5 m); Run contact frames at 0 +-5 mm, flight frames airborne.
+  2. **Remy shoved metres sideways.** Mixamo FBX rigs keep centimetres under a scaled Armature (Remy 0.003). The root-motion cancel moved
+     that node by the hips delta in armature units, i.e. up to 8 m per Walk cycle (vertex skate 11-27 m/s; filmstrip: 6 of 7 frames out of
+     view). Fix: scale the delta by the parent's scale (`rootMotionDelta`). Agora's crowd Remy had the same bug.
+  3. **Start/stop skate.** `cycleRateFor` floored Walk at 0.6x its own rate, so at 0.3 m/s the feet ran twice as fast as the body (sole
+     skate 0.36 m/s). Floor now `MIN_WALK_RATE` 0.3 (skate 0.11).
+  **Still sliding (foot-lock IK not done):** planted-sole skate with grounding on, `gait_full.mjs` (mean m/s): Summer walk 1.3 = 0.21
+  (0.15 at 0.9: grows with playback rate, no zero-skate speed exists, so it is in the clip: heel-toe roll and the swing foot grazing the
+  floor), blend 1.9 = 0.79 (worst frame 3.9: transient during acceleration), run 2.7 = 0.37; Remy walk 0.7 = 0.31, 1.3 = 0.71 (the
+  walker's 1.3 m/s is 1.7x Remy's natural walk and inside his Walk -> Run band [0.96, 2.26], so he blends permanently; keep Remy off the
+  walker or give the walker a per-body walk speed). The fix for the rest is foot locking: pin the planted foot in world space with a
+  two-bone leg IK until lift-off (UE Foot Placement "plant" settings; three.js has CCDIKSolver in examples).

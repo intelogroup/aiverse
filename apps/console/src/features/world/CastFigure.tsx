@@ -8,6 +8,7 @@ import type { FigureOverride, SitPhase } from "./embody";
 import { BODY_CAST, sitClipForPhase, type BodyDef } from "./bodies";
 import { CLIP_CATALOG, clipDef, type ClipTestState } from "./clips";
 import { approach, cycleRateFor, gaitTargets, runTimeForWalkPhase, type GaitSpec } from "./gait";
+import { clipMinClearance, contactPoints, groundingOffset, rootMotionDelta, soleClearance } from "./grounding";
 
 // CastFigure — a cast bot (a "body" from bodies.ts: a rigged GLB plus
 // its measured hips and clip catalog) driven by the same AgentFrame
@@ -214,9 +215,19 @@ export function CastFigure({
       hipsRest: hips.position.clone(),
       parentRest: parent.position.clone(),
       parentQuat: parent.quaternion.clone(),
+      // Mixamo FBX rigs keep centimetres under a scaled Armature (Remy: 0.003), so the hips delta must be
+      // scaled into the parent's frame too, or the cancel shoves the body metres sideways each cycle.
+      parentScale: parent.scale.clone(),
       restHipsLocalY: restWorld.y + fit.lift,
     };
   }, [scene, fit]);
+  // Foot contact joints, read in the bind pose (grounding.ts), and the Run clip's lowest clearance over a cycle
+  // (its flight phase must not be pulled down to the floor). No contact joints = the old hips guard only.
+  const contacts = useMemo(() => contactPoints(scene), [scene]);
+  const runMin = useMemo(() => {
+    const clip = body.run ? gltf.animations.find((a) => a.name === "Run") : undefined;
+    return clip ? clipMinClearance(scene, clip, contacts) : 0;
+  }, [scene, contacts, gltf, body]);
   const rmDelta = useRef(new THREE.Vector3());
   const hipsWorldTmp = useRef(new THREE.Vector3());
 
@@ -572,11 +583,13 @@ export function CastFigure({
     // Clips without hips translation (everything but Walk) evaluate
     // to a zero delta here, so sitting and tester poses are untouched.
     if (rootMotion) {
-      const d = rmDelta.current
-        .copy(rootMotion.hips.position)
-        .sub(rootMotion.hipsRest)
-        .applyQuaternion(rootMotion.parentQuat);
-      d.y = 0;
+      const d = rootMotionDelta(
+        rootMotion.hips.position,
+        rootMotion.hipsRest,
+        rootMotion.parentScale,
+        rootMotion.parentQuat,
+        rmDelta.current,
+      );
       rootMotion.parent.position.copy(rootMotion.parentRest).sub(d);
       // Cancel the pelvis yaw the turn clip has baked in so far (the group already carries it as heading).
       rootMotion.parent.quaternion
@@ -594,10 +607,17 @@ export function CastFigure({
       const hw = hipsWorldTmp.current;
       rootMotion.hips.getWorldPosition(hw);
       const dy = grp.worldToLocal(hw).y - rootMotion.restHipsLocalY;
-      grp.position.y = baseY - verticalExcess(dy, HIPS_Y_BAND);
+      let drop = verticalExcess(dy, HIPS_Y_BAND);
       // Run was baked with its hips drop stripped: its stance foot rides body.run.footLift above Walk's.
-      // Lower the figure by that much x the Run weight so the planted foot meets the ground.
-      if (runEff > 0 && body.run) grp.position.y -= body.run.footLift * runEff;
+      if (runEff > 0 && body.run) drop += body.run.footLift * runEff;
+      // Foot grounding (grounding.ts) replaces both corrections whenever the rig has contact joints: lower the
+      // figure until its lowest contact point meets the floor. The sitting family keeps the hips guard (its
+      // seat height belongs to the pose), blended by the seated weight.
+      if (contacts.length > 0) {
+        const ground = groundingOffset(soleClearance(contacts, scene), runMin, runEff);
+        drop = drop * seated + ground * (1 - seated);
+      }
+      grp.position.y = baseY - drop;
     }
     // Head-bone stream for the ride camera: written AFTER the mixer
     // and every position adjustment above, so the camera anchors on
