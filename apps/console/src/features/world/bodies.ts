@@ -60,16 +60,17 @@ export const BODY_SUMMER: BodyDef = {
   id: "summer",
   url: "/assets/cast-summer.glb",
   hipsY: SUMMER_HIPS_Y,
-  // Walk bake 2026-11-05: cycle 1.2595 m / 1.1667 s (stance-measured
-  // on her own rig during the bake).
-  walkSpeed: 1.0796,
-  // Run measured 2026-11-06 on the shipped GLB in three space (headless GLTFLoader + mixer, root-motion cancel
-  // applied as CastFigure does): mean backward speed of the toe and ankle joints while within 2 cm of their
-  // lowest point. The same method on Walk gives 1.081 m/s vs the bake's 1.0796 (0.1%). Run: 2.673 m/s, so the
-  // 0.7333 s cycle covers a 1.960 m stride (left foot 2.25-2.57, right 2.75-3.12: the clip is asymmetric).
-  // Run's stance toes sit 0.088 m above Walk's (hips track constant in both clips: no bob, no ramp, no XZ travel).
-  // Touchdowns: Walk L 0.375 / R 0.871, Run L 0.283 / R 0.846 (cycle phase) -> Run leads by 0.067.
-  run: { speed: 2.673, footLift: 0.088, phaseOffset: -0.067 },
+  // Walk re-measured 2026-11-07 on the corrected fixed GLB (PR #27):
+  // stance speed 1.107 m/s over the 1.1667 s cycle (1.2915 m).
+  walkSpeed: 1.107,
+  // Run re-measured 2026-11-07 on the same corrected fixed GLB (PR #27 commit 2, sha256 f6590037…) by FK
+  // replication of the console figure math (root-motion cancel + vertical guard as CastFigure applies):
+  // stance = toe and ankle joints while within 2 cm of their lowest point. The replication reproduces the
+  // prior registry's corrupt-body numbers within 0.3–0.9% (Walk 1.0847, Run 2.6485, footLift 0.0908).
+  // On the fixed body: Run 2.7755 m/s, so the 0.7333 s cycle covers a 2.035 m stride. Run's stance toes
+  // sit 0.0967 m above Walk's (stance-mean basis; hips track constant in both clips: no bob, no ramp,
+  // no XZ travel). Touchdown lead: L 0.102 / R 0.064 (cycle phase) -> Run leads by 0.083.
+  run: { speed: 2.7755, footLift: 0.0967, phaseOffset: -0.083 },
   clips: CATALOG,
 };
 
