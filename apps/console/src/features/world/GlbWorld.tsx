@@ -17,6 +17,7 @@ import {
 } from "./locomotion";
 import { CITY_FOOTPRINTS, insideFootprint } from "./cityFootprints";
 import { CastFigure } from "./CastFigure";
+import { BazaarLife } from "./BazaarLife";
 import { CityWalker } from "./CityWalker";
 import { BODY_CAST, BODY_SUMMER, bodyForMember, cruiseCapForBody, excludeBody } from "./bodies";
 import { CLIP_CATALOG, ClipTestState } from "./clips";
@@ -1472,6 +1473,14 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   // The walker's own collision list (collision GLBs + interior boxes), separate from the camera's.
   const walkColliders = useMemo(() => new WalkColliders(), []);
   const walking = place === "city3" && camMode !== "wide";
+  // The walk bot's latest position, published by CityWalker per stepped
+  // frame and read by BazaarLife (the stall keeper's approach trigger).
+  // Cleared when walk mode ends so a stale position can't hold a
+  // conversation open forever.
+  const botPosRef = useRef<{ x: number; z: number } | null>(null);
+  useEffect(() => {
+    if (!walking) botPosRef.current = null;
+  }, [walking]);
   // City 3: which hero building to fly to (cutaway shows on arrival); nonce re-fires a repeat click.
   const [heroFocus, setHeroFocus] = useState<{ id: string; nonce: number } | null>(null);
   const camModeRef = useRef<CameraMode>(walkLink ? "ride" : "wide");
@@ -1535,6 +1544,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
             <>
               <ClipCutaway rooms={city3Rooms} focus={heroFocus} />
               <InteriorStreamer rooms={city3Rooms} walk={walkColliders} />
+              <BazaarLife getMeshes={getColliderMeshes} walk={walkColliders} botPosRef={botPosRef} />
             </>
           ) : null}
           {walking ? (
@@ -1542,6 +1552,9 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
               mode={camMode === "follow" ? "follow" : "ride"}
               onMode={setCamMode}
               onExit={() => setCamMode("wide")}
+              onPosition={(x, z) => {
+                botPosRef.current = { x, z };
+              }}
               getMeshes={getColliderMeshes}
               walk={walkColliders}
               override={walkOverrideRef.current}

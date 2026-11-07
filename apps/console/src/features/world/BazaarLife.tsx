@@ -1,0 +1,177 @@
+import { useFrame } from "@react-three/fiber";
+import { Suspense, useMemo, useRef } from "react";
+import * as THREE from "three";
+import { CastFigure } from "./CastFigure";
+import { BODY_MAGE, BODY_REMY } from "./bodies";
+import { createBvhWorld } from "./bvhWorld";
+import { createCapsuleWorld } from "./capsuleWorld";
+import { ClipTestState } from "./clips";
+import {
+  KEEPER_HOME_HEADING,
+  KEEPER_POS,
+  PATROL_CONFIG,
+  PATROL_STOPS,
+  createKeeper,
+  stepKeeper,
+  type KeeperState,
+} from "./keeper";
+import type { AgentFrame } from "./locomotion";
+import type { WalkColliders } from "./walkColliders";
+import {
+  clipFor,
+  makeWalker,
+  moveToIntent,
+  step,
+  type WalkInput,
+  type WalkerState,
+  type World,
+} from "./walker";
+
+// BazaarLife — the first residents of City 3 (which otherwise places no
+// cast at all): the stall keeper and the patrol, driven the same way
+// CityWalker drives the walk bot — per-frame AgentFrames into
+// CastFigure — but self-contained: no Agora bodyController, no crowd.
+//
+// The keeper (Mage body: the robe-and-hat silhouette reads as a market
+// vendor, and he is nobody else in the scene — Summer is the bot,
+// Remy walks the patrol) stands idle before stall-0. keeper.ts owns
+// the trigger: when a mover (the walk bot, the patrol) comes within
+// reach he turns to face them and plays the catalog "Talking" loop
+// through a ClipTestState, exactly the channel the Embody panel's clip
+// tester uses; when they leave, he settles back to Idle and his
+// resting facing.
+//
+// The patrol (Remy) walks a circuit of stall fronts on the same
+// walker step + capsule world the bot uses, pausing at each — longest
+// at the keeper's stall, inside his trigger radius, so the two hold
+// their conversation whether or not anyone is driving the bot.
+
+export function BazaarLife({
+  getMeshes,
+  walk,
+  botPosRef,
+}: {
+  /** Visual/camera meshes: the raycast fallback world if the collision GLB failed to load. */
+  getMeshes: () => THREE.Mesh[];
+  /** The walker's collision list (capsule world), shared with CityWalker. */
+  walk?: WalkColliders;
+  /** The walk bot's latest position, published by CityWalker (null while nobody is walking). */
+  botPosRef: { current: { x: number; z: number } | null };
+}) {
+  // Same world stack as CityWalker: capsule shapecast over the collision
+  // GLBs, raycast over the visual meshes only if collision failed.
+  const world = useMemo<World & { kind: () => "capsule" | "raycast" | "pending" }>(() => {
+    const ray = createBvhWorld(getMeshes);
+    if (!walk) return Object.assign(ray, { kind: () => "raycast" as const });
+    const cap = createCapsuleWorld(walk.list);
+    const pick = (): World => (walk.status === "failed" ? ray : cap);
+    return {
+      groundY: (x, z, fromY) => pick().groundY(x, z, fromY),
+      blocked: (a, b, r) => pick().blocked(a, b, r),
+      kind: () => (walk.status === "ready" ? "capsule" : walk.status === "failed" ? "raycast" : "pending"),
+    };
+  }, [getMeshes, walk]);
+
+  const keeperClips = useMemo(() => new ClipTestState(), []);
+  const keeper = useRef<KeeperState | null>(null);
+  if (keeper.current === null) keeper.current = createKeeper(KEEPER_HOME_HEADING);
+  const keeperFrames = useRef<AgentFrame[]>([
+    { position: [KEEPER_POS[0], KEEPER_POS[1]], velocity: [0, 0], speed: 0, heading: KEEPER_HOME_HEADING, state: "idle", targetsReached: 0 },
+  ]);
+  const keeperGroup = useRef<THREE.Group>(null);
+  const keeperY = useRef<number | null>(null);
+
+  const patrol = useRef<WalkerState | null>(null);
+  const patrolDriver = useRef({ stop: 0, dwell: PATROL_STOPS[0].dwell });
+  const patrolFrames = useRef<AgentFrame[]>([
+    { position: [PATROL_STOPS[0].pos[0], PATROL_STOPS[0].pos[1]], velocity: [0, 0], speed: 0, heading: PATROL_STOPS[0].face, state: "idle", targetsReached: 0 },
+  ]);
+  const patrolGroup = useRef<THREE.Group>(null);
+
+  useFrame((_, delta) => {
+    const dt = Math.min(delta, 0.1);
+    const ks = keeper.current;
+    if (!ks) return; // initialized above, before the first frame
+    const worldUsable = getMeshes().length > 0 && world.kind() !== "pending";
+
+    // ---- patrol ----
+    if (worldUsable) {
+      let s = patrol.current;
+      if (!s) {
+        const [x, z] = PATROL_STOPS[0].pos;
+        const g = world.groundY(x, z, 20);
+        if (g !== null) {
+          s = patrol.current = makeWalker(x, g, z, PATROL_STOPS[0].face);
+        }
+      }
+      if (s) {
+        const drv = patrolDriver.current;
+        const stopDef = PATROL_STOPS[drv.stop];
+        if (drv.dwell > 0) {
+          drv.dwell -= dt;
+          const input: WalkInput = { forward: 0, strafe: 0, turn: 0, run: false, faceHeading: stopDef.face };
+          step(s, input, dt, world, PATROL_CONFIG);
+          if (drv.dwell <= 0) drv.stop = (drv.stop + 1) % PATROL_STOPS.length;
+        } else {
+          const { input, arrived } = moveToIntent(s, stopDef.pos, 0.35);
+          step(s, input, dt, world, PATROL_CONFIG);
+          if (arrived) drv.dwell = stopDef.dwell;
+        }
+        const f = patrolFrames.current[0];
+        f.position[0] = s.x;
+        f.position[1] = s.z;
+        f.velocity[0] = s.vx;
+        f.velocity[1] = s.vz;
+        f.speed = s.speed;
+        f.heading = s.body;
+        f.state = clipFor(s.speed);
+        (f.gait ??= { reverse: false }).reverse = s.backward;
+        if (patrolGroup.current) patrolGroup.current.position.y = s.y;
+      }
+      if (keeperY.current === null) {
+        const g = world.groundY(KEEPER_POS[0], KEEPER_POS[1], 20);
+        if (g !== null) keeperY.current = g;
+      }
+    }
+    if (keeperGroup.current) keeperGroup.current.position.y = keeperY.current ?? 0.2;
+
+    // ---- keeper trigger ----
+    const movers: [number, number][] = [];
+    const bot = botPosRef.current;
+    if (bot) movers.push([bot.x, bot.z]);
+    if (patrol.current) movers.push([patrol.current.x, patrol.current.z]);
+    const ev = stepKeeper(ks, dt, KEEPER_POS, movers);
+    if (ev.entered) keeperClips.fire("Talking");
+    if (ev.exited) keeperClips.clear();
+    const kf = keeperFrames.current[0];
+    kf.heading = ks.heading;
+  });
+
+  return (
+    <>
+      <group ref={keeperGroup}>
+        <Suspense fallback={null}>
+          <CastFigure
+            framesRef={keeperFrames}
+            index={0}
+            baseY={0}
+            home={[KEEPER_POS[0], 0, KEEPER_POS[1]]}
+            body={BODY_MAGE}
+            clipTester={keeperClips}
+          />
+        </Suspense>
+      </group>
+      <group ref={patrolGroup}>
+        <Suspense fallback={null}>
+          <CastFigure
+            framesRef={patrolFrames}
+            index={0}
+            baseY={0}
+            home={[PATROL_STOPS[0].pos[0], 0, PATROL_STOPS[0].pos[1]]}
+            body={BODY_REMY}
+          />
+        </Suspense>
+      </group>
+    </>
+  );
+}

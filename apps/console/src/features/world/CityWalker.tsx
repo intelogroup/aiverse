@@ -41,6 +41,7 @@ export function CityWalker({
   mode,
   onMode,
   onExit,
+  onPosition,
   getMeshes,
   walk,
   override,
@@ -49,6 +50,8 @@ export function CityWalker({
   mode: WalkMode;
   onMode: (m: WalkMode) => void;
   onExit: () => void;
+  /** Latest bot position each stepped frame (BazaarLife's keeper trigger reads it). */
+  onPosition?: (x: number, z: number) => void;
   /** Visual/camera meshes: the follow-cam wall ray, and the raycast fallback world if the collision GLB failed to load. */
   getMeshes: () => THREE.Mesh[];
   /** The walker's collision list (capsule world). Without it (tests, older hosts) the raycast world over `getMeshes` is used. */
@@ -89,8 +92,8 @@ export function CityWalker({
   const rig = useRef<{ mode: WalkMode; y: number; pos: THREE.Vector3; look: THREE.Vector3; shown: number } | null>(null);
   const modeRef = useRef(mode);
   modeRef.current = mode;
-  const cbs = useRef({ onMode, onExit });
-  cbs.current = { onMode, onExit };
+  const cbs = useRef({ onMode, onExit, onPosition });
+  cbs.current = { onMode, onExit, onPosition };
   // The clip override the figure + HUD share (see the prop): a private
   // instance only when the host did not hand one in.
   const ownOverride = useRef<WalkClipOverride | null>(null);
@@ -229,6 +232,7 @@ export function CityWalker({
       input.strafe = 0;
     }
     step(s, input, delta, world);
+    cbs.current.onPosition?.(s.x, s.z);
 
     // Frame for CastFigure (clip from speed) and the figure group's height.
     const f = frames.current[0];
