@@ -1,0 +1,87 @@
+[
+ {
+  "id": "tea-booth-567",
+  "building": "tea",
+  "kind": "booth",
+  "seat": [
+   -26.483,
+   -73.35
+  ],
+  "facing": 3.1416,
+  "approach": [
+   -26.483,
+   -73.97
+  ],
+  "approachSide": "front",
+  "seatHeight": 0.46,
+  "floorY": 0.48
+ },
+ {
+  "id": "tea-chair-538",
+  "building": "tea",
+  "kind": "chair",
+  "seat": [
+   -35.2,
+   -76.68
+  ],
+  "facing": 0.0,
+  "approach": [
+   -35.2,
+   -77.3
+  ],
+  "approachSide": "back",
+  "seatHeight": 0.49,
+  "floorY": 0.48
+ },
+ {
+  "id": "tea-armchair-572",
+  "building": "tea",
+  "kind": "armchair",
+  "seat": [
+   -17.9,
+   -80.1
+  ],
+  "facing": 0.0,
+  "approach": [
+   -17.9,
+   -79.48
+  ],
+  "approachSide": "front",
+  "seatHeight": 0.46,
+  "floorY": 0.48
+ },
+ {
+  "id": "press-chair-485",
+  "building": "press",
+  "kind": "chair",
+  "seat": [
+   -15.1,
+   77.05
+  ],
+  "facing": 3.1416,
+  "approach": [
+   -15.1,
+   77.67
+  ],
+  "approachSide": "back",
+  "seatHeight": 0.46,
+  "floorY": 0.48
+ },
+ {
+  "id": "press-armchair-489",
+  "building": "press",
+  "kind": "armchair",
+  "seat": [
+   -35.5,
+   73.9
+  ],
+  "facing": 0.0,
+  "approach": [
+   -35.5,
+   74.52
+  ],
+  "approachSide": "front",
+  "seatHeight": 0.45,
+  "floorY": 0.48
+ }
+]
