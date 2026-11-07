@@ -140,7 +140,27 @@ export const BODY_KNIGHT: BodyDef = {
   clips: CATALOG,
 };
 
+// Remy — Jim's Mixamo character (Remy.fbx, 67 bones), scaled to 1.3 m. Body Block's 45 clips are retargeted
+// by bone name (world-space rest-delta bake, tools/city3/bake_remy.py): rest directions sit 6.4 deg mean
+// (16.5 max at neck/head) from Body Block's. Hips measured at rest in Blender (0.718 m). Walk/Run measured
+// 2026-11-07 on the shipped GLB in three space (headless GLTFLoader + mixer, body translated at v): zero-slip
+// speed of the planted toe/ankle joints (within 2 cm of their lowest), swept in 5 mm steps: Walk 0.770 m/s
+// (residual 0.001), Run 2.660 m/s (residual 0.002). Same method fails on Body Block's own Walk (plate feet),
+// so it is trusted only for anatomical rigs like this one and Summer. Run stance toes sit 0.082 m above Walk's
+// (0.142 vs 0.060); touchdowns Walk L 0.3625 / R 0.8833, Run L 0.275 / R 0.8604 -> Run leads by 0.055.
+export const REMY_HIPS_Y = 0.718; // m
+
+export const BODY_REMY: BodyDef = {
+  id: "remy",
+  url: "/assets/cast-remy.glb",
+  hipsY: REMY_HIPS_Y,
+  walkSpeed: 0.77,
+  run: { speed: 2.66, footLift: 0.082, phaseOffset: -0.055 },
+  clips: CATALOG,
+};
+
 export const BODIES: Record<string, BodyDef> = {
+  [BODY_REMY.id]: BODY_REMY,
   [BODY_CAST.id]: BODY_CAST,
   [BODY_SUMMER.id]: BODY_SUMMER,
   [BODY_MAGE.id]: BODY_MAGE,

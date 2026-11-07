@@ -233,6 +233,8 @@ export function WorldView({
     capped.push({ id: "mage-guest", name: "Mage (new)", body: "mage" });
     capped.push({ id: "barbarian-guest", name: "Barbarian (new)", body: "barbarian" });
     capped.push({ id: "knight-guest", name: "Knight (new)", body: "knight" });
+    // Remy (Jim's Mixamo character, 2026-11-07), same treatment.
+    capped.push({ id: "remy-guest", name: "Remy (new)", body: "remy" });
     return capped;
   }, [agents, names]);
 

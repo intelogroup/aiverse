@@ -7,7 +7,9 @@ import {
   BODY_CAST,
   BODY_KNIGHT,
   BODY_MAGE,
+  BODY_REMY,
   BODY_SUMMER,
+  REMY_HIPS_Y,
   KNIGHT_HIPS_Y,
   MAGE_HIPS_Y,
   SUMMER_HIPS_Y,
@@ -64,6 +66,10 @@ describe("body registry", () => {
     expect(BODY_KNIGHT.url).toBe("/assets/cast-knight.glb");
     expect(BODY_KNIGHT.hipsY).toBe(KNIGHT_HIPS_Y);
     expect(BODIES.knight).toBe(BODY_KNIGHT);
+    expect(bodyForMember({ body: "remy" })).toBe(BODY_REMY);
+    expect(BODY_REMY.url).toBe("/assets/cast-remy.glb");
+    expect(BODY_REMY.hipsY).toBe(REMY_HIPS_Y);
+    expect(BODIES.remy).toBe(BODY_REMY);
   });
 
   it("every body carries a measured natural walk speed", () => {
