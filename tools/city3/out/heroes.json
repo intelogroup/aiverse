@@ -1383,6 +1383,27 @@
   },
   "layout": "/assets/interiors/tea.json",
   "featured": true,
+  "interactables": [
+   {
+    "id": "tea-radio",
+    "room": "tea",
+    "kind": "radio",
+    "asset": "vintage_radio_transceiver",
+    "label": "Radio",
+    "pos": [
+     -17.9,
+     1.26,
+     -78.5
+    ],
+    "rotY": 1.5708,
+    "stand": [
+     -16.9,
+     -78.5
+    ],
+    "heading": -1.5708,
+    "floorY": 0.48
+   }
+  ],
   "collision": "/assets/interiors/tea.col.json"
  },
  {

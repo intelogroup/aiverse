@@ -167,7 +167,7 @@ def city3():
     furniture(heroes, P)
 
 def furniture(heroes, P):
-    anchors = json.load(open(f"{OUT}/hero-anchors.json"))["anchors"]; CL = 0.40; probs = []; nb = 0
+    anchors = json.load(open(f"{OUT}/hero-anchors.json"))["anchors"]; CL = 0.40; probs = []; nb = 0; ni = 0
     def local(b, x, z):
         cx, cz, hx, hz, y0, y1, rot = b; dx, dz = x - cx, z - cz; c, s = math.cos(rot), math.sin(rot)
         return dx * c - dz * s, dx * s + dz * c        # three rotY=rot maps local (1,0,0) to (cos,0,-sin): inverse of that rotation
@@ -182,6 +182,13 @@ def furniture(heroes, P):
                 d = dist(b, ax, az)
                 if d < CL - 1e-3: probs.append((hid, a["id"], "box within %.2f of approach" % d, b))
         x0, z0, x1, z1 = r["rect"]
+        for ia in r.get("interactables", []):                  # usable props: the stand point must be open floor inside the room
+            sx, sz = ia["stand"]
+            if not (x0 + 0.6 < sx < x1 - 0.6 and z0 + 0.6 < sz < z1 - 0.6): probs.append((hid, ia["id"], "stand point near/outside wall"))
+            for b in B:
+                d = dist(b, sx, sz)
+                if d < CL - 1e-3: probs.append((hid, ia["id"], "box within %.2f of stand point" % d, b))
+            ni += 1
         for b in B:
             if not (x0 - .02 <= b[0] <= x1 + .02 and z0 - .02 <= b[1] <= z1 + .02): probs.append((hid, "box centre outside its room", b))
         # door path: 1.7 m wide, 3 m deep from the door inward (three space; inward from `front`)
@@ -192,7 +199,7 @@ def furniture(heroes, P):
                 for b in B:
                     lx, lz = local(b, px, pz)
                     if abs(lx) < b[2] - 1e-3 and abs(lz) < b[3] - 1e-3 and b[4] < col["floorY"] + 1.8: probs.append((hid, "door path inside box", b)); break
-    (fail if probs else ok)(f"{nb} furniture boxes in {len(heroes)} rooms: approach points >= {CL} m clear, door path free" if not probs else f"furniture problems ({len(probs)}): {probs[:5]}")
+    (fail if probs else ok)(f"{nb} furniture boxes in {len(heroes)} rooms: approach points >= {CL} m clear ({ni} interactable stand points too), door path free" if not probs else f"furniture problems ({len(probs)}): {probs[:5]}")
 
 def district(name):
     path = f"{OUT}/world-{name}-collision.glb"

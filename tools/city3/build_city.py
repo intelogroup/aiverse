@@ -561,7 +561,7 @@ BUDGET={"wooden_bookshelf_worn":3000,"book_encyclopedia_set_01":4000,"desk_lamp_
 TEXPX={"wooden_bookshelf_worn":512,"drawer_cabinet":512,"vintage_grandfather_clock_01":512,"ArmChair_01":512,"potted_plant_02":512,"wooden_crate_01":256,
        "book_encyclopedia_set_01":256,"desk_lamp_arm_01":256,"vintage_radio_transceiver":256,"WoodenTable_02":256,"vintage_oil_lamp":128,"wall_clock":256,"binder_notebook":256}
 QUAT={"ChairCushioned"}
-USED={p[1] for p in kit.PLACEMENTS}
+USED={p[1] for p in kit.PLACEMENTS} | {i["asset"] for i in kit.INTERACTABLES}
 for key in sorted(USED-set(press.PIECE_NAMES)-set(rooms.PIECES)-set(rooms.BOTTLE_KEYS)):
     assets_kit.load(key,BUDGET.get(key,2000),source="quaternius" if key in QUAT else "polyhaven",tex=TEXPX.get(key,256))
 bpy.context.view_layer.layer_collection.children["AssetLibrary"].exclude=False
@@ -596,6 +596,8 @@ for hid,hi in HERO_INFO.items():
     rooms_idx.append({"id":hid,"lot":sp["lot"],"name":sp["name"],"template":sp["template"],"front":bd["face"],"center":[round((r[0]+r[2])/2,2),round(-(r[1]+r[3])/2,2)],
         "door":[round(dx,2),round(-dy,2)],"rect":[r[0],-r[3],r[2],-r[1]],"cut":{"rect":[round(v,2) for v in cut],"y":round(GROUND_TOP,2)},
         "layout":f"/assets/interiors/{hid}.json","featured":hid in ("tea","press")})
+    ia=[i for i in kit.INTERACTABLES if i["room"]==hid]
+    if ia: rooms_idx[-1]["interactables"]=ia
 json.dump(rooms_idx,open(f"{HERE}/out/interiors/index.json","w"),separators=(",",":"))
 json.dump(rooms_idx,open(f"{HERE}/out/heroes.json","w"),indent=1)
 json.dump({"units":"m, three.js XZ; heading = atan2(fx, fz)","anchors":kit.ANCHORS},open(f"{HERE}/out/hero-anchors.json","w"),indent=1)
