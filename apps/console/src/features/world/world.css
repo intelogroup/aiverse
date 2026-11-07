@@ -773,6 +773,12 @@
   color: var(--w-text);
   font-size: 12.5px;
 }
+
+/* The walk-mode clip HUD reuses the embody panel's box (same corner —
+   the two panels never share a world); it only runs narrower. */
+.world-root .w-walk-panel {
+  max-width: 340px;
+}
 .world-root .w-embody-title {
   letter-spacing: 0.05em;
   text-transform: uppercase;

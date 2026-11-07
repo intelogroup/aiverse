@@ -10,6 +10,7 @@ import { COLLIDE_FLOOR, resolveCamera } from "./cameraCollision";
 import { DAMP_FOV, DAMP_POS_FOLLOW, FOV_RIDE, FOV_WIDE, EYE_FORWARD, FOLLOW_BACK, FOLLOW_LOOK_UP, FOLLOW_UP, HEAD_HEIGHT, RIDE_LOOK_AHEAD, damp } from "./cameraRig";
 import type { AgentFrame } from "./locomotion";
 import { clipFor, findSpawn, makeWalker, step, type World, type WalkInput } from "./walker";
+import { WalkClipOverride, type WalkFrameInfo } from "./walkOverride";
 
 // CityWalker — the user-driven bot in City 3 (?world=city3&walk=1). A thin adapter around walker.ts:
 //   keyboard/mouse -> abstract intent {forward, strafe, turn, run, look} -> walker.step(world = BVH raycasts)
@@ -42,6 +43,8 @@ export function CityWalker({
   onExit,
   getMeshes,
   walk,
+  override,
+  frameRef,
 }: {
   mode: WalkMode;
   onMode: (m: WalkMode) => void;
@@ -50,6 +53,14 @@ export function CityWalker({
   getMeshes: () => THREE.Mesh[];
   /** The walker's collision list (capsule world). Without it (tests, older hosts) the raycast world over `getMeshes` is used. */
   walk?: WalkColliders;
+  /**
+   * HUD clip override (walkOverride.ts), shared with the walk HUD panel: the figure consumes it as its
+   * clip tester (the Embody panel's clip-firing path) and the frame loop stands the bot still while a
+   * door one-shot plays. Absent (tests, older hosts) the walker keeps a private one.
+   */
+  override?: WalkClipOverride;
+  /** The latest frame's locomotion state + speed, written per frame for the HUD status line. */
+  frameRef?: { current: WalkFrameInfo | null };
 }) {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   const gl = useThree((s) => s.gl);
@@ -80,6 +91,11 @@ export function CityWalker({
   modeRef.current = mode;
   const cbs = useRef({ onMode, onExit });
   cbs.current = { onMode, onExit };
+  // The clip override the figure + HUD share (see the prop): a private
+  // instance only when the host did not hand one in.
+  const ownOverride = useRef<WalkClipOverride | null>(null);
+  if (override === undefined && ownOverride.current === null) ownOverride.current = new WalkClipOverride();
+  const clipOverride = override ?? (ownOverride.current as WalkClipOverride);
 
   // Leave the wide camera exactly where it was.
   useEffect(() => {
@@ -205,7 +221,14 @@ export function CityWalker({
     }
     const look = lookAcc.current;
     lookAcc.current = 0;
-    step(s, intentFromKeys(keys.current, look), delta, world);
+    const input = intentFromKeys(keys.current, look);
+    // A door one-shot owns the stage: travel intent is suppressed so the
+    // bot stands still for the performance (turning/looking stay live).
+    if (clipOverride.doorPlaying) {
+      input.forward = 0;
+      input.strafe = 0;
+    }
+    step(s, input, delta, world);
 
     // Frame for CastFigure (clip from speed) and the figure group's height.
     const f = frames.current[0];
@@ -213,6 +236,7 @@ export function CityWalker({
     f.velocity[0] = s.vx; f.velocity[1] = s.vz;
     // Figure faces the BODY heading (turns toward travel; backpedal reverses Walk); cameras below use the VIEW heading.
     f.speed = s.speed; f.heading = s.body; f.state = clipFor(s.speed);
+    if (frameRef) frameRef.current = { state: f.state, speed: f.speed };
     (f.gait ??= { reverse: false }).reverse = s.backward;
     if (figure.current) figure.current.position.y = s.y;
 
@@ -276,6 +300,7 @@ export function CityWalker({
           home={[s0?.x ?? 0, 0, s0?.z ?? 0]}
           body={BODY_SUMMER}
           hidden={mode === "ride"}
+          clipTester={clipOverride}
         />
       </Suspense>
     </group>

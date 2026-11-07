@@ -609,7 +609,11 @@ export function CastFigure({
     // the deviation beyond the bob band, on the figure group: the bob
     // passes, the ramp is floored. Body-layer locomotion only — sit
     // overrides and tester clips own their own heights.
-    if (rootMotion && !ov && !activeTest.current) {
+    // A held Run (the walk HUD's Run toggle) or tester Walk is locomotion, not a pose that owns its height: ground it
+    // too (Run with its flight phase: the Run clip's cycle minimum, as on the gait path), or it floats/sinks.
+    const testLoco = activeTest.current === "Run" || activeTest.current === body.clips.walk;
+    if (testLoco && activeTest.current === "Run" && body.run) runEff = Math.max(runEff, testWeight.current);
+    if (rootMotion && !ov && (!activeTest.current || testLoco)) {
       const hw = hipsWorldTmp.current;
       rootMotion.hips.getWorldPosition(hw);
       const dy = grp.worldToLocal(hw).y - rootMotion.restHipsLocalY;
