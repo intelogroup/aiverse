@@ -48,6 +48,8 @@ export const MAX_REACH = 0.98;
 export const MAX_DIP = 0.06;
 /** A swinging foot keeps at least this clearance (m): the baked toes graze the floor mid-swing (a 5 m/s scrape in Remy's Walk). */
 export const SWING_CLEARANCE = 0.015;
+/** While standing, the foot may stay turned this far (rad) from where the clip points it before it follows the body. */
+export const MAX_HOLD_YAW = 0.6;
 /** Seconds to blend the correction in (touchdown: the foot arrives where the pin is, so quick) and out (lift-off). */
 export const BLEND_IN_S = 0.04;
 export const BLEND_OUT_S = 0.1;
@@ -59,6 +61,7 @@ const tmpV = new THREE.Vector3();
 const tmpQ = new THREE.Quaternion();
 const tmpQ2 = new THREE.Quaternion();
 const invScene = new THREE.Matrix4();
+const Y_UP = new THREE.Vector3(0, 1, 0);
 
 /**
  * Two-bone IK in world space. Hip `a`, knee `b`, ankle `c` as posed; aim the ankle at `t`. The knee stays on the side
@@ -128,8 +131,9 @@ export interface Landmark {
   armed: boolean;
   pinX: number;
   pinZ: number;
-  /** This frame / last frame: the clip-posed world position. */
+  /** This frame / last frame: the clip-posed world position, and where it sits with the foot turned to the held orientation. */
   pos: THREE.Vector3;
+  held: THREE.Vector3;
   prev: THREE.Vector3;
   hasPrev: boolean;
 }
@@ -146,6 +150,11 @@ export interface Leg {
   offZ: number;
   /** Smoothed lift (m) that keeps the swinging foot off the floor. */
   lift: number;
+  /** Standing hold: the foot's world orientation when the hold began (kept within MAX_HOLD_YAW of the clip's), and its 0..1 blend. */
+  holdQ: THREE.Quaternion;
+  hold: number;
+  /** The orientation the foot gets this frame (the clip's, turned toward holdQ by the hold blend). */
+  footQ: THREE.Quaternion;
   /** This frame: the clip-posed ankle (world), the point to hold it at, and whether the lock is (fading) on. */
   clip: THREE.Vector3;
   target: THREE.Vector3;
@@ -162,6 +171,7 @@ function newLandmark(bone: THREE.Object3D, local: THREE.Vector3, restY: number):
     pinX: 0,
     pinZ: 0,
     pos: new THREE.Vector3(),
+    held: new THREE.Vector3(),
     prev: new THREE.Vector3(),
     hasPrev: false,
   };
@@ -188,6 +198,9 @@ export function findLegs(scene: THREE.Object3D, points: readonly ContactPoint[])
       offX: 0,
       offZ: 0,
       lift: 0,
+      holdQ: new THREE.Quaternion(),
+      hold: 0,
+      footQ: new THREE.Quaternion(),
       clip: new THREE.Vector3(),
       target: new THREE.Vector3(),
       on: false,
@@ -275,7 +288,11 @@ export class FootLock {
   private readonly bodyDisp = new THREE.Vector3();
   private readonly rel = new THREE.Vector3();
   private readonly fwd = new THREE.Vector3();
-  private readonly footQ = new THREE.Quaternion();
+  private readonly clipQ = new THREE.Quaternion();
+  private readonly clipInv = new THREE.Quaternion();
+  private readonly holdD = new THREE.Quaternion();
+  private readonly dEff = new THREE.Quaternion();
+  private readonly yawQ = new THREE.Quaternion();
   private readonly pole = new THREE.Vector3();
   /** How many legs were corrected last update (tests / HUD). */
   active = 0;
@@ -298,6 +315,7 @@ export class FootLock {
     for (const l of this.legs) {
       l.w = 0;
       l.lift = 0;
+      l.hold = 0;
       l.on = false;
       for (const m of l.landmarks) {
         m.pinned = false;
@@ -339,6 +357,9 @@ export class FootLock {
     this.hasBody = true;
     const bodyLen = this.bodyDisp.length();
     const moving = hadBody && speed >= MIN_LOCK_SPEED && bodyLen > 1e-5;
+    // Standing: the stance is held, not tracked. Both feet stay where they are, position and yaw (the idle clip sways a
+    // centimetre or two and the walker turns the body toward the view on the spot; either one made the soles skate).
+    const standing = hadBody && speed < MIN_LOCK_SPEED;
     const dt = Math.min(delta, 0.1);
     const stepIn = dt / BLEND_IN_S;
     const stepOut = dt / BLEND_OUT_S;
@@ -349,8 +370,24 @@ export class FootLock {
     let any = false;
     for (const leg of this.legs) {
       leg.foot.getWorldPosition(leg.clip);
+      leg.foot.getWorldQuaternion(this.clipQ);
       const curX = leg.offX * easeBlend(leg.w);
       const curZ = leg.offZ * easeBlend(leg.w);
+      // Standing hold: keep the foot's world orientation from when the hold began, but never more than MAX_HOLD_YAW away
+      // from the clip's (past that the foot follows the body round: a slow pivot instead of a stuck leg).
+      this.holdD.copy(leg.holdQ).multiply(this.clipInv.copy(this.clipQ).invert());
+      if (leg.hold > 0 || standing) {
+        const yaw = 2 * Math.atan2(this.holdD.y, this.holdD.w);
+        const wrapped = Math.atan2(Math.sin(yaw), Math.cos(yaw));
+        if (Math.abs(wrapped) > MAX_HOLD_YAW) {
+          const over = wrapped - Math.sign(wrapped) * MAX_HOLD_YAW;
+          leg.holdQ.premultiply(this.yawQ.setFromAxisAngle(Y_UP, -over));
+          this.holdD.copy(leg.holdQ).multiply(this.clipInv);
+        }
+      }
+      // D turns the clip's foot into the held one (about the ankle); identity when nothing is held.
+      this.dEff.identity().slerp(this.holdD, easeBlend(leg.hold));
+      leg.footQ.copy(this.dEff).multiply(this.clipQ);
       let changed = false;
       let lowest = Infinity;
       for (const m of leg.landmarks) {
@@ -362,9 +399,13 @@ export class FootLock {
         }
         m.prev.copy(m.pos);
         m.hasPrev = true;
+        // Where this point sits with the foot turned to the held orientation (about the ankle).
+        m.held.copy(m.pos).sub(leg.clip).applyQuaternion(this.dEff).add(leg.clip);
         const clearance = tmpV.copy(m.pos).applyMatrix4(invScene).y - m.restY - drop;
         lowest = Math.min(lowest, clearance);
-        const up = !moving || clearance > RELEASE_CLEARANCE || back < -FORWARD_RELEASE_SHARE;
+        const up = standing
+          ? clearance > RELEASE_CLEARANCE
+          : !moving || clearance > RELEASE_CLEARANCE || back < -FORWARD_RELEASE_SHARE;
         if (m.pinned) {
           if (up) {
             m.pinned = false;
@@ -372,7 +413,8 @@ export class FootLock {
           }
         } else {
           if (up) m.armed = true;
-          if (moving && m.armed && clearance < PLANT_CLEARANCE && back > PLANT_BACK_SHARE) {
+          const ready = standing || (moving && m.armed && back > PLANT_BACK_SHARE);
+          if (ready && clearance < PLANT_CLEARANCE) {
             m.pinned = true;
             changed = true;
           }
@@ -382,8 +424,8 @@ export class FootLock {
       if (changed) {
         for (const m of leg.landmarks) {
           if (!m.pinned) continue;
-          m.pinX = m.pos.x + curX;
-          m.pinZ = m.pos.z + curZ;
+          m.pinX = m.held.x + curX;
+          m.pinZ = m.held.z + curZ;
         }
       }
       let n = 0;
@@ -392,8 +434,15 @@ export class FootLock {
       for (const m of leg.landmarks) {
         if (!m.pinned) continue;
         n++;
-        sx += m.pinX - m.pos.x;
-        sz += m.pinZ - m.pos.z;
+        sx += m.pinX - m.held.x;
+        sz += m.pinZ - m.held.z;
+      }
+      // The orientation hold starts with the first pin while standing and ends when the lock does (or the bot moves off).
+      if (n > 0 && standing) {
+        if (leg.hold <= 0) leg.holdQ.copy(this.clipQ);
+        leg.hold = Math.min(1, leg.hold + stepIn);
+      } else {
+        leg.hold = Math.max(0, leg.hold - stepOut);
       }
       if (n > 0) {
         leg.offX = sx / n;
@@ -450,12 +499,11 @@ export class FootLock {
       leg.shin.getWorldPosition(this.b);
       leg.foot.getWorldPosition(this.c);
       solveTwoBone(this.a, this.b, this.c, t, this.fwdPole(group), this.knee, this.ankle);
-      leg.foot.getWorldQuaternion(this.footQ);
       aim(leg.thigh, this.a, this.b, this.knee);
       leg.shin.getWorldPosition(this.b); // == knee now
       leg.foot.getWorldPosition(this.c); // moved with the thigh
       aim(leg.shin, this.b, this.c, this.ankle);
-      setWorldQuaternion(leg.foot, this.footQ); // the foot keeps the orientation the clip gave it
+      setWorldQuaternion(leg.foot, leg.footQ); // the foot keeps the orientation the clip gave it (or the held one while standing)
       this.active++;
     }
   }

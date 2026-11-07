@@ -5,7 +5,7 @@ import {
   FOOT_BONE,
   FootLock,
   MAX_DIP,
-  MIN_LOCK_SPEED,
+  MAX_HOLD_YAW,
   SWING_CLEARANCE,
   SHIN_BONE,
   THIGH_BONE,
@@ -125,10 +125,12 @@ function poseClip(r: ReturnType<typeof rig>, p: THREE.Vector3): void {
   const reach = solveTwoBone(a, V(a.x, a.y - 0.4, a.z + 0.3), V(a.x, a.y - 0.8, a.z), wp, V(0, 0, 1), knee, ankle);
   expect(reach).toBeLessThan(1);
   const qT = new THREE.Quaternion().setFromUnitVectors(down, knee.clone().sub(a).normalize());
-  r.thigh.quaternion.copy(qT);
+  // the thigh's parents are identity-rotated except the group, which may be turned (the body yawing on the spot)
+  r.thigh.quaternion.copy(r.group.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(qT));
   const qS = new THREE.Quaternion().setFromUnitVectors(down, ankle.clone().sub(knee).normalize());
   r.shin.quaternion.copy(qT.clone().invert().multiply(qS));
-  r.foot.quaternion.identity();
+  // the clip's foot is level and faces where the body faces: its world yaw follows the group's
+  r.foot.quaternion.copy(qS.clone().invert().multiply(new THREE.Quaternion().setFromAxisAngle(V(0, 1, 0), r.group.rotation.y)));
   r.group.updateWorldMatrix(true, true);
 }
 
@@ -197,12 +199,6 @@ describe("FootLock", () => {
     swing.zs.forEach((z, i) => expect(z).toBeCloseTo(free.zs[i], 6));
   });
 
-  it("does nothing below the minimum body speed", () => {
-    const slow = run({ vClip: 1.0, footY: 0.005, lock: true, speed: MIN_LOCK_SPEED - 0.05 });
-    expect(slow.lock.active).toBe(0);
-    expect(span(slow.zs, 4)).toBeGreaterThan(0.04);
-  });
-
   it("lets go once the lock would overstretch the leg, and does not re-lock the same stance at once", () => {
     // a long stance: the locked point ends up so far behind the hip that no pelvis dip within MAX_DIP reaches it
     const long = run({ vClip: 1.0, footY: 0.005, lock: true, frames: 30 });
@@ -243,6 +239,56 @@ describe("FootLock", () => {
     const a = locked.r.thigh.getWorldPosition(new THREE.Vector3());
     const c = locked.r.foot.getWorldPosition(new THREE.Vector3());
     if (locked.lock.legs[0].landmarks[0].pinned) expect(a.distanceTo(c)).toBeLessThanOrEqual(1.0 * 0.999 + 1e-6);
+  });
+
+  describe("standing hold", () => {
+    /** The body stands (speed 0) while the clip's foot sways and the group yaws; returns world ankle z/x and foot orientation per frame. */
+    function stand(opts: { lock: boolean; frames: number; sway?: number; yaw?: (i: number) => number }) {
+      const r = rig();
+      const lock = new FootLock(r.scene, r.points);
+      const xs: number[] = [];
+      const zs: number[] = [];
+      const qs: THREE.Quaternion[] = [];
+      for (let i = 0; i < opts.frames; i++) {
+        r.group.rotation.y = opts.yaw ? opts.yaw(i) : 0;
+        const sw = (opts.sway ?? 0) * Math.sin(i * 0.3);
+        poseClip(r, V(0.1 + sw, 0.005, 0.1 + sw));
+        if (opts.lock) lock.update(r.group, r.scene, 0, dt);
+        r.group.updateWorldMatrix(true, true);
+        const w = r.foot.getWorldPosition(new THREE.Vector3());
+        xs.push(w.x);
+        zs.push(w.z);
+        qs.push(r.foot.getWorldQuaternion(new THREE.Quaternion()));
+      }
+      return { r, lock, xs, zs, qs };
+    }
+
+    it("holds a standing foot still against the idle clip's sway", () => {
+      const free = stand({ lock: false, frames: 70, sway: 0.012 });
+      const held = stand({ lock: true, frames: 70, sway: 0.012 });
+      expect(span(free.xs, 8)).toBeGreaterThan(0.015);
+      expect(span(held.xs, 8)).toBeLessThan(0.0015);
+      expect(span(held.zs, 8)).toBeLessThan(0.0015);
+    });
+
+    it("keeps the foot where it is, position and heading, while the body turns on the spot", () => {
+      const yaw = (i: number) => Math.min(i, 40) * 0.01; // 0 -> 0.4 rad, inside MAX_HOLD_YAW
+      const free = stand({ lock: false, frames: 50, yaw });
+      const held = stand({ lock: true, frames: 50, yaw });
+      expect(span(free.xs, 8)).toBeGreaterThan(0.02); // the foot swings round the body
+      expect(span(held.xs, 8)).toBeLessThan(0.003);
+      expect(span(held.zs, 8)).toBeLessThan(0.003);
+      expect(held.qs[49].angleTo(held.qs[8])).toBeLessThan(0.02); // not turned with it
+    });
+
+    it("lets the foot follow once the body has turned more than MAX_HOLD_YAW", () => {
+      const yaw = (i: number) => Math.min(i, 50) * 0.02; // 0 -> 1.0 rad
+      const free = stand({ lock: false, frames: 60, yaw });
+      const held = stand({ lock: true, frames: 60, yaw });
+      const lag = held.qs[59].angleTo(free.qs[59]);
+      expect(lag).toBeGreaterThan(MAX_HOLD_YAW - 0.05);
+      expect(lag).toBeLessThan(MAX_HOLD_YAW + 0.05);
+    });
   });
 
   it("reset forgets the plant", () => {

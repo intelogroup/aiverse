@@ -156,3 +156,17 @@ Not fixed: the Walk -> Run blend (1.6-2.4 m/s), where the clip's stance feet dis
 more than the pelvis can give, lets go, and the foot floats up to 4.7 cm for 4 % of the cycle; capping the correction at 12 cm was worse:
 17 % airborne); Run's left/right stance asymmetry (still 0.16-0.18 m/s). Both live in the clips: the bake-time fix (equalise the Run's two
 stances, re-measure `bodies.ts`) is the next step if they matter. Real-console motion cannot be seen under software GL (one frame per screenshot).
+
+### Standing hold (2026-11-07, `footLock.ts`, branch `anim/stance-hold`)
+Report: "standing idle, the feet skate left-right". Two causes, both measured headlessly (`gait_full.mjs`, VS=0; a `ROT` rad/s variant turns the group):
+the IdleLong sway moves the soles ~1 cm (0.05 m/s), and the walker turns the BODY toward the view heading on the spot (`stepBody`, up to 10 rad/s)
+as one rigid piece, so the soles sweep sideways (Summer 0.10 m/s at 1 rad/s, 0.21 at 2.2, 0.56 at 6). The lock only ran above 0.25 m/s.
+Fix: below that speed every foot on the floor is held, position AND heading (no velocity test: the pins are taken where the feet stand; the foot's world
+orientation is kept, up to `MAX_HOLD_YAW` 0.6 rad from where the clip points it, past that the foot follows the body round). Moving off keeps the pins
+as ordinary stance pins, and stopping pins the feet where they are instead of sliding into the idle pose.
+Standing still, planted-sole skate (m/s): Summer 0.052 -> 0.001, Remy 0.046 -> 0.001. Turning on the spot (continuous, so past the yaw limit most of the
+time): 1 rad/s 0.104 -> 0.020 (Summer) / 0.126 -> 0.030 (Remy); 2.2 rad/s 0.210 -> 0.045 / 0.257 -> 0.117; 6 rad/s 0.561 -> 0.122 / 0.686 -> 0.237.
+Walk/run numbers unchanged. Not done: stepping the feet for turns past ~35 degrees (the catalog TurnLeft90/TurnRight90 clips that Agora's body
+controller uses would be the source); a long continuous turn still pivots the soles at the limit.
+Also: React StrictMode (dev) mounts, cleans up (`stopAllAction`) and mounts again, which stopped the Idle the actions memo had started, so a DEV figure
+stood frozen in its first pose (production was fine). The mount effect now restarts Idle.

@@ -338,10 +338,13 @@ export function CastFigure({
   const turnActionRef = useRef<THREE.AnimationAction | null>(null);
 
   useEffect(() => {
+    // React StrictMode (dev) mounts, cleans up and mounts again: the cleanup below stops the Idle the actions memo
+    // started, and the memo does not re-run, so a dev figure stood frozen in its first pose. Start it again.
+    if (actions.idle && !actions.idle.isRunning()) actions.idle.reset().setEffectiveWeight(1).play();
     return () => {
       mixer.stopAllAction();
     };
-  }, [mixer]);
+  }, [mixer, actions]);
 
   useFrame((_, delta) => {
     const grp = group.current;
