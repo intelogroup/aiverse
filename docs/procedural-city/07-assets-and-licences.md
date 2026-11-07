@@ -61,3 +61,13 @@ Replaced the tinted-cuboid goods (and the 80 `SK_producecrate` with their boxes)
 - **Sketchfab** CC0 searches for palm/tropical/plant/bush/parasol/car/yacht return almost only museum scans -> not useful.
 - **Poly Haven** fetched: models outdoor_table_chair_set_01, bronze_whale_statue, bronze_ray_statue, bronze_shark_statue, CoffeeCart_01, planter_box_01,
   potted_plant_04, lifebuoy; texture palm_tree_bark.
+
+## Foundry Wharf industrial pass (2026-11-07)
+
+| Asset | Author | Licence | Source |
+|---|---|---|---|
+| Low poly Forklift Truck (1590 tris, stood up, width x0.8) | Kolos Studios | CC-BY 4.0 | https://sketchfab.com/3d-models/low-poly-forklift-truck-81b895de490646de8c6fb1ba03099e08 |
+| Barrel 03 (1473 -> 600 tris) | Poly Haven | CC0 | https://polyhaven.com/a/barrel_03 |
+| Wooden Crate 01 (6576 -> 299 tris) | James Ray Cock | CC0 | https://polyhaven.com/a/wooden_crate_01 |
+
+Roller doors, containers v2, pallets, loaded pallets, oil drums and bollards are procedural (`tools/city3/industrial.py`). The forklift is kept local in `assets/sketchfab/forklift_kolos/` (gitignored, with its license.txt), fetched via the Sketchfab download API. foundry.py merges these rows into `out/asset-credits.json`; a later `build_city.py` run rewrites that file, so rerun foundry.py after it (or re-add the rows).

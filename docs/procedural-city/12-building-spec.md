@@ -41,3 +41,5 @@ Geometry-only doors, 4-6 instanced styles (frame, leaf, handle, step, awning/lam
 - Bazaar non-hero ~35 footprints: enterable or facade only (undecided).
 - Cars: game-ready modulatable asset, CC-BY OK? generic vs brand? (parked).
 - Retention lane (goal contracts, away digest, event-log replays) is a product spec, not a building spec: not included here.
+
+- Foundry Wharf (2026-11-07, branch decor/foundry-industrial): loft door bays = 6 instanced roller doors (industrial.py, ~108-142 tris); containers v2 instanced (368 tris, ribs/castings/lock rods); loose props (pallets, loads, drums, PH barrel/crate, CC-BY forklift) in front of free bays, on the quay, in the yards and rail sidings, all with `props` collision. Still flat: boxcars (F3), yard grass (F7), quay maritime content (F6).

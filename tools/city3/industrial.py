@@ -241,3 +241,7 @@ def bake():
 def container(col, x, y, z, along_x=True):
     """Queue a container v2 (door end random: +x or -x) instead of drawing a flat box."""
     _put(f"cont_{col}", x, y, z, (0.0 if _crng.random() < 0.5 else math.pi) + (0.0 if along_x else math.pi / 2))
+
+CREDITS = [{"asset": "forklift", "source": "https://sketchfab.com/3d-models/low-poly-forklift-truck-81b895de490646de8c6fb1ba03099e08", "license": "CC-BY 4.0, Kolos Studios (Foundry Wharf)"},
+           {"asset": "barrel", "source": "https://polyhaven.com/a/barrel_03", "license": "CC0 (Foundry Wharf)"},
+           {"asset": "crate", "source": "https://polyhaven.com/a/wooden_crate_01", "license": "CC0 (Foundry Wharf)"}]

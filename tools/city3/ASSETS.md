@@ -125,3 +125,13 @@ Downloaded from ambientCG's and Poly Haven's public APIs (no key needed). Sets k
 **Halo Lagoon** — Plaster002 itself (`plaster` material, full diffuse + normal at the 3.5 m tile; roughness scalar 0.548, the set's authored mean — a satin, tadelakt-like finish) on the lathe-built stucco fields: tower plinths, terraced-dome rings, statue drums and monorail pier caps, using `lathe`'s existing metres-UV tile mode. The `marble` solid material keeps the formed elements (buttress blades, beams, coping) — they are emitted on palette-point UVs, where a texture would sample arbitrary single texels.
 
 **Glass Quarter** — nothing, by design (glass-and-frame identity); its GLB is byte-identical before/after this pass.
+
+## Foundry Wharf industrial pass
+
+| Asset | Author | Licence | Source |
+|---|---|---|---|
+| Low poly Forklift Truck (1590 tris, stood up, width x0.8) | Kolos Studios | CC-BY 4.0 | https://sketchfab.com/3d-models/low-poly-forklift-truck-81b895de490646de8c6fb1ba03099e08 |
+| Barrel 03 (1473 -> 600 tris) | Poly Haven | CC0 | https://polyhaven.com/a/barrel_03 |
+| Wooden Crate 01 (6576 -> 299 tris) | James Ray Cock | CC0 | https://polyhaven.com/a/wooden_crate_01 |
+
+Roller doors, containers v2, pallets, loaded pallets, oil drums and bollards are procedural (`tools/city3/industrial.py`). The forklift is kept local in `assets/sketchfab/forklift_kolos/` (gitignored, with its license.txt), fetched via the Sketchfab download API. foundry.py merges these rows into `out/asset-credits.json`; a later `build_city.py` run rewrites that file, so rerun foundry.py after it (or re-add the rows).

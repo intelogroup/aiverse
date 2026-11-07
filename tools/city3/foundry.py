@@ -277,3 +277,8 @@ for b in PLAN["buildings"]: COL.prism("buildings", b["poly"], Z - 0.3, Z + b["fl
 for (x, y) in PLAN["trees"]: COL.cyl("props", x, y, Z - 0.1, Z + 3.0, 0.25, 6)
 for (x, y) in PLAN["lamps"]: COL.cyl("props", x, y, Z - 0.1, Z + 4.0, 0.15, 6)
 CX.finish(COL, f"{HERE}/out/world-foundry-collision.glb")
+# ---- credits: merge the industrial pass's third-party assets into out/asset-credits.json (build_city.py rewrites that file; rerun this after it)
+_cp = f"{HERE}/out/asset-credits.json"; _cr = json.load(open(_cp)) if os.path.exists(_cp) else []; _have = {c["asset"] for c in _cr}
+for _c in IND.CREDITS:
+    if _c["asset"] not in _have: _cr.append(_c)
+json.dump(_cr, open(_cp, "w"), indent=1)

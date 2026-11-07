@@ -363,5 +363,20 @@
   "asset": "pc_partyCupRed_shortStack",
   "source": "user-supplied upload (partycups_usdz.zip)",
   "license": "not stated"
+ },
+ {
+  "asset": "forklift",
+  "source": "https://sketchfab.com/3d-models/low-poly-forklift-truck-81b895de490646de8c6fb1ba03099e08",
+  "license": "CC-BY 4.0, Kolos Studios (Foundry Wharf)"
+ },
+ {
+  "asset": "barrel",
+  "source": "https://polyhaven.com/a/barrel_03",
+  "license": "CC0 (Foundry Wharf)"
+ },
+ {
+  "asset": "crate",
+  "source": "https://polyhaven.com/a/wooden_crate_01",
+  "license": "CC0 (Foundry Wharf)"
  }
 ]
