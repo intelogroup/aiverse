@@ -5,7 +5,8 @@ import {
   FOOT_BONE,
   FootLock,
   MAX_DIP,
-  MAX_HOLD_YAW,
+  STEP_LIFT,
+  STEP_YAW,
   SWING_CLEARANCE,
   SHIN_BONE,
   THIGH_BONE,
@@ -272,10 +273,10 @@ describe("FootLock", () => {
     });
 
     it("keeps the foot where it is, position and heading, while the body turns on the spot", () => {
-      const yaw = (i: number) => Math.min(i, 40) * 0.01; // 0 -> 0.4 rad, inside MAX_HOLD_YAW
+      const yaw = (i: number) => Math.min(i, 30) * 0.01; // 0 -> 0.3 rad, inside STEP_YAW (no step yet)
       const free = stand({ lock: false, frames: 50, yaw });
       const held = stand({ lock: true, frames: 50, yaw });
-      expect(span(free.xs, 8)).toBeGreaterThan(0.02); // the foot swings round the body
+      expect(span(free.xs, 8)).toBeGreaterThan(0.012); // the foot swings round the body
       expect(span(held.xs, 8)).toBeLessThan(0.003);
       expect(span(held.zs, 8)).toBeLessThan(0.003);
       expect(held.qs[49].angleTo(held.qs[8])).toBeLessThan(0.02); // not turned with it
@@ -294,13 +295,30 @@ describe("FootLock", () => {
       expect(Math.abs(ankle.x - 4.1)).toBeLessThan(0.05); // under the body again, not left behind at x=0.1
     });
 
-    it("lets the foot follow once the body has turned more than MAX_HOLD_YAW", () => {
-      const yaw = (i: number) => Math.min(i, 50) * 0.02; // 0 -> 1.0 rad
-      const free = stand({ lock: false, frames: 60, yaw });
-      const held = stand({ lock: true, frames: 60, yaw });
-      const lag = held.qs[59].angleTo(free.qs[59]);
-      expect(lag).toBeGreaterThan(MAX_HOLD_YAW - 0.05);
-      expect(lag).toBeLessThan(MAX_HOLD_YAW + 0.05);
+    it("steps the foot round once the body has turned past STEP_YAW: lifted while it moves, aligned with the clip after", () => {
+      const yaw = (i: number) => Math.min(i, 50) * 0.02; // 0 -> 1.0 rad, then still
+      const free = stand({ lock: false, frames: 120, yaw });
+      const r = rig();
+      const lock = new FootLock(r.scene, r.points);
+      let slidOnFloor = 0;
+      let maxY = -Infinity;
+      let prev: THREE.Vector3 | null = null;
+      const qs: THREE.Quaternion[] = [];
+      for (let i = 0; i < 120; i++) {
+        r.group.rotation.y = yaw(i);
+        poseClip(r, V(0.1, 0.005, 0.1));
+        lock.update(r.group, r.scene, 0, dt);
+        r.group.updateWorldMatrix(true, true);
+        const w = r.foot.getWorldPosition(new THREE.Vector3());
+        if (i > 8 && prev && Math.hypot(w.x - prev.x, w.z - prev.z) > 0.001 && w.y < 0.015) slidOnFloor++;
+        maxY = Math.max(maxY, w.y);
+        prev = w;
+        qs.push(r.foot.getWorldQuaternion(new THREE.Quaternion()));
+      }
+      expect(maxY).toBeGreaterThan(0.03); // it stepped (lift arc), it did not pivot on the floor
+      expect(maxY).toBeLessThan(0.005 + STEP_LIFT + 0.01);
+      expect(slidOnFloor).toBeLessThan(4); // horizontal motion happens in the air
+      expect(qs[119].angleTo(free.qs[119])).toBeLessThan(STEP_YAW + 0.02); // ends near the clip's heading
     });
   });
 

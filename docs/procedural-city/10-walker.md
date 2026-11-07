@@ -168,5 +168,20 @@ Standing still, planted-sole skate (m/s): Summer 0.052 -> 0.001, Remy 0.046 -> 0
 time): 1 rad/s 0.104 -> 0.020 (Summer) / 0.126 -> 0.030 (Remy); 2.2 rad/s 0.210 -> 0.045 / 0.257 -> 0.117; 6 rad/s 0.561 -> 0.122 / 0.686 -> 0.237.
 Walk/run numbers unchanged. Not done: stepping the feet for turns past ~35 degrees (the catalog TurnLeft90/TurnRight90 clips that Agora's body
 controller uses would be the source); a long continuous turn still pivots the soles at the limit.
+
+### Turn stepping (2026-11-07, `footLock.ts` `STEP_*`)
+Standing, a held foot that the body has left behind by more than `STEP_DIST` 0.10 m, or turned more than `STEP_YAW` 0.35 rad (20 deg) from the clip's
+heading, steps back under the body: over `STEP_S` 0.28 s its offset and held heading ease to the clip's, with a `STEP_LIFT` 5 cm sine arc; one foot at
+a time (turning continuously the feet alternate, as a person does). The 0.6 rad yaw clamp now only applies when a step cannot keep up (very fast turns).
+Measured (`harness/gait_full.mjs` with `ROT=` rad/s and `VS=0`, planted-sole skate m/s, standing hold -> + stepping):
+| turn rate | Summer | Remy |
+|---|---|---|
+| 1 rad/s | 0.020 -> 0.008 | 0.030 -> 0.011 |
+| 2.2 rad/s (arrow keys) | 0.045 -> 0.019 | 0.117 -> 0.030 |
+| 6 rad/s | 0.122 -> 0.102 | 0.237 -> 0.198 |
+Walk/run numbers unchanged. Remy's support foot sits 1.0-1.4 cm up while the other steps: that is his IdleLong pose (weight on the right, left foot
+relaxed 1 cm off the floor), not the lock; the harness's 1 cm "contact" metric reads 73-78 % for it.
+Not done: the Walk -> Run blend band (1.6-2.4 m/s) is crossed in ~0.1 s with the walker's accel 14/s, so it is not worth a bake today; Run's left/right
+stance asymmetry (0.16-0.18 m/s residual) still needs the bake-time fix.
 Also: React StrictMode (dev) mounts, cleans up (`stopAllAction`) and mounts again, which stopped the Idle the actions memo had started, so a DEV figure
 stood frozen in its first pose (production was fine). The mount effect now restarts Idle.

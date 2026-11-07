@@ -52,6 +52,12 @@ export const MAX_DIP = 0.06;
 export const SWING_CLEARANCE = 0.015;
 /** While standing, the foot may stay turned this far (rad) from where the clip points it before it follows the body. */
 export const MAX_HOLD_YAW = 0.6;
+/** Turn stepping (standing): a held foot this far (m) from where the clip puts it, or turned this far (rad) from the clip's
+ * heading, steps there: lifts in an arc of STEP_LIFT over STEP_S and re-plants under the body. One foot at a time. */
+export const STEP_DIST = 0.1;
+export const STEP_YAW = 0.35;
+export const STEP_S = 0.28;
+export const STEP_LIFT = 0.05;
 /** Seconds to blend the correction in (touchdown: the foot arrives where the pin is, so quick) and out (lift-off). */
 export const BLEND_IN_S = 0.04;
 export const BLEND_OUT_S = 0.1;
@@ -155,6 +161,11 @@ export interface Leg {
   /** Standing hold: the foot's world orientation when the hold began (kept within MAX_HOLD_YAW of the clip's), and its 0..1 blend. */
   holdQ: THREE.Quaternion;
   hold: number;
+  /** Turn step progress 0..1, or -1 while not stepping; the offset and foot orientation it starts from. */
+  step: number;
+  stepX: number;
+  stepZ: number;
+  stepQ: THREE.Quaternion;
   /** The orientation the foot gets this frame (the clip's, turned toward holdQ by the hold blend). */
   footQ: THREE.Quaternion;
   /** This frame: the clip-posed ankle (world), the point to hold it at, and whether the lock is (fading) on. */
@@ -202,6 +213,10 @@ export function findLegs(scene: THREE.Object3D, points: readonly ContactPoint[])
       lift: 0,
       holdQ: new THREE.Quaternion(),
       hold: 0,
+      step: -1,
+      stepX: 0,
+      stepZ: 0,
+      stepQ: new THREE.Quaternion(),
       footQ: new THREE.Quaternion(),
       clip: new THREE.Vector3(),
       target: new THREE.Vector3(),
@@ -318,6 +333,7 @@ export class FootLock {
       l.w = 0;
       l.lift = 0;
       l.hold = 0;
+      l.step = -1;
       l.on = false;
       for (const m of l.landmarks) {
         m.pinned = false;
@@ -375,7 +391,9 @@ export class FootLock {
     // ---- pass 1: clip pose, pins, targets, required dip ----
     let need = 0;
     let any = false;
+    let stepping = this.legs.some((l) => l.step >= 0);
     for (const leg of this.legs) {
+      let yawErr = 0;
       leg.foot.getWorldPosition(leg.clip);
       leg.foot.getWorldQuaternion(this.clipQ);
       const curX = leg.offX * easeBlend(leg.w);
@@ -386,7 +404,8 @@ export class FootLock {
       if (leg.hold > 0 || standing) {
         const yaw = 2 * Math.atan2(this.holdD.y, this.holdD.w);
         const wrapped = Math.atan2(Math.sin(yaw), Math.cos(yaw));
-        if (Math.abs(wrapped) > MAX_HOLD_YAW) {
+        yawErr = Math.abs(wrapped) * easeBlend(leg.hold);
+        if (Math.abs(wrapped) > MAX_HOLD_YAW && leg.step < 0) {
           const over = wrapped - Math.sign(wrapped) * MAX_HOLD_YAW;
           leg.holdQ.premultiply(this.yawQ.setFromAxisAngle(Y_UP, -over));
           this.holdD.copy(leg.holdQ).multiply(this.clipInv);
@@ -458,15 +477,40 @@ export class FootLock {
       } else {
         leg.w = Math.max(0, leg.w - stepOut);
       }
+      // Turn stepping: a standing foot left behind by the body (it turned, or shuffled) steps back under it instead of
+      // pivoting or stretching. The step walks the offset to zero and the held orientation to the clip's, with a lift arc.
+      let stepLift = 0;
+      if (standing && !stepping && leg.step < 0 && n > 0 && leg.w >= 1 &&
+          (Math.hypot(leg.offX, leg.offZ) > STEP_DIST || yawErr > STEP_YAW)) {
+        leg.step = 0;
+        leg.stepX = leg.offX;
+        leg.stepZ = leg.offZ;
+        leg.stepQ.copy(leg.holdQ);
+        stepping = true;
+      }
+      if (leg.step >= 0) {
+        leg.step = Math.min(1, leg.step + dt / STEP_S);
+        const s = easeBlend(leg.step); // 0 -> 1, eased at both ends
+        leg.offX = leg.stepX * (1 - s);
+        leg.offZ = leg.stepZ * (1 - s);
+        leg.holdQ.copy(leg.stepQ).slerp(this.clipQ, s);
+        stepLift = STEP_LIFT * Math.sin(Math.PI * leg.step);
+        for (const m of leg.landmarks) {
+          if (!m.pinned) continue;
+          m.pinX = m.held.x + leg.offX;
+          m.pinZ = m.held.z + leg.offZ;
+        }
+        if (leg.step >= 1) leg.step = -1;
+      }
       // A foot with no pin is in swing: keep its lowest landmark above SWING_CLEARANCE (raise fast, relax slower).
       const wantLift = n === 0 && moving && Number.isFinite(lowest) ? Math.max(0, SWING_CLEARANCE - lowest) : 0;
       leg.lift += (wantLift - leg.lift) * Math.min(1, dt / (wantLift > leg.lift ? 0.03 : 0.06));
       if (leg.lift < 1e-4) leg.lift = 0;
-      leg.on = leg.w > 0 || leg.lift > 0;
+      leg.on = leg.w > 0 || leg.lift > 0 || stepLift > 0;
       if (!leg.on) continue;
       any = true;
       const k = easeBlend(leg.w);
-      leg.target.set(leg.clip.x + leg.offX * k, leg.clip.y + leg.lift, leg.clip.z + leg.offZ * k);
+      leg.target.set(leg.clip.x + leg.offX * k, leg.clip.y + leg.lift + stepLift, leg.clip.z + leg.offZ * k);
       if (leg.w <= 0) continue; // lift only: no pin to make room for
       leg.thigh.getWorldPosition(this.a);
       leg.shin.getWorldPosition(this.b);
