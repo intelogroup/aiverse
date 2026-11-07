@@ -104,4 +104,16 @@ describe("shipped body GLBs — clip inventory", () => {
     expect(g.joints).toBe(41);
     expect(g.tris).toBe(4712);
   });
+
+  // Remy (Mixamo FBX, 67 joints, 1.3 m): Body Block's 45 clips retargeted by bone name with a
+  // world-space rest-delta bake (tools/city3/bake_remy.py), JPEG textures at 1K.
+  it("cast-remy.glb: full catalog, exact durations, 67 joints, 35,196 tris", () => {
+    const g = readGlb("../public/assets/cast-remy.glb");
+    expect(Object.keys(g.anims).sort()).toEqual(Object.keys(EXPECTED_CLIPS).sort());
+    for (const [name, dur] of Object.entries(EXPECTED_CLIPS)) {
+      expect(g.anims[name], name).toBeCloseTo(dur, 2);
+    }
+    expect(g.joints).toBe(67);
+    expect(g.tris).toBe(35196);
+  });
 });
