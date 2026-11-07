@@ -8,8 +8,10 @@ import {
   BODY_KNIGHT,
   BODY_MAGE,
   BODY_REMY,
+  BODY_SKELETON_WARRIOR,
   BODY_SUMMER,
   REMY_HIPS_Y,
+  SKELETON_WARRIOR_HIPS_Y,
   KNIGHT_HIPS_Y,
   MAGE_HIPS_Y,
   SUMMER_HIPS_Y,
@@ -70,6 +72,10 @@ describe("body registry", () => {
     expect(BODY_REMY.url).toBe("/assets/cast-remy.glb");
     expect(BODY_REMY.hipsY).toBe(REMY_HIPS_Y);
     expect(BODIES.remy).toBe(BODY_REMY);
+    expect(bodyForMember({ body: "skeleton-warrior" })).toBe(BODY_SKELETON_WARRIOR);
+    expect(BODY_SKELETON_WARRIOR.url).toBe("/assets/cast-skeleton-warrior.glb");
+    expect(BODY_SKELETON_WARRIOR.hipsY).toBe(SKELETON_WARRIOR_HIPS_Y);
+    expect(BODIES["skeleton-warrior"]).toBe(BODY_SKELETON_WARRIOR);
   });
 
   it("every body carries a measured natural walk speed", () => {

@@ -143,6 +143,44 @@ export const BODY_KNIGHT: BodyDef = {
   clips: CATALOG,
 };
 
+// ---------------------------------------------------------------------------
+// Skeleton Warrior (2026-11-07): KayKit "Character Pack: Skeletons"
+// (CC0), same Rig_Medium skeleton as the Adventurers wave, baked with
+// the wave's matrix-delta retarget (full 45-clip catalog). Scale rule
+// differs from the wave's: uniform scale by TOTAL FIGURE HEIGHT —
+// head-mesh top, helmet horns excluded — 2.1661 m x 0.60016 = exactly
+// 1.30 m (horn silhouette 1.5547 m). The bone-parented helmet was
+// rigid-skinned to the head bone in glTF space before the bake: the
+// Blender path misplaces it (measured +0.2006 m unskinned in the
+// export, +0.1003 m after an in-Blender conversion — Blender's
+// importer itself evaluates bone-parented children high). Bind audit
+// of the shipped GLB: all major segments 0.00% off the scaled source,
+// helmet bounds exact, weights sum 1.0, soles at Y 0.
+// Constants FK-measured on the shipped GLB (stance method, cast
+// lineage): stance band min(2 cm, 25% of joint excursion); Walk reads
+// the ankle pair (the catalog Walk's toes carry no stance signal on
+// any body — BodyBlock's toes measure 0.002 / -0.949 against its
+// shipped 0.9165 ankle reading), Run reads all four joints.
+// Seated: SitDown end pelvis lands on the 0.45 m bench via hipsY;
+// the short legs leave the feet dangling ~0.31 m — a known, accepted
+// property of this chibi body.
+// ---------------------------------------------------------------------------
+
+export const SKELETON_WARRIOR_HIPS_Y = 0.3116; // m (upperleg joint, bind)
+
+export const BODY_SKELETON_WARRIOR: BodyDef = {
+  id: "skeleton-warrior",
+  url: "/assets/cast-skeleton-warrior.glb",
+  hipsY: SKELETON_WARRIOR_HIPS_Y,
+  // FK stance: ankle pair 0.3826 / 0.4115 (Walk cycle 1.1667 s).
+  walkSpeed: 0.3971,
+  // Run stance (4 joints): ankles 0.694 / 0.688, toes 1.236 / 1.239;
+  // stance toes sit 0.0084 m above Walk's; ankle touchdown leads
+  // 0.153 / 0.170 -> Run leads Walk by 0.1615 of a cycle.
+  run: { speed: 0.9642, footLift: 0.0084, phaseOffset: -0.1615 },
+  clips: CATALOG,
+};
+
 // Remy — Jim's Mixamo character (Remy.fbx, 67 bones), scaled to 1.3 m. Body Block's 45 clips are retargeted
 // by bone name (world-space rest-delta bake, tools/city3/bake_remy.py): rest directions sit 6.4 deg mean
 // (16.5 max at neck/head) from Body Block's. Hips measured at rest in Blender (0.718 m). Walk/Run measured
@@ -169,6 +207,7 @@ export const BODIES: Record<string, BodyDef> = {
   [BODY_MAGE.id]: BODY_MAGE,
   [BODY_BARBARIAN.id]: BODY_BARBARIAN,
   [BODY_KNIGHT.id]: BODY_KNIGHT,
+  [BODY_SKELETON_WARRIOR.id]: BODY_SKELETON_WARRIOR,
 };
 
 /** The body a cast member wears; members name one via `body`, else cast. */

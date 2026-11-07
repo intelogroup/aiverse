@@ -71,3 +71,9 @@ Replaced the tinted-cuboid goods (and the 80 `SK_producecrate` with their boxes)
 | Wooden Crate 01 (6576 -> 299 tris) | James Ray Cock | CC0 | https://polyhaven.com/a/wooden_crate_01 |
 
 Roller doors, containers v2, pallets, loaded pallets, oil drums and bollards are procedural (`tools/city3/industrial.py`). The forklift is kept local in `assets/sketchfab/forklift_kolos/` (gitignored, with its license.txt), fetched via the Sketchfab download API. foundry.py merges these rows into `out/asset-credits.json`; a later `build_city.py` run rewrites that file, so rerun foundry.py after it (or re-add the rows).
+
+## Cast bodies (added 2026-11-07)
+| Body | Source | Licence | Note |
+|---|---|---|---|
+| Skeleton Warrior (`cast-skeleton-warrior.glb`) | KayKit "Character Pack: Skeletons" 1.0, Kay Lousberg | CC0 (LICENSE.txt in the pack) | PR #30; Body Block's 45 clips retargeted with the Adventurers wave's matrix-delta bake; no attribution required |
+| Remy (`cast-remy.glb`) | Mixamo (Adobe) `Remy.fbx` | Mixamo terms, not CC0 | PR #29. Free for commercial and non-commercial use inside a finished product; **you may not distribute the raw character or animation files** (asset packs, stores), no ML-training use; attribution not required. Source: Adobe Mixamo FAQ as reposted on the Adobe community forum, Sept 2022 (https://community.adobe.com/t5/mixamo-discussions/mixamo-faq-licensing-royalties-ownership-eula-and-tos/td-p/13234775); could not confirm it is still current, check Adobe's Terms of Use. Open question: a GLB committed to a public repo and served from `public/assets/` is arguably "distributing the raw character"; decide before the repo goes public or the console is shared widely. Summer is a Mixamo-rigged character of the user's own (`Sitting_small_0_ex78.fbx`) with the same caveat. |
