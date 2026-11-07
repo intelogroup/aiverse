@@ -702,7 +702,7 @@
 }
 .world-root .w-walk-hint {
   position: absolute;
-  bottom: 70px;
+  bottom: 118px; /* above the walk clip HUD (bottom-right) and the camera toggle (bottom-left) */
   left: 50%;
   transform: translateX(-50%);
   padding: 6px 14px;
@@ -774,10 +774,20 @@
   font-size: 12.5px;
 }
 
-/* The walk-mode clip HUD reuses the embody panel's box (same corner —
-   the two panels never share a world); it only runs narrower. */
+/* The walk-mode clip HUD reuses the embody panel's box; it only runs narrower and sits on the other side. */
 .world-root .w-walk-panel {
   max-width: 340px;
+  /* Bottom-right: the bottom-left corner belongs to the First person / Follow / Exit toggle. */
+  left: auto;
+  right: 14px;
+}
+@media (max-width: 720px) {
+  /* Narrow screens: keep the panel clear of the toggle by sitting above it. */
+  .world-root .w-walk-panel {
+    right: 14px;
+    bottom: 64px;
+    max-width: calc(100vw - 28px);
+  }
 }
 .world-root .w-embody-title {
   letter-spacing: 0.05em;
