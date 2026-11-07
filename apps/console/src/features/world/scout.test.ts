@@ -3,6 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 import { ClipTestState } from "./clips";
+import { TeaDoorController, clipChannel } from "./teaDoor";
 import {
   ScoutExecutor,
   bearingDeg,
@@ -289,5 +290,32 @@ describe("executor: sitting", () => {
     const s = makeWalker(0, 0.2, 0, 0);
     const out = (await exec.submit({ type: "sit", sittable: "tea-sofa-999" }, s)) as { status: string };
     expect(out.status).toBe("unavailable");
+  });
+});
+
+describe("executor: doors", () => {
+  it("go_to a point inside the Tea House runs the full door performance on the way and settles arrived, never blocked", async () => {
+    const clips = new ClipTestState();
+    const channel = clipChannel(clips);
+    const door = new TeaDoorController({ channel, setBlocker: () => {} });
+    let sessions = 0;
+    const exec = new ScoutExecutor({
+      places: PLACES,
+      sittables: [SITTING],
+      clips,
+      hipsY: 0.718,
+      door: (s, wanted, dt) => {
+        const before = door.sessionOwner;
+        const out = door.drive(s, dt, wanted.forward > 0, "scout", channel);
+        if (!before && door.sessionOwner) sessions++;
+        return out;
+      },
+    });
+    const s = makeWalker(-22.8, 0.2, -68.5, Math.PI);
+    const inside: [number, number] = [-22.9, -75.0];
+    const out = (await drive(exec, s, fakeWorld(), exec.submit({ type: "go_to", point: inside }, s))) as { status: string };
+    expect(out.status).toBe("arrived");
+    expect(sessions).toBe(1);
+    expect(Math.hypot(s.x - inside[0], s.z - inside[1])).toBeLessThan(0.6);
   });
 });

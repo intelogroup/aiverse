@@ -24,6 +24,7 @@ import {
   moveToIntent,
   step,
   type Vec2,
+  type WalkInput,
   type WalkerState,
   type World,
 } from "./walker";
@@ -293,6 +294,12 @@ export interface ExecutorDeps {
   clips: { fire: (name: string) => boolean; current: string | null };
   /** The body's measured hips height (for the seated drop in frameOverride). */
   hipsY: number;
+  /**
+   * A door on the way (teaDoor.ts): given the walker and the input go_to wants this step, returns the input to step with
+   * instead while a door session holds the body (align, the OpenDoor clip, the step-through), or null. While it holds,
+   * the action's clocks pause: a door is not "no progress".
+   */
+  door?: (state: WalkerState, wanted: WalkInput, dt: number) => WalkInput | null;
 }
 
 /**
@@ -567,6 +574,13 @@ export class ScoutExecutor {
         const target = p.target!;
         const arriveR = p.phase === "to-approach" ? 0.25 : 0.45;
         const { input, arrived } = moveToIntent(state, target, arriveR, !!p.run);
+        const held = this.deps.door?.(state, input, dt) ?? null;
+        if (held) {
+          step(state, held, dt, world);
+          p.tLeft += dt; // paused while the door owns the body
+          p.staleFor = 0;
+          return;
+        }
         step(state, input, dt, world);
         const dist = Math.hypot(target[0] - state.x, target[1] - state.z);
         if (dist < p.bestDist - 0.05) {

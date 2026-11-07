@@ -65,6 +65,9 @@ import {
 } from "./scout";
 import type { WalkColliders } from "./walkColliders";
 import { newWalkerFrame, useWalkWorld, writeWalkerFrame } from "./walkerBody";
+import { clipChannel, type TeaDoorChannel, type TeaDoorController } from "./teaDoor";
+
+const SCOUT_ACTOR = "scout";
 import { clipFor, findSpawn, makeWalker, type WalkerState } from "./walker";
 
 export interface ScoutSnapshot {
@@ -90,6 +93,8 @@ export interface ScoutSnapshot {
 
 export interface ScoutApi {
   ready: () => boolean;
+  /** The Tea House door (headless checks); null without one. */
+  door: () => { phase: string; state: string; angle: number; owner: string | null } | null;
   snapshot: () => ScoutSnapshot | null;
   look: () => Promise<{ image: string | null; scene: OracleObject[] }>;
   act: (action: ScoutAction) => Promise<(ScoutOutcome & { snapshot: ScoutSnapshot | null }) | null>;
@@ -105,10 +110,13 @@ export function ScoutAgent({
   getMeshes,
   walk,
   rooms,
+  door,
 }: {
   getMeshes: () => THREE.Mesh[];
   walk?: WalkColliders;
   rooms: City3Room[];
+  /** The Tea House door (teaDoor.ts): Scout walks through it with the full open-door performance, on Scout's clock. */
+  door?: TeaDoorController;
 }) {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   const gl = useThree((s) => s.gl);
@@ -121,6 +129,8 @@ export function ScoutAgent({
   const data = useRef<{ places: ScoutPlace[]; sittables: Sittable[]; districts: ScoutDistrict[] } | null>(null);
   const clips = useRef<ClipTestState | null>(null);
   if (clips.current === null) clips.current = new ClipTestState();
+  const scoutChannel = useRef<TeaDoorChannel | null>(null);
+  if (scoutChannel.current === null) scoutChannel.current = clipChannel(clips.current);
   const exec = useRef<ScoutExecutor | null>(null);
   const state = useRef<WalkerState | null>(null);
   const frames = useRef<AgentFrame[]>([newWalkerFrame()]);
@@ -152,6 +162,9 @@ export function ScoutAgent({
           sittables,
           clips: clips.current!,
           hipsY: BODY_REMY.hipsY,
+          door: door
+            ? (s, wanted, dt) => door.drive(s, dt, wanted.forward > 0, SCOUT_ACTOR, scoutChannel.current!)
+            : undefined,
         });
       } catch (e) {
         console.error("[scout] world data failed to load", e);
@@ -254,6 +267,8 @@ export function ScoutAgent({
   useEffect(() => {
     const api: ScoutApi = {
       ready: () => state.current !== null && exec.current !== null,
+      /** The Tea House door as Scout sees it (headless checks). */
+      door: () => (door ? { phase: door.phase, state: door.state, angle: Math.round(door.angle), owner: door.sessionOwner } : null),
       snapshot: () => snapshot(),
       look: async () => {
         looksUsed.current += 1;
@@ -312,6 +327,7 @@ export function ScoutAgent({
       while (dt > 0) {
         const stepDt = Math.min(dt, 1 / 30);
         ex.tick(stepDt, s, world);
+        door?.tick(stepDt); // agent mode: the door runs on Scout's sim clock (GlbWorld's frame ticker is off)
         dt -= stepDt;
       }
     }, 100);

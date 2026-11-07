@@ -185,3 +185,12 @@ Not done: the Walk -> Run blend band (1.6-2.4 m/s) is crossed in ~0.1 s with the
 stance asymmetry (0.16-0.18 m/s residual) still needs the bake-time fix.
 Also: React StrictMode (dev) mounts, cleans up (`stopAllAction`) and mounts again, which stopped the Idle the actions memo had started, so a DEV figure
 stood frozen in its first pose (production was fine). The mount effect now restarts Idle.
+
+## Doors: who opens them (2026-11-07, `teaDoor.ts`)
+Only the Matchmaker's Tea House has a real door (leaf, knob, OpenDoorInwards/Outwards performance); the other 76 shops are open gaps.
+Any walker drives it: walking forward at the shut door (within 1.8 m of its plane, 0.9 m of its centre line, facing it) starts the full
+performance: align at the stand pose (fine-align in the pose frame inside 0.6 m), the clip, the step-through, auto-close once nobody is in the
+doorway. Actors: the player (`CityWalker`, the walk HUD's clip override) and Scout (`?agent=1`, its own clip tester); NPCs plug in with an id and
+`clipChannel(clips)`. One session at a time: anyone else near the door waits outside until it is open, then walks through.
+Live check (software GL): Scout fountain -> stall-0 -> tea door point -> `go_to` a point inside: align, perform, door 95 deg, step-through, `arrived`
+inside at y 0.48, door closed behind it. Debug: `window.__walk.door()` (walk mode), `window.__scout.door()` (agent mode).

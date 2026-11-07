@@ -65,7 +65,7 @@ import { colUrl, parseColBoxes, planStreaming, type InteriorLayout } from "./int
 import { boxesMesh } from "./capsuleWorld";
 import { WalkColliders } from "./walkColliders";
 import { TEA_BLOCKER_BOX, TeaDoorController } from "./teaDoor";
-import { TeaDoorLeaf } from "./TeaDoorLeaf";
+import { TeaDoorLeaf, TeaDoorTicker } from "./TeaDoorLeaf";
 import {
   PROBE_CADENCES,
   PROBE_HEIGHT,
@@ -1504,6 +1504,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   if (teaDoorRef.current === null) {
     teaDoorRef.current = new TeaDoorController({
       channel: walkOverrideRef.current,
+      selfTick: false, // ticked once per frame by TeaDoorTicker (walk mode) or by Scout's sim clock (agent mode)
       setBlocker: (on) => {
         if (on) {
           const m = boxesMesh([TEA_BLOCKER_BOX], [0, 0], "door:tea");
@@ -1589,6 +1590,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
               <InteriorStreamer rooms={city3Rooms} walk={walkColliders} />
               <BazaarLife getMeshes={getColliderMeshes} walk={walkColliders} botPosRef={botPosRef} />
               <TeaDoorLeaf controller={teaDoorRef.current} />
+              {!agentOn ? <TeaDoorTicker controller={teaDoorRef.current} /> : null}
             </>
           ) : null}
           {walking && !agentOn ? (
@@ -1607,7 +1609,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
             />
           ) : null}
           {agentOn ? (
-            <ScoutAgent getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} />
+            <ScoutAgent getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} door={teaDoorRef.current} />
           ) : null}
           <CrowdCast
             place={place}
