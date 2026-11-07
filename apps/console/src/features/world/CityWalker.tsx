@@ -11,6 +11,7 @@ import { DAMP_FOV, DAMP_POS_FOLLOW, FOV_RIDE, FOV_WIDE, EYE_FORWARD, FOLLOW_BACK
 import type { AgentFrame } from "./locomotion";
 import { clipFor, findSpawn, makeWalker, step, type World, type WalkInput } from "./walker";
 import { WalkClipOverride, type WalkFrameInfo } from "./walkOverride";
+import type { TeaDoorController } from "./teaDoor";
 
 // CityWalker — the user-driven bot in City 3 (?world=city3&walk=1). A thin adapter around walker.ts:
 //   keyboard/mouse -> abstract intent {forward, strafe, turn, run, look} -> walker.step(world = BVH raycasts)
@@ -45,6 +46,7 @@ export function CityWalker({
   walk,
   override,
   frameRef,
+  door,
 }: {
   mode: WalkMode;
   onMode: (m: WalkMode) => void;
@@ -61,6 +63,13 @@ export function CityWalker({
   override?: WalkClipOverride;
   /** The latest frame's locomotion state + speed, written per frame for the HUD status line. */
   frameRef?: { current: WalkFrameInfo | null };
+  /**
+   * Tea House door pilot (teaDoor.ts): while a door session runs, the
+   * controller's drive() replaces the key input (align, stand for the
+   * performance, step through); it is consulted every frame so the
+   * door machine and its blocker stay current. Absent = no door.
+   */
+  door?: TeaDoorController;
 }) {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   const gl = useThree((s) => s.gl);
@@ -221,10 +230,16 @@ export function CityWalker({
     }
     const look = lookAcc.current;
     lookAcc.current = 0;
-    const input = intentFromKeys(keys.current, look);
-    // A door one-shot owns the stage: travel intent is suppressed so the
-    // bot stands still for the performance (turning/looking stay live).
-    if (clipOverride.doorPlaying) {
+    let input = intentFromKeys(keys.current, look);
+    // Tea door session (align / performance / step-through): the
+    // controller's input replaces the keys outright. Consulted every
+    // frame, session or not, so the door machine ticks.
+    const doorInput = door?.drive(s, Math.min(delta, 0.05)) ?? null;
+    if (doorInput) {
+      input = doorInput;
+    } else if (clipOverride.doorPlaying) {
+      // A door one-shot owns the stage: travel intent is suppressed so the
+      // bot stands still for the performance (turning/looking stay live).
       input.forward = 0;
       input.strafe = 0;
     }

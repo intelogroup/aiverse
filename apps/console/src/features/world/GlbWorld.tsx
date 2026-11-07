@@ -62,6 +62,8 @@ import { buildInterior, indexLibrary, type InteriorHandle } from "./interiorBuil
 import { colUrl, parseColBoxes, planStreaming, type InteriorLayout } from "./interiors";
 import { boxesMesh } from "./capsuleWorld";
 import { WalkColliders } from "./walkColliders";
+import { TEA_BLOCKER_BOX, TeaDoorController } from "./teaDoor";
+import { TeaDoorLeaf } from "./TeaDoorLeaf";
 import {
   PROBE_CADENCES,
   PROBE_HEIGHT,
@@ -1052,11 +1054,19 @@ function CrowdCast({
 function WalkHudPanel({
   override,
   frameRef,
+  door,
 }: {
   /** The shared override state the buttons drive (walkOverride.ts). */
   override: WalkClipOverride;
   /** The walker's latest frame (state + speed), written per frame by CityWalker — read on the 400 ms pulse. */
   frameRef: RefObject<WalkFrameInfo | null>;
+  /**
+   * Tea House door pilot: when present, the door buttons request a
+   * full door session (align + performance + step-through) from the
+   * controller instead of firing the raw one-shot; the controller's
+   * status (aligning / opening / too far …) joins the status line.
+   */
+  door?: TeaDoorController;
 }) {
   const [, setPulse] = useState(0);
   useEffect(() => {
@@ -1065,6 +1075,7 @@ function WalkHudPanel({
   }, []);
   const bump = () => setPulse((p) => p + 1);
   const fr = frameRef.current;
+  const doorStatus = door?.status() ?? null;
   return (
     <div className="w-embody-panel w-walk-panel">
       <div className="w-embody-title">Walk clips — test</div>
@@ -1083,7 +1094,8 @@ function WalkHudPanel({
           type="button"
           className={override.doorClip === "OpenDoorInwards" ? "active" : ""}
           onClick={() => {
-            override.fireDoor("OpenDoorInwards");
+            if (door) door.request("OpenDoorInwards");
+            else override.fireDoor("OpenDoorInwards");
             bump();
           }}
         >
@@ -1093,7 +1105,8 @@ function WalkHudPanel({
           type="button"
           className={override.doorClip === "OpenDoorOutwards" ? "active" : ""}
           onClick={() => {
-            override.fireDoor("OpenDoorOutwards");
+            if (door) door.request("OpenDoorOutwards");
+            else override.fireDoor("OpenDoorOutwards");
             bump();
           }}
         >
@@ -1109,6 +1122,7 @@ function WalkHudPanel({
           : override.runHeld
             ? " · Run held"
             : ""}
+        {doorStatus ? ` · ${doorStatus}` : ""}
       </div>
     </div>
   );
@@ -1471,6 +1485,24 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   const getColliderMeshes = useCallback(() => colliderMeshesRef.current?.() ?? [], []);
   // The walker's own collision list (collision GLBs + interior boxes), separate from the camera's.
   const walkColliders = useMemo(() => new WalkColliders(), []);
+  // Tea House door pilot: one controller per GlbWorld mount. Its clip
+  // channel is the walk override (the #31 HUD path); its blocker sink
+  // registers/drops the doorway box in the walker's collision list.
+  // The constructor syncs the initial (closed) blocker immediately.
+  const teaDoorRef = useRef<TeaDoorController | null>(null);
+  if (teaDoorRef.current === null) {
+    teaDoorRef.current = new TeaDoorController({
+      channel: walkOverrideRef.current,
+      setBlocker: (on) => {
+        if (on) {
+          const m = boxesMesh([TEA_BLOCKER_BOX], [0, 0], "door:tea");
+          if (m) walkColliders.set("door:tea", [m]);
+        } else {
+          walkColliders.drop("door:tea");
+        }
+      },
+    });
+  }
   const walking = place === "city3" && camMode !== "wide";
   // City 3: which hero building to fly to (cutaway shows on arrival); nonce re-fires a repeat click.
   const [heroFocus, setHeroFocus] = useState<{ id: string; nonce: number } | null>(null);
@@ -1535,6 +1567,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
             <>
               <ClipCutaway rooms={city3Rooms} focus={heroFocus} />
               <InteriorStreamer rooms={city3Rooms} walk={walkColliders} />
+              <TeaDoorLeaf controller={teaDoorRef.current} />
             </>
           ) : null}
           {walking ? (
@@ -1546,6 +1579,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
               walk={walkColliders}
               override={walkOverrideRef.current}
               frameRef={walkFrameRef}
+              door={teaDoorRef.current}
             />
           ) : null}
           <CrowdCast
@@ -1626,7 +1660,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
         </div>
       ) : null}
       {walking ? (
-        <WalkHudPanel override={walkOverrideRef.current} frameRef={walkFrameRef} />
+        <WalkHudPanel override={walkOverrideRef.current} frameRef={walkFrameRef} door={teaDoorRef.current} />
       ) : null}
       {place === "city3" && !walking ? (
         <div className="w-glb-toggle w-glb-poi" role="group" aria-label="Places in City 3">
