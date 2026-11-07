@@ -28,6 +28,8 @@ export interface InteractableDef {
   stand: [number, number];
   heading: number;
   floorY: number;
+  /** Where the on/off pilot light sits, [x, y, z] in the prop's own frame (m). Absent: the top-front of its largest part. */
+  pilot?: [number, number, number];
 }
 
 /** The clip channel a session fires through: structurally a ClipTestState / WalkClipOverride. */
@@ -37,8 +39,8 @@ export interface InteractChannel {
 }
 
 export const INTERACT_CLIP = "Interact";
-/** Seconds into the Interact clip when the hand meets the prop and the state flips (estimated; see the docs). */
-export const INTERACT_CONTACT_S = 1.2;
+/** Seconds into the Interact clip when the state flips: the right hand is at full extension from 1.2 s to ~1.9 s (measured on Summer and Remy), so mid-hold. */
+export const INTERACT_CONTACT_S = 1.5;
 /** A request is refused beyond this distance (m) from the stand point. */
 export const INTERACT_REQUEST_RANGE = 2.5;
 /** The prompt shows (and E works) within this distance (m) of the stand point. */
@@ -166,6 +168,9 @@ export class InteractController {
     const pos = at ?? this.seen.get(actor);
     if (!pos) return this.refuse(id, "too-far");
     if (Math.hypot(pos.x - def.stand[0], pos.z - def.stand[1]) > INTERACT_REQUEST_RANGE) return this.refuse(id, "too-far");
+    // The actor is live from the moment it asks (an agent only drive()s once its session holds the body; without this the
+    // expiry in tick() would drop the session before the first drive()).
+    this.seen.set(actor, { x: pos.x, z: pos.z, at: this.now });
     this.sessions.set(id, { id, actor, channel, phase: "align", t: 0, flipped: false });
     this.lastRefusal = null;
     return "started";
@@ -212,16 +217,21 @@ export class InteractController {
       return alignInput(s, pose);
     }
     // perform: stand still; flip at the contact moment; finish when the clip ends
+    const cur = sess.channel.current;
+    const playing = cur === INTERACT_CLIP;
+    if (!playing && cur !== null && !sess.flipped) {
+      // Another clip took the stage before the hand met the prop: abort, nothing flips.
+      this.sessions.delete(sess.id);
+      return ZERO_INPUT;
+    }
+    // The figure runs the clip on its own frame clock; this machine's dt is clamped per frame. On slow frames the clip can
+    // finish first: then the contact moment HAS passed (the door machine skips ahead the same way).
+    if (!playing && sess.t > 0.25 && !sess.flipped) sess.t = Math.max(sess.t, this.contactS);
     if (!sess.flipped && sess.t >= this.contactS) {
       sess.flipped = true;
       this.setOn(sess.id, !this.isOn(sess.id));
     }
-    const clipEnded = sess.channel.current !== INTERACT_CLIP && sess.t > 0.25;
-    if (sess.t >= this.durationS || clipEnded) {
-      // A clip cut short (another clip fired over it) before contact leaves the state alone.
-      this.sessions.delete(sess.id);
-      return ZERO_INPUT;
-    }
+    if (sess.t >= this.durationS || (!playing && sess.t > 0.25)) this.sessions.delete(sess.id);
     return ZERO_INPUT;
   }
 

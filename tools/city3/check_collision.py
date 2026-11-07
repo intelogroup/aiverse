@@ -187,7 +187,7 @@ def furniture(heroes, P):
             if not (x0 + 0.6 < sx < x1 - 0.6 and z0 + 0.6 < sz < z1 - 0.6): probs.append((hid, ia["id"], "stand point near/outside wall"))
             for b in B:
                 d = dist(b, sx, sz)
-                if d < CL - 1e-3: probs.append((hid, ia["id"], "box within %.2f of stand point" % d, b))
+                if d < 0.45 - 1e-3: probs.append((hid, ia["id"], "box within %.2f of stand point (walker body 0.40 + margin)" % d, b))
             ni += 1
         for b in B:
             if not (x0 - .02 <= b[0] <= x1 + .02 and z0 - .02 <= b[1] <= z1 + .02): probs.append((hid, "box centre outside its room", b))

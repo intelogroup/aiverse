@@ -321,10 +321,26 @@ describe("executor: doors", () => {
   });
 });
 
+
+/** Like drive(), but also ticks the interactables controller each step, as ScoutAgent's sim interval does (actor expiry). */
+async function driveWithCtl(exec: ScoutExecutor, ctl: InteractController, state: ReturnType<typeof makeWalker>, world: World, promise: Promise<unknown>, maxSecs = 200): Promise<unknown> {
+  let settled = false;
+  let value: unknown;
+  void promise.then((v) => { settled = true; value = v; });
+  const dt = 1 / 60;
+  for (let t = 0; t < maxSecs && !settled; t += dt) {
+    exec.tick(dt, state, world);
+    ctl.tick(dt);
+    await Promise.resolve();
+  }
+  if (!settled) throw new Error("action never settled");
+  return value;
+}
+
 describe("executor: interact", () => {
   const RADIO: InteractableDef = {
     id: "tea-radio", room: "tea", kind: "radio", asset: "vintage_radio_transceiver", label: "Radio",
-    pos: [-17.9, 1.26, -78.5], rotY: 1.5708, stand: [-16.9, -78.5], heading: -1.5708, floorY: 0.48,
+    pos: [-17.44, 1.26, -78.5], rotY: 1.5708, stand: [-16.95, -78.5], heading: -1.5708, floorY: 0.48,
   };
   function rig(withInteract = true) {
     const clips = new ClipTestState();
@@ -353,12 +369,12 @@ describe("executor: interact", () => {
     const realFire = clips.fire.bind(clips);
     clips.fire = (n: string) => (fired.push(n), realFire(n));
     const s = makeWalker(-21.0, 0.2, -76.0, 0.5);
-    const out = (await drive(exec, s, fakeWorld(), exec.submit({ type: "interact", target: "tea-radio" }, s))) as { status: string; detail?: string; target?: string };
+    const out = (await driveWithCtl(exec, ctl, s, fakeWorld(), exec.submit({ type: "interact", target: "tea-radio" }, s))) as { status: string; detail?: string; target?: string };
     expect(out).toMatchObject({ status: "done", detail: "on", target: "tea-radio" });
     expect(ctl.isOn("tea-radio")).toBe(true);
     expect(fired.filter((n) => n === "Interact")).toHaveLength(1);
     expect(Math.hypot(s.x - RADIO.stand[0], s.z - RADIO.stand[1])).toBeLessThan(0.1);
-    const out2 = (await drive(exec, s, fakeWorld(), exec.submit({ type: "interact", target: "radio" }, s))) as { status: string; detail?: string };
+    const out2 = (await driveWithCtl(exec, ctl, s, fakeWorld(), exec.submit({ type: "interact", target: "radio" }, s))) as { status: string; detail?: string };
     expect(out2).toMatchObject({ status: "done", detail: "off" }); // addressed by kind this time
     expect(ctl.isOn("tea-radio")).toBe(false);
   });
@@ -367,7 +383,7 @@ describe("executor: interact", () => {
     const { exec, ctl } = rig();
     // Far start: the walk plus the 3.2 s clip is long; the outcome must still be done.
     const s = makeWalker(-27.0, 0.2, -72.5, 0.0);
-    const out = (await drive(exec, s, fakeWorld(), exec.submit({ type: "interact", target: "Radio" }, s))) as { status: string };
+    const out = (await driveWithCtl(exec, ctl, s, fakeWorld(), exec.submit({ type: "interact", target: "Radio" }, s))) as { status: string };
     expect(out.status).toBe("done");
     expect(ctl.isOn("tea-radio")).toBe(true);
   });
@@ -382,8 +398,8 @@ describe("executor: interact", () => {
 
   it("an unreachable stand point ends blocked, never hangs", async () => {
     const { exec, ctl } = rig();
-    const s = makeWalker(-22.0, 0.2, -78.5, Math.PI / 2); // west of a wall slab at x >= -18; the stand point (-16.9) is behind it
-    const out = (await drive(exec, s, fakeWorld({ wallX: -18 }), exec.submit({ type: "interact", target: "tea-radio" }, s))) as { status: string };
+    const s = makeWalker(-22.0, 0.2, -78.5, Math.PI / 2); // west of a wall slab at x >= -18; the stand point (-16.95) is behind it
+    const out = (await driveWithCtl(exec, ctl, s, fakeWorld({ wallX: -18 }), exec.submit({ type: "interact", target: "tea-radio" }, s))) as { status: string };
     expect(["blocked", "timeout"]).toContain(out.status);
     expect(ctl.isOn("tea-radio")).toBe(false);
   });

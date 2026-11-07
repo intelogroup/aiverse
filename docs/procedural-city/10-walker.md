@@ -202,3 +202,29 @@ session. New positional **voice emitter** (`playVoiceBuffer` / `playVoicePcm`): 
 every tick (the same law as the Mage's stall music), not PA-ducked, with its own analyser (`snapshot().voice`). Nothing speaks yet: the speech engine and
 the Mage-Summer greeting stay in PR #37 until they are split out. Known cosmetic: with the consent ask showing, the HUD grows and overlaps the centre hint pill at
 900 px wide. Tests: `soundDirector.test.ts` (consent), `soundLogic.test.ts` (emitter law).
+
+## Interactables: the Tea House radio (2026-11-07, `interactables.ts`, `interactableMesh.ts`; branch `feat/tea-radio`)
+A usable prop is NOT an instanced layout prop (instances have no identity). `tools/city3` records it (`kit.add_interactable`, called from `rooms.py`) and lists it in
+`out/interiors/index.json` as `interactables[]` on the room: `{id, room, kind, asset, label, pos, rotY, stand, heading, floorY, pilot}`. The definition is static data,
+known before the room streams in, so Scout can plan against it and the sound layer plays a radio nobody is looking at; only the MESH is tied to the room's streaming
+(`InteriorRoom` clones the library asset as plain Meshes sharing the library's geometry/material, plus a pilot light of its own, and disposes only that).
+- **Controller** (`InteractController`, pure): `register(defs)`, `request(id, actor, channel, at?)`, `requestNearest`, `drive(s, dt, actor)` -> `WalkInput | null`, `tick(dt)`,
+  `subscribe`, `isOn`, `status(actor)`. A session is align (walk to the stand pose, face the prop; `alignInput` from the door machine) -> perform (the `Interact` clip; the
+  state flips at `INTERACT_CONTACT_S` = 1.5 s) -> done. One session per prop, an actor owns at most one, actors expire 1 s after their last sighting. Clip channel = any
+  `{fire, current}` (`ClipTestState`, `WalkClipOverride`).
+- **Measured** (`Interact` clip, Summer and Remy, hand bone vs hips): the right hand is at full extension from 1.2 s to ~1.9 s, retracted by 2.6 s; it reaches only ~0.17 m
+  past the hips (~0.27 m with the palm). Flip at 1.5 s = mid-hold.
+- **Player**: stand within 2 m of the stand point, the HUD line shows `E · turn radio on/off`, E starts a session (`CityWalker`). `window.__walk.interact()` for headless checks.
+- **Scout**: `{type:"interact", target}` (prop id, kind or label) walks to the stand point (door hook still applies), then hands the body to the controller; the action's clocks
+  pause while it holds. Outcome `done` with `detail: "on" | "off"`. `oracleScene` lists props as `kind:"interactable"` with `state`. `window.__scout.interact()` for headless checks.
+- **Sound**: `SoundFrame.emitters` (`{id,x,z,on}`) -> one gain chain per emitter in the director, looping `RADIO_CLIP` (test audio: the stall music) at `MUSIC_GAIN *
+  switchedEmitterGain(on, distance)`, faded, PA-ducked. Live (SwiftShader): beside the radio gain 0.17, ~10 m 0.04, ~20 m 0.
+- **Geometry lessons**: the walker body is 0.4 m (`WALK_CONFIG.radius`), so a stand point must be >= 0.45 m off furniture boxes (`check_collision.py` checks it for interactable
+  stands); the Tea House table is 0.46 m, so the closest stand is x = -16.95 and the radio sits at the table's near edge with its panel ~6 cm past it. The hand still stops
+  ~0.2 m short of the panel: a hand IK (the analytic two-bone solver already in `footLock.ts`) onto `pilot` during perform is the follow-up. The pilot light position is AUTHORED
+  (`def.pilot`, prop-local); the largest-part fallback picked the antenna tip on this asset (the antenna/mic mesh is the biggest part).
+- **Not rebuilt here**: the full Blender rebuild needs gitignored inputs this environment lacks (3DTextures Water_002, stale `tex_m`), so the committed `index.json` /
+  `heroes.json` were patched by values derived from the same placement. On a machine with the inputs: `blender -b --python build_city.py`, then `git diff` the two files and the
+  copies in `apps/console/public/assets/interiors/`; they must be identical (the library GLB and all layouts are unchanged: the radio asset is already in the library).
+- Tests: `interactables.test.ts` (12), `interactableMesh.test.ts` (6), `scout.test.ts` (interact + oracle), `soundLogic.test.ts` (switched emitter),
+  `tests/interactables-assets.test.ts` (the shipped definition against the real furniture collision: reachable from three sides).

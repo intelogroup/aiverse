@@ -126,7 +126,7 @@ def cafe(bd,fr,W,D,GH,rnd,f,db,bw,lounge=False):
         put("sofa_3",fr,cu-2.4,-cd,f,1,0)
         for sd in (-1.0,0.0,1.0): add_anchor(fr,cu-2.4,-(cd+sd),1,0,0.5,"sofa",f)
         put("fireplace",fr,W-1.6,-cd,f,-1,0); put("floor_lamp",fr,W-1.0,-(D-1.2),f); put("table_round",fr,cu-0.4,-cd,f)
-        add_interactable(fr,"radio","vintage_radio_transceiver","Radio",cu-0.4,-cd,f+0.78,1,0,cu+0.6,-cd,f)             # on the lounge table; used from the open floor on the fireplace side
+        add_interactable(fr,"radio","vintage_radio_transceiver","Radio",cu+0.06,-cd,f+0.78,1,0,cu+0.55,-cd,f,pilot=(0.16,0.152,0.03))   # at the lounge table's near edge, panel ~6 cm past it: the walker body is 0.4 m, so the stand point is >= 0.45 m off the table box, and the Interact clip's hand reaches only ~0.27 m past the hips
     put("menu_board",fr,0.32,-4.1,f,1,0); put("frames_wall",fr,0.32,-7.4,f,1,0)
     plants(fr,W,D,f,((0.9,1.0),(W-0.9,D-1.0))); lanterns(fr,W,D,GH,max(2,int(W//6)),(3.0,7.0))
 def shop(bd,fr,W,D,GH,rnd,f,db,bw):

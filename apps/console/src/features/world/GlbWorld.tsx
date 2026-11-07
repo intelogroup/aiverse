@@ -347,6 +347,16 @@ function InteriorStreamer({ rooms: realRooms, walk, interact }: { rooms: City3Ro
     if (!debug) return;
     const w = window as unknown as Record<string, unknown>;
     w.__city3Stream = {
+      /** World position + bounding box of the first scene object with this name (e.g. "interactable:tea-radio", "tea-radio:pilot"). */
+      probe: (name: string) => {
+        const o = scene.getObjectByName(name);
+        if (!o) return null;
+        o.updateWorldMatrix(true, true);
+        const pos = new THREE.Vector3();
+        o.getWorldPosition(pos);
+        const box = new THREE.Box3().setFromObject(o);
+        return { pos: pos.toArray(), min: box.min.toArray(), max: box.max.toArray(), children: o.children.map((c) => c.name) };
+      },
       snapshot: () => ({
         resident: [...wantedRef.current],
         built: [...handles.current.keys()],

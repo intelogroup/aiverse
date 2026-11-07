@@ -22,9 +22,9 @@ const RADIO: InteractableDef = {
   kind: "radio",
   asset: "vintage_radio_transceiver",
   label: "Radio",
-  pos: [-17.9, 1.26, -78.5],
+  pos: [-17.44, 1.26, -78.5],
   rotY: 1.5708,
-  stand: [-16.9, -78.5],
+  stand: [-16.95, -78.5],
   heading: -1.5708,
   floorY: 0.48,
 };
@@ -56,8 +56,12 @@ function fakeChannel(now: () => number) {
     hijack() {
       cur = { name: "Waving", at: now() };
     },
+    /** The clip ran its course on the figure's own (faster) clock while this machine's clamped clock lagged. */
+    expire() {
+      cur = null;
+    },
   };
-  return ch satisfies InteractChannel & { fired: string[]; hijack(): void };
+  return ch satisfies InteractChannel & { fired: string[]; hijack(): void; expire(): void };
 }
 
 function rig(start: { x: number; z: number; heading?: number }, world: World = groundWorld(), actor = "player") {
@@ -96,13 +100,13 @@ function rig(start: { x: number; z: number; heading?: number }, world: World = g
 
 describe("interactPose", () => {
   it("is the stand point + heading from the index", () => {
-    expect(interactPose(RADIO)).toEqual({ x: -16.9, z: -78.5, heading: -1.5708 });
+    expect(interactPose(RADIO)).toEqual({ x: -16.95, z: -78.5, heading: -1.5708 });
   });
 });
 
 describe("InteractController requests", () => {
   it("refuses an unknown prop, a far actor, and a second request while busy / already using", () => {
-    const r = rig({ x: -16.9, z: -77.0 });
+    const r = rig({ x: -16.95, z: -77.0 });
     r.frame(); // seen
     expect(r.ctl.request("nope", "player", r.channel)).toBe("unknown");
     const far = rig({ x: -26, z: -70 });
@@ -110,15 +114,15 @@ describe("InteractController requests", () => {
     expect(far.ctl.request("tea-radio", "player", far.channel)).toBe("too-far");
     expect(r.ctl.request("tea-radio", "player", r.channel)).toBe("started");
     expect(r.ctl.request("tea-radio", "player", r.channel)).toBe("already-using");
-    expect(r.ctl.request("tea-radio", "scout", fakeChannel(() => 0), { x: -16.9, z: -77.5 })).toBe("busy");
+    expect(r.ctl.request("tea-radio", "scout", fakeChannel(() => 0), { x: -16.95, z: -77.5 })).toBe("busy");
     expect(r.ctl.sessionOwner("tea-radio")).toBe("player");
   });
 
   it("nearest() only finds a prop within the prompt range of its stand point", () => {
     const ctl = new InteractController();
     ctl.register([RADIO]);
-    expect(ctl.nearest(-16.9, -78.5 + INTERACT_PROMPT_RANGE - 0.1)?.id).toBe("tea-radio");
-    expect(ctl.nearest(-16.9, -78.5 + INTERACT_PROMPT_RANGE + 0.2)).toBeNull();
+    expect(ctl.nearest(-16.95, -78.5 + INTERACT_PROMPT_RANGE - 0.1)?.id).toBe("tea-radio");
+    expect(ctl.nearest(-16.95, -78.5 + INTERACT_PROMPT_RANGE + 0.2)).toBeNull();
     expect(ctl.requestNearest("player", fakeChannel(() => 0), { x: -10, z: -70 })).toBe("too-far");
   });
 });
@@ -149,7 +153,7 @@ describe("InteractController session", () => {
   });
 
   it("a second session turns it back OFF", () => {
-    const r = rig({ x: -16.9, z: -78.0, heading: -1.5708 });
+    const r = rig({ x: -16.95, z: -78.0, heading: -1.5708 });
     r.frame();
     expect(r.ctl.request("tea-radio", "player", r.channel)).toBe("started");
     r.run();
@@ -161,7 +165,7 @@ describe("InteractController session", () => {
   });
 
   it("the prompt says what E will do", () => {
-    const r = rig({ x: -16.9, z: -78.0, heading: -1.5708 });
+    const r = rig({ x: -16.95, z: -78.0, heading: -1.5708 });
     r.frame();
     expect(r.ctl.status("player")).toBe("E · turn radio on");
     r.ctl.request("tea-radio", "player", r.channel);
@@ -170,7 +174,7 @@ describe("InteractController session", () => {
   });
 
   it("an actor that vanishes mid-session is dropped and nothing flips", () => {
-    const r = rig({ x: -16.9, z: -78.0, heading: -1.5708 });
+    const r = rig({ x: -16.95, z: -78.0, heading: -1.5708 });
     r.frame();
     r.ctl.request("tea-radio", "player", r.channel);
     for (let i = 0; i < 30; i++) r.frame();
@@ -182,7 +186,7 @@ describe("InteractController session", () => {
   });
 
   it("a clip cut short before contact leaves the state alone", () => {
-    const r = rig({ x: -16.9, z: -78.0, heading: -1.5708 });
+    const r = rig({ x: -16.95, z: -78.0, heading: -1.5708 });
     r.frame();
     r.ctl.request("tea-radio", "player", r.channel);
     while (r.ctl.sessionOf("player")?.phase !== "perform") r.frame();
@@ -191,6 +195,27 @@ describe("InteractController session", () => {
     r.run();
     expect(r.ctl.isOn("tea-radio")).toBe(false);
     expect(r.flips).toEqual([]);
+  });
+
+  it("a session survives ticks before its actor's first drive() (an agent drives only once it holds the body)", () => {
+    const ctl = new InteractController();
+    ctl.register([RADIO]);
+    expect(ctl.request("tea-radio", "scout", fakeChannel(() => 0), { x: -16.95, z: -77.6 })).toBe("started");
+    for (let i = 0; i < 30; i++) ctl.tick(DT); // 0.5 s of frames with no drive() yet
+    expect(ctl.sessionOf("scout")).not.toBeNull();
+    expect(ctl.sessionOwner("tea-radio")).toBe("scout");
+  });
+
+  it("a clip that finishes early on the figure's own clock (slow frames) still counts: the contact has passed", () => {
+    const r = rig({ x: -16.95, z: -78.0, heading: -1.5708 });
+    r.frame();
+    r.ctl.request("tea-radio", "player", r.channel);
+    while (r.ctl.sessionOf("player")?.phase !== "perform") r.frame();
+    for (let i = 0; i < 20; i++) r.frame(); // ~0.33 s of controller time, before the 1.2 s contact
+    r.channel.expire();
+    r.run();
+    expect(r.ctl.isOn("tea-radio")).toBe(true);
+    expect(r.flips).toEqual([true]);
   });
 
   it("gives up aligning when the pose is unreachable (never hunts for ever)", () => {
@@ -207,7 +232,7 @@ describe("InteractController session", () => {
   });
 
   it("state survives re-registering the same definitions (the room index reloads)", () => {
-    const r = rig({ x: -16.9, z: -78.0, heading: -1.5708 });
+    const r = rig({ x: -16.95, z: -78.0, heading: -1.5708 });
     r.frame();
     r.ctl.request("tea-radio", "player", r.channel);
     r.run();

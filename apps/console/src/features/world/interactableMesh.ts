@@ -46,20 +46,34 @@ export function buildInteractableVisual(
     group.add(m);
   });
 
-  // Pilot light: a bead on the top face, sized from the asset's own bounds so it reads on any prop.
-  group.updateMatrixWorld(true);
-  const box = new THREE.Box3().setFromObject(group);
-  const size = box.getSize(new THREE.Vector3());
-  const r = Math.max(0.008, Math.min(0.02, size.y * 0.07));
+  // Pilot light: a bead on the top face of the prop's MAIN body (its largest part, in group-local space), at the front edge
+  // (local +Z: the front of every library asset), so it reads on the dial panel and not on an antenna tip or a mic stand.
+  const local = new THREE.Box3();
+  const body = new THREE.Box3();
+  let bodyVol = -1;
+  for (const c of group.children) {
+    const m = c as THREE.Mesh;
+    if (!m.isMesh) continue;
+    m.geometry.computeBoundingBox();
+    local.copy(m.geometry.boundingBox!).applyMatrix4(m.matrix);
+    const sz = local.getSize(new THREE.Vector3());
+    const vol = sz.x * sz.y * sz.z;
+    if (vol > bodyVol) {
+      bodyVol = vol;
+      body.copy(local);
+    }
+  }
+  const size = body.getSize(new THREE.Vector3());
+  // Authored pilot position (def.pilot) wins; the largest-part heuristic is only the fallback for props that state none.
+  const r = def.pilot ? 0.009 : Math.max(0.008, Math.min(0.02, size.y * 0.07));
   const beadGeo = new THREE.SphereGeometry(r, 12, 8);
   const beadMat = new THREE.MeshBasicMaterial({ color: PILOT_OFF });
   const haloGeo = new THREE.SphereGeometry(r * 2.4, 12, 8);
   const haloMat = new THREE.MeshBasicMaterial({ color: PILOT_ON, transparent: true, opacity: 0.28, depthWrite: false });
   const bead = new THREE.Mesh(beadGeo, beadMat);
   const halo = new THREE.Mesh(haloGeo, haloMat);
-  // Group-local top centre, nudged toward the front-left corner so it is not hidden by a handle or dial.
-  const topLocal = group.worldToLocal(new THREE.Vector3((box.min.x + box.max.x) / 2, box.max.y, (box.min.z + box.max.z) / 2));
-  bead.position.copy(topLocal).add(new THREE.Vector3(-size.x * 0.28, r * 0.6, size.z * 0.18));
+  if (def.pilot) bead.position.set(def.pilot[0], def.pilot[1], def.pilot[2]);
+  else bead.position.set(body.min.x + size.x * 0.82, body.max.y + r * 0.5, body.max.z - Math.min(0.03, size.z * 0.15));
   halo.position.copy(bead.position);
   bead.name = `${def.id}:pilot`;
   halo.name = `${def.id}:pilot-halo`;

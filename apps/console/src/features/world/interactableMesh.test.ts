@@ -10,9 +10,9 @@ const DEF: InteractableDef = {
   kind: "radio",
   asset: "vintage_radio_transceiver",
   label: "Radio",
-  pos: [-17.9, 1.26, -78.5],
+  pos: [-17.44, 1.26, -78.5],
   rotY: 1.5708,
-  stand: [-16.9, -78.5],
+  stand: [-16.95, -78.5],
   heading: -1.5708,
   floorY: 0.48,
 };
@@ -25,6 +25,10 @@ function library(): { assets: Map<string, THREE.Object3D>; geo: THREE.BufferGeom
   const mesh = new THREE.Mesh(geo, mat);
   mesh.position.y = 0.08; // origin at the base, like the Poly Haven assets
   root.add(mesh);
+  // A tall thin part (an antenna) beside the body: the pilot must not sit on its tip.
+  const antenna = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.45, 0.02), mat);
+  antenna.position.set(-0.2, 0.225, -0.05);
+  root.add(antenna);
   return { assets: new Map([["vintage_radio_transceiver", root]]), geo, mat };
 }
 
@@ -33,7 +37,7 @@ describe("buildInteractableVisual", () => {
     const { assets, geo, mat } = library();
     const v = buildInteractableVisual(DEF, assets)!;
     expect(v).not.toBeNull();
-    expect(v.group.position.toArray()).toEqual([-17.9, 1.26, -78.5]);
+    expect(v.group.position.toArray()).toEqual([-17.44, 1.26, -78.5]);
     expect(v.group.rotation.y).toBeCloseTo(1.5708, 4);
     const radio = v.group.children.find((c) => (c as THREE.Mesh).geometry === geo) as THREE.Mesh;
     expect(radio).toBeTruthy();
@@ -41,13 +45,15 @@ describe("buildInteractableVisual", () => {
     // The pilot light sits on the top face of the asset (world y = pos.y + 0.16).
     v.group.updateMatrixWorld(true);
     const bead = v.group.getObjectByName("tea-radio:pilot")!;
-    expect(bead.getWorldPosition(new THREE.Vector3()).y).toBeGreaterThan(1.26 + 0.16 - 0.01);
+    const y = bead.getWorldPosition(new THREE.Vector3()).y;
+    expect(y).toBeGreaterThan(1.26 + 0.16 - 0.01); // on the body's top face...
+    expect(y).toBeLessThan(1.26 + 0.2); // ...not up on the 0.45 m antenna
   });
 
   it("the offset shifts the whole prop (debug copies of a room)", () => {
     const { assets } = library();
     const v = buildInteractableVisual(DEF, assets, [10, -4])!;
-    expect(v.group.position.x).toBeCloseTo(-7.9);
+    expect(v.group.position.x).toBeCloseTo(-7.44);
     expect(v.group.position.z).toBeCloseTo(-82.5);
   });
 
@@ -83,5 +89,14 @@ describe("buildInteractableVisual", () => {
 
   it("returns null when the library lacks the asset", () => {
     expect(buildInteractableVisual(DEF, new Map())).toBeNull();
+  });
+});
+
+describe("pilot light placement", () => {
+  it("an authored def.pilot is used exactly (group-local), ignoring the part heuristic", () => {
+    const { assets } = library();
+    const v = buildInteractableVisual({ ...DEF, pilot: [0.16, 0.152, 0.03] }, assets)!;
+    const bead = v.group.getObjectByName("tea-radio:pilot")!;
+    expect(bead.position.toArray()).toEqual([0.16, 0.152, 0.03]);
   });
 });

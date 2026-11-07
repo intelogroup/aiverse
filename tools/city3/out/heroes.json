@@ -1391,17 +1391,22 @@
     "asset": "vintage_radio_transceiver",
     "label": "Radio",
     "pos": [
-     -17.9,
+     -17.44,
      1.26,
      -78.5
     ],
     "rotY": 1.5708,
     "stand": [
-     -16.9,
+     -16.95,
      -78.5
     ],
     "heading": -1.5708,
-    "floorY": 0.48
+    "floorY": 0.48,
+    "pilot": [
+     0.16,
+     0.152,
+     0.03
+    ]
    }
   ],
   "collision": "/assets/interiors/tea.col.json"

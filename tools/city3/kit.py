@@ -91,15 +91,17 @@ def add_anchor(fr,u,t,face_du,face_dt,seat_h,kind,floor_h=0.0,side=1):
         "seatHeight":round(seat_h,3),"floorY":round(fr.z0+floor_h,3),"occupiedBy":None})
 
 INTERACTABLES=[]    # named, stateful props (radio, ...): NOT instanced layout props; the console mounts them itself
-def add_interactable(fr,kind,asset,label,u,t,z,face_du,face_dt,stand_u,stand_t,floor_h=0.0):
+def add_interactable(fr,kind,asset,label,u,t,z,face_du,face_dt,stand_u,stand_t,floor_h=0.0,pilot=None):
     """Record a usable prop: the asset stands at wall-local (u,t) at height z above the frame floor, front facing (du,dt);
     a walker uses it from the stand point (stand_u,stand_t), facing the prop. Stored in three.js space like add_anchor
-    (pos [x,y,z], stand [x,z], heading = atan2(dx,dz) from stand to prop, rotY as the instanced props' rot)."""
+    (pos [x,y,z], stand [x,z], heading = atan2(dx,dz) from stand to prop, rotY as the instanced props' rot).
+    `pilot` = optional [x,y,z] in the prop's own (group-local) frame, where the console puts its on/off pilot light."""
     if not ANCHORS_ON[0]: return
     x,y=fr.xy(u,t); sx,sy=fr.xy(stand_u,stand_t); fx,fy,_=fr.o(face_du,face_dt)
     INTERACTABLES.append({"id":f"{CUR[0]}-{kind}","room":CUR[0],"kind":kind,"asset":asset,"label":label,
         "pos":[round(x,3),round(fr.z0+z,3),round(-y,3)],"rotY":round(face_rot(fx,fy),4),
-        "stand":[round(sx,3),round(-sy,3)],"heading":round(math.atan2(x-sx,-(y-sy)),4),"floorY":round(fr.z0+floor_h,3)})
+        "stand":[round(sx,3),round(-sy,3)],"heading":round(math.atan2(x-sx,-(y-sy)),4),"floorY":round(fr.z0+floor_h,3),
+        **({"pilot":list(pilot)} if pilot else {})})
 
 def face_rot(fx,fy):
     """Z rotation that turns an asset whose front faces -Y toward world direction (fx, fy)."""
