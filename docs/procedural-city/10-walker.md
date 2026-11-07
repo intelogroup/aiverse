@@ -230,9 +230,9 @@ known before the room streams in, so Scout can plan against it and the sound lay
   `tests/interactables-assets.test.ts` (the shipped definition against the real furniture collision: reachable from three sides).
 
 ## Speech that never waits, gestures that follow the voice (2026-11-07, branch `feat/tts-warm`)
-- **Warm on entry.** Entering City 3 starts `warmPhonon()` 1.5 s after mount: the Phonon engine loads (64.5 MB from the pinned Hugging Face
+- **Warm on consent** (changed 2026-11-07 at Jim's word; was "on entering City 3"). The "Enable sound" click starts `warmPhonon()`: the Phonon engine loads (64.5 MB from the pinned Hugging Face
   revision or `VITE_PHONON_MODEL_URL`) and the scripted greeting is pre-synthesized into a PCM cache; the engine then stays loaded for the
-  page. No audio plays, so no sound consent is needed for it. Cost: every City 3 visitor downloads the model (browser-cached afterwards).
+  page. Nobody who declines sound downloads the 64.5 MB model; live: 0 requests to Hugging Face before the click, warm 16 s after it.
 - **Never wait.** `prepare()` order: cached PCM -> live synth (only once the engine is loaded) -> the pre-rendered clip of the same voice.
   Before this, the first greeting waited on the model download (~12 s here), the Mage gestured in silence and the visitor walked off.
   Live: warm = first line 1 ms after the trigger, all 4 lines from the cache; model unreachable = clips, first line 59 ms after the trigger.

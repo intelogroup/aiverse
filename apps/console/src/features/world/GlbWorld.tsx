@@ -1649,19 +1649,24 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
       },
     );
   }
-  // Keep speech warm: entering City 3 starts the engine load + pre-synthesis of the scripted greeting in the background, so
-  // nobody waits on the 64.5 MB model when they walk up to the Mage (until then the pre-rendered clips cover every line).
+  // Keep speech warm, once the visitor has said yes to sound: the click on "Enable sound" starts the engine load (64.5 MB)
+  // and the pre-synthesis of every scripted line in the background. Nobody who declines sound downloads the model; until it
+  // is warm the pre-rendered clips speak every line at once (prepareLine), so greetings never wait either way.
   useEffect(() => {
     if (place !== "city3") return;
-    const id = window.setTimeout(() => {
+    const id = window.setInterval(() => {
+      const consent = soundRef.current?.consent;
+      if (consent === "declined") { window.clearInterval(id); return; }
+      if (consent !== "granted") return;
+      window.clearInterval(id);
       void warmPhonon([
         ...GREETING_SCRIPT.map((m) => ({ text: m.text, voice: m.voiceId })),
         ...BARTENDER_LINES.map((l) => ({ text: l.text, voice: VOICE_BARTENDER })),
       ]).catch((e: unknown) => {
         console.warn("[tts] warm-up failed; the pre-rendered clips will speak", e);
       });
-    }, 1500); // after the first frames, not competing with the world GLB download
-    return () => window.clearTimeout(id);
+    }, 500); // the consent lives on the director (no React state): a cheap poll until it is answered
+    return () => window.clearInterval(id);
   }, [place]);
   const walking = place === "city3" && camMode !== "wide";
   // The walk bot's latest position, published by CityWalker per stepped

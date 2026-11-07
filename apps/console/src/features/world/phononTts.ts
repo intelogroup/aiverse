@@ -66,7 +66,7 @@ export function phononWarmth(): { ready: boolean; cached: number; warming: boole
 
 /**
  * Warm the engine and pre-synthesize lines that are known in advance (the scripted greeting), so speech never waits on the
- * 64.5 MB model download or on synthesis at the moment someone walks up. Called when City 3 is entered; idempotent, and it
+ * 64.5 MB model download or on synthesis at the moment someone walks up. Called once sound consent is granted; idempotent, and it
  * keeps the engine loaded for the rest of the page's life. No audio is played here: no sound consent is needed for it.
  */
 export function warmPhonon(lines: readonly { text: string; voice: string }[]): Promise<void> {
@@ -85,8 +85,8 @@ export function warmPhonon(lines: readonly { text: string; voice: string }[]): P
 }
 
 /**
- * Load the engine (worker + WASM + checkpoint + both voices), once. warmPhonon() calls it when City 3 is entered, so the
- * ~65 MB checkpoint is already there when the first line is needed.
+ * Load the engine (worker + WASM + checkpoint + voices), once. warmPhonon() calls it when the visitor grants sound consent
+ * in City 3, so the ~65 MB checkpoint is there by the time a line is needed (the clips cover the gap).
  */
 export function loadPhonon(): Promise<PhononEngine> {
   enginePromise ??= (async () => {
