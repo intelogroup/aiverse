@@ -18,6 +18,14 @@
  * Audio (CC0), converted OGG→MP3 for Safari's decoder; the tea-room
  * loop is "Heavenly Loop" by isaiah658 (OpenGameArt, CC0). The wind
  * is procedural (filtered noise) — no asset.
+ *
+ * Follow-on (Jim, 2026-11-07): the Mage's stall emitter — one
+ * positional music voice at the keeper's stand point, its gain set
+ * per tick from soundLogic.emitterGain (full inside 2.5 m, silence
+ * at 16 m) and ducked by the PA with the rest of the music layer.
+ * Its loop is the loop version of "Medieval: Minstrel Dance" by
+ * randommind (OpenGameArt, CC0 — verified on the track's own page),
+ * converted WAV→MP3 like the other clips.
  */
 
 import { TEA_DOOR_ORIGIN, type TeaDoorState } from "./teaDoor";
@@ -29,9 +37,11 @@ import {
   distanceGain,
   districtAt,
   duckedGain,
+  emitterGain,
   paAudible,
   stepFade,
   DOOR_AUDIBLE_M,
+  MAGE_STALL_POS,
   MUSIC_GAIN,
   PA_GAIN,
   PA_LINES,
@@ -55,6 +65,7 @@ const CLIP_URLS: Record<string, string> = {
   "step-3": `${SOUND}/step-3.mp3`,
   "step-4": `${SOUND}/step-4.mp3`,
   "tea-music": `${SOUND}/tea-music.mp3`,
+  "stall-music": `${SOUND}/stall-music.mp3`,
 };
 const STEP_KEYS = ["step-1", "step-2", "step-3", "step-4"] as const;
 
@@ -81,7 +92,9 @@ export interface SoundSnapshot {
   paPlaying: boolean;
   paLevel: number;
   masterLevel: number;
-  gains: { pa: number; music: number; wind: number; creak: number; master: number };
+  /** The stall emitter's analyser RMS (its own voice, pre-bus). */
+  stallLevel: number;
+  gains: { pa: number; music: number; wind: number; creak: number; stall: number; master: number };
   steps: number;
   lastStep: { d: number; gain: number } | null;
   latchCount: number;
@@ -105,6 +118,11 @@ export class SoundDirector {
   private creakGain: GainNode | null = null;
   private creakSrc: AudioBufferSourceNode | null = null;
   private musicStarted = false;
+  private stallGainNode: GainNode | null = null;
+  private stallAnalyser: AnalyserNode | null = null;
+  private stallStarted = false;
+  private stallLevel = 0;
+  private stallRms = 0;
 
   private defs: DistrictLite[] = [];
   private elapsed = 0; // director seconds since arm()
@@ -157,6 +175,15 @@ export class SoundDirector {
       this.paAnalyser.connect(this.master);
       this.musicBus = mk(0);
       this.musicBus.connect(this.master);
+      // The stall emitter is its own music-layer voice into master
+      // (musicBus itself carries the tea zone's level, so the
+      // emitter cannot ride it): own gain + analyser, PA ducking
+      // applied per tick like every other layer.
+      this.stallAnalyser = ctx.createAnalyser();
+      this.stallAnalyser.fftSize = 1024;
+      this.stallGainNode = mk(0);
+      this.stallGainNode.connect(this.stallAnalyser);
+      this.stallAnalyser.connect(this.master);
       this.windBus = mk(0);
       this.windBus.connect(this.master);
       this.sfxBus = mk(0.9);
@@ -204,6 +231,7 @@ export class SoundDirector {
           const buf = await ctx.decodeAudioData(await res.arrayBuffer());
           this.buffers.set(key, buf);
           if (key === "tea-music") this.startMusic();
+          if (key === "stall-music") this.startStallMusic();
           if (key === "door-creak") this.startCreak();
         } catch {
           /* a missing clip degrades to silence for that piece */
@@ -278,6 +306,18 @@ export class SoundDirector {
     src.buffer = buf;
     src.loop = true;
     src.connect(this.musicBus);
+    src.start();
+  }
+
+  private startStallMusic(): void {
+    const ctx = this.ctx;
+    const buf = this.buffers.get("stall-music");
+    if (!ctx || !this.stallGainNode || !buf || this.stallStarted) return;
+    this.stallStarted = true;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    src.connect(this.stallGainNode);
     src.start();
   }
 
@@ -462,13 +502,28 @@ export class SoundDirector {
     this.windLevel = stepFade(this.windLevel, windTarget, dt, 1.5);
     const musicTarget = this.insideTea ? MUSIC_GAIN : 0;
     this.musicLevel = stepFade(this.musicLevel, musicTarget, dt, 1.0);
+    // The Mage's stall emitter: loudness purely by distance to the
+    // keeper's stand point (this.listener is always finite here —
+    // tick() only ever stores sanitized positions; no listener yet
+    // reads as infinitely far, hence silent).
+    const stallDist = this.listener
+      ? Math.hypot(
+          this.listener.x - MAGE_STALL_POS.x,
+          this.listener.z - MAGE_STALL_POS.z,
+        )
+      : Infinity;
+    const stallTarget = MUSIC_GAIN * emitterGain(stallDist);
+    this.stallLevel = stepFade(this.stallLevel, stallTarget, dt, 0.5);
     if (this.ctx) {
       if (this.windBus)
         this.windBus.gain.setTargetAtTime(duckedGain(this.windLevel, pa), this.ctx.currentTime, 0.05);
       if (this.musicBus)
         this.musicBus.gain.setTargetAtTime(duckedGain(this.musicLevel, pa), this.ctx.currentTime, 0.05);
+      if (this.stallGainNode)
+        this.stallGainNode.gain.setTargetAtTime(duckedGain(this.stallLevel, pa), this.ctx.currentTime, 0.05);
       this.paLevel = this.readRms(this.paAnalyser);
       this.masterLevel = this.readRms(this.masterAnalyser);
+      this.stallRms = this.readRms(this.stallAnalyser);
     }
   }
 
@@ -492,11 +547,13 @@ export class SoundDirector {
       paPlaying: this.paActive(),
       paLevel: this.paLevel,
       masterLevel: this.masterLevel,
+      stallLevel: this.stallRms,
       gains: {
         pa: PA_GAIN,
         music: duckedGain(this.musicLevel, this.paActive()),
         wind: duckedGain(this.windLevel, this.paActive()),
         creak: this.creakLevel,
+        stall: duckedGain(this.stallLevel, this.paActive()),
         master: this.muted ? 0 : 0.9,
       },
       steps: this.steps,

@@ -7,9 +7,13 @@ import {
   distanceGain,
   districtAt,
   duckedGain,
+  emitterGain,
   paAudible,
   stepFade,
   DUCK_FACTOR,
+  EMITTER_AUDIBLE_M,
+  EMITTER_FULL_M,
+  MAGE_STALL_POS,
   MUSIC_GAIN,
   VERSE_DAY_S,
   WIND_GAIN,
@@ -77,6 +81,44 @@ describe("distanceGain", () => {
       expect(g).toBeLessThanOrEqual(prev);
       prev = g;
     }
+  });
+});
+
+describe("emitterGain (mage stall music)", () => {
+  it("is full inside the core radius", () => {
+    expect(emitterGain(0)).toBe(1);
+    expect(emitterGain(1.6)).toBe(1); // Remy's dwell spot, facing the keeper
+    expect(emitterGain(EMITTER_FULL_M)).toBe(1);
+  });
+  it("is silent at and past the audible radius", () => {
+    expect(emitterGain(EMITTER_AUDIBLE_M)).toBe(0);
+    expect(emitterGain(40)).toBe(0);
+  });
+  it("falls off quadratically across the span", () => {
+    // halfway across the falloff span the squared curve gives 1/4
+    const mid = (EMITTER_FULL_M + EMITTER_AUDIBLE_M) / 2;
+    expect(emitterGain(mid)).toBeCloseTo(0.25);
+    expect(emitterGain(8)).toBeCloseTo(
+      ((EMITTER_AUDIBLE_M - 8) / (EMITTER_AUDIBLE_M - EMITTER_FULL_M)) ** 2,
+    );
+  });
+  it("decreases monotonically and never leaves [0, 1]", () => {
+    let prev = Infinity;
+    for (let d = 0; d <= 20; d += 0.25) {
+      const g = emitterGain(d);
+      expect(g).toBeGreaterThanOrEqual(0);
+      expect(g).toBeLessThanOrEqual(1);
+      expect(g).toBeLessThanOrEqual(prev);
+      prev = g;
+    }
+  });
+  it("poisoned distances are silent", () => {
+    expect(emitterGain(NaN)).toBe(0);
+    expect(emitterGain(Infinity)).toBe(0);
+  });
+  it("the stall stands in the Bazaar at the keeper's spot", () => {
+    expect(MAGE_STALL_POS).toEqual({ x: -17, z: 15.4 });
+    expect(districtAt(MAGE_STALL_POS.x, MAGE_STALL_POS.z, DEFS)).toBe("bazaar");
   });
 });
 

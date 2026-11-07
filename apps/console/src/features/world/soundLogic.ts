@@ -23,6 +23,11 @@
  * timer (VERSE_DAY_S), starting mid-morning; dawn/dusk announcements
  * fire when it crosses its boundaries. Syncing to a future visual
  * day cycle is v2.
+ *
+ * Follow-on (Jim, 2026-11-07, same day): the Mage's stall music
+ * emitter (emitterGain / MAGE_STALL_POS) — positional loudness from
+ * a point source, riding the music layer's ducking + mute rules
+ * exactly like the tea zone music does.
  */
 
 import { rectDistance, type DistrictDef } from "./districts";
@@ -79,6 +84,32 @@ export function distanceGain(distance: number, far: number): number {
 export const STEP_AUDIBLE_M = 12;
 /** The tea door's sounds carry this far (m). */
 export const DOOR_AUDIBLE_M = 20;
+
+/**
+ * The Bazaar keeper's stand point (PR #32: the Mage before stall-0).
+ * Jim's positional music emitter lives here — a point source, the
+ * third placement shape beside the tea room rect and district scope.
+ */
+export const MAGE_STALL_POS = { x: -17, z: 15.4 } as const;
+/** Inside this distance the emitter is simply THERE: full gain (m). */
+export const EMITTER_FULL_M = 2.5;
+/** The emitter falls to silence at this distance (m). */
+export const EMITTER_AUDIBLE_M = 16;
+
+/**
+ * Emitter loudness by distance: full inside the core radius, then
+ * the same squared falloff as distanceGain across the remaining
+ * span to silence. Non-finite distances are silent (the director's
+ * poisoned-input rule).
+ */
+export function emitterGain(distance: number): number {
+  if (!Number.isFinite(distance)) return 0;
+  if (distance <= EMITTER_FULL_M) return 1;
+  if (distance >= EMITTER_AUDIBLE_M) return 0;
+  const t =
+    1 - (distance - EMITTER_FULL_M) / (EMITTER_AUDIBLE_M - EMITTER_FULL_M);
+  return t * t;
+}
 
 /** While a PA announcement plays, music + wind dip to this share. */
 export const DUCK_FACTOR = 0.22;
