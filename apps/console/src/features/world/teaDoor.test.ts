@@ -24,6 +24,7 @@ import {
   TeaDoorController,
   alignInput,
   teaAutoClip,
+  clipChannel,
   TEA_AUTO_RANGE,
   teaDoorwayOccupied,
   teaExitPoint,
@@ -33,6 +34,7 @@ import {
 } from "./teaDoor";
 import type { WalkDoorClip } from "./walkOverride";
 import { angleTo } from "./walker";
+import { ClipTestState } from "./clips";
 
 const DT = 1 / 60;
 const IN: WalkDoorClip = "OpenDoorInwards";
@@ -377,5 +379,96 @@ describe("alignInput (fine alignment into the stand pose)", () => {
       expect(settled).toBeGreaterThan(0);
       expect(Math.abs(angleTo(rig.s.heading, pose.heading))).toBeLessThan(0.05); // never turned round
     }
+  });
+});
+
+describe("several actors (player + agents) share the one door", () => {
+  const WALK = { forward: 1, strafe: 0, turn: 0, run: false };
+  const dx = TEA_DOOR_ORIGIN.x;
+  const dz = TEA_DOOR_ORIGIN.z;
+
+  function twoActors() {
+    let t = 0;
+    const playerCh = fakeChannel(() => t);
+    const agentCh = fakeChannel(() => t);
+    const ctl = new TeaDoorController({ channel: playerCh, setBlocker: () => {}, selfTick: false });
+    const world = groundWorld();
+    return { ctl, playerCh, agentCh, world, advance: () => { t += DT; ctl.tick(DT); } };
+  }
+
+  it("an agent walking at the door runs the full performance through its own channel and ends inside", () => {
+    const r = twoActors();
+    const a = makeWalker(dx + 0.1, 0.2, dz + 2.4, Math.PI);
+    let started = false;
+    for (let i = 0; i < 60 * 20; i++) {
+      const input = r.ctl.drive(a, DT, true, "scout", r.agentCh) ?? WALK;
+      step(a, input, DT, r.world);
+      r.advance();
+      if (r.ctl.sessionOwner === "scout") started = true;
+      if (started && r.ctl.phase === "idle") break;
+    }
+    expect(started).toBe(true);
+    expect(r.agentCh.lastFired()).toBe(IN);
+    expect(r.playerCh.lastFired()).toBeNull(); // the player's channel is untouched
+    expect(a.z).toBeLessThan(dz - 1.2);
+  });
+
+  it("a second actor waits outside while the first one opens the door, then walks through the open door", () => {
+    const r = twoActors();
+    const p = makeWalker(dx + 0.1, 0.2, dz + 2.2, Math.PI); // player, first
+    const a = makeWalker(dx - 0.2, 0.2, dz + 3.6, Math.PI); // agent, behind
+    let agentHeld = 0;
+    let agentStarted = false;
+    for (let i = 0; i < 60 * 30; i++) {
+      const ip = r.ctl.drive(p, DT, p.z > dz - 1.3, "player") ?? (p.z > dz - 1.3 ? WALK : ZERO);
+      step(p, ip, DT, r.world);
+      const ia = r.ctl.drive(a, DT, true, "agent", r.agentCh);
+      if (ia && r.ctl.sessionOwner === "player") agentHeld++;
+      if (r.ctl.sessionOwner === "agent") agentStarted = true;
+      step(a, ia ?? WALK, DT, r.world);
+      r.advance();
+      if (a.z < dz - 1.3) break;
+    }
+    expect(agentHeld).toBeGreaterThan(30); // it waited for the player's session
+    expect(r.playerCh.lastFired()).toBe(IN);
+    expect(a.z).toBeLessThan(dz - 1.3); // and got in, through the open door or its own session
+    expect(agentStarted || r.ctl.state !== "closed").toBe(true);
+  });
+
+  it("auto-close waits for every actor to clear the doorway; a vanished actor stops counting", () => {
+    const r = twoActors();
+    const p = makeWalker(dx, 0.2, dz + 2.0, Math.PI);
+    r.ctl.drive(p, DT, false, "player");
+    r.advance();
+    expect(r.ctl.request(IN, "player")).toBe("started");
+    for (let i = 0; i < 60 * 14 && !(r.ctl.phase === "idle" && r.ctl.state === "open"); i++) {
+      step(p, r.ctl.drive(p, DT, false, "player") ?? ZERO, DT, r.world);
+      r.advance();
+    }
+    expect(r.ctl.state).toBe("open");
+    // An agent stands in the doorway: the door stays open however long the player is gone inside.
+    const a = makeWalker(dx, 0.2, dz, 0);
+    for (let i = 0; i < 60 * 3; i++) {
+      r.ctl.drive(a, DT, false, "agent", r.agentCh);
+      r.ctl.drive(p, DT, false, "player");
+      r.advance();
+    }
+    expect(r.ctl.state).toBe("open");
+    // The agent unmounts (no longer driven): after its TTL the door closes.
+    for (let i = 0; i < 60 * 6; i++) {
+      r.ctl.drive(p, DT, false, "player");
+      r.advance();
+    }
+    expect(r.ctl.state === "closing" || r.ctl.state === "closed").toBe(true);
+  });
+
+  it("clipChannel adapts a ClipTestState", () => {
+    const clips = new ClipTestState();
+    const ch = clipChannel(clips);
+    expect(ch.doorPlaying).toBe(false);
+    expect(ch.fireDoor(IN)).toBe(true);
+    expect(ch.doorPlaying).toBe(true);
+    clips.fire("Waving");
+    expect(ch.doorPlaying).toBe(false);
   });
 });

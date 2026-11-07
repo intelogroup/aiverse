@@ -254,3 +254,12 @@ export function TeaDoorLeaf({ controller }: { controller: TeaDoorController }) {
   if (!built) return null;
   return <primitive object={built.group} />;
 }
+
+/**
+ * Ticks the tea door machine once per rendered frame (leaf swing, auto-close, blocker) whoever is driving it. Mounted in
+ * walk mode; in agent mode (frameloop "demand") Scout's sim interval ticks the door instead.
+ */
+export function TeaDoorTicker({ controller }: { controller: TeaDoorController }) {
+  useFrame((_, delta) => controller.tick(Math.min(delta, 0.25)));
+  return null;
+}

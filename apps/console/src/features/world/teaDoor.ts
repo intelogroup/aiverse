@@ -142,6 +142,21 @@ export function teaAutoClip(s: Pick<WalkerState, "x" | "z" | "heading">, wantsFo
   return null;
 }
 
+/** The player's actor id (the HUD and CityWalker). */
+export const PLAYER = "player";
+/** An actor not driven for this long (s) is gone (walk mode exited, agent unmounted): it no longer holds the door open. */
+const ACTOR_TTL = 1.0;
+
+/** A ClipTestState (Scout, NPCs) as a door clip channel. */
+export function clipChannel(clips: { fire(name: string): boolean; current: string | null }): TeaDoorChannel {
+  return {
+    fireDoor: (name) => clips.fire(name),
+    get doorPlaying() {
+      return clips.current === "OpenDoorInwards" || clips.current === "OpenDoorOutwards";
+    },
+  };
+}
+
 /** Auto-close dwell: door stays open this long after the last
  * occupancy before it starts closing. */
 const AUTOCLOSE_DELAY = 0.8;
@@ -378,17 +393,42 @@ export class TeaDoorController {
 
   private readonly channel: TeaDoorChannel;
   private readonly setBlocker: (active: boolean) => void;
+  private readonly selfTick: boolean;
   private blockerOn: boolean | null = null;
   private clip: WalkDoorClip | null = null;
   private clipT = 0;
-  private bot: { x: number; z: number } | null = null;
+  /** Every walker that drives this door (the player, Scout, NPCs): last position and when it was last seen. */
+  private readonly actors = new Map<string, { x: number; z: number; seen: number }>();
+  /** The actor whose session is running, and the clip channel it fires through. */
+  private owner: string | null = null;
+  private ownerChannel: TeaDoorChannel;
   private freeTimer = 0;
   private now = 0;
 
-  constructor(deps: { channel: TeaDoorChannel; setBlocker: (active: boolean) => void }) {
+  /**
+   * `channel` is the default clip channel (the player's). `selfTick` (default true): drive() also ticks the door machine; a host that
+   * calls tick() once per frame itself (GlbWorld, several actors) passes false so the door does not run faster per extra actor.
+   */
+  constructor(deps: { channel: TeaDoorChannel; setBlocker: (active: boolean) => void; selfTick?: boolean }) {
     this.channel = deps.channel;
+    this.ownerChannel = deps.channel;
     this.setBlocker = deps.setBlocker;
+    this.selfTick = deps.selfTick ?? true;
     this.syncBlocker();
+  }
+
+  /** Who holds the door right now (null = nobody). */
+  get sessionOwner(): string | null {
+    return this.phase === "idle" ? null : this.owner;
+  }
+
+  private liveActors(): { x: number; z: number }[] {
+    const out: { x: number; z: number }[] = [];
+    for (const [id, a] of this.actors) {
+      if (this.now - a.seen > ACTOR_TTL) this.actors.delete(id);
+      else out.push(a);
+    }
+    return out;
   }
 
   /** Blocker rule (see header): leaf below clear angle AND no session. */
@@ -406,20 +446,23 @@ export class TeaDoorController {
 
   /** HUD entry point. Validates range/side/state, starts the align
    * phase; the performance itself is driven frame by frame. */
-  request(clip: WalkDoorClip): TeaRequestResult {
+  request(clip: WalkDoorClip, actor = PLAYER, channel: TeaDoorChannel = this.channel): TeaRequestResult {
     if (this.phase !== "idle") return this.refuse(clip, "busy");
     if (this.state === "open" || this.state === "closing")
       return this.refuse(clip, "already-open");
     if (this.state !== "closed") return this.refuse(clip, "busy");
-    if (!this.bot) return this.refuse(clip, "too-far", "too far");
+    const bot = this.actors.get(actor);
+    if (!bot) return this.refuse(clip, "too-far", "too far");
     const pose = teaStandPose(clip);
-    const dist = Math.hypot(this.bot.x - pose.x, this.bot.z - pose.z);
+    const dist = Math.hypot(bot.x - pose.x, bot.z - pose.z);
     if (dist > TEA_REQUEST_RANGE)
       return this.refuse(clip, "too-far", `too far (${dist.toFixed(1)} m)`);
     // Correct side: the bot must be on the pose's side of the door plane.
     const planeZ = TEA_DOOR_ORIGIN.z;
-    if ((this.bot.z - planeZ) * (pose.z - planeZ) < 0)
+    if ((bot.z - planeZ) * (pose.z - planeZ) < 0)
       return this.refuse(clip, "wrong-side", "wrong side");
+    this.owner = actor;
+    this.ownerChannel = channel;
     this.clip = clip;
     this.clipT = 0;
     this.phase = "align";
@@ -455,22 +498,49 @@ export class TeaDoorController {
    * or null when the player keeps control (no session). Also advances
    * the door machine (swing, auto-close) and the blocker.
    */
-  drive(s: WalkerState, dt: number, wantsForward = false): WalkInput | null {
-    this.now += dt;
-    this.bot = { x: s.x, z: s.z };
+  drive(
+    s: WalkerState,
+    dt: number,
+    wantsForward = false,
+    actor = PLAYER,
+    channel: TeaDoorChannel = this.channel,
+  ): WalkInput | null {
+    this.actors.set(actor, { x: s.x, z: s.z, seen: this.now });
+    const input = this.driveActor(s, dt, wantsForward, actor, channel);
+    if (this.selfTick) this.tick(dt);
+    return input;
+  }
+
+  private driveActor(
+    s: WalkerState,
+    dt: number,
+    wantsForward: boolean,
+    actor: string,
+    channel: TeaDoorChannel,
+  ): WalkInput | null {
     let input: WalkInput | null = null;
 
     // Walking at a shut door starts the performance by itself (the HUD buttons stay as a manual override).
     if (this.phase === "idle" && this.state === "closed") {
       const auto = teaAutoClip(s, wantsForward);
-      if (auto) this.request(auto);
+      if (auto) this.request(auto, actor, channel);
     }
+
+    // Someone else is opening the door: wait outside its approach zone (nobody slips through during the blocker hand-over).
+    // An actor already in the doorway when the session starts is let through.
+    if (this.phase !== "idle" && actor !== this.owner) {
+      const near =
+        Math.abs(s.x - TEA_DOOR_ORIGIN.x) < TEA_AUTO_HALF_WIDTH + 0.3 &&
+        Math.abs(s.z - TEA_DOOR_ORIGIN.z) < TEA_AUTO_RANGE;
+      return near && !teaDoorwayOccupied(s.x, s.z) ? ZERO_INPUT : null;
+    }
+    if (actor !== this.owner) return null;
 
     if (this.phase === "align" && this.clip) {
       const pose = teaStandPose(this.clip);
       if (this.atPose(s, pose)) {
         // Facing settled: fire the clip; the performance clock starts.
-        if (this.channel.fireDoor(this.clip)) {
+        if (this.ownerChannel.fireDoor(this.clip)) {
           this.phase = "perform";
           this.clipT = 0;
           this.state = "opening";
@@ -486,7 +556,7 @@ export class TeaDoorController {
       const g = TEA_GRASP[this.clip];
       this.clipT += dt;
       // The one-shot runs on the figure's own frame clock; if it has already ended (slow frames), do not lag behind it.
-      if (!this.channel.doorPlaying && this.clipT > 0.25) this.clipT = Math.max(this.clipT, g.travelAt);
+      if (!this.ownerChannel.doorPlaying && this.clipT > 0.25) this.clipT = Math.max(this.clipT, g.travelAt);
       this.angle = teaLeafAngleAt(this.clip, this.clipT);
       if (this.clipT >= g.travelAt || this.clipT >= g.duration) {
         this.phase = "travel";
@@ -516,6 +586,12 @@ export class TeaDoorController {
       }
     }
 
+    return input;
+  }
+
+  /** The door machine, once per frame: passive leaf, auto-close (waits for EVERY live actor), blocker. */
+  tick(dt: number): void {
+    this.now += dt;
     // Passive leaf follows the active one with a lag.
     const diff = this.angle - this.passiveAngle;
     const stepMax = PASSIVE_FOLLOW_RATE * dt;
@@ -524,9 +600,12 @@ export class TeaDoorController {
     // Auto-close: only from a settled open state, doorway unoccupied
     // and the bot clear of the door plane.
     if (this.phase === "idle" && this.state === "open") {
-      const occupied = this.bot ? teaDoorwayOccupied(this.bot.x, this.bot.z) : true;
-      const clearOfPlane =
-        this.bot !== null && Math.abs(this.bot.z - TEA_DOOR_ORIGIN.z) > 1.0;
+      const live = this.liveActors();
+      const occupied = live.some((a) => teaDoorwayOccupied(a.x, a.z));
+      // Everyone near the door must be clear of its plane (nobody stands where the leaf swings back).
+      const clearOfPlane = live.every(
+        (a) => Math.hypot(a.x - TEA_DOOR_ORIGIN.x, a.z - TEA_DOOR_ORIGIN.z) > 3 || Math.abs(a.z - TEA_DOOR_ORIGIN.z) > 1.0,
+      );
       if (!occupied && clearOfPlane) {
         this.freeTimer += dt;
         if (this.freeTimer >= AUTOCLOSE_DELAY) this.state = "closing";
@@ -546,7 +625,6 @@ export class TeaDoorController {
     }
 
     this.syncBlocker();
-    return input;
   }
 
   /** Short status for the walk HUD ("tea door · …"), or null when
