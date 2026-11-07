@@ -1125,7 +1125,34 @@ function WalkHudPanel({
           Open door out
         </button>
       </div>
-      {sound ? (
+      {sound && sound.consent === "unknown" ? (
+        <div className="w-embody-row" role="group" aria-label="Sound permission">
+          <span className="w-sound-ask">Hear the verse on this device?</span>
+          <button
+            type="button"
+            className="w-sound-enable"
+            onClick={() => {
+              // Inside this click's call stack on purpose: the
+              // director creates + resumes its AudioContext here,
+              // which is what unlocks audio on iOS Safari.
+              sound.grantConsent();
+              bump();
+            }}
+          >
+            Enable sound
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              sound.declineConsent();
+              bump();
+            }}
+          >
+            No thanks
+          </button>
+        </div>
+      ) : null}
+      {sound && sound.consent === "granted" ? (
         <div className="w-embody-row" role="group" aria-label="Sound">
           <button
             type="button"
@@ -1539,10 +1566,10 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
       },
     });
   }
-  // Sound v1 (soundDirector.ts): one director per mount. It arms on
-  // the first gesture inside walk mode (autoplay policy), is driven
-  // at ~10 Hz from the walker's frame + the tea door machine, and
-  // feeds the walk HUD its PA banner + mute state.
+  // Sound (soundDirector.ts): one director per mount. It arms only
+  // on the user's explicit sound consent (the HUD button below),
+  // is driven at ~10 Hz from the walker's frame + the tea door
+  // machine, and feeds the walk HUD its PA banner + mute state.
   const soundRef = useRef<SoundDirector | null>(null);
   if (soundRef.current === null) soundRef.current = new SoundDirector();
   const walking = place === "city3" && camMode !== "wide";
@@ -1561,10 +1588,14 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
     camModeRef.current = camMode;
   }, [camMode]);
 
-  // Sound v1 lifecycle: while walking, the first pointer/key gesture
-  // arms the director (AudioContext creation needs the gesture); a
-  // 100 ms driver feeds it the listener + door + room facts; entering
-  // walk mode starts a fresh session (the tea announcement re-arms).
+  // Sound lifecycle: the director arms ONLY from the walk HUD's
+  // Enable-sound consent (its click is the gesture that creates +
+  // resumes the AudioContext — the iOS rule); the pointer/key
+  // listeners below merely re-call arm() on later gestures, which
+  // resumes a granted context and stays a no-op before consent.
+  // A 100 ms driver feeds the director the listener + door + room
+  // facts; entering walk mode starts a fresh session (the tea
+  // announcement re-arms).
   useEffect(() => {
     if (!walking) return;
     const sound = soundRef.current;
@@ -1599,6 +1630,8 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           sound.announce(text, scope, clip ?? null),
         setMuted: (m: boolean) => sound.setMuted(m),
         arm: () => sound.arm(),
+        grantConsent: () => sound.grantConsent(),
+        declineConsent: () => sound.declineConsent(),
       };
     }
     return () => {

@@ -100,7 +100,9 @@ export const EMITTER_AUDIBLE_M = 16;
  * Emitter loudness by distance: full inside the core radius, then
  * the same squared falloff as distanceGain across the remaining
  * span to silence. Non-finite distances are silent (the director's
- * poisoned-input rule).
+ * poisoned-input rule). This is the curve PR #35 proved in-browser
+ * for the Mage's stall music; the plaza voice emitter reuses it so
+ * speech and music share one positional law.
  */
 export function emitterGain(distance: number): number {
   if (!Number.isFinite(distance)) return 0;
@@ -139,6 +141,8 @@ export function stepFade(
 export const WIND_GAIN = 0.055;
 export const MUSIC_GAIN = 0.17;
 export const PA_GAIN = 0.9;
+/** Nominal level of a bot's spoken line at the voice emitter (before positional gain). */
+export const VOICE_GAIN = 0.9;
 
 /** One verse day on the PA clock (s). Dawn at 0, dusk at half. */
 export const VERSE_DAY_S = 600;

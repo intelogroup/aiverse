@@ -6,10 +6,16 @@
  * door's angle/state and the tea room's rect, and the walk HUD reads
  * its banner + mute state.
  *
- * Autoplay policy: the AudioContext is created lazily by arm() on
- * the first user gesture inside walk mode (the walk HUD / canvas
- * interaction IS the gesture) and resumed on later gestures.
- * Nothing here makes a sound before arm().
+ * Permission policy (Jim, 2026-11-07 — "make sure the audio can
+ * reach user device with permission asking"): verse audio reaches
+ * the user's device ONLY after a deliberate, labelled consent in
+ * the walk HUD. The director starts unconsented; arm() is a no-op
+ * until grantConsent() runs, and grantConsent() is called from the
+ * HUD button's own click handler, so AudioContext creation +
+ * resume happen inside that gesture's call stack (the iOS Safari
+ * requirement). A decline is remembered for the session: no sound,
+ * no re-asking. Post-consent, later gestures still call arm() to
+ * resume a suspended context, exactly as before.
  *
  * Asset provenance (all under public/assets/sound/, licenses in the
  * PR body): PA clips rendered locally with Gradium Phonon
@@ -47,6 +53,7 @@ import {
   PA_LINES,
   STEP_AUDIBLE_M,
   VERSE_CLOCK_START_S,
+  VOICE_GAIN,
   WIND_GAIN,
   type Announcement,
   type DistrictLite,
@@ -82,10 +89,17 @@ export interface SoundFrame {
   teaRect: readonly [number, number, number, number] | null;
 }
 
+/** The user's sound permission for this session (see header). */
+export type SoundConsent = "unknown" | "granted" | "declined";
+
 export interface SoundSnapshot {
   armed: boolean;
   ctxState: string;
+  consent: SoundConsent;
   muted: boolean;
+  /** The positional voice emitter (bot speech): who is speaking,
+   * the positional gain on their voice right now, and its level. */
+  voice: { playing: boolean; speaker: string | null; gain: number; level: number };
   district: string | null;
   insideTea: boolean;
   banner: string | null;
@@ -106,6 +120,7 @@ export interface SoundSnapshot {
 export class SoundDirector {
   muted = false;
 
+  private consentState: SoundConsent = "unknown";
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private paBus: GainNode | null = null;
@@ -114,6 +129,16 @@ export class SoundDirector {
   private sfxBus: GainNode | null = null;
   private paAnalyser: AnalyserNode | null = null;
   private masterAnalyser: AnalyserNode | null = null;
+  private voiceGainNode: GainNode | null = null;
+  private voiceAnalyser: AnalyserNode | null = null;
+  /** The utterance on the voice emitter right now, if any. */
+  private voiceUtter: {
+    pos: { x: number; z: number };
+    speaker: string;
+    endsAt: number;
+  } | null = null;
+  private voiceGain = 0;
+  private voiceLevel = 0;
   private buffers = new Map<string, AudioBuffer>();
   private creakGain: GainNode | null = null;
   private creakSrc: AudioBufferSourceNode | null = null;
@@ -148,9 +173,34 @@ export class SoundDirector {
   private masterLevel = 0;
   private scratch = new Float32Array(512);
 
+  /** The session's sound permission. Nothing plays before "granted". */
+  get consent(): SoundConsent {
+    return this.consentState;
+  }
+
+  /**
+   * The user said yes (the walk HUD's Enable-sound button calls
+   * this from inside its click handler). Grants + arms in the same
+   * call stack — on iOS Safari the AudioContext only unlocks when
+   * creation/resume happens inside the gesture handler itself.
+   */
+  grantConsent(): void {
+    if (this.consentState === "declined") return; // a no is final for the session
+    this.consentState = "granted";
+    this.arm();
+  }
+
+  /** The user said no: silent verse, no re-asking this session. */
+  declineConsent(): void {
+    if (this.consentState === "unknown") this.consentState = "declined";
+  }
+
   /** Create the context + graph and start loading. Call on a user
-   * gesture; safe to call again (resumes a suspended context). */
+   * gesture; safe to call again (resumes a suspended context).
+   * A no-op until consent is granted — pre-consent gestures must
+   * not even attempt playback (Jim's permission rule). */
   arm(): void {
+    if (this.consentState !== "granted") return;
     if (!this.ctx) {
       const AC: typeof AudioContext | undefined =
         window.AudioContext ??
@@ -184,6 +234,15 @@ export class SoundDirector {
       this.stallGainNode = mk(0);
       this.stallGainNode.connect(this.stallAnalyser);
       this.stallAnalyser.connect(this.master);
+      // The voice emitter is its own chain into master (like PR
+      // #35's stall emitter): one gain the tick drives by the
+      // listener↔speaker distance, then its own analyser, so a
+      // proof can read the positional loudness of speech itself.
+      this.voiceAnalyser = ctx.createAnalyser();
+      this.voiceAnalyser.fftSize = 1024;
+      this.voiceGainNode = mk(0);
+      this.voiceGainNode.connect(this.voiceAnalyser);
+      this.voiceAnalyser.connect(this.master);
       this.windBus = mk(0);
       this.windBus.connect(this.master);
       this.sfxBus = mk(0.9);
@@ -413,6 +472,75 @@ export class SoundDirector {
     return this.elapsed < this.paSoundingUntil;
   }
 
+  // ---- voice (bot speech, positional) ------------------------------
+
+  /** True while a spoken line is on the voice emitter. */
+  get voicePlaying(): boolean {
+    return this.voiceUtter !== null;
+  }
+
+  /** Decode encoded audio (the pre-rendered line clips) with the
+   * director's own context. Null when unarmed or undecodable. */
+  async decodeAudio(bytes: ArrayBuffer): Promise<AudioBuffer | null> {
+    if (!this.ctx) return null;
+    try {
+      return await this.ctx.decodeAudioData(bytes.slice(0));
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Speak a line from a point in the world: the buffer plays
+   * through the voice emitter, whose gain tick() recomputes every
+   * 100 ms from the listener↔speaker distance (soundLogic's
+   * emitterGain — full inside 2.5 m, silent at 16 m). Returns the
+   * line's duration in seconds, or 0 when it cannot play (no
+   * consent, no context, poisoned position) — callers treat 0 as
+   * "skip the beat", never as an error worth surfacing mid-scene.
+   * Speech is NOT PA-ducked: like the PA itself, a voice is the
+   * foreground when it speaks.
+   */
+  playVoiceBuffer(
+    buf: AudioBuffer,
+    pos: { x: number; z: number },
+    speaker: string,
+  ): number {
+    const ctx = this.ctx;
+    if (!ctx || !this.voiceGainNode) return 0;
+    if (!Number.isFinite(pos.x) || !Number.isFinite(pos.z)) return 0;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(this.voiceGainNode);
+    const utter = {
+      pos: { x: pos.x, z: pos.z },
+      speaker,
+      endsAt: ctx.currentTime + buf.duration,
+    };
+    this.voiceUtter = utter;
+    src.onended = () => {
+      if (this.voiceUtter === utter) this.voiceUtter = null;
+    };
+    src.start();
+    return buf.duration;
+  }
+
+  /** PCM convenience (live Phonon synthesis returns raw samples):
+   * wrap the samples in a buffer on the director's context and
+   * play them positionally, exactly like playVoiceBuffer. */
+  playVoicePcm(
+    pcm: Float32Array,
+    sampleRate: number,
+    pos: { x: number; z: number },
+    speaker: string,
+  ): number {
+    const ctx = this.ctx;
+    if (!ctx || pcm.length === 0) return 0;
+    const buf = ctx.createBuffer(1, pcm.length, sampleRate);
+    buf.getChannelData(0).set(pcm);
+    return this.playVoiceBuffer(buf, pos, speaker);
+  }
+
   // ---- footsteps ---------------------------------------------------
 
   private onPlant(x: number, z: number): void {
@@ -521,9 +649,26 @@ export class SoundDirector {
         this.musicBus.gain.setTargetAtTime(duckedGain(this.musicLevel, pa), this.ctx.currentTime, 0.05);
       if (this.stallGainNode)
         this.stallGainNode.gain.setTargetAtTime(duckedGain(this.stallLevel, pa), this.ctx.currentTime, 0.05);
-      this.paLevel = this.readRms(this.paAnalyser);
+            // Voice emitter: positional gain for the line on stage right
+      // now (no listener yet reads as infinitely far, hence silent;
+      // an utterance past its end is retired even if onended lagged).
+      if (this.voiceUtter && this.ctx.currentTime > this.voiceUtter.endsAt + 0.25) {
+        this.voiceUtter = null;
+      }
+      const vDist =
+        this.voiceUtter && this.listener
+          ? Math.hypot(
+              this.listener.x - this.voiceUtter.pos.x,
+              this.listener.z - this.voiceUtter.pos.z,
+            )
+          : Infinity;
+      this.voiceGain = this.voiceUtter ? VOICE_GAIN * emitterGain(vDist) : 0;
+      if (this.voiceGainNode)
+        this.voiceGainNode.gain.setTargetAtTime(this.voiceGain, this.ctx.currentTime, 0.05);
+            this.paLevel = this.readRms(this.paAnalyser);
       this.masterLevel = this.readRms(this.masterAnalyser);
       this.stallRms = this.readRms(this.stallAnalyser);
+      this.voiceLevel = this.readRms(this.voiceAnalyser);
     }
   }
 
@@ -540,7 +685,14 @@ export class SoundDirector {
     return {
       armed: this.armed,
       ctxState: this.ctx?.state ?? "none",
+      consent: this.consentState,
       muted: this.muted,
+      voice: {
+        playing: this.voiceUtter !== null,
+        speaker: this.voiceUtter?.speaker ?? null,
+        gain: this.voiceGain,
+        level: this.voiceLevel,
+      },
       district: this.district,
       insideTea: this.insideTea,
       banner: this.bannerText(),

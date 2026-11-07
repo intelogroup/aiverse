@@ -194,3 +194,11 @@ doorway. Actors: the player (`CityWalker`, the walk HUD's clip override) and Sco
 `clipChannel(clips)`. One session at a time: anyone else near the door waits outside until it is open, then walks through.
 Live check (software GL): Scout fountain -> stall-0 -> tea door point -> `go_to` a point inside: align, perform, door 95 deg, step-through, `arrived`
 inside at y 0.48, door closed behind it. Debug: `window.__walk.door()` (walk mode), `window.__scout.door()` (agent mode).
+
+## Sound: consent gate + voice emitter (2026-11-07)
+`soundDirector.ts` no longer arms on the first gesture. It starts `consent: "unknown"`; the walk HUD shows "Hear the verse on this device? Enable sound / No thanks"
+and the click is the gesture that creates and resumes the AudioContext (the iOS rule). `arm()` is a no-op until `grantConsent()`; a decline is final for the
+session. New positional **voice emitter** (`playVoiceBuffer` / `playVoicePcm`): its own gain chain into master, gain = `VOICE_GAIN * emitterGain(distance)` recomputed
+every tick (the same law as the Mage's stall music), not PA-ducked, with its own analyser (`snapshot().voice`). Nothing speaks yet: the speech engine and
+the Mage-Summer greeting stay in PR #37 until they are split out. Known cosmetic: with the consent ask showing, the HUD grows and overlaps the centre hint pill at
+900 px wide. Tests: `soundDirector.test.ts` (consent), `soundLogic.test.ts` (emitter law).
