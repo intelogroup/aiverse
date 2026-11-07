@@ -44,6 +44,8 @@ export const FORWARD_RELEASE_SHARE = 0.5;
 export const MIN_LOCK_SPEED = 0.25;
 /** Leg reach a locked foot may demand (share of full extension); the pelvis dips to stay inside it. */
 export const MAX_REACH = 0.98;
+/** A body that moves further than this (m) in one frame was teleported, not walked: forget the pins. */
+const MAX_BODY_STEP = 0.5;
 /** Most the pelvis may dip (m) to make room for a locked foot; a lock that needs more lets go. */
 export const MAX_DIP = 0.06;
 /** A swinging foot keeps at least this clearance (m): the baked toes graze the floor mid-swing (a 5 m/s scrape in Remy's Walk). */
@@ -354,6 +356,11 @@ export class FootLock {
     this.bodyDisp.y = 0;
     const hadBody = this.hasBody;
     this.prevBody.copy(tmpV);
+    if (hadBody && this.bodyDisp.length() > MAX_BODY_STEP) {
+      // Teleported (respawn, debug jump, door hand-over): the pins belong to the old place. Start over, clip pose only.
+      this.reset();
+      return;
+    }
     this.hasBody = true;
     const bodyLen = this.bodyDisp.length();
     const moving = hadBody && speed >= MIN_LOCK_SPEED && bodyLen > 1e-5;
@@ -477,6 +484,11 @@ export class FootLock {
             m.armed = false;
           }
         }
+        // The lock cannot hold this stance: drop the offset too, or a standing re-pin re-bases onto the stale one.
+        leg.offX = 0;
+        leg.offZ = 0;
+        leg.w = 0;
+        leg.hold = 0;
         continue;
       }
       need = Math.max(need, ask);

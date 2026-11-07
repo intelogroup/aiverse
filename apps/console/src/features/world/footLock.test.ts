@@ -281,6 +281,19 @@ describe("FootLock", () => {
       expect(held.qs[49].angleTo(held.qs[8])).toBeLessThan(0.02); // not turned with it
     });
 
+    it("does not drag the foot along when the body is teleported while standing", () => {
+      const r = rig();
+      const lock = new FootLock(r.scene, r.points);
+      for (let i = 0; i < 60; i++) {
+        r.group.position.x = i < 30 ? 0 : 4; // jump 4 m sideways at frame 30
+        poseClip(r, V(0.1, 0.005, 0.1));
+        lock.update(r.group, r.scene, 0, dt);
+      }
+      r.group.updateWorldMatrix(true, true);
+      const ankle = r.foot.getWorldPosition(new THREE.Vector3());
+      expect(Math.abs(ankle.x - 4.1)).toBeLessThan(0.05); // under the body again, not left behind at x=0.1
+    });
+
     it("lets the foot follow once the body has turned more than MAX_HOLD_YAW", () => {
       const yaw = (i: number) => Math.min(i, 50) * 0.02; // 0 -> 1.0 rad
       const free = stand({ lock: false, frames: 60, yaw });
