@@ -13,6 +13,9 @@
  *      source geometry by triangle classification and hung on pivots
  *      at their jambs, and a knob added on both faces of the active
  *      (left) leaf at the study's 0.80 m height, 0.06 m proud;
+ *   2b. finds the painted leaf (panels, rails, mullions — baked into the
+ *      shared palette mesh by tools/city3, see bakedLeaf.ts), copies its
+ *      triangles onto the same pivots and degenerates the originals;
  *   3. drives the pivots from the TeaDoorController's angles every
  *      frame (active rotation.y = +angle into the room, passive
  *      mirrored at -angle — see teaDoor.ts for the hinge geometry).
@@ -23,9 +26,10 @@
  */
 
 import { useGLTF } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
+import { findBakedLeaf, type BakedLeaf } from "./bakedLeaf";
 import {
   TEA_DOOR_ORIGIN,
   TEA_GROUND_Y,
@@ -118,7 +122,13 @@ interface BuiltDoor {
   activePivot: THREE.Group;
   passivePivot: THREE.Group;
   disposables: THREE.BufferGeometry[];
+  /** Hide the static originals (the tea instance + the baked leaf triangles). Idempotent; React StrictMode runs effects twice. */
+  apply: () => void;
+  /** Show them again. Idempotent. */
   restore: () => void;
+  /** Debug: whether apply() is currently in force, and the tea instance's scale in each primitive mesh. */
+  isApplied: () => boolean;
+  instanceScales: () => number[];
 }
 
 function buildDoor(scene: THREE.Object3D): BuiltDoor | null {
@@ -153,8 +163,8 @@ function buildDoor(scene: THREE.Object3D): BuiltDoor | null {
     ) return null;
   }
 
-  // Hide the tea instance in every primitive mesh; remember the
-  // originals for restore-on-unmount.
+  // Nothing is mutated here: the originals are only READ (apply()/restore() below hide and show them), so a second mount of the
+  // effect (StrictMode in dev) puts the world back exactly as the first one found it.
   const originals: { mesh: THREE.InstancedMesh; matrix: THREE.Matrix4 }[] = [];
   const zero = new THREE.Matrix4().compose(
     new THREE.Vector3(TEA_DOOR_ORIGIN.x, TEA_GROUND_Y, TEA_DOOR_ORIGIN.z),
@@ -165,9 +175,22 @@ function buildDoor(scene: THREE.Object3D): BuiltDoor | null {
     const orig = new THREE.Matrix4();
     m.getMatrixAt(TEA_INSTANCE, orig);
     originals.push({ mesh: m, matrix: orig });
-    m.setMatrixAt(TEA_INSTANCE, zero);
-    m.instanceMatrix.needsUpdate = true;
   }
+
+  // The painted LEAF (panels, rails, mullions, raised panels) is not in the instance: tools/city3 bakes it into the shared palette
+  // mesh (bakedLeaf.ts). Find it by volume, so it hangs on the same pivots as the glass.
+  let baked: BakedLeaf | null = null;
+  let bakedMaterial: THREE.Material | THREE.Material[] | null = null;
+  scene.traverse((o) => {
+    if (baked) return;
+    const m = o as THREE.Mesh;
+    if (!m.isMesh || (m as THREE.InstancedMesh).isInstancedMesh) return;
+    const found = findBakedLeaf(m.geometry, TEA_DOOR_ORIGIN);
+    if (found) {
+      baked = found;
+      bakedMaterial = m.material;
+    }
+  });
 
   // Rebuild the leaf set as a pivoted assembly.
   const group = new THREE.Group();
@@ -197,6 +220,16 @@ function buildDoor(scene: THREE.Object3D): BuiltDoor | null {
     passivePivot.add(new THREE.Mesh(rightGeo, mat));
   }
 
+  if (baked && bakedMaterial) {
+    const b = baked as BakedLeaf;
+    // World coordinates -> pivot-local: subtract the group origin and the pivot's offset inside the group.
+    b.left.translate(-(TEA_DOOR_ORIGIN.x + TEA_HINGE_ACTIVE_X), -TEA_GROUND_Y, -(TEA_DOOR_ORIGIN.z + TEA_SLAB_MID_Z));
+    b.right.translate(-(TEA_DOOR_ORIGIN.x + TEA_HINGE_PASSIVE_X), -TEA_GROUND_Y, -(TEA_DOOR_ORIGIN.z + TEA_SLAB_MID_Z));
+    disposables.push(b.left, b.right);
+    activePivot.add(new THREE.Mesh(b.left, bakedMaterial));
+    passivePivot.add(new THREE.Mesh(b.right, bakedMaterial));
+  }
+
   // Knob on BOTH faces of the active leaf (street + interior centres
   // from teaDoor.ts), swinging with the leaf. Pivot-local z: the
   // faces sit at TEA_KNOB_*_Z relative to the door origin; the pivot
@@ -218,26 +251,101 @@ function buildDoor(scene: THREE.Object3D): BuiltDoor | null {
   activePivot.add(knob);
   group.userData.knobMaterial = knobMat;
 
+  let applied = false;
   return {
     group,
     activePivot,
     passivePivot,
     disposables,
+    isApplied: () => applied,
+    instanceScales: () => originals.map(({ mesh }) => {
+      const m = new THREE.Matrix4();
+      mesh.getMatrixAt(TEA_INSTANCE, m);
+      return +new THREE.Vector3().setFromMatrixScale(m).x.toFixed(2);
+    }),
+    apply: () => {
+      applied = true;
+      for (const { mesh } of originals) {
+        mesh.setMatrixAt(TEA_INSTANCE, zero);
+        mesh.instanceMatrix.needsUpdate = true;
+      }
+      (baked as BakedLeaf | null)?.apply();
+    },
     restore: () => {
+      applied = false;
       for (const { mesh, matrix } of originals) {
         mesh.setMatrixAt(TEA_INSTANCE, matrix);
         mesh.instanceMatrix.needsUpdate = true;
       }
+      (baked as BakedLeaf | null)?.restore();
     },
   };
+}
+
+/** Debug: every visible mesh/instance in the live scene overlapping the door volume (world box around the tea door). */
+function nearbyDoorMeshes(root: THREE.Object3D) {
+  const box = new THREE.Box3(
+    new THREE.Vector3(TEA_DOOR_ORIGIN.x - 0.9, 0.3, TEA_DOOR_ORIGIN.z - 0.45),
+    new THREE.Vector3(TEA_DOOR_ORIGIN.x + 0.9, 2.7, TEA_DOOR_ORIGIN.z + 0.3),
+  );
+  const out: { name: string; parents: string; material: string; instanced: boolean; where: string }[] = [];
+  root.updateMatrixWorld(true);
+  root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    let vis = true;
+    for (let p: THREE.Object3D | null = o; p; p = p.parent) if (!p.visible) vis = false;
+    if (!vis) return;
+    const mat = (Array.isArray(m.material) ? m.material[0] : m.material) as THREE.Material;
+    const chain = (() => { const c: string[] = []; for (let p = o.parent; p && c.length < 3; p = p.parent) c.push(p.name || "-"); return c.join("<"); })();
+    const im = m as THREE.InstancedMesh;
+    if (im.isInstancedMesh) {
+      const mt = new THREE.Matrix4();
+      const pt = new THREE.Vector3();
+      const sc = new THREE.Vector3();
+      for (let i = 0; i < im.count; i++) {
+        im.getMatrixAt(i, mt);
+        pt.setFromMatrixPosition(mt);
+        sc.setFromMatrixScale(mt);
+        if (sc.x > 0.01 && box.containsPoint(pt)) out.push({ name: o.name, parents: chain, material: mat?.name ?? "", instanced: true, where: `inst ${i} @ ${pt.toArray().map((v) => v.toFixed(2)).join(",")} scale ${sc.x.toFixed(2)}` });
+      }
+      return;
+    }
+    if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+    const bb = m.geometry.boundingBox!.clone().applyMatrix4(m.matrixWorld);
+    if (bb.intersectsBox(box)) {
+      // for the big shared meshes only count triangles that sit inside the door box and have area
+      let live = 0;
+      const sample: string[] = [];
+      const idx = m.geometry.getIndex();
+      const pos = m.geometry.getAttribute("position");
+      if (idx && pos && idx.count > 3000) {
+        const v = new THREE.Vector3();
+        for (let t = 0; t < idx.count / 3; t++) {
+          const a = idx.getX(t * 3), b = idx.getX(t * 3 + 1), c = idx.getX(t * 3 + 2);
+          if (a === b || b === c) continue;
+          let inside = true;
+          for (const i of [a, b, c]) { v.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld); if (!box.containsPoint(v)) { inside = false; break; } }
+          if (inside) {
+            live++;
+            if (sample.length < 6) sample.push([a, b, c].map((i) => v.fromBufferAttribute(pos, i).toArray().map((q) => q.toFixed(3)).join(" ")).join(" | "));
+          }
+        }
+      }
+      out.push({ name: o.name, parents: chain, material: mat?.name ?? "", instanced: false, where: idx && idx.count > 3000 ? `${live} live tris in box${live && live <= 6 ? ": " + sample.join(" // ") : ""}` : "small mesh in box" });
+    }
+  });
+  return out;
 }
 
 export function TeaDoorLeaf({ controller }: { controller: TeaDoorController }) {
   const gltf = useGLTF(WORLD_URL);
   const built = useMemo(() => buildDoor(gltf.scene), [gltf.scene]);
+  const rootScene = useThree((st) => st.scene);
 
   useEffect(() => {
     if (!built) return;
+    built.apply();
     return () => {
       built.restore();
       for (const g of built.disposables) g.dispose();
@@ -250,6 +358,24 @@ export function TeaDoorLeaf({ controller }: { controller: TeaDoorController }) {
     built.activePivot.rotation.y = controller.angle * DEG;
     built.passivePivot.rotation.y = -controller.passiveAngle * DEG;
   });
+
+  // ?walkDebug=1: what the renderer is actually showing (headless checks): pivot angles in degrees, and whether the originals are hidden.
+  useEffect(() => {
+    if (!built || !new URLSearchParams(window.location.search).has("walkDebug")) return;
+    const w = window as unknown as Record<string, unknown>;
+    w.__teaDoorLeaf = {
+      info: () => ({
+        activeDeg: Math.round(built.activePivot.rotation.y / DEG),
+        passiveDeg: Math.round(built.passivePivot.rotation.y / DEG),
+        hidden: built.isApplied(),
+        instances: built.instanceScales(),
+        leafMeshes: built.activePivot.children.length + built.passivePivot.children.length,
+        inScene: !!built.group.parent,
+        nearby: nearbyDoorMeshes(rootScene),
+      }),
+    };
+    return () => { delete w.__teaDoorLeaf; };
+  }, [built, rootScene]);
 
   if (!built) return null;
   return <primitive object={built.group} />;
