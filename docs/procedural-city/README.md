@@ -15,7 +15,7 @@ re-deriving it. Written 2026-11-06 at the end of a long build; update it, don't 
 | `08-animation-body-controller.md` | Turn clips, planted feet, controller design and measurements |
 | `harness/` | The throwaway Playwright/three harnesses that caught real bugs (copy, `npm i`, run) |
 
-## Ten rules that cost the most to learn
+## Eleven rules that cost the most to learn
 
 1. **Look at the pixels.** Screenshot every change and read it. Counters lied (handles "built" but empty; foot-slide
    metrics flattered by fewer low-foot frames). Most real bugs were found only visually.
@@ -28,6 +28,11 @@ re-deriving it. Written 2026-11-06 at the end of a long build; update it, don't 
 8. **Library + layout, never baked per building.** One asset library GLB, KB-sized layout JSON per room, instanced draws.
 9. **Deterministic seeds everywhere;** per-building `random.Random(5000+idx)` so edits don't reshuffle the city.
 10. **Commit in phases and write down failures the moment they happen** (this folder).
+11. **One Blender process at a time.** The cloud box has 4 cores / 15 GB; a bake uses every core and several GB, so
+    parallel jobs fight each other (no net speed-up) and risk OOM. Run every headless call through the wrapper:
+    `tools/city3/blender_lock.sh -b --python <script> [-- args]` (a `flock` on `/tmp/blender.lock`, `-t 2` threads).
+    A second job waits for the lock; say "waiting for the Blender lock" in the log instead of retrying. Parallel
+    agents may edit and test together but queue here. Avoid Blender during Playwright/software-GL screenshot runs.
 
 ## Resume checklist
 1. `git log --oneline -15` and read `01-state-and-commands.md` for the branch stack.

@@ -92,3 +92,9 @@ Memory files for the Blender-headless → glTF → three.js pipeline live in `do
 and three.js lessons, verification playbook, failures log, asset licences, body controller). Before touching `tools/city3/` or the City 3 runtime
 (`apps/console/src/features/world/`), skim `06-failures-log.md`; update the folder when something new fails or works. Verify by looking at screenshots,
 not counters.
+
+## Blender: one process at a time
+
+The box has 4 cores / 15 GB. Parallel headless Blender bakes fight for the cores (no net speed-up) and can run it out
+of memory. Always launch through `tools/city3/blender_lock.sh -b --python <script> [-- args]` (flock on
+`/tmp/blender.lock`, 2 threads); a second job waits for the lock. Details: `docs/procedural-city/README.md` rule 11.
