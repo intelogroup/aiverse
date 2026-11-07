@@ -82,7 +82,7 @@ describe("body registry", () => {
   it("every body carries the same five-clip catalog", () => {
     for (const b of Object.values(BODIES)) {
       expect(b.clips).toEqual({
-        idle: "Idle",
+        idle: "IdleLong",
         walk: "Walk",
         sitTalk: "SittingTalking",
         sitDown: "SitDown",

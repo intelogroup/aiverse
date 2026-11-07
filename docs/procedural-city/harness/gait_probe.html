@@ -35,7 +35,7 @@ for (let k = 0; k < N; k++) {
   const parent = hips.parent, hipsRest = hips.position.clone(), parentRest = parent.position.clone(), pq = parent.quaternion.clone();
   const rw = new THREE.Vector3(); grp.updateMatrixWorld(true); hips.getWorldPosition(rw); const restHipsY = rw.y;
   const pts = contactPoints(scene), runMin = clipMinClearance(scene, clip("Run"), pts);
-  const mixer = new THREE.AnimationMixer(scene); const walk = mixer.clipAction(clip("Walk")), run = mixer.clipAction(clip("Run")), idle = mixer.clipAction(clip("Idle"));
+  const mixer = new THREE.AnimationMixer(scene); const walk = mixer.clipAction(clip("Walk")), run = mixer.clipAction(clip("Run")), idle = mixer.clipAction(clip(new URLSearchParams(location.search).get("idle") ?? "IdleLong"));
   for (const a of [walk, run, idle]) a.play();
   walk.setEffectiveWeight(moving * (1 - rm)); run.setEffectiveWeight(moving * rm); idle.setEffectiveWeight(1 - moving);
   walk.timeScale = rate * SPEC.walkDuration; run.timeScale = rate * SPEC.runDuration;

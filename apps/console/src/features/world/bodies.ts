@@ -37,7 +37,10 @@ export interface BodyDef {
   clips: { idle: string; walk: string; sitTalk: string; sitDown: string; standUp: string };
 }
 
-const CATALOG = { idle: "Idle", walk: "Walk", sitTalk: "SittingTalking", sitDown: "SitDown", standUp: "StandUp" };
+// The resting clip is "IdleLong" (9.9 s, feet planted together). The catalog's 2.7 s "Idle" is NOT a rest pose: its ankles swing
+// 0.1-0.6 m apart in a repeating step (a slow walk in place, measured 2026-11-07 on every body, also in the pre-catalog GLBs), so a
+// standing bot marched on the spot and the Idle -> Walk crossfade mixed two unrelated step cycles. tests/idle-clip.test.ts pins this.
+const CATALOG = { idle: "IdleLong", walk: "Walk", sitTalk: "SittingTalking", sitDown: "SitDown", standUp: "StandUp" };
 
 /** The shared Body Block body every roster member wears by default. */
 export const BODY_CAST: BodyDef = {

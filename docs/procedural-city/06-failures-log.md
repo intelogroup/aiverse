@@ -63,3 +63,5 @@
 | 49 | Remy (Mixamo FBX, Armature scale 0.003) jumped metres sideways in Walk | the root-motion cancel used the hips delta in armature units on a scaled parent | `rootMotionDelta` multiplies by the parent's scale; check any new rig's hips-parent scale |
 | 50 | Headless harness: skinned vertex heights never changed with the pose | `Object3D.clone(true)` keeps the SkinnedMesh bound to the ORIGINAL skeleton | clone with `SkeletonUtils.clone` (as CastFigure does) |
 | 51 | KayKit foot joints not found by name | GLTFLoader sanitizes `foot.l` to `footl` | match `^(foot|toes)\.?[lr]$` |
+| 52 | Standing bots marched in place; Idle -> Walk start-up slid (2026-11-07) | the catalog clip "Idle" is a slow walk in place (ankles 0.1-0.6 m apart), not a rest pose; docs called it "a subtle sway" because only pelvis yaw was ever measured | rest in "IdleLong" (`bodies.ts` CATALOG); pinned by `tests/idle-clip.test.ts`; always measure the LEGS of a clip you call a rest pose |
+

@@ -24,7 +24,7 @@ import { clipMinClearance, contactPoints, groundingOffset, rootMotionDelta, sole
 // it counter-translates the posed hips XZ on the skeleton's parent
 // node, leaving the gait, the bob and the foot plants in the pose
 // while the figure stays over its crowd point),
-// "Idle" (a subtle sway), "SittingTalking" (a 44 s seated loop,
+// "IdleLong" (the resting stand; body.clips.idle — the catalog's plain "Idle" is a walk in place and is not played), "SittingTalking" (a 44 s seated loop,
 // rotations only — the embody override owns seat placement),
 // "SitDown" (the authored stand-to-sit transition, played once while
 // the override mounts) and "StandUp" (its dedicated sit-to-stand

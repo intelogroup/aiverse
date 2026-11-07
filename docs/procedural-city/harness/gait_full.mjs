@@ -49,7 +49,7 @@ function sim(v, { reverse = false, turnR = 0, secs = 5, dt = 1 / 60 } = {}) {
   const rw = new THREE.Vector3(); hips.getWorldPosition(rw); const restHipsY = rw.y;
   const pts = contactPoints(scene); const runMin = clipMinClearance(scene, clip("Run"), pts);
   const mixer = new THREE.AnimationMixer(scene);
-  const walk = mixer.clipAction(clip("Walk")), run = mixer.clipAction(clip("Run")), idle = mixer.clipAction(clip("Idle"));
+  const walk = mixer.clipAction(clip("Walk")), run = mixer.clipAction(clip("Run")), idle = mixer.clipAction(clip(process.env.IDLE ?? "IdleLong"));
   for (const a of [walk, run, idle]) { a.play(); a.setEffectiveWeight(0); }
   const skins = []; scene.traverse((o) => { if (o.isSkinnedMesh) skins.push(o); });
   const footV = skins.map((m) => { const idx = []; const v = new THREE.Vector3(); const n = m.geometry.attributes.position.count; for (let i = 0; i < n; i++) { m.getVertexPosition(i, v); m.localToWorld(v); if (v.y < 0.14) idx.push(i); } return idx; });

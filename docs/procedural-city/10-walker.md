@@ -77,3 +77,21 @@ User-driven "summer" cast body with first-person (ride) and follow cameras. No c
   walker's 1.3 m/s is 1.7x Remy's natural walk and inside his Walk -> Run band [0.96, 2.26], so he blends permanently; keep Remy off the
   walker or give the walker a per-body walk speed). The fix for the rest is foot locking: pin the planted foot in world space with a
   two-bone leg IK until lift-off (UE Foot Placement "plant" settings; three.js has CCDIKSolver in examples).
+
+## The resting clip was a walk in place (2026-11-07, `bodies.ts` `clips.idle`, `tests/idle-clip.test.ts`)
+Found while checking the grounding fix: the catalog's 2.7 s **"Idle" is not a rest pose**. Its ankles swing 0.1-0.6 m apart in a repeating step
+(period 1.33 s, thigh +-36 deg Summer, +-27 deg Remy/Body Block; checked in three.js, in Blender (independent evaluator) and in a side-view
+render), on every Mixamo body, and already in the pre-catalog GLBs (`bed5e3a^`). So a standing bot marched on the spot ("air-walk"), the
+Idle -> Walk crossfade mixed two unrelated step cycles, and its loop popped (Summer seam 4.9 deg). The catalog's 9.9 s **"IdleLong"** is a real
+stand (feet constant to 1 cm, thigh within ~5 deg, seam 0.2-0.5 deg, pelvis yaw mean 0.6 deg vs Idle 0.8 deg, so `TURN_YAW0` is unchanged).
+- Fix: `CATALOG.idle = "IdleLong"` for every body. The clip tester's "Idle" button stays the REST button (`ClipTestState.fire("Idle")` clears the
+  tester); the walking clip is no longer played by name.
+- Measured with `harness/gait_full.mjs` (`IDLE=Idle|IdleLong`, planted-sole skate, mean m/s; figure bob in brackets): standing v=0 Summer
+  0.88 -> 0.05 (6.5 -> 2.1 cm), Remy 0.77 -> 0.05; v=0.2 Summer 0.45 -> 0.12, Remy 0.32 -> 0.20; v=0.3 0.11 -> 0.06 / 0.16 -> 0.13; >= 0.5 m/s unchanged
+  (idle weight is 0 there). Contact stays 100 % of frames, lowest vertex within +-4 mm.
+- Regression test: for every body the resting clip's left thigh stays within 12 deg of its mean over the loop and the loop closes; negative
+  control (idle = "Idle") fails on all six bodies (27-28 deg).
+- Side effects: every idle agent in Agora now stands instead of marching; the KayKit bodies (no `Hips` node, so grounding does not apply to
+  them) get the same clip swap. Software GL cannot show this in the console (one animation frame per screenshot); the filmstrips run the same
+  CastFigure logic headlessly.
+
