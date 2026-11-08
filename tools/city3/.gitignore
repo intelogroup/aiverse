@@ -27,5 +27,9 @@ assets/blendswap/*
 assets/blendswap/palm_5812/*
 !assets/blendswap/palm_5812/PalmFrond*.png
 !assets/blendswap/palm_5812/BLENDSWAP_LICENSE.txt
+!assets/blendswap/bottles_33793/
+assets/blendswap/bottles_33793/*
+!assets/blendswap/bottles_33793/pack.blend
+!assets/blendswap/bottles_33793/BLENDSWAP_LICENSE.txt
 assets/partycups/
 assets/_usdx/
