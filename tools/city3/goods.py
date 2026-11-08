@@ -210,28 +210,37 @@ def P_drape(cols):
     return f
 
 # ---------------------------------------------------------------- pottery
-POTP={"amphora":[(0.0,0),(0.05,0.0),(0.11,0.12),(0.13,0.24),(0.09,0.4),(0.05,0.5),(0.06,0.56),(0.07,0.58)],
-      "jug":[(0.0,0),(0.06,0.0),(0.09,0.06),(0.1,0.14),(0.07,0.22),(0.04,0.27),(0.055,0.32),(0.06,0.33)],
-      "vase":[(0.0,0),(0.05,0.0),(0.085,0.08),(0.1,0.17),(0.07,0.27),(0.035,0.32),(0.05,0.36)],
-      "bowl":[(0.0,0),(0.05,0.0),(0.1,0.05),(0.14,0.1),(0.145,0.11)],
-      "pitcher":[(0.0,0),(0.05,0.0),(0.075,0.05),(0.08,0.14),(0.06,0.2),(0.07,0.22)],
-      "urn":[(0.0,0),(0.06,0.0),(0.12,0.1),(0.14,0.2),(0.12,0.3),(0.08,0.36),(0.1,0.4)]}
+# Phase-2 realism forms live in pottery_spec.py (closed-solid lathe profiles
+# with inner wall + rim roll, attached handle arcs). The baked GLBs carry the
+# full realism; these tables reproduce the same forms at generator fidelity.
+from pottery_spec import PROFILES as SPEC_PROFILES, HANDLES as SPEC_HANDLES, BANDS as SPEC_BANDS, RPOT_GENERATOR_SCALE
+POTP={"amphora":SPEC_PROFILES["amphora"],"jug":SPEC_PROFILES["jug"],"vase":SPEC_PROFILES["vase"],
+      "bowl":SPEC_PROFILES["potbowl"],"pitcher":SPEC_PROFILES["pitcher"],"urn":SPEC_PROFILES["urn"]}
+def _band_cols(prof,kind,glaze):
+    """Per-segment palette colours from the spec glaze bands (normalised height)."""
+    a,b=GLAZE[glaze]; band=SPEC_BANDS.get(kind,(0.0,1.0))
+    if band is None: return [b]*(len(prof)-1)                       # potbowl: uniform band colour, as shipped
+    lo,hi=band; H=max(h for _,h in prof) or 1.0
+    return [a if lo<=((prof[j][1]+prof[j+1][1])/2)/H<=hi else b for j in range(len(prof)-1)]
+def _arc(g,cx,cy,pts,s,r,col):
+    """Attached handle: bar segments along the spec arc (endpoints buried in the wall)."""
+    P=[(cx+px*s,cy,pz*s) for (px,pz) in pts]
+    for p,q in zip(P,P[1:]): bar(g,p,q,r*s,5,col,cap=False)
 GLAZE={"terra":("terracotta","brick"),"blue":("door_blue","sky_blue"),"green":("pot_green","leaf"),"cream":("cream","terracotta"),"ochre":("gold","terracotta"),"brick":("brick","terracotta")}
 def pot(g,rng,kind,x,y,glaze,s=1.0):
-    pr=[(r*s,h*s) for r,h in POTP[kind]]; a,b=GLAZE[glaze]; n=len(pr)-1
-    lathe(g,(x,y,0),(0,0,1),pr,8,[b if j<2 else (a if j<n-2 else b) for j in range(n)],smooth=True,cap0=True)
-    if kind in ("jug","pitcher","amphora"):                                                  # handle loop
-        hh=pr[-1][1]; rr=pr[-2][0]
-        bar(g,(x+rr*0.8,y,hh*0.9),(x+rr*1.9,y,hh*0.62),0.012,4,b,cap=False); bar(g,(x+rr*1.9,y,hh*0.62),(x+rr*1.2,y,hh*0.32),0.012,4,b,cap=False)
+    pr=[(r*s,h*s) for r,h in POTP[kind]]; a,b=GLAZE[glaze]
+    lathe(g,(x,y,0),(0,0,1),pr,10,_band_cols(pr,"potbowl" if kind=="bowl" else kind,glaze),smooth=True,cap0=True)
+    if kind in SPEC_HANDLES:                                                  # attached handle arc (was a 2-bar corner)
+        pts,tr=SPEC_HANDLES[kind]; _arc(g,x,y,pts,s,tr,b)
 def P_pots(spec):
     def f(g,rng):
         for (k,x,y,gl,s) in spec: pot(g,rng,k,x,y,gl,s)
     return f
 def P_stacks(g,rng):
     for (x,gl) in ((-0.2,rng.choice(list(GLAZE))),(0.18,rng.choice(list(GLAZE)))):
-        n=rng.randint(3,4); a,b=GLAZE[gl]
+        n=rng.randint(3,4)
         for k in range(n):
-            lathe(g,(x,0,k*0.05),(0,0,1),[(0.0,0),(0.06,0.0),(0.135,0.095),(0.14,0.1)],8,[b,a,b],smooth=True)
+            lathe(g,(x,0,k*0.05),(0,0,1),SPEC_PROFILES["bowl"],10,_band_cols(SPEC_PROFILES["bowl"],"bowl",gl),smooth=True)
 def P_plates(g,rng):
     for i,(x,y) in enumerate(((-0.2,0.0),(0.2,0.0))):
         gl=rng.choice(list(GLAZE)); a,b=GLAZE[gl]
@@ -252,11 +261,20 @@ def P_bottles(cols,tray=True):
     return f
 def P_goblets(g,rng):
     for (x,y,s) in ((-0.2,0,1.0),(0.0,0.05,1.2),(0.2,-0.02,1.0)):
-        lathe(g,(x,y,0),(0,0,1),[(0.0,0),(0.04*s,0),(0.012*s,0.02*s),(0.012*s,0.06*s),(0.045*s,0.09*s),(0.05*s,0.14*s),(0.045*s,0.16*s)],7,["brass","brass","brass","gold","gold","gold"],smooth=True)
+        pr=[(r*s,h*s) for r,h in SPEC_PROFILES["goblet"]]
+        cols=["brass" if (pr[j][1]+pr[j+1][1])/2<0.09*s else "gold" for j in range(len(pr)-1)]
+        lathe(g,(x,y,0),(0,0,1),pr,10,cols,smooth=True)
 def P_ewer(g,rng):
     for (x,s,c) in ((-0.2,1.0,"brass"),(0.0,0.8,"copper"),(0.2,1.15,"brass")):
-        lathe(g,(x,0,0),(0,0,1),[(0.0,0),(0.06*s,0),(0.1*s,0.05*s),(0.11*s,0.15*s),(0.06*s,0.26*s),(0.03*s,0.32*s),(0.06*s,0.38*s)],8,[c]*6,smooth=True)
-        bar(g,(x+0.09*s,0,0.3*s),(x+0.15*s,0,0.18*s),0.012,4,c,cap=False)
+        pr=[(r*s,h*s) for r,h in SPEC_PROFILES["ewer"]]
+        lathe(g,(x,0,0),(0,0,1),pr,10,[c]*(len(pr)-1),smooth=True)
+        pts,tr=SPEC_HANDLES["ewer"]; _arc(g,x,0,pts,s,tr,c)          # attached ear handle (was a detached floating bar)
+def P_rpot(g,rng):
+    """Built replacement for the Sketchfab 'pot' import (facet soup): a closed
+    lathe storage jar in the same envelope. RPOT_GENERATOR_SCALE bakes in the
+    1.1 the REAL entry used to apply through the instance scale."""
+    pr=[(r*RPOT_GENERATOR_SCALE,h*RPOT_GENERATOR_SCALE) for r,h in SPEC_PROFILES["rpot"]]
+    lathe(g,(0,0,0),(0,0,1),pr,10,["terracotta"]*(len(pr)-1),smooth=True)
 
 # ---------------------------------------------------------------- bread / dairy
 def loaf(g,rng,x,y,r=0.13,h=0.1,z0=0.0):
@@ -309,7 +327,7 @@ reg("pots_green",P_pots([("amphora",-0.18,0,"green",0.8),("urn",0.05,0.0,"green"
 reg("pots_mixed",P_pots([("jug",-0.25,0,"ochre",1.0),("vase",-0.02,0.0,"blue",0.95),("urn",0.22,0.02,"terra",0.75),("bowl",-0.1,-0.2,"green",0.9)]))
 reg("bowls",P_stacks); reg("plates",P_plates)
 reg("bottles_green",P_bottles(["pot_green","leaf_dark","pot_green"])); reg("bottles_amber",P_bottles(["gold","brass","terracotta"])); reg("bottles_blue",P_bottles(["door_blue","sky_blue","teal"]))
-reg("bottles_mixed",P_bottles(["pot_green","gold","door_blue","crimson","cream"])); reg("goblets",P_goblets); reg("ewers",P_ewer)
+reg("bottles_mixed",P_bottles(["pot_green","gold","door_blue","crimson","cream"])); reg("goblets",P_goblets); reg("ewers",P_ewer); reg("r_pot",P_rpot)
 reg("loaves",P_loaves); reg("baguettes",P_baguettes); reg("rollpile",P_rollpile); reg("wedges",P_wedges)
 
 def build(name,seed):
@@ -332,7 +350,7 @@ def make_objects(bpy,pal_mat,coll):
 # real CC0 assets used as goods: key -> (asset dir, source, tri budget, tex px, scale, footprint width m)
 REAL={"r_basket":("g_basket","sketchfab",170,128,0.62,0.34),"r_grainsack":("g_grainsack","sketchfab",220,128,1.0,0.4),
       "r_sack":("g_sack","sketchfab",240,128,0.85,0.45),"r_roll":("g_roll","sketchfab",190,128,1.5,0.14),"r_cheese":("g_cheese","sketchfab",260,128,1.25,0.4),
-      "r_barrel":("g_barrel","sketchfab",220,128,0.6,0.42),"r_pot":("pot","sketchfab",220,128,1.1,0.3),"r_lantern":("lantern","sketchfab",130,128,1.0,0.16),
+      "r_barrel":("g_barrel","sketchfab",220,128,0.6,0.42),"r_lantern":("lantern","sketchfab",130,128,1.0,0.16),
       "r_bucket":("wooden_bucket_01","polyhaven",200,256,0.9,0.38),"r_jug":("metal_jug","polyhaven",200,256,1.5,0.32)}
 W={"spice":1.05,"folded":0.95,"bolts":0.62,"rolls":0.42,"pots":0.62,"bowls":0.5,"plates":0.5,"bottles":0.64,"goblets":0.5,"ewers":0.55,"loaves":0.62,"baguettes":0.66,
-   "rollpile":0.4,"wedges":0.6,"crate":0.62,"pyr":0.66,"mound":0.4}
+   "rollpile":0.4,"wedges":0.6,"crate":0.62,"pyr":0.66,"mound":0.4,"r_pot":0.3}   # r_pot keeps its old REAL footprint width now that it is a built piece
