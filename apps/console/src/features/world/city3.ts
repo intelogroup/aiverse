@@ -47,6 +47,11 @@ export const MAX_LOADED_INTERIORS = 3;
 
 const FRONT: Record<Side, [number, number]> = { S: [0, 1], N: [0, -1], E: [1, 0], W: [-1, 0] };
 
+/** Unit vector pointing OUT of a room's front (street side), XZ. */
+export function frontVector(front: Side): [number, number] {
+  return FRONT[front];
+}
+
 /** Camera preset that looks into the cut-away room from its street side, three-quarter view. */
 export function roomView(room: City3Room): {
   position: [number, number, number];

@@ -11,6 +11,7 @@ import type { AgentFrame } from "./locomotion";
 import { findSpawn, makeWalker, step, type WalkInput } from "./walker";
 import { WalkClipOverride, type WalkFrameInfo } from "./walkOverride";
 import { mergeTouchIntent, type TouchWalkSource } from "./walkTouch";
+import type { WalkSpawnRequest } from "./mobileShell";
 import { PLAYER, type TeaDoorController } from "./teaDoor";
 import type { InteractController } from "./interactables";
 
@@ -51,6 +52,7 @@ export function CityWalker({
   door,
   interact,
   touch,
+  spawnRef,
 }: {
   mode: WalkMode;
   onMode: (m: WalkMode) => void;
@@ -88,6 +90,14 @@ export function CityWalker({
    * Absent on the desktop path — nothing changes there, bit for bit.
    */
   touch?: TouchWalkSource;
+  /**
+   * Mobile Phase 2: a pending "Walk there" spawn request (mobileShell.ts).
+   * Consumed once, at the first spawn: findSpawn probes around the
+   * request's centre instead of the plaza, and the bot spawns facing
+   * the request's face point (a room's door, a figure). Absent or
+   * already consumed, the plaza spawn stands.
+   */
+  spawnRef?: { current: WalkSpawnRequest | null };
 }) {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   const gl = useThree((s) => s.gl);
@@ -242,9 +252,12 @@ export function CityWalker({
     if (!meshes.length || world.kind() === "pending") return; // resident world / collision still loading
     let s = state.current;
     if (!s) {
-      const sp = findSpawn(world);
+      const req = spawnRef?.current ?? null;
+      if (req && spawnRef) spawnRef.current = null;
+      const sp = (req ? findSpawn(world, { cx: req.x, cz: req.z }) : null) ?? findSpawn(world);
       if (!sp) return;
-      s = state.current = makeWalker(sp.x, sp.y, sp.z, 0);
+      const heading = req ? Math.atan2(req.faceX - sp.x, req.faceZ - sp.z) : 0;
+      s = state.current = makeWalker(sp.x, sp.y, sp.z, heading);
     }
     // Mobile Phase 1: touch look deltas join the mouse's accumulators
     // (same signs, same pitch clamp), consumed once per frame.

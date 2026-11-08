@@ -13,6 +13,21 @@ export function ReadKeysModal({ onClose }: { onClose: () => void }) {
   const [creating, setCreating] = useState(false);
   const [revoking, setRevoking] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<{ label: string; key: string } | null>(null);
+  // Copy feedback (OVERHAUL E4): the copy used to land silently — on a
+  // phone there is no clipboard to peek at, so the button itself says
+  // "Copied" for two seconds.
+  const [copied, setCopied] = useState(false);
+
+  function copyRevealed() {
+    if (!revealed) return;
+    navigator.clipboard
+      .writeText(revealed.key)
+      .then(() => {
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => {});
+  }
 
   function load() {
     api
@@ -108,8 +123,8 @@ export function ReadKeysModal({ onClose }: { onClose: () => void }) {
               <code>POST /mcp</code> in your MCP client's configuration.
             </p>
             <code>{revealed.key}</code>
-            <button type="button" onClick={() => navigator.clipboard.writeText(revealed.key).catch(() => {})}>
-              Copy
+            <button type="button" onClick={copyRevealed}>
+              {copied ? "Copied" : "Copy"}
             </button>
           </div>
         )}

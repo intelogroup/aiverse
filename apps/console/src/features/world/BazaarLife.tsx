@@ -1,4 +1,4 @@
-import { useFrame } from "@react-three/fiber";
+import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { Suspense, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { CastFigure } from "./CastFigure";
@@ -44,11 +44,20 @@ import {
 // at the keeper's stall, inside his trigger radius, so the two hold
 // their conversation whether or not anyone is driving the bot.
 
+/** A tapped Bazaar resident (Mobile Phase 2 figure card / fly-to). */
+export interface BazaarFigureTap {
+  id: "keeper" | "patrol";
+  name: string;
+  x: number;
+  z: number;
+}
+
 export function BazaarLife({
   getMeshes,
   walk,
   botPosRef,
   keeperVoiceRef,
+  onFigure,
 }: {
   /** Visual/camera meshes: the raycast fallback world if the collision GLB failed to load. */
   getMeshes: () => THREE.Mesh[];
@@ -58,6 +67,13 @@ export function BazaarLife({
   botPosRef: { current: { x: number; z: number } | null };
   /** True while the Mage's voice line is playing (plazaTts): his Talking clip follows it, so he never talks in silence. */
   keeperVoiceRef?: { current: boolean };
+  /**
+   * Mobile Phase 2: tap / double-tap on a resident (touch spectator).
+   * Handlers attach only when provided, so the desktop path gains no
+   * raycast targets. Clicks carry R3F's delta (pointer travel in px);
+   * the tap rule (<10 px, plan §1) is applied here.
+   */
+  onFigure?: (fig: BazaarFigureTap, dbl: boolean) => void;
 }) {
   // Same world stack as CityWalker: capsule shapecast over the collision
   // GLBs, raycast over the visual meshes only if collision failed.
@@ -130,9 +146,24 @@ export function BazaarLife({
     kf.heading = ks.heading;
   });
 
+  const figureHandlers = (fig: () => BazaarFigureTap) =>
+    onFigure
+      ? {
+          onClick: (e: ThreeEvent<MouseEvent>) => {
+            if (e.delta > 10) return; // a drag, not a tap (plan §1)
+            e.stopPropagation();
+            onFigure(fig(), false);
+          },
+          onDoubleClick: (e: ThreeEvent<MouseEvent>) => {
+            e.stopPropagation();
+            onFigure(fig(), true);
+          },
+        }
+      : {};
+
   return (
     <>
-      <group ref={keeperGroup}>
+      <group ref={keeperGroup} {...figureHandlers(() => ({ id: "keeper", name: "The Keeper", x: KEEPER_POS[0], z: KEEPER_POS[1] }))}>
         <Suspense fallback={null}>
           <CastFigure
             framesRef={keeperFrames}
@@ -144,7 +175,13 @@ export function BazaarLife({
           />
         </Suspense>
       </group>
-      <group ref={patrolGroup}>
+      <group
+        ref={patrolGroup}
+        {...figureHandlers(() => {
+          const p = patrolFrames.current[0]?.position ?? [PATROL_STOPS[0].pos[0], PATROL_STOPS[0].pos[1]];
+          return { id: "patrol", name: "Remy", x: p[0], z: p[1] };
+        })}
+      >
         <Suspense fallback={null}>
           <CastFigure
             framesRef={patrolFrames}
