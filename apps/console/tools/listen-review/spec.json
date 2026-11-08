@@ -1,0 +1,495 @@
+{
+ "about": "Listen-review scorecard for the AIVerse sound stack. Ranges are practice windows measured on the shipped stack (PR #36 proofs, PR #35 proof) and the soundLogic constants they came from \u2014 not aspirations. See README.md.",
+ "checks": [
+  {
+   "fix": "If post-gesture state is not 'running', the arm-on-gesture wiring in GlbWorld (pointerdown/keydown -> director.arm()) is broken or the context creation moved out of the gesture handler.",
+   "id": "permission-gate",
+   "label": "No audio reaches the device before a user gesture; it does after",
+   "measures": [
+    {
+     "agg": "in",
+     "bucket": "pre",
+     "field": "ctxState",
+     "in": [
+      "none",
+      "suspended"
+     ],
+     "name": "ctx-before"
+    },
+    {
+     "agg": "peak",
+     "bucket": "pre",
+     "field": "masterLevel",
+     "max": 0.001,
+     "name": "master-before"
+    },
+    {
+     "agg": "peak",
+     "bucket": "pre",
+     "field": "paLevel",
+     "max": 0.001,
+     "name": "pa-before"
+    },
+    {
+     "agg": "delta",
+     "bucket": "pre",
+     "field": "announcements",
+     "min": 1,
+     "name": "registered-before"
+    },
+    {
+     "agg": "equals",
+     "bucket": "post",
+     "equals": "running",
+     "field": "ctxState",
+     "name": "ctx-after"
+    },
+    {
+     "agg": "peak",
+     "bucket": "post",
+     "field": "paLevel",
+     "min": 0.05,
+     "name": "pa-after"
+    },
+    {
+     "agg": "peak",
+     "bucket": "post",
+     "field": "masterLevel",
+     "min": 0.002,
+     "name": "master-after"
+    }
+   ],
+   "profile": "no-autoplay",
+   "steps": [
+    {
+     "bucket": "pre",
+     "clip": "pa-dusk",
+     "op": "announce",
+     "sampleS": 5,
+     "scope": "bazaar",
+     "text": "Dusk falls on the Sunstone Bazaar. The lamps are lit."
+    },
+    {
+     "bucket": "pre",
+     "op": "sample",
+     "seconds": 3
+    },
+    {
+     "bucket": "post",
+     "op": "consent"
+    },
+    {
+     "bucket": "post",
+     "op": "poll",
+     "timeoutS": 30,
+     "until": {
+      "equals": "running",
+      "field": "ctxState"
+     }
+    },
+    {
+     "op": "poll",
+     "bucket": "post",
+     "until": {
+      "field": "district",
+      "equals": "bazaar"
+     },
+     "timeoutS": 120
+    },
+    {
+     "bucket": "post",
+     "clip": "pa-dusk",
+     "op": "announce",
+     "sampleS": 7,
+     "scope": "bazaar",
+     "text": "Dusk falls on the Sunstone Bazaar. The lamps are lit."
+    }
+   ],
+   "weight": "critical",
+   "why": "Jim's rule (2026-11-07): audio reaches the user's device only with permission asking, and verification must cover the post-consent chain (context running after the gesture, signal at the destination), not just in-graph levels. The scene performs NO gesture while an announcement registers, proves the destination stayed silent, then gives consent the way the tree under test asks for it: the labelled Enable sound control on consent-gated trees (PR #37+), a raw walk-mode gesture on older gesture-arming trees (the fallback is logged)."
+  },
+  {
+   "fix": "Check the wind target/fade in soundDirector.tick (district read, stepFade 1.5s) and that the listener feed reaches the director.",
+   "id": "wind-bazaar",
+   "label": "Bazaar wind bed at its nominal gain",
+   "measures": [
+    {
+     "agg": "peak",
+     "field": "gains.wind",
+     "max": 0.06,
+     "min": 0.05,
+     "name": "wind"
+    }
+   ],
+   "steps": [
+    {
+     "op": "sample",
+     "seconds": 12
+    }
+   ],
+   "weight": "major",
+   "why": "The wind is the always-on layer; WIND_GAIN (soundLogic) is 0.055 and PR #36 measured exactly that in the Bazaar. Peak aggregation makes the reading immune to PA ducking dips."
+  },
+  {
+   "fix": "Check paAudible scope logic, the PA bus analyser path, and that the clip buffer finished loading before the announce.",
+   "id": "pa-in-district",
+   "label": "PA announcement heard inside its district",
+   "measures": [
+    {
+     "agg": "peak",
+     "field": "paLevel",
+     "max": 0.16,
+     "min": 0.1,
+     "name": "pa-peak"
+    },
+    {
+     "agg": "present",
+     "field": "banner",
+     "name": "banner"
+    },
+    {
+     "agg": "present",
+     "field": "paPlaying",
+     "name": "playing"
+    }
+   ],
+   "steps": [
+    {
+     "attempts": 3,
+     "clip": "pa-dusk",
+     "op": "announce",
+     "sampleS": 7,
+     "scope": "bazaar",
+     "text": "Dusk falls on the Sunstone Bazaar. The lamps are lit.",
+     "untilAbove": 0.005,
+     "untilField": "paLevel"
+    }
+   ],
+   "weight": "critical",
+   "why": "The central PA is the verse's voice to everyone in scope: banner + playing clip + analyser energy. PR #36 measured paLevel peaks 0.125 / 0.129 on two runs."
+  },
+  {
+   "fix": "Check districtAt() against districts.json and the wind target when district != bazaar.",
+   "id": "wind-outside-bazaar",
+   "label": "Wind is Bazaar-scoped: silent in the Glass Quarter",
+   "measures": [
+    {
+     "agg": "peak",
+     "field": "gains.wind",
+     "max": 0.004,
+     "name": "wind"
+    }
+   ],
+   "steps": [
+    {
+     "heading": 0,
+     "op": "put",
+     "x": 0,
+     "y": 0.2,
+     "z": -400
+    },
+    {
+     "op": "poll",
+     "timeoutS": 120,
+     "until": {
+      "equals": "glassq",
+      "field": "district"
+     }
+    },
+    {
+     "op": "poll",
+     "timeoutS": 90,
+     "until": {
+      "field": "gains.wind",
+      "lte": 0.004
+     }
+    },
+    {
+     "op": "sample",
+     "seconds": 5
+    }
+   ],
+   "weight": "major",
+   "why": "District scope is the sound layer's basic geography. PR #36 measured wind 0 in the Glass Quarter."
+  },
+  {
+   "fix": "Check paAudible() and bannerVisible() scope matching; a leak here means every district hears every announcement.",
+   "id": "pa-out-of-district",
+   "label": "PA announcement scoped elsewhere is registered but unheard",
+   "measures": [
+    {
+     "agg": "peak",
+     "field": "paLevel",
+     "max": 0.005,
+     "name": "pa-peak"
+    },
+    {
+     "agg": "absent",
+     "field": "banner",
+     "name": "banner"
+    },
+    {
+     "agg": "absent",
+     "field": "paPlaying",
+     "name": "playing"
+    },
+    {
+     "agg": "delta",
+     "field": "announcements",
+     "min": 1,
+     "name": "registered"
+    }
+   ],
+   "steps": [
+    {
+     "clip": "pa-dusk",
+     "op": "announce",
+     "sampleS": 5,
+     "scope": "bazaar",
+     "text": "Dusk falls on the Sunstone Bazaar. The lamps are lit."
+    }
+   ],
+   "weight": "major",
+   "why": "Scope must cut both ways: a Bazaar announcement from the Glass Quarter registers in the director (announcements +1) but produces no banner, no playback, no analyser energy (PR #36, check a2)."
+  },
+  {
+   "fix": "Check the teaRect wiring in GlbWorld's sound driver and the music stepFade (1.0s) toward MUSIC_GAIN / 0.",
+   "id": "tea-house-music",
+   "label": "Tea House zone music: full inside the room, zero outside",
+   "measures": [
+    {
+     "agg": "peak",
+     "bucket": "in",
+     "field": "gains.music",
+     "max": 0.19,
+     "min": 0.15,
+     "name": "music-in"
+    },
+    {
+     "agg": "peak",
+     "bucket": "out",
+     "field": "gains.music",
+     "max": 0.01,
+     "name": "music-out"
+    }
+   ],
+   "steps": [
+    {
+     "bucket": "in",
+     "heading": 0,
+     "op": "put",
+     "x": -25,
+     "y": 0.48,
+     "z": -78.5
+    },
+    {
+     "bucket": "in",
+     "op": "poll",
+     "timeoutS": 120,
+     "until": {
+      "equals": true,
+      "field": "insideTea"
+     }
+    },
+    {
+     "bucket": "in",
+     "op": "sample",
+     "seconds": 8
+    },
+    {
+     "bucket": "out",
+     "heading": 3.14159,
+     "op": "put",
+     "x": -22.92,
+     "y": 0.2,
+     "z": -69.8
+    },
+    {
+     "bucket": "out",
+     "op": "poll",
+     "timeoutS": 120,
+     "until": {
+      "equals": false,
+      "field": "insideTea"
+     }
+    },
+    {
+     "bucket": "out",
+     "op": "poll",
+     "timeoutS": 90,
+     "until": {
+      "field": "gains.music",
+      "lte": 0.01
+     }
+    },
+    {
+     "bucket": "out",
+     "op": "sample",
+     "seconds": 4
+    }
+   ],
+   "weight": "major",
+   "why": "Zone music is keyed to the room rect fact (tea rect [-37.5,-84.5,-12.5,-72.5]); MUSIC_GAIN is 0.17 and PR #36 measured exactly 0.17 inside -> 0 outside. The listener is teleported to the room centre (-25, -78.5); zone membership is a position fact, so no door traversal is needed for this check."
+  },
+  {
+   "fix": "Check emitterGain() against EMITTER_FULL_M / EMITTER_AUDIBLE_M and the stall voice's wiring into the music layer in soundDirector.",
+   "id": "mage-stall-emitter",
+   "label": "Mage's stall music swells on approach (positional emitter)",
+   "measures": [
+    {
+     "agg": "mean",
+     "bucket": "far",
+     "field": "gains.stall",
+     "max": 0.001,
+     "name": "gain-16m"
+    },
+    {
+     "agg": "peak",
+     "bucket": "far",
+     "field": "stallLevel",
+     "max": 0.005,
+     "name": "level-16m"
+    },
+    {
+     "agg": "mean",
+     "bucket": "mid",
+     "field": "gains.stall",
+     "max": 0.0697,
+     "min": 0.0497,
+     "name": "gain-8m"
+    },
+    {
+     "agg": "mean",
+     "bucket": "near",
+     "field": "gains.stall",
+     "max": 0.18,
+     "min": 0.15,
+     "name": "gain-2m"
+    },
+    {
+     "agg": "peak",
+     "bucket": "near",
+     "field": "stallLevel",
+     "min": 0.02,
+     "name": "level-2m"
+    }
+   ],
+   "skipIf": {
+    "absentField": "gains.stall",
+    "reason": "stall emitter voice absent from this tree (PR #35 not in the stack under test)"
+   },
+   "steps": [
+    {
+     "bucket": "far",
+     "heading": 1.5708,
+     "op": "put",
+     "x": -33,
+     "y": 0.2,
+     "z": 15.4
+    },
+    {
+     "bucket": "far",
+     "op": "poll",
+     "timeoutS": 180,
+     "until": {
+      "field": "gains.stall",
+      "lte": 0.001
+     }
+    },
+    {
+     "bucket": "far",
+     "op": "sample",
+     "seconds": 3
+    },
+    {
+     "bucket": "mid",
+     "heading": 1.5708,
+     "op": "put",
+     "x": -25,
+     "y": 0.2,
+     "z": 15.4
+    },
+    {
+     "bucket": "mid",
+     "op": "poll",
+     "timeoutS": 180,
+     "until": {
+      "absDiffTo": 0.0597,
+      "field": "gains.stall",
+      "tol": 0.01
+     }
+    },
+    {
+     "bucket": "mid",
+     "op": "sample",
+     "seconds": 3
+    },
+    {
+     "bucket": "near",
+     "heading": 1.5708,
+     "op": "put",
+     "x": -19,
+     "y": 0.2,
+     "z": 15.4
+    },
+    {
+     "bucket": "near",
+     "op": "poll",
+     "timeoutS": 180,
+     "until": {
+      "field": "gains.stall",
+      "gte": 0.15
+     }
+    },
+    {
+     "bucket": "near",
+     "op": "sample",
+     "seconds": 3
+    }
+   ],
+   "weight": "major",
+   "why": "Jim's positional emitter (PR #35): emitterGain is full (x MUSIC_GAIN 0.17) inside 2.5 m of (-17, 15.4), squared falloff to silence at 16 m \u2014 the pure function gives 0.0597 at 8 m. PR #35's proof measured gain 0.0000 / 0.0597 / 0.1700 at 16 / 8 / 2 m. Each stop polls until the gain converges (the headless frame feed lags teleports by seconds), then samples."
+  }
+ ],
+ "profiles": {
+  "autoplay": {
+   "sessionSteps": [
+    {
+     "op": "consent"
+    },
+    {
+     "op": "poll",
+     "until": {
+      "field": "ctxState",
+      "equals": "running"
+     },
+     "timeoutS": 60
+    },
+    {
+     "op": "poll",
+     "until": {
+      "field": "district",
+      "equals": "bazaar"
+     },
+     "timeoutS": 480
+    },
+    {
+     "op": "sleep",
+     "seconds": 4
+    }
+   ]
+  },
+  "no-autoplay": {
+   "sessionSteps": [
+    {
+     "op": "waitWalk",
+     "timeoutS": 480
+    }
+   ]
+  }
+ },
+ "target": {
+  "query": "world=city3&walk=1&walkDebug=1&soundDebug=1&footlock=0"
+ },
+ "version": 1
+}
