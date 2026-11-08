@@ -4,6 +4,8 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, useGLTF, useProgress } from "@react-three/drei";
 import * as THREE from "three";
 import { DistrictWorld } from "./DistrictWorld";
+import { buildColliders } from "./CameraCollider";
+import { registerCameraObstacle } from "./cameraClearance";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { BazaarLife, type BazaarFigureTap } from "./BazaarLife";
 import {
@@ -412,8 +414,11 @@ function InteriorRoom({
       const unsub = interact?.subscribe((pid, on) => { if (pid === def.id) v.setOn(on); });
       visuals.push({ stop: () => unsub?.(), dispose: v.dispose });
     }
+    buildColliders(h.group);
+    const unregisterCamera = registerCameraObstacle(h.group);
     setHandle(h);
     return () => {
+      unregisterCamera();
       for (const v of visuals) { v.stop(); v.dispose(); }
       handles.delete(id);
       h.dispose();

@@ -1,6 +1,6 @@
 /**
- * Orbit-camera collision (City 3), pure math. The CameraCollider casts one ray from the orbit target towards the
- * camera; these helpers turn the first hit into the distance/position the camera may actually sit at.
+ * Camera collision (City 3), pure math. Clearance probes supply the closest obstacle;
+ * these helpers turn that hit into the distance/position the camera may actually sit at.
  */
 
 export type Vec3 = readonly [number, number, number];
@@ -12,14 +12,21 @@ export const COLLIDE_FLOOR = 0.6;
 /** Exponential rate the camera eases back out once the obstruction clears (1/s). Inwards is a snap. */
 export const COLLIDE_OUT_RATE = 6;
 
+/** Hide only the local follow avatar when the camera enters its body space.
+ * Separate hide/show distances avoid flicker while sliding past an obstacle. */
+export function followAvatarVisible(wasVisible: boolean, cameraDistance: number): boolean {
+  return cameraDistance >= (wasVisible ? 0.8 : 1.05);
+}
+
 /**
  * Allowed target->camera distance for a desired distance `len` and the first hit along that ray (`hitDist`, null or
- * non-finite = no hit): `max(min(hitDist - pad, len), floor)`, never more than `len`.
+ * non-finite = no hit). An obstacle inside the preferred floor still wins: the floor must never push us through it.
  */
-export function resolveDistance(len: number, hitDist: number | null, pad = COLLIDE_PAD, floor = COLLIDE_FLOOR): number {
+export function resolveDistance(len: number, hitDist: number | null, pad = COLLIDE_PAD, _floor = COLLIDE_FLOOR): number {
   if (!(len > 0)) return 0;
   if (hitDist === null || !Number.isFinite(hitDist)) return len;
-  return Math.min(len, Math.max(Math.min(hitDist - pad, len), floor));
+  const safe = Math.max(0, hitDist - pad);
+  return Math.min(len, safe);
 }
 
 /** The clamped camera position along target->desired (see resolveDistance). Zero-length input returns `desired`. */

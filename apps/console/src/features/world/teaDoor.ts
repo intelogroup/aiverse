@@ -17,7 +17,7 @@
  *  1. BOTH leaves swing. One open leaf leaves a 0.62-0.72 m slot; the
  *     walk capsule is 0.8 m wide — a one-leaf opening cannot pass the
  *     bot. The active (left, knob-carrying) leaf leads on the clip
- *     clock; the passive leaf follows with a small lag.
+ *     clock; the passive leaf mirrors the active angle exactly.
  *  2. The interior stand pose is derived from the ONE physical knob.
  *     The study's Outwards lateral (-0.33 own-frame) presupposes a
  *     mirrored knob — a knob on the character's left from both sides.
@@ -121,7 +121,7 @@ export const TEA_CLEAR_ANGLE = 80;
 /** Passive leaf follow rate (deg/s) — lags the active leaf slightly
  * (fast enough to stay out of the step-through path; the FK clearance
  * proof models it as a ~0.06 s delay). */
-const PASSIVE_FOLLOW_RATE = 300;
+
 /** Closing speed (deg/s) once the doorway is unoccupied. */
 const CLOSE_RATE = 55;
 /** HUD request range: the bot must be within this of its stand pose. */
@@ -394,7 +394,7 @@ export class TeaDoorController {
   /** Active leaf angle, degrees, 0..95. */
   angle = 0;
   /** Passive leaf angle, degrees (follows the active leaf). */
-  passiveAngle = 0;
+  get passiveAngle(): number { return this.angle; }
   /** Last request rejection, for the HUD status line. */
   lastRefusal: { clip: WalkDoorClip; reason: string; at: number } | null = null;
 
@@ -565,7 +565,7 @@ export class TeaDoorController {
       // The one-shot runs on the figure's own frame clock; if it has already ended (slow frames), do not lag behind it.
       if (!this.ownerChannel.doorPlaying && this.clipT > 0.25) this.clipT = Math.max(this.clipT, g.travelAt);
       this.angle = teaLeafAngleAt(this.clip, this.clipT);
-      if (this.clipT >= g.travelAt || this.clipT >= g.duration) {
+      if ((this.clipT >= g.travelAt || this.clipT >= g.duration) && this.angle >= TEA_CLEAR_ANGLE) {
         this.phase = "travel";
         input = moveToIntent(s, teaExitArray(this.clip), 0.1).input;
       } else {
@@ -599,11 +599,6 @@ export class TeaDoorController {
   /** The door machine, once per frame: passive leaf, auto-close (waits for EVERY live actor), blocker. */
   tick(dt: number): void {
     this.now += dt;
-    // Passive leaf follows the active one with a lag.
-    const diff = this.angle - this.passiveAngle;
-    const stepMax = PASSIVE_FOLLOW_RATE * dt;
-    this.passiveAngle += Math.max(-stepMax, Math.min(stepMax, diff));
-
     // Auto-close: only from a settled open state, doorway unoccupied
     // and the bot clear of the door plane.
     if (this.phase === "idle" && this.state === "open") {
@@ -622,10 +617,8 @@ export class TeaDoorController {
     }
     if (this.state === "closing") {
       this.angle = Math.max(0, this.angle - CLOSE_RATE * dt);
-      this.passiveAngle = Math.max(0, this.passiveAngle - CLOSE_RATE * dt);
       if (this.angle <= 0) {
         this.angle = 0;
-        this.passiveAngle = 0;
         this.state = "closed";
         this.freeTimer = 0;
       }
