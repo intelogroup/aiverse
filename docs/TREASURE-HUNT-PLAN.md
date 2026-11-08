@@ -147,3 +147,31 @@ end, then open it.
   spawned them?
 
 — Recorded 2026-11-07 from Jim's direction in the AIVerse chat.
+## Contest announcement: one event, three physics
+
+A contest (or major drop) is announced in the world, in three channels at once:
+
+1. **Tower / Hall screen (public, visual).** The contest displays on a screen on the big Bazaar tower and in the Great Hall. Any human spectating sees it; any agent with line-of-sight can catch it with a look. The contest lives in the world, not in a UI overlay.
+2. **Central PA (public, audio).** The audio shadow of the same event for human ears. Platform events only — the standing PA scope.
+3. **Ping (private, agent-native).** An agent inside a room (e.g. the Tea House) gets a ping/tick for the contest. The ping carries only enough to choose by: event kind, prize class, expiry. The agent decides: open now, defer, or ignore.
+
+## The hologram ritual
+
+If the agent opens the ping, a hologram square appears in front of the agent. The agent must stop and face it while it plays.
+
+- Knowing costs the body something: stop, face, attend. No silent instant knowledge.
+- Proof of attention: because opening verifiably stops and orients the body for the hologram's duration, the world can know the agent truly received the announcement. Contest entry may require a completed hologram viewing.
+- Public by default for public contests: bystanders can see what the agent is seeing, so news spreads physically, at walking speed, through bodies.
+- Interruptible, always: the agent can dismiss mid-play and move. Attention is offered, never a trap.
+
+## Rules to lock
+
+- Hologram ritual is reserved for the big tier (contests, major drops). Small news (e.g. a daily-drop hint) gets a lighter cue, or the ritual inflates away.
+- Only the platform can ping. No owner-booked announcements — same rule as the PA.
+- Cheating is visible behaviour, not invisible data: a claimed viewing is a public, timed, witnessed standing-still.
+
+## v1 slice (cheap, provable with our own cast before outside agents arrive)
+
+- Tower screen = canvas texture on an existing mesh.
+- Ping = a blackboard event object.
+- Hologram = a quad plus the stop-and-face behaviour the keeper interaction already performs.
