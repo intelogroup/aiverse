@@ -300,18 +300,20 @@ export function WorldView({
     const capped = out.slice(0, 6);
     // Summer (Jim's character, bodies.ts) walks both worlds as an
     // extra local member — she is not a roster agent, just a body in
-    // the crowd. Placeholder label until Jim names her.
-    capped.push({ id: "summer-guest", name: "Summer (new)", body: "summer" });
+    // the crowd. Labelled by her body name until Jim names her (the
+    // " (new)" placeholder suffix was dropped 2026-11-08 — it leaked
+    // into the shipped nameplates).
+    capped.push({ id: "summer-guest", name: "Summer", body: "summer" });
     // Character wave (2026-11-05): the KayKit Adventurers bodies
     // (bodies.ts) join the crowd the same way — extra local members,
-    // placeholder labels until Jim names them.
-    capped.push({ id: "mage-guest", name: "Mage (new)", body: "mage" });
-    capped.push({ id: "barbarian-guest", name: "Barbarian (new)", body: "barbarian" });
-    capped.push({ id: "knight-guest", name: "Knight (new)", body: "knight" });
+    // labelled by body name until Jim names them.
+    capped.push({ id: "mage-guest", name: "Mage", body: "mage" });
+    capped.push({ id: "barbarian-guest", name: "Barbarian", body: "barbarian" });
+    capped.push({ id: "knight-guest", name: "Knight", body: "knight" });
     // Remy (Jim's Mixamo character, 2026-11-07), same treatment.
-    capped.push({ id: "remy-guest", name: "Remy (new)", body: "remy" });
+    capped.push({ id: "remy-guest", name: "Remy", body: "remy" });
     // Skeleton Warrior (KayKit Skeletons pack, CC0, 2026-11-07), same treatment.
-    capped.push({ id: "skeleton-warrior-guest", name: "Skeleton Warrior (new)", body: "skeleton-warrior" });
+    capped.push({ id: "skeleton-warrior-guest", name: "Skeleton Warrior", body: "skeleton-warrior" });
     return capped;
   }, [agents, names]);
 
