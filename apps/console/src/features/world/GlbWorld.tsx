@@ -19,6 +19,14 @@ import { BazaarLife } from "./BazaarLife";
 import { TeaBartender } from "./TeaBartender";
 import { BARTENDER_LINES } from "./bartender";
 import { CityWalker } from "./CityWalker";
+import { TouchWalkSource } from "./walkTouch";
+import {
+  InteractHighlight,
+  TouchTapPicker,
+  TouchWalkLayer,
+  useTouchUi,
+  type TapPicker,
+} from "./TouchWalkLayer";
 import { ScoutAgent } from "./ScoutAgent";
 import { BODY_CAST, BODY_SUMMER, bodyForMember, cruiseCapForBody, excludeBody } from "./bodies";
 import { CLIP_CATALOG, ClipTestState } from "./clips";
@@ -1628,6 +1636,15 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   const walkOverrideRef = useRef<WalkClipOverride | null>(null);
   if (walkOverrideRef.current === null) walkOverrideRef.current = new WalkClipOverride();
   const walkFrameRef = useRef<WalkFrameInfo | null>(null);
+  // Mobile Phase 1 (touch walk MVP): the touch intent source the DOM
+  // layer writes and CityWalker merges, the tap raycast picker the
+  // in-Canvas TouchTapPicker fills, and the touch-UI detection. On a
+  // desktop viewport none of this renders or merges — the walk HUD
+  // and keyboard path are exactly as before.
+  const touchSourceRef = useRef<TouchWalkSource | null>(null);
+  if (touchSourceRef.current === null) touchSourceRef.current = new TouchWalkSource();
+  const tapPickRef = useRef<TapPicker | null>(null);
+  const touchUi = useTouchUi();
   const overridesRef = useRef(new Map<number, FigureOverride>());
   // Latest crowd frames, shared between CrowdCast (writer), the camera
   // rig and CastFigure (readers), and the panel's "Own Amara" harness.
@@ -1917,10 +1934,11 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
     : [CITY3_CENTER[0], 8, CITY3_CENTER[1]];
 
   return (
-    <div className="w-glb-root">
+    <div className={touchUi ? "w-glb-root w-touch-root" : "w-glb-root"}>
       <Canvas
         key={`${place}:${loadNonce}`}
         camera={camera}
+        dpr={touchUi ? [1, 2] : undefined}
         frameloop={agentOn ? "demand" : "always"}
         shadows={agentOn ? false : "soft"}
         gl={{ antialias: true, preserveDrawingBuffer: embodyOn }}
@@ -1934,7 +1952,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
         <KeyLight place={place} lightRef={keyLightRef} />
         <ShadowTagger />
         {embodyOn && agora ? <FpsTracker meterRef={fpsMeterRef} /> : null}
-        {agora ? (
+        {agora && !touchUi ? (
           <EffectComposer>
             <Bloom
               mipmapBlur
@@ -1976,7 +1994,14 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
               frameRef={walkFrameRef}
               door={teaDoorRef.current}
               interact={interactRef.current}
+              touch={touchUi ? touchSourceRef.current : undefined}
             />
+          ) : null}
+          {walking && !agentOn && touchUi ? (
+            <>
+              <InteractHighlight interact={interactRef.current ?? undefined} frameRef={walkFrameRef} />
+              <TouchTapPicker pickRef={tapPickRef} />
+            </>
           ) : null}
           {agentOn ? (
             <ScoutAgent getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} door={teaDoorRef.current} positionRef={scoutPosRef} interact={interactRef.current} />
@@ -2048,7 +2073,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           City 3
         </button>
       </div>
-      {place === "city3" ? (
+      {place === "city3" && !(walking && touchUi) ? (
         <div className="w-glb-toggle w-glb-walk" role="group" aria-label="Walk City 3">
           {walking ? (
             <>
@@ -2061,13 +2086,27 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           )}
         </div>
       ) : null}
-      {walking ? (
+      {walking && !touchUi ? (
         <div className="w-walk-hint" aria-hidden="true">
           click to look · W A S D move · Shift run · V camera · Esc leave
         </div>
       ) : null}
-      {walking ? (
+      {walking && !touchUi ? (
         <WalkHudPanel override={walkOverrideRef.current} frameRef={walkFrameRef} door={teaDoorRef.current} interact={interactRef.current} sound={soundRef.current} />
+      ) : null}
+      {walking && touchUi ? (
+        <TouchWalkLayer
+          source={touchSourceRef.current}
+          frameRef={walkFrameRef}
+          interact={interactRef.current ?? undefined}
+          door={teaDoorRef.current ?? undefined}
+          sound={soundRef.current ?? undefined}
+          channel={walkOverrideRef.current}
+          mode={camMode === "follow" ? "follow" : "ride"}
+          onMode={setCamMode}
+          onExit={() => setCamMode("wide")}
+          tapPickRef={tapPickRef}
+        />
       ) : null}
       {place === "city3" && !walking ? (
         <div className="w-glb-toggle w-glb-poi" role="group" aria-label="Places in City 3">
