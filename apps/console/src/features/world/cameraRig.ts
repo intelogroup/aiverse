@@ -17,6 +17,7 @@
 // heading follows the locomotion convention (atan2(vx, vz); facing
 // vector = (sin h, cos h)).
 
+import { SCALE_SUMMER } from "./bodies";
 import { angleDelta, type FigureOverride } from "./embody";
 import type { AgentFrame } from "./locomotion";
 
@@ -25,15 +26,20 @@ export type Vec3 = [number, number, number];
 
 export const FOV_WIDE = 45;
 export const FOV_RIDE = 90;
-/** Eye height above the feet for a standing bot (bot is 1.25 m tall). */
-export const HEAD_HEIGHT = 1.15;
+/**
+ * The rig was tuned for the 1.25 m bot; since the cast is shown at realistic heights (bodies.ts) every body-relative length
+ * below is scaled by the walk bot's (Summer's) display scale, so the framing stays exactly as tuned.
+ */
+const RIG_SCALE = SCALE_SUMMER;
+/** Eye height above the feet for a standing bot (1.15 m on the 1.25 m bot). */
+export const HEAD_HEIGHT = 1.15 * RIG_SCALE;
 /** Eye height above the seat surface for a seated bot. */
-export const SEAT_HEAD_HEIGHT = 1.0;
+export const SEAT_HEAD_HEIGHT = 1.0 * RIG_SCALE;
 /** Follow camera: metres behind the bot, metres above its feet. */
-export const FOLLOW_BACK = 3.2;
-export const FOLLOW_UP = 1.9;
+export const FOLLOW_BACK = 3.2 * RIG_SCALE;
+export const FOLLOW_UP = 1.9 * RIG_SCALE;
 /** Follow camera aims at the bot's chest, not its feet. */
-export const FOLLOW_LOOK_UP = 0.9;
+export const FOLLOW_LOOK_UP = 0.9 * RIG_SCALE;
 /** How far ahead the ride camera gazes (level, along the heading). */
 export const RIDE_LOOK_AHEAD = 4;
 /**
@@ -44,7 +50,7 @@ export const RIDE_LOOK_AHEAD = 4;
  * ride mode (CastFigure `hidden`); the offset alone clears the shell
  * even mid-crossfade.
  */
-export const EYE_FORWARD = 0.22;
+export const EYE_FORWARD = 0.22 * RIG_SCALE;
 
 /** Smoothing rates (1/s) for the exponential dampers in the rig. */
 export const DAMP_POS_RIDE = 12;

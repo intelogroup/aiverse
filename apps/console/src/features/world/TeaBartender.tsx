@@ -114,11 +114,11 @@ export function TeaBartender({
 
   return (
     <>
-      {/* the duckboard (see bartender.ts): plain wood, hidden from the room by the counter */}
-      <mesh position={[BARTENDER_POS[0], BARTENDER_FLOOR_Y + BARTENDER_PLATFORM_H / 2, BARTENDER_POS[1]]} receiveShadow>
+      {/* a duckboard only where a bar needs one (bartender.ts): plain wood, hidden from the room by the counter */}
+      {BARTENDER_PLATFORM_H > 0 ? <mesh position={[BARTENDER_POS[0], BARTENDER_FLOOR_Y + BARTENDER_PLATFORM_H / 2, BARTENDER_POS[1]]} receiveShadow>
         <boxGeometry args={[BARTENDER_PLATFORM_HALF[0] * 2, BARTENDER_PLATFORM_H, BARTENDER_PLATFORM_HALF[1] * 2]} />
         <meshStandardMaterial color="#5a3d26" roughness={0.85} />
-      </mesh>
+      </mesh> : null}
       <group position={[0, BARTENDER_FLOOR_Y + BARTENDER_PLATFORM_H, 0]}>
       <Suspense fallback={null}>
         <CastFigure

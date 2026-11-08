@@ -97,7 +97,9 @@ export interface WalkConfig {
 
 export const WALK_CONFIG: WalkConfig = {
   walkSpeed: 1.3,
-  runSpeed: 2.7,
+  // 3.6 since the cast was shown at realistic heights (bodies.ts): a 1.68 m Summer's natural Run is 3.8 m/s, and 2.7 sat
+  // mid-blend (half walk, half run). 3.6 is a realistic adult run and plays her Run at 0.95x.
+  runSpeed: 3.6,
   accel: 14,
   turnRate: 2.2,
   radius: 0.4,

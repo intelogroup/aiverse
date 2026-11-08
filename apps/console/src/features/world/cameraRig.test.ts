@@ -2,6 +2,7 @@
 // Pure math only — same header discipline as the sibling suites.
 
 import { describe, expect, it } from "vitest";
+import { SCALE_SUMMER } from "./bodies";
 import {
   EYE_FORWARD,
   FOLLOW_BACK,
@@ -12,6 +13,10 @@ import {
   rideTarget,
   rideTargetFromHead,
   botView,
+  HEAD_HEIGHT,
+  SEAT_HEAD_HEIGHT,
+  FOLLOW_UP,
+  FOLLOW_LOOK_UP,
 } from "./cameraRig";
 import type { FigureOverride } from "./embody";
 import type { AgentFrame } from "./locomotion";
@@ -78,7 +83,7 @@ describe("rideTarget", () => {
     const v = botView(frame([1, 2], Math.PI / 2), null, 0.84)!; // facing +X
     const { cam, look } = rideTarget(v, v.heading);
     expect(cam[0]).toBeCloseTo(1 + EYE_FORWARD); // pushed out of the head shell
-    expect(cam[1]).toBeCloseTo(0.84 + 1.15);
+    expect(cam[1]).toBeCloseTo(0.84 + HEAD_HEIGHT);
     expect(cam[2]).toBeCloseTo(2);
     expect(look[0]).toBeCloseTo(cam[0] + 4);
     expect(look[1]).toBeCloseTo(cam[1]); // level gaze, no pitch
@@ -89,7 +94,7 @@ describe("rideTarget", () => {
     const ov: FigureOverride = { position: [0, 5.2], y: 0.45, heading: Math.PI, phase: "seated" };
     const v = botView(null, ov, 0.84)!;
     const { cam, look } = rideTarget(v, v.heading);
-    expect(cam[1]).toBeCloseTo(0.84 + 0.45 + 1.0);
+    expect(cam[1]).toBeCloseTo(0.84 + 0.45 + SEAT_HEAD_HEIGHT);
     // Facing PI looks toward -Z from the seat.
     expect(look[2]).toBeLessThan(cam[2]);
   });
@@ -118,8 +123,22 @@ describe("followTarget", () => {
     const v = botView(frame([0, 0], 0), null, 0.84)!; // facing +Z
     const { cam, look } = followTarget(v);
     expect(cam[0]).toBeCloseTo(0);
-    expect(cam[1]).toBeCloseTo(0.84 + 1.9);
+    expect(cam[1]).toBeCloseTo(0.84 + FOLLOW_UP);
     expect(cam[2]).toBeCloseTo(-FOLLOW_BACK);
-    expect(look).toEqual([0, 0.84 + 0.9, 0]);
+    expect(look[0]).toBe(0);
+    expect(look[1]).toBeCloseTo(0.84 + FOLLOW_LOOK_UP);
+    expect(look[2]).toBe(0);
+  });
+});
+
+describe("rig scale (realistic cast heights)", () => {
+  it("keeps the tuned framing: every body-relative length is the 1.25 m-bot value x Summer's display scale", () => {
+    expect(HEAD_HEIGHT).toBeCloseTo(1.15 * SCALE_SUMMER, 9);
+    expect(SEAT_HEAD_HEIGHT).toBeCloseTo(1.0 * SCALE_SUMMER, 9);
+    expect(FOLLOW_BACK).toBeCloseTo(3.2 * SCALE_SUMMER, 9);
+    expect(FOLLOW_UP).toBeCloseTo(1.9 * SCALE_SUMMER, 9);
+    expect(FOLLOW_LOOK_UP).toBeCloseTo(0.9 * SCALE_SUMMER, 9);
+    expect(EYE_FORWARD).toBeCloseTo(0.22 * SCALE_SUMMER, 9);
+    expect(HEAD_HEIGHT).toBeGreaterThan(1.5); // eyes of a 1.68 m adult
   });
 });

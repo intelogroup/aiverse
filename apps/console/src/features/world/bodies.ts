@@ -35,6 +35,39 @@ export interface BodyDef {
    */
   run?: { speed: number; footLift: number; phaseOffset: number };
   clips: { idle: string; walk: string; sitTalk: string; sitDown: string; standUp: string };
+  /**
+   * Display scale applied to the whole figure (CastFigure), 1 = the GLB as shipped. The registry facts above (hipsY, walkSpeed,
+   * run.speed, run.footLift) are ALREADY multiplied by it (bodyAtScale): consumers never scale them again.
+   */
+  scale?: number;
+}
+
+// ---------------------------------------------------------------------------
+// Realistic heights (2026-11-07, Jim: "the KayKits are too short, we should not normalize to them"). Every GLB ships at the
+// old ~1.3 m cast standard (Body Block's), which is child-sized in the real-size rooms (counter 1.12 m, chair 0.46 m, door knob
+// 0.80 m). Rather than re-bake seven GLBs, each body is shown at a display scale and its registry facts are scaled with it:
+// lengths and speeds both scale linearly (a longer stride at the same cadence), phase offsets do not. Standing heights were
+// measured on the shipped GLBs (IdleLong frame 0, skinned vertices): Body Block 1.340, Summer 1.254 with her hat (head top
+// ~1.225), Remy 1.283, Mage 1.306, Barbarian 1.293, Knight 1.293 (all to the hat/helmet tip), Skeleton Warrior 1.30 body +
+// horns. Targets (Jim chose "realistic adults"): Remy 1.78, Summer 1.68 (head top), Body Block 1.75, KayKit 1.70 to the tip.
+// ---------------------------------------------------------------------------
+export const SCALE_CAST = 1.306; // 1.75 / 1.340
+export const SCALE_SUMMER = 1.371; // 1.68 / 1.225
+export const SCALE_REMY = 1.387; // 1.78 / 1.283
+export const SCALE_MAGE = 1.302; // 1.70 / 1.306
+export const SCALE_BARBARIAN = 1.315; // 1.70 / 1.293
+export const SCALE_KNIGHT = 1.315; // 1.70 / 1.293
+export const SCALE_SKELETON_WARRIOR = 1.308; // 1.70 / 1.30 (horns on top)
+
+/** A body shown at `scale`, with its length and speed facts scaled to match (phase offsets are ratios: unchanged). */
+export function bodyAtScale(scale: number, raw: BodyDef): BodyDef {
+  return {
+    ...raw,
+    scale,
+    hipsY: raw.hipsY * scale,
+    walkSpeed: raw.walkSpeed * scale,
+    run: raw.run && { speed: raw.run.speed * scale, footLift: raw.run.footLift * scale, phaseOffset: raw.run.phaseOffset },
+  };
 }
 
 // The resting clip is "IdleLong" (9.9 s, feet planted together). The catalog's 2.7 s "Idle" is NOT a rest pose: its ankles swing
@@ -43,14 +76,14 @@ export interface BodyDef {
 const CATALOG = { idle: "IdleLong", walk: "Walk", sitTalk: "SittingTalking", sitDown: "SitDown", standUp: "StandUp" };
 
 /** The shared Body Block body every roster member wears by default. */
-export const BODY_CAST: BodyDef = {
+export const BODY_CAST: BodyDef = bodyAtScale(SCALE_CAST, {
   id: "cast",
   url: "/assets/cast-bodyblock.glb",
   hipsY: CAST_HIPS_Y,
   // Walk bake 2026-11-05: cycle 1.0203 m / 1.1667 s (stance-measured).
   walkSpeed: 0.8746,
   clips: CATALOG,
-};
+});
 
 /**
  * Summer — Jim's character (Sitting_small_0_ex78.fbx), a 33-bone
@@ -59,7 +92,7 @@ export const BODY_CAST: BodyDef = {
  */
 export const SUMMER_HIPS_Y = 0.7854; // m
 
-export const BODY_SUMMER: BodyDef = {
+export const BODY_SUMMER: BodyDef = bodyAtScale(SCALE_SUMMER, {
   id: "summer",
   url: "/assets/cast-summer.glb",
   hipsY: SUMMER_HIPS_Y,
@@ -75,7 +108,7 @@ export const BODY_SUMMER: BodyDef = {
   // no XZ travel). Touchdown lead: L 0.102 / R 0.064 (cycle phase) -> Run leads by 0.083.
   run: { speed: 2.7755, footLift: 0.0967, phaseOffset: -0.083 },
   clips: CATALOG,
-};
+});
 
 // Ninja (Jim's Ch24 character) was REMOVED from the cast at Jim's
 // word on 2026-11-05: her rig shipped with a corrupted bind pose
@@ -110,18 +143,18 @@ export const BODY_SUMMER: BodyDef = {
 
 export const MAGE_HIPS_Y = 0.2457; // m (0.4601 x 0.53391 shrink)
 
-export const BODY_MAGE: BodyDef = {
+export const BODY_MAGE: BodyDef = bodyAtScale(SCALE_MAGE, {
   id: "mage",
   url: "/assets/cast-mage.glb",
   hipsY: MAGE_HIPS_Y,
   // 0.5749 x 0.53391 shrink — see note above.
   walkSpeed: 0.3069,
   clips: CATALOG,
-};
+});
 
 export const BARBARIAN_HIPS_Y = 0.2778; // m (0.4601 x 0.60375 shrink)
 
-export const BODY_BARBARIAN: BodyDef = {
+export const BODY_BARBARIAN: BodyDef = bodyAtScale(SCALE_BARBARIAN, {
   id: "barbarian",
   url: "/assets/cast-barbarian.glb",
   hipsY: BARBARIAN_HIPS_Y,
@@ -129,11 +162,11 @@ export const BODY_BARBARIAN: BodyDef = {
   // foot travel, shrunk by its own factor: 0.5749 x 0.60375.
   walkSpeed: 0.3471,
   clips: CATALOG,
-};
+});
 
 export const KNIGHT_HIPS_Y = 0.2702; // m (0.4601 x 0.58713 shrink)
 
-export const BODY_KNIGHT: BodyDef = {
+export const BODY_KNIGHT: BodyDef = bodyAtScale(SCALE_KNIGHT, {
   id: "knight",
   url: "/assets/cast-knight.glb",
   hipsY: KNIGHT_HIPS_Y,
@@ -141,7 +174,7 @@ export const BODY_KNIGHT: BodyDef = {
   // shrunk by its own factor: 0.5749 x 0.58713.
   walkSpeed: 0.3375,
   clips: CATALOG,
-};
+});
 
 // ---------------------------------------------------------------------------
 // Skeleton Warrior (2026-11-07): KayKit "Character Pack: Skeletons"
@@ -168,7 +201,7 @@ export const BODY_KNIGHT: BodyDef = {
 
 export const SKELETON_WARRIOR_HIPS_Y = 0.3116; // m (upperleg joint, bind)
 
-export const BODY_SKELETON_WARRIOR: BodyDef = {
+export const BODY_SKELETON_WARRIOR: BodyDef = bodyAtScale(SCALE_SKELETON_WARRIOR, {
   id: "skeleton-warrior",
   url: "/assets/cast-skeleton-warrior.glb",
   hipsY: SKELETON_WARRIOR_HIPS_Y,
@@ -179,7 +212,7 @@ export const BODY_SKELETON_WARRIOR: BodyDef = {
   // 0.153 / 0.170 -> Run leads Walk by 0.1615 of a cycle.
   run: { speed: 0.9642, footLift: 0.0084, phaseOffset: -0.1615 },
   clips: CATALOG,
-};
+});
 
 // Remy — Jim's Mixamo character (Remy.fbx, 67 bones), scaled to 1.3 m. Body Block's 45 clips are retargeted
 // by bone name (world-space rest-delta bake, tools/city3/bake_remy.py): rest directions sit 6.4 deg mean
@@ -191,14 +224,14 @@ export const BODY_SKELETON_WARRIOR: BodyDef = {
 // (0.142 vs 0.060); touchdowns Walk L 0.3625 / R 0.8833, Run L 0.275 / R 0.8604 -> Run leads by 0.055.
 export const REMY_HIPS_Y = 0.718; // m
 
-export const BODY_REMY: BodyDef = {
+export const BODY_REMY: BodyDef = bodyAtScale(SCALE_REMY, {
   id: "remy",
   url: "/assets/cast-remy.glb",
   hipsY: REMY_HIPS_Y,
   walkSpeed: 0.77,
   run: { speed: 2.66, footLift: 0.082, phaseOffset: -0.055 },
   clips: CATALOG,
-};
+});
 
 export const BODIES: Record<string, BodyDef> = {
   [BODY_REMY.id]: BODY_REMY,

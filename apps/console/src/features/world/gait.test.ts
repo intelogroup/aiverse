@@ -41,9 +41,10 @@ describe("gaitTargets (speed -> Idle/Walk/Run weights + cycle rate)", () => {
 
   it("planted feet match ground speed: clip playback = ground speed / natural speed (no skate)", () => {
     const walk = gaitTargets(1.3, SPEC);
-    expect(walk.cycleRate * SPEC.walkDuration).toBeCloseTo(1.3 / SPEC.walkSpeed, 6); // Walk timeScale 1.204
-    const run = gaitTargets(2.7, SPEC);
-    expect(run.cycleRate * SPEC.runDuration).toBeCloseTo(2.7 / SPEC.runSpeed, 6); // Run timeScale 1.010
+    expect(walk.cycleRate * SPEC.walkDuration).toBeCloseTo(1.3 / SPEC.walkSpeed, 6); // Walk timeScale ~0.86 at realistic height
+    const v2 = WALK_CONFIG.runSpeed;
+    const run = gaitTargets(v2, SPEC);
+    expect(run.cycleRate * SPEC.runDuration).toBeCloseTo(v2 / SPEC.runSpeed, 6); // Run timeScale ~0.95 at realistic height
     // Mid-blend: the stride is the weighted mix, so the foot speed of the blend tracks ground speed.
     const v = 1.9;
     const m = gaitTargets(v, SPEC);

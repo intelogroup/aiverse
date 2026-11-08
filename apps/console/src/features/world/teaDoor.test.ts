@@ -35,6 +35,7 @@ import {
 import type { WalkDoorClip } from "./walkOverride";
 import { angleTo } from "./walker";
 import { ClipTestState } from "./clips";
+import { SCALE_SUMMER } from "./bodies";
 
 const DT = 1 / 60;
 const IN: WalkDoorClip = "OpenDoorInwards";
@@ -108,11 +109,11 @@ describe("tea stand poses (solved from the physical knob)", () => {
   it("street pose reproduces the study stand table", () => {
     const p = teaStandPose(IN);
     expect(p.heading).toBeCloseTo(Math.PI, 6);
-    expect(p.x).toBeCloseTo(-22.7797, 3);
-    expect(p.z).toBeCloseTo(-72.275, 3);
-    // 0.305 m street-side of the street leaf face (world z = -72.58);
-    // the study's table reads 0.31 off the face.
-    expect(p.z - (TEA_DOOR_ORIGIN.z - 0.08)).toBeCloseTo(0.305, 2);
+    // The study's stand table (Summer at 1.25 m: x -22.7797, z -72.275, 0.305 m off the street face) scaled with her display
+    // scale: the knob stays where it is in x/z, the grasp offsets grow.
+    expect(p.x).toBeCloseTo(TEA_KNOB_WORLD.street.x + 0.337 * SCALE_SUMMER, 3);
+    expect(p.z).toBeCloseTo(TEA_KNOB_WORLD.street.z + 0.245 * SCALE_SUMMER, 3);
+    expect(p.z - (TEA_DOOR_ORIGIN.z - 0.08)).toBeCloseTo(0.06 + 0.245 * SCALE_SUMMER, 3);
     // Hand placement: pos + graspFwd*F + graspLat*R == knob (by construction).
     const g = TEA_GRASP[IN];
     const hx = p.x + g.graspFwd * Math.sin(p.heading) + g.graspLat * -Math.cos(p.heading);
@@ -124,8 +125,8 @@ describe("tea stand poses (solved from the physical knob)", () => {
   it("interior pose places the hand on the same single knob", () => {
     const p = teaStandPose(OUT);
     expect(p.heading).toBeCloseTo(0, 6);
-    expect(p.x).toBeCloseTo(-22.9867, 3);
-    expect(p.z).toBeCloseTo(-73.013, 3);
+    expect(p.x).toBeCloseTo(TEA_KNOB_WORLD.interior.x + 0.13 * SCALE_SUMMER, 3);
+    expect(p.z).toBeCloseTo(TEA_KNOB_WORLD.interior.z - 0.243 * SCALE_SUMMER, 3);
     const g = TEA_GRASP[OUT];
     const hx = p.x + g.graspFwd * Math.sin(p.heading) + g.graspLat * -Math.cos(p.heading);
     const hz = p.z + g.graspFwd * Math.cos(p.heading) + g.graspLat * Math.sin(p.heading);
@@ -137,7 +138,8 @@ describe("tea stand poses (solved from the physical knob)", () => {
     // street the study assumed before the interior floor was checked).
     expect(TEA_KNOB_WORLD.street.x).toBe(TEA_KNOB_WORLD.interior.x);
     expect(TEA_KNOB_WORLD.street.z - TEA_KNOB_WORLD.interior.z).toBeCloseTo(0.25, 6);
-    expect(TEA_KNOB_WORLD.street.y).toBeCloseTo(1.28, 6);
+    // 0.80 above the 0.48 plinth for the 1.25 m Summer of the study; x her display scale now (1.10 m above the plinth).
+    expect(TEA_KNOB_WORLD.street.y).toBeCloseTo(0.48 + 0.8 * SCALE_SUMMER, 6);
   });
 
   it("exit points sit 1.2 m past the far face on the door centre line", () => {

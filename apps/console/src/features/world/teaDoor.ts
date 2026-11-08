@@ -48,6 +48,7 @@
  * verbatim: shut or closing door blocks, >= 80° lifts the blocker.
  */
 
+import { SCALE_SUMMER } from "./bodies";
 import { angleTo, moveToIntent, type WalkInput, type WalkerState } from "./walker";
 import type { WalkDoorClip } from "./walkOverride";
 
@@ -86,7 +87,13 @@ export const TEA_HINGE_PASSIVE_X = 0.7;
 /** Knob: door-local x (study K for the tea double), height above local
  * ground, and the two face centres (0.06 m proud of each face). */
 export const TEA_KNOB_X = -0.2;
-export const TEA_KNOB_HEIGHT = 0.8;
+/**
+ * The reach study measured Summer's hand on the knob at 0.80 m when she stood 1.25 m tall. Since the cast is shown at
+ * realistic heights (bodies.ts) her hand at the grasp moment is that much higher and farther out: the knob and the grasp
+ * offsets below scale with her display scale (0.80 m -> 1.10 m, a normal lever-handle height).
+ */
+const REACH_SCALE = SCALE_SUMMER;
+export const TEA_KNOB_HEIGHT = 0.8 * REACH_SCALE;
 export const TEA_KNOB_STREET_Z = TEA_FACE_STREET_Z + 0.06;
 export const TEA_KNOB_INTERIOR_Z = TEA_FACE_INTERIOR_Z - 0.06;
 
@@ -192,8 +199,8 @@ export const TEA_GRASP: Record<WalkDoorClip, GraspProfile> = {
     contactAt: 3.9,
     settledAt: 4.4,
     releaseAt: 4.66,
-    graspFwd: 0.245,
-    graspLat: -0.337,
+    graspFwd: 0.245 * REACH_SCALE,
+    graspLat: -0.337 * REACH_SCALE,
     travelAt: 4.85,
   },
   OpenDoorOutwards: {
@@ -201,8 +208,8 @@ export const TEA_GRASP: Record<WalkDoorClip, GraspProfile> = {
     contactAt: 2.4,
     settledAt: 2.55,
     releaseAt: 2.72,
-    graspFwd: 0.243,
-    graspLat: 0.13,
+    graspFwd: 0.243 * REACH_SCALE,
+    graspLat: 0.13 * REACH_SCALE,
     travelAt: 2.85,
   },
 };

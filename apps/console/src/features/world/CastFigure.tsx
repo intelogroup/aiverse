@@ -157,8 +157,15 @@ export function CastFigure({
   const gltf = useGLTF(body.url);
   const group = useRef<THREE.Group>(null);
 
-  // Own skeleton + own scene graph per cast member.
-  const scene = useMemo(() => skeletonClone(gltf.scene), [gltf]);
+  // Own skeleton + own scene graph per cast member, shown at the body's display scale (bodies.ts: realistic heights).
+  // Everything measured below (fit, rest hips, head bone) reads world space and so includes it; grounding.ts measures in
+  // the scene's own (unscaled) frame, so its offset is multiplied back by bodyScale where it is applied.
+  const bodyScale = body.scale ?? 1;
+  const scene = useMemo(() => {
+    const s = skeletonClone(gltf.scene);
+    s.scale.setScalar(bodyScale);
+    return s;
+  }, [gltf, bodyScale]);
 
   // Paint this figure in its agent color. Materials are shared across
   // clones, so every tinted material is cloned first. Body parts take the
@@ -183,8 +190,7 @@ export function CastFigure({
     });
   }, [scene, label, index]);
 
-  // No scaling — the export is authored at 1.25 m with feet at y = 0.
-  // Measure anyway so the floor lift and label height track real bounds.
+  // Measure the (scaled) figure so the floor lift and label height track its real bounds.
   const fit = useMemo(() => {
     scene.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(scene);
@@ -624,7 +630,8 @@ export function CastFigure({
       // figure until its lowest contact point meets the floor. The sitting family keeps the hips guard (its
       // seat height belongs to the pose), blended by the seated weight.
       if (contacts.length > 0) {
-        const ground = groundingOffset(soleClearance(contacts, scene), runMin, runEff);
+        // grounding.ts works in the scene's own frame (unscaled): x bodyScale turns its offset into world metres.
+        const ground = groundingOffset(soleClearance(contacts, scene), runMin, runEff) * bodyScale;
         drop = drop * seated + ground * (1 - seated);
       }
       grp.position.y = baseY - drop;

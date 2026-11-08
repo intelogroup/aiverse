@@ -25,12 +25,12 @@ export const BAR_FRONT_EXIT_GROW = 1.0;
 /** The same visitor is not greeted again within this many seconds (no chatter loop at the bar). */
 export const BARTENDER_REGREET_S = 45;
 /**
- * He stands on a duckboard behind the bar. The cast is ~1.3-1.45 m tall (Remy 1.30 m) while the counter is real-size, 1.12 m:
- * on the floor only his head cleared it. The board is hidden from customers by the counter itself.
+ * Duckboard under him: 0 since the cast is shown at realistic heights (bodies.ts; Remy 1.78 m clears the 1.12 m counter from the
+ * chest up). It was 0.35 m while the cast stood ~1.3 m tall and only his head showed. Kept as a knob for other bars.
  */
-export const BARTENDER_PLATFORM_H = 0.35;
-/** Duckboard footprint half-extents (x, z): it fits the 1.53 m corridor between counter and shelves with room to spare. */
-export const BARTENDER_PLATFORM_HALF: [number, number] = [0.5, 0.35];
+export const BARTENDER_PLATFORM_H = 0;
+/** His collider footprint half-extents (x, z) (body, or body + board when there is one). */
+export const BARTENDER_PLATFORM_HALF: [number, number] = [0.3, 0.3];
 /** His body + the board as one walker collider [cx, cz, hx, hz, y0, y1, rotY]: nobody walks through him or steps onto the board. */
 export const BARTENDER_COLLIDER: [number, number, number, number, number, number, number] = [
   BARTENDER_POS[0], BARTENDER_POS[1], BARTENDER_PLATFORM_HALF[0], BARTENDER_PLATFORM_HALF[1],

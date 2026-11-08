@@ -74,10 +74,18 @@ describe("capsule world: walls", () => {
     expect(hit === null || hit.depth >= 0).toBe(true);
   });
   it("slides along a wall at an angle", () => {
-    const s = makeWalker(0, G, 0, Math.PI / 4); // toward +x +z
-    drive(s, RUN, 4, w);
-    expect(s.x).toBeLessThanOrEqual(10 - R + 0.02);
-    expect(s.z).toBeGreaterThan(3); // slid sideways along the face instead of stopping
+    // Mostly +x with some +z, so it MEETS the face (the old 45-degree run from the origin passed the box's corner and only
+    // stayed outside because 4 s at the old 2.7 m/s ended before x reached the wall). Speed-independent: run until it has
+    // slid well along the face, checking every frame that it never enters the wall.
+    const s = makeWalker(0, G, -4, Math.atan2(1, 0.35));
+    let t = 0;
+    while (s.z < 3 && t < 12) {
+      step(s, RUN, 1 / 30, w);
+      t += 1 / 30;
+      expect(s.x).toBeLessThanOrEqual(10 - R + 0.02);
+    }
+    expect(s.z).toBeGreaterThanOrEqual(3); // slid sideways along the face instead of stopping
+    expect(s.x).toBeGreaterThan(10 - R - 0.1); // and it was pressed against the face while doing so
   });
   it("a corner: sliding around the edge does not enter the box", () => {
     const s = makeWalker(8, G, 3, Math.PI / 2 + 0.3);
