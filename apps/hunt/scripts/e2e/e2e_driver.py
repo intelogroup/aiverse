@@ -149,7 +149,7 @@ def dist_to_spot(pos):
 def walk_session(pw):
     browser = pw.chromium.launch(args=["--use-gl=swiftshader"])
     page = browser.new_page(viewport={"width": 1280, "height": 800})
-    page.set_default_timeout(120_000)
+    page.set_default_timeout(45_000)
 
     def shot(name):
         # Evidence, not proof: a screenshot must never kill the run
@@ -167,18 +167,12 @@ def walk_session(pw):
     places = page.evaluate("window.__scout.places()")
     log("places", f"{len(places)} go-to-able places")
 
-    def run_leg(action, label):
-        """Issue one go_to and ping every ~3 s until it settles or we win."""
-        page.evaluate(
-            """(a) => {
-              window.__e2e_act_result = undefined;
-              window.__scout.act(a).then((r) => { window.__e2e_act_result = r; });
-              return true;
-            }""",
-            action,
-        )
-        deadline = time.time() + 600
-        pos = None
+    pending = {"active": False, "label": ""}
+
+    def wait_act(label, deadline_s):
+        """Poll+pings until the outstanding act settles (or deadline)."""
+        deadline = time.time() + deadline_s
+        pos = page.evaluate("window.__scout.snapshot()")["pos"]
         while time.time() < deadline:
             s = page.evaluate("window.__scout.snapshot()")
             pos = s["pos"]
@@ -189,8 +183,33 @@ def walk_session(pw):
                 break
             time.sleep(3)
         result = page.evaluate("window.__e2e_act_result ?? null")
+        if result is not None:
+            pending["active"] = False
         log("leg", f"{label}: {json.dumps(result)[:160]} pos={pos} dist={dist_to_spot(pos):.2f}")
         return result, pos
+
+    def run_leg(action, label):
+        """Issue one go_to and ping every ~3 s until it settles or we win.
+
+        If a previous act never settled (its poll hit the deadline), WAIT
+        for it instead of issuing over it — the executor rejects parallel
+        acts as 'busy' (attempt 10 burned three legs that way)."""
+        if pending["active"]:
+            log("adopt", f"waiting on unsettled act from: {pending['label']}")
+            wait_act(f"adopted ({pending['label']})", 900)
+            if won["via"]:
+                return None, page.evaluate("window.__scout.snapshot()")["pos"]
+        page.evaluate(
+            """(a) => {
+              window.__e2e_act_result = undefined;
+              window.__scout.act(a).then((r) => { window.__e2e_act_result = r; });
+              return true;
+            }""",
+            action,
+        )
+        pending["active"] = True
+        pending["label"] = label
+        return wait_act(label, 900)
 
     # Greedy place-hopping (the hunt v0 pattern): hop to the unvisited place
     # that most reduces distance-to-spot; tolerate blocked legs by moving on.
