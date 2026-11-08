@@ -1,0 +1,38 @@
+{
+  "source": "User-uploaded Verres set",
+  "author": null,
+  "license": "not supplied",
+  "files": [
+    {
+      "id": "file_00000000773c81f685b52dc84955b79e",
+      "file_name": "Verres.FBX",
+      "upload_reference": "sediment://file_00000000773c81f685b52dc84955b79e",
+      "size_bytes": 1482640,
+      "sha256": "ef258e996a1710b97639114854446dce95b7474d00a75d839ac28cbf6cd9db21",
+      "local_path": "tools/city3/assets/user_uploads/verres/Verres.FBX"
+    },
+    {
+      "id": "file_0000000030e481f6b5ffb15fe2e7a114",
+      "file_name": "Verres.obj",
+      "upload_reference": "sediment://file_0000000030e481f6b5ffb15fe2e7a114",
+      "size_bytes": 1715246,
+      "sha256": "1bce3b2c85b16773a06f2ac6e7ca8a7060d6f6e8ce266849b53ed95f6321031a",
+      "local_path": "tools/city3/assets/user_uploads/verres/Verres.obj",
+      "repository_path": "tools/city3/assets/verres/Verres.obj"
+    }
+  ],
+  "source_meshes": 25,
+  "source_topology": "all inspected glass meshes are closed manifold solids",
+  "canonical_geometry": "Verres.obj",
+  "selected_shapes": [
+    "WineGlass_01",
+    "WaterGlass_01",
+    "ElinaChampagneGlass_01"
+  ],
+  "prepared": {
+    "path": "tools/city3/assets/verres/drinkware.glb",
+    "size_bytes": 231780,
+    "sha256": "7493b9e0edfac6405715be6ff6edfeb35591732afd9968c669d538c672d01aff"
+  },
+  "in_world": true
+}

@@ -218,11 +218,16 @@ def bridge_file(in_path, out_path, kind, items_dir, hero_path):
     app = Appender(gltf)
     cache = ItemCache(gltf, app, items_dir, hero_path)
     pending = []
+    def uploaded_glass(mesh_i):
+        return any(gltf['materials'][p['material']].get('name') == 'Drinkware_Clear_Glass'
+                   for p in gltf['meshes'][mesh_i]['primitives'] if 'material' in p)
     if kind == "city":
         name2mesh = {n["name"]: n["mesh"] for n in gltf["nodes"]
                      if "mesh" in n and n.get("name") in GROUPS}
         assert set(name2mesh) == set(GROUPS), f"missing: {set(GROUPS) - set(name2mesh)}"
         for gname, layout in GROUPS.items():
+            if gname == 'inst_goods_goblets' and uploaded_glass(name2mesh[gname]):
+                continue  # Preserve the later user-supplied glass replacement.
             prims = []
             for item, s, t in layout:
                 pos, nrm, uv, idx, *_ = cache.load_geo(item)
@@ -232,6 +237,10 @@ def bridge_file(in_path, out_path, kind, items_dir, hero_path):
             pending.append((name2mesh[gname], prims))
     else:
         mesh_i = next(n["mesh"] for n in gltf["nodes"] if n.get("name") == "LIB_brass_goblets")
+        if uploaded_glass(mesh_i):
+            out_size = write_glb(out_path, gltf, binchunk)
+            return {'file':os.path.basename(in_path), 'in_bytes':in_size, 'out_bytes':out_size,
+                    'preserved_uploaded_glass':True, 'bin_prefix_preserved':True}
         prims = []
         for c in LIB_CENTERS:
             pos, nrm, uv, idx, *_ = cache.load_geo("hero")

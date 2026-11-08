@@ -128,7 +128,8 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     return () => {
       hiddenWater.forEach(({ mesh, visible }) => { mesh.visible = visible; });
       dropColliders("resident");
-      scene.remove(sky); scene.remove(water); scene.remove(hemi); scene.fog = null; scene.background = null; scene.environment = null;
+      // StageEnvironment owns the reflection map; clearing it here loses glass/metal reflections on remount.
+      scene.remove(sky); scene.remove(water); scene.remove(hemi); scene.fog = null; scene.background = null;
       for (const [id, g] of groups.current) { scene.remove(g); dropColliders(id); walk?.drop(id); disposeTree(g); }
       groups.current.clear(); (sky.material as THREE.Material).dispose(); sky.geometry.dispose(); (water.material as THREE.Material).dispose(); water.geometry.dispose();
     };

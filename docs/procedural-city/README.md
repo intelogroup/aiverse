@@ -12,6 +12,7 @@ re-deriving it. Written 2026-11-06 at the end of a long build; update it, don't 
 | `05-verification-playbook.md` | How to prove things (visual harnesses, headless crowd tests, memory tests) and what NOT to trust |
 | `06-failures-log.md` | Chronological: what broke, root cause, the fix. Skim before repeating a technique |
 | `07-assets-and-licences.md` | Free asset sources tried, licences, reachability, conversion recipes |
+| `17-drinking-glasses.md` | Uploaded glass replacements, physical rendering, and saved bottle/shader packs |
 | `08-animation-body-controller.md` | Turn clips, planted feet, controller design and measurements |
 | `harness/` | The throwaway Playwright/three harnesses that caught real bugs (copy, `npm i`, run) |
 

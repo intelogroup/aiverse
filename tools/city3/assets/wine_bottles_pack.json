@@ -1,0 +1,1828 @@
+{
+  "id": "file_00000000296481f6a35134baf59e2893",
+  "file_name": "Wine+Bottles+Pack.blend",
+  "category": "bottle geometry workshop source",
+  "origin": "user upload",
+  "upload_reference": "sediment://file_00000000296481f6a35134baf59e2893",
+  "local_path": "tools/city3/assets/source_bottles/Wine+Bottles+Pack.blend",
+  "size_bytes": 8062721,
+  "sha256": "23a7e8f1316f1876d7a7e4bbbe6722a03207613daff562d62fa000b5b9e5fc6c",
+  "status": "archived; inspected with auto-execution disabled; placement preparation pending",
+  "in_world": false,
+  "license": "not supplied",
+  "inspection": {
+    "file": "Wine+Bottles+Pack.blend",
+    "meshes": [
+      {
+        "name": "Cylinder.086",
+        "triangles": 3068,
+        "dimensions": [
+          2.245121955871582,
+          2.245121717453003,
+          5.75349235534668
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.085",
+        "triangles": 2492,
+        "dimensions": [
+          0.3760891258716583,
+          0.37608909606933594,
+          0.8530702590942383
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.084",
+        "triangles": 2364,
+        "dimensions": [
+          0.30427107214927673,
+          0.30427104234695435,
+          1.0827710628509521
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.083",
+        "triangles": 2492,
+        "dimensions": [
+          0.30427107214927673,
+          0.30427104234695435,
+          0.8691346645355225
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.082",
+        "triangles": 380,
+        "dimensions": [
+          0.8415164351463318,
+          0.8415164947509766,
+          0.11532974243164062
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.081",
+        "triangles": 2556,
+        "dimensions": [
+          1.998667597770691,
+          1.998667597770691,
+          4.743762016296387
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.080",
+        "triangles": 1980,
+        "dimensions": [
+          2.0207161903381348,
+          2.0207161903381348,
+          7.629379749298096
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.079",
+        "triangles": 3260,
+        "dimensions": [
+          1.9559465646743774,
+          1.9559465646743774,
+          7.8395843505859375
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.078",
+        "triangles": 1084,
+        "dimensions": [
+          2.0,
+          2.0,
+          6.758424758911133
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.077",
+        "triangles": 2108,
+        "dimensions": [
+          2.0148427486419678,
+          2.0148427486419678,
+          7.341917037963867
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.076",
+        "triangles": 1468,
+        "dimensions": [
+          2.0,
+          2.0,
+          6.685508728027344
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.075",
+        "triangles": 380,
+        "dimensions": [
+          0.7135183215141296,
+          0.7135183215141296,
+          0.259979248046875
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.074",
+        "triangles": 444,
+        "dimensions": [
+          0.6497880816459656,
+          0.6497880816459656,
+          0.08367753028869629
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.073",
+        "triangles": 1630,
+        "dimensions": [
+          0.10185755789279938,
+          0.10185754299163818,
+          0.21286672353744507
+        ],
+        "modifiers": [
+          [
+            "Solidify",
+            "SOLIDIFY"
+          ],
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.072",
+        "triangles": 1660,
+        "dimensions": [
+          0.9283698797225952,
+          0.9283698797225952,
+          0.8124337196350098
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.071",
+        "triangles": 636,
+        "dimensions": [
+          0.923743486404419,
+          0.923743486404419,
+          0.22929048538208008
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.070",
+        "triangles": 828,
+        "dimensions": [
+          0.6615384817123413,
+          0.6615385413169861,
+          0.19523906707763672
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.069",
+        "triangles": 828,
+        "dimensions": [
+          2.0407087802886963,
+          2.0407087802886963,
+          4.450800895690918
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.068",
+        "triangles": 3516,
+        "dimensions": [
+          0.5253028273582458,
+          0.5253028273582458,
+          1.428167700767517
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.067",
+        "triangles": 3452,
+        "dimensions": [
+          2.442457437515259,
+          2.442457437515259,
+          8.821178436279297
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.066",
+        "triangles": 4028,
+        "dimensions": [
+          0.49619343876838684,
+          0.49619343876838684,
+          1.3269816637039185
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.065",
+        "triangles": 1212,
+        "dimensions": [
+          2.0,
+          2.0,
+          6.152433395385742
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.064",
+        "triangles": 2940,
+        "dimensions": [
+          2.0,
+          2.0,
+          6.270057678222656
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.063",
+        "triangles": 1084,
+        "dimensions": [
+          0.9446418881416321,
+          0.9446419477462769,
+          0.8185262680053711
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.062",
+        "triangles": 2078,
+        "dimensions": [
+          0.23723933100700378,
+          0.23723933100700378,
+          0.3868200182914734
+        ],
+        "modifiers": [
+          [
+            "Solidify",
+            "SOLIDIFY"
+          ],
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.061",
+        "triangles": 1758,
+        "dimensions": [
+          0.12599268555641174,
+          0.12599265575408936,
+          0.2613581418991089
+        ],
+        "modifiers": [
+          [
+            "Solidify",
+            "SOLIDIFY"
+          ],
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.060",
+        "triangles": 1694,
+        "dimensions": [
+          0.18674790859222412,
+          0.18674790859222412,
+          0.18973684310913086
+        ],
+        "modifiers": [
+          [
+            "Solidify",
+            "SOLIDIFY"
+          ],
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.059",
+        "triangles": 2748,
+        "dimensions": [
+          0.800564169883728,
+          0.8005640506744385,
+          0.8417477607727051
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.058",
+        "triangles": 1118,
+        "dimensions": [
+          0.16998305916786194,
+          0.16998304426670074,
+          0.3063265085220337
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Solidify",
+            "SOLIDIFY"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.057",
+        "triangles": 1438,
+        "dimensions": [
+          2.518441915512085,
+          2.518441915512085,
+          8.147563934326172
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.056",
+        "triangles": 1468,
+        "dimensions": [
+          2.0,
+          2.0,
+          5.857621192932129
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.055",
+        "triangles": 1916,
+        "dimensions": [
+          1.8328415155410767,
+          1.8328415155410767,
+          7.375233173370361
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.054",
+        "triangles": 1758,
+        "dimensions": [
+          2.0,
+          2.0,
+          9.137833595275879
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.053",
+        "triangles": 2684,
+        "dimensions": [
+          2.5185394287109375,
+          2.5185396671295166,
+          6.651860237121582
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.052",
+        "triangles": 2556,
+        "dimensions": [
+          2.0,
+          2.0,
+          7.172343730926514
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.051",
+        "triangles": 380,
+        "dimensions": [
+          0.6717552542686462,
+          0.671755313873291,
+          0.5795059204101562
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.050",
+        "triangles": 380,
+        "dimensions": [
+          0.8121449947357178,
+          0.8121449947357178,
+          0.32426881790161133
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.049",
+        "triangles": 1438,
+        "dimensions": [
+          0.11084277927875519,
+          0.110842764377594,
+          0.18654155731201172
+        ],
+        "modifiers": [
+          [
+            "Solidify",
+            "SOLIDIFY"
+          ],
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.048",
+        "triangles": 1660,
+        "dimensions": [
+          2.0,
+          2.0,
+          5.882693290710449
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.047",
+        "triangles": 380,
+        "dimensions": [
+          0.8121449947357178,
+          0.8121449947357178,
+          0.32426881790161133
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.046",
+        "triangles": 862,
+        "dimensions": [
+          0.10155664384365082,
+          0.10155664384365082,
+          0.23160237073898315
+        ],
+        "modifiers": [
+          [
+            "Solidify",
+            "SOLIDIFY"
+          ],
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.045",
+        "triangles": 1438,
+        "dimensions": [
+          0.16316741704940796,
+          0.16316744685173035,
+          0.4214063882827759
+        ],
+        "modifiers": [
+          [
+            "Solidify",
+            "SOLIDIFY"
+          ],
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.044",
+        "triangles": 380,
+        "dimensions": [
+          0.41124922037124634,
+          0.4112488031387329,
+          2.0277881622314453
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.043",
+        "triangles": 1246,
+        "dimensions": [
+          0.067906454205513,
+          0.067906454205513,
+          0.15245723724365234
+        ],
+        "modifiers": [
+          [
+            "Solidify",
+            "SOLIDIFY"
+          ],
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.042",
+        "triangles": 2108,
+        "dimensions": [
+          0.1749296337366104,
+          0.1749296337366104,
+          0.767368733882904
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.041",
+        "triangles": 926,
+        "dimensions": [
+          0.12786991894245148,
+          0.12786991894245148,
+          0.16006475687026978
+        ],
+        "modifiers": [
+          [
+            "Solidify",
+            "SOLIDIFY"
+          ],
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.040",
+        "triangles": 1852,
+        "dimensions": [
+          2.127671003341675,
+          2.127671003341675,
+          5.002234935760498
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.039",
+        "triangles": 444,
+        "dimensions": [
+          0.9791690111160278,
+          0.9791690111160278,
+          1.2979159355163574
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.038",
+        "triangles": 1822,
+        "dimensions": [
+          3.0562920570373535,
+          3.0562920570373535,
+          6.156280994415283
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.037",
+        "triangles": 1438,
+        "dimensions": [
+          0.07767175137996674,
+          0.07767173647880554,
+          0.15458518266677856
+        ],
+        "modifiers": [
+          [
+            "Solidify",
+            "SOLIDIFY"
+          ],
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.036",
+        "triangles": 2748,
+        "dimensions": [
+          3.1934316158294678,
+          3.1934316158294678,
+          10.463079452514648
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.035",
+        "triangles": 380,
+        "dimensions": [
+          0.526063859462738,
+          0.526063859462738,
+          0.24650335311889648
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.034",
+        "triangles": 2364,
+        "dimensions": [
+          2.137061595916748,
+          2.137061595916748,
+          5.213234901428223
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.033",
+        "triangles": 380,
+        "dimensions": [
+          0.9886641502380371,
+          0.988663375377655,
+          0.5059618949890137
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.032",
+        "triangles": 1340,
+        "dimensions": [
+          3.194570302963257,
+          3.1945695877075195,
+          8.58465576171875
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.031",
+        "triangles": 892,
+        "dimensions": [
+          0.817560076713562,
+          0.8175599575042725,
+          2.2597384452819824
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.030",
+        "triangles": 892,
+        "dimensions": [
+          2.0,
+          2.0,
+          6.6666579246521
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.029",
+        "triangles": 828,
+        "dimensions": [
+          1.2225054502487183,
+          1.2225055694580078,
+          0.685546875
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.028",
+        "triangles": 2364,
+        "dimensions": [
+          3.1938819885253906,
+          3.1938819885253906,
+          4.3243608474731445
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.027",
+        "triangles": 1148,
+        "dimensions": [
+          0.8335939645767212,
+          0.8335939049720764,
+          0.9940967559814453
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.026",
+        "triangles": 892,
+        "dimensions": [
+          1.9917625188827515,
+          1.9917625188827515,
+          7.663692474365234
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.025",
+        "triangles": 636,
+        "dimensions": [
+          0.7028936147689819,
+          0.7028935551643372,
+          0.677342414855957
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.024",
+        "triangles": 1788,
+        "dimensions": [
+          2.0,
+          2.0,
+          4.679111480712891
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.023",
+        "triangles": 1276,
+        "dimensions": [
+          0.8069283366203308,
+          0.8069282174110413,
+          0.5921387672424316
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.022",
+        "triangles": 1660,
+        "dimensions": [
+          2.199934244155884,
+          2.199934244155884,
+          7.456620216369629
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.021",
+        "triangles": 2910,
+        "dimensions": [
+          0.832352340221405,
+          0.832352340221405,
+          1.1613430976867676
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.020",
+        "triangles": 1310,
+        "dimensions": [
+          1.995509147644043,
+          1.995509147644043,
+          7.274191379547119
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.019",
+        "triangles": 1916,
+        "dimensions": [
+          0.6737481355667114,
+          0.6737481951713562,
+          0.8739662170410156
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.018",
+        "triangles": 1276,
+        "dimensions": [
+          2.0,
+          2.0,
+          5.8610758781433105
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.017",
+        "triangles": 1054,
+        "dimensions": [
+          0.0910511165857315,
+          0.09189680218696594,
+          0.17610514163970947
+        ],
+        "modifiers": [
+          [
+            "Solidify",
+            "SOLIDIFY"
+          ],
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.016",
+        "triangles": 2108,
+        "dimensions": [
+          2.0,
+          2.0,
+          9.467642784118652
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.015",
+        "triangles": 1404,
+        "dimensions": [
+          0.8353951573371887,
+          0.8353949785232544,
+          0.6699295043945312
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.014",
+        "triangles": 1596,
+        "dimensions": [
+          2.349156379699707,
+          2.349156379699707,
+          8.031045913696289
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.013",
+        "triangles": 2654,
+        "dimensions": [
+          0.9866722822189331,
+          0.9866721034049988,
+          1.370619773864746
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Solidify",
+            "SOLIDIFY"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.012",
+        "triangles": 4412,
+        "dimensions": [
+          2.4966187477111816,
+          2.4966187477111816,
+          9.60428237915039
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.011",
+        "triangles": 286,
+        "dimensions": [
+          0.08245520293712616,
+          0.08245518058538437,
+          0.13209635019302368
+        ],
+        "modifiers": [
+          [
+            "Solidify",
+            "SOLIDIFY"
+          ],
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.010",
+        "triangles": 1980,
+        "dimensions": [
+          2.5333497524261475,
+          2.5333497524261475,
+          8.890713691711426
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.009",
+        "triangles": 286,
+        "dimensions": [
+          0.8143184781074524,
+          0.8143179416656494,
+          2.2520976066589355
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.008",
+        "triangles": 1502,
+        "dimensions": [
+          2.0462634563446045,
+          2.0462634563446045,
+          6.458127498626709
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.007",
+        "triangles": 1886,
+        "dimensions": [
+          0.7814275026321411,
+          0.7814273238182068,
+          1.039440631866455
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.006",
+        "triangles": 1566,
+        "dimensions": [
+          0.2705267667770386,
+          0.2705267667770386,
+          0.7833250761032104
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.005",
+        "triangles": 1694,
+        "dimensions": [
+          0.7334977388381958,
+          0.7334977388381958,
+          1.14121675491333
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.004",
+        "triangles": 1694,
+        "dimensions": [
+          0.22901342809200287,
+          0.22901342809200287,
+          0.7771449685096741
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.003",
+        "triangles": 380,
+        "dimensions": [
+          1.0449211597442627,
+          1.0449211597442627,
+          0.19773149490356445
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.002",
+        "triangles": 1788,
+        "dimensions": [
+          2.1958377361297607,
+          2.1958377361297607,
+          7.309093952178955
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder.001",
+        "triangles": 380,
+        "dimensions": [
+          0.7810937166213989,
+          0.7810935378074646,
+          0.3593897819519043
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      },
+      {
+        "name": "Cylinder",
+        "triangles": 1724,
+        "dimensions": [
+          2.123112201690674,
+          2.123112201690674,
+          5.857672691345215
+        ],
+        "modifiers": [
+          [
+            "Subdivision",
+            "SUBSURF"
+          ],
+          [
+            "Smooth by Angle",
+            "NODES"
+          ]
+        ],
+        "materials": []
+      }
+    ],
+    "images": [],
+    "animations": 1,
+    "license": "not supplied separately; source metadata not treated as instructions"
+  },
+  "recommended_placements": [
+    "Tea House back-bar shelves and counter accents",
+    "Cafe shelves and selected dining tables",
+    "Bazaar wine stalls"
+  ],
+  "preparation": [
+    "Choose complete bottle forms from 87 mesh parts",
+    "Normalize physical size and ground pivots",
+    "Prepare glass, liquid, cork/foil and label materials; source has no assigned materials or image textures",
+    "Export light browser derivatives; keep native blend outside public assets"
+  ]
+}

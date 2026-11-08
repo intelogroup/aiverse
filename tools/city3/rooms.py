@@ -83,6 +83,8 @@ def piece(name,fn):
 def build_pieces():
     if _BUILT[0]: return
     _BUILT[0]=True; ANCHORS_ON[0]=False; r=random.Random(21); build_bottles()
+    from drinking_glasses import install_library
+    install_library()
     piece("table_round",lambda fr:hero.table(fr,0,0,0,r,0.0,skip=("+u","-u","+d","-d")))
     piece("chair_wood",lambda fr:hero.chair(fr,0,0,0,"+d"))
     def stool(fr): cyl(0,0,0,0.62,0.04,6,"iron",top=False); cyl(0,0,0.62,0.68,0.21,8,"wood_dark")

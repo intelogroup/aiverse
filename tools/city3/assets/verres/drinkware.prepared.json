@@ -1,0 +1,72 @@
+{
+  "source_meshes": 25,
+  "sets": [
+    {
+      "name": "inst_goods_goblets",
+      "triangles": 7648,
+      "items": [
+        {
+          "source": "WineGlass_01",
+          "position_blender": [
+            -0.2,
+            0,
+            0
+          ],
+          "height_m": 0.19
+        },
+        {
+          "source": "WaterGlass_01",
+          "position_blender": [
+            0,
+            0.05,
+            0
+          ],
+          "height_m": 0.16
+        },
+        {
+          "source": "ElinaChampagneGlass_01",
+          "position_blender": [
+            0.2,
+            -0.02,
+            0
+          ],
+          "height_m": 0.21
+        }
+      ]
+    },
+    {
+      "name": "LIB_brass_goblets",
+      "triangles": 7648,
+      "items": [
+        {
+          "source": "WineGlass_01",
+          "position_blender": [
+            -0.155,
+            0.075,
+            0
+          ],
+          "height_m": 0.24
+        },
+        {
+          "source": "WaterGlass_01",
+          "position_blender": [
+            0,
+            -0.075,
+            0
+          ],
+          "height_m": 0.15
+        },
+        {
+          "source": "ElinaChampagneGlass_01",
+          "position_blender": [
+            0.155,
+            0.075,
+            0
+          ],
+          "height_m": 0.265
+        }
+      ]
+    }
+  ],
+  "bytes": 231780
+}
