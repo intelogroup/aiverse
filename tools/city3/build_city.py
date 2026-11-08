@@ -313,6 +313,11 @@ for t in P["towers"]:
                 pquad("palette",pt(a0,th0),pt(a1,th0),pt(a1,th1),pt(a0,th1),"white" if rings%2==0 else "cream",(math.cos((a0+a1)/2),math.sin((a0+a1)/2),0.4))
         pbox(cx-0.1,cy-0.1,cx+0.1,cy+0.1,zc+R*1.1,zc+R*1.1+3.5,"gold")
 f=P["fountain"]; N=32
+# Runtime water and jets share the generator's dimensions, independent of sea visibility.
+os.makedirs(f"{HERE}/out",exist_ok=True)
+json.dump(dict(innerRadius=f["r_in"]-.05,outerRadius=f["r_out"]+.05,waterY=Z+.6,
+               segments=N,jetCount=8,jetRadius=8,jetY=Z+1.55,jetAngleOffset=math.pi/8),
+          open(f"{HERE}/out/city3-fountain.json","w"),separators=(",",":"))
 def ring(ra,rb,z,name):
     for k in range(N):
         a0=2*math.pi*k/N; a1=2*math.pi*(k+1)/N; p=lambda r,a:(r*math.cos(a),r*math.sin(a),z)
@@ -544,6 +549,8 @@ print("PROF",{k:v for k,v in sorted(kit.PROF.items(),key=lambda kv:-kv[1])})
 print("MESHES",len(MBS),"TRIS",sum(len(b.f) for b in MBS.values()))
 print({k:len(b.f) for k,b in sorted(MBS.items(),key=lambda kv:-len(kv[1].f))[:8]})
 os.makedirs(f"{HERE}/out",exist_ok=True)
+import fountain_garden
+fountain_garden.build(Z, P["fountain"]["r_out"])
 bpy.ops.wm.save_as_mainfile(filepath=f"{HERE}/out/city3.blend")
 for o in bpy.data.objects: o.select_set(not o.name.startswith("LIB_"))     # the shared library ships in its own GLB
 # Blender 5.2's meshopt path hard-codes the POSITION exponential filter to 12 bits with ONE
