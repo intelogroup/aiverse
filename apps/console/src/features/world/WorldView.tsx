@@ -38,6 +38,7 @@ import {
   type LoadSummary,
   type QualityOverride,
 } from "./quality";
+import { comfortStore } from "./comfort";
 import "./world.css";
 
 type Msg = { id: string; content: string; senderAgentId: string; createdAt?: string };
@@ -109,6 +110,7 @@ export function WorldView({
   // You sheet's Settings section. The load summary is re-read each
   // time the sheet opens (resource entries accumulate as worlds load).
   const quality = useSyncExternalStore(qualityStore.subscribe, qualityStore.getSnapshot);
+  const comfort = useSyncExternalStore(comfortStore.subscribe, comfortStore.getSnapshot);
   const [loadSummary, setLoadSummary] = useState<LoadSummary | null>(null);
   useEffect(() => {
     if (mobileTab === "you") setLoadSummary(readLoadSummary());
@@ -888,6 +890,52 @@ export function WorldView({
                       ? `Loaded this session: ${formatMB(loadSummary.assetBytes)} of assets (${loadSummary.assetCount} files) · Lite first-load budget ${formatMB(LITE_LOAD_BUDGET_BYTES)}`
                       : "Loaded this session: measuring…"}
                   </p>
+                </div>
+                <div className="w-sheet-settings">
+                  <h4>Settings · Comfort</h4>
+                  <label className="w-slider-row">
+                    <span>Look sensitivity · {comfort.lookSensitivity.toFixed(2)}×</span>
+                    <input
+                      type="range"
+                      min={0.5}
+                      max={2}
+                      step={0.05}
+                      value={comfort.lookSensitivity}
+                      aria-label="Look sensitivity"
+                      onChange={(e) => comfortStore.set({ lookSensitivity: Number(e.target.value) })}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="w-sheet-menu"
+                    aria-pressed={comfort.invertY}
+                    onClick={() => comfortStore.set({ invertY: !comfort.invertY })}
+                  >
+                    Invert look Y · {comfort.invertY ? "On" : "Off"}
+                  </button>
+                  {(
+                    [
+                      ["masterVolume", "Volume · Master"],
+                      ["musicVolume", "Volume · Music"],
+                      ["windVolume", "Volume · Ambience"],
+                      ["paVolume", "Volume · Announcements"],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <label key={key} className="w-slider-row">
+                      <span>
+                        {label} · {Math.round(comfort[key] * 100)}%
+                      </span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        value={comfort[key]}
+                        aria-label={label}
+                        onChange={(e) => comfortStore.set({ [key]: Number(e.target.value) })}
+                      />
+                    </label>
+                  ))}
                 </div>
               </div>
             </section>

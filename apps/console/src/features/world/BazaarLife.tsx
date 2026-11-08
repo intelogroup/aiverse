@@ -58,6 +58,8 @@ export function BazaarLife({
   botPosRef,
   keeperVoiceRef,
   onFigure,
+  onFigureLong,
+  longPressRef,
 }: {
   /** Visual/camera meshes: the raycast fallback world if the collision GLB failed to load. */
   getMeshes: () => THREE.Mesh[];
@@ -74,6 +76,14 @@ export function BazaarLife({
    * the tap rule (<10 px, plan §1) is applied here.
    */
   onFigure?: (fig: BazaarFigureTap, dbl: boolean) => void;
+  /**
+   * Mobile Phase 4: long-press on a resident (≥500 ms, plan §1) opens
+   * its context sheet. The press also stamps the shared ref so the
+   * stage's own long-press listener stands down, and the click that
+   * follows the press is swallowed here.
+   */
+  onFigureLong?: (fig: BazaarFigureTap) => void;
+  longPressRef?: { current: number };
 }) {
   // Same world stack as CityWalker: capsule shapecast over the collision
   // GLBs, raycast over the visual meshes only if collision failed.
@@ -146,11 +156,14 @@ export function BazaarLife({
     kf.heading = ks.heading;
   });
 
+  const longPressTimer = useRef<number | null>(null);
+  const longPressFiredAt = useRef(0);
   const figureHandlers = (fig: () => BazaarFigureTap) =>
     onFigure
       ? {
           onClick: (e: ThreeEvent<MouseEvent>) => {
             if (e.delta > 10) return; // a drag, not a tap (plan §1)
+            if (Date.now() - longPressFiredAt.current < 800) return; // the long-press's own click
             e.stopPropagation();
             onFigure(fig(), false);
           },
@@ -158,6 +171,28 @@ export function BazaarLife({
             e.stopPropagation();
             onFigure(fig(), true);
           },
+          onPointerDown: onFigureLong
+            ? () => {
+                if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
+                longPressTimer.current = window.setTimeout(() => {
+                  longPressFiredAt.current = Date.now();
+                  if (longPressRef) longPressRef.current = longPressFiredAt.current;
+                  onFigureLong(fig());
+                }, 500);
+              }
+            : undefined,
+          onPointerUp: onFigureLong
+            ? () => {
+                if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
+                longPressTimer.current = null;
+              }
+            : undefined,
+          onPointerLeave: onFigureLong
+            ? () => {
+                if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
+                longPressTimer.current = null;
+              }
+            : undefined,
         }
       : {};
 

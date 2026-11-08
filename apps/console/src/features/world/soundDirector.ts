@@ -241,12 +241,12 @@ export class SoundDirector {
       };
       this.masterAnalyser = ctx.createAnalyser();
       this.masterAnalyser.fftSize = 1024;
-      this.master = mk(this.muted ? 0 : 0.9);
+      this.master = mk(this.muted ? 0 : 0.9 * this.masterVolume);
       this.master.connect(this.masterAnalyser);
       this.masterAnalyser.connect(ctx.destination);
       this.paAnalyser = ctx.createAnalyser();
       this.paAnalyser.fftSize = 1024;
-      this.paBus = mk(PA_GAIN);
+      this.paBus = mk(PA_GAIN * this.paVolume);
       this.paBus.connect(this.paAnalyser);
       this.paAnalyser.connect(this.master);
       this.musicBus = mk(0);
@@ -305,7 +305,36 @@ export class SoundDirector {
   setMuted(m: boolean): void {
     this.muted = m;
     if (this.ctx && this.master) {
-      this.master.gain.setTargetAtTime(m ? 0 : 0.9, this.ctx.currentTime, 0.03);
+      this.master.gain.setTargetAtTime(m ? 0 : 0.9 * this.masterVolume, this.ctx.currentTime, 0.03);
+    }
+  }
+
+  // Mobile Phase 4: user volume levels (Settings · Comfort sliders,
+  // comfort.ts is the persisted source; GlbWorld syncs them in).
+  // Defaults are 1 = the mix exactly as tuned. Layer multipliers land
+  // where the tick computes its targets, so fades and PA ducking keep
+  // working on top of the user's levels.
+  private masterVolume = 1;
+  private musicVolume = 1;
+  private windVolume = 1;
+  private paVolume = 1;
+
+  setMasterVolume(v: number): void {
+    this.masterVolume = v;
+    if (this.ctx && this.master) {
+      this.master.gain.setTargetAtTime(this.muted ? 0 : 0.9 * v, this.ctx.currentTime, 0.03);
+    }
+  }
+  setMusicVolume(v: number): void {
+    this.musicVolume = v;
+  }
+  setWindVolume(v: number): void {
+    this.windVolume = v;
+  }
+  setPaVolume(v: number): void {
+    this.paVolume = v;
+    if (this.ctx && this.paBus) {
+      this.paBus.gain.setTargetAtTime(PA_GAIN * v, this.ctx.currentTime, 0.03);
     }
   }
 
@@ -721,9 +750,9 @@ export class SoundDirector {
     // Layer levels: fades toward their scoped targets, PA ducking
     // applied on top (the v1 priority rule).
     const pa = this.paActive();
-    const windTarget = this.district === "bazaar" ? WIND_GAIN : 0;
+    const windTarget = (this.district === "bazaar" ? WIND_GAIN : 0) * this.windVolume;
     this.windLevel = stepFade(this.windLevel, windTarget, dt, 1.5);
-    const musicTarget = this.insideTea ? MUSIC_GAIN : 0;
+    const musicTarget = (this.insideTea ? MUSIC_GAIN : 0) * this.musicVolume;
     this.musicLevel = stepFade(this.musicLevel, musicTarget, dt, 1.0);
     // The Mage's stall emitter: loudness purely by distance to the
     // keeper's stand point (this.listener is always finite here —
@@ -735,7 +764,7 @@ export class SoundDirector {
           this.listener.z - MAGE_STALL_POS.z,
         )
       : Infinity;
-    const stallTarget = MUSIC_GAIN * emitterGain(stallDist);
+    const stallTarget = MUSIC_GAIN * this.musicVolume * emitterGain(stallDist);
     this.stallLevel = stepFade(this.stallLevel, stallTarget, dt, 0.5);
     if (this.ctx) {
       if (this.windBus)
@@ -770,7 +799,7 @@ export class SoundDirector {
         n.on = e.on;
         if (e.on) this.startEmitterSource(n);
         const dist = this.listener ? Math.hypot(this.listener.x - e.x, this.listener.z - e.z) : Infinity;
-        n.level = stepFade(n.level, MUSIC_GAIN * switchedEmitterGain(e.on, dist), dt, 0.5);
+        n.level = stepFade(n.level, MUSIC_GAIN * this.musicVolume * switchedEmitterGain(e.on, dist), dt, 0.5);
       }
       for (const [id, n] of this.emitterNodes) {
         if (!seenEmitters.has(id)) {
@@ -819,7 +848,7 @@ export class SoundDirector {
         [...this.emitterNodes].map(([id, n]) => [id, { on: n.on, gain: duckedGain(n.level, this.paActive()), level: n.rms }]),
       ),
       gains: {
-        pa: PA_GAIN,
+        pa: PA_GAIN * this.paVolume,
         music: duckedGain(this.musicLevel, this.paActive()),
         wind: duckedGain(this.windLevel, this.paActive()),
         creak: this.creakLevel,

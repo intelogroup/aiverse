@@ -1584,3 +1584,72 @@
   border-color: var(--w-accent);
   color: #0a0f22;
 }
+
+/* ── Mobile Phase 4: comfort + coach marks + context sheet ─────── */
+.world-root .w-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.world-root .w-slider-row {
+  display: block;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--w-border);
+}
+.world-root .w-slider-row span {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.world-root .w-slider-row input[type="range"] {
+  width: 100%;
+  min-height: 32px;
+  accent-color: var(--w-accent);
+}
+.world-root .w-coach-pill {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(76px + env(safe-area-inset-bottom));
+  z-index: 26;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px 10px 16px;
+  border-radius: 999px;
+  background: var(--w-panel-2);
+  border: 1px solid var(--w-accent);
+  color: var(--w-text);
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+.world-root .w-coach-pill button {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: var(--w-dim);
+  flex: none;
+}
+.world-root .w-coach-pill.walk {
+  left: 16px;
+  transform: none;
+  bottom: calc(120px + env(safe-area-inset-bottom));
+}
+.world-root .w-context-sheet {
+  /* same dock as the shell sheets, above the tab bar */
+  z-index: 31;
+}
+/* Reduced motion: the shell's own animations stand down too. */
+@media (prefers-reduced-motion: reduce) {
+  .world-root .w-sheet,
+  .world-root .w-coach-pill,
+  .world-root .w-figure-card,
+  .world-root .modal {
+    animation: none !important;
+    transition: none !important;
+  }
+}

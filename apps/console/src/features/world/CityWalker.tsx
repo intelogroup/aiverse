@@ -12,6 +12,7 @@ import { findSpawn, makeWalker, step, type WalkInput } from "./walker";
 import { WalkClipOverride, type WalkFrameInfo } from "./walkOverride";
 import { mergeTouchIntent, type TouchWalkSource } from "./walkTouch";
 import type { WalkSpawnRequest } from "./mobileShell";
+import { isReducedMotion } from "./comfort";
 import { PLAYER, type TeaDoorController } from "./teaDoor";
 import type { InteractController } from "./interactables";
 
@@ -344,7 +345,9 @@ export function CityWalker({
       camera.lookAt(r.look);
     }
     const targetFov = m === "ride" ? FOV_RIDE : FOV_WIDE;
-    const fov = damp(camera.fov, targetFov, DAMP_FOV, dt);
+    // Mobile Phase 4: under reduced motion there is no FOV kick —
+    // the mode's FOV applies at once instead of easing toward it.
+    const fov = isReducedMotion() ? targetFov : damp(camera.fov, targetFov, DAMP_FOV, dt);
     if (Math.abs(fov - camera.fov) > 0.001) { camera.fov = fov; camera.updateProjectionMatrix(); }
   }, -1);
 
