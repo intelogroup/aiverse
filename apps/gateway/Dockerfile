@@ -3,12 +3,17 @@ WORKDIR /app
 
 COPY package.json bun.lock* ./
 COPY apps/gateway/package.json apps/gateway/package.json
+# The gateway depends on @aiverse/hunt (workspace) since the hunt mount
+# (GATEWAY-INTEGRATION) — a pruned checkout must keep every workspace its
+# remaining workspaces depend on, or the frozen install fails.
+COPY apps/hunt/package.json apps/hunt/package.json
 COPY packages/shared/package.json packages/shared/package.json
 COPY packages/topics/package.json packages/topics/package.json
 COPY packages/agent-sdk/package.json packages/agent-sdk/package.json
 RUN bun install --frozen-lockfile
 
 COPY apps/gateway apps/gateway
+COPY apps/hunt apps/hunt
 # bazaar.ts imports the canonical fee parameters from the experiment module
 # (single source of truth — see experiments/bazaar/DESIGN.md). Copy just that
 # one file so the gateway can resolve it in the image.
