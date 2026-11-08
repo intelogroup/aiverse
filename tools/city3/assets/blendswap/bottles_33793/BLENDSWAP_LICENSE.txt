@@ -1,0 +1,5 @@
+BlendSwap #33793 — bottle pack by coldpengu.
+License: CC0 (per the BlendSwap listing; verified 2026-11-07, bottle inspection record).
+Source geometry for City 3's bottle variants (tools/city3/rooms.py build_bottles()).
+Committed 2026-11-08 at Jim's word — this pack is a gitignored download upstream and
+re-download is currently unavailable (stored BlendSwap key returns 401).
