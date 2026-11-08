@@ -258,3 +258,19 @@ consent) -> turned + waved, line logged `silent`.
   duckboard hides it here; a city-wide decision (scale the cast to ~1.75 m, or the rooms down) is open.
 - Tests: `bartender.test.ts` (trigger zone, facing, cooldown, returning visitor, hysteresis), `tests/bartender-placement.test.ts`
   (the spot and collider against the shipped `tea.col.json`).
+
+## Realistic cast heights (2026-11-08, branch `feat/cast-scale`)
+Every cast GLB ships at the old ~1.3 m standard (Body Block's; the KayKit bodies were shrunk to it on 2026-11-05). Measured on the shipped GLBs
+(IdleLong frame 0): Body Block 1.340, Summer 1.254 with her hat (head top ~1.225), Remy 1.283, Mage 1.306, Barbarian/Knight 1.293, Skeleton
+Warrior 1.30 + horns. The rooms are real-size (counter 1.12 m, chairs 0.46, benches 0.45). Jim: "the KayKits are too short, we should not
+normalize to them"; chosen targets: Remy 1.78, Summer 1.68, Body Block 1.75, KayKit 1.70 to the tip.
+- **How:** no re-bake. `bodyAtScale(scale, raw)` (bodies.ts) gives each body a display scale (1.302-1.387) and scales its registry facts with it
+  (hipsY, walkSpeed, run.speed, run.footLift; phaseOffset is a ratio and stays). CastFigure scales the cloned figure; grounding.ts measures in
+  the scene's own frame, so its offset is multiplied by the scale where it is applied. Foot lock, head camera, labels read world space.
+- **Knock-ons:** walker run 2.7 -> 3.6 m/s (a 1.68 m Summer's natural Run is 3.8 m/s; 2.7 sat mid-blend); camera rig lengths x SCALE_SUMMER
+  (framing unchanged, eye 1.58 m); tea door knob 0.80 -> 1.10 m above the plinth and the grasp offsets x SCALE_SUMMER (the 1.10 m knob sits in
+  the glass pane, as the 0.80 m one did just above the panel); bartender duckboard removed (Remy shows from the waist up over the counter).
+- **Live (software GL):** full tea door performance completes (align -> perform -> travel -> open, inside at y 0.48); Shift run = pure Run at
+  3.59 m/s; bar shot with Summer and the bartender; Agora crowd proportions vs benches/trees (A/B against main: the bench no longer reaches her
+  chest). The Agora embody `sit_on` did not complete within 3 min in this harness on main either (not caused by the scale; open).
+- Not measured: foot-lock skate numbers at the new scale (`gait_full.mjs` does not apply the display scale yet).
