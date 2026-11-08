@@ -1,0 +1,807 @@
+{
+  "assets": [
+    {
+      "id": "file_000000001c7481f692b0df7efff5028d",
+      "file_name": "Ch42_nonPBR.fbx",
+      "category": "FBX upload (uninspected)",
+      "origin": "user upload",
+      "upload_reference": "sediment://file_000000001c7481f692b0df7efff5028d",
+      "local_path": null,
+      "status": "registered; local transfer blocked above 32 MiB",
+      "inspection": "pending",
+      "license": "not supplied",
+      "transfer_limit_bytes": 33554432,
+      "raw_source_committed": false
+    },
+    {
+      "id": "file_000000007dac81f6913dafee947561c8",
+      "file_name": "character (2).fbx",
+      "category": "FBX upload (uninspected)",
+      "origin": "user upload",
+      "upload_reference": "sediment://file_000000007dac81f6913dafee947561c8",
+      "local_path": null,
+      "status": "registered; local transfer blocked above 32 MiB",
+      "inspection": "pending",
+      "license": "not supplied",
+      "transfer_limit_bytes": 33554432,
+      "raw_source_committed": false
+    },
+    {
+      "id": "file_000000002a1881f6a60a71f2ef19a893",
+      "file_name": "character (1).fbx",
+      "category": "FBX upload (uninspected)",
+      "origin": "user upload",
+      "upload_reference": "sediment://file_000000002a1881f6a60a71f2ef19a893",
+      "local_path": null,
+      "status": "registered; local transfer blocked above 32 MiB",
+      "inspection": "pending",
+      "license": "not supplied",
+      "transfer_limit_bytes": 33554432,
+      "raw_source_committed": false
+    },
+    {
+      "id": "file_00000000eac481f6a72902cfa330cf2b",
+      "file_name": "game-ready-free-livingroom-tv.zip",
+      "category": "interior prop / television",
+      "origin": "user upload",
+      "upload_reference": "sediment://file_00000000eac481f6a72902cfa330cf2b",
+      "local_path": "tools/city3/assets/user_uploads/livingroom_tv/game-ready-free-livingroom-tv.zip",
+      "model_path": "tools/city3/assets/user_uploads/livingroom_tv/model/Livingroom_TV.fbx",
+      "size_bytes": 2853511,
+      "sha256": "d5bed045a0fc034f9f5dafff8d5e10ea455c074b9d7c3ba7b9c0512e39d3cef3",
+      "status": "downloaded; geometry inspected; preparation pending",
+      "license": "not supplied in either archive",
+      "inspection": {
+        "meshes": [
+          {
+            "name": "TV_Legs",
+            "vertices": 64,
+            "triangles": 96,
+            "uv_layers": [
+              "UVChannel_1"
+            ],
+            "materials": [
+              "Livingroom_TV"
+            ],
+            "dimensions_m": [
+              1.1512211561203003,
+              0.14960737526416779,
+              0.060070063918828964
+            ]
+          },
+          {
+            "name": "TV_Screen",
+            "vertices": 64,
+            "triangles": 124,
+            "uv_layers": [
+              "UVChannel_1"
+            ],
+            "materials": [
+              "Livingroom_TV"
+            ],
+            "dimensions_m": [
+              1.399999976158142,
+              0.05191589146852493,
+              0.75
+            ]
+          }
+        ],
+        "total_triangles": 220,
+        "bounds_min_m": [
+          -0.6999999284744263,
+          -0.0877886414527893,
+          0.14529404044151306
+        ],
+        "bounds_max_m": [
+          0.7000000476837158,
+          0.06181873381137848,
+          0.9556376934051514
+        ],
+        "materials": [
+          {
+            "name": "Livingroom_TV",
+            "nodes": [
+              [
+                "Principled BSDF",
+                "BSDF_PRINCIPLED"
+              ],
+              [
+                "Material Output",
+                "OUTPUT_MATERIAL"
+              ],
+              [
+                "Normal Map",
+                "NORMAL_MAP"
+              ]
+            ]
+          }
+        ],
+        "images": []
+      },
+      "texture_maps": {
+        "base_color": "model/Livingroom_TV_BaseColor.png",
+        "normal": "model/Livingroom_TV_Normal.png",
+        "roughness": "model/Livingroom_TV_Roughness.png",
+        "metallic": "model/Livingroom_TV_Metallic.png",
+        "ambient_occlusion": "model/Livingroom_TV_AmbientOcclusion.png"
+      },
+      "texture_resolution": [
+        2048,
+        2048
+      ],
+      "recommended_location": "Kronikler Press newsroom side wall, facing seating",
+      "alternative_location": "Tea House lounge side wall",
+      "preparation": [
+        "Reconnect supplied PBR maps; original imported FBX has no image nodes",
+        "Set pivot at bottom centre; feet are 0.145294 m above current origin",
+        "Separate display material from housing, retaining UVs",
+        "Create modest emissive on/off newsroom screen content",
+        "Optimize maps to 1K or 512px and pack AO/roughness/metallic",
+        "Prepare GLB and simple collision after checking the chosen room"
+      ],
+      "in_world": false,
+      "raw_source_committed": false
+    },
+    {
+      "id": "file_0000000026a081f6a29a98d9c9676c94",
+      "file_name": "earth_globe_hologram_glb.glb",
+      "category": "holographic display",
+      "origin": "user upload",
+      "upload_reference": "sediment://file_0000000026a081f6a29a98d9c9676c94",
+      "local_path": "tools/city3/assets/user_uploads/earth_globe/earth_globe_hologram_glb.glb",
+      "size_bytes": 1627756,
+      "sha256": "6185cb32cc51827c7cb6e828adc3e3dc351aceaf50a7dec46c2da0e0a725b34c",
+      "status": "downloaded and inspected; not placed",
+      "license": "CC BY 4.0",
+      "in_world": false,
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_confirmation": "provided by user",
+      "author": null,
+      "original_source_url": null,
+      "attribution_status": "creator and original source link pending",
+      "inspection": {
+        "key": "earth_globe",
+        "mesh_count": 2,
+        "source_triangles": 6350,
+        "meshes": [
+          {
+            "name": "Earth_2",
+            "triangles": 3968,
+            "uv_layers": 1,
+            "modifiers": [],
+            "materials": [
+              "Earth Surface.006"
+            ]
+          },
+          {
+            "name": "Earth rays_2",
+            "triangles": 2382,
+            "uv_layers": 1,
+            "modifiers": [],
+            "materials": [
+              "transparent"
+            ]
+          }
+        ],
+        "armatures": [],
+        "actions": [
+          {
+            "name": "Animation",
+            "start": 1.0,
+            "end": 250.0
+          }
+        ],
+        "images": [
+          {
+            "name": "earth_emission_color_and_alpha",
+            "size": [
+              4096,
+              4096
+            ],
+            "loaded": true,
+            "packed": true
+          }
+        ],
+        "unit_scale": 1.0,
+        "bounds_min": [
+          -0.6572237014770508,
+          -0.6572783589363098,
+          -2.0000054836273193
+        ],
+        "bounds_max": [
+          0.6572797894477844,
+          0.6572251319885254,
+          0.6413100361824036
+        ]
+      },
+      "raw_source_committed": false
+    },
+    {
+      "id": "file_00000000a2e081f6bb0f8a63bf5f3b16",
+      "file_name": "vrheadset_lite_v10.zip",
+      "category": "VR headset prop",
+      "origin": "user upload",
+      "upload_reference": "sediment://file_00000000a2e081f6bb0f8a63bf5f3b16",
+      "local_path": "tools/city3/assets/user_uploads/vr_headset/vrheadset_lite_v10.zip",
+      "size_bytes": 3401333,
+      "sha256": "ce8b033379a17ea3fbe170f9662d7303f6ff5db5f32855ec64fb6fc7b246b6aa",
+      "status": "downloaded and inspected; not placed",
+      "license": "Fab Standard License",
+      "in_world": false,
+      "inspection": {
+        "key": "vr_headset",
+        "mesh_count": 1,
+        "source_triangles": 13468,
+        "meshes": [
+          {
+            "name": "SM_VRHeadset_Lite",
+            "triangles": 13468,
+            "uv_layers": 1,
+            "modifiers": [],
+            "materials": [
+              "M_VRHeadset_Lite"
+            ]
+          }
+        ],
+        "armatures": [],
+        "actions": [],
+        "images": [
+          {
+            "name": "T_VRHeadset_Lite_BaseColor",
+            "size": [
+              1024,
+              1024
+            ],
+            "loaded": true,
+            "packed": true
+          },
+          {
+            "name": "T_VRHeadset_Lite_Emissive",
+            "size": [
+              1024,
+              1024
+            ],
+            "loaded": true,
+            "packed": true
+          },
+          {
+            "name": "T_VRHeadset_Lite_ORM",
+            "size": [
+              1024,
+              1024
+            ],
+            "loaded": true,
+            "packed": true
+          }
+        ],
+        "unit_scale": 1.0,
+        "bounds_min": [
+          -0.10400000214576721,
+          -0.1277499943971634,
+          -0.051600001752376556
+        ],
+        "bounds_max": [
+          0.10400000214576721,
+          0.051600001752376556,
+          0.19899998605251312
+        ]
+      },
+      "author": "Vinita Silaparasetty (VS Design)",
+      "distribution_notes": "Use within a project under the Fab EULA; retain source files outside the public source catalog. Exact implementation/distribution to follow the licence terms.",
+      "license_url": "https://www.fab.com/eula",
+      "license_confirmation": "provided by user",
+      "raw_source_committed": false
+    },
+    {
+      "id": "file_00000000868081f6885d5f8017283fe6",
+      "file_name": "earth_globe_hologram_textures.zip",
+      "category": "texture source archive",
+      "origin": "user upload",
+      "upload_reference": "sediment://file_00000000868081f6885d5f8017283fe6",
+      "local_path": "tools/city3/assets/user_uploads/earth_globe/earth_globe_hologram_textures.zip",
+      "size_bytes": 4616366,
+      "sha256": "cd2026b8bbb4b2ca944218b8a9afd9a1120e19a7b113b895d6aa398726b11175",
+      "status": "downloaded; inspection pending",
+      "license": "CC BY 4.0",
+      "in_world": false,
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_confirmation": "provided by user",
+      "author": null,
+      "original_source_url": null,
+      "attribution_status": "creator and original source link pending",
+      "raw_source_committed": false
+    },
+    {
+      "id": "file_00000000d9d081f6b50406ee3db1bb25",
+      "file_name": "Humano_01Business_01.blend",
+      "category": "character candidate",
+      "origin": "user upload",
+      "upload_reference": "sediment://file_00000000d9d081f6b50406ee3db1bb25",
+      "local_path": "tools/city3/assets/user_uploads/humano_business/Humano_01Business_01.blend",
+      "size_bytes": 30374940,
+      "sha256": "87dc6c4bd616fedfddd0861c6c7c9bca99f6aaa40e14c4c681b264538639c00f",
+      "status": "downloaded and inspected; not placed",
+      "license": "not supplied",
+      "in_world": false,
+      "inspection": {
+        "key": "humano_business",
+        "mesh_count": 4,
+        "source_triangles": 260004,
+        "meshes": [
+          {
+            "name": "Humano_01Business_01_30K_001",
+            "triangles": 30000,
+            "uv_layers": 1,
+            "modifiers": [],
+            "materials": [
+              "Humano_01Business_01_Simple.002"
+            ]
+          },
+          {
+            "name": "Humano_01Business_01_30K_001.002",
+            "triangles": 30000,
+            "uv_layers": 1,
+            "modifiers": [],
+            "materials": [
+              "Humano_01Business_01_Random"
+            ]
+          },
+          {
+            "name": "Humano_01Business_01_100K_001",
+            "triangles": 100002,
+            "uv_layers": 1,
+            "modifiers": [],
+            "materials": [
+              "Humano_01Business_01_Advanced"
+            ]
+          },
+          {
+            "name": "Humano_01Business_01_100K_001-NoSSS",
+            "triangles": 100002,
+            "uv_layers": 1,
+            "modifiers": [],
+            "materials": [
+              "Humano_01Business_01_Advanced-NoSSS"
+            ]
+          }
+        ],
+        "armatures": [],
+        "actions": [],
+        "images": [
+          {
+            "name": "Humano_01Business_01_Diffuse01.jpg.003",
+            "size": [
+              0,
+              0
+            ],
+            "loaded": false,
+            "packed": false
+          },
+          {
+            "name": "Humano_01Business_01_Diffuse02.jpg",
+            "size": [
+              0,
+              0
+            ],
+            "loaded": false,
+            "packed": false
+          },
+          {
+            "name": "Humano_01Business_01_Diffuse03.jpg",
+            "size": [
+              0,
+              0
+            ],
+            "loaded": false,
+            "packed": false
+          },
+          {
+            "name": "Humano_01Business_01_Diffuse04.jpg",
+            "size": [
+              0,
+              0
+            ],
+            "loaded": false,
+            "packed": false
+          },
+          {
+            "name": "Humano_01Business_01_Mask-Eyes.jpg",
+            "size": [
+              0,
+              0
+            ],
+            "loaded": false,
+            "packed": false
+          },
+          {
+            "name": "Humano_01Business_01_Mask-Hair.jpg",
+            "size": [
+              0,
+              0
+            ],
+            "loaded": false,
+            "packed": false
+          },
+          {
+            "name": "Humano_01Business_01_Mask-Shirt.jpg",
+            "size": [
+              0,
+              0
+            ],
+            "loaded": false,
+            "packed": false
+          },
+          {
+            "name": "Humano_01Business_01_Mask-Shoes.jpg",
+            "size": [
+              0,
+              0
+            ],
+            "loaded": false,
+            "packed": false
+          },
+          {
+            "name": "Humano_01Business_01_Mask-Skin.jpg",
+            "size": [
+              0,
+              0
+            ],
+            "loaded": false,
+            "packed": false
+          },
+          {
+            "name": "Humano_01Business_01_Mask-Suit.jpg",
+            "size": [
+              0,
+              0
+            ],
+            "loaded": false,
+            "packed": false
+          },
+          {
+            "name": "Humano_01Business_01_Normal.jpg.003",
+            "size": [
+              0,
+              0
+            ],
+            "loaded": false,
+            "packed": false
+          },
+          {
+            "name": "Humano_03Elegant_18_Normal.jpg",
+            "size": [
+              0,
+              0
+            ],
+            "loaded": false,
+            "packed": false
+          }
+        ],
+        "unit_scale": 1.0,
+        "bounds_min": [
+          -0.32374265789985657,
+          -0.1388348639011383,
+          -5.501036503119394e-05
+        ],
+        "bounds_max": [
+          0.4581485688686371,
+          0.25563356280326843,
+          1.8507912158966064
+        ]
+      },
+      "preparation_notes": [
+        "Choose one 30k variant; do not export all four overlapping versions",
+        "Restore 12 missing external textures",
+        "No armature or animation present; rig/retopologize before treating as animated NPC"
+      ],
+      "raw_source_committed": false
+    },
+    {
+      "id": "file_00000000740481f6b0bbe98eddf5c9a9",
+      "file_name": "earth_globe_hologram_textures (1).zip",
+      "category": "duplicate texture archive",
+      "origin": "user upload",
+      "upload_reference": "sediment://file_00000000740481f6b0bbe98eddf5c9a9",
+      "local_path": "tools/city3/assets/user_uploads/earth_globe/earth_globe_hologram_textures.zip",
+      "size_bytes": 4616366,
+      "sha256": "cd2026b8bbb4b2ca944218b8a9afd9a1120e19a7b113b895d6aa398726b11175",
+      "duplicate_of": "file_00000000868081f6885d5f8017283fe6",
+      "status": "byte-identical duplicate; canonical source retained",
+      "license": "CC BY 4.0",
+      "in_world": false,
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_confirmation": "provided by user",
+      "author": null,
+      "original_source_url": null,
+      "attribution_status": "creator and original source link pending",
+      "raw_source_committed": false
+    },
+    {
+      "id": "fab:f2739319-f1c1-41a7-9af1-556a0ebae55e",
+      "file_name": "sci_fi_tablet.glb",
+      "category": "sci-fi tablet prop",
+      "origin": "Fab public download",
+      "local_path": "tools/city3/assets/user_uploads/scifi_tablet/sci_fi_tablet.glb",
+      "size_bytes": 580084,
+      "sha256": "c53286d98ea5f7d0276adaff0a31a7d6ecce5cd20d9e893b0e7aae10c4793132",
+      "author": "Nick Kotik",
+      "source": "https://www.fab.com/listings/f2739319-f1c1-41a7-9af1-556a0ebae55e",
+      "license": "CC BY (Fab listing label); exact version pending confirmation",
+      "license_listing_slug": "cc-by",
+      "status": "downloaded in workshop; renderer preparation pending; not included in this PR",
+      "in_world": false,
+      "raw_source_committed": false
+    },
+    {
+      "id": "fab:ac9355c4-4e44-4878-b6b1-e62644ee6d02",
+      "title": "Free RPG VFX Sprite Sheet Starter Pack",
+      "file_name": "free_rpg_vfx_sprite_sheet_starter_pack.unitypackage",
+      "category": "VFX / animated sprite sheets",
+      "origin": "Fab public download",
+      "author": "Eric VFX Studio",
+      "source": "https://www.fab.com/listings/ac9355c4-4e44-4878-b6b1-e62644ee6d02",
+      "local_path": "tools/city3/assets/user_uploads/rpg_vfx_starter/free_rpg_vfx_sprite_sheet_starter_pack.unitypackage",
+      "size_bytes": 9780599,
+      "sha256": "4739dceb2c0090505c27e7390d3cffc13e66bafae2854af888ed364b6362c24f",
+      "license": "Fab Standard License",
+      "license_url": "https://www.fab.com/eula",
+      "license_evidence": "Fab listing API: standard group; Personal and Professional tiers both USD 0",
+      "status": "downloaded; archive and five PNG textures verified; Unity assets extracted",
+      "in_world": false,
+      "inspection": {
+        "format": "unitypackage (gzip tar)",
+        "textures": [
+          {
+            "path": "tools/city3/assets/user_uploads/rpg_vfx_starter/extracted/Assets/Eric VFX Studio/Resource/Textures/VFX_SpriteSheet_9x9_212412.png",
+            "size_bytes": 408144,
+            "dimensions": [
+              2304,
+              2304
+            ],
+            "mode": "RGBA"
+          },
+          {
+            "path": "tools/city3/assets/user_uploads/rpg_vfx_starter/extracted/Assets/Eric VFX Studio/Resource/Textures/VFX_SpriteSheet_18x18_224749.png",
+            "size_bytes": 6991851,
+            "dimensions": [
+              4608,
+              4608
+            ],
+            "mode": "RGBA"
+          },
+          {
+            "path": "tools/city3/assets/user_uploads/rpg_vfx_starter/extracted/Assets/Eric VFX Studio/Resource/Textures/VFX_SpriteSheet_9x9_210818.png",
+            "size_bytes": 873215,
+            "dimensions": [
+              2304,
+              2304
+            ],
+            "mode": "RGBA"
+          },
+          {
+            "path": "tools/city3/assets/user_uploads/rpg_vfx_starter/extracted/Assets/Eric VFX Studio/Resource/Textures/VFX_SpriteSheet_8x8_145256.png",
+            "size_bytes": 1211551,
+            "dimensions": [
+              2048,
+              2048
+            ],
+            "mode": "RGBA"
+          },
+          {
+            "path": "tools/city3/assets/user_uploads/rpg_vfx_starter/extracted/Assets/Eric VFX Studio/Resource/Textures/VFX_SpriteSheet_8x8_161149.png",
+            "size_bytes": 630555,
+            "dimensions": [
+              2048,
+              2048
+            ],
+            "mode": "RGBA"
+          }
+        ],
+        "materials": 5,
+        "prefabs": 5,
+        "demo_scenes": 1,
+        "scripts_executed": false
+      },
+      "preparation_notes": [
+        "Adapt sprite sheet playback and blending for three.js; Unity particle prefabs cannot run directly in the console",
+        "Keep source package and original textures outside public assets"
+      ],
+      "raw_source_committed": false
+    },
+    {
+      "id": "file_0000000059cc81f68fdce70c382a17b2",
+      "file_name": "Untitled.glb",
+      "category": "GLB upload (uninspected)",
+      "origin": "user upload",
+      "upload_reference": "sediment://file_0000000059cc81f68fdce70c382a17b2",
+      "local_path": null,
+      "status": "registered; local transfer blocked above 32 MiB",
+      "inspection": "pending; identity, geometry, textures and scale unverified",
+      "license": "not supplied",
+      "transfer_limit_bytes": 33554432,
+      "in_world": false,
+      "possible_related_candidate": "cgtrader:7781654",
+      "association_status": "uploaded after bookstore discussion; content identity not confirmed",
+      "raw_source_committed": false
+    },
+    {
+      "id": "file_00000000bc1c81f6bc455bc1a256132c",
+      "file_name": "Untitled.blend",
+      "category": "Blender scene upload (uninspected)",
+      "origin": "user upload",
+      "upload_reference": "sediment://file_00000000bc1c81f6bc455bc1a256132c",
+      "local_path": null,
+      "status": "registered; local transfer blocked above 32 MiB",
+      "inspection": "pending; scene identity, geometry, packed textures, modifiers and rigs unverified",
+      "license": "not supplied",
+      "transfer_limit_bytes": 33554432,
+      "in_world": false,
+      "possible_related_candidate": "cgtrader:7781654",
+      "association_status": "uploaded after bookstore discussion; content identity not confirmed",
+      "raw_source_committed": false
+    },
+    {
+      "id": "file_00000000296481f6a35134baf59e2893",
+      "file_name": "Wine+Bottles+Pack.blend",
+      "category": "bottle geometry workshop source",
+      "origin": "user upload",
+      "upload_reference": "sediment://file_00000000296481f6a35134baf59e2893",
+      "local_path": "tools/city3/assets/source_bottles/Wine+Bottles+Pack.blend",
+      "size_bytes": 8062721,
+      "sha256": "23a7e8f1316f1876d7a7e4bbbe6722a03207613daff562d62fa000b5b9e5fc6c",
+      "status": "archived; inspected with auto-execution disabled; placement preparation pending",
+      "in_world": false,
+      "license": "not supplied",
+      "recommended_placements": [
+        "Tea House back-bar shelves and counter accents",
+        "Cafe shelves and selected dining tables",
+        "Bazaar wine stalls"
+      ],
+      "raw_source_committed": true,
+      "inspection_manifest": "tools/city3/assets/wine_bottles_pack.json"
+    },
+    {
+      "id": "file_00000000d8f881f6bda3438bc3767cc4",
+      "file_name": "free_dissolve_shader_pack_urp.unitypackage",
+      "category": "Unity URP shader source pack",
+      "origin": "user upload",
+      "upload_reference": "sediment://file_00000000d8f881f6bda3438bc3767cc4",
+      "local_path": "tools/city3/assets/unity/free_dissolve_shader_pack_urp.unitypackage",
+      "size_bytes": 3119406,
+      "sha256": "bf8c950681e433903f548487f2332153b373ea641cef45bd94dc0952be38bfd4",
+      "status": "archived in repository assets; Unity package inventory verified",
+      "in_world": false,
+      "license": "not supplied separately; package licence text, if present, retained as data",
+      "compatibility": "Unity URP; requires shader/material adaptation for three.js",
+      "raw_source_committed": true,
+      "inspection_manifest": "tools/city3/assets/dissolve_shader_pack.json"
+    },
+    {
+      "id": "file_00000000773c81f685b52dc84955b79e",
+      "file_name": "Verres.FBX",
+      "upload_reference": "sediment://file_00000000773c81f685b52dc84955b79e",
+      "size_bytes": 1482640,
+      "sha256": "ef258e996a1710b97639114854446dce95b7474d00a75d839ac28cbf6cd9db21",
+      "local_path": "tools/city3/assets/user_uploads/verres/Verres.FBX",
+      "origin": "user upload",
+      "category": "drinking glass source models",
+      "status": "geometry inspected; prepared replacement merged in PR #58",
+      "license": "not supplied",
+      "in_world": true,
+      "raw_source_committed": false
+    },
+    {
+      "id": "file_0000000030e481f6b5ffb15fe2e7a114",
+      "file_name": "Verres.obj",
+      "upload_reference": "sediment://file_0000000030e481f6b5ffb15fe2e7a114",
+      "size_bytes": 1715246,
+      "sha256": "1bce3b2c85b16773a06f2ac6e7ca8a7060d6f6e8ce266849b53ed95f6321031a",
+      "local_path": "tools/city3/assets/user_uploads/verres/Verres.obj",
+      "repository_path": "tools/city3/assets/verres/Verres.obj",
+      "origin": "user upload",
+      "category": "drinking glass source models",
+      "status": "geometry inspected; prepared replacement merged in PR #58",
+      "license": "not supplied",
+      "in_world": true,
+      "raw_source_committed": true
+    },
+    {
+      "id": "file_00000000007081f6bed8d50ce8dc2e5f",
+      "name": "Mira",
+      "file_name": "Female+Maid+Facesless.zip",
+      "category": "static character / Tea House resident",
+      "origin": "user upload",
+      "upload_reference": "sediment://file_00000000007081f6bed8d50ce8dc2e5f",
+      "size_bytes": 30221298,
+      "sha256": "1b8ba5ac7fdd247c06eece691b36d0a57db8cf328182399598a9fb8d1b200588",
+      "license": "not supplied in archive; user requested project placement",
+      "author": null,
+      "inspection": {
+        "name": "Mira",
+        "vertices": 249996,
+        "polygons": 500000,
+        "triangles": 500000,
+        "bounds": [
+          [
+            -0.175536,
+            0.198159
+          ],
+          [
+            -0.0,
+            1.157409
+          ],
+          [
+            -0.115195,
+            0.227026
+          ]
+        ],
+        "textures": [
+          {
+            "name": "texture_pbr_20250901_metallic.png",
+            "dimensions": [
+              4096,
+              4096
+            ],
+            "mode": "L"
+          },
+          {
+            "name": "texture_pbr_20250901_roughness.png",
+            "dimensions": [
+              4096,
+              4096
+            ],
+            "mode": "L"
+          },
+          {
+            "name": "texture_pbr_20250901_normal.png",
+            "dimensions": [
+              4096,
+              4096
+            ],
+            "mode": "RGB"
+          },
+          {
+            "name": "texture_pbr_20250901.png",
+            "dimensions": [
+              4096,
+              4096
+            ],
+            "mode": "RGB"
+          }
+        ],
+        "rig": "none: OBJ source",
+        "license": "not supplied in archive"
+      },
+      "status": "prepared derivative in open PR #55; not on main",
+      "in_world": false,
+      "browser_copy": {
+        "path": "apps/console/public/assets/residents/mira-maid.glb",
+        "sha256": "97e6d1e8e0b835175ef98931762a8d3c7c8f804ab87315c0afadb214a93110f8",
+        "name": "Mira",
+        "source_triangles": 500000,
+        "triangles": 30000,
+        "dimensions_blender_m": [
+          0.5426551103591919,
+          0.4965192377567291,
+          1.6798659563064575
+        ],
+        "texture_size": 1024,
+        "rigged": false,
+        "animated": false,
+        "bytes": 3319756
+      },
+      "placement": {
+        "position": [
+          -26.6,
+          0.2,
+          -70.4
+        ],
+        "rotationY": 0,
+        "role": "Tea House host"
+      },
+      "local_source_directory": "tools/city3/assets/user_uploads/mira_maid",
+      "raw_source_committed": false
+    }
+  ],
+  "catalog_note": "Upload catalog and local inspection history. local_path records the workshop path; presence in this manifest does not mean the raw input is committed or deployed. See per-asset PR/native archive manifests for shipped status."
+}

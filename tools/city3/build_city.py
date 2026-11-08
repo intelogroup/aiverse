@@ -511,7 +511,8 @@ for s_ in P["stalls"]:
 import goods, goods_stock
 _gc=bpy.data.collections.new("StallGoods"); bpy.context.scene.collection.children.link(_gc)
 GP=goods.make_objects(bpy,MATS["palette"],assets_kit._lib_collection())
-GR={k:(assets_kit.load(d,b,source=src,name=f"goods_{d}",tex=tx)["obj"],sc) for k,(d,src,b,tx,sc,wd) in goods.REAL.items()}
+from market_templates import KEYS as MARKET_KEYS, template as market_template
+GR={k:((market_template(k,assets_kit._lib_collection()) if k in MARKET_KEYS else assets_kit.load(d,b,source=src,name=f"goods_{d}",tex=tx)["obj"]),sc) for k,(d,src,b,tx,sc,wd) in goods.REAL.items()}
 GROOT={}
 def _gput(key,x,y,z,rot,sc=1.0):
     src,k0=(GP[key][0],1.0) if key in GP else GR[key]

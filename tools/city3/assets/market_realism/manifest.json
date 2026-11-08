@@ -1,0 +1,45 @@
+{
+  "templates": [
+    "crate_apples",
+    "crate_aubergines",
+    "crate_beets",
+    "crate_carrots",
+    "crate_greenapples",
+    "crate_greens",
+    "crate_lemons",
+    "crate_melons",
+    "crate_oranges",
+    "crate_pears",
+    "crate_peppers",
+    "crate_plums",
+    "crate_tomatoes",
+    "mound_apples",
+    "mound_lemons",
+    "mound_oranges",
+    "mound_pears",
+    "mound_plums",
+    "mound_tomatoes",
+    "pots_blue",
+    "pots_green",
+    "pots_mixed",
+    "pots_terra",
+    "pyr_apples",
+    "pyr_oranges",
+    "r_basket"
+  ],
+  "sha256": "90fec54e6cebe5e152ff08d1d9213ddc5ea7519c639b7d75c951a22475460072",
+  "sources": [
+    {
+      "asset": "food_apple_01",
+      "source": "https://polyhaven.com/a/food_apple_01",
+      "license": "CC0"
+    },
+    {
+      "asset": "lemon",
+      "source": "https://polyhaven.com/a/lemon",
+      "license": "CC0"
+    }
+  ],
+  "procedural": "Project-authored produce, crates, baskets and vase shapes; embedded PBR atlases",
+  "provenance": "Approved local tabletop export, isolated from the uncommitted city snapshot"
+}
