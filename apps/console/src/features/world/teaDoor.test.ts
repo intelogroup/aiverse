@@ -474,3 +474,18 @@ describe("several actors (player + agents) share the one door", () => {
     expect(ch.doorPlaying).toBe(false);
   });
 });
+
+
+it("keeps both complete leaves synchronized throughout opening and closing", () => {
+  const ctl = new TeaDoorController({ channel: fakeChannel(() => 0), setBlocker: () => {} });
+  for (const angle of [0, 8, 45, 80, 95]) {
+    ctl.angle = angle;
+    expect(ctl.passiveAngle).toBe(angle);
+  }
+  ctl.state = "closing";
+  for (let i = 0; i < 240; i++) {
+    ctl.tick(DT);
+    expect(ctl.passiveAngle).toBe(ctl.angle);
+  }
+  expect(ctl.angle).toBe(0);
+});

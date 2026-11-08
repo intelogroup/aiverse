@@ -1,3 +1,5 @@
+import { splitTeaPanels } from "./teaDoorPanels";
+import { registerCameraObstacle } from "./cameraClearance";
 /**
  * TeaDoorLeaf — the Tea House door pilot's visual assembly (TeaDoor.tsx).
  *
@@ -24,7 +26,7 @@
 
 import { useGLTF } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo } from "react";
+import { useLayoutEffect, useState } from "react";
 import * as THREE from "three";
 import {
   TEA_DOOR_ORIGIN,
@@ -197,6 +199,24 @@ function buildDoor(scene: THREE.Object3D): BuiltDoor | null {
     passivePivot.add(new THREE.Mesh(rightGeo, mat));
   }
 
+  // Colour-dependent green timber is in the baked palette, not inst_door_double.
+  // Swap geometry rather than mutate shared position buffers; restore on unmount.
+  const panels: { mesh: THREE.Mesh; geometry: THREE.BufferGeometry }[] = [];
+  scene.updateMatrixWorld(true);
+  scene.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh || (mesh as THREE.InstancedMesh).isInstancedMesh || mesh.name !== "Props") return;
+    const split = splitTeaPanels(mesh.geometry, mesh.matrixWorld);
+    if (!split) return;
+    panels.push({ mesh, geometry: mesh.geometry });
+    mesh.geometry = split.remaining;
+    disposables.push(split.remaining, split.left, split.right);
+    split.left.translate(-TEA_HINGE_ACTIVE_X, 0, -TEA_SLAB_MID_Z);
+    split.right.translate(-TEA_HINGE_PASSIVE_X, 0, -TEA_SLAB_MID_Z);
+    activePivot.add(new THREE.Mesh(split.left, mesh.material));
+    passivePivot.add(new THREE.Mesh(split.right, mesh.material));
+  });
+
   // Knob on BOTH faces of the active leaf (street + interior centres
   // from teaDoor.ts), swinging with the leaf. Pivot-local z: the
   // faces sit at TEA_KNOB_*_Z relative to the door origin; the pivot
@@ -224,6 +244,7 @@ function buildDoor(scene: THREE.Object3D): BuiltDoor | null {
     passivePivot,
     disposables,
     restore: () => {
+      for (const { mesh, geometry } of panels) mesh.geometry = geometry;
       for (const { mesh, matrix } of originals) {
         mesh.setMatrixAt(TEA_INSTANCE, matrix);
         mesh.instanceMatrix.needsUpdate = true;
@@ -234,16 +255,20 @@ function buildDoor(scene: THREE.Object3D): BuiltDoor | null {
 
 export function TeaDoorLeaf({ controller }: { controller: TeaDoorController }) {
   const gltf = useGLTF(WORLD_URL);
-  const built = useMemo(() => buildDoor(gltf.scene), [gltf.scene]);
+  const [built, setBuilt] = useState<BuiltDoor | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    const built = buildDoor(gltf.scene);
+    setBuilt(built);
     if (!built) return;
+    const unregister = registerCameraObstacle(built.group);
     return () => {
+      unregister();
       built.restore();
       for (const g of built.disposables) g.dispose();
       (built.group.userData.knobMaterial as THREE.Material | undefined)?.dispose();
     };
-  }, [built]);
+  }, [gltf.scene]);
 
   useFrame(() => {
     if (!built) return;
