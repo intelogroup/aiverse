@@ -328,6 +328,15 @@ reg("pots_mixed",P_pots([("jug",-0.25,0,"ochre",1.0),("vase",-0.02,0.0,"blue",0.
 reg("bowls",P_stacks); reg("plates",P_plates)
 reg("bottles_green",P_bottles(["pot_green","leaf_dark","pot_green"])); reg("bottles_amber",P_bottles(["gold","brass","terracotta"])); reg("bottles_blue",P_bottles(["door_blue","sky_blue","teal"]))
 reg("bottles_mixed",P_bottles(["pot_green","gold","door_blue","crimson","cream"])); reg("goblets",P_goblets); reg("ewers",P_ewer); reg("r_pot",P_rpot)
+def P_sack(grain):
+    def make(g, rng):
+        from sacks import sack_mesh
+        vertices, faces, _ = sack_mesh(grain)
+        scale = 1.0 if grain else .85
+        # Convert the shared Y-up mesh to Blender Z-up.
+        g.add([(x*scale,-z*scale,y*scale) for x,y,z in vertices], faces, "bread", True)
+    return make
+reg("r_grainsack",P_sack(True)); reg("r_sack",P_sack(False))
 reg("loaves",P_loaves); reg("baguettes",P_baguettes); reg("rollpile",P_rollpile); reg("wedges",P_wedges)
 
 def build(name,seed):
@@ -337,7 +346,9 @@ def build(name,seed):
 def make_objects(bpy,pal_mat,coll):
     """Creates one LIB_g_<name> object per piece (excluded from the world export by its LIB_ prefix); returns {name:(obj,height)}."""
     out={}
-    for i,name in enumerate(sorted(REG)):
+    # Append repaired sacks without shifting the established seeds of other goods.
+    names = sorted(set(REG) - {"r_sack", "r_grainsack"}) + ["r_grainsack", "r_sack"]
+    for i,name in enumerate(names):
         g=build(name,5000+i)
         me=bpy.data.meshes.new(f"g_{name}"); me.from_pydata(g.v,[],g.f); me.update()
         uv=[];
@@ -348,9 +359,9 @@ def make_objects(bpy,pal_mat,coll):
     return out
 
 # real CC0 assets used as goods: key -> (asset dir, source, tri budget, tex px, scale, footprint width m)
-REAL={"r_basket":("g_basket","sketchfab",170,128,0.62,0.34),"r_grainsack":("g_grainsack","sketchfab",220,128,1.0,0.4),
-      "r_sack":("g_sack","sketchfab",240,128,0.85,0.45),"r_roll":("g_roll","sketchfab",190,128,1.5,0.14),"r_cheese":("g_cheese","sketchfab",260,128,1.25,0.4),
+REAL={"r_basket":("g_basket","sketchfab",170,128,0.62,0.34),
+      "r_roll":("g_roll","sketchfab",190,128,1.5,0.14),"r_cheese":("g_cheese","sketchfab",260,128,1.25,0.4),
       "r_barrel":("g_barrel","sketchfab",220,128,0.6,0.42),"r_lantern":("lantern","sketchfab",130,128,1.0,0.16),
       "r_bucket":("wooden_bucket_01","polyhaven",200,256,0.9,0.38),"r_jug":("metal_jug","polyhaven",200,256,1.5,0.32)}
-W={"spice":1.05,"folded":0.95,"bolts":0.62,"rolls":0.42,"pots":0.62,"bowls":0.5,"plates":0.5,"bottles":0.64,"goblets":0.5,"ewers":0.55,"loaves":0.62,"baguettes":0.66,
+W={"r_grainsack":0.4,"r_sack":0.45,"spice":1.05,"folded":0.95,"bolts":0.62,"rolls":0.42,"pots":0.62,"bowls":0.5,"plates":0.5,"bottles":0.64,"goblets":0.5,"ewers":0.55,"loaves":0.62,"baguettes":0.66,
    "rollpile":0.4,"wedges":0.6,"crate":0.62,"pyr":0.66,"mound":0.4,"r_pot":0.3}   # r_pot keeps its old REAL footprint width now that it is a built piece
