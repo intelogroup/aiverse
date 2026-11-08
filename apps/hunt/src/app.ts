@@ -33,9 +33,10 @@ import {
 } from "./store";
 import { newId } from "./tokens";
 import { tickOnce } from "./ticker";
-import { PaypalClient, type PaypalFetch } from "./paypal";
+import { PaypalClient, PaypalError, type PaypalFetch } from "./paypal";
 import {
   PayoutError,
+  cancelPayout,
   getPayoutById,
   handlePayoutWebhook,
   initiatePayout,
@@ -608,6 +609,22 @@ export function buildApp(deps: AppDeps): Hono<{ Variables: Vars }> {
       if (!existing) return c.json(err("payout_not_found"), 404);
       const row = await refreshPayout(db, paypal, existing.id, Date.now());
       return c.json({ payout: payoutView(row) });
+    });
+
+    // Cancel an unclaimed payout. A PayPal-side failure is a 502 with
+    // the row untouched — this route never reports a cancel PayPal
+    // did not confirm.
+    app.post("/v1/admin/payouts/:id/cancel", requireAdmin, async (c) => {
+      const existing = getPayoutById(db, c.req.param("id"));
+      if (!existing) return c.json(err("payout_not_found"), 404);
+      try {
+        const row = await cancelPayout(db, paypal, existing.id, Date.now());
+        return c.json({ payout: payoutView(row) });
+      } catch (e) {
+        if (e instanceof PayoutError) return c.json(err(e.code), 422);
+        if (e instanceof PaypalError) return c.json(err("paypal_cancel_failed"), 502);
+        throw e;
+      }
     });
 
     // PayPal webhook intake. The raw body is parsed here but nothing in

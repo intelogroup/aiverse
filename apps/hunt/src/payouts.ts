@@ -8,9 +8,12 @@
  *  - One payout per verified person per event (amendment §6): a second
  *    cash prize for the same winner in the same event is refused.
  *  - Idempotency: sender_batch_id is a pure function of (mode, prize).
- *    Retrying an ambiguous submit replays the SAME key, which PayPal
- *    dedupes — no code path in this service can mint a second key for
- *    the same win, and `payouts.prize_id` is UNIQUE as the DB backstop.
+ *    Retrying an ambiguous submit replays the SAME key — no code path
+ *    in this service can mint a second key for the same win, and
+ *    `payouts.prize_id` is UNIQUE as the DB backstop. PayPal's side of
+ *    the bargain (proven live, sandbox suite E1): a duplicate key is
+ *    refused with a 400 naming the original batch, which the resubmit
+ *    path recognizes and adopts rather than retrying forever.
  *  - 1099 totals (amendment §7): a winner's yearly total moves ONLY on
  *    the transition into SUCCESS, inside one transaction, so observing
  *    the same win via poll AND webhook still counts it exactly once.
@@ -22,7 +25,7 @@
  */
 import type { Database } from "bun:sqlite";
 import type { PaypalConfig } from "./config";
-import { PaypalClient, PaypalError } from "./paypal";
+import { PaypalClient, PaypalError, duplicateBatchId } from "./paypal";
 import { auditInsert } from "./store";
 import { newId } from "./tokens";
 
@@ -100,6 +103,7 @@ export function mapPaypalItemStatus(tx: string | null | undefined): PayoutStatus
       return "unclaimed";
     case "RETURNED":
     case "REFUNDED":
+    case "CANCELED": // an unclaimed item we cancelled — the hold went back to the sender
       return "returned";
     case "FAILED":
       return "failed";
@@ -271,6 +275,25 @@ export async function initiatePayout(
   try {
     res = await client.createPayoutBatch(buildBatchBody(row));
   } catch (e) {
+    // The ambiguous case E1 proved against the real sandbox: the first
+    // submit DID land at PayPal but its response was lost, so this
+    // resubmit is refused with the duplicate-batch 400. That refusal is
+    // good news — adopt the linked original batch and settle from it,
+    // instead of recording a failure and retrying the same 400 forever.
+    const adoptedBatchId = duplicateBatchId(e);
+    if (adoptedBatchId) {
+      db.query("UPDATE payouts SET batch_id = ?, failure = NULL, updated_at = ? WHERE id = ?").run(
+        adoptedBatchId,
+        now,
+        row.id,
+      );
+      auditInsert(db, actor, "payout_submit_duplicate_adopted", row.id, { batch_id: adoptedBatchId }, now);
+      try {
+        return await refreshPayout(db, client, row.id, now);
+      } catch {
+        return getPayoutById(db, row.id)!; // adopted; a later poll settles it
+      }
+    }
     const failure =
       e instanceof PaypalError
         ? JSON.stringify({ name: e.paypalName, http: e.status, message: e.message })
@@ -367,24 +390,68 @@ export async function refreshPayout(
   const row = getPayoutById(db, payoutId);
   if (!row) throw new PayoutError("payout_not_found");
   if (!row.batch_id) return row; // never submitted — nothing to poll
-  let status: PayoutStatus;
-  let transactionId: string | null = null;
   if (row.item_id) {
-    const item = await client.getPayoutItem(row.item_id);
-    status = mapPaypalItemStatus(item?.transaction_status);
-    transactionId = item?.transaction_id ?? null;
-  } else {
-    const batch = await client.getPayoutBatch(row.batch_id);
-    const item = Array.isArray(batch?.items) ? batch.items[0] : null;
-    status = item?.transaction_status
-      ? mapPaypalItemStatus(item.transaction_status)
-      : mapPaypalBatchStatus(batch?.batch_header?.batch_status);
-    transactionId = item?.transaction_id ?? null;
-    if (item?.payout_item_id) {
-      return applyPayoutStatus(db, payoutId, status, { itemId: item.payout_item_id, transactionId }, now);
+    try {
+      const item = await client.getPayoutItem(row.item_id);
+      const status = mapPaypalItemStatus(item?.transaction_status);
+      return applyPayoutStatus(db, payoutId, status, { transactionId: item?.transaction_id ?? null }, now);
+    } catch {
+      // Fall through to the batch read (the E2 lesson): the batch
+      // response embeds the same item, so one failing item read must
+      // not poison settlement — only if BOTH reads fail does the
+      // caller see an error.
     }
   }
+  const batch = await client.getPayoutBatch(row.batch_id);
+  const item = Array.isArray(batch?.items) ? batch.items[0] : null;
+  const status = item?.transaction_status
+    ? mapPaypalItemStatus(item.transaction_status)
+    : mapPaypalBatchStatus(batch?.batch_header?.batch_status);
+  const transactionId = item?.transaction_id ?? null;
+  if (item?.payout_item_id) {
+    return applyPayoutStatus(db, payoutId, status, { itemId: item.payout_item_id, transactionId }, now);
+  }
   return applyPayoutStatus(db, payoutId, status, { transactionId }, now);
+}
+
+/**
+ * Cancel an UNCLAIMED payout so the held funds return now instead of
+ * at the 30-day auto-return. Only `unclaimed` rows qualify — anything
+ * else is a PayoutError before any PayPal call. If PayPal refuses or
+ * errors (the sandbox answered 500 INTERNAL_SERVICE_ERROR throughout
+ * suite E3), the PaypalError propagates and the row is left EXACTLY as
+ * it was: a failed cancel is never recorded as a successful one.
+ */
+export async function cancelPayout(
+  db: Database,
+  client: PaypalClient,
+  payoutId: string,
+  now: number,
+  actor = "admin",
+): Promise<PayoutRow> {
+  const row = getPayoutById(db, payoutId);
+  if (!row) throw new PayoutError("payout_not_found");
+  if (!row.item_id) throw new PayoutError("payout_not_submitted", "nothing was submitted to cancel");
+  if (row.status !== "unclaimed") {
+    throw new PayoutError("payout_not_cancellable", "only an unclaimed payout can be cancelled");
+  }
+  const item = await client.cancelPayoutItem(row.item_id);
+  auditInsert(
+    db,
+    actor,
+    "payout_cancelled",
+    payoutId,
+    { item_id: row.item_id, paypal_status: item?.transaction_status ?? null },
+    now,
+  );
+  return applyPayoutStatus(
+    db,
+    payoutId,
+    mapPaypalItemStatus(item?.transaction_status),
+    { transactionId: item?.transaction_id ?? null },
+    now,
+    actor,
+  );
 }
 
 export interface WebhookOutcome {

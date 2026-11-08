@@ -29,12 +29,38 @@ export type PaypalFetch = (
 export class PaypalError extends Error {
   status: number;
   paypalName: string | null;
-  constructor(status: number, paypalName: string | null, message: string) {
+  /** The response's `details` array, when PayPal sent one (response data only). */
+  details: any[] | null;
+  constructor(status: number, paypalName: string | null, message: string, details: any[] | null = null) {
     super(message);
     this.name = "PaypalError";
     this.status = status;
     this.paypalName = paypalName;
+    this.details = details;
   }
+}
+
+/**
+ * Recognize PayPal's duplicate-batch refusal and recover the original
+ * batch id from it. Observed live (sandbox suite E1, 2026-11-08): a
+ * resubmit with an already-used sender_batch_id gets HTTP 400
+ * USER_BUSINESS_ERROR with details[0].field = "SENDER_BATCH_ID" and a
+ * `link` to the original batch — an idempotency refusal, NOT the
+ * original response replayed. Returns null for any other error.
+ */
+export function duplicateBatchId(err: unknown): string | null {
+  if (!(err instanceof PaypalError)) return null;
+  if (err.status !== 400 || err.paypalName !== "USER_BUSINESS_ERROR") return null;
+  for (const d of err.details ?? []) {
+    if (d?.field !== "SENDER_BATCH_ID") continue;
+    const links = Array.isArray(d.link) ? d.link : [];
+    for (const l of links) {
+      const href = typeof l?.href === "string" ? l.href : "";
+      const m = href.match(/\/v1\/payments\/payouts\/([^/?#]+)/);
+      if (m) return decodeURIComponent(m[1]);
+    }
+  }
+  return null;
 }
 
 const defaultFetch: PaypalFetch = async (url, init) => {
@@ -110,7 +136,21 @@ export class PaypalClient {
   }
 
   async getPayoutItem(itemId: string): Promise<any> {
-    return this.authed("GET", `/v1/payments/payouts/items/${encodeURIComponent(itemId)}`);
+    // The route is payouts-item (singular, hyphenated) — verified live
+    // in the sandbox suite (E2). The plausible /payouts/items/{id} is
+    // not a route at all: it 404s with an empty body.
+    return this.authed("GET", `/v1/payments/payouts-item/${encodeURIComponent(itemId)}`);
+  }
+
+  /**
+   * POST /v1/payments/payouts-item/{id}/cancel — cancels an UNCLAIMED
+   * item so the held funds return to the sender before the 30-day
+   * auto-return. Sandbox behavior observed in suite E3: the route
+   * exists but answered 500 INTERNAL_SERVICE_ERROR — callers must
+   * treat a throw as "the cancel did not happen", never as success.
+   */
+  async cancelPayoutItem(itemId: string): Promise<any> {
+    return this.authed("POST", `/v1/payments/payouts-item/${encodeURIComponent(itemId)}/cancel`);
   }
 
   /**
@@ -161,5 +201,11 @@ function errorFromResponse(res: PaypalHttpResponse, fallback: string): PaypalErr
   const name = typeof res.json?.name === "string" ? res.json.name : null;
   const message =
     typeof res.json?.message === "string" ? res.json.message : fallback;
-  return new PaypalError(res.status, name, `${fallback}: HTTP ${res.status}${name ? ` ${name}` : ""} — ${message}`);
+  const details = Array.isArray(res.json?.details) ? res.json.details : null;
+  return new PaypalError(
+    res.status,
+    name,
+    `${fallback}: HTTP ${res.status}${name ? ` ${name}` : ""} — ${message}`,
+    details,
+  );
 }

@@ -40,6 +40,10 @@ class FakePaypal {
   verifyStatus: "SUCCESS" | "FAILURE" = "SUCCESS";
   failNextPayoutPost: "network" | "http" | null = null;
   failToken = false;
+  /** When true, item GETs answer 500 (batch GETs keep working). */
+  failItemGets = false;
+  /** When true, item cancels answer 500 INTERNAL_SERVICE_ERROR (the E3 sandbox behavior). */
+  failCancels = false;
   private items = new Map<string, any>();
   private batches = new Map<string, any>();
   private tokenSeq = 0;
@@ -69,6 +73,31 @@ class FakePaypal {
       const sb = body.sender_batch_header;
       const item0 = body.items[0];
       const batchId = `BATCH-${sb.sender_batch_id}`;
+      // PayPal's duplicate-key refusal, byte-shaped after the live E1
+      // response: a 400 whose details link back to the original batch.
+      if (this.batches.has(batchId)) {
+        return {
+          status: 400,
+          json: {
+            name: "USER_BUSINESS_ERROR",
+            message: "User business error.",
+            details: [
+              {
+                field: "SENDER_BATCH_ID",
+                location: "body",
+                issue: "Batch with given sender_batch_id already exists",
+                link: [
+                  {
+                    href: `https://api-m.sandbox.paypal.com/v1/payments/payouts/${batchId}`,
+                    rel: "self",
+                    method: "GET",
+                  },
+                ],
+              },
+            ],
+          },
+        };
+      }
       const itemId = `ITEM-${item0.sender_item_id}`;
       const item = {
         payout_item_id: itemId,
@@ -89,26 +118,69 @@ class FakePaypal {
       this.batches.set(batchId, batch);
       return { status: 201, json: batch };
     }
-    const itemMatch = url.match(/\/v1\/payments\/payouts\/items\/(.+)$/);
+    const cancelMatch = url.match(/\/v1\/payments\/payouts-item\/([^/]+)\/cancel$/);
+    if (init.method === "POST" && cancelMatch) {
+      const item = this.items.get(decodeURIComponent(cancelMatch[1]));
+      if (!item) return { status: 404, json: { name: "INVALID_RESOURCE_ID", message: "no item" } };
+      if (this.failCancels) {
+        return { status: 500, json: { name: "INTERNAL_SERVICE_ERROR", message: "sandbox boom" } };
+      }
+      item.transaction_status = "CANCELED";
+      return { status: 200, json: item };
+    }
+    const itemMatch = url.match(/\/v1\/payments\/payouts-item\/(.+)$/);
     if (init.method === "GET" && itemMatch) {
+      if (this.failItemGets) {
+        return { status: 500, json: { name: "INTERNAL_SERVICE_ERROR", message: "item read boom" } };
+      }
       const item = this.items.get(decodeURIComponent(itemMatch[1]));
-      if (!item) return { status: 404, json: { name: "RESOURCE_NOT_FOUND", message: "no item" } };
+      if (!item) return { status: 404, json: { name: "INVALID_RESOURCE_ID", message: "no item" } };
       return { status: 200, json: item };
     }
     const batchMatch = url.match(/\/v1\/payments\/payouts\/([^/]+)$/);
     if (init.method === "GET" && batchMatch) {
       const batch = this.batches.get(decodeURIComponent(batchMatch[1]));
-      if (!batch) return { status: 404, json: { name: "RESOURCE_NOT_FOUND", message: "no batch" } };
+      if (!batch) return { status: 404, json: { name: "INVALID_RESOURCE_ID", message: "no batch" } };
       return { status: 200, json: batch };
     }
     if (init.method === "POST" && url.endsWith("/v1/notifications/verify-webhook-signature")) {
       return { status: 200, json: { verification_status: this.verifyStatus } };
     }
-    throw new Error(`FakePaypal: unhandled ${init.method} ${url}`);
+    // Honesty rule (the E2 lesson): a path PayPal doesn't have is a 404
+    // with an EMPTY body — never a helpful throw. A wrong path in the
+    // client must fail tests exactly the way it fails against PayPal.
+    return { status: 404, json: null };
   };
 
+  /** Pre-create a batch as if an earlier submit landed at PayPal but its response was lost. */
+  seedBatch(senderBatchId: string, senderItemId: string, status = "PENDING"): { batchId: string; itemId: string } {
+    const batchId = `BATCH-${senderBatchId}`;
+    const itemId = `ITEM-${senderItemId}`;
+    const item = {
+      payout_item_id: itemId,
+      payout_batch_id: batchId,
+      transaction_status: status,
+      sender_item_id: senderItemId,
+    };
+    this.items.set(itemId, item);
+    this.batches.set(batchId, {
+      batch_header: {
+        payout_batch_id: batchId,
+        batch_status: "PENDING",
+        sender_batch_header: { sender_batch_id: senderBatchId },
+      },
+      items: [item],
+    });
+    return { batchId, itemId };
+  }
   payoutPosts(): RecordedCall[] {
     return this.calls.filter((c) => c.method === "POST" && c.url.endsWith("/v1/payments/payouts"));
+  }
+  itemGets(): RecordedCall[] {
+    return this.calls.filter((c) => c.method === "GET" && c.url.includes("/v1/payments/payouts-item/"));
+  }
+  cancelPosts(): RecordedCall[] {
+    return this.calls.filter((c) => c.method === "POST" && c.url.endsWith("/cancel"));
   }
   tokenPosts(): RecordedCall[] {
     return this.calls.filter((c) => c.url.endsWith("/v1/oauth2/token"));
@@ -437,6 +509,7 @@ describe("slice 7 — paypal payouts (mocked transport)", () => {
     expect(mapPaypalItemStatus("FAILED")).toBe("failed");
     expect(mapPaypalItemStatus("BLOCKED")).toBe("blocked");
     expect(mapPaypalItemStatus("DENIED")).toBe("denied");
+    expect(mapPaypalItemStatus("CANCELED")).toBe("returned"); // cancelled unclaimed hold → back to sender
     expect(mapPaypalItemStatus("SOMETHING_NEW")).toBe("unknown");
     expect(mapPaypalItemStatus(null)).toBe("unknown");
     expect(mapPaypalItemStatus(undefined)).toBe("unknown");
@@ -580,6 +653,146 @@ describe("slice 7 — paypal payouts (mocked transport)", () => {
     const r2 = await req(h.app, "GET", `/v1/admin/events/${ev2.id}/receipts`, { admin: true });
     expect(r2.json.receipts[0].payout_status).toBe("n/a_code_revealed");
     expect(r2.json.receipts[0].payout_address).toBeNull();
+  });
+
+  test("poll settles through the payouts-item route — the E2 wrong-path regression", async () => {
+    const fake = new FakePaypal();
+    const h = makePayoutHarness(fake);
+    const { userId } = await makeUser(h, "route@example.com");
+    setAddress(h, userId, "route@example.com", true);
+    const ev = await adminCreateEvent(h);
+    const prizeId = await claimedPrize(h, { userId, eventId: ev.id, valueCents: 1800, code: "C-15" });
+    const created = await req(h.app, "POST", `/v1/admin/prizes/${prizeId}/payout`, { admin: true });
+    const payoutId = created.json.payout.id;
+    const itemId = created.json.payout.item_id;
+    expect(itemId).toBe(`ITEM-${prizeId}`);
+
+    fake.setItemStatus(itemId, "SUCCESS", "TXN-ROUTE");
+    const polled = await req(h.app, "GET", `/v1/admin/payouts/${payoutId}`, { admin: true });
+    expect(polled.status).toBe(200);
+    expect(polled.json.payout.status).toBe("success");
+    expect(polled.json.payout.transaction_id).toBe("TXN-ROUTE");
+    // The read went to the real route, and the dead route was never touched.
+    expect(fake.itemGets().some((c) => c.url.endsWith(`/v1/payments/payouts-item/${itemId}`))).toBe(true);
+    expect(fake.calls.some((c) => c.url.includes("/payouts/items/"))).toBe(false);
+    const year = new Date().getUTCFullYear();
+    expect(yearTotalCents(h.db, userId, "sandbox", year)).toBe(1800);
+  });
+
+  test("poll falls back to the batch read when the item read errors", async () => {
+    const fake = new FakePaypal();
+    const h = makePayoutHarness(fake);
+    const { userId } = await makeUser(h, "fallback@example.com");
+    setAddress(h, userId, "fallback@example.com", true);
+    const ev = await adminCreateEvent(h);
+    const prizeId = await claimedPrize(h, { userId, eventId: ev.id, valueCents: 2600, code: "C-16" });
+    const created = await req(h.app, "POST", `/v1/admin/prizes/${prizeId}/payout`, { admin: true });
+    const payoutId = created.json.payout.id;
+    const itemId = created.json.payout.item_id;
+
+    fake.failItemGets = true; // every item read 500s; the batch read still works
+    fake.setItemStatus(itemId, "SUCCESS", "TXN-FALLBACK");
+    const polled = await req(h.app, "GET", `/v1/admin/payouts/${payoutId}`, { admin: true });
+    expect(polled.status).toBe(200);
+    expect(polled.json.payout.status).toBe("success");
+    expect(polled.json.payout.transaction_id).toBe("TXN-FALLBACK");
+    expect(fake.itemGets().length).toBeGreaterThan(0); // the failing read really happened first
+    const year = new Date().getUTCFullYear();
+    expect(yearTotalCents(h.db, userId, "sandbox", year)).toBe(2600);
+  });
+
+  test("resubmit adopts the original batch from PayPal's duplicate-batch 400 (E1)", async () => {
+    const fake = new FakePaypal();
+    const h = makePayoutHarness(fake);
+    const { userId } = await makeUser(h, "adopt@example.com");
+    setAddress(h, userId, "adopt@example.com", true);
+    const ev = await adminCreateEvent(h);
+    const prizeId = await claimedPrize(h, { userId, eventId: ev.id, valueCents: 1234, code: "C-17" });
+    // The first submit landed at PayPal; its response never reached us.
+    const seeded = fake.seedBatch(`hunt-sbx-${prizeId}`, prizeId, "PENDING");
+
+    const r = await req(h.app, "POST", `/v1/admin/prizes/${prizeId}/payout`, { admin: true });
+    expect(r.status).toBe(200);
+    expect(r.json.payout.batch_id).toBe(seeded.batchId); // adopted, not re-minted
+    expect(r.json.payout.item_id).toBe(seeded.itemId);
+    expect(r.json.payout.status).toBe("pending");
+    expect(fake.payoutPosts().length).toBe(1); // exactly one (refused) submit attempt
+    const row = h.db.query("SELECT failure FROM payouts WHERE prize_id = ?").get(prizeId) as {
+      failure: string | null;
+    };
+    expect(row.failure).toBeNull();
+
+    // And the adopted batch settles normally afterwards.
+    fake.setItemStatus(seeded.itemId, "SUCCESS", "TXN-ADOPTED");
+    const polled = await req(h.app, "GET", `/v1/admin/payouts/${r.json.payout.id}`, { admin: true });
+    expect(polled.json.payout.status).toBe("success");
+    const year = new Date().getUTCFullYear();
+    expect(yearTotalCents(h.db, userId, "sandbox", year)).toBe(1234);
+  });
+
+  test("cancel: an unclaimed payout cancels through the module and the row takes PayPal's answer", async () => {
+    const fake = new FakePaypal();
+    fake.itemStatus = "UNCLAIMED";
+    const h = makePayoutHarness(fake);
+    const { userId } = await makeUser(h, "cancel@example.com");
+    setAddress(h, userId, "cancel@example.com", true);
+    const ev = await adminCreateEvent(h);
+    const prizeId = await claimedPrize(h, { userId, eventId: ev.id, valueCents: 700, code: "C-18" });
+    const created = await req(h.app, "POST", `/v1/admin/prizes/${prizeId}/payout`, { admin: true });
+    expect(created.json.payout.status).toBe("unclaimed");
+    const payoutId = created.json.payout.id;
+
+    const r = await req(h.app, "POST", `/v1/admin/payouts/${payoutId}/cancel`, { admin: true });
+    expect(r.status).toBe(200);
+    expect(r.json.payout.status).toBe("returned");
+    expect(fake.cancelPosts().length).toBe(1);
+    expect(fake.cancelPosts()[0].url).toContain(`/v1/payments/payouts-item/ITEM-${prizeId}/cancel`);
+    const year = new Date().getUTCFullYear();
+    expect(yearTotalCents(h.db, userId, "sandbox", year)).toBe(0); // unclaimed money never counted
+  });
+
+  test("cancel: a PayPal 500 surfaces as an error and leaves the row untouched (E3)", async () => {
+    const fake = new FakePaypal();
+    fake.itemStatus = "UNCLAIMED";
+    const h = makePayoutHarness(fake);
+    const { userId } = await makeUser(h, "cancel500@example.com");
+    setAddress(h, userId, "cancel500@example.com", true);
+    const ev = await adminCreateEvent(h);
+    const prizeId = await claimedPrize(h, { userId, eventId: ev.id, valueCents: 700, code: "C-19" });
+    const created = await req(h.app, "POST", `/v1/admin/prizes/${prizeId}/payout`, { admin: true });
+    const payoutId = created.json.payout.id;
+
+    fake.failCancels = true;
+    const r = await req(h.app, "POST", `/v1/admin/payouts/${payoutId}/cancel`, { admin: true });
+    expect(r.status).toBe(502);
+    expect(r.json.error).toBe("paypal_cancel_failed");
+    const row = h.db.query("SELECT status FROM payouts WHERE id = ?").get(payoutId) as { status: string };
+    expect(row.status).toBe("unclaimed"); // exactly as before — no faked success
+  });
+
+  test("cancel refuses anything that is not unclaimed, before any PayPal call", async () => {
+    const fake = new FakePaypal();
+    const h = makePayoutHarness(fake);
+    const { userId } = await makeUser(h, "nocancel@example.com");
+    setAddress(h, userId, "nocancel@example.com", true);
+    const ev = await adminCreateEvent(h);
+    const prizeId = await claimedPrize(h, { userId, eventId: ev.id, valueCents: 700, code: "C-20" });
+    const created = await req(h.app, "POST", `/v1/admin/prizes/${prizeId}/payout`, { admin: true });
+    expect(created.json.payout.status).toBe("pending");
+    const r = await req(h.app, "POST", `/v1/admin/payouts/${created.json.payout.id}/cancel`, { admin: true });
+    expect(r.status).toBe(422);
+    expect(r.json.error).toBe("payout_not_cancellable");
+    expect(fake.cancelPosts().length).toBe(0);
+  });
+
+  test("fake honesty: an unknown path is a 404 with an empty body, like PayPal's router", async () => {
+    const fake = new FakePaypal();
+    const wrong = await fake.fetch("https://api-m.sandbox.paypal.com/v1/payments/payouts/items/ITEM-x", {
+      method: "GET",
+      headers: {},
+    });
+    expect(wrong.status).toBe(404);
+    expect(wrong.json).toBeNull();
   });
 
   test("schema v2: payouts tables exist and prize uniqueness is a database fact", () => {
