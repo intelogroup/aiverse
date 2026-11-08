@@ -74,7 +74,7 @@ def magic_session(email):
 now_ms = int(time.time() * 1000)
 seed = json.loads(Path(__file__).with_name("seed-e2e.json").read_text())
 seed["event"]["starts_at"] = now_ms - 60_000
-seed["event"]["ends_at"] = now_ms + 30 * 60_000
+seed["event"]["ends_at"] = now_ms + 90 * 60_000  # headless walks are slow; the window must outlast them
 seed["hints"][0]["fires_at"] = now_ms - 60_000
 seed_path = WORK / "seed-runtime.json"
 seed_path.write_text(json.dumps(seed))
@@ -186,22 +186,44 @@ with sync_playwright() as pw:
     # that most reduces distance-to-spot; tolerate blocked legs by moving on.
     # Inside ~18 m, go straight for the spot; via the shop-front anchor
     # (-25, 72.5) first if a direct interior leg blocks (v0's proven entry).
+    # A leg that settles with <0.5 m of movement means the body is wedged on
+    # collision (measured twice at x=-14.6): recover by retreating east and
+    # shifting z +-13 m, then re-approach from the new bearing.
     last_pos = page.evaluate("window.__scout.snapshot()")["pos"]
     visited = set()
     anchor_tried = False
-    for leg_no in range(16):
+    recoveries = 0
+
+    def do_leg(action, label):
+        nonlocal last_pos, recoveries
+        before = last_pos
+        result, pos = run_leg(action, label)
+        last_pos = pos
+        if won["via"] or result is None or result.get("status") != "blocked":
+            return result
+        moved = math.hypot(pos[0] - before[0], pos[2] - before[2])
+        if moved >= 0.5:
+            return result
+        recoveries += 1
+        rz = pos[2] + (13 if recoveries % 2 == 1 else -13)
+        rx = pos[0] + 7
+        log("recovery", f"wedged at {pos}; retreating to ({rx:.1f}, {rz:.1f})")
+        _, pos2 = run_leg({"type": "go_to", "point": [rx, rz]}, f"recovery #{recoveries}")
+        last_pos = pos2
+        return result
+
+    for leg_no in range(24):
         if won["via"] or dist_to_spot(last_pos) <= 1.5:
             break
         d = dist_to_spot(last_pos)
         if d <= 18:
             action = {"type": "go_to", "point": [SPOT[0], SPOT[1]]}
-            result, last_pos = run_leg(action, f"#{leg_no} direct-to-spot")
+            result = do_leg(action, f"#{leg_no} direct-to-spot")
             if won["via"] or dist_to_spot(last_pos) <= 1.5:
                 break
             if not anchor_tried:
                 anchor_tried = True
-                result, last_pos = run_leg({"type": "go_to", "place": "shop-98"},
-                                           f"#{leg_no} via Press anchor")
+                result = do_leg({"type": "go_to", "place": "shop-98"}, f"#{leg_no} via Press anchor")
                 continue
             break
         cands = []
@@ -215,13 +237,12 @@ with sync_playwright() as pw:
                 cands.append((gain, p["id"]))
         if not cands:
             log("legs", "no progressing place left; trying the spot directly")
-            result, last_pos = run_leg({"type": "go_to", "point": [SPOT[0], SPOT[1]]},
-                                       f"#{leg_no} long-direct")
+            result = do_leg({"type": "go_to", "point": [SPOT[0], SPOT[1]]}, f"#{leg_no} long-direct")
             break
         cands.sort(reverse=True)
         target = cands[0][1]
         visited.add(target)
-        result, last_pos = run_leg({"type": "go_to", "place": target}, f"#{leg_no} place {target}")
+        result = do_leg({"type": "go_to", "place": target}, f"#{leg_no} place {target}")
 
     dist = dist_to_spot(last_pos)
     log("arrival", f"pos={last_pos} distance-to-spot={dist:.3f} m")
