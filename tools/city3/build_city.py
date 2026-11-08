@@ -93,6 +93,15 @@ water_mat("water","water002",5.0,nstrength=1.25)   # fountain moat: Water 002 at
 water_mat("sea","water002",7.0)                    # open sea: the same set as proofed (tile 7 m, strength 1.0)
 MATS["lamp_glow"]=make_mat("lamp_glow","palette",0.5,emit=True,strength=3.0)
 MATS["glass"]=make_mat("glass",None,0.05,alpha=0.22,base=(0.72,0.86,0.95,1.0))
+# Wave 1 (prop audit class (a)): legitimately thin / open construction — the kit's
+# open-box furniture shells, shelving, stall cloth, signs, rugs, lamp shades — must
+# not vanish seen from behind or below. These materials render DoubleSide
+# (use_backface_culling off in Blender -> doubleSided in the GLB). Deliberately a
+# per-material list, NOT a make_mat default: architecture stays single-sided by
+# design (both-sides surfaces there are emitted twice with opposite windings).
+# Mirrors bridge_wave1.py on the shipped GLBs.
+for _nm in ("palette","signs","rug","lamp_glow","interior_wall","wood_floor"):
+    MATS[_nm].use_backface_culling=False
 # ---------------- flat surfaces & roads ----------------
 def flat(b,x0,y0,x1,y1,z,tile): mb(b).quad((x0,y0,z),(x1,y0,z),(x1,y1,z),(x0,y1,z),(x0/tile,y0/tile),(x1/tile,y0/tile),(x1/tile,y1/tile),(x0/tile,y1/tile),(0,0,1))
 px0,py0,px1,py1=P["plaza"]
@@ -459,6 +468,12 @@ for g,parts in LIBG.items():                    # procedural library pieces: one
     me.polygons.foreach_set("material_index",midx)
     ob=bpy.data.objects.new(g,me); bpy.context.scene.collection.objects.link(ob)
     if g.startswith("DI_"):                                                    # hero door static part: linked duplicates under one Empty -> EXT_mesh_gpu_instancing
+        # Wave 1 placement verdict (audit class (h)): the prop audit reported 20 of 77 door instances
+        # flipped 180 deg in the shipped GLB. A normalized-quaternion census of the shipped artifacts
+        # (bridge_wave1.py placement_census, with synthetic-flip positive control) finds 77/77 upright
+        # in both the 971b006 base GLB and the post-fountain main GLB — the claim is a measurement
+        # artifact, so NO transform cure is applied here or in the bridge. The bridge census re-checks
+        # every regeneration; if a real flip ever ships, it flags before merge.
         st=int(g[3:]); root=bpy.data.objects.new(f"inst_door_{doors.STYLE_NAMES[st].split('+')[0]}",None); bpy.context.scene.collection.objects.link(root)
         for i,(s_,x_,y_,z_,r_) in enumerate(i_ for i_ in doors.INST if i_[0]==st):
             o=ob.copy(); o.data=ob.data; o.name=f"door{st}_{i}"; o.location=(x_,y_,z_); o.rotation_euler=(0,0,r_)
@@ -472,6 +487,11 @@ _rs=random.Random(909)
 for o_ in list(bpy.data.objects):
     pass
 SK={n:_sk(n,h) for n,h in (("lantern",0.42),("pot",0.5),("producecrate",0.3),("med_bench",0.96),("med_crate",0.5),("med_stall",2.3))}
+# Wave 1 (prop audit class (a)): the medieval pack's shared mdvl_palette material
+# is single-sided, which makes half the facets of its open goods (stall, crate,
+# pot, lantern, the instanced stall goods) vanish from behind/below. DoubleSide.
+for _m in bpy.data.materials:
+    if _m.name.startswith("mdvl_palette"): _m.use_backface_culling=False
 SKP=[]                                                                      # (asset, x, y, z, rot) of every placed Sketchfab prop (collision.py)
 def _skput(n,x,y,z,rot=0.0):
     SKP.append((n,x,y,z,rot)); src,s=SK[n]; o=src.copy(); o.data=src.data; o.name=f"SK_{n}"; o.location=(x,y,z); o.rotation_euler=(0,0,rot); o.scale=(s,s,s); _skc.objects.link(o)
@@ -516,9 +536,71 @@ print("GOODS stocks",{k:sum(1 for i in range(len(P["stalls"])) if goods_stock.st
 print("GOODS top",sorted(((GCOUNT[k]*_gt(k),k,GCOUNT[k],_gt(k)) for k in GCOUNT),reverse=True)[:22])
 # ---------------- party corner: user-supplied party cups + beer-pong tables (USDZ), GPU-instanced under one Empty ----------------
 _pe=bpy.data.objects.new("PartyCups",None); bpy.context.scene.collection.objects.link(_pe)
-def _pc(n,b=320): return assets_kit.load(f"partycups/{n}",b,source="usdz",name=f"pc_{n}",tex=128)
+# Wave 1 (prop audit classes (e)+(f)): the USDZ cups are 0.186 m tall — ~1.7x a
+# real 9.5-11 cm party cup — and their wall UVs sprawl across the whole artwork
+# sheet, so neighbouring cells print onto the walls as streaks. Scale the cup
+# mesh data to 0.110 m and collapse each mesh's UVs into a solid patch of its
+# own dominant sheet colour (same algorithm as bridge_wave1.py on the shipped
+# GLB; keep the two in step). _CR follows the scale, so rack spacing and the
+# tipped-litter rest height stay true automatically.
+_CUP_S=0.5909372                                                             # 0.110 / 0.18614 (measured USDZ cup height)
+def _cup_meshes(root):
+    seen=set(); out=[]
+    for o in [root]+list(root.children_recursive):
+        if o.type=="MESH" and o.data.name not in seen: seen.add(o.data.name); out.append(o.data)
+    return out
+def _cup_uv_collapse(me):
+    import numpy as _np
+    img=None
+    for slot in me.materials:
+        if not slot or not slot.use_nodes: continue
+        for nd in slot.node_tree.nodes:
+            if nd.type=="TEX_IMAGE" and nd.image: img=nd.image; break
+        if img: break
+    if img is None or not me.uv_layers.active: return
+    W,H=img.size; px=_np.array(img.pixels[:]).reshape(H,W,4)[:,:,:3]*255.0     # rows are bottom-up: row = v
+    uv=me.uv_layers.active.data
+    me.calc_loop_triangles()
+    cen=[]; nrm=[]; uvc=[]
+    for tri in me.loop_triangles:
+        vs=[me.vertices[i] for i in tri.vertices]
+        c=sum((v.co for v in vs),vs[0].co*0)/3.0
+        cen.append(c); nrm.append(tri.normal)
+        uvc.append(sum((_np.array(uv[l].uv) for l in tri.loops),_np.zeros(2))/3.0)
+    cen=_np.array([[c.x,c.y,c.z] for c in cen]); nrm=_np.array([[n.x,n.y,n.z] for n in nrm]); uvc=_np.array(uvc)
+    rad=cen[:,:2]; rad/=_np.maximum(_np.linalg.norm(rad,axis=1,keepdims=True),1e-9)
+    align=(nrm[:,:2]*rad).sum(axis=1)
+    wall=[i for i in range(len(uvc)) if align[i]>0.5 and abs(nrm[i,2])<0.6]
+    if not wall: return
+    cols=_np.array([px[min(H-1,max(0,int(uvc[i,1]*H))),min(W-1,max(0,int(uvc[i,0]*W)))] for i in wall])
+    dom=_np.median(cols,axis=0); best=None
+    for tol in (45.0,80.0,1e9):
+        for y0 in range(0,H-10,2):
+            for x0 in range(0,W-10,2):
+                win=px[y0:y0+10,x0:x0+10]
+                if win.std(axis=(0,1)).max()>=8: continue
+                d=float(_np.abs(win.mean(axis=(0,1))-dom).max())
+                if d<=tol and (best is None or d<best[0]): best=(d,x0+5,y0+5)
+        if best is not None: break
+    if best is None: return
+    _d,cx,cy=best
+    rect=((cx-2)/W,(cy-2)/H,(cx+2)/W,(cy+2)/H)
+    alluv=_np.array([l.uv for l in uv]); mn=alluv.min(axis=0); mx=alluv.max(axis=0)
+    for l in uv:
+        u,v=l.uv
+        l.uv=((rect[0]+(u-mn[0])/max(mx[0]-mn[0],1e-9)*(rect[2]-rect[0])),
+              (rect[1]+(v-mn[1])/max(mx[1]-mn[1],1e-9)*(rect[3]-rect[1])))
+def _pc(n,b=320):
+    L=assets_kit.load(f"partycups/{n}",b,source="usdz",name=f"pc_{n}",tex=128)
+    o=L["obj"]
+    if not o.get("wave1_cup"):
+        o["wave1_cup"]=1
+        for me in _cup_meshes(o):
+            for v in me.vertices: v.co*=_CUP_S
+            _cup_uv_collapse(me)
+    return L
 _PT=assets_kit.load("partycups/partyTable",900,source="usdz",name="pc_table",tex=256); _TH=_PT["dims"][2]
-_CR=0.072                                                                    # cup rim radius (0.141 m across)
+_CR=0.072*_CUP_S                                                             # cup rim radius, scaled (0.141 m across at source size)
 def _put(key,x,y,z,rot=0.0,tilt=None):
     src=assets_kit.LIB[key]["obj"]; o=src.copy(); o.data=src.data; o.name=f"PC_{key}"; o.location=(x,y,z)
     o.rotation_euler=(tilt or 0.0,0,rot); o.parent=_pe; _skc.objects.link(o); return o
