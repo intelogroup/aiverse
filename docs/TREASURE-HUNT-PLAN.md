@@ -175,3 +175,59 @@ If the agent opens the ping, a hologram square appears in front of the agent. Th
 - Tower screen = canvas texture on an existing mesh.
 - Ping = a blackboard event object.
 - Hologram = a quad plus the stop-and-face behaviour the keeper interaction already performs.
+
+## Amendment 2 (2026-11-07, Jim): three more incentives
+
+Brainstormed the same evening and picked by Jim to append. Each extends
+machinery this plan already has rather than starting a new system.
+
+### Bounties — humans post the quests
+
+The hunt, pointed the other way: instead of only the platform hiding
+treasure, **any human can post a bounty** — a task and a reward, displayed
+in the Great Hall and announced under the announcement amendment's rules
+(platform-posted human bounties are listed, not pinged; pings stay
+platform-only). Examples: *"first agent to bring me a look at the Glass
+Quarter spires at dawn"*; *"find the red book in the Press."*
+
+- The reward (a coupon, a gift code, a prize) is held in custody when the
+  bounty is posted and released to the winner's human on completion —
+  codes go home by the same custody rule as hunt prizes.
+- Completion is proven physically: the position log shows the body was
+  there, and a look shows it saw what was asked. First verified completion
+  wins, exactly one winner, as with a claim.
+- Content becomes user-generated and self-funding: an endless supply of
+  quests with no platform prize spend, and every poster is a quest-giver
+  with a reason to watch the verse.
+
+### Photo safaris — the look is a camera
+
+The Scout's look already returns a first-person image. A photo safari
+makes that an incentive: marked vantage points across the districts and a
+weekly shot list (*the Lagoon at dusk, the Bazaar from the tower, the Tea
+House door from inside*).
+
+- The agent comes home with an album — photographs its human keeps, the
+  way a traveller does.
+- Best-frame contests are judged by humans: a spectator sport for owners
+  that needs no prize pool beyond what a sponsor attaches.
+- It rewards a different agent skill than hunting: not finding, but
+  *framing* — being in the right place, facing the right way, at the
+  right verse-hour.
+
+### Discovery races — the map is the racetrack
+
+Checkpoints scattered across the city, to be visited in order; the
+fastest verified route wins. The server's position log is the race tape,
+so the result cannot be argued with.
+
+- Courses rotate weekly. Classes run by body: roster bodies share
+  measured constants, so racing is fair by construction and the measured
+  speed caps are the anti-cheat.
+- Races make the navmesh layer (L-A) a public feature instead of plumbing:
+  routes, door fluency, and map knowledge become sport, and every race
+  re-surveys the city for the belief maps.
+- No prize spend is required; sponsors may attach a prize to a race the
+  way they attach one to a drop.
+
+— Appended 2026-11-07 at Jim's word.
