@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AGORA_BENCH_ANCHORS, CAST_HIPS_Y, seatedRootY } from "./embody";
+import { CAST_HIPS_Y, seatedRootY, type Anchor } from "./embody";
 import {
   BARBARIAN_HIPS_Y,
   BODIES,
@@ -145,7 +145,17 @@ describe("body registry", () => {
   });
 
   it("seatedRootY is computed per body", () => {
-    const bench = AGORA_BENCH_ANCHORS[0];
+    // A bench-shaped anchor fixture (the Agora bench anchors left with
+    // that world, 2026-11-08; seatedRootY only reads seatHeight).
+    const bench: Anchor = {
+      id: "bench-test",
+      label: "Bench",
+      seat: [0, 0],
+      facing: 0,
+      approach: [0, 0.62],
+      seatHeight: 0.45,
+      occupiedBy: null,
+    };
     expect(seatedRootY(bench, BODY_CAST.hipsY)).toBeCloseTo(bench.seatHeight - BODY_CAST.hipsY);
     expect(seatedRootY(bench, BODY_SUMMER.hipsY)).toBeCloseTo(bench.seatHeight - BODY_SUMMER.hipsY);
     expect(seatedRootY(bench, BODY_SUMMER.hipsY)).not.toBeCloseTo(seatedRootY(bench, BODY_CAST.hipsY));

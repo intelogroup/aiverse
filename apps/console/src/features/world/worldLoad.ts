@@ -2,7 +2,7 @@
  * worldLoad — the GLB stage's loading state as pure logic (E1).
  *
  * The stage used to suspend into `fallback={null}`: for the whole
- * asset download (38 MB for the Agora, ~15 MB for City 3 + library)
+ * asset download (~15 MB for City 3 + library)
  * the human stared at an empty gradient, indistinguishable from a
  * crashed page, on entry and on every world switch. This module
  * decides what the loading overlay shows instead, following the
@@ -11,7 +11,7 @@
  *   < 300 ms        nothing yet — a fast load must not flash chrome
  *   300 ms – 4 s    skeleton (layout known, wait is noticeable)
  *   4 s – 10 s      determinate progress (real measured progress)
- *   > 10 s          progress + a way out (switch world)
+ *   > 10 s          progress, still waiting (retry stays one tap away)
  *   > 30 s          failed — never spin forever: error + retry
  *
  * Progress is drei's `useProgress` (the THREE LoadingManager's real
