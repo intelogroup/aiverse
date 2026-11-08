@@ -1,0 +1,2 @@
+# Preserve the uploaded modeling source byte-for-byte and keep it out of text diffs.
+Verres.obj binary

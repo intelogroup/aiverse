@@ -5,7 +5,6 @@ Pieces are built here as plain vertex/face lists (origin = bottom centre, z up, 
 Real CC0 assets (Sketchfab Avramania "Low Poly Medieval": Basket, Grain Sack, Sack, Roll, Cheese Wheel, Pot, Lantern) are placed by build_city.py
 alongside; `REAL` lists them with the scale each gets. Every piece is placed as a linked duplicate under an `inst_goods_*` Empty."""
 import math, random
-from kit import pal_uv
 
 # ---------------------------------------------------------------- geometry accumulator
 class G:
@@ -338,6 +337,12 @@ def make_objects(bpy,pal_mat,coll):
     """Creates one LIB_g_<name> object per piece (excluded from the world export by its LIB_ prefix); returns {name:(obj,height)}."""
     out={}
     for i,name in enumerate(sorted(REG)):
+        if name == 'goblets':
+            from drinking_glasses import template
+            ob = template('bazaar', coll)
+            out[name] = (ob, max(v.co.z for v in ob.data.vertices), sum(len(p.vertices)-2 for p in ob.data.polygons))
+            continue
+        from kit import pal_uv
         g=build(name,5000+i)
         me=bpy.data.meshes.new(f"g_{name}"); me.from_pydata(g.v,[],g.f); me.update()
         uv=[];

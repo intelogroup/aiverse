@@ -1,8 +1,16 @@
 # Third-party assets (City 3 interiors)
 
-All assets are **CC0** (public domain dedication). No attribution is required; we credit the authors anyway.
+The base interior assets in the first table are **CC0** (public domain dedication). No attribution is required; we credit the authors anyway. Later sections record other assets with their individual licence status.
 They are not committed: `assets/fetch.sh` downloads them, and the build decimates them and resizes their
 textures to 512 px before export into `world-city3-press.glb`.
+
+## Uploaded drinking glasses and workshop sources
+
+The user's Verres FBX/OBJ set supplies the wine, water and champagne shapes now used for Bazaar/café goblets. Geometry and physical glass material are committed in `assets/verres/drinkware.glb`; source references, checksums and unknown author/licence fields are in `assets/verres/source-manifest.json`. This upload is not declared CC0. See `docs/procedural-city/17-drinking-glasses.md` for regeneration and browser checks.
+
+Native workshop assets are retained outside public assets: `assets/source_bottles/Wine+Bottles+Pack.blend` and `assets/unity/free_dissolve_shader_pack_urp.unitypackage`. Their inventories, compatibility and source status are recorded in `assets/wine_bottles_pack.json` and `assets/dissolve_shader_pack.json`. These packs have not been placed in the live world.
+
+## Base interior imports
 
 | Asset | Author(s) | License | Source |
 |---|---|---|---|
