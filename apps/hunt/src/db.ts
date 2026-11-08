@@ -159,7 +159,62 @@ INSERT OR IGNORE INTO body_constants (body_id, max_speed_mps) VALUES
   ('skeleton-warrior', 1.2612);
 `;
 
-const MIGRATIONS: { version: number; sql: string }[] = [{ version: 1, sql: SCHEMA_V1 }];
+/**
+ * Phase 2 (money amendment): the payout ledger. One row per win paid over
+ * the PayPal rail — `prize_id` is unique because exactly one `won` claim
+ * exists per prize (I1), so one prize can never fund two payouts.
+ * `sender_batch_id` is the PayPal idempotency key: deterministic from the
+ * prize, so a re-submit after an ambiguous failure replays the same batch
+ * at PayPal instead of paying twice. Amounts are integer cents (§5).
+ */
+export const SCHEMA_V2 = /* sql */ `
+CREATE TABLE IF NOT EXISTS payouts (
+  id TEXT PRIMARY KEY,
+  prize_id TEXT NOT NULL UNIQUE REFERENCES prizes(id),
+  event_id TEXT NOT NULL,
+  user_id TEXT NOT NULL REFERENCES hunt_users(id),
+  amount_cents INTEGER NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'USD',
+  mode TEXT NOT NULL,             -- sandbox|live — the PayPal env this row belongs to
+  recipient TEXT NOT NULL,        -- verified payout address snapshot at send time
+  sender_batch_id TEXT NOT NULL UNIQUE,
+  sender_item_id TEXT NOT NULL,
+  batch_id TEXT NULL,             -- PayPal payout_batch_id
+  item_id TEXT NULL,              -- PayPal payout_item_id
+  transaction_id TEXT NULL,       -- PayPal transaction id — the published receipt
+  status TEXT NOT NULL,           -- created|pending|processing|success|unclaimed|returned|failed|blocked|denied|unknown
+  failure TEXT NULL,              -- PayPal error name/reason JSON; never credentials
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  paid_at INTEGER NULL            -- set exactly once, when SUCCESS is first observed
+);
+CREATE INDEX IF NOT EXISTS idx_payouts_user ON payouts(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_payouts_event_user ON payouts(event_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_payouts_batch ON payouts(batch_id);
+
+-- Amendment §6 groundwork, enforced from Phase 2: one person = one payout
+-- address across accounts (the table is written by no v1 endpoint, so it
+-- is empty wherever this index lands).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_payout_addresses_unique ON payout_addresses(address);
+
+-- 1099 hook (amendment §7): per-person, per-mode, per-UTC-year totals.
+-- Rows are incremented ONLY on the transition into payout SUCCESS, inside
+-- the same transaction (see payouts.ts applyPayoutStatus), so a win
+-- observed twice — poll + webhook — still counts once.
+CREATE TABLE IF NOT EXISTS payout_year_totals (
+  user_id TEXT NOT NULL,
+  mode TEXT NOT NULL,
+  year INTEGER NOT NULL,
+  total_cents INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, mode, year)
+);
+`;
+
+const MIGRATIONS: { version: number; sql: string }[] = [
+  { version: 1, sql: SCHEMA_V1 },
+  { version: 2, sql: SCHEMA_V2 },
+];
 
 export function openDb(path: string): Database {
   if (path !== ":memory:") {

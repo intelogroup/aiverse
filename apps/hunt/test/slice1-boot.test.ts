@@ -15,7 +15,8 @@ describe("slice 1 — skeleton", () => {
   test("db opens with migrations applied and body constants seeded", () => {
     const db = openDb(":memory:");
     const v = db.query("PRAGMA user_version").get() as { user_version: number };
-    expect(v.user_version).toBe(1);
+    // v2 = the Phase 2 payouts schema (payouts + payout_year_totals).
+    expect(v.user_version).toBe(2);
     const remy = db.query("SELECT max_speed_mps FROM body_constants WHERE body_id = 'remy'").get() as {
       max_speed_mps: number;
     };
@@ -33,6 +34,8 @@ describe("slice 1 — skeleton", () => {
       "claim_attempts",
       "position_samples",
       "payout_addresses",
+      "payouts",
+      "payout_year_totals",
       "hint_schedule",
       "pool_ledger",
       "announcements",
