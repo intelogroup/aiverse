@@ -529,6 +529,45 @@ export class SoundDirector {
       : null;
   }
 
+  // ---- spectator drive (F1) ---------------------------------------
+  //
+  // Announcements used to exist only inside walk mode: tick() (which
+  // fires the verse-clock lines) ran only while walking, and the
+  // banner rendered only in the walk HUD — a spectator in the default
+  // wide view never saw dawn, dusk, or the Tea House open. The
+  // spectator drive advances the same clock from the shell, with the
+  // viewing district as the audience scope. It touches NO audio
+  // layers: announce() keeps deciding audibility from the walk
+  // listener exactly as before, so a spectator hears nothing they
+  // didn't consent to in walk mode — they only *see* the banner.
+
+  private spectatorDistrict: string | null = null;
+
+  /** Advance the verse clock for a non-walking viewer. */
+  tickSpectator(dt: number, district: string | null): void {
+    const step = Math.max(0, Math.min(dt, 0.5));
+    this.spectatorDistrict = district;
+    this.elapsed += step;
+    this.fireClockEvents(step);
+  }
+
+  /** The banner line for a spectator in the viewing district, or null. */
+  spectatorBannerText(): string | null {
+    return bannerVisible(this.announcement, this.elapsed, this.spectatorDistrict)
+      ? (this.announcement?.text ?? null)
+      : null;
+  }
+
+  /** Verse-clock boundaries crossed in the last `dt` of elapsed time. */
+  private fireClockEvents(dt: number): void {
+    const clockPrev = VERSE_CLOCK_START_S + (this.elapsed - dt);
+    const clockNow = VERSE_CLOCK_START_S + this.elapsed;
+    for (const ev of clockEventsBetween(clockPrev, clockNow)) {
+      const line = PA_LINES[ev];
+      this.announce(line.text, line.scope, line.clip);
+    }
+  }
+
   private paActive(): boolean {
     return this.elapsed < this.paSoundingUntil;
   }
@@ -638,12 +677,7 @@ export class SoundDirector {
     );
 
     // Verse clock → dawn/dusk announcements (Bazaar-scoped).
-    const clockPrev = VERSE_CLOCK_START_S + (this.elapsed - dt);
-    const clockNow = VERSE_CLOCK_START_S + this.elapsed;
-    for (const ev of clockEventsBetween(clockPrev, clockNow)) {
-      const line = PA_LINES[ev];
-      this.announce(line.text, line.scope, line.clip);
-    }
+    this.fireClockEvents(dt);
 
     // Tea door session start → the Tea House announcement, once
     // per walk session (GlbWorld calls resetSession() as walk mode

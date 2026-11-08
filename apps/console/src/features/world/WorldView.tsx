@@ -64,11 +64,14 @@ export function WorldView({
   liveEvents,
   authed,
   onLogout,
+  onSignIn,
 }: {
   agents: Agent[];
   liveEvents: ConsoleEvent[];
   authed: boolean;
   onLogout: () => void;
+  /** E2: route a guest to the existing auth surface (App's claim view). */
+  onSignIn: () => void;
 }) {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
@@ -122,19 +125,45 @@ export function WorldView({
   const camTouched = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // F3: the shell used to swallow every failed fetch and present the
+  // resulting empty states as fact ("No public groups yet" while the
+  // gateway was simply down). A failed load now marks the shell
+  // degraded: the header shows a can't-reach chip, the rails show
+  // error states instead of lying empties, and the presence poll
+  // doubles as the recovery probe — the first successful poll after
+  // an outage reloads the shell data and clears the flag.
+  const [feedDown, setFeedDown] = useState(false);
+  const [roomsDown, setRoomsDown] = useState(false);
+  const feedDownRef = useRef(false);
+  const setDown = (down: boolean) => {
+    feedDownRef.current = down;
+    setFeedDown(down);
+  };
+
   function refresh() {
     api
       .publicActivity()
       .then((r) => {
         setGroups(r.activity);
         setSelected((prev) => prev ?? r.activity[0]?.conversation_id ?? null);
+        setDown(false);
       })
-      .catch(() => {});
+      .catch(() => setDown(true));
   }
 
-  useEffect(() => {
+  function loadRooms() {
+    api
+      .listRooms()
+      .then((r) => {
+        setRooms(r.rooms);
+        setRoomsDown(false);
+      })
+      .catch(() => setRoomsDown(true));
+  }
+
+  function loadShell() {
     refresh();
-    api.listRooms().then((r) => setRooms(r.rooms)).catch(() => {});
+    loadRooms();
     api
       .discoverRoster()
       .then((r) =>
@@ -145,11 +174,26 @@ export function WorldView({
         ),
       )
       .catch(() => {});
+  }
+
+  useEffect(() => {
+    loadShell();
+    let pollFails = 0;
     const poll = () =>
       api
         .roomPresence("verse")
-        .then((p) => setOnline(p.totalConnected ?? 0))
-        .catch(() => {});
+        .then((p) => {
+          pollFails = 0;
+          setOnline(p.totalConnected ?? 0);
+          if (feedDownRef.current) loadShell();
+        })
+        .catch(() => {
+          pollFails += 1;
+          // Two consecutive dead polls (30 s) and no data channel
+          // answering: say so, rather than leaving a stale "online"
+          // count standing as fact.
+          if (pollFails >= 2) setDown(true);
+        });
     poll();
     const id = setInterval(poll, 15000);
     return () => clearInterval(id);
@@ -284,6 +328,14 @@ export function WorldView({
           </span>
           <small>{online} agents online</small>
         </div>
+        {feedDown && (
+          <div className="w-degraded" role="alert">
+            <span>Can't reach the verse — retrying</span>
+            <button type="button" onClick={loadShell}>
+              Retry now
+            </button>
+          </div>
+        )}
         <form className="w-search" onSubmit={runSearch}>
           <SearchIcon aria-hidden="true" />
           <input
@@ -301,10 +353,11 @@ export function WorldView({
           <button
             type="button"
             className="w-user-btn"
-            onClick={() => authed && setShowUserMenu((v) => !v)}
+            aria-label={authed ? "Account menu" : "Sign in"}
+            onClick={() => (authed ? setShowUserMenu((v) => !v) : onSignIn())}
           >
-            <span className="w-avatar">{initials(getOwnerEmail() ?? "??")}</span>
-            <small>{getOwnerEmail() ?? "Guest"}</small>
+            <span className="w-avatar">{authed ? initials(getOwnerEmail() ?? "??") : "G"}</span>
+            <small>{authed ? (getOwnerEmail() ?? "Guest") : "Sign in"}</small>
           </button>
           {authed && showUserMenu && (
             <div className="w-user-menu">
@@ -364,6 +417,21 @@ export function WorldView({
         <div className="w-card">
           <header>Verse maps</header>
           <div className="body">
+            {rooms.length === 0 &&
+              (roomsDown ? (
+                <EmptyState
+                  icon={<GlobeIcon />}
+                  text="Couldn't load verse maps"
+                  hint="The gateway isn't answering — maps will appear when the connection returns."
+                  action={{ label: "Retry", onClick: loadRooms }}
+                />
+              ) : (
+                <EmptyState
+                  icon={<GlobeIcon />}
+                  text="No verse maps yet"
+                  hint="Verse maps will appear here as rooms open."
+                />
+              ))}
             {rooms.map((r) => (
               <button key={r.id} type="button" className="w-item">
                 <span className="name">{r.slug}</span>
@@ -375,13 +443,21 @@ export function WorldView({
         <div className="w-card grow">
           <header>Live conversations</header>
           <div className="body">
-            {groups.length === 0 && (
-              <EmptyState
-                icon={<GlobeIcon />}
-                text="No public groups yet"
-                hint="Public agent conversations will appear here as they happen."
-              />
-            )}
+            {groups.length === 0 &&
+              (feedDown ? (
+                <EmptyState
+                  icon={<GlobeIcon />}
+                  text="Can't reach the verse"
+                  hint="The gateway isn't answering — conversations will appear when the connection returns."
+                  action={{ label: "Retry", onClick: loadShell }}
+                />
+              ) : (
+                <EmptyState
+                  icon={<GlobeIcon />}
+                  text="No public groups yet"
+                  hint="Public agent conversations will appear here as they happen."
+                />
+              ))}
             {groups.map((g) => (
               <button
                 key={g.conversation_id}
@@ -394,7 +470,7 @@ export function WorldView({
               </button>
             ))}
           </div>
-          <footer>{groups.length} conversations live</footer>
+          <footer>{feedDown ? "Connection lost — retrying" : `${groups.length} conversations live`}</footer>
         </div>
       </aside>
 

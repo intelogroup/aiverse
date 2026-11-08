@@ -1,7 +1,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
-import { OrbitControls, useGLTF } from "@react-three/drei";
+import { OrbitControls, useGLTF, useProgress } from "@react-three/drei";
 import * as THREE from "three";
 import { DistrictWorld } from "./DistrictWorld";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
@@ -72,6 +72,7 @@ import { InteractController, type InteractableDef } from "./interactables";
 import { buildInteractableVisual } from "./interactableMesh";
 import { InteractTicker } from "./InteractTicker";
 import { TeaDoorLeaf, TeaDoorTicker } from "./TeaDoorLeaf";
+import { loadPercent, worldLoadPhase } from "./worldLoad";
 import {
   PROBE_CADENCES,
   PROBE_HEIGHT,
@@ -1023,6 +1024,157 @@ function CrowdCast({
   );
 }
 
+/** Fires once when the Suspense subtree it sits in actually mounts —
+ * the "the world is on screen" signal the loading overlay waits for. */
+function PresentedSignal({ onPresented }: { onPresented: () => void }) {
+  useEffect(() => {
+    onPresented();
+  }, [onPresented]);
+  return null;
+}
+
+/**
+ * E1 — the stage's loading state (worldLoad.ts decides the phase;
+ * skeleton-states.md is the rulebook). The Suspense fallback inside
+ * the Canvas stays null — a DOM overlay is where a human-facing
+ * state belongs: place name, skeleton, the LoadingManager's real
+ * progress, a way out when the wait runs long, and an honest error
+ * with a retry when it fails. Cross-fades out once the world
+ * presents; never traps the user (the world toggle stays above it).
+ */
+function WorldLoadOverlay({
+  place,
+  presented,
+  onRetry,
+  onSwitch,
+}: {
+  place: Place;
+  presented: boolean;
+  onRetry: () => void;
+  onSwitch: () => void;
+}) {
+  const { progress, errors } = useProgress();
+  const [startedAt] = useState(() => performance.now());
+  const [now, setNow] = useState(() => performance.now());
+  const [gone, setGone] = useState(false);
+  const phase = worldLoadPhase({
+    presented,
+    failed: errors.length > 0,
+    elapsedMs: now - startedAt,
+  });
+  useEffect(() => {
+    if (phase === "ready") {
+      const id = setTimeout(() => setGone(true), 380);
+      return () => clearTimeout(id);
+    }
+    const id = setInterval(() => setNow(performance.now()), 250);
+    return () => clearInterval(id);
+  }, [phase]);
+  if (gone || phase === "waiting") return null;
+  const pct = loadPercent(progress);
+  const name = place === "agora" ? "Agora" : "City 3";
+  const other = place === "agora" ? "City 3" : "Agora";
+  return (
+    <div className={`w-load${phase === "ready" ? " leaving" : ""}`} role="status" aria-live="polite">
+      {phase !== "ready" ? (
+        <div className="w-load-card">
+          <div className="w-load-eyebrow">Entering the verse</div>
+          {phase === "failed" ? (
+            <>
+              <div className="w-load-title">The world didn’t load</div>
+              <p className="w-load-sub">
+                Something interrupted the download. Check your connection, then try again.
+              </p>
+              <div className="w-load-actions">
+                <button type="button" className="w-load-primary" onClick={onRetry}>
+                  Retry
+                </button>
+                <button type="button" onClick={onSwitch}>
+                  Go to {other} instead
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="w-load-title">{name}</div>
+              <p className="w-load-sub">
+                {phase === "stalled"
+                  ? "Still loading — this is a large world and a real download."
+                  : "Loading the world and its cast."}
+              </p>
+              <div className="w-load-shimmer w-load-line-lg" aria-hidden="true" />
+              <div className="w-load-shimmer w-load-line-sm" aria-hidden="true" />
+              {phase === "progress" || phase === "stalled" ? (
+                <div
+                  className="w-load-bar"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={pct}
+                  aria-label={`Loading ${name}`}
+                >
+                  <i style={{ width: `${pct}%` }} />
+                </div>
+              ) : null}
+              {phase === "progress" || phase === "stalled" ? (
+                <div className="w-load-pct">{pct}%</div>
+              ) : null}
+              {phase === "stalled" ? (
+                <div className="w-load-actions">
+                  <button type="button" onClick={onSwitch}>
+                    Go to {other} instead
+                  </button>
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * F1 — the central-PA banner at the shell level. It used to render
+ * only inside the walk HUD panel, so a spectator in the default wide
+ * view never saw an announcement. One banner, above the stage, fed
+ * by the same director: listener-scoped while walking, viewing-
+ * district-scoped while spectating (SoundDirector.tickSpectator).
+ */
+function ShellPaBanner({
+  sound,
+  spectator,
+}: {
+  sound: SoundDirector;
+  spectator: boolean;
+}) {
+  const [, setPulse] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setPulse((p) => p + 1), 400);
+    return () => clearInterval(id);
+  }, []);
+  const text = spectator ? sound.spectatorBannerText() : sound.bannerText();
+  if (!text) return null;
+  return (
+    <div className="w-pa-banner w-pa-shell" role="status">
+      📣 {text}
+    </div>
+  );
+}
+
+/** The ?soundDebug=1 surface, shared by the walk and spectator drives. */
+function soundDebugSurface(sound: SoundDirector) {
+  return {
+    snapshot: () => sound.snapshot(),
+    announce: (text: string, scope: string, clip?: string) =>
+      sound.announce(text, scope, clip ?? null),
+    setMuted: (m: boolean) => sound.setMuted(m),
+    arm: () => sound.arm(),
+    grantConsent: () => sound.grantConsent(),
+    declineConsent: () => sound.declineConsent(),
+  };
+}
+
 /**
  * Walk-mode clip HUD (City 3, shown while walking, ride and follow
  * alike): Jim's test buttons for the clips speed alone cannot reach on
@@ -1052,7 +1204,7 @@ function WalkHudPanel({
   door?: TeaDoorController;
   /** Usable props: the status line shows the E prompt / session state. */
   interact?: InteractController;
-  /** Sound v1: the PA banner + mute state come from the director. */
+  /** Sound v1: consent + mute state come from the director (the PA banner itself renders at the shell — see ShellPaBanner). */
   sound?: SoundDirector;
 }) {
   const [, setPulse] = useState(0);
@@ -1064,14 +1216,11 @@ function WalkHudPanel({
   const fr = frameRef.current;
   const doorStatus = door?.status() ?? null;
   const interactStatus = interact?.status(PLAYER) ?? null;
-  const banner = sound?.bannerText() ?? null;
+  // The PA banner no longer renders here (F1): it moved to the shell
+  // (ShellPaBanner in GlbWorld) so spectators in the wide view see
+  // platform announcements too, not only walkers.
   return (
     <div className="w-embody-panel w-walk-panel">
-      {banner ? (
-        <div className="w-pa-banner" role="status">
-          📣 {banner}
-        </div>
-      ) : null}
       <div className="w-embody-title">Walk clips — test</div>
       <div className="w-embody-row" role="group" aria-label="Walk clip tests">
         <button
@@ -1560,7 +1709,8 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   // Sound (soundDirector.ts): one director per mount. It arms only
   // on the user's explicit sound consent (the HUD button below),
   // is driven at ~10 Hz from the walker's frame + the tea door
-  // machine, and feeds the walk HUD its PA banner + mute state.
+  // machine while walking, and by the spectator drive (below) while
+  // watching — the shell PA banner reads it either way.
   const soundRef = useRef<SoundDirector | null>(null);
   if (soundRef.current === null) soundRef.current = new SoundDirector();
   // Plaza TTS probe (plazaTts.ts): the Mage↔Summer greeting. One
@@ -1672,15 +1822,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
     const debug = new URLSearchParams(window.location.search).has("soundDebug");
     if (debug) {
       const w = window as unknown as Record<string, unknown>;
-      w.__sound = {
-        snapshot: () => sound.snapshot(),
-        announce: (text: string, scope: string, clip?: string) =>
-          sound.announce(text, scope, clip ?? null),
-        setMuted: (m: boolean) => sound.setMuted(m),
-        arm: () => sound.arm(),
-        grantConsent: () => sound.grantConsent(),
-        declineConsent: () => sound.declineConsent(),
-      };
+      w.__sound = soundDebugSurface(sound);
     }
     // ?ttsDebug=1: drive/inspect the plaza greeting + Phonon bench.
     const ttsDebug = new URLSearchParams(window.location.search).has("ttsDebug");
@@ -1714,6 +1856,45 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
       if (ttsDebug) delete (window as unknown as Record<string, unknown>).__tts;
     };
   }, [walking, city3Rooms]);
+
+  // Spectator drive (F1): while nobody walks, the verse clock still
+  // has to advance or platform announcements never fire for the
+  // default audience — the wide-view spectator. The director's
+  // spectator tick only moves time + clock events (no audio layers);
+  // the audience district is the place on screen — City 3 viewers
+  // are in the Bazaar's audience, Agora viewers in open water.
+  useEffect(() => {
+    if (walking || agentOn) return;
+    const sound = soundRef.current;
+    if (!sound) return;
+    let last = performance.now();
+    const id = setInterval(() => {
+      const nowMs = performance.now();
+      const dt = (nowMs - last) / 1000;
+      last = nowMs;
+      sound.tickSpectator(dt, place === "city3" ? "bazaar" : null);
+    }, 250);
+    const debug = new URLSearchParams(window.location.search).has("soundDebug");
+    if (debug) {
+      const w = window as unknown as Record<string, unknown>;
+      w.__sound = soundDebugSurface(sound);
+    }
+    return () => {
+      clearInterval(id);
+      if (debug) delete (window as unknown as Record<string, unknown>).__sound;
+    };
+  }, [walking, agentOn, place]);
+
+  // E1: the stage's load generation + presented flag. A place switch
+  // or a retry remounts the Canvas under a fresh key; `presented`
+  // resets with it and PresentedSignal (inside the Suspense
+  // boundary) raises it again when the world actually mounts.
+  const [loadNonce, setLoadNonce] = useState(0);
+  const [worldPresented, setWorldPresented] = useState(false);
+  useEffect(() => {
+    setWorldPresented(false);
+  }, [place, loadNonce]);
+  const markPresented = useCallback(() => setWorldPresented(true), []);
   useEffect(() => {
     return () => {
       soundRef.current?.dispose();
@@ -1738,7 +1919,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   return (
     <div className="w-glb-root">
       <Canvas
-        key={place}
+        key={`${place}:${loadNonce}`}
         camera={camera}
         frameloop={agentOn ? "demand" : "always"}
         shadows={agentOn ? false : "soft"}
@@ -1764,6 +1945,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           </EffectComposer>
         ) : null}
         <Suspense fallback={null}>
+          <PresentedSignal onPresented={markPresented} />
           {place === "city3" ? (
             <DistrictWorld residentUrl={CITY3_URL} light={keyLightRef} collide={camMode === "wide"} meshesRef={colliderMeshesRef} walk={walkColliders} />
           ) : (
@@ -1826,6 +2008,24 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           maxDistance={agora ? 55 : 1100}
         />
       </Canvas>
+      {soundRef.current ? (
+        <ShellPaBanner sound={soundRef.current} spectator={!walking} />
+      ) : null}
+      <WorldLoadOverlay
+        key={`${place}:${loadNonce}`}
+        place={place}
+        presented={worldPresented}
+        onRetry={() => {
+          useGLTF.clear(AGORA_URL);
+          useGLTF.clear(CITY3_URL);
+          useGLTF.clear(CITY3_LIBRARY_URL);
+          setLoadNonce((n) => n + 1);
+        }}
+        onSwitch={() => {
+          setPlace(place === "agora" ? "city3" : "agora");
+          setCamMode("wide");
+        }}
+      />
       <div className="w-glb-toggle" role="group" aria-label="Choose world">
         <button
           type="button"

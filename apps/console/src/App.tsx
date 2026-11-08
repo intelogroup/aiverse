@@ -78,6 +78,11 @@ export default function App() {
     window.history.pushState(null, "", "/");
   }
 
+  function goClaim() {
+    setView("claim");
+    window.history.pushState(null, "", "/claim");
+  }
+
   function logout() {
     setOwnerToken(null);
     setOwnerEmail(null);
@@ -163,7 +168,7 @@ export default function App() {
   return (
     <>
       <ToastStack />
-      <WorldView agents={agents} liveEvents={liveEvents} authed={authed} onLogout={logout} />
+      <WorldView agents={agents} liveEvents={liveEvents} authed={authed} onLogout={logout} onSignIn={goClaim} />
     </>
   );
 }
