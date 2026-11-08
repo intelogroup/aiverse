@@ -42,6 +42,27 @@ SHAPES = {
     2: {"label": (0.022, 0.092), "fill": (0.040, 0.105)},
     3: {"label": (0.032, 0.122), "fill": (0.060, 0.140)},
 }
+# Girth correction (2026-11-08): the BlendSwap source profiles were
+# eyeballed, never measured — shapes 0 and 2 shipped demijohn-proportioned
+# and shape 1 ran ~1.4x fat. measured_mm is the body diameter of the shipped
+# library mesh (meshopt-decoded; widest radius at or below 55% of height);
+# target_mm is the real-world body diameter of the shape's counterpart:
+# wine bottle 76 mm (shape 0 round flask, shape 1 Bordeaux, shape 2 squat
+# jug) and champagne 88 mm (shape 3, the tall heavy-shouldered one). The
+# factor scales profile RADII only; heights, label bands and fill windows
+# (all z-based, above) are untouched. Applied by rooms.build_bottles (the
+# generator) and by bridge_girth.py (the shipped GLBs) so both executors
+# land on the same bottles.
+GIRTH = {
+    0: {"measured_mm": 178.9, "target_mm": 76.0, "factor": 0.4249},
+    1: {"measured_mm": 107.8, "target_mm": 76.0, "factor": 0.7049},
+    2: {"measured_mm": 173.3, "target_mm": 76.0, "factor": 0.4386},
+    3: {"measured_mm": 99.8,  "target_mm": 88.0, "factor": 0.8817},
+}
+
+def girth_factor(shape):
+    return GIRTH[shape]["factor"]
+
 LABEL_ARC = 1.92          # radians (~110 deg) of body the label wraps
 LABEL_SEG = 6
 LABEL_LIFT = 0.0016       # metres the label floats off the glass
