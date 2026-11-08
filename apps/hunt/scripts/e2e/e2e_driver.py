@@ -215,18 +215,18 @@ def walk_session(pw):
         before = last_pos
         result, pos = run_leg(action, label)
         last_pos = pos
+        moved = math.hypot(pos[0] - before[0], pos[2] - before[2]) >= 0.5
         if won["via"] or result is None or result.get("status") != "blocked":
-            return result
-        moved = math.hypot(pos[0] - before[0], pos[2] - before[2])
-        if moved >= 0.5:
-            return result
+            return result, moved
+        if moved:
+            return result, moved
         recoveries += 1
         rz = pos[2] + (13 if recoveries % 2 == 1 else -13)
         rx = pos[0] + 7
         log("recovery", f"wedged at {pos}; retreating to ({rx:.1f}, {rz:.1f})")
         _, pos2 = run_leg({"type": "go_to", "point": [rx, rz]}, f"recovery #{recoveries}")
         last_pos = pos2
-        return result
+        return result, moved
 
     for leg_no in range(36):
         if won["via"] or dist_to_spot(last_pos) <= 1.5:
@@ -238,12 +238,12 @@ def walk_session(pw):
         d = dist_to_spot(last_pos)
         if d <= 18:
             action = {"type": "go_to", "point": [SPOT[0], SPOT[1]]}
-            result = do_leg(action, f"#{leg_no} direct-to-spot")
+            result, _ = do_leg(action, f"#{leg_no} direct-to-spot")
             if won["via"] or dist_to_spot(last_pos) <= 1.5:
                 break
             if not anchor_tried:
                 anchor_tried = True
-                result = do_leg({"type": "go_to", "place": "shop-98"}, f"#{leg_no} via Press anchor")
+                result, _ = do_leg({"type": "go_to", "place": "shop-98"}, f"#{leg_no} via Press anchor")
                 continue
             # Endgame (measured at the Press: the direct leg blocks 2.4 m
             # out — furniture guards the last metres on one bearing).
@@ -270,12 +270,14 @@ def walk_session(pw):
                 cands.append((gain, p["id"]))
         if not cands:
             log("legs", "no progressing place left; trying the spot directly")
-            result = do_leg({"type": "go_to", "point": [SPOT[0], SPOT[1]]}, f"#{leg_no} long-direct")
-            break
+            result, _ = do_leg({"type": "go_to", "point": [SPOT[0], SPOT[1]]}, f"#{leg_no} long-direct")
+            continue
         cands.sort(reverse=True)
         target = cands[0][1]
         visited.add(target)
-        result = do_leg({"type": "go_to", "place": target}, f"#{leg_no} place {target}")
+        result, leg_moved = do_leg({"type": "go_to", "place": target}, f"#{leg_no} place {target}")
+        if not leg_moved:
+            visited.discard(target)  # wedged attempt — the visit never happened
 
     shot("e2e-spot.png")
     return last_pos
