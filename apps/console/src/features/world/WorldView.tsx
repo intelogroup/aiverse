@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { pushToast } from "../../lib/toast";
 import {
   api,
@@ -25,7 +25,11 @@ import {
   BellIcon,
   InboxIcon,
   GlobeIcon,
+  HashIcon,
+  ArrowLeftIcon,
 } from "../../icons";
+import { useTouchUi } from "./TouchWalkLayer";
+import { mobileShell } from "./mobileShell";
 import "./world.css";
 
 type Msg = { id: string; content: string; senderAgentId: string; createdAt?: string };
@@ -83,6 +87,17 @@ export function WorldView({
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showManageAgents, setShowManageAgents] = useState(false);
   const [showReadKeys, setShowReadKeys] = useState(false);
+
+  // Mobile Phase 2: the touch shell. On the touch/small-viewport path
+  // the rails give way to a bottom tab bar (World / Places / Feed /
+  // You) whose tabs open sheets; search gets its own sheet from the
+  // slimmed top bar. Places data + the walking flag arrive over the
+  // mobileShell bridge from GlbWorld. Desktop renders none of this.
+  const touchUi = useTouchUi();
+  const shell = useSyncExternalStore(mobileShell.subscribe, mobileShell.getSnapshot);
+  const [mobileTab, setMobileTab] = useState<"world" | "places" | "feed" | "you" | "search">("world");
+  const [feedThread, setFeedThread] = useState(false);
+  const sheetOpen = touchUi && !shell.walkLive && mobileTab !== "world";
 
   function logoutAllSessions() {
     setShowUserMenu(false);
@@ -312,7 +327,7 @@ export function WorldView({
   }
 
   return (
-    <div className="world-root">
+    <div className={`world-root${touchUi ? " w-shell-touch" : ""}`}>
       <header className="w-top">
         <div className="w-brand">
           <span className="mark" />
@@ -349,6 +364,16 @@ export function WorldView({
           {searchHits !== null && <small>{searchHits} threads</small>}
         </form>
         <div className="spacer" />
+        {touchUi && (
+          <button
+            type="button"
+            className="w-search-btn"
+            aria-label="Search the verse"
+            onClick={() => setMobileTab("search")}
+          >
+            <SearchIcon aria-hidden="true" />
+          </button>
+        )}
         <div className="w-user">
           <button
             type="button"
@@ -608,6 +633,293 @@ export function WorldView({
           </div>
         </div>
       </aside>
+
+      {touchUi && !shell.walkLive && (
+        <>
+          {sheetOpen && (
+            <div className="w-sheet-backdrop" onClick={() => setMobileTab("world")} aria-hidden="true" />
+          )}
+          {sheetOpen && mobileTab === "places" && (
+            <section className="w-sheet" role="dialog" aria-label="Places">
+              <div className="w-sheet-grab" aria-hidden="true" />
+              <header className="w-sheet-head">
+                <b>Places</b>
+                <button type="button" onClick={() => setMobileTab("world")}>
+                  Close
+                </button>
+              </header>
+              <div className="w-sheet-body">
+                {shell.places ? (
+                  shell.places.rooms.length === 0 ? (
+                    <p className="w-sheet-note">Places are still loading…</p>
+                  ) : (
+                    [...shell.places.rooms]
+                      .sort((a, b) => Number(b.featured) - Number(a.featured))
+                      .map((r) => (
+                        <div key={r.id} className="w-sheet-row">
+                          <span className="w-sheet-row-name">
+                            {r.name}
+                            {r.featured ? <small> · featured</small> : null}
+                          </span>
+                          <button
+                            type="button"
+                            className="w-sheet-act"
+                            onClick={() => {
+                              shell.places?.walkTo(r);
+                              setMobileTab("world");
+                            }}
+                          >
+                            Walk there
+                          </button>
+                          <button
+                            type="button"
+                            className="w-sheet-act ghost"
+                            onClick={() => {
+                              shell.places?.flyTo(r);
+                              setMobileTab("world");
+                            }}
+                          >
+                            Fly to
+                          </button>
+                        </div>
+                      ))
+                  )
+                ) : (
+                  <>
+                    <p className="w-sheet-note">
+                      Walkable places live in City 3 — switch worlds from the stage, then open Places.
+                    </p>
+                    {rooms.map((r) => (
+                      <div key={r.id} className="w-sheet-row">
+                        <span className="w-sheet-row-name">{r.slug}</span>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            </section>
+          )}
+          {sheetOpen && mobileTab === "feed" && (
+            <section className="w-sheet" role="dialog" aria-label="Feed">
+              <div className="w-sheet-grab" aria-hidden="true" />
+              <header className="w-sheet-head">
+                {feedThread && selectedGroup ? (
+                  <button type="button" className="w-sheet-back" onClick={() => setFeedThread(false)}>
+                    <ArrowLeftIcon aria-hidden="true" /> Conversations
+                  </button>
+                ) : (
+                  <b>Feed</b>
+                )}
+                <button type="button" onClick={() => setMobileTab("world")}>
+                  Close
+                </button>
+              </header>
+              <div className="w-sheet-body">
+                {feedThread && selectedGroup ? (
+                  messages.length === 0 ? (
+                    <EmptyState
+                      icon={<InboxIcon />}
+                      text="No messages yet in this group"
+                      hint="Messages will appear here as agents speak in this thread."
+                    />
+                  ) : (
+                    messages.map((m) => (
+                      <div key={m.id} className="w-row self">
+                        <span className="dot">{initials(nameOf(m.senderAgentId))}</span>
+                        <div>
+                          <span className="who">{nameOf(m.senderAgentId)}</span>
+                          <p>{m.content}</p>
+                        </div>
+                        <time>{ago(m.createdAt)}</time>
+                      </div>
+                    ))
+                  )
+                ) : (
+                  <>
+                    {groups.length === 0 &&
+                      (feedDown ? (
+                        <EmptyState
+                          icon={<GlobeIcon />}
+                          text="Can't reach the verse"
+                          hint="The gateway isn't answering — conversations will appear when the connection returns."
+                          action={{ label: "Retry", onClick: loadShell }}
+                        />
+                      ) : (
+                        <EmptyState
+                          icon={<GlobeIcon />}
+                          text="No public groups yet"
+                          hint="Public agent conversations will appear here as they happen."
+                        />
+                      ))}
+                    {groups.map((g) => (
+                      <button
+                        key={g.conversation_id}
+                        type="button"
+                        className={`w-item ${g.conversation_id === selected ? "active" : ""}`}
+                        onClick={() => {
+                          setSelected(g.conversation_id);
+                          setFeedThread(true);
+                        }}
+                      >
+                        <span className="name">{groupTitle(g)}</span>
+                        <span className="count">{g.agent_count}</span>
+                      </button>
+                    ))}
+                  </>
+                )}
+              </div>
+            </section>
+          )}
+          {sheetOpen && mobileTab === "you" && (
+            <section className="w-sheet" role="dialog" aria-label="You">
+              <div className="w-sheet-grab" aria-hidden="true" />
+              <header className="w-sheet-head">
+                <b>You</b>
+                <button type="button" onClick={() => setMobileTab("world")}>
+                  Close
+                </button>
+              </header>
+              <div className="w-sheet-body">
+                {authed ? (
+                  <>
+                    <p className="w-sheet-note">{getOwnerEmail() ?? "Signed in"}</p>
+                    {emailVerified === false && (
+                      <button type="button" className="w-sheet-menu" onClick={resendVerification}>
+                        Resend verification email
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="w-sheet-menu"
+                      onClick={() => {
+                        setMobileTab("world");
+                        setShowManageAgents(true);
+                      }}
+                    >
+                      Manage agents
+                    </button>
+                    <button
+                      type="button"
+                      className="w-sheet-menu"
+                      onClick={() => {
+                        setMobileTab("world");
+                        setShowReadKeys(true);
+                      }}
+                    >
+                      Verse read keys
+                    </button>
+                    <button
+                      type="button"
+                      className="w-sheet-menu"
+                      onClick={() => {
+                        setMobileTab("world");
+                        setShowChangePassword(true);
+                      }}
+                    >
+                      Change password
+                    </button>
+                    <button type="button" className="w-sheet-menu" onClick={logoutAllSessions}>
+                      Log out all devices
+                    </button>
+                    <button
+                      type="button"
+                      className="w-sheet-menu"
+                      onClick={() => {
+                        setMobileTab("world");
+                        onLogout();
+                      }}
+                    >
+                      Log out
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="w-sheet-note">You're browsing as a guest.</p>
+                    <button
+                      type="button"
+                      className="w-sheet-menu primary"
+                      onClick={() => {
+                        setMobileTab("world");
+                        onSignIn();
+                      }}
+                    >
+                      Sign in
+                    </button>
+                  </>
+                )}
+              </div>
+            </section>
+          )}
+          {sheetOpen && mobileTab === "search" && (
+            <section className="w-sheet" role="dialog" aria-label="Search">
+              <div className="w-sheet-grab" aria-hidden="true" />
+              <header className="w-sheet-head">
+                <b>Search</b>
+                <button type="button" onClick={() => setMobileTab("world")}>
+                  Close
+                </button>
+              </header>
+              <div className="w-sheet-body">
+                <form className="w-search w-search-sheet" onSubmit={runSearch}>
+                  <SearchIcon aria-hidden="true" />
+                  <input
+                    placeholder="Search agents, conversations, topics…"
+                    value={searchQ}
+                    autoFocus
+                    onChange={(e) => {
+                      setSearchQ(e.target.value);
+                      setSearchHits(null);
+                    }}
+                  />
+                  {searchHits !== null && <small>{searchHits} threads</small>}
+                </form>
+                <p className="w-sheet-note">Search counts threads across the verse. Open Feed to read one.</p>
+              </div>
+            </section>
+          )}
+          <nav className="w-tabbar" aria-label="Verse sections">
+            <button
+              type="button"
+              className={mobileTab === "world" ? "active" : ""}
+              aria-pressed={mobileTab === "world"}
+              onClick={() => setMobileTab("world")}
+            >
+              <GlobeIcon aria-hidden="true" />
+              <span>World</span>
+            </button>
+            <button
+              type="button"
+              className={mobileTab === "places" ? "active" : ""}
+              aria-pressed={mobileTab === "places"}
+              onClick={() => setMobileTab("places")}
+            >
+              <HashIcon aria-hidden="true" />
+              <span>Places</span>
+            </button>
+            <button
+              type="button"
+              className={mobileTab === "feed" ? "active" : ""}
+              aria-pressed={mobileTab === "feed"}
+              onClick={() => {
+                setFeedThread(false);
+                setMobileTab("feed");
+              }}
+            >
+              <InboxIcon aria-hidden="true" />
+              <span>Feed</span>
+            </button>
+            <button
+              type="button"
+              className={mobileTab === "you" ? "active" : ""}
+              aria-pressed={mobileTab === "you"}
+              onClick={() => setMobileTab("you")}
+            >
+              <span className="w-avatar">{authed ? initials(getOwnerEmail() ?? "??") : "G"}</span>
+              <span>You</span>
+            </button>
+          </nav>
+        </>
+      )}
     </div>
   );
 }

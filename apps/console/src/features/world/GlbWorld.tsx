@@ -15,7 +15,13 @@ import {
   type PlatformCrowd,
 } from "./locomotion";
 import { CastFigure } from "./CastFigure";
-import { BazaarLife } from "./BazaarLife";
+import { BazaarLife, type BazaarFigureTap } from "./BazaarLife";
+import {
+  mobileShell,
+  spawnRequestForPoint,
+  spawnRequestForRoom,
+  type WalkSpawnRequest,
+} from "./mobileShell";
 import { TeaBartender } from "./TeaBartender";
 import { BARTENDER_LINES } from "./bartender";
 import { CityWalker } from "./CityWalker";
@@ -1606,6 +1612,60 @@ function EmbodyPanel({
   );
 }
 
+/**
+ * Mobile Phase 2: the double-tap fly-to for a tapped figure. When the
+ * shared ref gains a point, fly the spectator camera to a three-quarter
+ * view of it over ~1.1 s (smoothstep), moving OrbitControls' target
+ * with it — the same write-the-controls pattern the room flights use.
+ */
+function FigureFlyRig({
+  flyRef,
+}: {
+  flyRef: { current: { x: number; z: number } | null };
+}) {
+  const camera = useThree((s) => s.camera);
+  const controls = useThree((s) => s.controls) as unknown as {
+    target: THREE.Vector3;
+    update?: () => void;
+  } | null;
+  const anim = useRef<{
+    t: number;
+    fromPos: THREE.Vector3;
+    fromTgt: THREE.Vector3;
+    toPos: THREE.Vector3;
+    toTgt: THREE.Vector3;
+  } | null>(null);
+  useFrame((_, delta) => {
+    const goal = flyRef.current;
+    if (goal && !anim.current) {
+      flyRef.current = null;
+      const toTgt = new THREE.Vector3(goal.x, 1.1, goal.z);
+      const away = camera.position.clone().sub(toTgt);
+      away.y = 0;
+      if (away.lengthSq() < 0.01) away.set(1, 0, 1);
+      away.normalize();
+      anim.current = {
+        t: 0,
+        fromPos: camera.position.clone(),
+        fromTgt: controls?.target.clone() ?? new THREE.Vector3(),
+        toPos: toTgt.clone().add(away.multiplyScalar(6.5)).add(new THREE.Vector3(0, 3.2, 0)),
+        toTgt,
+      };
+    }
+    const a = anim.current;
+    if (!a) return;
+    a.t = Math.min(1, a.t + delta / 1.1);
+    const k = a.t * a.t * (3 - 2 * a.t);
+    camera.position.lerpVectors(a.fromPos, a.toPos, k);
+    if (controls) {
+      controls.target.lerpVectors(a.fromTgt, a.toTgt, k);
+      controls.update?.();
+    }
+    if (a.t >= 1) anim.current = null;
+  });
+  return null;
+}
+
 export function GlbWorld({ cast }: { cast: CastMember[] }) {
   // ?world=city3 deep-links a world (same pattern as ?embody=1).
   // Anything else — including the removed city/city2 — lands on the Agora.
@@ -1645,6 +1705,19 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   if (touchSourceRef.current === null) touchSourceRef.current = new TouchWalkSource();
   const tapPickRef = useRef<TapPicker | null>(null);
   const touchUi = useTouchUi();
+  // Mobile Phase 2 (spectator touch + shell): a pending Walk-there
+  // spawn for CityWalker, the figure flight target for FigureFlyRig,
+  // and the tapped figure whose card is showing. Places registration
+  // and walk-live reporting for WorldView's tab bar live just below
+  // (after `walking` is known).
+  const walkSpawnRef = useRef<WalkSpawnRequest | null>(null);
+  const figureFlyRef = useRef<{ x: number; z: number } | null>(null);
+  const [figureCard, setFigureCard] = useState<BazaarFigureTap | null>(null);
+  const walkToPoint = (x: number, z: number) => {
+    walkSpawnRef.current = spawnRequestForPoint(x, z);
+    setFigureCard(null);
+    setCamMode("ride");
+  };
   const overridesRef = useRef(new Map<number, FigureOverride>());
   // Latest crowd frames, shared between CrowdCast (writer), the camera
   // rig and CastFigure (readers), and the panel's "Own Amara" harness.
@@ -1779,6 +1852,30 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
     return () => window.clearInterval(id);
   }, [place]);
   const walking = place === "city3" && camMode !== "wide";
+  // Mobile Phase 2: register this world's Places with the shell bridge
+  // while City 3 is on stage (WorldView's Places sheet reads them),
+  // and tell the shell when a touch walk owns the screen so the tab
+  // bar hides. Desktop never registers — the sheet is touch-only.
+  useEffect(() => {
+    if (!touchUi || place !== "city3") return;
+    mobileShell.setPlaces({
+      rooms: city3Rooms,
+      flyTo: (room) => setHeroFocus((f) => ({ id: room.id, nonce: (f?.nonce ?? 0) + 1 })),
+      walkTo: (room) => {
+        walkSpawnRef.current = spawnRequestForRoom(room);
+        setCamMode("ride");
+      },
+    });
+    return () => mobileShell.setPlaces(null);
+  }, [touchUi, place, city3Rooms]);
+  useEffect(() => {
+    if (!touchUi) return;
+    mobileShell.setWalkLive(walking);
+    return () => mobileShell.setWalkLive(false);
+  }, [touchUi, walking]);
+  useEffect(() => {
+    if (walking || place !== "city3") setFigureCard(null);
+  }, [walking, place]);
   // The walk bot's latest position, published by CityWalker per stepped
   // frame and read by BazaarLife (the stall keeper's approach trigger).
   // Cleared when walk mode ends so a stale position can't hold a
@@ -1973,7 +2070,20 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
             <>
               <ClipCutaway rooms={city3Rooms} focus={heroFocus} />
               <InteriorStreamer rooms={city3Rooms} walk={walkColliders} interact={interactRef.current} />
-              <BazaarLife getMeshes={getColliderMeshes} walk={walkColliders} botPosRef={botPosRef} keeperVoiceRef={mageVoiceRef} />
+              <BazaarLife
+                getMeshes={getColliderMeshes}
+                walk={walkColliders}
+                botPosRef={botPosRef}
+                keeperVoiceRef={mageVoiceRef}
+                onFigure={
+                  touchUi && !walking
+                    ? (fig, dbl) => {
+                        if (dbl) figureFlyRef.current = { x: fig.x, z: fig.z };
+                        setFigureCard(fig);
+                      }
+                    : undefined
+                }
+              />
               <TeaBartender visitors={[botPosRef, scoutPosRef]} walk={walkColliders} getDirector={() => soundRef.current} />
               <TeaDoorLeaf controller={teaDoorRef.current} />
               {!agentOn ? <TeaDoorTicker controller={teaDoorRef.current} /> : null}
@@ -1995,6 +2105,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
               door={teaDoorRef.current}
               interact={interactRef.current}
               touch={touchUi ? touchSourceRef.current : undefined}
+              spawnRef={walkSpawnRef}
             />
           ) : null}
           {walking && !agentOn && touchUi ? (
@@ -2006,6 +2117,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           {agentOn ? (
             <ScoutAgent getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} door={teaDoorRef.current} positionRef={scoutPosRef} interact={interactRef.current} />
           ) : null}
+          {touchUi && !walking && place === "city3" ? <FigureFlyRig flyRef={figureFlyRef} /> : null}
           <CrowdCast
             place={place}
             cast={visibleCast}
@@ -2107,6 +2219,26 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           onExit={() => setCamMode("wide")}
           tapPickRef={tapPickRef}
         />
+      ) : null}
+      {touchUi && !walking && place === "city3" && figureCard ? (
+        <div className="w-figure-card" role="dialog" aria-label={`Figure: ${figureCard.name}`}>
+          <span className="w-figure-name">{figureCard.name}</span>
+          <button type="button" className="w-figure-act" onClick={() => walkToPoint(figureCard.x, figureCard.z)}>
+            Walk there
+          </button>
+          <button
+            type="button"
+            className="w-figure-act ghost"
+            onClick={() => {
+              figureFlyRef.current = { x: figureCard.x, z: figureCard.z };
+            }}
+          >
+            Fly to
+          </button>
+          <button type="button" className="w-figure-close" aria-label="Close figure card" onClick={() => setFigureCard(null)}>
+            ✕
+          </button>
+        </div>
       ) : null}
       {place === "city3" && !walking ? (
         <div className="w-glb-toggle w-glb-poi" role="group" aria-label="Places in City 3">
