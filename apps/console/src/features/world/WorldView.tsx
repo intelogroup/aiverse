@@ -30,6 +30,14 @@ import {
 } from "../../icons";
 import { useTouchUi } from "./TouchWalkLayer";
 import { mobileShell } from "./mobileShell";
+import {
+  LITE_LOAD_BUDGET_BYTES,
+  formatMB,
+  qualityStore,
+  readLoadSummary,
+  type LoadSummary,
+  type QualityOverride,
+} from "./quality";
 import "./world.css";
 
 type Msg = { id: string; content: string; senderAgentId: string; createdAt?: string };
@@ -97,6 +105,14 @@ export function WorldView({
   const shell = useSyncExternalStore(mobileShell.subscribe, mobileShell.getSnapshot);
   const [mobileTab, setMobileTab] = useState<"world" | "places" | "feed" | "you" | "search">("world");
   const [feedThread, setFeedThread] = useState(false);
+  // Mobile Phase 3: the quality tier + first-load budget, shown in the
+  // You sheet's Settings section. The load summary is re-read each
+  // time the sheet opens (resource entries accumulate as worlds load).
+  const quality = useSyncExternalStore(qualityStore.subscribe, qualityStore.getSnapshot);
+  const [loadSummary, setLoadSummary] = useState<LoadSummary | null>(null);
+  useEffect(() => {
+    if (mobileTab === "you") setLoadSummary(readLoadSummary());
+  }, [mobileTab]);
   const sheetOpen = touchUi && !shell.walkLive && mobileTab !== "world";
 
   function logoutAllSessions() {
@@ -847,6 +863,32 @@ export function WorldView({
                     </button>
                   </>
                 )}
+                <div className="w-sheet-settings">
+                  <h4>Settings · Performance</h4>
+                  <p className="w-sheet-note">
+                    Quality:{" "}
+                    {quality.override === "auto" ? `Auto — currently ${quality.tier}` : quality.tier} (
+                    {quality.reason})
+                  </p>
+                  <div className="w-quality-row" role="group" aria-label="Quality override">
+                    {(["auto", "full", "reduced", "lite"] as QualityOverride[]).map((o) => (
+                      <button
+                        key={o}
+                        type="button"
+                        className={quality.override === o ? "active" : ""}
+                        aria-pressed={quality.override === o}
+                        onClick={() => qualityStore.setOverride(o)}
+                      >
+                        {o === "auto" ? "Auto" : o[0].toUpperCase() + o.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="w-sheet-note">
+                    {loadSummary
+                      ? `Loaded this session: ${formatMB(loadSummary.assetBytes)} of assets (${loadSummary.assetCount} files) · Lite first-load budget ${formatMB(LITE_LOAD_BUDGET_BYTES)}`
+                      : "Loaded this session: measuring…"}
+                  </p>
+                </div>
               </div>
             </section>
           )}

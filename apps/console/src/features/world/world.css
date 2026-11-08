@@ -1552,3 +1552,35 @@
   border-radius: 50%;
   color: var(--w-dim);
 }
+
+/* ── Mobile Phase 3: Settings · Performance (You sheet) ────────── */
+.world-root .w-sheet-settings {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--w-border);
+}
+.world-root .w-sheet-settings h4 {
+  margin: 0 6px 4px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--w-dim);
+}
+.world-root .w-quality-row {
+  display: flex;
+  gap: 6px;
+  padding: 4px 6px 8px;
+}
+.world-root .w-quality-row button {
+  flex: 1;
+  min-height: 48px;
+  border-radius: 12px;
+  border: 1px solid var(--w-border);
+  color: var(--w-dim);
+  font-weight: 700;
+}
+.world-root .w-quality-row button.active {
+  background: var(--w-accent);
+  border-color: var(--w-accent);
+  color: #0a0f22;
+}

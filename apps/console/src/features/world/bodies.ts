@@ -16,6 +16,13 @@ export interface BodyDef {
   id: string;
   /** GLB under the console's public assets. */
   url: string;
+  /**
+   * Mobile Phase 3: a Lite variant of the same body (animations
+   * resampled, accessors quantized — same rig, same clips), loaded
+   * instead of `url` while the quality tier is lite. Absent = the
+   * body has no variant and always loads `url`.
+   */
+  liteUrl?: string;
   /** Standing hips height of this rig, m — measured in Blender. */
   hipsY: number;
   /**
@@ -95,6 +102,7 @@ export const SUMMER_HIPS_Y = 0.7854; // m
 export const BODY_SUMMER: BodyDef = bodyAtScale(SCALE_SUMMER, {
   id: "summer",
   url: "/assets/cast-summer.glb",
+  liteUrl: "/assets/cast-summer-lite.glb",
   hipsY: SUMMER_HIPS_Y,
   // Walk re-measured 2026-11-07 on the corrected fixed GLB (PR #27):
   // stance speed 1.107 m/s over the 1.1667 s cycle (1.2915 m).
@@ -227,6 +235,7 @@ export const REMY_HIPS_Y = 0.718; // m
 export const BODY_REMY: BodyDef = bodyAtScale(SCALE_REMY, {
   id: "remy",
   url: "/assets/cast-remy.glb",
+  liteUrl: "/assets/cast-remy-lite.glb",
   hipsY: REMY_HIPS_Y,
   walkSpeed: 0.77,
   run: { speed: 2.66, footLift: 0.082, phaseOffset: -0.055 },

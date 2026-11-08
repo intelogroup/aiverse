@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useSyncExternalStore, type RefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Html, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
@@ -6,6 +6,7 @@ import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.j
 import { verticalExcess, type AgentFrame } from "./locomotion";
 import type { FigureOverride, SitPhase } from "./embody";
 import { BODY_CAST, sitClipForPhase, type BodyDef } from "./bodies";
+import { qualityStore } from "./quality";
 import { CLIP_CATALOG, clipDef, type ClipTestState } from "./clips";
 import { approach, cycleRateFor, gaitTargets, runTimeForWalkPhase, type GaitSpec } from "./gait";
 import { clipMinClearance, contactPoints, groundingOffset, rootMotionDelta, soleClearance } from "./grounding";
@@ -101,6 +102,52 @@ const Y_AXIS = new THREE.Vector3(0, 1, 0);
 // a baked ramp, not a bob, and gets countered on the figure group.
 const HIPS_Y_BAND = 0.09;
 
+/**
+ * Mobile Phase 3: the nameplate as an in-canvas sprite (a canvas
+ * texture on a billboard) instead of the drei Html callout — sprites
+ * don't pay the per-frame DOM projection/transform cost Html tags do,
+ * which is the whole point on a phone. Desktop keeps the leader-line
+ * callout design; this is the touch path's simpler pill.
+ */
+function NameSprite({ name, accent, y }: { name: string; accent: string; y: number }) {
+  const tex = useMemo(() => {
+    const c = document.createElement("canvas");
+    c.width = 512;
+    c.height = 112;
+    const g = c.getContext("2d");
+    if (g) {
+      g.beginPath();
+      g.roundRect(6, 14, 500, 84, 42);
+      g.fillStyle = "rgba(10, 14, 30, 0.78)";
+      g.fill();
+      g.strokeStyle = accent;
+      g.globalAlpha = 0.85;
+      g.lineWidth = 3;
+      g.stroke();
+      g.globalAlpha = 1;
+      g.fillStyle = "#e9ecff";
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      let size = 46;
+      g.font = `600 ${size}px system-ui, sans-serif`;
+      while (g.measureText(name).width > 440 && size > 22) {
+        size -= 4;
+        g.font = `600 ${size}px system-ui, sans-serif`;
+      }
+      g.fillText(name, 256, 58);
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.anisotropy = 4;
+    return t;
+  }, [name, accent]);
+  useEffect(() => () => tex.dispose(), [tex]);
+  return (
+    <sprite position={[0, y, 0]} scale={[2.3, 0.5, 1]}>
+      <spriteMaterial map={tex} transparent depthWrite={false} />
+    </sprite>
+  );
+}
+
 export function CastFigure({
   framesRef,
   overridesRef,
@@ -112,6 +159,7 @@ export function CastFigure({
   body = BODY_CAST,
   clipTester,
   headPoseRef,
+  spriteTag = false,
 }: {
   /**
    * Head-bone stream for the first-person camera (cameraRig): when
@@ -153,8 +201,16 @@ export function CastFigure({
   home: [number, number, number];
   /** Agent name shown on the floating label (roster name, as elsewhere). */
   label?: string;
+  /**
+   * Mobile Phase 3: render the nameplate as a sprite (NameSprite)
+   * instead of the Html callout. Set on the touch path.
+   */
+  spriteTag?: boolean;
 }) {
-  const gltf = useGLTF(body.url);
+  // Mobile Phase 3: at the lite tier a body with a Lite variant
+  // (bodies.ts liteUrl — resampled/quantized) loads that instead.
+  const quality = useSyncExternalStore(qualityStore.subscribe, qualityStore.getSnapshot);
+  const gltf = useGLTF(quality.tier === "lite" && body.liteUrl ? body.liteUrl : body.url);
   const group = useRef<THREE.Group>(null);
 
   // Own skeleton + own scene graph per cast member, shown at the body's display scale (bodies.ts: realistic heights).
@@ -673,7 +729,9 @@ export function CastFigure({
   return (
     <group ref={group} position={home}>
       <primitive object={scene} position={[0, fit.lift, 0]} />
-      {label && !hidden && (
+      {label && !hidden && spriteTag ? (
+        <NameSprite name={label} accent={tagAccent} y={fit.height + 0.35} />
+      ) : label && !hidden ? (
         <Html
           center
           position={[0, fit.height + 0.02, 0]}
@@ -702,7 +760,7 @@ export function CastFigure({
             <div className="w-cast-name">{label}</div>
           </div>
         </Html>
-      )}
+      ) : null}
     </group>
   );
 }
