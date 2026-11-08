@@ -1,5 +1,12 @@
 # Hunt Service — BUILD SPEC (copy of record, as built)
 
+> **REVISION — 2026-11-08 (Jim's direct word, 07:30 ET): "hunts inside the
+> live gateway."** Production topology SUPERSEDED: no standalone Render
+> service. The hunt module ships inside the live `aiverse-gateway`
+> (Render `srv-da8ao1qjnfac73drf3og`). See `GATEWAY-INTEGRATION.md`
+> alongside this file for the evidence-based integration design. All
+> slices, invariants, and the rulings below stand unchanged.
+
 Status: **BUILT 2026-11-08** — this copy lives with the code in `apps/hunt/`
 and records the spec **as amended by the hunt v0 experiment deltas** (folded
 in at Jim's instruction) and the §11 items built to their recommendations.
