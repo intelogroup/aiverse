@@ -1,20 +1,9 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Bloom, EffectComposer } from "@react-three/postprocessing";
 import { OrbitControls, useGLTF, useProgress } from "@react-three/drei";
 import * as THREE from "three";
 import { DistrictWorld } from "./DistrictWorld";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
-import {
-  AGENT_RADIUS,
-  buildDeckGeometry,
-  clampPositionToRadius,
-  createGeometryCrowd,
-  type AgentFrame,
-  type PlanObstacle,
-  type PlatformCrowd,
-} from "./locomotion";
-import { CastFigure } from "./CastFigure";
 import { BazaarLife, type BazaarFigureTap } from "./BazaarLife";
 import {
   mobileShell,
@@ -34,34 +23,11 @@ import {
   type TapPicker,
 } from "./TouchWalkLayer";
 import { ScoutAgent } from "./ScoutAgent";
-import { BODY_CAST, BODY_SUMMER, bodyForMember, cruiseCapForBody, excludeBody } from "./bodies";
-import { CLIP_CATALOG, ClipTestState } from "./clips";
 import { WalkClipOverride, type WalkFrameInfo } from "./walkOverride";
 import { SoundDirector } from "./soundDirector";
 import { VOICE_BARTENDER, benchPhonon, phononWarmth, synthLine, warmPhonon } from "./phononTts";
 import { GREETING_SCRIPT, createPlazaGreeting, type PlazaGreeting } from "./plazaTts";
-import {
-  AGORA_BENCH_ANCHORS,
-  EmbodyController,
-  type FigureOverride,
-} from "./embody";
-import {
-  DAMP_FOV,
-  DAMP_HEADING,
-  DAMP_LOOK,
-  DAMP_POS_FOLLOW,
-  DAMP_POS_RIDE,
-  FOV_RIDE,
-  FOV_WIDE,
-  botView,
-  damp,
-  dampAngle,
-  followTarget,
-  rideTarget,
-  rideTargetFromHead,
-  type BotView,
-  type CameraMode,
-} from "./cameraRig";
+import { type CameraMode } from "./cameraRig";
 import { FpsMeter } from "./fpsMeter";
 import { QualityGovernor, dprForTier, qualityStore, shadowMapForTier } from "./quality";
 import {
@@ -73,7 +39,6 @@ import {
   isReducedMotion,
   markCoachSeen,
 } from "./comfort";
-import { newBodyState, stepBody, type BodyState } from "./bodyController";
 import {
   CITY3_INDEX_URL,
   CITY3_LIBRARY_URL,
@@ -97,81 +62,29 @@ import { buildInteractableVisual } from "./interactableMesh";
 import { InteractTicker } from "./InteractTicker";
 import { TeaDoorLeaf, TeaDoorTicker } from "./TeaDoorLeaf";
 import { loadPercent, worldLoadPhase } from "./worldLoad";
-import {
-  PROBE_CADENCES,
-  PROBE_HEIGHT,
-  PROBE_WIDTH,
-  initialProbeStats,
-  recordCapture,
-  shouldCapture,
-  type ProbeStats,
-} from "./visionProbe";
 
-// GlbWorld — the modeled worlds (Blender-authored GLBs) as the console's
-// default stage. Two places share one cast:
+// GlbWorld — the modeled world (Blender-authored GLB) as the console's
+// default stage: City 3, the Sunstone Bazaar — a 360 m island (generated
+// by the city3 pipeline), plaza at the origin, every walkable surface
+// flush at y = 0.2.
 //
-//   Agora — the lobby island. The crowd walks the deck disc (r = 9.7 m)
-//   with the hologlobe as a central keep-out (r = 2.2 m): the annulus
-//   navmesh locomotion.ts builds for exactly this, spike-proven.
-//   City 3 — the Sunstone Bazaar: a viewing world (no crowd, below).
-//
-//   (City 1 — World One's street grid, the Sketchfab CCity world — was
-//   removed 2026-11-07 at Jim's word, the way City 2 was: its GLB, its
-//   street-rectangle crowd navmesh and the cityFootprints data are
-//   gone. ?world=city now falls back to the Agora, like city2 did.)
+//   (The Agora — the lobby island whose crowd walked a deck disc — was
+//   removed 2026-11-08 at Jim's word, the way City 1 and City 2 were:
+//   its GLB, its deck crowd and the embody spike are gone, and a lobby
+//   returns later as a planned feature. ?world=agora — like the removed
+//   city/city2 — now lands on City 3, the only world.)
 //
 // Spectator framing throughout: a perspective camera + OrbitControls,
-// no avatar driving. Each place opens at an elevated three-quarter view
-// that frames its whole play area; OrbitControls stays above the horizon
-// so nobody can duck under the world. The stage is lit for PBR: the
-// Agora wears its authored sky (a Blender-baked equirect panorama as
-// background + PMREM image-based light, with matched exponential fog);
-// City 3 still uses three's built-in RoomEnvironment. One
-// shadow-casting key light per place for grounding, and a modest
-// ambient fill. Cast membership comes from WorldView (owned agents
-// first, then the public roster) — the same data the ring world's
-// figures are drawn from.
+// no avatar driving. The stage opens at an elevated three-quarter view
+// that frames the whole island; OrbitControls stays above the horizon
+// so nobody can duck under the world. The stage is lit for PBR with
+// three's built-in RoomEnvironment. One shadow-casting key light for
+// grounding, and a modest ambient fill.
 
-export type CastMember = { id: string; name: string; body?: string };
-type Place = "agora" | "city3";
-
-const AGORA_URL = "/assets/world-agora.glb";
 const CITY3_URL = "/assets/world-city3.glb";
 
-const AGORA_DECK_RADIUS = 9.7;
-const AGORA_KEEP_OUT = 2.2;
-const AGORA_GROUND_Y = 0.84; // deck top surface
-// The navmesh stops 0.55 m short of the rim, so agent centres (and the
-// bodies around them) always keep a visible margin of deck — and the
-// per-frame clamp below is the hard backstop if separation ever shoves
-// a centre past the mesh edge anyway.
-const AGORA_WALK_RADIUS = AGORA_DECK_RADIUS - 0.55;
-const AGORA_FRAME_RMAX = AGORA_DECK_RADIUS - AGENT_RADIUS;
-
-// City 3 is the Sunstone Bazaar: a 360 m island (generated by the
-// city3 pipeline), plaza at the origin, every walkable surface flush at
-// y = 0.2. Viewing world for now — the crowd and its navmesh come later.
+// The island's plaza origin.
 const CITY3_CENTER: [number, number] = [0, 0];
-const CITY3_GROUND_Y = 0.2;
-
-/** Viewing worlds: no crowd is built and no cast is placed. */
-const isViewingWorld = (p: Place): boolean => p === "city3";
-
-/**
- * Deterministic stand-here spots (pre-first-frame + crowd spawn points).
- * Only the Agora builds a crowd — City 3 is a viewing world, and City 1's
- * street-grid homes left with it.
- */
-function homeFor(i: number, n: number): [number, number, number] {
-  const a = (i / Math.max(1, n)) * Math.PI * 2 - Math.PI / 2;
-  const r = 6; // inside the annulus walkable band (2.2 keep-out, 9.7 rim)
-  return [Math.cos(a) * r, AGORA_GROUND_Y, Math.sin(a) * r];
-}
-
-function WorldEnv({ url }: { url: string }) {
-  const gltf = useGLTF(url);
-  return <primitive object={gltf.scene} />;
-}
 
 /** City 3's room index (generated: tools/city3/out/interiors/index.json); empty until fetched. */
 function useCity3Rooms(enabled: boolean): City3Room[] {
@@ -524,29 +437,15 @@ function InteriorRoom({
   return handle ? <primitive object={handle.group} /> : null;
 }
 
-const SKY_URL = "/assets/sky-equi.jpg";
-// Atmosphere values graded against the primary design boards (Blender
-// sky pass, 2026-11-04): the mist in the Blender scene blends toward
-// #46548c over 25–210 m; FogExp2 at this density reaches the same ~10%
-// haze at 100 m, so depth reads identically in renders and live.
-const SKY_FOG_COLOR = 0x46548c;
-const SKY_FOG_DENSITY = 0.0035;
-
 /**
- * Environment per place (the Canvas remounts per place).
- *
- * Agora wears the authored sky: an equirectangular panorama baked from
- * the Blender scene (gradient + nebula + spire ring) serves as both the
- * visible background and the PMREM image-based light, and a matched
- * FogExp2 supplies the distance haze the Blender mist pass grades with.
- * Environment intensity stays near the old RoomEnvironment level so the
- * worlds' emissive glow rings and eye screens still read as glow, and a
- * slight exposure lift keeps the dark deck plates from washing to black.
- *
- * City keeps the neutral RoomEnvironment for now — it gets its own sky
- * pass later; the Agora fog density would drown its 450 m sightlines.
+ * Environment for the stage. City 3 uses three's built-in
+ * RoomEnvironment: with no environment at all, AgX + the single key
+ * light washed the district foliage pale (the districts' palette data
+ * was intact in the GLBs). DistrictWorld drives
+ * scene.environmentIntensity from the blended theme's envIntensity, so
+ * the 0.6 set here is only the pre-first-tick value.
  */
-function StageEnvironment({ place }: { place: Place }) {
+function StageEnvironment() {
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
   useEffect(() => {
@@ -556,68 +455,37 @@ function StageEnvironment({ place }: { place: Place }) {
     // different curve than the one it was authored under.
     gl.toneMapping = THREE.AgXToneMapping;
     gl.toneMappingExposure = 1.1;
-    // City 3 takes the RoomEnvironment path too: with no environment at all,
-    // AgX + the single key light washed the district foliage pale (the
-    // districts' palette data was intact in the GLBs). DistrictWorld drives
-    // scene.environmentIntensity from the blended theme's envIntensity, so
-    // the 0.6 set here is only the pre-first-tick value for city3.
-    if (place !== "agora") {
-      const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-      scene.environment = envMap;
-      scene.environmentIntensity = 0.6;
-      return () => {
-        scene.environment = null;
-        envMap.dispose();
-        pmrem.dispose();
-      };
-    }
-    let live = true;
-    const tex = new THREE.TextureLoader().load(SKY_URL, (t) => {
-      if (!live) return;
-      t.mapping = THREE.EquirectangularReflectionMapping;
-      t.colorSpace = THREE.SRGBColorSpace;
-      const envMap = pmrem.fromEquirectangular(t).texture;
-      scene.background = t;
-      scene.environment = envMap;
-      scene.environmentIntensity = 0.55;
-      scene.fog = new THREE.FogExp2(SKY_FOG_COLOR, SKY_FOG_DENSITY);
-      tex.userData.envMap = envMap;
-    });
+    const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = envMap;
+    scene.environmentIntensity = 0.6;
     return () => {
-      live = false;
-      const envMap = tex.userData.envMap as THREE.Texture | undefined;
-      scene.background = null;
       scene.environment = null;
-      scene.fog = null;
-      envMap?.dispose();
-      tex.dispose();
+      envMap.dispose();
       pmrem.dispose();
     };
-  }, [gl, scene, place]);
+  }, [gl, scene]);
   return null;
 }
 
 /**
- * One shadow-casting key light per place, its ortho shadow camera fitted
- * to the play area. The target is added to the scene graph explicitly —
- * three only tracks a light's aim if the target's matrixWorld updates.
+ * The stage's one shadow-casting key light, its ortho shadow camera
+ * fitted to City 3's span. The target is added to the scene graph
+ * explicitly — three only tracks a light's aim if the target's
+ * matrixWorld updates.
  */
-function KeyLight({ place, lightRef }: { place: Place; lightRef?: React.RefObject<THREE.DirectionalLight | null> }) {
+function KeyLight({ lightRef }: { lightRef?: React.RefObject<THREE.DirectionalLight | null> }) {
   const ownRef = useRef<THREE.DirectionalLight>(null!);
   const light = (lightRef ?? ownRef) as React.RefObject<THREE.DirectionalLight>;
   const scene = useThree((s) => s.scene);
-  const agora = place === "agora";
-  const city3 = place === "city3";
   useEffect(() => {
     const l = light.current;
-    const c = agora ? [0, 0] : CITY3_CENTER;
-    l.target.position.set(c[0], 0, c[1]);
+    l.target.position.set(CITY3_CENTER[0], 0, CITY3_CENTER[1]);
     scene.add(l.target);
     l.target.updateMatrixWorld();
     return () => {
       l.target.removeFromParent();
     };
-  }, [agora, city3, scene]);
+  }, [scene]);
   // Mobile Phase 3: the tier sizes (or kills) the shadow map. The
   // store only moves on the touch path, so desktop reads "full"
   // forever — 2048 and casting, exactly as before. The key remounts
@@ -630,20 +498,20 @@ function KeyLight({ place, lightRef }: { place: Place; lightRef?: React.RefObjec
       key={shadowMap}
       ref={light}
       castShadow={shadowMap > 0}
-      position={agora ? [14, 22, 10] : [120, 220, 90]}
-      intensity={agora ? 1.5 : 2.6}
+      position={[120, 220, 90]}
+      intensity={2.6}
       shadow-mapSize-width={Math.max(shadowMap, 1)}
       shadow-mapSize-height={Math.max(shadowMap, 1)}
-      shadow-camera-left={agora ? -13 : -220}
-      shadow-camera-right={agora ? 13 : 220}
-      shadow-camera-top={agora ? 13 : 220}
-      shadow-camera-bottom={agora ? -13 : -220}
-      shadow-camera-near={agora ? 2 : 10}
-      shadow-camera-far={agora ? 60 : 800}
-      shadow-bias={city3 ? -0.0004 : -0.00015}
+      shadow-camera-left={-220}
+      shadow-camera-right={220}
+      shadow-camera-top={220}
+      shadow-camera-bottom={-220}
+      shadow-camera-near={10}
+      shadow-camera-far={800}
+      shadow-bias={-0.0004}
       // City 3 spans 440 m of shadow frustum on one map: its flat roofs and
       // plaza need a wide normal bias or the soft shadow shows acne rings.
-      shadow-normalBias={agora ? 0.02 : 0.8}
+      shadow-normalBias={0.8}
     />
   );
 }
@@ -677,115 +545,9 @@ function ShadowTagger() {
 }
 
 /**
- * Embody head camera (?embody=1, Agora): drives the Canvas camera in
- * follow/ride modes from the selected bot's crowd frame (+ seat
- * override). Pose math lives in cameraRig.ts; this component is the
- * per-frame glue — damped vectors in refs, never React state. The
- * parent disables OrbitControls while a bot mode is active; in wide
- * mode this rig only eases the FOV back to the house 45°.
- */
-function CameraRig({
-  framesRef,
-  overridesRef,
-  groundY,
-  camModeRef,
-  index = 0,
-  headPoseRef,
-}: {
-  framesRef: RefObject<AgentFrame[]>;
-  overridesRef: RefObject<Map<number, FigureOverride>>;
-  groundY: number;
-  camModeRef: RefObject<CameraMode>;
-  /** The selected bot — the panel's focus figure (Summer by default). */
-  index?: number;
-  /**
-   * The focus figure's head-bone world position, streamed per frame
-   * by its CastFigure. In ride mode the camera anchors on the bone
-   * itself (cameraRig.rideTargetFromHead) whenever a value has
-   * landed; until then it falls back to the feet + eye-height pose.
-   */
-  headPoseRef?: { current: [number, number, number] | null };
-}) {
-  const camera = useThree((s) => s.camera);
-  const rig = useRef<{
-    mode: CameraMode;
-    camPos: THREE.Vector3;
-    lookPos: THREE.Vector3;
-    heading: number;
-  } | null>(null);
-
-  useFrame((_, delta) => {
-    const persp = camera as THREE.PerspectiveCamera;
-    const mode = camModeRef.current;
-    if (mode === "wide") {
-      rig.current = null; // entering a bot mode later starts from its pose
-      if (Math.abs(persp.fov - FOV_WIDE) > 0.01) {
-        persp.fov = damp(persp.fov, FOV_WIDE, DAMP_FOV, delta);
-        persp.updateProjectionMatrix();
-      }
-      return;
-    }
-    const view = botView(
-      framesRef.current[index] ?? null,
-      overridesRef.current.get(index) ?? null,
-      groundY,
-    );
-    if (!view) return;
-    const dt = Math.min(delta, 0.05);
-    // Ride anchors on the head bone when the figure is streaming it
-    // (Summer does — `mixamorig:Head`); the gaze stays level along
-    // the damped heading either way.
-    const headPos = mode === "ride" ? (headPoseRef?.current ?? null) : null;
-    const targetFor = (v: BotView, heading: number) =>
-      mode === "ride"
-        ? headPos
-          ? rideTargetFromHead(headPos, heading)
-          : rideTarget(v, heading)
-        : followTarget(v);
-
-    let st = rig.current;
-    if (!st || st.mode !== mode) {
-      // Entering a mode: adopt the bot's pose outright (a cut, like
-      // games cut to first person) instead of swooping across the deck
-      // from wherever the spectator camera happened to rest.
-      const t = targetFor(view, view.heading);
-      st = rig.current = {
-        mode,
-        camPos: new THREE.Vector3(...t.cam),
-        lookPos: new THREE.Vector3(...t.look),
-        heading: view.heading,
-      };
-    }
-    if (mode === "ride") st.heading = dampAngle(st.heading, view.heading, DAMP_HEADING, dt);
-    const target = targetFor(view, st.heading);
-    const posRate = mode === "ride" ? DAMP_POS_RIDE : DAMP_POS_FOLLOW;
-    st.camPos.set(
-      damp(st.camPos.x, target.cam[0], posRate, dt),
-      damp(st.camPos.y, target.cam[1], posRate, dt),
-      damp(st.camPos.z, target.cam[2], posRate, dt),
-    );
-    st.lookPos.set(
-      damp(st.lookPos.x, target.look[0], DAMP_LOOK, dt),
-      damp(st.lookPos.y, target.look[1], DAMP_LOOK, dt),
-      damp(st.lookPos.z, target.look[2], DAMP_LOOK, dt),
-    );
-    camera.position.copy(st.camPos);
-    camera.lookAt(st.lookPos);
-    const targetFov = mode === "ride" ? FOV_RIDE : FOV_WIDE;
-    const fov = damp(persp.fov, targetFov, DAMP_FOV, dt);
-    if (Math.abs(fov - persp.fov) > 0.001) {
-      persp.fov = fov;
-      persp.updateProjectionMatrix();
-    }
-  });
-  return null;
-}
-
-/**
- * Render-rate tracker (Embody spike): one timestamp per rendered
- * frame into the shared FpsMeter (fpsMeter.ts); the panel reads the
- * ~0.5 s rolling average off it on its 400 ms pulse while a bot
- * camera mode is active. Mounted only in embody mode — the meter
+ * Render-rate tracker: one timestamp per rendered frame into the
+ * shared FpsMeter (fpsMeter.ts), which the touch QualityDriver reads
+ * to govern the quality tier. Mounted on the touch path — the meter
  * costs one array push per frame.
  */
 function FpsTracker({ meterRef }: { meterRef: RefObject<FpsMeter | null> }) {
@@ -818,271 +580,6 @@ function QualityDriver({ meterRef }: { meterRef: RefObject<FpsMeter | null> }) {
   return null;
 }
 
-/** Owns one Recast crowd for the active place and steps it every frame. */
-function CrowdCast({
-  place,
-  cast,
-  embodyOn,
-  controllerRef,
-  overridesRef,
-  camModeRef,
-  camMode,
-  framesRef,
-  clipTester,
-  focusIndex,
-  headPoseRef,
-  spriteTags,
-}: {
-  place: Place;
-  cast: CastMember[];
-  /** Embody v0 spike (?embody=1): skill layer + spike benches, Agora only. */
-  embodyOn: boolean;
-  /** Clip tester state (panel-fired catalog clips) for the focus figure. */
-  clipTester?: ClipTestState;
-  /** The panel's focus figure: camera target, clip-tester consumer
-   * and head-bone streamer. Defaults to the Summer-bodied member. */
-  focusIndex: number;
-  /** Focus figure's head-bone world position stream (ride camera). */
-  headPoseRef: { current: [number, number, number] | null };
-  controllerRef: RefObject<EmbodyController | null>;
-  overridesRef: RefObject<Map<number, FigureOverride>>;
-  camModeRef: RefObject<CameraMode>;
-  /** Reactive camera mode — the ridden figure does not render in ride. */
-  camMode: CameraMode;
-  /** Latest crowd frames, shared with the Embody panel's test harness. */
-  framesRef: RefObject<AgentFrame[]>;
-  /** Mobile Phase 3: nameplates as sprites instead of Html (touch path). */
-  spriteTags?: boolean;
-}) {
-  const crowdRef = useRef<PlatformCrowd | null>(null);
-  // Body controller (bodyController.ts): smooth heading, turn-in-place clips, speed throttle. ?body=legacy
-  // restores the old snap-to-velocity behaviour for A/B comparison; ?bodyDebug=1 logs headings for tests.
-  const bodyOn = useMemo(() => new URLSearchParams(window.location.search).get("body") !== "legacy", []);
-  const bodyDebug = useMemo(() => new URLSearchParams(window.location.search).get("bodyDebug") === "1", []);
-  const bodyStates = useRef<BodyState[]>([]);
-  const bodyClock = useRef(0);
-  const [crowdReady, setCrowdReady] = useState(false);
-  const count = cast.length;
-  // Latest cast, for the controller's per-member body lookups (the
-  // crowd build effect below runs once per place, so it reads the
-  // membership through this ref rather than its build-time closure).
-  const castRef = useRef(cast);
-  castRef.current = cast;
-
-  useEffect(() => {
-    let live = true;
-    setCrowdReady(false);
-    // Viewing world (City 3): no crowd is built and no cast is placed.
-    if (isViewingWorld(place)) return () => {};
-    const initialPositions: [number, number][] = Array.from({ length: count }, (_, i) => {
-      const h = homeFor(i, count);
-      return [h[0], h[2]];
-    });
-    // The Agora is the only crowd world left (City 3 is viewing-only;
-    // City 1's street crowd left with its world).
-    const building = (() => {
-      // Deck geometry with the spike benches punched out: the
-      // benches are solid — the crowd paths around them, and the
-      // sit_on stand point (0.62 m in front of the seat) stays on
-      // the mesh. Same 0.1 navmesh cells as the old disc path.
-      const obstacles: PlanObstacle[] = AGORA_BENCH_ANCHORS.map((a) => ({
-        x: a.seat[0],
-        z: a.seat[1],
-        heading: a.facing,
-        w: 1.3,
-        d: 0.5,
-      }));
-      const geo = buildDeckGeometry(AGORA_WALK_RADIUS, AGORA_KEEP_OUT, obstacles);
-      return createGeometryCrowd(geo.positions, geo.indices, count, {
-        cellSize: 0.1,
-        initialPositions,
-        // Each slot cruises at its own body's pace, not the
-        // slot-blind band (slow bodies were skating at hurry pace).
-        maxSpeedForIndex: (i) => {
-          const m = castRef.current[i];
-          return m ? cruiseCapForBody(bodyForMember(m)) : undefined;
-        },
-      });
-    })();
-    building
-      .then((c) => {
-        if (!live) {
-          c.dispose();
-          return;
-        }
-        crowdRef.current = c;
-        if (embodyOn && place === "agora") {
-          // Embody v0: the skill layer drives this crowd through a
-          // BodyPort adapter over the latest frames. Anchors are cloned
-          // so occupancy state belongs to this mount.
-          const port = {
-            frame: (i: number) => {
-              const f = framesRef.current[i];
-              return f ? { position: f.position, speed: f.speed, heading: f.heading } : null;
-            },
-            setControlled: (i: number, on: boolean) => crowdRef.current?.setControlled(i, on),
-            moveTo: (i: number, x: number, z: number) => crowdRef.current?.moveAgentTo(i, x, z),
-            stop: (i: number) => crowdRef.current?.stopAgent(i),
-            setHeading: (i: number, h: number) => crowdRef.current?.setHeading(i, h),
-          };
-          const ctl = new EmbodyController(
-            port,
-            AGORA_BENCH_ANCHORS.map((a) => ({ ...a, occupiedBy: null })),
-            // Seat drops are computed in the wearer's own body.
-            { hipsYFor: (i) => bodyForMember(castRef.current[i]).hipsY },
-          );
-          controllerRef.current = ctl;
-          (window as unknown as Record<string, unknown>).__embody = ctl;
-        }
-        setCrowdReady(true);
-      })
-      .catch(() => {});
-    return () => {
-      live = false;
-      controllerRef.current = null;
-      crowdRef.current?.dispose();
-      crowdRef.current = null;
-    };
-    // Rebuilt per place; membership changes reconcile via setAgentCount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [place]);
-
-  useEffect(() => {
-    if (crowdReady) crowdRef.current?.setAgentCount(count);
-  }, [count, crowdReady]);
-
-  useFrame((_, delta) => {
-    const crowd = crowdRef.current;
-    if (!crowd) return;
-    const dt = Math.min(delta, 0.05);
-    framesRef.current = crowd.step(dt);
-    // Hard backstop: no Agora frame ever renders past the deck rim.
-    if (place === "agora") {
-      for (const fr of framesRef.current) {
-        fr.position = clampPositionToRadius(fr.position, AGORA_FRAME_RMAX);
-      }
-    }
-    if (bodyOn) {
-      const frames = framesRef.current;
-      while (bodyStates.current.length < frames.length) {
-        bodyStates.current.push(newBodyState(frames[bodyStates.current.length]?.heading ?? 0));
-      }
-      for (let i = 0; i < frames.length; i++) {
-        const fr = frames[i];
-        const m = castRef.current[i];
-        const out = stepBody(
-          bodyStates.current[i],
-          {
-            vx: fr.velocity[0],
-            vz: fr.velocity[1],
-            speed: fr.speed,
-            // standing: the crowd's retained heading is the wish (a face skill sets it; a reversal leaves it pointing the new way)
-            intent: fr.speed > 0.1 ? null : fr.heading,
-            walkSpeed: (m ? bodyForMember(m) : BODY_CAST).walkSpeed,
-          },
-          dt,
-        );
-        fr.heading = out.heading;
-        fr.body = out;
-        crowd.setSpeedScale(i, out.speedScale);
-      }
-      if (bodyDebug) {
-        bodyClock.current += dt;
-        const w = window as unknown as { __bodyLog?: { t: number; dt: number; h: number[]; v: number[]; p: [number, number][]; turn: number[] }[] };
-        const log = (w.__bodyLog ??= []);
-        log.push({
-          t: bodyClock.current,
-          dt,
-          h: frames.map((f) => f.heading),
-          v: frames.map((f) => f.speed),
-          p: frames.map((f) => f.position),
-          turn: frames.map((f) => (f.body?.turn ? (f.body.turn.clip === "TurnLeft90" ? 1 : -1) : 0)),
-        });
-        if (log.length > 6000) log.shift();
-      }
-    } else if (bodyDebug) {
-      bodyClock.current += dt;
-      const w = window as unknown as { __bodyLog?: { t: number; dt: number; h: number[]; v: number[]; p: [number, number][]; turn: number[] }[] };
-      const log = (w.__bodyLog ??= []);
-      log.push({ t: bodyClock.current, dt, h: framesRef.current.map((f) => f.heading), v: framesRef.current.map((f) => f.speed), p: framesRef.current.map((f) => f.position), turn: [] });
-      if (log.length > 6000) log.shift();
-    }
-    const ctl = controllerRef.current;
-    if (ctl) {
-      ctl.tick(dt);
-      overridesRef.current.clear();
-      for (let i = 0; i < count; i++) {
-        const ov = ctl.overrideFor(i);
-        if (ov) overridesRef.current.set(i, ov);
-      }
-    }
-  });
-
-  const groundY = place === "agora" ? AGORA_GROUND_Y : CITY3_GROUND_Y;
-
-  return (
-    <>
-      {embodyOn && place === "agora" ? (
-        <CameraRig
-          framesRef={framesRef}
-          overridesRef={overridesRef}
-          groundY={groundY}
-          camModeRef={camModeRef}
-          index={focusIndex}
-          headPoseRef={headPoseRef}
-        />
-      ) : null}
-      {embodyOn && place === "agora"
-        ? AGORA_BENCH_ANCHORS.map((a) => (
-            // Spike stand-in bench: the Smart Object and its anchor
-            // arrive together. Production benches are shelf assets in
-            // the world GLB carrying the same anchor data.
-            <group key={a.id} position={[a.seat[0], groundY, a.seat[1]]} rotation={[0, a.facing, 0]}>
-              <mesh position={[0, a.seatHeight - 0.035, 0]} castShadow receiveShadow>
-                <boxGeometry args={[1.3, 0.07, 0.45]} />
-                <meshStandardMaterial color="#454c58" metalness={0.3} roughness={0.5} />
-              </mesh>
-              <mesh position={[-0.55, a.seatHeight / 2, 0]} castShadow>
-                <boxGeometry args={[0.08, a.seatHeight, 0.4]} />
-                <meshStandardMaterial color="#363c46" metalness={0.3} roughness={0.55} />
-              </mesh>
-              <mesh position={[0.55, a.seatHeight / 2, 0]} castShadow>
-                <boxGeometry args={[0.08, a.seatHeight, 0.4]} />
-                <meshStandardMaterial color="#363c46" metalness={0.3} roughness={0.55} />
-              </mesh>
-              <mesh position={[0, a.seatHeight + 0.22, -0.22]} castShadow>
-                <boxGeometry args={[1.3, 0.44, 0.05]} />
-                <meshStandardMaterial color="#454c58" metalness={0.3} roughness={0.5} />
-              </mesh>
-              <mesh position={[0, a.seatHeight + 0.44, -0.22]}>
-                <boxGeometry args={[1.3, 0.03, 0.03]} />
-                <meshStandardMaterial color="#0b0e11" emissive="#2fd4ff" emissiveIntensity={2.2} />
-              </mesh>
-            </group>
-          ))
-        : null}
-      {isViewingWorld(place)
-        ? null
-        : cast.map((member, i) => (
-            <CastFigure
-              key={member.id}
-              framesRef={framesRef}
-              overridesRef={overridesRef}
-              index={i}
-              baseY={groundY}
-              home={homeFor(i, count)}
-              label={member.name}
-              body={bodyForMember(member)}
-              clipTester={i === focusIndex ? clipTester : undefined}
-              headPoseRef={i === focusIndex ? headPoseRef : undefined}
-              hidden={embodyOn && i === focusIndex && camMode === "ride"}
-              spriteTag={spriteTags}
-            />
-          ))}
-    </>
-  );
-}
-
 /** Fires once when the Suspense subtree it sits in actually mounts —
  * the "the world is on screen" signal the loading overlay waits for. */
 function PresentedSignal({ onPresented }: { onPresented: () => void }) {
@@ -1096,21 +593,16 @@ function PresentedSignal({ onPresented }: { onPresented: () => void }) {
  * E1 — the stage's loading state (worldLoad.ts decides the phase;
  * skeleton-states.md is the rulebook). The Suspense fallback inside
  * the Canvas stays null — a DOM overlay is where a human-facing
- * state belongs: place name, skeleton, the LoadingManager's real
- * progress, a way out when the wait runs long, and an honest error
- * with a retry when it fails. Cross-fades out once the world
- * presents; never traps the user (the world toggle stays above it).
+ * state belongs: world name, skeleton, the LoadingManager's real
+ * progress, and an honest error with a retry when it fails.
+ * Cross-fades out once the world presents; never traps the user.
  */
 function WorldLoadOverlay({
-  place,
   presented,
   onRetry,
-  onSwitch,
 }: {
-  place: Place;
   presented: boolean;
   onRetry: () => void;
-  onSwitch: () => void;
 }) {
   const { progress, errors } = useProgress();
   const [startedAt] = useState(() => performance.now());
@@ -1131,8 +623,6 @@ function WorldLoadOverlay({
   }, [phase]);
   if (gone || phase === "waiting") return null;
   const pct = loadPercent(progress);
-  const name = place === "agora" ? "Agora" : "City 3";
-  const other = place === "agora" ? "City 3" : "Agora";
   return (
     <div className={`w-load${phase === "ready" ? " leaving" : ""}`} role="status" aria-live="polite">
       {phase !== "ready" ? (
@@ -1148,14 +638,11 @@ function WorldLoadOverlay({
                 <button type="button" className="w-load-primary" onClick={onRetry}>
                   Retry
                 </button>
-                <button type="button" onClick={onSwitch}>
-                  Go to {other} instead
-                </button>
               </div>
             </>
           ) : (
             <>
-              <div className="w-load-title">{name}</div>
+              <div className="w-load-title">City 3</div>
               <p className="w-load-sub">
                 {phase === "stalled"
                   ? "Still loading — this is a large world and a real download."
@@ -1170,20 +657,13 @@ function WorldLoadOverlay({
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-valuenow={pct}
-                  aria-label={`Loading ${name}`}
+                  aria-label="Loading City 3"
                 >
                   <i style={{ width: `${pct}%` }} />
                 </div>
               ) : null}
               {phase === "progress" || phase === "stalled" ? (
                 <div className="w-load-pct">{pct}%</div>
-              ) : null}
-              {phase === "stalled" ? (
-                <div className="w-load-actions">
-                  <button type="button" onClick={onSwitch}>
-                    Go to {other} instead
-                  </button>
-                </div>
               ) : null}
             </>
           )}
@@ -1373,291 +853,6 @@ function WalkHudPanel({
 }
 
 /**
- * Embody v0 spike panel (?embody=1, Agora only): hand-drives the first
- * cast member through the skill menu so the body layer can be watched
- * without the gateway. The same controller sits on window.__embody.
- */
-function EmbodyPanel({
-  cast,
-  controllerRef,
-  framesRef,
-  glCanvasRef,
-  camMode,
-  onCamMode,
-  clipTester,
-  focusIndex,
-  onFocus,
-  fpsMeter,
-}: {
-  cast: CastMember[];
-  /** Clip tester: fires catalog clips on the focus figure (clips.ts). */
-  clipTester: ClipTestState;
-  /** Which cast member the cameras + clip tester ride (Summer default). */
-  focusIndex: number;
-  onFocus: (memberId: string) => void;
-  /** Shared render-rate meter — read on the panel's 400 ms pulse. */
-  fpsMeter: FpsMeter;
-  controllerRef: RefObject<EmbodyController | null>;
-  /** Latest crowd frames — the harness reads Amara's anim state/speed. */
-  framesRef: RefObject<AgentFrame[]>;
-  /** The WebGL canvas — the vision probe captures it in Ride mode. */
-  glCanvasRef: RefObject<HTMLCanvasElement | null>;
-  camMode: CameraMode;
-  onCamMode: (m: CameraMode) => void;
-}) {
-  const [, setPulse] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setPulse((p) => p + 1), 400);
-    return () => clearInterval(id);
-  }, []);
-  const ctl = controllerRef.current;
-  const st = ctl?.stateFor(0);
-  const last = ctl?.events[ctl.events.length - 1];
-  const name = cast[0]?.name ?? "first bot";
-  const focusName = cast[focusIndex]?.name ?? name;
-  const benchB = AGORA_BENCH_ANCHORS[1];
-
-  // Clip stepping: prev/next walk the catalog in order and fire each
-  // clip on the focus figure, so the whole 45 can be auditioned in
-  // sequence without hunting the list. Clicking a list entry moves
-  // the step position to it.
-  const [clipIdx, setClipIdx] = useState(0);
-  const stepClip = (d: number) => {
-    const next = (clipIdx + d + CLIP_CATALOG.length) % CLIP_CATALOG.length;
-    setClipIdx(next);
-    clipTester.fire(CLIP_CATALOG[next].name);
-    setPulse((p) => p + 1);
-  };
-
-  // ---- "Own Amara" test harness -------------------------------------
-  // Animation tester: Patrol keeps issuing go_to legs between the two
-  // bench approaches whenever Amara is idle, so the Walk clip plays
-  // continuously; toggling off issues stop. If she is seated when a leg
-  // comes due, the harness stands her up first.
-  const [patrolOn, setPatrolOn] = useState(false);
-  const patrolLeg = useRef(0);
-  useEffect(() => {
-    if (!patrolOn) return;
-    const id = setInterval(() => {
-      const c = controllerRef.current;
-      if (!c) return;
-      const s = c.stateFor(0);
-      if (s.current) return; // a skill is running — the leg waits
-      if (s.posture === "seated") {
-        c.issue(0, { skill: "stand" });
-        return;
-      }
-      const leg = patrolLeg.current % AGORA_BENCH_ANCHORS.length;
-      patrolLeg.current = leg + 1;
-      c.issue(0, { skill: "go_to", target: AGORA_BENCH_ANCHORS[leg].approach });
-    }, 300);
-    return () => clearInterval(id);
-  }, [patrolOn, controllerRef]);
-  const togglePatrol = () => {
-    if (patrolOn) controllerRef.current?.issue(0, { skill: "stop" });
-    setPatrolOn(!patrolOn);
-  };
-  const turn180 = () => {
-    const c = controllerRef.current;
-    if (!c) return;
-    c.issue(0, { skill: "face", target: { heading: c.stateFor(0).heading + Math.PI } });
-  };
-
-  // Vision FPS probe ("Amara's eye"): in Ride mode the main camera IS
-  // the head camera, so capturing the WebGL canvas measures exactly
-  // what a served `look` would cost. Capture = one drawImage into the
-  // preview canvas — no encoding, no network (visionProbe.ts owns the
-  // cadence gate and the statistics).
-  const [probeFps, setProbeFps] = useState(0);
-  const previewRef = useRef<HTMLCanvasElement | null>(null);
-  const statsRef = useRef<ProbeStats>(initialProbeStats());
-  useEffect(() => {
-    if (camMode !== "ride" || probeFps <= 0) return;
-    statsRef.current = initialProbeStats();
-    const id = setInterval(() => {
-      const src = glCanvasRef.current;
-      const dst = previewRef.current;
-      if (!src || !dst) return;
-      const ctx = dst.getContext("2d");
-      if (!ctx) return;
-      const t0 = performance.now();
-      if (!shouldCapture(t0, statsRef.current.lastAt, probeFps)) return;
-      ctx.drawImage(src, 0, 0, PROBE_WIDTH, PROBE_HEIGHT);
-      statsRef.current = recordCapture(statsRef.current, t0, performance.now() - t0);
-    }, 40);
-    return () => clearInterval(id);
-  }, [camMode, probeFps, glCanvasRef]);
-  const stats = statsRef.current;
-  const frame0 = framesRef.current[0];
-
-  return (
-    <div className="w-embody-panel">
-      <div className="w-embody-title">Embody spike — driving {name}</div>
-      <div className="w-embody-row">
-        <button type="button" onClick={() => ctl?.issue(0, { skill: "sit_on", anchorId: "bench-a" })}>
-          Sit on Bench A
-        </button>
-        <button type="button" onClick={() => ctl?.issue(0, { skill: "stand" })}>
-          Stand
-        </button>
-        <button type="button" onClick={() => ctl?.issue(0, { skill: "face", target: { point: [0, 0] } })}>
-          Face the globe
-        </button>
-        <button type="button" onClick={() => ctl?.issue(0, { skill: "go_to", target: benchB.approach })}>
-          Walk to Bench B
-        </button>
-        <button type="button" onClick={() => ctl?.issue(0, { skill: "stop" })}>
-          Stop
-        </button>
-      </div>
-      <div className="w-embody-row" role="group" aria-label="Camera mode">
-        <button
-          type="button"
-          className={camMode === "wide" ? "active" : ""}
-          onClick={() => onCamMode("wide")}
-        >
-          Wide
-        </button>
-        <button
-          type="button"
-          className={camMode === "follow" ? "active" : ""}
-          onClick={() => onCamMode("follow")}
-        >
-          Follow
-        </button>
-        <button
-          type="button"
-          className={camMode === "ride" ? "active" : ""}
-          onClick={() => onCamMode("ride")}
-        >
-          Ride
-        </button>
-      </div>
-      <div className="w-embody-status">
-        {ctl
-          ? `${st?.posture ?? "standing"}${st?.current ? ` · ${st.current}` : " · idle"}`
-          : "warming up…"}
-        {last ? ` — last event: ${last.type} ${last.skill}` : ""}
-        {` · camera: ${camMode}`}
-      </div>
-      {camMode !== "wide" ? (
-        <div className="w-embody-status">
-          {`render ${fpsMeter.fps().toFixed(0)} fps · 0.5 s rolling average · riding ${focusName}`}
-        </div>
-      ) : null}
-      <div className="w-embody-title w-embody-section">Camera & clip focus</div>
-      <div className="w-embody-row" role="group" aria-label="Focus member">
-        {cast.map((m, i) => (
-          <button
-            key={m.id}
-            type="button"
-            className={i === focusIndex ? "active" : ""}
-            onClick={() => onFocus(m.id)}
-          >
-            {m.name}
-          </button>
-        ))}
-      </div>
-      <div className="w-embody-status">
-        {`Follow / Ride cameras and the clip tester target ${focusName} — the skill buttons above still drive ${name}`}
-      </div>
-      <div className="w-embody-title w-embody-section">Test harness — {name}</div>
-      <div className="w-embody-row" role="group" aria-label="Animation tester">
-        <button
-          type="button"
-          className={patrolOn ? "active" : ""}
-          onClick={togglePatrol}
-        >
-          Patrol
-        </button>
-        <button type="button" onClick={turn180}>
-          Turn 180°
-        </button>
-      </div>
-      <div className="w-embody-status">
-        {frame0
-          ? `anim ${frame0.state} · ${frame0.speed.toFixed(2)} m/s · ${st?.posture ?? "standing"} · ${st?.current ?? "no skill"}`
-          : "anim — · no frame yet"}
-      </div>
-      <div className="w-embody-title w-embody-section">Clip tester — {focusName}</div>
-      <div className="w-embody-row" role="group" aria-label="Step clips">
-        <button type="button" onClick={() => stepClip(-1)}>
-          ← Prev clip
-        </button>
-        <button type="button" onClick={() => stepClip(1)}>
-          Next clip →
-        </button>
-      </div>
-      <div className="w-embody-status">
-        {`clip ${clipIdx + 1} / ${CLIP_CATALOG.length} — ${CLIP_CATALOG[clipIdx].name}`}
-        {clipTester.current ? ` · firing ${clipTester.current} on ${focusName}` : ""}
-      </div>
-      <div className="w-embody-row w-clip-list" role="group" aria-label="Clip tester">
-        {CLIP_CATALOG.map((c, ci) => {
-          const active =
-            c.name === "Idle" ? clipTester.current === null : clipTester.current === c.name;
-          return (
-            <button
-              key={c.name}
-              type="button"
-              className={active ? "active" : ""}
-              onClick={() => {
-                clipTester.fire(c.name);
-                setClipIdx(ci);
-                setPulse((p) => p + 1);
-              }}
-            >
-              {c.name}
-              {c.loop ? " ∞" : ""}
-            </button>
-          );
-        })}
-      </div>
-      <div className="w-embody-status">
-        {clipTester.current
-          ? `firing ${clipTester.current} — one-shots return to Idle, loops hold`
-          : "no test clip — body layer owns the figure"}
-      </div>
-      <div className="w-embody-title w-embody-section">{name}'s eye — vision fps probe</div>
-      {camMode === "ride" ? (
-        <>
-          <div className="w-embody-row" role="group" aria-label="Vision capture rate">
-            {PROBE_CADENCES.map((f) => (
-              <button
-                key={f}
-                type="button"
-                className={probeFps === f ? "active" : ""}
-                onClick={() => setProbeFps(f)}
-              >
-                {f} fps
-              </button>
-            ))}
-            <button
-              type="button"
-              className={probeFps === 0 ? "active" : ""}
-              onClick={() => setProbeFps(0)}
-            >
-              Off
-            </button>
-          </div>
-          <canvas
-            ref={previewRef}
-            width={PROBE_WIDTH}
-            height={PROBE_HEIGHT}
-            className="w-embody-vision"
-          />
-          <div className="w-embody-status">
-            {`target ${probeFps} fps · achieved ${stats.fpsEma.toFixed(1)} fps · ${stats.costEmaMs.toFixed(2)} ms/capture · ${stats.captures} frames`}
-          </div>
-        </>
-      ) : (
-        <div className="w-embody-status">switch to Ride to probe {name}'s eye</div>
-      )}
-    </div>
-  );
-}
-
-/**
  * Mobile Phase 2: the double-tap fly-to for a tapped figure. When the
  * shared ref gains a point, fly the spectator camera to a three-quarter
  * view of it over ~1.1 s (smoothstep), moving OrbitControls' target
@@ -1715,30 +910,10 @@ function FigureFlyRig({
   return null;
 }
 
-export function GlbWorld({ cast }: { cast: CastMember[] }) {
-  // ?world=city3 deep-links a world (same pattern as ?embody=1).
-  // Anything else — including the removed city/city2 — lands on the Agora.
-  const [place, setPlace] = useState<Place>(() => {
-    const w = new URLSearchParams(window.location.search).get("world");
-    return w === "city3" ? w : "agora";
-  });
-  const agora = place === "agora";
-  // Jim retired the old Body Block bots (2026-11-05): first from the
-  // Agora, then from City 1 the same evening. Every walking world's
-  // crowd is only the members wearing an explicit kept body (Summer
-  // and the KayKit guests).
-  const visibleCast = useMemo(() => excludeBody(cast, BODY_CAST), [cast]);
-
-  // Embody v0 spike: ?embody=1 turns on the skill layer (Agora only).
-  const embodyOn = useMemo(
-    () => new URLSearchParams(window.location.search).get("embody") === "1",
-    [],
-  );
-  const controllerRef = useRef<EmbodyController | null>(null);
-  // Clip tester for the Embody panel: one shared state object — the
-  // panel fires clips into it, the focus figure blends toward them.
-  const clipTesterRef = useRef<ClipTestState | null>(null);
-  if (clipTesterRef.current === null) clipTesterRef.current = new ClipTestState();
+export function GlbWorld() {
+  // City 3 is the only world: the Agora was deleted 2026-11-08 (Jim's
+  // order — a planned lobby will bring back world navigation later).
+  // Any ?world= value, stale or current, lands here.
   // Walk-mode HUD (City 3): one shared override state — the panel's
   // Run/door buttons drive it, the walk bot's CastFigure consumes it as
   // its clip tester. Plus the walker's latest frame for the status line.
@@ -1776,52 +951,27 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
     setFigureCard(null);
     setCamMode("ride");
   };
-  const overridesRef = useRef(new Map<number, FigureOverride>());
-  // Latest crowd frames, shared between CrowdCast (writer), the camera
-  // rig and CastFigure (readers), and the panel's "Own Amara" harness.
-  const framesRef = useRef<AgentFrame[]>([]);
-  // Camera + clip-tester focus: which cast member the Follow/Ride
-  // cameras ride and the tester fires on. Defaults to the member
-  // wearing Summer's body (WorldView always fields her); the panel
-  // can move it to any member by id.
-  const [focusPick, setFocusPick] = useState<string | null>(null);
-  const focusIndex = useMemo(() => {
-    if (focusPick) {
-      const picked = visibleCast.findIndex((m) => m.id === focusPick);
-      if (picked >= 0) return picked;
-    }
-    const summer = visibleCast.findIndex((m) => bodyForMember(m) === BODY_SUMMER);
-    return summer >= 0 ? summer : 0;
-  }, [visibleCast, focusPick]);
-  // The focus figure's head-bone world position, streamed per frame
-  // by its CastFigure — the ride camera's anchor.
-  const headPoseRef = useRef<[number, number, number] | null>(null);
   // Render-rate meter: FpsTracker (in-Canvas) writes, the panel reads.
   const fpsMeterRef = useRef<FpsMeter | null>(null);
   if (fpsMeterRef.current === null) fpsMeterRef.current = new FpsMeter();
-  // The WebGL canvas element, captured by Canvas onCreated — the vision
-  // probe's frame source. preserveDrawingBuffer (embody only) is what
-  // makes reading it back outside the render loop meaningful.
-  const glCanvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  // Head-camera mode (Embody spike): state for the panel buttons and
-  // OrbitControls, mirrored into a ref the camera rig reads per frame.
+  // The stage's key light — DistrictWorld borrows it for its shadow
+  // setup.
   const keyLightRef = useRef<THREE.DirectionalLight | null>(null);
-  const city3Rooms = useCity3Rooms(place === "city3");
-  // ?walk=1 (with ?world=city3) deep-links straight into the walkable bot's first-person view.
-  const walkLink = useMemo(() => {
-    const q = new URLSearchParams(window.location.search);
-    return q.get("world") === "city3" && q.get("walk") === "1";
-  }, []);
-  // ?agent=1 (with ?world=city3): the Phase 0 agent-experiment harness —
-  // Scout spawns at the fountain and window.__scout drives it (scout.ts).
-  // Dev-only: without the flag nothing mounts and behavior is unchanged.
-  // Agent mode wins over walk mode if both flags are set (one bot, one
+  const city3Rooms = useCity3Rooms(true);
+  // ?walk=1 deep-links straight into the walkable bot's first-person view.
+  const walkLink = useMemo(
+    () => new URLSearchParams(window.location.search).get("walk") === "1",
+    [],
+  );
+  // ?agent=1: the Phase 0 agent-experiment harness — Scout spawns at
+  // the fountain and window.__scout drives it (scout.ts). Dev-only:
+  // without the flag nothing mounts and behavior is unchanged. Agent
+  // mode wins over walk mode if both flags are set (one bot, one
   // camera owner).
-  const agentOn = useMemo(() => {
-    const q = new URLSearchParams(window.location.search);
-    return place === "city3" && q.get("agent") === "1";
-  }, [place]);
+  const agentOn = useMemo(
+    () => new URLSearchParams(window.location.search).get("agent") === "1",
+    [],
+  );
   const [camMode, setCamMode] = useState<CameraMode>(walkLink ? "ride" : "wide");
   // City 3 collider meshes (DistrictWorld fills it), read by the walker.
   const colliderMeshesRef = useRef<(() => THREE.Mesh[]) | null>(null);
@@ -1894,7 +1044,6 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   // and the pre-synthesis of every scripted line in the background. Nobody who declines sound downloads the model; until it
   // is warm the pre-rendered clips speak every line at once (prepareLine), so greetings never wait either way.
   useEffect(() => {
-    if (place !== "city3") return;
     const id = window.setInterval(() => {
       const consent = soundRef.current?.consent;
       if (consent === "declined") { window.clearInterval(id); return; }
@@ -1908,14 +1057,14 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
       });
     }, 500); // the consent lives on the director (no React state): a cheap poll until it is answered
     return () => window.clearInterval(id);
-  }, [place]);
-  const walking = place === "city3" && camMode !== "wide";
+  }, []);
+  const walking = camMode !== "wide";
   // Mobile Phase 2: register this world's Places with the shell bridge
   // while City 3 is on stage (WorldView's Places sheet reads them),
   // and tell the shell when a touch walk owns the screen so the tab
   // bar hides. Desktop never registers — the sheet is touch-only.
   useEffect(() => {
-    if (!touchUi || place !== "city3") return;
+    if (!touchUi) return;
     mobileShell.setPlaces({
       rooms: city3Rooms,
       flyTo: (room) => setHeroFocus((f) => ({ id: room.id, nonce: (f?.nonce ?? 0) + 1 })),
@@ -1925,15 +1074,15 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
       },
     });
     return () => mobileShell.setPlaces(null);
-  }, [touchUi, place, city3Rooms]);
+  }, [touchUi, city3Rooms]);
   useEffect(() => {
     if (!touchUi) return;
     mobileShell.setWalkLive(walking);
     return () => mobileShell.setWalkLive(false);
   }, [touchUi, walking]);
   useEffect(() => {
-    if (walking || place !== "city3") setFigureCard(null);
-  }, [walking, place]);
+    if (walking) setFigureCard(null);
+  }, [walking]);
 
   // Mobile Phase 4: comfort sync + long-press context sheet + the
   // long-press coach mark. Comfort values flow one way — the store
@@ -2028,11 +1177,6 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   }, [walking]);
   // City 3: which hero building to fly to (cutaway shows on arrival); nonce re-fires a repeat click.
   const [heroFocus, setHeroFocus] = useState<{ id: string; nonce: number } | null>(null);
-  const camModeRef = useRef<CameraMode>(walkLink ? "ride" : "wide");
-  useEffect(() => {
-    camModeRef.current = camMode;
-  }, [camMode]);
-
   // Sound lifecycle: the director arms ONLY from the walk HUD's
   // Enable-sound consent (its click is the gesture that creates +
   // resumes the AudioContext — the iOS rule); the pointer/key
@@ -2115,8 +1259,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   // has to advance or platform announcements never fire for the
   // default audience — the wide-view spectator. The director's
   // spectator tick only moves time + clock events (no audio layers);
-  // the audience district is the place on screen — City 3 viewers
-  // are in the Bazaar's audience, Agora viewers in open water.
+  // the audience district is the Bazaar — City 3 is the only world.
   useEffect(() => {
     if (walking || agentOn) return;
     const sound = soundRef.current;
@@ -2126,7 +1269,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
       const nowMs = performance.now();
       const dt = (nowMs - last) / 1000;
       last = nowMs;
-      sound.tickSpectator(dt, place === "city3" ? "bazaar" : null);
+      sound.tickSpectator(dt, "bazaar");
     }, 250);
     const debug = new URLSearchParams(window.location.search).has("soundDebug");
     if (debug) {
@@ -2137,17 +1280,17 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
       clearInterval(id);
       if (debug) delete (window as unknown as Record<string, unknown>).__sound;
     };
-  }, [walking, agentOn, place]);
+  }, [walking, agentOn]);
 
-  // E1: the stage's load generation + presented flag. A place switch
-  // or a retry remounts the Canvas under a fresh key; `presented`
+  // E1: the stage's load generation + presented flag. A retry
+  // remounts the Canvas under a fresh key; `presented`
   // resets with it and PresentedSignal (inside the Suspense
   // boundary) raises it again when the world actually mounts.
   const [loadNonce, setLoadNonce] = useState(0);
   const [worldPresented, setWorldPresented] = useState(false);
   useEffect(() => {
     setWorldPresented(false);
-  }, [place, loadNonce]);
+  }, [loadNonce]);
   const markPresented = useCallback(() => setWorldPresented(true), []);
   useEffect(() => {
     return () => {
@@ -2156,31 +1299,24 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
     };
   }, []);
 
-  // Elevated three-quarter spectator defaults, worked out from the play
-  // areas: Agora from 25 m at ~37° elevation frames the whole 9.7 m deck
-  // disc with headroom; City 3 opens wide over the whole island.
+  // Elevated three-quarter spectator defaults: City 3 opens wide over
+  // the whole island.
   const camera = useMemo(
-    () =>
-      agora
-        ? { position: [14, 16, 14] as [number, number, number], fov: 45, near: 0.1, far: 600 }
-        : { position: [290, 250, 340] as [number, number, number], fov: 45, near: 0.5, far: 6000 },
-    [place],
+    () => ({ position: [290, 250, 340] as [number, number, number], fov: 45, near: 0.5, far: 6000 }),
+    [],
   );
-  const target: [number, number, number] = agora
-    ? [0, AGORA_GROUND_Y, 0]
-    : [CITY3_CENTER[0], 8, CITY3_CENTER[1]];
+  const target: [number, number, number] = [CITY3_CENTER[0], 8, CITY3_CENTER[1]];
 
   return (
     <div ref={rootRef} className={touchUi ? "w-glb-root w-touch-root" : "w-glb-root"}>
       <Canvas
-        key={`${place}:${loadNonce}`}
+        key={loadNonce}
         camera={camera}
         dpr={touchUi ? dprForTier(quality.tier) : undefined}
         frameloop={agentOn ? "demand" : "always"}
         shadows={agentOn ? false : "soft"}
-        gl={{ antialias: true, preserveDrawingBuffer: embodyOn }}
+        gl={{ antialias: true }}
         onCreated={({ gl }) => {
-          glCanvasRef.current = gl.domElement;
           // VoiceOver pass (Phase 4): the canvas is the world's window;
           // name it for assistive tech.
           gl.domElement.setAttribute("aria-label", "3D world view");
@@ -2188,30 +1324,15 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
         style={{ position: "absolute", inset: 0 }}
       >
         <ambientLight intensity={0.12} color="#8fa3cc" />
-        <StageEnvironment place={place} />
-        <KeyLight place={place} lightRef={keyLightRef} />
+        <StageEnvironment />
+        <KeyLight lightRef={keyLightRef} />
         <ShadowTagger />
-        {(embodyOn && agora) || touchUi ? <FpsTracker meterRef={fpsMeterRef} /> : null}
+        {touchUi ? <FpsTracker meterRef={fpsMeterRef} /> : null}
         {touchUi ? <QualityDriver meterRef={fpsMeterRef} /> : null}
-        {agora && !touchUi ? (
-          <EffectComposer>
-            <Bloom
-              mipmapBlur
-              intensity={0.4}
-              luminanceThreshold={0.6}
-              luminanceSmoothing={0.2}
-            />
-          </EffectComposer>
-        ) : null}
         <Suspense fallback={null}>
           <PresentedSignal onPresented={markPresented} />
-          {place === "city3" ? (
-            <DistrictWorld residentUrl={CITY3_URL} light={keyLightRef} collide={camMode === "wide"} meshesRef={colliderMeshesRef} walk={walkColliders} />
-          ) : (
-          <WorldEnv url={AGORA_URL} />
-          )}
-          {place === "city3" ? (
-            <>
+          <DistrictWorld residentUrl={CITY3_URL} light={keyLightRef} collide={camMode === "wide"} meshesRef={colliderMeshesRef} walk={walkColliders} />
+          <>
               <ClipCutaway rooms={city3Rooms} focus={heroFocus} />
               <InteriorStreamer rooms={city3Rooms} walk={walkColliders} interact={interactRef.current} />
               <BazaarLife
@@ -2241,8 +1362,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
               <TeaDoorLeaf controller={teaDoorRef.current} />
               {!agentOn ? <TeaDoorTicker controller={teaDoorRef.current} /> : null}
               {!agentOn ? <InteractTicker controller={interactRef.current} /> : null}
-            </>
-          ) : null}
+          </>
           {walking && !agentOn ? (
             <CityWalker
               mode={camMode === "follow" ? "follow" : "ride"}
@@ -2270,21 +1390,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           {agentOn ? (
             <ScoutAgent getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} door={teaDoorRef.current} positionRef={scoutPosRef} interact={interactRef.current} />
           ) : null}
-          {touchUi && !walking && place === "city3" ? <FigureFlyRig flyRef={figureFlyRef} /> : null}
-          <CrowdCast
-            place={place}
-            cast={visibleCast}
-            embodyOn={embodyOn}
-            controllerRef={controllerRef}
-            overridesRef={overridesRef}
-            camModeRef={camModeRef}
-            camMode={camMode}
-            framesRef={framesRef}
-            clipTester={agora ? (clipTesterRef.current ?? undefined) : undefined}
-            focusIndex={focusIndex}
-            headPoseRef={headPoseRef}
-            spriteTags={touchUi}
-          />
+          {touchUi && !walking ? <FigureFlyRig flyRef={figureFlyRef} /> : null}
         </Suspense>
         <OrbitControls
           makeDefault
@@ -2292,54 +1398,26 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           enableDamping
           // Parked while a bot camera mode owns the camera (drei only
           // updates controls when enabled, so the rig never fights it).
-          enabled={(!embodyOn || !agora || camMode === "wide") && !walking && !agentOn}
+          enabled={!walking && !agentOn}
           maxPolarAngle={Math.PI / 2 - 0.04}
-          // City 3: 3 m close-ups; CameraCollider (in DistrictWorld) keeps the camera out of walls.
-          minDistance={agora ? 6 : 3}
-          maxDistance={agora ? 55 : 1100}
+          // 3 m close-ups; CameraCollider (in DistrictWorld) keeps the camera out of walls.
+          minDistance={3}
+          maxDistance={1100}
         />
       </Canvas>
       {soundRef.current ? (
         <ShellPaBanner sound={soundRef.current} spectator={!walking} />
       ) : null}
       <WorldLoadOverlay
-        key={`${place}:${loadNonce}`}
-        place={place}
+        key={loadNonce}
         presented={worldPresented}
         onRetry={() => {
-          useGLTF.clear(AGORA_URL);
           useGLTF.clear(CITY3_URL);
           useGLTF.clear(CITY3_LIBRARY_URL);
           setLoadNonce((n) => n + 1);
         }}
-        onSwitch={() => {
-          setPlace(place === "agora" ? "city3" : "agora");
-          setCamMode("wide");
-        }}
       />
-      <div className="w-glb-toggle" role="group" aria-label="Choose world">
-        <button
-          type="button"
-          className={agora ? "active" : ""}
-          onClick={() => {
-            setPlace("agora");
-            setCamMode("wide");
-          }}
-        >
-          Agora
-        </button>
-        <button
-          type="button"
-          className={place === "city3" ? "active" : ""}
-          onClick={() => {
-            setPlace("city3");
-            setCamMode("wide");
-          }}
-        >
-          City 3
-        </button>
-      </div>
-      {place === "city3" && !(walking && touchUi) ? (
+      {!(walking && touchUi) ? (
         <div className="w-glb-toggle w-glb-walk" role="group" aria-label="Walk City 3">
           {walking ? (
             <>
@@ -2404,7 +1482,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           <section className="w-sheet w-context-sheet" role="dialog" aria-label="Context options">
             <div className="w-sheet-grab" aria-hidden="true" />
             <header className="w-sheet-head">
-              <b>{contextSheet.kind === "figure" ? contextSheet.fig.name : place === "city3" ? "Sunstone Bazaar" : "The Agora"}</b>
+              <b>{contextSheet.kind === "figure" ? contextSheet.fig.name : "Sunstone Bazaar"}</b>
               <button type="button" onClick={() => setContextSheet(null)}>
                 Close
               </button>
@@ -2435,18 +1513,16 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
                 </>
               ) : (
                 <>
-                  {place === "city3" ? (
-                    <button
-                      type="button"
-                      className="w-sheet-menu"
-                      onClick={() => {
-                        setContextSheet(null);
-                        setCamMode("ride");
-                      }}
-                    >
-                      Walk from the plaza
-                    </button>
-                  ) : null}
+                  <button
+                    type="button"
+                    className="w-sheet-menu"
+                    onClick={() => {
+                      setContextSheet(null);
+                      setCamMode("ride");
+                    }}
+                  >
+                    Walk from the plaza
+                  </button>
                   {soundRef.current && soundRef.current.consent === "granted" ? (
                     <button
                       type="button"
@@ -2470,7 +1546,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           </section>
         </>
       ) : null}
-      {touchUi && !walking && place === "city3" && figureCard ? (
+      {touchUi && !walking && figureCard ? (
         <div className="w-figure-card" role="dialog" aria-label={`Figure: ${figureCard.name}`}>
           <span className="w-figure-name">{figureCard.name}</span>
           <button type="button" className="w-figure-act" onClick={() => walkToPoint(figureCard.x, figureCard.z)}>
@@ -2490,7 +1566,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           </button>
         </div>
       ) : null}
-      {place === "city3" && !walking ? (
+      {!walking ? (
         <div className="w-glb-toggle w-glb-poi" role="group" aria-label="Places in City 3">
           {city3Rooms.filter((r) => r.featured).map((hero) => (
             <button
@@ -2502,20 +1578,6 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
             </button>
           ))}
         </div>
-      ) : null}
-      {embodyOn && agora ? (
-        <EmbodyPanel
-          cast={visibleCast}
-          controllerRef={controllerRef}
-          framesRef={framesRef}
-          glCanvasRef={glCanvasRef}
-          camMode={camMode}
-          onCamMode={setCamMode}
-          clipTester={clipTesterRef.current}
-          focusIndex={focusIndex}
-          onFocus={setFocusPick}
-          fpsMeter={fpsMeterRef.current}
-        />
       ) : null}
     </div>
   );

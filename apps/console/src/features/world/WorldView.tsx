@@ -12,7 +12,7 @@ import {
 import { usePublicWs } from "../../lib/publicWs";
 import { EmptyState } from "../../components/EmptyState";
 import { Scene3D } from "./Scene3D";
-import { GlbWorld, type CastMember } from "./GlbWorld";
+import { GlbWorld } from "./GlbWorld";
 import { ManageAgentsModal } from "./ManageAgentsModal";
 import { ReadKeysModal } from "./ReadKeysModal";
 import { ChangePasswordModal } from "../auth/ChangePasswordModal";
@@ -281,44 +281,6 @@ export function WorldView({
     [],
   );
 
-  // The GLB worlds' cast: the signed-in owner's own agents first, then
-  // the public roster (the same discover data the ring world's figures
-  // draw names from), capped at 6 — a personal cast, stable per session
-  // because both sources are.
-  const cast = useMemo<CastMember[]>(() => {
-    const seen = new Set<string>();
-    const out: CastMember[] = [];
-    for (const a of agents) {
-      if (seen.has(a.id)) continue;
-      seen.add(a.id);
-      out.push({ id: a.id, name: a.name });
-    }
-    for (const [id, name] of Object.entries(names)) {
-      if (out.length >= 6) break;
-      if (seen.has(id)) continue;
-      seen.add(id);
-      out.push({ id, name });
-    }
-    const capped = out.slice(0, 6);
-    // Summer (Jim's character, bodies.ts) walks both worlds as an
-    // extra local member — she is not a roster agent, just a body in
-    // the crowd. Labelled by her body name until Jim names her (the
-    // " (new)" placeholder suffix was dropped 2026-11-08 — it leaked
-    // into the shipped nameplates).
-    capped.push({ id: "summer-guest", name: "Summer", body: "summer" });
-    // Character wave (2026-11-05): the KayKit Adventurers bodies
-    // (bodies.ts) join the crowd the same way — extra local members,
-    // labelled by body name until Jim names them.
-    capped.push({ id: "mage-guest", name: "Mage", body: "mage" });
-    capped.push({ id: "barbarian-guest", name: "Barbarian", body: "barbarian" });
-    capped.push({ id: "knight-guest", name: "Knight", body: "knight" });
-    // Remy (Jim's Mixamo character, 2026-11-07), same treatment.
-    capped.push({ id: "remy-guest", name: "Remy", body: "remy" });
-    // Skeleton Warrior (KayKit Skeletons pack, CC0, 2026-11-07), same treatment.
-    capped.push({ id: "skeleton-warrior-guest", name: "Skeleton Warrior", body: "skeleton-warrior" });
-    return capped;
-  }, [agents, names]);
-
   // Land on the busiest group at readable zoom — a world you walk through,
   // not a dollhouse of 30 unreadable cells. Wheel/drag takes over from here.
   useEffect(() => {
@@ -544,7 +506,7 @@ export function WorldView({
           : {})}
       >
         {!ringMode ? (
-          <GlbWorld cast={cast} />
+          <GlbWorld />
         ) : (
           <>
             <Scene3D cam={cam} placed={placed} selected={selected} speakers={speakers} onSelect={focusGroup} />

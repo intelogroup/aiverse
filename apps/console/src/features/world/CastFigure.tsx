@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useSyncExternalStore, type RefObject } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Html, useGLTF } from "@react-three/drei";
+import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { verticalExcess, type AgentFrame } from "./locomotion";
@@ -46,23 +46,14 @@ import { FootLock, footLockEnabled } from "./footLock";
 
 export const BOT_GLB_URL = "/assets/cast-bodyblock.glb";
 
-// Nameplate scaling (drei Html distanceFactor): the element renders
-// as if its CSS pixels were world units scaled by
-// distanceFactor / canvasHeightPx — at 10 and a ~1000 px-tall canvas,
-// 100 px ≈ 1 m in the world at ANY camera distance. The nameplate's
-// 30 px name therefore stands ≈ 0.30 m tall in world space (about a
-// quarter of the 1.25 m figure): proportionate from the Agora camera
-// (~24 m) and shrunk with its bot from the City camera (~114 m)
-// instead of wallpapering the streets at constant screen size.
-// One-line tuning knob for Jim's eye.
-export const NAMEPLATE_DISTANCE_FACTOR = 10;
+
 
 // The Walk cycle's natural rate is per body (bodies.ts walkSpeed —
 // measured from the baked cycle's stance feet, not a global guess).
 
 // Per-agent body colors: each bot is painted its own color (Jim's call —
 // red, yellow, blue and family), with the face screen glowing a lightened
-// version of the same hue. The pick is a stable hash of the roster label
+// version of the same hue. The pick is a stable hash of the figure's seed
 // so an agent keeps its color wherever it stands. Part shades preserve
 // the authored light/dark ladder between body parts (head darkest, limbs
 // lightest) on top of the agent color. The asset's own factors are the
@@ -87,8 +78,8 @@ const PART_SHADE: Record<string, number> = {
   ears: 1.2,
 };
 
-export function accentForFigure(label: string | undefined, index: number): string {
-  const s = label ?? String(index);
+export function accentForFigure(seed: string | undefined, index: number): string {
+  const s = seed ?? String(index);
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
   return ACCENT_PALETTE[h % ACCENT_PALETTE.length];
@@ -102,51 +93,6 @@ const Y_AXIS = new THREE.Vector3(0, 1, 0);
 // a baked ramp, not a bob, and gets countered on the figure group.
 const HIPS_Y_BAND = 0.09;
 
-/**
- * Mobile Phase 3: the nameplate as an in-canvas sprite (a canvas
- * texture on a billboard) instead of the drei Html callout — sprites
- * don't pay the per-frame DOM projection/transform cost Html tags do,
- * which is the whole point on a phone. Desktop keeps the leader-line
- * callout design; this is the touch path's simpler pill.
- */
-function NameSprite({ name, accent, y }: { name: string; accent: string; y: number }) {
-  const tex = useMemo(() => {
-    const c = document.createElement("canvas");
-    c.width = 512;
-    c.height = 112;
-    const g = c.getContext("2d");
-    if (g) {
-      g.beginPath();
-      g.roundRect(6, 14, 500, 84, 42);
-      g.fillStyle = "rgba(10, 14, 30, 0.78)";
-      g.fill();
-      g.strokeStyle = accent;
-      g.globalAlpha = 0.85;
-      g.lineWidth = 3;
-      g.stroke();
-      g.globalAlpha = 1;
-      g.fillStyle = "#e9ecff";
-      g.textAlign = "center";
-      g.textBaseline = "middle";
-      let size = 46;
-      g.font = `600 ${size}px system-ui, sans-serif`;
-      while (g.measureText(name).width > 440 && size > 22) {
-        size -= 4;
-        g.font = `600 ${size}px system-ui, sans-serif`;
-      }
-      g.fillText(name, 256, 58);
-    }
-    const t = new THREE.CanvasTexture(c);
-    t.anisotropy = 4;
-    return t;
-  }, [name, accent]);
-  useEffect(() => () => tex.dispose(), [tex]);
-  return (
-    <sprite position={[0, y, 0]} scale={[2.3, 0.5, 1]}>
-      <spriteMaterial map={tex} transparent depthWrite={false} />
-    </sprite>
-  );
-}
 
 export function CastFigure({
   framesRef,
@@ -154,12 +100,10 @@ export function CastFigure({
   index = 0,
   baseY = 0,
   home,
-  label,
   hidden = false,
   body = BODY_CAST,
   clipTester,
   headPoseRef,
-  spriteTag = false,
 }: {
   /**
    * Head-bone stream for the first-person camera (cameraRig): when
@@ -191,7 +135,7 @@ export function CastFigure({
   index?: number;
   /**
    * Ride mode: this figure IS the camera. It does not render at all —
-   * body or label — so the first-person view is through its eyes, never
+   * body — so the first-person view is through its eyes, never
    * barred by its own shell. Wide and Follow keep it fully visible.
    */
   hidden?: boolean;
@@ -199,13 +143,6 @@ export function CastFigure({
   baseY?: number;
   /** Stand-here position until the first crowd frame arrives. */
   home: [number, number, number];
-  /** Agent name shown on the floating label (roster name, as elsewhere). */
-  label?: string;
-  /**
-   * Mobile Phase 3: render the nameplate as a sprite (NameSprite)
-   * instead of the Html callout. Set on the touch path.
-   */
-  spriteTag?: boolean;
 }) {
   // Mobile Phase 3: at the lite tier a body with a Lite variant
   // (bodies.ts liteUrl — resampled/quantized) loads that instead.
@@ -227,7 +164,7 @@ export function CastFigure({
   // clones, so every tinted material is cloned first. Body parts take the
   // color at their ladder shade; the screen glows a lightened version.
   useMemo(() => {
-    const accent = new THREE.Color(accentForFigure(label, index));
+    const accent = new THREE.Color(accentForFigure(undefined, index));
     const face = accent.clone().lerp(new THREE.Color("#ffffff"), 0.55);
     scene.traverse((o) => {
       if (!(o instanceof THREE.Mesh)) return;
@@ -244,9 +181,9 @@ export function CastFigure({
         o.material = own;
       }
     });
-  }, [scene, label, index]);
+  }, [scene, index]);
 
-  // Measure the (scaled) figure so the floor lift and label height track its real bounds.
+  // Measure the (scaled) figure so the floor lift tracks its real bounds.
   const fit = useMemo(() => {
     scene.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(scene);
@@ -572,7 +509,7 @@ export function CastFigure({
     // ---- Gait path (AgentFrame.gait: the City 3 walker) ----
     // Idle / Walk / Run from speed (gait.ts), one shared phase: Walk runs at the mixed stride's cycle rate
     // (reversed for a backpedal) and Run's clock is slaved to Walk's phase + the measured touchdown offset.
-    // Crowd frames never set `gait`, so Agora keeps the Idle/Walk code below unchanged.
+    // Frames without `gait` (the keeper, the bartender, Scout) keep the Idle/Walk code below unchanged.
     const runAction = actions.run;
     const gaitSpec = actions.gait;
     const gaitOn = !!(f?.gait && gaitSpec && runAction && walk && !ctrl && !ov && !activeTest.current);
@@ -718,49 +655,9 @@ export function CastFigure({
     }
   });
 
-  // Leader-line nameplate (Jim's callout design): a dot pinned to the
-  // head top (the Html anchor, container centre), a thin oblique line
-  // rising out of it, then a horizontal segment with the name sitting
-  // on it — drawn in the figure's own accent at low opacity. The whole
-  // callout is ONE Html element under distanceFactor, so it scales
-  // with distance as a unit (NAMEPLATE_DISTANCE_FACTOR). Unmounted
-  // while `hidden` (Ride), like the pill it replaces.
-  const tagAccent = accentForFigure(label, index);
   return (
     <group ref={group} position={home}>
       <primitive object={scene} position={[0, fit.lift, 0]} />
-      {label && !hidden && spriteTag ? (
-        <NameSprite name={label} accent={tagAccent} y={fit.height + 0.35} />
-      ) : label && !hidden ? (
-        <Html
-          center
-          position={[0, fit.height + 0.02, 0]}
-          distanceFactor={NAMEPLATE_DISTANCE_FACTOR}
-          zIndexRange={[30, 0]}
-        >
-          <div className="w-cast-tag" style={{ pointerEvents: "none" }}>
-            <svg
-              className="w-cast-tag-lines"
-              viewBox="0 0 460 150"
-              width={460}
-              height={150}
-              aria-hidden="true"
-            >
-              <polyline
-                points="230,75 268,30 448,30"
-                fill="none"
-                stroke={tagAccent}
-                strokeWidth={3}
-                strokeOpacity={0.75}
-                strokeLinejoin="round"
-                strokeLinecap="round"
-              />
-              <circle cx={230} cy={75} r={5.5} fill={tagAccent} fillOpacity={0.9} />
-            </svg>
-            <div className="w-cast-name">{label}</div>
-          </div>
-        </Html>
-      ) : null}
     </group>
   );
 }

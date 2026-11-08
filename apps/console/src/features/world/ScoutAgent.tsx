@@ -394,7 +394,6 @@ export function ScoutAgent({
           index={0}
           baseY={0}
           home={[0, 0, 0]}
-          label="Scout"
           body={BODY_REMY}
           clipTester={clips.current ?? undefined}
           headPoseRef={headPose}

@@ -720,46 +720,6 @@
   border-color: rgba(110, 168, 255, 0.45);
   color: var(--w-text);
 }
-.w-cast-name {
-  padding: 3px 9px;
-  border-radius: 999px;
-  background: rgba(9, 13, 28, 0.88);
-  border: 1px solid var(--w-border);
-  color: var(--w-accent);
-  font-size: 11px;
-  letter-spacing: 0.05em;
-  white-space: nowrap;
-  pointer-events: none;
-}
-/* Leader-line nameplate: the container is a fixed 460x150 px canvas
-   whose centre is the Html anchor (the dot, pinned to the head top).
-   It renders under drei distanceFactor, so px here are world-scaled:
-   the name's 30 px font stands ~0.3 m tall in the world. The name
-   sits on the SVG's horizontal segment (line at y=30, text baseline
-   just above it), left edge where the horizontal run begins. */
-.w-cast-tag {
-  position: relative;
-  width: 460px;
-  height: 150px;
-}
-.w-cast-tag-lines {
-  position: absolute;
-  left: 0;
-  top: 0;
-  overflow: visible;
-}
-.w-cast-tag .w-cast-name {
-  position: absolute;
-  left: 276px;
-  top: 0;
-  padding: 0;
-  border: none;
-  border-radius: 0;
-  background: none;
-  font-size: 30px;
-  line-height: 1.1;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
-}
 .world-root .w-embody-panel {
   position: absolute;
   left: 14px;
