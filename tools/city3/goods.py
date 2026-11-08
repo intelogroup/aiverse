@@ -335,8 +335,13 @@ def build(name,seed):
 # ---------------------------------------------------------------- Blender side
 def make_objects(bpy,pal_mat,coll):
     """Creates one LIB_g_<name> object per piece (excluded from the world export by its LIB_ prefix); returns {name:(obj,height)}."""
+    from market_templates import KEYS, template as market_template
     out={}
     for i,name in enumerate(sorted(REG)):
+        if name in KEYS:
+            ob = market_template(name, coll)
+            out[name] = (ob, max(v.co.z for v in ob.data.vertices), sum(len(p.vertices)-2 for p in ob.data.polygons))
+            continue
         if name == 'goblets':
             from drinking_glasses import template
             ob = template('bazaar', coll)

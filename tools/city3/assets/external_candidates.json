@@ -1,0 +1,57 @@
+{
+  "sources": [
+    {
+      "name": "CGTrader",
+      "url": "https://www.cgtrader.com/",
+      "access": "partial: apartment listing readable; bookstore listing returned HTTP 202 with empty body",
+      "downloads_verified": false,
+      "checked_on": "2026-11-08"
+    }
+  ],
+  "assets": [
+    {
+      "id": "cgtrader:5395228",
+      "title": "Luxury Apartment Scene In Native Blend File VIZFROMBLENDER",
+      "source": "https://www.cgtrader.com/3d-models/interior/living-room/luxury-apartment-scene-in-native-blend-file-vizfromblender",
+      "author": "Vizfromblender",
+      "price_usd_observed": 20,
+      "license_listing_label": "Royalty Free License",
+      "license_review": "Full terms pending; listing explicitly excludes the Textures.com city backplate from redistribution",
+      "listing_metadata": {
+        "native_format": "blend",
+        "native_file_size_display": "1.85 GB",
+        "renderer": "Cycles",
+        "polygons": 2774938,
+        "vertices": 3182474
+      },
+      "status": "candidate; purchase/download not performed",
+      "local_path": null,
+      "in_world": false,
+      "preparation_notes": [
+        "Select furniture props for interiors; avoid shipping the complete scene",
+        "Remove the restricted city backplate before export",
+        "Bake procedural materials, simplify meshes and resize textures for browser use"
+      ],
+      "checked_on": "2026-11-08"
+    },
+    {
+      "id": "cgtrader:7781654",
+      "title": "Modern Japanese Bookstore",
+      "source": "https://www.cgtrader.com/free-3d-models/architectural/window/modern-japanese-bookstore",
+      "price_usd_observed": 0,
+      "metadata_evidence": "CGTrader indexed catalog entry; direct listing unavailable in this environment",
+      "advertised_formats": ["blend", "obj", "fbx", "gltf"],
+      "author": null,
+      "license": "unverified; free price does not imply CC0",
+      "status": "candidate; download access and full license unverified",
+      "local_path": null,
+      "in_world": false,
+      "proposed_use": "Bookshop or reading pavilion near Garden Terraces; verify footprint and accessible entrances before placement",
+      "preparation_notes": [
+        "Inspect geometry, texture dependencies and scale after download",
+        "Prepare optimized GLB materials and separate collision geometry"
+      ],
+      "checked_on": "2026-11-08"
+    }
+  ]
+}
