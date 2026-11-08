@@ -146,7 +146,7 @@ def dist_to_spot(pos):
     return math.hypot(pos[0] - SPOT[0], pos[2] - SPOT[1])
 
 
-with sync_playwright() as pw:
+def walk_session(pw):
     browser = pw.chromium.launch(args=["--use-gl=swiftshader"])
     page = browser.new_page(viewport={"width": 1280, "height": 800})
     page.set_default_timeout(120_000)
@@ -210,7 +210,7 @@ with sync_playwright() as pw:
     forced_first = [-16.5, 15.2]
 
     def do_leg(action, label):
-        global last_pos, recoveries
+        nonlocal last_pos, recoveries
         before = last_pos
         result, pos = run_leg(action, label)
         last_pos = pos
@@ -263,11 +263,24 @@ with sync_playwright() as pw:
         visited.add(target)
         result = do_leg({"type": "go_to", "place": target}, f"#{leg_no} place {target}")
 
-    dist = dist_to_spot(last_pos)
-    log("arrival", f"pos={last_pos} distance-to-spot={dist:.3f} m")
     shot("e2e-spot.png")
-    check(dist <= 1.5, "hunter standing inside the 1.5 m claim radius", f"dist={dist:.3f}")
-    browser.close()
+    return last_pos
+
+last_pos = None
+for session_no in range(4):
+    try:
+        with sync_playwright() as pw:
+            last_pos = walk_session(pw)
+        break
+    except Exception as e:  # renderer crashes under VM load end the session, not the run
+        log("browser-session", f"session {session_no} died: {type(e).__name__}: {str(e)[:200]}")
+        if won["via"]:
+            break
+        time.sleep(5)
+check(last_pos is not None, "a browser session completed the walk")
+dist = dist_to_spot(last_pos)
+log("arrival", f"pos={last_pos} distance-to-spot={dist:.3f} m")
+check(dist <= 1.5, "hunter standing inside the 1.5 m claim radius", f"dist={dist:.3f}")
 
 # ---------- 5. the claim itself (if a ping didn't already win it) ----------
 if not won["via"]:
