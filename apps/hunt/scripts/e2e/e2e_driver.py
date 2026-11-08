@@ -195,7 +195,7 @@ with sync_playwright() as pw:
     recoveries = 0
 
     def do_leg(action, label):
-        nonlocal last_pos, recoveries
+        global last_pos, recoveries
         before = last_pos
         result, pos = run_leg(action, label)
         last_pos = pos
