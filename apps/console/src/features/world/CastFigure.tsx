@@ -11,6 +11,7 @@ import { CLIP_CATALOG, clipDef, type ClipTestState } from "./clips";
 import { approach, cycleRateFor, gaitTargets, runTimeForWalkPhase, type GaitSpec } from "./gait";
 import { clipMinClearance, contactPoints, groundingOffset, rootMotionDelta, soleClearance } from "./grounding";
 import { FootLock, footLockEnabled } from "./footLock";
+import { createFootContactShadows } from "./contactShadow";
 
 // CastFigure — a cast bot (a "body" from bodies.ts: a rigged GLB plus
 // its measured hips and clip catalog) driven by the same AgentFrame
@@ -230,6 +231,8 @@ export function CastFigure({
   }, [scene, contacts, gltf, body]);
   // Runtime foot lock (footLock.ts): pins a planted foot in the world while the gait-driven body travels over it.
   const footLock = useMemo(() => new FootLock(scene, contacts), [scene, contacts]);
+  const contactShadows = useMemo(() => createFootContactShadows(contacts, bodyScale), [contacts, bodyScale]);
+  useEffect(() => () => contactShadows.dispose(), [contactShadows]);
   const rmDelta = useRef(new THREE.Vector3());
   const hipsWorldTmp = useRef(new THREE.Vector3());
 
@@ -636,6 +639,7 @@ export function CastFigure({
     } else if (footLock.usable) {
       footLock.reset();
     }
+    contactShadows.update(scene, grp, baseY, !!f?.gait && !ov && !activeTest.current && seated === 0);
     // Head-bone stream for the ride camera: written AFTER the mixer
     // and every position adjustment above, so the camera anchors on
     // the head as it actually renders this frame (bob, sway and seat
@@ -658,6 +662,7 @@ export function CastFigure({
   return (
     <group ref={group} position={home}>
       <primitive object={scene} position={[0, fit.lift, 0]} />
+      <primitive object={contactShadows.group} />
     </group>
   );
 }
