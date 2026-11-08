@@ -94,3 +94,9 @@
 - Verified production console build, city3/district/camera-collision tests, Python syntax, closed collision topology, and browser views from close-up, overhead and walking height. Browser checks confirmed eight jets, changing normal offsets/highlight matrices/ring scales, basin ground query null, adjacent paving at y=0.2, and no JavaScript errors. Animation capture samples the real R3F scene at 12 steps/s. No GPU performance claim from software rendering.
 
 ![Animated fountain preview](previews/city3-fountain.gif)
+
+### Reachable-source planter pass (2026-11-08)
+
+- Replaced the four 16-sided fountain pots/spear leaves with Poly Haven CC0 clay pots and haworthia/gravel. Two shared meshes, 8,265 triangles per placement, original 1K PBR maps; source white ceramic container excluded. Bases at z=.19, rim z=.92, clay maximum radius .65 inside the existing .66-radius collider. Positions still come from `planter_positions()` outside the basin. Generator credits include both sources.
+- Source dry runs: Poly Haven model downloads and checksums passed; BlenderKit CC0 model download/import passed but the sample expanded to 1,987,336 triangles and carried third-party texture names, so it was not used. Sketchfab search works but download returns 401; BlendSwap search works but archive page requires sign-in. OpenGameArt's Quaternius furniture ZIP passed CRC. Kenney catalog works but attempted download returned 403. Work uses the successfully retrieved Poly Haven sources.
+- Full city inputs remain incomplete. `replace_glb_detail.py` swaps the garden scene root and appends the newly exported detail, remapping textures/materials/accessors while asserting every old data table and original binary prefix stays intact. Old detached garden data remains in the GLB; use a saved pre-edit base on each iteration to avoid repeated payload growth.

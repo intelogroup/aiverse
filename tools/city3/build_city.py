@@ -592,6 +592,8 @@ print("LAYOUTS",len(by_bid),"files; props min/avg/max",min(len(v) for v in by_bi
 CREDITS=[{"asset":k,"source":v.get("credit") or ("https://opengameart.org/content/furniture-low-poly" if v["source"]=="quaternius" else (json.load(open(f"{HERE}/assets/sketchfab/{v['id']}/meta.json"))["source"] if v["source"]=="sketchfab" else f"https://polyhaven.com/a/{v['id']}")),"license":v.get("credit_license","CC0")} for k,v in assets_kit.LIB.items() if v["source"] not in ("usdz","blendswap")]
 CREDITS+=[{"asset":k,"source":"https://blendswap.com/blend/33793","license":"CC0 (uploader-declared), coldpengu"} for k,v in assets_kit.LIB.items() if v["source"]=="blendswap"]
 CREDITS+=[{"asset":k,"source":"user-supplied upload (partycups_usdz.zip)","license":"not stated"} for k,v in assets_kit.LIB.items() if v["source"]=="usdz"]
+from fountain_planters import CREDITS as FOUNTAIN_CREDITS
+CREDITS += FOUNTAIN_CREDITS
 json.dump(CREDITS,open(f"{HERE}/out/asset-credits.json","w"),indent=1)
 GROUND_TOP=Z+GH+0.05
 rooms_idx=[]
