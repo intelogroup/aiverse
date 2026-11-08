@@ -203,6 +203,7 @@ def walk_session(pw):
     visited = set()
     anchor_tried = False
     recoveries = 0
+    orbit_queue = []
 
     # Route fact from the hunt v0 tracks: the market wall at x~-14.6 spans
     # z~29-43 (two wedges measured); every v0 run crossed westbound at
@@ -227,7 +228,7 @@ def walk_session(pw):
         last_pos = pos2
         return result
 
-    for leg_no in range(24):
+    for leg_no in range(36):
         if won["via"] or dist_to_spot(last_pos) <= 1.5:
             break
         if forced_first is not None:
@@ -244,7 +245,20 @@ def walk_session(pw):
                 anchor_tried = True
                 result = do_leg({"type": "go_to", "place": "shop-98"}, f"#{leg_no} via Press anchor")
                 continue
-            break
+            # Endgame (measured at the Press: the direct leg blocks 2.4 m
+            # out — furniture guards the last metres on one bearing).
+            # Orbit: hop to a point 5 m from the spot on another bearing,
+            # then re-try the spot from there.
+            if not orbit_queue:
+                offsets = [(5, 0), (3.5, 3.5), (0, 5), (-3.5, 3.5),
+                           (-5, 0), (-3.5, -3.5), (0, -5), (3.5, -3.5)]
+                pts = [(SPOT[0] + ox, SPOT[1] + oz) for ox, oz in offsets]
+                pts.sort(key=lambda p: math.hypot(p[0] - last_pos[0], p[1] - last_pos[2]))
+                orbit_queue = pts
+            ox, oz = orbit_queue.pop(0)
+            log("orbit", f"re-approaching via ({ox:.1f}, {oz:.1f})")
+            do_leg({"type": "go_to", "point": [ox, oz]}, f"#{leg_no} orbit hop")
+            continue
         cands = []
         for p in places:
             if p["id"] in visited:
