@@ -58,6 +58,46 @@ describe("SoundDirector consent gate", () => {
   });
 });
 
+describe("SoundDirector spectator drive (F1: announcements outside walk mode)", () => {
+  // Verse clock starts at 150 s; dusk falls at 300 s — 150 s of
+  // spectator drive. tickSpectator clamps each step to 0.5 s.
+  const drive = (d: SoundDirector, seconds: number, district: string | null) => {
+    for (let t = 0; t < seconds; t += 0.5) d.tickSpectator(0.5, district);
+  };
+
+  it("fires the verse-clock announcements for a spectator", () => {
+    const d = new SoundDirector();
+    drive(d, 150, "bazaar");
+    expect(d.snapshot().announcements).toBe(1);
+    expect(d.spectatorBannerText()).toBe("Dusk falls on the Sunstone Bazaar. The lamps are lit.");
+  });
+
+  it("scopes the spectator banner to the viewing district", () => {
+    const water = new SoundDirector();
+    drive(water, 150, null);
+    expect(water.snapshot().announcements).toBe(1); // fired…
+    expect(water.spectatorBannerText()).toBeNull(); // …but not for open water
+
+    const elsewhere = new SoundDirector();
+    drive(elsewhere, 150, "glass");
+    expect(elsewhere.spectatorBannerText()).toBeNull();
+  });
+
+  it("leaves the walk banner (listener-scoped) alone for a pure spectator", () => {
+    const d = new SoundDirector();
+    drive(d, 150, "bazaar");
+    expect(d.bannerText()).toBeNull(); // no listener has ever stood anywhere
+  });
+
+  it("expires the spectator banner after the audio + linger window", () => {
+    const d = new SoundDirector();
+    drive(d, 150, "bazaar");
+    expect(d.spectatorBannerText()).not.toBeNull();
+    drive(d, 10, "bazaar"); // 2.5 s clip + 1.6 s linger < 10 s; dawn is 300 s away
+    expect(d.spectatorBannerText()).toBeNull();
+  });
+});
+
 describe("SoundDirector voice emitter without a context", () => {
   it("plays nothing and reports silence", () => {
     const d = new SoundDirector();
