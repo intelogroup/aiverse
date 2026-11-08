@@ -144,6 +144,7 @@ export function CityWalker({
   // Keyboard + mouse-look (pointer lock). Esc / losing the lock leaves walk mode.
   useEffect(() => {
     const canvas = gl.domElement;
+    const characterPanelOpen = () => !!document.querySelector('[data-world-input="dialog"]');
     const typing = (e: Event) => {
       const t = e.target as HTMLElement | null;
       return !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
@@ -162,6 +163,7 @@ export function CityWalker({
       return false;
     };
     const onDown = (e: KeyboardEvent) => {
+      if (characterPanelOpen()) { keys.current = noKeys(); return; }
       if (typing(e)) return;
       if (e.code === "Escape") { cbs.current.onExit(); return; }
       if (e.code === "KeyV" && !e.repeat) { cbs.current.onMode(modeRef.current === "ride" ? "follow" : "ride"); return; }
@@ -183,12 +185,13 @@ export function CityWalker({
       pitch.current = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, pitch.current - e.movementY * MOUSE_SENS));
     };
     const onPointerDown = () => {
+      if (characterPanelOpen()) return;
       if (locked()) return;
       try { (canvas.requestPointerLock() as unknown as Promise<void> | undefined)?.catch?.(() => {}); } catch { /* denied: keys still work */ }
     };
     const onLockChange = () => {
       if (locked()) lockedOnce = true;
-      else if (lockedOnce) cbs.current.onExit(); // Esc while captured releases the lock: that is "leave"
+      else if (lockedOnce && !characterPanelOpen()) cbs.current.onExit(); // Dialogs temporarily release mouse-look.
     };
     window.addEventListener("keydown", onDown);
     window.addEventListener("keyup", onUp);
@@ -261,19 +264,22 @@ export function CityWalker({
     }
     // Mobile Phase 1: touch look deltas join the mouse's accumulators
     // (same signs, same pitch clamp), consumed once per frame.
+    const characterDialogOpen = !!document.querySelector('[data-world-input="dialog"]');
     if (touch) {
       const tl = touch.consumeLook();
-      if (tl.yaw !== 0) lookAcc.current += tl.yaw;
-      if (tl.pitch !== 0)
+      if (!characterDialogOpen && tl.yaw !== 0) lookAcc.current += tl.yaw;
+      if (!characterDialogOpen && tl.pitch !== 0)
         pitch.current = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, pitch.current + tl.pitch));
     }
     const look = lookAcc.current;
     lookAcc.current = 0;
+    // Clear held movement as soon as a character panel opens, including keys pressed before focus moved.
+    if (characterDialogOpen) keys.current = noKeys();
     let input = intentFromKeys(keys.current, look);
     // Mobile Phase 1: touch merges AT the intent seam — a down stick
     // owns the move axes, the run latch ORs in, and an idle source
     // returns `input` untouched, so the desktop path is bit-identical.
-    input = mergeTouchIntent(input, touch);
+    input = mergeTouchIntent(input, characterDialogOpen ? undefined : touch);
     // Tea door session (align / performance / step-through): the
     // controller's input replaces the keys outright. Consulted every
     // frame, session or not, so the door machine ticks.

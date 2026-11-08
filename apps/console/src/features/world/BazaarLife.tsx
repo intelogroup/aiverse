@@ -2,6 +2,7 @@ import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { Suspense, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { CastFigure } from "./CastFigure";
+import { CharacterHud } from "./CharacterHud";
 import { BODY_MAGE, BODY_REMY } from "./bodies";
 import { ClipTestState } from "./clips";
 import {
@@ -58,6 +59,7 @@ export function BazaarLife({
   botPosRef,
   keeperVoiceRef,
   onFigure,
+  mageVisitNonce = 0,
 }: {
   /** Visual/camera meshes: the raycast fallback world if the collision GLB failed to load. */
   getMeshes: () => THREE.Mesh[];
@@ -74,6 +76,8 @@ export function BazaarLife({
    * the tap rule (<10 px, plan §1) is applied here.
    */
   onFigure?: (fig: BazaarFigureTap, dbl: boolean) => void;
+  /** Visit button in the City 3 places toolbar. */
+  mageVisitNonce?: number;
 }) {
   // Same world stack as CityWalker: capsule shapecast over the collision
   // GLBs, raycast over the visual meshes only if collision failed.
@@ -165,6 +169,9 @@ export function BazaarLife({
     <>
       <group ref={keeperGroup} {...figureHandlers(() => ({ id: "keeper", name: "The Keeper", x: KEEPER_POS[0], z: KEEPER_POS[1] }))}>
         <Suspense fallback={null}>
+          <CharacterHud framesRef={keeperFrames} home={[KEEPER_POS[0], 0, KEEPER_POS[1]]} visitNonce={mageVisitNonce}
+            activity={() => keeperVoiceRef?.current ? "Speaking" : keeper.current?.talking ? "Greeting a visitor" : "At the stall"}>
+          {activate => <group name="character:mage">
           <CastFigure
             framesRef={keeperFrames}
             index={0}
@@ -172,7 +179,10 @@ export function BazaarLife({
             home={[KEEPER_POS[0], 0, KEEPER_POS[1]]}
             body={BODY_MAGE}
             clipTester={keeperClips}
+            onActivate={activate}
           />
+          </group>}
+          </CharacterHud>
         </Suspense>
       </group>
       <group

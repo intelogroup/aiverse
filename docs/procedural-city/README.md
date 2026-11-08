@@ -43,3 +43,5 @@ re-deriving it. Written 2026-11-06 at the end of a long build; update it, don't 
 - [09-districts.md](09-districts.md) — Glass Quarter (N), Foundry Wharf (E), Garden Terraces (W), Halo Lagoon (S), bridges, district streaming + themes (read before touching `districts.ts`/`DistrictWorld.tsx`).
 - [10-walker.md](10-walker.md) — walkable bot in City 3 (kinematic walker, BVH world, ride/follow cameras).
 - [11-collision.md](11-collision.md) — collision GLBs + furniture sidecars for the walker (closed solids, hero rooms with door gaps, checker).
+
+- [15-character-hud.md](15-character-hud.md) — Mage interaction HUD, mobile bottom card and world input ownership.

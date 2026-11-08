@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useSyncExternalStore, type RefObject } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { Html, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.js";
@@ -160,7 +160,10 @@ export function CastFigure({
   clipTester,
   headPoseRef,
   spriteTag = false,
+  onActivate,
 }: {
+  /** Optional interaction; only a click/tap, never an orbit drag. */
+  onActivate?: () => void;
   /**
    * Head-bone stream for the first-person camera (cameraRig): when
    * present (the Embody panel's focus figure only), the figure writes
@@ -728,7 +731,11 @@ export function CastFigure({
   const tagAccent = accentForFigure(label, index);
   return (
     <group ref={group} position={home}>
-      <primitive object={scene} position={[0, fit.lift, 0]} />
+      <primitive object={scene} position={[0, fit.lift, 0]} onClick={onActivate ? (e: ThreeEvent<MouseEvent>) => {
+        if (e.delta > 5) return;
+        e.stopPropagation();
+        onActivate();
+      } : undefined} />
       {label && !hidden && spriteTag ? (
         <NameSprite name={label} accent={tagAccent} y={fit.height + 0.35} />
       ) : label && !hidden ? (

@@ -1933,6 +1933,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   }, [walking]);
   // City 3: which hero building to fly to (cutaway shows on arrival); nonce re-fires a repeat click.
   const [heroFocus, setHeroFocus] = useState<{ id: string; nonce: number } | null>(null);
+  const [mageVisitNonce, setMageVisitNonce] = useState(0);
   const camModeRef = useRef<CameraMode>(walkLink ? "ride" : "wide");
   useEffect(() => {
     camModeRef.current = camMode;
@@ -2121,6 +2122,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
                 walk={walkColliders}
                 botPosRef={botPosRef}
                 keeperVoiceRef={mageVoiceRef}
+                mageVisitNonce={mageVisitNonce}
                 onFigure={
                   touchUi && !walking
                     ? (fig, dbl) => {
@@ -2289,6 +2291,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
       ) : null}
       {place === "city3" && !walking ? (
         <div className="w-glb-toggle w-glb-poi" role="group" aria-label="Places in City 3">
+          <button type="button" onClick={() => setMageVisitNonce(n => n + 1)}>Meet the Mage</button>
           {city3Rooms.filter((r) => r.featured).map((hero) => (
             <button
               key={hero.id}
