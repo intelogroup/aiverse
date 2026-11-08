@@ -69,6 +69,14 @@ def decorate_bottle(obj,shape,fam,key):
     neck_r=min(r for (z,r) in prof if z>=top-0.012 and r>0.005)
     cv,cf=spec.cork_geometry(neck_r,top)
     _join_part(obj,cv,cf,_part_mat("CORK",spec.CORK_RGB,spec.CORK_ROUGH))
+def _squash_girth(lib,shape):
+    """Radial (XY) squash of a freshly loaded bottle to its real-world body
+    diameter (bottle_spec.GIRTH). Runs before decorate_bottle so the liquid,
+    label and cork derive from the corrected profile."""
+    import bottle_spec as spec
+    f=spec.girth_factor(shape); obj=lib["obj"]
+    for v in obj.data.vertices: v.co.x*=f; v.co.y*=f
+    d=lib["dims"]; lib["dims"]=(round(d[0]*f,3),round(d[1]*f,3),d[2])
 def build_bottles():
     import assets_kit
     for i,(nm,h) in enumerate(BOTTLE_SHAPES):
@@ -76,6 +84,7 @@ def build_bottles():
             k=f"bottle_{i}_{c}"
             if k not in assets_kit.LIB:
                 assets_kit.load_blend(k,BOTTLE_BLEND,nm,h,rgb,rough=0.12 if c!="clear" else 0.05,src_id="blendswap:33793")
+                _squash_girth(assets_kit.LIB[k],i)
                 decorate_bottle(assets_kit.LIB[k]["obj"],i,c,k)
 def _origin(): return Frame((0,0),(1,0),(0,-1),0.0)
 def piece(name,fn):
