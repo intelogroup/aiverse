@@ -1,0 +1,15 @@
+{
+  "wood": {
+    "source": "https://ambientcg.com/view?id=Wood051",
+    "license": "CC0"
+  },
+  "table": {
+    "source": "https://polyhaven.com/a/round_wooden_table_01",
+    "license": "CC0"
+  },
+  "chair": {
+    "source": "https://sketchfab.com/3d-models/wooden-tavern-chairs-e8041b3e6b9c4d638cc81d95e92ce0bc",
+    "author": "juisa",
+    "license": "CC BY 4.0"
+  }
+}
