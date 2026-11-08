@@ -167,3 +167,9 @@ Applied in the Bazaar by `build_city.py:water_mat`: the fused `Water` mesh is sp
 | Potted Plant 04 (haworthia and gravel only) | James Ray Cock | CC0 | https://polyhaven.com/a/potted_plant_04 |
 
 `fountain_planters.py` combines the scanned clay pot with the haworthia/gravel from the second asset. Four placements share two meshes (3,080 + 5,185 triangles) and their original 1K base-colour, normal and roughness maps. The source white container is omitted. `assets/fetch.sh` restores both inputs. These focal objects intentionally bypass `assets_kit._diffuse_only`: stripping normal/roughness maps would discard much of their surface detail.
+
+## Mira — user-uploaded static resident (2026-11-08)
+
+`Female+Maid+Facesless.zip`, supplied by the user for City3 placement. No author or licence document was included; this asset is not declared CC0. The source OBJ has 500,000 triangles and four 4K PBR maps. The public derivative (`/assets/residents/mira-maid.glb`) has 30,000 triangles, 1K maps and a grounded 1.68 m stature. There is no rig or animation. Source/derivative hashes and placement are recorded in `assets/mira_maid.json`; see `docs/procedural-city/16-mira-resident.md`.
+
+Restore the original archive locally, then use `blender_lock.sh -b --python prepare_mira.py -- --source /path/to/extracted/archive --output /path/to/mira-maid.glb`. The script can create 1K textures directly from the original maps and optionally save an editable scene with `--blend-output`.

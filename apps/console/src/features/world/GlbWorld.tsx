@@ -8,6 +8,7 @@ import { buildColliders } from "./CameraCollider";
 import { registerCameraObstacle } from "./cameraClearance";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { BazaarLife, type BazaarFigureTap } from "./BazaarLife";
+import { MiraResident } from "./MiraResident";
 import {
   mobileShell,
   spawnRequestForPoint,
@@ -923,6 +924,7 @@ export function GlbWorld() {
   // Walk-mode HUD (City 3): one shared override state — the panel's
   // Run/door buttons drive it, the walk bot's CastFigure consumes it as
   // its clip tester. Plus the walker's latest frame for the status line.
+  const [miraVisitNonce, setMiraVisitNonce] = useState(0);
   const walkOverrideRef = useRef<WalkClipOverride | null>(null);
   if (walkOverrideRef.current === null) walkOverrideRef.current = new WalkClipOverride();
   const walkFrameRef = useRef<WalkFrameInfo | null>(null);
@@ -1366,6 +1368,7 @@ export function GlbWorld() {
                 longPressRef={longPressRef}
               />
               <TeaBartender visitors={[botPosRef, scoutPosRef]} walk={walkColliders} getDirector={() => soundRef.current} />
+              <MiraResident walk={walkColliders} visitNonce={miraVisitNonce} />
               <TeaDoorLeaf controller={teaDoorRef.current} />
               {!agentOn ? <TeaDoorTicker controller={teaDoorRef.current} /> : null}
               {!agentOn ? <InteractTicker controller={interactRef.current} /> : null}
@@ -1584,6 +1587,9 @@ export function GlbWorld() {
               {hero.name}
             </button>
           ))}
+          <button type="button" onClick={() => setMiraVisitNonce((n) => n + 1)}>
+            Meet Mira
+          </button>
         </div>
       ) : null}
     </div>
