@@ -1,0 +1,96 @@
+{
+  "id": "file_00000000007081f6bed8d50ce8dc2e5f",
+  "name": "Mira",
+  "file_name": "Female+Maid+Facesless.zip",
+  "category": "static character / Tea House resident",
+  "origin": "user upload",
+  "upload_reference": "sediment://file_00000000007081f6bed8d50ce8dc2e5f",
+  "size_bytes": 30221298,
+  "sha256": "1b8ba5ac7fdd247c06eece691b36d0a57db8cf328182399598a9fb8d1b200588",
+  "license": "not supplied in archive; user requested project placement",
+  "author": null,
+  "inspection": {
+    "name": "Mira",
+    "vertices": 249996,
+    "polygons": 500000,
+    "triangles": 500000,
+    "bounds": [
+      [
+        -0.175536,
+        0.198159
+      ],
+      [
+        -0.0,
+        1.157409
+      ],
+      [
+        -0.115195,
+        0.227026
+      ]
+    ],
+    "textures": [
+      {
+        "name": "texture_pbr_20250901_metallic.png",
+        "dimensions": [
+          4096,
+          4096
+        ],
+        "mode": "L"
+      },
+      {
+        "name": "texture_pbr_20250901_roughness.png",
+        "dimensions": [
+          4096,
+          4096
+        ],
+        "mode": "L"
+      },
+      {
+        "name": "texture_pbr_20250901_normal.png",
+        "dimensions": [
+          4096,
+          4096
+        ],
+        "mode": "RGB"
+      },
+      {
+        "name": "texture_pbr_20250901.png",
+        "dimensions": [
+          4096,
+          4096
+        ],
+        "mode": "RGB"
+      }
+    ],
+    "rig": "none: OBJ source",
+    "license": "not supplied in archive"
+  },
+  "status": "optimized static resident prepared for City3",
+  "in_world": true,
+  "browser_copy": {
+    "path": "apps/console/public/assets/residents/mira-maid.glb",
+    "sha256": "97e6d1e8e0b835175ef98931762a8d3c7c8f804ab87315c0afadb214a93110f8",
+    "name": "Mira",
+    "source_triangles": 500000,
+    "triangles": 30000,
+    "dimensions_blender_m": [
+      0.5426551103591919,
+      0.4965192377567291,
+      1.6798659563064575
+    ],
+    "texture_size": 1024,
+    "rigged": false,
+    "animated": false,
+    "bytes": 3319756
+  },
+  "placement": {
+    "position": [
+      -26.6,
+      0.2,
+      -70.4
+    ],
+    "rotationY": 0,
+    "role": "Tea House host"
+  },
+  "local_source_directory": "tools/city3/assets/user_uploads/mira_maid"
+}
