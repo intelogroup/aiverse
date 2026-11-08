@@ -28,7 +28,7 @@ python3 plan.py && python3 textures.py          # plan.json, tex/, atlas.json, p
 assets/fetch.sh                                  # CC0 interior assets (Poly Haven + Quaternius)
 blender -b --python build_city.py                # out/world-city3.glb, out/world-city3-library.glb, out/interiors/*.json
 python3 check_anchors.py && python3 nav3.py
-cp out/world-city3*.glb ../../apps/console/public/assets/ && cp out/interiors/*.json ../../apps/console/public/assets/interiors/
+cp out/world-city3*.glb out/city3-fountain.json ../../apps/console/public/assets/ && cp out/interiors/*.json ../../apps/console/public/assets/interiors/
 ```
 Rebuild is deterministic: both GLBs reproduce byte-identically (verified with `cmp`).
 

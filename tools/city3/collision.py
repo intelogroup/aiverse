@@ -220,6 +220,9 @@ def bazaar(ctx, out_path):
     # ---- fountain: raised stone disc (r < r_in, +0.9) and the rim ring (r_out - 0.3 .. r_out + 0.5); the water ring between has NO ground
     c.cyl("fountain", 0, 0, Z - 0.3, Z + 0.9, fo["r_in"], 32)
     c.annulus("fountain", 0, 0, fo["r_out"] - 0.3, fo["r_out"] + 0.5, Z - 0.3, Z + 0.9, 32)
+    from fountain_garden import planter_positions
+    for x, y in planter_positions(fo["r_out"]):
+        c.cyl("fountain_planters", x, y, Z - 0.01, Z + 0.72, 0.66, 16)
     # ---- props: benches / crates / pots (placed Sketchfab props), plaza planters + tree trunks, lamps, festoon poles, party tables
     for (nm, x, y, z, rot) in ctx["SKP"]:
         if nm not in ("med_bench", "med_crate", "pot"): continue

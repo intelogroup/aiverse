@@ -6,6 +6,7 @@ import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { useGLTF } from "@react-three/drei";
 import { CameraCollider, buildColliders, type ColliderStats } from "./CameraCollider";
 import { bakeCollisionRoot } from "./capsuleWorld";
+import { FountainWater } from "./FountainWater";
 import type { WalkColliders } from "./walkColliders";
 import { blendTheme, collisionJobs, planDistricts, residentCollisionUrl, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
 
@@ -109,11 +110,23 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
   useEffect(() => {
     scene.add(sky); scene.add(water); scene.add(hemi);
     scene.fog = new THREE.FogExp2(0xb0b8c8, 0.0006);
-    resident.scene.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && (m.material as THREE.Material).name === "water") m.visible = false; });
+    // Legacy GLBs combine sea, basin and nozzle caps in the Water mesh. Hide
+    // that legacy surface and the newer separate Sea; the ocean below and
+    // FountainWater render independently. Restore cached GLB visibility on exit.
+    const hiddenWater: { mesh: THREE.Mesh; visible: boolean }[] = [];
+    resident.scene.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      const mats = Array.isArray(m.material) ? m.material : [m.material];
+      if (mats.some(mat => mat.name === "water" || mat.name === "sea")) {
+        hiddenWater.push({ mesh: m, visible: m.visible }); m.visible = false;
+      }
+    });
     gl.toneMapping = THREE.AgXToneMapping;
     // useGLTF caches the resident, so its BVHs are built once and kept with it (buildColliders is idempotent).
     addColliders("resident", resident.scene);
     return () => {
+      hiddenWater.forEach(({ mesh, visible }) => { mesh.visible = visible; });
       dropColliders("resident");
       scene.remove(sky); scene.remove(water); scene.remove(hemi); scene.fog = null; scene.background = null; scene.environment = null;
       for (const [id, g] of groups.current) { scene.remove(g); dropColliders(id); walk?.drop(id); disposeTree(g); }
@@ -214,6 +227,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
   return (
     <>
       <primitive object={resident.scene} />
+      <FountainWater />
       <CameraCollider getMeshes={getMeshes} enabled={collide && collideDebug.current} stats={stats.current} />
     </>
   );

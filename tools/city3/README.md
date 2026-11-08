@@ -7,6 +7,7 @@ Procedural pipeline for `apps/console/public/assets/world-city3.glb` (headless B
     python3 textures.py                     # tileable textures -> tex/, palette.json, atlas.json
     assets/fetch.sh                         # CC0 interior assets (Poly Haven + Quaternius), see ASSETS.md
     blender -b --python build_city.py       # -> out/world-city3.glb, out/world-city3-library.glb, out/interiors/<id>.json, heroes.json, hero-anchors.json
+    cp out/city3-fountain.json ../../apps/console/public/assets/  # runtime water surface and jet dimensions
     python3 check_anchors.py                # seat/stand anchors: on open floor, none shared, facing consistent
     python3 nav3.py                         # out/city3-nav.json: footprints, 158 room lots, hero buildings
 
