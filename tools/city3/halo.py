@@ -192,7 +192,7 @@ def fountain(cx, cy, z, R, rng, jets=12):
 def bld(tag, kind, cx, cy, r, h, **kw): PLAN["buildings"].append({"id": tag, "kind": kind, "center": [round(cx, 2), round(cy, 2)], "radius": r, "height": round(h, 1), **kw}); OCC.append((cx, cy, r + 4))
 def hero_spire(cx, cy, rng):
     """Flared buttress spire: glass core flaring to the ground, white buttress blades, gold mullions, observation drum, halo rings, needle."""
-    z0 = plinth(cx, cy, 46, 0.6, 2); TOP = 88.0; core = lambda z: 6.5 + 10.5 * max(0.0, 1 - (z - z0) / (TOP - z0)) ** 2.2
+    z0 = plinth(cx, cy, 46, 0.6, 2); TOP = 66.0; core = lambda z: 6.5 + 10.5 * max(0.0, 1 - (z - z0) / (TOP - z0)) ** 2.2
     COL.cyl("buildings", cx, cy, Z - 0.3, Z + TOP + 9, 17.6, 40); COL.cyl("buildings", cx, cy, Z - 0.3, z0 + 8.4, 26.6, 48)      # glass core + the two-storey r26 podium glazing
     glass_shell(cx, cy, core, z0, int((TOP - z0) // FH), rng)
     glass_shell(cx, cy, lambda z: 26.0, z0, 2, rng); flat_ring("palette", cx, cy, 17.5, 26.6, z0 + 8.0, 64, color="moss"); lathe(cx, cy, [(26.6, z0 + 7.6), (26.6, z0 + 8.4), (26.2, z0 + 8.4)], 64, color="cream")
@@ -202,7 +202,7 @@ def hero_spire(cx, cy, rng):
     for k in range(6):                                                     # buttress blades: from the plinth edge up the core
         t = TAU * k / 6 + TAU / 12; pts = []
         for i in range(17):
-            s = i / 16; z = z0 + 0.2 + 64 * s; r = core(z) + 0.9 + 30.0 * (1 - s) ** 2.4
+            s = i / 16; z = z0 + 0.2 + 42 * s; r = core(z) + 0.9 + 30.0 * (1 - s) ** 2.4
             pts.append((cx + r * math.cos(t), cy + r * math.sin(t), z))
         chain(pts, 3.2, 1.3, "cream", "marble"); chain([(p[0] + 0.0, p[1], p[2] + 0.0) for p in pts], 0.5, 1.45, "white", "gold")
     lathe(cx, cy, [(core(TOP), TOP - 0.5), (15.5, TOP + 2.5), (16.4, TOP + 3.0), (16.4, TOP + 3.4), (15.9, TOP + 3.4)], 64, "marble")
@@ -212,11 +212,11 @@ def hero_spire(cx, cy, rng):
     for R, rr, zz in ((31.0, 0.55, TOP + 10.0), (24.0, 0.42, TOP + 10.6)): torus(cx, cy, zz, R, rr, "chrome", segR=96)
     for k in range(12):
         t = TAU * k / 12; beam((cx + 16.4 * math.cos(t), cy + 16.4 * math.sin(t), TOP + 7.8), (cx + 31 * math.cos(t), cy + 31 * math.sin(t), TOP + 10.0), 0.35, 0.3, "white", "chrome")
-    lathe(cx, cy, [(1.1, TOP + 9.0), (0.6, TOP + 30), (0.18, TOP + 48), (0, TOP + 52)], 12, "gold")
+    lathe(cx, cy, [(1.1, TOP + 9.0), (0.6, TOP + 22), (0.18, TOP + 32), (0, TOP + 36)], 12, "gold")
     for k in range(3):
-        t = TAU * k / 3 + 0.3; beam((cx + 7 * math.cos(t), cy + 7 * math.sin(t), TOP + 8.6), (cx + 2.2 * math.cos(t), cy + 2.2 * math.sin(t), TOP + 34), 1.1, 0.7, "cream", "marble")
+        t = TAU * k / 3 + 0.3; beam((cx + 7 * math.cos(t), cy + 7 * math.sin(t), TOP + 8.6), (cx + 2.2 * math.cos(t), cy + 2.2 * math.sin(t), TOP + 25), 1.1, 0.7, "cream", "marble")
     for s in (-1, 1): fountain(cx + s * 35.5, cy, z0, 6.0, rng, 8)
-    bld("spire", "spire", cx, cy, 46, TOP + 52)
+    bld("spire", "spire", cx, cy, 46, TOP + 36)
 def ring_tower(tag, cx, cy, r, nfl, rng, crown="cone"):
     """Cylindrical tower with a white slab ring every floor (image 1), glass crown dome + gold rib cone + halo rings + needle."""
     z0 = plinth(cx, cy, r + 9, 0.5, 2); planter_ring(cx, cy, r + 3, r + 6, z0, rng, 18)
