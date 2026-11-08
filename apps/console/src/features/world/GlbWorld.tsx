@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
 import { OrbitControls, useGLTF, useProgress } from "@react-three/drei";
@@ -63,6 +63,7 @@ import {
   type CameraMode,
 } from "./cameraRig";
 import { FpsMeter } from "./fpsMeter";
+import { QualityGovernor, dprForTier, qualityStore, shadowMapForTier } from "./quality";
 import { newBodyState, stepBody, type BodyState } from "./bodyController";
 import {
   CITY3_INDEX_URL,
@@ -608,14 +609,22 @@ function KeyLight({ place, lightRef }: { place: Place; lightRef?: React.RefObjec
       l.target.removeFromParent();
     };
   }, [agora, city3, scene]);
+  // Mobile Phase 3: the tier sizes (or kills) the shadow map. The
+  // store only moves on the touch path, so desktop reads "full"
+  // forever — 2048 and casting, exactly as before. The key remounts
+  // the light when the map size changes (three will not realloc a
+  // live shadow map).
+  const quality = useSyncExternalStore(qualityStore.subscribe, qualityStore.getSnapshot);
+  const shadowMap = shadowMapForTier(quality.tier);
   return (
     <directionalLight
+      key={shadowMap}
       ref={light}
-      castShadow
+      castShadow={shadowMap > 0}
       position={agora ? [14, 22, 10] : [120, 220, 90]}
       intensity={agora ? 1.5 : 2.6}
-      shadow-mapSize-width={2048}
-      shadow-mapSize-height={2048}
+      shadow-mapSize-width={Math.max(shadowMap, 1)}
+      shadow-mapSize-height={Math.max(shadowMap, 1)}
       shadow-camera-left={agora ? -13 : -220}
       shadow-camera-right={agora ? 13 : 220}
       shadow-camera-top={agora ? 13 : 220}
@@ -777,6 +786,29 @@ function FpsTracker({ meterRef }: { meterRef: RefObject<FpsMeter | null> }) {
   return null;
 }
 
+/**
+ * Mobile Phase 3: the quality governor's driver. Once a second it
+ * feeds the FpsMeter's rolling rate to a QualityGovernor and lands
+ * verdicts on the shared quality store (which the Canvas props and
+ * the You sheet read). Mounted on the touch path only — desktop
+ * quality never moves.
+ */
+function QualityDriver({ meterRef }: { meterRef: RefObject<FpsMeter | null> }) {
+  const governor = useRef<QualityGovernor | null>(null);
+  if (governor.current === null) governor.current = new QualityGovernor("reduced");
+  const acc = useRef(0);
+  useFrame((_, delta) => {
+    acc.current += delta;
+    if (acc.current < 1) return;
+    acc.current = 0;
+    const meter = meterRef.current;
+    if (!meter) return;
+    const verdict = governor.current?.sample(meter.fps(), performance.now());
+    if (verdict) qualityStore.govern(verdict);
+  });
+  return null;
+}
+
 /** Owns one Recast crowd for the active place and steps it every frame. */
 function CrowdCast({
   place,
@@ -790,6 +822,7 @@ function CrowdCast({
   clipTester,
   focusIndex,
   headPoseRef,
+  spriteTags,
 }: {
   place: Place;
   cast: CastMember[];
@@ -809,6 +842,8 @@ function CrowdCast({
   camMode: CameraMode;
   /** Latest crowd frames, shared with the Embody panel's test harness. */
   framesRef: RefObject<AgentFrame[]>;
+  /** Mobile Phase 3: nameplates as sprites instead of Html (touch path). */
+  spriteTags?: boolean;
 }) {
   const crowdRef = useRef<PlatformCrowd | null>(null);
   // Body controller (bodyController.ts): smooth heading, turn-in-place clips, speed throttle. ?body=legacy
@@ -1032,6 +1067,7 @@ function CrowdCast({
               clipTester={i === focusIndex ? clipTester : undefined}
               headPoseRef={i === focusIndex ? headPoseRef : undefined}
               hidden={embodyOn && i === focusIndex && camMode === "ride"}
+              spriteTag={spriteTags}
             />
           ))}
     </>
@@ -1710,6 +1746,15 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   // and the tapped figure whose card is showing. Places registration
   // and walk-live reporting for WorldView's tab bar live just below
   // (after `walking` is known).
+  // Mobile Phase 3: the shared quality tier (governor-driven on this
+  // path, pinned "full" on desktop). Read here for the Canvas DPR;
+  // KeyLight and CastFigure subscribe themselves.
+  const quality = useSyncExternalStore(qualityStore.subscribe, qualityStore.getSnapshot);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("qualityDebug") === "1") {
+      (window as unknown as Record<string, unknown>).__quality = qualityStore;
+    }
+  }, []);
   const walkSpawnRef = useRef<WalkSpawnRequest | null>(null);
   const figureFlyRef = useRef<{ x: number; z: number } | null>(null);
   const [figureCard, setFigureCard] = useState<BazaarFigureTap | null>(null);
@@ -2035,7 +2080,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
       <Canvas
         key={`${place}:${loadNonce}`}
         camera={camera}
-        dpr={touchUi ? [1, 2] : undefined}
+        dpr={touchUi ? dprForTier(quality.tier) : undefined}
         frameloop={agentOn ? "demand" : "always"}
         shadows={agentOn ? false : "soft"}
         gl={{ antialias: true, preserveDrawingBuffer: embodyOn }}
@@ -2048,7 +2093,8 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
         <StageEnvironment place={place} />
         <KeyLight place={place} lightRef={keyLightRef} />
         <ShadowTagger />
-        {embodyOn && agora ? <FpsTracker meterRef={fpsMeterRef} /> : null}
+        {(embodyOn && agora) || touchUi ? <FpsTracker meterRef={fpsMeterRef} /> : null}
+        {touchUi ? <QualityDriver meterRef={fpsMeterRef} /> : null}
         {agora && !touchUi ? (
           <EffectComposer>
             <Bloom
@@ -2130,6 +2176,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
             clipTester={agora ? (clipTesterRef.current ?? undefined) : undefined}
             focusIndex={focusIndex}
             headPoseRef={headPoseRef}
+            spriteTags={touchUi}
           />
         </Suspense>
         <OrbitControls
