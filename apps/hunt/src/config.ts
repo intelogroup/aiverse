@@ -18,7 +18,31 @@ export interface HuntConfig {
   consoleUrl: string;
   corsOrigins: string[];
   isProd: boolean;
+  /** Phase 2 cash rail (money amendment §3): PayPal Payouts. */
+  paypal: PaypalConfig;
 }
+
+/**
+ * PayPal Payouts config. The module is INERT unless PAYPAL_MODE is
+ * sandbox|live AND both credentials are present — `enabled` is the single
+ * gate every route and job checks (SPEC §1 non-goal posture: no money
+ * movement exists at all while this is off). The secret is carried on the
+ * config object like the Resend key; it is never logged and never put in
+ * an error message.
+ */
+export interface PaypalConfig {
+  mode: "off" | "sandbox" | "live";
+  clientId: string | null;
+  clientSecret: string | null;
+  /** REST base; PAYPAL_API_BASE overrides (live is a config swap). */
+  apiBase: string;
+  /** PAYPAL_WEBHOOK_ID — webhook signature checks reject when unset. */
+  webhookId: string | null;
+  enabled: boolean;
+}
+
+export const PAYPAL_SANDBOX_API_BASE = "https://api-m.sandbox.paypal.com";
+export const PAYPAL_LIVE_API_BASE = "https://api-m.paypal.com";
 
 export const GLOBAL_SPEED_CEILING_MPS = 8;
 /** Hunt v0 delta 2: measured arrival scatter 0.43–0.76 m → default radius 1.5 m. */
@@ -84,5 +108,36 @@ function finish(
     consoleUrl: env.HUNT_CONSOLE_URL ?? "http://localhost:5173",
     corsOrigins: origins,
     isProd: core.isProd,
+    paypal: loadPaypalConfig(env, core.isProd),
+  };
+}
+
+function loadPaypalConfig(
+  env: Record<string, string | undefined>,
+  isProd: boolean,
+): PaypalConfig {
+  const rawMode = (env.PAYPAL_MODE ?? "off").toLowerCase();
+  if (rawMode !== "off" && rawMode !== "sandbox" && rawMode !== "live") {
+    throw new Error(`PAYPAL_MODE invalid: ${env.PAYPAL_MODE} (expected off|sandbox|live)`);
+  }
+  const mode = rawMode as PaypalConfig["mode"];
+  const clientId = env.PAYPAL_CLIENT_ID ?? null;
+  const clientSecret = env.PAYPAL_CLIENT_SECRET ?? null;
+  const hasCreds = Boolean(clientId && clientSecret);
+  if (mode !== "off" && !hasCreds && isProd) {
+    // Same posture as HUNT_CODE_KEY: a money rail half-configured in
+    // production is a boot failure, not a silent no-op.
+    throw new Error("PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET are required when PAYPAL_MODE is set in production");
+  }
+  const defaultBase =
+    mode === "live" ? PAYPAL_LIVE_API_BASE : PAYPAL_SANDBOX_API_BASE;
+  const apiBase = (env.PAYPAL_API_BASE ?? defaultBase).replace(/\/+$/, "");
+  return {
+    mode,
+    clientId,
+    clientSecret,
+    apiBase,
+    webhookId: env.PAYPAL_WEBHOOK_ID ?? null,
+    enabled: mode !== "off" && hasCreds,
   };
 }

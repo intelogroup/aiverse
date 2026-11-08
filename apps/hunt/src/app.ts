@@ -33,6 +33,17 @@ import {
 } from "./store";
 import { newId } from "./tokens";
 import { tickOnce } from "./ticker";
+import { PaypalClient, PaypalError, type PaypalFetch } from "./paypal";
+import {
+  PayoutError,
+  cancelPayout,
+  getPayoutById,
+  handlePayoutWebhook,
+  initiatePayout,
+  maskAddress,
+  refreshPayout,
+  type PayoutRow,
+} from "./payouts";
 
 export type { GatewayIdentity };
 
@@ -58,6 +69,15 @@ export interface AppDeps {
    * (standalone posture unchanged).
    */
   cors?: boolean;
+  /** Transport override for the PayPal client — tests inject a fake so
+   *  the suite never touches the network. Unset = real fetch. */
+  paypalFetch?: PaypalFetch;
+}
+
+/** Admin/webhook view of a payout: the address is masked everywhere it
+ *  leaves the service; the full recipient lives only in the DB row. */
+function payoutView(row: PayoutRow) {
+  return { ...row, recipient: maskAddress(row.recipient) };
 }
 
 interface Vars {
@@ -114,6 +134,10 @@ export function buildApp(deps: AppDeps): Hono<{ Variables: Vars }> {
   const { db, cfg, mailer, codeKey } = deps;
   const limiter = deps.limiter ?? new RateLimiter();
   const app = new Hono<{ Variables: Vars }>();
+  // Phase 2 cash rail: the client exists only when the config gate is
+  // open (PAYPAL_MODE + credentials). Disabled ⇒ no client, no routes —
+  // the money surface is absent, not merely guarded (bazaar idiom).
+  const paypal = cfg.paypal.enabled ? new PaypalClient(cfg.paypal, deps.paypalFetch) : null;
 
   if (deps.cors !== false) {
     app.use(
@@ -539,19 +563,93 @@ export function buildApp(deps: AppDeps): Hono<{ Variables: Vars }> {
     const rows = db
       .query(
         `SELECT u.display_name AS winner_display_name, p.label_public AS prize_label,
-                p.face_value_cents, p.claimed_at
+                p.face_value_cents, p.claimed_at,
+                po.recipient AS payout_recipient, po.status AS payout_state,
+                po.transaction_id AS payout_transaction_id
          FROM prizes p JOIN hunt_users u ON u.id = p.claimed_by_user_id
+         LEFT JOIN payouts po ON po.prize_id = p.id
          WHERE p.event_id = ? AND p.state = 'claimed' ORDER BY p.claimed_at`,
       )
       .all(ev.id) as Record<string, unknown>[];
     return c.json({
-      receipts: rows.map((r) => ({
-        ...r,
-        payout_address: null,
-        payout_status: "n/a_code_revealed", // Phase 1 (SPEC §9)
-      })),
+      receipts: rows.map((r) => {
+        const { payout_recipient, payout_state, payout_transaction_id, ...base } = r;
+        if (typeof payout_state !== "string") {
+          // No payout row — Phase 1 shape, unchanged (SPEC §9).
+          return { ...base, payout_address: null, payout_status: "n/a_code_revealed" };
+        }
+        // Phase 2 (§9): the published receipt — masked address, real status.
+        return {
+          ...base,
+          payout_address: maskAddress(String(payout_recipient)),
+          payout_status: payout_state,
+          payout_transaction_id: payout_transaction_id ?? null,
+        };
+      }),
     });
   });
+
+  // ---------- payouts (Phase 2; routes exist only when the rail is enabled) ----------
+  if (paypal) {
+    app.post("/v1/admin/prizes/:id/payout", requireAdmin, async (c) => {
+      try {
+        const row = await initiatePayout(db, paypal, cfg.paypal.mode, c.req.param("id"), Date.now());
+        return c.json({ payout: payoutView(row) }, row.batch_id ? 200 : 202);
+      } catch (e) {
+        if (e instanceof PayoutError) {
+          const status = e.code === "prize_not_found" ? 404 : 422;
+          return c.json(err(e.code), status);
+        }
+        throw e;
+      }
+    });
+
+    app.get("/v1/admin/payouts/:id", requireAdmin, async (c) => {
+      const existing = getPayoutById(db, c.req.param("id"));
+      if (!existing) return c.json(err("payout_not_found"), 404);
+      const row = await refreshPayout(db, paypal, existing.id, Date.now());
+      return c.json({ payout: payoutView(row) });
+    });
+
+    // Cancel an unclaimed payout. A PayPal-side failure is a 502 with
+    // the row untouched — this route never reports a cancel PayPal
+    // did not confirm.
+    app.post("/v1/admin/payouts/:id/cancel", requireAdmin, async (c) => {
+      const existing = getPayoutById(db, c.req.param("id"));
+      if (!existing) return c.json(err("payout_not_found"), 404);
+      try {
+        const row = await cancelPayout(db, paypal, existing.id, Date.now());
+        return c.json({ payout: payoutView(row) });
+      } catch (e) {
+        if (e instanceof PayoutError) return c.json(err(e.code), 422);
+        if (e instanceof PaypalError) return c.json(err("paypal_cancel_failed"), 502);
+        throw e;
+      }
+    });
+
+    // PayPal webhook intake. The raw body is parsed here but nothing in
+    // it is trusted until the verify call inside handlePayoutWebhook.
+    app.post("/v1/paypal/webhooks", async (c) => {
+      const event = await c.req.json().catch(() => null);
+      if (!event) return c.json(err("bad_request"), 400);
+      const outcome = await handlePayoutWebhook(
+        db,
+        paypal,
+        cfg.paypal,
+        {
+          authAlgo: c.req.header("paypal-auth-algo") ?? null,
+          certUrl: c.req.header("paypal-cert-url") ?? null,
+          transmissionId: c.req.header("paypal-transmission-id") ?? null,
+          transmissionSig: c.req.header("paypal-transmission-sig") ?? null,
+          transmissionTime: c.req.header("paypal-transmission-time") ?? null,
+        },
+        event,
+        Date.now(),
+      );
+      if (!outcome.accepted) return c.json(err(outcome.reason ?? "rejected"), 400);
+      return c.json({ ok: true, ...(outcome.reason ? { note: outcome.reason } : {}) });
+    });
+  }
 
   app.post("/v1/admin/prizes/:id/void", requireAdmin, async (c) => {
     const row = db.query("SELECT * FROM prizes WHERE id = ?").get(c.req.param("id")) as {
