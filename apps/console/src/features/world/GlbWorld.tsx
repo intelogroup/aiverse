@@ -25,7 +25,7 @@ import {
 import { TeaBartender } from "./TeaBartender";
 import { BARTENDER_LINES } from "./bartender";
 import { CityWalker } from "./CityWalker";
-import { TouchWalkSource } from "./walkTouch";
+import { TouchWalkSource, setLookPrefs } from "./walkTouch";
 import {
   InteractHighlight,
   TouchTapPicker,
@@ -64,6 +64,15 @@ import {
 } from "./cameraRig";
 import { FpsMeter } from "./fpsMeter";
 import { QualityGovernor, dprForTier, qualityStore, shadowMapForTier } from "./quality";
+import {
+  LONG_PRESS_MAX_MOVE_PX,
+  LONG_PRESS_MS,
+  coachSeen,
+  comfortStore,
+  hapticTick,
+  isReducedMotion,
+  markCoachSeen,
+} from "./comfort";
 import { newBodyState, stepBody, type BodyState } from "./bodyController";
 import {
   CITY3_INDEX_URL,
@@ -1659,6 +1668,9 @@ function FigureFlyRig({
 }: {
   flyRef: { current: { x: number; z: number } | null };
 }) {
+  // Mobile Phase 4: reduced motion turns the flight into a cut — the
+  // goal state applies in the first frame instead of easing over 1.1 s.
+  const reduced = isReducedMotion();
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls) as unknown as {
     target: THREE.Vector3;
@@ -1687,6 +1699,7 @@ function FigureFlyRig({
         toPos: toTgt.clone().add(away.multiplyScalar(6.5)).add(new THREE.Vector3(0, 3.2, 0)),
         toTgt,
       };
+      if (reduced) anim.current.t = 0.999; // one frame: the cut
     }
     const a = anim.current;
     if (!a) return;
@@ -1921,6 +1934,88 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   useEffect(() => {
     if (walking || place !== "city3") setFigureCard(null);
   }, [walking, place]);
+
+  // Mobile Phase 4: comfort sync + long-press context sheet + the
+  // long-press coach mark. Comfort values flow one way — the store
+  // (Settings) → the look prefs and the sound director here.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const longPressRef = useRef(0);
+  // When the context sheet was last opened. The gesture that opens it
+  // ends with a trailing click, and the sheet (plus its backdrop)
+  // commits synchronously on the pointerup — so that click lands on
+  // the brand-new backdrop and dismisses the sheet it just opened
+  // (observed live: sheet mounted and gone 22 ms later). The backdrop
+  // ignores dismiss clicks inside this window.
+  const sheetOpenedAtRef = useRef(0);
+  const [contextSheet, setContextSheet] = useState<
+    | { kind: "stage" }
+    | { kind: "figure"; fig: BazaarFigureTap }
+    | null
+  >(null);
+  const [coachLongSeen, setCoachLongSeen] = useState(() => coachSeen("longpress"));
+  useEffect(() => {
+    const apply = () => {
+      const c = comfortStore.getSnapshot();
+      setLookPrefs({ sensitivity: c.lookSensitivity, invertY: c.invertY });
+      const s = soundRef.current;
+      if (s) {
+        s.setMasterVolume(c.masterVolume);
+        s.setMusicVolume(c.musicVolume);
+        s.setWindVolume(c.windVolume);
+        s.setPaVolume(c.paVolume);
+      }
+    };
+    apply();
+    return comfortStore.subscribe(apply);
+  }, []);
+  const noteLongPress = () => {
+    markCoachSeen("longpress");
+    setCoachLongSeen(true);
+    hapticTick();
+  };
+  const openContextSheet = (
+    s: { kind: "stage" } | { kind: "figure"; fig: BazaarFigureTap },
+  ) => {
+    sheetOpenedAtRef.current = Date.now();
+    setContextSheet(s);
+  };
+  // Stage long-press (touch spectator): observe presses on the world
+  // root without ever intercepting them — a ≥500 ms press that stays
+  // within the move tolerance opens the stage context sheet, unless a
+  // figure's own long-press just claimed it.
+  useEffect(() => {
+    if (!touchUi || walking) return;
+    // Listeners live on the document (capture), gated by a contains()
+    // check against the CURRENT root — the world tree swaps its root
+    // element as load states change (PR #43), and a listener pinned
+    // to an early root dies with it. That was the Phase 4 proof's
+    // first long-press failure; this shape is immune.
+    let press: { x: number; y: number; t: number } | null = null;
+    const inRoot = (e: PointerEvent) => {
+      const root = rootRef.current;
+      return !!root && e.target instanceof Node && root.contains(e.target);
+    };
+    const down = (e: PointerEvent) => {
+      if (e.pointerType !== "touch" || !inRoot(e)) return;
+      press = { x: e.clientX, y: e.clientY, t: Date.now() };
+    };
+    const up = (e: PointerEvent) => {
+      if (e.pointerType !== "touch" || !press || !inRoot(e)) return;
+      const held = Date.now() - press.t;
+      const moved = Math.hypot(e.clientX - press.x, e.clientY - press.y);
+      press = null;
+      if (held < LONG_PRESS_MS || moved > LONG_PRESS_MAX_MOVE_PX) return;
+      if (Date.now() - longPressRef.current < 1000) return; // a figure claimed it
+      noteLongPress();
+      openContextSheet({ kind: "stage" });
+    };
+    document.addEventListener("pointerdown", down, true);
+    document.addEventListener("pointerup", up, true);
+    return () => {
+      document.removeEventListener("pointerdown", down, true);
+      document.removeEventListener("pointerup", up, true);
+    };
+  }, [touchUi, walking]);
   // The walk bot's latest position, published by CityWalker per stepped
   // frame and read by BazaarLife (the stall keeper's approach trigger).
   // Cleared when walk mode ends so a stale position can't hold a
@@ -2076,7 +2171,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
     : [CITY3_CENTER[0], 8, CITY3_CENTER[1]];
 
   return (
-    <div className={touchUi ? "w-glb-root w-touch-root" : "w-glb-root"}>
+    <div ref={rootRef} className={touchUi ? "w-glb-root w-touch-root" : "w-glb-root"}>
       <Canvas
         key={`${place}:${loadNonce}`}
         camera={camera}
@@ -2086,6 +2181,9 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
         gl={{ antialias: true, preserveDrawingBuffer: embodyOn }}
         onCreated={({ gl }) => {
           glCanvasRef.current = gl.domElement;
+          // VoiceOver pass (Phase 4): the canvas is the world's window;
+          // name it for assistive tech.
+          gl.domElement.setAttribute("aria-label", "3D world view");
         }}
         style={{ position: "absolute", inset: 0 }}
       >
@@ -2129,6 +2227,15 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
                       }
                     : undefined
                 }
+                onFigureLong={
+                  touchUi && !walking
+                    ? (fig) => {
+                        noteLongPress();
+                        openContextSheet({ kind: "figure", fig });
+                      }
+                    : undefined
+                }
+                longPressRef={longPressRef}
               />
               <TeaBartender visitors={[botPosRef, scoutPosRef]} walk={walkColliders} getDirector={() => soundRef.current} />
               <TeaDoorLeaf controller={teaDoorRef.current} />
@@ -2266,6 +2373,102 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
           onExit={() => setCamMode("wide")}
           tapPickRef={tapPickRef}
         />
+      ) : null}
+      {touchUi && !walking && !coachLongSeen && !contextSheet ? (
+        <div className="w-coach-pill" role="note">
+          <span>Tip — long-press the scene for options</span>
+          <button
+            type="button"
+            aria-label="Dismiss tip"
+            onClick={() => {
+              markCoachSeen("longpress");
+              setCoachLongSeen(true);
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      ) : null}
+      {touchUi && !walking && contextSheet ? (
+        <>
+          <div
+            className="w-sheet-backdrop"
+            onClick={() => {
+              // Not the opening gesture's trailing click (see
+              // sheetOpenedAtRef) — that one belongs to the press.
+              if (Date.now() - sheetOpenedAtRef.current < 500) return;
+              setContextSheet(null);
+            }}
+            aria-hidden="true"
+          />
+          <section className="w-sheet w-context-sheet" role="dialog" aria-label="Context options">
+            <div className="w-sheet-grab" aria-hidden="true" />
+            <header className="w-sheet-head">
+              <b>{contextSheet.kind === "figure" ? contextSheet.fig.name : place === "city3" ? "Sunstone Bazaar" : "The Agora"}</b>
+              <button type="button" onClick={() => setContextSheet(null)}>
+                Close
+              </button>
+            </header>
+            <div className="w-sheet-body">
+              {contextSheet.kind === "figure" ? (
+                <>
+                  <button
+                    type="button"
+                    className="w-sheet-menu"
+                    onClick={() => {
+                      walkToPoint(contextSheet.fig.x, contextSheet.fig.z);
+                      setContextSheet(null);
+                    }}
+                  >
+                    Walk there
+                  </button>
+                  <button
+                    type="button"
+                    className="w-sheet-menu"
+                    onClick={() => {
+                      figureFlyRef.current = { x: contextSheet.fig.x, z: contextSheet.fig.z };
+                      setContextSheet(null);
+                    }}
+                  >
+                    Fly to
+                  </button>
+                </>
+              ) : (
+                <>
+                  {place === "city3" ? (
+                    <button
+                      type="button"
+                      className="w-sheet-menu"
+                      onClick={() => {
+                        setContextSheet(null);
+                        setCamMode("ride");
+                      }}
+                    >
+                      Walk from the plaza
+                    </button>
+                  ) : null}
+                  {soundRef.current && soundRef.current.consent === "granted" ? (
+                    <button
+                      type="button"
+                      className="w-sheet-menu"
+                      onClick={() => {
+                        const s = soundRef.current;
+                        if (s) s.setMuted(!s.muted);
+                        setContextSheet({ kind: "stage" }); // re-render with the new mute state
+                      }}
+                    >
+                      {soundRef.current.muted ? "Unmute the verse" : "Mute the verse"}
+                    </button>
+                  ) : null}
+                  <p className="w-sheet-note">
+                    Quality: {quality.override === "auto" ? `Auto — currently ${quality.tier}` : quality.tier} (
+                    {quality.reason})
+                  </p>
+                </>
+              )}
+            </div>
+          </section>
+        </>
       ) : null}
       {touchUi && !walking && place === "city3" && figureCard ? (
         <div className="w-figure-card" role="dialog" aria-label={`Figure: ${figureCard.name}`}>

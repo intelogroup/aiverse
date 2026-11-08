@@ -36,6 +36,7 @@ import { PLAYER, type TeaDoorController } from "./teaDoor";
 import type { SoundDirector } from "./soundDirector";
 import type { WalkClipOverride, WalkFrameInfo } from "./walkOverride";
 import type { WalkMode } from "./CityWalker";
+import { coachSeen, hapticTick, markCoachSeen } from "./comfort";
 
 /**
  * Touch UI detection: a coarse primary pointer on a phone-sized
@@ -158,6 +159,11 @@ export function TouchWalkLayer({
   useEffect(() => () => source.reset(), [source]);
 
   const tracks = useRef(new Map<number, Track>());
+  // Mobile Phase 4: one-time coach marks — each teaches its gesture
+  // exactly once (persisted), dismissing itself when the gesture is
+  // first performed (or via its ✕).
+  const [coachStick, setCoachStick] = useState(() => !coachSeen("stick"));
+  const [coachLook, setCoachLook] = useState(() => !coachSeen("look"));
   const [stickVis, setStickVis] = useState<{ ox: number; oy: number; dx: number; dy: number } | null>(null);
   const [flash, setFlash] = useState<{ text: string; until: number } | null>(null);
 
@@ -193,6 +199,10 @@ export function TouchWalkLayer({
           ox: t.clientX, oy: t.clientY,
         });
         source.beginStick();
+        if (coachStick) {
+          markCoachSeen("stick");
+          setCoachStick(false);
+        }
         setStickVis({ ox: t.clientX, oy: t.clientY, dx: 0, dy: 0 });
       } else {
         tracks.current.set(t.identifier, {
@@ -213,6 +223,10 @@ export function TouchWalkLayer({
         setStickVis({ ox: tr.ox, oy: tr.oy, dx: v.dx, dy: v.dy });
       } else {
         source.addLook(t.clientX - tr.lastX, t.clientY - tr.lastY);
+        if (coachLook) {
+          markCoachSeen("look");
+          setCoachLook(false);
+        }
       }
       tr.lastX = t.clientX;
       tr.lastY = t.clientY;
@@ -258,6 +272,11 @@ export function TouchWalkLayer({
 
   return (
     <div className="w-touch-layer">
+      <span className="w-sr-only">
+        Touch walk controls. The left side of the screen is a movement stick; drag anywhere else to look
+        around. Buttons around the edges exit the walk, toggle sound and running, switch the camera, and
+        act on doors and props when you are near them.
+      </span>
       <div
         className="w-touch-surface"
         onTouchStart={onTouchStart}
@@ -265,6 +284,35 @@ export function TouchWalkLayer({
         onTouchEnd={onTouchEnd}
         onTouchCancel={onTouchEnd}
       />
+      {coachStick ? (
+        <div className="w-coach-pill walk" role="note">
+          <span>Left thumb here — touch and drag to walk</span>
+          <button
+            type="button"
+            aria-label="Dismiss tip"
+            onClick={() => {
+              markCoachSeen("stick");
+              setCoachStick(false);
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      ) : coachLook ? (
+        <div className="w-coach-pill walk look" role="note">
+          <span>Drag anywhere else to look around</span>
+          <button
+            type="button"
+            aria-label="Dismiss tip"
+            onClick={() => {
+              markCoachSeen("look");
+              setCoachLook(false);
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      ) : null}
       {stickVis ? (
         <div
           className="w-touch-stick"
@@ -345,6 +393,7 @@ export function TouchWalkLayer({
             type="button"
             className="w-touch-action"
             onClick={() => {
+              hapticTick();
               door?.request(doorClip);
               bump();
             }}
@@ -357,6 +406,7 @@ export function TouchWalkLayer({
             type="button"
             className="w-touch-action primary"
             onClick={() => {
+              hapticTick();
               if (pos && interact) {
                 const r = interact.request(nearDef.id, PLAYER, channel, pos);
                 if (r === "busy") showFlash(`${nearDef.label} — someone is using it`);
@@ -384,6 +434,7 @@ export function TouchWalkLayer({
               // Inside this tap's call stack on purpose — the same
               // iOS gesture rule the desktop button follows: the
               // director creates + resumes its AudioContext here.
+              hapticTick();
               sound.grantConsent();
               bump();
             }}

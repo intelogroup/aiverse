@@ -43,6 +43,16 @@ export const STICK_RADIUS_PX = 52;
  * drag covers fewer px, so touch runs hotter — Settings gets the
  * slider in Phase 4). */
 export const LOOK_SENS = 0.0042;
+
+/**
+ * Mobile Phase 4: the Settings look prefs (comfort.ts) — a
+ * sensitivity multiplier and an invert-Y flip, synced in by the
+ * shell. Defaults are the Phase 1 behaviour, bit for bit.
+ */
+let lookPrefs = { sensitivity: 1, invertY: false };
+export function setLookPrefs(p: { sensitivity: number; invertY: boolean }): void {
+  lookPrefs = { sensitivity: p.sensitivity, invertY: p.invertY };
+}
 /** Share of the stage width (from the left) where a touch-down plants
  * the stick; the rest of the stage is look country. Landscape phones
  * are two-handed with a shorter reach, so the zone narrows. */
@@ -131,8 +141,8 @@ export class TouchWalkSource {
 
   /** Look-drag delta (px since the last move event). */
   addLook(dxPx: number, dyPx: number): void {
-    this.yawAcc += dxPx * LOOK_SENS;
-    this.pitchAcc += -dyPx * LOOK_SENS;
+    this.yawAcc += dxPx * LOOK_SENS * lookPrefs.sensitivity;
+    this.pitchAcc += (lookPrefs.invertY ? dyPx : -dyPx) * LOOK_SENS * lookPrefs.sensitivity;
   }
 
   /** Consume the accumulated look (the frame loop calls this once). */

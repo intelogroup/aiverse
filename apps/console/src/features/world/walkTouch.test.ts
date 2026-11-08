@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  LOOK_SENS,
   STICK_DEADZONE,
   STICK_RADIUS_PX,
   STICK_RUN_THRESHOLD,
@@ -8,6 +9,7 @@ import {
   doorChipClip,
   interactChipText,
   mergeTouchIntent,
+  setLookPrefs,
   stickVector,
 } from "./walkTouch";
 import { TEA_DOOR_ORIGIN, teaStandPose } from "./teaDoor";
@@ -157,5 +159,21 @@ describe("interactChipText", () => {
   it("speaks in human words, state included", () => {
     expect(interactChipText(def, false)).toBe("Turn radio on");
     expect(interactChipText(def, true)).toBe("Turn radio off");
+  });
+});
+
+describe("look prefs (Phase 4)", () => {
+  it("sensitivity scales and invert-Y flips the touch look", () => {
+    const src = new TouchWalkSource();
+    setLookPrefs({ sensitivity: 2, invertY: true });
+    src.addLook(10, 4);
+    const look = src.consumeLook();
+    expect(look.yaw).toBeCloseTo(10 * LOOK_SENS * 2);
+    expect(look.pitch).toBeCloseTo(4 * LOOK_SENS * 2); // inverted: drag down = pitch +
+    setLookPrefs({ sensitivity: 1, invertY: false });
+    src.addLook(10, 4);
+    const look2 = src.consumeLook();
+    expect(look2.yaw).toBeCloseTo(10 * LOOK_SENS);
+    expect(look2.pitch).toBeCloseTo(-4 * LOOK_SENS);
   });
 });
