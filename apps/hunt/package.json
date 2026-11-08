@@ -1,0 +1,1 @@
+{"dependencies":{"hono":"^4.6.0"},"name":"@aiverse/hunt","private":true,"scripts":{"admin":"bun run src/cli.ts","dev":"bun run --watch src/index.ts","start":"bun run src/index.ts","test":"bun test"},"type":"module","version":"0.0.0"}
