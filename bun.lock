@@ -49,6 +49,7 @@
       "name": "@aiverse/gateway",
       "version": "0.0.0",
       "dependencies": {
+        "@aiverse/hunt": "workspace:*",
         "@aiverse/shared": "workspace:*",
         "@aiverse/topics": "workspace:*",
         "@modelcontextprotocol/sdk": "1.29.0",

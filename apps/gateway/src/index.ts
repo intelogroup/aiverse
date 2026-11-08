@@ -95,6 +95,14 @@ async function startSingletonJobs() {
     const { scheduleBazaarExpiry } = await import("./routes/bazaar");
     scheduleBazaarExpiry();
   }
+  // Hunt (apps/hunt/GATEWAY-INTEGRATION.md §b.4): the hunt ticker —
+  // event transitions, hint ladder, pruning — is a singleton job like
+  // the others: two processes must never tick the same hunt. Only
+  // scheduled when the routes themselves are mounted.
+  if (process.env.AIVERSE_HUNT_MODE === "1") {
+    const { scheduleHuntTicker } = await import("./hunt");
+    scheduleHuntTicker();
+  }
   const { scheduleVisitsSweep } = await import("./jobs/visits");
   scheduleVisitsSweep();
   startLeaderWatchdog();
@@ -194,4 +202,9 @@ export default {
   port: env.PORT,
   fetch: app.fetch,
   websocket,
+  // GATEWAY-INTEGRATION §b.5 (the one behavior-adjacent change in the
+  // hunt integration): Bun's 10 s default idle timeout kills a quiet
+  // SSE connection before the hunt feed's 15 s heartbeat. 255 s is
+  // Bun's max — the standalone hunt entry sets the same value.
+  idleTimeout: 255,
 };
