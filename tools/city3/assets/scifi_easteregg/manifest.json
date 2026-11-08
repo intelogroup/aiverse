@@ -1,0 +1,40 @@
+{
+  "id": "file_00000000d25c81f6a40a957d42242b50",
+  "name": "SciFi EasterEgg",
+  "file_name": "scifi_easteregg.zip",
+  "origin": "user upload",
+  "category": "collectible / future contest hunt prop",
+  "upload_reference": "sediment://file_00000000d25c81f6a40a957d42242b50",
+  "size_bytes": 5771407,
+  "sha256": "25697ce16c75e7e3559250d35c38a945855e8ed04ec1487a8c4df3126eece198",
+  "author": "Cécile Amstad",
+  "author_url": "https://sketchfab.com/c.m.a",
+  "source": "https://sketchfab.com/3d-models/scifi-easteregg-f19c4de512794d64b00b3f5ceea62ca2",
+  "license": "CC-BY-4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_evidence": "License supplied in source archive; exact text preserved in LICENSE.txt",
+  "raw_source_committed": true,
+  "repository_path": "tools/city3/assets/scifi_easteregg/source.zip",
+  "attribution_file": "tools/city3/assets/scifi_easteregg/LICENSE.txt",
+  "public_credit": "/assets/collectibles/credits.html",
+  "status": "optimized derivative placed at 30 fixed locations across all five districts; contest inactive",
+  "in_world": true,
+  "browser_copy": {
+    "path": "apps/console/public/assets/collectibles/scifi-easter-egg.glb",
+    "source_triangles": 333344,
+    "triangles": 10000,
+    "height_m": 0.5,
+    "dimensions_blender_m": [
+      0.40816956758499146,
+      0.4083115756511688,
+      0.4999999701976776
+    ],
+    "color_attributes": [
+      "Color"
+    ],
+    "bytes": 281620,
+    "sha256": "c330348cdc14669bedf19aea285fcddd2631d82f483094bc5b6572ab1e6cb596",
+    "modifications": "Joined source chunks, welded coincident seams, recalculated normals, normalized to 0.5 m tall with base at zero, simplified mesh; vertex colors retained."
+  },
+  "placements": "apps/console/public/assets/collectibles/easter-eggs.json"
+}

@@ -1,0 +1,11 @@
+Model Information:
+* title:	SciFi EasterEgg
+* source:	https://sketchfab.com/3d-models/scifi-easteregg-f19c4de512794d64b00b3f5ceea62ca2
+* author:	Cécile Amstad (https://sketchfab.com/c.m.a)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "SciFi EasterEgg" (https://sketchfab.com/3d-models/scifi-easteregg-f19c4de512794d64b00b3f5ceea62ca2) by Cécile Amstad (https://sketchfab.com/c.m.a) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
