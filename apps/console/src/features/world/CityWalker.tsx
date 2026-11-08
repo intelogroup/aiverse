@@ -10,6 +10,7 @@ import { DAMP_FOV, DAMP_POS_FOLLOW, FOV_RIDE, FOV_WIDE, EYE_FORWARD, FOLLOW_BACK
 import type { AgentFrame } from "./locomotion";
 import { findSpawn, makeWalker, step, type WalkInput } from "./walker";
 import { WalkClipOverride, type WalkFrameInfo } from "./walkOverride";
+import { mergeTouchIntent, type TouchWalkSource } from "./walkTouch";
 import { PLAYER, type TeaDoorController } from "./teaDoor";
 import type { InteractController } from "./interactables";
 
@@ -49,6 +50,7 @@ export function CityWalker({
   frameRef,
   door,
   interact,
+  touch,
 }: {
   mode: WalkMode;
   onMode: (m: WalkMode) => void;
@@ -79,6 +81,13 @@ export function CityWalker({
    * input (walk to the stand pose, face it, the Interact clip). Consulted every frame so the controller sees the player.
    */
   interact?: InteractController;
+  /**
+   * Mobile Phase 1: the DOM touch layer's intent source (walkTouch.ts),
+   * merged into the key intent at the same seam and its look deltas
+   * folded into lookAcc/pitch exactly where the mouse feeds them.
+   * Absent on the desktop path — nothing changes there, bit for bit.
+   */
+  touch?: TouchWalkSource;
 }) {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   const gl = useThree((s) => s.gl);
@@ -237,9 +246,21 @@ export function CityWalker({
       if (!sp) return;
       s = state.current = makeWalker(sp.x, sp.y, sp.z, 0);
     }
+    // Mobile Phase 1: touch look deltas join the mouse's accumulators
+    // (same signs, same pitch clamp), consumed once per frame.
+    if (touch) {
+      const tl = touch.consumeLook();
+      if (tl.yaw !== 0) lookAcc.current += tl.yaw;
+      if (tl.pitch !== 0)
+        pitch.current = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, pitch.current + tl.pitch));
+    }
     const look = lookAcc.current;
     lookAcc.current = 0;
     let input = intentFromKeys(keys.current, look);
+    // Mobile Phase 1: touch merges AT the intent seam — a down stick
+    // owns the move axes, the run latch ORs in, and an idle source
+    // returns `input` untouched, so the desktop path is bit-identical.
+    input = mergeTouchIntent(input, touch);
     // Tea door session (align / performance / step-through): the
     // controller's input replaces the keys outright. Consulted every
     // frame, session or not, so the door machine ticks.
