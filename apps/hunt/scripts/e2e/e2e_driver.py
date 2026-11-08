@@ -149,11 +149,21 @@ def dist_to_spot(pos):
 with sync_playwright() as pw:
     browser = pw.chromium.launch(args=["--use-gl=swiftshader"])
     page = browser.new_page(viewport={"width": 1280, "height": 800})
+    page.set_default_timeout(120_000)
+
+    def shot(name):
+        # Evidence, not proof: a screenshot must never kill the run
+        # (attempt 5 died on a 30 s screenshot timeout under VM load).
+        try:
+            page.screenshot(path=str(WORK / name), timeout=120_000)
+        except Exception as e:  # noqa: BLE001
+            log("screenshot", f"{name} failed (non-fatal): {e}")
+
     page.goto(CONSOLE_URL)
-    page.wait_for_function("window.__scout && window.__scout.ready()", timeout=300_000)
+    page.wait_for_function("window.__scout && window.__scout.ready()", timeout=600_000)
     snap = page.evaluate("window.__scout.snapshot()")
     log("scout-ready", f"spawn pos={snap['pos']}")
-    page.screenshot(path=str(WORK / "e2e-spawn.png"))
+    shot("e2e-spawn.png")
     places = page.evaluate("window.__scout.places()")
     log("places", f"{len(places)} go-to-able places")
 
@@ -246,7 +256,7 @@ with sync_playwright() as pw:
 
     dist = dist_to_spot(last_pos)
     log("arrival", f"pos={last_pos} distance-to-spot={dist:.3f} m")
-    page.screenshot(path=str(WORK / "e2e-spot.png"))
+    shot("e2e-spot.png")
     check(dist <= 1.5, "hunter standing inside the 1.5 m claim radius", f"dist={dist:.3f}")
     browser.close()
 
