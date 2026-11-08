@@ -172,15 +172,27 @@ configured at deploy; local/E2E stays stubbed.
 ## (f) Regression gates — before and after
 
 **Baseline (record before integration, on gateway main):**
-- G1: `apps/gateway` full `bun test` green (env-scrubbed script); root
+- G1: `apps/gateway` full `bun test` (env-scrubbed script); root
   `tsconfig.ci.json` typecheck green. (Hunt PR baselines already on
   record: console 426/426 effective + build green; hunt 27/27.)
+  **Measured 2026-11-08** (this sandbox, main `932f24bf`, CI-parity
+  `.env.test` copied from `.github/workflows/ci.yml`, local Postgres
+  `aiverse_test` migrated + local Redis): **247 pass / 142 fail of
+  389 tests (49 files)**. Without `.env.test` the suite cannot even
+  import (44/80 fail on missing `JWT_SECRET`). The 142 failures
+  concentrate in boot-timing, leader-election, WS and presence tests
+  whose 10 s waits time out under multi-lane VM load — i.e. this
+  sandbox does not reproduce CI's near-green. The integration gate
+  is therefore **like-for-like**: reproduce ~247/142 in the same
+  environment after integration, with zero NEW failures; a cleaner
+  environment should be judged against its own pre-integration run.
 - G2: live snapshot — `GET /health` ok, `GET /version` gitSha recorded,
   latest deploy = live (`render deploys srv-da8ao1qjnfac73drf3og`).
 
 **After integration (all must pass before the deploy is called done):**
-- G3: gateway suite green **twice**: with `AIVERSE_HUNT_MODE` off
-  (existing behavior untouched) and on (mount present).
+- G3: gateway suite at baseline counts **twice**: with
+  `AIVERSE_HUNT_MODE` off (existing behavior untouched) and on
+  (mount present) — no new failures vs the G1 baseline either way.
 - G4: hunt suite still 27/27, plus new mount tests: mounted app answers
   `/v1/events`; gateway-JWT path adopts/creates the hunt user; ticker
   starts only in the leader section.
