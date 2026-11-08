@@ -148,7 +148,7 @@ def dist_to_spot(pos):
 
 def walk_session(pw):
     browser = pw.chromium.launch(args=["--use-gl=swiftshader"])
-    page = browser.new_page(viewport={"width": 1280, "height": 800})
+    page = browser.new_page(viewport={"width": 800, "height": 450})
     page.set_default_timeout(45_000)
 
     def shot(name):
@@ -303,6 +303,8 @@ def walk_session(pw):
 
 last_pos = None
 for session_no in range(4):
+    if session_no:
+        time.sleep(20)  # let a crashed renderer's processes drain
     try:
         with sync_playwright() as pw:
             last_pos = walk_session(pw)
