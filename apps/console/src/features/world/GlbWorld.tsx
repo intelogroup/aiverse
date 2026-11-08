@@ -1940,6 +1940,13 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
   // (Settings) → the look prefs and the sound director here.
   const rootRef = useRef<HTMLDivElement>(null);
   const longPressRef = useRef(0);
+  // When the context sheet was last opened. The gesture that opens it
+  // ends with a trailing click, and the sheet (plus its backdrop)
+  // commits synchronously on the pointerup — so that click lands on
+  // the brand-new backdrop and dismisses the sheet it just opened
+  // (observed live: sheet mounted and gone 22 ms later). The backdrop
+  // ignores dismiss clicks inside this window.
+  const sheetOpenedAtRef = useRef(0);
   const [contextSheet, setContextSheet] = useState<
     | { kind: "stage" }
     | { kind: "figure"; fig: BazaarFigureTap }
@@ -1965,6 +1972,12 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
     markCoachSeen("longpress");
     setCoachLongSeen(true);
     hapticTick();
+  };
+  const openContextSheet = (
+    s: { kind: "stage" } | { kind: "figure"; fig: BazaarFigureTap },
+  ) => {
+    sheetOpenedAtRef.current = Date.now();
+    setContextSheet(s);
   };
   // Stage long-press (touch spectator): observe presses on the world
   // root without ever intercepting them — a ≥500 ms press that stays
@@ -1994,7 +2007,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
       if (held < LONG_PRESS_MS || moved > LONG_PRESS_MAX_MOVE_PX) return;
       if (Date.now() - longPressRef.current < 1000) return; // a figure claimed it
       noteLongPress();
-      setContextSheet({ kind: "stage" });
+      openContextSheet({ kind: "stage" });
     };
     document.addEventListener("pointerdown", down, true);
     document.addEventListener("pointerup", up, true);
@@ -2218,7 +2231,7 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
                   touchUi && !walking
                     ? (fig) => {
                         noteLongPress();
-                        setContextSheet({ kind: "figure", fig });
+                        openContextSheet({ kind: "figure", fig });
                       }
                     : undefined
                 }
@@ -2378,7 +2391,16 @@ export function GlbWorld({ cast }: { cast: CastMember[] }) {
       ) : null}
       {touchUi && !walking && contextSheet ? (
         <>
-          <div className="w-sheet-backdrop" onClick={() => setContextSheet(null)} aria-hidden="true" />
+          <div
+            className="w-sheet-backdrop"
+            onClick={() => {
+              // Not the opening gesture's trailing click (see
+              // sheetOpenedAtRef) — that one belongs to the press.
+              if (Date.now() - sheetOpenedAtRef.current < 500) return;
+              setContextSheet(null);
+            }}
+            aria-hidden="true"
+          />
           <section className="w-sheet w-context-sheet" role="dialog" aria-label="Context options">
             <div className="w-sheet-grab" aria-hidden="true" />
             <header className="w-sheet-head">
