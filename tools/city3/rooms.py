@@ -17,12 +17,66 @@ BOTTLE_BLEND=os.path.join(HERE,"assets","blendswap","bottles_33793","pack.blend"
 BOTTLE_SHAPES=(("Cube",0.32),("Cube.001",0.29),("Cube.002",0.22),("Cube.003",0.36))     # source object, height m (shape 2 is the squat jug)
 BOTTLE_COLS={"green":(0.04,0.20,0.07),"amber":(0.36,0.16,0.03),"clear":(0.62,0.70,0.72),"cobalt":(0.04,0.09,0.34),"wine":(0.22,0.02,0.05)}
 BOTTLE_KEYS=[f"bottle_{i}_{c}" for i in range(4) for c in BOTTLE_COLS]
+_PART_MATS={}
+def _part_mat(name,rgb,rough,img=None):
+    """Shared decoration materials (liquid / cork / label), created once."""
+    if name in _PART_MATS: return _PART_MATS[name]
+    import bpy
+    m=bpy.data.materials.new(name); m.use_nodes=True
+    b=m.node_tree.nodes["Principled BSDF"]; b.inputs["Roughness"].default_value=rough; b.inputs["Metallic"].default_value=0.0
+    if img:
+        t=m.node_tree.nodes.new("ShaderNodeTexImage"); t.image=bpy.data.images.load(img)
+        m.node_tree.links.new(t.outputs["Color"],b.inputs["Base Color"])
+    else: b.inputs["Base Color"].default_value=(*rgb,1)
+    _PART_MATS[name]=m; return m
+def _join_part(obj,verts,faces,mat,uvs=None):
+    """Append one decoration part to a library object: build a temp mesh from
+    raw geometry (bottle_spec output, Blender space) and join it in, so the
+    part becomes an extra material slot / glTF primitive of the SAME mesh —
+    the console's one-InstancedMesh-per-mesh mapping is untouched."""
+    import bpy
+    me=bpy.data.meshes.new("part"); me.from_pydata(verts,[],faces); me.update()
+    if uvs:
+        lay=me.uv_layers.new(name="UVMap")
+        flat=[c for f in faces for vi in f for c in (uvs[vi][0],1.0-uvs[vi][1])]   # spec UVs are glTF-style (v=0 top); Blender wants v=0 bottom
+        lay.data.foreach_set("uv",flat)
+    me.materials.append(mat)
+    po=bpy.data.objects.new("part",me); bpy.context.scene.collection.objects.link(po)
+    for o in bpy.context.selected_objects: o.select_set(False)
+    obj.select_set(True); po.select_set(True); bpy.context.view_layer.objects.active=obj
+    bpy.ops.object.join()
+def decorate_bottle(obj,shape,fam,key):
+    """Glass alpha + liquid + label + cork for one bottle variant, all from
+    bottle_spec (the same tables the GLB bridge applies)."""
+    import bottle_spec as spec
+    b=obj.data.materials[0].node_tree.nodes["Principled BSDF"]
+    b.inputs["Alpha"].default_value=spec.FAMILIES[fam]["glass_alpha"]
+    for attr,val in (("surface_render_method","BLENDED"),("blend_method","BLEND")):
+        try: setattr(obj.data.materials[0],attr,val)
+        except Exception: pass
+    prof=spec.profile_from_points([tuple(v.co) for v in obj.data.vertices],step=0.01)
+    top=max(v.co.z for v in obj.data.vertices)   # exact lip height (the profile grid rounds to 1 cm)
+    lv,lf=spec.liquid_geometry(prof,spec.fill_for(key,shape))
+    _join_part(obj,lv,lf,_part_mat(f"LQ_{fam}",spec.FAMILIES[fam]["liquid"],spec.LIQUID_ROUGH))
+    lab_png=os.path.join(HERE,"tex","labels",f"{fam}.png")
+    if not os.path.exists(lab_png):
+        raise RuntimeError(f"missing label art {lab_png} — generate it with system python first: "
+                           "python3 -c \"import bottle_spec,os; [open(f'tex/labels/{f}.png','wb').write(bottle_spec.make_label_png(f)) for f in bottle_spec.FAMILIES]\" "
+                           "(PIL lives outside Blender in this pipeline, like textures.py)")
+    z0,z1=spec.SHAPES[shape]["label"]; rband=max(r for (z,r) in prof if z0-0.01<=z<=z1+0.01)
+    gv,gf,guv=spec.label_geometry(rband,z0,z1)
+    _join_part(obj,gv,gf,_part_mat(f"LABEL_{fam}",None,spec.LABEL_ROUGH,img=lab_png),uvs=guv)
+    neck_r=min(r for (z,r) in prof if z>=top-0.012 and r>0.005)
+    cv,cf=spec.cork_geometry(neck_r,top)
+    _join_part(obj,cv,cf,_part_mat("CORK",spec.CORK_RGB,spec.CORK_ROUGH))
 def build_bottles():
     import assets_kit
     for i,(nm,h) in enumerate(BOTTLE_SHAPES):
         for c,rgb in BOTTLE_COLS.items():
             k=f"bottle_{i}_{c}"
-            if k not in assets_kit.LIB: assets_kit.load_blend(k,BOTTLE_BLEND,nm,h,rgb,rough=0.12 if c!="clear" else 0.05,src_id="blendswap:33793")
+            if k not in assets_kit.LIB:
+                assets_kit.load_blend(k,BOTTLE_BLEND,nm,h,rgb,rough=0.12 if c!="clear" else 0.05,src_id="blendswap:33793")
+                decorate_bottle(assets_kit.LIB[k]["obj"],i,c,k)
 def _origin(): return Frame((0,0),(1,0),(0,-1),0.0)
 def piece(name,fn):
     with grp("LIB_"+name): fn(_origin())
