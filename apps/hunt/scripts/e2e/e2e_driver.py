@@ -204,6 +204,11 @@ with sync_playwright() as pw:
     anchor_tried = False
     recoveries = 0
 
+    # Route fact from the hunt v0 tracks: the market wall at x~-14.6 spans
+    # z~29-43 (two wedges measured); every v0 run crossed westbound at
+    # z = 15.2. Take that gap first, then hop greedily on the west side.
+    forced_first = [-16.5, 15.2]
+
     def do_leg(action, label):
         global last_pos, recoveries
         before = last_pos
@@ -225,6 +230,10 @@ with sync_playwright() as pw:
     for leg_no in range(24):
         if won["via"] or dist_to_spot(last_pos) <= 1.5:
             break
+        if forced_first is not None:
+            target_point, forced_first = forced_first, None
+            do_leg({"type": "go_to", "point": target_point}, "crossing z=15.2 (v0 gap)")
+            continue
         d = dist_to_spot(last_pos)
         if d <= 18:
             action = {"type": "go_to", "point": [SPOT[0], SPOT[1]]}
