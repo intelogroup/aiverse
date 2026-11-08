@@ -22,6 +22,37 @@ export function findOrCreateUser(db: Database, emailRaw: string, now: number): U
   return getUserById(db, id)!;
 }
 
+export interface GatewayIdentity {
+  ownerId: string;
+  email: string;
+  displayName: string;
+}
+
+/**
+ * Gateway identity path (SPEC §4 merge path; GATEWAY-INTEGRATION §d):
+ * resolve the hunt user for a verified gateway owner. Adoption, not
+ * duplication: an existing magic-link account with the same email is
+ * linked (gateway_owner_id set) and keeps its id + claim history.
+ */
+export function userForGatewayOwner(db: Database, identity: GatewayIdentity, now: number): UserRow {
+  const byOwner = db
+    .query("SELECT * FROM hunt_users WHERE gateway_owner_id = ?")
+    .get(identity.ownerId) as UserRow | null;
+  if (byOwner) return byOwner;
+  const email = identity.email.trim().toLowerCase();
+  const byEmail = db.query("SELECT * FROM hunt_users WHERE email = ?").get(email) as UserRow | null;
+  if (byEmail) {
+    db.query("UPDATE hunt_users SET gateway_owner_id = ? WHERE id = ?").run(identity.ownerId, byEmail.id);
+    return getUserById(db, byEmail.id)!;
+  }
+  const id = newId();
+  const display = identity.displayName.trim() || email.split("@")[0] || "hunter";
+  db.query(
+    "INSERT INTO hunt_users (id, email, display_name, created_at, gateway_owner_id) VALUES (?,?,?,?,?)",
+  ).run(id, email, display, now, identity.ownerId);
+  return getUserById(db, id)!;
+}
+
 /** Always succeeds silently at the HTTP layer (no account enumeration). */
 export async function requestMagicLink(
   db: Database,

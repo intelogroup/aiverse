@@ -14,7 +14,9 @@ import {
   bearerToken,
   consumeMagicLink,
   requestMagicLink,
+  userForGatewayOwner,
   userForSession,
+  type GatewayIdentity,
 } from "./auth";
 import { evaluateClaim, listWins, RateLimiter, type ClaimResult } from "./claims";
 import { decryptCode, encryptCode } from "./custody";
@@ -32,12 +34,30 @@ import {
 import { newId } from "./tokens";
 import { tickOnce } from "./ticker";
 
+export type { GatewayIdentity };
+
+/**
+ * Injected by the host when embedded (GATEWAY-INTEGRATION §d): verifies a
+ * gateway session JWT and returns the owner identity, or null. The hunt
+ * app never imports gateway code — the gateway passes a closure over its
+ * own session verifier at mount time.
+ */
+export type VerifyGatewayToken = (token: string) => Promise<GatewayIdentity | null>;
+
 export interface AppDeps {
   db: Database;
   cfg: HuntConfig;
   mailer: Mailer;
   codeKey: Buffer;
   limiter?: RateLimiter;
+  /** Primary identity path when mounted inside the gateway. */
+  verifyGatewayToken?: VerifyGatewayToken;
+  /**
+   * Mount option (GATEWAY-INTEGRATION §b.6): when false, the host's CORS
+   * layer governs and the hunt app adds none of its own. Default true
+   * (standalone posture unchanged).
+   */
+  cors?: boolean;
 }
 
 interface Vars {
@@ -95,19 +115,31 @@ export function buildApp(deps: AppDeps): Hono<{ Variables: Vars }> {
   const limiter = deps.limiter ?? new RateLimiter();
   const app = new Hono<{ Variables: Vars }>();
 
-  app.use(
-    "*",
-    cors({
-      origin: (origin) => (cfg.corsOrigins.includes(origin) ? origin : cfg.corsOrigins[0]),
-      allowMethods: ["GET", "POST", "PATCH", "PUT"],
-      allowHeaders: ["Authorization", "Content-Type", "If-None-Match"],
-      exposeHeaders: ["ETag"],
-    }),
-  );
+  if (deps.cors !== false) {
+    app.use(
+      "*",
+      cors({
+        origin: (origin) => (cfg.corsOrigins.includes(origin) ? origin : cfg.corsOrigins[0]),
+        allowMethods: ["GET", "POST", "PATCH", "PUT"],
+        allowHeaders: ["Authorization", "Content-Type", "If-None-Match"],
+        exposeHeaders: ["ETag"],
+      }),
+    );
+  }
 
   const requireUser = async (c: any, next: any) => {
     const token = bearerToken(c.req.header("Authorization"));
-    const user = token ? userForSession(db, token, Date.now()) : null;
+    let user: UserRow | null = null;
+    // Primary path (gateway embed, GATEWAY-INTEGRATION §d): a gateway
+    // owner JWT — three dot-separated segments, unlike the opaque hunt
+    // session tokens — is verified through the injected verifier and
+    // resolves (or creates/adopts) the hunt user by gateway_owner_id.
+    if (token && deps.verifyGatewayToken && token.split(".").length === 3) {
+      const identity = await deps.verifyGatewayToken(token).catch(() => null);
+      if (identity) user = userForGatewayOwner(db, identity, Date.now());
+    }
+    // Fallback: hunt's own magic-link session (§4), unchanged.
+    if (!user && token) user = userForSession(db, token, Date.now());
     if (!user) return c.json(err("unauthorized"), 401);
     c.set("user", user);
     await next();

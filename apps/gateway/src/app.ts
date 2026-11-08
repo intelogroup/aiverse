@@ -21,6 +21,7 @@ import { reportsRoute } from "./routes/reports";
 import { bazaarRoute } from "./routes/bazaar";
 import { createMcpRoute } from "./routes/mcp";
 import { registerAgentWsRoute, registerConsoleWsRoute, registerPublicWsRoute } from "./ws/gateway";
+import { getHuntRuntime, huntEnabled } from "./hunt";
 import { log, logError } from "./util/log";
 import pkg from "../package.json";
 
@@ -185,6 +186,15 @@ export function createApp() {
   // entirely (404, not a 500 from a missing-table error).
   if (process.env.AIVERSE_BAZAAR_MODE === "1") {
     app.route("/", bazaarRoute);
+  }
+  // Hunt (apps/hunt/GATEWAY-INTEGRATION.md): the same conditional-mount
+  // idiom — AIVERSE_HUNT_MODE=1 mounts the hunt sub-app at "/"; unset =
+  // routes absent entirely. The gateway's own /health + /version above
+  // were registered first and stay authoritative (the hunt app carries
+  // its own /health for standalone use; here it is shadowed by design).
+  if (huntEnabled()) {
+    const hunt = getHuntRuntime();
+    if (hunt) app.route("/", hunt.app);
   }
   app.route("/mcp", createMcpRoute((path, authorization) => app.request(path, { headers: { authorization } })));
   registerAgentWsRoute(app);

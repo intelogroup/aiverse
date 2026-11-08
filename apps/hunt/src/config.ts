@@ -61,7 +61,10 @@ function finish(
   if (emailMode !== "log" && emailMode !== "resend") {
     throw new Error(`HUNT_EMAIL_MODE invalid: ${env.HUNT_EMAIL_MODE}`);
   }
-  if (emailMode === "resend" && core.isProd && !env.RESEND_API_KEY) {
+  // GATEWAY-INTEGRATION §e: the hunt-specific key wins; the gateway host's
+  // account key (RESEND_API_KEY) is the fallback when embedded.
+  const resendApiKey = env.HUNT_RESEND_API_KEY ?? env.RESEND_API_KEY ?? null;
+  if (emailMode === "resend" && core.isProd && !resendApiKey) {
     throw new Error("RESEND_API_KEY required when HUNT_EMAIL_MODE=resend in production");
   }
   const origins = (env.HUNT_CORS_ORIGINS ??
@@ -75,7 +78,7 @@ function finish(
     adminToken: core.adminToken,
     codeKey: core.codeKey,
     emailMode,
-    resendApiKey: env.RESEND_API_KEY ?? null,
+    resendApiKey,
     emailFrom: env.HUNT_EMAIL_FROM ?? "hunt@aiverse.network",
     publicBase: env.HUNT_PUBLIC_BASE ?? `http://localhost:${core.port}`,
     consoleUrl: env.HUNT_CONSOLE_URL ?? "http://localhost:5173",
