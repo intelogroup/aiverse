@@ -5,7 +5,8 @@ import { CastFigure } from "./CastFigure";
 import { BODY_SUMMER } from "./bodies";
 import type { WalkColliders } from "./walkColliders";
 import { newWalkerFrame, useWalkWorld, writeWalkerFrame } from "./walkerBody";
-import { COLLIDE_FLOOR, resolveCamera } from "./cameraCollision";
+import { followAvatarVisible, resolveDistance, stepDistance } from "./cameraCollision";
+import { CameraClearance } from "./cameraClearance";
 import { DAMP_FOV, DAMP_POS_FOLLOW, FOV_RIDE, FOV_WIDE, EYE_FORWARD, FOLLOW_BACK, FOLLOW_LOOK_UP, FOLLOW_UP, HEAD_HEIGHT, RIDE_LOOK_AHEAD, damp } from "./cameraRig";
 import type { AgentFrame } from "./locomotion";
 import { findSpawn, makeWalker, step, type WalkInput } from "./walker";
@@ -113,6 +114,7 @@ export function CityWalker({
   const frames = useRef<AgentFrame[]>([newWalkerFrame()]);
   const figure = useRef<THREE.Group>(null);
   const rig = useRef<{ mode: WalkMode; y: number; pos: THREE.Vector3; look: THREE.Vector3; shown: number } | null>(null);
+  const clearance = useRef(new CameraClearance());
   const modeRef = useRef(mode);
   modeRef.current = mode;
   const cbs = useRef({ onMode, onExit, onPosition });
@@ -327,22 +329,24 @@ export function CityWalker({
       const tx = s.x, ty = r.y + FOLLOW_LOOK_UP, tz = s.z;
       // Camera behind/above; pitch (mouse up) lowers it, down raises it.
       const want: [number, number, number] = [s.x - sn * FOLLOW_BACK, r.y + FOLLOW_UP - pitch.current * 1.6, s.z - cs * FOLLOW_BACK];
-      // Keep it out of walls (CameraCollider is wide-mode only): one ray from the chest to the wanted spot.
+      // Sweep the near-plane footprint. Collision snaps inward; only recovery eases out.
       const from = new THREE.Vector3(tx, ty, tz);
       const d = new THREE.Vector3(want[0] - tx, want[1] - ty, want[2] - tz);
       const len = d.length();
       d.multiplyScalar(1 / len);
-      const rc = Object.assign(new THREE.Raycaster(from, d, 0, len), { firstHitOnly: true });
-      const hit = rc.intersectObjects(meshes, false)[0];
-      const allowed = resolveCamera([tx, ty, tz], want, hit ? hit.distance : null, 0.25, COLLIDE_FLOOR);
-      r.pos.set(
-        damp(r.pos.x, allowed[0], 10, dt),
-        damp(r.pos.y, allowed[1], 10, dt),
-        damp(r.pos.z, allowed[2], 10, dt),
-      );
+      const hit = clearance.current.hitDistance(from, new THREE.Vector3(...want), camera, meshes);
+      const allowed = resolveDistance(len, hit, 0.25);
+      r.shown = stepDistance(Math.min(r.shown, len), allowed, dt);
+      r.pos.copy(from).addScaledVector(d, r.shown);
       camera.position.copy(r.pos);
       r.look.set(tx, ty, tz);
+      // A wall can collapse clearance to zero; keep the intended heading when
+      // camera and target coincide instead of letting lookAt choose a default axis.
+      if (r.shown < 1e-4) r.look.addScaledVector(d, -1);
       camera.lookAt(r.look);
+    }
+    if (figure.current) {
+      figure.current.visible = m === "follow" && followAvatarVisible(figure.current.visible, r.shown);
     }
     const targetFov = m === "ride" ? FOV_RIDE : FOV_WIDE;
     // Mobile Phase 4: under reduced motion there is no FOV kick —

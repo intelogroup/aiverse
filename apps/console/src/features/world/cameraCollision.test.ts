@@ -2,9 +2,18 @@
 // Pure math only — same header discipline as the sibling suites.
 
 import { describe, expect, it } from "vitest";
-import { COLLIDE_FLOOR, resolveCamera, resolveDistance, stepDistance } from "./cameraCollision";
+import { COLLIDE_FLOOR, followAvatarVisible, resolveCamera, resolveDistance, stepDistance } from "./cameraCollision";
 
 const close = (a: number[], b: number[]) => a.forEach((v, i) => expect(v).toBeCloseTo(b[i], 6));
+
+describe("local follow avatar visibility", () => {
+  it("hides before the camera enters the torso and restores after it clears", () => {
+    expect(followAvatarVisible(true, 0.6)).toBe(false);
+    expect(followAvatarVisible(false, 0.9)).toBe(false);
+    expect(followAvatarVisible(false, 1.1)).toBe(true);
+    expect(followAvatarVisible(true, 0.9)).toBe(true);
+  });
+});
 
 describe("resolveCamera", () => {
   const target = [0, 1, 0] as const;
@@ -28,9 +37,10 @@ describe("resolveCamera", () => {
     close(resolveCamera(target, desired, 10.2), [0, 1, 10.2 - 0.35]);
   });
 
-  it("a hit right at the target clamps to the floor distance, not through it", () => {
-    close(resolveCamera(target, desired, 0.1), [0, 1, COLLIDE_FLOOR]);
-    close(resolveCamera(target, desired, 0), [0, 1, COLLIDE_FLOOR]);
+  it("a hit inside the preferred floor never pushes the camera through the obstacle", () => {
+    close(resolveCamera(target, desired, 0.1), [0, 1, 0]);
+    close(resolveCamera(target, desired, 0), [0, 1, 0]);
+    expect(resolveDistance(10, 0.5)).toBeLessThan(COLLIDE_FLOOR);
   });
 
   it("follows a diagonal ray", () => {
@@ -44,7 +54,7 @@ describe("resolveCamera", () => {
   });
 
   it("never pushes a camera closer than the floor outwards", () => {
-    expect(resolveDistance(0.3, 0.1)).toBeCloseTo(0.3, 6);
+    expect(resolveDistance(0.3, 0.1)).toBe(0);
   });
 });
 

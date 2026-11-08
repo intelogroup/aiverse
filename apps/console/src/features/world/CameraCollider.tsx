@@ -3,6 +3,8 @@ import { useRef } from "react";
 import * as THREE from "three";
 import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from "three-mesh-bvh";
 import { resolveDistance, stepDistance } from "./cameraCollision";
+import { CameraClearance } from "./cameraClearance";
+import { cameraInstanceRaycast } from "./cameraInstanceRaycast";
 
 // BVH extension methods on geometries (only meshes we build a tree for use it). Mesh.prototype.raycast is NOT
 // patched globally: collider meshes get acceleratedRaycast per instance, everything else keeps three's raycast.
@@ -12,12 +14,12 @@ THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
 
 const SKIP = /water|foliage|shallow/i;
 
-/** Non-instanced meshes of `root` that should block the camera (water, foliage, shallows and InstancedMesh skipped). */
+/** Solid meshes of `root` that should block the camera, including instanced props. */
 function collidable(root: THREE.Object3D): THREE.Mesh[] {
   const out: THREE.Mesh[] = [];
   root.traverse((o) => {
     const m = o as THREE.Mesh;
-    if (!m.isMesh || (o as THREE.InstancedMesh).isInstancedMesh || (o as THREE.SkinnedMesh).isSkinnedMesh) return;
+    if (!m.isMesh || (o as THREE.SkinnedMesh).isSkinnedMesh) return;
     if (SKIP.test(m.name)) return;
     const mats = Array.isArray(m.material) ? m.material : [m.material];
     if (mats.some((x) => SKIP.test(x.name))) return;
@@ -33,7 +35,7 @@ export function buildColliders(root: THREE.Object3D): { meshes: THREE.Mesh[]; ms
   const meshes = collidable(root);
   for (const m of meshes) {
     if (!m.geometry.boundsTree) m.geometry.computeBoundsTree();
-    m.raycast = acceleratedRaycast;
+    m.raycast = (m as THREE.InstancedMesh).isInstancedMesh ? cameraInstanceRaycast : acceleratedRaycast;
   }
   return { meshes, ms: performance.now() - t0 };
 }
@@ -47,8 +49,8 @@ type Controls = { target: THREE.Vector3; enabled: boolean };
  * from camera.position every update, so clamping the camera in place would make the clamp permanent. Instead:
  *   priority -2 (before controls.update): put back the user's unclamped position if we moved it last frame and nobody
  *     else moved it since (cam() / hero focus overrides win);
- *   priority 0  (after controls.update, before render): record that position as the desired one, cast one
- *     firstHitOnly ray target->camera over the BVH meshes, snap in on a hit, ease out (rate 6) when clear.
+ *   priority 0  (after controls.update, before render): record that position as the desired one, sweep the
+ *     near-plane footprint over the collision meshes, snap in on a hit, ease out (rate 6) when clear.
  * OrbitControls damping and zoom therefore keep acting on the desired distance; only the drawn position is clamped.
  * Priorities stay <= 0 so R3F keeps its own render loop.
  */
@@ -58,7 +60,7 @@ export function CameraCollider({ getMeshes, enabled, stats }: { getMeshes: () =>
   const desired = useRef(new THREE.Vector3());
   const applied = useRef<THREE.Vector3 | null>(null);
   const shown = useRef<number | null>(null);
-  const ray = useRef<THREE.Raycaster | null>(null);
+  const clearance = useRef(new CameraClearance());
   const dir = useRef(new THREE.Vector3());
 
   useFrame(() => {
@@ -76,13 +78,11 @@ export function CameraCollider({ getMeshes, enabled, stats }: { getMeshes: () =>
     const len = d.length();
     if (len < 1e-6 || meshes.length === 0) { shown.current = len; return; }
     d.multiplyScalar(1 / len);
-    const rc = (ray.current ??= Object.assign(new THREE.Raycaster(), { firstHitOnly: true }));
-    rc.set(t, d); rc.near = 0; rc.far = len;
     const t0 = performance.now();
-    const hit = rc.intersectObjects(meshes, false)[0];
+    const hit = clearance.current.hitDistance(t, desired.current, camera, meshes);
     stats.colliderMs += performance.now() - t0; stats.colliderFrames++;
-    if (hit) stats.colliderHits++;
-    const allowed = resolveDistance(len, hit ? hit.distance : null);
+    if (hit !== null) stats.colliderHits++;
+    const allowed = resolveDistance(len, hit);
     const next = stepDistance(Math.min(shown.current ?? len, len), allowed, dt);
     shown.current = next;
     if (next < len - 1e-4) {
