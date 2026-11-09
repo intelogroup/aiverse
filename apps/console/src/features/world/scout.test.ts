@@ -418,3 +418,93 @@ describe("oracleScene: interactables", () => {
     expect(touch.find((x) => x.kind === "interactable")).toMatchObject({ state: "on" }); // 1.5 m: perceived regardless of the cone
   });
 });
+
+describe("executor: L-A routed movement", () => {
+  it("follows the route's waypoints instead of the straight line", async () => {
+    // The navigator returns a dogleg: north to z=-66, east, then south to
+    // the target. A greedy walker would stay near z=-78.5 the whole way;
+    // a routed one must pass the dogleg corner (-22, -66).
+    const events: { reason: string }[] = [];
+    const exec = new ScoutExecutor({
+      places: PLACES,
+      sittables: [SITTING],
+      clips: new ClipTestState(),
+      hipsY: 0.718,
+      nav: {
+        route: (from, to) => ({
+          waypoints: [
+            [from.x, -66],
+            [to.x, -66],
+          ],
+          distance: 40,
+        }),
+      },
+      onRouteBlocked: (info) => events.push(info),
+    });
+    const s = makeWalker(-22.0, 0.2, -78.5, 0);
+    let settled = false;
+    let outcome: { status: string } | null = null;
+    void exec.submit({ type: "go_to", point: [-10, -78.5] }, s).then((o) => {
+      settled = true;
+      outcome = o as { status: string };
+    });
+    const world = fakeWorld();
+    let sawCorner = false;
+    for (let t = 0; t < 120 && !settled; t += 1 / 60) {
+      exec.tick(1 / 60, s, world);
+      if (Math.hypot(s.x - -22, s.z - -66) < 1.2) sawCorner = true;
+      await Promise.resolve();
+    }
+    expect(settled).toBe(true);
+    expect(outcome!.status).toBe("arrived");
+    expect(sawCorner).toBe(true); // it walked the dogleg, not the straight line
+    expect(events).toEqual([]);
+  });
+
+  it("settles blocked immediately and fires the event when no route exists", async () => {
+    const events: { reason: string; target?: string }[] = [];
+    const exec = new ScoutExecutor({
+      places: PLACES,
+      sittables: [SITTING],
+      clips: new ClipTestState(),
+      hipsY: 0.718,
+      nav: { route: () => null },
+      onRouteBlocked: (info) => events.push(info),
+    });
+    const s = makeWalker(0, 0.2, 0, 0);
+    const out = (await drive(exec, s, fakeWorld(), exec.submit({ type: "go_to", place: "stall-0" }, s))) as {
+      status: string;
+      detail?: string;
+    };
+    expect(out.status).toBe("blocked");
+    expect(out.detail).toContain("no route");
+    expect(events).toEqual([{ reason: "no-route", target: "stall-0", from: [0, 0], to: [-17, 15.2] }]);
+  });
+
+  it("budgets the action clock by path distance, not euclidean", async () => {
+    // The route's single waypoint is far away, so the walk never arrives
+    // and only the clock can end the action. Route distance 300 m budgets
+    // min(240, 300/0.8 + 25) = 240 s; the euclidean distance to stall-0
+    // (~26 m) would budget ~58 s. After 70 s of walking the action must
+    // still be pending — proof the path distance drove the budget.
+    const exec = new ScoutExecutor({
+      places: PLACES,
+      sittables: [SITTING],
+      clips: new ClipTestState(),
+      hipsY: 0.718,
+      nav: { route: () => ({ waypoints: [[500, 500]], distance: 300 }) },
+    });
+    const s = makeWalker(0, 0.2, 0, 0);
+    let settled = false;
+    void exec.submit({ type: "go_to", place: "stall-0" }, s).then(() => {
+      settled = true;
+    });
+    const world = fakeWorld();
+    for (let t = 0; t < 70 && !settled; t += 1 / 60) {
+      exec.tick(1 / 60, s, world);
+      await Promise.resolve();
+    }
+    expect(settled).toBe(false);
+    expect(s.speed).toBeGreaterThan(0.5); // it really was walking the whole time
+  });
+});

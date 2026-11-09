@@ -15,13 +15,19 @@
 // Run from apps/console (needs its node_modules) or with NODE_PATH set.
 
 import { createHash } from "node:crypto";
-import { readFileSync, writeFileSync, statSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { readFileSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { init, NavMeshQuery, exportNavMesh, getNavMeshPositionsAndIndices } from "recast-navigation";
-import { generateTiledNavMesh } from "recast-navigation/generators";
 
+// Repo pattern for tools (see tools/city3/tea_house/check.mjs): import
+// packages by absolute path out of apps/console/node_modules.
 const HERE = dirname(fileURLToPath(import.meta.url));
+const ROOT = resolve(HERE, "..", "..", "..");
+const NM = join(ROOT, "apps", "console", "node_modules");
+const { init, NavMeshQuery, exportNavMesh, getNavMeshPositionsAndIndices } = await import(
+  join(NM, "recast-navigation", "index.mjs")
+);
+const { generateTiledNavMesh } = await import(join(NM, "recast-navigation", "generators.mjs"));
 const ASSETS = join(HERE, "..", "..", "..", "apps", "console", "public", "assets");
 const outDir = process.argv.includes("--out")
   ? process.argv[process.argv.indexOf("--out") + 1]
@@ -80,20 +86,21 @@ console.log(`bake: ${Date.now() - t0} ms`);
 // ---- stats: polys, tiles, walkable area (from the detail geometry) ----
 let polyCount = 0;
 let tileCount = 0;
-const maxTiles = navMesh.getMaxTiles?.() ?? 0;
+const maxTiles = navMesh.getMaxTiles();
 for (let i = 0; i < maxTiles; i++) {
   const tile = navMesh.getTile(i);
-  if (tile?.data?.header && tile.data.header.polyCount > 0) {
+  const header = tile?.header?.();
+  if (header && header.polyCount() > 0) {
     tileCount++;
-    polyCount += tile.data.header.polyCount;
+    polyCount += header.polyCount();
   }
 }
-const dbg = getNavMeshPositionsAndIndices(navMesh);
+const [dbgPositions, dbgIndices] = getNavMeshPositionsAndIndices(navMesh);
 let walkableArea = 0;
-for (let i = 0; i < dbg.indices.length; i += 3) {
-  const a = dbg.indices[i] * 3, b = dbg.indices[i + 1] * 3, c = dbg.indices[i + 2] * 3;
-  const ux = dbg.positions[b] - dbg.positions[a], uz = dbg.positions[b + 2] - dbg.positions[a + 2];
-  const vx = dbg.positions[c] - dbg.positions[a], vz = dbg.positions[c + 2] - dbg.positions[a + 2];
+for (let i = 0; i < dbgIndices.length; i += 3) {
+  const a = dbgIndices[i] * 3, b = dbgIndices[i + 1] * 3, c = dbgIndices[i + 2] * 3;
+  const ux = dbgPositions[b] - dbgPositions[a], uz = dbgPositions[b + 2] - dbgPositions[a + 2];
+  const vx = dbgPositions[c] - dbgPositions[a], vz = dbgPositions[c + 2] - dbgPositions[a + 2];
   walkableArea += 0.5 * Math.abs(ux * vz - vx * uz);
 }
 

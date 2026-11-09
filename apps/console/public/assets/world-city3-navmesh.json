@@ -1,0 +1,51 @@
+{
+ "version": 1,
+ "district": "bazaar",
+ "artifact": "world-city3-navmesh.bin",
+ "bytes": 2265692,
+ "source": {
+  "glb": "world-city3-collision.glb",
+  "glbBytes": 1755108,
+  "glbSha256": "93b1ef5e9bd3738bc151bd40f4a93da3df4a019907dacf8112beab6a0783ed4e",
+  "geomVerts": 37006,
+  "geomTris": 34764
+ },
+ "params": {
+  "agentRadius": 0.35,
+  "agentHeight": 1.8,
+  "maxClimb": 0.4,
+  "maxSlopeDeg": 45,
+  "cellSize": 0.2,
+  "cellHeight": 0.2,
+  "tileSizeM": 51.2,
+  "walkableHeightVoxels": 9,
+  "walkableClimbVoxels": 2,
+  "walkableRadiusVoxels": 2,
+  "tileSizeVoxels": 256,
+  "maxSimplificationError": 0.8
+ },
+ "result": {
+  "polyCount": 15361,
+  "tileCount": 64,
+  "walkableAreaM2": 154934.5,
+  "bounds": {
+   "min": [
+    -181,
+    -3,
+    -181
+   ],
+   "max": [
+    181,
+    38.20000076293945,
+    181
+   ]
+  },
+  "plazaProbe": {
+   "x": 0,
+   "y": 1.200000286102295,
+   "z": 0.40000343322753906
+  }
+ },
+ "generator": "recast-navigation 0.44.0 (generateTiledNavMesh + exportNavMesh)",
+ "rebake": "tools/city3/navmesh/extract_collision.py && node tools/city3/navmesh/bake_navmesh.mjs"
+}

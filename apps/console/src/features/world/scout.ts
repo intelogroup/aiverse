@@ -289,6 +289,10 @@ interface Pending {
   /** Seconds left before the action times out (or completes, for wait/play). */
   tLeft: number;
   target?: Vec2;
+  /** L-A: remaining route waypoints (XZ); the last leg steers at `target`. */
+  waypoints?: Vec2[];
+  /** True when this action planned a route (blocked events are routed-only). */
+  routed?: boolean;
   targetId?: string;
   run?: boolean;
   bestDist: number;
@@ -307,9 +311,38 @@ const SIT_DOWN_S = clipDef("SitDown")?.duration ?? 2.2333;
 const STAND_UP_S = clipDef("StandUp")?.duration ?? 2.2667;
 const ZERO_INPUT = { forward: 0, strafe: 0, turn: 0, run: false };
 
+/**
+ * L-A navmesh routing (cityNav.ts): given a start and a goal, the route's
+ * waypoints in XZ and the true travel distance along them — or null when
+ * no corridor exists. The executor follows the waypoints with the same
+ * intent seam it always used; only the steering target changes.
+ */
+export interface ScoutNavigator {
+  route(
+    from: { x: number; y: number; z: number },
+    to: { x: number; y: number; z: number },
+  ): { waypoints: Vec2[]; distance: number } | null;
+}
+
+/** A "route blocked" event: the blackboard hook for failed navigation. */
+export interface RouteBlockedInfo {
+  target?: string;
+  from: Vec2;
+  to: Vec2;
+  reason: "no-route" | "stalled";
+}
+
 export interface ExecutorDeps {
   places: ScoutPlace[];
   sittables: Sittable[];
+  /**
+   * L-A: when present, walk-to actions plan a Detour route first. No route
+   * settles the action "blocked" immediately (and fires onRouteBlocked)
+   * instead of walking into a wall and stalling out 25 s later.
+   */
+  nav?: ScoutNavigator;
+  /** Blackboard hook: fired on no-route and on a routed walk that stalls. */
+  onRouteBlocked?: (info: RouteBlockedInfo) => void;
   /** The figure's clip tester (clips.ts): the executor fires sit/play clips. */
   clips: { fire: (name: string) => boolean; current: string | null };
   /** The body's measured hips height (for the seated drop in frameOverride). */
@@ -397,11 +430,17 @@ export class ScoutExecutor {
         }
         const dist = Math.hypot(target.pos[0] - state.x, target.pos[1] - state.z);
         const run = action.type === "run_to";
+        const plan = this.planRoute(state, target.pos, target.id, dist);
+        if (plan === "blocked") {
+          return Promise.resolve({ ok: false, status: "blocked", target: target.id, detail: "no route to target" });
+        }
         return this.begin(action, state, {
           target: target.pos,
           targetId: target.id,
           run,
-          tLeft: Math.min(240, dist / (run ? 1.6 : 0.8) + 25),
+          waypoints: plan.waypoints,
+          routed: plan.routed,
+          tLeft: Math.min(240, plan.dist / (run ? 1.6 : 0.8) + 25),
           bestDist: dist,
         });
       }
@@ -440,12 +479,18 @@ export class ScoutExecutor {
         const def = ia.defs().find((d) => d.id === action.target || d.kind === action.target || d.label.toLowerCase() === action.target.toLowerCase());
         if (!def) return Promise.resolve({ ok: false, status: "unavailable", detail: `unknown prop: ${action.target}` });
         const dist = Math.hypot(def.stand[0] - state.x, def.stand[1] - state.z);
+        const plan = this.planRoute(state, def.stand, def.id, dist);
+        if (plan === "blocked") {
+          return Promise.resolve({ ok: false, status: "blocked", target: def.id, detail: "no route to the prop" });
+        }
         return this.begin(action, state, {
           phase: "to-stand",
           target: def.stand,
           targetId: def.id,
           run: false,
-          tLeft: Math.min(180, dist / 0.8 + 30),
+          waypoints: plan.waypoints,
+          routed: plan.routed,
+          tLeft: Math.min(180, plan.dist / 0.8 + 30),
           bestDist: dist,
         });
       }
@@ -464,13 +509,19 @@ export class ScoutExecutor {
           });
         }
         const dist = Math.hypot(sittable.approach[0] - state.x, sittable.approach[1] - state.z);
+        const plan = this.planRoute(state, sittable.approach, sittable.id, dist);
+        if (plan === "blocked") {
+          return Promise.resolve({ ok: false, status: "blocked", target: sittable.id, detail: "no route to the seat" });
+        }
         return this.begin(action, state, {
           sittable,
           phase: "to-approach",
           target: sittable.approach,
           targetId: sittable.id,
           run: false,
-          tLeft: Math.min(180, dist / 0.8 + 30),
+          waypoints: plan.waypoints,
+          routed: plan.routed,
+          tLeft: Math.min(180, plan.dist / 0.8 + 30),
           bestDist: dist,
         });
       }
@@ -484,6 +535,29 @@ export class ScoutExecutor {
         return this.begin(action, state, { sittable, phase: "up", phaseT: 0, tLeft: STAND_UP_S + 10 });
       }
     }
+  }
+
+  /**
+   * Plan a route to `targetPos` when a navigator is wired. Returns the
+   * extras for begin() — waypoints, plus the distance to budget the
+   * action clock by (path distance when routed, euclidean otherwise) —
+   * or "blocked" when no corridor exists (the route-blocked event fires
+   * here, exactly once).
+   */
+  private planRoute(
+    state: WalkerState,
+    targetPos: Vec2,
+    targetId: string | undefined,
+    euclidDist: number,
+  ): { waypoints?: Vec2[]; routed?: boolean; dist: number } | "blocked" {
+    const nav = this.deps.nav;
+    if (!nav) return { dist: euclidDist };
+    const r = nav.route({ x: state.x, y: state.y, z: state.z }, { x: targetPos[0], y: state.y, z: targetPos[1] });
+    if (!r) {
+      this.deps.onRouteBlocked?.({ target: targetId, from: [state.x, state.z], to: targetPos, reason: "no-route" });
+      return "blocked";
+    }
+    return { waypoints: r.waypoints, routed: true, dist: r.distance };
   }
 
   private resolveTarget(action: { place?: string; point?: Vec2 }): { pos: Vec2; id?: string } | null {
@@ -642,7 +716,20 @@ export class ScoutExecutor {
         }
         const target = p.target!;
         const arriveR = p.phase === "to-approach" || p.phase === "to-stand" ? 0.25 : 0.45;
-        const { input, arrived } = moveToIntent(state, target, arriveR, !!p.run);
+        // L-A: steer at the route's next waypoint; the raw target is only
+        // the final leg (or the whole walk when unrouted). Intermediate
+        // waypoints are consumed as the body passes them.
+        let steer = target;
+        if (p.waypoints && p.waypoints.length > 0) {
+          while (
+            p.waypoints.length > 0 &&
+            Math.hypot(p.waypoints[0][0] - state.x, p.waypoints[0][1] - state.z) <= 0.55
+          ) {
+            p.waypoints.shift();
+          }
+          if (p.waypoints.length > 0) steer = p.waypoints[0];
+        }
+        const { input, arrived } = moveToIntent(state, steer, steer === target ? arriveR : 0.55, !!p.run);
         const held = this.deps.door?.(state, input, dt) ?? null;
         if (held) {
           step(state, held, dt, world);
@@ -658,7 +745,7 @@ export class ScoutExecutor {
         } else {
           p.staleFor += dt;
         }
-        if (arrived || dist <= arriveR + 0.1) {
+        if ((steer === target && arrived) || dist <= arriveR + 0.1) {
           if (p.action.type === "sit" && p.phase === "to-approach") {
             p.phase = "turn";
             return;
@@ -678,6 +765,14 @@ export class ScoutExecutor {
           return;
         }
         if (p.staleFor > 2.5 && state.speed < 0.12) {
+          if (p.routed) {
+            this.deps.onRouteBlocked?.({
+              target: p.targetId,
+              from: [state.x, state.z],
+              to: target,
+              reason: "stalled",
+            });
+          }
           this.settle({
             ok: false,
             status: "blocked",

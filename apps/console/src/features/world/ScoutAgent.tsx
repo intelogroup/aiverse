@@ -57,12 +57,14 @@ import {
   oracleScene,
   roomAt,
   type OracleObject,
+  type RouteBlockedInfo,
   type ScoutAction,
   type ScoutDistrict,
   type ScoutOutcome,
   type ScoutPlace,
   type Sittable,
 } from "./scout";
+import { CityNav } from "./cityNav";
 import type { WalkColliders } from "./walkColliders";
 import { newWalkerFrame, useWalkWorld, writeWalkerFrame } from "./walkerBody";
 import { clipChannel, type TeaDoorChannel, type TeaDoorController } from "./teaDoor";
@@ -103,6 +105,8 @@ export interface ScoutApi {
   act: (action: ScoutAction) => Promise<(ScoutOutcome & { snapshot: ScoutSnapshot | null }) | null>;
   places: () => ScoutPlace[];
   sittables: () => Sittable[];
+  /** L-A route-blocked events (no-route / stalled), newest last. */
+  navEvents: () => RouteBlockedInfo[];
 }
 
 const LOOK_W = 512;
@@ -146,6 +150,7 @@ export function ScoutAgent({
   const figure = useRef<THREE.Group>(null);
   const headPose = useRef<[number, number, number] | null>(null);
   const looksUsed = useRef(0);
+  const navEvents = useRef<RouteBlockedInfo[]>([]);
   const camPos = useRef<THREE.Vector3 | null>(null);
   const lookRig = useRef<{ rt: THREE.WebGLRenderTarget; cam: THREE.PerspectiveCamera; px: Uint8Array } | null>(null);
 
@@ -159,10 +164,24 @@ export function ScoutAgent({
     };
     void (async () => {
       try {
-        const [places, sittables, districtsDoc] = await Promise.all([
+        // L-A navmesh: loaded alongside the world data. A failed load is
+        // NOT fatal — the executor falls back to greedy steering, exactly
+        // the pre-L-A behaviour — but it is logged, never silent.
+        const navP = (async (): Promise<CityNav | null> => {
+          try {
+            const r = await fetch("/assets/world-city3-navmesh.bin");
+            if (!r.ok) throw new Error(`navmesh: ${r.status}`);
+            return await CityNav.create(new Uint8Array(await r.arrayBuffer()));
+          } catch (e) {
+            console.error("[scout] navmesh failed to load; greedy steering fallback", e);
+            return null;
+          }
+        })();
+        const [places, sittables, districtsDoc, nav] = await Promise.all([
           get<ScoutPlace[]>("/assets/city3-places.json"),
           get<Sittable[]>("/assets/city3-anchors.json"),
           get<{ districts: ScoutDistrict[] }>("/assets/districts.json"),
+          navP,
         ]);
         if (!live) return;
         data.current = { places, sittables, districts: districtsDoc.districts };
@@ -171,6 +190,21 @@ export function ScoutAgent({
           sittables,
           clips: clips.current!,
           hipsY: BODY_REMY.hipsY,
+          nav: nav
+            ? {
+                route: (from, to) => {
+                  const r = nav.route(from, to);
+                  return r
+                    ? { waypoints: r.waypoints.map((w) => [w.x, w.z] as [number, number]), distance: r.distance }
+                    : null;
+                },
+              }
+            : undefined,
+          onRouteBlocked: (info) => {
+            navEvents.current.push(info);
+            if (navEvents.current.length > 100) navEvents.current.shift();
+            console.info(`[scout-nav] route blocked (${info.reason})`, info.target ?? "", info.to);
+          },
           door: door
             ? (s, wanted, dt) => door.drive(s, dt, wanted.forward > 0, SCOUT_ACTOR, scoutChannel.current!)
             : undefined,
@@ -311,6 +345,7 @@ export function ScoutAgent({
       },
       places: () => data.current?.places ?? [],
       sittables: () => data.current?.sittables ?? [],
+      navEvents: () => [...navEvents.current],
     };
     const w = window as unknown as Record<string, unknown>;
     w.__scout = api;
