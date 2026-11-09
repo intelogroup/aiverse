@@ -12,6 +12,8 @@ Native workshop assets are retained outside public assets: `assets/source_bottle
 
 ## Base interior imports
 
+**SciFi EasterEgg** — Cécile Amstad, [Sketchfab source](https://sketchfab.com/3d-models/scifi-easteregg-f19c4de512794d64b00b3f5ceea62ca2), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). User-supplied archive and exact license in `assets/scifi_easteregg/`; 10k-triangle derivative and 30-placement manifest in console `public/assets/collectibles/`. Modified by joining/welding/simplifying and normalizing scale; original vertex colors retained. Public attribution is linked from the verse. See `docs/procedural-city/19-easter-eggs.md`.
+
 Fruit/vase replacements: `assets/market_realism/manifest.json` records the approved 26-template kit and the Poly Haven CC0 apple/lemon sources. Geometry and embedded PBR maps are committed in `assets/market_realism/fruit-vases.glb`. See `docs/procedural-city/18-fruit-vases.md` for generator/bridge details.
 
 The central upload register is `assets/user_uploads.json`; `assets/external_candidates.json` keeps linked candidates separate. Each record states inspection, licence, archive and placement status; registered upload references are not automatically shipped assets.

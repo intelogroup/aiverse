@@ -1597,6 +1597,7 @@ export function GlbWorld() {
           </button>
         </div>
       ) : null}
+      <a className="w-asset-credit" href="/assets/collectibles/credits.html" target="_blank" rel="noreferrer" title="SciFi EasterEgg by Cécile Amstad — CC BY 4.0">3D asset credit</a>
       {!walking ? (
         <div className="w-glb-toggle w-glb-poi" role="group" aria-label="Places in City 3">
           {city3Rooms.filter((r) => r.featured).map((hero) => (

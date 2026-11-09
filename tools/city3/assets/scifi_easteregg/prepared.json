@@ -1,0 +1,16 @@
+{
+  "source_triangles": 333344,
+  "triangles": 10000,
+  "height_m": 0.5,
+  "dimensions_blender_m": [
+    0.40816956758499146,
+    0.4083115756511688,
+    0.4999999701976776
+  ],
+  "color_attributes": [
+    "Color"
+  ],
+  "bytes": 281620,
+  "sha256": "c330348cdc14669bedf19aea285fcddd2631d82f483094bc5b6572ab1e6cb596",
+  "modifications": "Joined source chunks, welded coincident seams, recalculated normals, normalized to 0.5 m tall with base at zero, simplified mesh; vertex colors retained."
+}

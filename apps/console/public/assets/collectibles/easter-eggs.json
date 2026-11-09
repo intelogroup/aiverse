@@ -1,0 +1,368 @@
+{
+  "version": 1,
+  "contestActive": false,
+  "model": "/assets/collectibles/scifi-easter-egg.glb",
+  "coordinateSystem": "three.js world XYZ metres; position is the egg base",
+  "eggs": [
+    {
+      "id": "egg-bazaar-01",
+      "district": "bazaar",
+      "position": [
+        -12.6,
+        0.2,
+        1
+      ],
+      "rotationY": 0.0,
+      "scale": 1,
+      "hint": "Outside the fountain ring"
+    },
+    {
+      "id": "egg-bazaar-02",
+      "district": "bazaar",
+      "position": [
+        -30.1,
+        0.2,
+        -70.5
+      ],
+      "rotationY": 2.4,
+      "scale": 0.85,
+      "hint": "Beside the Tea House approach"
+    },
+    {
+      "id": "egg-bazaar-03",
+      "district": "bazaar",
+      "position": [
+        -27.2,
+        1.2,
+        -41.6
+      ],
+      "rotationY": 4.7999,
+      "scale": 0.75,
+      "hint": "Among the fruit-stall displays"
+    },
+    {
+      "id": "egg-bazaar-04",
+      "district": "bazaar",
+      "position": [
+        -30.2,
+        0.2,
+        70.9
+      ],
+      "rotationY": 0.9167,
+      "scale": 0.9,
+      "hint": "Near Kronikler Press"
+    },
+    {
+      "id": "egg-bazaar-05",
+      "district": "bazaar",
+      "position": [
+        42,
+        0.2,
+        10
+      ],
+      "rotationY": 3.3167,
+      "scale": 1,
+      "hint": "At the eastern plaza edge"
+    },
+    {
+      "id": "egg-bazaar-06",
+      "district": "bazaar",
+      "position": [
+        -100,
+        0.2,
+        -68.5
+      ],
+      "rotationY": 5.7166,
+      "scale": 0.8,
+      "hint": "Along the western market lane"
+    },
+    {
+      "id": "egg-glassq-01",
+      "district": "glassq",
+      "position": [
+        -164,
+        0.24,
+        -255
+      ],
+      "rotationY": 1.8334,
+      "scale": 1,
+      "hint": "A corner of the southern plaza"
+    },
+    {
+      "id": "egg-glassq-02",
+      "district": "glassq",
+      "position": [
+        146,
+        0.24,
+        -565
+      ],
+      "rotationY": 4.2334,
+      "scale": 0.85,
+      "hint": "Beside the northern transit square"
+    },
+    {
+      "id": "egg-glassq-03",
+      "district": "glassq",
+      "position": [
+        -144,
+        0.225,
+        -537
+      ],
+      "rotationY": 0.3501,
+      "scale": 0.75,
+      "hint": "Near the sculpture plaza"
+    },
+    {
+      "id": "egg-glassq-04",
+      "district": "glassq",
+      "position": [
+        130,
+        0.2,
+        -305
+      ],
+      "rotationY": 2.7501,
+      "scale": 0.9,
+      "hint": "Along the campus promenade"
+    },
+    {
+      "id": "egg-glassq-05",
+      "district": "glassq",
+      "position": [
+        18,
+        0.2,
+        -332
+      ],
+      "rotationY": 5.1501,
+      "scale": 1,
+      "hint": "Off the central boulevard"
+    },
+    {
+      "id": "egg-glassq-06",
+      "district": "glassq",
+      "position": [
+        -18,
+        0.2,
+        -528
+      ],
+      "rotationY": 1.2669,
+      "scale": 0.8,
+      "hint": "At a northern street corner"
+    },
+    {
+      "id": "egg-foundry-01",
+      "district": "foundry",
+      "position": [
+        233,
+        0.22,
+        140
+      ],
+      "rotationY": 3.6668,
+      "scale": 1,
+      "hint": "At the edge of the works yard"
+    },
+    {
+      "id": "egg-foundry-02",
+      "district": "foundry",
+      "position": [
+        533,
+        0.2,
+        -108
+      ],
+      "rotationY": 6.0668,
+      "scale": 0.85,
+      "hint": "Beside the container avenue"
+    },
+    {
+      "id": "egg-foundry-03",
+      "district": "foundry",
+      "position": [
+        413,
+        0.2,
+        135
+      ],
+      "rotationY": 2.1836,
+      "scale": 0.75,
+      "hint": "Near the silo promenade"
+    },
+    {
+      "id": "egg-foundry-04",
+      "district": "foundry",
+      "position": [
+        292,
+        0.2,
+        -143
+      ],
+      "rotationY": 4.5835,
+      "scale": 0.9,
+      "hint": "Along the western hall"
+    },
+    {
+      "id": "egg-foundry-05",
+      "district": "foundry",
+      "position": [
+        386,
+        0.2,
+        45
+      ],
+      "rotationY": 0.7003,
+      "scale": 1,
+      "hint": "Off the loft sidewalk"
+    },
+    {
+      "id": "egg-foundry-06",
+      "district": "foundry",
+      "position": [
+        567,
+        0.206,
+        12
+      ],
+      "rotationY": 3.1003,
+      "scale": 0.8,
+      "hint": "Near the wharf approach"
+    },
+    {
+      "id": "egg-terraces-01",
+      "district": "terraces",
+      "position": [
+        -462,
+        0.24,
+        -63
+      ],
+      "rotationY": 5.5002,
+      "scale": 1,
+      "hint": "Inside the western garden square"
+    },
+    {
+      "id": "egg-terraces-02",
+      "district": "terraces",
+      "position": [
+        -338,
+        0.24,
+        63
+      ],
+      "rotationY": 1.617,
+      "scale": 0.85,
+      "hint": "At the eastern garden paths"
+    },
+    {
+      "id": "egg-terraces-03",
+      "district": "terraces",
+      "position": [
+        -518.4,
+        0.2,
+        80
+      ],
+      "rotationY": 4.017,
+      "scale": 0.75,
+      "hint": "Along a terrace lane"
+    },
+    {
+      "id": "egg-terraces-04",
+      "district": "terraces",
+      "position": [
+        -281.6,
+        0.2,
+        -65
+      ],
+      "rotationY": 0.1337,
+      "scale": 0.9,
+      "hint": "Beside the villa lane"
+    },
+    {
+      "id": "egg-terraces-05",
+      "district": "terraces",
+      "position": [
+        -559,
+        0.23,
+        133
+      ],
+      "rotationY": 2.5337,
+      "scale": 1,
+      "hint": "At the southwest villa walk"
+    },
+    {
+      "id": "egg-terraces-06",
+      "district": "terraces",
+      "position": [
+        -265,
+        0.23,
+        -159
+      ],
+      "rotationY": 4.9337,
+      "scale": 0.8,
+      "hint": "Near the northeast villa walk"
+    },
+    {
+      "id": "egg-halo-01",
+      "district": "halo",
+      "position": [
+        -15,
+        0.27,
+        545
+      ],
+      "rotationY": 1.0504,
+      "scale": 1,
+      "hint": "Near the palm promenade"
+    },
+    {
+      "id": "egg-halo-02",
+      "district": "halo",
+      "position": [
+        49,
+        0.23,
+        405
+      ],
+      "rotationY": 3.4504,
+      "scale": 0.85,
+      "hint": "Outside the spire garden"
+    },
+    {
+      "id": "egg-halo-03",
+      "district": "halo",
+      "position": [
+        78,
+        0.2,
+        378
+      ],
+      "rotationY": 5.8504,
+      "scale": 0.75,
+      "hint": "Along the lagoon path"
+    },
+    {
+      "id": "egg-halo-04",
+      "district": "halo",
+      "position": [
+        -84,
+        0.2,
+        316
+      ],
+      "rotationY": 1.9672,
+      "scale": 0.9,
+      "hint": "On the northwest promenade"
+    },
+    {
+      "id": "egg-halo-05",
+      "district": "halo",
+      "position": [
+        -148,
+        0.2,
+        491
+      ],
+      "rotationY": 4.3671,
+      "scale": 1,
+      "hint": "Beyond the western towers"
+    },
+    {
+      "id": "egg-halo-06",
+      "district": "halo",
+      "position": [
+        142,
+        0.2,
+        472
+      ],
+      "rotationY": 0.4839,
+      "scale": 0.8,
+      "hint": "Near the eastern waterfront"
+    }
+  ]
+}

@@ -37,7 +37,7 @@ def split(length, lo, hi):
 
 PAL = ["sand","ochre","white","rose","blue"]
 def floors_for(kind, dist):
-    if kind=="market": base = 5 if dist<70 else 4
+    if kind=="market": base = 4 if dist<70 else 3
     elif kind=="citadel": base = 6
     else: base = 3
     return max(2, base + rng.choice([-1,0,0,1]))

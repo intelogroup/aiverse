@@ -8,7 +8,7 @@ import {fileURLToPath} from 'node:url';
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../..');
 const {MeshoptDecoder}=await import(path.join(ROOT,'apps/console/node_modules/three/examples/jsm/libs/meshopt_decoder.module.js'));
 await MeshoptDecoder.ready;
-const BASE='50ee765';
+const BASE='22ba63a';
 const asset='apps/console/public/assets/';
 const out=process.env.TEA_RUNTIME_OUT??path.join(ROOT,asset);
 fs.mkdirSync(path.join(out,'interiors'),{recursive:true});

@@ -12,8 +12,8 @@
     11.4
   ],
   "elevator": "closed",
-  "sourceRevision": "50ee765",
-  "sourceSha256": "5ae262f25cc38daaeabe59020f750376d777f854957bde94f1494313a7865e42",
+  "sourceRevision": "22ba63a",
+  "sourceSha256": "83c49c1f35bb74fe0ba5fbf23391e9411b9bd4f453226582dffa18fd8333c0f7",
   "removed": {
     "B_Facade_ochre": 106,
     "Glass": 10,
@@ -24,6 +24,6 @@
   },
   "relocatedPlanterTriangles": 32,
   "removedCafeTriangles": 284,
-  "runtimeSha256": "dc18235d589e31d5cbb413ce7496e0ff6d36aa7a80e338a7f689f2e19eec16f9",
+  "runtimeSha256": "1d95eeb565781559b5e9628cd6c01bd89f70b215db8d525693bcac9e35cdd211",
   "bottles": 48
 }

@@ -4,7 +4,7 @@ The four-floor structure is installed in the **local console preview**. It is no
 
 ## Assets and generator
 
-`tools/city3/tea_house/prepare.mjs` applies a scoped integration to the frozen pre-integration files in commit `50ee765`. Re-running starts from that revision, never from its own generated output, so payloads do not grow every iteration. It preserves the original GLB binary prefix and every unrelated mesh, material, image, instance transform and accessor. Changed primitives get new index accessors; the new structure is appended as a named `TeaHouseStructure` root at `[-37.5,0,-72.5]`.
+`tools/city3/tea_house/prepare.mjs` applies a scoped integration to the frozen pre-integration files in commit `22ba63a`. Re-running starts from that revision, never from its own generated output, so payloads do not grow every iteration. It preserves the original GLB binary prefix and every unrelated mesh, material, image, instance transform and accessor. Changed primitives get new index accessors; the new structure is appended as a named `TeaHouseStructure` root at `[-37.5,0,-72.5]`.
 
 The source city's legacy Tea House walls/floor and solid upper collision block are removed by whole-triangle spatial selection. The old entrance stoop is replaced by the new landing and ramp. The two audited west café sets are removed, and the 32-triangle planter (including foliage/flowers) moves intact to `(u=6.25,d=-0.8)`. A plinth closes the paving-to-floor-slab gap. Ground triangles are subdivided around the elevator pit rather than deleting the island floor. Existing neighboring buildings and all other districts are retained.
 
@@ -18,7 +18,7 @@ node tools/city3/tea_house/routes.mjs
 node tools/city3/tea_house/prepare.mjs
 ```
 
-The design route audit deliberately retrieves its pinned pre-integration city from Git when the shipping file has changed, so its before/after comparison stays reproducible. A checkout needs the `50ee765` source object (normal full clone or fetch sufficient history). This workshop integration is scoped to that source revision; when accepting later city asset changes, update/rebase the source deliberately rather than overwriting them with the old base.
+The design route audit deliberately retrieves its pinned pre-integration city from Git when the shipping file has changed, so its before/after comparison stays reproducible. A checkout needs the `22ba63a` source object (normal full clone or fetch sufficient history). This workshop integration is scoped to that source revision; when accepting later city asset changes, update/rebase the source deliberately rather than overwriting them with the old base.
 
 ## Viewing and walking
 
@@ -39,7 +39,7 @@ Remy stands 6 cm behind the counter face, leaving a body-width passage behind hi
 - blocking upper windows and the closed lift;
 - every occupied/circulation zone reaching both stairs on a 10 cm physical grid, including the radio table and NPC, with 2.10 m headroom.
 
-Validation on the integrated assets: **465 tests across 48 files passed**, including the eight Tea House asset tests; the production TypeScript/Vite build passed (existing bundle-size warning only). A final targeted run passed 25 tests across four files after the floor camera changes. An alternate-output generator run reproduced all seven shipping files byte for byte.
+Validation on the integrated assets: **473 tests across 50 files passed after integrating main `22ba63a`**, including the eight Tea House asset tests; the production TypeScript/Vite build passed (existing bundle-size warning only). A final targeted run passed 25 tests across four files after the floor camera changes. An alternate-output generator run reproduced all seven shipping files byte for byte.
 
 The standalone design audit still checks 102 routes, 47 human openings, six stair trajectories and guard/shaft blocking. The existing main-door panel split, radio interaction and bartender tests remain active. The camera test includes a clipped front surface with a visible surface behind it in the **same** BVH mesh.
 
@@ -49,7 +49,7 @@ The final Chromium run captured all five floor/exterior views with **zero JavaSc
 
 ## Console captures
 
-Actual City 3 browser renders, with the integrated shipping GLBs:
+Actual City 3 browser renders from the Tea House integration before main advanced to `22ba63a`. The subsequent merge preserves the new Bazaar cleanup and Easter eggs; its combined assets are rechecked by the production asset tests and build.
 
 ![Ground floor and shortened bar](tea-house/runtime-ground.png)
 
