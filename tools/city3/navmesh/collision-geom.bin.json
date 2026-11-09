@@ -1,0 +1,323 @@
+{
+ "source": "world-city3-collision.glb",
+ "verts": 37006,
+ "tris": 34764,
+ "bounds": {
+  "min": [
+   -181.0,
+   -3.0,
+   -181.0
+  ],
+  "max": [
+   181.0,
+   38.20000076293945,
+   181.0
+  ]
+ },
+ "nodes": [
+  {
+   "node": "col_buildings",
+   "tris": 1848
+  },
+  {
+   "node": "col_fountain",
+   "tris": 380
+  },
+  {
+   "node": "col_ground",
+   "tris": 462
+  },
+  {
+   "node": "col_heroes",
+   "tris": 9108
+  },
+  {
+   "node": "col_props",
+   "tris": 10144
+  },
+  {
+   "node": "col_quay",
+   "tris": 96
+  },
+  {
+   "node": "col_stalls",
+   "tris": 960
+  },
+  {
+   "node": "col_fountain_planters",
+   "tris": 240
+  },
+  {
+   "node": "col_tea_ATTIC_lift",
+   "tris": 60
+  },
+  {
+   "node": "col_tea_ATTIC_slab",
+   "tris": 96
+  },
+  {
+   "node": "col_tea_EXISTING_PITCHED_ROOF",
+   "tris": 6
+  },
+  {
+   "node": "col_tea_G_bar",
+   "tris": 240
+  },
+  {
+   "node": "col_tea_G_door",
+   "tris": 84
+  },
+  {
+   "node": "col_tea_G_guard",
+   "tris": 96
+  },
+  {
+   "node": "col_tea_G_lift",
+   "tris": 156
+  },
+  {
+   "node": "col_tea_G_partition",
+   "tris": 132
+  },
+  {
+   "node": "col_tea_G_shell",
+   "tris": 720
+  },
+  {
+   "node": "col_tea_G_slab",
+   "tris": 180
+  },
+  {
+   "node": "col_tea_G_stair",
+   "tris": 624
+  },
+  {
+   "node": "col_tea_G_stairwall",
+   "tris": 384
+  },
+  {
+   "node": "col_tea_G_wet",
+   "tris": 180
+  },
+  {
+   "node": "col_tea_L1_door",
+   "tris": 108
+  },
+  {
+   "node": "col_tea_L1_guard",
+   "tris": 168
+  },
+  {
+   "node": "col_tea_L1_lift",
+   "tris": 108
+  },
+  {
+   "node": "col_tea_L1_partition",
+   "tris": 336
+  },
+  {
+   "node": "col_tea_L1_shell",
+   "tris": 636
+  },
+  {
+   "node": "col_tea_L1_slab",
+   "tris": 276
+  },
+  {
+   "node": "col_tea_L1_stair",
+   "tris": 600
+  },
+  {
+   "node": "col_tea_L1_stairwall",
+   "tris": 264
+  },
+  {
+   "node": "col_tea_L1_wet",
+   "tris": 240
+  },
+  {
+   "node": "col_tea_L2_door",
+   "tris": 144
+  },
+  {
+   "node": "col_tea_L2_guard",
+   "tris": 168
+  },
+  {
+   "node": "col_tea_L2_lift",
+   "tris": 108
+  },
+  {
+   "node": "col_tea_L2_partition",
+   "tris": 468
+  },
+  {
+   "node": "col_tea_L2_service",
+   "tris": 36
+  },
+  {
+   "node": "col_tea_L2_shell",
+   "tris": 636
+  },
+  {
+   "node": "col_tea_L2_slab",
+   "tris": 276
+  },
+  {
+   "node": "col_tea_L2_stair",
+   "tris": 600
+  },
+  {
+   "node": "col_tea_L2_stairwall",
+   "tris": 288
+  },
+  {
+   "node": "col_tea_L2_wet",
+   "tris": 360
+  },
+  {
+   "node": "col_tea_L3_door",
+   "tris": 144
+  },
+  {
+   "node": "col_tea_L3_guard",
+   "tris": 96
+  },
+  {
+   "node": "col_tea_L3_lift",
+   "tris": 108
+  },
+  {
+   "node": "col_tea_L3_partition",
+   "tris": 468
+  },
+  {
+   "node": "col_tea_L3_service",
+   "tris": 36
+  },
+  {
+   "node": "col_tea_L3_shell",
+   "tris": 636
+  },
+  {
+   "node": "col_tea_L3_slab",
+   "tris": 276
+  },
+  {
+   "node": "col_tea_L3_stair",
+   "tris": 24
+  },
+  {
+   "node": "col_tea_L3_stairwall",
+   "tris": 288
+  },
+  {
+   "node": "col_tea_L3_wet",
+   "tris": 360
+  },
+  {
+   "node": "col_tea_plinth_0",
+   "tris": 12
+  },
+  {
+   "node": "col_tea_plinth_1",
+   "tris": 12
+  },
+  {
+   "node": "col_tea_plinth_2",
+   "tris": 12
+  },
+  {
+   "node": "col_tea_plinth_3",
+   "tris": 12
+  },
+  {
+   "node": "col_tea_glass_L0_1",
+   "tris": 12
+  },
+  {
+   "node": "col_tea_glass_L0_2",
+   "tris": 12
+  },
+  {
+   "node": "col_tea_glass_L0_4",
+   "tris": 12
+  },
+  {
+   "node": "col_tea_glass_L1_0",
+   "tris": 12
+  },
+  {
+   "node": "col_tea_glass_L1_1",
+   "tris": 12
+  },
+  {
+   "node": "col_tea_glass_L1_2",
+   "tris": 12
+  },
+  {
+   "node": "col_tea_glass_L1_3",
+   "tris": 12
+  },
+  {
+   "node": "col_tea_glass_L1_4",
+   "tris": 12
+  },
+  {
+   "node": "col_tea_glass_L1_5",
+   "tris": 12
+  },
+  {
+   "node": "col_tea_glass_L2_0",
+   "tris": 12
+  },
+  {
+   "node": "col_tea_glass_L2_1",
+   "tris": 12
+  },
+  {
+   "node": "col_tea_glass_L2_2",
+   "tris": 12
+  },
+  {
+   "node": "col_tea_glass_L2_3",
+   "tris": 12
+  },
+  {
+   "node": "col_tea_glass_L2_4",
+   "tris": 12
+  },
+  {
+   "node": "col_tea_glass_L2_5",
+   "tris": 12
+  },
+  {
+   "node": "col_tea_glass_L3_0",
+   "tris": 12
+  },
+  {
+   "node": "col_tea_glass_L3_1",
+   "tris": 12
+  },
+  {
+   "node": "col_tea_glass_L3_2",
+   "tris": 12
+  },
+  {
+   "node": "col_tea_glass_L3_3",
+   "tris": 12
+  },
+  {
+   "node": "col_tea_glass_L3_4",
+   "tris": 12
+  },
+  {
+   "node": "col_tea_glass_L3_5",
+   "tris": 12
+  },
+  {
+   "node": "col_tea_entrance_planter",
+   "tris": 12
+  }
+ ]
+}
