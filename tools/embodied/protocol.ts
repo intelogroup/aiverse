@@ -1,3 +1,5 @@
+import { SOCIAL_CLIPS, type SocialClip } from "../../apps/console/src/features/world/scout";
+
 // One browser owns one body for this experiment. A new host session invalidates
 // old requests; IDs are deduplicated, and raw JavaScript/debug APIs are never accepted.
 export function validAction(a: unknown): boolean {
@@ -5,7 +7,13 @@ export function validAction(a: unknown): boolean {
   const v = a as Record<string, unknown>;
   const only = (...keys: string[]) => Object.keys(v).every(k => ["type", ...keys].includes(k));
   switch (v.type) {
-    case "stop": return only();
+    case "stop": case "stand": return only();
+    case "play":
+      return only("clip", "seconds") && SOCIAL_CLIPS.includes(v.clip as SocialClip) &&
+        (v.seconds === undefined || (typeof v.seconds === "number" && Number.isFinite(v.seconds) && v.seconds > 0 && v.seconds <= 30));
+    case "sit":
+      return only("sittable") && (v.sittable === undefined ||
+        (typeof v.sittable === "string" && v.sittable.length > 0 && v.sittable.length <= 100));
     case "wait": return only("seconds") && typeof v.seconds === "number" && Number.isFinite(v.seconds) && v.seconds >= 0 && v.seconds <= 30;
     case "face": return only("headingDeg") && typeof v.headingDeg === "number" && Number.isFinite(v.headingDeg) && Math.abs(v.headingDeg) <= 360;
     case "go_to": case "run_to":

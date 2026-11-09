@@ -5,6 +5,9 @@ export type EmbodiedAction =
   | { type: "go_to" | "run_to"; place: string }
   | { type: "face"; headingDeg: number }
   | { type: "wait"; seconds: number }
+  | { type: "play"; clip: string; seconds?: number }
+  | { type: "sit"; sittable?: string }
+  | { type: "stand" }
   | { type: "stop" };
 export class EmbodiedAgentClient {
   constructor(private readonly origin: string, private readonly token: string) {}

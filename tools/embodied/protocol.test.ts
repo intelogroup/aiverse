@@ -11,3 +11,12 @@ test("retries reuse result without moving twice, conflicting replay rejected", a
   expect(calls).toBe(1);
   expect(()=>ledger.run("one",{type:"stop"},async()=>0)).toThrow();
 });
+
+test("agents can choose social gestures and posture through the host", () => {
+  expect(validAction({ type: "play", clip: "Waving" })).toBe(true);
+  expect(validAction({ type: "play", clip: "OpenDoor" })).toBe(false);
+  expect(validAction({ type: "play", clip: "Waving", seconds: 60 })).toBe(false);
+  expect(validAction({ type: "sit", sittable: "tea-chair" })).toBe(true);
+  expect(validAction({ type: "stand" })).toBe(true);
+  expect(validAction({ type: "stand", point: [0, 0] })).toBe(false);
+});
