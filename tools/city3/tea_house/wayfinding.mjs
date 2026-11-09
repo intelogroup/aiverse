@@ -56,6 +56,10 @@ export function addTeaWayfinding(plan,{mesh,material,image}){
       }
       else if(door.b==='stair-a'||(door.b==='stair-b'&&door.axis==='d')){
         header(door,id==='G'?'ground-'+door.b:door.b,1,1.08);
+      }else if(door.a==='corridor'&&door.b==='core-lobby'){
+        // Both adjoining rooms are circulation. The partition is offset
+        // 0.12 m toward the corridor by the architectural blockout.
+        sign(level,door.b,door.b,door.center,door.at-.12,y+2.48,'d',1,1.18);
       }else if(door.a==='corridor'&&door.b in labels){
         header(door,door.b,door.at===4.3?-1:1);
       }else if(door.a==='corridor'&&door.b==='rear-west')header(door,id==='L2'?'laundry':'study');
@@ -67,7 +71,7 @@ export function addTeaWayfinding(plan,{mesh,material,image}){
       sign(level,'exit-direction','street-directions',18.35,8.5,y+2.85,'d',1,1.48);
     }else{
       // Above the lobby opening, visible from the main corridor.
-      sign(level,'exit-direction','exit-directions',16,5.8,y+2.82,'d',1,1.48);
+      sign(level,'exit-direction','exit-directions',16,5.68,y+2.82,'d',1,1.48);
     }
   }
 }
