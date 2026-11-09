@@ -57,3 +57,51 @@ describe("health", () => {
     }
   });
 });
+
+// 2026-11-09 security audit, L1: the gateway set no security headers at
+// all (no HSTS, no nosniff, no frame protection, no Referrer-Policy).
+describe("security headers", () => {
+  function expectSecurityHeaders(res: Response) {
+    expect(res.headers.get("strict-transport-security")).toContain("max-age=31536000");
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(res.headers.get("x-frame-options")).toBe("DENY");
+    expect(res.headers.get("content-security-policy")).toBe("frame-ancestors 'none'");
+    expect(res.headers.get("referrer-policy")).toBe("no-referrer");
+  }
+
+  test("present on a normal response", async () => {
+    const app = createApp();
+    const res = await app.request("/health");
+    expect(res.status).toBe(200);
+    expectSecurityHeaders(res);
+  });
+
+  test("present on an error response too", async () => {
+    const app = createApp();
+    const res = await app.request("/no-such-route");
+    expect(res.status).toBe(404);
+    expectSecurityHeaders(res);
+  });
+
+  test("CORS whitelist behavior is unchanged alongside the headers", async () => {
+    const app = createApp();
+    const res = await app.request("/health", {
+      method: "OPTIONS",
+      headers: {
+        origin: "http://localhost:5183",
+        "access-control-request-method": "GET",
+      },
+    });
+    expect(res.headers.get("access-control-allow-origin")).toBe("http://localhost:5183");
+    expectSecurityHeaders(res);
+
+    const evil = await app.request("/health", {
+      method: "OPTIONS",
+      headers: {
+        origin: "https://evil.example.com",
+        "access-control-request-method": "GET",
+      },
+    });
+    expect(evil.headers.get("access-control-allow-origin")).toBeNull();
+  });
+});

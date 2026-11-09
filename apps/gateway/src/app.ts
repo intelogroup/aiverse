@@ -31,6 +31,25 @@ export function createApp() {
   initGatewaySentry();
   const app = new Hono<{ Variables: { requestId: string } }>();
 
+  // Baseline security headers on every response (2026-11-09 audit, L1:
+  // none were set). Registered BEFORE cors on purpose: Hono's cors
+  // answers preflight requests itself without calling next(), so a
+  // headers middleware registered after it would never run for
+  // preflights. Set post-next so error responses carry them too —
+  // app.onError turns throws into normal Responses before they propagate
+  // back through next(), so this runs for 4xx/5xx as well. Deliberately
+  // the minimal set: the Cross-Origin-* isolation headers and a fuller
+  // CSP are NOT included — they can break console embeds, and the API's
+  // JSON responses need framing/type protection, not document policy.
+  app.use("*", async (c, next) => {
+    await next();
+    c.res.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    c.res.headers.set("X-Content-Type-Options", "nosniff");
+    c.res.headers.set("X-Frame-Options", "DENY");
+    c.res.headers.set("Content-Security-Policy", "frame-ancestors 'none'");
+    c.res.headers.set("Referrer-Policy", "no-referrer");
+  });
+
   app.use("*", cors({ origin: env.CONSOLE_ORIGINS, credentials: true }));
 
   // Correlation ID: reuse an inbound x-request-id (lets a caller thread its
