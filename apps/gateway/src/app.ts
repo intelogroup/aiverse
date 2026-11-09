@@ -23,9 +23,12 @@ import { createMcpRoute } from "./routes/mcp";
 import { registerAgentWsRoute, registerConsoleWsRoute, registerPublicWsRoute } from "./ws/gateway";
 import { getHuntRuntime, huntEnabled } from "./hunt";
 import { log, logError } from "./util/log";
+import { captureGatewayError, fingerprintError, initGatewaySentry } from "./telemetry/sentry";
 import pkg from "../package.json";
 
 export function createApp() {
+  // Telemetry Phase 1: env-gated Sentry (no-op without SENTRY_DSN).
+  initGatewaySentry();
   const app = new Hono<{ Variables: { requestId: string } }>();
 
   app.use("*", cors({ origin: env.CONSOLE_ORIGINS, credentials: true }));
@@ -207,7 +210,12 @@ export function createApp() {
   // middleware chain). Log it here, once, with real detail; the caller
   // only ever sees consistent JSON, never a leaked stack trace.
   app.onError((err, c) => {
-    logError("unhandled_route_error", err, { requestId: c.get("requestId"), path: c.req.path, method: c.req.method });
+    logError("unhandled_route_error", err, {
+      requestId: c.get("requestId"),
+      path: c.req.path,
+      method: c.req.method,
+      fingerprint: fingerprintError(err),
+    });
     // Edge-case battery 2026-09-08: two client-input error classes surfaced
     // here as 500s because no route wraps its own body/param parsing:
     //   (1) SyntaxError — c.req.json() on a malformed/absent JSON body (any
@@ -228,6 +236,11 @@ export function createApp() {
       }
       cause = (cause as { cause?: unknown })?.cause;
     }
+    // Telemetry Phase 1: only true 500s go back home — the two 400-class
+    // branches above are client input doing what client input does, and
+    // capturing them would drown the signal. No-op without SENTRY_DSN;
+    // the response is unchanged either way.
+    captureGatewayError(err, { requestId: c.get("requestId"), route: c.req.path, method: c.req.method });
     return c.json({ error: "internal_error" }, 500);
   });
 

@@ -34,6 +34,7 @@ import { SoundDirector } from "./soundDirector";
 import { VOICE_BARTENDER, benchPhonon, phononWarmth, synthLine, warmPhonon } from "./phononTts";
 import { GREETING_SCRIPT, createPlazaGreeting, type PlazaGreeting } from "./plazaTts";
 import { type CameraMode } from "./cameraRig";
+import { attachWorldRenderer } from "../../lib/telemetry/index";
 import { FpsMeter } from "./fpsMeter";
 import { QualityGovernor, dprForTier, qualityStore, shadowMapForTier } from "./quality";
 import {
@@ -1348,10 +1349,12 @@ export function GlbWorld() {
         frameloop={agentOn ? "demand" : "always"}
         shadows={agentOn ? false : "soft"}
         gl={{ antialias: true }}
-        onCreated={({ gl }) => {
+        onCreated={({ gl, camera }) => {
           // VoiceOver pass (Phase 4): the canvas is the world's window;
           // name it for assistive tech.
           gl.domElement.setAttribute("aria-label", "3D world view");
+          // Telemetry Phase 1: camera context + WebGL loss/shader hooks.
+          attachWorldRenderer(gl, camera);
         }}
         style={{ position: "absolute", inset: 0 }}
       >

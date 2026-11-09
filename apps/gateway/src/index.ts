@@ -4,6 +4,11 @@ import { websocket, reconcilePresenceOnBoot, scheduleHeapStats } from "./ws/gate
 import { ensureRoomsSeeded } from "./db/seed";
 import { tryBecomeGatewayLeader, checkGatewayLeadership } from "./db/singleGatewayLock";
 import { log, logError } from "./util/log";
+import { captureGatewayError, initGatewaySentry } from "./telemetry/sentry";
+
+// Telemetry Phase 1: initialize before the handlers below so a crash
+// anywhere in the process can be captured (no-op without SENTRY_DSN).
+initGatewaySentry();
 
 // Without these, a crash outside the request-handling path (a background
 // job's rejected promise, a bug in a timer callback) produces nothing but
@@ -17,10 +22,12 @@ import { log, logError } from "./util/log";
 // the actual restart mechanism for the exit-on-exception case below.
 process.on("uncaughtException", (err) => {
   logError("uncaught_exception", err);
+  captureGatewayError(err);
   process.exit(1);
 });
 process.on("unhandledRejection", (reason) => {
   logError("unhandled_rejection", reason);
+  captureGatewayError(reason);
 });
 
 const app = createApp();

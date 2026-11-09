@@ -16,12 +16,13 @@
     "@react-three/postprocessing": "^3.2.2",
     "@recast-navigation/core": "0.44.0",
     "@recast-navigation/generators": "0.44.0",
+    "@sentry/react": "^11.11.0",
+    "phonon-tts": "^0.6.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "recast-navigation": "0.44.0",
     "three": "^0.170.0",
-    "three-mesh-bvh": "0.9.16",
-    "phonon-tts": "^0.6.0"
+    "three-mesh-bvh": "0.9.16"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^7.0.1",
