@@ -105,6 +105,10 @@ export class InteractController {
     for (const id of [...this.sessions.keys()]) if (!this.defs.has(id)) this.sessions.delete(id);
   }
 
+  cancel(actor: string): void {
+    for (const [id, session] of this.sessions) if (session.actor === actor) this.sessions.delete(id);
+  }
+
   list(): InteractableDef[] {
     return [...this.defs.values()];
   }

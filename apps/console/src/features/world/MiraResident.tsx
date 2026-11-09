@@ -22,8 +22,10 @@ function MiraModel({ walk }: { walk?: WalkColliders }) {
     const collider = boxesMesh([MIRA_COLLIDER], [0, 0], "npc:mira");
     if (!collider) return;
     walk.set("npc:mira", [collider]);
-    return () => { walk.drop("npc:mira"); collider.geometry.dispose(); };
+    return () => { walk.drop("npc:mira"); walk.actors.remove("mira"); };
   }, [walk]);
+
+  useFrame(() => walk?.actors.publishWalker("mira", { x: MIRA_POSITION[0], y: MIRA_POSITION[1], z: MIRA_POSITION[2], vx: 0, vz: 0 }, 0.38, 1.68, false));
 
   return <group name="resident:mira" position={MIRA_POSITION} dispose={null}>
     <primitive object={scene} />

@@ -425,6 +425,14 @@ export class TeaDoorController {
   }
 
   /** Who holds the door right now (null = nobody). */
+  /** Release a disconnected owner without leaving a locked choreography. Keep the opening clear. */
+  cancel(actor: string): void {
+    if (this.owner !== actor || this.phase === "idle") return;
+    this.phase = "idle"; this.clip = null; this.owner = null;
+    this.state = "open"; this.angle = TEA_OPEN_ANGLE; this.freeTimer = 0;
+    this.syncBlocker();
+  }
+
   get sessionOwner(): string | null {
     return this.phase === "idle" ? null : this.owner;
   }

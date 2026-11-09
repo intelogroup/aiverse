@@ -1,5 +1,5 @@
 import { useFrame, useThree } from "@react-three/fiber";
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { CastFigure } from "./CastFigure";
 import { BODY_SUMMER } from "./bodies";
@@ -105,7 +105,9 @@ export function CityWalker({
   const gl = useThree((s) => s.gl);
   const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3; update?: () => void } | null;
   // Capsule shapecast over the collision GLBs; the old raycast world over the visual meshes only if collision failed to load.
-  const world = useWalkWorld(getMeshes, walk);
+  const staticWorld = useWalkWorld(getMeshes, walk);
+  const world = useMemo(() => walk?.actors.wrapWorld(staticWorld, "player") ?? staticWorld, [staticWorld, walk]);
+  useEffect(() => () => walk?.actors.remove("player"), [walk]);
 
   const state = useRef<ReturnType<typeof makeWalker> | null>(null);
   const pitch = useRef(0);
@@ -294,6 +296,7 @@ export function CityWalker({
       input.strafe = 0;
     }
     step(s, input, delta, world);
+    walk?.actors.publishWalker("player", s);
     cbs.current.onPosition?.(s.x, s.z, s.y);
 
     // Frame for CastFigure (clip from speed) and the figure group's height.

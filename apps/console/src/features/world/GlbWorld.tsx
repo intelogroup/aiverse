@@ -1339,7 +1339,7 @@ export function GlbWorld() {
     <div ref={rootRef} className={touchUi ? "w-glb-root w-touch-root" : "w-glb-root"}>
       <VerseRecorder root={rootRef} />
       <Canvas
-        key={loadNonce}
+        key={`world-${loadNonce}`}
         camera={camera}
         dpr={touchUi ? dprForTier(quality.tier) : undefined}
         frameloop={agentOn ? "demand" : "always"}
@@ -1440,7 +1440,7 @@ export function GlbWorld() {
         <ShellPaBanner sound={soundRef.current} spectator={!walking} />
       ) : null}
       <WorldLoadOverlay
-        key={loadNonce}
+        key={`loading-${loadNonce}`}
         presented={worldPresented}
         onRetry={() => {
           useGLTF.clear(CITY3_URL);

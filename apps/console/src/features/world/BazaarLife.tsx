@@ -1,5 +1,5 @@
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
-import { Suspense, useMemo, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { CastFigure } from "./CastFigure";
 import { BODY_MAGE, BODY_REMY } from "./bodies";
@@ -87,7 +87,9 @@ export function BazaarLife({
 }) {
   // Same world stack as CityWalker: capsule shapecast over the collision
   // GLBs, raycast over the visual meshes only if collision failed.
-  const world = useWalkWorld(getMeshes, walk);
+  const staticWorld = useWalkWorld(getMeshes, walk);
+  const world = useMemo(() => walk?.actors.wrapWorld(staticWorld, "patrol") ?? staticWorld, [staticWorld, walk]);
+  useEffect(() => () => { walk?.actors.remove("patrol"); walk?.actors.remove("keeper"); }, [walk]);
 
   const keeperClips = useMemo(() => new ClipTestState(), []);
   const keeper = useRef<KeeperState | null>(null);
@@ -130,6 +132,7 @@ export function BazaarLife({
           step(s, input, dt, world, PATROL_CONFIG);
           if (arrived) drv.dwell = stopDef.dwell;
         }
+        walk?.actors.publishWalker("patrol", s, PATROL_CONFIG.radius);
         writeWalkerFrame(patrolFrames.current[0], s);
         if (patrolGroup.current) patrolGroup.current.position.y = s.y;
       }
@@ -139,6 +142,7 @@ export function BazaarLife({
       }
     }
     if (keeperGroup.current) keeperGroup.current.position.y = keeperY.current ?? 0.2;
+    if (keeperY.current !== null) walk?.actors.publishWalker("keeper", { x: KEEPER_POS[0], y: keeperY.current, z: KEEPER_POS[1], vx: 0, vz: 0 }, 0.4, 1.7, false);
 
     // ---- keeper trigger ----
     const movers: [number, number][] = [];

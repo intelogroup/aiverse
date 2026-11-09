@@ -5,6 +5,7 @@
 // geometry. Collision meshes are never added to a scene. Three-only, no React: unit-testable.
 
 import * as THREE from "three";
+import { ActorRegistry } from "./actors";
 import { disposeCollider } from "./capsuleWorld";
 
 export type CollisionStatus = "loading" | "ready" | "failed";
@@ -20,6 +21,7 @@ export interface WalkCollidersStats {
 }
 
 export class WalkColliders {
+  readonly actors = new ActorRegistry();
   private sets = new Map<string, THREE.Mesh[]>();
   private flat: THREE.Mesh[] | null = null;
   private loads = 0;
@@ -50,9 +52,12 @@ export class WalkColliders {
     if (count) this.drops++;
   }
 
-  dropAll(): void { for (const k of [...this.sets.keys()]) this.drop(k); }
+  dropAll(): void { for (const k of [...this.sets.keys()]) this.drop(k); this.actors.clear(); }
 
   /** Stable between mutations (the capsule world calls this every probe). */
+  /** Planning may traverse the operable door link; physics retains the actual blocker. */
+  listWithout = (key: string): THREE.Mesh[] => [...this.sets.entries()].filter(([k]) => k !== key).flatMap(([, meshes]) => meshes);
+
   list = (): THREE.Mesh[] => (this.flat ??= [...this.sets.values()].flat());
 
   stats(): WalkCollidersStats {
