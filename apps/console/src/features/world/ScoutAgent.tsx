@@ -42,7 +42,7 @@
 // time.
 
 import { useFrame, useThree } from "@react-three/fiber";
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { CastFigure } from "./CastFigure";
 import { BODY_REMY } from "./bodies";
@@ -63,13 +63,17 @@ import {
   type ScoutPlace,
   type Sittable,
 } from "./scout";
+import { planRoute, sampleNavigationPatch, navigationSegment, type NavigationPatch } from "./navigation";
+import { avoidActorInput, type ActorBody } from "./actors";
 import type { WalkColliders } from "./walkColliders";
+import { ScoutVision, pointVisible, projectRoute, renderRouteOverlay, type ScoutVisionFrame } from "./scoutVision";
+import { createCapsuleWorld } from "./capsuleWorld";
 import { newWalkerFrame, useWalkWorld, writeWalkerFrame } from "./walkerBody";
 import { clipChannel, type TeaDoorChannel, type TeaDoorController } from "./teaDoor";
 import type { InteractController } from "./interactables";
 
 const SCOUT_ACTOR = "scout";
-import { clipFor, findSpawn, makeWalker, type WalkerState } from "./walker";
+import { clipFor, findSpawn, makeWalker, WALK_CONFIG, type WalkerState } from "./walker";
 
 export interface ScoutSnapshot {
   t: number;
@@ -83,10 +87,14 @@ export interface ScoutSnapshot {
   insideRoom: string | null;
   posture: string;
   clip: string | null;
+  renderedClip: string | null;
   busy: boolean;
   currentAction: string | null;
   /** Other movers within 10 m. Run 1 has no other movers in City 3. */
-  movers: never[];
+  movers: ActorBody[];
+  session: string;
+  body: { radius: number; height: number };
+  route: [number, number][];
   looksUsed: number;
   finished: boolean;
   worldKind: string;
@@ -99,14 +107,13 @@ export interface ScoutApi {
   /** The interactables (headless checks); null without a controller. */
   interact: () => { session: { id: string; phase: string; t: number } | null; props: { id: string; on: boolean }[] } | null;
   snapshot: () => ScoutSnapshot | null;
-  look: () => Promise<{ image: string | null; scene: OracleObject[] }>;
+  look: () => Promise<{ image: string | null; scene: OracleObject[]; depth: ScoutVisionFrame["depth"] | null; camera: ScoutVisionFrame["camera"] | null; simulationTime: number; snapshot: ScoutSnapshot | null; routeImage: string | null; route: ReturnType<typeof projectRoute> }>;
   act: (action: ScoutAction) => Promise<(ScoutOutcome & { snapshot: ScoutSnapshot | null }) | null>;
+  map: () => (NavigationPatch & { simulationTime: number; session: string }) | null;
   places: () => ScoutPlace[];
   sittables: () => Sittable[];
 }
 
-const LOOK_W = 512;
-const LOOK_H = 288;
 const deg = (r: number) => Math.round(((r * 180) / Math.PI) * 10) / 10;
 
 export function ScoutAgent({
@@ -116,7 +123,13 @@ export function ScoutAgent({
   door,
   interact,
   positionRef,
+  actorId = SCOUT_ACTOR,
+  primary = true,
+  spawn,
 }: {
+  actorId?: string;
+  primary?: boolean;
+  spawn?: readonly [x: number, z: number, heading: number];
   getMeshes: () => THREE.Mesh[];
   walk?: WalkColliders;
   rooms: City3Room[];
@@ -133,7 +146,23 @@ export function ScoutAgent({
   const invalidate = useThree((s) => s.invalidate);
   const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3; update?: () => void } | null;
 
-  const world = useWalkWorld(getMeshes, walk);
+  const staticWorld = useWalkWorld(getMeshes, walk);
+  const world = useMemo(() => walk?.actors.wrapWorld(staticWorld, actorId, 1.7) ?? staticWorld, [staticWorld, walk, actorId]);
+  const planningWorld = useMemo(() => walk ? createCapsuleWorld(() => walk.listWithout("door:tea")) : staticWorld, [walk, staticWorld]);
+  const session = useRef(crypto.randomUUID());
+  const visibleMovers = (): ActorBody[] => {
+    const s = state.current;
+    if (!s || !walk) return [];
+    const eye = new THREE.Vector3(s.x, s.y + HEAD_HEIGHT, s.z);
+    return walk.actors.nearby(actorId, [s.x, s.y, s.z], 10).filter(b => {
+      const target = new THREE.Vector3(b.position[0], b.position[1] + b.height * .6, b.position[2]);
+      const direction = target.clone().sub(eye), distance = direction.length();
+      const bearing = Math.atan2(direction.x, direction.z) - s.body;
+      if (Math.abs(Math.atan2(Math.sin(bearing), Math.cos(bearing))) > Math.PI / 4) return false;
+      const ray = new THREE.Raycaster(eye, direction.normalize(), .05, Math.max(.05, distance - b.radius));
+      return ray.intersectObjects(walk.list(), false).length === 0;
+    });
+  };
 
   const data = useRef<{ places: ScoutPlace[]; sittables: Sittable[]; districts: ScoutDistrict[] } | null>(null);
   const clips = useRef<ClipTestState | null>(null);
@@ -142,12 +171,15 @@ export function ScoutAgent({
   if (scoutChannel.current === null) scoutChannel.current = clipChannel(clips.current);
   const exec = useRef<ScoutExecutor | null>(null);
   const state = useRef<WalkerState | null>(null);
+  const renderedReady = useRef(false);
   const frames = useRef<AgentFrame[]>([newWalkerFrame()]);
   const figure = useRef<THREE.Group>(null);
+  const playingClip = useRef<string | null>(null);
   const headPose = useRef<[number, number, number] | null>(null);
   const looksUsed = useRef(0);
   const camPos = useRef<THREE.Vector3 | null>(null);
-  const lookRig = useRef<{ rt: THREE.WebGLRenderTarget; cam: THREE.PerspectiveCamera; px: Uint8Array } | null>(null);
+  const lookRig = useRef<ScoutVision | null>(null);
+  useEffect(() => () => { lookRig.current?.dispose(); lookRig.current = null; }, []);
 
   // Load the harness's world data (generated assets; see scout.ts header).
   useEffect(() => {
@@ -169,17 +201,32 @@ export function ScoutAgent({
         exec.current = new ScoutExecutor({
           places,
           sittables,
+          cancel: () => { door?.cancel(actorId); interact?.cancel(actorId); },
+          plan: (s, target) => {
+            const y = world.groundY(target[0], target[1], s.y + WALK_CONFIG.stepUp + .05);
+            if (y === null) return null;
+            const route = planRoute(planningWorld, [s.x,s.y,s.z], [target[0],y,target[1]], {halfExtent:128,cellSize:1,maxExpansions:10000});
+            return route.status === "found" ? route.waypoints.slice(1).map(p => [p[0],p[2]]) : null;
+          },
+          safe: (s, target) => {
+            const y = world.groundY(target[0],target[1],s.y + WALK_CONFIG.stepUp + .05);
+            return y !== null && navigationSegment(planningWorld,[s.x,s.y,s.z],[target[0],y,target[1]]);
+          },
+          avoid: (s, wanted) => {
+            const self: ActorBody = {id:actorId,position:[s.x,s.y,s.z],velocity:[Math.sin(s.heading)*wanted.forward*1.3,Math.cos(s.heading)*wanted.forward*1.3],radius:.4,height:1.7,updatedAtMs:performance.now()};
+            return avoidActorInput(self, visibleMovers(), wanted);
+          },
           clips: clips.current!,
           hipsY: BODY_REMY.hipsY,
           door: door
-            ? (s, wanted, dt) => door.drive(s, dt, wanted.forward > 0, SCOUT_ACTOR, scoutChannel.current!)
+            ? (s, wanted, dt) => door.drive(s, dt, wanted.forward > 0, actorId, scoutChannel.current!)
             : undefined,
           interact: interact
             ? {
                 defs: () => interact.list(),
                 isOn: (id) => interact.isOn(id),
-                request: (id, at) => interact.request(id, SCOUT_ACTOR, clips.current!, at),
-                drive: (s, dt) => interact.drive(s, dt, SCOUT_ACTOR),
+                request: (id, at) => interact.request(id, actorId, clips.current!, at),
+                drive: (s, dt) => interact.drive(s, dt, actorId),
               }
             : undefined,
         });
@@ -194,6 +241,7 @@ export function ScoutAgent({
 
   // Leave the wide camera exactly where it was (CityWalker's courtesy).
   useEffect(() => {
+    if (!primary) return;
     const p = camera.position.clone();
     const t = controls?.target.clone() ?? null;
     return () => {
@@ -203,7 +251,7 @@ export function ScoutAgent({
         controls.update?.();
       }
     };
-  }, [camera, controls]);
+  }, [camera, controls, primary]);
 
   const snapshot = (): ScoutSnapshot | null => {
     const s = state.current;
@@ -214,7 +262,7 @@ export function ScoutAgent({
     const room = roomAt(rooms, s.x, s.z);
     const dist = districtAt(d.districts, s.x, s.z);
     return {
-      t: Math.round(ex.t * 100) / 100,
+      t: ex.t,
       pos: [Math.round(s.x * 100) / 100, Math.round(s.y * 100) / 100, Math.round(s.z * 100) / 100],
       headingDeg: deg(s.heading),
       bodyHeadingDeg: deg(s.body),
@@ -225,70 +273,45 @@ export function ScoutAgent({
       insideRoom: room?.name ?? null,
       posture: ex.posture,
       clip: clips.current!.current ?? clipFor(s.speed),
+      renderedClip: playingClip.current,
       busy: ex.busy,
       currentAction: ex.currentAction?.type ?? null,
-      movers: [],
+      movers: visibleMovers(),
+      session: session.current,
+      body: { radius: WALK_CONFIG.radius, height: 1.7 },
+      route: ex.route,
       looksUsed: looksUsed.current,
       finished: ex.finished,
       worldKind: world.kind(),
     };
   };
 
-  const captureLook = (): string | null => {
+  const captureLook = (): ScoutVisionFrame | null => {
     const s = state.current;
     if (!s) return null;
-    if (!lookRig.current) {
-      lookRig.current = {
-        rt: new THREE.WebGLRenderTarget(LOOK_W, LOOK_H),
-        cam: new THREE.PerspectiveCamera(55, LOOK_W / LOOK_H, 0.1, 500),
-        px: new Uint8Array(LOOK_W * LOOK_H * 4),
-      };
-    }
-    const { rt, cam, px } = lookRig.current;
-    const hp = headPose.current;
-    const hx = hp ? hp[0] : s.x;
-    const hy = hp ? hp[1] : s.y + HEAD_HEIGHT;
-    const hz = hp ? hp[2] : s.z;
-    const sn = Math.sin(s.body);
-    const cs = Math.cos(s.body);
-    cam.position.set(hx + sn * EYE_FORWARD, hy, hz + cs * EYE_FORWARD);
+    const rig = lookRig.current ??= new ScoutVision();
+    const cam = rig.camera;
+    // Use simulation position rather than the render-heartbeat head stream: both modalities and pose share this tick.
+    const sn = Math.sin(s.body), cs = Math.cos(s.body);
+    const pose = exec.current?.frameOverride();
+    cam.position.set((pose?.x ?? s.x) + sn * EYE_FORWARD, (pose?.y ?? s.y) + (pose?.drop ?? 0) + HEAD_HEIGHT, (pose?.z ?? s.z) + cs * EYE_FORWARD);
     cam.lookAt(cam.position.x + sn * 5, cam.position.y, cam.position.z + cs * 5);
-    cam.updateMatrixWorld();
-    const fig = figure.current;
-    const wasVisible = fig ? fig.visible : true;
-    if (fig) fig.visible = false;
-    try {
-      gl.setRenderTarget(rt);
-      gl.render(scene, cam);
-      gl.readRenderTargetPixels(rt, 0, 0, LOOK_W, LOOK_H, px);
-    } finally {
-      gl.setRenderTarget(null);
-      if (fig) fig.visible = wasVisible;
-    }
-    const canvas = document.createElement("canvas");
-    canvas.width = LOOK_W;
-    canvas.height = LOOK_H;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-    const img = ctx.createImageData(LOOK_W, LOOK_H);
-    // WebGL rows are bottom-up; flip into image order.
-    const row = LOOK_W * 4;
-    for (let y = 0; y < LOOK_H; y++) {
-      img.data.set(px.subarray((LOOK_H - 1 - y) * row, (LOOK_H - y) * row), y * row);
-    }
-    ctx.putImageData(img, 0, 0);
-    return canvas.toDataURL("image/png");
+    return rig.capture(gl, scene, exec.current?.t ?? 0, figure.current);
   };
 
   // window.__scout — the runner's door in.
   useEffect(() => {
     const api: ScoutApi = {
-      ready: () => state.current !== null && exec.current !== null,
+      ready: () => state.current !== null && exec.current !== null && renderedReady.current,
       /** The Tea House door as Scout sees it (headless checks). */
       door: () => (door ? { phase: door.phase, state: door.state, angle: Math.round(door.angle), owner: door.sessionOwner } : null),
       /** The interactables as Scout sees them (headless checks): its session + every prop's state. */
-      interact: () => (interact ? { session: interact.sessionOf(SCOUT_ACTOR), props: interact.list().map((i) => ({ id: i.id, on: interact.isOn(i.id) })) } : null),
+      interact: () => (interact ? { session: interact.sessionOf(actorId), props: interact.list().map((i) => ({ id: i.id, on: interact.isOn(i.id) })) } : null),
       snapshot: () => snapshot(),
+      map: () => {
+        const s = state.current;
+        return s ? {...sampleNavigationPatch(staticWorld,[s.x,s.y,s.z],{halfExtent:12,cellSize:1,maxExpansions:700}),simulationTime:exec.current?.t ?? 0,session:session.current} : null;
+      },
       look: async () => {
         looksUsed.current += 1;
         const s = state.current;
@@ -297,7 +320,22 @@ export function ScoutAgent({
           s && d
             ? oracleScene(d.places, rooms, { x: s.x, z: s.z, heading: s.body }, {}, (interact?.list() ?? []).map((i) => ({ id: i.id, label: i.label, kind: i.kind, pos: [i.pos[0], i.pos[2]] as [number, number], on: interact!.isOn(i.id) })))
             : [];
-        return { image: captureLook(), scene: sceneObjs };
+        const frame = captureLook();
+        const visible = frame && lookRig.current && s ? sceneObjs.filter(o => {
+          if (o.kind === "room" && o.note === "you are inside") return true;
+          const angle = s.body + o.bearingDeg * Math.PI / 180;
+          const point = new THREE.Vector3(s.x + Math.sin(angle) * o.distance, lookRig.current!.camera.position.y, s.z + Math.cos(angle) * o.distance);
+          return pointVisible(point, lookRig.current!.camera, frame.depth);
+        }) : [];
+        const observed = snapshot();
+        const points: [number, number, number][] = s && observed?.route.length ? [
+          [s.x, s.y + 0.05, s.z],
+          ...observed.route.map(([x, z]): [number, number, number] => [x, (world.groundY(x, z, s.y + 0.45) ?? s.y) + 0.05, z]),
+        ] : [];
+        return { image: frame?.image ?? null, scene: visible, depth: frame?.depth ?? null, camera: frame?.camera ?? null,
+          simulationTime: frame?.simulationTime ?? exec.current?.t ?? 0, snapshot: observed,
+          route: frame ? projectRoute(points, frame) : [],
+          routeImage: frame && points.length > 1 ? await renderRouteOverlay(frame, points) : null };
       },
       act: async (action) => {
         const ex = exec.current;
@@ -306,16 +344,19 @@ export function ScoutAgent({
         if (action.type === "say") {
           console.info(`[scout-say] ${action.text}`);
         }
-        const outcome = await ex.submit(action, s);
+        const pending = ex.submit(action, s);
+        if (action.type === "play") invalidate();
+        const outcome = await pending;
         return { ...outcome, snapshot: snapshot() };
       },
       places: () => data.current?.places ?? [],
       sittables: () => data.current?.sittables ?? [],
     };
     const w = window as unknown as Record<string, unknown>;
-    w.__scout = api;
+    const key = primary ? "__scout" : "__scoutPeer";
+    w[key] = api;
     return () => {
-      delete w.__scout;
+      if (w[key] === api) delete w[key];
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rooms, world]);
@@ -332,15 +373,15 @@ export function ScoutAgent({
     let ticks = 0;
     const id = window.setInterval(() => {
       ticks += 1;
-      const ready = state.current !== null && exec.current !== null;
-      if (!ready || ticks % 10 === 0) invalidate();
+      const ready = state.current !== null && exec.current !== null && renderedReady.current;
+      if (!ready || ticks % 10 === 0 || exec.current?.currentAction?.type === "play") invalidate();
       const ex = exec.current;
       if (!ex || world.kind() === "pending") return;
       let s = state.current;
       if (!s) {
-        const sp = findSpawn(world);
+        const sp = findSpawn(world, spawn ? { cx: spawn[0], cz: spawn[1], maxR: 3 } : undefined);
         if (!sp) return;
-        s = state.current = makeWalker(sp.x, sp.y, sp.z, 0);
+        s = state.current = makeWalker(sp.x, sp.y, sp.z, spawn?.[2] ?? 0);
       }
       const now = performance.now();
       let dt = Math.min((now - last) / 1000, 0.3);
@@ -348,13 +389,16 @@ export function ScoutAgent({
       while (dt > 0) {
         const stepDt = Math.min(dt, 1 / 30);
         ex.tick(stepDt, s, world);
+        const action = ex.currentAction;
+        walk?.actors.publishWalker(actorId, s, WALK_CONFIG.radius, 1.7, true,
+          action?.type === "play" && playingClip.current === action.clip ? action.clip : undefined);
         if (positionRef) positionRef.current = { x: s.x, z: s.z };
-        door?.tick(stepDt); // agent mode: the door runs on Scout's sim clock (GlbWorld's frame ticker is off)
-        interact?.tick(stepDt); // same for the interactables (InteractTicker is off in agent mode)
+        if (primary) door?.tick(stepDt); // agent mode: the door runs on Scout's sim clock (GlbWorld's frame ticker is off)
+        if (primary) interact?.tick(stepDt); // same for the interactables (InteractTicker is off in agent mode)
         dt -= stepDt;
       }
     }, 100);
-    return () => window.clearInterval(id);
+    return () => { window.clearInterval(id); walk?.actors.remove(actorId); };
   }, [world, invalidate]);
 
   useFrame(() => {
@@ -369,6 +413,7 @@ export function ScoutAgent({
     const fz = f.position[1];
     if (figure.current) figure.current.position.y = ov ? ov.y + ov.drop : s.y;
 
+    if (!primary) return;
     // Streaming + theme follow Scout; the follow camera keeps interiors
     // resident around it (InteriorStreamer plans off the camera).
     controls?.target.set(fx, (ov ? ov.y : s.y) + 1, fz);
@@ -397,6 +442,8 @@ export function ScoutAgent({
           body={BODY_REMY}
           clipTester={clips.current ?? undefined}
           headPoseRef={headPose}
+          playingClipRef={playingClip}
+          renderedReadyRef={renderedReady}
         />
       </Suspense>
     </group>

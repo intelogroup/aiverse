@@ -234,6 +234,7 @@ export type ScoutAction =
   | { type: "play"; clip: string; seconds?: number }
   | { type: "interact"; target: string }
   | { type: "say"; text: string }
+  | { type: "stop" }
   | { type: "finish" };
 
 export type OutcomeStatus =
@@ -301,6 +302,9 @@ interface Pending {
   phaseT?: number;
   /** interact: the prop's state when the session started (the outcome is whether it flipped). */
   wasOn?: boolean;
+  route?: Vec2[];
+  routeIndex?: number;
+  replans?: number;
 }
 
 const SIT_DOWN_S = clipDef("SitDown")?.duration ?? 2.2333;
@@ -308,6 +312,11 @@ const STAND_UP_S = clipDef("StandUp")?.duration ?? 2.2667;
 const ZERO_INPUT = { forward: 0, strafe: 0, turn: 0, run: false };
 
 export interface ExecutorDeps {
+  cancel?: () => void;
+  /** Collision-aware planner. Null means no safe route; never silently steer through it. */
+  plan?: (state: WalkerState, target: Vec2) => Vec2[] | null;
+  safe?: (state: WalkerState, target: Vec2) => boolean;
+  avoid?: (state: WalkerState, wanted: WalkInput) => WalkInput;
   places: ScoutPlace[];
   sittables: Sittable[];
   /** The figure's clip tester (clips.ts): the executor fires sit/play clips. */
@@ -367,7 +376,17 @@ export class ScoutExecutor {
     return this.seatedOn;
   }
 
+  get route(): Vec2[] { return this.pending?.route?.slice(this.pending.routeIndex ?? 0) ?? []; }
+
   submit(action: ScoutAction, state: WalkerState): Promise<ScoutOutcome> {
+    if (action.type === "stop") {
+      this.deps.cancel?.();
+      if (this.posture === "sitting-down") { this.posture = "standing"; this.seatedOn = null; this.sitBlend = 0; }
+      if (this.posture === "standing-up") { this.posture = "seated"; this.sitBlend = 1; }
+      this.settle({ ok: false, status: "rejected", detail: "cancelled" });
+      state.vx = state.vz = state.speed = 0;
+      return Promise.resolve({ ok: true, status: "done" });
+    }
     if (this.finished && action.type !== "finish") {
       return Promise.resolve({ ok: false, status: "rejected", detail: "Scout has finished" });
     }
@@ -641,8 +660,31 @@ export class ScoutExecutor {
           return;
         }
         const target = p.target!;
+        const routed = !!this.deps.plan && (p.action.type === "go_to" || p.action.type === "run_to");
+        if (routed && !p.route) {
+          const route = this.deps.plan!(state, target);
+          if (!route?.length) {
+            state.vx = state.vz = state.speed = 0;
+            this.settle({ ok: false, status: "blocked", detail: "no safe route", target: p.targetId });
+            return;
+          }
+          p.route = route; p.routeIndex = 0;
+        }
+        if (p.route) {
+          while ((p.routeIndex ?? 0) < p.route.length - 1 && Math.hypot(state.x - p.route[p.routeIndex ?? 0][0], state.z - p.route[p.routeIndex ?? 0][1]) < 0.3) p.routeIndex = (p.routeIndex ?? 0) + 1;
+        }
+        const waypoint = p.route?.[p.routeIndex ?? 0] ?? target;
+        if (routed && this.deps.safe && !this.deps.safe(state, waypoint)) {
+          p.route = undefined;
+          p.replans = (p.replans ?? 0) + 1;
+          state.vx = state.vz = state.speed = 0;
+          if (p.replans > 8) this.settle({ ok: false, status: "blocked", detail: "route repeatedly obstructed" });
+          return;
+        }
         const arriveR = p.phase === "to-approach" || p.phase === "to-stand" ? 0.25 : 0.45;
-        const { input, arrived } = moveToIntent(state, target, arriveR, !!p.run);
+        const { input: wanted, arrived: waypointArrived } = moveToIntent(state, waypoint, p.route && (p.routeIndex ?? 0) < p.route.length - 1 ? 0.2 : arriveR, !!p.run);
+        const input = this.deps.avoid?.(state, wanted) ?? wanted;
+        const arrived = waypointArrived && (!p.route || (p.routeIndex ?? 0) === p.route.length - 1);
         const held = this.deps.door?.(state, input, dt) ?? null;
         if (held) {
           step(state, held, dt, world);
@@ -674,10 +716,15 @@ export class ScoutExecutor {
             p.wasOn = ia.isOn(p.targetId!);
             return;
           }
+          state.vx = state.vz = state.speed = 0;
           this.settle({ ok: true, status: "arrived", target: p.targetId });
           return;
         }
         if (p.staleFor > 2.5 && state.speed < 0.12) {
+          if (routed && (p.replans ?? 0) < 8) {
+            p.route = undefined; p.replans = (p.replans ?? 0) + 1; p.staleFor = 0; p.bestDist = Infinity;
+            return;
+          }
           this.settle({
             ok: false,
             status: "blocked",

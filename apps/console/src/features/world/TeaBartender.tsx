@@ -59,7 +59,7 @@ export function TeaBartender({
     if (!walk) return;
     const m = boxesMesh([BARTENDER_COLLIDER], [0, 0], "npc:bartender");
     if (m) walk.set("npc:bartender", [m]);
-    return () => walk.drop("npc:bartender");
+    return () => { walk.drop("npc:bartender"); walk.actors.remove("bartender"); };
   }, [walk]);
 
   useEffect(() => () => {
@@ -98,6 +98,7 @@ export function TeaBartender({
   }, [greeter, clips]);
 
   useFrame((_, delta) => {
+    walk?.actors.publishWalker("bartender", { x: BARTENDER_POS[0], y: BARTENDER_FLOOR_Y + BARTENDER_PLATFORM_H, z: BARTENDER_POS[1], vx: 0, vz: 0 }, 0.4, 1.7, false);
     const dt = Math.min(delta, 0.1);
     const movers: [number, number][] = [];
     for (const v of visitors) {
