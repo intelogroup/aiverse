@@ -8,7 +8,7 @@ import {makeWalker} from './walker';
 const fixture=vi.hoisted(()=>({scene:null as unknown as T.Scene,resident:null as unknown as T.Group}));
 vi.mock('@react-three/fiber',()=>({useFrame:()=>{},useThree:(select:(s:{scene:T.Scene})=>unknown)=>select({scene:fixture.scene})}));
 vi.mock('@react-three/drei',()=>({useGLTF:()=>({scene:fixture.resident})}));
-import {TeaElevator,TeaElevatorHud} from './TeaElevator';
+import {TeaElevator,TeaElevatorHud} from './TeaElevatorView';
 it('keeps riders through StrictMode remount and restores protected landings on final unmount',async()=>{
  fixture.scene=new T.Scene();fixture.resident=new T.Group();fixture.scene.add(fixture.resident);
  const leaves=Array.from({length:4},(_,i)=>{const m=new T.Mesh(new T.BoxGeometry(1.1,2.2,.05),new T.MeshBasicMaterial());m.position.set(LIFT.x,.48+i*3.5+1.1,LIFT.doorZ);m.userData={elevatorDoor:true,noGround:true};fixture.resident.add(m);return m;});fixture.scene.updateMatrixWorld(true);
