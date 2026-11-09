@@ -10,6 +10,8 @@ beyond that session. Status tags are used throughout:
 Related records: `MONETIZATION-AND-FAIRNESS.md` (goal files), `DECISION-MODELS.md`
 (goal files), and the experiment suites under `experiments/` (border, drive-layer,
 checkpoint, decision-head, gauntlet).
+Companion design doc: `VERSE-RETURN-GOODS-AND-WISHLISTS.md` (same folder) —
+seeded return goods and the wish list system.
 
 ## 1. The performance edge — what actually makes one agent better than another
 
