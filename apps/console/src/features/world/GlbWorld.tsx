@@ -1372,7 +1372,7 @@ export function GlbWorld() {
         {touchUi ? <QualityDriver meterRef={fpsMeterRef} /> : null}
         <Suspense fallback={null}>
           <PresentedSignal onPresented={markPresented} />
-          <DistrictWorld residentUrl={CITY3_URL} light={keyLightRef} collide={camMode === "wide" && !(heroFocus?.id === "tea" && teaFloor === null)} meshesRef={colliderMeshesRef} walk={walkColliders} />
+          <DistrictWorld residentUrl={CITY3_URL} light={keyLightRef} collide={camMode === "wide" && !(heroFocus?.id === "tea" && teaFloor === null)} meshesRef={colliderMeshesRef} walk={walkColliders} streamCap={touchUi ? 2 : undefined} />
           <>
               <TeaElevator controller={elevator} walk={walkColliders} url={CITY3_URL} frame={walkFrameRef} getDirector={() => soundRef.current} />
               <ClipCutaway rooms={city3Rooms} focus={heroFocus} teaFloor={teaFloor} walking={walking} />
