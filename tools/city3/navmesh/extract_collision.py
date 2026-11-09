@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Extract world-space triangle soup from world-city3-collision.glb.
 
-The collision GLB is NOT meshopt-compressed (only KHR_texture_transform),
-and its nodes carry no transforms — geometry is already world-space.
-Output: a binary blob [u32 nVerts][f32 positions...][u32 nIdx][u32 indices...]
-plus a JSON sidecar with per-mesh stats, consumed by bake_navmesh.mjs.
+The collision GLB is NOT meshopt-compressed (only KHR_texture_transform).
+Node geometry may be local: the Tea House structure rides under a
+translated parent node (and the lift doors carry their own translation)
+since the elevator build, so world matrices are accumulated down the
+scene graph and applied to positions. Output: a binary blob
+[u32 nVerts][f32 positions...][u32 nIdx][u32 indices...] plus a JSON
+sidecar with per-mesh stats, consumed by bake_navmesh.mjs.
 
 Usage: extract_collision.py [collision.glb] [out.bin]
 """
@@ -45,18 +48,49 @@ def accessor(i):
         arr = np.frombuffer(BIN[start:start + itemsize * count], dtype=dt).copy()
     return arr.reshape(count, ncomp) if ncomp > 1 else arr
 
+def local_matrix(node):
+    if "matrix" in node:
+        # glTF matrices are column-major.
+        return np.array(node["matrix"], dtype=np.float64).reshape(4, 4).T
+    t = node.get("translation", [0, 0, 0])
+    q = node.get("rotation", [0, 0, 0, 1])  # xyzw
+    s = node.get("scale", [1, 1, 1])
+    x, y, z, w = q
+    R = np.array([
+        [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+        [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+        [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
+    ], dtype=np.float64)
+    M = np.eye(4)
+    M[:3, :3] = R * np.array(s, dtype=np.float64)
+    M[:3, 3] = t
+    return M
+
+# Accumulate world matrices down the scene graph (roots first).
+parents = {}
+for i, node in enumerate(j["nodes"]):
+    for c in node.get("children", []):
+        parents[c] = i
+world = [None] * len(j["nodes"])
+def world_matrix(i):
+    if world[i] is None:
+        m = local_matrix(j["nodes"][i])
+        world[i] = world_matrix(parents[i]) @ m if i in parents else m
+    return world[i]
+
 positions, indices, stats = [], [], []
 voff = 0
-for node in j["nodes"]:
+for ni, node in enumerate(j["nodes"]):
     if "mesh" not in node:
         continue
     name = node.get("name", "?")
-    if any(k in node for k in ("translation", "rotation", "scale", "matrix")):
-        raise SystemExit(f"node {name} has a transform — extractor assumes world-space geometry")
+    W = world_matrix(ni)
     mesh = j["meshes"][node["mesh"]]
     mtris = 0
     for prim in mesh["primitives"]:
-        pos = accessor(prim["attributes"]["POSITION"]).astype(np.float32)
+        pos = accessor(prim["attributes"]["POSITION"]).astype(np.float64)
+        pos = pos @ W[:3, :3].T + W[:3, 3]
+        pos = pos.astype(np.float32)
         if "indices" in prim:
             idx = accessor(prim["indices"]).astype(np.uint32).reshape(-1)
         else:

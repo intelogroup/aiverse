@@ -1,7 +1,7 @@
 {
  "source": "world-city3-collision.glb",
- "verts": 37006,
- "tris": 34764,
+ "verts": 38158,
+ "tris": 35052,
  "bounds": {
   "min": [
    -181.0,
@@ -73,7 +73,7 @@
   },
   {
    "node": "col_tea_G_lift",
-   "tris": 156
+   "tris": 132
   },
   {
    "node": "col_tea_G_partition",
@@ -109,7 +109,7 @@
   },
   {
    "node": "col_tea_L1_lift",
-   "tris": 108
+   "tris": 84
   },
   {
    "node": "col_tea_L1_partition",
@@ -145,7 +145,7 @@
   },
   {
    "node": "col_tea_L2_lift",
-   "tris": 108
+   "tris": 84
   },
   {
    "node": "col_tea_L2_partition",
@@ -185,7 +185,7 @@
   },
   {
    "node": "col_tea_L3_lift",
-   "tris": 108
+   "tris": 84
   },
   {
    "node": "col_tea_L3_partition",
@@ -214,6 +214,118 @@
   {
    "node": "col_tea_L3_wet",
    "tris": 360
+  },
+  {
+   "node": "col_G_wc-a_toilet",
+   "tris": 12
+  },
+  {
+   "node": "col_G_wc-a_sink",
+   "tris": 12
+  },
+  {
+   "node": "col_G_wc-b_toilet",
+   "tris": 12
+  },
+  {
+   "node": "col_G_wc-b_sink",
+   "tris": 12
+  },
+  {
+   "node": "col_L1_wc-a_toilet",
+   "tris": 12
+  },
+  {
+   "node": "col_L1_wc-a_sink",
+   "tris": 12
+  },
+  {
+   "node": "col_L1_wc-b_toilet",
+   "tris": 12
+  },
+  {
+   "node": "col_L1_wc-b_sink",
+   "tris": 12
+  },
+  {
+   "node": "col_L2_wc-a_toilet",
+   "tris": 12
+  },
+  {
+   "node": "col_L2_wc-a_sink",
+   "tris": 12
+  },
+  {
+   "node": "col_L2_201-bath_toilet",
+   "tris": 12
+  },
+  {
+   "node": "col_L2_201-bath_sink",
+   "tris": 12
+  },
+  {
+   "node": "col_L2_202-bath_toilet",
+   "tris": 12
+  },
+  {
+   "node": "col_L2_202-bath_sink",
+   "tris": 12
+  },
+  {
+   "node": "col_L2_203-bath_toilet",
+   "tris": 12
+  },
+  {
+   "node": "col_L2_203-bath_sink",
+   "tris": 12
+  },
+  {
+   "node": "col_L3_wc-a_toilet",
+   "tris": 12
+  },
+  {
+   "node": "col_L3_wc-a_sink",
+   "tris": 12
+  },
+  {
+   "node": "col_L3_301-bath_toilet",
+   "tris": 12
+  },
+  {
+   "node": "col_L3_301-bath_sink",
+   "tris": 12
+  },
+  {
+   "node": "col_L3_302-bath_toilet",
+   "tris": 12
+  },
+  {
+   "node": "col_L3_302-bath_sink",
+   "tris": 12
+  },
+  {
+   "node": "col_L3_303-bath_toilet",
+   "tris": 12
+  },
+  {
+   "node": "col_L3_303-bath_sink",
+   "tris": 12
+  },
+  {
+   "node": "col_TeaLiftDoor_G",
+   "tris": 24
+  },
+  {
+   "node": "col_TeaLiftDoor_L1",
+   "tris": 24
+  },
+  {
+   "node": "col_TeaLiftDoor_L2",
+   "tris": 24
+  },
+  {
+   "node": "col_TeaLiftDoor_L3",
+   "tris": 24
   },
   {
    "node": "col_tea_plinth_0",

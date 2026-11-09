@@ -60,6 +60,8 @@ export interface Hit {
 }
 
 export interface World {
+  prepareStep?(state: WalkerState): void;
+  finishStep?(state: WalkerState): void;
   /**
    * Height of the walkable surface under (x, z): the highest surface at or below `fromY` (so decks above the
    * walker — bridges, roofs — are ignored), or null where there is nothing (void, open water).
@@ -204,6 +206,7 @@ function walkableY(s: WalkerState, x: number, z: number, world: World, cfg: Walk
 export function step(s: WalkerState, input: WalkInput, dt: number, world: World, cfg: WalkConfig = WALK_CONFIG): WalkerState {
   dt = clamp(dt, 0, 0.1);
   if (dt === 0) return s;
+  world.prepareStep?.(s);
 
   // ---- heading ----
   if (input.faceHeading !== undefined) {
@@ -267,6 +270,7 @@ export function step(s: WalkerState, input: WalkInput, dt: number, world: World,
     s.y = Math.max(gy, s.y + s.vy * dt);
     if (s.y === gy) { s.grounded = true; s.vy = 0; }
   }
+  world.finishStep?.(s);
   return s;
 }
 
