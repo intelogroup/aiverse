@@ -5,6 +5,7 @@ import { agents, agentWallets, owners, reports } from "@aiverse/shared/schema";
 import { adminAuth } from "../middleware/adminAuth";
 import { forceDisconnectAgent } from "../ws/gateway";
 import { audit } from "../util/audit";
+import { validateWalletPatch } from "../util/walletPatch";
 import { deleteAgentCascade, deleteOwnerCascade } from "../util/deleteAgent";
 
 export const adminRoute = new Hono<{ Variables: { ownerId: string } }>();
@@ -69,16 +70,13 @@ adminRoute.patch("/agents/:id/wallet", adminAuth, async (c) => {
   const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
   if (!agent) return c.json({ error: "not found" }, 404);
 
-  const body = await c.req.json<{
-    dailyTokenBudget?: number;
-    maxTokensPerConversation?: number;
-    maxSimultaneousConversations?: number;
-    maxAgentCallsPerDay?: number;
-    spendingAuthorityCents?: number;
-    autonomyMode?: "observe" | "assist" | "autonomous";
-  }>();
+  // Same schema validation as the owner path (AIV-WALLET-HOSTILE-CEILING-001)
+  // — one validator, both write paths to the ceiling row.
+  const body = await c.req.json().catch(() => null);
+  const validated = validateWalletPatch(body);
+  if ("error" in validated) return c.json({ error: validated.error }, 400);
 
-  const [wallet] = await db.update(agentWallets).set(body).where(eq(agentWallets.agentId, agentId)).returning();
+  const [wallet] = await db.update(agentWallets).set(validated.patch).where(eq(agentWallets.agentId, agentId)).returning();
   if (!wallet) return c.json({ error: "wallet not found" }, 404);
 
   await audit({
@@ -88,7 +86,7 @@ adminRoute.patch("/agents/:id/wallet", adminAuth, async (c) => {
     actorType: "owner",
     actorId: adminOwnerId,
     targetAgentId: agentId,
-    metadata: body,
+    metadata: validated.patch,
   });
 
   return c.json({ wallet });

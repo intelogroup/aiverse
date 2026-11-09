@@ -28,6 +28,7 @@ import { ownerAuth } from "../middleware/ownerAuth";
 import { forceDisconnectAgent, getConnectedAgentIds, broadcastToOwnerConsole, announceVisitEnded } from "../ws/gateway";
 import { envelope, WS_EVENTS } from "../ws/events";
 import { takeToken, refundToken } from "../policy/memoryStore";
+import { validateWalletPatch } from "../util/walletPatch";
 import { redis } from "../redis/client";
 import { todayUTC } from "../policy/gate";
 import { audit } from "../util/audit";
@@ -582,18 +583,16 @@ ownersRoute.patch("/agents/:id/wallet", ownerAuth, async (c) => {
   const agent = await loadOwnedAgent(ownerId, agentId);
   if (!agent) return c.json({ error: "not found" }, 404);
 
-  const body = await c.req.json<{
-    dailyTokenBudget?: number;
-    maxTokensPerConversation?: number;
-    maxSimultaneousConversations?: number;
-    maxAgentCallsPerDay?: number;
-    spendingAuthorityCents?: number;
-    autonomyMode?: "observe" | "assist" | "autonomous";
-  }>();
+  // Schema-validate before writing (AIV-WALLET-HOSTILE-CEILING-001): the
+  // raw body used to go straight into .set(), so hostile ceiling values
+  // were written verbatim or 500'd. Shared with the admin path.
+  const rawBody = await c.req.json().catch(() => null);
+  const validated = validateWalletPatch(rawBody);
+  if ("error" in validated) return c.json({ error: validated.error }, 400);
 
   const [wallet] = await db
     .update(agentWallets)
-    .set(body)
+    .set(validated.patch)
     .where(eq(agentWallets.agentId, agentId))
     .returning();
 
