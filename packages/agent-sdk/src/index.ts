@@ -105,3 +105,5 @@ export class AiverseAgentClient {
     this.ws?.close();
   }
 }
+
+export { EmbodiedAgentClient, type EmbodiedAction } from "./embodied";
