@@ -106,6 +106,7 @@ export function CastFigure({
   clipTester,
   headPoseRef,
   playingClipRef,
+  renderedReadyRef,
 }: {
   /**
    * Head-bone stream for the first-person camera (cameraRig): when
@@ -118,6 +119,7 @@ export function CastFigure({
   headPoseRef?: { current: [number, number, number] | null };
   /** The clip the mixer has actually applied on this frame. */
   playingClipRef?: { current: string | null };
+  renderedReadyRef?: { current: boolean };
   /** The body this member wears (bodies.ts registry). */
   body?: BodyDef;
   /**
@@ -348,8 +350,9 @@ export function CastFigure({
     if (actions.idle && !actions.idle.isRunning()) actions.idle.reset().setEffectiveWeight(1).play();
     return () => {
       mixer.stopAllAction();
+      if (renderedReadyRef) renderedReadyRef.current = false;
     };
-  }, [mixer, actions]);
+  }, [mixer, actions, renderedReadyRef]);
 
   useFrame((_, frameDelta) => {
     const delta = playingClipRef ? Math.min(frameDelta, 0.1) : frameDelta;
@@ -589,6 +592,7 @@ export function CastFigure({
     // The walker clamps its step to 0.1 s; a gait-driven figure's clips advance by the same clamped dt so the
     // cycle stays in step with the travel on slow frames (feet do not run ahead of the body on a hitch).
     mixer.update(gaitOn ? Math.min(delta, 0.1) : delta);
+    if (renderedReadyRef) renderedReadyRef.current = true;
     if (playingClipRef) {
       const action = testActionRef.current;
       playingClipRef.current = action?.isRunning() && action.getEffectiveWeight() > 0

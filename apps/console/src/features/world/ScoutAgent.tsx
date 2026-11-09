@@ -171,6 +171,7 @@ export function ScoutAgent({
   if (scoutChannel.current === null) scoutChannel.current = clipChannel(clips.current);
   const exec = useRef<ScoutExecutor | null>(null);
   const state = useRef<WalkerState | null>(null);
+  const renderedReady = useRef(false);
   const frames = useRef<AgentFrame[]>([newWalkerFrame()]);
   const figure = useRef<THREE.Group>(null);
   const playingClip = useRef<string | null>(null);
@@ -301,7 +302,7 @@ export function ScoutAgent({
   // window.__scout — the runner's door in.
   useEffect(() => {
     const api: ScoutApi = {
-      ready: () => state.current !== null && exec.current !== null,
+      ready: () => state.current !== null && exec.current !== null && renderedReady.current,
       /** The Tea House door as Scout sees it (headless checks). */
       door: () => (door ? { phase: door.phase, state: door.state, angle: Math.round(door.angle), owner: door.sessionOwner } : null),
       /** The interactables as Scout sees them (headless checks): its session + every prop's state. */
@@ -372,7 +373,7 @@ export function ScoutAgent({
     let ticks = 0;
     const id = window.setInterval(() => {
       ticks += 1;
-      const ready = state.current !== null && exec.current !== null;
+      const ready = state.current !== null && exec.current !== null && renderedReady.current;
       if (!ready || ticks % 10 === 0 || exec.current?.currentAction?.type === "play") invalidate();
       const ex = exec.current;
       if (!ex || world.kind() === "pending") return;
@@ -442,6 +443,7 @@ export function ScoutAgent({
           clipTester={clips.current ?? undefined}
           headPoseRef={headPose}
           playingClipRef={playingClip}
+          renderedReadyRef={renderedReady}
         />
       </Suspense>
     </group>
