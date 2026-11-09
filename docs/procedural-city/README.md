@@ -13,7 +13,7 @@ re-deriving it. Written 2026-11-06 at the end of a long build; update it, don't 
 | `06-failures-log.md` | Chronological: what broke, root cause, the fix. Skim before repeating a technique |
 | `07-assets-and-licences.md` | Free asset sources tried, licences, reachability, conversion recipes |
 | `18-fruit-vases.md` | Approved fruit/vase templates and consolidated uploaded-asset catalog |
-| `20-tea-house-building.md` | Full four-floor Tea House survey, low-poly shell, room divisions, two stairs and elevator/toilet core |
+| `20-tea-house-building.md` | Four-floor Tea House structure and physical route audit: two stairs, elevator/toilet core, door swings, headroom and exit access |
 | `16-mira-resident.md` | Uploaded static character Mira: preparation, placement and source status |
 | `17-drinking-glasses.md` | Uploaded glass replacements, physical rendering, and saved bottle/shader packs |
 | `08-animation-body-controller.md` | Turn clips, planted feet, controller design and measurements |

@@ -2,6 +2,8 @@
 
 ### Tea House structural study (2026-11-09)
 
+The first checks proved individual slabs/treads but not a body-sized route. A 5 cm BVH route audit exposed room leaves projecting into the upper corridor and flat stair fills clipping headroom at turns. Use inward room swings, real open lobby connections and thin sloping stair soffits. Staff circulation now has two 1.25 m end gates around a 6.0 m counter, replacing the single right-hand gate described in the earlier study below. Stair B connects directly to the public lobby rather than relying on a store-room passage. The source planter and outdoor cafe sets are absent from `col_props`, so exterior clearance checks must include the actual visual Props mesh too; two cafe sets and one planter conflict with the proposed ramp. The audit applies the prescribed removals/relocation and records them as required integration work. Guards are blockers but never ground; otherwise thin rail tops appear as fake isolated standing islands.
+
 The bar must retain a route into its staff aisle after adding stairs and a toilet/lift core. Four original 2 m counters nearly filled the 8.5 m available width, leaving end gaps too narrow for the walker. The structural proposal uses four 1.7 m counter sections and a 1.5 m end gate; the GLB geometry check raycasts the actual access passage. Shelf bays can remain 2 m wide because they do not block the counter access. The recipe and shipped mesh establish four storeys at floor datums 0.48 / 4.40 / 7.90 / 11.40 m; do not add the 4.2 m ground façade height to the raised 0.48 m finished floor. The enclosed courtyard must not be assumed to provide a street exit. See `20-tea-house-building.md`.
 
 | # | Symptom | Root cause | Fix |

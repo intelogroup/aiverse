@@ -31,7 +31,7 @@ reference.hide_viewport=True
 palette={
  'slab':(.75,.76,.72,1),'shell':(.81,.79,.70,1),'partition':(.85,.85,.79,1),
  'stair':(.65,.34,.23,1),'wet':(.41,.64,.70,1),'lift':(.30,.52,.65,1),
- 'door':(.44,.40,.31,1),'bar':(.50,.34,.20,1),'service':(.49,.55,.53,1),'stairwall':(.65,.34,.23,1),
+ 'door':(.44,.40,.31,1),'bar':(.50,.34,.20,1),'service':(.49,.55,.53,1),'stairwall':(.65,.34,.23,1),'guard':(.35,.32,.27,1),
 }
 materials={}
 for key,color in palette.items():
@@ -47,6 +47,12 @@ def box(group,kind,x0,y0,z0,x1,y1,z1):
     vs,fs=parts[(group,kind)];i=len(vs)
     vs.extend([(x0,y0,z0),(x1,y0,z0),(x1,y1,z0),(x0,y1,z0),(x0,y0,z1),(x1,y0,z1),(x1,y1,z1),(x0,y1,z1)])
     fs.extend([tuple(i+k for k in f) for f in [(0,3,2,1),(0,1,5,4),(1,2,6,5),(2,3,7,6),(3,0,4,7),(4,5,6,7)]])
+
+def sloping_slab(group,kind,x0,x1,d0,d1,z0,z1,thickness):
+    vs,fs=parts[(group,kind)];base=len(vs)
+    vs.extend([(x0,d0,z0-thickness),(x1,d0,z0-thickness),(x1,d1,z1-thickness),(x0,d1,z1-thickness),
+               (x0,d0,z0),(x1,d0,z0),(x1,d1,z1),(x0,d1,z1)])
+    fs.extend([tuple(base+k for k in f) for f in [(0,3,2,1),(0,1,5,4),(1,2,6,5),(2,3,7,6),(3,0,4,7),(4,5,6,7)]])
 
 def wall(group,kind,axis,at,start,end,z0,z1,openings=(),thick=.12):
     """Rectangular wall cells with actual door/window openings, including their lintels."""
@@ -116,18 +122,21 @@ for i,l in enumerate(levels):
     rear=[(x-1,x+1,y+1.0,y+2.45) for x in (2.3,6.5,10.65)]
     wall(l['id'],'shell','d',11.85,0,25,y,top,rear,.3)
     for d in l['doors']:
-        if d['a']=='street' or 'riser' in d['b']:continue
+        if d['mode'] in ('external','existing-double','hatch','passage'):continue
         # Door leaf shown open, with a simple jamb. Elevator gets closed twin panels.
-        if d['b']=='lift':
+        if d['mode']=='lift':
             for side in (-1,1):
                 center=d['center']+side*d['width']/4
                 box(l['id'],'lift',center-d['width']/4+.015,d['at']+.03,y,center+d['width']/4-.015,d['at']+.08,y+2.2)
-        elif d['axis']=='d':
-            u=d['center']-d['width']/2
-            box(l['id'],'door',u,d['at']+.04,y,u+.045,d['at']+d['width'],y+2.2)
         else:
-            d0=d['center']-d['width']/2
-            box(l['id'],'door',d['at']+.04,d0,y,d['at']+d['width'],d0+.045,y+2.2)
+            target=next(r for r in l['rooms'] if r['id']==d['opensInto'])['rect']
+            axis_index=1 if d['axis']=='d' else 0
+            direction=1 if target[axis_index]>=d['at']-1e-6 else -1
+            hinge=d['center']+d['width']/2 if d['hinge']=='high' else d['center']-d['width']/2
+            h0,h1=(hinge-.045,hinge) if d['hinge']=='high' else (hinge,hinge+.045)
+            a,b=sorted((d['at']+direction*.04,d['at']+direction*d['width']))
+            if d['axis']=='d':box(l['id'],'door',h0,a,y,h1,b,y+2.2)
+            else:box(l['id'],'door',a,h0,y,b,h1,y+2.2)
     # Simple repeating wet ducts, stacked through the two residential storeys.
     if i>=2:
         for u in P['proposal']['secondaryWetStacksU']:
@@ -142,19 +151,44 @@ for i in range(3):
         box(levels[i]['id'],'stair',x0+.2,d0,y-.18,x1-.2,s,y)
         box(levels[i]['id'],'stair',x0+.2,end,y+half*rise-.18,x1-.2,d1,y+half*rise)
         box(levels[i+1]['id'],'stair',x0+.2,d0,upper-.18,x1-.2,s,upper)
+        # Thin sloping soffits preserve headroom above the previous storey's turn.
+        sloping_slab(levels[i]['id'],'stair',x0+.45,x0+1.70,s,end,y,y+(half-1)*rise,.18)
+        sloping_slab(levels[i]['id'],'stair',x0+1.95,x0+3.20,s,end,upper-rise,y+half*rise,.18)
         for k in range(half-1):
-            box(levels[i]['id'],'stair',x0+.45,s+k*.28,y,x0+1.70,s+(k+1)*.28,y+(k+1)*rise)
-            box(levels[i]['id'],'stair',x0+1.95,end-(k+1)*.28,y+half*rise,x0+3.20,end-k*.28,y+(half+k+1)*rise)
+            z=y+(k+1)*rise;box(levels[i]['id'],'stair',x0+.45,s+k*.28,z-.12,x0+1.70,s+(k+1)*.28,z)
+            z=y+(half+k+1)*rise;box(levels[i]['id'],'stair',x0+1.95,end-(k+1)*.28,z-.12,x0+3.20,end-k*.28,z)
+        for a,b in ((x0+.37,x0+.45),(x0+1.70,x0+1.78)):
+            sloping_slab(levels[i]['id'],'guard',a,b,s,end,y+1.30,y+(half-1)*rise+1.30,1.30)
+        for a,b in ((x0+1.87,x0+1.95),(x0+3.20,x0+3.28)):
+            sloping_slab(levels[i]['id'],'guard',a,b,s,end,upper-rise+1.30,y+half*rise+1.30,1.30)
         stair_metrics.append(dict(id=r['id'],fromLevel=levels[i]['id'],toLevel=levels[i+1]['id'],risers=n,riserHeight=rise,going=.28,run=run,frontLanding=1.25,rearLanding=d1-end,flightWidth=1.25))
+
+# At the last floor, close the unused upward flight instead of leaving a drop.
+for r in [r for r in levels[-1]['rooms'] if r['kind']=='stair']:
+    x0,d0,x1,d1=r['rect'];box('L3','guard',x0+.2,7.25,11.22,x0+1.95,7.33,12.5)
+for l in levels[1:]:
+    for r in [r for r in l['rooms'] if r['kind']=='stair']:
+        x0,d0,x1,d1=r['rect'];y=l['floorY']
+        for a,b in ((x0+.2,x0+.45),(x0+1.70,x0+1.95),(x0+3.20,x1-.2)):
+            box(l['id'],'guard',a,7.25,y-.18,b,7.33,y+1.1)
 
 # Ground bar and four shelf carcasses are boxes only; no bottles or furniture detailing.
 for u in P['proposal']['counterCentersU']:
-    box('G','bar',u-.85,8.28,.48,u+.85,9.42,1.60)
+    w=P['proposal']['counterHalfWidth'];box('G','bar',u-w,8.28,.48,u+w,9.42,1.60)
 for u in P['proposal']['shelfCentersU']:
     box('G','bar',u-.98,11.35,.48,u+.98,11.55,3.45)
     for z in (1.63,2.33,3.03):box('G','bar',u-.98,10.95,z-.06,u+.98,11.55,z)
 
 # Structural pit and simple entrance grading; no working lift or door animation yet.
+# Study placeholders preserve the existing main door's mirrored inward open pose.
+md=P['proposal']['existingMainDoor']
+for side in (-1,1):
+    vs,fs=parts[('G','door')];base=len(vs);theta=math.radians(-side*md['openDegrees'])
+    x0,x1=(0,.7) if side<0 else (-.7,0)
+    hinge=md['centerU']+side*md['hingeOffset']
+    for x,d,z in [(x0,-.065,.51),(x1,-.065,.51),(x1,.065,.51),(x0,.065,.51),(x0,-.065,2.60),(x1,-.065,2.60),(x1,.065,2.60),(x0,.065,2.60)]:
+        vs.append((hinge+x*math.cos(theta)-d*math.sin(theta),md['hingeD']+x*math.sin(theta)+d*math.cos(theta),z))
+    fs.extend([tuple(base+k for k in f) for f in [(0,3,2,1),(0,1,5,4),(1,2,6,5),(2,3,7,6),(3,0,4,7),(4,5,6,7)]])
 box('G','lift',17,8.5,-.70,19.7,11.7,-.52)
 for axis,at,a,b in [('u',17,8.5,11.7),('u',19.7,8.5,11.7),('d',8.5,17,19.7),('d',11.7,17,19.7)]:
     wall('G','lift',axis,at,a,b,-.52,.48,thick=.2)
@@ -181,6 +215,7 @@ for (group,kind),(vs,fs) in parts.items():
     mesh=bpy.data.meshes.new(f'{group}_{kind}');mesh.from_pydata(vs,[],fs);mesh.update()
     o=bpy.data.objects.new(f'{group}_{kind}',mesh);collections[group].objects.link(o);o.data.materials.append(materials[kind]);o.color=palette[kind]
     o['level']=group;o['category']=kind;o['concept_only']=True
+    o['noGround']=kind not in ('slab','stair')
     objects.append(o)
 for original in reference.objects:
     if original.type=='MESH' and original.name.startswith('RoofTileV4'):
@@ -228,6 +263,28 @@ scene.render.filepath=str(OUT/'existing-envelope.png')
 bpy.ops.render.render(write_still=True)
 reference.hide_render=True
 for c in collections.values():c.hide_render=False
+stair_view=collection('PRESENTATION_STAIR_SECTION')
+for original in objects:
+    if original.get('category') not in ('stair','guard'):continue
+    vs=[];fs=[];remap={}
+    for polygon in original.data.polygons:
+        if not all(original.data.vertices[k].co.x<5 for k in polygon.vertices):continue
+        face=[]
+        for k in polygon.vertices:
+            if k not in remap:remap[k]=len(vs);vs.append(tuple(original.data.vertices[k].co))
+            face.append(remap[k])
+        fs.append(tuple(face))
+    if not fs:continue
+    mesh=bpy.data.meshes.new(original.name+'_section');mesh.from_pydata(vs,[],fs);mesh.update()
+    o=bpy.data.objects.new(original.name+'_section',mesh);stair_view.objects.link(o);o.data.materials.append(original.data.materials[0])
+for c in collections.values():c.hide_render=True
+camera.location=(12,-7,12);target=Vector((2.1,8.3,6));camera.rotation_euler=(target-camera.location).to_track_quat('-Z','Y').to_euler();camera_data.ortho_scale=15
+scene.render.resolution_x=1000;scene.render.resolution_y=1350
+scene.render.filepath=str(OUT/'stairs-section.png')
+bpy.ops.render.render(write_still=True)
+stair_view.hide_render=True;stair_view.hide_viewport=True
+for c in collections.values():c.hide_render=False
+camera.location=(36,-40,29);target=Vector((12.5,6,8));camera.rotation_euler=(target-camera.location).to_track_quat('-Z','Y').to_euler();camera_data.ortho_scale=33
 bpy.ops.wm.save_as_mainfile(filepath=str(OUT/'tea-house-structure.blend'))
 print('STRUCTURE COMPLETE',json.dumps(metrics),flush=True)
 os._exit(0)

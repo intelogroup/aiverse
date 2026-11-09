@@ -51,8 +51,9 @@ grooms = core(0) + [
     room('cloak', 'CLOAK / STORE', [20.4, .3, 22.9, 5.8], 'service'),
     room('right-exit', 'PROTECTED EXIT B', [22.9, .3, 24.7, 5.8], 'circulation'),
     room('bar-guests', 'BAR SEATING', [4.3, 5.8, 12.8, 8.2], 'public', 'public'),
-    room('bar-counter', 'COUNTER - 4 BAYS', [4.3, 8.2, 11.3, 9.6], 'bar', 'public'),
-    room('staff-entry', 'STAFF ACCESS', [11.3, 8.2, 12.8, 9.6], 'circulation', 'public'),
+    room('staff-entry-west', 'STAFF ACCESS A', [4.3, 8.2, 5.55, 9.6], 'circulation', 'public'),
+    room('bar-counter', 'COUNTER - 4 BAYS', [5.55, 8.2, 11.55, 9.6], 'bar', 'public'),
+    room('staff-entry', 'STAFF ACCESS B', [11.55, 8.2, 12.8, 9.6], 'circulation', 'public'),
     room('bar-staff', 'STAFF AISLE 1.35 m', [4.3, 9.6, 12.8, 10.95], 'circulation', 'public'),
     room('bar-shelves', '4 COMPACT SHELVES', [4.3, 10.95, 12.8, 11.7], 'bar', 'public')]
 gdoors = core_doors(0) + [door('street', 'entry', 'd', .3, 14.5833, 1.7, 'EXISTING MAIN ENTRANCE'),
@@ -62,7 +63,7 @@ gdoors = core_doors(0) + [door('street', 'entry', 'd', .3, 14.5833, 1.7, 'EXISTI
     door('right-exit', 'stair-b', 'd', 5.8, 23.8),
     door('left-exit', 'tea-seating', 'u', 2.1, 3.5),
     door('entry', 'cloak', 'u', 20.4, 3.5),
-    door('cloak', 'right-exit', 'u', 22.9, 3.5),
+    door('core-lobby', 'stair-b', 'u', 20.4, 6.6),
     door('bar-staff', 'core-lobby', 'u', 12.8, 7.7, 1.0)]
 # The staff access is via the open end of the counter, not a door through a toilet.
 gdoors[-1] = door('bar-guests', 'core-lobby', 'u', 12.8, 7.2, 1.1)
@@ -70,7 +71,7 @@ levels.append(dict(id='G', name='Tea House', floorY=.48, rooms=grooms, doors=gdo
 
 for level, name in ((1, 'Tea salon & community'), (2, 'Residences 201-203'), (3, 'Residences 301-303')):
     rs = core(level) + [room('corridor', 'CORRIDOR 1.50 m', [.3, 4.3, 24.7, 5.8], 'circulation')]
-    ds = core_doors(level) + [door('corridor', 'stair-a', 'd', 5.8, 2.3), door('corridor', 'stair-b', 'd', 5.8, 22.55),
+    ds = core_doors(level) + [door('corridor', 'stair-a', 'd', 5.8, 1.4), door('corridor', 'stair-b', 'd', 5.8, 21.5),
                             door('corridor', 'core-lobby', 'd', 5.8, 16.0, 1.5)]
     if level == 1:
         for id, label, rect in [('tasting', 'TEA TASTING ROOM', [.3, .3, 8.5, 4.3]),
@@ -93,6 +94,19 @@ for level, name in ((1, 'Tea salon & community'), (2, 'Residences 201-203'), (3,
             rs.append(room(id, label, rect, 'service' if level == 2 and id == 'rear-west' else 'room'))
             ds.append(door('corridor', id, 'd', 5.8, (rect[0]+rect[2])/2))
     levels.append(dict(id=f'L{level}', name=name, floorY=4.4+(level-1)*3.5, rooms=rs, doors=ds))
+
+# Door semantics are explicit: a room door must not project into the clear corridor.
+for level in levels:
+    lookup={r['id']:r for r in level['rooms']}
+    for d in level['doors']:
+        d['opensInto']=d['b']; d['hinge']='low'; d['mode']='hinged'
+        if d['a']=='street':
+            d['mode']='external'; d['opensInto']='street'
+            if d['b']=='entry': d['mode']='existing-double'; d['opensInto']='entry'
+        elif 'riser' in d['b']: d['mode']='hatch'
+        elif d['b']=='lift': d['mode']='lift'
+        elif lookup[d['a']]['wallGroup']==lookup[d['b']]['wallGroup'] or d['b']=='core-lobby': d['mode']='passage'
+        if level['id']=='G' and d['a']=='right-exit': d['hinge']='high'
 
 # Re-run the deterministic recipe in a temporary folder, never overwrite workshop plan.json.
 old = os.getcwd()
@@ -117,11 +131,14 @@ plan = dict(version=1, status='architectural blockout; not connected to live cit
     existing=dict(recipe=building, groundFloorY=.48, upperFloorY=[4.4, 7.9, 11.4], eavesY=14.9, ridgeY=18.5025, chimneyTopY=20.302,
                   upperInteriorsBuilt=False, sourceMeshSha256=survey['sha256']),
     proposal=dict(addStoreys=False, habitableAttic=False, frontageDoors=[1.2,14.5833,23.8],
-                  groundShelfBays=4, shelfCentersU=[5.4,7.4,9.4,11.4], counterCentersU=[5.35,7.05,8.75,10.45], retainedBarLength=6.8, staffGateWidth=1.5,
+                  groundShelfBays=4, shelfCentersU=[5.4,7.4,9.4,11.4], counterCentersU=[6.3,7.8,9.3,10.8], counterHalfWidth=.75, retainedBarLength=6.0, staffGateWidth=1.25, staffGateCentersU=[4.925,12.175],
                   publicCorridorWidth=1.5, groundExitPassageWidth=1.8, elevatorShaft=[17,8.5,19.7,11.7],
                   elevatorClearCarTarget=[1.6,2.1], elevatorDoor=1.1, shaftPitY=-.52, shaftTopY=15.2,
                   entranceLanding=[13.7,-1.8,15.5,0], entranceRamp=[10.34,-1.8,13.7,-.3], entranceRampRise=.28, entranceRampRun=3.36,
-                  stairWidth=1.25, treadGoing=.28, landingMinimum=1.25, stairRisers=[24,22,22],
+                  existingMainDoor=dict(centerU=14.5833,hingeOffset=.7,hingeD=.145,openDegrees=95,swings='both leaves inward; preserve teaDoor.ts pilot'),
+                  exteriorChanges=[dict(id='west-cafe-sets',action='remove two overlapping outdoor sets from entrance apron',centers=[[9.3833,-1.55],[11.5833,-1.55]]),
+                                   dict(id='entrance-planter',action='move whole planter including soil, leaves and flowers',source=[12.5,-1.3],target=[6.25,-.8])],
+                  stairWidth=1.25, treadGoing=.28, landingMinimum=1.25, stairRisers=[24,22,22], stairHeadroomMinimum=2.1, stairGuardHeight=1.1,
                   stackedWetCore=[12.8,8.5,17,11.7], secondaryWetStacksU=[8.35,16.45,24.55], secondaryWetStackD=4.15,
                   residentialUnits=6, programme='G cafe; L1 community; L2/L3 three studio homes each; pitched attic service space'),
     levels=levels,
@@ -132,6 +149,8 @@ plan = dict(version=1, status='architectural blockout; not connected to live cit
                     'Both stairs discharge to street through their own ground passages. Courtyard is not assumed to be an exit.',
                     'Stack toilets and services; residential baths use three additional vertical wet ducts at the corridor edge.',
                     'Add floor-specific cutaway, streaming, collision and multilevel navigation before making upper floors playable.',
+                    'Remove the two west-of-main-entry outdoor cafe sets (u=9.3833 and 11.5833, d=-1.55) from the ramp envelope; keep the two eastern sets.',
+                    'Move the existing planter at u=12.5,d=-1.3 to u=6.25,d=-0.8; its old position intersects the ramp.',
                     'Door operation, elevator travel, furnishings, materials and detailing are later passes.'],
     review=['Concept for the virtual building; structural spans, fire ratings and lift supplier clearances are not engineered.',
             'Partition zones include half wall thickness; room areas are planning areas, not finished net measurements.',
@@ -153,8 +172,11 @@ def verify(p):
                 assert len(owners)==1, (level['id'],mid,[r['id'] for r in owners])
         for a in rooms:
             for b in rooms:
-                if a['id']!=b['id'] and a['wallGroup']==b['wallGroup']:
-                    graph[a['id']].add(b['id'])
+                if a['id']==b['id'] or a['wallGroup']!=b['wallGroup']: continue
+                ra,rb=a['rect'],b['rect']
+                shared_u=(abs(ra[2]-rb[0])<1e-6 or abs(rb[2]-ra[0])<1e-6) and min(ra[3],rb[3])-max(ra[1],rb[1])>.1
+                shared_d=(abs(ra[3]-rb[1])<1e-6 or abs(rb[3]-ra[1])<1e-6) and min(ra[2],rb[2])-max(ra[0],rb[0])>.1
+                if shared_u or shared_d: graph[a['id']].add(b['id'])
         for d in level['doors']:
             for id in (d['a'],d['b']):
                 if id=='street': continue
@@ -184,7 +206,7 @@ os.environ.setdefault('MPLCONFIGDIR', '/tmp/aiverse-matplotlib')
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
+from matplotlib.patches import Rectangle, Arc
 from matplotlib.backends.backend_pdf import PdfPages
 COLORS=dict(stair='#cf927b',lift='#88b2cb',shaft='#aeb5ba',wet='#a9c9d7',circulation='#e7dfbd',public='#d9c8a5',bar='#bc9b75',service='#c7c7b9',room='#d2dac7',home='#c9d8c6')
 
@@ -202,13 +224,26 @@ def draw_floor(ax,l):
         lo=d['center']-d['width']/2; hi=d['center']+d['width']/2
         if d['axis']=='u': ax.plot([d['at']]*2,[lo,hi],color='#faf8f1',lw=3.3); ax.plot([d['at']-.10,d['at']+.10],[lo,lo],color='#243f50',lw=.8)
         else: ax.plot([lo,hi],[d['at']]*2,color='#faf8f1',lw=3.3); ax.plot([lo,lo],[d['at']-.1,d['at']+.1],color='#243f50',lw=.8)
+        if d['mode']=='hinged':
+            target=next(r for r in l['rooms'] if r['id']==d['opensInto'])['rect']
+            axis=1 if d['axis']=='d' else 0
+            sign=1 if target[axis]>=d['at']-1e-6 else -1
+            hinge=hi if d['hinge']=='high' else lo
+            if d['axis']=='d':
+                origin=(hinge,d['at']);end=(hinge,d['at']+sign*d['width']);closed=180 if d['hinge']=='high' else 0;opened=90 if sign>0 else 270
+            else:
+                origin=(d['at'],hinge);end=(d['at']+sign*d['width'],hinge);closed=270 if d['hinge']=='high' else 90;opened=0 if sign>0 else 180
+            diff=(opened-closed+180)%360-180
+            ax.plot([origin[0],end[0]],[origin[1],end[1]],color='#8d6850',lw=.65)
+            ax.add_patch(Arc(origin,d['width']*2,d['width']*2,theta1=min(closed,closed+diff),theta2=max(closed,closed+diff),color='#8d6850',lw=.45))
     # The two U stairs have two flights and one shared half landing.
     for x0,x1 in ((.3,4.3),(20.4,24.7)):
-        for k in range(11):
+        for k in range(11 if l['id']=='G' else 10):
             y=7.25+k*.28
-            ax.plot([x0+.45,x0+1.70],[y,y],color='#6e564d',lw=.55)
+            if l['id']!='L3': ax.plot([x0+.45,x0+1.70],[y,y],color='#6e564d',lw=.55)
             ax.plot([x0+1.95,x0+3.20],[y,y],color='#6e564d',lw=.55)
-        ax.annotate('',xy=(x0+1.05,9.8),xytext=(x0+1.05,7.3),arrowprops=dict(arrowstyle='->',color='#533c33',lw=1))
+        if l['id']!='L3': ax.annotate('UP',xy=(x0+1.05,9.8),xytext=(x0+1.05,7.3),fontsize=5,arrowprops=dict(arrowstyle='->',color='#533c33',lw=1))
+        if l['id']!='G': ax.annotate('DOWN',xy=(x0+2.55,9.8),xytext=(x0+2.55,7.3),fontsize=5,arrowprops=dict(arrowstyle='->',color='#533c33',lw=1))
     ax.plot([0,25,25,0,0],[0,0,12,12,0],color='#283842',lw=2)
     for i in range(6):
         u=(i+.5)*25/6
