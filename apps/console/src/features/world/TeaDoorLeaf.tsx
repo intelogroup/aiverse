@@ -236,8 +236,11 @@ function buildDoor(scene: THREE.Object3D): BuiltDoor | null {
     const rosette = new THREE.Mesh(new THREE.CylinderGeometry(0.047, 0.047, 0.008, 24), knobMat);
     rosette.rotation.x = Math.PI / 2;
     rosette.position.z = centre - Math.sign(centre) * 0.031;
-    knob.add(ball, stem, rosette);
-    disposables.push(ball.geometry, stem.geometry, rosette.geometry);
+    // The fixed grasp point is inside the glazed opening. A plate extends to the meeting stile.
+    const backplate = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.095, 0.012), knobMat);
+    backplate.position.set(0.05, 0, centre - Math.sign(centre) * 0.055);
+    knob.add(ball, stem, rosette, backplate);
+    disposables.push(ball.geometry, stem.geometry, rosette.geometry, backplate.geometry);
   }
   activePivot.add(knob);
   group.userData.knobMaterial = knobMat;
