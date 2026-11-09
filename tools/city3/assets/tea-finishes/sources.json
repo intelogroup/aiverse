@@ -1,0 +1,30 @@
+{
+  "plaster.jpg": {
+    "source": "https://ambientcg.com/a/Plaster001",
+    "license": "CC0"
+  },
+  "wood.jpg": {
+    "source": "https://ambientcg.com/a/Wood051",
+    "license": "CC0"
+  },
+  "landscape.jpg": {
+    "source": "https://polyhaven.com/a/fancy_picture_frame_01",
+    "license": "CC0"
+  },
+  "garden.jpg": {
+    "source": "https://polyhaven.com/a/hanging_picture_frame_02",
+    "license": "CC0"
+  },
+  "portrait.jpg": {
+    "source": "https://polyhaven.com/a/hanging_picture_frame_03",
+    "license": "CC0"
+  },
+  "toilet.glb": {
+    "source": "https://grab3d.com/models/furniture/toilet/",
+    "license": "CC0"
+  },
+  "bathroom-sink.glb": {
+    "source": "https://grab3d.com/models/furniture/bathroom-sink/",
+    "license": "CC0"
+  }
+}
