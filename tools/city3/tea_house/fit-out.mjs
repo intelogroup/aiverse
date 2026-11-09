@@ -100,13 +100,21 @@ export function fitTeaRestrooms(world,collision,plan,{box,mesh,image,material,ad
   }
 }
 
+const lobbyFinishes={
+  G: {lime:[.59,.62,.49],tile:[.43,.55,.43],stone:[.62,.53,.39]},
+  L1:{lime:[.59,.62,.49],tile:[.43,.55,.43],stone:[.62,.53,.39]},
+  L2:{lime:[.69,.55,.43],tile:[.62,.36,.23],stone:[.64,.49,.35]},
+  L3:{lime:[.46,.52,.55],tile:[.29,.44,.51],stone:[.48,.52,.55]},
+};
+
 export function finishTeaLobby(level,{box,mesh,material,plaster,tile,finishSurface,wetNode,liftNode}){
   const {id,floorY:y}=level;
-  const lime=material(id+'_restroom_limewash',[.59,.62,.49],plaster);
-  const ceramic=material(id+'_restroom_sage_ceramic',[.43,.55,.43],tile);
-  const stone=material(id+'_lift_warm_stone',[.62,.53,.39],plaster);
+  const palette=lobbyFinishes[id];
+  const lime=material(id+'_restroom_limewash',palette.lime,plaster);
+  const ceramic=material(id+'_restroom_lobby_ceramic',palette.tile,tile);
+  const stone=material(id+'_lift_lobby_stone',palette.stone,plaster);
   const jamb=material(id+'_lift_bronze_trim',[.24,.17,.10]);
-  finishSurface(wetNode,lime,points=>points.every(([u])=>u>=12.69));
+  finishSurface(wetNode,lime,points=>points.every(([u,,z])=>u>=12.69&&z<=-8.49));
   finishSurface(liftNode,stone,points=>!points.every(([u,h,z])=>
     u>17.78&&u<18.92&&z< -8.525&&z> -8.585&&h>=y-.001&&h<=y+2.201));
 

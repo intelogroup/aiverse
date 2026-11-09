@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 import {fitTeaRestrooms,panelTeaCorridor,finishTeaLobby} from './fit-out.mjs';
 import {finishTeaGround} from './finish-ground.mjs';
+import {finishTeaDoors} from './finish-doors.mjs';
 
 const finishes = [
   { wall: [.47,.63,.43], wet: [.63,.73,.62], wood: [.48,.27,.13], ceiling: [.88,.82,.65], metal: [.49,.29,.1], light: [1,.80,.52], art: 'landscape', shade: [.97,.82,.55] },
@@ -20,9 +21,9 @@ export function finishTeaUpper(world, plan, collision) {
   };
   const plaster=image('plaster'),wood=image('wood');
   const artwork=finishes.map(p=>image(p.art));
-  function material(name,color,texture,emissive){
+  function material(name,color,texture,emissive,finish={}){
     return doc.materials.push({name,pbrMetallicRoughness:{
-      baseColorFactor:[...color,1],roughnessFactor:.82,metallicFactor:0,
+      baseColorFactor:[...color,1],roughnessFactor:.82,metallicFactor:0,...finish,
       ...(texture===undefined?{}:{baseColorTexture:{index:texture}}),
     },...(emissive?{emissiveFactor:emissive}:{})})-1;
   }
@@ -76,11 +77,43 @@ export function finishTeaUpper(world, plan, collision) {
     world.boxBatch(name,boxes.map(([u0,d0,u1,d1,y0,y1])=>[[u0,-d1,u1,-d0],y0,y1]),mat,{noGround:true});
     underHouse();
   }
+  function addHardware(name,axis,face,latch,y,side,mat){
+    const radiusProfile=[[0,.035],[.008,.035],[.01,.017],[.027,.017],[.033,.028],[.046,.031],[.055,.022],[.059,0]];
+    const vertices=[],normals=[];
+    const segments=12;
+    function point(distance,radius,angle){
+      const center=face+distance*side,lateral=latch+radius*Math.cos(angle);
+      return axis==='d'?[center,y+radius*Math.sin(angle),-lateral]:[lateral,y+radius*Math.sin(angle),-center];
+    }
+    for(let ring=1;ring<radiusProfile.length;ring++){
+      for(let i=0;i<segments;i++){
+        const a=i*Math.PI*2/segments,b=(i+1)*Math.PI*2/segments;
+        const p=point(...radiusProfile[ring-1],a),q=point(...radiusProfile[ring-1],b);
+        const r=point(...radiusProfile[ring],a),s=point(...radiusProfile[ring],b);
+        for(const triangle of [[p,q,r],[q,s,r]]){
+          if((side<0)!==(axis==='u'))triangle.reverse();
+          const [u,v,w]=triangle;
+          const ab=v.map((n,j)=>n-u[j]),ac=w.map((n,j)=>n-u[j]);
+          const n=[ab[1]*ac[2]-ab[2]*ac[1],ab[2]*ac[0]-ab[0]*ac[2],ab[0]*ac[1]-ab[1]*ac[0]];
+          const length=Math.hypot(...n);
+          if(length<1e-8)continue;
+          vertices.push(...u,...v,...w);
+          for(let j=0;j<3;j++)normals.push(...n.map(value=>value/length));
+        }
+      }
+    }
+    world.addMesh(name,vertices,mat,{noGround:true},{NORMAL:world.accessor(normals,3)});
+    underHouse();
+  }
+  for(const level of plan.levels){
+    finishTeaDoors(level,{batch,material,wood,finishSurface,addHardware,
+      node:doc.nodes.find(n=>n.name===level.id+'_door')});
+  }
   finishTeaGround(plan,{box,batch,mesh,image,material,wood,plaster,artwork,finishSurface,addPoint,
     bar:doc.nodes.find(n=>n.name==='G_bar')});
   const tile=image('tile');
   fitTeaRestrooms(world,collision,plan,{box,mesh,image,material,addPoint,house,tile});
-  for(const level of plan.levels.slice(0,2)){
+  for(const level of plan.levels){
     finishTeaLobby(level,{box,mesh,material,plaster,tile,finishSurface,
       wetNode:doc.nodes.find(n=>n.name===level.id+'_wet'),
       liftNode:doc.nodes.find(n=>n.name===level.id+'_lift')});
@@ -111,15 +144,17 @@ export function finishTeaUpper(world, plan, collision) {
   }
   for(const [index,level] of plan.levels.slice(1).entries()){
     const {id,floorY:y}=level,p=finishes[index],top=y+3.32;
-    const wall=material(id+'_plaster',p.wall,plaster),wet=material(id+'_wet_plaster',p.wet,plaster);
-    const door=material(id+'_door_wood',p.wood,wood),trim=material(id+'_trim',p.wood);
+    const wall=material(id+'_plaster',p.wall,plaster);
+    const trim=material(id+'_trim',p.wood);
     const ceiling=material(id+'_ceiling',p.ceiling,plaster),metal=material(id+'_brass',p.metal);
     const shade=material(id+'_lamp_shade',p.shade,undefined,p.shade.map(c=>c*.58));
     panelTeaCorridor(level,index,{box,mesh,material,wood,plaster,trim});
     const find=kind=>doc.nodes.find(node=>node.name===`${id}_${kind}`);
     for(const kind of ['partition','stairwall'])finishSurface(find(kind),wall);
-    if(index>0)finishSurface(find('wet'),wet);
-    finishSurface(find('door'),door);
+    if(index>0){
+      const wet=material(id+'_wet_plaster',p.wet,plaster);
+      finishSurface(find('wet'),wet,points=>points.some(([u,,z])=>u<12.69||z> -8.49));
+    }
     finishSurface(find('shell'),wall,points=>[[0,.3],[0,24.7],[2,-.3],[2,-11.7]]
       .some(([axis,value])=>points.every(point=>Math.abs(point[axis]-value)<.001)));
 
@@ -150,14 +185,5 @@ export function finishTeaUpper(world, plan, collision) {
       mesh(id+'_picture_'+i,[...a,...d,...b,...b,...d,...c],[1,1,1,0,0,1,0,1,1,0,0,0],art,[0,0,-1]);
     }
 
-    for(const entry of level.doors.filter(d=>d.a==='corridor'&&d.axis==='d'&&d.at===4.3&&d.mode==='hinged')){
-      // The existing open leaves extend into the front rooms from the low hinge.
-      const u=entry.center-entry.width/2, near=entry.at-.13, far=entry.at-entry.width+.12;
-      for(const x of [u-.012,u+.045]){
-        for(const d of [near,far])box(id+'_door_stile',x,d-.015,x+.012,d+.015,y+.19,y+2.02,trim);
-        for(const h of [.19,1.06,2.00])box(id+'_door_rail',x,far,x+.012,near,y+h,y+h+.023,trim);
-        box(id+'_door_handle',x-.022,far-.015,x+.035,far+.10,y+.98,y+1.015,metal);
-      }
-    }
   }
 }

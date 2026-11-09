@@ -182,7 +182,7 @@ function buildDoor(scene: THREE.Object3D): BuiltDoor | null {
   group.add(activePivot, passivePivot);
 
   const disposables: THREE.BufferGeometry[] = [];
-  const knobMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, metalness: 0.9, roughness: 0.35 });
+  const knobMat = new THREE.MeshStandardMaterial({ color: 0xc29a53, metalness: 0.72, roughness: 0.32 });
 
   for (const m of instanced) {
     const split = splitGeometry(m.geometry);
@@ -229,11 +229,15 @@ function buildDoor(scene: THREE.Object3D): BuiltDoor | null {
     const centre = faceZ - TEA_SLAB_MID_Z;
     const ball = new THREE.Mesh(new THREE.SphereGeometry(0.035, 20, 14), knobMat);
     ball.position.set(0, 0, centre);
+    ball.scale.set(1, 1, 0.82);
     const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, Math.abs(centre), 10), knobMat);
     stem.rotation.x = Math.PI / 2;
     stem.position.set(0, 0, centre / 2);
-    knob.add(ball, stem);
-    disposables.push(ball.geometry, stem.geometry);
+    const rosette = new THREE.Mesh(new THREE.CylinderGeometry(0.047, 0.047, 0.008, 24), knobMat);
+    rosette.rotation.x = Math.PI / 2;
+    rosette.position.z = centre - Math.sign(centre) * 0.031;
+    knob.add(ball, stem, rosette);
+    disposables.push(ball.geometry, stem.geometry, rosette.geometry);
   }
   activePivot.add(knob);
   group.userData.knobMaterial = knobMat;

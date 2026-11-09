@@ -8,6 +8,7 @@ export function createTeaElevatorAssembly() {
   const colliders:THREE.Mesh[]=[];const moving:{visual:THREE.Mesh|null;collider:THREE.Mesh;floor:number|null;side:number;gate:boolean}[]=[];
   const materials=[new THREE.MeshStandardMaterial({color:'#647b80',roughness:.55}),new THREE.MeshStandardMaterial({color:'#b8a17b',roughness:.7}),new THREE.MeshStandardMaterial({color:'#e5e0c8',roughness:.7}),new THREE.MeshStandardMaterial({color:'#2fae99',emissive:'#153c32',emissiveIntensity:.6})];
   materials.push(materials[2].clone(),materials[3].clone());materials[4].userData.noCutaway=true;materials[5].userData.noCutaway=true;
+  const doorMaterial=materials.push(new THREE.MeshStandardMaterial({color:'#76624a',metalness:.56,roughness:.37}))-1;
   function box(name:string,x:number,z:number,w:number,d:number,lo:number,hi:number,mat:number,ground=false,floor:number|null=null,side=0,gate=false){
     const collider=boxesMesh([[x,z,w/2,d/2,lo,hi,0]],[0,0],name)!;
     collider.geometry.computeBoundingBox();
@@ -22,7 +23,7 @@ export function createTeaElevatorAssembly() {
   for(const side of [-1,1]){
     box('CabinSide',LIFT.x+side*.85,(LIFT.front+LIFT.back)/2,.1,2.2,0,2.2,0);
     box('CabinFrontJamb',LIFT.x+side*.69,LIFT.front,.28,.08,0,2.2,0);
-    box('CabinDoor',LIFT.x+side*.275,LIFT.front,.55,.05,0,2.2,0,false,null,side);
+    box('CabinDoor',LIFT.x+side*.275,LIFT.front,.55,.05,0,2.2,doorMaterial,false,null,side);
   }
   box('CabinCeiling',LIFT.x,(LIFT.front+LIFT.back)/2,1.8,2.3,2.2,2.28,4);
   box('CabinLight',LIFT.x,(LIFT.front+LIFT.back)/2,.7,.65,2.17,2.2,5);
@@ -30,7 +31,7 @@ export function createTeaElevatorAssembly() {
   box('CabinGate',LIFT.x,LIFT.front,1.1,.08,0,2.2,0,false,null,0,true);
   for(const i of TEA_FLOORS.keys()){
     box(`LandingSill${i}`,LIFT.x,-81.04,1.1,.32,-.12,0,1,true,i);
-    for(const side of [-1,1])box(`LandingDoor${i}`,LIFT.x+side*.275,LIFT.doorZ,.55,.05,0,2.2,0,false,i,side);
+    for(const side of [-1,1])box(`LandingDoor${i}`,LIFT.x+side*.275,LIFT.doorZ,.55,.05,0,2.2,doorMaterial,false,i,side);
     box(`LandingGate${i}`,LIFT.x,LIFT.doorZ,1.1,.10,0,2.2,0,false,i,0,true);
     box(`CallPanel${i}`,LIFT.x+.71,-80.88,.16,.04,1.0,1.3,3,false,i);
   }
