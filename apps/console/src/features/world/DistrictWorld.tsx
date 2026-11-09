@@ -9,7 +9,7 @@ import { bakeCollisionParts } from "./capsuleWorld";
 import { FountainWater } from "./FountainWater";
 import { EasterEggs } from "./EasterEggs";
 import type { WalkColliders } from "./walkColliders";
-import { blendTheme, collisionJobs, planDistricts, residentCollisionUrl, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
+import { blendTheme, collisionJobs, dueEvictions, isShellCovered, planDistricts, residentCollisionUrl, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
 
 export const DISTRICTS_URL = "/assets/districts.json";
 
@@ -50,12 +50,17 @@ void main(){ float h = clamp(vDir.y, -0.2, 1.0); vec3 c = mix(horizon, top, pow(
 
 /**
  * The district world: the Bazaar stays resident (useGLTF); other islands stream by the orbit target's distance
- * (planDistricts) and are fully disposed on eviction. Per frame the focus blends the district themes into the sky dome,
- * fog, key light, water, exposure, environment intensity and emissive "night" amount. The environment map itself is
- * GlbWorld StageEnvironment's RoomEnvironment (shared with the other places).
- * `window.__districts` exposes counters for the memory test (?districtDebug=1).
+ * (planDistricts, tightened 2026-11-08: load <=90 m, keep <=300 m, cap 3, 20 s eviction grace, velocity
+ * lookahead prefetch) and are fully disposed on eviction. The manifest's far shell (box massing per district)
+ * is always resident and hides per district as the real geometry lands, so no viewpoint ever sees a hole;
+ * a failed load retries once, then warns and leaves the shell up. `?world=full` restores the old behaviour
+ * (every district loads at spawn, nothing evicts) for debugging. Per frame the focus blends the district
+ * themes into the sky dome, fog, key light, water, exposure, environment intensity and emissive "night"
+ * amount. The environment map itself is GlbWorld StageEnvironment's RoomEnvironment (shared with the other
+ * places). `window.__districts` exposes counters + the load/unload event log for the memory test
+ * (?districtDebug=1).
  */
-export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, walk }: { residentUrl: string; light: React.RefObject<THREE.DirectionalLight | null>; collide?: boolean; meshesRef?: { current: (() => THREE.Mesh[]) | null }; walk?: WalkColliders }) {
+export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, walk, streamCap }: { residentUrl: string; light: React.RefObject<THREE.DirectionalLight | null>; collide?: boolean; meshesRef?: { current: (() => THREE.Mesh[]) | null }; walk?: WalkColliders; streamCap?: number }) {
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
   const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3 } | null;
@@ -64,7 +69,29 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
   const resident = useGLTF(residentUrl);
   const groups = useRef(new Map<string, THREE.Group>());
   const loading = useRef(new Set<string>());
-  const stats = useRef({ loads: 0, evictions: 0, loadMs: [] as number[], bvhMs: {} as Record<string, number>, colliderHits: 0, colliderFrames: 0, colliderMs: 0, colliderMeshes: 0 } satisfies ColliderStats & Record<string, unknown>);
+  const stats = useRef({ loads: 0, evictions: 0, failures: 0, retries: 0, loadMs: [] as number[], events: [] as { t: number; type: string; id?: string }[], bvhMs: {} as Record<string, number>, colliderHits: 0, colliderFrames: 0, colliderMs: 0, colliderMeshes: 0 } satisfies ColliderStats & Record<string, unknown>);
+  // Streaming bookkeeping: eviction-grace stamps, focus velocity (lookahead), the set the latest
+  // plan wants loaded (retry guard), per-cycle retry spend, and the far shell's per-district groups.
+  const evictSince = useRef(new Map<string, number>());
+  const prevFocus = useRef<{ x: number; z: number; t: number } | null>(null);
+  const wantedRef = useRef(new Set<string>());
+  const retriedRef = useRef(new Set<string>());
+  const aliveRef = useRef(true);
+  const shellGroups = useRef(new Map<string, THREE.Object3D>());
+  // The resident (manifest `resident` flag) never enters the streamed `groups` set — it loads via
+  // useGLTF — so shell coverage needs its id + a mounted flag beside the streamed set (isShellCovered).
+  const residentIdRef = useRef<string | undefined>(undefined);
+  const residentReadyRef = useRef(false);
+  const fullMode = useMemo(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("world") === "full", []);
+  const pushEvent = (type: string, id?: string) => {
+    const ev = stats.current.events;
+    ev.push({ t: Math.round(performance.now()) / 1000, type, id });
+    if (ev.length > 200) ev.splice(0, ev.length - 200);
+  };
+  const syncShell = () => {
+    const loaded = new Set(groups.current.keys());
+    for (const [id, g] of shellGroups.current) g.visible = !isShellCovered(id, loaded, residentIdRef.current, residentReadyRef.current);
+  };
   // Camera-collision meshes per root (resident, links, each streamed district); flattened lazily for the collider.
   const colliderSets = useRef(new Map<string, THREE.Mesh[]>());
   const colliderFlat = useRef<THREE.Mesh[] | null>(null);
@@ -87,6 +114,11 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     fetch(DISTRICTS_URL).then((r) => r.json()).then((m: DistrictManifest) => live && setManifest(m)).catch(() => {});
     return () => { live = false; };
   }, []);
+
+  useEffect(() => {
+    residentIdRef.current = manifest?.districts.find((d) => d.resident)?.id;
+    syncShell();
+  }, [manifest]);
 
   const loader = useMemo(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder), []);
   const sky = useMemo(() => {
@@ -126,7 +158,11 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     gl.toneMapping = THREE.AgXToneMapping;
     // useGLTF caches the resident, so its BVHs are built once and kept with it (buildColliders is idempotent).
     addColliders("resident", resident.scene);
+    // The resident is mounted: its far-shell group is covered from here on (isShellCovered).
+    residentReadyRef.current = true;
+    syncShell();
     return () => {
+      residentReadyRef.current = false;
       hiddenWater.forEach(({ mesh, visible }) => { mesh.visible = visible; });
       dropColliders("resident");
       // StageEnvironment owns the reflection map; clearing it here loses glass/metal reflections on remount.
@@ -141,6 +177,29 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     let live = true; let root: THREE.Object3D | null = null;
     loader.load(manifest.links, (g) => { if (!live) { disposeTree(g.scene); return; } root = g.scene; scene.add(root); applyNight(root, themeRef.current?.night ?? 0); addColliders("links", root); });
     return () => { live = false; if (root) { scene.remove(root); dropColliders("links"); disposeTree(root); } };
+  }, [manifest, loader, scene]);
+
+  // Far shell: one small box-massing GLB for the whole city, always resident. Each `shell_<id>`
+  // group hides once the district is covered (syncShell -> isShellCovered): streamed districts when
+  // their detail lands in `groups`, the resident once it has mounted. So a district is never a hole —
+  // it is either detail or massing. A shell failure only warns (detail still works).
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => { aliveRef.current = false; };
+  }, []);
+  useEffect(() => {
+    if (!manifest?.shell) return;
+    let live = true; let root: THREE.Object3D | null = null;
+    loader.load(manifest.shell, (g) => {
+      if (!live) { disposeTree(g.scene); return; }
+      root = g.scene; scene.add(root);
+      // Node names arrive sanitized: GLTFLoader strips `:` (PropertyBinding.sanitizeNodeName), so the
+      // generator names these `shell_<id>` — a `shell:` prefix match would silently never fire and no
+      // shell group would ever hide (found by probe, 2026-11-09). Accept the legacy colon form too.
+      root.traverse((o) => { const m = /^shell[_:](.+)$/.exec(o.name); if (m) shellGroups.current.set(m[1], o); });
+      syncShell(); pushEvent("shell-ok");
+    }, undefined, () => { if (live) { console.warn("[districts] far shell failed to load; unloaded districts will show water until their detail streams in"); pushEvent("shell-fail"); } });
+    return () => { live = false; shellGroups.current.clear(); if (root) { scene.remove(root); disposeTree(root); } };
   }, [manifest, loader, scene]);
 
   const defs = manifest?.districts ?? [];
@@ -168,7 +227,8 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
   useEffect(() => {
     if (!w || !new URLSearchParams(window.location.search).has("districtDebug")) return;
     w.__districts = {
-      stats: () => ({ loaded: [...groups.current.keys()], ...stats.current, collision: walk?.stats() ?? null, geometries: gl.info.memory.geometries, textures: gl.info.memory.textures, calls: gl.info.render.calls, triangles: gl.info.render.triangles }),
+      stats: () => ({ loaded: [...groups.current.keys()], mode: fullMode ? "full" : "streamed", ...stats.current, collision: walk?.stats() ?? null, geometries: gl.info.memory.geometries, textures: gl.info.memory.textures, calls: gl.info.render.calls, triangles: gl.info.render.triangles, shell: Object.fromEntries([...shellGroups.current].map(([id, g]) => [id, g.visible])) }),
+      events: () => stats.current.events,
       theme: () => themeRef.current,
       // Debug: first collider hit distance along o->dir (null = none), and switch the camera collider off/on.
       probe: (o: number[], d: number[], far = 500) => {
@@ -182,21 +242,33 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     return () => { delete w.__districts; };
   }, [w, gl, controls, camera]);
 
-  const load = (d: DistrictDef) => {
+  const load = (d: DistrictDef, isRetry = false) => {
     if (loading.current.has(d.id) || groups.current.has(d.id)) return;
     loading.current.add(d.id); const t0 = performance.now();
+    pushEvent(isRetry ? "retry" : "load-start", d.id);
     loader.load(d.url, (gltf) => {
       loading.current.delete(d.id);
       const g = new THREE.Group(); g.name = `district:${d.id}`; g.position.set(d.center[0], 0, d.center[1]); g.add(gltf.scene);
       applyNight(g, themeRef.current?.night ?? 0);
       g.updateMatrixWorld(true); addColliders(d.id, g);
       for (const [key, url] of collisionJobs([d.id], defs)) loadCollision(key, url, d.center, () => groups.current.has(d.id));
-      groups.current.set(d.id, g); scene.add(g); stats.current.loads++; stats.current.loadMs.push(Math.round(performance.now() - t0)); bump((n) => n + 1);
-    }, undefined, () => loading.current.delete(d.id));
+      groups.current.set(d.id, g); scene.add(g); stats.current.loads++; stats.current.loadMs.push(Math.round(performance.now() - t0)); pushEvent("load-ok", d.id); syncShell(); bump((n) => n + 1);
+    }, undefined, () => {
+      loading.current.delete(d.id);
+      stats.current.failures++; pushEvent("load-fail", d.id);
+      // One retry per want-cycle, and only while the plan still wants the district;
+      // after that the far shell keeps covering the district and we warn once here.
+      if (!isRetry && !retriedRef.current.has(d.id)) {
+        retriedRef.current.add(d.id); stats.current.retries++;
+        setTimeout(() => { if (aliveRef.current && wantedRef.current.has(d.id)) load(d, true); }, 3000);
+      } else {
+        console.warn(`[districts] ${d.id} failed to load after a retry; its far shell stays visible`);
+      }
+    });
   };
   const unload = (id: string) => {
     const g = groups.current.get(id); if (!g) return;
-    scene.remove(g); dropColliders(id); walk?.drop(id); disposeTree(g); groups.current.delete(id); stats.current.evictions++; bump((n) => n + 1);
+    scene.remove(g); dropColliders(id); walk?.drop(id); disposeTree(g); groups.current.delete(id); stats.current.evictions++; evictSince.current.delete(id); pushEvent("unload", id); syncShell(); bump((n) => n + 1);
   };
 
   useFrame((_, dt) => {
@@ -204,8 +276,32 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     if (!manifest || !controls) return;
     clock.current += dt; if (clock.current < 0.25) return; clock.current = 0;
     const focus: [number, number] = [controls.target.x, controls.target.z];
-    const plan = planDistricts(focus, defs, new Set(groups.current.keys()));
-    plan.unload.forEach(unload); plan.load.forEach((id) => { const d = defs.find((x) => x.id === id); if (d) load(d); });
+    // Velocity lookahead: prefetch toward where the focus is heading (6 s ahead, clamped to
+    // 240 m); it only ever adds loads — planDistricts judges keeps from the true focus alone.
+    const nowMs = performance.now();
+    let ahead: [number, number] | undefined;
+    const pf = prevFocus.current;
+    if (pf && nowMs > pf.t) {
+      const dt = (nowMs - pf.t) / 1000;
+      let ax = focus[0] + ((focus[0] - pf.x) / dt) * 6;
+      let az = focus[1] + ((focus[1] - pf.z) / dt) * 6;
+      const ox = ax - focus[0], oz = az - focus[1];
+      const len = Math.hypot(ox, oz);
+      if (len > 240) { ax = focus[0] + (ox / len) * 240; az = focus[1] + (oz / len) * 240; }
+      if (len > 4) ahead = [ax, az];
+    }
+    prevFocus.current = { x: focus[0], z: focus[1], t: nowMs };
+    const loadedSet = new Set(groups.current.keys());
+    const plan = fullMode
+      ? { load: defs.filter((d) => !d.resident && !loadedSet.has(d.id) && !loading.current.has(d.id)).map((d) => d.id), unload: [] as string[] }
+      : planDistricts(focus, defs, loadedSet, { ahead, cap: streamCap });
+    wantedRef.current = new Set([...loadedSet].filter((id) => !plan.unload.includes(id)).concat(plan.load));
+    for (const id of [...retriedRef.current]) if (!wantedRef.current.has(id)) retriedRef.current.delete(id);
+    // Eviction grace: stamp when a district first falls out of the keep radius; evict only the due.
+    for (const id of plan.unload) if (!evictSince.current.has(id)) evictSince.current.set(id, nowMs);
+    for (const id of [...evictSince.current.keys()]) if (!plan.unload.includes(id)) evictSince.current.delete(id);
+    dueEvictions(plan.unload, evictSince.current, nowMs).forEach(unload);
+    plan.load.forEach((id) => { const d = defs.find((x) => x.id === id); if (d) load(d); });
     // theme
     const t = blendTheme(focus, manifest); const prev = themeRef.current; themeRef.current = t;
     const u = (sky.material as THREE.ShaderMaterial).uniforms;

@@ -63,6 +63,7 @@
   }
  ],
  "links": "/assets/world-links.glb",
+ "shell": "/assets/world-shell.glb",
  "themes": {
   "bazaar": {
    "skyTop": [

@@ -49,3 +49,35 @@ three diagrid drums with ribbed glass domes; terraced dome; hex tower; wave terr
 fountain; static elevated monorail loop (ellipse 104x100, deck z 9.7) with a parked train; lawns; piers. First pass ~216k tris / 7.8 MB.
 `districts.ts` MAX_STREAMED 3->4: all four neighbours are exactly 220 m from the Bazaar centre, so cap 3 always dropped one (cost: ~40 MB of GLBs resident).
 In progress: refinement pass (palms = procedural alpha cards with the CC0 BlendSwap frond texture, CC0 street props, cars, yachts). Sources: `07-assets-and-licences.md`.
+
+## Streaming policy (2026-11-09, feat/district-streaming)
+
+The console streams districts; it does not preload the city. Policy lives in
+`apps/console/src/features/world/districts.ts` and is enforced by
+`DistrictWorld.tsx`:
+
+- The Bazaar (resident) + `world-links.glb` + the far shell are always loaded.
+- A streamed district loads when the camera/walker focus comes within
+  **90 m** of its edge (`LOAD_RADIUS`); it unloads only beyond **300 m**
+  (`KEEP_RADIUS`) and only after a **20 s grace** (`EVICT_GRACE_MS`).
+  Resident cap **3** streamed districts (2 on touch devices, via
+  `streamCap` from `GlbWorld`).
+- Movement direction prefetches: focus velocity x 6 s (clamped to 240 m)
+  may add loads; it never keeps a district alive.
+- `apps/console/public/assets/world-shell.glb` (built by
+  `tools/city3/build_shell.py`, ~2.3 MB) is footprint massing of all five
+  districts — box per substantial building, flat plates for slabs, one
+  island plate per district — always resident, and each district's shell
+  group hides the moment its detailed GLB lands, so no viewpoint ever sees
+  a hole. A failed district load retries once after 3 s, then warns and
+  the shell keeps covering.
+- `?world=full` restores load-everything behaviour for debugging.
+- Load/unload/retry events are recorded in a ring buffer:
+  `window.__districts.events()` (with `?districtDebug=1`).
+- History: the old policy (load 330 / keep 520 / cap 4, no grace) loaded
+  all four neighbours at spawn (~93 MB world bytes per session) because
+  every district sits within 220 m of the Bazaar centre — streaming in
+  name only. Per-district parity was verified by decoded census
+  (`tools/city3/split_census.py`): every mesh node of `world-city3.glb`
+  and its collision GLB sits inside the Bazaar bounds; the only straddler
+  is the legacy Water apron, which the runtime already hides.
