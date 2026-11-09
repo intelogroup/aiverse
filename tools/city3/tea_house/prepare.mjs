@@ -111,6 +111,20 @@ for(const n of collision.doc.nodes){if(n.name!=='col_heroes')continue;for(const 
 function clip(poly,axis,k,inside){const result=[];for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length],ai=inside(a[axis]-k),bi=inside(b[axis]-k);if(ai)result.push(a);if(ai!==bi){const t=(k-a[axis])/(b[axis]-a[axis]);result.push(a.map((x,j)=>x+(b[j]-x)*t));}}return result;}
 for(const n of collision.doc.nodes){if(n.name!=='col_ground')continue;for(const p of collision.doc.meshes[n.mesh].primitives){const positions=[];const indices=collision.indices(p);for(let i=0;i<indices.length;i+=3){let inner=collision.points(p,indices.slice(i,i+3));const pieces=[];for(const[axis,k,side]of [[0,-20.5,1],[0,-17.8,-1],[2,-84.2,1],[2,-81,-1]]){const outside=clip(inner,axis,k,x=>x*side<0);if(outside.length>=3)pieces.push(outside);inner=clip(inner,axis,k,x=>x*side>=0);if(inner.length<3)break;}for(const polygon of pieces)for(let j=1;j<polygon.length-1;j++)positions.push(...polygon[0],...polygon[j],...polygon[j+1]);}p.attributes={POSITION:collision.accessor(positions,3)};delete p.indices;}}
 collision.append(structure,{collision:true});
+// Lift leaves were merged into structural lift groups in the study. Split only their panel triangles.
+for(const [target,isCollision] of [[world,false],[collision,true]]){
+  for(const n of [...target.doc.nodes]){
+    if(n.mesh===undefined||!n.name.endsWith('_lift'))continue;
+    const level=n.name.match(/(?:^|_)(G|L[123])_lift$/)?.[1];if(!level)continue;
+    const floor=level==='G'?.48:4.4+(Number(level[1])-1)*3.5;
+    for(const p of target.doc.meshes[n.mesh].primitives){
+      const positions=[];
+      const removed=target.filter(n,p,ps=>{const yes=ps.every(([u,y,z])=>u>17.78&&u<18.92&&z< -8.525&&z> -8.585&&y>=floor-.001&&y<=floor+2.201);if(yes)positions.push(...ps.flat());return yes;});
+      if(removed){assert.equal(removed,24,`Lift panel split ${level}`);const v=target.addMesh(`${isCollision?'col_':''}TeaLiftDoor_${level}`,positions,p.material,{elevatorDoor:true,noGround:true});const added=target.doc.nodes.at(-1);added.translation=[-37.5,0,-72.5];}
+    }
+  }
+}
+
 // Close the 10 cm ground-to-slab gap, while preserving the reserved lift pit.
 const plinthMat=world.doc.materials.findIndex(m=>m.name==='Structure_slab');
 for(const [i,r]of [[-37.5,-84.5,-20.5,-72.5],[-17.8,-84.5,-12.5,-72.5],[-20.5,-84.5,-17.8,-84.2],[-20.5,-81,-17.8,-72.5]].entries()){
@@ -140,5 +154,5 @@ Object.assign(tea.interactables[0],{pos:[-21.04,1.26,-75.9],stand:[-20.55,-75.9]
 fs.writeFileSync(path.join(out,'interiors/index.json'),JSON.stringify(index));
 let anchors=JSON.parse(baseline('city3-anchors.json'));if(Array.isArray(anchors))anchors=anchors.filter(a=>a.building!=='tea');else if(Array.isArray(anchors.anchors))anchors.anchors=anchors.anchors.filter(a=>a.building!=='tea');fs.writeFileSync(path.join(out,'city3-anchors.json'),JSON.stringify(anchors));
 changes.runtimeSha256=sha(fs.readFileSync(path.join(out,'world-city3.glb')));changes.bottles=props.filter(p=>p[0].startsWith('bottle_')).length;
-fs.writeFileSync(path.join(out,'tea-building.json'),JSON.stringify({version:1,origin:[-37.5,0,-72.5],floorHeights:[.48,4.4,7.9,11.4],elevator:'closed',...changes},null,2)+'\n');
+fs.writeFileSync(path.join(out,'tea-building.json'),JSON.stringify({version:1,origin:[-37.5,0,-72.5],floorHeights:[.48,4.4,7.9,11.4],elevator:'runtime-controlled',...changes},null,2)+'\n');
 console.log(JSON.stringify(changes,null,2));

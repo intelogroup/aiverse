@@ -80,10 +80,12 @@ export function createCapsuleWorld(getMeshes: () => THREE.Mesh[], opts: CapsuleO
     for (let iter = 0; iter < 4; iter++) {
       let moved = false;
       for (const m of meshes) {
+        if (m.userData.collisionDisabled) continue;
         const bvh = bvhOf(m);
         if (!bvh) continue;
-        seg.start.set(x + px, y0, z + pz);
-        seg.end.set(x + px, y1, z + pz);
+        const offset = m.userData.collisionOffset as THREE.Vector3 | undefined;
+        seg.start.set(x + px - (offset?.x ?? 0), y0 - (offset?.y ?? 0), z + pz - (offset?.z ?? 0));
+        seg.end.set(x + px - (offset?.x ?? 0), y1 - (offset?.y ?? 0), z + pz - (offset?.z ?? 0));
         box.makeEmpty();
         box.expandByPoint(seg.start);
         box.expandByPoint(seg.end);
@@ -140,13 +142,15 @@ export function createCapsuleWorld(getMeshes: () => THREE.Mesh[], opts: CapsuleO
       ray.origin.set(x, fromY, z);
       ray.direction.copy(down);
       for (const m of getMeshes()) {
-        if (m.userData[NO_GROUND]) continue;
+        if (m.userData[NO_GROUND] || m.userData.collisionDisabled) continue;
         const bvh = bvhOf(m);
         if (!bvh) continue;
+        const offset = m.userData.collisionOffset as THREE.Vector3 | undefined;
+        ray.origin.set(x - (offset?.x ?? 0), fromY - (offset?.y ?? 0), z - (offset?.z ?? 0));
         const hits = bvh.raycast(ray, THREE.DoubleSide, 0, fromY + 40);
         for (const h of hits) {
           if (!h.face || h.face.normal.y < 0.2) continue; // undersides, walls
-          const y = h.point.y;
+          const y = h.point.y + (offset?.y ?? 0);
           if (best === null || y > best) best = y;
         }
       }
@@ -238,9 +242,9 @@ export function bakeCollisionRoot(root: THREE.Object3D, name = "collision", acce
 }
 
 /** Keep structural blockers out of ground queries: door leaves, rails and glazing cannot become floors. */
-export function bakeCollisionParts(root: THREE.Object3D, name = "collision"): THREE.Mesh[] {
-  const floor = bakeCollisionRoot(root, name, (m) => m.userData.noGround !== true);
-  const blockers = bakeCollisionRoot(root, `${name}:blockers`, (m) => m.userData.noGround === true);
+export function bakeCollisionParts(root: THREE.Object3D, name = "collision", accept: (m: THREE.Mesh) => boolean = () => true): THREE.Mesh[] {
+  const floor = bakeCollisionRoot(root, name, (m) => accept(m) && m.userData.noGround !== true);
+  const blockers = bakeCollisionRoot(root, `${name}:blockers`, (m) => accept(m) && m.userData.noGround === true);
   if (blockers) blockers.userData[NO_GROUND] = true;
   return [floor, blockers].filter((m): m is THREE.Mesh => m !== null);
 }

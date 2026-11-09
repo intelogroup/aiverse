@@ -61,7 +61,7 @@ export class CameraClearance {
         this.ray.far = len;
         this.hits.length = 0;
         this.ray.intersectObjects(this.meshes, false, this.hits);
-        const hit = this.hits.find(h => !clippedHit(h));
+        const hit = this.hits.find(h => h.object.visible && !h.object.userData.elevatorDoor && !clippedHit(h));
         if (hit) nearest = Math.min(nearest, hit.distance);
       }
     } finally {
