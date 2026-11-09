@@ -1,0 +1,13 @@
+{
+ "entries": [
+  {
+   "kind": "place_note",
+   "place_ref": "place:tea-house",
+   "claim": {
+    "note": "The Tea House door sticks after rain; enter from the plaza side."
+   },
+   "confidence": 0.6,
+   "provenance": "this envoy's previous visit, run b9"
+  }
+ ]
+}

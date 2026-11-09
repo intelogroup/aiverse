@@ -1,0 +1,37 @@
+{
+ "layers": {
+  "L1 package canary scan": {
+   "ok": true,
+   "counts": "5 package files, 0 canary hits, control caught",
+   "detail": ""
+  },
+  "L2 surface equality": {
+   "ok": true,
+   "counts": "verbs 5, actuation 2, kinds 2, globals rig/prod enumerated",
+   "detail": ""
+  },
+  "L3 command channel": {
+   "ok": true,
+   "counts": "20/20 cases correct",
+   "detail": ""
+  },
+  "L4 egress": {
+   "ok": true,
+   "counts": "hosts ['127.0.0.1:5199', 'apihub.agnes-ai.com'] within allowlist; 1 literal page fetches, all same-origin; 2 dynamic fetch site(s) = the harness world-data loader (callers pass same-origin /assets/*.json); no web tool in the envoy surface",
+   "detail": ""
+  },
+  "L5 return-path scan": {
+   "ok": true,
+   "counts": "214 real artifact files, 0 canary hits, control caught",
+   "detail": ""
+  }
+ },
+ "findings": [
+  {
+   "kind": "unlisted-surface",
+   "item": "__scoutPeer",
+   "detail": "production ScoutAgent assigns this window global (resolved through the PR #69 computed key) but it is not on the recorded runner-door allowlist; PR #76's regex guard cannot see the assignment shape",
+   "disposition": "open"
+  }
+ ]
+}

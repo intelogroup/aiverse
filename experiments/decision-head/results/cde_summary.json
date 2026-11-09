@@ -1,0 +1,276 @@
+{
+ "arms": {
+  "A_luna_digest": {
+   "n": 120,
+   "n_rows": 120,
+   "acc": 0.85,
+   "bal_acc": 0.6810344827586207,
+   "roc_auc": 0.8049568965517241,
+   "pr_auc": 0.15011908718289574,
+   "ece": 0.06841666666666665,
+   "eggs_found": 2,
+   "eggs_total": 4,
+   "egg_p": [
+    0.68,
+    0.68,
+    0.32,
+    0.18
+   ],
+   "lat_mean": 14.719233333333333,
+   "lat_p50": 15.8355,
+   "cost": 0.0107537,
+   "cost_per_call": 8.961416666666667e-05,
+   "models": [
+    "openai/gpt-6-luna"
+   ],
+   "abst_0.7": {
+    "coverage": 0.75,
+    "n": 90,
+    "acc": 0.9333333333333333
+   },
+   "abst_0.8": {
+    "coverage": 0.6166666666666667,
+    "n": 74,
+    "acc": 0.9864864864864865
+   },
+   "abst_0.9": {
+    "coverage": 0.4,
+    "n": 48,
+    "acc": 1.0
+   },
+   "conf_wrong_hi": [],
+   "conf_wrong_lo": [],
+   "p_max_neg": 0.78,
+   "p_spread": [
+    0.01,
+    0.78
+   ]
+  },
+  "B_jev_digest": {
+   "n": 120,
+   "n_rows": 120,
+   "acc": 0.6166666666666667,
+   "bal_acc": 0.5603448275862069,
+   "roc_auc": 0.3739224137931035,
+   "pr_auc": 0.03334846230929149,
+   "ece": 0.1413333333333334,
+   "eggs_found": 2,
+   "eggs_total": 4,
+   "egg_p": [
+    0.51,
+    0.5,
+    0.35,
+    0.34
+   ],
+   "lat_mean": 6.91645,
+   "lat_p50": 6.705500000000001,
+   "cost": 0.002073792,
+   "cost_per_call": 1.7281599999999997e-05,
+   "models": [
+    "typesafe/jev-1.14-20261014"
+   ],
+   "abst_0.7": {
+    "coverage": 0.0,
+    "n": 0,
+    "acc": null
+   },
+   "abst_0.8": {
+    "coverage": 0.0,
+    "n": 0,
+    "acc": null
+   },
+   "abst_0.9": {
+    "coverage": 0.0,
+    "n": 0,
+    "acc": null
+   },
+   "conf_wrong_hi": [],
+   "conf_wrong_lo": [],
+   "p_max_neg": 0.61,
+   "p_spread": [
+    0.33,
+    0.61
+   ]
+  },
+  "C_jev_full_struct": {
+   "n": 120,
+   "n_rows": 120,
+   "acc": 0.9583333333333334,
+   "bal_acc": 0.4956896551724138,
+   "roc_auc": 0.5129310344827586,
+   "pr_auc": 0.04163550057537399,
+   "ece": 0.18733333333333335,
+   "eggs_found": 0,
+   "eggs_total": 4,
+   "egg_p": [
+    0.27,
+    0.24,
+    0.24,
+    0.2
+   ],
+   "lat_mean": 8.097808333333331,
+   "lat_p50": 7.808,
+   "cost": 0.00353976,
+   "cost_per_call": 2.9498e-05,
+   "models": [
+    "typesafe/jev-1.14-20261014"
+   ],
+   "abst_0.7": {
+    "coverage": 0.85,
+    "n": 102,
+    "acc": 0.9607843137254902
+   },
+   "abst_0.8": {
+    "coverage": 0.375,
+    "n": 45,
+    "acc": 0.9777777777777777
+   },
+   "abst_0.9": {
+    "coverage": 0.15,
+    "n": 18,
+    "acc": 1.0
+   },
+   "conf_wrong_hi": [],
+   "conf_wrong_lo": [],
+   "p_max_neg": 0.52,
+   "p_spread": [
+    0.05,
+    0.52
+   ]
+  },
+  "D_jev_full_nl": {
+   "n": 120,
+   "n_rows": 120,
+   "acc": 0.9666666666666667,
+   "bal_acc": 0.5,
+   "roc_auc": 0.9073275862068966,
+   "pr_auc": 0.18215045188729398,
+   "ece": 0.10658333333333322,
+   "eggs_found": 0,
+   "eggs_total": 4,
+   "egg_p": [
+    0.27,
+    0.24,
+    0.19,
+    0.18
+   ],
+   "lat_mean": 7.286574999999999,
+   "lat_p50": 7.2995,
+   "cost": 0.003556602,
+   "cost_per_call": 2.9638349999999997e-05,
+   "models": [
+    "typesafe/jev-1.14-20261014"
+   ],
+   "abst_0.7": {
+    "coverage": 0.9833333333333333,
+    "n": 118,
+    "acc": 0.9661016949152542
+   },
+   "abst_0.8": {
+    "coverage": 0.8833333333333333,
+    "n": 106,
+    "acc": 0.9811320754716981
+   },
+   "abst_0.9": {
+    "coverage": 0.36666666666666664,
+    "n": 44,
+    "acc": 1.0
+   },
+   "conf_wrong_hi": [],
+   "conf_wrong_lo": [],
+   "p_max_neg": 0.47,
+   "p_spread": [
+    0.07,
+    0.47
+   ]
+  },
+  "E_luna_full_struct": {
+   "n": 120,
+   "n_rows": 120,
+   "acc": 0.9583333333333334,
+   "bal_acc": 0.6163793103448276,
+   "roc_auc": 0.9493534482758621,
+   "pr_auc": 0.317156862745098,
+   "ece": 0.03875833333333345,
+   "eggs_found": 1,
+   "eggs_total": 4,
+   "egg_p": [
+    0.72,
+    0.28,
+    0.19,
+    0.12
+   ],
+   "lat_mean": 9.76565,
+   "lat_p50": 8.9725,
+   "cost": 0.0284655,
+   "cost_per_call": 0.00023721249999999997,
+   "models": [
+    "openai/gpt-6-luna"
+   ],
+   "abst_0.7": {
+    "coverage": 0.9916666666666667,
+    "n": 119,
+    "acc": 0.957983193277311
+   },
+   "abst_0.8": {
+    "coverage": 0.9333333333333333,
+    "n": 112,
+    "acc": 0.9821428571428571
+   },
+   "abst_0.9": {
+    "coverage": 0.8583333333333333,
+    "n": 103,
+    "acc": 1.0
+   },
+   "conf_wrong_hi": [],
+   "conf_wrong_lo": [],
+   "p_max_neg": 0.78,
+   "p_spread": [
+    0.001,
+    0.78
+   ]
+  }
+ },
+ "pairs": {
+  "C_vs_B": {
+   "n": 120,
+   "C_jev_full_struct_only_right": 43,
+   "B_jev_digest_only_right": 2
+  },
+  "D_vs_C": {
+   "n": 120,
+   "D_jev_full_nl_only_right": 1,
+   "C_jev_full_struct_only_right": 0
+  },
+  "E_vs_A": {
+   "n": 120,
+   "E_luna_full_struct_only_right": 15,
+   "A_luna_digest_only_right": 2
+  },
+  "C_vs_E": {
+   "n": 120,
+   "C_jev_full_struct_only_right": 2,
+   "E_luna_full_struct_only_right": 2
+  },
+  "D_vs_E": {
+   "n": 120,
+   "D_jev_full_nl_only_right": 2,
+   "E_luna_full_struct_only_right": 1
+  }
+ },
+ "state_sizes": {
+  "digest_B": {
+   "mean_B": 213.46666666666667,
+   "max_B": 217
+  },
+  "full_struct_C_E": {
+   "mean_B": 1176.0166666666667,
+   "max_B": 1357
+  },
+  "full_nl_D": {
+   "mean_B": 1488.4916666666666,
+   "max_B": 1682
+  }
+ },
+ "new_spend": 0.035561862
+}

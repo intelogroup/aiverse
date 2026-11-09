@@ -1,0 +1,2874 @@
+{
+ "fitted_cost_per_m": 0.9843,
+ "rest_sources": [
+  {
+   "id": "home-bench",
+   "pos": [
+    -17.0,
+    51.2
+   ],
+   "home": true,
+   "anchor": "spawn point (-17, 51.2); also the S5 return target"
+  },
+  {
+   "id": "stall-55",
+   "pos": [
+    44.0,
+    51.2
+   ],
+   "home": false,
+   "dist_from_r1_m": 61.0,
+   "egg_clearance_m": 24.0,
+   "selection_rule": "published place, stand >= 60 m from R1, not a stage target, stand >= 6 m from every truth egg; closest legal to R1, then lowest id",
+   "qualifying_count": 105
+  }
+ ],
+ "runs": [
+  {
+   "run_dir": "/home/hatch/workspace/.build-tmp/experiments/gauntlet/run-1",
+   "path_m": 65.6,
+   "t_span": [
+    1.31,
+    177.88
+   ],
+   "n_samples": 91,
+   "n_fired_looks": 25,
+   "stage_boundaries": {
+    "S1": 154.3
+   },
+   "conditions": {
+    "B": {
+     "endowment_energy": 100.0,
+     "final": {
+      "t": 177.88,
+      "energy": 35.43,
+      "perception": 0,
+      "pos": [
+       -28.6,
+       47.1
+      ]
+     },
+     "at_stage_boundaries": {
+      "S1": {
+       "t_sim": 154.3,
+       "energy": 42.44,
+       "perception": 0
+      }
+     },
+     "limp_home_at": null,
+     "would_be_refused_looks": [
+      {
+       "t_sim": 155.88,
+       "kind": "look-recall"
+      },
+      {
+       "t_sim": 160.12,
+       "kind": "look-recall"
+      },
+      {
+       "t_sim": 169.0,
+       "kind": "look-recall"
+      },
+      {
+       "t_sim": 171.55,
+       "kind": "look-recall"
+      },
+      {
+       "t_sim": 180.39,
+       "kind": "look-recall"
+      },
+      {
+       "t_sim": 184.27,
+       "kind": "look-recall"
+      },
+      {
+       "t_sim": 185.89,
+       "kind": "look-recall"
+      },
+      {
+       "t_sim": 186.64,
+       "kind": "look-recall"
+      },
+      {
+       "t_sim": 187.36,
+       "kind": "look-recall"
+      },
+      {
+       "t_sim": 188.05,
+       "kind": "look-recall"
+      }
+     ],
+     "n_would_be_refused": 10,
+     "min_energy": 35.43,
+     "total_distance_m": 65.6,
+     "curve": [
+      {
+       "t": 1.31,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 1.81,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 3.77,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 5.27,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 6.71,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 8.21,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 9.87,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 11.31,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 12.87,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 14.31,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 15.81,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 17.41,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 18.91,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 20.99,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 22.59,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 24.19,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 25.14,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 28.79,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 30.12,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 36.52,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 37.87,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 39.08,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 40.32,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 41.6,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 42.91,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 44.13,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 45.36,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 46.63,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 49.32,
+       "energy": 100.0,
+       "perception": 14,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 55.87,
+       "energy": 100.0,
+       "perception": 14,
+       "pos": [
+        -29.1,
+        48.6
+       ]
+      },
+      {
+       "t": 58.14,
+       "energy": 94.49,
+       "perception": 14,
+       "pos": [
+        -28.9,
+        43.0
+       ]
+      },
+      {
+       "t": 59.41,
+       "energy": 94.38,
+       "perception": 14,
+       "pos": [
+        -28.8,
+        43.0
+       ]
+      },
+      {
+       "t": 60.96,
+       "energy": 94.38,
+       "perception": 13,
+       "pos": [
+        -28.8,
+        43.0
+       ]
+      },
+      {
+       "t": 62.26,
+       "energy": 92.57,
+       "perception": 13,
+       "pos": [
+        -29.7,
+        41.4
+       ]
+      },
+      {
+       "t": 63.53,
+       "energy": 88.27,
+       "perception": 13,
+       "pos": [
+        -31.2,
+        37.3
+       ]
+      },
+      {
+       "t": 64.8,
+       "energy": 84.48,
+       "perception": 13,
+       "pos": [
+        -32.5,
+        33.7
+       ]
+      },
+      {
+       "t": 67.07,
+       "energy": 81.96,
+       "perception": 12,
+       "pos": [
+        -34.3,
+        31.9
+       ]
+      },
+      {
+       "t": 68.46,
+       "energy": 81.54,
+       "perception": 12,
+       "pos": [
+        -34.7,
+        31.9
+       ]
+      },
+      {
+       "t": 73.31,
+       "energy": 81.3,
+       "perception": 11,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 74.55,
+       "energy": 81.29,
+       "perception": 11,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 75.79,
+       "energy": 81.29,
+       "perception": 11,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 79.45,
+       "energy": 81.28,
+       "perception": 11,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 80.74,
+       "energy": 81.28,
+       "perception": 11,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 82.02,
+       "energy": 80.91,
+       "perception": 11,
+       "pos": [
+        -35.4,
+        31.9
+       ]
+      },
+      {
+       "t": 83.29,
+       "energy": 80.52,
+       "perception": 11,
+       "pos": [
+        -35.8,
+        31.9
+       ]
+      },
+      {
+       "t": 86.1,
+       "energy": 80.5,
+       "perception": 10,
+       "pos": [
+        -35.8,
+        31.9
+       ]
+      },
+      {
+       "t": 87.98,
+       "energy": 80.5,
+       "perception": 9,
+       "pos": [
+        -35.8,
+        31.9
+       ]
+      },
+      {
+       "t": 88.98,
+       "energy": 80.5,
+       "perception": 9,
+       "pos": [
+        -35.8,
+        31.9
+       ]
+      },
+      {
+       "t": 90.21,
+       "energy": 80.5,
+       "perception": 9,
+       "pos": [
+        -35.8,
+        31.9
+       ]
+      },
+      {
+       "t": 91.51,
+       "energy": 80.5,
+       "perception": 9,
+       "pos": [
+        -35.8,
+        31.9
+       ]
+      },
+      {
+       "t": 92.75,
+       "energy": 80.15,
+       "perception": 9,
+       "pos": [
+        -35.5,
+        31.9
+       ]
+      },
+      {
+       "t": 94.09,
+       "energy": 79.88,
+       "perception": 9,
+       "pos": [
+        -35.2,
+        31.9
+       ]
+      },
+      {
+       "t": 95.75,
+       "energy": 79.78,
+       "perception": 8,
+       "pos": [
+        -35.1,
+        31.9
+       ]
+      },
+      {
+       "t": 98.33,
+       "energy": 79.73,
+       "perception": 8,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 99.93,
+       "energy": 79.72,
+       "perception": 7,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 101.22,
+       "energy": 79.71,
+       "perception": 7,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 102.55,
+       "energy": 79.71,
+       "perception": 7,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 103.9,
+       "energy": 79.71,
+       "perception": 7,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 106.41,
+       "energy": 79.71,
+       "perception": 7,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 107.63,
+       "energy": 79.71,
+       "perception": 7,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 109.98,
+       "energy": 79.71,
+       "perception": 7,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 110.18,
+       "energy": 79.71,
+       "perception": 7,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 111.45,
+       "energy": 79.69,
+       "perception": 7,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 112.68,
+       "energy": 76.68,
+       "perception": 7,
+       "pos": [
+        -34.8,
+        35.0
+       ]
+      },
+      {
+       "t": 113.9,
+       "energy": 73.09,
+       "perception": 7,
+       "pos": [
+        -34.9,
+        38.6
+       ]
+      },
+      {
+       "t": 127.65,
+       "energy": 72.47,
+       "perception": 5,
+       "pos": [
+        -34.9,
+        38.0
+       ]
+      },
+      {
+       "t": 130.24,
+       "energy": 66.52,
+       "perception": 5,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 131.55,
+       "energy": 66.51,
+       "perception": 5,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 133.24,
+       "energy": 66.49,
+       "perception": 4,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 134.47,
+       "energy": 66.49,
+       "perception": 4,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 135.7,
+       "energy": 66.49,
+       "perception": 4,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 137.08,
+       "energy": 64.57,
+       "perception": 4,
+       "pos": [
+        -33.0,
+        31.9
+       ]
+      },
+      {
+       "t": 138.27,
+       "energy": 61.09,
+       "perception": 4,
+       "pos": [
+        -29.5,
+        31.9
+       ]
+      },
+      {
+       "t": 139.62,
+       "energy": 57.05,
+       "perception": 4,
+       "pos": [
+        -25.4,
+        32.0
+       ]
+      },
+      {
+       "t": 140.57,
+       "energy": 54.07,
+       "perception": 3,
+       "pos": [
+        -22.4,
+        32.0
+       ]
+      },
+      {
+       "t": 141.69,
+       "energy": 51.96,
+       "perception": 2,
+       "pos": [
+        -20.2,
+        32.0
+       ]
+      },
+      {
+       "t": 142.59,
+       "energy": 51.96,
+       "perception": 2,
+       "pos": [
+        -20.2,
+        32.0
+       ]
+      },
+      {
+       "t": 143.81,
+       "energy": 50.48,
+       "perception": 2,
+       "pos": [
+        -19.4,
+        30.7
+       ]
+      },
+      {
+       "t": 145.04,
+       "energy": 50.04,
+       "perception": 2,
+       "pos": [
+        -19.4,
+        30.3
+       ]
+      },
+      {
+       "t": 147.21,
+       "energy": 50.04,
+       "perception": 1,
+       "pos": [
+        -19.4,
+        30.3
+       ]
+      },
+      {
+       "t": 149.54,
+       "energy": 50.04,
+       "perception": 0,
+       "pos": [
+        -19.4,
+        30.3
+       ]
+      },
+      {
+       "t": 150.46,
+       "energy": 50.04,
+       "perception": 0,
+       "pos": [
+        -19.4,
+        30.3
+       ]
+      },
+      {
+       "t": 151.69,
+       "energy": 49.97,
+       "perception": 0,
+       "pos": [
+        -19.5,
+        30.3
+       ]
+      },
+      {
+       "t": 153.02,
+       "energy": 46.33,
+       "perception": 0,
+       "pos": [
+        -21.8,
+        33.2
+       ]
+      },
+      {
+       "t": 154.33,
+       "energy": 42.44,
+       "perception": 0,
+       "pos": [
+        -24.1,
+        36.4
+       ]
+      },
+      {
+       "t": 165.36,
+       "energy": 42.44,
+       "perception": 0,
+       "pos": [
+        -30.4,
+        45.2
+       ]
+      },
+      {
+       "t": 168.02,
+       "energy": 39.48,
+       "perception": 0,
+       "pos": [
+        -28.4,
+        43.0
+       ]
+      },
+      {
+       "t": 170.36,
+       "energy": 39.48,
+       "perception": 0,
+       "pos": [
+        -28.4,
+        43.0
+       ]
+      },
+      {
+       "t": 172.83,
+       "energy": 39.48,
+       "perception": 0,
+       "pos": [
+        -28.4,
+        43.0
+       ]
+      },
+      {
+       "t": 175.35,
+       "energy": 39.48,
+       "perception": 0,
+       "pos": [
+        -28.4,
+        43.0
+       ]
+      },
+      {
+       "t": 177.88,
+       "energy": 35.43,
+       "perception": 0,
+       "pos": [
+        -28.6,
+        47.1
+       ]
+      }
+     ]
+    },
+    "C": {
+     "endowment_energy": 25.0,
+     "final": {
+      "t": 177.88,
+      "energy": 0.0,
+      "perception": 0,
+      "pos": [
+       -28.6,
+       47.1
+      ]
+     },
+     "at_stage_boundaries": {
+      "S1": {
+       "t_sim": 154.3,
+       "energy": 0.0,
+       "perception": 0
+      }
+     },
+     "limp_home_at": {
+      "t_sim": 113.9,
+      "pos": [
+       -34.9,
+       38.6
+      ],
+      "nearest_source": "home-bench",
+      "dist_to_source_m": 21.9
+     },
+     "would_be_refused_looks": [
+      {
+       "t_sim": 155.88,
+       "kind": "look-recall"
+      },
+      {
+       "t_sim": 160.12,
+       "kind": "look-recall"
+      },
+      {
+       "t_sim": 169.0,
+       "kind": "look-recall"
+      },
+      {
+       "t_sim": 171.55,
+       "kind": "look-recall"
+      },
+      {
+       "t_sim": 180.39,
+       "kind": "look-recall"
+      },
+      {
+       "t_sim": 184.27,
+       "kind": "look-recall"
+      },
+      {
+       "t_sim": 185.89,
+       "kind": "look-recall"
+      },
+      {
+       "t_sim": 186.64,
+       "kind": "look-recall"
+      },
+      {
+       "t_sim": 187.36,
+       "kind": "look-recall"
+      },
+      {
+       "t_sim": 188.05,
+       "kind": "look-recall"
+      }
+     ],
+     "n_would_be_refused": 10,
+     "min_energy": 0.0,
+     "total_distance_m": 65.6,
+     "curve": [
+      {
+       "t": 1.31,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 1.81,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 3.77,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 5.27,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 6.71,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 8.21,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 9.87,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 11.31,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 12.87,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 14.31,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 15.81,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 17.41,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 18.91,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 20.99,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 22.59,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 24.19,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 25.14,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 28.79,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 30.12,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 36.52,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 37.87,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 39.08,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 40.32,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 41.6,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 42.91,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 44.13,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 45.36,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 46.63,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 49.32,
+       "energy": 25.0,
+       "perception": 14,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 55.87,
+       "energy": 25.0,
+       "perception": 14,
+       "pos": [
+        -29.1,
+        48.6
+       ]
+      },
+      {
+       "t": 58.14,
+       "energy": 19.49,
+       "perception": 14,
+       "pos": [
+        -28.9,
+        43.0
+       ]
+      },
+      {
+       "t": 59.41,
+       "energy": 19.38,
+       "perception": 14,
+       "pos": [
+        -28.8,
+        43.0
+       ]
+      },
+      {
+       "t": 60.96,
+       "energy": 19.38,
+       "perception": 13,
+       "pos": [
+        -28.8,
+        43.0
+       ]
+      },
+      {
+       "t": 62.26,
+       "energy": 17.57,
+       "perception": 13,
+       "pos": [
+        -29.7,
+        41.4
+       ]
+      },
+      {
+       "t": 63.53,
+       "energy": 13.27,
+       "perception": 13,
+       "pos": [
+        -31.2,
+        37.3
+       ]
+      },
+      {
+       "t": 64.8,
+       "energy": 9.48,
+       "perception": 13,
+       "pos": [
+        -32.5,
+        33.7
+       ]
+      },
+      {
+       "t": 67.07,
+       "energy": 6.96,
+       "perception": 12,
+       "pos": [
+        -34.3,
+        31.9
+       ]
+      },
+      {
+       "t": 68.46,
+       "energy": 6.54,
+       "perception": 12,
+       "pos": [
+        -34.7,
+        31.9
+       ]
+      },
+      {
+       "t": 73.31,
+       "energy": 6.3,
+       "perception": 11,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 74.55,
+       "energy": 6.29,
+       "perception": 11,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 75.79,
+       "energy": 6.29,
+       "perception": 11,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 79.45,
+       "energy": 6.28,
+       "perception": 11,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 80.74,
+       "energy": 6.28,
+       "perception": 11,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 82.02,
+       "energy": 5.91,
+       "perception": 11,
+       "pos": [
+        -35.4,
+        31.9
+       ]
+      },
+      {
+       "t": 83.29,
+       "energy": 5.52,
+       "perception": 11,
+       "pos": [
+        -35.8,
+        31.9
+       ]
+      },
+      {
+       "t": 86.1,
+       "energy": 5.5,
+       "perception": 10,
+       "pos": [
+        -35.8,
+        31.9
+       ]
+      },
+      {
+       "t": 87.98,
+       "energy": 5.5,
+       "perception": 9,
+       "pos": [
+        -35.8,
+        31.9
+       ]
+      },
+      {
+       "t": 88.98,
+       "energy": 5.5,
+       "perception": 9,
+       "pos": [
+        -35.8,
+        31.9
+       ]
+      },
+      {
+       "t": 90.21,
+       "energy": 5.5,
+       "perception": 9,
+       "pos": [
+        -35.8,
+        31.9
+       ]
+      },
+      {
+       "t": 91.51,
+       "energy": 5.5,
+       "perception": 9,
+       "pos": [
+        -35.8,
+        31.9
+       ]
+      },
+      {
+       "t": 92.75,
+       "energy": 5.15,
+       "perception": 9,
+       "pos": [
+        -35.5,
+        31.9
+       ]
+      },
+      {
+       "t": 94.09,
+       "energy": 4.88,
+       "perception": 9,
+       "pos": [
+        -35.2,
+        31.9
+       ]
+      },
+      {
+       "t": 95.75,
+       "energy": 4.78,
+       "perception": 8,
+       "pos": [
+        -35.1,
+        31.9
+       ]
+      },
+      {
+       "t": 98.33,
+       "energy": 4.73,
+       "perception": 8,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 99.93,
+       "energy": 4.72,
+       "perception": 7,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 101.22,
+       "energy": 4.71,
+       "perception": 7,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 102.55,
+       "energy": 4.71,
+       "perception": 7,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 103.9,
+       "energy": 4.71,
+       "perception": 7,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 106.41,
+       "energy": 4.71,
+       "perception": 7,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 107.63,
+       "energy": 4.71,
+       "perception": 7,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 109.98,
+       "energy": 4.71,
+       "perception": 7,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 110.18,
+       "energy": 4.71,
+       "perception": 7,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 111.45,
+       "energy": 4.69,
+       "perception": 7,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 112.68,
+       "energy": 1.68,
+       "perception": 7,
+       "pos": [
+        -34.8,
+        35.0
+       ]
+      },
+      {
+       "t": 113.9,
+       "energy": 0.0,
+       "perception": 7,
+       "pos": [
+        -34.9,
+        38.6
+       ]
+      },
+      {
+       "t": 127.65,
+       "energy": 0.0,
+       "perception": 5,
+       "pos": [
+        -34.9,
+        38.0
+       ]
+      },
+      {
+       "t": 130.24,
+       "energy": 0.0,
+       "perception": 5,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 131.55,
+       "energy": 0.0,
+       "perception": 5,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 133.24,
+       "energy": 0.0,
+       "perception": 4,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 134.47,
+       "energy": 0.0,
+       "perception": 4,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 135.7,
+       "energy": 0.0,
+       "perception": 4,
+       "pos": [
+        -35.0,
+        31.9
+       ]
+      },
+      {
+       "t": 137.08,
+       "energy": 0.0,
+       "perception": 4,
+       "pos": [
+        -33.0,
+        31.9
+       ]
+      },
+      {
+       "t": 138.27,
+       "energy": 0.0,
+       "perception": 4,
+       "pos": [
+        -29.5,
+        31.9
+       ]
+      },
+      {
+       "t": 139.62,
+       "energy": 0.0,
+       "perception": 4,
+       "pos": [
+        -25.4,
+        32.0
+       ]
+      },
+      {
+       "t": 140.57,
+       "energy": 0.0,
+       "perception": 3,
+       "pos": [
+        -22.4,
+        32.0
+       ]
+      },
+      {
+       "t": 141.69,
+       "energy": 0.0,
+       "perception": 2,
+       "pos": [
+        -20.2,
+        32.0
+       ]
+      },
+      {
+       "t": 142.59,
+       "energy": 0.0,
+       "perception": 2,
+       "pos": [
+        -20.2,
+        32.0
+       ]
+      },
+      {
+       "t": 143.81,
+       "energy": 0.0,
+       "perception": 2,
+       "pos": [
+        -19.4,
+        30.7
+       ]
+      },
+      {
+       "t": 145.04,
+       "energy": 0.0,
+       "perception": 2,
+       "pos": [
+        -19.4,
+        30.3
+       ]
+      },
+      {
+       "t": 147.21,
+       "energy": 0.0,
+       "perception": 1,
+       "pos": [
+        -19.4,
+        30.3
+       ]
+      },
+      {
+       "t": 149.54,
+       "energy": 0.0,
+       "perception": 0,
+       "pos": [
+        -19.4,
+        30.3
+       ]
+      },
+      {
+       "t": 150.46,
+       "energy": 0.0,
+       "perception": 0,
+       "pos": [
+        -19.4,
+        30.3
+       ]
+      },
+      {
+       "t": 151.69,
+       "energy": 0.0,
+       "perception": 0,
+       "pos": [
+        -19.5,
+        30.3
+       ]
+      },
+      {
+       "t": 153.02,
+       "energy": 0.0,
+       "perception": 0,
+       "pos": [
+        -21.8,
+        33.2
+       ]
+      },
+      {
+       "t": 154.33,
+       "energy": 0.0,
+       "perception": 0,
+       "pos": [
+        -24.1,
+        36.4
+       ]
+      },
+      {
+       "t": 165.36,
+       "energy": 0.0,
+       "perception": 0,
+       "pos": [
+        -30.4,
+        45.2
+       ]
+      },
+      {
+       "t": 168.02,
+       "energy": 0.0,
+       "perception": 0,
+       "pos": [
+        -28.4,
+        43.0
+       ]
+      },
+      {
+       "t": 170.36,
+       "energy": 0.0,
+       "perception": 0,
+       "pos": [
+        -28.4,
+        43.0
+       ]
+      },
+      {
+       "t": 172.83,
+       "energy": 0.0,
+       "perception": 0,
+       "pos": [
+        -28.4,
+        43.0
+       ]
+      },
+      {
+       "t": 175.35,
+       "energy": 0.0,
+       "perception": 0,
+       "pos": [
+        -28.4,
+        43.0
+       ]
+      },
+      {
+       "t": 177.88,
+       "energy": 0.0,
+       "perception": 0,
+       "pos": [
+        -28.6,
+        47.1
+       ]
+      }
+     ]
+    }
+   }
+  },
+  {
+   "run_dir": "/home/hatch/workspace/.build-tmp/experiments/gauntlet/run-2-attempt1-stopped-by-jim",
+   "path_m": 90.7,
+   "t_span": [
+    1.42,
+    92.43
+   ],
+   "n_samples": 52,
+   "n_fired_looks": 17,
+   "stage_boundaries": {
+    "S1": 26.4,
+    "S2": 13.12,
+    "S3": 86.36
+   },
+   "conditions": {
+    "B": {
+     "endowment_energy": 100.0,
+     "final": {
+      "t": 92.43,
+      "energy": 10.69,
+      "perception": 0,
+      "pos": [
+       -23.2,
+       28.7
+      ]
+     },
+     "at_stage_boundaries": {
+      "S2": {
+       "t_sim": 13.12,
+       "energy": 76.82,
+       "perception": 14
+      },
+      "S1": {
+       "t_sim": 26.4,
+       "energy": 61.34,
+       "perception": 13
+      },
+      "S3": {
+       "t_sim": 86.36,
+       "energy": 13.72,
+       "perception": 3
+      }
+     },
+     "limp_home_at": null,
+     "would_be_refused_looks": [
+      {
+       "t_sim": 92.03,
+       "kind": "look-recall"
+      },
+      {
+       "t_sim": 94.5,
+       "kind": "look-recall"
+      }
+     ],
+     "n_would_be_refused": 2,
+     "min_energy": 10.69,
+     "total_distance_m": 90.7,
+     "curve": [
+      {
+       "t": 1.42,
+       "energy": 100.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 4.06,
+       "energy": 99.65,
+       "perception": 14,
+       "pos": [
+        -17.3,
+        51.3
+       ]
+      },
+      {
+       "t": 5.46,
+       "energy": 96.92,
+       "perception": 14,
+       "pos": [
+        -19.6,
+        52.9
+       ]
+      },
+      {
+       "t": 7.02,
+       "energy": 92.15,
+       "perception": 14,
+       "pos": [
+        -21.8,
+        57.2
+       ]
+      },
+      {
+       "t": 8.62,
+       "energy": 87.12,
+       "perception": 14,
+       "pos": [
+        -24.1,
+        61.8
+       ]
+      },
+      {
+       "t": 10.12,
+       "energy": 82.37,
+       "perception": 14,
+       "pos": [
+        -26.8,
+        65.8
+       ]
+      },
+      {
+       "t": 11.62,
+       "energy": 78.07,
+       "perception": 14,
+       "pos": [
+        -29.2,
+        69.4
+       ]
+      },
+      {
+       "t": 13.12,
+       "energy": 76.82,
+       "perception": 14,
+       "pos": [
+        -29.9,
+        70.5
+       ]
+      },
+      {
+       "t": 14.62,
+       "energy": 76.82,
+       "perception": 14,
+       "pos": [
+        -29.9,
+        70.5
+       ]
+      },
+      {
+       "t": 16.22,
+       "energy": 76.82,
+       "perception": 14,
+       "pos": [
+        -29.9,
+        70.5
+       ]
+      },
+      {
+       "t": 17.72,
+       "energy": 76.82,
+       "perception": 14,
+       "pos": [
+        -29.9,
+        70.5
+       ]
+      },
+      {
+       "t": 19.22,
+       "energy": 76.82,
+       "perception": 14,
+       "pos": [
+        -29.9,
+        70.5
+       ]
+      },
+      {
+       "t": 20.72,
+       "energy": 76.82,
+       "perception": 14,
+       "pos": [
+        -29.9,
+        70.5
+       ]
+      },
+      {
+       "t": 22.22,
+       "energy": 73.1,
+       "perception": 14,
+       "pos": [
+        -31.1,
+        66.9
+       ]
+      },
+      {
+       "t": 23.72,
+       "energy": 68.56,
+       "perception": 14,
+       "pos": [
+        -32.1,
+        62.4
+       ]
+      },
+      {
+       "t": 26.39,
+       "energy": 61.34,
+       "perception": 13,
+       "pos": [
+        -34.1,
+        55.3
+       ]
+      },
+      {
+       "t": 27.98,
+       "energy": 60.73,
+       "perception": 13,
+       "pos": [
+        -34.8,
+        55.3
+       ]
+      },
+      {
+       "t": 29.48,
+       "energy": 60.57,
+       "perception": 13,
+       "pos": [
+        -34.9,
+        55.3
+       ]
+      },
+      {
+       "t": 30.98,
+       "energy": 60.51,
+       "perception": 13,
+       "pos": [
+        -35.0,
+        55.3
+       ]
+      },
+      {
+       "t": 33.96,
+       "energy": 60.49,
+       "perception": 12,
+       "pos": [
+        -35.0,
+        55.3
+       ]
+      },
+      {
+       "t": 35.48,
+       "energy": 60.49,
+       "perception": 12,
+       "pos": [
+        -35.0,
+        55.3
+       ]
+      },
+      {
+       "t": 37.06,
+       "energy": 60.49,
+       "perception": 12,
+       "pos": [
+        -35.0,
+        55.3
+       ]
+      },
+      {
+       "t": 38.56,
+       "energy": 60.49,
+       "perception": 12,
+       "pos": [
+        -35.0,
+        55.3
+       ]
+      },
+      {
+       "t": 40.06,
+       "energy": 59.66,
+       "perception": 12,
+       "pos": [
+        -34.2,
+        55.3
+       ]
+      },
+      {
+       "t": 42.51,
+       "energy": 53.11,
+       "perception": 12,
+       "pos": [
+        -28.8,
+        51.4
+       ]
+      },
+      {
+       "t": 45.7,
+       "energy": 53.11,
+       "perception": 11,
+       "pos": [
+        -21.0,
+        44.8
+       ]
+      },
+      {
+       "t": 47.3,
+       "energy": 50.67,
+       "perception": 11,
+       "pos": [
+        -19.4,
+        42.9
+       ]
+      },
+      {
+       "t": 48.8,
+       "energy": 50.67,
+       "perception": 11,
+       "pos": [
+        -19.4,
+        42.9
+       ]
+      },
+      {
+       "t": 49.4,
+       "energy": 50.67,
+       "perception": 11,
+       "pos": [
+        -19.4,
+        42.9
+       ]
+      },
+      {
+       "t": 51.31,
+       "energy": 50.67,
+       "perception": 10,
+       "pos": [
+        -19.4,
+        42.9
+       ]
+      },
+      {
+       "t": 52.91,
+       "energy": 50.67,
+       "perception": 10,
+       "pos": [
+        -19.4,
+        42.9
+       ]
+      },
+      {
+       "t": 54.41,
+       "energy": 50.67,
+       "perception": 10,
+       "pos": [
+        -19.4,
+        42.9
+       ]
+      },
+      {
+       "t": 56.01,
+       "energy": 50.67,
+       "perception": 10,
+       "pos": [
+        -19.4,
+        42.9
+       ]
+      },
+      {
+       "t": 57.61,
+       "energy": 50.67,
+       "perception": 10,
+       "pos": [
+        -19.4,
+        42.9
+       ]
+      },
+      {
+       "t": 59.11,
+       "energy": 50.67,
+       "perception": 10,
+       "pos": [
+        -19.4,
+        42.9
+       ]
+      },
+      {
+       "t": 59.51,
+       "energy": 50.67,
+       "perception": 10,
+       "pos": [
+        -19.4,
+        42.9
+       ]
+      },
+      {
+       "t": 62.04,
+       "energy": 50.67,
+       "perception": 10,
+       "pos": [
+        -19.4,
+        42.9
+       ]
+      },
+      {
+       "t": 64.64,
+       "energy": 49.86,
+       "perception": 10,
+       "pos": [
+        -20.2,
+        42.8
+       ]
+      },
+      {
+       "t": 65.99,
+       "energy": 46.0,
+       "perception": 10,
+       "pos": [
+        -22.9,
+        39.9
+       ]
+      },
+      {
+       "t": 67.26,
+       "energy": 42.19,
+       "perception": 10,
+       "pos": [
+        -25.5,
+        37.0
+       ]
+      },
+      {
+       "t": 68.45,
+       "energy": 38.17,
+       "perception": 9,
+       "pos": [
+        -28.2,
+        34.0
+       ]
+      },
+      {
+       "t": 69.9,
+       "energy": 34.28,
+       "perception": 9,
+       "pos": [
+        -31.0,
+        31.2
+       ]
+      },
+      {
+       "t": 70.71,
+       "energy": 31.96,
+       "perception": 9,
+       "pos": [
+        -32.6,
+        29.4
+       ]
+      },
+      {
+       "t": 72.62,
+       "energy": 28.94,
+       "perception": 8,
+       "pos": [
+        -34.8,
+        27.3
+       ]
+      },
+      {
+       "t": 74.58,
+       "energy": 25.4,
+       "perception": 7,
+       "pos": [
+        -37.7,
+        25.2
+       ]
+      },
+      {
+       "t": 76.34,
+       "energy": 25.4,
+       "perception": 4,
+       "pos": [
+        -37.7,
+        25.2
+       ]
+      },
+      {
+       "t": 81.13,
+       "energy": 19.97,
+       "perception": 4,
+       "pos": [
+        -32.4,
+        26.7
+       ]
+      },
+      {
+       "t": 82.41,
+       "energy": 16.0,
+       "perception": 4,
+       "pos": [
+        -28.6,
+        28.1
+       ]
+      },
+      {
+       "t": 86.36,
+       "energy": 13.72,
+       "perception": 3,
+       "pos": [
+        -26.3,
+        28.1
+       ]
+      },
+      {
+       "t": 88.7,
+       "energy": 13.72,
+       "perception": 1,
+       "pos": [
+        -26.3,
+        28.1
+       ]
+      },
+      {
+       "t": 90.77,
+       "energy": 13.67,
+       "perception": 0,
+       "pos": [
+        -26.2,
+        28.1
+       ]
+      },
+      {
+       "t": 92.43,
+       "energy": 10.69,
+       "perception": 0,
+       "pos": [
+        -23.2,
+        28.7
+       ]
+      }
+     ]
+    },
+    "C": {
+     "endowment_energy": 25.0,
+     "final": {
+      "t": 92.43,
+      "energy": 0.0,
+      "perception": 0,
+      "pos": [
+       -23.2,
+       28.7
+      ]
+     },
+     "at_stage_boundaries": {
+      "S2": {
+       "t_sim": 13.12,
+       "energy": 1.82,
+       "perception": 14
+      },
+      "S1": {
+       "t_sim": 26.4,
+       "energy": 0.0,
+       "perception": 13
+      },
+      "S3": {
+       "t_sim": 86.36,
+       "energy": 0.0,
+       "perception": 3
+      }
+     },
+     "limp_home_at": {
+      "t_sim": 22.22,
+      "pos": [
+       -31.1,
+       66.9
+      ],
+      "nearest_source": "home-bench",
+      "dist_to_source_m": 21.1
+     },
+     "would_be_refused_looks": [
+      {
+       "t_sim": 92.03,
+       "kind": "look-recall"
+      },
+      {
+       "t_sim": 94.5,
+       "kind": "look-recall"
+      }
+     ],
+     "n_would_be_refused": 2,
+     "min_energy": 0.0,
+     "total_distance_m": 90.7,
+     "curve": [
+      {
+       "t": 1.42,
+       "energy": 25.0,
+       "perception": 15,
+       "pos": [
+        -17.0,
+        51.2
+       ]
+      },
+      {
+       "t": 4.06,
+       "energy": 24.65,
+       "perception": 14,
+       "pos": [
+        -17.3,
+        51.3
+       ]
+      },
+      {
+       "t": 5.46,
+       "energy": 21.92,
+       "perception": 14,
+       "pos": [
+        -19.6,
+        52.9
+       ]
+      },
+      {
+       "t": 7.02,
+       "energy": 17.15,
+       "perception": 14,
+       "pos": [
+        -21.8,
+        57.2
+       ]
+      },
+      {
+       "t": 8.62,
+       "energy": 12.12,
+       "perception": 14,
+       "pos": [
+        -24.1,
+        61.8
+       ]
+      },
+      {
+       "t": 10.12,
+       "energy": 7.37,
+       "perception": 14,
+       "pos": [
+        -26.8,
+        65.8
+       ]
+      },
+      {
+       "t": 11.62,
+       "energy": 3.07,
+       "perception": 14,
+       "pos": [
+        -29.2,
+        69.4
+       ]
+      },
+      {
+       "t": 13.12,
+       "energy": 1.82,
+       "perception": 14,
+       "pos": [
+        -29.9,
+        70.5
+       ]
+      },
+      {
+       "t": 14.62,
+       "energy": 1.82,
+       "perception": 14,
+       "pos": [
+        -29.9,
+        70.5
+       ]
+      },
+      {
+       "t": 16.22,
+       "energy": 1.82,
+       "perception": 14,
+       "pos": [
+        -29.9,
+        70.5
+       ]
+      },
+      {
+       "t": 17.72,
+       "energy": 1.82,
+       "perception": 14,
+       "pos": [
+        -29.9,
+        70.5
+       ]
+      },
+      {
+       "t": 19.22,
+       "energy": 1.82,
+       "perception": 14,
+       "pos": [
+        -29.9,
+        70.5
+       ]
+      },
+      {
+       "t": 20.72,
+       "energy": 1.82,
+       "perception": 14,
+       "pos": [
+        -29.9,
+        70.5
+       ]
+      },
+      {
+       "t": 22.22,
+       "energy": 0.0,
+       "perception": 14,
+       "pos": [
+        -31.1,
+        66.9
+       ]
+      },
+      {
+       "t": 23.72,
+       "energy": 0.0,
+       "perception": 14,
+       "pos": [
+        -32.1,
+        62.4
+       ]
+      },
+      {
+       "t": 26.39,
+       "energy": 0.0,
+       "perception": 13,
+       "pos": [
+        -34.1,
+        55.3
+       ]
+      },
+      {
+       "t": 27.98,
+       "energy": 0.0,
+       "perception": 13,
+       "pos": [
+        -34.8,
+        55.3
+       ]
+      },
+      {
+       "t": 29.48,
+       "energy": 0.0,
+       "perception": 13,
+       "pos": [
+        -34.9,
+        55.3
+       ]
+      },
+      {
+       "t": 30.98,
+       "energy": 0.0,
+       "perception": 13,
+       "pos": [
+        -35.0,
+        55.3
+       ]
+      },
+      {
+       "t": 33.96,
+       "energy": 0.0,
+       "perception": 12,
+       "pos": [
+        -35.0,
+        55.3
+       ]
+      },
+      {
+       "t": 35.48,
+       "energy": 0.0,
+       "perception": 12,
+       "pos": [
+        -35.0,
+        55.3
+       ]
+      },
+      {
+       "t": 37.06,
+       "energy": 0.0,
+       "perception": 12,
+       "pos": [
+        -35.0,
+        55.3
+       ]
+      },
+      {
+       "t": 38.56,
+       "energy": 0.0,
+       "perception": 12,
+       "pos": [
+        -35.0,
+        55.3
+       ]
+      },
+      {
+       "t": 40.06,
+       "energy": 0.0,
+       "perception": 12,
+       "pos": [
+        -34.2,
+        55.3
+       ]
+      },
+      {
+       "t": 42.51,
+       "energy": 0.0,
+       "perception": 12,
+       "pos": [
+        -28.8,
+        51.4
+       ]
+      },
+      {
+       "t": 45.7,
+       "energy": 0.0,
+       "perception": 11,
+       "pos": [
+        -21.0,
+        44.8
+       ]
+      },
+      {
+       "t": 47.3,
+       "energy": 0.0,
+       "perception": 11,
+       "pos": [
+        -19.4,
+        42.9
+       ]
+      },
+      {
+       "t": 48.8,
+       "energy": 0.0,
+       "perception": 11,
+       "pos": [
+        -19.4,
+        42.9
+       ]
+      },
+      {
+       "t": 49.4,
+       "energy": 0.0,
+       "perception": 11,
+       "pos": [
+        -19.4,
+        42.9
+       ]
+      },
+      {
+       "t": 51.31,
+       "energy": 0.0,
+       "perception": 10,
+       "pos": [
+        -19.4,
+        42.9
+       ]
+      },
+      {
+       "t": 52.91,
+       "energy": 0.0,
+       "perception": 10,
+       "pos": [
+        -19.4,
+        42.9
+       ]
+      },
+      {
+       "t": 54.41,
+       "energy": 0.0,
+       "perception": 10,
+       "pos": [
+        -19.4,
+        42.9
+       ]
+      },
+      {
+       "t": 56.01,
+       "energy": 0.0,
+       "perception": 10,
+       "pos": [
+        -19.4,
+        42.9
+       ]
+      },
+      {
+       "t": 57.61,
+       "energy": 0.0,
+       "perception": 10,
+       "pos": [
+        -19.4,
+        42.9
+       ]
+      },
+      {
+       "t": 59.11,
+       "energy": 0.0,
+       "perception": 10,
+       "pos": [
+        -19.4,
+        42.9
+       ]
+      },
+      {
+       "t": 59.51,
+       "energy": 0.0,
+       "perception": 10,
+       "pos": [
+        -19.4,
+        42.9
+       ]
+      },
+      {
+       "t": 62.04,
+       "energy": 0.0,
+       "perception": 10,
+       "pos": [
+        -19.4,
+        42.9
+       ]
+      },
+      {
+       "t": 64.64,
+       "energy": 0.0,
+       "perception": 10,
+       "pos": [
+        -20.2,
+        42.8
+       ]
+      },
+      {
+       "t": 65.99,
+       "energy": 0.0,
+       "perception": 10,
+       "pos": [
+        -22.9,
+        39.9
+       ]
+      },
+      {
+       "t": 67.26,
+       "energy": 0.0,
+       "perception": 10,
+       "pos": [
+        -25.5,
+        37.0
+       ]
+      },
+      {
+       "t": 68.45,
+       "energy": 0.0,
+       "perception": 9,
+       "pos": [
+        -28.2,
+        34.0
+       ]
+      },
+      {
+       "t": 69.9,
+       "energy": 0.0,
+       "perception": 9,
+       "pos": [
+        -31.0,
+        31.2
+       ]
+      },
+      {
+       "t": 70.71,
+       "energy": 0.0,
+       "perception": 9,
+       "pos": [
+        -32.6,
+        29.4
+       ]
+      },
+      {
+       "t": 72.62,
+       "energy": 0.0,
+       "perception": 8,
+       "pos": [
+        -34.8,
+        27.3
+       ]
+      },
+      {
+       "t": 74.58,
+       "energy": 0.0,
+       "perception": 7,
+       "pos": [
+        -37.7,
+        25.2
+       ]
+      },
+      {
+       "t": 76.34,
+       "energy": 0.0,
+       "perception": 4,
+       "pos": [
+        -37.7,
+        25.2
+       ]
+      },
+      {
+       "t": 81.13,
+       "energy": 0.0,
+       "perception": 4,
+       "pos": [
+        -32.4,
+        26.7
+       ]
+      },
+      {
+       "t": 82.41,
+       "energy": 0.0,
+       "perception": 4,
+       "pos": [
+        -28.6,
+        28.1
+       ]
+      },
+      {
+       "t": 86.36,
+       "energy": 0.0,
+       "perception": 3,
+       "pos": [
+        -26.3,
+        28.1
+       ]
+      },
+      {
+       "t": 88.7,
+       "energy": 0.0,
+       "perception": 1,
+       "pos": [
+        -26.3,
+        28.1
+       ]
+      },
+      {
+       "t": 90.77,
+       "energy": 0.0,
+       "perception": 0,
+       "pos": [
+        -26.2,
+        28.1
+       ]
+      },
+      {
+       "t": 92.43,
+       "energy": 0.0,
+       "perception": 0,
+       "pos": [
+        -23.2,
+        28.7
+       ]
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

@@ -1,0 +1,78 @@
+{
+ "owner_id": "owner-jim-test",
+ "bot_id": "agent-A",
+ "run_id": "gauntlet-1",
+ "created_at": "2026-11-09T14:32:13.915631+00:00",
+ "updated_at": "2026-11-09T15:32:48.767546+00:00",
+ "items": [
+  {
+   "id": "item-0001",
+   "kind": "memory",
+   "captured_at_sim_s": 177.9,
+   "provenance": {
+    "where": [
+     0,
+     0
+    ],
+    "how": "run-distillation",
+    "evidence": "/home/hatch/workspace/.build-tmp/experiments/gauntlet/memory/semantic-run1.json"
+   },
+   "payload": {
+    "store_path": "/home/hatch/workspace/.build-tmp/experiments/gauntlet/memory/semantic-run1.json",
+    "entries_written": 4,
+    "digest": {
+     "by_kind": {
+      "sector_empty": 3,
+      "sector_searched": 1
+     },
+     "top_entries": [
+      {
+       "place_ref": "sector:S3,6",
+       "kind": "sector_empty",
+       "confidence": 0.9,
+       "note": "searched with no find"
+      },
+      {
+       "place_ref": "sector:S3,7",
+       "kind": "sector_empty",
+       "confidence": 0.9,
+       "note": "searched with no find"
+      },
+      {
+       "place_ref": "sector:S4,6",
+       "kind": "sector_empty",
+       "confidence": 0.8,
+       "note": "searched with no find"
+      },
+      {
+       "place_ref": "sector:S4,7",
+       "kind": "sector_searched",
+       "confidence": 0.4,
+       "note": "partly searched, no find"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "item-0002",
+   "kind": "film",
+   "captured_at_sim_s": 0.0,
+   "provenance": {
+    "where": [
+     0,
+     0
+    ],
+    "how": "run-recorder",
+    "evidence": "/home/hatch/workspace/.build-tmp/experiments/gauntlet/run-1/manifest.json"
+   },
+   "payload": {
+    "film": "/home/hatch/workspace/.build-tmp/experiments/gauntlet/run-1/film.webm",
+    "clips": {},
+    "mode": "inpage",
+    "real_fps": 0.04,
+    "duration_s": 3601.809
+   }
+  }
+ ]
+}

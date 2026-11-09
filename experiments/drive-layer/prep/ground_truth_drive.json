@@ -1,0 +1,53 @@
+{
+ "note": "Sealed staging provenance for the drive layer (DRIVE-LAYER-SPEC v1). R2's position is PUBLISHED testimony and appears in the agent's digest; this file's sealed content is the selection record and the fitted cost.",
+ "r1": {
+  "id": "home-bench",
+  "pos": [
+   -17.0,
+   51.2
+  ],
+  "home": true,
+  "anchor": "spawn point (-17, 51.2); also the S5 return target"
+ },
+ "r2": {
+  "id": "stall-55",
+  "pos": [
+   44.0,
+   51.2
+  ],
+  "home": false,
+  "dist_from_r1_m": 61.0,
+  "egg_clearance_m": 24.0,
+  "selection_rule": "published place, stand >= 60 m from R1, not a stage target, stand >= 6 m from every truth egg; closest legal to R1, then lowest id",
+  "qualifying_count": 105
+ },
+ "energy_cost_per_m_fitted": 1.17261,
+ "calibration": {
+  "baseline_paths_m": {
+   "run-1": {
+    "path_m": 65.6,
+    "disposition": "completed, scored (full run)"
+   },
+   "run-2": {
+    "path_m": 113.1,
+    "disposition": "attempt 3: completed, scored \u2014 resumed from checkpoint after a runtime restart killed leg 1 (interruption disclosed in run-2/interruptions.json)"
+   },
+   "run-3": {
+    "path_m": 21.8,
+    "disposition": "completed, scored (full run)"
+   }
+  },
+  "median_path_m": 65.6,
+  "fit_anchor": "B: 100 units = 1.3 x median baseline path",
+  "b_range_m": 85.3,
+  "c_range_m": 21.3,
+  "c_ratio_realized": 0.325,
+  "c_ratio_spec_intent": 0.35,
+  "provisional": false,
+  "provisional_why": "resolved at G3 (2026-11-09): the baseline set is complete \u2014 three completed, scored gauntlet runs; this fit supersedes the provisional fit (cost 0.9843/m on run-1 + the stopped run-2 attempt-1 prefix)"
+ },
+ "r1_closure_window_sim": [
+  600,
+  1200
+ ]
+}
