@@ -1,6 +1,6 @@
 # Tea House elevator: mechanics and lifecycle plan
 
-Status: proposed implementation, not working functionality. Based on the four-floor structure and main integration in PR #67. Keep the model simple until the complete passenger journey works.
+Design record; implementation details and verification are in `23-tea-house-elevator-runtime.md`. Based on the four-floor structure and main integration in PR #67. Keep the model simple until the complete passenger journey works.
 
 ## Passenger journey
 
