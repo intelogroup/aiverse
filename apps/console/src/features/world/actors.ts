@@ -11,6 +11,8 @@ export interface ActorBody {
   updatedAtMs: number;
   /** False for anchored residents; a mobile actor remains mobile while yielding or paused. */
   mobile?: boolean;
+  /** Explicitly selected gesture, present while its clip plays. */
+  gesture?: string;
 }
 export interface CrossingThreat {
   id: string;
@@ -89,8 +91,8 @@ export class ActorRegistry {
     if (previous && body.updatedAtMs < previous.updatedAtMs) return;
     this.bodies.set(body.id, { ...body, position: [...body.position], velocity: [...body.velocity] });
   }
-  publishWalker(id: string, state: Pick<WalkerState, "x" | "y" | "z" | "vx" | "vz">, radius = 0.4, height = 1.7, mobile = true): void {
-    this.publish({ id, position: [state.x, state.y, state.z], velocity: [state.vx, state.vz], radius, height, mobile, updatedAtMs: this.now() });
+  publishWalker(id: string, state: Pick<WalkerState, "x" | "y" | "z" | "vx" | "vz">, radius = 0.4, height = 1.7, mobile = true, gesture?: string): void {
+    this.publish({ id, position: [state.x, state.y, state.z], velocity: [state.vx, state.vz], radius, height, mobile, gesture, updatedAtMs: this.now() });
   }
   remove(id: string): void { this.bodies.delete(id); }
   clear(): void { this.bodies.clear(); }

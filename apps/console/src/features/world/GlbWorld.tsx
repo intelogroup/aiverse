@@ -994,10 +994,9 @@ export function GlbWorld() {
   // without the flag nothing mounts and behavior is unchanged. Agent
   // mode wins over walk mode if both flags are set (one bot, one
   // camera owner).
-  const agentOn = useMemo(
-    () => new URLSearchParams(window.location.search).get("agent") === "1",
-    [],
-  );
+  const agentMode = useMemo(() => new URLSearchParams(window.location.search).get("agent"), []);
+  const agentPair = agentMode === "pair";
+  const agentOn = agentMode === "1" || agentPair;
   const [camMode, setCamMode] = useState<CameraMode>(walkLink ? "ride" : "wide");
   // City 3 collider meshes (DistrictWorld fills it), read by the walker.
   const colliderMeshesRef = useRef<(() => THREE.Mesh[]) | null>(null);
@@ -1419,7 +1418,11 @@ export function GlbWorld() {
             </>
           ) : null}
           {agentOn ? (
-            <ScoutAgent getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} door={teaDoorRef.current} positionRef={scoutPosRef} interact={interactRef.current} />
+            <ScoutAgent getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} door={teaDoorRef.current} positionRef={scoutPosRef} interact={interactRef.current} spawn={agentPair ? [-22.9, -68, 0] : undefined} />
+          ) : null}
+          {agentPair ? (
+            <ScoutAgent actorId="scout-peer" primary={false} spawn={[-22.9, -64, Math.PI]}
+              getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} door={teaDoorRef.current} interact={interactRef.current} />
           ) : null}
           {touchUi && !walking ? <FigureFlyRig flyRef={figureFlyRef} /> : null}
         </Suspense>

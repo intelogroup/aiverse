@@ -87,6 +87,7 @@ export interface ScoutSnapshot {
   insideRoom: string | null;
   posture: string;
   clip: string | null;
+  renderedClip: string | null;
   busy: boolean;
   currentAction: string | null;
   /** Other movers within 10 m. Run 1 has no other movers in City 3. */
@@ -122,7 +123,13 @@ export function ScoutAgent({
   door,
   interact,
   positionRef,
+  actorId = SCOUT_ACTOR,
+  primary = true,
+  spawn,
 }: {
+  actorId?: string;
+  primary?: boolean;
+  spawn?: readonly [x: number, z: number, heading: number];
   getMeshes: () => THREE.Mesh[];
   walk?: WalkColliders;
   rooms: City3Room[];
@@ -140,14 +147,14 @@ export function ScoutAgent({
   const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3; update?: () => void } | null;
 
   const staticWorld = useWalkWorld(getMeshes, walk);
-  const world = useMemo(() => walk?.actors.wrapWorld(staticWorld, SCOUT_ACTOR, 1.7) ?? staticWorld, [staticWorld, walk]);
+  const world = useMemo(() => walk?.actors.wrapWorld(staticWorld, actorId, 1.7) ?? staticWorld, [staticWorld, walk, actorId]);
   const planningWorld = useMemo(() => walk ? createCapsuleWorld(() => walk.listWithout("door:tea")) : staticWorld, [walk, staticWorld]);
   const session = useRef(crypto.randomUUID());
   const visibleMovers = (): ActorBody[] => {
     const s = state.current;
     if (!s || !walk) return [];
     const eye = new THREE.Vector3(s.x, s.y + HEAD_HEIGHT, s.z);
-    return walk.actors.nearby(SCOUT_ACTOR, [s.x, s.y, s.z], 10).filter(b => {
+    return walk.actors.nearby(actorId, [s.x, s.y, s.z], 10).filter(b => {
       const target = new THREE.Vector3(b.position[0], b.position[1] + b.height * .6, b.position[2]);
       const direction = target.clone().sub(eye), distance = direction.length();
       const bearing = Math.atan2(direction.x, direction.z) - s.body;
@@ -166,6 +173,7 @@ export function ScoutAgent({
   const state = useRef<WalkerState | null>(null);
   const frames = useRef<AgentFrame[]>([newWalkerFrame()]);
   const figure = useRef<THREE.Group>(null);
+  const playingClip = useRef<string | null>(null);
   const headPose = useRef<[number, number, number] | null>(null);
   const looksUsed = useRef(0);
   const camPos = useRef<THREE.Vector3 | null>(null);
@@ -192,7 +200,7 @@ export function ScoutAgent({
         exec.current = new ScoutExecutor({
           places,
           sittables,
-          cancel: () => { door?.cancel(SCOUT_ACTOR); interact?.cancel(SCOUT_ACTOR); },
+          cancel: () => { door?.cancel(actorId); interact?.cancel(actorId); },
           plan: (s, target) => {
             const y = world.groundY(target[0], target[1], s.y + WALK_CONFIG.stepUp + .05);
             if (y === null) return null;
@@ -204,20 +212,20 @@ export function ScoutAgent({
             return y !== null && navigationSegment(planningWorld,[s.x,s.y,s.z],[target[0],y,target[1]]);
           },
           avoid: (s, wanted) => {
-            const self: ActorBody = {id:SCOUT_ACTOR,position:[s.x,s.y,s.z],velocity:[Math.sin(s.heading)*wanted.forward*1.3,Math.cos(s.heading)*wanted.forward*1.3],radius:.4,height:1.7,updatedAtMs:performance.now()};
+            const self: ActorBody = {id:actorId,position:[s.x,s.y,s.z],velocity:[Math.sin(s.heading)*wanted.forward*1.3,Math.cos(s.heading)*wanted.forward*1.3],radius:.4,height:1.7,updatedAtMs:performance.now()};
             return avoidActorInput(self, visibleMovers(), wanted);
           },
           clips: clips.current!,
           hipsY: BODY_REMY.hipsY,
           door: door
-            ? (s, wanted, dt) => door.drive(s, dt, wanted.forward > 0, SCOUT_ACTOR, scoutChannel.current!)
+            ? (s, wanted, dt) => door.drive(s, dt, wanted.forward > 0, actorId, scoutChannel.current!)
             : undefined,
           interact: interact
             ? {
                 defs: () => interact.list(),
                 isOn: (id) => interact.isOn(id),
-                request: (id, at) => interact.request(id, SCOUT_ACTOR, clips.current!, at),
-                drive: (s, dt) => interact.drive(s, dt, SCOUT_ACTOR),
+                request: (id, at) => interact.request(id, actorId, clips.current!, at),
+                drive: (s, dt) => interact.drive(s, dt, actorId),
               }
             : undefined,
         });
@@ -232,6 +240,7 @@ export function ScoutAgent({
 
   // Leave the wide camera exactly where it was (CityWalker's courtesy).
   useEffect(() => {
+    if (!primary) return;
     const p = camera.position.clone();
     const t = controls?.target.clone() ?? null;
     return () => {
@@ -241,7 +250,7 @@ export function ScoutAgent({
         controls.update?.();
       }
     };
-  }, [camera, controls]);
+  }, [camera, controls, primary]);
 
   const snapshot = (): ScoutSnapshot | null => {
     const s = state.current;
@@ -263,6 +272,7 @@ export function ScoutAgent({
       insideRoom: room?.name ?? null,
       posture: ex.posture,
       clip: clips.current!.current ?? clipFor(s.speed),
+      renderedClip: playingClip.current,
       busy: ex.busy,
       currentAction: ex.currentAction?.type ?? null,
       movers: visibleMovers(),
@@ -295,7 +305,7 @@ export function ScoutAgent({
       /** The Tea House door as Scout sees it (headless checks). */
       door: () => (door ? { phase: door.phase, state: door.state, angle: Math.round(door.angle), owner: door.sessionOwner } : null),
       /** The interactables as Scout sees them (headless checks): its session + every prop's state. */
-      interact: () => (interact ? { session: interact.sessionOf(SCOUT_ACTOR), props: interact.list().map((i) => ({ id: i.id, on: interact.isOn(i.id) })) } : null),
+      interact: () => (interact ? { session: interact.sessionOf(actorId), props: interact.list().map((i) => ({ id: i.id, on: interact.isOn(i.id) })) } : null),
       snapshot: () => snapshot(),
       map: () => {
         const s = state.current;
@@ -333,16 +343,19 @@ export function ScoutAgent({
         if (action.type === "say") {
           console.info(`[scout-say] ${action.text}`);
         }
-        const outcome = await ex.submit(action, s);
+        const pending = ex.submit(action, s);
+        if (action.type === "play") invalidate();
+        const outcome = await pending;
         return { ...outcome, snapshot: snapshot() };
       },
       places: () => data.current?.places ?? [],
       sittables: () => data.current?.sittables ?? [],
     };
     const w = window as unknown as Record<string, unknown>;
-    w.__scout = api;
+    const key = primary ? "__scout" : "__scoutPeer";
+    w[key] = api;
     return () => {
-      delete w.__scout;
+      if (w[key] === api) delete w[key];
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rooms, world]);
@@ -360,14 +373,14 @@ export function ScoutAgent({
     const id = window.setInterval(() => {
       ticks += 1;
       const ready = state.current !== null && exec.current !== null;
-      if (!ready || ticks % 10 === 0) invalidate();
+      if (!ready || ticks % 10 === 0 || exec.current?.currentAction?.type === "play") invalidate();
       const ex = exec.current;
       if (!ex || world.kind() === "pending") return;
       let s = state.current;
       if (!s) {
-        const sp = findSpawn(world);
+        const sp = findSpawn(world, spawn ? { cx: spawn[0], cz: spawn[1], maxR: 3 } : undefined);
         if (!sp) return;
-        s = state.current = makeWalker(sp.x, sp.y, sp.z, 0);
+        s = state.current = makeWalker(sp.x, sp.y, sp.z, spawn?.[2] ?? 0);
       }
       const now = performance.now();
       let dt = Math.min((now - last) / 1000, 0.3);
@@ -375,14 +388,16 @@ export function ScoutAgent({
       while (dt > 0) {
         const stepDt = Math.min(dt, 1 / 30);
         ex.tick(stepDt, s, world);
-        walk?.actors.publishWalker(SCOUT_ACTOR, s, WALK_CONFIG.radius, 1.7);
+        const action = ex.currentAction;
+        walk?.actors.publishWalker(actorId, s, WALK_CONFIG.radius, 1.7, true,
+          action?.type === "play" && playingClip.current === action.clip ? action.clip : undefined);
         if (positionRef) positionRef.current = { x: s.x, z: s.z };
-        door?.tick(stepDt); // agent mode: the door runs on Scout's sim clock (GlbWorld's frame ticker is off)
-        interact?.tick(stepDt); // same for the interactables (InteractTicker is off in agent mode)
+        if (primary) door?.tick(stepDt); // agent mode: the door runs on Scout's sim clock (GlbWorld's frame ticker is off)
+        if (primary) interact?.tick(stepDt); // same for the interactables (InteractTicker is off in agent mode)
         dt -= stepDt;
       }
     }, 100);
-    return () => { window.clearInterval(id); walk?.actors.remove(SCOUT_ACTOR); };
+    return () => { window.clearInterval(id); walk?.actors.remove(actorId); };
   }, [world, invalidate]);
 
   useFrame(() => {
@@ -397,6 +412,7 @@ export function ScoutAgent({
     const fz = f.position[1];
     if (figure.current) figure.current.position.y = ov ? ov.y + ov.drop : s.y;
 
+    if (!primary) return;
     // Streaming + theme follow Scout; the follow camera keeps interiors
     // resident around it (InteriorStreamer plans off the camera).
     controls?.target.set(fx, (ov ? ov.y : s.y) + 1, fz);
@@ -425,6 +441,7 @@ export function ScoutAgent({
           body={BODY_REMY}
           clipTester={clips.current ?? undefined}
           headPoseRef={headPose}
+          playingClipRef={playingClip}
         />
       </Suspense>
     </group>
