@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { and, eq, inArray, ne, or, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, notInArray, or, sql } from "drizzle-orm";
 import { db } from "../db/client";
 import { withCapLock } from "../db/capLock";
 import { agents, agentWallets, agentPolicyScope, a2aTasks } from "@aiverse/shared/schema";
@@ -726,11 +726,26 @@ a2aRoute.post("/a2a/agents/:id", agentAuth, async (c) => {
     if (TERMINAL_STATES.has(task.state)) {
       return c.json(rpcError(body.id, -32002, `task already in terminal state '${task.state}'`), 409);
     }
+    // The terminal check above is a read; the write must be state-guarded
+    // or a concurrent completion (which takes a FOR UPDATE lock in
+    // respondToA2ATaskService) can land between the check and this UPDATE,
+    // and both transitions "succeed" (AIV-A2A-CANCEL-COMPLETE-RACE-001).
+    // The guarded UPDATE is atomic: exactly one racer's write matches.
     const [updated] = await db
       .update(a2aTasks)
       .set({ state: "canceled", updatedAt: new Date() })
-      .where(eq(a2aTasks.id, taskId))
+      .where(
+        and(
+          eq(a2aTasks.id, taskId),
+          notInArray(a2aTasks.state, ["completed", "canceled", "rejected", "failed"]),
+        ),
+      )
       .returning();
+    if (!updated) {
+      // Lost the race — re-read so the error names the state that won.
+      const now = await db.query.a2aTasks.findFirst({ where: eq(a2aTasks.id, taskId) });
+      return c.json(rpcError(body.id, -32002, `task already in terminal state '${now?.state}'`), 409);
+    }
     return c.json(rpcResult(body.id, taskToA2A(updated)));
   }
 

@@ -311,6 +311,60 @@ describe("A2A relay: message/send + tasks/get + tasks/cancel", () => {
     expect(cancelAgain.status).toBe(409);
   });
 
+  // AIV-A2A-CANCEL-COMPLETE-RACE-001: cancel used to read-check-write
+  // unguarded while completion transitions under a FOR UPDATE lock, so a
+  // concurrent cancel + complete could both succeed. Cancel is now a
+  // state-guarded atomic update — across a burst of racing transitions,
+  // exactly one wins and the stored state is the winner's.
+  test("concurrent cancel + complete: exactly one transition wins", async () => {
+    await resetMemoryStoreForTests();
+    const caller = await registerAgent("A2ACallerRace");
+    const target = await registerAgent("A2ATargetRace");
+
+    const send = await app.request(`/a2a/agents/${target.agentId}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${caller.agentToken}` },
+      body: JSON.stringify(
+        rpc("message/send", {
+          message: { role: "user", parts: [{ kind: "text", text: "race me" }], messageId: "m-race" },
+        }),
+      ),
+    });
+    const taskId = (await send.json()).result.id;
+
+    const cancelOnce = () =>
+      app.request(`/a2a/agents/${target.agentId}`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${caller.agentToken}` },
+        body: JSON.stringify(rpc("tasks/cancel", { id: taskId }, 7)),
+      });
+    const completeOnce = () =>
+      app.request(`/a2a/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json", authorization: `Bearer ${target.agentToken}` },
+        body: JSON.stringify({ state: "completed" }),
+      });
+
+    const results = await Promise.all([
+      cancelOnce(), completeOnce(), cancelOnce(), completeOnce(),
+      cancelOnce(), completeOnce(), cancelOnce(), completeOnce(),
+    ]);
+    const successes = results.filter((r) => r.status === 200);
+    expect(successes).toHaveLength(1);
+
+    const getRes = await app.request(`/a2a/agents/${target.agentId}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${caller.agentToken}` },
+      body: JSON.stringify(rpc("tasks/get", { id: taskId }, 8)),
+    });
+    const finalState = (await getRes.json()).result.status.state;
+    expect(["canceled", "completed"]).toContain(finalState);
+    // the stored state belongs to the single winning transition
+    const winnerBody = await successes[0].json();
+    const winnerState = winnerBody.result?.status?.state ?? winnerBody.task?.status?.state;
+    expect(winnerState).toBe(finalState);
+  });
+
   test("an unanswered task stays 'submitted' — nothing auto-runs it", async () => {
     await resetMemoryStoreForTests();
     const caller = await registerAgent("A2ACaller4");
