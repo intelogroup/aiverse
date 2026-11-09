@@ -1,4 +1,4 @@
-import { TeaElevator, TeaElevatorHud } from "./TeaElevator";
+import { TeaElevator, TeaElevatorHud } from "./TeaElevatorView";
 import { TeaElevatorController } from "./teaElevator";
 import { VerseRecorder } from "./VerseRecorder";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from "react";
