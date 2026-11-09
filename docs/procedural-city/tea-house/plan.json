@@ -1,0 +1,1646 @@
+{
+  "version": 1,
+  "status": "architectural blockout; not connected to live city",
+  "id": "tea-building",
+  "lot": "shop-102",
+  "dimensions": {
+    "width": 25,
+    "depth": 12,
+    "grossFloorArea": 300,
+    "floors": 4,
+    "totalGrossFloorArea": 1200,
+    "shellThickness": 0.3,
+    "slabThickness": 0.18,
+    "partitionThickness": 0.12
+  },
+  "coordinates": {
+    "units": "metres",
+    "drawing": "u east from west wall; d north from street frontage",
+    "world": "three.js X=u-37.5; Y=floorY; Z=-72.5-d",
+    "blender": "X=u; Y=d; Z=floorY"
+  },
+  "existing": {
+    "recipe": {
+      "block": [
+        2,
+        4
+      ],
+      "rect": [
+        -37.5,
+        72.5,
+        -12.5,
+        84.5
+      ],
+      "floors": 4,
+      "mat": "ochre",
+      "roof": "pitched",
+      "face": "S"
+    },
+    "groundFloorY": 0.48,
+    "upperFloorY": [
+      4.4,
+      7.9,
+      11.4
+    ],
+    "eavesY": 14.9,
+    "ridgeY": 18.5025,
+    "chimneyTopY": 20.302,
+    "upperInteriorsBuilt": false,
+    "sourceMeshSha256": "5ae262f25cc38daaeabe59020f750376d777f854957bde94f1494313a7865e42"
+  },
+  "proposal": {
+    "addStoreys": false,
+    "habitableAttic": false,
+    "frontageDoors": [
+      1.2,
+      14.5833,
+      23.8
+    ],
+    "groundShelfBays": 4,
+    "shelfCentersU": [
+      5.4,
+      7.4,
+      9.4,
+      11.4
+    ],
+    "counterCentersU": [
+      5.35,
+      7.05,
+      8.75,
+      10.45
+    ],
+    "retainedBarLength": 6.8,
+    "staffGateWidth": 1.5,
+    "publicCorridorWidth": 1.5,
+    "groundExitPassageWidth": 1.8,
+    "elevatorShaft": [
+      17,
+      8.5,
+      19.7,
+      11.7
+    ],
+    "elevatorClearCarTarget": [
+      1.6,
+      2.1
+    ],
+    "elevatorDoor": 1.1,
+    "shaftPitY": -0.52,
+    "shaftTopY": 15.2,
+    "entranceLanding": [
+      13.7,
+      -1.8,
+      15.5,
+      0
+    ],
+    "entranceRamp": [
+      10.34,
+      -1.8,
+      13.7,
+      -0.3
+    ],
+    "entranceRampRise": 0.28,
+    "entranceRampRun": 3.36,
+    "stairWidth": 1.25,
+    "treadGoing": 0.28,
+    "landingMinimum": 1.25,
+    "stairRisers": [
+      24,
+      22,
+      22
+    ],
+    "stackedWetCore": [
+      12.8,
+      8.5,
+      17,
+      11.7
+    ],
+    "secondaryWetStacksU": [
+      8.35,
+      16.45,
+      24.55
+    ],
+    "secondaryWetStackD": 4.15,
+    "residentialUnits": 6,
+    "programme": "G cafe; L1 community; L2/L3 three studio homes each; pitched attic service space"
+  },
+  "levels": [
+    {
+      "id": "G",
+      "name": "Tea House",
+      "floorY": 0.48,
+      "rooms": [
+        {
+          "id": "stair-a",
+          "label": "STAIR A",
+          "rect": [
+            0.3,
+            5.8,
+            4.3,
+            11.7
+          ],
+          "kind": "stair",
+          "wallGroup": "stair-a",
+          "area": 23.6
+        },
+        {
+          "id": "stair-b",
+          "label": "STAIR B",
+          "rect": [
+            20.4,
+            5.8,
+            24.7,
+            11.7
+          ],
+          "kind": "stair",
+          "wallGroup": "stair-b",
+          "area": 25.37
+        },
+        {
+          "id": "core-lobby",
+          "label": "LIFT / WC LOBBY",
+          "rect": [
+            12.8,
+            5.8,
+            20.4,
+            8.5
+          ],
+          "kind": "circulation",
+          "wallGroup": "public",
+          "area": 20.52
+        },
+        {
+          "id": "wc-a",
+          "label": "ACCESSIBLE WC",
+          "rect": [
+            12.8,
+            8.5,
+            15,
+            11.7
+          ],
+          "kind": "wet",
+          "wallGroup": "wc-a",
+          "area": 7.04
+        },
+        {
+          "id": "wc-b",
+          "label": "WC",
+          "rect": [
+            15,
+            8.5,
+            16.6,
+            11.7
+          ],
+          "kind": "wet",
+          "wallGroup": "wc-b",
+          "area": 5.12
+        },
+        {
+          "id": "wet-riser",
+          "label": "WET RISER",
+          "rect": [
+            16.6,
+            8.5,
+            17,
+            11.7
+          ],
+          "kind": "shaft",
+          "wallGroup": "wet-riser",
+          "area": 1.28
+        },
+        {
+          "id": "lift",
+          "label": "ELEVATOR",
+          "rect": [
+            17,
+            8.5,
+            19.7,
+            11.7
+          ],
+          "kind": "lift",
+          "wallGroup": "lift",
+          "area": 8.64
+        },
+        {
+          "id": "service-riser",
+          "label": "SERVICES",
+          "rect": [
+            19.7,
+            8.5,
+            20.4,
+            11.7
+          ],
+          "kind": "shaft",
+          "wallGroup": "service-riser",
+          "area": 2.24
+        },
+        {
+          "id": "left-exit",
+          "label": "PROTECTED EXIT A",
+          "rect": [
+            0.3,
+            0.3,
+            2.1,
+            5.8
+          ],
+          "kind": "circulation",
+          "wallGroup": "left-exit",
+          "area": 9.9
+        },
+        {
+          "id": "tea-seating",
+          "label": "TEA HOUSE / SEATING",
+          "rect": [
+            2.1,
+            0.3,
+            12.8,
+            5.8
+          ],
+          "kind": "public",
+          "wallGroup": "public",
+          "area": 58.85
+        },
+        {
+          "id": "entry",
+          "label": "ENTRY / LOUNGE",
+          "rect": [
+            12.8,
+            0.3,
+            20.4,
+            5.8
+          ],
+          "kind": "public",
+          "wallGroup": "public",
+          "area": 41.8
+        },
+        {
+          "id": "cloak",
+          "label": "CLOAK / STORE",
+          "rect": [
+            20.4,
+            0.3,
+            22.9,
+            5.8
+          ],
+          "kind": "service",
+          "wallGroup": "cloak",
+          "area": 13.75
+        },
+        {
+          "id": "right-exit",
+          "label": "PROTECTED EXIT B",
+          "rect": [
+            22.9,
+            0.3,
+            24.7,
+            5.8
+          ],
+          "kind": "circulation",
+          "wallGroup": "right-exit",
+          "area": 9.9
+        },
+        {
+          "id": "bar-guests",
+          "label": "BAR SEATING",
+          "rect": [
+            4.3,
+            5.8,
+            12.8,
+            8.2
+          ],
+          "kind": "public",
+          "wallGroup": "public",
+          "area": 20.4
+        },
+        {
+          "id": "bar-counter",
+          "label": "COUNTER - 4 BAYS",
+          "rect": [
+            4.3,
+            8.2,
+            11.3,
+            9.6
+          ],
+          "kind": "bar",
+          "wallGroup": "public",
+          "area": 9.8
+        },
+        {
+          "id": "staff-entry",
+          "label": "STAFF ACCESS",
+          "rect": [
+            11.3,
+            8.2,
+            12.8,
+            9.6
+          ],
+          "kind": "circulation",
+          "wallGroup": "public",
+          "area": 2.1
+        },
+        {
+          "id": "bar-staff",
+          "label": "STAFF AISLE 1.35 m",
+          "rect": [
+            4.3,
+            9.6,
+            12.8,
+            10.95
+          ],
+          "kind": "circulation",
+          "wallGroup": "public",
+          "area": 11.47
+        },
+        {
+          "id": "bar-shelves",
+          "label": "4 COMPACT SHELVES",
+          "rect": [
+            4.3,
+            10.95,
+            12.8,
+            11.7
+          ],
+          "kind": "bar",
+          "wallGroup": "public",
+          "area": 6.38
+        }
+      ],
+      "doors": [
+        {
+          "a": "core-lobby",
+          "b": "wc-a",
+          "axis": "d",
+          "at": 8.5,
+          "center": 13.9,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "core-lobby",
+          "b": "wc-b",
+          "axis": "d",
+          "at": 8.5,
+          "center": 15.8,
+          "width": 0.9,
+          "label": ""
+        },
+        {
+          "a": "core-lobby",
+          "b": "lift",
+          "axis": "d",
+          "at": 8.5,
+          "center": 18.35,
+          "width": 1.1,
+          "label": ""
+        },
+        {
+          "a": "core-lobby",
+          "b": "wet-riser",
+          "axis": "d",
+          "at": 8.5,
+          "center": 16.8,
+          "width": 0.3,
+          "label": ""
+        },
+        {
+          "a": "core-lobby",
+          "b": "service-riser",
+          "axis": "d",
+          "at": 8.5,
+          "center": 20.05,
+          "width": 0.5,
+          "label": ""
+        },
+        {
+          "a": "street",
+          "b": "entry",
+          "axis": "d",
+          "at": 0.3,
+          "center": 14.5833,
+          "width": 1.7,
+          "label": "EXISTING MAIN ENTRANCE"
+        },
+        {
+          "a": "street",
+          "b": "left-exit",
+          "axis": "d",
+          "at": 0.3,
+          "center": 1.2,
+          "width": 1.0,
+          "label": "NEW EXIT A"
+        },
+        {
+          "a": "street",
+          "b": "right-exit",
+          "axis": "d",
+          "at": 0.3,
+          "center": 23.8,
+          "width": 1.0,
+          "label": "NEW EXIT B"
+        },
+        {
+          "a": "left-exit",
+          "b": "stair-a",
+          "axis": "d",
+          "at": 5.8,
+          "center": 1.2,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "right-exit",
+          "b": "stair-b",
+          "axis": "d",
+          "at": 5.8,
+          "center": 23.8,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "left-exit",
+          "b": "tea-seating",
+          "axis": "u",
+          "at": 2.1,
+          "center": 3.5,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "entry",
+          "b": "cloak",
+          "axis": "u",
+          "at": 20.4,
+          "center": 3.5,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "cloak",
+          "b": "right-exit",
+          "axis": "u",
+          "at": 22.9,
+          "center": 3.5,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "bar-guests",
+          "b": "core-lobby",
+          "axis": "u",
+          "at": 12.8,
+          "center": 7.2,
+          "width": 1.1,
+          "label": ""
+        }
+      ]
+    },
+    {
+      "id": "L1",
+      "name": "Tea salon & community",
+      "floorY": 4.4,
+      "rooms": [
+        {
+          "id": "stair-a",
+          "label": "STAIR A",
+          "rect": [
+            0.3,
+            5.8,
+            4.3,
+            11.7
+          ],
+          "kind": "stair",
+          "wallGroup": "stair-a",
+          "area": 23.6
+        },
+        {
+          "id": "stair-b",
+          "label": "STAIR B",
+          "rect": [
+            20.4,
+            5.8,
+            24.7,
+            11.7
+          ],
+          "kind": "stair",
+          "wallGroup": "stair-b",
+          "area": 25.37
+        },
+        {
+          "id": "core-lobby",
+          "label": "LIFT / WC LOBBY",
+          "rect": [
+            12.8,
+            5.8,
+            20.4,
+            8.5
+          ],
+          "kind": "circulation",
+          "wallGroup": "core-lobby",
+          "area": 20.52
+        },
+        {
+          "id": "wc-a",
+          "label": "ACCESSIBLE WC",
+          "rect": [
+            12.8,
+            8.5,
+            15,
+            11.7
+          ],
+          "kind": "wet",
+          "wallGroup": "wc-a",
+          "area": 7.04
+        },
+        {
+          "id": "wc-b",
+          "label": "WC",
+          "rect": [
+            15,
+            8.5,
+            16.6,
+            11.7
+          ],
+          "kind": "wet",
+          "wallGroup": "wc-b",
+          "area": 5.12
+        },
+        {
+          "id": "wet-riser",
+          "label": "WET RISER",
+          "rect": [
+            16.6,
+            8.5,
+            17,
+            11.7
+          ],
+          "kind": "shaft",
+          "wallGroup": "wet-riser",
+          "area": 1.28
+        },
+        {
+          "id": "lift",
+          "label": "ELEVATOR",
+          "rect": [
+            17,
+            8.5,
+            19.7,
+            11.7
+          ],
+          "kind": "lift",
+          "wallGroup": "lift",
+          "area": 8.64
+        },
+        {
+          "id": "service-riser",
+          "label": "SERVICES",
+          "rect": [
+            19.7,
+            8.5,
+            20.4,
+            11.7
+          ],
+          "kind": "shaft",
+          "wallGroup": "service-riser",
+          "area": 2.24
+        },
+        {
+          "id": "corridor",
+          "label": "CORRIDOR 1.50 m",
+          "rect": [
+            0.3,
+            4.3,
+            24.7,
+            5.8
+          ],
+          "kind": "circulation",
+          "wallGroup": "corridor",
+          "area": 36.6
+        },
+        {
+          "id": "tasting",
+          "label": "TEA TASTING ROOM",
+          "rect": [
+            0.3,
+            0.3,
+            8.5,
+            4.3
+          ],
+          "kind": "room",
+          "wallGroup": "tasting",
+          "area": 32.8
+        },
+        {
+          "id": "salon",
+          "label": "COMMUNITY SALON",
+          "rect": [
+            8.5,
+            0.3,
+            16.6,
+            4.3
+          ],
+          "kind": "room",
+          "wallGroup": "salon",
+          "area": 32.4
+        },
+        {
+          "id": "reading",
+          "label": "READING LOUNGE",
+          "rect": [
+            16.6,
+            0.3,
+            24.7,
+            4.3
+          ],
+          "kind": "room",
+          "wallGroup": "reading",
+          "area": 32.4
+        },
+        {
+          "id": "pantry",
+          "label": "PANTRY / PREP",
+          "rect": [
+            4.3,
+            5.8,
+            8.55,
+            11.7
+          ],
+          "kind": "wet",
+          "wallGroup": "pantry",
+          "area": 25.08
+        },
+        {
+          "id": "staff",
+          "label": "STAFF / OFFICE",
+          "rect": [
+            8.55,
+            5.8,
+            12.8,
+            11.7
+          ],
+          "kind": "room",
+          "wallGroup": "staff",
+          "area": 25.07
+        }
+      ],
+      "doors": [
+        {
+          "a": "core-lobby",
+          "b": "wc-a",
+          "axis": "d",
+          "at": 8.5,
+          "center": 13.9,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "core-lobby",
+          "b": "wc-b",
+          "axis": "d",
+          "at": 8.5,
+          "center": 15.8,
+          "width": 0.9,
+          "label": ""
+        },
+        {
+          "a": "core-lobby",
+          "b": "lift",
+          "axis": "d",
+          "at": 8.5,
+          "center": 18.35,
+          "width": 1.1,
+          "label": ""
+        },
+        {
+          "a": "core-lobby",
+          "b": "wet-riser",
+          "axis": "d",
+          "at": 8.5,
+          "center": 16.8,
+          "width": 0.3,
+          "label": ""
+        },
+        {
+          "a": "core-lobby",
+          "b": "service-riser",
+          "axis": "d",
+          "at": 8.5,
+          "center": 20.05,
+          "width": 0.5,
+          "label": ""
+        },
+        {
+          "a": "corridor",
+          "b": "stair-a",
+          "axis": "d",
+          "at": 5.8,
+          "center": 2.3,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "corridor",
+          "b": "stair-b",
+          "axis": "d",
+          "at": 5.8,
+          "center": 22.55,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "corridor",
+          "b": "core-lobby",
+          "axis": "d",
+          "at": 5.8,
+          "center": 16.0,
+          "width": 1.5,
+          "label": ""
+        },
+        {
+          "a": "corridor",
+          "b": "tasting",
+          "axis": "d",
+          "at": 4.3,
+          "center": 4.4,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "corridor",
+          "b": "salon",
+          "axis": "d",
+          "at": 4.3,
+          "center": 12.55,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "corridor",
+          "b": "reading",
+          "axis": "d",
+          "at": 4.3,
+          "center": 20.65,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "corridor",
+          "b": "pantry",
+          "axis": "d",
+          "at": 5.8,
+          "center": 6.425000000000001,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "corridor",
+          "b": "staff",
+          "axis": "d",
+          "at": 5.8,
+          "center": 10.675,
+          "width": 1.0,
+          "label": ""
+        }
+      ]
+    },
+    {
+      "id": "L2",
+      "name": "Residences 201-203",
+      "floorY": 7.9,
+      "rooms": [
+        {
+          "id": "stair-a",
+          "label": "STAIR A",
+          "rect": [
+            0.3,
+            5.8,
+            4.3,
+            11.7
+          ],
+          "kind": "stair",
+          "wallGroup": "stair-a",
+          "area": 23.6
+        },
+        {
+          "id": "stair-b",
+          "label": "STAIR B",
+          "rect": [
+            20.4,
+            5.8,
+            24.7,
+            11.7
+          ],
+          "kind": "stair",
+          "wallGroup": "stair-b",
+          "area": 25.37
+        },
+        {
+          "id": "core-lobby",
+          "label": "LIFT / WC LOBBY",
+          "rect": [
+            12.8,
+            5.8,
+            20.4,
+            8.5
+          ],
+          "kind": "circulation",
+          "wallGroup": "core-lobby",
+          "area": 20.52
+        },
+        {
+          "id": "wc-a",
+          "label": "SHARED WC / SHOWER",
+          "rect": [
+            12.8,
+            8.5,
+            15,
+            11.7
+          ],
+          "kind": "wet",
+          "wallGroup": "wc-a",
+          "area": 7.04
+        },
+        {
+          "id": "wc-b",
+          "label": "CLEANING / LINEN",
+          "rect": [
+            15,
+            8.5,
+            16.6,
+            11.7
+          ],
+          "kind": "service",
+          "wallGroup": "wc-b",
+          "area": 5.12
+        },
+        {
+          "id": "wet-riser",
+          "label": "WET RISER",
+          "rect": [
+            16.6,
+            8.5,
+            17,
+            11.7
+          ],
+          "kind": "shaft",
+          "wallGroup": "wet-riser",
+          "area": 1.28
+        },
+        {
+          "id": "lift",
+          "label": "ELEVATOR",
+          "rect": [
+            17,
+            8.5,
+            19.7,
+            11.7
+          ],
+          "kind": "lift",
+          "wallGroup": "lift",
+          "area": 8.64
+        },
+        {
+          "id": "service-riser",
+          "label": "SERVICES",
+          "rect": [
+            19.7,
+            8.5,
+            20.4,
+            11.7
+          ],
+          "kind": "shaft",
+          "wallGroup": "service-riser",
+          "area": 2.24
+        },
+        {
+          "id": "corridor",
+          "label": "CORRIDOR 1.50 m",
+          "rect": [
+            0.3,
+            4.3,
+            24.7,
+            5.8
+          ],
+          "kind": "circulation",
+          "wallGroup": "corridor",
+          "area": 36.6
+        },
+        {
+          "id": "201-living",
+          "label": "201 LIVING / SLEEP",
+          "rect": [
+            0.3,
+            0.3,
+            6.3,
+            4.3
+          ],
+          "kind": "home",
+          "wallGroup": "201",
+          "area": 24.0
+        },
+        {
+          "id": "201-kitchen",
+          "label": "201 KITCHEN",
+          "rect": [
+            6.3,
+            0.3,
+            8.5,
+            2.1
+          ],
+          "kind": "home",
+          "wallGroup": "201",
+          "area": 3.96
+        },
+        {
+          "id": "201-bath",
+          "label": "201 BATH",
+          "rect": [
+            6.3,
+            2.1,
+            8.5,
+            4.3
+          ],
+          "kind": "wet",
+          "wallGroup": "201-bath",
+          "area": 4.84
+        },
+        {
+          "id": "202-living",
+          "label": "202 LIVING / SLEEP",
+          "rect": [
+            8.5,
+            0.3,
+            14.400000000000002,
+            4.3
+          ],
+          "kind": "home",
+          "wallGroup": "202",
+          "area": 23.6
+        },
+        {
+          "id": "202-kitchen",
+          "label": "202 KITCHEN",
+          "rect": [
+            14.400000000000002,
+            0.3,
+            16.6,
+            2.1
+          ],
+          "kind": "home",
+          "wallGroup": "202",
+          "area": 3.96
+        },
+        {
+          "id": "202-bath",
+          "label": "202 BATH",
+          "rect": [
+            14.400000000000002,
+            2.1,
+            16.6,
+            4.3
+          ],
+          "kind": "wet",
+          "wallGroup": "202-bath",
+          "area": 4.84
+        },
+        {
+          "id": "203-living",
+          "label": "203 LIVING / SLEEP",
+          "rect": [
+            16.6,
+            0.3,
+            22.5,
+            4.3
+          ],
+          "kind": "home",
+          "wallGroup": "203",
+          "area": 23.6
+        },
+        {
+          "id": "203-kitchen",
+          "label": "203 KITCHEN",
+          "rect": [
+            22.5,
+            0.3,
+            24.7,
+            2.1
+          ],
+          "kind": "home",
+          "wallGroup": "203",
+          "area": 3.96
+        },
+        {
+          "id": "203-bath",
+          "label": "203 BATH",
+          "rect": [
+            22.5,
+            2.1,
+            24.7,
+            4.3
+          ],
+          "kind": "wet",
+          "wallGroup": "203-bath",
+          "area": 4.84
+        },
+        {
+          "id": "rear-west",
+          "label": "LAUNDRY / UTILITY",
+          "rect": [
+            4.3,
+            5.8,
+            8.55,
+            11.7
+          ],
+          "kind": "service",
+          "wallGroup": "rear-west",
+          "area": 25.08
+        },
+        {
+          "id": "rear-east",
+          "label": "RESIDENTS COMMON ROOM",
+          "rect": [
+            8.55,
+            5.8,
+            12.8,
+            11.7
+          ],
+          "kind": "room",
+          "wallGroup": "rear-east",
+          "area": 25.07
+        }
+      ],
+      "doors": [
+        {
+          "a": "core-lobby",
+          "b": "wc-a",
+          "axis": "d",
+          "at": 8.5,
+          "center": 13.9,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "core-lobby",
+          "b": "wc-b",
+          "axis": "d",
+          "at": 8.5,
+          "center": 15.8,
+          "width": 0.9,
+          "label": ""
+        },
+        {
+          "a": "core-lobby",
+          "b": "lift",
+          "axis": "d",
+          "at": 8.5,
+          "center": 18.35,
+          "width": 1.1,
+          "label": ""
+        },
+        {
+          "a": "core-lobby",
+          "b": "wet-riser",
+          "axis": "d",
+          "at": 8.5,
+          "center": 16.8,
+          "width": 0.3,
+          "label": ""
+        },
+        {
+          "a": "core-lobby",
+          "b": "service-riser",
+          "axis": "d",
+          "at": 8.5,
+          "center": 20.05,
+          "width": 0.5,
+          "label": ""
+        },
+        {
+          "a": "corridor",
+          "b": "stair-a",
+          "axis": "d",
+          "at": 5.8,
+          "center": 2.3,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "corridor",
+          "b": "stair-b",
+          "axis": "d",
+          "at": 5.8,
+          "center": 22.55,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "corridor",
+          "b": "core-lobby",
+          "axis": "d",
+          "at": 5.8,
+          "center": 16.0,
+          "width": 1.5,
+          "label": ""
+        },
+        {
+          "a": "corridor",
+          "b": "201-living",
+          "axis": "d",
+          "at": 4.3,
+          "center": 5.3,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "201-living",
+          "b": "201-bath",
+          "axis": "u",
+          "at": 6.3,
+          "center": 3.2,
+          "width": 0.9,
+          "label": ""
+        },
+        {
+          "a": "corridor",
+          "b": "202-living",
+          "axis": "d",
+          "at": 4.3,
+          "center": 13.400000000000002,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "202-living",
+          "b": "202-bath",
+          "axis": "u",
+          "at": 14.400000000000002,
+          "center": 3.2,
+          "width": 0.9,
+          "label": ""
+        },
+        {
+          "a": "corridor",
+          "b": "203-living",
+          "axis": "d",
+          "at": 4.3,
+          "center": 21.5,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "203-living",
+          "b": "203-bath",
+          "axis": "u",
+          "at": 22.5,
+          "center": 3.2,
+          "width": 0.9,
+          "label": ""
+        },
+        {
+          "a": "corridor",
+          "b": "rear-west",
+          "axis": "d",
+          "at": 5.8,
+          "center": 6.425000000000001,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "corridor",
+          "b": "rear-east",
+          "axis": "d",
+          "at": 5.8,
+          "center": 10.675,
+          "width": 1.0,
+          "label": ""
+        }
+      ]
+    },
+    {
+      "id": "L3",
+      "name": "Residences 301-303",
+      "floorY": 11.4,
+      "rooms": [
+        {
+          "id": "stair-a",
+          "label": "STAIR A",
+          "rect": [
+            0.3,
+            5.8,
+            4.3,
+            11.7
+          ],
+          "kind": "stair",
+          "wallGroup": "stair-a",
+          "area": 23.6
+        },
+        {
+          "id": "stair-b",
+          "label": "STAIR B",
+          "rect": [
+            20.4,
+            5.8,
+            24.7,
+            11.7
+          ],
+          "kind": "stair",
+          "wallGroup": "stair-b",
+          "area": 25.37
+        },
+        {
+          "id": "core-lobby",
+          "label": "LIFT / WC LOBBY",
+          "rect": [
+            12.8,
+            5.8,
+            20.4,
+            8.5
+          ],
+          "kind": "circulation",
+          "wallGroup": "core-lobby",
+          "area": 20.52
+        },
+        {
+          "id": "wc-a",
+          "label": "SHARED WC / SHOWER",
+          "rect": [
+            12.8,
+            8.5,
+            15,
+            11.7
+          ],
+          "kind": "wet",
+          "wallGroup": "wc-a",
+          "area": 7.04
+        },
+        {
+          "id": "wc-b",
+          "label": "CLEANING / LINEN",
+          "rect": [
+            15,
+            8.5,
+            16.6,
+            11.7
+          ],
+          "kind": "service",
+          "wallGroup": "wc-b",
+          "area": 5.12
+        },
+        {
+          "id": "wet-riser",
+          "label": "WET RISER",
+          "rect": [
+            16.6,
+            8.5,
+            17,
+            11.7
+          ],
+          "kind": "shaft",
+          "wallGroup": "wet-riser",
+          "area": 1.28
+        },
+        {
+          "id": "lift",
+          "label": "ELEVATOR",
+          "rect": [
+            17,
+            8.5,
+            19.7,
+            11.7
+          ],
+          "kind": "lift",
+          "wallGroup": "lift",
+          "area": 8.64
+        },
+        {
+          "id": "service-riser",
+          "label": "SERVICES",
+          "rect": [
+            19.7,
+            8.5,
+            20.4,
+            11.7
+          ],
+          "kind": "shaft",
+          "wallGroup": "service-riser",
+          "area": 2.24
+        },
+        {
+          "id": "corridor",
+          "label": "CORRIDOR 1.50 m",
+          "rect": [
+            0.3,
+            4.3,
+            24.7,
+            5.8
+          ],
+          "kind": "circulation",
+          "wallGroup": "corridor",
+          "area": 36.6
+        },
+        {
+          "id": "301-living",
+          "label": "301 LIVING / SLEEP",
+          "rect": [
+            0.3,
+            0.3,
+            6.3,
+            4.3
+          ],
+          "kind": "home",
+          "wallGroup": "301",
+          "area": 24.0
+        },
+        {
+          "id": "301-kitchen",
+          "label": "301 KITCHEN",
+          "rect": [
+            6.3,
+            0.3,
+            8.5,
+            2.1
+          ],
+          "kind": "home",
+          "wallGroup": "301",
+          "area": 3.96
+        },
+        {
+          "id": "301-bath",
+          "label": "301 BATH",
+          "rect": [
+            6.3,
+            2.1,
+            8.5,
+            4.3
+          ],
+          "kind": "wet",
+          "wallGroup": "301-bath",
+          "area": 4.84
+        },
+        {
+          "id": "302-living",
+          "label": "302 LIVING / SLEEP",
+          "rect": [
+            8.5,
+            0.3,
+            14.400000000000002,
+            4.3
+          ],
+          "kind": "home",
+          "wallGroup": "302",
+          "area": 23.6
+        },
+        {
+          "id": "302-kitchen",
+          "label": "302 KITCHEN",
+          "rect": [
+            14.400000000000002,
+            0.3,
+            16.6,
+            2.1
+          ],
+          "kind": "home",
+          "wallGroup": "302",
+          "area": 3.96
+        },
+        {
+          "id": "302-bath",
+          "label": "302 BATH",
+          "rect": [
+            14.400000000000002,
+            2.1,
+            16.6,
+            4.3
+          ],
+          "kind": "wet",
+          "wallGroup": "302-bath",
+          "area": 4.84
+        },
+        {
+          "id": "303-living",
+          "label": "303 LIVING / SLEEP",
+          "rect": [
+            16.6,
+            0.3,
+            22.5,
+            4.3
+          ],
+          "kind": "home",
+          "wallGroup": "303",
+          "area": 23.6
+        },
+        {
+          "id": "303-kitchen",
+          "label": "303 KITCHEN",
+          "rect": [
+            22.5,
+            0.3,
+            24.7,
+            2.1
+          ],
+          "kind": "home",
+          "wallGroup": "303",
+          "area": 3.96
+        },
+        {
+          "id": "303-bath",
+          "label": "303 BATH",
+          "rect": [
+            22.5,
+            2.1,
+            24.7,
+            4.3
+          ],
+          "kind": "wet",
+          "wallGroup": "303-bath",
+          "area": 4.84
+        },
+        {
+          "id": "rear-west",
+          "label": "SHARED STUDY",
+          "rect": [
+            4.3,
+            5.8,
+            8.55,
+            11.7
+          ],
+          "kind": "room",
+          "wallGroup": "rear-west",
+          "area": 25.08
+        },
+        {
+          "id": "rear-east",
+          "label": "RESIDENTS LOUNGE",
+          "rect": [
+            8.55,
+            5.8,
+            12.8,
+            11.7
+          ],
+          "kind": "room",
+          "wallGroup": "rear-east",
+          "area": 25.07
+        }
+      ],
+      "doors": [
+        {
+          "a": "core-lobby",
+          "b": "wc-a",
+          "axis": "d",
+          "at": 8.5,
+          "center": 13.9,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "core-lobby",
+          "b": "wc-b",
+          "axis": "d",
+          "at": 8.5,
+          "center": 15.8,
+          "width": 0.9,
+          "label": ""
+        },
+        {
+          "a": "core-lobby",
+          "b": "lift",
+          "axis": "d",
+          "at": 8.5,
+          "center": 18.35,
+          "width": 1.1,
+          "label": ""
+        },
+        {
+          "a": "core-lobby",
+          "b": "wet-riser",
+          "axis": "d",
+          "at": 8.5,
+          "center": 16.8,
+          "width": 0.3,
+          "label": ""
+        },
+        {
+          "a": "core-lobby",
+          "b": "service-riser",
+          "axis": "d",
+          "at": 8.5,
+          "center": 20.05,
+          "width": 0.5,
+          "label": ""
+        },
+        {
+          "a": "corridor",
+          "b": "stair-a",
+          "axis": "d",
+          "at": 5.8,
+          "center": 2.3,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "corridor",
+          "b": "stair-b",
+          "axis": "d",
+          "at": 5.8,
+          "center": 22.55,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "corridor",
+          "b": "core-lobby",
+          "axis": "d",
+          "at": 5.8,
+          "center": 16.0,
+          "width": 1.5,
+          "label": ""
+        },
+        {
+          "a": "corridor",
+          "b": "301-living",
+          "axis": "d",
+          "at": 4.3,
+          "center": 5.3,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "301-living",
+          "b": "301-bath",
+          "axis": "u",
+          "at": 6.3,
+          "center": 3.2,
+          "width": 0.9,
+          "label": ""
+        },
+        {
+          "a": "corridor",
+          "b": "302-living",
+          "axis": "d",
+          "at": 4.3,
+          "center": 13.400000000000002,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "302-living",
+          "b": "302-bath",
+          "axis": "u",
+          "at": 14.400000000000002,
+          "center": 3.2,
+          "width": 0.9,
+          "label": ""
+        },
+        {
+          "a": "corridor",
+          "b": "303-living",
+          "axis": "d",
+          "at": 4.3,
+          "center": 21.5,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "303-living",
+          "b": "303-bath",
+          "axis": "u",
+          "at": 22.5,
+          "center": 3.2,
+          "width": 0.9,
+          "label": ""
+        },
+        {
+          "a": "corridor",
+          "b": "rear-west",
+          "axis": "d",
+          "at": 5.8,
+          "center": 6.425000000000001,
+          "width": 1.0,
+          "label": ""
+        },
+        {
+          "a": "corridor",
+          "b": "rear-east",
+          "axis": "d",
+          "at": 5.8,
+          "center": 10.675,
+          "width": 1.0,
+          "label": ""
+        }
+      ]
+    }
+  ],
+  "implementation": [
+    "Keep this proposal isolated from the shipped world until reviewed.",
+    "Replace the old solid ground ceiling with slabs cut for both stairs and elevator.",
+    "Create real front exit openings; do not place door panels against solid walls.",
+    "West/east are party walls; rear east half abuts another building. No doors or bedroom windows there.",
+    "Both stairs discharge to street through their own ground passages. Courtyard is not assumed to be an exit.",
+    "Stack toilets and services; residential baths use three additional vertical wet ducts at the corridor edge.",
+    "Add floor-specific cutaway, streaming, collision and multilevel navigation before making upper floors playable.",
+    "Door operation, elevator travel, furnishings, materials and detailing are later passes."
+  ],
+  "review": [
+    "Concept for the virtual building; structural spans, fire ratings and lift supplier clearances are not engineered.",
+    "Partition zones include half wall thickness; room areas are planning areas, not finished net measurements.",
+    "Shared boundary faces may remain in the spatial survey; proposed shell is newly built simple geometry."
+  ]
+}

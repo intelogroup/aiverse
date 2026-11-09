@@ -1,5 +1,9 @@
 # Failures log (symptom → root cause → fix)
 
+### Tea House structural study (2026-11-09)
+
+The bar must retain a route into its staff aisle after adding stairs and a toilet/lift core. Four original 2 m counters nearly filled the 8.5 m available width, leaving end gaps too narrow for the walker. The structural proposal uses four 1.7 m counter sections and a 1.5 m end gate; the GLB geometry check raycasts the actual access passage. Shelf bays can remain 2 m wide because they do not block the counter access. The recipe and shipped mesh establish four storeys at floor datums 0.48 / 4.40 / 7.90 / 11.40 m; do not add the 4.2 m ground façade height to the raised 0.48 m finished floor. The enclosed courtyard must not be assumed to provide a street exit. See `20-tea-house-building.md`.
+
 | # | Symptom | Root cause | Fix |
 |---|---|---|---|
 | 1 | `blender -b` render: `Couldn't open libEGL.so.1` | headless container lacks GL libs | `apt-get install libegl1 libgl1 ...` |

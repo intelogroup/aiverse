@@ -1,0 +1,85 @@
+{
+  "source": "apps/console/public/assets/world-city3.glb",
+  "sha256": "5ae262f25cc38daaeabe59020f750376d777f854957bde94f1494313a7865e42",
+  "footprint": [
+    -37.5,
+    -84.5,
+    -12.5,
+    -72.5
+  ],
+  "lot": "shop-102",
+  "floorsFromRecipe": 4,
+  "method": "Whole-triangle spatial subset of merged city mesh, envelope nodes only; includes shared boundary faces. No inferred upper slabs.",
+  "localFrame": "glTF X = worldX + 37.5; Y unchanged; Z = worldZ + 72.5; street front Z=0, rear Z=-12",
+  "worldBounds": {
+    "min": [
+      -38.050048828125,
+      0.19999980926513672,
+      -85.050048828125
+    ],
+    "max": [
+      -11.95001220703125,
+      20.302001953125,
+      -71.949951171875
+    ]
+  },
+  "triangles": 1748,
+  "meshes": [
+    {
+      "name": "B_Facade_ochre",
+      "material": "Facade_ochre",
+      "triangles": 106,
+      "minY": 0.19999980926513672,
+      "maxY": 14.899993896484375
+    },
+    {
+      "name": "Glass",
+      "material": "glass",
+      "triangles": 10,
+      "minY": 1.0499992370605469,
+      "maxY": 3.3000030517578125
+    },
+    {
+      "name": "InteriorWalls",
+      "material": "interior_wall",
+      "triangles": 55,
+      "minY": 0.19999980926513672,
+      "maxY": 4.399993896484375
+    },
+    {
+      "name": "Props",
+      "material": "palette",
+      "triangles": 1543,
+      "minY": 0.19999980926513672,
+      "maxY": 20.302001953125
+    },
+    {
+      "name": "RoofTileV4",
+      "material": "roof_tile_v4",
+      "triangles": 6,
+      "minY": 14.899993896484375,
+      "maxY": 18.50201416015625
+    },
+    {
+      "name": "Shutters",
+      "material": "shutters",
+      "triangles": 24,
+      "minY": 8.829986572265625,
+      "maxY": 10.470001220703125
+    },
+    {
+      "name": "Signs",
+      "material": "signs",
+      "triangles": 2,
+      "minY": 3.5,
+      "maxY": 4.5
+    },
+    {
+      "name": "WoodFloor",
+      "material": "wood_floor",
+      "triangles": 2,
+      "minY": 0.4799995422363281,
+      "maxY": 0.4799995422363281
+    }
+  ]
+}
