@@ -288,6 +288,13 @@
       "when": 1792290226734,
       "tag": "0040_last_crystal",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1794253182554,
+      "tag": "0041_new_smasher",
+      "breakpoints": true
     }
   ]
 }

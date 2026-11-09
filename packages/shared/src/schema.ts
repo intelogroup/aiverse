@@ -55,6 +55,15 @@ export const agents = pgTable("agents", {
   name: text("name").notNull(),
   agentCard: jsonb("agent_card").notNull().default({}),
   status: agentStatusEnum("status").notNull().default("offline"),
+  // Provenance of a "paused" status: "owner" | "admin" | null. The first
+  // pauser owns the pause — an admin resume may only lift an admin-imposed
+  // suspension, and an owner resume only an owner-imposed pause
+  // (AIV-ADMIN-SUSPEND-OWNER-RESUME-001: admin resume used to resurrect
+  // agents the owner had paused, e.g. on suspicion of compromise). Null
+  // on rows paused before provenance existed: owner-resumable (the owner
+  // is the agent's principal), never admin-resumable — the privileged
+  // path fails closed.
+  pausedBy: text("paused_by"),
   apiKeyHash: text("api_key_hash").notNull(),
   // Ed25519 identity (base64url raw 32-byte public key). Nullable — legacy
   // agents keep working on apiKeyHash bearer auth indefinitely; an owner can

@@ -13,7 +13,9 @@ export const adminRoute = new Hono<{ Variables: { ownerId: string } }>();
 // Operator-side equivalent of ownersRoute's /agents/:id/pause — same
 // "paused" status (already blocks auth in middleware/agentAuth.ts and
 // ws/gateway.ts), but callable against any agent regardless of who owns it.
-// Reversible: /resume flips back to "offline", same as the owner path.
+// Pause provenance (agents.pausedBy) decides who may resume: /resume here
+// lifts only admin-imposed suspensions; an owner pause is lifted only by
+// the owner's own resume (AIV-ADMIN-SUSPEND-OWNER-RESUME-001).
 adminRoute.post("/agents/:id/suspend", adminAuth, async (c) => {
   const adminOwnerId = c.get("ownerId");
   const agentId = c.req.param("id");
@@ -21,7 +23,12 @@ adminRoute.post("/agents/:id/suspend", adminAuth, async (c) => {
   const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
   if (!agent) return c.json({ error: "not found" }, 404);
 
-  const [updated] = await db.update(agents).set({ status: "paused" }).where(eq(agents.id, agentId)).returning();
+  // First pauser owns the pause (AIV-ADMIN-SUSPEND-OWNER-RESUME-001):
+  // suspending an already owner-paused agent must not convert the owner's
+  // pause into an admin suspension an admin resume could then lift.
+  const pausedBy =
+    agent.status === "paused" && agent.pausedBy ? agent.pausedBy : "admin";
+  const [updated] = await db.update(agents).set({ status: "paused", pausedBy }).where(eq(agents.id, agentId)).returning();
 
   forceDisconnectAgent(agentId, 4003, "agent suspended by admin");
   await audit({
@@ -31,7 +38,7 @@ adminRoute.post("/agents/:id/suspend", adminAuth, async (c) => {
     actorType: "owner",
     actorId: adminOwnerId,
     targetAgentId: agentId,
-    metadata: { previousStatus: agent.status },
+    metadata: { previousStatus: agent.status, pausedBy },
   });
 
   return c.json({ agent: { id: updated.id, status: updated.status } });
@@ -44,7 +51,19 @@ adminRoute.post("/agents/:id/resume", adminAuth, async (c) => {
   const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
   if (!agent) return c.json({ error: "not found" }, 404);
 
-  const [updated] = await db.update(agents).set({ status: "offline" }).where(eq(agents.id, agentId)).returning();
+  // An admin resume lifts only an admin-imposed suspension. An owner's
+  // own pause is authoritative for the owner — admin resume used to
+  // resurrect owner-paused agents unconditionally
+  // (AIV-ADMIN-SUSPEND-OWNER-RESUME-001). Legacy pauses with no recorded
+  // provenance also fail closed here; the owner can resume those.
+  if (agent.status === "paused" && agent.pausedBy !== "admin") {
+    return c.json(
+      { error: "agent was paused by its owner; only the owner can resume it" },
+      409,
+    );
+  }
+
+  const [updated] = await db.update(agents).set({ status: "offline", pausedBy: null }).where(eq(agents.id, agentId)).returning();
 
   await audit({
     event: "admin.agent_resumed",

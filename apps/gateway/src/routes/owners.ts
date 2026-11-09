@@ -751,9 +751,14 @@ ownersRoute.post("/agents/:id/pause", ownerAuth, async (c) => {
   const agent = await loadOwnedAgent(ownerId, agentId);
   if (!agent) return c.json({ error: "not found" }, 404);
 
+  // First pauser owns the pause (AIV-ADMIN-SUSPEND-OWNER-RESUME-001):
+  // pausing an already admin-suspended agent must not convert the
+  // suspension into an owner pause an owner resume could then lift.
+  const pausedBy =
+    agent.status === "paused" && agent.pausedBy === "admin" ? "admin" : "owner";
   const [updated] = await db
     .update(agents)
-    .set({ status: "paused" })
+    .set({ status: "paused", pausedBy })
     .where(eq(agents.id, agentId))
     .returning();
 
@@ -772,9 +777,19 @@ ownersRoute.post("/agents/:id/resume", ownerAuth, async (c) => {
   const agent = await loadOwnedAgent(ownerId, agentId);
   if (!agent) return c.json({ error: "not found" }, 404);
 
+  // An owner resume lifts only an owner pause (or a legacy pause with no
+  // recorded provenance). An admin suspension stands until an admin lifts
+  // it (AIV-ADMIN-SUSPEND-OWNER-RESUME-001).
+  if (agent.status === "paused" && agent.pausedBy === "admin") {
+    return c.json(
+      { error: "agent is suspended by an admin; only an admin can resume it" },
+      409,
+    );
+  }
+
   const [updated] = await db
     .update(agents)
-    .set({ status: "offline" })
+    .set({ status: "offline", pausedBy: null })
     .where(eq(agents.id, agentId))
     .returning();
 
@@ -858,7 +873,7 @@ ownersRoute.post("/agents/:id/kill", ownerAuth, async (c) => {
   // publicKey also fails every outstanding session JWT (resolveAgent.ts
   // rejects a session whose agent has no key).
   const { hash } = generateAgentToken();
-  await db.update(agents).set({ status: "offline", apiKeyHash: hash, publicKey: null }).where(eq(agents.id, agentId));
+  await db.update(agents).set({ status: "offline", pausedBy: null, apiKeyHash: hash, publicKey: null }).where(eq(agents.id, agentId));
   forceDisconnectAgent(agentId, 4004, "agent killed");
   broadcastToOwnerConsole(
     ownerId,
