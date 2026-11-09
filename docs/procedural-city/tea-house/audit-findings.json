@@ -1,0 +1,23 @@
+{
+  "before": {
+    "status": "FAIL",
+    "roomRoutes": 29,
+    "issues": 46
+  },
+  "after": {
+    "status": "PASS",
+    "roomRoutes": 102,
+    "issues": 0,
+    "doorways": 47,
+    "minimumStairHeadroom": 3.1609096527099614,
+    "stairSamples": 2426
+  },
+  "fixes": [
+    "Door swings moved into rooms; open lobby connections have no door leaf.",
+    "Stair B has direct ground lobby access, bypassing the store.",
+    "Sloping stair soffits replace solid fills that reduced headroom.",
+    "Stair edges and the unused top-floor upward flight are guarded.",
+    "Staff aisle has two 1.25 m gates; either can be blocked independently.",
+    "Entrance audit applies two cafe-set removals and relocation of one whole planter."
+  ]
+}

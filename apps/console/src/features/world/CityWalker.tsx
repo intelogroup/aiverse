@@ -60,7 +60,7 @@ export function CityWalker({
   onMode: (m: WalkMode) => void;
   onExit: () => void;
   /** Latest bot position each stepped frame (BazaarLife's keeper trigger reads it). */
-  onPosition?: (x: number, z: number) => void;
+  onPosition?: (x: number, z: number, y: number) => void;
   /** Visual/camera meshes: the follow-cam wall ray, and the raycast fallback world if the collision GLB failed to load. */
   getMeshes: () => THREE.Mesh[];
   /** The walker's collision list (capsule world). Without it (tests, older hosts) the raycast world over `getMeshes` is used. */
@@ -294,12 +294,12 @@ export function CityWalker({
       input.strafe = 0;
     }
     step(s, input, delta, world);
-    cbs.current.onPosition?.(s.x, s.z);
+    cbs.current.onPosition?.(s.x, s.z, s.y);
 
     // Frame for CastFigure (clip from speed) and the figure group's height.
     // Figure faces the BODY heading (turns toward travel; backpedal reverses Walk); cameras below use the VIEW heading.
     const f = writeWalkerFrame(frames.current[0], s);
-    if (frameRef) frameRef.current = { state: f.state, speed: f.speed, x: s.x, z: s.z };
+    if (frameRef) frameRef.current = { state: f.state, speed: f.speed, x: s.x, y: s.y, z: s.z };
     if (figure.current) figure.current.position.y = s.y;
 
     // Streaming/theme follow the bot, not the (parked) orbit camera.

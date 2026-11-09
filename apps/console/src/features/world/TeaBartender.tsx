@@ -26,7 +26,7 @@ import {
   type BartenderLine,
 } from "./bartender";
 
-type PosRef = { current: { x: number; z: number } | null };
+type PosRef = { current: { x: number; y?: number; z: number } | null };
 
 export interface BartenderLogEntry {
   line: string;
@@ -102,7 +102,7 @@ export function TeaBartender({
     const movers: [number, number][] = [];
     for (const v of visitors) {
       const p = v.current;
-      if (p && Number.isFinite(p.x) && Number.isFinite(p.z)) movers.push([p.x, p.z]);
+      if (p && Number.isFinite(p.x) && Number.isFinite(p.z) && (p.y === undefined || Math.abs(p.y - BARTENDER_FLOOR_Y) < 1)) movers.push([p.x, p.z]);
     }
     const step = greeter.step(dt, movers);
     if (step.greet) speak(step.greet);

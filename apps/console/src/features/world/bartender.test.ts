@@ -55,9 +55,9 @@ describe("BartenderGreeter", () => {
     expect(run(g, 2, [atBar])).toEqual(["bartender2"]);
   });
 
-  it("greets a customer anywhere along the 12 m bar, not only right in front of him", () => {
+  it("greets a customer at the far end of the shortened bar, beyond the near-person radius", () => {
     const g = new BartenderGreeter();
-    const farEnd: [number, number] = [-35.0, -79.6]; // in front of the last stool, ~6 m from him
+    const farEnd: [number, number] = [-26.0, -79.6];
     expect(run(g, 3, [farEnd])).toEqual(["bartender1"]);
     const want = Math.atan2(farEnd[0] - BARTENDER_POS[0], farEnd[1] - BARTENDER_POS[1]);
     expect(Math.abs(angleTo(g.heading, want))).toBeLessThan(0.05); // and turns to that customer

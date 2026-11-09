@@ -1,0 +1,17 @@
+{
+  "status": "PASS",
+  "triangles": 11238,
+  "treadChecks": 124,
+  "floors": 4,
+  "checks": [
+    "floor surfaces",
+    "upper stair and elevator slab openings",
+    "clear upper corridors",
+    "two complete stair runs per storey",
+    "three real street door openings",
+    "staff access around the shortened counter",
+    "open elevator pit",
+    "graded entrance ramp",
+    "survey height"
+  ]
+}

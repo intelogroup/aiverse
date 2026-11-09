@@ -1,26 +1,27 @@
 // bartender.ts — the Tea House bartender: stands behind the bar, turns to whoever comes up to it and greets them out loud.
 //
 // The pure half (three-free, DOM-free, like keeper.ts). TeaBartender.tsx owns the figure, the speech and the collider.
-// Placement (from the shipped tea.json / tea.col.json, 2026-11-07): the bar is six 2 m counters on z = -81.35 (box
-// half-depth 0.57: back face z = -81.92), the bottle shelves stand at z = -83.82 (half-depth 0.37: front face z = -83.45). He
-// stands in the middle of that 1.53 m corridor, at the middle of the 12 m bar run, facing the stools (+z, heading 0).
+// The structural upgrade uses a 6 m counter. Its back is at local depth 9.42 m,
+// with shelves starting at 10.95 m. Remy stands at 9.78 m, close to the counter,
+// leaving 0.87 m behind his body for a visitor to reach either staff gate.
 import { KEEPER_TURN_RATE } from "./keeper";
 import { angleTo, wrapAngle } from "./walker";
 
-export const BARTENDER_POS: [number, number] = [-29.5, -82.69];
+// Stand against the counter back, leaving a body-width route behind Remy to either staff gate.
+export const BARTENDER_POS: [number, number] = [-29.5, -82.28];
 export const BARTENDER_HOME_HEADING = 0;
 /** The Tea House floor (the walker stands at the plinth top, 0.48). */
 export const BARTENDER_FLOOR_Y = 0.48;
 /**
- * Who counts as "at the bar". The bar is 12 m long and customers stand >= 0.4 m in front of the stools (z <= -79.74), i.e.
+ * Who counts as "at the bar". The bar is 6 m long and customers stand >= 0.4 m in front of the stools (z <= -79.74), i.e.
  * ~3 m from him at best: a circle round one man would cover ~2.5 m of the bar front. So the trigger is the ZONE in front of the
- * whole counter run (x -35.55..-23.45, 3 m deep from the stools) OR being near him; leaving needs the zone grown by 1 m
+ * whole counter run (x -31.95..-25.95, 3 m deep from the stools) OR being near him; leaving needs the zone grown by 1 m
  * (hysteresis, so standing on the edge never flickers).
  */
 export const BARTENDER_ENTER_RADIUS = 3.2;
 export const BARTENDER_EXIT_RADIUS = 4.2;
 /** [minX, minZ, maxX, maxZ] in front of the bar. */
-export const BAR_FRONT_ZONE: readonly [number, number, number, number] = [-35.6, -80.3, -23.4, -77.3];
+export const BAR_FRONT_ZONE: readonly [number, number, number, number] = [-31.95, -80.3, -25.95, -77.3];
 export const BAR_FRONT_EXIT_GROW = 1.0;
 /** The same visitor is not greeted again within this many seconds (no chatter loop at the bar). */
 export const BARTENDER_REGREET_S = 45;

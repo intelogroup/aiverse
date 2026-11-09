@@ -1,5 +1,13 @@
 import * as THREE from "three";
 
+function clippedHit(hit: THREE.Intersection): boolean {
+  const mesh = hit.object as THREE.Mesh;
+  const material = Array.isArray(mesh.material) ? mesh.material[hit.face?.materialIndex ?? 0] : mesh.material;
+  const planes = material?.clippingPlanes;
+  if (!planes?.length) return false;
+  return material.clipIntersection ? planes.every(p => p.distanceToPoint(hit.point) < 0) : planes.some(p => p.distanceToPoint(hit.point) < 0);
+}
+
 // Animated assemblies are not part of the streamed world's static collider sets.
 const dynamicRoots = new Set<THREE.Object3D>();
 export function registerCameraObstacle(root: THREE.Object3D): () => void {
@@ -10,7 +18,7 @@ export function registerCameraObstacle(root: THREE.Object3D): () => void {
 /** Reusable nine-ray sweep of the camera's near-plane footprint, including its centre.
  * Parallel probes protect the whole path, not just the camera's centre ray. */
 export class CameraClearance {
-  private ray = Object.assign(new THREE.Raycaster(), { firstHitOnly: true });
+  private ray = Object.assign(new THREE.Raycaster(), { firstHitOnly: false });
   private direction = new THREE.Vector3();
   private right = new THREE.Vector3();
   private up = new THREE.Vector3();
@@ -53,7 +61,8 @@ export class CameraClearance {
         this.ray.far = len;
         this.hits.length = 0;
         this.ray.intersectObjects(this.meshes, false, this.hits);
-        if (this.hits.length) nearest = Math.min(nearest, this.hits[0].distance);
+        const hit = this.hits.find(h => !clippedHit(h));
+        if (hit) nearest = Math.min(nearest, hit.distance);
       }
     } finally {
       for (const [material, side] of this.sides) material.side = side;

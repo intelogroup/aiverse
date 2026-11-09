@@ -1,0 +1,46 @@
+{
+  "status": "PASS",
+  "scope": "Local console preview; not merged or deployed",
+  "worldSha256": "1d95eeb565781559b5e9628cd6c01bd89f70b215db8d525693bcac9e35cdd211",
+  "consoleSuite": {
+    "files": 50,
+    "tests": 473
+  },
+  "targetedSuite": {
+    "files": 4,
+    "tests": 25
+  },
+  "productionBuild": "PASS (existing bundle-size warning)",
+  "generatorReproduction": {
+    "files": 7,
+    "byteIdentical": true
+  },
+  "runtimeRoutes": 102,
+  "browser": {
+    "views": [
+      "ground",
+      "first",
+      "second",
+      "third",
+      "exterior"
+    ],
+    "pageErrors": [],
+    "entranceWalker": "capsule",
+    "floorGroundQueries": [
+      0.47999998927116394,
+      4.400000095367432,
+      7.900000095367432,
+      11.399999618530273
+    ],
+    "capturedWorldSha256": "dc18235d589e31d5cbb413ce7496e0ff6d36aa7a80e338a7f689f2e19eec16f9",
+    "note": "Browser captures precede the main 22ba63a integration. Combined assets are verified by the refreshed production asset tests and build."
+  },
+  "screenshots": {
+    "ground": "710a537c23bf16627a16fa4b505601f7b8e3b3da2734274021e666d07d75af5f",
+    "first": "b166991b354a8373562c6ed1ac5878968c47c4ba50ab865b1e0e442241f9ddb4",
+    "second": "7aae9640abf9479e7eb3bc233d030185b52f8dc2496919d184344f2999a6f2f4",
+    "third": "04d1f83a9428605d30d12e88e76272c3a42ad4a32c3836d65997a7daabcd8dbe",
+    "exterior": "0132570067b0811a960db5adf13e5429b8d108b1bf1f00d9cae9c5a6b6151ffd"
+  },
+  "integratedMain": "22ba63a"
+}

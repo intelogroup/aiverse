@@ -67,4 +67,12 @@ describe("near-plane clearance", () => {
     unregister();
     expect(clearance.hitDistance(target, desired, camera, [])).toBeNull();
   });
+  it("ignores a cut-away surface and still hits the next visible face in the same BVH mesh", () => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute([-2,-2,2, 2,-2,2, 2,2,2, -2,-2,2, 2,2,2, -2,2,2, -2,-2,4, 2,-2,4, 2,2,4, -2,-2,4, 2,2,4, -2,2,4], 3));
+    const material = new THREE.MeshBasicMaterial({ clippingPlanes: [new THREE.Plane(new THREE.Vector3(0,0,1),-3)] });
+    const mesh = new THREE.Mesh(g, material);mesh.updateMatrixWorld();buildColliders(mesh);
+    expect(new CameraClearance().hitDistance(target, desired, camera, [mesh])).toBeCloseTo(4);
+    expect(material.side).toBe(THREE.FrontSide);
+  });
 });

@@ -46,7 +46,7 @@ export function VerseRecorder({ root }: { root: RefObject<HTMLDivElement | null>
       setRecording(true);
     } catch (e) { stream.current?.getTracks().forEach(t => t.stop()); setError(e instanceof Error ? e.message : "Could not start recording."); }
   };
-  return <div style={{ position: "absolute", right: 14, top: 110, zIndex: 20, maxWidth: 260, padding: 10, borderRadius: 10, background: "rgba(9,13,28,.9)", color: "#e9ecff", fontSize: 12 }} onPointerDown={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+  return <div className="w-verse-recorder" style={{ position: "absolute", right: 14, zIndex: 20, maxWidth: 260, padding: 10, borderRadius: 10, background: "rgba(9,13,28,.9)", color: "#e9ecff", fontSize: 12 }} onPointerDown={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
     <button type="button" aria-label={recording ? "Stop recording video" : "Record Verse video"} onClick={() => recording ? recorder.current?.stop() : start()} style={{ color: recording ? "#ff9292" : "inherit", padding: "8px 12px", minHeight: 44 }}>
       {recording ? "■ Stop & save video" : "● Record video"}
     </button>
