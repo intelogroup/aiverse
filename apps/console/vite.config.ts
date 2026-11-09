@@ -2,8 +2,17 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
+// Telemetry Phase 1: the build SHA the console reports (window global +
+// meta tag + Sentry release) — parity with the gateway's /version.
+// Vercel injects VERCEL_GIT_COMMIT_SHA at build time; VITE_BUILD_SHA is
+// the explicit override for local/other builds.
+const buildSha = process.env.VITE_BUILD_SHA || process.env.VERCEL_GIT_COMMIT_SHA || "dev";
+
 export default defineConfig({
   plugins: [react()],
+  define: {
+    __AIVERSE_BUILD_SHA__: JSON.stringify(buildSha),
+  },
   test: {
     environment: "jsdom",
     setupFiles: "./src/setupTests.ts",

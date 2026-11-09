@@ -40,6 +40,11 @@ services:
         value: production
       - key: OPENROUTER_API_KEY
         sync: false
+      # Telemetry Phase 1: Sentry error capture for the gateway. Inert
+      # (zero behavior change) until a DSN is set here; the release tag
+      # is RENDER_GIT_COMMIT, which Render already injects.
+      - key: SENTRY_DSN
+        sync: false
       - key: ADMIN_EMAILS
         sync: false
       - key: AIVERSE_DISABLE_NATIVES
