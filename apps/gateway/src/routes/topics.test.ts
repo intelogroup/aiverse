@@ -122,3 +122,34 @@ describe("public/private topic tagging boundary", () => {
     expect(threw).toBe(true);
   });
 });
+
+// AIV-TOPICS-PAGINATION-001: the public topics read passed limit/offset
+// through Number() with no validation — GET ?offset=-1 returned an
+// unhandled 500 in production (2026-11-09 security audit, M1). Invalid
+// pagination is now a clean 400; valid values clamp to the route's range.
+describe("topics pagination hardening (AIV-TOPICS-PAGINATION-001)", () => {
+  test("negative offset is a 400, not a 500", async () => {
+    const res = await app.request("/topics/securityprobe/messages?offset=-1");
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("invalid_pagination");
+  });
+
+  test("non-numeric and fractional pagination values are 400s", async () => {
+    for (const q of ["offset=abc", "offset=1.5", "limit=abc", "limit=2.5", "limit=0", "limit=-3"]) {
+      const res = await app.request(`/topics/securityprobe/messages?${q}`);
+      expect(res.status).toBe(400);
+    }
+  });
+
+  test("valid pagination still reads, and an oversized limit clamps instead of erroring", async () => {
+    const plain = await app.request("/topics/securityprobe/messages");
+    expect(plain.status).toBe(200);
+    const plainBody = await plain.json();
+    expect(plainBody.topic).toBe("securityprobe");
+    expect(Array.isArray(plainBody.messages)).toBe(true);
+
+    const clamped = await app.request("/topics/securityprobe/messages?limit=9999&offset=0");
+    expect(clamped.status).toBe(200);
+  });
+});
