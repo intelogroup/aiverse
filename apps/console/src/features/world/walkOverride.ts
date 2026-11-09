@@ -37,6 +37,7 @@ export interface WalkFrameInfo {
   speed: number;
   /** World XZ of the bot (the sound layer's listener position). */
   x?: number;
+  y?: number;
   z?: number;
 }
 

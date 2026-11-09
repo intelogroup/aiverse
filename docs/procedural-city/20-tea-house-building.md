@@ -99,7 +99,7 @@ The audit covers this unfurnished structural proposal with doors in their specif
 5. Update real closed collision meshes, thresholds and the character routes. Current ground furniture boxes and single-height ground/navigation assumptions do not make the new stairs usable automatically.
 6. Implement the restroom door, elevator doors/cabin controls and multilevel travel, then place furniture without obstructing the circulation reservations. Re-check the entrance ramp and both exit paths against surrounding city geometry.
 
-No runtime asset URL or current Tea House layout is changed by this study. The original bar and bottles remain in the live world until the structural proposal is integrated and shipped through a PR.
+This chapter records the structural study. The subsequent local console integration changes the shipping asset files and layout; see `21-tea-house-runtime.md`. The live site remains unchanged until those changes are shipped through a PR and deployed.
 
 ![Exploded structure](tea-house/structure-exploded.png)
 

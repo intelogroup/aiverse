@@ -5,7 +5,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { useGLTF } from "@react-three/drei";
 import { CameraCollider, buildColliders, type ColliderStats } from "./CameraCollider";
-import { bakeCollisionRoot } from "./capsuleWorld";
+import { bakeCollisionParts } from "./capsuleWorld";
 import { FountainWater } from "./FountainWater";
 import type { WalkColliders } from "./walkColliders";
 import { blendTheme, collisionJobs, planDistricts, residentCollisionUrl, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
@@ -151,10 +151,10 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     loader.load(url, (gltf) => {
       if (!isLive()) { disposeTree(gltf.scene); onDone?.(false); return; }
       const g = new THREE.Group(); if (center) g.position.set(center[0], 0, center[1]); g.add(gltf.scene); g.updateMatrixWorld(true);
-      const mesh = bakeCollisionRoot(g, `collision:${key}`);
+      const meshes = bakeCollisionParts(g, `collision:${key}`);
       disposeTree(gltf.scene);
-      if (mesh) walk.set(key, [mesh], performance.now() - t0);
-      onDone?.(!!mesh);
+      if (meshes.length) walk.set(key, meshes, performance.now() - t0);
+      onDone?.(meshes.length > 0);
     }, undefined, () => onDone?.(false));
   };
   useEffect(() => {

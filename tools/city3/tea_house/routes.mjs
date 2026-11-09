@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
+import {execFileSync} from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../..');
 const T=await import(path.join(root,'apps/console/node_modules/three/build/three.module.js'));
@@ -185,7 +186,16 @@ for(const s of plan.levels[3].rooms.filter(r=>r.kind==='stair')){
 for(const l of plan.levels){assert(blocked(18.35,8.55,l.floorY),'Lift shaft must not be an open walking route');guardChecks++;}
 
 // Resolve exterior conflicts against the shipped city, not an empty surrounding plane.
-const city=await load(path.join(root,'apps/console/public/assets/world-city3.glb'));
+// Keep the pre-integration comparison reproducible after the shipping GLB has been updated.
+let contextFile=path.join(root,'apps/console/public/assets/world-city3.glb');
+if(crypto.createHash('sha256').update(fs.readFileSync(contextFile)).digest('hex')!==plan.existing.sourceMeshSha256){
+  contextFile='/tmp/aiverse-tea-baseline/world-city3.glb';fs.mkdirSync(path.dirname(contextFile),{recursive:true});
+  if(!fs.existsSync(contextFile)||crypto.createHash('sha256').update(fs.readFileSync(contextFile)).digest('hex')!==plan.existing.sourceMeshSha256){
+    const fd=fs.openSync(contextFile,'w');try{execFileSync('git',['show','50ee765:apps/console/public/assets/world-city3.glb'],{cwd:root,stdio:['ignore',fd,'pipe']});}finally{fs.closeSync(fd);}
+  }
+  assert.equal(crypto.createHash('sha256').update(fs.readFileSync(contextFile)).digest('hex'),plan.existing.sourceMeshSha256);
+}
+const city=await load(contextFile);
 const allProps=[],retainedProps=[];let removedTriangles=0,movedPlanterTriangles=0;
 const cafeCenters=[9.3833,11.5833];
 city.traverse(o=>{

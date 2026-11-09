@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "origin": [
+    -37.5,
+    0,
+    -72.5
+  ],
+  "floorHeights": [
+    0.48,
+    4.4,
+    7.9,
+    11.4
+  ],
+  "elevator": "closed",
+  "sourceRevision": "50ee765",
+  "sourceSha256": "5ae262f25cc38daaeabe59020f750376d777f854957bde94f1494313a7865e42",
+  "removed": {
+    "B_Facade_ochre": 106,
+    "Glass": 10,
+    "InteriorWalls": 52,
+    "Props": 498,
+    "WoodFloor": 2,
+    "col_heroes": 132
+  },
+  "relocatedPlanterTriangles": 32,
+  "removedCafeTriangles": 284,
+  "runtimeSha256": "dc18235d589e31d5cbb413ce7496e0ff6d36aa7a80e338a7f689f2e19eec16f9",
+  "bottles": 48
+}

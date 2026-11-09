@@ -693,7 +693,16 @@
 }
 .world-root .w-glb-poi {
   top: 62px;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  overflow-x: auto;
 }
+.world-root .w-glb-poi button { white-space: nowrap; }
+.world-root .w-tea-floors { top: 110px; width: max-content; max-width: calc(100% - 24px); overflow-x: auto; }
+.world-root .w-verse-recorder { top: 110px; }
+.world-root:has(.w-tea-floor-panel) .w-verse-recorder { top: auto; bottom: 14px; }
+.world-root .w-tea-floors button { padding: 7px 10px; white-space: nowrap; }
+.world-root .w-tea-floor-caption { position: absolute; top: 158px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 24px); padding: 5px 10px; border-radius: 8px; background: rgba(9,13,28,.85); color: var(--w-dim); font-size: 12px; text-align: center; z-index: 5; pointer-events: none; }
 .world-root .w-glb-walk {
   top: auto;
   bottom: 18px;

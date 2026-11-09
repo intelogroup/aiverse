@@ -66,6 +66,7 @@ import { buildInteractableVisual } from "./interactableMesh";
 import { InteractTicker } from "./InteractTicker";
 import { TeaDoorLeaf, TeaDoorTicker } from "./TeaDoorLeaf";
 import { loadPercent, worldLoadPhase } from "./worldLoad";
+import { TEA_FLOORS, inTeaBuilding, teaFloorAt, teaCutHeight, teaViewTargetHeight } from "./teaBuilding";
 
 // GlbWorld — the modeled world (Blender-authored GLB) as the console's
 // default stage: City 3, the Sunstone Bazaar — a 360 m island (generated
@@ -116,9 +117,15 @@ function useCity3Rooms(enabled: boolean): City3Room[] {
 function ClipCutaway({
   rooms,
   focus,
+  teaFloor,
+  walker,
+  walking,
 }: {
   rooms: City3Room[];
   focus: { id: string; nonce: number } | null;
+  teaFloor: number | null;
+  walker: RefObject<WalkFrameInfo | null>;
+  walking: boolean;
 }) {
   const scene = useThree((s) => s.scene);
   const camera = useThree((s) => s.camera);
@@ -132,8 +139,11 @@ function ClipCutaway({
     [],
   );
   const open = useRef<string | null>(null);
-  const cutRooms = useMemo(() => rooms.map((r) => ({ id: r.id, center: r.center, rect: r.rect, cut: r.cut })), [rooms]);
+  const cutRooms = useMemo(() => rooms.filter(r => r.id !== "tea" || teaFloor !== null).map((r) => ({ id: r.id, center: r.center, rect: r.rect, cut: r.cut })), [rooms, teaFloor]);
+  const cutHeight = useRef<number | null>(null);
   useEffect(() => {
+    open.current = null;
+    cutHeight.current = null;
     gl.localClippingEnabled = true;
     const mats = new Set<THREE.Material>();
     scene.traverse((o) => {
@@ -159,12 +169,17 @@ function ClipCutaway({
   }, [scene, gl, planes]);
   useEffect(() => {
     const room = focus && rooms.find((r) => r.id === focus.id);
-    if (!room || !controls) return;
+    if (!room || !controls || walking) return;
     const v = roomView(room);
+    if (room.id === "tea") {
+      const y = teaFloor === null ? 7.5 : teaViewTargetHeight(teaFloor);
+      v.target[1] = y;
+      v.position[1] = teaFloor === null ? 24 : y + 15;
+    }
     camera.position.set(...v.position);
     controls.target.set(...v.target);
     controls.update();
-  }, [focus, rooms, camera, controls]);
+  }, [focus, rooms, camera, controls, teaFloor, walking]);
   useFrame(() => {
     // What the camera is looking at decides which building opens, not where the camera stands
     // (from a street-side viewpoint the nearest building centre is often across the road).
@@ -178,9 +193,12 @@ function ClipCutaway({
       HIDE_WITHIN,
       SHOW_BEYOND,
     );
-    if (next === open.current) return;
+    const height = next === "tea" && teaFloor !== null ? teaCutHeight(teaFloor, walking ? walker.current : null) : null;
+    if (next === open.current && height === cutHeight.current) return;
     open.current = next;
-    const spec = next ? boxPlanes(rooms.find((r) => r.id === next)!.cut) : inactivePlanes();
+    cutHeight.current = height;
+    const box = next ? rooms.find((r) => r.id === next)!.cut : null;
+    const spec = box ? boxPlanes(height === null ? box : { ...box, y: height }) : inactivePlanes();
     spec.forEach(([x, y, z, c], i) => {
       planes[i].normal.set(x, y, z);
       planes[i].constant = c;
@@ -1177,14 +1195,16 @@ export function GlbWorld() {
   // frame and read by BazaarLife (the stall keeper's approach trigger).
   // Cleared when walk mode ends so a stale position can't hold a
   // conversation open forever.
-  const botPosRef = useRef<{ x: number; z: number } | null>(null);
+  const botPosRef = useRef<{ x: number; y?: number; z: number } | null>(null);
   // Scout's latest position (agent mode), for the Tea House bartender.
   const scoutPosRef = useRef<{ x: number; z: number } | null>(null);
   useEffect(() => {
     if (!walking) botPosRef.current = null;
   }, [walking]);
   // City 3: which hero building to fly to (cutaway shows on arrival); nonce re-fires a repeat click.
-  const [heroFocus, setHeroFocus] = useState<{ id: string; nonce: number } | null>(null);
+  const initialTea = new URLSearchParams(window.location.search).get("teaFloor");
+  const [heroFocus, setHeroFocus] = useState<{ id: string; nonce: number } | null>(() => initialTea !== null ? { id: "tea", nonce: 1 } : null);
+  const [teaFloor, setTeaFloor] = useState<number | null>(() => initialTea === "exterior" ? null : Math.min(3, Math.max(0, Number(initialTea) || 0)));
   // Sound lifecycle: the director arms ONLY from the walk HUD's
   // Enable-sound consent (its click is the gesture that creates +
   // resumes the AudioContext — the iOS rule); the pointer/key
@@ -1340,9 +1360,9 @@ export function GlbWorld() {
         {touchUi ? <QualityDriver meterRef={fpsMeterRef} /> : null}
         <Suspense fallback={null}>
           <PresentedSignal onPresented={markPresented} />
-          <DistrictWorld residentUrl={CITY3_URL} light={keyLightRef} collide={camMode === "wide"} meshesRef={colliderMeshesRef} walk={walkColliders} />
+          <DistrictWorld residentUrl={CITY3_URL} light={keyLightRef} collide={camMode === "wide" && !(heroFocus?.id === "tea" && teaFloor === null)} meshesRef={colliderMeshesRef} walk={walkColliders} />
           <>
-              <ClipCutaway rooms={city3Rooms} focus={heroFocus} />
+              <ClipCutaway rooms={city3Rooms} focus={heroFocus} teaFloor={teaFloor} walker={walkFrameRef} walking={walking} />
               <InteriorStreamer rooms={city3Rooms} walk={walkColliders} interact={interactRef.current} />
               <BazaarLife
                 getMeshes={getColliderMeshes}
@@ -1378,8 +1398,9 @@ export function GlbWorld() {
               mode={camMode === "follow" ? "follow" : "ride"}
               onMode={setCamMode}
               onExit={() => setCamMode("wide")}
-              onPosition={(x, z) => {
-                botPosRef.current = { x, z };
+              onPosition={(x, z, y) => {
+                botPosRef.current = { x, y, z };
+                if (inTeaBuilding(x, z)) setTeaFloor(teaFloorAt(y));
               }}
               getMeshes={getColliderMeshes}
               walk={walkColliders}
@@ -1411,7 +1432,7 @@ export function GlbWorld() {
           enabled={!walking && !agentOn}
           maxPolarAngle={Math.PI / 2 - 0.04}
           // 3 m close-ups; CameraCollider (in DistrictWorld) keeps the camera out of walls.
-          minDistance={3}
+          minDistance={heroFocus?.id === "tea" && teaFloor === null ? 24 : 3}
           maxDistance={1100}
         />
       </Canvas>
@@ -1590,6 +1611,19 @@ export function GlbWorld() {
           <button type="button" onClick={() => setMiraVisitNonce((n) => n + 1)}>
             Meet Mira
           </button>
+        </div>
+      ) : null}
+      {!walking && heroFocus?.id === "tea" ? (
+        <div className="w-tea-floor-panel">
+          <div className="w-glb-toggle w-tea-floors" role="group" aria-label="Tea House floors">
+            <button type="button" aria-pressed={teaFloor === null} className={teaFloor === null ? "active" : ""} onClick={() => setTeaFloor(null)}>Exterior</button>
+            {TEA_FLOORS.map((floor, i) => <button key={floor.label} type="button" aria-pressed={teaFloor === i} className={teaFloor === i ? "active" : ""} onClick={() => setTeaFloor(i)}>{floor.label}</button>)}
+            <button type="button" onClick={() => {
+              const room = city3Rooms.find(r => r.id === "tea");
+              if (room) { walkSpawnRef.current = spawnRequestForRoom(room); setTeaFloor(0); setCamMode("ride"); }
+            }}>Walk from entrance</button>
+          </div>
+          <div className="w-tea-floor-caption">{teaFloor === null ? "Matchmaker’s House · four floors" : `${TEA_FLOORS[teaFloor].name} · use the stairs; elevator closed`}</div>
         </div>
       ) : null}
     </div>

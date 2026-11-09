@@ -113,7 +113,11 @@ for i,l in enumerate(levels):
     for k in range(6):
         center=(k+.5)*25/6
         if i==0 and k in (0,3,5):continue
-        front.append((center-1.3,center+1.3,y+.80,y+2.55))
+        # Match the original hero frontage and its alternating upper window kit.
+        width=2.9 if i==0 else 1.25 if i==2 else 1.2916667
+        bottom=1.05 if i==0 else y+.95 if i==2 else y+.15
+        top_window=3.3 if i==0 else bottom+1.62
+        front.append((center-width/2,center+width/2,bottom,top_window))
     if i==0:
         for d in l['doors']:
             if d['a']=='street':front.append((d['center']-d['width']/2,d['center']+d['width']/2,y,y+2.4))
@@ -189,7 +193,7 @@ for side in (-1,1):
     for x,d,z in [(x0,-.065,.51),(x1,-.065,.51),(x1,.065,.51),(x0,.065,.51),(x0,-.065,2.60),(x1,-.065,2.60),(x1,.065,2.60),(x0,.065,2.60)]:
         vs.append((hinge+x*math.cos(theta)-d*math.sin(theta),md['hingeD']+x*math.sin(theta)+d*math.cos(theta),z))
     fs.extend([tuple(base+k for k in f) for f in [(0,3,2,1),(0,1,5,4),(1,2,6,5),(2,3,7,6),(3,0,4,7),(4,5,6,7)]])
-box('G','lift',17,8.5,-.70,19.7,11.7,-.52)
+box('G','slab',17,8.5,-.70,19.7,11.7,-.52)
 for axis,at,a,b in [('u',17,8.5,11.7),('u',19.7,8.5,11.7),('d',8.5,17,19.7),('d',11.7,17,19.7)]:
     wall('G','lift',axis,at,a,b,-.52,.48,thick=.2)
 a,b,c,d=P['proposal']['entranceLanding'];box('G','slab',a,b,.2,c,d,.48)

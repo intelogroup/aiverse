@@ -187,13 +187,13 @@ const _v = new THREE.Vector3();
  * when none is so named — baked into world space and merged into ONE position-only indexed mesh with a BVH.
  * The source scene is left untouched (callers dispose it); the returned mesh owns its geometry.
  */
-export function bakeCollisionRoot(root: THREE.Object3D, name = "collision"): THREE.Mesh | null {
+export function bakeCollisionRoot(root: THREE.Object3D, name = "collision", accept: (m: THREE.Mesh) => boolean = () => true): THREE.Mesh | null {
   root.updateWorldMatrix(true, true);
   const picked: THREE.Mesh[] = [];
   const any: THREE.Mesh[] = [];
   root.traverse((o) => {
     const m = o as THREE.Mesh;
-    if (!m.isMesh || (m as THREE.InstancedMesh).isInstancedMesh || !m.geometry.getAttribute("position")) return;
+    if (!m.isMesh || (m as THREE.InstancedMesh).isInstancedMesh || !m.geometry.getAttribute("position") || !accept(m)) return;
     any.push(m);
     let p: THREE.Object3D | null = m;
     while (p) {
@@ -235,6 +235,14 @@ export function bakeCollisionRoot(root: THREE.Object3D, name = "collision"): THR
     io += cnt;
   }
   return meshFromArrays(pos, index, name);
+}
+
+/** Keep structural blockers out of ground queries: door leaves, rails and glazing cannot become floors. */
+export function bakeCollisionParts(root: THREE.Object3D, name = "collision"): THREE.Mesh[] {
+  const floor = bakeCollisionRoot(root, name, (m) => m.userData.noGround !== true);
+  const blockers = bakeCollisionRoot(root, `${name}:blockers`, (m) => m.userData.noGround === true);
+  if (blockers) blockers.userData[NO_GROUND] = true;
+  return [floor, blockers].filter((m): m is THREE.Mesh => m !== null);
 }
 
 /** A collider mesh from raw arrays: builds the BVH. Not added to any scene. */
