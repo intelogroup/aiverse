@@ -1,0 +1,8 @@
+{
+ "bringback_report": true,
+ "other_runners": [],
+ "leak_audit_exit": 0,
+ "leak_audit_tail": "ense is silent on the hidden set\n\nnote: 15 hidden items sit exactly at published landmark stands ['egg-foundry-04', 'egg-foundry-05', 'egg-foundry-06', 'egg-terraces-01']\u2026 \u2014 placement finding, not a plumbing leak\n\nwrote /home/hatch/workspace/.build-tmp/experiments/visibility/leak_audit_results.json\n",
+ "anchors_missing": [],
+ "open": true
+}

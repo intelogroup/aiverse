@@ -1,0 +1,143 @@
+{
+ "owner_id": "owner-jim-test",
+ "bot_id": "agent-A",
+ "run_id": "gauntlet-2",
+ "created_at": "2026-11-09T15:46:28.515400+00:00",
+ "updated_at": "2026-11-09T19:30:54.937273+00:00",
+ "items": [
+  {
+   "id": "item-0001",
+   "kind": "code",
+   "captured_at_sim_s": 13.1,
+   "provenance": {
+    "where": [
+     -29.9,
+     70.5
+    ],
+    "how": "registry-collect",
+    "evidence": "run-2/summary.json"
+   },
+   "payload": {
+    "code": "MRH7KPUA",
+    "source_egg_id": "egg-bazaar-04",
+    "redeemable": true
+   },
+   "redemption": {
+    "state": "redeemed",
+    "txn_ref": "SIM-GAUNTLET-2",
+    "redeemed_at": "2026-11-09T19:30:54.937264+00:00",
+    "media_item_id": null
+   }
+  },
+  {
+   "id": "item-0002",
+   "kind": "screenshot",
+   "captured_at_sim_s": 13.1,
+   "provenance": {
+    "where": [
+     -29.9,
+     70.5
+    ],
+    "how": "look-frame",
+    "evidence": "/home/hatch/workspace/.build-tmp/experiments/gauntlet/run-2/frames/A-001.png"
+   },
+   "payload": {
+    "file": "/home/hatch/workspace/.build-tmp/experiments/gauntlet/run-2/frames/A-001.png",
+    "trigger": "claim-moment",
+    "size_bytes": 170788
+   }
+  },
+  {
+   "id": "item-0003",
+   "kind": "collectible",
+   "captured_at_sim_s": 86.4,
+   "provenance": {
+    "where": [
+     -26.3,
+     28.1
+    ],
+    "how": "sighting-collect",
+    "evidence": "run-2/frames/A-011.png"
+   },
+   "payload": {
+    "collectible_id": "egg-halo-04",
+    "name": "Visual-only egg (gauntlet)",
+    "capture_frame": "A-011.png",
+    "position": [
+     -26.0,
+     27.2
+    ],
+    "redeemable": false,
+    "tradeable": false
+   }
+  },
+  {
+   "id": "item-0004",
+   "kind": "screenshot",
+   "captured_at_sim_s": 86.4,
+   "provenance": {
+    "where": [
+     -26.3,
+     28.1
+    ],
+    "how": "look-frame",
+    "evidence": "/home/hatch/workspace/.build-tmp/experiments/gauntlet/run-2/frames/A-011.png"
+   },
+   "payload": {
+    "file": "/home/hatch/workspace/.build-tmp/experiments/gauntlet/run-2/frames/A-011.png",
+    "trigger": "discovery-frame",
+    "size_bytes": 188384
+   }
+  },
+  {
+   "id": "item-0005",
+   "kind": "memory",
+   "captured_at_sim_s": 173.2,
+   "provenance": {
+    "where": [
+     0,
+     0
+    ],
+    "how": "run-distillation",
+    "evidence": "/home/hatch/workspace/.build-tmp/experiments/gauntlet/memory/semantic-run2.json"
+   },
+   "payload": {
+    "store_path": "/home/hatch/workspace/.build-tmp/experiments/gauntlet/memory/semantic-run2.json",
+    "entries_written": 1,
+    "digest": {
+     "by_kind": {
+      "sector_searched": 1
+     },
+     "top_entries": [
+      {
+       "place_ref": "sector:S3,7",
+       "kind": "sector_searched",
+       "confidence": 0.4,
+       "note": "partly searched, no find"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "item-0006",
+   "kind": "film",
+   "captured_at_sim_s": 0.0,
+   "provenance": {
+    "where": [
+     0,
+     0
+    ],
+    "how": "run-recorder",
+    "evidence": "/home/hatch/workspace/.build-tmp/experiments/gauntlet/run-2/manifest.json"
+   },
+   "payload": {
+    "film": "/home/hatch/workspace/.build-tmp/experiments/gauntlet/run-2/film.webm",
+    "clips": {},
+    "mode": "inpage",
+    "real_fps": 0.011,
+    "duration_s": 3602.129
+   }
+  }
+ ]
+}

@@ -1,0 +1,59 @@
+{
+ "brain": {
+  "provider": "agnes-ai",
+  "model": "agnes-2.5-flash",
+  "decision_kinds": [
+   "perception",
+   "deliberation"
+  ]
+ },
+ "plan_verbs": [
+  "goto",
+  "scan",
+  "collect",
+  "done",
+  "rest"
+ ],
+ "actuation": [
+  "run_to",
+  "face"
+ ],
+ "budgets": {
+  "look_cap": 25,
+  "step_cap": 90,
+  "sim_budget_s": 2400
+ },
+ "command_channel": {
+  "verbs": [
+   "PAUSE",
+   "RECALL",
+   "AMEND"
+  ],
+  "amend_envelope": {
+   "sim_budget_extend_s": {
+    "type": "int",
+    "min": 0,
+    "max": 600
+   },
+   "look_cap_delta": {
+    "type": "int",
+    "min": -5,
+    "max": 5
+   },
+   "return_home": {
+    "type": "bool",
+    "const": true
+   },
+   "priority_place": {
+    "type": "place_id"
+   }
+  }
+ },
+ "network": {
+  "allowed_hosts": [
+   "apihub.agnes-ai.com"
+  ],
+  "web_tools": []
+ },
+ "memory_partition": "verse-only (semantic + episodic, MEMORY-DESIGN schema)"
+}

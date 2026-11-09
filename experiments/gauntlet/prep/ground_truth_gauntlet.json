@@ -1,0 +1,66 @@
+{
+ "note": "SEALED \u2014 supervisor-side truth for the onboarding gauntlet. Never served, never fetched, never in an agent prompt. The decoy reaches the page only as a one-shot __egg-inject payload (closure pattern).",
+ "spawn_a": [
+  -17.0,
+  51.2
+ ],
+ "stages": {
+  "S1": {
+   "place": "stall-11",
+   "stand": [
+    -35.0,
+    51.2
+   ],
+   "arrive_visited_m": 6.0,
+   "arrive_pos_m": 5.0
+  },
+  "S2": {
+   "designated_egg": "egg-bazaar-04",
+   "designated_pos": [
+    -30.2,
+    70.9
+   ],
+   "pass": "any published egg collected"
+  },
+  "S3": {
+   "pass_full_via": [
+    "sighting",
+    "sighting-stale"
+   ],
+   "pass_partial_via": [
+    "proximity"
+   ],
+   "targets": "any of the 15 visual-only eggs"
+  },
+  "S4": {
+   "decoy": {
+    "id": "gauntlet-decoy-01",
+    "pos": [
+     0.0,
+     15.2
+    ],
+    "scale": 0.85,
+    "carries_code": false,
+    "nearest_truth_egg": "egg-foundry-04",
+    "nearest_truth_m": 17.0,
+    "proposed_radius_m": 6.0,
+    "walked_radius_m": 2.5,
+    "touched_radius_m": 1.5
+   }
+  },
+  "S5": {
+   "return_to": [
+    -17.0,
+    51.2
+   ],
+   "return_radius_m": 4.0
+  }
+ },
+ "budgets": {
+  "sim_budget_s": 2400,
+  "step_cap": 90,
+  "look_cap": 25,
+  "wall_ceiling_s": 3600,
+  "outer_timeout_s": 4200
+ }
+}

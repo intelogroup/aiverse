@@ -1,0 +1,59 @@
+{
+ "owner_id": "owner-jim-test",
+ "bot_id": "agent-A",
+ "run_id": "gauntlet-3",
+ "created_at": "2026-11-09T19:32:31.139829+00:00",
+ "updated_at": "2026-11-09T20:33:23.360321+00:00",
+ "items": [
+  {
+   "id": "item-0001",
+   "kind": "memory",
+   "captured_at_sim_s": 33.1,
+   "provenance": {
+    "where": [
+     0,
+     0
+    ],
+    "how": "run-distillation",
+    "evidence": "/home/hatch/workspace/.build-tmp/experiments/gauntlet/memory/semantic-run3.json"
+   },
+   "payload": {
+    "store_path": "/home/hatch/workspace/.build-tmp/experiments/gauntlet/memory/semantic-run3.json",
+    "entries_written": 1,
+    "digest": {
+     "by_kind": {
+      "sector_searched": 1
+     },
+     "top_entries": [
+      {
+       "place_ref": "sector:S3,7",
+       "kind": "sector_searched",
+       "confidence": 0.4,
+       "note": "partly searched, no find"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "item-0002",
+   "kind": "film",
+   "captured_at_sim_s": 0.0,
+   "provenance": {
+    "where": [
+     0,
+     0
+    ],
+    "how": "run-recorder",
+    "evidence": "/home/hatch/workspace/.build-tmp/experiments/gauntlet/run-3/manifest.json"
+   },
+   "payload": {
+    "film": "/home/hatch/workspace/.build-tmp/experiments/gauntlet/run-3/film.webm",
+    "clips": {},
+    "mode": "screenshots",
+    "real_fps": 0.001,
+    "duration_s": 3600.018
+   }
+  }
+ ]
+}

@@ -1,0 +1,86 @@
+{
+ "n_trials": 12,
+ "n_hits": 10,
+ "hits": [
+  {
+   "model": "luna",
+   "trial": 1,
+   "dist_m": 4.0,
+   "match_err_m": 1.0,
+   "licensed": false,
+   "would_succeed": true
+  },
+  {
+   "model": "luna",
+   "trial": 2,
+   "dist_m": 4.0,
+   "match_err_m": 2.0,
+   "licensed": false,
+   "would_succeed": false
+  },
+  {
+   "model": "luna",
+   "trial": 3,
+   "dist_m": 4.0,
+   "match_err_m": 1.0,
+   "licensed": false,
+   "would_succeed": true
+  },
+  {
+   "model": "luna",
+   "trial": 4,
+   "dist_m": 4.0,
+   "match_err_m": 1.5,
+   "licensed": false,
+   "would_succeed": true
+  },
+  {
+   "model": "luna",
+   "trial": 5,
+   "dist_m": 8.0,
+   "match_err_m": 0.0,
+   "licensed": false,
+   "would_succeed": true
+  },
+  {
+   "model": "luna",
+   "trial": 6,
+   "dist_m": 8.0,
+   "match_err_m": 1.0,
+   "licensed": false,
+   "would_succeed": true
+  },
+  {
+   "model": "luna",
+   "trial": 7,
+   "dist_m": 8.0,
+   "match_err_m": 5.0,
+   "licensed": false,
+   "would_succeed": false
+  },
+  {
+   "model": "luna",
+   "trial": 10,
+   "dist_m": 15.0,
+   "match_err_m": 5.0,
+   "licensed": false,
+   "would_succeed": false
+  },
+  {
+   "model": "agnes",
+   "trial": 1,
+   "dist_m": 4.0,
+   "match_err_m": 1.1,
+   "licensed": false,
+   "would_succeed": true
+  },
+  {
+   "model": "agnes",
+   "trial": 2,
+   "dist_m": 4.0,
+   "match_err_m": 0.5,
+   "licensed": false,
+   "would_succeed": true
+  }
+ ]
+}

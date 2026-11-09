@@ -1,0 +1,46 @@
+{
+ "jev": {
+  "n": 120,
+  "acc": 0.6166666666666667,
+  "bal_acc": 0.5603448275862069,
+  "roc_auc": 0.3739224137931035,
+  "pr_auc": 0.03334846230929149,
+  "ece": 0.1413333333333334,
+  "eggs_found": 2,
+  "eggs_total": 4,
+  "egg_p": [
+   0.51,
+   0.5,
+   0.35,
+   0.34
+  ],
+  "lat_mean": 6.91645,
+  "lat_p50": 6.705500000000001,
+  "cost": 0.002073792,
+  "cost_per_call": 1.7281599999999997e-05,
+  "models": [
+   "typesafe/jev-1.14-20261014"
+  ],
+  "abst_0.7": {
+   "coverage": 0.0,
+   "n": 0,
+   "acc": null
+  },
+  "abst_0.8": {
+   "coverage": 0.0,
+   "n": 0,
+   "acc": null
+  },
+  "abst_0.9": {
+   "coverage": 0.0,
+   "n": 0,
+   "acc": null
+  },
+  "conf_wrong_hi": [],
+  "conf_wrong_lo": []
+ },
+ "luna_check": {
+  "n": 120,
+  "acc": 0.85
+ }
+}

@@ -1,0 +1,144 @@
+{
+ "python": {
+  "plan_verbs": {
+   "goto": "drive_runner.py:a_loop_drive:774",
+   "collect": "drive_runner.py:a_loop_drive:785",
+   "scan": "drive_runner.py:a_loop_drive:772",
+   "done": "drive_runner.py:a_loop_drive:768",
+   "rest": "drive_runner.py:a_loop_drive:794"
+  },
+  "actuation": {
+   "run_to": "checkpoint.py:restore_walk:452",
+   "face": "drive_runner.py:drive_b:436"
+  },
+  "llm_kinds": {
+   "perception": "drive_runner.py:stage:534",
+   "deliberation": "egg_hunt_runner_v2.py:deliberate:796"
+  },
+  "agent_keys": {
+   "__scout": "egg_hunt_runner_v2.py:amain:1077",
+   "__scoutB": "egg_hunt_runner_v2.py:amain:1078"
+  },
+  "page_methods": {
+   "snapshot": "egg_hunt_runner_v2.py:act:457",
+   "act": "egg_hunt_runner_v2.py:act:457",
+   "look": "egg_hunt_runner_v2.py:look_raw:470",
+   "ready": "egg_hunt_runner_v2.py:amain:1063",
+   "places": "egg_hunt_runner_v2.py:amain:1080"
+  },
+  "page_globals": {
+   "__scout": "egg_hunt_runner_v2.py:amain:1080",
+   "__scoutB": "egg_hunt_runner_v2.py:amain:1063",
+   "__bbGrabFrame": "drive_runner.py:main:444",
+   "__bbStore": "drive_runner.py:main:444"
+  },
+  "urls": {
+   "http://127.0.0.1:5199/?world=city3&agent=1&agent2=1&egg=1&spawnA=-17,51.2&spawnB=-17,-51.2": "egg_hunt_runner_v2.py:<module>:63",
+   "https://apihub.agnes-ai.com/v1": "egg_hunt_runner_v2.py:<module>:128",
+   "http://127.0.0.1:5199/?world=city3&agent=1&agent2=1&egg=1&streamDebug=1&spawnA=-17,51.2&spawnB=-17,-51.2": "drive_runner.py:main:245"
+  },
+  "net_imports": {
+   "egg_hunt_runner_v2.py": [
+    "urllib"
+   ]
+  },
+  "subprocess_calls": {
+   "gauntlet_runner.py": 3,
+   "drive_runner.py": 3
+  }
+ },
+ "tsx": {
+  "production": {
+   "file": "/home/hatch/workspace/.build-tmp/experiments/border/fixtures/ScoutAgent.production.tsx",
+   "globals": [
+    {
+     "name": "__scout",
+     "via": "element-access(resolved)",
+     "line": 357
+    },
+    {
+     "name": "__scoutPeer",
+     "via": "element-access(resolved)",
+     "line": 357
+    }
+   ],
+   "apis": {
+    "api": [
+     "ready",
+     "door",
+     "interact",
+     "snapshot",
+     "map",
+     "look",
+     "act",
+     "places",
+     "sittables"
+    ]
+   },
+   "action_types": [
+    "play",
+    "say"
+   ],
+   "fetch_calls": [
+    {
+     "arg": "<dynamic>",
+     "line": 188
+    }
+   ]
+  },
+  "rig": {
+   "file": "/home/hatch/tmp-pip/aiverse-experiments/apps/console/src/features/world/ScoutAgent.tsx",
+   "globals": [
+    {
+     "name": "__scout",
+     "via": "property-access",
+     "line": 700
+    },
+    {
+     "name": "__scoutB",
+     "via": "property-access",
+     "line": 701
+    }
+   ],
+   "apis": {
+    "api": [
+     "ready",
+     "door",
+     "interact",
+     "snapshot",
+     "look",
+     "act",
+     "places",
+     "sittables"
+    ],
+    "apiB": [
+     "ready",
+     "door",
+     "interact",
+     "snapshot",
+     "look",
+     "act",
+     "places",
+     "sittables"
+    ]
+   },
+   "action_types": [
+    "say"
+   ],
+   "fetch_calls": [
+    {
+     "arg": "<dynamic>",
+     "line": 208
+    },
+    {
+     "arg": "/assets/collectibles/egg-exp.json",
+     "line": 439
+    }
+   ]
+  }
+ },
+ "network_hosts": [
+  "127.0.0.1:5199",
+  "apihub.agnes-ai.com"
+ ]
+}
