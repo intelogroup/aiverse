@@ -7,6 +7,7 @@ import { useGLTF } from "@react-three/drei";
 import { CameraCollider, buildColliders, type ColliderStats } from "./CameraCollider";
 import { bakeCollisionRoot } from "./capsuleWorld";
 import { FountainWater } from "./FountainWater";
+import { EasterEggs } from "./EasterEggs";
 import type { WalkColliders } from "./walkColliders";
 import { blendTheme, collisionJobs, planDistricts, residentCollisionUrl, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
 
@@ -229,6 +230,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     <>
       <primitive object={resident.scene} />
       <FountainWater />
+      <EasterEggs activeDistricts={["bazaar", ...groups.current.keys()]} />
       <CameraCollider getMeshes={getMeshes} enabled={collide && collideDebug.current} stats={stats.current} />
     </>
   );

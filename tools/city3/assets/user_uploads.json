@@ -772,8 +772,8 @@
         "rig": "none: OBJ source",
         "license": "not supplied in archive"
       },
-      "status": "prepared derivative in open PR #55; not on main",
-      "in_world": false,
+      "status": "prepared static resident merged in PR #55",
+      "in_world": true,
       "browser_copy": {
         "path": "apps/console/public/assets/residents/mira-maid.glb",
         "sha256": "97e6d1e8e0b835175ef98931762a8d3c7c8f804ab87315c0afadb214a93110f8",
@@ -801,6 +801,30 @@
       },
       "local_source_directory": "tools/city3/assets/user_uploads/mira_maid",
       "raw_source_committed": false
+    },
+    {
+      "id": "file_00000000d25c81f6a40a957d42242b50",
+      "name": "SciFi EasterEgg",
+      "file_name": "scifi_easteregg.zip",
+      "origin": "user upload",
+      "category": "collectible / future contest hunt prop",
+      "upload_reference": "sediment://file_00000000d25c81f6a40a957d42242b50",
+      "size_bytes": 5771407,
+      "sha256": "25697ce16c75e7e3559250d35c38a945855e8ed04ec1487a8c4df3126eece198",
+      "author": "Cécile Amstad",
+      "author_url": "https://sketchfab.com/c.m.a",
+      "source": "https://sketchfab.com/3d-models/scifi-easteregg-f19c4de512794d64b00b3f5ceea62ca2",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "license_evidence": "License supplied in source archive; exact text preserved in LICENSE.txt",
+      "raw_source_committed": true,
+      "repository_path": "tools/city3/assets/scifi_easteregg/source.zip",
+      "attribution_file": "tools/city3/assets/scifi_easteregg/LICENSE.txt",
+      "public_credit": "/assets/collectibles/credits.html",
+      "status": "optimized derivative placed at 30 fixed locations across all five districts; contest inactive",
+      "in_world": true,
+      "placements": "apps/console/public/assets/collectibles/easter-eggs.json",
+      "inspection_manifest": "tools/city3/assets/scifi_easteregg/manifest.json"
     }
   ],
   "catalog_note": "Upload catalog and local inspection history. local_path records the workshop path; presence in this manifest does not mean the raw input is committed or deployed. See per-asset PR/native archive manifests for shipped status."

@@ -1,5 +1,9 @@
 # Failures log (symptom → root cause → fix)
 
+### SciFi EasterEgg simplification (2026-11-08)
+
+The uploaded Sketchfab export splits one continuous colored surface into four chunks with duplicated vertices at seams. Joining objects and decimating immediately produced torn-looking facets and a larger-than-budget 16,808-triangle mesh. Welding coincident vertices at 1 micrometre after metre normalization, then recalculating normals before decimation, produces a closed 10,000-triangle surface (282 KB). Preserve the per-corner vertex colors during welding/export. The asset test checks closed topology after deduplicating exported positions so this cannot silently regress.
+
 | # | Symptom | Root cause | Fix |
 |---|---|---|---|
 | 1 | `blender -b` render: `Couldn't open libEGL.so.1` | headless container lacks GL libs | `apt-get install libegl1 libgl1 ...` |
