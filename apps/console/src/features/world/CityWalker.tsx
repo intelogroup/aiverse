@@ -112,6 +112,7 @@ export function CityWalker({
   const state = useRef<ReturnType<typeof makeWalker> | null>(null);
   const pitch = useRef(0);
   const keys = useRef<Held>(noKeys());
+  const testIntent = useRef<WalkInput | null>(null);
   const lookAcc = useRef(0);
   const frames = useRef<AgentFrame[]>([newWalkerFrame()]);
   const figure = useRef<THREE.Group>(null);
@@ -128,6 +129,8 @@ export function CityWalker({
   const clipOverride = override ?? (ownOverride.current as WalkClipOverride);
   const interactRef = useRef(interact);
   interactRef.current = interact;
+
+  useEffect(() => () => { if(state.current) walk?.elevator?.forget(state.current); if(walk?.elevator){walk.elevator.panelOpen=false;walk.elevator.held=false;} }, [walk]);
 
   // Leave the wide camera exactly where it was.
   useEffect(() => {
@@ -168,11 +171,12 @@ export function CityWalker({
     };
     const onDown = (e: KeyboardEvent) => {
       if (typing(e)) return;
-      if (e.code === "Escape") { cbs.current.onExit(); return; }
+      if (e.code === "Escape") { if (walk?.elevator?.panelOpen) { walk.elevator.panelOpen=false; walk.elevator.held=false; return; } cbs.current.onExit(); return; }
       if (e.code === "KeyV" && !e.repeat) { cbs.current.onMode(modeRef.current === "ride" ? "follow" : "ride"); return; }
       if (e.code === "KeyE" && !e.repeat) {
         const s = state.current;
         const ia = interactRef.current;
+        if (s && walk?.elevator && walk.elevator.access(s) !== null) { walk.elevator.panelOpen = !walk.elevator.panelOpen; keys.current=noKeys(); lockedOnce=false; if (document.pointerLockElement===canvas) document.exitPointerLock(); return; }
         if (s && ia) ia.requestNearest(PLAYER, clipOverride, s);
         return;
       }
@@ -189,6 +193,7 @@ export function CityWalker({
     };
     const onPointerDown = () => {
       if (locked()) return;
+      if(walk?.elevator) walk.elevator.panelOpen=false;
       try { (canvas.requestPointerLock() as unknown as Promise<void> | undefined)?.catch?.(() => {}); } catch { /* denied: keys still work */ }
     };
     const onLockChange = () => {
@@ -210,13 +215,15 @@ export function CityWalker({
       canvas.removeEventListener("pointerdown", onPointerDown);
       if (locked()) { lockedOnce = false; document.exitPointerLock(); }
     };
-  }, [gl]);
+  }, [gl, walk]);
 
   // ?walkDebug=1: drive/inspect from tests.
   useEffect(() => {
     if (!new URLSearchParams(window.location.search).has("walkDebug")) return;
     const w = window as unknown as Record<string, unknown>;
     w.__walk = {
+      intent: (input: WalkInput | null) => { testIntent.current=input; },
+      elevator: () => walk?.elevator?.snapshot(),
       state: () => (state.current ? { ...state.current, pitch: pitch.current, mode: modeRef.current } : null),
       teleport: (x: number, z: number, heading?: number, fromY = 20) => {
         const g = world.groundY(x, z, fromY);
@@ -274,7 +281,7 @@ export function CityWalker({
     }
     const look = lookAcc.current;
     lookAcc.current = 0;
-    let input = intentFromKeys(keys.current, look);
+    let input = testIntent.current ? { ...testIntent.current } : intentFromKeys(keys.current, look);
     // Mobile Phase 1: touch merges AT the intent seam — a down stick
     // owns the move axes, the run latch ORs in, and an idle source
     // returns `input` untouched, so the desktop path is bit-identical.
@@ -282,6 +289,7 @@ export function CityWalker({
     // Tea door session (align / performance / step-through): the
     // controller's input replaces the keys outright. Consulted every
     // frame, session or not, so the door machine ticks.
+    if (walk?.elevator?.panelOpen) { input.forward=0; input.strafe=0; }
     const dtc = Math.min(delta, 0.25);
     const interactInput = interact?.drive(s, dtc, PLAYER) ?? null;
     const doorInput = door?.drive(s, dtc, input.forward > 0) ?? null;

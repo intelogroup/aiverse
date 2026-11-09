@@ -1,0 +1,18 @@
+{
+  "status": "PASS",
+  "tests": 486,
+  "files": 52,
+  "typescript": "PASS",
+  "productionBuild": "PASS",
+  "assetReproduction": 7,
+  "browser": {
+    "journey": "street \u2192 Tea House \u2192 cabin \u2192 floor 3 \u2192 cabin \u2192 G \u2192 street",
+    "teleports": 0,
+    "pageErrors": [],
+    "simulationSamples": 870,
+    "videoFrames": 40,
+    "videoFps": 2,
+    "walkingClipping": "inactivePlanes, verified at end of street-to-street journey"
+  },
+  "worldSha256": "c27d4803657e78de0f20d826bc9bd1633317879415e2b9c6a39e0c7a7ddaeb4d"
+}

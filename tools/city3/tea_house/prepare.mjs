@@ -1,5 +1,7 @@
 // Integrate only the Tea House and its audited entrance edits; retain legacy binary bytes.
 import fs from 'node:fs';
+import {furnishTeaGround} from './furnish.mjs';
+import {finishTeaUpper} from './finish-upper.mjs';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import crypto from 'node:crypto';
@@ -47,10 +49,18 @@ function edit(bytes){
     const primitive={attributes:{POSITION:accessor(positions,3),...attributes},material};
     const mi=doc.meshes.length;doc.meshes.push({primitives:[primitive]});const ni=doc.nodes.length;doc.nodes.push({name,mesh:mi,extras});doc.scenes[doc.scene??0].nodes.push(ni);return primitive;
   }
-  function box(name,rect,y0,y1,material,extras){const [x0,z0,x1,z1]=rect,v=[[x0,y0,z0],[x1,y0,z0],[x1,y0,z1],[x0,y0,z1],[x0,y1,z0],[x1,y1,z0],[x1,y1,z1],[x0,y1,z1]],faces=[[0,3,2,1],[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7],[4,5,6,7]],positions=[];
-    for(const [a,b,c,d]of faces.map(f=>f.reverse()))for(const i of[a,b,c,a,c,d])positions.push(...v[i]);return addMesh(name,positions,material,extras);
+  function boxBatch(name,boxes,material,extras){
+    const faces=[[1,2,3,0],[4,5,1,0],[5,6,2,1],[6,7,3,2],[7,4,0,3],[7,6,5,4]],positions=[];
+    for(const [[x0,z0,x1,z1],y0,y1] of boxes){
+      const v=[[x0,y0,z0],[x1,y0,z0],[x1,y0,z1],[x0,y0,z1],[x0,y1,z0],[x1,y1,z0],[x1,y1,z1],[x0,y1,z1]];
+      for(const [a,b,c,d] of faces)for(const i of [a,b,c,a,c,d])positions.push(...v[i]);
+    }
+    return addMesh(name,positions,material,extras);
   }
-  function append(addBytes,{collision=false}={}){
+  function box(name,rect,y0,y1,material,extras){
+    return boxBatch(name,[[rect,y0,y1]],material,extras);
+  }
+  function importScene(addBytes){
     const add=read(addBytes),keys=['bufferViews','accessors','images','samplers','textures','materials','meshes','nodes'],offset=Object.fromEntries(keys.map(k=>[k,(doc[k]??=[]).length]));
     const dataOffset=appendView(add.bin),payloadOffset=doc.bufferViews[dataOffset].byteOffset;
     // The payload container view itself is intentionally unused; its bytes host the remapped views.
@@ -62,20 +72,25 @@ function edit(bytes){
     function textures(v){if(!v||typeof v!=='object')return;for(const[k,x]of Object.entries(v)){if(k.endsWith('Texture')&&x&&typeof x==='object'&&x.index!==undefined)x.index+=offset.textures;else textures(x);}}
     for(const m of add.doc.materials??[]){textures(m);if(m.name==='Structure_shell')m.pbrMetallicRoughness.baseColorFactor=[.64,.40,.18,1];}
     for(const m of add.doc.meshes)for(const p of m.primitives){p.attributes=Object.fromEntries(Object.entries(p.attributes).map(([k,v])=>[k,v+offset.accessors]));if(p.indices!==undefined)p.indices+=offset.accessors;if(p.material!==undefined)p.material+=offset.materials;}
-    for(const n of add.doc.nodes){if(n.mesh!==undefined)n.mesh+=offset.meshes;if(n.children)n.children=n.children.map(i=>i+offset.nodes);if(collision)n.name='col_tea_'+n.name;}
-    // Roof and open-pose main entrance study placeholders are replaced by the original city's roof and live door.
-    const skip=new Set(add.doc.nodes.flatMap((n,i)=>n.name.includes('EXISTING_PITCHED_ROOF')?[i+offset.nodes]:[]));
-    for(const n of add.doc.nodes)if(n.name.endsWith('G_door')){
-      // Main door leaves are mixed with internal leaves: filter their 24 isolated placeholder triangles below.
-      n.extras??={};n.extras.mainDoorStudyRemoved=true;
-    }
+    for(const n of add.doc.nodes){if(n.mesh!==undefined)n.mesh+=offset.meshes;if(n.children)n.children=n.children.map(i=>i+offset.nodes);}
     for(const k of keys)doc[k].push(...(add.doc[k]??[]));
-    const root=doc.nodes.length;doc.nodes.push({name:collision?'col_tea_structure':'TeaHouseStructure',translation:[-37.5,0,-72.5],children:add.doc.scenes[add.doc.scene??0].nodes.map(i=>i+offset.nodes).filter(i=>!skip.has(i)),extras:{building:'tea',floorHeights:[.48,4.4,7.9,11.4]}});doc.scenes[doc.scene??0].nodes.push(root);
-    for(const n of doc.nodes.slice(offset.nodes,root))if(n.name.endsWith('G_door'))for(const p of doc.meshes[n.mesh].primitives)filter(n,p,ps=>ps.every(([u,y,z])=>u>13.6&&u<15.6&&z>-.95&&z<.1&&y<2.7));
     for(const k of ['extensionsUsed','extensionsRequired'])for(const e of add.doc[k]??[])if(!(doc[k]??=[]).includes(e))doc[k].push(e);
+    return {roots:add.doc.scenes[add.doc.scene??0].nodes.map(i=>i+offset.nodes),nodes:add.doc.nodes};
+  }
+  function append(addBytes,{collision=false}={}){
+    const imported=importScene(addBytes);
+    if(collision)for(const node of imported.nodes)node.name='col_tea_'+node.name;
+    const root=doc.nodes.length;
+    const children=imported.roots.filter(i=>!doc.nodes[i].name.includes('EXISTING_PITCHED_ROOF'));
+    doc.nodes.push({name:collision?'col_tea_structure':'TeaHouseStructure',translation:[-37.5,0,-72.5],children,extras:{building:'tea',floorHeights:[.48,4.4,7.9,11.4]}});
+    doc.scenes[doc.scene??0].nodes.push(root);
+    for(const n of imported.nodes)if(n.name.endsWith('G_door')){
+      n.extras??={};n.extras.mainDoorStudyRemoved=true;
+      for(const p of doc.meshes[n.mesh].primitives)filter(n,p,ps=>ps.every(([u,y,z])=>u>13.6&&u<15.6&&z>-.95&&z<.1&&y<2.7));
+    }
   }
   function write(file){doc.buffers[0].byteLength=size;let j=Buffer.from(JSON.stringify(doc));j=Buffer.concat([j,Buffer.alloc((4-j.length%4)%4,32)]);let b=Buffer.concat(chunks);b=Buffer.concat([b,Buffer.alloc((4-b.length%4)%4)]);assert(b.subarray(0,originalBin.length).equals(originalBin));const h=Buffer.alloc(12),jh=Buffer.alloc(8),bh=Buffer.alloc(8);h.writeUInt32LE(0x46546c67);h.writeUInt32LE(2,4);h.writeUInt32LE(28+j.length+b.length,8);jh.writeUInt32LE(j.length);jh.writeUInt32LE(0x4e4f534a,4);bh.writeUInt32LE(b.length);bh.writeUInt32LE(0x004e4942,4);fs.writeFileSync(file,Buffer.concat([h,jh,j,bh,b]));}
-  return {doc,attr,indices,points,filter,accessor,addMesh,box,append,write};
+  return {doc,importScene,appendView,attr,indices,points,filter,accessor,addMesh,box,boxBatch,append,write};
 }
 const local=ps=>ps.map(([x,y,z])=>[x+37.5,y,-z-72.5]);
 const inHouse=ps=>ps.every(([u,y,d])=>u>=-.001&&u<=25.001&&d>=-.001&&d<=12.001);
@@ -105,12 +120,31 @@ for(const n of [...world.doc.nodes]){
 assert.equal(changes.relocatedPlanterTriangles,32);assert.equal(changes.removedCafeTriangles,284);
 const structure=fs.readFileSync(path.join(ROOT,'docs/procedural-city/tea-house/proposed-structure.glb'));
 world.append(structure);
+const plan=JSON.parse(fs.readFileSync(path.join(ROOT,'docs/procedural-city/tea-house/plan.json')));
+
 const collision=edit(baseline('world-city3-collision.glb'));
 for(const n of collision.doc.nodes){if(n.name!=='col_heroes')continue;for(const p of collision.doc.meshes[n.mesh].primitives)changes.removed.col_heroes=collision.filter(n,p,ps=>{const q=local(ps);return inHouse(q)||q.every(([u,y,d])=>u>=13.27&&u<=15.89&&d>=-.851&&d<=.001&&y<=.49)});}
 // Subtract the lift pit from the original large ground triangles rather than deleting the island's floor.
 function clip(poly,axis,k,inside){const result=[];for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length],ai=inside(a[axis]-k),bi=inside(b[axis]-k);if(ai)result.push(a);if(ai!==bi){const t=(k-a[axis])/(b[axis]-a[axis]);result.push(a.map((x,j)=>x+(b[j]-x)*t));}}return result;}
 for(const n of collision.doc.nodes){if(n.name!=='col_ground')continue;for(const p of collision.doc.meshes[n.mesh].primitives){const positions=[];const indices=collision.indices(p);for(let i=0;i<indices.length;i+=3){let inner=collision.points(p,indices.slice(i,i+3));const pieces=[];for(const[axis,k,side]of [[0,-20.5,1],[0,-17.8,-1],[2,-84.2,1],[2,-81,-1]]){const outside=clip(inner,axis,k,x=>x*side<0);if(outside.length>=3)pieces.push(outside);inner=clip(inner,axis,k,x=>x*side>=0);if(inner.length<3)break;}for(const polygon of pieces)for(let j=1;j<polygon.length-1;j++)positions.push(...polygon[0],...polygon[j],...polygon[j+1]);}p.attributes={POSITION:collision.accessor(positions,3)};delete p.indices;}}
 collision.append(structure,{collision:true});
+finishTeaUpper(world,plan,collision);
+// Lift leaves were merged into structural lift groups in the study. Split only their panel triangles.
+const liftDoorFinish=world.doc.materials.push({name:'TeaLiftDoorBrushedBronze',
+  pbrMetallicRoughness:{baseColorFactor:[.181,.122,.068,1],metallicFactor:.56,roughnessFactor:.37}})-1;
+for(const [target,isCollision] of [[world,false],[collision,true]]){
+  for(const n of [...target.doc.nodes]){
+    if(n.mesh===undefined||!n.name.endsWith('_lift'))continue;
+    const level=n.name.match(/(?:^|_)(G|L[123])_lift$/)?.[1];if(!level)continue;
+    const floor=level==='G'?.48:4.4+(Number(level[1])-1)*3.5;
+    for(const p of target.doc.meshes[n.mesh].primitives){
+      const positions=[];
+      const removed=target.filter(n,p,ps=>{const yes=ps.every(([u,y,z])=>u>17.78&&u<18.92&&z< -8.525&&z> -8.585&&y>=floor-.001&&y<=floor+2.201);if(yes)positions.push(...ps.flat());return yes;});
+      if(removed){assert.equal(removed,24,`Lift panel split ${level}`);const v=target.addMesh(`${isCollision?'col_':''}TeaLiftDoor_${level}`,positions,isCollision?p.material:liftDoorFinish,{elevatorDoor:true,noGround:true});const added=target.doc.nodes.at(-1);added.translation=[-37.5,0,-72.5];}
+    }
+  }
+}
+
 // Close the 10 cm ground-to-slab gap, while preserving the reserved lift pit.
 const plinthMat=world.doc.materials.findIndex(m=>m.name==='Structure_slab');
 for(const [i,r]of [[-37.5,-84.5,-20.5,-72.5],[-17.8,-84.5,-12.5,-72.5],[-20.5,-84.5,-17.8,-84.2],[-20.5,-81,-17.8,-72.5]].entries()){
@@ -133,12 +167,15 @@ for(const[from,to]of [[4,5.4],[6,7.4],[8,9.4],[10,11.4]]){
   for(const row of rows.values())for(const p of row.filter((_,i)=>i%3===0).slice(0,4))props.push([p[0],+(p[1]+to-from).toFixed(3),...p.slice(2)]);
 }
 props.push(['CashRegister_01',-30.8,1.6,-81.35,Math.PI,1],['table_round',-21.5,.48,-75.9,0,1]);
+const teaCollision={id:'tea',floorY:.48,boxes:[[-21.5,-75.9,.46,.437,.48,1.34,0]],seats:[]};
+const anchors=JSON.parse(baseline('city3-anchors.json')).filter(a=>a.building!=='tea');
+furnishTeaGround(props,teaCollision,anchors);
 fs.writeFileSync(path.join(out,'interiors/tea.json'),JSON.stringify({id:'tea',library:'world-city3-library.glb',props}));
-fs.writeFileSync(path.join(out,'interiors/tea.col.json'),JSON.stringify({id:'tea',floorY:.48,boxes:[[-21.5,-75.9,.46,.437,.48,1.34,0]],seats:[]}));
+fs.writeFileSync(path.join(out,'interiors/tea.col.json'),JSON.stringify(teaCollision));
 const index=JSON.parse(baseline('interiors/index.json')),tea=index.find(r=>r.id==='tea');tea.cut.y=2.58;tea.floors=[.48,4.4,7.9,11.4];
 Object.assign(tea.interactables[0],{pos:[-21.04,1.26,-75.9],stand:[-20.55,-75.9]});
 fs.writeFileSync(path.join(out,'interiors/index.json'),JSON.stringify(index));
-let anchors=JSON.parse(baseline('city3-anchors.json'));if(Array.isArray(anchors))anchors=anchors.filter(a=>a.building!=='tea');else if(Array.isArray(anchors.anchors))anchors.anchors=anchors.anchors.filter(a=>a.building!=='tea');fs.writeFileSync(path.join(out,'city3-anchors.json'),JSON.stringify(anchors));
+fs.writeFileSync(path.join(out,'city3-anchors.json'),JSON.stringify(anchors));
 changes.runtimeSha256=sha(fs.readFileSync(path.join(out,'world-city3.glb')));changes.bottles=props.filter(p=>p[0].startsWith('bottle_')).length;
-fs.writeFileSync(path.join(out,'tea-building.json'),JSON.stringify({version:1,origin:[-37.5,0,-72.5],floorHeights:[.48,4.4,7.9,11.4],elevator:'closed',...changes},null,2)+'\n');
+fs.writeFileSync(path.join(out,'tea-building.json'),JSON.stringify({version:1,origin:[-37.5,0,-72.5],floorHeights:[.48,4.4,7.9,11.4],elevator:'runtime-controlled',...changes},null,2)+'\n');
 console.log(JSON.stringify(changes,null,2));

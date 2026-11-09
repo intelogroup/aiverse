@@ -4,6 +4,7 @@
 // district, "interior:<id>" boxes per streamed hero room. The registry owns what it is given: `drop` frees the BVH and
 // geometry. Collision meshes are never added to a scene. Three-only, no React: unit-testable.
 
+import type { TeaElevatorController } from "./teaElevator";
 import * as THREE from "three";
 import { ActorRegistry } from "./actors";
 import { disposeCollider } from "./capsuleWorld";
@@ -22,6 +23,7 @@ export interface WalkCollidersStats {
 
 export class WalkColliders {
   readonly actors = new ActorRegistry();
+  elevator?: TeaElevatorController;
   private sets = new Map<string, THREE.Mesh[]>();
   private flat: THREE.Mesh[] | null = null;
   private loads = 0;

@@ -504,6 +504,9 @@ export class SoundDirector {
     src.start();
   }
 
+  /** Lift arrival uses the existing consented, volume-controlled sound bus. */
+  elevatorChime(): void { if(this.consentState==='granted' && !this.muted && this.ctx?.state==='running') this.chime(); }
+
   /** The PA chime for clip-less announcements: two soft tones. */
   private chime(): void {
     const ctx = this.ctx;

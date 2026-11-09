@@ -152,7 +152,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     loader.load(url, (gltf) => {
       if (!isLive()) { disposeTree(gltf.scene); onDone?.(false); return; }
       const g = new THREE.Group(); if (center) g.position.set(center[0], 0, center[1]); g.add(gltf.scene); g.updateMatrixWorld(true);
-      const meshes = bakeCollisionParts(g, `collision:${key}`);
+      const meshes = bakeCollisionParts(g, `collision:${key}`, m => !(walk.elevator?.ready && m.userData.elevatorDoor));
       disposeTree(gltf.scene);
       if (meshes.length) walk.set(key, meshes, performance.now() - t0);
       onDone?.(meshes.length > 0);

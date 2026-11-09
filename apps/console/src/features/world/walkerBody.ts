@@ -24,6 +24,8 @@ export function makeWalkWorld(getMeshes: () => THREE.Mesh[], walk?: WalkCollider
   const cap = createCapsuleWorld(walk.list);
   const pick = (): World => (walk.status === "failed" ? ray : cap);
   return {
+    prepareStep: (s) => walk.elevator?.prepare(s),
+    finishStep: (s) => walk.elevator?.observe(s),
     groundY: (x, z, fromY) => pick().groundY(x, z, fromY),
     blocked: (a, b, r) => pick().blocked(a, b, r),
     kind: () => (walk.status === "ready" ? "capsule" : walk.status === "failed" ? "raycast" : "pending"),
