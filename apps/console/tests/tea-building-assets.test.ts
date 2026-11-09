@@ -133,6 +133,38 @@ it('ships distinct textured finishes, artwork and working light definitions on e
   }
   expect(new Set(paints).size).toBe(3);
 });
+it('ships a distinct restroom and elevator lobby finish on each residential floor',()=>{
+  const bytes=readFileSync(new URL('../public/assets/world-city3.glb',import.meta.url));
+  const gltf=JSON.parse(bytes.toString('utf8',20,20+bytes.readUInt32LE(12)));
+  const nodes=new Set(gltf.nodes.map((node:{name:string})=>node.name));
+  for(const suffix of ['restroom_lobby_ceramic','lift_lobby_stone']){
+    const colors=['L2','L3'].map(level=>{
+      const material=gltf.materials.find((m:{name:string})=>m.name===level+'_'+suffix);
+      expect(material.pbrMetallicRoughness.baseColorTexture.index).toBeGreaterThanOrEqual(0);
+      return material.pbrMetallicRoughness.baseColorFactor;
+    });
+    expect(colors[0]).not.toEqual(colors[1]);
+  }
+  for(const level of ['G','L1','L2','L3']){
+    expect(nodes.has(level+'_restroom_lobby_tile')).toBe(true);
+    expect(nodes.has(level+'_lift_jamb')).toBe(true);
+    expect(nodes.has('TeaLiftDoor_'+level)).toBe(true);
+  }
+});
+it('fits two sided knob hardware to every authored hinged leaf',()=>{
+  const bytes=readFileSync(new URL('../public/assets/world-city3.glb',import.meta.url));
+  const gltf=JSON.parse(bytes.toString('utf8',20,20+bytes.readUInt32LE(12)));
+  const names=new Set(gltf.nodes.map((node:{name:string})=>node.name));
+  const plan=JSON.parse(readFileSync(new URL('../../../docs/procedural-city/tea-house/plan.json',import.meta.url),'utf8'));
+  for(const level of plan.levels){
+    expect(names.has(level.id+'_door_beading')).toBe(true);
+    for(const door of level.doors.filter((door:{mode:string})=>door.mode==='hinged')){
+      const knob=level.id+'_knob_'+door.b;
+      expect(names.has(knob+'_front'),knob).toBe(true);
+      expect(names.has(knob+'_back'),knob).toBe(true);
+    }
+  }
+});
 it('moves the cut with the selected floor and the walker height on stairs',()=>{
   expect(teaCutHeight(2)).toBeCloseTo(10);expect(teaFloorAt(11.4)).toBe(3);
   expect(teaCutHeight(0,{x:-35,y:6,z:-82})).toBeCloseTo(8.1);

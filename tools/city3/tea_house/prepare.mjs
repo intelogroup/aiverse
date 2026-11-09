@@ -130,6 +130,8 @@ for(const n of collision.doc.nodes){if(n.name!=='col_ground')continue;for(const 
 collision.append(structure,{collision:true});
 finishTeaUpper(world,plan,collision);
 // Lift leaves were merged into structural lift groups in the study. Split only their panel triangles.
+const liftDoorFinish=world.doc.materials.push({name:'TeaLiftDoorBrushedBronze',
+  pbrMetallicRoughness:{baseColorFactor:[.181,.122,.068,1],metallicFactor:.56,roughnessFactor:.37}})-1;
 for(const [target,isCollision] of [[world,false],[collision,true]]){
   for(const n of [...target.doc.nodes]){
     if(n.mesh===undefined||!n.name.endsWith('_lift'))continue;
@@ -138,7 +140,7 @@ for(const [target,isCollision] of [[world,false],[collision,true]]){
     for(const p of target.doc.meshes[n.mesh].primitives){
       const positions=[];
       const removed=target.filter(n,p,ps=>{const yes=ps.every(([u,y,z])=>u>17.78&&u<18.92&&z< -8.525&&z> -8.585&&y>=floor-.001&&y<=floor+2.201);if(yes)positions.push(...ps.flat());return yes;});
-      if(removed){assert.equal(removed,24,`Lift panel split ${level}`);const v=target.addMesh(`${isCollision?'col_':''}TeaLiftDoor_${level}`,positions,p.material,{elevatorDoor:true,noGround:true});const added=target.doc.nodes.at(-1);added.translation=[-37.5,0,-72.5];}
+      if(removed){assert.equal(removed,24,`Lift panel split ${level}`);const v=target.addMesh(`${isCollision?'col_':''}TeaLiftDoor_${level}`,positions,isCollision?p.material:liftDoorFinish,{elevatorDoor:true,noGround:true});const added=target.doc.nodes.at(-1);added.translation=[-37.5,0,-72.5];}
     }
   }
 }
