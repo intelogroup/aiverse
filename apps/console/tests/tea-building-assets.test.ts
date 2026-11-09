@@ -165,6 +165,24 @@ it('fits two sided knob hardware to every authored hinged leaf',()=>{
     }
   }
 });
+it('marks the elevator, stairs, exits and room entrances in the rendered Tea House',()=>{
+  const bytes=readFileSync(new URL('../public/assets/world-city3.glb',import.meta.url));
+  const gltf=JSON.parse(bytes.toString('utf8',20,20+bytes.readUInt32LE(12)));
+  const names=new Set(gltf.nodes.map((node:{name:string})=>node.name));
+  for(const level of ['G','L1','L2','L3']){
+    for(const id of ['lift','stair-a','stair-b','exit-direction']){
+      expect(names.has(`TeaSign_${level}_${id}`)).toBe(true);
+    }
+  }
+  for(const [level,ids] of Object.entries({
+    G:['entry','left-exit','right-exit','tea-seating'],
+    L1:['tasting','salon','reading'],
+    L2:['201-living','202-living','203-living'],
+    L3:['301-living','302-living','303-living'],
+  })){
+    for(const id of ids)expect(names.has(`TeaSign_${level}_${id}`)).toBe(true);
+  }
+});
 it('moves the cut with the selected floor and the walker height on stairs',()=>{
   expect(teaCutHeight(2)).toBeCloseTo(10);expect(teaFloorAt(11.4)).toBe(3);
   expect(teaCutHeight(0,{x:-35,y:6,z:-82})).toBeCloseTo(8.1);

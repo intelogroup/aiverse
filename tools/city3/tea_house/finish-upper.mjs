@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import {fitTeaRestrooms,panelTeaCorridor,finishTeaLobby} from './fit-out.mjs';
 import {finishTeaGround} from './finish-ground.mjs';
 import {finishTeaDoors} from './finish-doors.mjs';
+import {addTeaWayfinding} from './wayfinding.mjs';
 
 const finishes = [
   { wall: [.47,.63,.43], wet: [.63,.73,.62], wood: [.48,.27,.13], ceiling: [.88,.82,.65], metal: [.49,.29,.1], light: [1,.80,.52], art: 'landscape', shade: [.97,.82,.55] },
@@ -20,6 +21,7 @@ export function finishTeaUpper(world, plan, collision) {
     return doc.textures.push({source})-1;
   };
   const plaster=image('plaster'),wood=image('wood');
+  addTeaWayfinding(plan,{mesh,material,image});
   const artwork=finishes.map(p=>image(p.art));
   function material(name,color,texture,emissive,finish={}){
     return doc.materials.push({name,pbrMetallicRoughness:{
