@@ -68,7 +68,7 @@ import { buildInteractableVisual } from "./interactableMesh";
 import { InteractTicker } from "./InteractTicker";
 import { TeaDoorLeaf, TeaDoorTicker } from "./TeaDoorLeaf";
 import { loadPercent, worldLoadPhase } from "./worldLoad";
-import { TEA_FLOORS, teaCutHeight, teaViewTargetHeight } from "./teaBuilding";
+import { TEA_FLOORS, teaCutHeight, teaEntranceView, teaViewTargetHeight } from "./teaBuilding";
 
 // GlbWorld — the modeled world (Blender-authored GLB) as the console's
 // default stage: City 3, the Sunstone Bazaar — a 360 m island (generated
@@ -172,9 +172,16 @@ function ClipCutaway({
     if (!room || !controls || walking) return;
     const v = roomView(room);
     if (room.id === "tea") {
-      const y = teaFloor === null ? 7.5 : teaViewTargetHeight(teaFloor);
-      v.target[1] = y;
-      v.position[1] = teaFloor === null ? 24 : y + 15;
+      if (teaFloor === 0) {
+        // Ground floor: stand in the entrance and look in, eye level.
+        const e = teaEntranceView(room);
+        v.position = e.position;
+        v.target = e.target;
+      } else {
+        const y = teaFloor === null ? 7.5 : teaViewTargetHeight(teaFloor);
+        v.target[1] = y;
+        v.position[1] = teaFloor === null ? 24 : y + 15;
+      }
     }
     camera.position.set(...v.position);
     controls.target.set(...v.target);
