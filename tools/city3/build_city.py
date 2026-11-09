@@ -347,8 +347,9 @@ for k in range(N):
     a0=2*math.pi*k/N; a1=2*math.pi*(k+1)/N; ptri("palette",(0,0,Z+0.9),(f["r_in"]*math.cos(a0),f["r_in"]*math.sin(a0),Z+0.9),(f["r_in"]*math.cos(a1),f["r_in"]*math.sin(a1),Z+0.9),"stone",(0,0,1))
 BENCHES=[]                                                                  # plaza benches become CC0 Sketchfab "Low Poly Medieval" benches (placed with the other SK props)
 for k in range(8):                                                           # fountain jets + benches around the basin
-    a=2*math.pi*k/8+math.pi/8; x=8.0*math.cos(a); y=8.0*math.sin(a); cyl(x,y,Z+0.6,Z+1.5,0.08,6,"stone_lt",r1=0.05); cyl(x,y,Z+1.5,Z+1.55,0.18,6,"water")
-    bx=13.0*math.cos(a); by=13.0*math.sin(a); BENCHES.append((bx,by,abs(math.cos(a))<0.7))
+    a=2*math.pi*k/8+math.pi/8; x=8.0*math.cos(a); y=8.0*math.sin(a)
+    cyl(x,y,Z+0.6,Z+0.9,0.11,8,"brass",r1=0.09); cyl(x,y,Z+0.9,Z+1.4,0.045,8,"water",r1=0.025); cyl(x,y,Z+1.4,Z+1.46,0.12,8,"water")
+    bx=14.5*math.cos(a); by=14.5*math.sin(a); BENCHES.append((bx,by,abs(math.cos(a))<0.7))
 def blob(cx,cy,cz,r,nm,seg=8,ring=5):
     def Pt(i,j):
         if j==0: return (cx,cy,cz-r*0.8)
@@ -364,14 +365,14 @@ def blob(cx,cy,cz,r,nm,seg=8,ring=5):
 ROW={"teal":0,"saffron":1,"crimson":2,"cream":3}
 GOODS=["crimson","gold","leaf","cream","water_deep","trunk_dark","orange","yellow","lime","magenta"]
 SIDE_SACKS=[]
-MEDSTALLS={i for i,_ in enumerate(P["stalls"]) if random.Random(4000+i).random()<0.35}   # ~1/3 of stalls are the CC0 Sketchfab village stall
+MEDSTALLS={i for i,_ in enumerate(P["stalls"]) if random.Random(4000+i).random()<0.65}   # most stalls use the detailed CC0 Sketchfab village stall
 for si_,s in enumerate(P["stalls"]):
     if si_ in MEDSTALLS: continue
     cx,cy=s["c"]; w,d=s["size"]; hx,hy=w/2,d/2; z=Z; sg=1 if s["facing"]=="S" else -1
     pbox(cx-hx+0.25,cy-hy+0.2,cx+hx-0.25,cy+hy-0.2,z,z+0.95,"wood"); pbox(cx-hx+0.2,cy-hy+0.15,cx+hx-0.2,cy+hy-0.15,z+0.95,z+1.0,"wood_dark")
     for px_ in (-hx,hx):
-        for py_ in (-hy,hy): pbox(cx+px_-0.06,cy+py_-0.06,cx+px_+0.06,cy+py_+0.06,z,z+2.7,"trunk")
-    row=ROW[s["canopy"]]; v0=row/4+0.02; v1=(row+1)/4-0.02; hi=z+2.85; lo=z+2.35; yb=cy+sg*(hy+0.4); yf=cy-sg*(hy+0.4)
+        for py_ in (-hy,hy): pbox(cx+px_-0.06,cy+py_-0.06,cx+px_+0.06,cy+py_+0.06,z,z+3.15,"trunk")
+    row=ROW[s["canopy"]]; v0=row/4+0.02; v1=(row+1)/4-0.02; hi=z+3.3; lo=z+2.8; yb=cy+sg*(hy+0.4); yf=cy-sg*(hy+0.4)
     for sgn in (1,-1): mb("awning").quad((cx-hx-0.3,yb,hi),(cx+hx+0.3,yb,hi),(cx+hx+0.3,yf,lo),(cx-hx-0.3,yf,lo),(0,v1),(w/2.2,v1),(w/2.2,v0),(0,v0),(0,sgn*sg*-0.45,sgn*0.9))
     for gi in range(5): rng.uniform(0.18,0.34); rng.choice(GOODS)               # the old tinted cuboids: draws kept so the city rng stream is unchanged; real goods are placed by goods.py below
     if rng.random()<0.5: barrel(cx+sg*0+hx+0.7,cy,z)
@@ -392,9 +393,8 @@ for s in P["streets"]:                                                       # b
             for (a,b) in (((c-off,t),(c+off,t)),((t,c-off),(t,c+off))):
                 if (abs(a[0])<58 and abs(a[1])<58) or (abs(b[0])<58 and abs(b[1])<58): continue
                 bunting((a[0],a[1],Z+4.6),(b[0],b[1],Z+4.6),rng)
-for k in range(8):                                                           # plaza festoon poles + string lights
-    a=2*math.pi*k/8+math.pi/8; P0=(22*math.cos(a),22*math.sin(a)); cyl(P0[0],P0[1],Z,Z+6.0,0.09,6,"iron",top=False)
-    a2=2*math.pi*(k+1)/8+math.pi/8; P1=(22*math.cos(a2),22*math.sin(a2)); string_lights((P0[0],P0[1],Z+5.9),(P1[0],P1[1],Z+5.9))
+# The plaza stays open above head height; string lights remain in the tea-house
+# courtyard, where they frame a small seating area instead of crossing the market.
 # Trees: the faceted palette blobs are replaced by the Sketchfab "Low Poly
 # Forest Tree Pack" (99.Miles, CC-BY 4.0 — assets_kit.tree_variants_sketchfab,
 # ASSETS.md), loaded with its own atlas textures: study frames showed a flat
@@ -415,6 +415,9 @@ def _tree_variants():
     _treecoll=bpy.data.collections.new("Trees"); bpy.context.scene.collection.children.link(_treecoll)
     return _treecoll
 def tree(x,y):
+    # Keep full-height foliage out of the market sightlines and stall aisles.
+    if abs(x)<60 and abs(y)<60: return
+    if any(math.hypot(x-s["c"][0],y-s["c"][1])<6.0 for s in P["stalls"]): return
     coll=_tree_variants()
     key=_trng.choices(["packtree_a","packtree_b","packtree_c"],weights=[55,35,10])[0]
     src=assets_kit.LIB[key]; h=_trng.uniform(5.0,7.0); s=h/max(src["dims"][2],1e-3)
@@ -424,7 +427,7 @@ for (x,y) in P["trees"]: tree(x,y)
 for t_ in range(-52,53,13):                                                  # plaza rim: trees in planters + benches facing the square
     for (x,y,al) in ((t_,-57.0,True),(t_,57.0,True),(-57.0,t_,False),(57.0,t_,False)):
         if abs(t_)<8: continue
-        pbox(x-0.9,y-0.9,x+0.9,y+0.9,Z,Z+0.5,"stone_lt"); pbox(x-0.8,y-0.8,x+0.8,y+0.8,Z+0.5,Z+0.52,"trunk_dark"); tree(x,y)
+        planter(x,y,Z,rng,big=True)
         BENCHES.append((x+(3.2 if not al else 0),y+(3.2 if al and y<0 else (-3.2 if al else 0)),al))
 rng.setstate(_rng_state)    # tree placement drew only from _trng; keep every later rng draw identical to the blob build
 # café sets out front of the hero + a few elsewhere handled in hero
@@ -437,10 +440,10 @@ if "tea" in HERO_INFO:
 for side,(a,bb) in {"S":((-L,-L),(L,-L)),"E":((L,-L),(L,L)),"N":((L,L),(-L,L)),"W":((-L,L),(-L,-L))}.items():
     o={"S":(0,-1),"E":(1,0),"N":(0,1),"W":(-1,0)}[side]; pquad("palette",(a[0],a[1],-3),(bb[0],bb[1],-3),(bb[0],bb[1],Z),(a[0],a[1],Z),"stone",(o[0],o[1],0))
 mb("sea").quad((-520,-520,-1.2),(520,-520,-1.2),(520,520,-1.2),(-520,520,-1.2),(-520/7.0,-520/7.0),(520/7.0,-520/7.0),(520/7.0,520/7.0),(-520/7.0,520/7.0),(0,0,1))   # the sea is its own bucket/mesh: one quad, planar UVs at the 7 m proof tile, REPEAT does the rest
-for k in range(3):                                                           # party corner festoon (cups placed later)
-    string_lights((-7.6,27+k*9.0,Z+5.0),(7.6,27+k*9.0,Z+5.0),sag=0.6)
-for k in (-1,1):
-    for y_ in (27,36,45): cyl(k*7.6,y_,Z,Z+5.1,0.07,6,"iron",top=False)
+# Keep one shorter festoon over the party-table lane; three full-width runs
+# read as utility cables across the whole Bazaar skyline.
+string_lights((-5.5,36,Z+4.8),(5.5,36,Z+4.8),sag=0.4,n=12)
+for k in (-1,1): cyl(k*5.5,36,Z,Z+4.9,0.07,6,"iron",top=False)
 # ---------------- hero door statics (instanced) ----------------
 LF=Frame((0.0,0.0),(1.0,0.0),(0.0,-1.0),0.0)
 for _st in sorted({i[0] for i in doors.INST}):
@@ -494,7 +497,7 @@ for _m in bpy.data.materials:
     if _m.name.startswith("mdvl_palette"): _m.use_backface_culling=False
 SKP=[]                                                                      # (asset, x, y, z, rot) of every placed Sketchfab prop (collision.py)
 def _skput(n,x,y,z,rot=0.0):
-    SKP.append((n,x,y,z,rot)); src,s=SK[n]; o=src.copy(); o.data=src.data; o.name=f"SK_{n}"; o.location=(x,y,z); o.rotation_euler=(0,0,rot); o.scale=(s,s,s); _skc.objects.link(o)
+    SKP.append((n,x,y,z,rot)); src,s=SK[n]; s*=1.12 if n=="med_bench" else 1.0; o=src.copy(); o.data=src.data; o.name=f"SK_{n}"; o.location=(x,y,z); o.rotation_euler=(0,0,rot); o.scale=(s,s,s); _skc.objects.link(o)
 for si_,s_ in enumerate(P["stalls"]):
     cx,cy=s_["c"]; w_,d_=s_["size"]; hx_,hy_=w_/2,d_/2
     if si_ in MEDSTALLS:                                                      # model front (scalloped awning edge) is -y; facing S keeps it, N turns it round
