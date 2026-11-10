@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { useGLTF } from "@react-three/drei";
+import { configureGltfLoader, extendGltf } from "./gltfExtensions";
 import { CameraCollider, buildColliders, type ColliderStats } from "./CameraCollider";
 import { bakeCollisionParts } from "./capsuleWorld";
 import { FountainWater } from "./FountainWater";
@@ -66,7 +67,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
   const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3 } | null;
   const [manifest, setManifest] = useState<DistrictManifest | null>(null);
   const [, bump] = useState(0);
-  const resident = useGLTF(residentUrl);
+  const resident = useGLTF(residentUrl, true, true, extendGltf(gl));
   const groups = useRef(new Map<string, THREE.Group>());
   const loading = useRef(new Set<string>());
   const stats = useRef({ loads: 0, evictions: 0, failures: 0, retries: 0, loadMs: [] as number[], events: [] as { t: number; type: string; id?: string }[], bvhMs: {} as Record<string, number>, colliderHits: 0, colliderFrames: 0, colliderMs: 0, colliderMeshes: 0 } satisfies ColliderStats & Record<string, unknown>);
@@ -120,7 +121,11 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     syncShell();
   }, [manifest]);
 
-  const loader = useMemo(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder), []);
+  const loader = useMemo(() => {
+    const l = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+    configureGltfLoader(l, gl);
+    return l;
+  }, [gl]);
   const sky = useMemo(() => {
     const mat = new THREE.ShaderMaterial({ vertexShader: SKY_VERT, fragmentShader: SKY_FRAG, side: THREE.BackSide, depthWrite: false, fog: false,
       uniforms: { top: { value: new THREE.Color() }, horizon: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3(0, 1, 0) }, sunCol: { value: new THREE.Color() } } });

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, type ReactNode, type RefObject } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
+import { extendGltf } from "./gltfExtensions";
 import * as THREE from "three";
 import type { AgentFrame, LocomotionState } from "./locomotion";
 
@@ -50,7 +51,8 @@ export function RiggedFigure({
   /** Rendered inside the moving group (e.g. a speech bubble). */
   children?: ReactNode;
 }) {
-  const gltf = useGLTF(KNIGHT_GLB_URL);
+  const gl = useThree((s) => s.gl);
+  const gltf = useGLTF(KNIGHT_GLB_URL, true, true, extendGltf(gl));
   const group = useRef<THREE.Group>(null);
 
   // Normalize the model once: uniform scale so its height is
