@@ -18,7 +18,7 @@ const specifiers = (src: string) => [...src.matchAll(/(?:from|import)\s*["']([^"
 
 // recast-navigation is the Recast/Detour WASM (cityNav.ts): no DOM, runs in Node and Bun as in the browser.
 /** Package-only modules: the console never had them, so they have no shim. */
-const SERVER_ONLY = new Set(["agentBody", "verseSim"]);
+const SERVER_ONLY = new Set(["agentBody", "verseSim", "actionProtocol", "worldService"]);
 const ALLOWED_EXTERNAL = new Set(["three", "three-mesh-bvh", "recast-navigation", "@recast-navigation/core"]);
 const BROWSER_GLOBALS = /\b(window|document|navigator|localStorage|sessionStorage|AudioContext|HTMLElement|requestAnimationFrame|location|OffscreenCanvas)\b/;
 

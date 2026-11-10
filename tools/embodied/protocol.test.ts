@@ -20,3 +20,10 @@ test("agents can choose social gestures and posture through the host", () => {
   expect(validAction({ type: "stand" })).toBe(true);
   expect(validAction({ type: "stand", point: [0, 0] })).toBe(false);
 });
+
+test("props can be used by id, but only with a bounded target name", () => {
+  expect(validAction({ type: "interact", target: "tea-radio" })).toBe(true);
+  expect(validAction({ type: "interact" })).toBe(false);
+  expect(validAction({ type: "interact", target: "x".repeat(101) })).toBe(false);
+  expect(validAction({ type: "say", text: "hi" })).toBe(false);
+});

@@ -11,11 +11,11 @@ import { bakeCollisionParts, boxesMesh } from "../src/capsuleWorld";
 import { CityNav } from "../src/cityNav";
 import { colUrl, parseColBoxes } from "../src/colBoxes";
 import type { InteractableDef } from "../src/interactables";
-import type { ScoutPlace, Sittable } from "../src/scout";
+import type { ScoutPlace, ScoutRoomShape, Sittable } from "../src/scout";
 import { VerseSim } from "../src/verseSim";
 
 interface DistrictRow { id: string; center: [number, number]; resident?: boolean; collisionUrl?: string }
-interface RoomRow { id: string; layout?: string; collision?: string; interactables?: InteractableDef[] }
+interface RoomRow { id: string; name?: string; door?: [number, number]; rect?: [number, number, number, number]; center?: [number, number]; layout?: string; collision?: string; interactables?: InteractableDef[] }
 
 export interface LoadStats {
   collisionSets: string[];
@@ -79,7 +79,8 @@ export async function loadVerseSim(assetsDir: string, opts: { navBin?: string | 
 
   const places = await readJson<ScoutPlace[]>(at(assetsDir, "/assets/city3-places.json"));
   const sittables = await readJson<Sittable[]>(at(assetsDir, "/assets/city3-anchors.json"));
-  sim.setData({ places, sittables }, rooms.flatMap((r) => r.interactables ?? []));
+  const shapes: ScoutRoomShape[] = rooms.flatMap((r) => (r.door && r.rect && r.center ? [{ id: r.id, name: r.name ?? r.id, door: r.door, rect: r.rect, center: r.center }] : []));
+  sim.setData({ places, sittables, rooms: shapes }, rooms.flatMap((r) => r.interactables ?? []));
 
   const s = sim.walk.stats();
   return { sim, stats: { collisionSets: s.sets, interiorSets, triangles: s.triangles, ms: Math.round(performance.now() - t0) } };

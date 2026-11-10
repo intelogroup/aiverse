@@ -23,10 +23,17 @@ import { createMcpRoute } from "./routes/mcp";
 import { registerAgentWsRoute, registerConsoleWsRoute, registerPublicWsRoute } from "./ws/gateway";
 import { getHuntRuntime, huntEnabled } from "./hunt";
 import { log, logError } from "./util/log";
+import { createWorldRoute } from "./routes/world";
+import { simClientFromEnv, worldEnabled, type SimClient } from "./world/simClient";
 import { captureGatewayError, fingerprintError, initGatewaySentry } from "./telemetry/sentry";
 import pkg from "../package.json";
 
-export function createApp() {
+export interface CreateAppOpts {
+  /** World sim client; tests inject an in-process one. Default: from SIM_URL + SIM_INTERNAL_SECRET when AIVERSE_WORLD_MODE=1. */
+  sim?: SimClient;
+}
+
+export function createApp(opts: CreateAppOpts = {}) {
   // Telemetry Phase 1: env-gated Sentry (no-op without SENTRY_DSN).
   initGatewaySentry();
   const app = new Hono<{ Variables: { requestId: string } }>();
@@ -218,6 +225,11 @@ export function createApp() {
     const hunt = getHuntRuntime();
     if (hunt) app.route("/", hunt.app);
   }
+  // World (apps/sim): same conditional-mount idiom. AIVERSE_WORLD_MODE=1 AND a configured sim (SIM_URL, SIM_INTERNAL_SECRET >= 32
+  // chars) mounts /world/*; otherwise the routes are absent (404) and the rest of the gateway is unaffected (fail closed, host open).
+  const sim = opts.sim ?? (worldEnabled() ? simClientFromEnv() : null);
+  if (sim) app.route("/world", createWorldRoute(sim));
+  else if (worldEnabled()) logError("world_not_mounted", new Error("AIVERSE_WORLD_MODE=1 but SIM_URL / SIM_INTERNAL_SECRET are not configured"));
   app.route("/mcp", createMcpRoute((path, authorization) => app.request(path, { headers: { authorization } })));
   registerAgentWsRoute(app);
   registerConsoleWsRoute(app);

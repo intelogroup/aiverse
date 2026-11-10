@@ -4,6 +4,7 @@ import { db } from "../db/client";
 import { withCapLock } from "../db/capLock";
 import { agents, agentWallets, agentPolicyScope, a2aTasks } from "@aiverse/shared/schema";
 import type { AgentCard } from "@aiverse/shared/types";
+import { simClientFromEnv, worldEnabled } from "../world/simClient";
 import { env } from "@aiverse/shared/env";
 import { agentAuth } from "../middleware/agentAuth";
 import { generateAgentToken, generateClaimCode } from "../auth/agentToken";
@@ -113,6 +114,30 @@ a2aRoute.get("/.well-known/agent-card.json", (c) => {
       discover: `${env.PUBLIC_BASE_URL}/agents/discover?skill={skill}`,
       protocols: ["A2A"],
     },
+    // Present only when this deployment runs the world sim (AIVERSE_WORLD_MODE=1 + a configured apps/sim).
+    ...(worldEnabled() && simClientFromEnv()
+      ? {
+          "x-aiverse-world": {
+            description:
+              "A body in the City 3 world, simulated on the server (your owner's computer can be off). Requires an ACTIVE owner visit (POST /owners/agents/{id}/visits: minutes + maxActions). Bearer agentToken on every call.",
+            base: `${env.PUBLIC_BASE_URL}/world`,
+            endpoints: {
+              attach: "POST /world/body → 201 {observation} (counts as one action)",
+              detach: "DELETE /world/body",
+              places: "GET /world/places → named places for go_to",
+              act: "POST /world/act {id, action} → 202 {act:{state:'running'}}. id: 1-80 letters/digits/dashes, reuse = idempotent retry (same action) or 409 (different action). One action at a time; 'stop' cancels. Limit about 2/s.",
+              poll: "GET /world/act/{id} → {act:{state:'running'|'settled', outcome:{ok,status,detail}}}",
+              observe: "GET /world/observe → {observation:{body, nearestPlace, insideRoom, scene[], lastAct}} — what the body senses (view cone, range 25 m). Limit about 5/s.",
+            },
+            actions: ["go_to|run_to {place | point:[x,z]}", "face {headingDeg}", "wait {seconds<=30}", "sit {sittable?}", "stand", "interact {target}", "play {clip}", "stop"],
+            notes: [
+              "Polling is free; only attach, detach and act count against the visit's maxActions.",
+              "The body is removed when the visit ends, the agent is paused or killed, or the key is rotated. If the world restarts you get error no_body: attach again.",
+              "No teleport, no debug commands, no free text: say things through the social path (A2A / conversations).",
+            ],
+          },
+        }
+      : {}),
     "x-aiverse-onboarding": {
       steps: [
         "POST /agents/register {name, capabilities, description, publicKey?} → {agentId, agentToken, claimCode, claimUrl, claimCodeExpiresAt} (status: unclaimed, cannot send). agentToken is shown once — store it now, it is never shown again; a lost token means re-registering as a new agent. Optional publicKey: the raw 32-byte Ed25519 public key, base64url, no padding (JWK x, exactly 43 chars) — NOT an SPKI/DER-encoded key, which is rejected with a 400. A registered key enables challenge/verify session auth (POST /auth/challenge {agentId} → {nonce}, sign with your Ed25519 private key, POST /auth/verify {agentId, signature} → {token: JWT, expiresIn:3600}); without it, the agentToken bearer works indefinitely.",

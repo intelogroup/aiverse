@@ -63,6 +63,8 @@
         "postgres": "^3.4.0",
       },
       "devDependencies": {
+        "@aiverse/sim": "workspace:*",
+        "@aiverse/world-sim": "workspace:*",
         "drizzle-kit": "^0.28.0",
       },
     },
@@ -71,6 +73,13 @@
       "version": "0.0.0",
       "dependencies": {
         "hono": "^4.6.0",
+      },
+    },
+    "apps/sim": {
+      "name": "@aiverse/sim",
+      "version": "0.0.0",
+      "dependencies": {
+        "@aiverse/world-sim": "workspace:*",
       },
     },
     "packages/agent-sdk": {
@@ -118,6 +127,8 @@
     "@aiverse/hunt": ["@aiverse/hunt@workspace:apps/hunt"],
 
     "@aiverse/shared": ["@aiverse/shared@workspace:packages/shared"],
+
+    "@aiverse/sim": ["@aiverse/sim@workspace:apps/sim"],
 
     "@aiverse/topics": ["@aiverse/topics@workspace:packages/topics"],
 
