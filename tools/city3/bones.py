@@ -400,7 +400,24 @@ if __name__ == "__main__":
             du, dv = Lo["door"]
             if ed:   # same rotation as the boxes
                 du, dv = D2 - dv, du
-            data.append(dict(id=lot["id"], face=lot["face"], rect=lot["rect"],
+            # clear room rects + the door point on each room's partition wall
+            # (plan frame), for furnish_bones.py
+            g, rot = Lo["geom"], (lambda u, v: (D2 - v, u)) if ed else (lambda u, v: (u, v))
+            pp = lambda u, v: [round(c, 3) for c in mp(*rot(u, v))]
+            rooms = []
+            for fi, zf in enumerate(Lo["FL"]):
+                for xi, xr in enumerate(g["X_ROOMS"]):
+                    for tag, ys in (("S", g["Y_S"]), ("N", g["Y_N"])):
+                        if not ys:
+                            continue
+                        a, b = pp(xr[0], ys[0]), pp(xr[1], ys[1])
+                        dy = ys[1] if tag == "S" else ys[0]
+                        rooms.append(dict(
+                            floor=fi, z=round(zf, 3), tag=tag, i=xi,
+                            street=(fi == 0 and tag == "S" and not ed and xi == len(g["X_ROOMS"]) // 2),
+                            rect=[min(a[0], b[0]), min(a[1], b[1]), max(a[0], b[0]), max(a[1], b[1])],
+                            door=pp((xr[0] + xr[1]) / 2, dy)))
+            data.append(dict(id=lot["id"], face=lot["face"], rect=lot["rect"], rooms=rooms,
                              door=[round(c, 3) for c in mp(du, dv)],
                              ramps=prisms,
                              floors=FLOORS.get(lot["id"], lot["floors"]), L=lot["L"], Dp=lot["Dp"],
