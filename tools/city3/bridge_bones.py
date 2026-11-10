@@ -66,18 +66,25 @@ def box_mesh(boxes, role):
 
 
 # role -> (image already embedded in the GLB, linear tint, tile size in metres)
-TEX = {"shell": ("plaster", (1.0, 0.93, 0.82), 3.0),
-       "partition": ("plaster", (1.0, 0.97, 0.92), 3.0),
+# walls use `interior_wall` (cream plaster over a dark wood dado) with one tile
+# per storey, so the dado sits on every floor; partitions get a per-shop paint
+PAINT = [(1.00, 0.66, 0.52), (0.72, 0.86, 0.70), (1.00, 0.84, 0.50),
+         (0.66, 0.80, 0.95), (1.00, 0.72, 0.74), (0.95, 0.90, 0.78)]
+STOREY_TILE = 3.8
+TEX = {"shell": ("interior_wall", (1.0, 0.95, 0.86), STOREY_TILE),
+       "partition": ("interior_wall", None, STOREY_TILE),   # tint = PAINT[lot id]
        "slab": ("wood_floor", (1.0, 1.0, 1.0), 2.5),
        "stair": ("wood_floor", (0.9, 0.9, 0.9), 2.5),
        "landing": ("wood_floor", (0.9, 0.9, 0.9), 2.5),
        "roof": ("roof_clay2_d", (1.0, 1.0, 1.0), 1.5)}
 
 
-def planar_uv(pos, nrm, tile):
+def planar_uv(pos, nrm, tile, floors=None):
     """Per-vertex UV, absolute world metres / tile projected on each face plane
     (tangent = n x up, flat faces use +x), so tiling stays continuous across
-    boxes that share a plane. v grows downward, textures stand upright."""
+    boxes that share a plane. v grows downward, textures stand upright.
+    With `floors` (GLB floor heights) vertical faces measure v from the floor
+    below each vertex, so a wall texture restarts on every storey."""
     p, n = np.asarray(pos, "f8"), np.asarray(nrm, "f8")
     up = np.array([0.0, 1.0, 0.0])
     t1 = np.cross(n, up)
@@ -86,6 +93,12 @@ def planar_uv(pos, nrm, tile):
     t1 /= np.linalg.norm(t1, axis=1)[:, None]
     t2 = np.cross(n, t1)
     uv = np.stack([(p * t1).sum(1), (p * t2).sum(1)], 1) / tile
+    if floors is not None:
+        fl = np.asarray(sorted(floors), "f8")
+        y = p[:, 1]
+        fb = fl[np.clip(np.searchsorted(fl, y + 0.05, side="right") - 1, 0, None)]
+        v = np.abs(n[:, 1]) < 0.5
+        uv[v, 1] = -(y[v] - fb[v]) / tile
     return uv.astype("<f4")
 
 
@@ -157,10 +170,16 @@ def add_bones(glb, lot, cache, roles, collision):
         attrs = {"POSITION": pa, "NORMAL": na}
         if not collision and role in TEX:   # visual: textured, UV in metres / tile
             img, tint, tile = TEX[role]
-            uv = planar_uv(pos, nrm, tile)
+            wall = role in ("shell", "partition")
+            uv = planar_uv(pos, nrm, tile,
+                           [f + FLOOR_Y for f in lot["FL"]] if wall else None)
             attrs["TEXCOORD_0"] = add_accessor(glb, add_view(glb, uv.tobytes(), 34962),
                                                5126, len(uv), "VEC2")
-            mat = add_tex_material(glb, cache, "bones_%s_tex" % role, img, tint)
+            name = "bones_%s_tex" % role
+            if tint is None:                        # per-shop paint
+                k = lot["id"] % len(PAINT)
+                name, tint = "%s_%d" % (name, k), PAINT[k]
+            mat = add_tex_material(glb, cache, name, img, tint)
         else:
             mat = add_material(glb, cache, "bones_" + role,
                                COL.get(role, COL["stair"]), False)
@@ -585,7 +604,7 @@ def main():
     if not a.signs:
         print("visual", json.dumps(patch(a.visual, data, False, a.dry_run)))
         print("collision", json.dumps(patch(a.collision, data, True, a.dry_run)))
-        if not a.dry_run:
+        if not a.dry_run and not REBUILD:     # rebuild keeps furnish_bones.py output
             clear_sidecars(assets, data)
     idx = (json.load(open(os.path.join(assets, "interiors", "index.json")))
            if a.dry_run else fix_cut(assets, data))
