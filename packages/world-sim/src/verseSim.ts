@@ -9,7 +9,7 @@ import { BODY_REMY } from "./bodies";
 import type { CityNav } from "./cityNav";
 import { boxesMesh, createCapsuleWorld } from "./capsuleWorld";
 import { InteractController, type InteractableDef } from "./interactables";
-import type { ScoutPlace, Sittable } from "./scout";
+import type { ScoutPlace, ScoutRoomShape, Sittable } from "./scout";
 import { TEA_BLOCKER_BOX, TeaDoorController, type TeaDoorChannel } from "./teaDoor";
 import { WalkColliders } from "./walkColliders";
 import type { World } from "./walker";
@@ -20,6 +20,8 @@ const NO_CHANNEL: TeaDoorChannel = { fireDoor: () => false, doorPlaying: false }
 export interface VerseData {
   places: ScoutPlace[];
   sittables: Sittable[];
+  /** Room footprints and doors, for the scene a body senses (`oracleScene`). */
+  rooms?: ScoutRoomShape[];
 }
 
 export type AddBodyOpts = Pick<AgentBodyDeps, "spawn"> & { id: string; hipsY?: number };
@@ -33,7 +35,7 @@ export class VerseSim {
   t = 0;
   /** Optional baked navmesh handed to every new body as its route planner. */
   nav: CityNav | undefined;
-  private data: VerseData = { places: [], sittables: [] };
+  private data: VerseData = { places: [], sittables: [], rooms: [] };
   private readonly bodies = new Map<string, AgentBody>();
   private readonly staticWorld: World;
   private readonly planningWorld: World;
@@ -65,6 +67,9 @@ export class VerseSim {
     this.data = data;
     this.interact.register(interactables);
   }
+
+  get places(): ScoutPlace[] { return this.data.places; }
+  get rooms(): ScoutRoomShape[] { return this.data.rooms ?? []; }
 
   /** True once the resident collision is loaded (a body cannot find ground before that). */
   get ready(): boolean { return this.walk.status === "ready"; }

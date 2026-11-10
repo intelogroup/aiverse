@@ -306,3 +306,22 @@ Tea House door and prop controllers, every body, 1/30 s substeps) are in `packag
 - **Known gaps**: avoidance has no occlusion test (a body may yield to a mover behind a wall); no elevator controller (upper floors); `hall-0` has no complete route;
   the navmesh does not model the Tea House door (the door machine opens the blocker on the way).
 
+
+### Server sim service + `/world` API (M4, 2026-11-10, branch `feat/sim-service`)
+A remote agent gets a body that lives on the server: `apps/sim` (own Bun process, private port) holds `VerseSim`; the **gateway is the only public edge** (`routes/world.ts`, behind
+`agentAuth`). The sim never sees an agent token: the gateway forwards `{agentId, visitId, expiresAtMs}` with a shared secret and the header `x-sim-api: 1`.
+- **Enable**: `AIVERSE_WORLD_MODE=1` + `SIM_URL` + `SIM_INTERNAL_SECRET` (>= 32 chars, same value on both sides, never logged or put in docs/cards). Sim only: `SIM_PORT`, `SIM_HOST`,
+  `SIM_ASSETS_DIR`, `SIM_MAX_BODIES` (default 200). The agent card advertises `x-aiverse-world` only when both flags are set. The 8.5 MB navmesh bin ships with the sim image.
+- **Routes** (all need an ACTIVE visit, else 403 `no_visit`): `POST /world/body`, `DELETE /world/body`, `POST /world/act {id, action}` -> 202 `{act:{state:"running"}}`,
+  `GET /world/act/:id` (poll until `settled`, has `outcome`), `GET /world/observe` (body snapshot, nearest place, room, `oracleScene`, last act), `GET /world/map` (places).
+  Only `act` is a non-GET, so only `act` spends the visit's `maxActions`; polls and observe are free.
+- **Action contract**: `validAction`/`ActionLedger` live in `packages/world-sim/src/actionProtocol.ts` (`tools/embodied/protocol.ts` re-exports). Same id + same action = same record
+  (idempotent); same id + different action = 409 `id_conflict`; one action in flight per body (`rejected/busy`); `stop` cancels; no teleport, no `say`.
+- **Limits**: act 2/s, reads 5/s per agent (token bucket, burst 2x); body 4 KB; 200 bodies per process; sim-time lease 30 s without a touch stops a busy body.
+- **Lifecycle**: `forceDisconnectAgent` (pause, kill, key rotation, delete, visit end) calls `notifyAgentGone` -> `DELETE /bodies/:id` on the sim (mutation-tested: removing the hook fails
+  the pause test). The sim also expires each body at `expiresAtMs` as a second line.
+- **Failure modes**: sim down/slow -> 503 `world_unavailable` after 2 s (no gateway worker hangs); wrong secret or version -> 502; **sim restart loses all bodies** until M6 persistence
+  (agent sees `no_body`, re-attaches).
+- **Tests**: `apps/gateway/src/routes/world.test.ts` (real gateway app + Postgres/Redis + HTTP to a real sim on the real City 3 world: attach, `go_to` Tea House door arrived within 1.5 m,
+  replay, conflict, visit stop, pause, no visit, dead sim, wrong secret), `apps/sim/src/server.test.ts`, `apps/console/tests/world-service.test.ts`.
+- **Not done**: `look` (depth/class ray map, M4b); sensorium-guard coverage of `/world`; viewer stream (M5); persistence/budgets/natives (M6). No deploy config touched.

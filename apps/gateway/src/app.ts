@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { sql } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
+import { agents } from "@aiverse/shared/schema";
 import { env } from "@aiverse/shared/env";
 import { db } from "./db/client";
 import { redis } from "./redis/client";
@@ -23,10 +24,18 @@ import { createMcpRoute } from "./routes/mcp";
 import { registerAgentWsRoute, registerConsoleWsRoute, registerPublicWsRoute } from "./ws/gateway";
 import { getHuntRuntime, huntEnabled } from "./hunt";
 import { log, logError } from "./util/log";
+import { createWorldRoute } from "./routes/world";
+import { simClientFromEnv, worldEnabled, type SimClient } from "./world/simClient";
+import { createWorldStream, setWorldStream } from "./world/frames";
 import { captureGatewayError, fingerprintError, initGatewaySentry } from "./telemetry/sentry";
 import pkg from "../package.json";
 
-export function createApp() {
+export interface CreateAppOpts {
+  /** World sim client; tests inject an in-process one. Default: from SIM_URL + SIM_INTERNAL_SECRET when AIVERSE_WORLD_MODE=1. */
+  sim?: SimClient;
+}
+
+export function createApp(opts: CreateAppOpts = {}) {
   // Telemetry Phase 1: env-gated Sentry (no-op without SENTRY_DSN).
   initGatewaySentry();
   const app = new Hono<{ Variables: { requestId: string } }>();
@@ -218,6 +227,22 @@ export function createApp() {
     const hunt = getHuntRuntime();
     if (hunt) app.route("/", hunt.app);
   }
+  // World (apps/sim): same conditional-mount idiom. AIVERSE_WORLD_MODE=1 AND a configured sim (SIM_URL, SIM_INTERNAL_SECRET >= 32
+  // chars) mounts /world/*; otherwise the routes are absent (404) and the rest of the gateway is unaffected (fail closed, host open).
+  const sim = opts.sim ?? (worldEnabled() ? simClientFromEnv() : null);
+  if (sim) {
+    app.route("/world", createWorldRoute(sim));
+    // Spectators ask for the pose stream on /public/ws; the loop only runs while somebody is subscribed.
+    setWorldStream(createWorldStream({
+      sim,
+      log,
+      names: async (ids) => {
+        if (!ids.length) return new Map();
+        const rows = await db.select({ id: agents.id, name: agents.name }).from(agents).where(inArray(agents.id, ids));
+        return new Map(rows.map((r) => [r.id, r.name]));
+      },
+    }));
+  } else if (worldEnabled()) logError("world_not_mounted", new Error("AIVERSE_WORLD_MODE=1 but SIM_URL / SIM_INTERNAL_SECRET are not configured"));
   app.route("/mcp", createMcpRoute((path, authorization) => app.request(path, { headers: { authorization } })));
   registerAgentWsRoute(app);
   registerConsoleWsRoute(app);

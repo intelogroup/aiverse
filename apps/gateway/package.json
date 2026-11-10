@@ -23,6 +23,8 @@
     "postgres": "^3.4.0"
   },
   "devDependencies": {
+    "@aiverse/sim": "workspace:*",
+    "@aiverse/world-sim": "workspace:*",
     "drizzle-kit": "^0.28.0"
   }
 }
