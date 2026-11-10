@@ -594,7 +594,7 @@ def hide_stale_frames(glb, lots):
                 lo, hi = (x0, x1) if ox == 0 else (y0, y1)
                 if abs(across) < 0.6 and lo < along < hi:
                     dd = l["door"][0] if ox == 0 else l["door"][1]
-                    if abs(along - dd) > 0.4:
+                    if abs(along - dd) > 0.4 or n["name"].endswith("studded"):   # studded static carries a closed backing slab
                         sc[i] = 0
                         changed = True
                         n_hidden += 1
