@@ -123,3 +123,11 @@ The uploaded Sketchfab export splits one continuous colored surface into four ch
 - Recast drops stair flights built from stacked step boxes in the navmesh bake; the collision GLB carries a 30 degree ramp prism per flight (visual keeps the steps), plus a separate landing box, or the two flights are not connected.
 - A cut that tests triangle centroids against the lot rect leaves awnings, signs, planters and door steps hanging off the street wall: pad the street side by 1.5 m (`bridge_bones.FRONT_PAD`). Hero-room furniture lives in `interiors/shop-N.json` and `.col.json`; empty both or old boxes stand in the new corridors.
 - Check: a route test from the street door to every room on every floor must end on the right floor (compare the last waypoint height, not only the XZ gap).
+
+## Bones rollout, 76 market lots (2026-11-10)
+- `bridge_bones.py --lots all` replaced every market lot except shop-102 (Tea House). Check: `bun run tools/city3/nav_bones_check.ts` (street door to corridor centre on each floor), 76/76 pass.
+- shop-166 upper floor never connected in the navmesh. Mirroring the stair core did not help; cause not found. Replaced by a one-storey building (`FLOORS` in `bones.py`) instead of debugging. Rule: replace broken mesh, do not fight it.
+- Navmesh is fragmented: start a route from a street pocket and most of the city reads "unreachable". Start route tests at the plaza (0, 0.2, 18).
+- `index.json` `door` is in GLB z (`-plan y`), not plan y.
+- Edge landscape vs rebaked navmesh: 698/715 yard sample points reachable from the plaza; 17 unreachable (outer rim, not investigated).
+- Visual GLB 47.6 -> 57.8 MB. Dead bytes are negligible (3 unused views); growth is the uncompressed `Bones_shop*` nodes.
