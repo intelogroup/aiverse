@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { CLIP_BY_NAME, CLIP_CATALOG, ClipTestState, clipDef } from "./clips";
+import { BODIES } from "./bodies";
+import { CLIP_BY_NAME, CLIP_CATALOG, ClipTestState, clipDef, clipTesterYield } from "./clips";
 
 describe("clip catalog", () => {
   it("carries 52 clips with unique names", () => {
@@ -80,5 +81,34 @@ describe("ClipTestState — the panel tester machine", () => {
     t.fire("Victory");
     expect(t.fire("Idle")).toBe(true);
     expect(t.current).toBeNull();
+  });
+});
+
+describe("clipTesterYield — the tester/body-layer yield", () => {
+  // The regression (2026-11-10): firing a body's resting clip from
+  // the clip tester damped the body-layer idle to zero while the
+  // tester created no overlay for it — the figure froze. Every body
+  // in the registry pins the exemption for its own clip names.
+  for (const body of Object.values(BODIES)) {
+    it(`${body.id}: firing its resting clip (${body.clips.idle}) never yields the body layer`, () => {
+      expect(clipTesterYield(body.clips.idle, body.clips.walk, body.clips.idle, 1)).toBe(0);
+      expect(clipTesterYield(body.clips.idle, body.clips.walk, body.clips.idle, 0.85)).toBe(0);
+    });
+
+    it(`${body.id}: firing Walk never yields the body layer`, () => {
+      expect(clipTesterYield(body.clips.walk, body.clips.walk, body.clips.idle, 1)).toBe(0);
+    });
+  }
+
+  it("a regular catalog clip yields the body layer by the full tester weight", () => {
+    const body = Object.values(BODIES)[0];
+    expect(clipTesterYield("Clapping", body.clips.walk, body.clips.idle, 0.85)).toBe(0.85);
+    expect(clipTesterYield("Clapping", body.clips.walk, body.clips.idle, 1)).toBe(1);
+    expect(clipTesterYield("Clapping", body.clips.walk, body.clips.idle, 0)).toBe(0);
+  });
+
+  it("no fired clip means no yield beyond the (zero) tester weight", () => {
+    const body = Object.values(BODIES)[0];
+    expect(clipTesterYield(null, body.clips.walk, body.clips.idle, 0)).toBe(0);
   });
 });

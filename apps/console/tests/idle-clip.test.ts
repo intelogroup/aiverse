@@ -23,13 +23,25 @@ function load(url: string): { doc: Doc; bin: Buffer } {
   return { doc, bin: buf.subarray(binStart, binStart + buf.readUInt32LE(20 + jlen)) };
 }
 
+// Accessor decoders for the encodings the shipped GLBs actually use:
+// float32 on the unquantized bodies, int16-normalized on the quantized
+// ones (remy/summer — gltfpack stores their rotation keys as 5122).
+// Both encode the same float values; the assertions below are unchanged.
+const COMPONENT = {
+  5126: { bytes: 4, read: (bin: Buffer, o: number) => bin.readFloatLE(o) },
+  5122: { bytes: 2, read: (bin: Buffer, o: number) => Math.max(-1, bin.readInt16LE(o) / 32767) },
+} as const;
+
 function floats(doc: Doc, bin: Buffer, acc: number, comps: number): number[][] {
   const a = doc.accessors[acc];
-  expect(a.componentType, "float accessor").toBe(5126);
+  const ct = COMPONENT[a.componentType as keyof typeof COMPONENT];
+  expect(ct, `decodable accessor (componentType ${a.componentType})`).toBeTruthy();
   const bv = doc.bufferViews[a.bufferView];
-  const stride = bv.byteStride ?? comps * 4;
+  const stride = bv.byteStride ?? comps * ct.bytes;
   const base = (bv.byteOffset ?? 0) + (a.byteOffset ?? 0);
-  return Array.from({ length: a.count }, (_, i) => Array.from({ length: comps }, (_, k) => bin.readFloatLE(base + i * stride + k * 4)));
+  return Array.from({ length: a.count }, (_, i) =>
+    Array.from({ length: comps }, (_, k) => ct.read(bin, base + i * stride + k * ct.bytes)),
+  );
 }
 
 const angle = (p: number[], q: number[]) => {
