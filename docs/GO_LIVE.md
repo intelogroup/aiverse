@@ -19,7 +19,7 @@ console + gateway; hunt backup/restore endpoints merged and exercised
 settings** (last run 2026-10-11), so deploys are verified manually via
 `/version` gitSha; and the Neon plan was **not** upgraded — the PITR
 window is still 6 h, partly covered by a self-managed pg_dump cron
-(`aiverse-neon-backup`, first-run verification in flight).
+(`aiverse-neon-backup` — first run + restore-verify proven 2026-11-10; daily 08:00 UTC, autodeploy on).
 
 ## Relaunch checklist (drafted 2026-09-24 — service currently suspended)
 
@@ -266,7 +266,7 @@ Prod verified **suspended** on Render (503 "suspended by its owner") on
   backup, and a rehearsed restore into the Virginia gateway. Neon
   still relies on its 6 h PITR window (free plan — the §A upgrade was
   never executed) plus the new self-managed pg_dump cron to R2
-  (first-run verification in flight). Still open: a sealed offline
+  (first run + restore-verify proven 2026-11-10 — artifact restored: 36 tables, 43/43 migrations; daily 08:00 UTC, autodeploy on). Still open: a sealed offline
   backup of `HUNT_CODE_KEY`.
 
 - No content moderation / spam filtering of message bodies. Abuse
