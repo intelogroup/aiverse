@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useSyncExternalStore, type RefObject } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
+import { extendGltf } from "./gltfExtensions";
 import * as THREE from "three";
 import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { verticalExcess, type AgentFrame } from "./locomotion";
@@ -153,7 +154,8 @@ export function CastFigure({
   // Mobile Phase 3: at the lite tier a body with a Lite variant
   // (bodies.ts liteUrl — resampled/quantized) loads that instead.
   const quality = useSyncExternalStore(qualityStore.subscribe, qualityStore.getSnapshot);
-  const gltf = useGLTF(quality.tier === "lite" && body.liteUrl ? body.liteUrl : body.url);
+  const gl = useThree((s) => s.gl);
+  const gltf = useGLTF(quality.tier === "lite" && body.liteUrl ? body.liteUrl : body.url, true, true, extendGltf(gl));
   const group = useRef<THREE.Group>(null);
 
   // Own skeleton + own scene graph per cast member, shown at the body's display scale (bodies.ts: realistic heights).

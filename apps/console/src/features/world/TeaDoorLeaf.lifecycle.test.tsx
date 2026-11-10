@@ -7,7 +7,7 @@ import { TEA_DOOR_ORIGIN, TEA_GROUND_Y, TeaDoorController } from "./teaDoor";
 
 const fixture = vi.hoisted(() => ({ scene: null as unknown as THREE.Group }));
 vi.mock("@react-three/drei", () => ({ useGLTF: () => fixture }));
-vi.mock("@react-three/fiber", () => ({ useFrame: () => {} }));
+vi.mock("@react-three/fiber", () => ({ useFrame: () => {}, useThree: () => ({ gl: {} }) }));
 import { TeaDoorLeaf } from "./TeaDoorLeaf";
 
 it("keeps static leaves removed through StrictMode cleanup/remount, restoring on unmount", () => {

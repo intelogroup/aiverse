@@ -4,6 +4,7 @@ import { VerseRecorder } from "./VerseRecorder";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, useGLTF, useProgress } from "@react-three/drei";
+import { extendGltf } from "./gltfExtensions";
 import * as THREE from "three";
 import { DistrictWorld } from "./DistrictWorld";
 import { buildColliders } from "./CameraCollider";
@@ -372,7 +373,7 @@ function StreamedRooms({
   interact?: InteractController;
 }) {
   const gl = useThree((s) => s.gl);
-  const library = useGLTF(CITY3_LIBRARY_URL);
+  const library = useGLTF(CITY3_LIBRARY_URL, true, true, extendGltf(gl));
   const assets = useMemo(() => indexLibrary(library.scene), [library]);
   // Pay the texture-upload cost once, here, instead of as a hitch the first time a room draws.
   useEffect(() => {

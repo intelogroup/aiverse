@@ -7,6 +7,7 @@
 import { readFile } from "node:fs/promises";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { bakeCollisionParts, boxesMesh } from "../src/capsuleWorld";
 import { CityNav } from "../src/cityNav";
 import { colUrl, parseColBoxes } from "../src/colBoxes";
@@ -34,7 +35,7 @@ async function readJson<T>(path: string): Promise<T> {
 async function glbScene(path: string): Promise<THREE.Group> {
   const buf = await readFile(path);
   const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
-  return (await new GLTFLoader().parseAsync(ab, "")).scene;
+  return (await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(ab, "")).scene;
 }
 
 /** The baked navmesh shipped with the package (see bakeNavmesh.ts). */

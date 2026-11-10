@@ -1,4 +1,5 @@
 import { useGLTF } from "@react-three/drei";
+import { extendGltf } from "./gltfExtensions";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
@@ -18,7 +19,8 @@ const NEAR_METRES = 85;
 
 /** Shared geometry/materials, instanced by district. These are future hunt props, not collectible prizes yet. */
 function EggInstances({ placements, activeDistricts }: { placements: EggPlacement[]; activeDistricts: string[] }) {
-  const gltf = useGLTF(MODEL);
+  const gl = useThree((s) => s.gl);
+  const gltf = useGLTF(MODEL, true, true, extendGltf(gl));
   const { scene, camera } = useThree();
   const batches = useRef<Batch[]>([]);
   const elapsed = useRef(Infinity);
