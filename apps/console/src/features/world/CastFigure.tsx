@@ -7,7 +7,7 @@ import { verticalExcess, type AgentFrame } from "./locomotion";
 import type { FigureOverride, SitPhase } from "./embody";
 import { BODY_CAST, sitClipForPhase, type BodyDef } from "./bodies";
 import { qualityStore } from "./quality";
-import { CLIP_CATALOG, clipDef, type ClipTestState } from "./clips";
+import { CLIP_CATALOG, clipDef, clipTesterYield, type ClipTestState } from "./clips";
 import { approach, cycleRateFor, gaitTargets, runTimeForWalkPhase, type GaitSpec } from "./gait";
 import { clipMinClearance, contactPoints, groundingOffset, rootMotionDelta, soleClearance } from "./grounding";
 import { FootLock, footLockEnabled } from "./footLock";
@@ -485,14 +485,10 @@ export function CastFigure({
     ) {
       effAction.setEffectiveWeight(0);
     }
-    // Walk and the resting clip are exempt from the yield: the sync
-    // above creates no tester overlay for either (the body layer owns
-    // them), so damping them leaves no action at effective weight —
-    // firing body.clips.idle ("IdleLong") froze the figure outright.
-    const yieldEff =
-      activeTest.current === body.clips.walk || activeTest.current === body.clips.idle
-        ? 0
-        : testEff;
+    // Walk and the resting clip are exempt from the yield (see
+    // clipTesterYield in clips.ts): the sync above creates no tester
+    // overlay for either, so damping them would freeze the figure.
+    const yieldEff = clipTesterYield(activeTest.current, body.clips.walk, body.clips.idle, testEff);
     // ---- Body-controller turn clip ----
     const ctrl = f?.body && !ov && !activeTest.current && rootMotion ? f.body : null;
     const bt = ctrl?.turn ?? null;

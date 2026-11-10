@@ -94,6 +94,25 @@ export function clipDef(name: string): ClipDef | undefined {
 }
 
 /**
+ * How far a fired tester clip damps the body layer's Idle/Walk —
+ * CastFigure's yieldEff. The tester weight (testEff) normally passes
+ * straight through: while a catalog clip plays, the upright clips
+ * fade by the same factor. Two clips are EXEMPT and never yield:
+ * Walk and the resting clip (body.clips.idle, "IdleLong"). The
+ * figure sync creates no tester overlay for either — the body layer
+ * owns them — so damping them leaves no action at effective weight:
+ * firing IdleLong froze the figure outright (found 2026-11-10).
+ */
+export function clipTesterYield(
+  activeClip: string | null,
+  walkClip: string,
+  idleClip: string,
+  testEff: number,
+): number {
+  return activeClip === walkClip || activeClip === idleClip ? 0 : testEff;
+}
+
+/**
  * The Embody panel's clip-tester state: which catalog clip is
  * currently fired on the embodied figure (the panel's focus figure —
  * Summer by default).
