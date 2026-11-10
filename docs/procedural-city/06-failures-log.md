@@ -131,3 +131,11 @@ The uploaded Sketchfab export splits one continuous colored surface into four ch
 - `index.json` `door` is in GLB z (`-plan y`), not plan y.
 - Edge landscape vs rebaked navmesh: 698/715 yard sample points reachable from the plaza; 17 unreachable (outer rim, not investigated).
 - Visual GLB 47.6 -> 57.8 MB. Dead bytes are negligible (3 unused views); growth is the uncompressed `Bones_shop*` nodes.
+
+## Bones polish, GLB size and floor z-fight (2026-11-10)
+- `bridge_bazaar`-style appends leave dead bytes and the raw `Bones_shop*` streams were uncompressed. `bridge_compact.py IN OUT [--drop-dead]` meshopt-encodes them losslessly and rebuilds the BIN from referenced spans only: 58.05 MB to 37.68 MB, every live accessor verified identical. Re-run it after every bridge script.
+- Bones floors showed wood-grain stripes: the bones ground slab top (y=0.2) was coplanar with the textured `Sidewalks` ground. Fixed by lifting the visual `Bones_shop*` nodes 0.02 m (`bridge_bones.py --lift`); collision keeps the true height. Two wrong theories came first (leftover `InteriorWalls`, shadow acne); a live scene raycast found the cause.
+- Merged world meshes keep collapsed (degenerate) triangles in the index and vertex buffers. Filter triangle area above 1e-4 before any coplanar or count analysis, and test the full triangle bounding box, not the centroid, because `Sidewalks` quads are huge.
+- Check live scenes over CDP (`connect_over_cdp("http://localhost:9222")`), not software GL: SwiftShader shimmer reads as bugs. Debug hooks: `?world=city3&walk=1&walkDebug=1` gives `window.__walk`.
+- shop-47 striped awning remnant: source mesh not in the live `Awnings` triangles; five attempts failed and the speculative `--awnings` pass was reverted. Open. Rule: replace or cover, do not hunt.
+- Open: shop-46 door frame has no leaf; small dark plaques float beside several doors; roof cutaway not verified live; 17 outer-rim yard points unreachable.
