@@ -207,6 +207,8 @@ def clear_sidecars(assets, lots):
     for l in lots:
         for suffix, key in ((".json", "props"), (".col.json", "boxes")):
             p = os.path.join(assets, "interiors", "shop-%d%s" % (l["id"], suffix))
+            if not os.path.exists(p):
+                continue
             d = json.load(open(p))
             d[key] = []
             if key == "boxes":
@@ -244,6 +246,8 @@ def add_signs(path, lots, idx, dry_run):
     byid = {int(r["id"][5:]): r for r in idx if r["id"].startswith("shop-")}
     cache, boxes = {}, []
     for l in todo:
+        if l["id"] not in byid:     # not a hero room: no door record
+            continue
         dx, dy = SIGN_COL[l["face"]]
         door = byid[l["id"]]["door"]
         x0, y0, x1, y1 = l["rect"]
