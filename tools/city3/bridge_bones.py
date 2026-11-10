@@ -215,8 +215,89 @@ def clear_sidecars(assets, lots):
                 json.dump(d, f, separators=(",", ":"))
 
 
+SIGN_MARK = "bones_signs"
+SIGN_COL = {"S": (0, -1), "N": (0, 1), "W": (-1, 0), "E": (1, 0)}
+SIGN_PAL = [(0.55, 0.12, 0.10), (0.10, 0.30, 0.45), (0.18, 0.38, 0.20),
+            (0.60, 0.42, 0.08), (0.35, 0.15, 0.40)]
+
+
+def fix_cut(assets, lots):
+    """Hero-room cutaway slices at index.json cut.y (was 4.45, one storey).
+    Put it just under the roof slab so every floor stays visible."""
+    p = os.path.join(assets, "interiors", "index.json")
+    idx = json.load(open(p))
+    byid = {l["id"]: l for l in lots}
+    for r in idx:
+        l = byid.get(int(r["id"][5:])) if r["id"].startswith("shop-") else None
+        if l:
+            r["cut"]["y"] = round(l["roof"] - 0.25 + FLOOR_Y - 0.05, 2)
+    with open(p, "w") as f:
+        json.dump(idx, f, separators=(",", ":"))
+    return idx
+
+
+def add_signs(path, lots, idx, dry_run):
+    """Board over each street door (visual only; text comes with textures)."""
+    glb = Glb(path)
+    done = set(glb.gltf.get("extras", {}).get(SIGN_MARK, []))
+    todo = [l for l in lots if l["id"] not in done]
+    byid = {int(r["id"][5:]): r for r in idx if r["id"].startswith("shop-")}
+    cache, boxes = {}, []
+    for l in todo:
+        dx, dy = SIGN_COL[l["face"]]
+        door = byid[l["id"]]["door"]
+        x0, y0, x1, y1 = l["rect"]
+        # door sits on the street wall line; board 3.2 wide, 0.6 tall, 0.25 proud
+        w, h, t = 1.6, (3.0, 3.7), 0.25
+        wall = {"S": y0, "N": y1, "W": x0, "E": x1}[l["face"]]
+        if dx == 0:
+            bx = (door[0] - w, wall + (0 if dy > 0 else -t), h[0],
+                  door[0] + w, wall + (t if dy > 0 else 0), h[1])
+        else:
+            bx = (wall + (0 if dx > 0 else -t), door[1] - w, h[0],
+                  wall + (t if dx > 0 else 0), door[1] + w, h[1])
+        boxes.append((l["id"], bx))
+    if dry_run or not boxes:
+        return {"signs": [b[0] for b in boxes]}
+    for lid, bx in boxes:
+        pos, nrm, ix = box_mesh([bx + ("sign",)], "sign")
+        pa = add_accessor(glb, add_view(glb, pos.tobytes(), 34962), 5126,
+                          len(pos), "VEC3", pos.min(0).tolist(), pos.max(0).tolist())
+        na = add_accessor(glb, add_view(glb, nrm.tobytes(), 34962), 5126,
+                          len(nrm), "VEC3")
+        ia = add_accessor(glb, add_view(glb, ix.tobytes(), 34963), 5125,
+                          len(ix), "SCALAR")
+        mat = add_material(glb, cache, "sign_%d" % lid,
+                           SIGN_PAL[lid % len(SIGN_PAL)], False)
+        nm = "Sign_shop%d" % lid
+        glb.gltf["meshes"].append({"name": nm, "primitives": [{
+            "attributes": {"POSITION": pa, "NORMAL": na}, "indices": ia,
+            "material": mat}]})
+        glb.gltf["nodes"].append({"name": nm, "mesh": len(glb.gltf["meshes"]) - 1})
+        glb.gltf["scenes"][0]["nodes"].append(len(glb.gltf["nodes"]) - 1)
+    glb.gltf.setdefault("extras", {})[SIGN_MARK] = sorted(done | {b[0] for b in boxes})
+    fd, tmp = tempfile.mkstemp(suffix=".glb", dir=os.path.dirname(os.path.abspath(path)))
+    os.close(fd)
+    try:
+        save_glb(tmp, glb.gltf, glb.bin)
+        chk = Glb(tmp)
+        for node in chk.gltf["nodes"]:
+            if "mesh" in node:
+                for p in chk.gltf["meshes"][node["mesh"]]["primitives"]:
+                    if "indices" in p:
+                        chk.indices_of(p)
+        shutil.copy2(path, "/tmp/%s.pre-signs" % os.path.basename(path))
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+    return {"signs": [b[0] for b in boxes]}
+
+
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--signs", action="store_true",
+                    help="only fix cut.y and add door signs for --lots")
     ap.add_argument("--lots", required=True, help="'46,47' or 'all'")
     ap.add_argument("--json", default=os.path.join(HERE, "out",
                                                    "bones_all.json"))
@@ -231,10 +312,15 @@ def main():
         want = {int(v) for v in a.lots.split(",")}
         data = [d for d in data if d["id"] in want]
         assert len(data) == len(want), "unknown lot id"
-    print("visual", json.dumps(patch(a.visual, data, False, a.dry_run)))
-    print("collision", json.dumps(patch(a.collision, data, True, a.dry_run)))
-    if not a.dry_run:
-        clear_sidecars(os.path.dirname(a.visual), data)
+    assets = os.path.dirname(a.visual)
+    if not a.signs:
+        print("visual", json.dumps(patch(a.visual, data, False, a.dry_run)))
+        print("collision", json.dumps(patch(a.collision, data, True, a.dry_run)))
+        if not a.dry_run:
+            clear_sidecars(assets, data)
+    idx = (json.load(open(os.path.join(assets, "interiors", "index.json")))
+           if a.dry_run else fix_cut(assets, data))
+    print("signs", json.dumps(add_signs(a.visual, data, idx, a.dry_run)))
 
 
 if __name__ == "__main__":
