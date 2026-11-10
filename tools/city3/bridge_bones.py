@@ -604,6 +604,33 @@ def hide_stale_frames(glb, lots):
     return n_hidden
 
 
+def strip_leaf_fixtures(glb):
+    """Static hero frames hold fixtures that belong to the closed leaf (kick plate,
+    backplate, knob, letterbox, panel beads). The leaf is gone or open, so they float
+    in the doorway. Collapse every triangle inside the leaf volume (local |u|<0.7,
+    t -0.3..-0.05, z 0.32..2.38) in the shared frame meshes. Returns tris collapsed."""
+    total = 0
+    for n in glb.gltf["nodes"]:
+        if not n.get("name", "").startswith("inst_door_"):
+            continue
+        for p in glb.gltf["meshes"][n["mesh"]]["primitives"]:
+            ai = p["attributes"]["POSITION"]
+            P = np.array(np.asarray(glb.acc_raw(ai)).reshape(-1, 3), "<f4")
+            ix = glb.indices_of(p).reshape(-1, 3)
+            C = P[ix].mean(1)
+            m = (abs(C[:, 0]) < 0.7) & (C[:, 1] > 0.32) & (C[:, 1] < 2.38) & (C[:, 2] > -0.3) & (C[:, 2] < -0.05)
+            if not m.any():
+                continue
+            used = np.bincount(ix[~m].ravel(), minlength=len(P))
+            sel = ix[m]
+            assert not used[sel.ravel()].any(), "shared vertices"   # collapse would warp a kept tri
+            for t in sel:
+                P[t] = P[t].mean(0)
+            glb.rewrite_accessor(ai, P)
+            total += int(m.sum())
+    return total
+
+
 def door_boxes(lot, template, hero=None):
     """The leaf and house number the bone cut removed, plan frame, axis aligned.
     The hero frame, canopy and plaque stay as instances; the leaf is swung 90
@@ -676,6 +703,7 @@ def add_doors(path, lots, idx, dry_run):
     if dry_run or not todo:
         return {"doors": [l["id"] for l in todo]}
     print("hidden stale frames", hide_stale_frames(glb, lots))
+    print("collapsed leaf fixtures", strip_leaf_fixtures(glb))
     hero = hero_doors(glb)
     cache = {}
     cols = {"trim": (0.93, 0.88, 0.74), "iron": (0.12, 0.12, 0.13),
