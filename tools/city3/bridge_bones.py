@@ -65,6 +65,50 @@ def box_mesh(boxes, role):
             np.array(idx, "<u4"))
 
 
+# role -> (image already embedded in the GLB, linear tint, tile size in metres)
+TEX = {"shell": ("plaster", (1.0, 0.93, 0.82), 3.0),
+       "partition": ("plaster", (1.0, 0.97, 0.92), 3.0),
+       "slab": ("wood_floor", (1.0, 1.0, 1.0), 2.5),
+       "stair": ("wood_floor", (0.9, 0.9, 0.9), 2.5),
+       "landing": ("wood_floor", (0.9, 0.9, 0.9), 2.5),
+       "roof": ("roof_clay2_d", (1.0, 1.0, 1.0), 1.5)}
+
+
+def planar_uv(pos, nrm, tile):
+    """Per-vertex UV, absolute world metres / tile projected on each face plane
+    (tangent = n x up, flat faces use +x), so tiling stays continuous across
+    boxes that share a plane. v grows downward, textures stand upright."""
+    p, n = np.asarray(pos, "f8"), np.asarray(nrm, "f8")
+    up = np.array([0.0, 1.0, 0.0])
+    t1 = np.cross(n, up)
+    flat = np.linalg.norm(t1, axis=1) < 1e-6
+    t1[flat] = (1.0, 0.0, 0.0)
+    t1 /= np.linalg.norm(t1, axis=1)[:, None]
+    t2 = np.cross(n, t1)
+    uv = np.stack([(p * t1).sum(1), (p * t2).sum(1)], 1) / tile
+    return uv.astype("<f4")
+
+
+def add_tex_material(glb, cache, name, image, factor):
+    """Material using an image already embedded in the GLB (no new bytes)."""
+    key = ("tex", name)
+    if key not in cache:
+        g = glb.gltf
+        src = next(i for i, x in enumerate(g["images"]) if x.get("name") == image)
+        tk = ("texsrc", src)
+        if tk not in cache:
+            g.setdefault("textures", []).append({"source": src})
+            cache[tk] = len(g["textures"]) - 1
+        g["materials"].append({
+            "name": "ls_" + name,
+            "pbrMetallicRoughness": {"baseColorFactor": [*factor, 1.0],
+                                     "baseColorTexture": {"index": cache[tk]},
+                                     "metallicFactor": 0.0, "roughnessFactor": 0.9},
+            "doubleSided": False})
+        cache[key] = len(g["materials"]) - 1
+    return cache[key]
+
+
 QUADS = [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (2, 3, 7, 6), (0, 4, 7, 3),
          (1, 2, 6, 5)]
 
@@ -110,11 +154,17 @@ def add_bones(glb, lot, cache, roles, collision):
                           len(nrm), "VEC3")
         ia = add_accessor(glb, add_view(glb, idx.tobytes(), 34963), 5125,
                           len(idx), "SCALAR")
-        prims.append({"attributes": {"POSITION": pa, "NORMAL": na},
-                      "indices": ia,
-                      "material": add_material(glb, cache, "bones_" + role,
-                                               COL.get(role, COL["stair"]),
-                                               False)})
+        attrs = {"POSITION": pa, "NORMAL": na}
+        if not collision and role in TEX:   # visual: textured, UV in metres / tile
+            img, tint, tile = TEX[role]
+            uv = planar_uv(pos, nrm, tile)
+            attrs["TEXCOORD_0"] = add_accessor(glb, add_view(glb, uv.tobytes(), 34962),
+                                               5126, len(uv), "VEC2")
+            mat = add_tex_material(glb, cache, "bones_%s_tex" % role, img, tint)
+        else:
+            mat = add_material(glb, cache, "bones_" + role,
+                               COL.get(role, COL["stair"]), False)
+        prims.append({"attributes": attrs, "indices": ia, "material": mat})
     # capsuleWorld.bakeCollisionRoot only keeps meshes named col_*
     nm = ("col_bones_shop%d" if collision else "Bones_shop%d") % lot["id"]
     old = next((n for n in g["nodes"] if n.get("name") == nm), None)
@@ -446,8 +496,11 @@ def add_pitched(path, lots, dry_run):
                           len(pos), "VEC3", pos.min(0).tolist(), pos.max(0).tolist())
         na = add_accessor(glb, add_view(glb, nrm.tobytes(), 34962), 5126, len(nrm), "VEC3")
         ia = add_accessor(glb, add_view(glb, ix.tobytes(), 34963), 5125, len(ix), "SCALAR")
-        prim = {"attributes": {"POSITION": pa, "NORMAL": na}, "indices": ia,
-                "material": add_material(glb, cache, "pitched_roof", PITCH_COL, False)}
+        uv = planar_uv(pos, nrm, TEX["roof"][2])
+        ta = add_accessor(glb, add_view(glb, uv.tobytes(), 34962), 5126, len(uv), "VEC2")
+        prim = {"attributes": {"POSITION": pa, "NORMAL": na, "TEXCOORD_0": ta}, "indices": ia,
+                "material": add_tex_material(glb, cache, "pitched_roof_tex",
+                                             TEX["roof"][0], (1.0, 1.0, 1.0))}
         nm = "Roof_shop%d" % l["id"]
         old = next((n for n in glb.gltf["nodes"] if n.get("name") == nm), None)
         if old is not None:
