@@ -29,7 +29,10 @@ from pilotb_building import (  # noqa: E402
 
 GROUND_H, UPPER_H = 4.2, 3.8
 SOFFIT = 0.45              # stair thickness under a tread (sloped underside)
-SKIP_LOTS = {102}          # Tea House: hand-built, keep as is
+SKIP_LOTS = {102}
+# shop-166: upper floor never connects in the baked navmesh (cause not found,
+# mirroring the stair core did not help). Replaced by a one-storey building.
+FLOORS = {166: 1}          # Tea House: hand-built, keep as is
 
 
 def variant(L, Dp):
@@ -376,10 +379,10 @@ if __name__ == "__main__":
         outp = sys.argv[sys.argv.index("--emit") + 1]
         data = []
         for lot in lots():
-            if check(lot["L"], lot["Dp"], lot["floors"]):
+            if check(lot["L"], lot["Dp"], FLOORS.get(lot["id"], lot["floors"])):
                 continue                 # fails the space rules
             L2, D2, ed = variant(lot["L"], lot["Dp"])
-            Lo = layout(L2, D2, lot["floors"], ed)
+            Lo = layout(L2, D2, FLOORS.get(lot["id"], lot["floors"]), ed)
             if ed:   # rotate back to street frame: x = Dp' - v', y = u'
                 Lo["boxes"] = [(D2 - d, a, z0, D2 - b, c, z1, r)
                                for (a, b, z0, c, d, z1, r) in Lo["boxes"]]
@@ -393,7 +396,7 @@ if __name__ == "__main__":
                                for (x, y, z) in pts])
             data.append(dict(id=lot["id"], face=lot["face"], rect=lot["rect"],
                              ramps=prisms,
-                             floors=lot["floors"], L=lot["L"], Dp=lot["Dp"],
+                             floors=FLOORS.get(lot["id"], lot["floors"]), L=lot["L"], Dp=lot["Dp"],
                              FL=Lo["FL"], roof=Lo["ROOF"],
                              boxes=to_plan(lot["face"], lot["rect"],
                                            Lo["boxes"])))

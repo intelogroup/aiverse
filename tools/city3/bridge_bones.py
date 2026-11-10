@@ -31,6 +31,7 @@ from bridge_landscape_kit import add_accessor, add_material, add_view  # noqa
 from bridge_wave1 import Glb, save_glb                 # noqa: E402
 
 MARK = "bones_lots"
+REBUILD = "--rebuild" in sys.argv   # re-emit bones of already patched lots, no cut
 FLOOR_Y = 0.2
 E.PAD = 0.1            # shops share party walls: stay inside the footprint
 COL = {"shell": (0.82, 0.78, 0.70), "partition": (0.90, 0.88, 0.84),
@@ -116,6 +117,10 @@ def add_bones(glb, lot, cache, roles, collision):
                                                False)})
     # capsuleWorld.bakeCollisionRoot only keeps meshes named col_*
     nm = ("col_bones_shop%d" if collision else "Bones_shop%d") % lot["id"]
+    old = next((n for n in g["nodes"] if n.get("name") == nm), None)
+    if old is not None:         # rebuild: swap prims, old bytes stay dead
+        g["meshes"][old["mesh"]]["primitives"] = prims
+        return
     g["meshes"].append({"name": nm, "primitives": prims})
     g["nodes"].append({"name": nm,
                        "mesh": len(g["meshes"]) - 1})
@@ -162,11 +167,11 @@ def repair_fallbacks(glb):
 def patch(path, lots, collision, dry_run):
     glb = Glb(path)
     done = set(glb.gltf.get("extras", {}).get(MARK, []))
-    todo = [l for l in lots if l["id"] not in done]
+    todo = lots if REBUILD else [l for l in lots if l["id"] not in done]
     if not todo:
         return {"already_patched": sorted(done)}
-    rects = [front_rect(l) for l in todo]
-    report = E.cut(glb, rects, collision, dry_run)
+    report = {} if REBUILD else E.cut(glb, [front_rect(l) for l in todo],
+                                      collision, dry_run)
     if dry_run:
         return {"lots": [l["id"] for l in todo], "removed": report,
                 "total": sum(report.values())}
@@ -300,6 +305,8 @@ def add_signs(path, lots, idx, dry_run):
 
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--rebuild", action="store_true",
+                    help="swap the bones of already patched lots (no cut)")
     ap.add_argument("--signs", action="store_true",
                     help="only fix cut.y and add door signs for --lots")
     ap.add_argument("--lots", required=True, help="'46,47' or 'all'")
