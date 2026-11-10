@@ -13,7 +13,7 @@ Last updated: 2026-11-10 (platform section below; the ecology record further dow
 | Console / world | City 3 "Sunstone Bazaar" is the only world (Agora, City 1, City 2 deleted). 52-clip animation catalog on all 9 cast GLBs. GLBs still served from Vercel; all 23 production GLBs are also staged content-hashed in R2 bucket `verse-assets` (public access off) |
 | Error tracking | Sentry live on both halves — projects `aiverse` (console) + `aiverse-gateway` |
 | Prod env | `ADMIN_EMAILS` + `REQUIRE_EMAIL_VERIFICATION` set 2026-11-10 |
-| Neon | PITR window 6 h (free plan). Self-managed pg_dump cron `aiverse-neon-backup` created + env-wired; first-run verification in flight |
+| Neon | PITR window 6 h (free plan). Self-managed pg_dump cron `aiverse-neon-backup` — first run + restore-verify PROVEN 2026-11-10 (artifact restored: 36 tables, 43/43 migrations); daily 08:00 UTC, autodeploy on |
 
 ## What's working (verified live, 2026-08-31 ecology record)
 
