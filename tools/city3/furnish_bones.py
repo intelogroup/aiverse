@@ -17,6 +17,7 @@ import argparse
 import json
 import math
 import os
+import random
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -102,6 +103,7 @@ class Room:
         self.lane = LANE_STREET if self.street else LANE
         self.dims, self.props, self.boxes = dims, [], []
         self.footprints = []
+        self.seed = 0
 
     def world(self, u, v):
         return (self.o[0] + u * self.u[0] + v * self.d[0], self.o[1] + u * self.u[1] + v * self.d[1])
@@ -136,13 +138,44 @@ class Room:
             self.footprints.append((ex0, ex1, ez0, ez1))
         self.props.append([key, round(px, 3), round(self.y + up, 3), round(pz, 3),
                            round(th, 4), scale])
+        placed = (px, pz, th)
         if key not in NO_COL:
             cxl, czl = (lx0 + lx1) / 2, (lz0 + lz1) / 2
             self.boxes.append([round(px + cxl * c + czl * s, 3), round(pz - cxl * s + czl * c, 3),
                                round((lx1 - lx0) / 2, 3), round((lz1 - lz0) / 2, 3),
                                round(self.y + d[1] * scale, 3), round(self.y + d[4] * scale, 3),
                                round(th, 4)])
-        return True
+        return placed
+
+    def raw(self, key, placed, lx, lz, up, scale=1.0):
+        """Decor inside another prop's footprint, in that prop's local frame:
+        no collision, no lane / overlap checks."""
+        px, pz, th = placed
+        c, s = math.cos(th), math.sin(th)
+        self.props.append([key, round(px + lx * c + lz * s, 3), round(self.y + up, 3),
+                           round(pz - lx * s + lz * c, 3), round(th, 4), scale])
+
+
+BOTTLES = ["amber", "clear", "cobalt", "green", "wine"]
+
+
+def stock_shelf(R, placed, seed):
+    """Three boards of bottles (z 1.15 / 1.85 / 2.55) with the odd pot or jug."""
+    rr = random.Random(seed)
+    for zs in (1.15, 1.85, 2.55):
+        x, fav = -0.88, rr.choice(BOTTLES)
+        while x < 0.88:
+            r = rr.random()
+            if r < 0.12:
+                R.raw("ceramic_pot", placed, x + 0.2, 0.28, zs, 0.45)
+                x += 0.42
+            elif r < 0.2:
+                R.raw("metal_jug", placed, x + 0.1, 0.28, zs)
+                x += 0.26
+            else:
+                col = fav if rr.random() < 0.55 else rr.choice(BOTTLES)
+                R.raw("bottle_%d_%s" % (rr.randrange(4), col), placed, x, 0.28, zs)
+                x += rr.uniform(0.13, 0.2)
 
 
 IN, OUT, LEFT, RIGHT = (0, 1), (0, -1), (-1, 0), (1, 0)   # facing, room frame
@@ -163,7 +196,9 @@ def side_walls(R, keys, extra=None):
             u = sgn * (R.rw / 2 - 0.05) - sgn * d[5] * 0.0
             # asset back is at z = d[2] (<= 0): origin sits that far off the wall
             u = sgn * (R.rw / 2 + d[2] - 0.02)
-            R.put(key, u, v + w / 2, (-sgn, 0))
+            placed = R.put(key, u, v + w / 2, (-sgn, 0))
+            if placed and key.startswith("shelf_bottles"):
+                stock_shelf(R, placed, R.seed + n * 31 + (sgn > 0))
             if extra:
                 R.put(extra[n % len(extra)], u, v + w / 2, (-sgn, 0))
             v += w + 0.08
@@ -188,7 +223,7 @@ def furnish(R, kind, sgn):
     mid = R.rd * 0.52
     tab = R.rw / 2 - 1.15
     if kind == "shop":
-        side_walls(R, ["shelf_goods_a", "shelf_goods_b"])
+        side_walls(R, ["shelf_bottles_a", "shelf_bottles_b", "shelf_bottles_c"])
         R.put(("display_table_a", "display_table_b")[(sgn > 0) * 1], sgn * 2.15, mid + 0.2, IN)
         R.put("shop_counter", -sgn * 2.1, R.rd - 1.0, OUT)
         corner_items(R, sgn)
@@ -239,6 +274,7 @@ def main():
             if (lot["id"], room["floor"]) in LEAVE_EMPTY:
                 continue
             R = Room(room, dims)
+            R.seed = lot["id"] * 1000 + room["floor"] * 100 + room["i"] * 10 + (room["tag"] == "N")
             furnish(R, kind_for(lot, tmpl, room), 1 if (lot["id"] + room["i"] + room["floor"]) % 2 else -1)
             props += R.props
             boxes += R.boxes
