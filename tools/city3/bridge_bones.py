@@ -557,8 +557,9 @@ def hero_doors(glb):
     for n in glb.gltf["nodes"]:
         if n.get("name", "").startswith("inst_door_"):
             t = np.asarray(glb.acc_raw(n["extensions"]["EXT_mesh_gpu_instancing"]["attributes"]["TRANSLATION"])).reshape(-1, 3)
+            sc = np.asarray(glb.acc_raw(n["extensions"]["EXT_mesh_gpu_instancing"]["attributes"]["SCALE"])).reshape(-1, 3)
             st = DOOR_STYLES[n["name"][10:]]
-            out += [(float(p[0]), -float(p[2]), st) for p in t]
+            out += [(float(p[0]), -float(p[2]), st) for p, k in zip(t, sc) if k[0] > 0.01]
     return out
 DOOR_DZ = -0.08      # hero frame z is above street level F=0.28; bones walk slab is 0.2
 TPL_DOORS = {"cafe": [1, 3, 1, 2], "shop": [0, 1, 3, 0, 2],
@@ -567,6 +568,40 @@ DOOR_PAL = [(0.16, 0.42, 0.28), (0.14, 0.30, 0.50), (0.62, 0.16, 0.14),
             (0.72, 0.50, 0.16), (0.36, 0.22, 0.12), (0.25, 0.25, 0.28)]
 SEG = {"0": "abcdef", "1": "bc", "2": "abdeg", "3": "abcdg", "4": "bcfg",
        "5": "acdfg", "6": "acdefg", "7": "abc", "8": "abcdefg", "9": "abcdfg"}
+
+
+def hide_stale_frames(glb, lots):
+    """Hero frames stand at the lot centre; bones put the door elsewhere on many
+    lots, leaving a frame, plaque and canopy on solid wall. Zero the scale of every
+    frame that sits on a bones street wall away from that lot's door."""
+    n_hidden = 0
+    for n in glb.gltf["nodes"]:
+        if not n.get("name", "").startswith("inst_door_"):
+            continue
+        at = n["extensions"]["EXT_mesh_gpu_instancing"]["attributes"]
+        t = np.asarray(glb.acc_raw(at["TRANSLATION"])).reshape(-1, 3)
+        sc = np.array(np.asarray(glb.acc_raw(at["SCALE"])).reshape(-1, 3), "<f4")
+        changed = False
+        for i, p in enumerate(t):
+            if sc[i][0] < 0.01:
+                continue
+            px, py = float(p[0]), -float(p[2])
+            for l in lots:
+                x0, y0, x1, y1 = l["rect"]
+                wall = {"S": y0, "N": y1, "W": x0, "E": x1}[l["face"]]
+                ox, oy = SIGN_COL[l["face"]]
+                along, across = (px, py - wall) if ox == 0 else (py, px - wall)
+                lo, hi = (x0, x1) if ox == 0 else (y0, y1)
+                if abs(across) < 0.6 and lo < along < hi:
+                    dd = l["door"][0] if ox == 0 else l["door"][1]
+                    if abs(along - dd) > 0.4:
+                        sc[i] = 0
+                        changed = True
+                        n_hidden += 1
+                    break
+        if changed:
+            glb.rewrite_accessor(at["SCALE"], sc)
+    return n_hidden
 
 
 def door_boxes(lot, template, hero=None):
@@ -602,6 +637,8 @@ def door_boxes(lot, template, hero=None):
     t0, t1 = -0.36, -1.80
     z0, z1 = 0.31, 2.40
     leaf = [B(lu[0], lu[1], t1, t0, z0, z1)]
+    frame = [] if near else [B(-0.85, -0.77, -0.35, -0.05, z0 - 0.03, 2.62), B(0.77, 0.85, -0.35, -0.05, z0 - 0.03, 2.62),
+                             B(-0.85, 0.85, -0.35, -0.05, 2.54, 2.62)]
     fu = sorted((lu[0] - 0.015, lu[0])) if side > 0 else sorted((lu[1], lu[1] + 0.015))
     trim = []
     panels = {0: ((0.55, 1.15), (1.3, 2.25)), 1: ((0.4, 0.8),), 2: ((0.45, 0.9), (1.2, 2.2)),
@@ -627,7 +664,7 @@ def door_boxes(lot, template, hero=None):
         for k in SEG[ch]:
             a, b, za, zb = seg[k]
             paper.append(B(a, b, tt[0], tt[1], za, zb))
-    return {"leaf": leaf, "trim": trim, "iron": iron, "brass": brass, "paper": paper}, style
+    return {"leaf": leaf, "trim": trim + frame, "iron": iron, "brass": brass, "paper": paper}, style
 
 
 def add_doors(path, lots, idx, dry_run):
@@ -638,6 +675,7 @@ def add_doors(path, lots, idx, dry_run):
     tpl = {int(r["id"][5:]): r.get("template", "shop") for r in idx if r["id"].startswith("shop-")}
     if dry_run or not todo:
         return {"doors": [l["id"] for l in todo]}
+    print("hidden stale frames", hide_stale_frames(glb, lots))
     hero = hero_doors(glb)
     cache = {}
     cols = {"trim": (0.93, 0.88, 0.74), "iron": (0.12, 0.12, 0.13),
