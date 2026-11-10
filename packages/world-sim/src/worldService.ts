@@ -7,7 +7,9 @@
 // range and in the view cone). No other agent's identity, no hidden state, no debug surface.
 import { AgentBody, type AgentSnapshot } from "./agentBody";
 import { validAction, validRequestId } from "./actionProtocol";
+import { encodePose, type PoseTuple } from "./streamProtocol";
 import { nearestPlace, oracleScene, roomAt, type OracleObject, type ScoutAction, type ScoutOutcome } from "./scout";
+import { BODY_REMY } from "./bodies";
 import type { VerseSim } from "./verseSim";
 
 export type WorldErrorCode = "no_body" | "invalid_action" | "id_conflict" | "world_full" | "not_ready" | "spawn_failed";
@@ -48,6 +50,8 @@ export interface WorldServiceOpts {
 }
 
 interface Session {
+  /** Opaque body number for the viewer stream (never reused within one run, never the agent id). */
+  n: number;
   body: AgentBody;
   records: Map<string, ActRecord>;
   last: ActRecord | null;
@@ -60,6 +64,10 @@ export class WorldService {
   private readonly maxBodies: number;
   private readonly leaseS: number;
   private readonly keepRecords: number;
+  private nextN = 1;
+  private rosterRev = 0;
+  /** Identifies this run: a restarted sim restarts the numbers, and viewers must not mix the two. */
+  readonly epoch = crypto.randomUUID();
 
   constructor(opts: WorldServiceOpts) {
     this.sim = opts.sim;
@@ -84,7 +92,8 @@ export class WorldService {
     } catch (e) {
       throw new WorldError("spawn_failed", e instanceof Error ? e.message : String(e));
     }
-    this.sessions.set(agentId, { body, records: new Map(), last: null, lastSeen: this.sim.t });
+    this.sessions.set(agentId, { n: this.nextN++, body, records: new Map(), last: null, lastSeen: this.sim.t });
+    this.rosterRev++;
     return this.observe(agentId);
   }
 
@@ -95,6 +104,7 @@ export class WorldService {
     void s.body.act({ type: "stop" });
     this.sim.removeBody(agentId);
     this.sessions.delete(agentId);
+    this.rosterRev++;
     return true;
   }
 
@@ -150,6 +160,18 @@ export class WorldService {
       scene: oracleScene(this.sim.places, this.sim.rooms, { x: st.x, z: st.z, heading: st.body }, {}, interactables),
       lastAct: s.last,
     };
+  }
+
+  /** Every body's pose this instant, quantised for the viewer stream. Not agent-scoped: it is the public picture of the world. */
+  frames(): { epoch: string; t: number; rosterRev: number; b: PoseTuple[] } {
+    const b: PoseTuple[] = [];
+    for (const s of this.sessions.values()) b.push(encodePose(s.n, s.body.pose()));
+    return { epoch: this.epoch, t: round(this.sim.t, 3), rosterRev: this.rosterRev, b };
+  }
+
+  /** Body number -> agent id (gateway-side only: it turns this into a display name) and the body model to draw. */
+  roster(): { epoch: string; rev: number; bodies: { n: number; agentId: string; body: string }[] } {
+    return { epoch: this.epoch, rev: this.rosterRev, bodies: [...this.sessions].map(([agentId, s]) => ({ n: s.n, agentId, body: BODY_REMY.id })) };
   }
 
   /** The named places an agent may `go_to`: ids and names only (positions are perceived through `observe`). */

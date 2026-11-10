@@ -48,6 +48,8 @@ export function createSimServer(opts: SimServerOpts) {
   const acts = new Map<string, Bucket>();
   const reads = new Map<string, Bucket>();
   const expiry = new Map<string, number>();
+  // One gateway pulls at <= ~10/s; allow a few gateways plus bursts.
+  const streamBucket = new Bucket(40, 80, now());
 
   const json = (body: unknown, status = 200, headers?: Record<string, string>) => Response.json(body, { status, headers });
   const bucket = (m: Map<string, Bucket>, id: string, rate: number) => {
@@ -80,6 +82,12 @@ export function createSimServer(opts: SimServerOpts) {
       if (req.method === "GET" && url.pathname === "/healthz") return json({ ready: service.sim.ready, bodies: service.bodyCount, t: service.sim.t });
       if (req.method === "GET" && url.pathname === "/places") return json({ places: service.places() });
       if (req.method === "GET" && url.pathname === "/bodies") return json({ agentIds: service.agentIds() });
+      // The viewer stream's source. Gateway-only like everything here; its own bucket so spectators never eat an agent's read budget.
+      if (req.method === "GET" && url.pathname === "/frames") {
+        if (!streamBucket.take(now())) return json({ error: "rate_limited" }, 429, { "retry-after": "1" });
+        return json(service.frames());
+      }
+      if (req.method === "GET" && url.pathname === "/roster") return json(service.roster());
 
       if (req.method === "POST" && url.pathname === "/bodies") {
         const b = (await readJson(req)) as { agentId?: unknown; expiresAtMs?: unknown; spawn?: { x?: unknown; z?: unknown } };
