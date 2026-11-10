@@ -237,6 +237,7 @@ def fix_cut(assets, lots):
     for r in idx:
         l = byid.get(int(r["id"][5:])) if r["id"].startswith("shop-") else None
         if l:
+            r["door"] = [l["door"][0], -l["door"][1]]   # GLB z = -plan y
             r["cut"]["y"] = round(l["roof"] - 0.25 + FLOOR_Y - 0.05, 2)
     with open(p, "w") as f:
         json.dump(idx, f, separators=(",", ":"))
@@ -247,14 +248,11 @@ def add_signs(path, lots, idx, dry_run):
     """Board over each street door (visual only; text comes with textures)."""
     glb = Glb(path)
     done = set(glb.gltf.get("extras", {}).get(SIGN_MARK, []))
-    todo = [l for l in lots if l["id"] not in done]
-    byid = {int(r["id"][5:]): r for r in idx if r["id"].startswith("shop-")}
+    todo = lots if REBUILD else [l for l in lots if l["id"] not in done]
     cache, boxes = {}, []
     for l in todo:
-        if l["id"] not in byid:     # not a hero room: no door record
-            continue
         dx, dy = SIGN_COL[l["face"]]
-        door = byid[l["id"]]["door"]
+        door = l["door"]            # plan frame, on the street wall line
         x0, y0, x1, y1 = l["rect"]
         # door sits on the street wall line; board 3.2 wide, 0.6 tall, 0.25 proud
         w, h, t = 1.6, (3.0, 3.7), 0.25
@@ -279,9 +277,13 @@ def add_signs(path, lots, idx, dry_run):
         mat = add_material(glb, cache, "sign_%d" % lid,
                            SIGN_PAL[lid % len(SIGN_PAL)], False)
         nm = "Sign_shop%d" % lid
-        glb.gltf["meshes"].append({"name": nm, "primitives": [{
-            "attributes": {"POSITION": pa, "NORMAL": na}, "indices": ia,
-            "material": mat}]})
+        prim = {"attributes": {"POSITION": pa, "NORMAL": na}, "indices": ia,
+                "material": mat}
+        old = next((n for n in glb.gltf["nodes"] if n.get("name") == nm), None)
+        if old is not None:         # rebuild: swap prim, old bytes stay dead
+            glb.gltf["meshes"][old["mesh"]]["primitives"] = [prim]
+            continue
+        glb.gltf["meshes"].append({"name": nm, "primitives": [prim]})
         glb.gltf["nodes"].append({"name": nm, "mesh": len(glb.gltf["meshes"]) - 1})
         glb.gltf["scenes"][0]["nodes"].append(len(glb.gltf["nodes"]) - 1)
     glb.gltf.setdefault("extras", {})[SIGN_MARK] = sorted(done | {b[0] for b in boxes})
