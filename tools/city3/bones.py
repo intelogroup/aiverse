@@ -181,8 +181,11 @@ def layout(L, Dp, nfl, end_door=False):
                                width=STAIR_W, landing_depth=abs(wall - y_b),
                                rise=rise))
     boxes.append((0, 0, ROOF - SLAB, L, Dp, ROOF, "roof"))
+    # street door centre (u, v) in this layout's frame, v=0 is the street wall
+    door = ((0.0, (y_a + Dp - T_OUT) / 2) if end_door
+            else (mid(XR[ent]), 0.0))
     return dict(boxes=boxes, doors=doors, stairs=stairs, ramps=ramps, geom=g,
-                FL=FL, ROOF=ROOF)
+                FL=FL, ROOF=ROOF, door=door)
 
 
 def check(L, Dp, nfl):
@@ -394,7 +397,11 @@ if __name__ == "__main__":
                     pts = [(D2 - y, x, z) for (x, y, z) in pts]
                 prisms.append([[*[round(c, 3) for c in mp(x, y)], round(z, 3)]
                                for (x, y, z) in pts])
+            du, dv = Lo["door"]
+            if ed:   # same rotation as the boxes
+                du, dv = D2 - dv, du
             data.append(dict(id=lot["id"], face=lot["face"], rect=lot["rect"],
+                             door=[round(c, 3) for c in mp(du, dv)],
                              ramps=prisms,
                              floors=FLOORS.get(lot["id"], lot["floors"]), L=lot["L"], Dp=lot["Dp"],
                              FL=Lo["FL"], roof=Lo["ROOF"],
