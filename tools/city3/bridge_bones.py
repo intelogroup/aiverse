@@ -110,8 +110,13 @@ def add_tex_material(glb, cache, name, image, factor):
         src = next(i for i, x in enumerate(g["images"]) if x.get("name") == image)
         tk = ("texsrc", src)
         if tk not in cache:
-            g.setdefault("textures", []).append({"source": src})
-            cache[tk] = len(g["textures"]) - 1
+            # reuse the existing texture of that image: on the shipped KTX2 GLB it carries
+            # KHR_texture_basisu, and a bare {"source"} entry would load the .ktx2 as a plain image
+            have = next((i for i, t in enumerate(g.get("textures", [])) if t.get("source") == src), None)
+            if have is None:
+                g.setdefault("textures", []).append({"source": src})
+                have = len(g["textures"]) - 1
+            cache[tk] = have
         g["materials"].append({
             "name": "ls_" + name,
             "pbrMetallicRoughness": {"baseColorFactor": [*factor, 1.0],
@@ -780,6 +785,8 @@ def main():
                     help="only lift visual Bones nodes 2 cm (z-fight with Sidewalks)")
     ap.add_argument("--pitched", action="store_true",
                     help="only add visual gable roofs (Roof_shop{n}) for --lots")
+    ap.add_argument("--no-signs", action="store_true",
+                    help="with --rebuild: keep the shipped sign boards and lettering")
     ap.add_argument("--doors", action="store_true",
                     help="only add the open leaf + house number (Door_shop{n}) for --lots")
     ap.add_argument("--rebuild", action="store_true",
@@ -816,6 +823,8 @@ def main():
         print("collision", json.dumps(patch(a.collision, data, True, a.dry_run)))
         if not a.dry_run and not REBUILD:     # rebuild keeps furnish_bones.py output
             clear_sidecars(assets, data)
+    if a.no_signs:
+        return
     idx = (json.load(open(os.path.join(assets, "interiors", "index.json")))
            if a.dry_run else fix_cut(assets, data))
     print("signs", json.dumps(add_signs(a.visual, data, idx, a.dry_run)))
