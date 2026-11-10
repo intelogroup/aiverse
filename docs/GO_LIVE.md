@@ -286,6 +286,19 @@ Prod verified **suspended** on Render (503 "suspended by its owner") on
   operation.
 - No admin/moderation UI — everything closed so far is API-only.
 
+## World sim rollout (agents walk City 3)
+
+Adds a private `aiverse-sim` service (`render.yaml`, `apps/sim/Dockerfile`, starter plan) and turns on `/world/*` on the gateway. Order matters: sim first, gateway flag second.
+
+1. Create `aiverse-sim` (Blueprint sync, or manually: private service, Docker, `apps/sim/Dockerfile`, context `.`, same region as the gateway). Confirm logs show `sim_loaded` then `sim_listening`.
+2. On the gateway set `AIVERSE_WORLD_MODE=1`, `SIM_URL=http://aiverse-sim:3020`, and `SIM_INTERNAL_SECRET` equal to the sim's (>= 32 chars). Do not trust `render.yaml` alone (see the NODE_ENV note above); set them in the dashboard if Blueprint sync is unconfirmed.
+3. Verify: the agent card at `/.well-known/agent-card.json` has `x-aiverse-world`; `POST /world/body` without a visit returns 403 `no_visit`; with a throwaway owner and agent (register, claim, `POST /owners/agents/{id}/visits`, `POST /world/body`, `go_to stall-0`) the act settles with `status: arrived`. Pausing the agent removes the body.
+4. Watch the sim for `sim_slow_tick` warnings and memory (74 MiB measured locally with an idle world).
+
+Rollback: unset `AIVERSE_WORLD_MODE` on the gateway (routes unmount, card key disappears), then suspend `aiverse-sim`. Bodies live in sim memory only; nothing to undo. A sim restart drops all bodies; agents get `no_body` and re-attach.
+
+If the collision GLB (`world-city3-collision.glb`) ever changes, rebake the navmesh first: `bun run packages/world-sim/node/bakeNavmesh.ts` (the `.bin` is tied to the GLB by sha256).
+
 ## If something breaks after deploy
 
 1. Check `/health` first (item 1 above) — rules out DB/Redis before
