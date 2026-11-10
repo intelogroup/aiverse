@@ -116,3 +116,18 @@ The uploaded Sketchfab export splits one continuous colored surface into four ch
 - An orbit target below a floor cut can drive the camera into partition walls and hide the floor. Put the spectator target above the selected cut, and follow the walker height only while walking. Camera rays must discard clipped intersections and continue to the next visible face, even inside the same BVH mesh. Reset cut-plane state when materials/planes are recreated during development.
 - A bar aisle that passes without an NPC can fail with Remy standing in it. His placement now leaves 0.87 m behind his body; both staff gates and the complete route behind him are checked with his collider present. Keep the greeting zone within the shortened 6 m counter and ignore upper-floor visitors.
 - Scope this integration to its pinned pre-edit city, retaining the original binary payload. An alternate-output run must reproduce the shipping files; do not repeatedly append to the last generated output. New main-branch city asset changes require deliberately rebasing the source pin.
+
+### Building bones, shop-46 replacement (2026-11-10)
+
+- The server sim (`loadWorld.ts`) parses the collision GLB with a plain `GLTFLoader` (no meshopt decoder), so it reads the raw fallback index bytes. `bridge_bazaar.rewrite_indices` re-encodes only the compressed copy, so every earlier collision cut (edge-block houses) was invisible to the sim and the navmesh bin never changed. `bridge_bones.repair_fallbacks` copies the decoded indices back into the raw bytes. Do not write the raw bytes inside `rewrite_indices` for the visual GLB: its fallback region is not guaranteed to be physical and the write corrupted vertex buffers (`decode_vertex_buffer` error -2).
+- Recast drops stair flights built from stacked step boxes in the navmesh bake; the collision GLB carries a 30 degree ramp prism per flight (visual keeps the steps), plus a separate landing box, or the two flights are not connected.
+- A cut that tests triangle centroids against the lot rect leaves awnings, signs, planters and door steps hanging off the street wall: pad the street side by 1.5 m (`bridge_bones.FRONT_PAD`). Hero-room furniture lives in `interiors/shop-N.json` and `.col.json`; empty both or old boxes stand in the new corridors.
+- Check: a route test from the street door to every room on every floor must end on the right floor (compare the last waypoint height, not only the XZ gap).
+
+## Bones rollout, 76 market lots (2026-11-10)
+- `bridge_bones.py --lots all` replaced every market lot except shop-102 (Tea House). Check: `bun run tools/city3/nav_bones_check.ts` (street door to corridor centre on each floor), 76/76 pass.
+- shop-166 upper floor never connected in the navmesh. Mirroring the stair core did not help; cause not found. Replaced by a one-storey building (`FLOORS` in `bones.py`) instead of debugging. Rule: replace broken mesh, do not fight it.
+- Navmesh is fragmented: start a route from a street pocket and most of the city reads "unreachable". Start route tests at the plaza (0, 0.2, 18).
+- `index.json` `door` is in GLB z (`-plan y`), not plan y.
+- Edge landscape vs rebaked navmesh: 698/715 yard sample points reachable from the plaza; 17 unreachable (outer rim, not investigated).
+- Visual GLB 47.6 -> 57.8 MB. Dead bytes are negligible (3 unused views); growth is the uncompressed `Bones_shop*` nodes.
