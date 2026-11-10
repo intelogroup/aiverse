@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { CLIP_BY_NAME, CLIP_CATALOG, ClipTestState, clipDef } from "./clips";
 
 describe("clip catalog", () => {
-  it("carries 45 clips with unique names", () => {
-    expect(CLIP_CATALOG).toHaveLength(45);
-    expect(new Set(CLIP_CATALOG.map((c) => c.name)).size).toBe(45);
+  it("carries 52 clips with unique names", () => {
+    expect(CLIP_CATALOG).toHaveLength(52);
+    expect(new Set(CLIP_CATALOG.map((c) => c.name)).size).toBe(52);
     for (const c of CLIP_CATALOG) {
       expect(CLIP_BY_NAME.get(c.name)).toBe(c);
       expect(c.duration).toBeGreaterThan(0);
@@ -28,6 +28,14 @@ describe("clip catalog", () => {
     expect(clipDef("Handshake1")?.loop).toBe(false);
     expect(clipDef("Death")?.loop).toBe(false);
     expect(clipDef("EnterCar")?.loop).toBe(false);
+    // 2026-11-09 additions: the dance and the tablet activity hold; the rest play once.
+    expect(clipDef("SillyDancing")?.loop).toBe(true);
+    expect(clipDef("StandingUsingTouchscreenTablet")?.loop).toBe(true);
+    expect(clipDef("Defeated")?.loop).toBe(false);
+    expect(clipDef("HoldingTurnLeft")?.loop).toBe(false);
+    expect(clipDef("PullingLever")?.loop).toBe(false);
+    expect(clipDef("TenderPlacement")?.loop).toBe(false);
+    expect(clipDef("PuttingDown")?.loop).toBe(false);
   });
 });
 

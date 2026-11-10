@@ -4,7 +4,9 @@
 // are wired into the body layer (bodies.ts): locomotion crossfades
 // Idle/Walk, the embody sit phases own the sitting family. The 2026-11-05
 // catalog wave baked the 43-file Mixamo batch onto all three bodies,
-// so every body now carries the SAME 45-clip catalog — skills and the
+// so every body now carries the SAME clip catalog (45 then; seven more
+// baked 2026-11-09 — Defeated, SillyDancing, StandingUsingTouchscreenTablet,
+// HoldingTurnLeft, PullingLever, TenderPlacement, PuttingDown — 52 total) — skills and the
 // Embody panel's clip tester select by name, never per body.
 //
 // `loop` clips hold until another choice; one-shots play once and the
@@ -38,12 +40,14 @@ const BATCH: ClipDef[] = [
   { name: "CastSpell", loop: false, duration: 2.3 },
   { name: "Clapping", loop: true, duration: 1.1667 },
   { name: "Death", loop: false, duration: 3.0333 },
+  { name: "Defeated", loop: false, duration: 6.7333 },
   { name: "Drinking", loop: false, duration: 8.8667 },
   { name: "EnterCar", loop: false, duration: 5.4667 },
   { name: "ExitCar", loop: false, duration: 5.8 },
   { name: "Handshake1", loop: false, duration: 4.3667 },
   { name: "Handshake2", loop: false, duration: 4.3667 },
   { name: "HitReaction", loop: false, duration: 0.4333 },
+  { name: "HoldingTurnLeft", loop: false, duration: 1.2000 },
   { name: "IdleLong", loop: true, duration: 9.9333 },
   { name: "Interact", loop: false, duration: 3.2333 },
   { name: "Jump", loop: false, duration: 2.6 },
@@ -56,14 +60,19 @@ const BATCH: ClipDef[] = [
   { name: "OpenDoorOutwards", loop: false, duration: 4.1 },
   { name: "PickUp", loop: false, duration: 9.5667 },
   { name: "Pointing", loop: false, duration: 1.8333 },
+  { name: "PullingLever", loop: false, duration: 6.2667 },
+  { name: "PuttingDown", loop: false, duration: 10.3333 },
   { name: "Run", loop: true, duration: 0.7333 },
   { name: "Salute", loop: false, duration: 2.8333 },
   { name: "ShakeHeadNo", loop: false, duration: 1.8 },
   { name: "Shrug", loop: false, duration: 2.0 },
+  { name: "SillyDancing", loop: true, duration: 3.8333 },
   { name: "SittingIdle", loop: true, duration: 6.4 },
+  { name: "StandingUsingTouchscreenTablet", loop: true, duration: 33.1333 },
   { name: "Talking", loop: true, duration: 3.9333 },
   { name: "TalkingFunny", loop: false, duration: 5.9333 },
   { name: "TalkingOnPhone", loop: true, duration: 37.2333 },
+  { name: "TenderPlacement", loop: false, duration: 9.2667 },
   { name: "Texting", loop: true, duration: 18.5333 },
   { name: "Thinking", loop: false, duration: 4.2333 },
   { name: "Throw", loop: false, duration: 2.2 },
