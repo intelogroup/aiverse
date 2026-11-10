@@ -31,8 +31,18 @@ import {
   type EventRow,
   type UserRow,
 } from "./store";
-import { newId } from "./tokens";
+import { newId, tokenEquals } from "./tokens";
 import { tickOnce } from "./ticker";
+import { CURRENT_SCHEMA_VERSION, createDbSlot, type DbSlot } from "./db";
+import {
+  MAX_SNAPSHOT_BYTES,
+  RestoreRefusal,
+  createSnapshot,
+  restoreSnapshot,
+  sha256Hex,
+  stageSnapshotBytes,
+} from "./backup";
+import { existsSync, unlinkSync } from "node:fs";
 import { PaypalClient, PaypalError, type PaypalFetch } from "./paypal";
 import {
   PayoutError,
@@ -57,6 +67,10 @@ export type VerifyGatewayToken = (token: string) => Promise<GatewayIdentity | nu
 
 export interface AppDeps {
   db: Database;
+  /** Swappable handle behind `db` (backup/restore). When provided,
+   *  `db` must be the slot's proxy; when omitted, buildApp wraps `db`
+   *  in a fresh slot so the restore swap still recycles every handler. */
+  dbSlot?: DbSlot;
   cfg: HuntConfig;
   mailer: Mailer;
   codeKey: Buffer;
@@ -131,7 +145,12 @@ function parseClaimBody(body: any): { event_id: string; body_id: string; positio
 }
 
 export function buildApp(deps: AppDeps): Hono<{ Variables: Vars }> {
-  const { db, cfg, mailer, codeKey } = deps;
+  const { cfg, mailer, codeKey } = deps;
+  // All handlers close over the slot's stable proxy handle, so a
+  // restore swap (which points the slot at the restored connection)
+  // recycles every consumer at once — no handler keeps the old inode.
+  const dbSlot = deps.dbSlot ?? createDbSlot(deps.db);
+  const db: Database = dbSlot.db;
   const limiter = deps.limiter ?? new RateLimiter();
   const app = new Hono<{ Variables: Vars }>();
   // Phase 2 cash rail: the client exists only when the config gate is
@@ -170,7 +189,7 @@ export function buildApp(deps: AppDeps): Hono<{ Variables: Vars }> {
   };
   const requireAdmin = async (c: any, next: any) => {
     const token = bearerToken(c.req.header("Authorization"));
-    if (!token || token !== cfg.adminToken) return c.json(err("unauthorized"), 401);
+    if (!token || !tokenEquals(token, cfg.adminToken)) return c.json(err("unauthorized"), 401);
     await next();
   };
 
@@ -684,6 +703,104 @@ export function buildApp(deps: AppDeps): Hono<{ Variables: Vars }> {
     db.query("UPDATE hunt_users SET status = 'suspended' WHERE id = ?").run(c.req.param("id"));
     auditInsert(db, "admin", "user_suspend", c.req.param("id"), null, now);
     return c.json({ id: c.req.param("id"), status: "suspended" });
+  });
+
+  // ---------- admin: backup / restore (SPEC §2 backups, audit M6) ----------
+  // The hunt DB is one SQLite file on one disk; this pair is the only
+  // agent-reachable channel to it (Render one-off jobs get ephemeral
+  // filesystems). Safety design lives in backup.ts: online snapshot
+  // out, validate-before-touch in, downgrade-to-empty guard, .bak kept,
+  // connection recycled through dbSlot. No token ever travels in a URL
+  // or body — restore-from presents THIS service's own env copy of the
+  // admin token to the source, which is the transfer design for the
+  // two gateways that share it.
+
+  app.get("/v1/admin/backup", requireAdmin, (c) => {
+    const snap = createSnapshot(db, cfg.dbPath);
+    auditInsert(
+      db,
+      "admin",
+      "db_backup",
+      snap.file.split("/").pop() ?? "snapshot",
+      { sha256: snap.sha256, bytes: snap.bytes, counts: snap.counts },
+      Date.now(),
+    );
+    const counts = snap.counts;
+    return new Response(Bun.file(snap.file).stream(), {
+      headers: {
+        "Content-Type": "application/vnd.sqlite3",
+        "Content-Disposition": 'attachment; filename="hunt-backup.db"',
+        "Content-Length": String(snap.bytes),
+        "X-Hunt-Snapshot-Sha256": snap.sha256,
+        "X-Hunt-Count-Users": String(counts.users),
+        "X-Hunt-Count-Events": String(counts.events),
+        "X-Hunt-Count-Prizes": String(counts.prizes),
+        "X-Hunt-Count-Claims": String(counts.claims),
+        "X-Hunt-Count-Ledger": String(counts.ledger),
+      },
+    });
+  });
+
+  const restoreStaged = (c: any, staged: string, force: boolean) => {
+    try {
+      const out = restoreSnapshot(dbSlot, cfg.dbPath, staged, CURRENT_SCHEMA_VERSION, { force });
+      return c.json({ ok: true, ...out });
+    } catch (e) {
+      if (e instanceof RestoreRefusal) {
+        return c.json({ error: e.code, ...(e.detail ?? {}) }, e.status);
+      }
+      throw e;
+    } finally {
+      // On success the swap consumed the staged file (renamed into
+      // place); on refusal it is still here and must not linger.
+      try {
+        if (existsSync(staged)) unlinkSync(staged);
+      } catch {}
+    }
+  };
+
+  app.post("/v1/admin/restore", requireAdmin, async (c) => {
+    const declared = Number(c.req.header("content-length") ?? 0);
+    if (declared > MAX_SNAPSHOT_BYTES) return c.json(err("snapshot_too_large"), 413);
+    const buf = await c.req.arrayBuffer();
+    if (buf.byteLength > MAX_SNAPSHOT_BYTES) return c.json(err("snapshot_too_large"), 413);
+    const staged = stageSnapshotBytes(cfg.dbPath, new Uint8Array(buf));
+    return restoreStaged(c, staged, c.req.query("force") === "1");
+  });
+
+  app.post("/v1/admin/restore-from", requireAdmin, async (c) => {
+    const body = (await c.req.json().catch(() => null)) as {
+      source_base_url?: unknown;
+      force?: unknown;
+    } | null;
+    const base = body?.source_base_url;
+    if (typeof base !== "string" || !/^https?:\/\/[^/]+/.test(base)) {
+      return c.json(err("bad_source_url"), 400);
+    }
+    let res: Response;
+    try {
+      res = await fetch(`${base.replace(/\/+$/, "")}/v1/admin/backup`, {
+        headers: { Authorization: `Bearer ${cfg.adminToken}` },
+        redirect: "manual",
+        signal: AbortSignal.timeout(120_000),
+      });
+    } catch {
+      return c.json(err("source_unreachable"), 502);
+    }
+    if (res.status !== 200) {
+      return c.json({ error: "source_backup_failed", source_status: res.status }, 502);
+    }
+    const declared = Number(res.headers.get("content-length") ?? 0);
+    if (declared > MAX_SNAPSHOT_BYTES) return c.json(err("snapshot_too_large"), 413);
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (bytes.byteLength > MAX_SNAPSHOT_BYTES) return c.json(err("snapshot_too_large"), 413);
+    const expectedSha = res.headers.get("x-hunt-snapshot-sha256");
+    if (!expectedSha) return c.json(err("source_checksum_missing"), 502);
+    if (sha256Hex(bytes) !== expectedSha.toLowerCase()) {
+      return c.json(err("source_checksum_mismatch"), 502);
+    }
+    const staged = stageSnapshotBytes(cfg.dbPath, bytes);
+    return restoreStaged(c, staged, body?.force === true);
   });
 
   return app;

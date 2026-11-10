@@ -126,6 +126,29 @@ export function announcementInsert(
   return Number(r.lastInsertRowid);
 }
 
+/** Row counts of the core tables — the backup/restore pair's shared
+ *  yardstick (export reports them; restore's downgrade guard compares
+ *  them; the drill asserts they survive a round trip). */
+export interface TableCounts {
+  users: number;
+  events: number;
+  prizes: number;
+  claims: number;
+  ledger: number;
+}
+
+export function tableCounts(db: Database): TableCounts {
+  const n = (table: string) =>
+    (db.query(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n;
+  return {
+    users: n("hunt_users"),
+    events: n("events"),
+    prizes: n("prizes"),
+    claims: n("claim_attempts"),
+    ledger: n("pool_ledger"),
+  };
+}
+
 export function prizeCounts(db: Database, eventId: string): { total: number; claimed: number } {
   const r = db
     .query(
