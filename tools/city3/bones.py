@@ -31,7 +31,16 @@ GROUND_H, UPPER_H = 4.2, 3.8
 SKIP_LOTS = {102}          # Tea House: hand-built, keep as is
 
 
-def geom(L, Dp):
+def variant(L, Dp):
+    """Narrow lots (< 10 m along the street, 12 m deep): lay the building out
+    the long way (corridor runs along the depth, one room column, street door
+    in the stair lobby). Returns (L', Dp', end_door)."""
+    if L < 10.0 and Dp >= 10.4:
+        return Dp, L, True
+    return L, Dp, False
+
+
+def geom(L, Dp, end_door=False):
     double = Dp >= 10.4
     if double:
         rd = (Dp - 2 * T_OUT - 2 * T_IN - 2.4) / 2
@@ -51,7 +60,8 @@ def geom(L, Dp):
         xs.append((x, x + rw))
         x += rw + T_IN
     s = 1 if double else -1
-    y_a = (Y_C[0] + Y_C[1]) / 2 if double else Dp - T_OUT - 1.6
+    y_a = (Y_C[0] + Y_C[1]) / 2 if double else \
+        Dp - T_OUT - (1.9 if end_door else 1.6)
     return dict(L=L, Dp=Dp, double=double, Y_S=Y_S, Y_C=Y_C, Y_N=Y_N,
                 X_ROOMS=xs, RW=rw, s=s, y_a=y_a)
 
@@ -62,15 +72,15 @@ def floors_z(nfl):
     return fl, fl[-1] + UPPER_H
 
 
-def layout(L, Dp, nfl):
-    g = geom(L, Dp)
+def layout(L, Dp, nfl, end_door=False):
+    g = geom(L, Dp, end_door)
     Y_S, Y_C, Y_N, XR = g["Y_S"], g["Y_C"], g["Y_N"], g["X_ROOMS"]
     s, y_a = g["s"], g["y_a"]
     FL, ROOF = floors_z(nfl)
     levels = FL + [ROOF]
     mid = lambda r: (r[0] + r[1]) / 2.0
     boxes, doors, stairs = [], [], []
-    ent = len(XR) // 2                     # street-door room
+    ent = -1 if end_door else len(XR) // 2   # street-door room
     for fi, zf in enumerate(FL):
         zc = levels[fi + 1] - SLAB
         if fi == 0:
@@ -96,7 +106,12 @@ def layout(L, Dp, nfl):
         boxes += wall_x(0, T_OUT, 0, L, zf, zc, "shell", so)
         boxes += wall_x(Dp - T_OUT, Dp, 0, L, zf, zc, "shell",
                         [win(xr) for xr in XR])
-        boxes += _wall_y(0, T_OUT, 0, Dp, zf, zc, "shell", [])
+        west = []
+        if end_door:       # street door (ground) / window (upper) in the lobby
+            lc = (y_a + Dp - T_OUT) / 2
+            west = [(lc - 0.9, lc + 0.9, 0.0, STREET_H)] if fi == 0 else \
+                [(lc - 0.8, lc + 0.8, zf + WIN_SILL, zf + WIN_SILL + WIN_H)]
+        boxes += _wall_y(0, T_OUT, 0, Dp, zf, zc, "shell", west)
         boxes += _wall_y(L - T_OUT, L, 0, Dp, zf, zc, "shell",
                          [(Y_C[0] + 0.2, Y_C[1] - 0.2, zf + 0.8, zf + 3.0)])
         boxes += _wall_y(X_CORE[1], X_CORE[1] + T_IN, T_OUT, Dp - T_OUT, zf, zc,
@@ -121,7 +136,8 @@ def layout(L, Dp, nfl):
                                   "partition"))
         doors.append(dict(floor=fi, kind="ceiling", clear=zc - zf))
         if fi == 0:
-            doors.append(dict(floor=0, kind="street", width=STREET_W,
+            doors.append(dict(floor=0, kind="street",
+                              width=1.8 if end_door else STREET_W,
                               height=STREET_H))
         if fi + 1 < nfl:
             rise = FL[fi + 1] - zf
@@ -155,7 +171,8 @@ def layout(L, Dp, nfl):
 
 def check(L, Dp, nfl):
     import numpy as np
-    Lo = layout(L, Dp, nfl)
+    L, Dp, ed = variant(L, Dp)
+    Lo = layout(L, Dp, nfl, ed)
     g, FL, ROOF = Lo["geom"], Lo["FL"], Lo["ROOF"]
     Y_S, Y_C, Y_N, XR = g["Y_S"], g["Y_C"], g["Y_N"], g["X_ROOMS"]
     s, y_a = g["s"], g["y_a"]
@@ -208,6 +225,8 @@ def check(L, Dp, nfl):
                 if ys:
                     tg[f"r{xi}{tag}"] = (sum(xr) / 2, sum(ys) / 2)
         tg["stair"] = (1.4, y_a - s * 0.6)      # arrival side of the hole
+        if ed and fi == 0:
+            tg["street"] = (T_OUT + 0.6, (y_a + Dp - T_OUT) / 2)
         miss = [k for k, (tx, ty) in tg.items() if not seen[int(tx / res),
                                                             int(ty / res)]]
         if miss:
@@ -321,8 +340,12 @@ if __name__ == "__main__":
         data = []
         for lot in lots():
             if check(lot["L"], lot["Dp"], lot["floors"]):
-                continue                 # fails the space rules (8 m wide)
-            Lo = layout(lot["L"], lot["Dp"], lot["floors"])
+                continue                 # fails the space rules
+            L2, D2, ed = variant(lot["L"], lot["Dp"])
+            Lo = layout(L2, D2, lot["floors"], ed)
+            if ed:   # rotate back to street frame: x = Dp' - v', y = u'
+                Lo["boxes"] = [(D2 - d, a, z0, D2 - b, c, z1, r)
+                               for (a, b, z0, c, d, z1, r) in Lo["boxes"]]
             data.append(dict(id=lot["id"], face=lot["face"], rect=lot["rect"],
                              floors=lot["floors"], L=lot["L"], Dp=lot["Dp"],
                              FL=Lo["FL"], roof=Lo["ROOF"],
