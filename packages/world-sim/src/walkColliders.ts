@@ -44,6 +44,9 @@ export class WalkColliders {
 
   has(key: string): boolean { return this.sets.has(key); }
 
+  /** The meshes under `key` (tools such as the navmesh bake read the resident geometry through this). */
+  get(key: string): readonly THREE.Mesh[] | undefined { return this.sets.get(key); }
+
   drop(key: string, count = true): void {
     const old = this.sets.get(key);
     if (!old) return;

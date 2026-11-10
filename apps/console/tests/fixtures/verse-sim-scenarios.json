@@ -1,0 +1,10 @@
+[
+  { "name": "stall", "action": { "type": "go_to", "place": "stall-0" }, "maxS": 120 },
+  { "name": "tea-door", "action": { "type": "go_to", "point": [-22.9, -75.0] }, "maxS": 200 },
+  { "name": "sit", "action": { "type": "sit", "sittable": "tea-west-left" }, "maxS": 90 },
+  { "name": "stand", "action": { "type": "stand" }, "maxS": 30 },
+  { "name": "to-radio", "action": { "type": "go_to", "point": [-16.95, -78.5] }, "maxS": 90 },
+  { "name": "radio-on", "action": { "type": "interact", "target": "tea-radio" }, "maxS": 60 },
+  { "name": "radio-off", "action": { "type": "interact", "target": "tea-radio" }, "maxS": 60 },
+  { "name": "exit", "action": { "type": "go_to", "point": [-22.9, -70.0] }, "maxS": 200 }
+]
