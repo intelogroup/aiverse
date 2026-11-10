@@ -305,8 +305,37 @@ def add_signs(path, lots, idx, dry_run):
     return {"signs": [b[0] for b in boxes]}
 
 
+LIFT = 0.02
+
+
+def lift_visual(path, dry_run):
+    """The bones ground slab top (y=0.2) is coplanar with the textured
+    `Sidewalks` ground, so the two z-fight (striped wood-grain patches on every
+    bones floor). Lift each visual Bones_shop node 2 cm with a node translation:
+    JSON-only, collision (col_bones_*) keeps the true walk height."""
+    glb = Glb(path)
+    n = 0
+    for node in glb.gltf["nodes"]:
+        if node.get("name", "").startswith("Bones_shop") and "mesh" in node:
+            if node.get("translation") != [0, LIFT, 0]:
+                node["translation"] = [0, LIFT, 0]
+                n += 1
+    if n and not dry_run:
+        fd, tmp = tempfile.mkstemp(suffix=".glb", dir=os.path.dirname(os.path.abspath(path)))
+        os.close(fd)
+        try:
+            save_glb(tmp, glb.gltf, glb.bin)
+            os.replace(tmp, path)
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+    return {"lifted": n}
+
+
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--lift", action="store_true",
+                    help="only lift visual Bones nodes 2 cm (z-fight with Sidewalks)")
     ap.add_argument("--rebuild", action="store_true",
                     help="swap the bones of already patched lots (no cut)")
     ap.add_argument("--signs", action="store_true",
@@ -326,6 +355,9 @@ def main():
         data = [d for d in data if d["id"] in want]
         assert len(data) == len(want), "unknown lot id"
     assets = os.path.dirname(a.visual)
+    if a.lift:
+        print("lift", json.dumps(lift_visual(a.visual, a.dry_run)))
+        return
     if not a.signs:
         print("visual", json.dumps(patch(a.visual, data, False, a.dry_run)))
         print("collision", json.dumps(patch(a.collision, data, True, a.dry_run)))
