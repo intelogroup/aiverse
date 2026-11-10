@@ -26,5 +26,5 @@
   // Root check covers the bun-runtime packages (gateway + shared libs). The
   // console is a DOM/Vite app with its own project (apps/console/tsconfig.json
   // → tsconfig.app.json / tsconfig.node.json) and is checked via `tsc -b`.
-  "include": ["apps/gateway/**/*", "apps/hunt/src/**/*", "packages/*/src/**/*"]
+  "include": ["apps/gateway/**/*", "apps/hunt/src/**/*", "packages/*/src/**/*", "packages/world-sim/node/**/*"]
 }

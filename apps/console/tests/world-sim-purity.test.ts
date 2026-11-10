@@ -16,7 +16,10 @@ function code(name: string): string {
 }
 const specifiers = (src: string) => [...src.matchAll(/(?:from|import)\s*["']([^"']+)["']/g)].map((m) => m[1]);
 
-const ALLOWED_EXTERNAL = new Set(["three", "three-mesh-bvh"]);
+// recast-navigation is the Recast/Detour WASM (cityNav.ts): no DOM, runs in Node and Bun as in the browser.
+/** Package-only modules: the console never had them, so they have no shim. */
+const SERVER_ONLY = new Set(["agentBody", "verseSim"]);
+const ALLOWED_EXTERNAL = new Set(["three", "three-mesh-bvh", "recast-navigation", "@recast-navigation/core"]);
 const BROWSER_GLOBALS = /\b(window|document|navigator|localStorage|sessionStorage|AudioContext|HTMLElement|requestAnimationFrame|location|OffscreenCanvas)\b/;
 
 describe("packages/world-sim stays pure", () => {
@@ -24,7 +27,7 @@ describe("packages/world-sim stays pure", () => {
     expect(names.length).toBeGreaterThanOrEqual(15);
   });
 
-  it.each(names)("%s imports only the package itself, three and three-mesh-bvh", (name) => {
+  it.each(names)("%s imports only the package itself, three, three-mesh-bvh and recast-navigation", (name) => {
     for (const spec of specifiers(code(name))) {
       if (spec.startsWith("./")) {
         expect(existsSync(new URL(`${spec.slice(2)}.ts`, pkg)), `${name}: ${spec} must exist inside the package`).toBe(true);
@@ -42,7 +45,7 @@ describe("packages/world-sim stays pure", () => {
     expect(hit?.[0] ?? null, `${name} uses the browser global "${hit?.[0]}"`).toBeNull();
   });
 
-  it.each(names)("the console shim for %s re-exports the package module", (name) => {
+  it.each(names.filter((n) => !SERVER_ONLY.has(n)))("the console shim for %s re-exports the package module", (name) => {
     const shim = new URL(`${name}.ts`, shims);
     expect(existsSync(shim), `missing shim ${name}.ts`).toBe(true);
     expect(readFileSync(shim, "utf8").trim()).toBe(`export * from "@aiverse/world-sim/${name}";`);

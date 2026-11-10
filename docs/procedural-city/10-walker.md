@@ -287,3 +287,22 @@ teaElevator, walkColliders, walkOverride, walker, + `locomotionState`). The cons
 - **Lesson**: my first dependency audit only matched double-quoted imports and missed `teaElevator -> './teaBuilding'` (single quotes); `tsc -b` caught it. Audit with both quote styles, or just let tsc and the guard test find it.
 - **Measured headless (Bun 1.4.4, 4-core sandbox)**: collision GLBs load + BVH 163 ms (87k tris); a walker step is about 42-45 us (500 agents = 62-65% of one core at 10 Hz); `planRoute` is
   98-528 ms for a reachable goal and 7.8-17.9 s for an unreachable one (it exhausts its 10,000 expansions), so planning must never run on a tick thread.
+
+### Headless agent body on a navmesh (2026-11-10, branch `feat/world-sim-body`)
+`AgentBody` (one agent: `WalkerState` + `ScoutExecutor` + `ClipTestState`, the part of `ScoutAgent.tsx` that is not React) and `VerseSim` (the world: collision sets, the shared
+Tea House door and prop controllers, every body, 1/30 s substeps) are in `packages/world-sim/src`; `node/loadWorld.ts` reads the shipped City 3 data from disk. Test:
+`apps/console/tests/verse-sim.test.ts` (node env, 2.5 s). A new body spawns at (5.68, 0.20, 10.57), exactly where the browser scout spawns.
+- **Planner: Detour navmesh, not the grid A\*** (`cityNav.ts`, taken from PR #75; its scout/separation/console wiring were not taken). Same `go_to` to 32 places: grid A\* arrived
+  20/32, worst single tick 55.6 s, 690 s wall; Detour 32/32, worst tick 14 ms, 3 s wall. All 158 places: 157 reachable. The mesh is baked by `node/bakeNavmesh.ts`
+  from the sim's own collision sets (Bazaar + districts + hero-room furniture boxes, without the closed-door blocker) into `packages/world-sim/data/` (8.5 MB, ~2.6 MB compressed);
+  the test fails if `world-city3-collision.glb` changes without a rebake.
+- **Lesson, climb limit**: PR #75's bake (maxClimb 0.4 at 0.2 m cells) read a 0.5 m curb as climbable (Recast rounds the climb up) while the walker's step-up is 0.4, so bodies stalled
+  at it (149/158 places). Bake with maxClimb 0.31 at 0.1 m cells and erosion = the walker's radius 0.4.
+- **Lesson, same world**: a mesh baked from the Bazaar collision alone routed bodies through Tea House booths and tables (interior furniture boxes are separate collision sets), and
+  a run passed or failed on float noise (Bun vs Node). Bake from every set the walker collides with, then the sequence passes under both runtimes.
+- **Bun vs Node**: the 8-step Tea House sequence (stall, door, sit, stand, radio on/off, exit) ends within 0.75 m of the Bun goldens under vitest/Node. Browser parity is only anchored
+  on the first step (browser ended it at (-16.59, 14.88), headless at (-16.49, 15.13)): the browser run of the Tea House step did not finish in 9 min of software-rendered wall time
+  (`harness/verse_parity.cjs`), so later steps are headless regression goldens.
+- **Known gaps**: avoidance has no occlusion test (a body may yield to a mover behind a wall); no elevator controller (upper floors); `hall-0` has no complete route;
+  the navmesh does not model the Tea House door (the door machine opens the blocker on the way).
+
