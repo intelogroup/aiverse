@@ -244,8 +244,86 @@ def fix_cut(assets, lots):
     return idx
 
 
+SIGN_W, SIGN_H, SIGN_T, SIGN_EPS = 1.6, (3.0, 3.7), 0.25, 0.015
+
+
+def sign_png(name, col):
+    """512x112 board: shop name auto-fitted in DejaVu Sans Bold (open licence)."""
+    import io
+    import matplotlib
+    from PIL import Image, ImageDraw, ImageFont
+    font = os.path.join(os.path.dirname(matplotlib.__file__), "mpl-data",
+                        "fonts", "ttf", "DejaVuSans-Bold.ttf")
+    W, H = 512, 112
+    bg = tuple(int(255 * c ** (1 / 2.2)) for c in col)   # factor is linear, PNG is sRGB
+    im = Image.new("RGB", (W, H), bg)
+    d = ImageDraw.Draw(im)
+    d.rectangle([5, 5, W - 6, H - 6], outline=(235, 220, 180), width=4)
+    size = 64
+    while True:
+        f = ImageFont.truetype(font, size)
+        l, t, r, b = d.textbbox((0, 0), name, font=f)
+        if (r - l <= W - 48 and b - t <= H - 34) or size <= 14:
+            break
+        size -= 2
+    d.text(((W - (r - l)) / 2 - l, (H - (b - t)) / 2 - t), name, font=f,
+           fill=(245, 235, 205))
+    buf = io.BytesIO()
+    im.save(buf, "PNG", optimize=True)
+    return buf.getvalue()
+
+
+def sign_quad(l):
+    """Textured quad SIGN_EPS proud of the board's street face, GLB frame.
+    Left/right are as seen from the street; UV origin top-left (glTF)."""
+    dx, dy = SIGN_COL[l["face"]]
+    x0, y0, x1, y1 = l["rect"]
+    wall = {"S": y0, "N": y1, "W": x0, "E": x1}[l["face"]]
+    door, off = l["door"], SIGN_T + SIGN_EPS
+    n = np.array([dx, 0.0, -dy])                       # GLB outward normal
+    right = np.array([n[2], 0.0, -n[0]])               # (-n) x up
+    z0, z1 = SIGN_H[0] + FLOOR_Y, SIGN_H[1] + FLOOR_Y
+    def pt(a, z):
+        px, py = (a, wall + dy * off) if dx == 0 else (wall + dx * off, a)
+        return np.array([px, z, -py])
+    c = door[0] if dx == 0 else door[1]
+    ends = sorted([c - SIGN_W, c + SIGN_W],
+                  key=lambda a: float(np.dot(right, pt(a, 0))))
+    pos = np.array([pt(ends[0], z0), pt(ends[1], z0), pt(ends[1], z1),
+                    pt(ends[0], z1)], "<f4")
+    uv = np.array([[0, 1], [1, 1], [1, 0], [0, 0]], "<f4")
+    return (pos, np.tile(n, (4, 1)).astype("<f4"), uv,
+            np.array([0, 1, 2, 0, 2, 3], "<u4"))
+
+
+def add_sign_text(glb, lot, col, name):
+    """Primitive carrying the shop-name texture (image + texture + material)."""
+    from bridge_landscape_kit import append_bytes
+    g = glb.gltf
+    lot_id = lot["id"]
+    pos, nrm, uv, ix = sign_quad(lot)
+    png = sign_png(name, col)
+    off = append_bytes(glb, png)
+    g["bufferViews"].append({"buffer": 0, "byteOffset": off, "byteLength": len(png)})
+    g.setdefault("images", []).append({"name": "sign_%d" % lot_id, "mimeType": "image/png",
+                                       "bufferView": len(g["bufferViews"]) - 1})
+    g.setdefault("textures", []).append({"source": len(g["images"]) - 1})
+    g["materials"].append({"name": "ls_signtex_%d" % lot_id,
+                           "pbrMetallicRoughness": {
+                               "baseColorTexture": {"index": len(g["textures"]) - 1},
+                               "metallicFactor": 0.0, "roughnessFactor": 0.9},
+                           "doubleSided": False})
+    pa = add_accessor(glb, add_view(glb, pos.tobytes(), 34962), 5126, 4, "VEC3",
+                      pos.min(0).tolist(), pos.max(0).tolist())
+    na = add_accessor(glb, add_view(glb, nrm.tobytes(), 34962), 5126, 4, "VEC3")
+    ta = add_accessor(glb, add_view(glb, uv.tobytes(), 34962), 5126, 4, "VEC2")
+    ia = add_accessor(glb, add_view(glb, ix.tobytes(), 34963), 5125, 6, "SCALAR")
+    return {"attributes": {"POSITION": pa, "NORMAL": na, "TEXCOORD_0": ta},
+            "indices": ia, "material": len(g["materials"]) - 1}
+
+
 def add_signs(path, lots, idx, dry_run):
-    """Board over each street door (visual only; text comes with textures)."""
+    """Board over each street door, plus a lettered quad with the shop name."""
     glb = Glb(path)
     done = set(glb.gltf.get("extras", {}).get(SIGN_MARK, []))
     todo = lots if REBUILD else [l for l in lots if l["id"] not in done]
@@ -266,6 +344,8 @@ def add_signs(path, lots, idx, dry_run):
         boxes.append((l["id"], bx))
     if dry_run or not boxes:
         return {"signs": [b[0] for b in boxes]}
+    byid = {l["id"]: l for l in todo}
+    names = {int(r["id"][5:]): r["name"] for r in idx if r["id"].startswith("shop-")}
     for lid, bx in boxes:
         pos, nrm, ix = box_mesh([bx + ("sign",)], "sign")
         pa = add_accessor(glb, add_view(glb, pos.tobytes(), 34962), 5126,
@@ -274,16 +354,19 @@ def add_signs(path, lots, idx, dry_run):
                           len(nrm), "VEC3")
         ia = add_accessor(glb, add_view(glb, ix.tobytes(), 34963), 5125,
                           len(ix), "SCALAR")
-        mat = add_material(glb, cache, "sign_%d" % lid,
-                           SIGN_PAL[lid % len(SIGN_PAL)], False)
+        col = SIGN_PAL[lid % len(SIGN_PAL)]
+        mat = add_material(glb, cache, "sign_%d" % lid, col, False)
         nm = "Sign_shop%d" % lid
         prim = {"attributes": {"POSITION": pa, "NORMAL": na}, "indices": ia,
                 "material": mat}
+        prims = [prim]
+        if names.get(lid):
+            prims.append(add_sign_text(glb, byid[lid], col, names[lid]))
         old = next((n for n in glb.gltf["nodes"] if n.get("name") == nm), None)
-        if old is not None:         # rebuild: swap prim, old bytes stay dead
-            glb.gltf["meshes"][old["mesh"]]["primitives"] = [prim]
+        if old is not None:         # rebuild: swap prims, old bytes stay dead
+            glb.gltf["meshes"][old["mesh"]]["primitives"] = prims
             continue
-        glb.gltf["meshes"].append({"name": nm, "primitives": [prim]})
+        glb.gltf["meshes"].append({"name": nm, "primitives": prims})
         glb.gltf["nodes"].append({"name": nm, "mesh": len(glb.gltf["meshes"]) - 1})
         glb.gltf["scenes"][0]["nodes"].append(len(glb.gltf["nodes"]) - 1)
     glb.gltf.setdefault("extras", {})[SIGN_MARK] = sorted(done | {b[0] for b in boxes})
