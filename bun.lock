@@ -17,6 +17,7 @@
       "name": "@aiverse/console",
       "version": "0.0.0",
       "dependencies": {
+        "@aiverse/world-sim": "workspace:*",
         "@react-three/drei": "^10.0.0",
         "@react-three/fiber": "^9.0.0",
         "@react-three/postprocessing": "^3.2.2",
@@ -90,6 +91,17 @@
         "@aiverse/shared": "workspace:*",
       },
     },
+    "packages/world-sim": {
+      "name": "@aiverse/world-sim",
+      "version": "0.0.0",
+      "dependencies": {
+        "three": "^0.170.0",
+        "three-mesh-bvh": "0.9.16",
+      },
+      "devDependencies": {
+        "@types/three": "^0.170.0",
+      },
+    },
   },
   "packages": {
     "@adobe/css-tools": ["@adobe/css-tools@4.5.0", "", {}, "sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q=="],
@@ -105,6 +117,8 @@
     "@aiverse/shared": ["@aiverse/shared@workspace:packages/shared"],
 
     "@aiverse/topics": ["@aiverse/topics@workspace:packages/topics"],
+
+    "@aiverse/world-sim": ["@aiverse/world-sim@workspace:packages/world-sim"],
 
     "@asamuzakjp/css-color": ["@asamuzakjp/css-color@6.0.7", "", { "dependencies": { "@csstools/css-calc": "^3.3.0", "@csstools/css-color-parser": "^4.1.10", "@csstools/css-parser-algorithms": "^4.0.0", "@csstools/css-tokenizer": "^4.0.0", "lru-cache": "^11.5.2" } }, "sha512-vC/bk1Lz7Tn/EfU9/apOTBk80/8dyGyWMowPoV1tJ52muDGsDqt2HPT2klrFUiY60MQmQv9q8yIht15JnBgDGw=="],
 

@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@aiverse/world-sim": "workspace:*",
     "@react-three/drei": "^10.0.0",
     "@react-three/fiber": "^9.0.0",
     "@react-three/postprocessing": "^3.2.2",

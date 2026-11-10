@@ -274,3 +274,16 @@ normalize to them"; chosen targets: Remy 1.78, Summer 1.68, Body Block 1.75, Kay
   3.59 m/s; bar shot with Summer and the bartender; Agora crowd proportions vs benches/trees (A/B against main: the bench no longer reaches her
   chest). The Agora embody `sit_on` did not complete within 3 min in this harness on main either (not caused by the scale; open).
 - Not measured: foot-lock skate numbers at the new scale (`gait_full.mjs` does not apply the display scale yet).
+
+## `packages/world-sim`: the pure half of the walker (2026-11-10, branch `feat/world-sim`)
+The server-side agent sim needs the same walker, collision, navigation, scout executor and door/prop controllers the console runs, without a browser. They now live in
+`packages/world-sim/src` (17 modules: actors, bodies, bodyController, capsuleWorld, clips, embody, gait, interactables, keeper, navigation, scout, teaBuilding, teaDoor,
+teaElevator, walkColliders, walkOverride, walker, + `locomotionState`). The console keeps a ONE-LINE shim at each old path (`export * from "@aiverse/world-sim/<name>"`), so its
+64 importing files and their tests are unchanged; the tests still live in `apps/console/src/features/world/` and run there.
+- **Purity guard**: `apps/console/tests/world-sim-purity.test.ts` fails if a package module imports anything but the package, `three` or `three-mesh-bvh`, uses a browser global
+  (`window`, `document`, `localStorage`, `AudioContext`, `requestAnimationFrame`, ...) or loses its shim. `locomotion.ts` stays in the console (Recast WASM); only its
+  `LocomotionState` type moved (`locomotionState.ts`), `locomotion.ts` re-exports it.
+- **One three**: the package and the console must resolve the SAME `three` (same version spec); a second copy breaks `instanceof` between meshes. Checked: both `readlink -f` to one store dir.
+- **Lesson**: my first dependency audit only matched double-quoted imports and missed `teaElevator -> './teaBuilding'` (single quotes); `tsc -b` caught it. Audit with both quote styles, or just let tsc and the guard test find it.
+- **Measured headless (Bun 1.4.4, 4-core sandbox)**: collision GLBs load + BVH 163 ms (87k tris); a walker step is about 42-45 us (500 agents = 62-65% of one core at 10 Hz); `planRoute` is
+  98-528 ms for a reachable goal and 7.8-17.9 s for an unreachable one (it exhausts its 10,000 expansions), so planning must never run on a tick thread.

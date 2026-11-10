@@ -1,0 +1,18 @@
+{
+  "name": "@aiverse/world-sim",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Pure (no DOM, no React) City 3 simulation: walker, capsule collision, navigation, scout executor, door/prop controllers. Shared by the console and the server sim.",
+  "module": "src/walker.ts",
+  "type": "module",
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "three": "^0.170.0",
+    "three-mesh-bvh": "0.9.16"
+  },
+  "devDependencies": {
+    "@types/three": "^0.170.0"
+  }
+}

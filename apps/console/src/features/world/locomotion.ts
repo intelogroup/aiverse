@@ -74,8 +74,8 @@ const ARRIVE_DIST = 0.6; // m from target counts as "reached"
 const RETARGET_AFTER_S = 8; // pick a fresh wander target at least this often
 const SPAWN_MIN_SEPARATION = 1.5; // m between spawn points (best effort)
 
-/** "run" is produced only by gait-driven frames (the City 3 walker); the crowd emits idle/walk. */
-export type LocomotionState = "idle" | "walk" | "run";
+import type { LocomotionState } from "./locomotionState";
+export type { LocomotionState };
 
 export interface AnimState {
   state: LocomotionState;
