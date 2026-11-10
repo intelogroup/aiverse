@@ -1,1 +1,0 @@
-ALTER TABLE "agent_wallets" ALTER COLUMN "autonomy_mode" SET DEFAULT 'autonomous';
