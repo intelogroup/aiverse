@@ -547,7 +547,19 @@ def add_pitched(path, lots, dry_run):
 
 
 DOOR_MARK = "bones_doors"
-DIGITS = False
+DIGITS = True
+DOOR_STYLES = {"panel": 0, "glazed": 1, "double": 2, "half-glazed": 3, "studded": 4}
+
+
+def hero_doors(glb):
+    """Frame instances [(plan x, plan y, style)] decoded from inst_door_* (GLB x,z -> plan x,-z)."""
+    out = []
+    for n in glb.gltf["nodes"]:
+        if n.get("name", "").startswith("inst_door_"):
+            t = np.asarray(glb.acc_raw(n["extensions"]["EXT_mesh_gpu_instancing"]["attributes"]["TRANSLATION"])).reshape(-1, 3)
+            st = DOOR_STYLES[n["name"][10:]]
+            out += [(float(p[0]), -float(p[2]), st) for p in t]
+    return out
 DOOR_DZ = -0.08      # hero frame z is above street level F=0.28; bones walk slab is 0.2
 TPL_DOORS = {"cafe": [1, 3, 1, 2], "shop": [0, 1, 3, 0, 2],
              "library": [4, 0, 4, 3], "workshop": [4, 1, 4]}    # same pools as build_city.py
@@ -557,7 +569,7 @@ SEG = {"0": "abcdef", "1": "bc", "2": "abdeg", "3": "abcdg", "4": "bcfg",
        "5": "acdfg", "6": "acdefg", "7": "abc", "8": "abcdefg", "9": "abcdfg"}
 
 
-def door_boxes(lot, template):
+def door_boxes(lot, template, hero=None):
     """The leaf and house number the bone cut removed, plan frame, axis aligned.
     The hero frame, canopy and plaque stay as instances; the leaf is swung 90
     degrees inward along the right jamb so the doorway stays open (nothing
@@ -572,6 +584,12 @@ def door_boxes(lot, template):
     wall = {"S": y0, "N": y1, "W": x0, "E": x1}[lot["face"]]
     dx, dy = lot["door"]
     cx, cy = (dx, wall) if ox == 0 else (wall, dy)
+    near = [h for h in (hero or []) if abs(h[0] - cx) + abs(h[1] - cy) < 1.2]
+    if not near:
+        number = None                               # no frame left: no plaque to number
+    if near:                                        # the real frame centre and style
+        h0 = min(near, key=lambda h: abs(h[0] - cx) + abs(h[1] - cy))
+        cx, cy, style = (h0[0], cy, h0[2]) if ox == 0 else (cx, h0[1], h0[2])
 
     def B(u0, u1, t0, t1, z0, z1):
         pts = [(cx + ax * u + ox * t, cy + ay * u + oy * t) for u in (u0, u1) for t in (t0, t1)]
@@ -595,12 +613,12 @@ def door_boxes(lot, template):
         for (a, b) in ((0.55, 0.68), (1.95, 2.08)):
             iron.append(B(fu[0], fu[1], t0 - 0.05, t1 + 0.05, a, b))
     brass = [B(fu[0] - 0.03 * side, fu[0] + 0.03 * side, t0 - 1.1, t0 - 1.16, 1.0, 1.06)]
-    paper = []                  # digits off: hero frame c != door x in some lots, originals survive in others
-    sx = str(number) if DIGITS else ""
+    paper = []
+    sx = str(number) if DIGITS and number else ""
     w, hh, th, gap, zc, tt = 0.075, 0.065, 0.016, 0.04, 1.61, (0.04, 0.065)
     tot = len(sx) * w + (len(sx) - 1) * gap
     for i, ch in enumerate(sx):
-        ul = 1.97 - tot / 2 + i * (w + gap)
+        ul = 1.75 - tot / 2 + i * (w + gap)
         ur = ul + w
         seg = {"a": (ul, ur, zc + hh - th, zc + hh), "d": (ul, ur, zc - hh, zc - hh + th),
                "g": (ul, ur, zc - th / 2, zc + th / 2), "f": (ul, ul + th, zc, zc + hh),
@@ -620,11 +638,12 @@ def add_doors(path, lots, idx, dry_run):
     tpl = {int(r["id"][5:]): r.get("template", "shop") for r in idx if r["id"].startswith("shop-")}
     if dry_run or not todo:
         return {"doors": [l["id"] for l in todo]}
+    hero = hero_doors(glb)
     cache = {}
     cols = {"trim": (0.93, 0.88, 0.74), "iron": (0.12, 0.12, 0.13),
             "brass": (0.80, 0.60, 0.22), "paper": (0.95, 0.92, 0.80)}
     for l in todo:
-        roles, style = door_boxes(l, tpl.get(l["id"], "shop"))
+        roles, style = door_boxes(l, tpl.get(l["id"], "shop"), hero)
         prims = []
         for role, boxes in roles.items():
             if not boxes:
