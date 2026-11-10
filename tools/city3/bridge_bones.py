@@ -389,6 +389,89 @@ def add_signs(path, lots, idx, dry_run):
 
 
 LIFT = 0.02
+PITCH_MARK, PITCH_TAN, PITCH_OV = "bones_pitched", 0.42, 0.35
+PITCH_COL = (0.62, 0.30, 0.20)
+
+
+def pitched_roof(lot):
+    """Gable roof over the flat bones roof slab, GLB frame, visual only. The
+    ridge runs along the longer side; the slopes overhang the eaves by
+    PITCH_OV; the gable ends are flush with the party walls. Returns
+    (pos, nrm, idx) with flat normals."""
+    x0, y0, x1, y1 = lot["rect"]
+    lo, hi = (x0, -y1), (x1, -y0)                       # GLB (x, z) rect
+    ridge_x = (hi[0] - lo[0]) >= (hi[1] - lo[1])
+    a0, a1, c0, c1 = (lo[0], hi[0], lo[1], hi[1]) if ridge_x else (lo[1], hi[1], lo[0], hi[0])
+    cm, half = (c0 + c1) / 2, (c1 - c0) / 2
+    yt = lot["roof"] + FLOOR_Y + LIFT
+    yr, ye = yt + half * PITCH_TAN, yt - PITCH_OV * PITCH_TAN
+    cl, ch = c0 - PITCH_OV, c1 + PITCH_OV
+    def P(a, c, y):
+        return (a, y, c) if ridge_x else (c, y, a)
+    tris = [
+        (P(a0, cl, ye), P(a1, cl, ye), P(a1, cm, yr)),      # slope, low side
+        (P(a0, cl, ye), P(a1, cm, yr), P(a0, cm, yr)),
+        (P(a0, ch, ye), P(a1, cm, yr), P(a1, ch, ye)),      # slope, high side
+        (P(a0, ch, ye), P(a0, cm, yr), P(a1, cm, yr)),
+        (P(a0, cl, ye), P(a0, cm, yr), P(a0, ch, ye)),      # gable ends
+        (P(a1, cl, ye), P(a1, ch, ye), P(a1, cm, yr)),
+        (P(a0, cl, ye), P(a1, ch, ye), P(a1, cl, ye)),      # underside
+        (P(a0, cl, ye), P(a0, ch, ye), P(a1, ch, ye)),
+    ]
+    mid = np.array(P((a0 + a1) / 2, cm, (yt + yr) / 2))
+    pos, nrm = [], []
+    for a, b, c in tris:
+        a, b, c = map(np.array, (a, b, c))
+        n = np.cross(b - a, c - a)
+        n /= np.linalg.norm(n)
+        if np.dot(n, (a + b + c) / 3 - mid) < 0:        # wind CCW from outside
+            b, c, n = c, b, -n
+        pos += [a, b, c]
+        nrm += [n, n, n]
+    return np.array(pos, "<f4"), np.array(nrm, "<f4"), np.arange(len(pos), dtype="<u4")
+
+
+def add_pitched(path, lots, dry_run):
+    """Visual-only `Roof_shop{n}` gable roof on every bones lot (no collision:
+    the roof is not walkable). The cutaway clips it with the rest of the roof."""
+    glb = Glb(path)
+    done = set(glb.gltf.get("extras", {}).get(PITCH_MARK, []))
+    todo = lots if REBUILD else [l for l in lots if l["id"] not in done]
+    if dry_run or not todo:
+        return {"roofs": [l["id"] for l in todo]}
+    cache = {}
+    for l in todo:
+        pos, nrm, ix = pitched_roof(l)
+        pa = add_accessor(glb, add_view(glb, pos.tobytes(), 34962), 5126,
+                          len(pos), "VEC3", pos.min(0).tolist(), pos.max(0).tolist())
+        na = add_accessor(glb, add_view(glb, nrm.tobytes(), 34962), 5126, len(nrm), "VEC3")
+        ia = add_accessor(glb, add_view(glb, ix.tobytes(), 34963), 5125, len(ix), "SCALAR")
+        prim = {"attributes": {"POSITION": pa, "NORMAL": na}, "indices": ia,
+                "material": add_material(glb, cache, "pitched_roof", PITCH_COL, False)}
+        nm = "Roof_shop%d" % l["id"]
+        old = next((n for n in glb.gltf["nodes"] if n.get("name") == nm), None)
+        if old is not None:
+            glb.gltf["meshes"][old["mesh"]]["primitives"] = [prim]
+            continue
+        glb.gltf["meshes"].append({"name": nm, "primitives": [prim]})
+        glb.gltf["nodes"].append({"name": nm, "mesh": len(glb.gltf["meshes"]) - 1})
+        glb.gltf["scenes"][0]["nodes"].append(len(glb.gltf["nodes"]) - 1)
+    glb.gltf.setdefault("extras", {})[PITCH_MARK] = sorted(done | {l["id"] for l in todo})
+    fd, tmp = tempfile.mkstemp(suffix=".glb", dir=os.path.dirname(os.path.abspath(path)))
+    os.close(fd)
+    try:
+        save_glb(tmp, glb.gltf, glb.bin)
+        chk = Glb(tmp)
+        for node in chk.gltf["nodes"]:
+            if "mesh" in node:
+                for p in chk.gltf["meshes"][node["mesh"]]["primitives"]:
+                    if "indices" in p:
+                        chk.indices_of(p)
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+    return {"roofs": [l["id"] for l in todo]}
 
 
 def lift_visual(path, dry_run):
@@ -419,6 +502,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--lift", action="store_true",
                     help="only lift visual Bones nodes 2 cm (z-fight with Sidewalks)")
+    ap.add_argument("--pitched", action="store_true",
+                    help="only add visual gable roofs (Roof_shop{n}) for --lots")
     ap.add_argument("--rebuild", action="store_true",
                     help="swap the bones of already patched lots (no cut)")
     ap.add_argument("--signs", action="store_true",
@@ -440,6 +525,9 @@ def main():
     assets = os.path.dirname(a.visual)
     if a.lift:
         print("lift", json.dumps(lift_visual(a.visual, a.dry_run)))
+        return
+    if a.pitched:
+        print("pitched", json.dumps(add_pitched(a.visual, data, a.dry_run)))
         return
     if not a.signs:
         print("visual", json.dumps(patch(a.visual, data, False, a.dry_run)))
