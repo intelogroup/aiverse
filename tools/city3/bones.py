@@ -28,6 +28,7 @@ from pilotb_building import (  # noqa: E402
 )
 
 GROUND_H, UPPER_H = 4.2, 3.8
+SOFFIT = 0.45              # stair thickness under a tread (sloped underside)
 SKIP_LOTS = {102}          # Tea House: hand-built, keep as is
 
 
@@ -79,8 +80,8 @@ def layout(L, Dp, nfl, end_door=False):
     FL, ROOF = floors_z(nfl)
     levels = FL + [ROOF]
     mid = lambda r: (r[0] + r[1]) / 2.0
-    boxes, doors, stairs = [], [], []
-    ent = -1 if end_door else len(XR) // 2   # street-door room
+    boxes, doors, stairs, ramps = [], [], [], []
+    ent =-1 if end_door else len(XR) // 2   # street-door room
     for fi, zf in enumerate(FL):
         zc = levels[fi + 1] - SLAB
         if fi == 0:
@@ -149,24 +150,36 @@ def layout(L, Dp, nfl, end_door=False):
             xa = (0.55, 0.55 + STAIR_W)
             xb = (X_CORE[1] - 0.2 - STAIR_W, X_CORE[1] - 0.2)
             yy = lambda a, b: (min(a, b), max(a, b))
+            # soffit follows the slope (SOFFIT below each tread) so the flight
+            # above leaves >= 2.4 m headroom over the one below; ground-floor
+            # flight 1 stays solid from the floor
             for k in range(n1):
                 ya, yb = yy(y_a + s * k * TREAD, y_a + s * (k + 1) * TREAD)
-                boxes.append((xa[0], ya, zf, xa[1], yb, zf + (k + 1) * r,
-                              "stair"))
+                zt = zf + (k + 1) * r
+                boxes.append((xa[0], ya, zf if fi == 0 else zt - SOFFIT, xa[1],
+                              yb, zt, "stair"))
             zl = zf + n1 * r
             wall = Dp - T_OUT if s > 0 else T_OUT
             ya, yb = yy(y_b, wall)
-            boxes.append((xa[0], ya, zl - 0.2, xb[1], yb, zl, "stair"))
+            boxes.append((xa[0], ya, zl - 0.2, xb[1], yb, zl, "landing"))
             for k in range(n - n1):
                 ya, yb = yy(y_b - s * k * TREAD, y_b - s * (k + 1) * TREAD)
-                boxes.append((xb[0], ya, zl - 0.2, xb[1], yb,
-                              zl + (k + 1) * r, "stair"))
+                zt = zl + (k + 1) * r
+                boxes.append((xb[0], ya, zt - SOFFIT, xb[1], yb, zt, "stair"))
+            # collision proxy: Recast loses stairs; a 30 deg ramp over each
+            # flight is walkable (x0, x1, ya, za, yb, zb, base_a, base_b)
+            b1 = zf if fi == 0 else None
+            ramps.append((xa[0], xa[1], y_a, zf, y_b, zl,
+                          zf if b1 is not None else zf - SOFFIT,
+                          zf if b1 is not None else zl - SOFFIT))
+            ramps.append((xb[0], xb[1], y_b, zl, y_a, zf + rise,
+                          zl - SOFFIT, zf + rise - SOFFIT))
             stairs.append(dict(floor=fi, steps=n, riser=r, tread=TREAD,
                                width=STAIR_W, landing_depth=abs(wall - y_b),
                                rise=rise))
     boxes.append((0, 0, ROOF - SLAB, L, Dp, ROOF, "roof"))
-    return dict(boxes=boxes, doors=doors, stairs=stairs, geom=g, FL=FL,
-                ROOF=ROOF)
+    return dict(boxes=boxes, doors=doors, stairs=stairs, ramps=ramps, geom=g,
+                FL=FL, ROOF=ROOF)
 
 
 def check(L, Dp, nfl):
@@ -188,6 +201,18 @@ def check(L, Dp, nfl):
     for st in Lo["stairs"]:
         chk("stair riser/landing", st["riser"] <= RISER_MAX and
             st["landing_depth"] >= 1.6)
+    # stair headroom >= 2.4 m over every point of every flight
+    for (x0, x1, ya, za, yb, zb, _a, _b) in Lo["ramps"]:
+        for t in np.linspace(0.02, 0.98, 25):
+            px, py, pz = (x0 + x1) / 2, ya + (yb - ya) * t, za + (zb - za) * t
+            for (bx0, by0, bz0, bx1, by1, bz1, role) in Lo["boxes"]:
+                if (bx0 < px < bx1 and by0 < py < by1 and bz1 > pz + 0.3
+                        and bz0 < pz + 2.4):
+                    bad.append(f"stair headroom {bz0 - pz:.2f} at y={py:.1f}")
+                    break
+            else:
+                continue
+            break
     chk("corridor run>=5.0 (4.3 camera + margin)",
         (L - T_OUT) - (X_CORE[1] + T_IN) >= 5.0)
     res = 0.1
@@ -234,7 +259,7 @@ def check(L, Dp, nfl):
     return bad
 
 
-def to_plan(face, rect, boxes):
+def street_map(face, rect):
     x0, y0, x1, y1 = rect
 
     def mp(u, v):
@@ -245,6 +270,18 @@ def to_plan(face, rect, boxes):
         if face == "W":
             return x0 + v, y1 - u
         return x1 - v, y0 + u          # E
+    return mp
+
+
+def ramp_prism(rp):
+    """(x0, x1, ya, za, yb, zb, zbase) -> 8 corner points (x, y, z)."""
+    x0, x1, ya, za, yb, zb, bza, bzb = rp
+    return [(x0, ya, bza), (x1, ya, bza), (x1, yb, bzb), (x0, yb, bzb),
+            (x0, ya, za), (x1, ya, za), (x1, yb, zb), (x0, yb, zb)]
+
+
+def to_plan(face, rect, boxes):
+    mp = street_map(face, rect)
     out = []
     for (a, b, z0, c, d, z1, role) in boxes:
         p, q = mp(a, b), mp(c, d)
@@ -279,7 +316,7 @@ def lots():
 
 COLORS = {"shell": (0.82, 0.78, 0.70, 1), "partition": (0.90, 0.88, 0.84, 1),
           "slab": (0.45, 0.40, 0.34, 1), "stair": (0.60, 0.50, 0.38, 1),
-          "roof": (0.55, 0.28, 0.18, 1)}
+          "landing": (0.60, 0.50, 0.38, 1), "roof": (0.55, 0.28, 0.18, 1)}
 
 
 def build(out_base, data):
@@ -346,7 +383,16 @@ if __name__ == "__main__":
             if ed:   # rotate back to street frame: x = Dp' - v', y = u'
                 Lo["boxes"] = [(D2 - d, a, z0, D2 - b, c, z1, r)
                                for (a, b, z0, c, d, z1, r) in Lo["boxes"]]
+            mp = street_map(lot["face"], lot["rect"])
+            prisms = []
+            for rp in Lo["ramps"]:
+                pts = ramp_prism(rp)
+                if ed:
+                    pts = [(D2 - y, x, z) for (x, y, z) in pts]
+                prisms.append([[*[round(c, 3) for c in mp(x, y)], round(z, 3)]
+                               for (x, y, z) in pts])
             data.append(dict(id=lot["id"], face=lot["face"], rect=lot["rect"],
+                             ramps=prisms,
                              floors=lot["floors"], L=lot["L"], Dp=lot["Dp"],
                              FL=Lo["FL"], roof=Lo["ROOF"],
                              boxes=to_plan(lot["face"], lot["rect"],
