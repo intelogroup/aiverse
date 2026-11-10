@@ -216,6 +216,9 @@ const MIGRATIONS: { version: number; sql: string }[] = [
   { version: 2, sql: SCHEMA_V2 },
 ];
 
+/** Highest schema version this build can open (restore validation). */
+export const CURRENT_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;
+
 export function openDb(path: string): Database {
   if (path !== ":memory:") {
     mkdirSync(dirname(path), { recursive: true });
@@ -223,8 +226,46 @@ export function openDb(path: string): Database {
   const db = new Database(path);
   db.exec("PRAGMA journal_mode = WAL;");
   db.exec("PRAGMA foreign_keys = ON;");
+  // Ride out brief write contention (claims under BEGIN IMMEDIATE,
+  // VACUUM INTO snapshots) instead of failing with SQLITE_BUSY.
+  db.exec("PRAGMA busy_timeout = 5000;");
   runMigrations(db);
   return db;
+}
+
+/**
+ * A swappable database handle. Every long-lived consumer (app handlers,
+ * the ticker, SSE loops, the gateway's runtime handle) holds `slot.db` —
+ * a Proxy typed as Database that forwards each call to the CURRENT
+ * connection — so a backup/restore swap (backup.ts) only has to close
+ * the old connection, open the restored file, and `pointTo` the new
+ * one. No consumer can be left holding a handle to the old inode.
+ */
+export interface DbSlot {
+  db: Database;
+  current(): Database;
+  pointTo(next: Database): void;
+}
+
+export function createDbSlot(initial: Database): DbSlot {
+  let current = initial;
+  const db = new Proxy({} as Database, {
+    get(_target, prop) {
+      const value = (current as unknown as Record<string | symbol, unknown>)[prop];
+      return typeof value === "function" ? value.bind(current) : value;
+    },
+    set(_target, prop, value) {
+      (current as unknown as Record<string | symbol, unknown>)[prop] = value;
+      return true;
+    },
+  }) as Database;
+  return {
+    db,
+    current: () => current,
+    pointTo: (next: Database) => {
+      current = next;
+    },
+  };
 }
 
 export function runMigrations(db: Database): void {

@@ -8,7 +8,7 @@
 import type { Database } from "bun:sqlite";
 import { dirname, join } from "node:path";
 import { loadConfig, type HuntConfig } from "./config";
-import { openDb } from "./db";
+import { createDbSlot, openDb } from "./db";
 import { LogMailer, ResendMailer, type Mailer } from "./mailer";
 import { randomCodeKey } from "./custody";
 import { buildApp, type VerifyGatewayToken } from "./app";
@@ -62,7 +62,11 @@ export function createHuntRuntime(
     console.warn("[hunt] WARNING: HUNT_ADMIN_TOKEN unset — using the dev default. Dev only.");
   }
 
-  const db = openDb(cfg.dbPath);
+  // The slot's proxy is the only handle anyone keeps: a backup/restore
+  // swap points it at the restored connection and every consumer (app,
+  // ticker, this runtime's `db`) follows at once.
+  const slot = createDbSlot(openDb(cfg.dbPath));
+  const db = slot.db;
 
   let mailer: Mailer;
   if (opts.mailer) {
@@ -78,6 +82,7 @@ export function createHuntRuntime(
 
   const app = buildApp({
     db,
+    dbSlot: slot,
     cfg,
     mailer,
     codeKey,
@@ -96,7 +101,7 @@ export function createHuntRuntime(
     stop: () => {
       if (ticker) clearInterval(ticker);
       ticker = null;
-      db.close();
+      slot.current().close();
     },
   };
 }

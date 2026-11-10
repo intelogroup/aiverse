@@ -1,4 +1,4 @@
-import { openDb } from "../src/db";
+import { createDbSlot, openDb, type DbSlot } from "../src/db";
 import { loadConfig, type HuntConfig } from "../src/config";
 import { LogMailer } from "../src/mailer";
 import { randomCodeKey } from "../src/custody";
@@ -9,16 +9,24 @@ import type { Database } from "bun:sqlite";
 export const ADMIN = "test-admin-token-1234";
 
 export interface Harness {
+  /** Stable proxy handle (DbSlot) — resolves the current connection,
+   *  including after a backup/restore swap. */
   db: Database;
+  dbSlot: DbSlot;
+  dbPath: string;
   cfg: HuntConfig;
   mailer: LogMailer;
   app: ReturnType<typeof buildApp>;
   codeKey: Buffer;
 }
 
-export function makeHarness(dbPath = ":memory:", limiter?: RateLimiter): Harness {
-  const db = openDb(dbPath);
-  const key = randomCodeKey();
+export function makeHarness(
+  dbPath = ":memory:",
+  limiter?: RateLimiter,
+  codeKey?: Buffer,
+): Harness {
+  const slot = createDbSlot(openDb(dbPath));
+  const key = codeKey ?? randomCodeKey();
   const cfg = loadConfig({
     NODE_ENV: "test",
     HUNT_PORT: "8799",
@@ -26,10 +34,11 @@ export function makeHarness(dbPath = ":memory:", limiter?: RateLimiter): Harness
     HUNT_CODE_KEY: key.toString("base64"),
     HUNT_PUBLIC_BASE: "http://localhost:8799",
     HUNT_CONSOLE_URL: "http://localhost:5173",
+    HUNT_DB_PATH: dbPath,
   });
   const mailer = new LogMailer();
-  const app = buildApp({ db, cfg, mailer, codeKey: key, limiter });
-  return { db, cfg, mailer, app, codeKey: key };
+  const app = buildApp({ db: slot.db, dbSlot: slot, cfg, mailer, codeKey: key, limiter });
+  return { db: slot.db, dbSlot: slot, dbPath, cfg, mailer, app, codeKey: key };
 }
 
 export async function req(
