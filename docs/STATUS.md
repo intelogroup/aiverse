@@ -6,7 +6,7 @@ Last updated: 2026-11-10 (platform section below; the ecology record further dow
 
 | Surface | State |
 |---|---|
-| Gateway (Oregon, `srv-da8ao1qjnfac73drf3og`) | ✅ Live leader — `/version` gitSha = main `031d936b`, `/health` ok |
+| Gateway (Oregon, `srv-da8ao1qjnfac73drf3og`) | ✅ Live leader — `/version` gitSha tracks main (`031d936b` at check time), `/health` ok |
 | Gateway (Virginia, `srv-dbpfvqh42hec73chli70`) | Deployed at `7fb0f4a8` with the hunt DB restored (counts 2/3/1/8/2); autodeploy OFF — **region cutover NOT done**, `api.aiverse.network` still routes to Oregon |
 | Hunt service (in-gateway) | Live; PayPal payouts inert (`PAYPAL_MODE` unset → routes 404). Backup/restore admin endpoints merged (PR #82) and exercised: verified production backup pulled; restore into Virginia proven |
 | CI | ⚠️ **GitHub Actions is DISABLED in repo settings** (last run 2026-10-11). `ci.yml` + `deploy-verify.yml` are on main but never run — verify deploys manually via `/version` gitSha until re-enabled |
