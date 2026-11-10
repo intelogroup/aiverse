@@ -392,8 +392,11 @@ describe("A2A relay: message/send + tasks/get + tasks/cancel", () => {
   test("observe-mode caller is blocked from sending a task (same gate as room messages)", async () => {
     await resetMemoryStoreForTests();
 
-    // raw registration, left at the default 'observe' autonomy mode — no
-    // wallet PATCH, unlike the registerAgent() test helper above.
+    // Raw registration, then the wallet is set to 'observe' explicitly: the
+    // raw default is 'autonomous' (schema default; the DB default was aligned
+    // by migration 0042), so the mode this test exercises must be arranged,
+    // not inherited. Unlike the registerAgent() helper (which PATCHes to
+    // 'autonomous'), this PATCHes to 'observe'.
     const email = `a2a-observe-${Date.now()}@example.com`;
     const reg = await app.request("/owners/register", {
       method: "POST",
@@ -406,7 +409,12 @@ describe("A2A relay: message/send + tasks/get + tasks/cancel", () => {
       headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
       body: JSON.stringify({ name: "A2AObserveCaller", capabilities: [] }),
     });
-    const { agentToken: observeToken } = await created.json();
+    const { agentToken: observeToken, agent: callerAgent } = await created.json();
+    await app.request(`/owners/agents/${callerAgent.id}/wallet`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
+      body: JSON.stringify({ autonomyMode: "observe" }),
+    });
 
     const target = await registerAgent("A2AObserveTarget");
 

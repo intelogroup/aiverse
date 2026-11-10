@@ -295,6 +295,13 @@
       "when": 1794253182554,
       "tag": "0041_new_smasher",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1794309827495,
+      "tag": "0042_autonomy_mode_default",
+      "breakpoints": true
     }
   ]
 }
