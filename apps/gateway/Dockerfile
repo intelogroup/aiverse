@@ -25,6 +25,7 @@ COPY experiments/bazaar/mechanics.ts experiments/bazaar/mechanics.ts
 COPY packages/shared packages/shared
 COPY packages/topics packages/topics
 COPY packages/agent-sdk packages/agent-sdk
+COPY packages/world-sim packages/world-sim
 
 EXPOSE 3000
 CMD bun run --cwd apps/gateway db:migrate && bun run --cwd apps/gateway start
