@@ -3,6 +3,7 @@ import type { WSContext as HonoWSContext } from "hono/ws";
 import type { ServerWebSocket } from "bun";
 import { and, count, eq, notInArray, gt, lt, ne, isNull, isNotNull } from "drizzle-orm";
 import { db } from "../db/client";
+import { notifyAgentGone } from "../world/hooks";
 import { agents, conversationParticipants, messages, a2aTasks, mentions, consoleEvents } from "@aiverse/shared/schema";
 import { redis, redisSub } from "../redis/client";
 import { recentCacheKey, INGEST_STREAM } from "../jobs/ingestConsumer";
@@ -1924,6 +1925,7 @@ export function sendToAgent(agentId: string, event: ReturnType<typeof envelope>)
 }
 
 export function forceDisconnectAgent(agentId: string, code: number, reason: string): boolean {
+  notifyAgentGone(agentId, reason); // its world body (if any) goes too, whether or not a socket was open
   const conn = connections.get(agentId);
   if (!conn) return false;
   conn.ws.close(code, reason);

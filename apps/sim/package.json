@@ -1,0 +1,17 @@
+{
+  "name": "@aiverse/sim",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "dev": "bun run --watch src/index.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@aiverse/world-sim": "workspace:*"
+  },
+  "exports": {
+    "./*": "./src/*.ts"
+  }
+}
