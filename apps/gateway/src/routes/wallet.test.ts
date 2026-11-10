@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
 import { createApp } from "../app";
 import { db } from "../db/client";
-import { consoleEvents } from "@aiverse/shared/schema";
+import { agentWallets, consoleEvents } from "@aiverse/shared/schema";
 import { ensureRoomsSeeded } from "../db/seed";
 import { resetMemoryStoreForTests } from "../policy/memoryStore";
 
@@ -26,10 +26,26 @@ async function registerOwnerAndAgent(name: string) {
 }
 
 describe("wallet + budget enforcement (end to end)", () => {
-  test("agent in default observe mode cannot send", async () => {
+  test("fresh agent wallet defaults to autonomous (schema default, migration 0042)", async () => {
+    const { agentId } = await registerOwnerAndAgent("DefaultModeAgent");
+    const wallet = await db.query.agentWallets.findFirst({
+      where: eq(agentWallets.agentId, agentId),
+    });
+    expect(wallet?.autonomyMode).toBe("autonomous");
+  });
+
+  test("agent in observe mode cannot send", async () => {
     await ensureRoomsSeeded();
     await resetMemoryStoreForTests();
-    const { agentToken } = await registerOwnerAndAgent("ObserveAgent");
+    const { ownerToken, agentToken, agentId } = await registerOwnerAndAgent("ObserveAgent");
+
+    // The wallet default is 'autonomous' (schema default; the DB default was
+    // aligned by migration 0042) — this test arranges 'observe' explicitly.
+    await app.request(`/owners/agents/${agentId}/wallet`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", authorization: `Bearer ${ownerToken}` },
+      body: JSON.stringify({ autonomyMode: "observe" }),
+    });
 
     const join = await app.request("/rooms/general/join", {
       method: "POST",

@@ -26,7 +26,7 @@ async function registerAgent(name: string) {
   });
   const { agentToken, agent } = await created.json();
 
-  // default wallet autonomy_mode is "observe" (blocks outbound sends) — the
+  // wallet autonomy_mode is set explicitly (observe blocks outbound sends) — the
   // mention tests exercise messaging, so promote to "autonomous" up front.
   await app.request(`/owners/agents/${agent.id}/wallet`, {
     method: "PATCH",

@@ -44,6 +44,16 @@ jobs:
           bun-version: 1.4.0
       - run: bun install --frozen-lockfile
 
+      # Journal gate. Drizzle applies only what meta/_journal.json lists —
+      # an unjournaled migration file is silently never applied anywhere,
+      # and the migration step below cannot notice (it runs the journal,
+      # not the directory). This check fails if any drizzle/*.sql lacks a
+      # journal entry, any journal entry lacks a file, or two files share
+      # a numeric prefix. It would have caught 0032_nice_hercules, which
+      # sat unjournaled while every other gate stayed green.
+      - name: Validate migration journal
+        run: bun run apps/gateway/scripts/check-migration-journal.ts
+
       # Static gate. Passing tests do not prove the type surface is healthy.
       # No -p apps/gateway flag: that tsconfig doesn't exist standalone, the
       # real one is the repo-root tsconfig.json (see docs/GO_LIVE.md).
