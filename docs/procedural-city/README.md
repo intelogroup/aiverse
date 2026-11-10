@@ -3,6 +3,13 @@
 Everything a future session needs to continue the City 3 / procedural Blender → three.js work without
 re-deriving it. Written 2026-11-06 at the end of a long build; update it, don't fork it.
 
+> **2026-11-10 update:** the shipped world on main is the post-streaming build — `world-city3.glb`
+> 44,653,948 B, `world-city3-library.glb` 8,055,844 B, five districts (halo 11.80 MB / glassq
+> 11.50 MB / foundry 9.50 MB / terraces 4.65 MB / links 0.70 MB / shell 2.30 MB, each with a
+> collision GLB) streamed via `districts.json`. The Bazaar/Tea House sweep and the Garden
+> Terraces district deletion exist only on the unpublished branch `tmp/bazaar-teahouse-sweep`.
+> The sizes quoted in `01-state-and-commands.md` are the 2026-11-06 build session's figures.
+
 | File | What it holds |
 |---|---|
 | `01-state-and-commands.md` | What exists, where it lives, how to rebuild/test/verify, current numbers and budgets |
