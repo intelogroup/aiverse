@@ -1,0 +1,86 @@
+[
+ {
+  "i": 0,
+  "ok": true,
+  "renderMs": 437104,
+  "poseMs": 309,
+  "e2eMs": 437560
+ },
+ {
+  "i": 1,
+  "ok": true,
+  "renderMs": 81211,
+  "poseMs": 100,
+  "e2eMs": 81332
+ },
+ {
+  "i": 2,
+  "ok": true,
+  "renderMs": 54716,
+  "poseMs": 83,
+  "e2eMs": 54880
+ },
+ {
+  "i": 3,
+  "ok": true,
+  "renderMs": 56366,
+  "poseMs": 150,
+  "e2eMs": 56604
+ },
+ {
+  "i": 4,
+  "ok": true,
+  "renderMs": 78780,
+  "poseMs": 116,
+  "e2eMs": 78915
+ },
+ {
+  "i": 5,
+  "ok": true,
+  "renderMs": 33413,
+  "poseMs": 108,
+  "e2eMs": 33600
+ },
+ {
+  "i": 6,
+  "ok": true,
+  "renderMs": 54105,
+  "poseMs": 195,
+  "e2eMs": 54324
+ },
+ {
+  "i": 7,
+  "ok": true,
+  "renderMs": 31622,
+  "poseMs": 73,
+  "e2eMs": 31788
+ },
+ {
+  "i": 8,
+  "ok": true,
+  "renderMs": 30182,
+  "poseMs": 103,
+  "e2eMs": 30304
+ },
+ {
+  "i": 9,
+  "ok": true,
+  "renderMs": 36240,
+  "poseMs": 156,
+  "e2eMs": 36428
+ },
+ {
+  "i": 10,
+  "ok": true,
+  "renderMs": 55102,
+  "poseMs": 133,
+  "e2eMs": 55375
+ },
+ {
+  "i": 11,
+  "ok": true,
+  "renderMs": 55084,
+  "poseMs": 16,
+  "e2eMs": 55198
+ }
+]
