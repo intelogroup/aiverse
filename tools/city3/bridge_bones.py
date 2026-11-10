@@ -546,6 +546,125 @@ def add_pitched(path, lots, dry_run):
     return {"roofs": [l["id"] for l in todo]}
 
 
+DOOR_MARK = "bones_doors"
+DIGITS = False
+DOOR_DZ = -0.08      # hero frame z is above street level F=0.28; bones walk slab is 0.2
+TPL_DOORS = {"cafe": [1, 3, 1, 2], "shop": [0, 1, 3, 0, 2],
+             "library": [4, 0, 4, 3], "workshop": [4, 1, 4]}    # same pools as build_city.py
+DOOR_PAL = [(0.16, 0.42, 0.28), (0.14, 0.30, 0.50), (0.62, 0.16, 0.14),
+            (0.72, 0.50, 0.16), (0.36, 0.22, 0.12), (0.25, 0.25, 0.28)]
+SEG = {"0": "abcdef", "1": "bc", "2": "abdeg", "3": "abcdg", "4": "bcfg",
+       "5": "acdfg", "6": "acdefg", "7": "abc", "8": "abcdefg", "9": "abcdfg"}
+
+
+def door_boxes(lot, template):
+    """The leaf and house number the bone cut removed, plan frame, axis aligned.
+    The hero frame, canopy and plaque stay as instances; the leaf is swung 90
+    degrees inward along the right jamb so the doorway stays open (nothing
+    here collides). Returns {role: [box]} and the style index."""
+    import random
+    dr = random.Random(9100 + lot["id"])
+    style = dr.choice(TPL_DOORS[template])
+    number = dr.randint(1, 98)
+    ox, oy = SIGN_COL[lot["face"]]
+    ax, ay = -oy, ox
+    x0, y0, x1, y1 = lot["rect"]
+    wall = {"S": y0, "N": y1, "W": x0, "E": x1}[lot["face"]]
+    dx, dy = lot["door"]
+    cx, cy = (dx, wall) if ox == 0 else (wall, dy)
+
+    def B(u0, u1, t0, t1, z0, z1):
+        pts = [(cx + ax * u + ox * t, cy + ay * u + oy * t) for u in (u0, u1) for t in (t0, t1)]
+        xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+        return (min(xs), min(ys), z0 + DOOR_DZ, max(xs), max(ys), z1 + DOOR_DZ)
+
+    side = 1 if lot["id"] % 2 == 0 else -1
+    h = 0.72 * side                                   # hinge jamb, leaf along its inner side
+    lu = sorted((h, h + 0.06 * side))
+    t0, t1 = -0.36, -1.80
+    z0, z1 = 0.31, 2.40
+    leaf = [B(lu[0], lu[1], t1, t0, z0, z1)]
+    fu = sorted((lu[0] - 0.015, lu[0])) if side > 0 else sorted((lu[1], lu[1] + 0.015))
+    trim = []
+    panels = {0: ((0.55, 1.15), (1.3, 2.25)), 1: ((0.4, 0.8),), 2: ((0.45, 0.9), (1.2, 2.2)),
+              3: ((0.5, 1.2),), 4: ()}[style]
+    for (a, b) in panels:
+        trim.append(B(fu[0], fu[1], -0.5 - 0.0, t1 + 0.14, a, b))
+    iron = []
+    if style == 4:
+        for (a, b) in ((0.55, 0.68), (1.95, 2.08)):
+            iron.append(B(fu[0], fu[1], t0 - 0.05, t1 + 0.05, a, b))
+    brass = [B(fu[0] - 0.03 * side, fu[0] + 0.03 * side, t0 - 1.1, t0 - 1.16, 1.0, 1.06)]
+    paper = []                  # digits off: hero frame c != door x in some lots, originals survive in others
+    sx = str(number) if DIGITS else ""
+    w, hh, th, gap, zc, tt = 0.075, 0.065, 0.016, 0.04, 1.61, (0.04, 0.065)
+    tot = len(sx) * w + (len(sx) - 1) * gap
+    for i, ch in enumerate(sx):
+        ul = 1.97 - tot / 2 + i * (w + gap)
+        ur = ul + w
+        seg = {"a": (ul, ur, zc + hh - th, zc + hh), "d": (ul, ur, zc - hh, zc - hh + th),
+               "g": (ul, ur, zc - th / 2, zc + th / 2), "f": (ul, ul + th, zc, zc + hh),
+               "b": (ur - th, ur, zc, zc + hh), "e": (ul, ul + th, zc - hh, zc),
+               "c": (ur - th, ur, zc - hh, zc)}
+        for k in SEG[ch]:
+            a, b, za, zb = seg[k]
+            paper.append(B(a, b, tt[0], tt[1], za, zb))
+    return {"leaf": leaf, "trim": trim, "iron": iron, "brass": brass, "paper": paper}, style
+
+
+def add_doors(path, lots, idx, dry_run):
+    """Visual-only `Door_shop{n}`: open leaf + house number for every bones lot."""
+    glb = Glb(path)
+    done = set(glb.gltf.get("extras", {}).get(DOOR_MARK, []))
+    todo = lots if REBUILD else [l for l in lots if l["id"] not in done]
+    tpl = {int(r["id"][5:]): r.get("template", "shop") for r in idx if r["id"].startswith("shop-")}
+    if dry_run or not todo:
+        return {"doors": [l["id"] for l in todo]}
+    cache = {}
+    cols = {"trim": (0.93, 0.88, 0.74), "iron": (0.12, 0.12, 0.13),
+            "brass": (0.80, 0.60, 0.22), "paper": (0.95, 0.92, 0.80)}
+    for l in todo:
+        roles, style = door_boxes(l, tpl.get(l["id"], "shop"))
+        prims = []
+        for role, boxes in roles.items():
+            if not boxes:
+                continue
+            pos, nrm, ix = box_mesh([b + (role,) for b in boxes], role)
+            pa = add_accessor(glb, add_view(glb, pos.tobytes(), 34962), 5126,
+                              len(pos), "VEC3", pos.min(0).tolist(), pos.max(0).tolist())
+            na = add_accessor(glb, add_view(glb, nrm.tobytes(), 34962), 5126, len(nrm), "VEC3")
+            ia = add_accessor(glb, add_view(glb, ix.tobytes(), 34963), 5125, len(ix), "SCALAR")
+            col = DOOR_PAL[l["id"] % len(DOOR_PAL)] if role == "leaf" else cols[role]
+            prims.append({"attributes": {"POSITION": pa, "NORMAL": na}, "indices": ia,
+                          "material": add_material(glb, cache, "door_%s_%d" % (
+                              role, l["id"] % len(DOOR_PAL) if role == "leaf" else 0), col, False)})
+        nm = "Door_shop%d" % l["id"]
+        old = next((n for n in glb.gltf["nodes"] if n.get("name") == nm), None)
+        if old is not None:
+            glb.gltf["meshes"][old["mesh"]]["primitives"] = prims
+            continue
+        glb.gltf["meshes"].append({"name": nm, "primitives": prims})
+        glb.gltf["nodes"].append({"name": nm, "mesh": len(glb.gltf["meshes"]) - 1,
+                                  "translation": [0, LIFT, 0]})
+        glb.gltf["scenes"][0]["nodes"].append(len(glb.gltf["nodes"]) - 1)
+    glb.gltf.setdefault("extras", {})[DOOR_MARK] = sorted(done | {l["id"] for l in todo})
+    fd, tmp = tempfile.mkstemp(suffix=".glb", dir=os.path.dirname(os.path.abspath(path)))
+    os.close(fd)
+    try:
+        save_glb(tmp, glb.gltf, glb.bin)
+        chk = Glb(tmp)
+        for node in chk.gltf["nodes"]:
+            if "mesh" in node:
+                for p in chk.gltf["meshes"][node["mesh"]]["primitives"]:
+                    if "indices" in p:
+                        chk.indices_of(p)
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+    return {"doors": [l["id"] for l in todo]}
+
+
 def lift_visual(path, dry_run):
     """The bones ground slab top (y=0.2) is coplanar with the textured
     `Sidewalks` ground, so the two z-fight (striped wood-grain patches on every
@@ -576,6 +695,8 @@ def main():
                     help="only lift visual Bones nodes 2 cm (z-fight with Sidewalks)")
     ap.add_argument("--pitched", action="store_true",
                     help="only add visual gable roofs (Roof_shop{n}) for --lots")
+    ap.add_argument("--doors", action="store_true",
+                    help="only add the open leaf + house number (Door_shop{n}) for --lots")
     ap.add_argument("--rebuild", action="store_true",
                     help="swap the bones of already patched lots (no cut)")
     ap.add_argument("--signs", action="store_true",
@@ -597,6 +718,10 @@ def main():
     assets = os.path.dirname(a.visual)
     if a.lift:
         print("lift", json.dumps(lift_visual(a.visual, a.dry_run)))
+        return
+    if a.doors:
+        idx = json.load(open(os.path.join(assets, "interiors", "index.json")))
+        print("doors", json.dumps(add_doors(a.visual, data, idx, a.dry_run)))
         return
     if a.pitched:
         print("pitched", json.dumps(add_pitched(a.visual, data, a.dry_run)))
