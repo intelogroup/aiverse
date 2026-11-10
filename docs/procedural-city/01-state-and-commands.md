@@ -19,7 +19,7 @@
   `nav3.py`, `check_anchors.py`. Outputs in `tools/city3/out/` (GLBs are gitignored; copies live in `apps/console/public/assets/`).
 - `apps/console/src/features/world/` — runtime: `GlbWorld.tsx` (worlds, `ClipCutaway`, `InteriorStreamer`), `city3.ts` (rooms index types, radii),
   `cutaway.ts`, `interiors.ts` + `interiorBuild.ts`, `bodyController.ts`, `CastFigure.tsx`, `locomotion.ts` (Recast crowd).
-- `apps/console/public/assets/`: `world-city3.glb` (4.8 MB), `world-city3-library.glb` (2.4 MB), `interiors/*.json` (77 rooms + index).
+- `apps/console/public/assets/`: `world-city3.glb` (4.8 MB), `world-city3-library.glb` (2.4 MB), `interiors/*.json` (77 rooms + index). **(2026-11-10: those two sizes are this build session's; on current main the files are 44,653,948 B and 8,055,844 B, with five district GLBs + collision siblings alongside — see the dated note in this folder's README.)**
 
 ## Run order (generator)
 ```

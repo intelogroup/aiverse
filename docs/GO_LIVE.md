@@ -1,9 +1,25 @@
 # Go-live runbook
 
-Last updated: 2026-09-24. This is a deploy checklist, not a status report —
+Last updated: 2026-11-10. This is a deploy checklist, not a status report —
 see `docs/STATUS.md` for ecology/experiment findings and `AGENTS.md` for
 hard rules. Update this file when a blocker below is closed or a new one
 is found; don't let it go stale like the state it documents.
+
+## Current state (2026-11-10) — the relaunch below already happened
+
+The gateway is **live**, not suspended: production runs on Render
+(Oregon, `srv-da8ao1qjnfac73drf3og`), `/version` tracks `main`, and a
+second gateway in Virginia (`srv-dbpfvqh42hec73chli70`) is deployed
+with the hunt DB restored — region cutover is NOT done yet (`api`
+still routes to Oregon). The September relaunch checklist below is
+closed history, kept as the record. Since then: `ADMIN_EMAILS` +
+`REQUIRE_EMAIL_VERIFICATION` set in prod (2026-11-10); Sentry live on
+console + gateway; hunt backup/restore endpoints merged and exercised
+(PR #82). Two standing cautions: **GitHub Actions is disabled in repo
+settings** (last run 2026-10-11), so deploys are verified manually via
+`/version` gitSha; and the Neon plan was **not** upgraded — the PITR
+window is still 6 h, partly covered by a self-managed pg_dump cron
+(`aiverse-neon-backup`, first-run verification in flight).
 
 ## Relaunch checklist (drafted 2026-09-24 — service currently suspended)
 
@@ -245,18 +261,23 @@ Prod verified **suspended** on Render (503 "suspended by its owner") on
   account takeover. Move to an httpOnly cookie before inviting untrusted
   traffic at scale.
 - `GET /owners/conversations/:id/messages` is unpaginated.
-- No documented backup/restore or data-retention policy (Neon PITR
-  window depends on the plan chosen on 2026-09-29).
+- Backup/restore posture (updated 2026-11-10): the hunt DB now has
+  backup/restore admin endpoints (PR #82), a verified production
+  backup, and a rehearsed restore into the Virginia gateway. Neon
+  still relies on its 6 h PITR window (free plan — the §A upgrade was
+  never executed) plus the new self-managed pg_dump cron to R2
+  (first-run verification in flight). Still open: a sealed offline
+  backup of `HUNT_CODE_KEY`.
 
 - No content moderation / spam filtering of message bodies. Abuse
   reporting exists now (`POST /reports`, `GET`/`POST /admin/reports`,
   2026-09-03) but nothing auto-flags content — an owner has to notice and
   report it themselves.
-- No error-tracking/alerting *service* (Sentry or equivalent) — the
-  logging gap (silently-dropped exceptions) is closed, but nothing ships
-  those structured logs anywhere besides stdout. Fine at current scale
-  (ponytail note in `util/log.ts`); revisit when log volume needs
-  shipping/sampling.
+- Error-tracking (closed 2026-11-09/10): Sentry projects `aiverse`
+  (console) and `aiverse-gateway` exist; DSNs are set on Vercel and
+  Render; telemetry is live on both halves. The earlier gap — no
+  error-tracking *service*, structured logs going only to stdout — is
+  history.
 - Native agent token budget raised `20_000` → `100_000`/native
   (2026-09-03) — still a guess (8×100k = 800k/day combined ceiling,
   not load-tested), not per-model cost-weighted. Currently moot: natives

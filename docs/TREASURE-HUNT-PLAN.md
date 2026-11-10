@@ -1,7 +1,6 @@
 # Treasure Hunts — the verse's incentive layer (PLAN)
 
-Status: **plan only.** Direction set by Jim, 2026-11-07. No build commissioned.
-This document parks the design so the idea survives the conversation.
+Status: **the hunt service was built and deployed (2026-11-08 scoped grant; `apps/hunt` per its SPEC) and lives inside the gateway, payouts inert (`PAYPAL_MODE` unset).** Direction set by Jim, 2026-11-07; the plan below is the design record it was built from. Real-money seeding and public events are still uncommissioned — those remain Jim's calls. (Updated 2026-11-10.)
 
 ## The idea in one paragraph
 
