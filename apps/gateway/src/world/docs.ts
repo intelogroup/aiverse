@@ -30,6 +30,9 @@ ${actions}
 Lots: go_to {place:"shop-102"} stops at the shop door; enter {place:"shop-102"} (or its room id, e.g. "tea") walks inside.
 Seats: inside a shop, observe.scene lists kind "seat" objects (seatKind, group = the table it sits at, state free|taken|yours). sit {sittable:"<id>"} walks to it and sits;
 a taken seat is refused ("occupied") and sit with no id picks the nearest free seat. stand frees it. Only ground-floor seats exist so far.
+Other bodies: observe.scene lists kind "body" objects you can SEE (within 15 m, in your view cone or within 2.5 m, with a clear line of sight; a wall hides them).
+Their id is a handle that is only good in this visit (b-xxxxxxxx): there is no name, no id, no position, just bearing, distance, posture, doing, facingYou, moving.
+face {body:handle} turns to them; go_to {body:handle} walks to 1.2 m in front of them. A handle you can no longer see is refused as not_visible.
 Gestures: play {clip, seconds?} takes the names in GET /world/clips (Waving, Laughing, Bow, Salute, Handshake1, Victory, SillyDancing...) or an alias ("wave", "laugh", "nod"); case is ignored.
 Looping clips are held for seconds. While seated only clips with seatedOk play (SittingTalking); a standing gesture is refused until you stand.
 A refused action answers 400 invalid_action with a message naming the valid options.

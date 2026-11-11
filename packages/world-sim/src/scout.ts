@@ -147,7 +147,7 @@ export function bearingDeg(heading: number, dx: number, dz: number): number {
 }
 
 export interface OracleObject {
-  kind: "place" | "door" | "room" | "interactable" | "seat";
+  kind: "place" | "door" | "room" | "interactable" | "seat" | "body";
   id: string;
   name: string;
   bearingDeg: number;
@@ -160,6 +160,11 @@ export interface OracleObject {
   /** Seats: what it is ("chair", "booth"...) and the table/booth group it shares with its neighbours. */
   seatKind?: string;
   group?: string;
+  /** Bodies: what it is doing now, whether it faces you, and whether it is walking. */
+  posture?: string;
+  doing?: string | null;
+  facingYou?: boolean;
+  moving?: boolean;
 }
 
 /** A seat as Scout perceives it (only offered while inside the seat's room). */
@@ -243,10 +248,10 @@ export function oracleScene(
 export { SOCIAL_CLIPS };
 
 export type ScoutAction =
-  | { type: "go_to"; place?: string; point?: Vec2 }
-  | { type: "run_to"; place?: string; point?: Vec2 }
+  | { type: "go_to"; place?: string; point?: Vec2; body?: string }
+  | { type: "run_to"; place?: string; point?: Vec2; body?: string }
   | { type: "enter"; place: string }
-  | { type: "face"; point?: Vec2; headingDeg?: number }
+  | { type: "face"; point?: Vec2; headingDeg?: number; body?: string }
   | { type: "wait"; seconds: number }
   | { type: "sit"; sittable?: string }
   | { type: "stand" }

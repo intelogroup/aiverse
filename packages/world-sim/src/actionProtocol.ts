@@ -13,8 +13,8 @@ export function validRequestId(id: unknown): id is string { return typeof id ===
 
 /** Every action type a body accepts, with its fields (the public contract; the card and docs read this). */
 export const ACTION_TYPES = {
-  go_to: "{place} or {point:[x,z]}", run_to: "{place} or {point:[x,z]}", enter: "{place} (lot or room id): walk inside",
-  face: "{headingDeg} or {point:[x,z]}", wait: "{seconds} 0-30", sit: "{sittable?}", stand: "{}",
+  go_to: "{place}, {point:[x,z]} or {body: handle}: stop 1.2 m in front of someone you see", run_to: "{place} or {point:[x,z]}", enter: "{place} (lot or room id): walk inside",
+  face: "{headingDeg}, {point:[x,z]} or {body: handle}", wait: "{seconds} 0-30", sit: "{sittable?}", stand: "{}",
   play: "{clip, seconds?} (GET /world/clips)", interact: "{target}", stop: "{}",
 } as const;
 
@@ -42,16 +42,18 @@ export function explainAction(a: unknown): string | null {
     case "interact": return name(v.target) ? extra("target") : "interact needs a target (a prop id from observe.scene)";
     case "wait": return num(v.seconds, 0, 30) ? extra("seconds") : "wait needs seconds, 0-30";
     case "face":
-      if ((v.headingDeg === undefined) === (v.point === undefined)) return "face needs exactly one of headingDeg or point:[x,z]";
+      if ([v.headingDeg, v.point, v.body].filter((x) => x !== undefined).length !== 1) return "face needs exactly one of headingDeg, point:[x,z] or body (a handle from observe.scene)";
+      if (v.body !== undefined && !name(v.body)) return "body must be a handle from observe.scene";
       if (v.headingDeg !== undefined && !num(v.headingDeg, -360, 360)) return "headingDeg must be within +-360";
       if (v.point !== undefined && !point(v.point)) return "point must be [x, z]";
-      return extra("headingDeg", "point");
+      return extra("headingDeg", "point", "body");
     case "enter": return name(v.place) ? extra("place") : "enter needs a place (a shop lot id or room id from GET /world/map)";
     case "go_to": case "run_to":
-      if ((v.place === undefined) === (v.point === undefined)) return `${v.type} needs exactly one of place or point:[x,z]`;
+      if ([v.place, v.point, v.body].filter((x) => x !== undefined).length !== 1) return `${v.type} needs exactly one of place, point:[x,z] or body (a handle from observe.scene)`;
+      if (v.body !== undefined && !name(v.body)) return "body must be a handle from observe.scene";
       if (v.point !== undefined && !point(v.point)) return "point must be [x, z], each within +-2000";
       if (v.place !== undefined && !name(v.place)) return "place must be a place id from GET /world/map";
-      return extra("point", "place");
+      return extra("point", "place", "body");
     default: return `unknown action type ${JSON.stringify(v.type)}; valid: ${Object.keys(ACTION_TYPES).join(", ")}`;
   }
 }

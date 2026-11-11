@@ -9,7 +9,7 @@ import { BODY_REMY } from "./bodies";
 import type { CityNav } from "./cityNav";
 import { boxesMesh, createCapsuleWorld } from "./capsuleWorld";
 import { InteractController, type InteractableDef } from "./interactables";
-import type { ScoutPlace, ScoutRoomShape, Sittable } from "./scout";
+import { bearingDeg, type ScoutPlace, type ScoutRoomShape, type Sittable } from "./scout";
 import { TEA_BLOCKER_BOX, TeaDoorController, type TeaDoorChannel } from "./teaDoor";
 import { WalkColliders } from "./walkColliders";
 import type { World } from "./walker";
@@ -25,6 +25,9 @@ export interface VerseData {
 }
 
 export type AddBodyOpts = Pick<AgentBodyDeps, "spawn"> & { id: string; hipsY?: number };
+
+/** Eye height above the feet, m (sight lines run eye to eye). */
+const EYE_M = 1.55;
 
 export class VerseSim {
   /** The walker's collision sets (resident Bazaar, districts, interior furniture boxes, the door blocker). */
@@ -106,6 +109,28 @@ export class VerseSim {
   }
 
   private seatTakenBy(seat: string, selfId: string): boolean { return this.seatHolder(seat, selfId) !== null; }
+
+  /**
+   * Other bodies this one can see: within `range`, inside the view cone (always within touch range 2.5 m) and with a clear sight line
+   * between eye points. Truth for the senses; callers choose what to reveal.
+   */
+  visibleBodies(selfId: string, range = 15, halfFovDeg = 65): { id: string; body: AgentBody; distance: number; bearingDeg: number }[] {
+    const me = this.bodies.get(selfId);
+    if (!me) return [];
+    const a = me.state;
+    const out: { id: string; body: AgentBody; distance: number; bearingDeg: number }[] = [];
+    for (const [id, b] of this.bodies) {
+      if (id === selfId) continue;
+      const t = b.state;
+      const distance = Math.hypot(t.x - a.x, t.z - a.z);
+      if (distance > range || Math.abs(t.y - a.y) > 3) continue;
+      const bearing = bearingDeg(a.body, t.x - a.x, t.z - a.z);
+      if (Math.abs(bearing) > halfFovDeg && distance > 2.5) continue;
+      if (this.staticWorld.sightBlocked?.([a.x, a.y + EYE_M, a.z], [t.x, t.y + EYE_M, t.z])) continue;
+      out.push({ id, body: b, distance, bearingDeg: bearing });
+    }
+    return out.sort((x, y) => x.distance - y.distance);
+  }
 
   body(id: string): AgentBody | undefined { return this.bodies.get(id); }
 
