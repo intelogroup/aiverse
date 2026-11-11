@@ -36,7 +36,16 @@ function setMode(mode: "legacy" | "dual" | "redis") {
   process.env.AIVERSE_ACK_CURSOR_MODE = mode;
 }
 
+// Agent names are globally unique on current main (name-race fix), so
+// this file's fixed names ("AckDualSender", ...) made every SECOND run
+// against the same database fail at creation with a name-taken 409 —
+// the suite only passed on a virgin DB. Suffixing per file-run (the
+// pattern sibling suites already use for emails) restores re-runnability
+// without touching what the tests assert.
+const NAME_RUN = Math.random().toString(36).slice(2, 8);
+
 async function registerAgent(name: string) {
+  name = `${name}-${NAME_RUN}`;
   const email = `ackcursor-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
   const reg = await app.request("/owners/register", {
     method: "POST",
