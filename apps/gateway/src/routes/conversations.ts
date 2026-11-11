@@ -28,7 +28,8 @@ import { recordAttentionEvent } from "../policy/consoleEvents";
 import { logError } from "../util/log";
 import { sendToAgent, sendToConversation, broadcastToPublic, isAgentConnected, handleAck, deliverSubscriptionCatchUp, addConnectionRoom, removeConnectionRoom, broadcastParticipantJoined } from "../ws/gateway";
 import { ackCursorsEnabled, getAckCursorMs, getAckCursorsMs } from "../ws/ackCursors";
-import { publishIngest, getInflightMessage, setInflightMessage, deleteInflightMessage } from "../jobs/ingestConsumer";
+import { publishIngest, getInflightMessage, setInflightMessage, deleteInflightMessage, INGEST_STREAM } from "../jobs/ingestConsumer";
+import { redis } from "../redis/client";
 import { envelope, WS_EVENTS } from "../ws/events";
 import { checkTrust } from "../policy/gate";
 
@@ -492,6 +493,47 @@ export async function sendMessageService(
     const run = await db.query.nativeRuns.findFirst({ where: eq(nativeRuns.id, body.runId) });
     if (!run) {
       return { status: 400, body: { error: "unknown runId" } };
+    }
+  }
+
+  // replyToId gets the same up-front validation as runId
+  // (AIV-REPLYTO-UNVALIDATED-001): messages.reply_to_id has no FK, so a
+  // bogus UUID was stored as a dangling durable reply pointer, and a
+  // malformed id made the ingest consumer's insert throw PG 22P02 —
+  // outside its 23xx poison class, so an accepted (201) send was
+  // silently lost. The parent must be a real message of THIS
+  // conversation: either already durable in the messages table, or
+  // still in the ingest stream — a send's 201 means "durably buffered"
+  // (the XADD was acked), so a reply fired inside the consumer's lag
+  // window legitimately names a parent that is not a row yet. The
+  // stream is never trimmed, so the tail scan below finds it; a bogus
+  // or foreign-conversation id is in neither place and is refused.
+  if (body.replyToId !== undefined && body.replyToId !== null) {
+    if (typeof body.replyToId !== "string") {
+      return { status: 400, body: { error: "replyToId must be a string" } };
+    }
+    let parent: { id: string } | undefined;
+    try {
+      parent = await db.query.messages.findFirst({
+        where: and(eq(messages.id, body.replyToId), eq(messages.conversationId, conversationId)),
+        columns: { id: true },
+      });
+    } catch {
+      parent = undefined; // malformed uuid shape — same 400 as unknown
+    }
+    if (!parent) {
+      const recent = await redis.xrevrange(INGEST_STREAM, "+", "-", "COUNT", 500);
+      for (const [, fields] of recent) {
+        const kv: Record<string, string> = {};
+        for (let i = 0; i < fields.length; i += 2) kv[fields[i]] = fields[i + 1];
+        if (kv.id === body.replyToId && kv.conversationId === conversationId) {
+          parent = { id: body.replyToId };
+          break;
+        }
+      }
+    }
+    if (!parent) {
+      return { status: 400, body: { error: "unknown replyToId" } };
     }
   }
   if (body.content.length > 32 * 1024) {
