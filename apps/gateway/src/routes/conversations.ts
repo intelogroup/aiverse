@@ -15,6 +15,7 @@ import {
   checkAgentSendRate,
   checkRoomSendRate,
   checkFanoutBudget,
+  refundFanoutBudget,
   checkConversationAdmission,
   admitConversation,
   releaseConversation,
@@ -45,15 +46,6 @@ export async function createConversationService(
   const admission = await checkConversationAdmission(agentId);
   if (!admission.allowed) {
     return { status: 429, body: { error: admission.reason } };
-  }
-
-  const invitesOtherAgents = (body.participantIds ?? []).some((id) => id !== agentId);
-  if (invitesOtherAgents) {
-    const wallet = await db.query.agentWallets.findFirst({ where: eq(agentWallets.agentId, agentId) });
-    const callCheck = await checkAndConsumeAgentCalls(agentId, wallet?.maxAgentCallsPerDay ?? 100);
-    if (!callCheck.allowed) {
-      return { status: 429, body: { error: callCheck.reason } };
-    }
   }
 
   const otherIds = [...new Set((body.participantIds ?? []).filter((id) => id !== agentId))];
@@ -117,6 +109,21 @@ export async function createConversationService(
     if (row) {
       const conversation = await db.query.conversations.findFirst({ where: eq(conversations.id, row.conversation_id) });
       return { status: 200, body: { conversation, reused: true } };
+    }
+  }
+
+  // The daily agent-calls quota is consumed HERE — after the trust gate,
+  // the kind/name validation, and the idempotent-DM reuse return above —
+  // so a creation that is refused (403/400) or that creates nothing
+  // (200 reused) never burns quota. Only a request that is actually about
+  // to create a conversation pays, exactly once. (The calls counter has
+  // no refund primitive; ordering is the compensation.)
+  const invitesOtherAgents = otherIds.length > 0;
+  if (invitesOtherAgents) {
+    const wallet = await db.query.agentWallets.findFirst({ where: eq(agentWallets.agentId, agentId) });
+    const callCheck = await checkAndConsumeAgentCalls(agentId, wallet?.maxAgentCallsPerDay ?? 100);
+    if (!callCheck.allowed) {
+      return { status: 429, body: { error: callCheck.reason } };
     }
   }
 
@@ -522,9 +529,19 @@ export async function sendMessageService(
     sendToAgent(agentId, envelope(WS_EVENTS.RATE_LIMITED, { reason: fanout.reason }));
     return { status: 429, body: { error: fanout.reason } };
   }
+  // The fanout charge is taken. Every refusal or failure exit below owes
+  // it back — a send that never publishes must not drain the conversation's
+  // SHARED bucket (other senders pay for this one's refusals otherwise).
+  // Best-effort like every saga compensation in this path: a failed refund
+  // is logged, never allowed to mask the refusal it accompanies.
+  const refundFanout = () =>
+    refundFanoutBudget(conversation, fanoutAudience).catch((err) =>
+      logError("send_fanout_refund_failed", err, { agentId, conversationId }),
+    );
 
   const budget = await checkAndConsumeBudget(agentId, body.tokensUsed ?? 0, wallet.dailyTokenBudget);
   if (!budget.allowed) {
+    await refundFanout();
     await db.update(agents).set({ status: "budget_exhausted" }).where(eq(agents.id, agentId));
     await recordAttentionEvent({
       agentId,
@@ -546,6 +563,14 @@ export async function sendMessageService(
 
   const agentRate = await checkAgentSendRate(agentId);
   if (!agentRate.allowed) {
+    // Budget and fanout were both consumed above for a send this gate
+    // refuses — neither charge stands (no-charge-on-refusal: the rate
+    // gates run after consumption in the observable gate order, so they
+    // compensate instead of preceding it).
+    await refundBudget(agentId, body.tokensUsed ?? 0).catch((refundErr) =>
+      logError("send_rate_refund_budget_failed", refundErr, { agentId }),
+    );
+    await refundFanout();
     sendToAgent(agentId, envelope(WS_EVENTS.RATE_LIMITED, { reason: agentRate.reason }));
     return { status: 429, body: { error: agentRate.reason } };
   }
@@ -553,6 +578,10 @@ export async function sendMessageService(
   if (conversation.roomId) {
     const roomRate = await checkRoomSendRate(conversation.roomId);
     if (!roomRate.allowed) {
+      await refundBudget(agentId, body.tokensUsed ?? 0).catch((refundErr) =>
+        logError("send_rate_refund_budget_failed", refundErr, { agentId }),
+      );
+      await refundFanout();
       sendToAgent(agentId, envelope(WS_EVENTS.RATE_LIMITED, { reason: roomRate.reason }));
       return { status: 429, body: { error: roomRate.reason } };
     }
@@ -661,6 +690,7 @@ export async function sendMessageService(
             await refundBudget(agentId, body.tokensUsed ?? 0).catch((refundErr) =>
               logError("send_loser_budget_refund_failed", refundErr, { agentId }),
             );
+            await refundFanout();
             return { status: 200, body: { message: winner } };
           }
           // The winner reserved but never published (it threw and deleted
@@ -711,6 +741,7 @@ export async function sendMessageService(
     await refundBudget(agentId, body.tokensUsed ?? 0).catch((refundErr) =>
       logError("send_cleanup_budget_refund_failed", refundErr, { agentId }),
     );
+    await refundFanout();
     throw err;
   }
 
