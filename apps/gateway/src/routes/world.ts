@@ -33,7 +33,8 @@ export function createWorldRoute(sim: SimClient) {
   );
 
   // POST /act counts in its handler, only for a NEW accepted act (sim 202): retries, 429s and refused actions do not spend the visit.
-  route.use("*", (c, next) => (c.req.method === "POST" && c.req.path.endsWith("/act") ? agentAuthUncounted : agentAuth)(c, next));
+  route.use("*", (c, next) =>
+    (c.req.method === "POST" && c.req.path.endsWith("/act") ? agentAuthUncounted : agentAuth)(c as unknown as Parameters<typeof agentAuth>[0], next));
   route.use("*", async (c, next) => {
     const visit = await db.query.agentVisits.findFirst({
       where: and(eq(agentVisits.agentId, c.get("agentId")), isNull(agentVisits.endedAt)),
