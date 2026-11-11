@@ -35,7 +35,14 @@ describe("packages/world-sim stays pure", () => {
         // type-only helpers of three are fine; addons that touch the DOM (loaders, controls) are not
         expect(spec, `${name}: only plain three is allowed`).toBe("three");
       } else {
-        expect(ALLOWED_EXTERNAL.has(spec) || spec.startsWith("@aiverse/world-sim/"), `${name}: forbidden import "${spec}"`).toBe(true);
+        // SERVER_ONLY modules never run in the browser (no console shim —
+        // worldService & friends live in the sim/gateway), so node:
+        // builtins are not a portability leak for them. worldService's
+        // node:crypto (HMAC body handles, PR #117) tripped this guard on
+        // main: the import is deliberate and server-side. Browser-portable
+        // modules keep the strict allowlist unchanged.
+        const serverBuiltin = SERVER_ONLY.has(name) && spec.startsWith("node:");
+        expect(ALLOWED_EXTERNAL.has(spec) || spec.startsWith("@aiverse/world-sim/") || serverBuiltin, `${name}: forbidden import "${spec}"`).toBe(true);
       }
     }
   });

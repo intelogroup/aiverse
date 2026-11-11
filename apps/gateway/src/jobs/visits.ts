@@ -6,23 +6,26 @@ import { announceVisitEnded } from "../ws/gateway";
 import { endVisitRecord } from "../policy/visits";
 import { log, logError } from "../util/log";
 
-// Belt-and-braces sweep for the two ways a visit can need ending without any
-// request ever arriving to trigger agentAuth's own check:
-//   1. deadline/cap passed, but the agent (or anyone) simply stopped
-//      calling in — nothing would ever notice otherwise.
-//   2. the agent's own presence has lapsed for a sustained stretch: a closed
-//      Claude Code session, Grok Bot hitting its weekly limit, a crashed
-//      runtime. These all look identical from here — the agent just stops
-//      showing up — so one signal (no presence key) covers all of them.
-//      A single missed presence tick is normal (a slow poll, a heartbeat
-//      gap); AGENT_OFFLINE_GRACE_MS is long enough to absorb that and short
-//      enough that a visit doesn't sit "active" for hours after its agent
-//      is plainly gone.
-export const AGENT_OFFLINE_GRACE_MS = 10 * 60_000;
-
-export async function sweepVisits(): Promise<{ endedByDeadlineOrCap: number; endedByPresence: number }> {
+// Belt-and-braces sweep for the one way a visit can need ending without any
+// request ever arriving to trigger agentAuth's own check: the deadline or
+// the action cap passed, but the agent (or anyone) simply stopped calling
+// in — nothing would ever notice otherwise.
+//
+// Presence deliberately does NOT end visits (2026-11-11, the 50-agent
+// loadtest): REST presence is a 180-second TTL refreshed by authenticated
+// calls, so any agent that pauses longer than that reads "offline" — and
+// the old sweep ended its visit and removed its body after 10 quiet
+// minutes, in last-touch order, regardless of the visit's own deadline.
+// A 50-agent fleet left idle lost 25 bodies that way while their visits
+// had hours to run. A visit is the owner's envelope (deadline + cap); it
+// ends when the envelope says so, not when the agent goes quiet. Presence
+// still drives the online/offline status other surfaces report, and this
+// sweep keeps the visit row's offlineSince marker current so owners can
+// see how long an agent has been quiet — it just never acts on it.
+// (The "presence_expired" end reason survives on historical rows only;
+// nothing produces it anymore.)
+export async function sweepVisits(): Promise<{ endedByDeadlineOrCap: number }> {
   let endedByDeadlineOrCap = 0;
-  let endedByPresence = 0;
   try {
     const active = await db.query.agentVisits.findMany({
       where: isNull(agentVisits.endedAt),
@@ -38,32 +41,23 @@ export async function sweepVisits(): Promise<{ endedByDeadlineOrCap: number; end
         continue;
       }
 
+      // Marker only: track how long the agent has been quiet (and clear
+      // the marker when it is back), never end the visit for it.
       const online = await isAgentOnline(visit.agentId);
       if (online) {
         if (visit.offlineSince) {
           await db.update(agentVisits).set({ offlineSince: null }).where(eq(agentVisits.id, visit.id));
         }
-        continue;
-      }
-
-      if (!visit.offlineSince) {
+      } else if (!visit.offlineSince) {
         await db.update(agentVisits).set({ offlineSince: new Date() }).where(eq(agentVisits.id, visit.id));
-        continue;
-      }
-      if (Date.now() - visit.offlineSince.getTime() >= AGENT_OFFLINE_GRACE_MS) {
-        const ended = await endVisitRecord(visit.id, "presence_expired");
-        if (ended) {
-          await announceVisitEnded(ended);
-          endedByPresence++;
-        }
       }
     }
 
-    if (endedByDeadlineOrCap || endedByPresence) log("visits_swept", { endedByDeadlineOrCap, endedByPresence, activeChecked: active.length });
+    if (endedByDeadlineOrCap) log("visits_swept", { endedByDeadlineOrCap, activeChecked: active.length });
   } catch (e) {
     logError("visits_sweep_error", e as Error);
   }
-  return { endedByDeadlineOrCap, endedByPresence };
+  return { endedByDeadlineOrCap };
 }
 
 // Env-tunable (2026-10-17, Neon compute bridge): the sweep SELECTs every

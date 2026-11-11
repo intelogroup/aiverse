@@ -74,6 +74,18 @@ async function joinGeneral(token: string): Promise<string> {
   return conversationId as string;
 }
 
+/** A fresh private group conversation whose participant set is exactly
+ * the agents the test created (the pattern (d)/(d2) already use). */
+async function createGroup(senderToken: string, name: string, peerIds: string[]): Promise<string> {
+  const createRes = await app.request("/conversations", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${senderToken}` },
+    body: JSON.stringify({ isPublic: false, name, participantIds: peerIds }),
+  });
+  expect(createRes.status).toBe(201);
+  return ((await createRes.json()) as any).conversation.id as string;
+}
+
 async function audienceOf(conversationId: string, senderId: string): Promise<number> {
   const rows = await db.query.conversationParticipants.findMany({
     where: eq(conversationParticipants.conversationId, conversationId),
@@ -170,16 +182,24 @@ describe("fanout budget (PHASE1_SPEC WI-1)", () => {
   test("(b) a send that exactly fits the bucket succeeds and drains it by the audience size", async () => {
     await resetMemoryStoreForTests();
     const sender = await registerAgentWithId(uniqueName("FanoutExactSender"));
-    const conversationId = await joinGeneral(sender.token);
+    const peers: string[] = [];
     for (let i = 0; i < 2; i++) {
       const other = await registerAgentWithId(uniqueName(`FanoutExactPeer${i}`));
-      await joinGeneral(other.token);
+      peers.push(other.agentId);
     }
+    // A fresh group, NOT the seeded general room: general is shared
+    // mutable state — every suite run leaves participant rows behind, so
+    // the test's audience count and the route's diverged by exactly the
+    // stale-row count and the exact-equality assertions below failed on
+    // any reused database (observed +2 on a second local run). A fresh
+    // group's participant set is exactly what this test created.
+    const conversationId = await createGroup(sender.token, uniqueName("wi1-exact-group"), peers);
     const audience = await audienceOf(conversationId, sender.agentId);
     // Capacity exactly equals the charge: the send fits, the bucket ends
     // at zero, and a second send has nothing left to pay with.
     process.env.AIVERSE_FANOUT_BUDGET_CAPACITY = String(audience);
     process.env.AIVERSE_FANOUT_BUDGET_REFILL_PER_SEC = "0";
+    process.env.AIVERSE_FANOUT_BUDGET_GROUP_MIN_PARTICIPANTS = "2"; // price the group by audience
 
     const res = await postMessage(sender.token, conversationId, { content: "exact fit" });
     expect(res.status).toBe(201);
@@ -193,13 +213,15 @@ describe("fanout budget (PHASE1_SPEC WI-1)", () => {
   test("(c) a clientMessageId retry of a successful send is not charged twice", async () => {
     await resetMemoryStoreForTests();
     const sender = await registerAgentWithId(uniqueName("FanoutRetrySender"));
-    const conversationId = await joinGeneral(sender.token);
     const other = await registerAgentWithId(uniqueName("FanoutRetryPeer"));
-    await joinGeneral(other.token);
+    // Fresh group for the same isolation reason as (b): the seeded
+    // general room's participant rows accumulate across runs.
+    const conversationId = await createGroup(sender.token, uniqueName("wi1-retry-group"), [other.agentId]);
     const audience = await audienceOf(conversationId, sender.agentId);
 
     process.env.AIVERSE_FANOUT_BUDGET_CAPACITY = "1000";
     process.env.AIVERSE_FANOUT_BUDGET_REFILL_PER_SEC = "0";
+    process.env.AIVERSE_FANOUT_BUDGET_GROUP_MIN_PARTICIPANTS = "2"; // price the group by audience
 
     const first = await postMessage(sender.token, conversationId, {
       content: "charge me once",

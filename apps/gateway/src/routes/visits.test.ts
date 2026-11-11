@@ -4,7 +4,7 @@ import { agentVisits } from "@aiverse/shared/schema";
 import { db } from "../db/client";
 import { createApp } from "../app";
 import { websocket } from "../ws/gateway";
-import { sweepVisits, AGENT_OFFLINE_GRACE_MS } from "../jobs/visits";
+import { sweepVisits } from "../jobs/visits";
 import { setPresence, clearPresence } from "../presence";
 
 const app = createApp();
@@ -185,20 +185,25 @@ describe("sweepVisits", () => {
     expect(row?.endedReason).toBe("time_expired");
   });
 
-  test("ends a visit whose agent's presence has lapsed past the grace period", async () => {
+  test("a visit whose agent's presence has lapsed is NOT ended — presence only moves the offlineSince marker", async () => {
+    // Regression (2026-11-11 loadtest): the sweep used to end the visit
+    // (reason presence_expired) after 10 quiet minutes and the body was
+    // removed with it, whatever the visit's deadline said. A visit now
+    // ends only at its deadline or action cap; presence is a status
+    // signal, never a terminator.
     const { ownerToken, agentId } = await ownerWithAgent("VisitSweepPresence");
     const start = await startVisit(ownerToken, agentId, 30, 100);
     const { visit } = (await start.json()) as any;
     await clearPresence(agentId);
 
-    // First sweep: agent offline, no prior offlineSince — starts the clock,
-    // does not end the visit yet.
+    // First sweep: agent offline, no prior offlineSince — starts the
+    // marker, does not end the visit.
     await sweepVisits();
     let row = await db.query.agentVisits.findFirst({ where: eq(agentVisits.id, visit.id) });
     expect(row?.endedAt).toBeNull();
     expect(row?.offlineSince).not.toBeNull();
 
-    // A tick where the agent IS online clears the clock instead of ending it.
+    // A tick where the agent IS online clears the marker.
     await setPresence(agentId);
     await sweepVisits();
     row = await db.query.agentVisits.findFirst({ where: eq(agentVisits.id, visit.id) });
@@ -206,17 +211,59 @@ describe("sweepVisits", () => {
     expect(row?.endedAt).toBeNull();
     await clearPresence(agentId);
 
-    // Back offline, and simulate the grace period having already elapsed
-    // (real test can't wait 10 real minutes) by backdating offlineSince.
+    // Back offline with the marker backdated far past the old 10-minute
+    // grace (a real test can't wait it out): the visit STILL stands,
+    // and so does the agent's access — the envelope, not the silence,
+    // governs.
     await sweepVisits();
     await db
       .update(agentVisits)
-      .set({ offlineSince: new Date(Date.now() - AGENT_OFFLINE_GRACE_MS - 1000) })
+      .set({ offlineSince: new Date(Date.now() - 60 * 60_000) })
       .where(eq(agentVisits.id, visit.id));
 
-    const result = await sweepVisits();
-    expect(result.endedByPresence).toBeGreaterThanOrEqual(1);
+    await sweepVisits();
     row = await db.query.agentVisits.findFirst({ where: eq(agentVisits.id, visit.id) });
-    expect(row?.endedReason).toBe("presence_expired");
+    expect(row?.endedAt).toBeNull();
+    expect(row?.endedReason).toBeNull();
+  });
+});
+
+describe("POST /owners/agents/:id/visits/:visitId/extend", () => {
+  const extend = (ownerToken: string, agentId: string, visitId: string, minutes: unknown) =>
+    app.request(`/owners/agents/${agentId}/visits/${visitId}/extend`, {
+      method: "POST",
+      headers: json(ownerToken),
+      body: JSON.stringify({ minutes }),
+    });
+
+  test("extends an active visit in place: same row, later deadline, actions untouched", async () => {
+    const { ownerToken, agentId, agentToken } = await ownerWithAgent("VisitExtend");
+    const start = await startVisit(ownerToken, agentId, 30, 100);
+    const { visit } = (await start.json()) as any;
+    await writeCall(agentToken); // spend one action so the count is observable
+
+    const res = await extend(ownerToken, agentId, visit.id, 45);
+    expect(res.status).toBe(200);
+    const { visit: extended } = (await res.json()) as any;
+    expect(extended.id).toBe(visit.id);
+    expect(extended.endedAt).toBeNull();
+    expect(new Date(extended.endsAt).getTime()).toBeGreaterThanOrEqual(new Date(visit.endsAt).getTime() + 44 * 60_000);
+    expect(extended.actionsUsed).toBe(visit.actionsUsed + 1);
+  });
+
+  test("validates minutes, refuses an ended visit, and hides other owners' visits", async () => {
+    const { ownerToken, agentId } = await ownerWithAgent("VisitExtendRules");
+    const start = await startVisit(ownerToken, agentId, 30, 100);
+    const { visit } = (await start.json()) as any;
+
+    expect((await extend(ownerToken, agentId, visit.id, 0)).status).toBe(400);
+    expect((await extend(ownerToken, agentId, visit.id, 1.5)).status).toBe(400);
+    expect((await extend(ownerToken, agentId, visit.id, 999999)).status).toBe(400);
+
+    const { ownerToken: strangerToken } = await ownerWithAgent("VisitExtendStranger");
+    expect((await extend(strangerToken, agentId, visit.id, 30)).status).toBe(404);
+
+    await app.request(`/owners/agents/${agentId}/visits/${visit.id}/stop`, { method: "POST", headers: json(ownerToken) });
+    expect((await extend(ownerToken, agentId, visit.id, 30)).status).toBe(409);
   });
 });

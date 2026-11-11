@@ -152,10 +152,38 @@ export async function stopVisitRecord(visitId: string): Promise<EndedVisit | nul
 // freshly claimed agent starts its first visit immediately and can take a
 // body (POST /world/body refuses visit-less agents) with zero further
 // owner calls. Sized to let an agent settle in and do real work, well
-// inside the bounds above; the owner can stop it or start a bigger one
-// from the console at any time.
-export const STARTER_VISIT_MINUTES = 30;
+// inside the bounds above; the owner can stop it, extend it, or start a
+// bigger one from the console at any time.
+//
+// Length (2026-11-11): 30 -> 120 minutes. The 50-agent loadtest ran a
+// fleet on starter visits and every slot needed a mid-run extension (a
+// stop -> start -> re-attach dance at the time) — a real settling-in
+// session with an LLM-paced agent runs past half an hour as a matter of
+// course. Two hours is still far inside the one-week maximum, and the
+// action cap (unchanged) is what prices the visit's activity.
+export const STARTER_VISIT_MINUTES = 120;
 export const STARTER_VISIT_ACTIONS = 200;
+
+// Owner extension of an ACTIVE visit in place (2026-11-11): moves the
+// deadline out by addMinutes without ending the visit — the agent keeps
+// its body, its action count, and its session, where the old path was
+// stop -> start -> re-attach. Guarded like endVisitRecord: the UPDATE
+// only lands while the visit is still active AND still carries the
+// deadline the caller read, so a racing end (sweep, owner stop) or a
+// racing extension makes the loser a no-op (returns null) instead of
+// resurrecting or double-extending a visit.
+export async function extendVisitRecord(
+  visit: { id: string; endsAt: Date },
+  addMinutes: number,
+): Promise<typeof agentVisits.$inferSelect | null> {
+  const endsAt = new Date(visit.endsAt.getTime() + addMinutes * 60_000);
+  const [updated] = await db
+    .update(agentVisits)
+    .set({ endsAt })
+    .where(and(eq(agentVisits.id, visit.id), isNull(agentVisits.endedAt), eq(agentVisits.endsAt, visit.endsAt)))
+    .returning();
+  return updated ?? null;
+}
 
 // Starts a visit unless the agent already has an active one (endedAt IS
 // NULL — the same "active" test the start route and agentAuth use), in

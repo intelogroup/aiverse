@@ -18,7 +18,8 @@ import {
   agentVisits,
 } from "@aiverse/shared/schema";
 import { generateOwnerReadKey, ownerSessionOrReadKey } from "../middleware/ownerReadAuth";
-import { stopVisitRecord, startVisitIfNoneActive, STARTER_VISIT_MINUTES, STARTER_VISIT_ACTIONS, MIN_VISIT_MINUTES, MAX_VISIT_MINUTES, MIN_VISIT_ACTIONS, MAX_VISIT_ACTIONS } from "../policy/visits";
+import { stopVisitRecord, startVisitIfNoneActive, extendVisitRecord, STARTER_VISIT_MINUTES, STARTER_VISIT_ACTIONS, MIN_VISIT_MINUTES, MAX_VISIT_MINUTES, MIN_VISIT_ACTIONS, MAX_VISIT_ACTIONS } from "../policy/visits";
+import { notifyVisitExtended } from "../world/hooks";
 import type { AgentCard } from "@aiverse/shared/types";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { revokeOwnerSessions, signOwnerSession } from "../auth/session";
@@ -35,7 +36,7 @@ import { audit } from "../util/audit";
 import { clientIp } from "../util/clientIp";
 import { deleteAgentCascade, deleteOwnerCascade } from "../util/deleteAgent";
 import { env } from "@aiverse/shared/env";
-import { consumeVerificationToken, sendVerificationEmail } from "../auth/emailVerification";
+import { consumeVerificationToken, markVerificationTokenUsed, sendVerificationEmail, verificationTokenUsedBy } from "../auth/emailVerification";
 import { logError } from "../util/log";
 import { isAgentOnline } from "../presence";
 import { agentNameLockKey, generateAgentName, isAgentNameTaken, isAgentNameTakenTx } from "../util/agentName";
@@ -219,8 +220,20 @@ ownersRoute.post("/verify-email", async (c) => {
   const body = await c.req.json<{ token?: string }>().catch(() => ({}) as { token?: string });
   if (!body.token) return c.json({ error: "token required" }, 400);
   const ownerId = await consumeVerificationToken(body.token);
-  if (!ownerId) return c.json({ error: "This link is invalid, expired, or already used." }, 400);
+  if (!ownerId) {
+    // Consumed already? The tombstone says by whom; if that owner is
+    // verified, the honest answer is "already verified" (a replayed link
+    // whose first response was lost), not the invalid-link error. The
+    // token stays single-use — the tombstone can only report state.
+    const usedBy = await verificationTokenUsedBy(body.token);
+    if (usedBy) {
+      const owner = await db.query.owners.findFirst({ where: eq(owners.id, usedBy) });
+      if (owner?.emailVerified) return c.json({ ok: true, alreadyVerified: true });
+    }
+    return c.json({ error: "This link is invalid, expired, or already used." }, 400);
+  }
   await db.update(owners).set({ emailVerified: true }).where(eq(owners.id, ownerId));
+  await markVerificationTokenUsed(body.token, ownerId);
   await audit({ event: "owner.email_verified", ownerId, actorType: "owner", actorId: ownerId });
   return c.json({ ok: true });
 });
@@ -533,6 +546,36 @@ ownersRoute.post("/agents/claim", ownerAuth, async (c) => {
     where: eq(agents.claimCodeHash, claimCodeHash),
   });
   if (!agent || agent.ownerId) {
+    // Retry-safe claim (loadtest 2026-11-11 §5): a successful claim
+    // consumes the code (hash nulled), so the owner whose claim response
+    // was lost in transit got "invalid claim code" on retry and could
+    // not tell claimed from never-claimed. A 24h tombstone keyed by the
+    // code hash records who claimed what; when the SAME owner presents
+    // the code again, answer with the current state (200, alreadyClaimed)
+    // instead of 404. Any other caller still gets the plain 404 — the
+    // tombstone names its owner and reveals nothing to anyone else.
+    const tomb = await redis.get(`claimtombstone:${claimCodeHash}`).catch(() => null);
+    if (tomb) {
+      try {
+        const { agentId: tombAgentId, ownerId: tombOwnerId } = JSON.parse(tomb) as { agentId?: string; ownerId?: string };
+        if (tombOwnerId === ownerId && tombAgentId) {
+          const claimed = await db.query.agents.findFirst({ where: eq(agents.id, tombAgentId) });
+          if (claimed && claimed.ownerId === ownerId) {
+            // Same self-heal as the first claim: make sure the starter
+            // visit exists (it may have failed to start back then).
+            let visit: Awaited<ReturnType<typeof startVisitIfNoneActive>>["visit"] | null = null;
+            try {
+              visit = (await startVisitIfNoneActive(claimed.id, ownerId, STARTER_VISIT_MINUTES, STARTER_VISIT_ACTIONS)).visit;
+            } catch { /* the state answer stands without it */ }
+            return c.json({
+              agent: { id: claimed.id, name: claimed.name, status: claimed.status },
+              alreadyClaimed: true,
+              visit,
+            });
+          }
+        }
+      } catch { /* fall through to the plain 404 */ }
+    }
     return c.json({ error: "invalid claim code" }, 404);
   }
   if (!agent.claimCodeExpiresAt || agent.claimCodeExpiresAt < new Date()) {
@@ -570,6 +613,12 @@ ownersRoute.post("/agents/claim", ownerAuth, async (c) => {
   }
 
   await audit({ event: "agent.claimed", agentId: updated.id, ownerId, actorType: "owner", actorId: ownerId, metadata: { name: updated.name } });
+
+  // Tombstone for the retry-safe path above (best-effort: a Redis hiccup
+  // must not fail a claim that already committed).
+  await redis
+    .set(`claimtombstone:${claimCodeHash}`, JSON.stringify({ agentId: updated.id, ownerId }), "EX", 24 * 3600)
+    .catch(() => {});
 
   // Signup ends at presence (2026-11-10): the claimed agent starts its
   // first visit right here, so it can take a body with zero further owner
@@ -1066,6 +1115,43 @@ ownersRoute.post("/agents/:id/visits/:visitId/stop", ownerAuth, async (c) => {
   await audit({ event: "visit.stopped", agentId, ownerId, actorType: "owner", actorId: ownerId, metadata: { visitId: visit.id } });
 
   return c.json({ ok: true });
+});
+
+// Extend an ACTIVE visit in place (2026-11-11): the deadline moves out by
+// `minutes` and nothing else changes — the visit row, the actions used,
+// and (via notifyVisitExtended -> the world route's re-stamp) any live
+// body's expiry all carry on. This replaces the stop -> start ->
+// re-attach dance the 50-agent loadtest had to perform mid-run. Owner-
+// only, like start/stop: an agent cannot extend its own envelope.
+ownersRoute.post("/agents/:id/visits/:visitId/extend", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const agentId = c.req.param("id");
+  const agent = await loadOwnedAgent(ownerId, agentId);
+  if (!agent) return c.json({ error: "not found" }, 404);
+
+  const visit = await db.query.agentVisits.findFirst({
+    where: and(eq(agentVisits.id, c.req.param("visitId")), eq(agentVisits.agentId, agentId)),
+  });
+  if (!visit) return c.json({ error: "not found" }, 404);
+  if (visit.endedAt) return c.json({ error: "visit already ended" }, 409);
+
+  const body = await c.req.json<{ minutes?: number }>().catch(() => ({}) as { minutes?: number });
+  const minutes = Number(body.minutes);
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > MAX_VISIT_MINUTES) {
+    return c.json({ error: `minutes must be an integer between 1 and ${MAX_VISIT_MINUTES}` }, 400);
+  }
+  // The extension may not push the deadline past the same one-week
+  // horizon a fresh visit is bounded by (measured from now).
+  if (visit.endsAt.getTime() + minutes * 60_000 > Date.now() + MAX_VISIT_MINUTES * 60_000) {
+    return c.json({ error: "extension would push the visit past the one-week maximum" }, 400);
+  }
+
+  const extended = await extendVisitRecord(visit, minutes);
+  if (!extended) return c.json({ error: "visit already ended" }, 409);
+  await audit({ event: "visit.extended", agentId, ownerId, actorType: "owner", actorId: ownerId, metadata: { visitId: visit.id, minutes, endsAt: extended.endsAt } });
+  notifyVisitExtended(agentId, extended.endsAt.getTime());
+
+  return c.json({ visit: extended });
 });
 
 // Hard delete — unlike /kill (revokes credential, keeps the row), this

@@ -57,6 +57,47 @@ describe("sim internal API", () => {
     expect(((await (await call("GET", `/bodies/${AID}`)).json()) as any).error).toBe("no_body");
   });
 
+  test("a figure pick is honored and exposed; cast-only/unknown picks are loud 400s; the figure is fixed for the body's life", async () => {
+    const B = "22222222-2222-4222-8222-222222222222";
+    // Pick honored + exposed on attach response, GET body, observe and roster.
+    const r = await call("POST", "/bodies", { agentId: B, expiresAtMs: clock + 60_000, body: "summer" });
+    expect(r.status).toBe(201);
+    expect(((await r.json()) as any).observation.body.figure).toBe("summer");
+    clock += 1000;
+    expect(((await (await call("GET", `/bodies/${B}`)).json()) as any).body.figure).toBe("summer");
+    clock += 1000;
+    expect(((await (await call("GET", `/bodies/${B}/observe`)).json()) as any).observation.body.figure).toBe("summer");
+    const roster = ((await (await call("GET", "/roster")).json()) as any).bodies as { agentId: string; body: string }[];
+    expect(roster.find((x) => x.agentId === B)?.body).toBe("summer");
+    // Same figure again: idempotent 200. Non-string pick: 400.
+    expect((await call("POST", "/bodies", { agentId: B, expiresAtMs: clock + 60_000, body: "summer" })).status).toBe(200);
+    // A different figure on the live body: 409, and the body still wears summer.
+    const conflict = await call("POST", "/bodies", { agentId: B, expiresAtMs: clock + 60_000, body: "eve" });
+    expect(conflict.status).toBe(409);
+    clock += 1000;
+    expect(((await (await call("GET", `/bodies/${B}`)).json()) as any).body.figure).toBe("summer");
+    expect(((await (await call("DELETE", `/bodies/${B}`)).json()) as any).removed).toBe(true);
+
+    // Cast-only and unknown picks: 400 naming the problem and the pickable set; nothing attaches.
+    const C = "33333333-3333-4333-8333-333333333333";
+    const cast = await call("POST", "/bodies", { agentId: C, expiresAtMs: clock + 60_000, body: "mage" });
+    expect(cast.status).toBe(400);
+    const castBody = (await cast.json()) as any;
+    expect(castBody.error).toBe("invalid_action");
+    expect(castBody.message).toContain("cast-only");
+    expect(castBody.message).toContain("summer");
+    const unknown = await call("POST", "/bodies", { agentId: C, expiresAtMs: clock + 60_000, body: "nope" });
+    expect(unknown.status).toBe(400);
+    expect(((await unknown.json()) as any).message).toContain("unknown body");
+    expect((await call("POST", "/bodies", { agentId: C, expiresAtMs: clock + 60_000, body: 42 })).status).toBe(400);
+    expect(service.has(C)).toBe(false);
+    // No pick: the platform default.
+    const dflt = await call("POST", "/bodies", { agentId: C, expiresAtMs: clock + 60_000 });
+    expect(dflt.status).toBe(201);
+    expect(((await dflt.json()) as any).observation.body.figure).toBe("remy");
+    await call("DELETE", `/bodies/${C}`);
+  });
+
   test("clips lists what play accepts; a refused action says why and names the valid options", async () => {
     const clips = ((await (await call("GET", "/clips")).json()) as any).clips;
     expect(clips.map((c: any) => c.name)).toContain("Waving");

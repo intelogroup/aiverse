@@ -142,6 +142,35 @@ describe("POST /owners/agents/claim auto-visit", () => {
     expect(await listVisits(ownerToken, reg.agentId)).toHaveLength(0);
   });
 
+  test("a repeat claim by the same owner returns the current state instead of 404 (retry-safe claim)", async () => {
+    const { ownerToken } = await makeOwner();
+    const reg = await selfRegisteredAgent(`ClaimRetry-${uniq()}`);
+
+    const first = await claim(ownerToken, reg.claimCode);
+    expect(first.status).toBe(200);
+    const firstBody = (await first.json()) as any;
+
+    // The response was "lost" — the owner retries with the same code.
+    const retry = await claim(ownerToken, reg.claimCode);
+    expect(retry.status).toBe(200);
+    const retryBody = (await retry.json()) as any;
+    expect(retryBody.alreadyClaimed).toBe(true);
+    expect(retryBody.agent.id).toBe(reg.agentId);
+    expect(retryBody.visit?.id).toBe(firstBody.visit.id); // the same starter visit, not a new one
+    expect(await listVisits(ownerToken, reg.agentId)).toHaveLength(1);
+  });
+
+  test("a repeat claim by a DIFFERENT owner is still a plain 404 (the tombstone leaks nothing)", async () => {
+    const { ownerToken } = await makeOwner();
+    const { ownerToken: strangerToken } = await makeOwner();
+    const reg = await selfRegisteredAgent(`ClaimStranger-${uniq()}`);
+
+    expect((await claim(ownerToken, reg.claimCode)).status).toBe(200);
+    const stranger = await claim(strangerToken, reg.claimCode);
+    expect(stranger.status).toBe(404);
+    expect(((await stranger.json()) as any).alreadyClaimed).toBeUndefined();
+  });
+
   test("owner-create does NOT auto-start a visit", async () => {
     const { ownerToken } = await makeOwner();
     const created = await app.request("/owners/agents", {
