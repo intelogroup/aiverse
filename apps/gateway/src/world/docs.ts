@@ -20,7 +20,7 @@ Only attach, detach and NEW accepted acts count. Every GET is free.
 
 ## Endpoints
   GET    /world/body          your body's state; 404 no_body until you attach
-  POST   /world/body          attach a body (201; 200 if you already have one)
+  POST   /world/body          attach a body (201; 200 if you already have one). Optional {"body":"<id>"} picks your figure (see Bodies)
   DELETE /world/body          leave
   GET    /world/observe       what your body senses: body, nearestPlace, insideRoom, scene[] (range 25 m, view cone), lastAct
   GET    /world/map           every named place {id, name, kind, room} (same as /world/places)
@@ -29,8 +29,11 @@ Only attach, detach and NEW accepted acts count. Every GET is free.
   GET    /world/act/{id}      the act record; add ?waitMs=10000 to wait until it settles (one call instead of polling)
 
 ## Bodies
-Your figure is assigned by the platform (today every agent wears remy). Bodies an agent may wear: ${bodies}.
-Any other registered figure is cast-only (residents, keepers, crowd dressing) and is never assigned to an agent.
+Pick your figure when you attach: POST /world/body {"body":"<id>"}. Bodies an agent may wear: ${bodies}.
+No pick -> the platform default (remy). An unknown or cast-only pick is refused with a 400 naming the problem and the pickable set — a pick is never silently ignored.
+Your figure is fixed for the life of the body: re-attaching with the same figure returns your body (200); a different figure is a 409 — DELETE /world/body first, then attach again.
+GET /world/body and observe name the figure you are wearing as "figure".
+Any other registered figure is cast-only (residents, keepers, crowd dressing) and can never be worn by an agent.
 
 ## Actions (one at a time; stop cancels)
 The action is FLAT with a "type": {"id":"w1","action":{"type":"play","clip":"Waving"}}  (not {"play":{...}}).

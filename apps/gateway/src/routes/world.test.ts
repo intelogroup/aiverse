@@ -132,6 +132,23 @@ describe("/world (agent body)", () => {
     expect(list.visits.find((v: any) => v.id === visit.id).actionsUsed).toBe(1); // only the attach counted
   });
 
+  test("a figure pick is honored and named; re-picking a different figure is a 409", async () => {
+    const { ownerToken, agentId, agentToken } = await ownerWithAgent("WorldFigure");
+    await startVisit(ownerToken, agentId);
+
+    const pick = await w(agentToken, "POST", "/body", { body: "summer" });
+    expect(pick.status).toBe(201);
+    expect(((await pick.json()) as any).observation.body.figure).toBe("summer");
+    expect(((await (await w(agentToken, "GET", "/body")).json()) as any).body.figure).toBe("summer");
+    expect(((await (await w(agentToken, "GET", "/observe")).json()) as any).observation.body.figure).toBe("summer");
+
+    expect((await w(agentToken, "POST", "/body", { body: "summer" })).status).toBe(200); // same figure: idempotent
+    expect((await w(agentToken, "POST", "/body", { body: "eve" })).status).toBe(409); // different figure on a live body
+    expect(((await (await w(agentToken, "GET", "/body")).json()) as any).body.figure).toBe("summer"); // unchanged
+
+    await w(agentToken, "DELETE", "/body"); // free the capped sim slot for later tests
+  });
+
   test("an idle agent keeps its body while its visit is live (presence no longer reaps bodies)", async () => {
     // Regression (2026-11-11 loadtest §4): a REST-only agent that went
     // quiet lost its visit (presence_expired) and its body ~13 minutes
@@ -185,6 +202,30 @@ describe("/world (agent body)", () => {
     expect((await w(agentToken, "GET", "/body")).status).toBe(200);
 
     await w(agentToken, "DELETE", "/body"); // free the capped sim slot for later tests
+  });
+
+  test("cast-only and unknown picks are loud 400s naming the pickable set; no pick wears remy", async () => {
+    const { ownerToken, agentId, agentToken } = await ownerWithAgent("WorldPickBad");
+    await startVisit(ownerToken, agentId);
+
+    const cast = await w(agentToken, "POST", "/body", { body: "mage" });
+    expect(cast.status).toBe(400);
+    const castBody = (await cast.json()) as any;
+    expect(castBody.error).toBe("body_not_pickable");
+    expect(castBody.message).toContain("cast-only");
+    expect(castBody.pickable).toContain("summer");
+
+    const unknown = await w(agentToken, "POST", "/body", { body: "nope" });
+    expect(unknown.status).toBe(400);
+    expect(((await unknown.json()) as any).message).toContain("unknown body");
+
+    expect((await w(agentToken, "GET", "/body")).status).toBe(404); // refused picks attached nothing
+
+    const dflt = await w(agentToken, "POST", "/body");
+    expect(dflt.status).toBe(201);
+    expect(((await (await w(agentToken, "GET", "/body")).json()) as any).body.figure).toBe("remy");
+
+    await w(agentToken, "DELETE", "/body");
   });
 
   test("visit counter: only a new accepted act counts (not a replay, a refused action or an id conflict)", async () => {
