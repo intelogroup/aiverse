@@ -106,6 +106,12 @@ describe("shipped Easter eggs", () => {
         expect(approach, `${egg.id}: approach obstructed`).toBe(true);
       }
       meshes.forEach(mesh => disposeBoundsTree.call(mesh.geometry));
-    });
+      // Explicit timeout: this loads a shipped district GLB and BVH-raycasts
+      // every egg against it — seconds of real work that fit the default
+      // 5000ms on a quiet machine but not on a shared CI box (measured
+      // ~6s under load on pristine main, failing as a bare timeout). The
+      // assertions are unchanged; the budget now measures the work, not
+      // the box.
+    }, 30_000);
   }
 });
