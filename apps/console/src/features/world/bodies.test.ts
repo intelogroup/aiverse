@@ -2,9 +2,15 @@ import { describe, expect, it } from "vitest";
 import { CAST_HIPS_Y, seatedRootY, type Anchor } from "./embody";
 import {
   BARBARIAN_HIPS_Y,
+  CIPHER_HIPS_Y,
+  SCALE_CIPHER,
   BODIES,
   BODY_BARBARIAN,
   BODY_CAST,
+  BODY_CIPHER,
+  BODY_EVE,
+  EVE_HIPS_Y,
+  SCALE_EVE,
   BODY_KNIGHT,
   BODY_MAGE,
   BODY_REMY,
@@ -58,6 +64,8 @@ describe("realistic heights (display scale)", () => {
       [BODY_BARBARIAN, SCALE_BARBARIAN, BARBARIAN_HIPS_Y],
       [BODY_KNIGHT, SCALE_KNIGHT, KNIGHT_HIPS_Y],
       [BODY_SKELETON_WARRIOR, SCALE_SKELETON_WARRIOR, SKELETON_WARRIOR_HIPS_Y],
+      [BODY_CIPHER, SCALE_CIPHER, CIPHER_HIPS_Y],
+      [BODY_EVE, SCALE_EVE, EVE_HIPS_Y],
     ];
     for (const [b, sc, hips] of cases) {
       expect(b.scale).toBe(sc);
@@ -74,6 +82,8 @@ describe("realistic heights (display scale)", () => {
       [1.293, SCALE_BARBARIAN, 1.7],
       [1.293, SCALE_KNIGHT, 1.7],
       [1.3, SCALE_SKELETON_WARRIOR, 1.7],
+      [1.3, SCALE_CIPHER, 1.78],
+      [1.3, SCALE_EVE, 1.65],
     ];
     for (const [h, sc, target] of heights) expect(h * sc).toBeCloseTo(target, 2);
   });
@@ -123,6 +133,14 @@ describe("body registry", () => {
     expect(BODY_SKELETON_WARRIOR.url).toBe("/assets/cast-skeleton-warrior.glb");
     expect(BODY_SKELETON_WARRIOR.hipsY).toBeCloseTo(SKELETON_WARRIOR_HIPS_Y * SCALE_SKELETON_WARRIOR, 9);
     expect(BODIES["skeleton-warrior"]).toBe(BODY_SKELETON_WARRIOR);
+    expect(bodyForMember({ body: "cipher" })).toBe(BODY_CIPHER);
+    expect(BODY_CIPHER.url).toBe("/assets/cast-cipher.glb");
+    expect(BODY_CIPHER.hipsY).toBeCloseTo(CIPHER_HIPS_Y * SCALE_CIPHER, 9);
+    expect(BODIES.cipher).toBe(BODY_CIPHER);
+    expect(bodyForMember({ body: "eve" })).toBe(BODY_EVE);
+    expect(BODY_EVE.url).toBe("/assets/cast-eve.glb");
+    expect(BODY_EVE.hipsY).toBeCloseTo(EVE_HIPS_Y * SCALE_EVE, 9);
+    expect(BODIES.eve).toBe(BODY_EVE);
   });
 
   it("every body carries a measured natural walk speed", () => {

@@ -131,4 +131,26 @@ describe("shipped body GLBs — clip inventory", () => {
     expect(g.joints).toBe(41);
     expect(g.tris).toBe(5934);
   });
+
+  // Cipher (Mixamo "Soldier", Entering Code.fbx, 69 joints, 1.3 m): same bake as Remy via tools/city3/bake_cipher.py, JPEG textures.
+  it("cast-cipher.glb: full catalog, exact durations, 69 joints, 19,450 tris", () => {
+    const g = readGlb("../public/assets/cast-cipher.glb");
+    expect(Object.keys(g.anims).sort()).toEqual(Object.keys(EXPECTED_CLIPS).sort());
+    for (const [name, dur] of Object.entries(EXPECTED_CLIPS)) {
+      expect(g.anims[name], name).toBeCloseTo(dur, 2);
+    }
+    expect(g.joints).toBe(69);
+    expect(g.tris).toBe(19450);
+  });
+
+  // Eve (Mixamo "Space Pirate", 65 joints, 1.3 m): same bake as Cipher via tools/city3/bake_cipher.py, JPEG textures at 1K.
+  it("cast-eve.glb: full catalog, exact durations, 65 joints, 27,207 tris", () => {
+    const g = readGlb("../public/assets/cast-eve.glb");
+    expect(Object.keys(g.anims).sort()).toEqual(Object.keys(EXPECTED_CLIPS).sort());
+    for (const [name, dur] of Object.entries(EXPECTED_CLIPS)) {
+      expect(g.anims[name], name).toBeCloseTo(dur, 2);
+    }
+    expect(g.joints).toBe(65);
+    expect(g.tris).toBe(27207);
+  });
 });
