@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { env } from "@aiverse/shared/env";
 import { createApp } from "../app";
+import { consumeVerificationToken, markVerificationTokenUsed } from "../auth/emailVerification";
 
 const app = createApp();
 const json = (token?: string) => ({
@@ -89,8 +90,26 @@ describe("owner email verification", () => {
     expect(((await me.json()) as { owner: { emailVerified: boolean } }).owner.emailVerified).toBe(true);
     expect((await createAgent(token)).status).toBe(201);
 
+    // Single-use still holds — the token verifies nobody twice — but the
+    // replay now answers statefully (alreadyVerified) instead of the
+    // invalid-link error: a lost first response is distinguishable from
+    // a bogus link (loadtest 2026-11-11 §5).
     const replay = await app.request("/owners/verify-email", { method: "POST", headers: json(), body: JSON.stringify({ token: verifyToken }) });
-    expect(replay.status).toBe(400);
+    expect(replay.status).toBe(200);
+    expect(((await replay.json()) as any).alreadyVerified).toBe(true);
+  });
+
+  test("a consumed token whose owner is somehow NOT verified still answers 400, not alreadyVerified", async () => {
+    const { owner } = await register();
+    const ownerId = (owner as any).id as string;
+    const verifyToken = tokenFromLastEmail();
+    // Consume the token out-of-band and leave only the tombstone, with
+    // the owner's verified flag never set: the tombstone alone must not
+    // be enough to claim "already verified".
+    await consumeVerificationToken(verifyToken);
+    await markVerificationTokenUsed(verifyToken, ownerId);
+    const res = await app.request("/owners/verify-email", { method: "POST", headers: json(), body: JSON.stringify({ token: verifyToken }) });
+    expect(res.status).toBe(400);
   });
 
   test("a bogus token is rejected", async () => {
