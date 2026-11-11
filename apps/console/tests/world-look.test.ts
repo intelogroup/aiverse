@@ -136,14 +136,38 @@ describe("look", () => {
     service.detach("wally");
   }, 60_000);
 
-  it("costs under 50 ms per look (p95) on this machine", () => {
-    service.attach("tim");
+  it("the adaptive pass matches a full 9,216-ray render at spread-out places (class 99%+, depth within 3% / 50 mm 99%+)", () => {
+    const spots = sim.places.filter((_p, i) => i % Math.ceil(sim.places.length / 8) === 0).slice(0, 8);
+    let cls = 0, dep = 0, tot = 0;
+    spots.forEach((p, i) => {
+      const id = `acc${i}`;
+      service.attach(id, { x: p.stand[0], z: p.stand[1] });
+      const ad = sim.look(id)!, fu = sim.look(id, 25, { full: true })!;
+      for (let k = 0; k < ad.classes.length; k++) {
+        cls += ad.classes[k] === fu.classes[k] ? 1 : 0;
+        const a = ad.depthMm[k], b = fu.depthMm[k];
+        dep += a === b || (a < LOOK_NO_HIT && b < LOOK_NO_HIT && Math.abs(a - b) <= Math.max(50, 0.03 * b)) ? 1 : 0;
+        tot++;
+      }
+      service.detach(id);
+    });
+    expect(cls / tot).toBeGreaterThan(0.99);
+    expect(dep / tot).toBeGreaterThan(0.99);
+  });
+
+  it("costs under 50 ms per look (p95) across the city, shops included", () => {
+    const spots = sim.places.filter((_p, i) => i % Math.ceil(sim.places.length / 20) === 0).slice(0, 20);
     const ms: number[] = [];
-    for (let i = 0; i < 30; i++) { const t0 = performance.now(); service.look("tim"); ms.push(performance.now() - t0); }
+    spots.forEach((p, i) => {
+      const id = `lat${i}`;
+      service.attach(id, { x: p.stand[0], z: p.stand[1] });
+      service.look(id); // warm
+      for (let k = 0; k < 3; k++) { const t0 = performance.now(); service.look(id); ms.push(performance.now() - t0); }
+      service.detach(id);
+    });
     ms.sort((a, b) => a - b);
     const p95 = ms[Math.floor(ms.length * 0.95)];
-    console.log(`look ms: median ${ms[15].toFixed(1)} p95 ${p95.toFixed(1)} max ${ms[29].toFixed(1)}`);
+    console.log(`look ms over ${ms.length} looks: median ${ms[Math.floor(ms.length / 2)].toFixed(1)} p95 ${p95.toFixed(1)} max ${ms[ms.length - 1].toFixed(1)}`);
     expect(p95).toBeLessThan(50);
-    service.detach("tim");
   });
 });

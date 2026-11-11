@@ -8,7 +8,7 @@ import { AgentBody, SUBSTEP_S, BODY_HEIGHT_M, type AgentBodyDeps } from "./agent
 import { BODY_REMY } from "./bodies";
 import type { CityNav } from "./cityNav";
 import { boxesMesh, createCapsuleWorld } from "./capsuleWorld";
-import { LOOK_CLASSES, renderLook, type LookResult, type LookScene } from "./look";
+import { LOOK_CLASSES, renderLook, type LookOpts, type LookResult, type LookScene } from "./look";
 import { InteractController, type InteractableDef } from "./interactables";
 import { bearingDeg, type ScoutPlace, type ScoutRoomShape, type Sittable } from "./scout";
 import { TEA_BLOCKER_BOX, TeaDoorController, type TeaDoorChannel } from "./teaDoor";
@@ -149,7 +149,7 @@ export class VerseSim {
   }
 
   /** One glance from `selfId`'s eyes along its heading: depth and class images (look.ts). Null when there is no such body. */
-  look(selfId: string, markerRangeM = 25): LookResult | null {
+  look(selfId: string, markerRangeM = 25, opts: LookOpts = {}): LookResult | null {
     const me = this.bodies.get(selfId);
     if (!me) return null;
     const a = me.state, near = (x: number, z: number) => Math.hypot(x - a.x, z - a.z) <= markerRangeM;
@@ -181,7 +181,7 @@ export class VerseSim {
       scene.spheres.push({ c: [t.seat[0], y + 0.45, t.seat[1]], r: 0.35, cls: LOOK_CLASSES.seat });
     }
     for (const i of this.interact.list()) if (near(i.pos[0], i.pos[2])) scene.spheres.push({ c: [i.pos[0], i.pos[1], i.pos[2]], r: 0.3, cls: LOOK_CLASSES.prop });
-    return renderLook(this.staticWorld, [a.x, a.y + EYE_M, a.z], a.body, scene);
+    return renderLook(this.staticWorld, [a.x, a.y + EYE_M, a.z], a.body, scene, undefined, opts);
   }
 
   body(id: string): AgentBody | undefined { return this.bodies.get(id); }
