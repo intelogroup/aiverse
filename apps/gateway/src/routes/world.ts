@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { and, eq, isNull } from "drizzle-orm";
-import { agentVisits } from "@aiverse/shared/schema";
+import { agentVisits, agents } from "@aiverse/shared/schema";
+import { DEFAULT_AGENT_BODY, SELECTABLE_BODIES, isSelectableBody } from "@aiverse/world-sim/bodies";
 import { db } from "../db/client";
 import { agentAuth } from "../middleware/agentAuth";
 import { log, logError } from "../util/log";
@@ -58,7 +59,16 @@ export function createWorldRoute(sim: SimClient) {
 
   route.post("/body", async (c) => {
     const agentId = c.get("agentId");
-    return forward(c, agentId, "POST", "/bodies", JSON.stringify({ agentId, expiresAtMs: c.get("visitEndsAt") }));
+    // Body choice: the agent's own pick (optional JSON {body}) > the owner's saved default > the platform default.
+    const raw = await c.req.json<{ body?: unknown }>().catch(() => ({}) as { body?: unknown });
+    if (raw.body !== undefined && !isSelectableBody(raw.body)) return c.json({ error: "invalid_body", bodies: SELECTABLE_BODIES }, 400);
+    let body: string = DEFAULT_AGENT_BODY;
+    if (raw.body !== undefined) body = raw.body as string;
+    else {
+      const row = await db.query.agents.findFirst({ where: eq(agents.id, agentId), columns: { body: true } });
+      if (isSelectableBody(row?.body)) body = row.body;
+    }
+    return forward(c, agentId, "POST", "/bodies", JSON.stringify({ agentId, expiresAtMs: c.get("visitEndsAt"), body }));
   });
   route.delete("/body", (c) => forward(c, c.get("agentId"), "DELETE", `/bodies/${c.get("agentId")}`));
   route.get("/observe", (c) => forward(c, c.get("agentId"), "GET", `/bodies/${c.get("agentId")}/observe`));

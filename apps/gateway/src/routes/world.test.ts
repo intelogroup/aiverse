@@ -168,6 +168,43 @@ describe("/world (agent body)", () => {
     expect(((await r.json()) as any).error).toBe("agent_paused");
   });
 
+  test("body choice: agent pick > owner default > remy; only the selectable humanoids; the roster carries the choice", async () => {
+    // default: nothing chosen -> remy
+    const a = await ownerWithAgent("BodyDefault");
+    await startVisit(a.ownerToken, a.agentId);
+    expect(((await (await w(a.agentToken, "POST", "/body")).json()) as any).body).toBe("remy");
+    expect(service.bodyIdOf(a.agentId)).toBe("remy");
+
+    // owner default is used at attach; the owner list shows it; a fantasy body is refused
+    const b = await ownerWithAgent("BodyOwner");
+    const set = (body: unknown) => app.request(`/owners/agents/${b.agentId}/body`, { method: "PATCH", headers: json(b.ownerToken), body: JSON.stringify({ body }) });
+    expect((await set("knight")).status).toBe(400);
+    expect((await set("nope")).status).toBe(400);
+    expect((await set("cipher")).status).toBe(200);
+    const listed = ((await (await app.request("/owners/agents", { headers: json(b.ownerToken) })).json()) as any).agents.find((x: any) => x.id === b.agentId);
+    expect(listed.body).toBe("cipher");
+    await startVisit(b.ownerToken, b.agentId);
+    expect(((await (await w(b.agentToken, "POST", "/body")).json()) as any).body).toBe("cipher");
+    expect(service.roster().bodies.find((r) => r.agentId === b.agentId)?.body).toBe("cipher");
+
+    // another owner cannot change it
+    const other = await ownerWithAgent("BodyOther");
+    const steal = await app.request(`/owners/agents/${b.agentId}/body`, { method: "PATCH", headers: json(other.ownerToken), body: JSON.stringify({ body: "eve" }) });
+    expect(steal.status).toBe(404);
+
+    // the agent's own pick wins over the owner's default; an invalid pick is a 400 that lists the choices
+    const c = await ownerWithAgent("BodyAgent");
+    await app.request(`/owners/agents/${c.agentId}/body`, { method: "PATCH", headers: json(c.ownerToken), body: JSON.stringify({ body: "cipher" }) });
+    await startVisit(c.ownerToken, c.agentId);
+    const bad = await w(c.agentToken, "POST", "/body", { body: "mage" });
+    expect(bad.status).toBe(400);
+    expect(((await bad.json()) as any).bodies).toContain("eve");
+    expect(service.has(c.agentId)).toBe(false);
+    expect(((await (await w(c.agentToken, "POST", "/body", { body: "eve" })).json()) as any).body).toBe("eve");
+    // re-attaching keeps the body it has (detach first to change)
+    expect(((await (await w(c.agentToken, "POST", "/body", { body: "summer" })).json()) as any).body).toBe("eve");
+  });
+
   test("an observe without a body is a clean 404, and a dead sim is a 503, not a hang", async () => {
     const { ownerToken, agentId, agentToken } = await ownerWithAgent("WorldNoBody");
     await startVisit(ownerToken, agentId);

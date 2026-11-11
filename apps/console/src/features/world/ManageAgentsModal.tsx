@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, describeError, type Agent, type Visit, type Wallet } from "../../lib/api";
 import { pushToast } from "../../lib/toast";
+import { DEFAULT_AGENT_BODY, SELECTABLE_BODIES } from "./bodies";
 
 // The modal is the owner's agent-lifecycle surface: token rotation
 // (below), wallet autonomy, and visits — "send this agent into the Verse
@@ -78,6 +79,7 @@ function AgentLifecycle({ agent }: { agent: Agent }) {
   const [maxActions, setMaxActions] = useState(200);
   const [busy, setBusy] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [body, setBody] = useState<string>(agent.body ?? DEFAULT_AGENT_BODY);
 
   const load = useCallback(async () => {
     try {
@@ -100,6 +102,20 @@ function AgentLifecycle({ agent }: { agent: Agent }) {
       const { wallet } = await api.patchWallet(agent.id, { autonomyMode: mode });
       setAutonomy(wallet.autonomyMode);
     } catch (err) {
+      pushToast(describeError(err).message, "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function changeBody(next: string) {
+    const prev = body;
+    setBody(next);
+    setBusy(true);
+    try {
+      await api.setAgentBody(agent.id, next);
+    } catch (err) {
+      setBody(prev);
       pushToast(describeError(err).message, "error");
     } finally {
       setBusy(false);
@@ -147,6 +163,17 @@ function AgentLifecycle({ agent }: { agent: Agent }) {
           <option value="observe">observe</option>
           <option value="assist">assist</option>
           <option value="autonomous">autonomous</option>
+        </select>
+      </label>
+
+      <label className="agent-lifecycle-field">
+        Body
+        <select aria-label={`${agent.name} body`} value={body} disabled={busy} onChange={(e) => void changeBody(e.target.value)}>
+          {SELECTABLE_BODIES.map((id) => (
+            <option key={id} value={id}>
+              {id}
+            </option>
+          ))}
         </select>
       </label>
 

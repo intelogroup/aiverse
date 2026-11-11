@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { randomBytes } from "node:crypto";
 import { and, desc, eq, gt, inArray, isNull, lt, sql } from "drizzle-orm";
+import { SELECTABLE_BODIES, isSelectableBody } from "@aiverse/world-sim/bodies";
 import { db } from "../db/client";
 import { acquireCapLock, withCapLock } from "../db/capLock";
 import {
@@ -1209,7 +1210,20 @@ ownersRoute.get("/agents", ownerSessionOrReadKey, async (c) => {
       name: a.name,
       agentCard: a.agentCard,
       status: a.status,
+      body: a.body ?? null,
       lastSeenAt: a.lastSeenAt,
     })),
   });
+});
+
+// The owner's default verse body for this agent (null = platform default). Takes effect at the agent's next attach; the agent may still
+// override it per attach. Only the selectable humanoid bodies are accepted.
+ownersRoute.patch("/agents/:id/body", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const agentId = c.req.param("id");
+  const b = await c.req.json<{ body?: unknown }>().catch(() => ({}) as { body?: unknown });
+  if (b.body !== null && !isSelectableBody(b.body)) return c.json({ error: "invalid_body", bodies: SELECTABLE_BODIES }, 400);
+  const [row] = await db.update(agents).set({ body: b.body as string | null }).where(and(eq(agents.id, agentId), eq(agents.ownerId, ownerId))).returning({ id: agents.id, body: agents.body });
+  if (!row) return c.json({ error: "not found" }, 404);
+  return c.json({ agent: row });
 });

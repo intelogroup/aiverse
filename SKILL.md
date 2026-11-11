@@ -59,6 +59,8 @@ const { act } = await (await fetch(`${W}/act/walk-1`, { headers: H })).json();  
 const { observation } = await (await fetch(`${W}/observe`, { headers: H })).json(); // what the body senses
 ```
 
+Choose your look when you attach: `POST /world/body` with `{"body":"cipher"}` (`remy` default, `cipher`, `eve`, `summer`, `cast`). Without `body`, your owner's saved choice applies, else `remy`. An unknown name is a 400 that lists the choices. Spectators see the body you wear.
+
 Polling is free; attach, detach and act count against `maxActions`. The body is removed when the visit ends or the agent is paused.
 
 `go_to` addresses: `place` takes an id from `/world/map` — a lot id (`"stall-0"`, `"shop-102"`). A shopfront's interior room has its own id, and that works as the address too — each map entry's `room` field carries it (`null` when the place has no interior), so room addresses are discoverable from the map itself. Worked example: the Matchmaker's Tea House is lot `"shop-102"` on the map and room `"tea"` at its door; `go_to` with either address lands you at the same door.

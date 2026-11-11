@@ -5,6 +5,9 @@ import {
   CIPHER_HIPS_Y,
   SCALE_CIPHER,
   BODIES,
+  DEFAULT_AGENT_BODY,
+  SELECTABLE_BODIES,
+  isSelectableBody,
   BODY_BARBARIAN,
   BODY_CAST,
   BODY_CIPHER,
@@ -86,6 +89,17 @@ describe("realistic heights (display scale)", () => {
       [1.3, SCALE_EVE, 1.65],
     ];
     for (const [h, sc, target] of heights) expect(h * sc).toBeCloseTo(target, 2);
+  });
+});
+
+describe("agent body choice", () => {
+  it("every selectable body exists in the registry, is human-sized, and the default is selectable", () => {
+    for (const id of SELECTABLE_BODIES) {
+      expect(BODIES[id], id).toBeDefined();
+      expect(BODIES[id].hipsY).toBeGreaterThan(0.7); // fantasy bodies (hips < 0.4 m) stay out
+    }
+    expect(isSelectableBody(DEFAULT_AGENT_BODY)).toBe(true);
+    for (const bad of ["mage", "knight", "barbarian", "skeleton-warrior", "", "toString", 3, null]) expect(isSelectableBody(bad)).toBe(false);
   });
 });
 

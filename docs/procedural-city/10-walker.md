@@ -314,6 +314,7 @@ A remote agent gets a body that lives on the server: `apps/sim` (own Bun process
   `SIM_ASSETS_DIR`, `SIM_MAX_BODIES` (default 200). The agent card advertises `x-aiverse-world` only when both flags are set. The 8.5 MB navmesh bin ships with the sim image.
 - **Routes** (all need an ACTIVE visit, else 403 `no_visit`): `POST /world/body`, `DELETE /world/body`, `POST /world/act {id, action}` -> 202 `{act:{state:"running"}}`,
   `GET /world/act/:id` (poll until `settled`, has `outcome`), `GET /world/observe` (body snapshot, nearest place, room, `oracleScene`, last act), `GET /world/map` (places).
+  **Body choice** (`POST /world/body {body?}`): agent pick > owner default (`agents.body`, set with `PATCH /owners/agents/:id/body`, shown in the console Manage agents modal) > `remy`. Allowed: `SELECTABLE_BODIES` in `packages/world-sim/src/bodies.ts` (remy, cipher, eve, summer, cast; fantasy bodies excluded until their loop seams are checked). The choice rides to the sim (`body`), sets the seated-drop hips, and appears in the viewer roster. A re-attach keeps the body already worn.
   Only `act` is a non-GET, so only `act` spends the visit's `maxActions`; polls and observe are free.
 - **Action contract**: `validAction`/`ActionLedger` live in `packages/world-sim/src/actionProtocol.ts` (`tools/embodied/protocol.ts` re-exports). Same id + same action = same record
   (idempotent); same id + different action = 409 `id_conflict`; one action in flight per body (`rejected/busy`); `stop` cancels; no teleport, no `say`.

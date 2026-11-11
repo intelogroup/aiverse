@@ -9,10 +9,10 @@ import { AgentBody, type AgentSnapshot } from "./agentBody";
 import { validAction, validRequestId } from "./actionProtocol";
 import { encodePose, type PoseTuple } from "./streamProtocol";
 import { nearestPlace, oracleScene, roomAt, type OracleObject, type ScoutAction, type ScoutOutcome } from "./scout";
-import { BODY_REMY } from "./bodies";
+import { BODIES, DEFAULT_AGENT_BODY, isSelectableBody } from "./bodies";
 import type { VerseSim } from "./verseSim";
 
-export type WorldErrorCode = "no_body" | "invalid_action" | "id_conflict" | "world_full" | "not_ready" | "spawn_failed";
+export type WorldErrorCode = "no_body" | "invalid_action" | "id_conflict" | "world_full" | "not_ready" | "spawn_failed" | "invalid_body";
 
 export class WorldError extends Error {
   constructor(readonly code: WorldErrorCode, message: string) { super(message); }
@@ -52,6 +52,8 @@ export interface WorldServiceOpts {
 interface Session {
   /** Opaque body number for the viewer stream (never reused within one run, never the agent id). */
   n: number;
+  /** The BODIES id this agent wears (what spectators draw). */
+  bodyId: string;
   body: AgentBody;
   records: Map<string, ActRecord>;
   last: ActRecord | null;
@@ -81,21 +83,25 @@ export class WorldService {
   agentIds(): string[] { return [...this.sessions.keys()]; }
 
   /** Give the agent a body (idempotent: an agent that already has one keeps it). */
-  attach(agentId: string, spawn?: { x: number; z: number; heading?: number; maxR?: number }): Observation {
+  attach(agentId: string, spawn?: { x: number; z: number; heading?: number; maxR?: number }, bodyId: string = DEFAULT_AGENT_BODY): Observation {
     const have = this.sessions.get(agentId);
     if (have) { have.lastSeen = this.sim.t; return this.observe(agentId); }
+    if (!isSelectableBody(bodyId)) throw new WorldError("invalid_body", "that body is not available");
     if (!this.sim.ready) throw new WorldError("not_ready", "world is still loading");
     if (this.sessions.size >= this.maxBodies) throw new WorldError("world_full", "the world is full");
     let body: AgentBody;
     try {
-      body = this.sim.addBody({ id: agentId, spawn });
+      body = this.sim.addBody({ id: agentId, spawn, hipsY: BODIES[bodyId].hipsY });
     } catch (e) {
       throw new WorldError("spawn_failed", e instanceof Error ? e.message : String(e));
     }
-    this.sessions.set(agentId, { n: this.nextN++, body, records: new Map(), last: null, lastSeen: this.sim.t });
+    this.sessions.set(agentId, { n: this.nextN++, bodyId, body, records: new Map(), last: null, lastSeen: this.sim.t });
     this.rosterRev++;
     return this.observe(agentId);
   }
+
+  /** The BODIES id the agent wears, or null without a body. */
+  bodyIdOf(agentId: string): string | null { return this.sessions.get(agentId)?.bodyId ?? null; }
 
   /** Remove the agent's body (visit ended, owner stop, pause, agent left). Safe when there is none. */
   detach(agentId: string): boolean {
@@ -171,7 +177,7 @@ export class WorldService {
 
   /** Body number -> agent id (gateway-side only: it turns this into a display name) and the body model to draw. */
   roster(): { epoch: string; rev: number; bodies: { n: number; agentId: string; body: string }[] } {
-    return { epoch: this.epoch, rev: this.rosterRev, bodies: [...this.sessions].map(([agentId, s]) => ({ n: s.n, agentId, body: BODY_REMY.id })) };
+    return { epoch: this.epoch, rev: this.rosterRev, bodies: [...this.sessions].map(([agentId, s]) => ({ n: s.n, agentId, body: s.bodyId })) };
   }
 
   /** The named places an agent may `go_to`: ids and names only (positions are perceived through `observe`).

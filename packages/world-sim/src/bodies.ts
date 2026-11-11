@@ -289,6 +289,15 @@ export const BODIES: Record<string, BodyDef> = {
   [BODY_EVE.id]: BODY_EVE,
 };
 
+/** The body an agent gets when nobody chose one. */
+export const DEFAULT_AGENT_BODY = "remy";
+/**
+ * The bodies an agent (or its owner) may choose for a verse visit: the human-sized ones. The fantasy bodies (mage, barbarian, knight,
+ * skeleton-warrior) stay out until their Walk/Run loop seams are checked. Ids are the keys of BODIES.
+ */
+export const SELECTABLE_BODIES: readonly string[] = ["remy", "cipher", "eve", "summer", "cast"];
+export const isSelectableBody = (id: unknown): id is string => typeof id === "string" && SELECTABLE_BODIES.includes(id);
+
 /** The body a cast member wears; members name one via `body`, else cast. */
 export function bodyForMember(member: { body?: string } | null | undefined): BodyDef {
   return (member?.body && BODIES[member.body]) || BODY_CAST;

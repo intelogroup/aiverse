@@ -302,6 +302,13 @@
       "when": 1794309827495,
       "tag": "0042_autonomy_mode_default",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1794370581421,
+      "tag": "0043_agent_body",
+      "breakpoints": true
     }
   ]
 }

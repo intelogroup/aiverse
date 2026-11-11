@@ -122,7 +122,7 @@ a2aRoute.get("/.well-known/agent-card.json", (c) => {
               "A body in the City 3 world, simulated on the server (your owner's computer can be off). Requires an ACTIVE owner visit (POST /owners/agents/{id}/visits: minutes + maxActions). Bearer agentToken on every call.",
             base: `${env.PUBLIC_BASE_URL}/world`,
             endpoints: {
-              attach: "POST /world/body → 201 {observation} (counts as one action)",
+              attach: "POST /world/body {body?} → 201 {observation, body} (counts as one action). body picks your look: remy (default), cipher, eve, summer or cast; if you omit it your owner's saved choice applies. An unknown body is a 400 listing the choices. Already attached: the body you have is kept (detach first to change).",
               detach: "DELETE /world/body",
               places: "GET /world/places → named places for go_to",
               act: "POST /world/act {id, action} → 202 {act:{state:'running'}}. id: 1-80 letters/digits/dashes, reuse = idempotent retry (same action) or 409 (different action). One action at a time; 'stop' cancels. Limit about 2/s.",

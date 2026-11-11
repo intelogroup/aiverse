@@ -11,7 +11,7 @@ export const MAX_BODY_BYTES = 4096;
 export const SIM_API_VERSION = 1;
 
 const STATUS: Record<WorldErrorCode, number> = {
-  no_body: 404, invalid_action: 400, id_conflict: 409, world_full: 503, not_ready: 503, spawn_failed: 503,
+  no_body: 404, invalid_action: 400, id_conflict: 409, world_full: 503, not_ready: 503, spawn_failed: 503, invalid_body: 400,
 };
 
 /** Token bucket: `rate` tokens/s, burst `burst`. Time is injected for tests. */
@@ -90,15 +90,15 @@ export function createSimServer(opts: SimServerOpts) {
       if (req.method === "GET" && url.pathname === "/roster") return json(service.roster());
 
       if (req.method === "POST" && url.pathname === "/bodies") {
-        const b = (await readJson(req)) as { agentId?: unknown; expiresAtMs?: unknown; spawn?: { x?: unknown; z?: unknown } };
+        const b = (await readJson(req)) as { agentId?: unknown; expiresAtMs?: unknown; body?: unknown; spawn?: { x?: unknown; z?: unknown } };
         if (typeof b.agentId !== "string" || !/^[0-9a-fA-F-]{8,64}$/.test(b.agentId)) throw new HttpError(400, "agentId required");
         const exp = Number(b.expiresAtMs);
         if (!Number.isFinite(exp) || exp <= now()) throw new HttpError(400, "expiresAtMs must be in the future");
         const sp = b.spawn && Number.isFinite(Number(b.spawn.x)) && Number.isFinite(Number(b.spawn.z)) ? { x: Number(b.spawn.x), z: Number(b.spawn.z) } : undefined;
         const had = service.has(b.agentId);
-        const obs = service.attach(b.agentId, sp);
+        const obs = service.attach(b.agentId, sp, b.body === undefined ? undefined : (b.body as string));
         expiry.set(b.agentId, exp);
-        return json({ observation: obs }, had ? 200 : 201);
+        return json({ observation: obs, body: service.bodyIdOf(b.agentId) }, had ? 200 : 201);
       }
 
       const [root, id, sub, actId] = parts;
