@@ -113,6 +113,29 @@ describe("look", () => {
     service.detach("eve");
   }, 60_000);
 
+  it("a shop door reads as door from outside and from inside, and the wall beside it stays wall", async () => {
+    const room = sim.rooms.find((r) => r.id === "shop-65")!;
+    const [x0, z0, x1, z1] = room.rect, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+    const [dx, dz] = room.door;
+    // outward = the way from the room centre to its door, snapped to the wall axis
+    const ox = Math.abs(dx - cx) > Math.abs(dz - cz) ? Math.sign(dx - cx) : 0, oz = ox === 0 ? Math.sign(dz - cz) : 0;
+    service.attach("dora", { x: dx + ox * 3, z: dz + oz * 3 });
+    await settle("dora", service.act("dora", "d1", { type: "face", point: [dx, dz] }).id);
+    const centre = (c: ReturnType<typeof decode>) => c.px[(LOOK_H / 2) * LOOK_W + LOOK_W / 2];
+    const out = service.look("dora");
+    expect(centre(decode(out.classPng)), "from outside").toBe(LOOK_CLASSES.door);
+    expect(out.legend[LOOK_CLASSES.door]).toBe("door");
+    const dmm = decode(out.depthPng).px[(LOOK_H / 2) * LOOK_W + LOOK_W / 2];
+    expect(Math.abs(dmm - 3000), "about 3 m").toBeLessThan(500);
+    // 2.5 m along the wall from the door, looking straight at the wall: wall, not door
+    const side = { x: dx + oz * 2.5 + ox * 3, z: dz + ox * 2.5 + oz * 3 };
+    service.detach("dora");
+    service.attach("wally", { x: side.x, z: side.z });
+    await settle("wally", service.act("wally", "w1", { type: "face", point: [side.x - ox * 3, side.z - oz * 3] }).id);
+    expect(centre(decode(service.look("wally").classPng)), "the wall beside the door").toBe(LOOK_CLASSES.wall);
+    service.detach("wally");
+  }, 60_000);
+
   it("costs under 50 ms per look (p95) on this machine", () => {
     service.attach("tim");
     const ms: number[] = [];
