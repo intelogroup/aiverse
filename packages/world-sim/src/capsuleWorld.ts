@@ -174,6 +174,54 @@ export function createCapsuleWorld(getMeshes: () => THREE.Mesh[], opts: CapsuleO
       return false;
     },
 
+    raycast(from: Vec3, dir: Vec3, far: number): { dist: number; ny: number } | null {
+      let best: { dist: number; ny: number } | null = null;
+      for (const m of getMeshes()) {
+        if (m.userData.collisionDisabled) continue;
+        const bvh = bvhOf(m);
+        if (!bvh) continue;
+        const o = m.userData.collisionOffset as THREE.Vector3 | undefined;
+        ray.origin.set(from[0] - (o?.x ?? 0), from[1] - (o?.y ?? 0), from[2] - (o?.z ?? 0));
+        ray.direction.set(dir[0], dir[1], dir[2]);
+        const h = bvh.raycastFirst(ray, THREE.DoubleSide, 0, best ? best.dist : far);
+        if (h && h.face) {
+          // a back-face hit means the ray is inside a solid; flip so "up" is still the side facing the viewer
+          const front = h.face.normal.x * dir[0] + h.face.normal.y * dir[1] + h.face.normal.z * dir[2] < 0;
+          best = { dist: h.distance, ny: front ? h.face.normal.y : -h.face.normal.y };
+        }
+      }
+      return best;
+    },
+
+    raycastBatch(from: Vec3, dirs: Float32Array, n: number, far: number, outDist: Float32Array, outNy: Float32Array): void {
+      // Only colliders whose bounds come within `far` of the origin can be hit; in a city that is a handful of the 80-odd meshes.
+      const cand: { bvh: MeshBVH; ox: number; oy: number; oz: number }[] = [];
+      for (const m of getMeshes()) {
+        if (m.userData.collisionDisabled) continue;
+        const bvh = bvhOf(m);
+        if (!bvh) continue;
+        const o = m.userData.collisionOffset as THREE.Vector3 | undefined;
+        const ox = from[0] - (o?.x ?? 0), oy = from[1] - (o?.y ?? 0), oz = from[2] - (o?.z ?? 0);
+        bvh.getBoundingBox(box);
+        const dx = Math.max(box.min.x - ox, 0, ox - box.max.x), dy = Math.max(box.min.y - oy, 0, oy - box.max.y), dz = Math.max(box.min.z - oz, 0, oz - box.max.z);
+        if (Math.hypot(dx, dy, dz) <= far) cand.push({ bvh, ox, oy, oz });
+      }
+      for (let k = 0; k < n; k++) {
+        ray.direction.set(dirs[3 * k], dirs[3 * k + 1], dirs[3 * k + 2]);
+        let best = far, ny = 0, found = false;
+        for (const c of cand) {
+          ray.origin.set(c.ox, c.oy, c.oz);
+          const h = c.bvh.raycastFirst(ray, THREE.DoubleSide, 0, best);
+          if (h && h.face) {
+            const front = h.face.normal.x * ray.direction.x + h.face.normal.y * ray.direction.y + h.face.normal.z * ray.direction.z < 0;
+            best = h.distance; ny = front ? h.face.normal.y : -h.face.normal.y; found = true;
+          }
+        }
+        outDist[k] = found ? best : Infinity;
+        outNy[k] = ny;
+      }
+    },
+
     blocked(from: Vec3, to: Vec3, radius: number): Hit | null {
       counters.blockedCalls++;
       const meshes = getMeshes();
