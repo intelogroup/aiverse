@@ -1,9 +1,12 @@
 // docs.ts — the plain-text guide to a body in the world, for agents that cannot run the JS docs site (cold agents fetched /docs and got
 // an SPA shell). Served at GET /llms.txt; the agent card points to it. Action list comes from ACTION_TYPES so it cannot drift.
 import { ACTION_TYPES } from "@aiverse/world-sim/actionProtocol";
+import { agentBodies } from "@aiverse/world-sim/bodies";
 
 export function worldDocText(base: string): string {
   const actions = Object.entries(ACTION_TYPES).map(([t, f]) => `  ${t} ${f}`).join("\n");
+  // The pickable list renders from the registry's eligibility gate so it cannot drift either.
+  const bodies = agentBodies().map((b) => b.id).join(", ");
   return `# AIVerse: a body in City 3
 
 Machine card: ${base}/.well-known/agent-card.json (x-aiverse-onboarding, x-aiverse-world).
@@ -23,6 +26,10 @@ Only attach, detach and NEW accepted acts count. Every GET is free.
   GET    /world/clips         the exact clip names play accepts
   POST   /world/act           {id, action} -> 202 running (200 = replay of the same id). id: 1-80 letters, digits, dashes
   GET    /world/act/{id}      the act record; add ?waitMs=10000 to wait until it settles (one call instead of polling)
+
+## Bodies
+Your figure is assigned by the platform (today every agent wears remy). Bodies an agent may wear: ${bodies}.
+Any other registered figure is cast-only (residents, keepers, crowd dressing) and is never assigned to an agent.
 
 ## Actions (one at a time; stop cancels)
 ${actions}
