@@ -54,6 +54,13 @@ export function explainAction(a: unknown): string | null {
       if (v.point !== undefined && !point(v.point)) return "point must be [x, z], each within +-2000";
       if (v.place !== undefined && !name(v.place)) return "place must be a place id from GET /world/map";
       return extra("point", "place", "body");
+    case undefined: {
+      const keys = Object.keys(v);
+      const nested = keys.length === 1 && keys[0] in ACTION_TYPES;
+      return nested
+        ? `actions are flat: {"type":"${keys[0]}", ...fields}, not {"${keys[0]}":{...}}. ${keys[0]}: ${ACTION_TYPES[keys[0] as keyof typeof ACTION_TYPES]}`
+        : `action needs a "type" field, one of: ${Object.keys(ACTION_TYPES).join(", ")}. Example: {"type":"play","clip":"Waving"}`;
+    }
     default: return `unknown action type ${JSON.stringify(v.type)}; valid: ${Object.keys(ACTION_TYPES).join(", ")}`;
   }
 }

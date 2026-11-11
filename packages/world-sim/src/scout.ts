@@ -447,7 +447,7 @@ export class ScoutExecutor {
           return Promise.resolve({
             ok: false,
             status: "unavailable",
-            detail: action.type === "enter" ? `no room to enter: ${action.place}` : action.place ? `unknown place: ${action.place}` : "go_to needs a place or a point",
+            detail: action.type === "enter" ? `no room to enter: ${action.place}${action.place && /^(hall|stall)-/.test(action.place) ? ` (${action.place} has no interior: use go_to to stand at it)` : " (rooms are the shop lots and tea; GET /world/map)"}` : action.place ? `unknown place: ${action.place}` : "go_to needs a place or a point",
           });
         }
         const dist = Math.hypot(target.pos[0] - state.x, target.pos[1] - state.z);

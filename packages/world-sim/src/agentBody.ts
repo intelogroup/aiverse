@@ -161,7 +161,14 @@ export class AgentBody {
 
   /** Submit one action. Resolves when it settles (arrived / done / blocked / timeout / rejected ...). */
   act(action: ScoutAction): Promise<ScoutOutcome> {
-    return this.exec.submit(action, this.state);
+    return this.exec.submit(action, this.state).then((o) => (o.status === "blocked" ? this.explainBlocked(o) : o));
+  }
+
+  /** "No progress" with another body at arm's length is a crowd, not a wall: say so, so the agent waits instead of retrying blind. */
+  private explainBlocked(o: ScoutOutcome): ScoutOutcome {
+    const s = this.state;
+    const near = this.deps.actors.nearby(this.id, [s.x, s.y, s.z], 2.0).length;
+    return near ? { ...o, detail: `${o.detail ?? "blocked"}; ${near === 1 ? "another body is" : `${near} other bodies are`} right beside you and may be in the way - wait a few seconds and retry, or pick another spot` } : o;
   }
 
   /** Advance ONE substep (dt <= SUBSTEP_S): the executor and walker, the mover registry, the one-shot clip clock. */

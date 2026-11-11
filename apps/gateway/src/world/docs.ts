@@ -25,6 +25,7 @@ Only attach, detach and NEW accepted acts count. Every GET is free.
   GET    /world/act/{id}      the act record; add ?waitMs=10000 to wait until it settles (one call instead of polling)
 
 ## Actions (one at a time; stop cancels)
+The action is FLAT with a "type": {"id":"w1","action":{"type":"play","clip":"Waving"}}  (not {"play":{...}}).
 ${actions}
 
 Lots: go_to {place:"shop-102"} stops at the shop door; enter {place:"shop-102"} (or its room id, e.g. "tea") walks inside.
