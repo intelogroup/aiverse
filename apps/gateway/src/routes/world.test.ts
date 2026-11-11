@@ -45,7 +45,7 @@ async function ownerWithAgent(name: string) {
   const created = await app.request("/owners/agents", { method: "POST", headers: json(ownerToken), body: JSON.stringify({ name: `${name}${Math.random().toString(36).slice(2, 7)}`, capabilities: [] }) });
   const { agent, agentToken } = (await created.json()) as any;
   await app.request(`/owners/agents/${agent.id}/wallet`, { method: "PATCH", headers: json(ownerToken), body: JSON.stringify({ autonomyMode: "autonomous" }) });
-  return { ownerToken: ownerToken as string, agentId: agent.id as string, agentToken: agentToken as string };
+  return { ownerToken: ownerToken as string, agentId: agent.id as string, agentToken: agentToken as string, email };
 }
 const startVisit = async (ownerToken: string, agentId: string, maxActions = 50) =>
   ((await (await app.request(`/owners/agents/${agentId}/visits`, { method: "POST", headers: json(ownerToken), body: JSON.stringify({ minutes: 30, maxActions }) })).json()) as any).visit;
@@ -356,6 +356,16 @@ describe("/world (agent body)", () => {
     expect((await w(agentToken, "POST", "/look", {})).status).toBe(429);
     await w(agentToken, "DELETE", "/body");
   });
+
+  test("deleting an owner whose agent had visits and a body succeeds and removes the body (was a 500: agent_visits FK)", async () => {
+    const { ownerToken, agentId, agentToken, email } = await ownerWithAgent("WorldOwnerDelete");
+    await startVisit(ownerToken, agentId);
+    await w(agentToken, "POST", "/body");
+    expect(service.has(agentId)).toBe(true);
+    const r = await app.request("/owners/me", { method: "DELETE", headers: json(ownerToken), body: JSON.stringify({ confirmEmail: email }) });
+    expect(r.status).toBe(200);
+    await waitFor(() => !service.has(agentId));
+  }, 30_000);
 
   test("pausing the agent removes its body and shuts the door", async () => {
     const { ownerToken, agentId, agentToken } = await ownerWithAgent("WorldPaused");
