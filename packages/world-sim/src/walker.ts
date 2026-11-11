@@ -74,6 +74,16 @@ export interface World {
   blocked(from: Vec3, to: Vec3, radius: number): Hit | null;
   /** True when a straight sight line from `from` to `to` (eye points) meets collision geometry. Absent: nothing blocks sight. */
   sightBlocked?(from: Vec3, to: Vec3): boolean;
+  /**
+   * First collision surface along a ray (unit `dir`) within `far` metres: distance and the surface normal's y (1 = floor, 0 = wall,
+   * -1 = ceiling), or null when nothing is hit. Collision geometry, not visual: glass reads opaque. Absent: nothing to see.
+   */
+  raycast?(from: Vec3, dir: Vec3, far: number): { dist: number; ny: number } | null;
+  /**
+   * `raycast` for many rays from ONE point: `dirs` holds n unit vectors (x,y,z,...). Writes the hit distance (Infinity = none) and
+   * normal y per ray. Much cheaper than n calls: the colliders out of reach are dropped once, not per ray.
+   */
+  raycastBatch?(from: Vec3, dirs: Float32Array, n: number, far: number, outDist: Float32Array, outNy: Float32Array): void;
 }
 
 export type Vec3 = [number, number, number];

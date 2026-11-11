@@ -341,6 +341,22 @@ describe("/world (agent body)", () => {
     await w(b.agentToken, "DELETE", "/body");
   }, 60_000);
 
+  test("look: gateway forwards it, it counts as an action, and a second one inside a second is limited", async () => {
+    const { ownerToken, agentId, agentToken } = await ownerWithAgent("WorldLook");
+    await startVisit(ownerToken, agentId);
+    await w(agentToken, "POST", "/body");
+    clock += 1000;
+    const r = await w(agentToken, "POST", "/look", {});
+    expect(r.status).toBe(200);
+    const v = ((await r.json()) as { look: { width: number; height: number; legend: Record<string, string>; depthPng: string; observation: { heard: unknown[] } } }).look;
+    expect([v.width, v.height]).toEqual([128, 72]);
+    expect(v.legend["1"]).toBe("floor");
+    expect(v.depthPng.length).toBeGreaterThan(100);
+    expect(v.observation.heard).toEqual([]);
+    expect((await w(agentToken, "POST", "/look", {})).status).toBe(429);
+    await w(agentToken, "DELETE", "/body");
+  });
+
   test("deleting an owner whose agent had visits and a body succeeds and removes the body (was a 500: agent_visits FK)", async () => {
     const { ownerToken, agentId, agentToken, email } = await ownerWithAgent("WorldOwnerDelete");
     await startVisit(ownerToken, agentId);
@@ -414,7 +430,7 @@ test("GET /llms.txt is a public plain-text world guide listing every action type
   expect(r.status).toBe(200);
   expect(r.headers.get("content-type")).toContain("text/plain");
   const t = await r.text();
-  for (const a of ["go_to", "enter", "face", "play", "say", "GET /world/clips", "waitMs", "heardSince", "untrusted"]) expect(t).toContain(a);
+  for (const a of ["go_to", "enter", "face", "play", "say", "GET /world/clips", "waitMs", "heardSince", "untrusted", "POST /world/look", "6 door"]) expect(t).toContain(a);
 });
 
 async function startVisitLookup(ownerToken: string, agentId: string) {

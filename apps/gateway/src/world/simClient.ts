@@ -3,7 +3,7 @@ export interface SimClient {
   call(method: string, path: string, body?: string): Promise<Response>;
 }
 
-export const SIM_API_VERSION = 1;
+export const SIM_API_VERSION = 2;
 export const SIM_TIMEOUT_MS = 2000;
 
 export function httpSimClient(baseUrl: string, secret: string, timeoutMs = SIM_TIMEOUT_MS): SimClient {
