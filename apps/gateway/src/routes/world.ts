@@ -6,6 +6,7 @@ import { agentAuth, agentAuthUncounted } from "../middleware/agentAuth";
 import { consumeVisitAction } from "../policy/visits";
 import { log, logError } from "../util/log";
 import { onAgentGone, onVisitExtended } from "../world/hooks";
+import { agentBodies, BODIES } from "@aiverse/world-sim/bodies";
 import type { SimClient } from "../world/simClient";
 
 // World: a body for an agent in the City 3 sim (apps/sim), reached only through here.
@@ -79,7 +80,30 @@ export function createWorldRoute(sim: SimClient) {
 
   route.post("/body", async (c) => {
     const agentId = c.get("agentId");
-    return forward(c, agentId, "POST", "/bodies", JSON.stringify({ agentId, expiresAtMs: c.get("visitEndsAt") }));
+    // Optional figure pick: {"body": "<id>"} (loadtest 2026-11-11: picks
+    // sent by 45 of 50 agents were silently swallowed and every agent wore
+    // remy). Validated HERE, loudly, so a bad pick is a 400 naming the
+    // problem and the pickable set — the field is never ignored. The sim
+    // re-validates on its side of the wire.
+    const raw = (await c.req.json().catch(() => null)) as { body?: unknown } | null;
+    const pick = raw?.body;
+    if (pick !== undefined && typeof pick !== "string") {
+      return c.json({ error: "body_not_pickable", message: "body must be a string body id" }, 400);
+    }
+    if (typeof pick === "string") {
+      const pickable = agentBodies().map((b) => b.id);
+      if (!pickable.includes(pick)) {
+        const known = BODIES[pick];
+        return c.json({
+          error: "body_not_pickable",
+          message: known
+            ? `body "${pick}" is cast-only and cannot be worn by an agent`
+            : `unknown body "${pick}"`,
+          pickable,
+        }, 400);
+      }
+    }
+    return forward(c, agentId, "POST", "/bodies", JSON.stringify({ agentId, expiresAtMs: c.get("visitEndsAt"), ...(pick ? { body: pick } : {}) }));
   });
   // Free read: the body's own state, or 404 no_body ("attach one first"). Cold agents probed GET /body and read the old bare 404 as
   // "this API has no bodies" (cold-agent runs 2026-11-10/11).

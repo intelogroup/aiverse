@@ -11,7 +11,7 @@ import { explainAction, validRequestId } from "./actionProtocol";
 import { encodePose, type PoseTuple } from "./streamProtocol";
 import { nearestPlace, oracleScene, roomAt, type OracleObject, type ScoutAction, type ScoutOutcome, type ScoutSeat } from "./scout";
 import { clipDef, SOCIAL_CLIPS } from "./clips";
-import { BODY_REMY } from "./bodies";
+import { agentBodies, BODIES, BODY_REMY } from "./bodies";
 import type { VerseSim } from "./verseSim";
 
 export type WorldErrorCode = "no_body" | "invalid_action" | "id_conflict" | "world_full" | "not_ready" | "spawn_failed";
@@ -33,7 +33,8 @@ export interface ActRecord {
 export interface Observation {
   /** Simulation time, s. */
   t: number;
-  body: AgentSnapshot;
+  /** The body's state, naming the figure it wears. */
+  body: AgentSnapshot & { figure: string };
   nearestPlace: { id: string; name: string; kind: string; dist: number } | null;
   insideRoom: string | null;
   scene: OracleObject[];
@@ -54,6 +55,8 @@ export interface WorldServiceOpts {
 interface Session {
   /** Opaque body number for the viewer stream (never reused within one run, never the agent id). */
   n: number;
+  /** The figure this body wears (a BODIES id) — chosen at attach, fixed for the body's life. */
+  figure: string;
   body: AgentBody;
   records: Map<string, ActRecord>;
   last: ActRecord | null;
@@ -84,19 +87,38 @@ export class WorldService {
   has(agentId: string): boolean { return this.sessions.has(agentId); }
   agentIds(): string[] { return [...this.sessions.keys()]; }
 
-  /** Give the agent a body (idempotent: an agent that already has one keeps it). */
-  attach(agentId: string, spawn?: { x: number; z: number; heading?: number; maxR?: number }): Observation {
+  /**
+   * Give the agent a body (idempotent: an agent that already has one keeps it).
+   * `figureId` picks the figure worn (loadtest 2026-11-11: picks were
+   * silently swallowed and every agent wore remy). It must name an
+   * agent-eligible body (agentBodies()); an unknown or cast-only pick is a
+   * loud invalid_action naming the pickable set, never a silent default.
+   * No pick -> the platform default (remy). Re-attaching with the SAME
+   * figure is the usual idempotent 200; a DIFFERENT figure on a live body
+   * is an id_conflict — detach first, a body does not change shape mid-visit.
+   */
+  attach(agentId: string, spawn?: { x: number; z: number; heading?: number; maxR?: number }, figureId?: string): Observation {
     const have = this.sessions.get(agentId);
-    if (have) { have.lastSeen = this.sim.t; return this.observe(agentId); }
+    if (have) {
+      if (figureId !== undefined && figureId !== have.figure) {
+        throw new WorldError("id_conflict", `body already attached as ${have.figure}; detach first (DELETE /world/body) to change figure`);
+      }
+      have.lastSeen = this.sim.t;
+      return this.observe(agentId);
+    }
     if (!this.sim.ready) throw new WorldError("not_ready", "world is still loading");
     if (this.sessions.size >= this.maxBodies) throw new WorldError("world_full", "the world is full");
+    const pickable = agentBodies().map((b) => b.id).join(", ");
+    const def = figureId === undefined ? BODY_REMY : BODIES[figureId];
+    if (!def) throw new WorldError("invalid_action", `unknown body "${figureId}" — bodies an agent may wear: ${pickable}`);
+    if (def.agentBody === false) throw new WorldError("invalid_action", `body "${figureId}" is cast-only and cannot be worn by an agent — bodies an agent may wear: ${pickable}`);
     let body: AgentBody;
     try {
-      body = this.sim.addBody({ id: agentId, spawn });
+      body = this.sim.addBody({ id: agentId, spawn, hipsY: def.hipsY });
     } catch (e) {
       throw new WorldError("spawn_failed", e instanceof Error ? e.message : String(e));
     }
-    this.sessions.set(agentId, { n: this.nextN++, body, records: new Map(), last: null, lastSeen: this.sim.t, salt: randomBytes(16) });
+    this.sessions.set(agentId, { n: this.nextN++, figure: def.id, body, records: new Map(), last: null, lastSeen: this.sim.t, salt: randomBytes(16) });
     this.rosterRev++;
     return this.observe(agentId);
   }
@@ -173,9 +195,10 @@ export class WorldService {
     return { type: action.type, point: [round(me.x + (t.x - me.x) * stand, 2), round(me.z + (t.z - me.z) * stand, 2)] };
   }
 
-  /** The body's own state, without the scene (cheap "do I have a body, where am I" check). */
-  body(agentId: string): AgentSnapshot {
-    return this.session(agentId).body.snapshot();
+  /** The body's own state, without the scene (cheap "do I have a body, where am I" check). Names the figure worn. */
+  body(agentId: string): AgentSnapshot & { figure: string } {
+    const s = this.session(agentId);
+    return { ...s.body.snapshot(), figure: s.figure };
   }
 
   actRecord(agentId: string, id: string): ActRecord | undefined {
@@ -198,7 +221,7 @@ export class WorldService {
       : [];
     return {
       t: round(this.sim.t, 2),
-      body: s.body.snapshot(),
+      body: { ...s.body.snapshot(), figure: s.figure },
       nearestPlace: np ? { id: np.place.id, name: np.place.name, kind: np.place.kind, dist: round(np.dist, 2) } : null,
       insideRoom: room?.name ?? null,
       scene: [...oracleScene(this.sim.places, this.sim.rooms, { x: st.x, z: st.z, heading: st.body }, {}, interactables, seats), ...this.seenBodies(agentId, s)]
@@ -231,7 +254,7 @@ export class WorldService {
 
   /** Body number -> agent id (gateway-side only: it turns this into a display name) and the body model to draw. */
   roster(): { epoch: string; rev: number; bodies: { n: number; agentId: string; body: string }[] } {
-    return { epoch: this.epoch, rev: this.rosterRev, bodies: [...this.sessions].map(([agentId, s]) => ({ n: s.n, agentId, body: BODY_REMY.id })) };
+    return { epoch: this.epoch, rev: this.rosterRev, bodies: [...this.sessions].map(([agentId, s]) => ({ n: s.n, agentId, body: s.figure })) };
   }
 
   /** The named places an agent may `go_to`: ids and names only (positions are perceived through `observe`).

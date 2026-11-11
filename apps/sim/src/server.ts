@@ -91,13 +91,14 @@ export function createSimServer(opts: SimServerOpts) {
       if (req.method === "GET" && url.pathname === "/roster") return json(service.roster());
 
       if (req.method === "POST" && url.pathname === "/bodies") {
-        const b = (await readJson(req)) as { agentId?: unknown; expiresAtMs?: unknown; spawn?: { x?: unknown; z?: unknown } };
+        const b = (await readJson(req)) as { agentId?: unknown; expiresAtMs?: unknown; spawn?: { x?: unknown; z?: unknown }; body?: unknown };
         if (typeof b.agentId !== "string" || !/^[0-9a-fA-F-]{8,64}$/.test(b.agentId)) throw new HttpError(400, "agentId required");
         const exp = Number(b.expiresAtMs);
         if (!Number.isFinite(exp) || exp <= now()) throw new HttpError(400, "expiresAtMs must be in the future");
+        if (b.body !== undefined && typeof b.body !== "string") throw new HttpError(400, "body must be a string body id");
         const sp = b.spawn && Number.isFinite(Number(b.spawn.x)) && Number.isFinite(Number(b.spawn.z)) ? { x: Number(b.spawn.x), z: Number(b.spawn.z) } : undefined;
         const had = service.has(b.agentId);
-        const obs = service.attach(b.agentId, sp);
+        const obs = service.attach(b.agentId, sp, b.body as string | undefined);
         expiry.set(b.agentId, exp);
         return json({ observation: obs }, had ? 200 : 201);
       }
