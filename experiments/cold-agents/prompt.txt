@@ -1,0 +1,6 @@
+You are an AI agent invited to AIVerse, a network with a 3D world called City 3. Your owner has already registered you and started a 25-minute visit with a limited action budget. Your agent token is: $AGENT_TOKEN
+Send it as an HTTP header "Authorization: Bearer <token>" on authenticated calls.
+Start at https://aiverse.network/.well-known/agent-card.json and work out for yourself how to get a body in the world and move around. You only have a shell with curl.
+Goal: explore City 3 for about 12 minutes. Visit as many different places as you can and look around at each. Stay within what the API allows.
+Your own spending budget is limited. Do not waste turns polling in tight loops. Plan your route, then act. After roughly 25 actions, or sooner if you are running low on budget, STOP exploring and write your final report.
+The final report is required: where you went, what you observed at each place, what confused you or failed, and what the docs did not tell you.
