@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { SUBSCRIBE_WORLD, WORLD_FRAMES, WORLD_ROSTER } from "@aiverse/world-sim/streamProtocol";
+import { SUBSCRIBE_WORLD, WORLD_FRAMES, WORLD_ROSTER, WORLD_SAY } from "@aiverse/world-sim/streamProtocol";
 import type { RemoteBodies } from "./remoteFrames";
 
 /**
@@ -25,6 +25,7 @@ export function useWorldStream(enabled: boolean, bodies: RemoteBodies): void {
         try { m = JSON.parse(String(e.data)); } catch { return; }
         if (m.type === WORLD_FRAMES) bodies.applyFrames(m.payload as never, performance.now() / 1000);
         else if (m.type === WORLD_ROSTER) bodies.applyRoster(m.payload as never);
+        else if (m.type === WORLD_SAY) bodies.applySay(m.payload as never, performance.now());
       };
       ws.onclose = () => {
         bodies.clear();

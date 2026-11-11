@@ -7,6 +7,7 @@
 // vanish the same frame. It stays mounted, settles to Idle, and dissolves over ~1.5 s (dissolve.ts); a body that appears runs
 // the same ramp backwards and materializes. The figures map below is therefore the render source of truth, not the stream's
 // live list — it holds live bodies plus the ones still burning away.
+import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { Suspense, useMemo, useRef, useState } from "react";
 import type * as THREE from "three";
@@ -36,6 +37,8 @@ interface Figure {
   dissolve: Dissolve;
   /** True once the stream has dropped the body: it lingers, dissolving, until the ramp completes. */
   leaving: boolean;
+  /** Follows the body at head height; carries the speech bubble. */
+  bubble: THREE.Group | null;
 }
 
 export function RemoteCast({ walk }: { walk?: WalkColliders }) {
@@ -47,6 +50,8 @@ export function RemoteCast({ walk }: { walk?: WalkColliders }) {
   /** What React renders: live bodies plus bodies still dissolving out. */
   const [cast, setCast] = useState<{ n: number; body: string }[]>([]);
   const publishAt = useRef(0);
+  /** Body number -> the line over its head (null when none). Changes only when a line starts or expires. */
+  const [said, setSaid] = useState<Record<number, string>>({});
 
   useFrame((_, delta) => {
     const nowS = performance.now() / 1000;
@@ -69,7 +74,7 @@ export function RemoteCast({ walk }: { walk?: WalkColliders }) {
         castChanged = true;
       }
       if (!fig) {
-        fig = { group: null, clips: new ClipTestState(), lastClip: null, body: bodyKey, dissolve: createDissolve(), leaving: false };
+        fig = { group: null, clips: new ClipTestState(), lastClip: null, body: bodyKey, dissolve: createDissolve(), leaving: false, bubble: null };
         figures.current.set(n, fig);
         const p = bodies.sample(n, Infinity)!; // draw the first frame where it is, not at the origin
         frames.current[n] = writeRemoteFrame(newWalkerFrame(p.x, p.z, p.heading), p);
@@ -100,6 +105,13 @@ export function RemoteCast({ walk }: { walk?: WalkColliders }) {
     }
     if (castChanged) setCast([...figures.current].map(([n, f]) => ({ n, body: f.body })));
 
+    const nowMs = nowS * 1000, next: Record<number, string> = {};
+    for (const n of figures.current.keys()) { const line = bodies.bubble(n, nowMs); if (line) next[n] = line; }
+    setSaid((prev) => {
+      const a = Object.keys(prev), b = Object.keys(next);
+      return a.length === b.length && b.every((k) => prev[Number(k)] === next[Number(k)]) ? prev : next;
+    });
+
     const t = bodies.renderTime(nowS);
     if (t === null) return;
     const publish = nowS - publishAt.current >= PUBLISH_EVERY_S;
@@ -110,6 +122,7 @@ export function RemoteCast({ walk }: { walk?: WalkColliders }) {
       if (!fig || !p) continue;
       writeRemoteFrame((frames.current[b.n] ??= newWalkerFrame(p.x, p.z, p.heading)), p);
       if (fig.group) fig.group.position.y = p.y;
+      fig.bubble?.position.set(p.x, 2.1, p.z); // the parent group already sits at p.y
       if (p.clip !== fig.lastClip) {
         fig.lastClip = p.clip;
         if (p.clip) fig.clips.fire(p.clip); else fig.clips.clear();
@@ -130,6 +143,9 @@ export function RemoteCast({ walk }: { walk?: WalkColliders }) {
             <Suspense fallback={null}>
               <CastFigure framesRef={frames} index={n} baseY={0} home={[0, 0, 0]} body={BODIES[body] ?? BODY_REMY} clipTester={fig.clips} dissolve={fig.dissolve} />
             </Suspense>
+            <group ref={(g) => { fig.bubble = g; }}>
+              {said[n] ? <Html center><span className="w-said" data-testid="remote-said">{said[n]}</span></Html> : null}
+            </group>
           </group>
         );
       })}

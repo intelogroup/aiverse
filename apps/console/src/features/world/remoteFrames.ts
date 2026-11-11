@@ -1,12 +1,14 @@
 // remoteFrames.ts — the console's side of the viewer stream: keep the last few server poses per body and answer "where is it NOW?".
 // Pure (no React, no three) so it is unit tested. The server sends 5-10 poses a second; CastFigure draws every render frame from an
 // AgentFrame with no smoothing of its own, so this buffer renders the world a little in the past and interpolates between samples.
-import { decodePose, type FramesMessage, type RemotePose, type RosterMessage } from "@aiverse/world-sim/streamProtocol";
+import { decodePose, type FramesMessage, type RemotePose, type RosterMessage, type SayMessage } from "@aiverse/world-sim/streamProtocol";
 import type { AgentFrame } from "./locomotion";
 
 /** Render this far behind the newest server time (s): about 1.3 frame intervals, so there are normally two samples to blend. */
 export const RENDER_DELAY_S = 0.2;
 const KEEP = 4;
+/** How long a speech bubble stays over a speaker (ms). */
+export const BUBBLE_MS = 5000;
 /** Above this speed (m/s) the figure plays Walk. */
 const WALK_SPEED = 0.05;
 
@@ -28,6 +30,21 @@ export class RemoteBodies {
   private offset: number | null = null;
   /** Bumped whenever the set of bodies or names changes, so React re-renders only then. */
   rev = 0;
+  /** Speech bubbles: body number -> the line and the local time (ms) it stops showing. */
+  private said = new Map<number, { text: string; until: number }>();
+
+  /** A spoken line: it shows over the speaker for BUBBLE_MS. A newer line replaces an older one. */
+  applySay(m: SayMessage, nowMs: number): void {
+    for (const e of m.say) this.said.set(e.n, { text: e.text.slice(0, 140), until: nowMs + BUBBLE_MS });
+  }
+
+  /** The bubble text for body `n` now, or null. */
+  bubble(n: number, nowMs: number): string | null {
+    const s = this.said.get(n);
+    if (!s) return null;
+    if (nowMs >= s.until) { this.said.delete(n); return null; }
+    return s.text;
+  }
 
   /** Local clock (s) -> the server time to draw at. Null until the first frame. */
   renderTime(localS: number): number | null {
@@ -58,7 +75,7 @@ export class RemoteBodies {
     }
   }
 
-  clear(): void { this.samples.clear(); this.info.clear(); this.offset = null; this.rev++; }
+  clear(): void { this.samples.clear(); this.info.clear(); this.said.clear(); this.offset = null; this.rev++; }
 
   private lastT(): number {
     let t = -Infinity;
