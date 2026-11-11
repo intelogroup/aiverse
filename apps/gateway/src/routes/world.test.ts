@@ -97,6 +97,13 @@ describe("/world (agent body)", () => {
     const placesBody = (await (await w(agentToken, "GET", "/places")).json()) as any;
     expect(mapBody).toEqual(placesBody);
     expect(mapBody.places.some((p: any) => p.id === "shop-102" && p.name === "Matchmaker's Tea House")).toBe(true);
+
+    // Room ids are enumerable from the payload: a roomed place carries its interior
+    // room id (the alternate go_to address), an unroomed place carries null — on both routes.
+    for (const body of [mapBody, placesBody]) {
+      expect(body.places.find((p: any) => p.id === "shop-102").room).toBe("tea");
+      expect(body.places.find((p: any) => p.id === "stall-0").room).toBeNull();
+    }
   });
 
   test("owner starts a visit, the agent attaches a body and walks to the Tea House door with no browser", async () => {
