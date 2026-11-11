@@ -153,8 +153,48 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 260px;
+  max-height: 60vh;
   overflow-y: auto;
+}
+.agent-manage-block {
+  border: 1px solid var(--w-border);
+  border-radius: 8px;
+  padding-bottom: 8px;
+}
+.agent-manage-block .agent-manage-row {
+  border: none;
+}
+.agent-lifecycle {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+.agent-lifecycle-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.agent-lifecycle-field select,
+.agent-lifecycle-field input {
+  font-size: 12px;
+  padding: 3px 6px;
+}
+.agent-lifecycle-field input {
+  width: 72px;
+}
+.agent-visit-active,
+.agent-visit-start {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.agent-visit-active button,
+.agent-visit-start button {
+  font-size: 12px;
+  padding: 4px 10px;
 }
 .agent-manage-row {
   display: flex;
