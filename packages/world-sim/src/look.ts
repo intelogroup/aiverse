@@ -65,15 +65,24 @@ function rayDoor(o: Vec3, d: Vec3, r: LookDoor): number {
   return Math.abs(c - r.mid) <= r.half && y >= r.y0 && y <= r.y1 ? t : Infinity;
 }
 
+export interface LookOpts {
+  /** Cast every one of the 9,216 rays (the reference the adaptive pass is measured against). Default: adaptive. */
+  full?: boolean;
+}
+
 /**
  * Cast a LOOK_W x LOOK_H grid of rays from `eye`, the camera facing `heading` (walker convention: forward is (sin h, cos h)).
  * Columns run left to right with increasing bearing, the same sign `observe` uses.
+ *
+ * The collision raycast is the whole cost (about 6 us per ray). So it is adaptive: first one ray per 2x2 block (a quarter of them),
+ * then the other three only where the block's four corner samples disagree (a miss next to a hit, floor next to wall, a depth jump
+ * or a surface that is not a plane). A smooth wall or floor is filled by interpolating its corners. Doors, seats, props and bodies are
+ * still tested per pixel afterwards, so a small marker is never skipped.
  */
-export function renderLook(world: World, eye: Vec3, heading: number, scene: LookScene, farM = LOOK_FAR_M): LookResult {
+export function renderLook(world: World, eye: Vec3, heading: number, scene: LookScene, farM = LOOK_FAR_M, opts: LookOpts = {}): LookResult {
   const depthMm = new Uint16Array(LOOK_W * LOOK_H).fill(LOOK_NO_HIT), classes = new Uint8Array(LOOK_W * LOOK_H);
   const tanH = Math.tan((LOOK_HFOV_DEG * Math.PI) / 360), tanV = tanH * (LOOK_H / LOOK_W);
   const fx = Math.sin(heading), fz = Math.cos(heading), rx = Math.cos(heading), rz = -Math.sin(heading);
-  // Directions first, so the world can cull its colliders once for all 9,216 rays.
   const n = LOOK_W * LOOK_H, dirs = new Float32Array(n * 3), dist = new Float32Array(n), ny = new Float32Array(n);
   for (let j = 0; j < LOOK_H; j++) {
     const v = (1 - ((j + 0.5) / LOOK_H) * 2) * tanV;
@@ -83,8 +92,44 @@ export function renderLook(world: World, eye: Vec3, heading: number, scene: Look
       dirs[3 * k] = x / m; dirs[3 * k + 1] = y / m; dirs[3 * k + 2] = z / m;
     }
   }
-  if (world.raycastBatch) world.raycastBatch(eye, dirs, n, farM, dist, ny);
-  else dist.fill(Infinity);
+  /** Cast the rays with these pixel numbers in one batch (the world culls its colliders once per batch). */
+  const cast = (ids: number[]) => {
+    if (!ids.length) return;
+    const sub = new Float32Array(ids.length * 3), sd = new Float32Array(ids.length), sn = new Float32Array(ids.length);
+    ids.forEach((k, q) => { sub[3 * q] = dirs[3 * k]; sub[3 * q + 1] = dirs[3 * k + 1]; sub[3 * q + 2] = dirs[3 * k + 2]; });
+    world.raycastBatch!(eye, sub, ids.length, farM, sd, sn);
+    ids.forEach((k, q) => { dist[k] = sd[q]; ny[k] = sn[q]; });
+  };
+  if (!world.raycastBatch) dist.fill(Infinity);
+  else if (opts.full) cast(Array.from({ length: n }, (_, k) => k));
+  else {
+    const coarse: number[] = [];
+    for (let j = 0; j < LOOK_H; j += 2) for (let i = 0; i < LOOK_W; i += 2) coarse.push(j * LOOK_W + i);
+    cast(coarse);
+    const refine: number[] = [];
+    for (let j = 0; j < LOOK_H; j += 2) {
+      for (let i = 0; i < LOOK_W; i += 2) {
+        const k00 = j * LOOK_W + i, k10 = k00 + 2, k01 = k00 + 2 * LOOK_W, k11 = k01 + 2;
+        const others = [k00 + 1, k00 + LOOK_W, k00 + LOOK_W + 1];
+        if (i + 2 >= LOOK_W || j + 2 >= LOOK_H) { refine.push(...others); continue; } // no full set of corners at the right and bottom edges
+        const d = [dist[k00], dist[k10], dist[k01], dist[k11]], flat = [ny[k00], ny[k10], ny[k01], ny[k11]].map((v) => v > 0.7);
+        const miss = d.filter((v) => v === Infinity).length;
+        let coherent: boolean;
+        if (miss === 4) coherent = true;
+        else if (miss > 0 || flat.some((f) => f !== flat[0])) coherent = false;
+        else {
+          const mean = (d[0] + d[1] + d[2] + d[3]) / 4;
+          coherent = Math.max(...d) - Math.min(...d) <= 0.3 * mean && Math.abs(d[0] + d[3] - d[1] - d[2]) <= 0.03 * mean + 0.03;
+        }
+        if (!coherent) { refine.push(...others); continue; }
+        dist[others[0]] = miss === 4 ? Infinity : (d[0] + d[1]) / 2;
+        dist[others[1]] = miss === 4 ? Infinity : (d[0] + d[2]) / 2;
+        dist[others[2]] = miss === 4 ? Infinity : (d[0] + d[1] + d[2] + d[3]) / 4;
+        for (const o of others) ny[o] = ny[k00];
+      }
+    }
+    cast(refine);
+  }
   const d: Vec3 = [0, 0, 0];
   for (let k = 0; k < n; k++) {
     d[0] = dirs[3 * k]; d[1] = dirs[3 * k + 1]; d[2] = dirs[3 * k + 2];
