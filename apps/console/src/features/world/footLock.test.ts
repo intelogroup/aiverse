@@ -124,8 +124,9 @@ function poseClip(r: ReturnType<typeof rig>, p: THREE.Vector3): void {
   const wp = p.clone().applyMatrix4(r.scene.matrixWorld);
   const knee = new THREE.Vector3();
   const ankle = new THREE.Vector3();
-  // a rest bend with exact 0.5 m bones, knee forward
-  const reach = solveTwoBone(a, V(a.x, a.y - 0.4, a.z + 0.3), V(a.x, a.y - 0.8, a.z), wp, V(0, 0, 1), knee, ankle);
+  // a rest bend with exact 0.5 m bones (times the figure's display scale), knee forward
+  const k = r.scene.getWorldScale(new THREE.Vector3()).x;
+  const reach = solveTwoBone(a, V(a.x, a.y - 0.4 * k, a.z + 0.3 * k), V(a.x, a.y - 0.8 * k, a.z), wp, V(0, 0, 1), knee, ankle);
   expect(reach).toBeLessThan(1);
   const qT = new THREE.Quaternion().setFromUnitVectors(down, knee.clone().sub(a).normalize());
   // the thigh's parents are identity-rotated except the group, which may be turned (the body yawing on the spot)
@@ -141,8 +142,9 @@ describe("FootLock", () => {
   const dt = 1 / 60;
   const V_BODY = 1.3;
 
-  function run(opts: { vClip: number; footY: number; lock: boolean; speed?: number; frames?: number; z0?: number }) {
+  function run(opts: { vClip: number; footY: number; lock: boolean; speed?: number; frames?: number; z0?: number; scale?: number; drop?: number }) {
     const r = rig();
+    r.scene.scale.setScalar(opts.scale ?? 1);
     const lock = new FootLock(r.scene, r.points);
     const zs: number[] = [];
     const ys: number[] = [];
@@ -151,7 +153,7 @@ describe("FootLock", () => {
       r.group.position.z = V_BODY * dt * i;
       // scene-frame ankle: moves back relative to the body at the clip's own stance speed
       poseClip(r, V(0, opts.footY, (opts.z0 ?? 0.2) - opts.vClip * dt * i));
-      if (opts.lock) lock.update(r.group, r.scene, opts.speed ?? V_BODY, dt);
+      if (opts.lock) lock.update(r.group, r.scene, opts.speed ?? V_BODY, dt, opts.drop ?? 0);
       r.group.updateWorldMatrix(true, true);
       const w = r.foot.getWorldPosition(new THREE.Vector3());
       zs.push(w.z);
@@ -174,6 +176,21 @@ describe("FootLock", () => {
     const locked = run({ vClip: 1.0, footY: 0.005, lock: true });
     expect(span(free.zs, 4)).toBeGreaterThan(0.04);
     expect(span(locked.zs, 4)).toBeLessThan(0.004);
+    expect(locked.lock.active).toBe(1);
+  });
+
+  it("works the same on a figure shown at a display scale (bodies.ts): drop is world metres, clearance is the figure's own", () => {
+    const K = 1.3;
+    // scene-local ankle 4.5 cm up, grounding lowers the figure by 3 cm of ITS height (3.9 cm world): 1.5 cm clear = swing.
+    // Read in mixed units (4.5 - 3.9) it was 0.6 cm: a false plant.
+    const swing = run({ vClip: 1.0 * K, footY: 0.045, lock: true, scale: K, drop: 0.03 * K, speed: V_BODY });
+    expect(swing.lock.active).toBe(0);
+    // A truly planted foot on the scaled figure pins as well as on the unscaled one (clip stance 0.75 local = 0.975 m/s world
+    // under a 1.3 m/s body: 0.33 m/s of skate without the lock).
+    const free = run({ vClip: 0.75, footY: 0.005, lock: false, scale: K });
+    const locked = run({ vClip: 0.75, footY: 0.005, lock: true, scale: K });
+    expect(span(free.zs, 4)).toBeGreaterThan(0.04);
+    expect(span(locked.zs, 4)).toBeLessThan(0.004 * K);
     expect(locked.lock.active).toBe(1);
   });
 

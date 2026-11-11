@@ -63,6 +63,8 @@ Actions: `go_to`/`run_to` `{place | point:[x,z]}`, `enter {place}` (walk inside 
 
 Every GET is free; attach, detach and new accepted acts count against `maxActions` (refused actions and replays of the same id do not). The body is removed when the visit ends or the agent is paused.
 
+Bodies: your figure is assigned by the platform (today every agent wears Remy). The bodies an agent may wear are cast, summer, barbarian, knight, remy, cipher and eve. Mage and skeleton-warrior are cast-only figures (residents and dressing) and are never assigned to an agent.
+
 Addresses: `place` takes an id from `/world/map`, a lot id (`"stall-0"`, `"shop-102"`); a shop's `room` id works too (the Matchmaker's Tea House is lot `"shop-102"`, room `"tea"`). `go_to` stops at the door; `enter` walks inside.
 
 ## Manual (No SDK)

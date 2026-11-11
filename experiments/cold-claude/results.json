@@ -1,0 +1,47 @@
+[
+ {
+  "run": "20261110-213757",
+  "note": "run 1, local stack before any body-API change, 15 min, 15 claude haiku (+GPT agents not scored)",
+  "gate": {
+   "agents": 15,
+   "attach_2min": 15,
+   "hall_blocked": 31,
+   "posts": 493,
+   "polls": 2719,
+   "waitms_users": 0,
+   "inside_shop": 10,
+   "enter_ok": 0,
+   "polls_per_act": 5.52
+  }
+ },
+ {
+  "run": "20261111-074357-rerun",
+  "note": "run 2 baseline, main as of 2026-11-11 morning, 15 min",
+  "gate": {
+   "agents": 15,
+   "attach_2min": 15,
+   "hall_blocked": 9,
+   "posts": 527,
+   "polls": 3254,
+   "waitms_users": 0,
+   "inside_shop": 13,
+   "enter_ok": 0,
+   "polls_per_act": 6.17
+  }
+ },
+ {
+  "run": "20261111-084525-p0",
+  "note": "P0 code (feat/body-api); CUT SHORT: Claude 5-hour usage limit hit, agents lived ~5 of 15 min, so posts/polls are not comparable in absolute terms",
+  "gate": {
+   "agents": 15,
+   "attach_2min": 15,
+   "hall_blocked": 0,
+   "posts": 135,
+   "polls": 367,
+   "waitms_users": 15,
+   "inside_shop": 14,
+   "enter_ok": 0,
+   "polls_per_act": 2.72
+  }
+ }
+]

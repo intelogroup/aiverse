@@ -47,6 +47,14 @@ export interface BodyDef {
    * run.speed, run.footLift) are ALREADY multiplied by it (bodyAtScale): consumers never scale them again.
    */
   scale?: number;
+  /**
+   * Whether a visiting agent may be assigned this body. Absent = it may.
+   * A body an agent must never wear sets it false; the body stays in the
+   * registry as a cast figure (residents, keepers, crowd dressing —
+   * bodyForMember ignores this field). Read the pickable set through
+   * agentBodies(), never by testing this field ad hoc.
+   */
+  agentBody?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -61,6 +69,8 @@ export interface BodyDef {
 export const SCALE_CAST = 1.306; // 1.75 / 1.340
 export const SCALE_SUMMER = 1.371; // 1.68 / 1.225
 export const SCALE_REMY = 1.387; // 1.78 / 1.283
+export const SCALE_CIPHER = 1.369; // 1.78 / 1.300
+export const SCALE_EVE = 1.269; // 1.65 / 1.300
 export const SCALE_MAGE = 1.302; // 1.70 / 1.306
 export const SCALE_BARBARIAN = 1.315; // 1.70 / 1.293
 export const SCALE_KNIGHT = 1.315; // 1.70 / 1.293
@@ -154,6 +164,9 @@ export const MAGE_HIPS_Y = 0.2457; // m (0.4601 x 0.53391 shrink)
 export const BODY_MAGE: BodyDef = bodyAtScale(SCALE_MAGE, {
   id: "mage",
   url: "/assets/cast-mage.glb",
+  // Cast-only (Jim, 2026-11-11): too short for an agent body. Stays a cast
+  // figure — the Bazaar keeper wears it (BazaarLife).
+  agentBody: false,
   hipsY: MAGE_HIPS_Y,
   // 0.5749 x 0.53391 shrink — see note above.
   walkSpeed: 0.3069,
@@ -212,6 +225,8 @@ export const SKELETON_WARRIOR_HIPS_Y = 0.3116; // m (upperleg joint, bind)
 export const BODY_SKELETON_WARRIOR: BodyDef = bodyAtScale(SCALE_SKELETON_WARRIOR, {
   id: "skeleton-warrior",
   url: "/assets/cast-skeleton-warrior.glb",
+  // Cast-only (Jim, 2026-11-11): too short for an agent body. Stays a cast figure.
+  agentBody: false,
   hipsY: SKELETON_WARRIOR_HIPS_Y,
   // FK stance: ankle pair 0.3826 / 0.4115 (Walk cycle 1.1667 s).
   walkSpeed: 0.3971,
@@ -242,6 +257,39 @@ export const BODY_REMY: BodyDef = bodyAtScale(SCALE_REMY, {
   clips: CATALOG,
 });
 
+// Cipher — Jim's Mixamo "Soldier" (Entering Code.fbx, 69 bones, 19,450 tris), scaled to 1.3 m (bind bounds measured on the shipped GLB:
+// 1.3000 m). Same bake as Remy (tools/city3/bake_cipher.py = parametrised bake_remy.py), so it carries the full 53-clip catalog
+// incl. EnteringCode (his own animation). Hips 0.7045 m measured in three at rest. walkSpeed/Run are ESTIMATES scaled from Remy's
+// zero-slip sweep by the ratio of a cruder stance-foot measurement run on both GLBs (Run stance ankles/toes 2.54 vs Remy's 2.45
+// m/s -> x1.035; Walk follows the same ratio; the crude method cannot resolve Walk). Touchdowns match Remy's (Walk L .371 / R .879,
+// Run L .283 / R .858 -> phaseOffset -0.055) and Run toes sit 0.085 above Walk's. Re-measure with the zero-slip sweep before
+// trusting these to the metre.
+export const CIPHER_HIPS_Y = 0.7045; // m
+
+export const BODY_CIPHER: BodyDef = bodyAtScale(SCALE_CIPHER, {
+  id: "cipher",
+  url: "/assets/cast-cipher.glb",
+  hipsY: CIPHER_HIPS_Y,
+  walkSpeed: 0.8,
+  run: { speed: 2.75, footLift: 0.085, phaseOffset: -0.055 },
+  clips: CATALOG,
+});
+
+// Eve — Jim's Mixamo "Space Pirate" (Eve By J.Gonzales.fbx, 65 bones, 27,207 tris). Source was only 1.391 m tall (Cipher's is 1.78 m), so
+// she is baked to 1.30 m like the rest and shown at 1.65 m (SCALE_EVE), shorter than Cipher by design. Same bake as Cipher/Remy (53 clips).
+// Hips 0.7629 m measured in three at rest (longer legs than Remy 0.718 / Cipher 0.7045). walkSpeed/Run are ESTIMATES: Remy's zero-slip
+// values x hips ratio 1.063; footLift and phaseOffset copied from Remy. Re-measure before trusting them (hunt's speed limit derives from run).
+export const EVE_HIPS_Y = 0.7629; // m
+
+export const BODY_EVE: BodyDef = bodyAtScale(SCALE_EVE, {
+  id: "eve",
+  url: "/assets/cast-eve.glb",
+  hipsY: EVE_HIPS_Y,
+  walkSpeed: 0.82,
+  run: { speed: 2.83, footLift: 0.082, phaseOffset: -0.055 },
+  clips: CATALOG,
+});
+
 export const BODIES: Record<string, BodyDef> = {
   [BODY_REMY.id]: BODY_REMY,
   [BODY_CAST.id]: BODY_CAST,
@@ -250,7 +298,21 @@ export const BODIES: Record<string, BodyDef> = {
   [BODY_BARBARIAN.id]: BODY_BARBARIAN,
   [BODY_KNIGHT.id]: BODY_KNIGHT,
   [BODY_SKELETON_WARRIOR.id]: BODY_SKELETON_WARRIOR,
+  [BODY_CIPHER.id]: BODY_CIPHER,
+  [BODY_EVE.id]: BODY_EVE,
 };
+
+/**
+ * The bodies a visiting agent may be assigned: every registered body not
+ * marked cast-only (`agentBody: false`). Mage and Skeleton Warrior were
+ * removed at Jim's word (2026-11-11 — too short for agent bodies); they
+ * remain cast figures. This is the eligibility gate: the agent-facing
+ * world docs render this list, and a future body-choice surface must
+ * offer exactly these bodies.
+ */
+export function agentBodies(): BodyDef[] {
+  return Object.values(BODIES).filter((body) => body.agentBody !== false);
+}
 
 /** The body a cast member wears; members name one via `body`, else cast. */
 export function bodyForMember(member: { body?: string } | null | undefined): BodyDef {
