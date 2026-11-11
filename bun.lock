@@ -17,6 +17,7 @@
       "name": "@aiverse/console",
       "version": "0.0.0",
       "dependencies": {
+        "@aiverse/world-sim": "workspace:*",
         "@react-three/drei": "^10.0.0",
         "@react-three/fiber": "^9.0.0",
         "@react-three/postprocessing": "^3.2.2",
@@ -53,7 +54,7 @@
         "@aiverse/hunt": "workspace:*",
         "@aiverse/shared": "workspace:*",
         "@aiverse/topics": "workspace:*",
-        "@modelcontextprotocol/sdk": "1.29.0",
+        "@modelcontextprotocol/sdk": "1.32.0",
         "@sentry/bun": "^11.11.0",
         "drizzle-orm": "^0.45.2",
         "hono": "^4.6.0",
@@ -62,6 +63,8 @@
         "postgres": "^3.4.0",
       },
       "devDependencies": {
+        "@aiverse/sim": "workspace:*",
+        "@aiverse/world-sim": "workspace:*",
         "drizzle-kit": "^0.28.0",
       },
     },
@@ -70,6 +73,13 @@
       "version": "0.0.0",
       "dependencies": {
         "hono": "^4.6.0",
+      },
+    },
+    "apps/sim": {
+      "name": "@aiverse/sim",
+      "version": "0.0.0",
+      "dependencies": {
+        "@aiverse/world-sim": "workspace:*",
       },
     },
     "packages/agent-sdk": {
@@ -90,6 +100,20 @@
         "@aiverse/shared": "workspace:*",
       },
     },
+    "packages/world-sim": {
+      "name": "@aiverse/world-sim",
+      "version": "0.0.0",
+      "dependencies": {
+        "@recast-navigation/core": "0.44.0",
+        "@recast-navigation/generators": "0.44.0",
+        "recast-navigation": "0.44.0",
+        "three": "^0.170.0",
+        "three-mesh-bvh": "0.9.16",
+      },
+      "devDependencies": {
+        "@types/three": "^0.170.0",
+      },
+    },
   },
   "packages": {
     "@adobe/css-tools": ["@adobe/css-tools@4.5.0", "", {}, "sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q=="],
@@ -104,7 +128,11 @@
 
     "@aiverse/shared": ["@aiverse/shared@workspace:packages/shared"],
 
+    "@aiverse/sim": ["@aiverse/sim@workspace:apps/sim"],
+
     "@aiverse/topics": ["@aiverse/topics@workspace:packages/topics"],
+
+    "@aiverse/world-sim": ["@aiverse/world-sim@workspace:packages/world-sim"],
 
     "@asamuzakjp/css-color": ["@asamuzakjp/css-color@6.0.7", "", { "dependencies": { "@csstools/css-calc": "^3.3.0", "@csstools/css-color-parser": "^4.1.10", "@csstools/css-parser-algorithms": "^4.0.0", "@csstools/css-tokenizer": "^4.0.0", "lru-cache": "^11.5.2" } }, "sha512-vC/bk1Lz7Tn/EfU9/apOTBk80/8dyGyWMowPoV1tJ52muDGsDqt2HPT2klrFUiY60MQmQv9q8yIht15JnBgDGw=="],
 
@@ -194,7 +222,7 @@
 
     "@mediapipe/tasks-vision": ["@mediapipe/tasks-vision@0.10.17", "", {}, "sha512-CZWV/q6TTe8ta61cZXjfnnHsfWIdFhms03M9T7Cnd5y2mdpylJM0rF1qRq+wsQVRMLz1OYPVEBU9ph2Bx8cxrg=="],
 
-    "@modelcontextprotocol/sdk": ["@modelcontextprotocol/sdk@1.29.0", "", { "dependencies": { "@hono/node-server": "^1.19.9", "ajv": "^8.17.1", "ajv-formats": "^3.0.1", "content-type": "^1.0.5", "cors": "^2.8.5", "cross-spawn": "^7.0.5", "eventsource": "^3.0.2", "eventsource-parser": "^3.0.0", "express": "^5.2.1", "express-rate-limit": "^8.2.1", "hono": "^4.11.4", "jose": "^6.1.3", "json-schema-typed": "^8.0.2", "pkce-challenge": "^5.0.0", "raw-body": "^3.0.0", "zod": "^3.25 || ^4.0", "zod-to-json-schema": "^3.25.1" }, "peerDependencies": { "@cfworker/json-schema": "^4.1.1" }, "optionalPeers": ["@cfworker/json-schema"] }, "sha512-zo37mZA9hJWpULgkRpowewez1y6ML5GsXJPY8FI0tBBCd77HEvza4jDqRKOXgHNn867PVGCyTdzqpz0izu5ZjQ=="],
+    "@modelcontextprotocol/sdk": ["@modelcontextprotocol/sdk@1.32.0", "", { "dependencies": { "@hono/node-server": "^1.19.9 || ^2.0.5", "ajv": "^8.17.1", "ajv-formats": "^3.0.1", "content-type": "^1.0.5", "cors": "^2.8.5", "cross-spawn": "^7.0.5", "eventsource": "^3.0.2", "eventsource-parser": "^3.0.0", "express": "^5.2.1", "express-rate-limit": "^8.2.1", "hono": "^4.11.4", "jose": "^6.1.3", "json-schema-typed": "^8.0.2", "pkce-challenge": "^5.0.0", "raw-body": "^3.0.0", "zod": "^3.25 || ^4.0", "zod-to-json-schema": "^3.25.1" }, "peerDependencies": { "@cfworker/json-schema": "^4.1.1" }, "optionalPeers": ["@cfworker/json-schema"] }, "sha512-8BviX/hK4Gd2eL1KdTwm0gfl4d3wdoErW0Jd00h6nomUAtk6IJk5vwQJc6kfWtJTzN5OEV/lgIiJKI8fiDGAlA=="],
 
     "@monogrid/gainmap-js": ["@monogrid/gainmap-js@3.4.0", "", { "dependencies": { "promise-worker-transferable": "^1.0.4" }, "peerDependencies": { "three": ">= 0.159.0" } }, "sha512-2Z0FATFHaoYJ8b+Y4y4Hgfn3FRFwuU5zRrk+9dFWp4uGAdHGqVEdP7HP+gLA3X469KXHmfupJaUbKo1b/aDKIg=="],
 

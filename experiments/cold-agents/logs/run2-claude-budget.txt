@@ -1,0 +1,113 @@
+ACT  {"id":"go-hall-1","action":{"type":"go_to","place":"hall-0"}}
+SAY  Body attached, walking to the Great Hall now; I'll poll once with a single bounded wait.
+OBS
+OBS
+OBS
+  -> "outcome":{"ok":false,"status":"blocked","detail":"no safe route","target":"hall-0"}
+SAY  Great Hall: "no safe route". Trying the nearby stall-40 instead.
+ACT  {"id":"go-s40","action":{"type":"go_to","place":"stall-40"}}
+OBS
+OBS
+ACT  {"id":"go-lib96","action":{"type":"go_to","place":"shop-96"}}
+ACT  {"id":"go-lib96","action":{"type":"go_to","place":"shop-96"}}
+OBS
+  -> "outcome":{"ok":true,"status":"arrived","target":"stall-40"}
+SAY  Arrived at stall-40; now walking to Sage's Library (shop-96). I'll set a watcher for arrival.
+OBS
+OBS
+OBS
+OBS
+ACT  {"id":"run-lib96","action":{"type":"run_to","place":"shop-96"}}
+SAY  Switched to running toward the library (walking was slow, ~1.3 m/s). Checking progress.
+OBS
+  -> "outcome":{"ok":false,"status":"rejected","detail":"busy"}
+OBS
+  -> "outcome":{"ok":false,"status":"rejected","detail":"busy"}
+OBS
+  -> "outcome":{"ok":false,"status":"rejected","detail":"busy"}
+OBS
+  -> "outcome":{"ok":false,"status":"rejected","detail":"busy"}
+OBS
+  -> "outcome":{"ok":false,"status":"rejected","detail":"busy"}
+SAY  Library looks far; I'll stop and divert to the nearby Salt Road Trading shop (door is enterable).
+ACT  {"id":"stop-1","action":{"type":"stop"}}
+OBS
+OBS
+SAY  Nearly at Salt Road Trading. Trying to enter via interact with its door.
+ACT  {"id":"enter-126","action":{"type":"interact","target":"shop-126"}}
+OBS
+  -> "outcome":{"ok":true,"status":"arrived","target":"shop-126"}
+SAY  Interact rejected: "unknown prop: shop-126". Trying one alternate door id form.
+ACT  {"id":"enter-126b","action":{"type":"interact","target":"door-shop-126"}}
+  -> "outcome":{"ok":false,"status":"unavailable","detail":"unknown prop: door-shop-126"}
+ACT  {"id":"run-lamps127","action":{"type":"run_to","place":"shop-127"}}
+OBS
+OBS
+  -> "outcome":{"ok":true,"status":"arrived","target":"shop-127"}
+SAY  Door is 1.6 m away. Trying to walk through it to a point just inside (computed from bearing).
+ACT  {"id":"in-127","action":{"type":"go_to","point":[43.1,76]}}
+OBS
+SAY  Inside Rekinder Lamps. Looking around once it settles.
+OBS
+  -> "outcome":{"ok":true,"status":"arrived"}
+SAY  Room is empty in the scene (no props/people). Testing `sit` here to see if there's furniture.
+ACT  {"id":"sit-127","action":{"type":"sit"}}
+  -> "outcome":{"ok":false,"status":"unavailable","detail":"no sittable within reach"}
+SAY  Nothing to sit on. Heading to the Coffee shop (shop-129), ~25 m away.
+ACT  {"id":"run-coffee129","action":{"type":"run_to","place":"shop-129"}}
+OBS
+OBS
+OBS
+OBS
+ACT  {"id":"in-129","action":{"type":"go_to","point":[54.5,95.6]}}
+SAY  At the Coffee shop; walking through its door to a point I estimated is inside.
+OBS
+SAY  Inside Coffee. Trying a `play` animation (clip names aren't documented, guessing "wave").
+ACT  {"id":"play-wave","action":{"type":"play","clip":"wave"}}
+  -> "outcome":{"ok":true,"status":"arrived"}
+SAY  `wave` rejected with a generic "invalid action" (no clip list given). Retrying the Great Hall from this side of town.
+ACT  {"id":"run-hall-2","action":{"type":"run_to","place":"hall-0"}}
+  -> "outcome":{"ok":false,"status":"blocked","detail":"no safe route","target":"hall-0"}
+SAY  Great Hall unreachable again. Heading to Matchmaker's Tea House (shop-102).
+ACT  {"id":"run-tea102","action":{"type":"run_to","place":"shop-102"}}
+OBS
+OBS
+OBS
+SAY  Running through the stall market (stalls 51–59 visible). Still en route.
+OBS
+OBS
+OBS
+OBS
+OBS
+OBS
+SAY  Still running west toward the Tea House, now passing a second stall cluster (stalls 0–5). Checking again.
+OBS
+OBS
+OBS
+OBS
+OBS
+OBS
+SAY  Still running south through a third stall grid (stalls 20–30) toward the Tea House — it's a long trip.
+OBS
+OBS
+SAY  The Tea House has a door (id `tea`) and an interactable **Radio** (`tea-radio`, state on). Waiting for arrival.
+OBS
+ACT  {"id":"radio-1","action":{"type":"interact","target":"tea-radio"}}
+  -> "outcome":{"ok":true,"status":"arrived","target":"shop-102"}
+OBS
+OBS
+SAY  Body is playing an `OpenDoorInwards` clip on the way to the radio (reveals a real clip name). Checking again.
+OBS
+OBS
+OBS
+SAY  Radio switched **on → off** (clip `Interact`). I'll turn it back on to leave things as I found them, then try sitting.
+ACT  {"id":"radio-2","action":{"type":"interact","target":"tea-radio"}}
+OBS
+  -> "outcome":{"ok":true,"status":"done","target":"tea-radio","detail":"off"}
+SAY  Radio back on. Trying to sit in the Tea House.
+ACT  {"id":"sit-tea","action":{"type":"sit"}}
+OBS
+OBS
+SAY  Seated in `tea-booth-right` (seats aren't listed in the scene, but `sit` found one). Standing and heading to Kova's Spices (shop-106), ~23 m away.
+ACT  {"id":"stand-tea","action":{"type":"stand"}}
+  -> "outcome":{"ok":true,"status":"seated","target":"tea-booth-right"}

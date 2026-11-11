@@ -3,6 +3,7 @@ import { useGLTF } from '@react-three/drei';
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import * as THREE from 'three';
 import { createTeaElevatorAssembly } from './teaElevatorAssembly';
+import { extendGltf } from './gltfExtensions';
 import { type TeaElevatorController } from './teaElevator';
 import type { SoundDirector } from './soundDirector';
 import { TEA_FLOORS } from './teaBuilding';
@@ -11,7 +12,7 @@ import { registerCameraObstacle } from './cameraClearance';
 import type { WalkColliders } from './walkColliders';
 import type { WalkFrameInfo } from './walkOverride';
 export function TeaElevator({controller,walk,url,frame,getDirector}:{controller:TeaElevatorController;walk:WalkColliders;url:string;frame?:RefObject<WalkFrameInfo|null>;getDirector?:()=>SoundDirector|null}) {
-  const resident=useGLTF(url);const scene=useThree(s=>s.scene);const assembly=useRef<ReturnType<typeof createTeaElevatorAssembly>|null>(null);const generation=useRef(0);const priorPhase=useRef(controller.phase);
+  const gl=useThree(s=>s.gl);const resident=useGLTF(url,true,true,extendGltf(gl));const scene=useThree(s=>s.scene);const assembly=useRef<ReturnType<typeof createTeaElevatorAssembly>|null>(null);const generation=useRef(0);const priorPhase=useRef(controller.phase);
   useLayoutEffect(()=>{
     const token=++generation.current;const a=createTeaElevatorAssembly();assembly.current=a;
     const placeholders:THREE.Mesh[]=[];resident.scene.traverse(o=>{if((o as THREE.Mesh).isMesh&&o.userData.elevatorDoor)placeholders.push(o as THREE.Mesh);});

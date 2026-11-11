@@ -1,10 +1,13 @@
 import type { MiddlewareHandler } from "hono";
 import { resolveAgentFromToken } from "../auth/resolveAgent";
 import { setPresence, API_PRESENCE_TTL_SECONDS } from "../presence";
-import { checkAndConsumeVisit } from "../policy/visits";
+import { checkAndConsumeVisit, refundVisitAction } from "../policy/visits";
 import { announceVisitEnded } from "../ws/gateway";
 
-export const agentAuth: MiddlewareHandler<{ Variables: { agentId: string } }> = async (
+// `countVisit: false` still enforces the visit (deadline, cap) but leaves the
+// counting to the route, for calls that count only when they really act
+// (POST /world/act: a retried id, a 429 or an invalid action is not an action).
+const makeAgentAuth = (countVisit: boolean): MiddlewareHandler<{ Variables: { agentId: string } }> => async (
   c,
   next,
 ) => {
@@ -28,7 +31,7 @@ export const agentAuth: MiddlewareHandler<{ Variables: { agentId: string } }> = 
   // Visit enforcement, before the call counts as anything else: an agent
   // whose visit just ended (deadline or action cap) gets rejected here, not
   // let through and caught later.
-  const visit = await checkAndConsumeVisit(agent.id, c.req.method);
+  const visit = await checkAndConsumeVisit(agent.id, countVisit ? c.req.method : "GET");
   if (!visit.allowed) {
     if (visit.ended) await announceVisitEnded(visit.ended);
     return c.json({ error: "visit_ended", reason: visit.reason }, 403);
@@ -44,4 +47,18 @@ export const agentAuth: MiddlewareHandler<{ Variables: { agentId: string } }> = 
   // slowing a request over.
   setPresence(agent.id, API_PRESENCE_TTL_SECONDS).catch(() => {});
   await next();
+
+  // No-charge-on-refusal for the visit counter: the consume above ran
+  // before the handler (the cap/deadline refusal must precede handler
+  // work), so a request the handler then refuses — a 400 validation, a
+  // 403, a 429 gate — performed no action and must not spend one. Give
+  // the action back on any error response; only a call that actually
+  // acted (2xx/3xx) keeps its charge. Best-effort: the response is
+  // already built, and a failed refund must never replace it.
+  if (countVisit && visit.consumed && visit.visitId && c.res.status >= 400) {
+    await refundVisitAction(visit.visitId).catch(() => {});
+  }
 };
+
+export const agentAuth = makeAgentAuth(true);
+export const agentAuthUncounted = makeAgentAuth(false);

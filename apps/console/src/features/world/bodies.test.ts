@@ -2,9 +2,15 @@ import { describe, expect, it } from "vitest";
 import { CAST_HIPS_Y, seatedRootY, type Anchor } from "./embody";
 import {
   BARBARIAN_HIPS_Y,
+  CIPHER_HIPS_Y,
+  SCALE_CIPHER,
   BODIES,
   BODY_BARBARIAN,
   BODY_CAST,
+  BODY_CIPHER,
+  BODY_EVE,
+  EVE_HIPS_Y,
+  SCALE_EVE,
   BODY_KNIGHT,
   BODY_MAGE,
   BODY_REMY,
@@ -23,6 +29,7 @@ import {
   KNIGHT_HIPS_Y,
   MAGE_HIPS_Y,
   SUMMER_HIPS_Y,
+  agentBodies,
   bodyForMember,
   cruiseCapForBody,
   excludeBody,
@@ -58,6 +65,8 @@ describe("realistic heights (display scale)", () => {
       [BODY_BARBARIAN, SCALE_BARBARIAN, BARBARIAN_HIPS_Y],
       [BODY_KNIGHT, SCALE_KNIGHT, KNIGHT_HIPS_Y],
       [BODY_SKELETON_WARRIOR, SCALE_SKELETON_WARRIOR, SKELETON_WARRIOR_HIPS_Y],
+      [BODY_CIPHER, SCALE_CIPHER, CIPHER_HIPS_Y],
+      [BODY_EVE, SCALE_EVE, EVE_HIPS_Y],
     ];
     for (const [b, sc, hips] of cases) {
       expect(b.scale).toBe(sc);
@@ -74,6 +83,8 @@ describe("realistic heights (display scale)", () => {
       [1.293, SCALE_BARBARIAN, 1.7],
       [1.293, SCALE_KNIGHT, 1.7],
       [1.3, SCALE_SKELETON_WARRIOR, 1.7],
+      [1.3, SCALE_CIPHER, 1.78],
+      [1.3, SCALE_EVE, 1.65],
     ];
     for (const [h, sc, target] of heights) expect(h * sc).toBeCloseTo(target, 2);
   });
@@ -123,6 +134,14 @@ describe("body registry", () => {
     expect(BODY_SKELETON_WARRIOR.url).toBe("/assets/cast-skeleton-warrior.glb");
     expect(BODY_SKELETON_WARRIOR.hipsY).toBeCloseTo(SKELETON_WARRIOR_HIPS_Y * SCALE_SKELETON_WARRIOR, 9);
     expect(BODIES["skeleton-warrior"]).toBe(BODY_SKELETON_WARRIOR);
+    expect(bodyForMember({ body: "cipher" })).toBe(BODY_CIPHER);
+    expect(BODY_CIPHER.url).toBe("/assets/cast-cipher.glb");
+    expect(BODY_CIPHER.hipsY).toBeCloseTo(CIPHER_HIPS_Y * SCALE_CIPHER, 9);
+    expect(BODIES.cipher).toBe(BODY_CIPHER);
+    expect(bodyForMember({ body: "eve" })).toBe(BODY_EVE);
+    expect(BODY_EVE.url).toBe("/assets/cast-eve.glb");
+    expect(BODY_EVE.hipsY).toBeCloseTo(EVE_HIPS_Y * SCALE_EVE, 9);
+    expect(BODIES.eve).toBe(BODY_EVE);
   });
 
   it("every body carries a measured natural walk speed", () => {
@@ -160,6 +179,42 @@ describe("body registry", () => {
     expect(seatedRootY(bench, BODY_SUMMER.hipsY)).toBeCloseTo(bench.seatHeight - BODY_SUMMER.hipsY);
     expect(seatedRootY(bench, BODY_SUMMER.hipsY)).not.toBeCloseTo(seatedRootY(bench, BODY_CAST.hipsY));
     expect(seatedRootY(bench, BODY_MAGE.hipsY)).toBeCloseTo(bench.seatHeight - BODY_MAGE.hipsY);
+  });
+});
+
+describe("agentBodies — the agent-pickable set (Jim's ruling, 2026-11-11)", () => {
+  it("never offers mage or skeleton-warrior to an agent: too short, cast-only", () => {
+    expect(BODY_MAGE.agentBody).toBe(false);
+    expect(BODY_SKELETON_WARRIOR.agentBody).toBe(false);
+    const ids = agentBodies().map((b) => b.id);
+    expect(ids).not.toContain("mage");
+    expect(ids).not.toContain("skeleton-warrior");
+  });
+
+  it("never offers Body Block to an agent: off the roster, cast-only", () => {
+    expect(BODY_CAST.agentBody).toBe(false);
+    expect(agentBodies().map((b) => b.id)).not.toContain("cast");
+  });
+
+  it("keeps every other registered body pickable", () => {
+    expect(agentBodies().map((b) => b.id).sort()).toEqual([
+      "barbarian",
+      "cipher",
+      "eve",
+      "knight",
+      "remy",
+      "summer",
+    ]);
+  });
+
+  it("cast resolution ignores eligibility: members still wear all three removed bodies", () => {
+    expect(bodyForMember({ body: "mage" })).toBe(BODY_MAGE);
+    expect(bodyForMember({ body: "skeleton-warrior" })).toBe(BODY_SKELETON_WARRIOR);
+    expect(bodyForMember({ body: "cast" })).toBe(BODY_CAST);
+    expect(bodyForMember({})).toBe(BODY_CAST);
+    expect(BODIES.mage).toBe(BODY_MAGE);
+    expect(BODIES["skeleton-warrior"]).toBe(BODY_SKELETON_WARRIOR);
+    expect(BODIES.cast).toBe(BODY_CAST);
   });
 });
 

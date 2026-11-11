@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useSyncExternalStore, type RefObject } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
+import { extendGltf } from "./gltfExtensions";
 import * as THREE from "three";
 import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { verticalExcess, type AgentFrame } from "./locomotion";
@@ -12,6 +13,7 @@ import { approach, cycleRateFor, gaitTargets, runTimeForWalkPhase, type GaitSpec
 import { clipMinClearance, contactPoints, groundingOffset, rootMotionDelta, soleClearance } from "./grounding";
 import { FootLock, footLockEnabled } from "./footLock";
 import { createFootContactShadows } from "./contactShadow";
+import { applyDissolve, createDissolveDepthMaterial, type Dissolve } from "./dissolve";
 
 // CastFigure — a cast bot (a "body" from bodies.ts: a rigged GLB plus
 // its measured hips and clip catalog) driven by the same AgentFrame
@@ -107,7 +109,18 @@ export function CastFigure({
   headPoseRef,
   playingClipRef,
   renderedReadyRef,
+  dissolve,
 }: {
+  /**
+   * Dissolve (dissolve.ts): when the driver supplies one (RemoteCast, for
+   * server bodies), this figure's materials are cloned per figure and
+   * injected, and the figure materializes in / dissolves out on the
+   * Dissolve's ramp instead of popping. The driver owns the clock — it
+   * calls dissolve.update(dt) per frame; this component only reads
+   * progress (for the contact-shadow fade). Absent everywhere else: the
+   * local cast's materials stay shared and untouched.
+   */
+  dissolve?: Dissolve;
   /**
    * Head-bone stream for the first-person camera (cameraRig): when
    * present (the Embody panel's focus figure only), the figure writes
@@ -153,7 +166,8 @@ export function CastFigure({
   // Mobile Phase 3: at the lite tier a body with a Lite variant
   // (bodies.ts liteUrl — resampled/quantized) loads that instead.
   const quality = useSyncExternalStore(qualityStore.subscribe, qualityStore.getSnapshot);
-  const gltf = useGLTF(quality.tier === "lite" && body.liteUrl ? body.liteUrl : body.url);
+  const gl = useThree((s) => s.gl);
+  const gltf = useGLTF(quality.tier === "lite" && body.liteUrl ? body.liteUrl : body.url, true, true, extendGltf(gl));
   const group = useRef<THREE.Group>(null);
 
   // Own skeleton + own scene graph per cast member, shown at the body's display scale (bodies.ts: realistic heights).
@@ -188,6 +202,47 @@ export function CastFigure({
       }
     });
   }, [scene, index]);
+
+  // Dissolve material pass (see the `dissolve` prop): clone every standard
+  // material on this figure and inject the burn. Materials arrive shared
+  // across clones of the same GLB (the accent pass above clones only its
+  // named parts), so injecting a shared instance would dissolve every body
+  // wearing it — the per-figure clone, keyed by source material so meshes
+  // sharing one still share ours, is the isolation. Runs after the accent
+  // pass, so it wraps whatever material each mesh finally wears. The depth
+  // material is the same injection, so the figure's shadow (where a surface
+  // enables shadow casting) burns away with the body instead of popping.
+  // The dissolve field lives in bind-pose geometry space: hand it the
+  // union of the meshes' local bounds so the height bias sweeps the real
+  // body, whatever rig family authored it.
+  useMemo(() => {
+    if (!dissolve) return;
+    const own = new Map<THREE.Material, THREE.Material>();
+    const depth = createDissolveDepthMaterial(dissolve);
+    const box = new THREE.Box3();
+    scene.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      o.customDepthMaterial = depth;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      const replaced = mats.map((m) => {
+        if (!(m instanceof THREE.MeshStandardMaterial)) return m;
+        let c = own.get(m);
+        if (!c) {
+          c = m.clone();
+          applyDissolve(c, dissolve);
+          own.set(m, c);
+        }
+        return c;
+      });
+      o.material = Array.isArray(o.material) ? replaced : replaced[0];
+      o.geometry.computeBoundingBox();
+      if (o.geometry.boundingBox) box.union(o.geometry.boundingBox);
+    });
+    if (!box.isEmpty()) {
+      dissolve.uniforms.uLocalMinY.value = box.min.y;
+      dissolve.uniforms.uLocalHeight.value = Math.max(0.001, box.max.y - box.min.y);
+    }
+  }, [scene, dissolve]);
 
   // Measure the (scaled) figure so the floor lift tracks its real bounds.
   const fit = useMemo(() => {
@@ -656,6 +711,16 @@ export function CastFigure({
       footLock.reset();
     }
     contactShadows.update(scene, grp, baseY, !!f?.gait && !ov && !activeTest.current && seated === 0);
+    // Dissolving bodies lose their foot shadows with their feet: the marks'
+    // opacity was just written by update(), so scale what it wrote.
+    if (dissolve && dissolve.progress > 0) {
+      const keep = 1 - dissolve.progress;
+      contactShadows.group.traverse((o) => {
+        if (!(o instanceof THREE.Mesh)) return;
+        const m = o.material;
+        if (!Array.isArray(m) && m instanceof THREE.MeshBasicMaterial) m.opacity *= keep;
+      });
+    }
     // Head-bone stream for the ride camera: written AFTER the mixer
     // and every position adjustment above, so the camera anchors on
     // the head as it actually renders this frame (bob, sway and seat

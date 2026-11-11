@@ -6,6 +6,7 @@
 import {
   takeToken,
   takeTokens,
+  refundTokens,
   admitConversationIfUnderLimit,
   removeConversationAdmission,
   activeConversationCount,
@@ -110,6 +111,29 @@ export async function checkFanoutBudget(
     fanoutBudgetRefillPerSecond(),
   );
   return allowed ? { allowed: true } : { allowed: false, reason: "fanout_budget_exceeded" };
+}
+
+// Compensating action for checkFanoutBudget, same saga pattern as
+// refundBudget: the fanout gate runs FIRST in the send path (so its own
+// refusal never burns the token budget), which means every LATER refusal —
+// budget exceeded, agent rate, room rate — and every failed publish has
+// already taken this charge for a message that will never be delivered.
+// Callers refund it on exactly those exits, recomputing the charge from
+// the same inputs the check used (same conversation, same audience), so
+// the amount returned is the amount taken. A disabled gate (capacity
+// "inf") consumed nothing, so it refunds nothing.
+export async function refundFanoutBudget(
+  conversation: { id: string; roomId: string | null; kind: string },
+  audienceSize: number,
+): Promise<void> {
+  const capacity = fanoutBudgetCapacity();
+  if (!Number.isFinite(capacity)) return;
+  const priced =
+    conversation.roomId != null ||
+    conversation.kind === "room" ||
+    (conversation.kind === "group" && audienceSize + 1 >= fanoutBudgetGroupMinParticipants());
+  const charge = priced ? Math.max(1, audienceSize) : 1;
+  await refundTokens(`fanout:${conversation.id}`, charge, capacity, fanoutBudgetRefillPerSecond());
 }
 
 export async function checkConversationAdmission(agentId: string): Promise<GateResult> {

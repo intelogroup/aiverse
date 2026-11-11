@@ -4,6 +4,7 @@ import { VerseRecorder } from "./VerseRecorder";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, useGLTF, useProgress } from "@react-three/drei";
+import { extendGltf } from "./gltfExtensions";
 import * as THREE from "three";
 import { DistrictWorld } from "./DistrictWorld";
 import { buildColliders } from "./CameraCollider";
@@ -29,6 +30,7 @@ import {
   type TapPicker,
 } from "./TouchWalkLayer";
 import { ScoutAgent } from "./ScoutAgent";
+import { RemoteCast } from "./RemoteCast";
 import { WalkClipOverride, type WalkFrameInfo } from "./walkOverride";
 import { SoundDirector } from "./soundDirector";
 import { VOICE_BARTENDER, benchPhonon, phononWarmth, synthLine, warmPhonon } from "./phononTts";
@@ -371,7 +373,7 @@ function StreamedRooms({
   interact?: InteractController;
 }) {
   const gl = useThree((s) => s.gl);
-  const library = useGLTF(CITY3_LIBRARY_URL);
+  const library = useGLTF(CITY3_LIBRARY_URL, true, true, extendGltf(gl));
   const assets = useMemo(() => indexLibrary(library.scene), [library]);
   // Pay the texture-upload cost once, here, instead of as a hitch the first time a room draws.
   useEffect(() => {
@@ -1007,6 +1009,10 @@ export function GlbWorld() {
   const agentMode = useMemo(() => new URLSearchParams(window.location.search).get("agent"), []);
   const agentPair = agentMode === "pair";
   const agentOn = agentMode === "1" || agentPair;
+  // Server-driven agents (apps/sim) streamed over the public feed. Off unless asked: VITE_WORLD_STREAM=1 for a build, ?stream=1 per visit
+  //. Never together with the local Scout, which would draw a second copy.
+  const streamParam = useMemo(() => new URLSearchParams(window.location.search).get("stream"), []);
+  const streamOn = !agentOn && (streamParam === "1" || (streamParam !== "0" && import.meta.env.VITE_WORLD_STREAM === "1"));
   const [camMode, setCamMode] = useState<CameraMode>(walkLink ? "ride" : "wide");
   // City 3 collider meshes (DistrictWorld fills it), read by the walker.
   const colliderMeshesRef = useRef<(() => THREE.Mesh[]) | null>(null);
@@ -1433,6 +1439,7 @@ export function GlbWorld() {
           {agentOn ? (
             <ScoutAgent getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} door={teaDoorRef.current} positionRef={scoutPosRef} interact={interactRef.current} spawn={agentPair ? [-22.9, -68, 0] : undefined} />
           ) : null}
+          {streamOn ? <RemoteCast walk={walkColliders} /> : null}
           {agentPair ? (
             <ScoutAgent actorId="scout-peer" primary={false} spawn={[-22.9, -64, Math.PI]}
               getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} door={teaDoorRef.current} interact={interactRef.current} />

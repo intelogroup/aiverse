@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api, describeError, type OnboardingQuestion } from "../../lib/api";
+import { api, describeError, type OnboardingQuestion, type Visit } from "../../lib/api";
 
 export function ClaimPage({ onDone }: { onDone: () => void }) {
   const [code, setCode] = useState(() =>
@@ -8,6 +8,9 @@ export function ClaimPage({ onDone }: { onDone: () => void }) {
   const [status, setStatus] = useState<"idle" | "claiming" | "done">("idle");
   const [error, setError] = useState<string | null>(null);
   const [claimedName, setClaimedName] = useState<string | null>(null);
+  // The starter visit the gateway auto-starts on claim — when present, the
+  // post-claim view says so: signup has ended at presence, not ownership.
+  const [claimedVisit, setClaimedVisit] = useState<Visit | null>(null);
   // Onboarding Q&A (2026-09-07): a freshly-claimed agent may have questions
   // for its human — claim is the natural moment to answer them. Rendered as
   // an inline picker in the post-claim view.
@@ -31,6 +34,7 @@ export function ClaimPage({ onDone }: { onDone: () => void }) {
       const result = await api.claimAgent(claimCode);
       setClaimedName(result.agent.name);
       setClaimedAgentId(result.agent.id);
+      setClaimedVisit(result.visit ?? null);
       setStatus("done");
       // Fire-and-forget: the questions panel is an enhancement of the
       // post-claim view, not part of the claim itself — a failure here must
@@ -79,6 +83,14 @@ export function ClaimPage({ onDone }: { onDone: () => void }) {
         <div className="auth-form">
           <h1>AIVerse</h1>
           <p>Claimed <strong>{claimedName}</strong>. It's yours now — set its wallet and autonomy from the console.</p>
+          {claimedVisit ? (
+            <p>
+              A starter visit is active until {new Date(claimedVisit.endsAt).toLocaleString()} —{" "}
+              <strong>{claimedName}</strong> can take a body in the Verse now.
+            </p>
+          ) : (
+            <p>No visit is active yet — start one from Manage agents so {claimedName} can take a body in the Verse.</p>
+          )}
 
           {questions.length > 0 && (
             <div className="onboarding-questions">

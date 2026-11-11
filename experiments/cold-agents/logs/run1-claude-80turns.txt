@@ -1,0 +1,122 @@
+OBS
+OBS
+ACT  {}
+SAY  I've attached a body in City 3 at roughly (5.7, 10.6), near stall-40. Next I'll head to the Great Hall and then a few named shops.
+ACT  {"id":"go-hall-1","action":{"type":"go_to","place":"hall-0"}}
+OBS
+  -> "outcome":{"ok":false,"status":"blocked","detail":"no safe route","target":"hall-0"}
+SAY  The Great Hall came back "no safe route", so I'll try the nearby stall-40 instead.
+ACT  {"id":"go-s40","action":{"type":"go_to","place":"stall-40"}}
+OBS
+OBS
+OBS
+  -> "outcome":{"ok":true,"status":"arrived","target":"stall-40"}
+SAY  Made it to stall-40, my first real place. The scene only lists place markers, no objects or other agents. Next I'll try `interact` with the stall, then head for a shop.
+ACT  {"id":"int-s40","action":{"type":"interact","target":"stall-40"}}
+  -> "outcome":{"ok":false,"status":"unavailable","detail":"unknown prop: stall-40"}
+ACT  {"id":"go-shop96","action":{"type":"go_to","place":"shop-96"}}
+OBS
+OBS
+OBS
+OBS
+SAY  Still walking north toward Sage's Library (shop-96), now near stall-42/43 at z≈44.
+OBS
+OBS
+SAY  A door showed up in the scene: Salt Road Trading, marked enterable. Still walking.
+OBS
+OBS
+OBS
+OBS
+SAY  Loops aren't permitted here, so I'll keep polling one call at a time.
+OBS
+OBS
+OBS
+OBS
+OBS
+SAY  Sage's Library is in sight, about 22 m away.
+OBS
+OBS
+OBS
+OBS
+OBS
+SAY  I'm at the library door, about 2 m away. Next I'll try to enter it with `interact`.
+ACT  {"id":"enter-96","action":{"type":"interact","target":"shop-96"}}
+  -> "outcome":{"ok":true,"status":"arrived","target":"shop-96"}
+OBS
+  -> "outcome":{"ok":false,"status":"unavailable","detail":"unknown prop: shop-96"}
+SAY  Interacting with the door by its ID returns "unknown prop", so I'll try one other naming guess.
+ACT  {"id":"enter-96b","action":{"type":"interact","target":"shop-96-door"}}
+  -> "outcome":{"ok":false,"status":"unavailable","detail":"unknown prop: shop-96-door"}
+SAY  Rather than keep guessing, I'll check the docs page for how entering doors works.
+SAY  The docs page is a JavaScript single-page app, so curl can't read it. Working from coordinates instead: I estimate the door at about (-23.1, 122.5). I'll try walking through it to a point behind it.
+ACT  {"id":"in-96-pt","action":{"type":"go_to","point":[-23.1,119]}}
+OBS
+SAY  That worked: I'm inside Sage's Library (`insideRoom` is set). The room shows no props. Next I'll try `sit` to see whether there's furniture.
+ACT  {"id":"sit-96","action":{"type":"sit"}}
+  -> "outcome":{"ok":false,"status":"unavailable","detail":"no sittable within reach"}
+SAY  Nothing to sit on within reach. I'll turn around to look the other way.
+ACT  {"id":"face-96","action":{"type":"face","headingDeg":0}}
+SAY  Inside the library the scene shows nothing but the room itself. Next I'll run to Cloth & Dye (shop-95), about 20 m west.
+ACT  {"id":"run-95","action":{"type":"run_to","place":"shop-95"}}
+OBS
+SAY  Running is much faster: 3.6 m/s versus 1.3 m/s walking. Ink & Quill (shop-94) is right next door.
+ACT  {"id":"run-94","action":{"type":"run_to","place":"shop-94"}}
+  -> "outcome":{"ok":true,"status":"arrived","target":"shop-95"}
+OBS
+  -> "outcome":{"ok":true,"status":"arrived","target":"shop-94"}
+SAY  At Ink & Quill, which seems to be the end of this row. I'll retry the Great Hall from here.
+ACT  {"id":"run-hall-2","action":{"type":"run_to","place":"hall-0"}}
+  -> "outcome":{"ok":false,"status":"blocked","detail":"no safe route","target":"hall-0"}
+SAY  The Great Hall is still unreachable ("no safe route"). I'll try the unique Kronikler Press (shop-98) instead.
+ACT  {"id":"run-98","action":{"type":"run_to","place":"shop-98"}}
+OBS
+OBS
+OBS
+OBS
+SAY  The Kronikler Press door has the ID `press` rather than `shop-98`, so the door IDs don't always match the place IDs.
+OBS
+OBS
+  -> "outcome":{"ok":true,"status":"arrived","target":"shop-98"}
+SAY  I'm at Kronikler Press. I'll test whether `interact` works with the door ID `press`.
+ACT  {"id":"int-press","action":{"type":"interact","target":"press"}}
+  -> "outcome":{"ok":false,"status":"unavailable","detail":"unknown prop: press"}
+SAY  `interact` fails on doors too, so I'll walk through. I estimate the door at about (-27.1, 72.5) with the interior on the +z side.
+ACT  {"id":"in-press-pt","action":{"type":"go_to","point":[-27.1,76]}}
+OBS
+  -> "outcome":{"ok":true,"status":"arrived"}
+SAY  I'm inside Kronikler Press. Again, the room has no visible props. I'll try `play` with a guessed clip name, since the card doesn't list any.
+ACT  {"id":"play-wave","action":{"type":"play","clip":"wave"}}
+SAY  The clip "wave" was rejected as invalid, and no list of valid clips is published. Next stop: Matchmaker's Tea House (shop-102).
+ACT  {"id":"run-102","action":{"type":"run_to","place":"shop-102"}}
+OBS
+SAY  Running south through what looks like a market grid of stalls (stall-2, 3, 6, 7, 10, 11).
+OBS
+OBS
+OBS
+OBS
+OBS
+OBS
+SAY  Still running south through the southern stall grid (stalls 20–27) toward the Tea House. I'm about 6 minutes of world time into the visit.
+OBS
+  -> "outcome":{"ok":true,"status":"arrived","target":"shop-102"}
+SAY  I've reached Matchmaker's Tea House; its door ID is `tea`. Using the same geometry, I'll walk through to a point inside.
+ACT  {"id":"in-tea-pt","action":{"type":"go_to","point":[-22.9,-76]}}
+SAY  There's a real interactable here: a Radio (`tea-radio`, currently off).
+OBS
+SAY  I'm inside the Tea House, but movement has slowed to a crawl. I'll stop and switch on the radio.
+ACT  {"id":"stop-tea","action":{"type":"stop"}}
+OBS
+SAY  The radio `interact` is walking me to it: the body is playing an `OpenDoorInwards` clip at the door. I'll wait for it to finish.
+OBS
+OBS
+  -> "outcome":{"ok":true,"status":"done","target":"tea-radio","detail":"on"}
+SAY  The radio is now on: `interact` walks to the prop and toggles its state. Next I'll try sitting, since a tea house may have seats.
+ACT  {"id":"sit-tea","action":{"type":"sit"}}
+OBS
+OBS
+  -> "outcome":{"ok":true,"status":"seated","target":"tea-booth-right"}
+SAY  I'm seated in `tea-booth-right`, even though the booth never appeared in the scene list. I'll stand up, switch the radio back off to leave the room as I found it, then head to Rekinder Lamps.
+ACT  {"id":"stand-tea","action":{"type":"stand"}}
+ACT  {"id":"radio-off","action":{"type":"interact","target":"tea-radio"}}
+  -> "outcome":{"ok":true,"status":"stood","target":"tea-booth-right"}
+  -> "outcome":{"ok":false,"status":"blocked","target":"tea-radio","detail":"no progress for 2.5 s, 1.8 m out"}

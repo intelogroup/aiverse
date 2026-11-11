@@ -274,3 +274,54 @@ normalize to them"; chosen targets: Remy 1.78, Summer 1.68, Body Block 1.75, Kay
   3.59 m/s; bar shot with Summer and the bartender; Agora crowd proportions vs benches/trees (A/B against main: the bench no longer reaches her
   chest). The Agora embody `sit_on` did not complete within 3 min in this harness on main either (not caused by the scale; open).
 - Not measured: foot-lock skate numbers at the new scale (`gait_full.mjs` does not apply the display scale yet).
+
+## `packages/world-sim`: the pure half of the walker (2026-11-10, branch `feat/world-sim`)
+The server-side agent sim needs the same walker, collision, navigation, scout executor and door/prop controllers the console runs, without a browser. They now live in
+`packages/world-sim/src` (17 modules: actors, bodies, bodyController, capsuleWorld, clips, embody, gait, interactables, keeper, navigation, scout, teaBuilding, teaDoor,
+teaElevator, walkColliders, walkOverride, walker, + `locomotionState`). The console keeps a ONE-LINE shim at each old path (`export * from "@aiverse/world-sim/<name>"`), so its
+64 importing files and their tests are unchanged; the tests still live in `apps/console/src/features/world/` and run there.
+- **Purity guard**: `apps/console/tests/world-sim-purity.test.ts` fails if a package module imports anything but the package, `three` or `three-mesh-bvh`, uses a browser global
+  (`window`, `document`, `localStorage`, `AudioContext`, `requestAnimationFrame`, ...) or loses its shim. `locomotion.ts` stays in the console (Recast WASM); only its
+  `LocomotionState` type moved (`locomotionState.ts`), `locomotion.ts` re-exports it.
+- **One three**: the package and the console must resolve the SAME `three` (same version spec); a second copy breaks `instanceof` between meshes. Checked: both `readlink -f` to one store dir.
+- **Lesson**: my first dependency audit only matched double-quoted imports and missed `teaElevator -> './teaBuilding'` (single quotes); `tsc -b` caught it. Audit with both quote styles, or just let tsc and the guard test find it.
+- **Measured headless (Bun 1.4.4, 4-core sandbox)**: collision GLBs load + BVH 163 ms (87k tris); a walker step is about 42-45 us (500 agents = 62-65% of one core at 10 Hz); `planRoute` is
+  98-528 ms for a reachable goal and 7.8-17.9 s for an unreachable one (it exhausts its 10,000 expansions), so planning must never run on a tick thread.
+
+### Headless agent body on a navmesh (2026-11-10, branch `feat/world-sim-body`)
+`AgentBody` (one agent: `WalkerState` + `ScoutExecutor` + `ClipTestState`, the part of `ScoutAgent.tsx` that is not React) and `VerseSim` (the world: collision sets, the shared
+Tea House door and prop controllers, every body, 1/30 s substeps) are in `packages/world-sim/src`; `node/loadWorld.ts` reads the shipped City 3 data from disk. Test:
+`apps/console/tests/verse-sim.test.ts` (node env, 2.5 s). A new body spawns at (5.68, 0.20, 10.57), exactly where the browser scout spawns.
+- **Planner: Detour navmesh, not the grid A\*** (`cityNav.ts`, taken from PR #75; its scout/separation/console wiring were not taken). Same `go_to` to 32 places: grid A\* arrived
+  20/32, worst single tick 55.6 s, 690 s wall; Detour 32/32, worst tick 14 ms, 3 s wall. All 158 places: 157 reachable. The mesh is baked by `node/bakeNavmesh.ts`
+  from the sim's own collision sets (Bazaar + districts + hero-room furniture boxes, without the closed-door blocker) into `packages/world-sim/data/` (8.5 MB, ~2.6 MB compressed);
+  the test fails if `world-city3-collision.glb` changes without a rebake.
+- **Lesson, climb limit**: PR #75's bake (maxClimb 0.4 at 0.2 m cells) read a 0.5 m curb as climbable (Recast rounds the climb up) while the walker's step-up is 0.4, so bodies stalled
+  at it (149/158 places). Bake with maxClimb 0.31 at 0.1 m cells and erosion = the walker's radius 0.4.
+- **Lesson, same world**: a mesh baked from the Bazaar collision alone routed bodies through Tea House booths and tables (interior furniture boxes are separate collision sets), and
+  a run passed or failed on float noise (Bun vs Node). Bake from every set the walker collides with, then the sequence passes under both runtimes.
+- **Bun vs Node**: the 8-step Tea House sequence (stall, door, sit, stand, radio on/off, exit) ends within 0.75 m of the Bun goldens under vitest/Node. Browser parity is only anchored
+  on the first step (browser ended it at (-16.59, 14.88), headless at (-16.49, 15.13)): the browser run of the Tea House step did not finish in 9 min of software-rendered wall time
+  (`harness/verse_parity.cjs`), so later steps are headless regression goldens.
+- **Known gaps**: avoidance has no occlusion test (a body may yield to a mover behind a wall); no elevator controller (upper floors); `hall-0` was unreachable until 2026-11-11 (its stand sat on the hall's wall line; moved 2.5 m off to `[34.5, -74.0]` in `city3-places.json`, all 158 places now reachable; the hall is still doorless);
+  the navmesh does not model the Tea House door (the door machine opens the blocker on the way).
+
+
+### Server sim service + `/world` API (M4, 2026-11-10, branch `feat/sim-service`)
+A remote agent gets a body that lives on the server: `apps/sim` (own Bun process, private port) holds `VerseSim`; the **gateway is the only public edge** (`routes/world.ts`, behind
+`agentAuth`). The sim never sees an agent token: the gateway forwards `{agentId, visitId, expiresAtMs}` with a shared secret and the header `x-sim-api: 1`.
+- **Enable**: `AIVERSE_WORLD_MODE=1` + `SIM_URL` + `SIM_INTERNAL_SECRET` (>= 32 chars, same value on both sides, never logged or put in docs/cards). Sim only: `SIM_PORT`, `SIM_HOST`,
+  `SIM_ASSETS_DIR`, `SIM_MAX_BODIES` (default 200). The agent card advertises `x-aiverse-world` only when both flags are set. The 8.5 MB navmesh bin ships with the sim image.
+- **Routes** (all need an ACTIVE visit, else 403 `no_visit`): `POST /world/body`, `DELETE /world/body`, `POST /world/act {id, action}` -> 202 `{act:{state:"running"}}`,
+  `GET /world/act/:id` (poll until `settled`, has `outcome`), `GET /world/observe` (body snapshot, nearest place, room, `oracleScene`, last act), `GET /world/map` (places).
+  Only `act` is a non-GET, so only `act` spends the visit's `maxActions`; polls and observe are free.
+- **Action contract**: `validAction`/`ActionLedger` live in `packages/world-sim/src/actionProtocol.ts` (`tools/embodied/protocol.ts` re-exports). Same id + same action = same record
+  (idempotent); same id + different action = 409 `id_conflict`; one action in flight per body (`rejected/busy`); `stop` cancels; no teleport, no `say`.
+- **Limits**: act 2/s, reads 5/s per agent (token bucket, burst 2x); body 4 KB; 200 bodies per process; sim-time lease 30 s without a touch stops a busy body.
+- **Lifecycle**: `forceDisconnectAgent` (pause, kill, key rotation, delete, visit end) calls `notifyAgentGone` -> `DELETE /bodies/:id` on the sim (mutation-tested: removing the hook fails
+  the pause test). The sim also expires each body at `expiresAtMs` as a second line.
+- **Failure modes**: sim down/slow -> 503 `world_unavailable` after 2 s (no gateway worker hangs); wrong secret or version -> 502; **sim restart loses all bodies** until M6 persistence
+  (agent sees `no_body`, re-attaches).
+- **Tests**: `apps/gateway/src/routes/world.test.ts` (real gateway app + Postgres/Redis + HTTP to a real sim on the real City 3 world: attach, `go_to` Tea House door arrived within 1.5 m,
+  replay, conflict, visit stop, pause, no visit, dead sim, wrong secret), `apps/sim/src/server.test.ts`, `apps/console/tests/world-service.test.ts`.
+- **Not done**: `look` (depth/class ray map, M4b); sensorium-guard coverage of `/world`; viewer stream (M5); persistence/budgets/natives (M6). No deploy config touched.

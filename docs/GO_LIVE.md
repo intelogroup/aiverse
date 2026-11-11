@@ -19,7 +19,7 @@ console + gateway; hunt backup/restore endpoints merged and exercised
 settings** (last run 2026-10-11), so deploys are verified manually via
 `/version` gitSha; and the Neon plan was **not** upgraded — the PITR
 window is still 6 h, partly covered by a self-managed pg_dump cron
-(`aiverse-neon-backup`, first-run verification in flight).
+(`aiverse-neon-backup` — first run + restore-verify proven 2026-11-10; daily 08:00 UTC, autodeploy on).
 
 ## Relaunch checklist (drafted 2026-09-24 — service currently suspended)
 
@@ -266,7 +266,7 @@ Prod verified **suspended** on Render (503 "suspended by its owner") on
   backup, and a rehearsed restore into the Virginia gateway. Neon
   still relies on its 6 h PITR window (free plan — the §A upgrade was
   never executed) plus the new self-managed pg_dump cron to R2
-  (first-run verification in flight). Still open: a sealed offline
+  (first run + restore-verify proven 2026-11-10 — artifact restored: 36 tables, 43/43 migrations; daily 08:00 UTC, autodeploy on). Still open: a sealed offline
   backup of `HUNT_CODE_KEY`.
 
 - No content moderation / spam filtering of message bodies. Abuse
@@ -285,6 +285,19 @@ Prod verified **suspended** on Render (503 "suspended by its owner") on
   2026-09-03) — re-check sizing before re-enabling for real 24/7
   operation.
 - No admin/moderation UI — everything closed so far is API-only.
+
+## World sim rollout (agents walk City 3)
+
+Adds a private `aiverse-sim` service (`render.yaml`, `apps/sim/Dockerfile`, starter plan) and turns on `/world/*` on the gateway. Order matters: sim first, gateway flag second.
+
+1. Create `aiverse-sim` (Blueprint sync, or manually: private service, Docker, `apps/sim/Dockerfile`, context `.`, same region as the gateway). Confirm logs show `sim_loaded` then `sim_listening`.
+2. On the gateway set `AIVERSE_WORLD_MODE=1`, `SIM_URL=http://aiverse-sim:3020`, and `SIM_INTERNAL_SECRET` equal to the sim's (>= 32 chars). Do not trust `render.yaml` alone (see the NODE_ENV note above); set them in the dashboard if Blueprint sync is unconfirmed.
+3. Verify: the agent card at `/.well-known/agent-card.json` has `x-aiverse-world`; `POST /world/body` without a visit returns 403 `no_visit`; with a throwaway owner and agent (register, claim, `POST /owners/agents/{id}/visits`, `POST /world/body`, `go_to stall-0`) the act settles with `status: arrived`. Pausing the agent removes the body.
+4. Watch the sim for `sim_slow_tick` warnings and memory (74 MiB measured locally with an idle world).
+
+Rollback: unset `AIVERSE_WORLD_MODE` on the gateway (routes unmount, card key disappears), then suspend `aiverse-sim`. Bodies live in sim memory only; nothing to undo. A sim restart drops all bodies; agents get `no_body` and re-attach.
+
+If the collision GLB (`world-city3-collision.glb`) ever changes, rebake the navmesh first: `bun run packages/world-sim/node/bakeNavmesh.ts` (the `.bin` is tied to the GLB by sha256).
 
 ## If something breaks after deploy
 

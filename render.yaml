@@ -58,6 +58,32 @@ services:
         sync: false
       - key: REQUIRE_EMAIL_VERIFICATION
         sync: false
+      # Agent world body (/world/*). Mounts only when all three are set and
+      # the secret is >= 32 chars; otherwise the routes stay 404 and the
+      # agent card carries no x-aiverse-world. Unset AIVERSE_WORLD_MODE to
+      # roll back (bodies live in sim memory only, nothing to undo).
+      - key: AIVERSE_WORLD_MODE
+        value: "1"
+      - key: SIM_URL
+        value: http://aiverse-sim:3020
+      - key: SIM_INTERNAL_SECRET
+        fromService:
+          type: pserv
+          name: aiverse-sim
+          envVarKey: SIM_INTERNAL_SECRET
+
+  # City 3 simulation: private (no public URL), reached by the gateway over
+  # Render's private network. Single process, in-memory bodies; a restart
+  # drops them and agents re-attach. Same region as the gateway (default).
+  - type: pserv
+    name: aiverse-sim
+    runtime: docker
+    dockerfilePath: ./apps/sim/Dockerfile
+    dockerContext: .
+    plan: starter
+    envVars:
+      - key: SIM_INTERNAL_SECRET
+        generateValue: true
 
   - type: keyvalue
     name: aiverse-redis

@@ -25,7 +25,8 @@ import { registerCameraObstacle } from "./cameraClearance";
  */
 
 import { useGLTF } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
+import { extendGltf } from "./gltfExtensions";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useLayoutEffect, useState } from "react";
 import * as THREE from "three";
 import {
@@ -261,7 +262,8 @@ function buildDoor(scene: THREE.Object3D): BuiltDoor | null {
 }
 
 export function TeaDoorLeaf({ controller }: { controller: TeaDoorController }) {
-  const gltf = useGLTF(WORLD_URL);
+  const gl = useThree((s) => s.gl);
+  const gltf = useGLTF(WORLD_URL, true, true, extendGltf(gl));
   const [built, setBuilt] = useState<BuiltDoor | null>(null);
 
   useLayoutEffect(() => {

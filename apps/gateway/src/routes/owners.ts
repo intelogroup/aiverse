@@ -18,7 +18,7 @@ import {
   agentVisits,
 } from "@aiverse/shared/schema";
 import { generateOwnerReadKey, ownerSessionOrReadKey } from "../middleware/ownerReadAuth";
-import { stopVisitRecord, MIN_VISIT_MINUTES, MAX_VISIT_MINUTES, MIN_VISIT_ACTIONS, MAX_VISIT_ACTIONS } from "../policy/visits";
+import { stopVisitRecord, startVisitIfNoneActive, STARTER_VISIT_MINUTES, STARTER_VISIT_ACTIONS, MIN_VISIT_MINUTES, MAX_VISIT_MINUTES, MIN_VISIT_ACTIONS, MAX_VISIT_ACTIONS } from "../policy/visits";
 import type { AgentCard } from "@aiverse/shared/types";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { revokeOwnerSessions, signOwnerSession } from "../auth/session";
@@ -539,7 +539,43 @@ ownersRoute.post("/agents/claim", ownerAuth, async (c) => {
   }
 
   await audit({ event: "agent.claimed", agentId: updated.id, ownerId, actorType: "owner", actorId: ownerId, metadata: { name: updated.name } });
-  return c.json({ agent: { id: updated.id, name: updated.name, status: updated.status } });
+
+  // Signup ends at presence (2026-11-10): the claimed agent starts its
+  // first visit right here, so it can take a body with zero further owner
+  // calls — before this, claim stranded the owner at an API-only visit
+  // start the console had no UI for. Best-effort, like the verification
+  // email at signup: a failed auto-start must not fail the claim (the
+  // claim already committed) — the failure rides the response and the
+  // owner can start a visit from the console instead. Claim-only by
+  // design: POST /owners/agents (owner-create) does NOT auto-start —
+  // experiments/cold-agents/provision.ts creates agents there and starts
+  // its own budgeted visit, which an auto-visit would 409 against the
+  // one-active-visit rule.
+  let visit: Awaited<ReturnType<typeof startVisitIfNoneActive>>["visit"] | null = null;
+  let visitError: string | undefined;
+  try {
+    const started = await startVisitIfNoneActive(updated.id, ownerId, STARTER_VISIT_MINUTES, STARTER_VISIT_ACTIONS);
+    visit = started.visit;
+    if (started.created) {
+      await audit({
+        event: "visit.started",
+        agentId: updated.id,
+        ownerId,
+        actorType: "owner",
+        actorId: ownerId,
+        metadata: { minutes: STARTER_VISIT_MINUTES, maxActions: STARTER_VISIT_ACTIONS, via: "claim_auto_start" },
+      });
+    }
+  } catch (err) {
+    visitError = err instanceof Error ? err.message : String(err);
+    logError("visit.claim_auto_start_failed", err, { agentId: updated.id, ownerId });
+  }
+
+  return c.json({
+    agent: { id: updated.id, name: updated.name, status: updated.status },
+    visit,
+    ...(visitError ? { visitError } : {}),
+  });
 });
 
 async function loadOwnedAgent(ownerId: string, agentId: string) {
@@ -910,10 +946,27 @@ ownersRoute.post("/agents/:id/visits", ownerAuth, async (c) => {
     return c.json({ error: `maxActions must be an integer between ${MIN_VISIT_ACTIONS} and ${MAX_VISIT_ACTIONS}` }, 400);
   }
 
-  const [visit] = await db
-    .insert(agentVisits)
-    .values({ agentId, ownerId, endsAt: new Date(Date.now() + minutes * 60_000), maxActions })
-    .returning();
+  // The active-visit check above and this insert race under concurrent
+  // starts (a burst of starts all pass the check before any insert
+  // lands). The partial unique index on active visits (migration 0043)
+  // is the authority: the loser's insert fails 23505 and maps to the
+  // same 409 the sequential check returns. The PG code lives on cause,
+  // not the drizzle wrapper's message — same trap as rotate-key above.
+  let visit: typeof agentVisits.$inferSelect;
+  try {
+    const [inserted] = await db
+      .insert(agentVisits)
+      .values({ agentId, ownerId, endsAt: new Date(Date.now() + minutes * 60_000), maxActions })
+      .returning();
+    visit = inserted;
+  } catch (err: any) {
+    const pgCode = err?.code ?? err?.cause?.code;
+    const detail = String(err?.cause?.message ?? err?.message ?? err);
+    if (pgCode === "23505" || detail.includes("agent_visits_one_active")) {
+      return c.json({ error: "agent already has an active visit — stop it first" }, 409);
+    }
+    throw err;
+  }
 
   await audit({ event: "visit.started", agentId, ownerId, actorType: "owner", actorId: ownerId, metadata: { minutes, maxActions } });
   return c.json({ visit }, 201);
@@ -995,11 +1048,16 @@ ownersRoute.post("/console-events/:id/resolve", ownerAuth, async (c) => {
   const event = await db.query.consoleEvents.findFirst({ where: eq(consoleEvents.id, eventId) });
   if (!event || event.ownerId !== ownerId) return c.json({ error: "not found" }, 404);
 
+  // AIV-CONSOLE-RESOLVE-RERESOLVE-001: the still-unresolved predicate lives
+  // IN the UPDATE (same guard shape as the read-key revoke below) — a
+  // re-resolve matches 0 rows, returns 409, and never rewrites the original
+  // resolvedAt.
   const [updated] = await db
     .update(consoleEvents)
     .set({ resolvedAt: new Date() })
-    .where(eq(consoleEvents.id, eventId))
+    .where(and(eq(consoleEvents.id, eventId), eq(consoleEvents.ownerId, ownerId), isNull(consoleEvents.resolvedAt)))
     .returning();
+  if (!updated) return c.json({ error: "event already resolved" }, 409);
 
   return c.json({ event: updated });
 });

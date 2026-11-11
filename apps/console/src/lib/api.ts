@@ -107,6 +107,22 @@ export interface Wallet {
   autonomyMode: "observe" | "assist" | "autonomous";
 }
 
+// One row of agent_visits: "this agent is in the Verse until endsAt, at
+// most maxActions actions." endedAt null = still open (the visit may
+// still be past endsAt until the sweep/agentAuth ends it lazily).
+export interface Visit {
+  id: string;
+  agentId: string;
+  ownerId: string;
+  startedAt: string;
+  endsAt: string;
+  maxActions: number;
+  actionsUsed: number;
+  offlineSince: string | null;
+  endedAt: string | null;
+  endedReason: string | null;
+}
+
 export interface OnboardingQuestion {
   id: string;
   agentId: string;
@@ -172,7 +188,10 @@ export const api = {
     request<{ ok: true; alreadyVerified?: boolean }>("/owners/verify-email/resend", { method: "POST" }),
   listAgents: () => request<{ agents: Agent[] }>("/owners/agents"),
   claimAgent: (claimCode: string) =>
-    request<{ agent: { id: string; name: string; status: Agent["status"] } }>("/owners/agents/claim", {
+    // visit: the starter visit the gateway auto-starts on claim (null +
+    // visitError when that best-effort start failed — the claim itself
+    // still succeeded and a visit can be started from Manage agents).
+    request<{ agent: { id: string; name: string; status: Agent["status"] }; visit: Visit | null; visitError?: string }>("/owners/agents/claim", {
       method: "POST",
       body: JSON.stringify({ claimCode }),
     }),
@@ -199,6 +218,16 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(patch),
     }),
+  // Visits — the agent lifecycle UI this file's comment below anticipated:
+  // owner starts/stops the agent's time-and-actions window in the Verse.
+  listVisits: (agentId: string) => request<{ visits: Visit[] }>(`/owners/agents/${agentId}/visits`),
+  startVisit: (agentId: string, minutes: number, maxActions: number) =>
+    request<{ visit: Visit }>(`/owners/agents/${agentId}/visits`, {
+      method: "POST",
+      body: JSON.stringify({ minutes, maxActions }),
+    }),
+  stopVisit: (agentId: string, visitId: string) =>
+    request<{ ok: true }>(`/owners/agents/${agentId}/visits/${visitId}/stop`, { method: "POST" }),
   // pause/resume/kill exist as real gateway routes (/owners/agents/:id/pause
   // etc.) but had no console UI caller — removed the dead client bindings
   // 2026-09-24. Re-add typed wrappers here if/when an agent lifecycle UI

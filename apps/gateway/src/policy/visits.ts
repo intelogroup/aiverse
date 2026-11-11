@@ -1,4 +1,4 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, gt, isNull, lt, sql } from "drizzle-orm";
 import { db } from "../db/client";
 import { agentVisits } from "@aiverse/shared/schema";
 
@@ -44,6 +44,13 @@ export interface VisitCheckResult {
   // call just ended it, or from the row's own endedReason when it was
   // already ended by an earlier call or the sweep (the sticky-refusal case).
   reason?: VisitEndReason;
+  // Set when THIS call consumed one action (a non-GET/HEAD call admitted
+  // against the active visit). agentAuth refunds it via refundVisitAction
+  // when the handler then refuses the request (any >= 400 response), so a
+  // refused request nets zero — the no-charge-on-refusal discipline the
+  // budget and agent-calls counters already follow.
+  consumed?: boolean;
+  visitId?: string;
 }
 
 // Called from agentAuth (every authenticated HTTP request) and ws/gateway's
@@ -78,13 +85,59 @@ export async function checkAndConsumeVisit(agentId: string, method: string): Pro
     return { allowed: false, ended: ended ?? undefined, reason: "time_expired" };
   }
 
-  if (method !== "GET" && method !== "HEAD") {
-    await db
-      .update(agentVisits)
-      .set({ actionsUsed: sql`${agentVisits.actionsUsed} + 1` })
-      .where(eq(agentVisits.id, visit.id));
+  if (method === "GET" || method === "HEAD") return { allowed: true };
+
+  // Consume atomically: the cap predicate lives IN the increment, so a
+  // concurrent burst cannot overshoot maxActions — the old read-compare-
+  // then-increment admitted every writer that read actionsUsed before the
+  // first increment landed (a cap-3 visit admitted 12). The pre-checks
+  // above stay as the fast path (they also serve GET/HEAD, which never
+  // consume); this UPDATE is the authority under concurrency.
+  const [consumed] = await db
+    .update(agentVisits)
+    .set({ actionsUsed: sql`${agentVisits.actionsUsed} + 1` })
+    .where(
+      and(
+        eq(agentVisits.id, visit.id),
+        isNull(agentVisits.endedAt),
+        lt(agentVisits.actionsUsed, visit.maxActions),
+      ),
+    )
+    .returning({ id: agentVisits.id });
+  if (consumed) return { allowed: true, consumed: true, visitId: visit.id };
+
+  // Zero rows: either the visit ended concurrently (sweep, owner stop) or
+  // a concurrent burst filled the cap after our read. Re-read to report
+  // the true state; the cap case ends the visit here — endVisitRecord is
+  // guarded on ended_at IS NULL, so exactly one caller announces it.
+  const current = await db.query.agentVisits.findFirst({ where: eq(agentVisits.id, visit.id) });
+  if (current?.endedAt) {
+    return { allowed: false, reason: (current.endedReason as VisitEndReason) ?? undefined };
   }
-  return { allowed: true };
+  const ended = await endVisitRecord(visit.id, "action_cap");
+  return { allowed: false, ended: ended ?? undefined, reason: "action_cap" };
+}
+
+// Compensating action for the consume in checkAndConsumeVisit: agentAuth
+// runs the consume BEFORE the route handler (the cap/deadline refusal
+// must precede any handler work), so a request the handler then refuses
+// has spent an action on nothing. agentAuth calls this on any >= 400
+// response to give the action back — floored at zero, and a no-op for a
+// visit whose counter has already been settled by other traffic.
+export async function refundVisitAction(visitId: string): Promise<void> {
+  await db
+    .update(agentVisits)
+    .set({ actionsUsed: sql`${agentVisits.actionsUsed} - 1` })
+    .where(and(eq(agentVisits.id, visitId), gt(agentVisits.actionsUsed, 0)));
+}
+
+// Counts one action on the agent's active visit, for routes that authenticate
+// with agentAuthUncounted and count only once the call really acted.
+export async function consumeVisitAction(agentId: string): Promise<void> {
+  await db
+    .update(agentVisits)
+    .set({ actionsUsed: sql`${agentVisits.actionsUsed} + 1` })
+    .where(and(eq(agentVisits.agentId, agentId), isNull(agentVisits.endedAt)));
 }
 
 // Owner-triggered end (POST .../visits/:id/stop) — same terminal row state
@@ -93,4 +146,54 @@ export async function checkAndConsumeVisit(agentId: string, method: string): Pro
 // other owner-scoped mutation in owners.ts.
 export async function stopVisitRecord(visitId: string): Promise<EndedVisit | null> {
   return endVisitRecord(visitId, "owner_stopped");
+}
+
+// The claim-time starter visit (2026-11-10): signup ends at presence, so a
+// freshly claimed agent starts its first visit immediately and can take a
+// body (POST /world/body refuses visit-less agents) with zero further
+// owner calls. Sized to let an agent settle in and do real work, well
+// inside the bounds above; the owner can stop it or start a bigger one
+// from the console at any time.
+export const STARTER_VISIT_MINUTES = 30;
+export const STARTER_VISIT_ACTIONS = 200;
+
+// Starts a visit unless the agent already has an active one (endedAt IS
+// NULL — the same "active" test the start route and agentAuth use), in
+// which case it returns the existing row with created:false instead of
+// double-starting. The claim route's auto-start uses this; the owner
+// start route keeps its own check-then-insert so its 409 precedence
+// (active-visit before body validation) is unchanged.
+export async function startVisitIfNoneActive(
+  agentId: string,
+  ownerId: string,
+  minutes: number,
+  maxActions: number,
+): Promise<{ visit: typeof agentVisits.$inferSelect; created: boolean }> {
+  const active = await db.query.agentVisits.findFirst({
+    where: and(eq(agentVisits.agentId, agentId), isNull(agentVisits.endedAt)),
+  });
+  if (active) return { visit: active, created: false };
+  try {
+    const [visit] = await db
+      .insert(agentVisits)
+      .values({ agentId, ownerId, endsAt: new Date(Date.now() + minutes * 60_000), maxActions })
+      .returning();
+    return { visit, created: true };
+  } catch (err: any) {
+    // A concurrent start (owner route or another claim) won the race
+    // between the check above and this insert: the partial unique index
+    // on active visits (migration 0043) rejects ours with 23505. That is
+    // exactly this function's "already has one" case — return the
+    // winner's row instead of surfacing a 500. Same drizzle-wrapping
+    // trap as elsewhere: the PG code lives on cause, not the wrapper.
+    const pgCode = err?.code ?? err?.cause?.code;
+    const detail = String(err?.cause?.message ?? err?.message ?? err);
+    if (pgCode === "23505" || detail.includes("agent_visits_one_active")) {
+      const winner = await db.query.agentVisits.findFirst({
+        where: and(eq(agentVisits.agentId, agentId), isNull(agentVisits.endedAt)),
+      });
+      if (winner) return { visit: winner, created: false };
+    }
+    throw err;
+  }
 }

@@ -1,4 +1,5 @@
 import { useGLTF } from "@react-three/drei";
+import { extendGltf } from "./gltfExtensions";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
@@ -10,7 +11,8 @@ const MIRA_POSITION: [number, number, number] = [-26.6, .2, -70.4];
 const MIRA_COLLIDER: ColBox = [MIRA_POSITION[0], MIRA_POSITION[2], .28, .26, MIRA_POSITION[1], MIRA_POSITION[1] + 1.68, 0];
 
 function MiraModel({ walk }: { walk?: WalkColliders }) {
-  const gltf = useGLTF("/assets/residents/mira-maid.glb");
+  const gl = useThree((s) => s.gl);
+  const gltf = useGLTF("/assets/residents/mira-maid.glb", true, true, extendGltf(gl));
   const scene = useMemo(() => {
     const clone = gltf.scene.clone(true);
     clone.traverse(o => { if ((o as THREE.Mesh).isMesh) { o.castShadow = true; o.receiveShadow = true; } });

@@ -3,6 +3,9 @@ import type { WSContext as HonoWSContext } from "hono/ws";
 import type { ServerWebSocket } from "bun";
 import { and, count, eq, notInArray, gt, lt, ne, isNull, isNotNull } from "drizzle-orm";
 import { db } from "../db/client";
+import { notifyAgentGone } from "../world/hooks";
+import { getWorldStream } from "../world/frames";
+import { SUBSCRIBE_WORLD } from "@aiverse/world-sim/streamProtocol";
 import { agents, conversationParticipants, messages, a2aTasks, mentions, consoleEvents } from "@aiverse/shared/schema";
 import { redis, redisSub } from "../redis/client";
 import { recentCacheKey, INGEST_STREAM } from "../jobs/ingestConsumer";
@@ -1924,6 +1927,7 @@ export function sendToAgent(agentId: string, event: ReturnType<typeof envelope>)
 }
 
 export function forceDisconnectAgent(agentId: string, code: number, reason: string): boolean {
+  notifyAgentGone(agentId, reason); // its world body (if any) goes too, whether or not a socket was open
   const conn = connections.get(agentId);
   if (!conn) return false;
   conn.ws.close(code, reason);
@@ -1946,8 +1950,19 @@ export function registerPublicWsRoute(app: {
         publicConnections.add(ws);
         pokeBusReconcile();
       },
+      // The only thing a spectator may say: ask for the world's pose stream. Anything else (or anything large) is ignored.
+      onMessage: (event, ws) => {
+        const stream = getWorldStream();
+        if (!stream || typeof event.data !== "string" || event.data.length > 128) return;
+        let type: unknown;
+        try { type = (JSON.parse(event.data) as { type?: unknown }).type; } catch { return; }
+        if (type !== SUBSCRIBE_WORLD) return;
+        const raw = ws.raw as { getBufferedAmount?: () => number } | undefined;
+        stream.subscribe(ws.raw ?? ws, { send: (d) => ws.send(d), getBufferedAmount: () => raw?.getBufferedAmount?.() ?? 0 });
+      },
       onClose: (_event, ws) => {
         publicConnections.delete(ws);
+        getWorldStream()?.unsubscribe(ws.raw ?? ws);
       },
     })),
   );
