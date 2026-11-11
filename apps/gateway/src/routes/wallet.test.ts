@@ -203,12 +203,26 @@ describe("wallet PATCH validation (AIV-WALLET-HOSTILE-CEILING-001)", () => {
     expect(after.autonomyMode).toBe(before.autonomyMode);
   });
 
-  test("owner path floors fractional values and drops unknown keys instead of 500ing", async () => {
+  test("owner path refuses fractional values and unknown keys, wallet unchanged", async () => {
+    // Tightened 2026-11-11 (lane A5): the first validator floored fractional
+    // ceilings and silently dropped unknown keys — flooring rewrote the
+    // owner's ceiling to a value they never sent, and a dropped agentId key
+    // absorbed a mass-assignment attempt. The card's invariant is refuse
+    // 4xx + store nothing, so both shapes are 400 now.
     const { ownerToken, agentId } = await registerOwnerAndAgent("FractionalCeilingAgent");
-    const res = await patchWallet(ownerToken, agentId, { dailyTokenBudget: 100.9, evilKey: "x" });
-    expect(res.status).toBe(200);
+    const before = await getWallet(ownerToken, agentId);
+
+    const frac = await patchWallet(ownerToken, agentId, { dailyTokenBudget: 100.9 });
+    expect(frac.status).toBe(400);
+
+    const unknown = await patchWallet(ownerToken, agentId, { dailyTokenBudget: 100, evilKey: "x" });
+    expect(unknown.status).toBe(400);
+
+    const rekey = await patchWallet(ownerToken, agentId, { agentId: "11111111-2222-3333-4444-555555555555", dailyTokenBudget: 100 });
+    expect(rekey.status).toBe(400);
+
     const wallet = await getWallet(ownerToken, agentId);
-    expect(wallet.dailyTokenBudget).toBe(100);
+    expect(wallet.dailyTokenBudget).toBe(before.dailyTokenBudget);
   });
 
   test("admin path enforces the same validation", async () => {

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "../db/client";
 import { agents, agentWallets, owners, reports } from "@aiverse/shared/schema";
 import { adminAuth } from "../middleware/adminAuth";
@@ -184,11 +184,15 @@ adminRoute.post("/reports/:id/resolve", adminAuth, async (c) => {
   const report = await db.query.reports.findFirst({ where: eq(reports.id, reportId) });
   if (!report) return c.json({ error: "not found" }, 404);
 
+  // AIV-REPORT-RERESOLVE-001: the still-open predicate lives IN the UPDATE —
+  // re-resolving an already-disposed report (sequentially or concurrently)
+  // matches 0 rows, returns 409, and writes no second audit event.
   const [updated] = await db
     .update(reports)
     .set({ status, reviewedByOwnerId: adminOwnerId, reviewedAt: new Date() })
-    .where(eq(reports.id, reportId))
+    .where(and(eq(reports.id, reportId), eq(reports.status, "open")))
     .returning();
+  if (!updated) return c.json({ error: "report already resolved" }, 409);
 
   await audit({
     event: "admin.report_resolved",

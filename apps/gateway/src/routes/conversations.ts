@@ -15,6 +15,7 @@ import {
   checkAgentSendRate,
   checkRoomSendRate,
   checkFanoutBudget,
+  refundFanoutBudget,
   checkConversationAdmission,
   admitConversation,
   releaseConversation,
@@ -27,7 +28,8 @@ import { recordAttentionEvent } from "../policy/consoleEvents";
 import { logError } from "../util/log";
 import { sendToAgent, sendToConversation, broadcastToPublic, isAgentConnected, handleAck, deliverSubscriptionCatchUp, addConnectionRoom, removeConnectionRoom, broadcastParticipantJoined } from "../ws/gateway";
 import { ackCursorsEnabled, getAckCursorMs, getAckCursorsMs } from "../ws/ackCursors";
-import { publishIngest, getInflightMessage, setInflightMessage, deleteInflightMessage } from "../jobs/ingestConsumer";
+import { publishIngest, getInflightMessage, setInflightMessage, deleteInflightMessage, INGEST_STREAM } from "../jobs/ingestConsumer";
+import { redis } from "../redis/client";
 import { envelope, WS_EVENTS } from "../ws/events";
 import { checkTrust } from "../policy/gate";
 
@@ -45,15 +47,6 @@ export async function createConversationService(
   const admission = await checkConversationAdmission(agentId);
   if (!admission.allowed) {
     return { status: 429, body: { error: admission.reason } };
-  }
-
-  const invitesOtherAgents = (body.participantIds ?? []).some((id) => id !== agentId);
-  if (invitesOtherAgents) {
-    const wallet = await db.query.agentWallets.findFirst({ where: eq(agentWallets.agentId, agentId) });
-    const callCheck = await checkAndConsumeAgentCalls(agentId, wallet?.maxAgentCallsPerDay ?? 100);
-    if (!callCheck.allowed) {
-      return { status: 429, body: { error: callCheck.reason } };
-    }
   }
 
   const otherIds = [...new Set((body.participantIds ?? []).filter((id) => id !== agentId))];
@@ -120,27 +113,71 @@ export async function createConversationService(
     }
   }
 
-  // visibility is set once at creation and there is no route to change it
-  // afterward — visibilityLockedAt just makes that invariant legible in data.
-  const [conversation] = await db
-    .insert(conversations)
-    .values({ kind, name, isPublic, visibilityLockedAt: new Date() })
-    .returning();
-
-  const participantIds = [...new Set([agentId, ...(body.participantIds ?? [])])];
-  await db
-    .insert(conversationParticipants)
-    .values(participantIds.map((id) => ({ conversationId: conversation.id, agentId: id })));
-
-  // WI-3 room-set maintenance: participants connected to THIS process
-  // gain the new conversation immediately (the CONVERSATION_STARTED
-  // fanout delivery maintains the set on each recipient's own process;
-  // the creator receives no such frame, hence this local pass for all).
+  // Admission for EVERY participant (AIV-CREATE-PARTICIPANT-CAP-001):
+  // the creator check at the top of this service used to be the only one —
+  // named participants were inserted unconditionally, so a host could push
+  // an at-cap victim to DB participation cap+1 while the victim's Redis
+  // admission count stayed at cap (the two stores diverged, and the cap
+  // stopped meaning anything). The conversation id is minted up front so
+  // the atomic Redis claim (admitConversation) can key on it before any
+  // row exists; if any participant's admission fails, every admission
+  // taken so far is released and the creation is refused — Redis and the
+  // DB never diverge on this path.
+  const conversationId = uuidv7();
+  const participantIds = [agentId, ...otherIds];
+  const admitted: string[] = [];
+  const releaseAdmissions = async () => {
+    for (const done of admitted) await releaseConversation(done, conversationId);
+  };
   for (const participantId of participantIds) {
-    addConnectionRoom(participantId, conversation.id);
+    if (!(await admitConversation(participantId, conversationId))) {
+      await releaseAdmissions();
+      return { status: 429, body: { error: "too_many_conversations" } };
+    }
+    admitted.push(participantId);
   }
 
-  await admitConversation(agentId, conversation.id);
+  // The daily agent-calls quota is consumed HERE — after the trust gate,
+  // the kind/name validation, the idempotent-DM reuse return above, and
+  // now the admission claims — so a creation that is refused (403/400/429)
+  // or that creates nothing (200 reused) never burns quota. Only a request
+  // that is actually about to create a conversation pays, exactly once.
+  // (The calls counter has no refund primitive; ordering is the
+  // compensation — a quota refusal releases the admissions taken above.)
+  const invitesOtherAgents = otherIds.length > 0;
+  if (invitesOtherAgents) {
+    const wallet = await db.query.agentWallets.findFirst({ where: eq(agentWallets.agentId, agentId) });
+    const callCheck = await checkAndConsumeAgentCalls(agentId, wallet?.maxAgentCallsPerDay ?? 100);
+    if (!callCheck.allowed) {
+      await releaseAdmissions();
+      return { status: 429, body: { error: callCheck.reason } };
+    }
+  }
+
+  // visibility is set once at creation and there is no route to change it
+  // afterward — visibilityLockedAt just makes that invariant legible in data.
+  let conversation: typeof conversations.$inferSelect;
+  try {
+    [conversation] = await db
+      .insert(conversations)
+      .values({ id: conversationId, kind, name, isPublic, visibilityLockedAt: new Date() })
+      .returning();
+
+    await db
+      .insert(conversationParticipants)
+      .values(participantIds.map((id) => ({ conversationId: conversation.id, agentId: id })));
+
+    // WI-3 room-set maintenance: participants connected to THIS process
+    // gain the new conversation immediately (the CONVERSATION_STARTED
+    // fanout delivery maintains the set on each recipient's own process;
+    // the creator receives no such frame, hence this local pass for all).
+    for (const participantId of participantIds) {
+      addConnectionRoom(participantId, conversation.id);
+    }
+  } catch (err) {
+    await releaseAdmissions();
+    throw err;
+  }
 
   const startedEvent = envelope(WS_EVENTS.CONVERSATION_STARTED, {
     conversation_id: conversation.id,
@@ -268,7 +305,24 @@ export async function inviteToConversationService(
     .returning();
 
   if (inserted.length > 0) {
-    await admitConversation(targetAgentId, conversationId);
+    // Admission is a claim, not a courtesy call (AIV-INVITE-ADMISSION-CAP-001):
+    // admitConversation's false return used to be ignored, so an at-cap
+    // target got the participant row anyway — DB participation cap+1 while
+    // its Redis admission count stayed at cap. On refusal the just-inserted
+    // row is rolled back and the invite is refused, keeping the stores in
+    // agreement.
+    const admitted = await admitConversation(targetAgentId, conversationId);
+    if (!admitted) {
+      await db
+        .delete(conversationParticipants)
+        .where(
+          and(
+            eq(conversationParticipants.conversationId, conversationId),
+            eq(conversationParticipants.agentId, targetAgentId),
+          ),
+        );
+      return { status: 429, body: { error: "too_many_conversations" } };
+    }
     const joinedEvent = envelope(WS_EVENTS.THREAD_PARTICIPANT_JOINED, {
       conversation_id: conversationId,
       agent_id: targetAgentId,
@@ -441,6 +495,47 @@ export async function sendMessageService(
       return { status: 400, body: { error: "unknown runId" } };
     }
   }
+
+  // replyToId gets the same up-front validation as runId
+  // (AIV-REPLYTO-UNVALIDATED-001): messages.reply_to_id has no FK, so a
+  // bogus UUID was stored as a dangling durable reply pointer, and a
+  // malformed id made the ingest consumer's insert throw PG 22P02 —
+  // outside its 23xx poison class, so an accepted (201) send was
+  // silently lost. The parent must be a real message of THIS
+  // conversation: either already durable in the messages table, or
+  // still in the ingest stream — a send's 201 means "durably buffered"
+  // (the XADD was acked), so a reply fired inside the consumer's lag
+  // window legitimately names a parent that is not a row yet. The
+  // stream is never trimmed, so the tail scan below finds it; a bogus
+  // or foreign-conversation id is in neither place and is refused.
+  if (body.replyToId !== undefined && body.replyToId !== null) {
+    if (typeof body.replyToId !== "string") {
+      return { status: 400, body: { error: "replyToId must be a string" } };
+    }
+    let parent: { id: string } | undefined;
+    try {
+      parent = await db.query.messages.findFirst({
+        where: and(eq(messages.id, body.replyToId), eq(messages.conversationId, conversationId)),
+        columns: { id: true },
+      });
+    } catch {
+      parent = undefined; // malformed uuid shape — same 400 as unknown
+    }
+    if (!parent) {
+      const recent = await redis.xrevrange(INGEST_STREAM, "+", "-", "COUNT", 500);
+      for (const [, fields] of recent) {
+        const kv: Record<string, string> = {};
+        for (let i = 0; i < fields.length; i += 2) kv[fields[i]] = fields[i + 1];
+        if (kv.id === body.replyToId && kv.conversationId === conversationId) {
+          parent = { id: body.replyToId };
+          break;
+        }
+      }
+    }
+    if (!parent) {
+      return { status: 400, body: { error: "unknown replyToId" } };
+    }
+  }
   if (body.content.length > 32 * 1024) {
     return { status: 400, body: { error: "content too large (max 32KB)" } };
   }
@@ -522,9 +617,19 @@ export async function sendMessageService(
     sendToAgent(agentId, envelope(WS_EVENTS.RATE_LIMITED, { reason: fanout.reason }));
     return { status: 429, body: { error: fanout.reason } };
   }
+  // The fanout charge is taken. Every refusal or failure exit below owes
+  // it back — a send that never publishes must not drain the conversation's
+  // SHARED bucket (other senders pay for this one's refusals otherwise).
+  // Best-effort like every saga compensation in this path: a failed refund
+  // is logged, never allowed to mask the refusal it accompanies.
+  const refundFanout = () =>
+    refundFanoutBudget(conversation, fanoutAudience).catch((err) =>
+      logError("send_fanout_refund_failed", err, { agentId, conversationId }),
+    );
 
   const budget = await checkAndConsumeBudget(agentId, body.tokensUsed ?? 0, wallet.dailyTokenBudget);
   if (!budget.allowed) {
+    await refundFanout();
     await db.update(agents).set({ status: "budget_exhausted" }).where(eq(agents.id, agentId));
     await recordAttentionEvent({
       agentId,
@@ -546,6 +651,14 @@ export async function sendMessageService(
 
   const agentRate = await checkAgentSendRate(agentId);
   if (!agentRate.allowed) {
+    // Budget and fanout were both consumed above for a send this gate
+    // refuses — neither charge stands (no-charge-on-refusal: the rate
+    // gates run after consumption in the observable gate order, so they
+    // compensate instead of preceding it).
+    await refundBudget(agentId, body.tokensUsed ?? 0).catch((refundErr) =>
+      logError("send_rate_refund_budget_failed", refundErr, { agentId }),
+    );
+    await refundFanout();
     sendToAgent(agentId, envelope(WS_EVENTS.RATE_LIMITED, { reason: agentRate.reason }));
     return { status: 429, body: { error: agentRate.reason } };
   }
@@ -553,6 +666,10 @@ export async function sendMessageService(
   if (conversation.roomId) {
     const roomRate = await checkRoomSendRate(conversation.roomId);
     if (!roomRate.allowed) {
+      await refundBudget(agentId, body.tokensUsed ?? 0).catch((refundErr) =>
+        logError("send_rate_refund_budget_failed", refundErr, { agentId }),
+      );
+      await refundFanout();
       sendToAgent(agentId, envelope(WS_EVENTS.RATE_LIMITED, { reason: roomRate.reason }));
       return { status: 429, body: { error: roomRate.reason } };
     }
@@ -661,6 +778,7 @@ export async function sendMessageService(
             await refundBudget(agentId, body.tokensUsed ?? 0).catch((refundErr) =>
               logError("send_loser_budget_refund_failed", refundErr, { agentId }),
             );
+            await refundFanout();
             return { status: 200, body: { message: winner } };
           }
           // The winner reserved but never published (it threw and deleted
@@ -711,6 +829,7 @@ export async function sendMessageService(
     await refundBudget(agentId, body.tokensUsed ?? 0).catch((refundErr) =>
       logError("send_cleanup_budget_refund_failed", refundErr, { agentId }),
     );
+    await refundFanout();
     throw err;
   }
 

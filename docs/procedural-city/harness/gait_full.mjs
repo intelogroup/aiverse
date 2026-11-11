@@ -15,9 +15,16 @@ import { contactPoints, soleClearance, clipMinClearance, groundingOffset, rootMo
 import { MIN_WALK_RATE } from "./src/features/world/gait.ts";
 import { FootLock } from "./src/features/world/footLock.ts";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
+import { BODY_REMY, BODY_SUMMER } from "./src/features/world/bodies.ts";
+// SCALE (2026-11-08): the cast is shown at realistic heights (bodies.ts bodyAtScale). Default = the shipped scaled path: the figure is
+// scaled, the registry facts are the scaled ones, and the grounding offset is converted to world metres exactly as CastFigure does.
+// SCALE=0 = the old 1.3 m cast (unscaled figure, raw facts) for an A/B in the same harness.
+const SCALED = process.env.SCALE !== "0";
+const raw = (b) => { const k = b.scale ?? 1; return { url: "public/assets/" + b.url.split("/").pop(), scale: 1, walkSpeed: b.walkSpeed / k, run: { speed: b.run.speed / k, footLift: b.run.footLift / k, phaseOffset: b.run.phaseOffset } }; };
+const shipped = (b) => ({ url: "public/assets/" + b.url.split("/").pop(), scale: b.scale ?? 1, walkSpeed: b.walkSpeed, run: b.run });
 const BODIES = {
-  summer: { url: "public/assets/cast-summer.glb", walkSpeed: 1.107, run: { speed: 2.7755, footLift: 0.0967, phaseOffset: -0.083 } },
-  remy: { url: "public/assets/cast-remy.glb", walkSpeed: 0.77, run: { speed: 2.66, footLift: 0.082, phaseOffset: -0.055 } },
+  summer: SCALED ? shipped(BODY_SUMMER) : raw(BODY_SUMMER),
+  remy: SCALED ? shipped(BODY_REMY) : raw(BODY_REMY),
 };
 const sm = (lo, hi, x) => { const t = Math.max(0, Math.min(1, (x - lo) / (hi - lo))); return t * t * (3 - 2 * t); };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -46,6 +53,7 @@ const AFTER = (process.env.MODE ?? "after") !== "before";
 
 function sim(v, { reverse = false, turnR = 0, secs = 5, dt = 1 / 60 } = {}) {
   const scene = SkeletonUtils.clone(gltf.scene);
+  scene.scale.setScalar(B.scale);
   scene.updateMatrixWorld(true); const box = new THREE.Box3().setFromObject(scene); const lift = -box.min.y;
   const grp = new THREE.Group(); grp.add(scene); scene.position.y = lift; grp.updateMatrixWorld(true);
   let hips = null; scene.traverse((o) => { if (!hips && o.name.endsWith("Hips")) hips = o; });
@@ -57,7 +65,7 @@ function sim(v, { reverse = false, turnR = 0, secs = 5, dt = 1 / 60 } = {}) {
   const walk = mixer.clipAction(clip("Walk")), run = mixer.clipAction(clip("Run")), idle = mixer.clipAction(clip(process.env.IDLE ?? "IdleLong"));
   for (const a of [walk, run, idle]) { a.play(); a.setEffectiveWeight(0); }
   const skins = []; scene.traverse((o) => { if (o.isSkinnedMesh) skins.push(o); });
-  const footV = skins.map((m) => { const idx = []; const v = new THREE.Vector3(); const n = m.geometry.attributes.position.count; for (let i = 0; i < n; i++) { m.getVertexPosition(i, v); m.localToWorld(v); if (v.y < 0.14) idx.push(i); } return idx; });
+  const footV = skins.map((m) => { const idx = []; const v = new THREE.Vector3(); const n = m.geometry.attributes.position.count; for (let i = 0; i < n; i++) { m.getVertexPosition(i, v); m.localToWorld(v); if (v.y < 0.14 * B.scale) idx.push(i); } return idx; });
   const footSide = skins.map((m, k) => footV[k].map((i) => { const v = new THREE.Vector3(); m.getVertexPosition(i, v); m.localToWorld(v); return v.x > 0 ? 0 : 1; }));
   const skate = () => { const v = new THREE.Vector3(); const o = []; skins.forEach((m, k) => { for (const i of footV[k]) { m.getVertexPosition(i, v); m.localToWorld(v); o.push(v.x, v.y, v.z); } }); return o; };
   const sole = () => { const o = skate(); let lo = 1e9; for (let j = 1; j < o.length; j += 3) if (o[j] < lo) lo = o[j]; return lo; };
@@ -78,7 +86,7 @@ function sim(v, { reverse = false, turnR = 0, secs = 5, dt = 1 / 60 } = {}) {
     if (AFTER) rootMotionDelta(hips.position, hipsRest, parent.scale, pq, d); else { d.copy(hips.position).sub(hipsRest).applyQuaternion(pq); } d.y = 0; parent.position.copy(parentRest).sub(d);
     grp.position.set(x, 0, z); grp.rotation.y = head; grp.updateMatrixWorld(true);
     if (AFTER) {
-      grp.position.y = -groundingOffset(soleClearance(pts, scene), runMin, moving * rm); grp.updateMatrixWorld(true);
+      grp.position.y = -groundingOffset(soleClearance(pts, scene), runMin, moving * rm) * B.scale; grp.updateMatrixWorld(true);
       if (lock) { lock.update(grp, scene, v, dt, -grp.position.y); grp.updateMatrixWorld(true); } // the renderer's full update, before vertices are read
     } else {
       hips.getWorldPosition(hw); const dy = grp.worldToLocal(hw).y - restHipsY;
@@ -102,6 +110,6 @@ function sim(v, { reverse = false, turnR = 0, secs = 5, dt = 1 / 60 } = {}) {
   if (TRACE && !traced) { fs.writeFileSync(TRACE, "t,body_z,foot0_z,foot1_z\n" + trace.join("\n") + "\n"); traced = true; }
   console.log(`${which} v=${v}${reverse ? " BACK" : ""}${turnR ? ` circle r=${turnR}` : ""} runMix=${rm.toFixed(2)} walkTS=${walk.timeScale.toFixed(2)} figure y ${Math.min(...gys).toFixed(3)}..${Math.max(...gys).toFixed(3)}\n   ` + out.join("\n   "));
 }
-console.log(`${AFTER ? (IK ? "AFTER + foot lock" : "AFTER (shipped)") : "BEFORE"} FLOOR=${FLOOR} walk ${SPEC.walkDuration.toFixed(3)}s run ${SPEC.runDuration.toFixed(3)}s`);
+console.log(`${AFTER ? (IK ? "AFTER + foot lock" : "AFTER (shipped)") : "BEFORE"} scale=${B.scale} walkSpeed=${SPEC.walkSpeed.toFixed(3)} runSpeed=${SPEC.runSpeed.toFixed(3)} FLOOR=${FLOOR} walk ${SPEC.walkDuration.toFixed(3)}s run ${SPEC.runDuration.toFixed(3)}s`);
 const VS = (process.env.VS ?? '0.3,0.7,1.3,1.9,2.7').split(',').map(Number); for (const v of VS) sim(v);
 if (!process.env.VS) { sim(1.3, { reverse: true }); sim(1.3, { turnR: 1.5 }); }

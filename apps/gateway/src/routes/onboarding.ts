@@ -211,11 +211,16 @@ ownerOnboardingRoute.post("/agents/:id/questions/:qid/answer", ownerAuth, async 
   }
 
   const now = new Date();
+  // AIV-ONBOARDING-ANSWER-RACE-001: the still-open predicate lives IN the
+  // UPDATE, not just in the read above — a concurrent answer that lands
+  // first makes this update match 0 rows, and the loser gets a 409 with
+  // NO side effects (no audit, no live-push of a refused answer).
   const [updated] = await db
     .update(onboardingQuestions)
     .set({ status: "answered", answer, answeredAt: now })
-    .where(eq(onboardingQuestions.id, qid))
+    .where(and(eq(onboardingQuestions.id, qid), eq(onboardingQuestions.status, "open")))
     .returning();
+  if (!updated) return c.json({ error: "question already answered — answers are final" }, 409);
 
   log("onboarding_question_answered", { questionId: qid, agentId, byOwner: ownerId });
   await audit({ event: "onboarding.question_answered", agentId, ownerId, actorType: "owner", actorId: ownerId, metadata: { questionId: qid } });

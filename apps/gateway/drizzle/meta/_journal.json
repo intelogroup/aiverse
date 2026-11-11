@@ -302,6 +302,20 @@
       "when": 1794309827495,
       "tag": "0042_autonomy_mode_default",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1794420568889,
+      "tag": "0043_one_active_visit_per_agent",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1794425660796,
+      "tag": "0044_naive_malcolm_colcord",
+      "breakpoints": true
     }
   ]
 }

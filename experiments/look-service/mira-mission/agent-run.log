@@ -1,0 +1,9 @@
+{"utc": "2026-11-10T14:26:33Z", "kind": "mission-start", "target": "Mira @ Tea House patio", "targetPos": [-26.6, -70.4], "dataSource": "city3-places.json (published)"}
+{"utc": "2026-11-10T14:26:33Z", "kind": "proprioception", "pos": [5.68, 0.2, 10.57], "bodyHeadingDeg": 0, "note": "spawn pose from service snapshot; navigation is data-only from here"}
+{"utc": "2026-11-10T14:26:33Z", "kind": "nav-decision", "vantage": [-25.0, -72.5], "faceBearingDeg": -37.3, "why": "published stand/vantage point; face the target's known position"}
+{"utc": "2026-11-10T14:27:37Z", "kind": "move", "attempt": 0, "outcome": "done", "pose": [5.68, 0.2, 10.57], "bodyHeadingDeg": -37.3, "poseMs": 63586}
+{"utc": "2026-11-10T14:27:37Z", "kind": "nav-decision", "why": "not yet at vantage (act timed out en route); re-issue move"}
+{"utc": "2026-11-10T14:28:37Z", "kind": "move", "attempt": 1, "outcome": "done", "pose": [5.68, 0.2, 10.57], "bodyHeadingDeg": -37.3, "poseMs": 60173}
+{"utc": "2026-11-10T14:28:37Z", "kind": "nav-decision", "why": "not yet at vantage (act timed out en route); re-issue move"}
+{"utc": "2026-11-10T14:29:35Z", "kind": "move", "attempt": 2, "outcome": "done", "pose": [5.68, 0.2, 10.57], "bodyHeadingDeg": -37.3, "poseMs": 57998}
+{"utc": "2026-11-10T14:29:35Z", "kind": "nav-decision", "why": "not yet at vantage (act timed out en route); re-issue move"}

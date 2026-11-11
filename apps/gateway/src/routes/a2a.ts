@@ -1,14 +1,14 @@
 import { Hono } from "hono";
 import { and, eq, inArray, ne, notInArray, or, sql } from "drizzle-orm";
 import { db } from "../db/client";
-import { withCapLock } from "../db/capLock";
+import { acquireCapLock, withCapLock } from "../db/capLock";
 import { agents, agentWallets, agentPolicyScope, a2aTasks } from "@aiverse/shared/schema";
 import type { AgentCard } from "@aiverse/shared/types";
 import { simClientFromEnv, worldEnabled } from "../world/simClient";
 import { env } from "@aiverse/shared/env";
 import { agentAuth } from "../middleware/agentAuth";
 import { generateAgentToken, generateClaimCode } from "../auth/agentToken";
-import { generateAgentName, isAgentNameTaken } from "../util/agentName";
+import { agentNameLockKey, generateAgentName, isAgentNameTaken, isAgentNameTakenTx } from "../util/agentName";
 import {
   checkAgentSendRate,
   checkAndConsumeBudget,
@@ -443,11 +443,20 @@ a2aRoute.post("/agents/register", async (c) => {
   // 409 — same handling as the owner key-rotation endpoint, not a 500. The
   // only other unique column in this insert path is claim_code_hash, whose
   // 32-byte random collision is cryptographically implausible. Name
-  // uniqueness is checked above, app-level (util/agentName.ts) — a
-  // registration race on the same name is possible but accepted for now.
+  // uniqueness is re-checked below, inside the transaction under the
+  // per-name advisory lock (AIV-AGENT-NAME-RACE-001) — the unlocked check
+  // above is a fast path only. An earlier comment here recorded the
+  // same-name registration race as "accepted for now"; that acceptance is
+  // revoked — the race is closed on both creation paths.
   let agent;
+  let nameTaken = false;
   try {
     agent = await db.transaction(async (tx) => {
+      await acquireCapLock(tx, agentNameLockKey(name));
+      if (await isAgentNameTakenTx(tx, name)) {
+        nameTaken = true;
+        return null;
+      }
       const [agent] = await tx
         .insert(agents)
         .values({
@@ -478,6 +487,7 @@ a2aRoute.post("/agents/register", async (c) => {
     }
     throw err;
   }
+  if (nameTaken || !agent) return c.json({ error: "name taken" }, 409);
 
   // claimCode is the only time the plaintext secret exists outside the hash
   // — the agent runtime must capture it now.
@@ -631,6 +641,10 @@ a2aRoute.post("/a2a/agents/:id", agentAuth, async (c) => {
 
     const rate = await checkAgentSendRate(callerAgentId);
     if (!rate.allowed) {
+      // Budget was consumed above for a task this gate refuses — refund
+      // it, the same contract as the cap-lock and insert-failure paths
+      // below (no-charge-on-refusal).
+      await refundBudget(callerAgentId, tokensUsed);
       return c.json(rpcError(body.id, -32012, rate.reason ?? "rate limited"), 429);
     }
 

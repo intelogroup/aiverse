@@ -70,6 +70,7 @@ const tmpV = new THREE.Vector3();
 const tmpQ = new THREE.Quaternion();
 const tmpQ2 = new THREE.Quaternion();
 const invScene = new THREE.Matrix4();
+const tmpScale = new THREE.Vector3();
 const Y_UP = new THREE.Vector3(0, 1, 0);
 
 /**
@@ -368,6 +369,11 @@ export class FootLock {
     this.ensureHeels();
     group.updateWorldMatrix(true, true);
     invScene.copy(scene.matrixWorld).invert();
+    // The figure's display scale (bodies.ts: realistic heights). Clearances are measured in the scene's own (unscaled) frame;
+    // `drop`, offsets, lifts and the dip are world metres. Convert at the boundary, and scale the world-space length
+    // thresholds (tuned on the 1.25 m body) with the body, so the lock behaves the same at any height.
+    const ks = scene.getWorldScale(tmpScale).x || 1;
+    const dropL = drop / ks;
     group.getWorldPosition(tmpV);
     this.bodyDisp.copy(tmpV).sub(this.prevBody);
     this.bodyDisp.y = 0;
@@ -429,7 +435,7 @@ export class FootLock {
         m.hasPrev = true;
         // Where this point sits with the foot turned to the held orientation (about the ankle).
         m.held.copy(m.pos).sub(leg.clip).applyQuaternion(this.dEff).add(leg.clip);
-        const clearance = tmpV.copy(m.pos).applyMatrix4(invScene).y - m.restY - drop;
+        const clearance = tmpV.copy(m.pos).applyMatrix4(invScene).y - m.restY - dropL;
         lowest = Math.min(lowest, clearance);
         const up = standing
           ? clearance > RELEASE_CLEARANCE
@@ -491,7 +497,7 @@ export class FootLock {
       // pivoting or stretching. The step walks the offset to zero and the held orientation to the clip's, with a lift arc.
       let stepLift = 0;
       if (standing && !stepping && leg.step < 0 && n > 0 && leg.w >= 1 &&
-          (Math.hypot(leg.offX, leg.offZ) > STEP_DIST || yawErr > STEP_YAW)) {
+          (Math.hypot(leg.offX, leg.offZ) > STEP_DIST * ks || yawErr > STEP_YAW)) {
         leg.step = 0;
         leg.stepX = leg.offX;
         leg.stepZ = leg.offZ;
@@ -504,7 +510,7 @@ export class FootLock {
         leg.offX = leg.stepX * (1 - s);
         leg.offZ = leg.stepZ * (1 - s);
         leg.holdQ.copy(leg.stepQ).slerp(this.clipQ, s);
-        stepLift = STEP_LIFT * Math.sin(Math.PI * leg.step);
+        stepLift = STEP_LIFT * ks * Math.sin(Math.PI * leg.step);
         for (const m of leg.landmarks) {
           if (!m.pinned) continue;
           m.pinX = m.held.x + leg.offX;
@@ -513,7 +519,7 @@ export class FootLock {
         if (leg.step >= 1) leg.step = -1;
       }
       // A foot with no pin is in swing: keep its lowest landmark above SWING_CLEARANCE (raise fast, relax slower).
-      const wantLift = n === 0 && moving && Number.isFinite(lowest) ? Math.max(0, SWING_CLEARANCE - lowest) : 0;
+      const wantLift = n === 0 && moving && Number.isFinite(lowest) ? Math.max(0, SWING_CLEARANCE - lowest) * ks : 0; // world metres
       leg.lift += (wantLift - leg.lift) * Math.min(1, dt / (wantLift > leg.lift ? 0.03 : 0.06));
       if (leg.lift < 1e-4) leg.lift = 0;
       leg.on = leg.w > 0 || leg.lift > 0 || stepLift > 0;
@@ -530,7 +536,7 @@ export class FootLock {
       const r2 = (MAX_REACH * full) ** 2 - dx * dx - dz * dz;
       // Hip height that puts the ankle target at MAX_REACH, vs where the hip is now: the dip this leg asks for.
       const ask = r2 > 0 ? this.a.y - leg.target.y - Math.sqrt(r2) : Infinity;
-      if (ask > MAX_DIP) {
+      if (ask > MAX_DIP * ks) {
         // Out of reach even with the pelvis down: let go (fades out; re-pins after the landmark has been up).
         for (const m of leg.landmarks) {
           if (m.pinned) {

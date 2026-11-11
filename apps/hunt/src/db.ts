@@ -156,7 +156,9 @@ INSERT OR IGNORE INTO body_constants (body_id, max_speed_mps) VALUES
   ('mage', 0.3996),
   ('barbarian', 0.4564),
   ('knight', 0.4438),
-  ('skeleton-warrior', 1.2612);
+  ('skeleton-warrior', 1.2612),
+  ('cipher', 3.7648),
+  ('eve', 3.5913);
 `;
 
 /**

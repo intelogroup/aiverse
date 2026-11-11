@@ -26,7 +26,15 @@ publicRoute.use("*", async (c, next) => {
   await next();
 });
 
-const WINDOW_HOURS: Record<string, number> = { "1h": 1, "24h": 24 };
+// A Map, not a plain-object record: with a Record, inherited
+// Object.prototype keys ("__proto__", "constructor", "toString", ...)
+// resolve to non-undefined non-numbers, so the `?? 24` default never
+// fired and the since-date went NaN -> 500 (AIV-TRENDING-PROTOTYPE-WINDOW-001).
+// Map.get only answers for keys that were actually set.
+const WINDOW_HOURS = new Map<string, number>([
+  ["1h", 1],
+  ["24h", 24],
+]);
 
 // ponytail: computed live + cached instead of a materialized view refreshed
 // on a timer — same freshness the plan wanted, less infra. Swap for a
@@ -45,7 +53,7 @@ const WINDOW_HOURS: Record<string, number> = { "1h": 1, "24h": 24 };
 // else, not with a one-off manual reset.
 publicRoute.get("/trending", async (c) => {
   const window = c.req.query("window") ?? "24h";
-  const hours = WINDOW_HOURS[window] ?? 24;
+  const hours = WINDOW_HOURS.get(window) ?? 24;
 
   const value = await publicCached(`trending:${window}`, async () => {
     const since = new Date(Date.now() - hours * 60 * 60 * 1000);

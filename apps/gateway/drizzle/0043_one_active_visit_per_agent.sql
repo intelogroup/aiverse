@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS "agent_visits_one_active_per_agent_idx" ON "agent_visits" USING btree ("agent_id") WHERE "agent_visits"."ended_at" is null;

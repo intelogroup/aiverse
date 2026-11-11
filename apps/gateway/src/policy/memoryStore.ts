@@ -166,6 +166,55 @@ export async function refundToken(
   );
 }
 
+// Multi-token variant of REFUND_TOKEN_SCRIPT: a takeTokens(n) charge (the
+// fanout budget charges per audience member) needs its compensating refund
+// parameterized the same way, so a send refused by a LATER gate can give
+// back exactly the charge it took. Same guards as the single-token script:
+// refill math runs first, the result caps at capacity (a refund can never
+// inflate the bucket past what time alone would have produced plus the
+// charge being returned), and a missing bucket is a no-op. A non-positive
+// or fractional n is not a refund and never reaches the script.
+const REFUND_TOKENS_SCRIPT = `
+local key = KEYS[1]
+local capacity = tonumber(ARGV[1])
+local refill = tonumber(ARGV[2])
+local now = tonumber(ARGV[3])
+local n = tonumber(ARGV[4])
+if n == nil or n <= 0 or n ~= math.floor(n) then
+  return 0
+end
+local data = redis.call('HMGET', key, 'tokens', 'ts')
+local tokens = tonumber(data[1])
+local ts = tonumber(data[2])
+if tokens == nil then
+  return 0
+end
+local elapsed = (now - ts) / 1000
+tokens = math.min(capacity, tokens + elapsed * refill)
+tokens = math.min(capacity, tokens + n)
+redis.call('HMSET', key, 'tokens', tokens, 'ts', now)
+redis.call('PEXPIRE', key, 60000)
+return 1
+`;
+
+export async function refundTokens(
+  key: string,
+  n: number,
+  capacity: number,
+  refillPerSecond: number,
+): Promise<void> {
+  if (!Number.isInteger(n) || n <= 0) return;
+  await redis.eval(
+    REFUND_TOKENS_SCRIPT,
+    1,
+    key,
+    capacity,
+    refillPerSecond,
+    Date.now(),
+    n,
+  );
+}
+
 export async function takeTokens(
   key: string,
   n: number,
