@@ -9,8 +9,9 @@
 //  - planning cost: a route is planned in well under a tick (grid A* took 0.1-50 s on the tick thread), and an unreachable goal is
 //    refused at once.
 //  - the navmesh is baked from the collision GLB in the repo (a stale bake fails here).
-// Known gaps (kept visible, not hidden): no occlusion test in avoidance (agentBody.ts), no elevator controller (upper floors), and
-// hall-0 has no complete route (a pinch at its entrance; the L-A navmesh census names it too). 157 of 158 places are reachable by go_to.
+// Known gaps (kept visible, not hidden): no occlusion test in avoidance (agentBody.ts), no elevator controller (upper floors).
+// hall-0's stand used to sit on the hall's wall line (no route, "no safe route"); it now stands 2.5 m off on the walkable side, so all
+// 158 places are reachable by go_to. The hall itself is still a doorless solid box.
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -100,12 +101,19 @@ describe("planning does not block the tick", () => {
   it("a goal that cannot be reached is refused at once, and a point off the world too", async () => {
     sim.removeBody("probe");
     sim.addBody({ id: "probe" });
-    for (const action of [{ type: "go_to", point: [900, 900] }, { type: "go_to", place: "hall-0" }] as ScoutAction[]) {
+    for (const action of [{ type: "go_to", point: [900, 900] }] as ScoutAction[]) {
       const t = performance.now();
       const r = await run(sim, "probe", action, 5);
       expect(r.out?.status).toBe("blocked");
       expect(performance.now() - t, "refusal must not wait for a search").toBeLessThan(1500);
     }
+  });
+
+  it("the Great Hall (hall-0) is reachable: its stand is off the wall line", async () => {
+    sim.removeBody("hall");
+    sim.addBody({ id: "hall" });
+    const r = await run(sim, "hall", { type: "go_to", place: "hall-0" } as ScoutAction, 300);
+    expect(r.out?.status).toBe("arrived");
   });
 
   it("20 agents sent to far places in the same tick keep every tick short", async () => {
