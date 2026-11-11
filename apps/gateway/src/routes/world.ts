@@ -5,7 +5,7 @@ import { db } from "../db/client";
 import { agentAuth, agentAuthUncounted } from "../middleware/agentAuth";
 import { consumeVisitAction } from "../policy/visits";
 import { log, logError } from "../util/log";
-import { onAgentGone } from "../world/hooks";
+import { onAgentGone, onVisitExtended } from "../world/hooks";
 import type { SimClient } from "../world/simClient";
 
 // World: a body for an agent in the City 3 sim (apps/sim), reached only through here.
@@ -29,6 +29,22 @@ export function createWorldRoute(sim: SimClient) {
     sim.call("DELETE", `/bodies/${agentId}`).then(
       (r) => { if (r.ok) log("world_body_removed", { agentId, reason }); },
       (e) => logError("world_body_remove_failed", e, { agentId, reason }),
+    ),
+  );
+
+  // A visit extension moves the deadline the body's sim-side expiry was
+  // stamped from: re-stamp it (a re-attach at the new deadline — the sim
+  // refreshes the expiry and keeps the body where it stands). No body,
+  // nothing to re-stamp: the GET answers 404 and this is a no-op.
+  onVisitExtended((agentId, endsAtMs) =>
+    sim.call("GET", `/bodies/${agentId}`).then(
+      (cur) => {
+        if (!cur.ok) return;
+        return sim.call("POST", "/bodies", JSON.stringify({ agentId, expiresAtMs: endsAtMs })).then((r) => {
+          if (r.ok) log("world_body_expiry_restamped", { agentId, endsAtMs });
+        });
+      },
+      (e) => logError("world_body_restamp_failed", e, { agentId }),
     ),
   );
 

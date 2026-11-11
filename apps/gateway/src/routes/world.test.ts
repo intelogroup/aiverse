@@ -1,11 +1,16 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { eq } from "drizzle-orm";
+import { agentVisits } from "@aiverse/shared/schema";
 import { loadVerseSim } from "@aiverse/world-sim/node/loadWorld";
 import { WorldService } from "@aiverse/world-sim/worldService";
 import { createSimServer } from "@aiverse/sim/server";
 import { createApp } from "../app";
+import { db } from "../db/client";
 import { websocket } from "../ws/gateway";
 import { httpSimClient } from "../world/simClient";
 import { redis } from "../redis/client";
+import { sweepVisits } from "../jobs/visits";
+import { clearPresence } from "../presence";
 
 // The M4 gate, end to end with no browser: real gateway app (real auth, owners, visits, Postgres) -> production HTTP sim client ->
 // real sim server -> real world (City 3 collision + navmesh). The sim is ticked by hand so the walk is fast and deterministic.
@@ -125,6 +130,61 @@ describe("/world (agent body)", () => {
     expect(typeof b.x).toBe("number");
     const list = (await (await app.request(`/owners/agents/${agentId}/visits`, { headers: json(ownerToken) })).json()) as any;
     expect(list.visits.find((v: any) => v.id === visit.id).actionsUsed).toBe(1); // only the attach counted
+  });
+
+  test("an idle agent keeps its body while its visit is live (presence no longer reaps bodies)", async () => {
+    // Regression (2026-11-11 loadtest §4): a REST-only agent that went
+    // quiet lost its visit (presence_expired) and its body ~13 minutes
+    // after its last call. The envelope governs now: quiet is not gone.
+    const { ownerToken, agentId, agentToken } = await ownerWithAgent("WorldIdleBody");
+    const visit = await startVisit(ownerToken, agentId, 5);
+    expect((await w(agentToken, "POST", "/body")).status).toBe(201);
+    clock += 1000;
+
+    await clearPresence(agentId);
+    await sweepVisits(); // marks offlineSince
+    await db
+      .update(agentVisits)
+      .set({ offlineSince: new Date(Date.now() - 60 * 60_000) })
+      .where(eq(agentVisits.id, visit.id));
+    await sweepVisits(); // an hour quiet, under the old rule long past reaping
+
+    const row = await db.query.agentVisits.findFirst({ where: eq(agentVisits.id, visit.id) });
+    expect(row?.endedAt).toBeNull();
+    expect((await w(agentToken, "GET", "/body")).status).toBe(200);
+
+    // The file's sim is capped at 5 bodies and later tests attach their
+    // own — leave the slot as this test found it.
+    await w(agentToken, "DELETE", "/body");
+  });
+
+  test("extending a visit re-stamps the body's sim expiry to the new deadline", async () => {
+    // The sim retires a body at the visit deadline it was attached
+    // under. Without the re-stamp, an extended visit would read active
+    // while its body died at the ORIGINAL deadline — the divergence the
+    // loadtest found (bodies gone, visits active).
+    const { ownerToken, agentId, agentToken } = await ownerWithAgent("WorldExtendRestamp");
+    const started = await app.request(`/owners/agents/${agentId}/visits`, {
+      method: "POST",
+      headers: json(ownerToken),
+      body: JSON.stringify({ minutes: 5, maxActions: 50 }),
+    });
+    const visit = ((await started.json()) as any).visit;
+    expect((await w(agentToken, "POST", "/body")).status).toBe(201);
+
+    const ext = await app.request(`/owners/agents/${agentId}/visits/${visit.id}/extend`, {
+      method: "POST",
+      headers: json(ownerToken),
+      body: JSON.stringify({ minutes: 120 }),
+    });
+    expect(ext.status).toBe(200);
+    // The re-stamp hook is fire-and-forget; give it a beat to land.
+    await Bun.sleep(300);
+
+    clock += 10 * 60_000; // past the ORIGINAL 5-minute deadline, well inside the extended one
+    expect((await w(agentToken, "GET", "/body")).status).toBe(200);
+
+    await w(agentToken, "DELETE", "/body"); // free the capped sim slot for later tests
   });
 
   test("visit counter: only a new accepted act counts (not a replay, a refused action or an id conflict)", async () => {
