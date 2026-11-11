@@ -112,42 +112,71 @@ export async function createConversationService(
     }
   }
 
+  // Admission for EVERY participant (AIV-CREATE-PARTICIPANT-CAP-001):
+  // the creator check at the top of this service used to be the only one —
+  // named participants were inserted unconditionally, so a host could push
+  // an at-cap victim to DB participation cap+1 while the victim's Redis
+  // admission count stayed at cap (the two stores diverged, and the cap
+  // stopped meaning anything). The conversation id is minted up front so
+  // the atomic Redis claim (admitConversation) can key on it before any
+  // row exists; if any participant's admission fails, every admission
+  // taken so far is released and the creation is refused — Redis and the
+  // DB never diverge on this path.
+  const conversationId = uuidv7();
+  const participantIds = [agentId, ...otherIds];
+  const admitted: string[] = [];
+  const releaseAdmissions = async () => {
+    for (const done of admitted) await releaseConversation(done, conversationId);
+  };
+  for (const participantId of participantIds) {
+    if (!(await admitConversation(participantId, conversationId))) {
+      await releaseAdmissions();
+      return { status: 429, body: { error: "too_many_conversations" } };
+    }
+    admitted.push(participantId);
+  }
+
   // The daily agent-calls quota is consumed HERE — after the trust gate,
-  // the kind/name validation, and the idempotent-DM reuse return above —
-  // so a creation that is refused (403/400) or that creates nothing
-  // (200 reused) never burns quota. Only a request that is actually about
-  // to create a conversation pays, exactly once. (The calls counter has
-  // no refund primitive; ordering is the compensation.)
+  // the kind/name validation, the idempotent-DM reuse return above, and
+  // now the admission claims — so a creation that is refused (403/400/429)
+  // or that creates nothing (200 reused) never burns quota. Only a request
+  // that is actually about to create a conversation pays, exactly once.
+  // (The calls counter has no refund primitive; ordering is the
+  // compensation — a quota refusal releases the admissions taken above.)
   const invitesOtherAgents = otherIds.length > 0;
   if (invitesOtherAgents) {
     const wallet = await db.query.agentWallets.findFirst({ where: eq(agentWallets.agentId, agentId) });
     const callCheck = await checkAndConsumeAgentCalls(agentId, wallet?.maxAgentCallsPerDay ?? 100);
     if (!callCheck.allowed) {
+      await releaseAdmissions();
       return { status: 429, body: { error: callCheck.reason } };
     }
   }
 
   // visibility is set once at creation and there is no route to change it
   // afterward — visibilityLockedAt just makes that invariant legible in data.
-  const [conversation] = await db
-    .insert(conversations)
-    .values({ kind, name, isPublic, visibilityLockedAt: new Date() })
-    .returning();
+  let conversation: typeof conversations.$inferSelect;
+  try {
+    [conversation] = await db
+      .insert(conversations)
+      .values({ id: conversationId, kind, name, isPublic, visibilityLockedAt: new Date() })
+      .returning();
 
-  const participantIds = [...new Set([agentId, ...(body.participantIds ?? [])])];
-  await db
-    .insert(conversationParticipants)
-    .values(participantIds.map((id) => ({ conversationId: conversation.id, agentId: id })));
+    await db
+      .insert(conversationParticipants)
+      .values(participantIds.map((id) => ({ conversationId: conversation.id, agentId: id })));
 
-  // WI-3 room-set maintenance: participants connected to THIS process
-  // gain the new conversation immediately (the CONVERSATION_STARTED
-  // fanout delivery maintains the set on each recipient's own process;
-  // the creator receives no such frame, hence this local pass for all).
-  for (const participantId of participantIds) {
-    addConnectionRoom(participantId, conversation.id);
+    // WI-3 room-set maintenance: participants connected to THIS process
+    // gain the new conversation immediately (the CONVERSATION_STARTED
+    // fanout delivery maintains the set on each recipient's own process;
+    // the creator receives no such frame, hence this local pass for all).
+    for (const participantId of participantIds) {
+      addConnectionRoom(participantId, conversation.id);
+    }
+  } catch (err) {
+    await releaseAdmissions();
+    throw err;
   }
-
-  await admitConversation(agentId, conversation.id);
 
   const startedEvent = envelope(WS_EVENTS.CONVERSATION_STARTED, {
     conversation_id: conversation.id,
@@ -275,7 +304,24 @@ export async function inviteToConversationService(
     .returning();
 
   if (inserted.length > 0) {
-    await admitConversation(targetAgentId, conversationId);
+    // Admission is a claim, not a courtesy call (AIV-INVITE-ADMISSION-CAP-001):
+    // admitConversation's false return used to be ignored, so an at-cap
+    // target got the participant row anyway — DB participation cap+1 while
+    // its Redis admission count stayed at cap. On refusal the just-inserted
+    // row is rolled back and the invite is refused, keeping the stores in
+    // agreement.
+    const admitted = await admitConversation(targetAgentId, conversationId);
+    if (!admitted) {
+      await db
+        .delete(conversationParticipants)
+        .where(
+          and(
+            eq(conversationParticipants.conversationId, conversationId),
+            eq(conversationParticipants.agentId, targetAgentId),
+          ),
+        );
+      return { status: 429, body: { error: "too_many_conversations" } };
+    }
     const joinedEvent = envelope(WS_EVENTS.THREAD_PARTICIPANT_JOINED, {
       conversation_id: conversationId,
       agent_id: targetAgentId,

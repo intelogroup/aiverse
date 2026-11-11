@@ -8,12 +8,17 @@
 // ARE the control that gates agent spend; validate them like it. The
 // pattern mirrors the mandate validator in routes/owners.ts.
 //
-// Rules per numeric field: must be a finite number, 0 <= v <= int4 max
+// Rules per numeric field: must be an integer, 0 <= v <= int4 max
 // (larger values 500 at the Postgres driver — reject as a client error
-// instead), fractional values floored (same convention as the policy
-// handler's maxParallelDelegations). autonomyMode must be one of the enum
-// values. Unknown keys are dropped, never written. A body with no valid
-// field at all is a 400, not a silent no-op write.
+// instead). Fractional values are refused, not floored: a first version
+// of this validator floored them, which silently rewrote the owner's
+// ceiling to a value they never sent — the card's invariant is that an
+// invalid value gets a 4xx and the stored wallet is unchanged.
+// autonomyMode must be one of the enum values. Unknown keys are a 400,
+// never silently dropped — agentId above all: it is the wallet row's
+// primary key, not a settable field, and a body carrying it is a
+// mass-assignment attempt, not a typo to absorb. A body with no valid
+// field at all is likewise a 400, not a silent no-op write.
 
 export const WALLET_INT_FIELDS = [
   "dailyTokenBudget",
@@ -47,13 +52,13 @@ export function validateWalletPatch(
     if ((WALLET_INT_FIELDS as readonly string[]).includes(key)) {
       if (
         typeof value !== "number" ||
-        !Number.isFinite(value) ||
+        !Number.isInteger(value) ||
         value < 0 ||
         value > MAX_INT4
       ) {
-        return { error: `${key} must be a number between 0 and ${MAX_INT4}` };
+        return { error: `${key} must be an integer between 0 and ${MAX_INT4}` };
       }
-      patch[key] = Math.floor(value);
+      patch[key] = value;
     } else if (key === "autonomyMode") {
       if (
         typeof value !== "string" ||
@@ -62,8 +67,9 @@ export function validateWalletPatch(
         return { error: `autonomyMode must be one of ${WALLET_AUTONOMY_MODES.join(", ")}` };
       }
       patch[key] = value;
+    } else {
+      return { error: `unknown wallet field: ${key}` };
     }
-    // Unknown keys are ignored — never passed into .set().
   }
   if (Object.keys(patch).length === 0) {
     return { error: "no valid wallet fields in patch" };

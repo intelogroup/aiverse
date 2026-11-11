@@ -38,7 +38,7 @@ import { env } from "@aiverse/shared/env";
 import { consumeVerificationToken, sendVerificationEmail } from "../auth/emailVerification";
 import { logError } from "../util/log";
 import { isAgentOnline } from "../presence";
-import { generateAgentName, isAgentNameTaken } from "../util/agentName";
+import { agentNameLockKey, generateAgentName, isAgentNameTaken, isAgentNameTakenTx } from "../util/agentName";
 
 // Redeploy-only: an owner changes persona or mandate between runs, never
 // mid-run — steering happens by pausing, reconfiguring and resuming, not by
@@ -180,10 +180,27 @@ ownersRoute.post("/register", async (c) => {
   }
 
   const passwordHash = await hashPassword(body.password);
-  const [owner] = await db
-    .insert(owners)
-    .values({ email, passwordHash, displayName: body.displayName ?? null })
-    .returning();
+  // The findOwnerByEmail check above and this insert are not atomic: two
+  // concurrent registrations for one email both pass the check, and the
+  // loser hits the owners.email unique constraint. Translate that 23505
+  // into the same clean 409 the sequential path returns
+  // (AIV-OWNER-REGISTER-RACE-001) — the sibling insert paths (a2a.ts
+  // /agents/register, rotate-key below) already translate theirs; an
+  // unhandled 500 here is indistinguishable from a server fault.
+  let owner: typeof owners.$inferSelect;
+  try {
+    [owner] = await db
+      .insert(owners)
+      .values({ email, passwordHash, displayName: body.displayName ?? null })
+      .returning();
+  } catch (err: any) {
+    const pgCode = err?.code ?? err?.cause?.code;
+    const detail = String(err?.cause?.message ?? err?.message ?? err);
+    if (pgCode === "23505" || detail.includes("unique")) {
+      return c.json({ error: "email already registered" }, 409);
+    }
+    throw err;
+  }
 
   // Send failure must not fail signup — the owner can resend from the console.
   await sendVerificationEmail(owner.id, owner.email).catch((err) =>
@@ -416,7 +433,10 @@ ownersRoute.post("/agents", ownerAuth, async (c) => {
   // name it first" is a real onboarding path, not just a fallback. A
   // supplied name is checked against every existing agent (case-insensitive,
   // natives included — see util/agentName.ts for why this matters beyond
-  // cosmetics).
+  // cosmetics). This unlocked check is only a fast path: the authoritative
+  // check runs again inside the transaction under the per-name advisory
+  // lock (AIV-AGENT-NAME-RACE-001 — concurrent creations all passed this
+  // check before any of them committed and stored duplicate names).
   let name: string;
   if (!requestedName) {
     name = await generateAgentName();
@@ -434,36 +454,47 @@ ownersRoute.post("/agents", ownerAuth, async (c) => {
   // All four inserts succeed or none do — without this, a failure on any
   // insert leaves a permanently broken agent row (no wallet/policy
   // scope/mandate) that every wallet-dependent route 500s on forever.
-  const created = await db.transaction(async (tx) => {
-    // Authoritative cap re-check under the per-owner cap lock
-    // (db/capLock.ts): the count at the top of this handler is only a
-    // fast path — concurrent creations all pass it before any of them
-    // commits, overshooting the 100/owner cap (AIV-OWNER-AGENT-CAP-RACE-001).
-    await acquireCapLock(tx, `cap:owner-agents:${ownerId}`);
-    const owned = await tx.query.agents.findMany({
-      where: eq(agents.ownerId, ownerId),
-      columns: { id: true },
-    });
-    if (owned.length >= 100) return { capFull: true as const };
-    const [agent] = await tx
-      .insert(agents)
-      .values({
-        ownerId,
-        name,
-        agentCard,
-        apiKeyHash: hash,
-      })
-      .returning();
+  // A generated name that loses the in-lock re-check (a concurrent create
+  // took it first) is simply regenerated and retried; a requested name
+  // that loses is the caller's 409.
+  let created: { agent: typeof agents.$inferSelect } | { capFull: true } | { nameTaken: true };
+  for (let attempt = 0; ; attempt++) {
+    created = await db.transaction(async (tx) => {
+      await acquireCapLock(tx, agentNameLockKey(name));
+      if (await isAgentNameTakenTx(tx, name)) return { nameTaken: true as const };
+      // Authoritative cap re-check under the per-owner cap lock
+      // (db/capLock.ts): the count at the top of this handler is only a
+      // fast path — concurrent creations all pass it before any of them
+      // commits, overshooting the 100/owner cap (AIV-OWNER-AGENT-CAP-RACE-001).
+      await acquireCapLock(tx, `cap:owner-agents:${ownerId}`);
+      const owned = await tx.query.agents.findMany({
+        where: eq(agents.ownerId, ownerId),
+        columns: { id: true },
+      });
+      if (owned.length >= 100) return { capFull: true as const };
+      const [agent] = await tx
+        .insert(agents)
+        .values({
+          ownerId,
+          name,
+          agentCard,
+          apiKeyHash: hash,
+        })
+        .returning();
 
-    await tx.insert(agentWallets).values({ agentId: agent.id });
-    await tx.insert(agentPolicyScope).values({ agentId: agent.id });
-    // Default mandate, not empty objectives: the eager-contrast wave was the
-    // only tested cohort that actually thrives (joins, replies, starts
-    // conversations) rather than sitting on discover_peers/observe forever.
-    // An owner who sets their own mandate via PUT .../mandate overwrites this.
-    await tx.insert(agentMandates).values({ agentId: agent.id, ownerId, objectives: DEFAULT_EAGER_OBJECTIVES });
-    return { agent };
-  });
+      await tx.insert(agentWallets).values({ agentId: agent.id });
+      await tx.insert(agentPolicyScope).values({ agentId: agent.id });
+      // Default mandate, not empty objectives: the eager-contrast wave was the
+      // only tested cohort that actually thrives (joins, replies, starts
+      // conversations) rather than sitting on discover_peers/observe forever.
+      // An owner who sets their own mandate via PUT .../mandate overwrites this.
+      await tx.insert(agentMandates).values({ agentId: agent.id, ownerId, objectives: DEFAULT_EAGER_OBJECTIVES });
+      return { agent };
+    });
+    if (!("nameTaken" in created)) break;
+    if (requestedName || attempt >= 4) return c.json({ error: "name taken" }, 409);
+    name = await generateAgentName();
+  }
   if ("capFull" in created) return c.json({ error: "agent limit reached (100/owner)" }, 429);
   const agent = created.agent;
 
@@ -652,6 +683,29 @@ ownersRoute.patch("/agents/:id/policy", ownerAuth, async (c) => {
   const agent = await loadOwnedAgent(ownerId, agentId);
   if (!agent) return c.json({ error: "not found" }, 404);
   const body = await c.req.json<{ trustedAgentIds?: string[]; blockedAgentIds?: string[]; maxParallelDelegations?: number }>();
+  // Every trusted/blocked id must name a real agent (AIV-POLICY-PHANTOM-001):
+  // the arrays used to be copied verbatim, so a phantom UUID was stored 200
+  // and the trust gate then reasoned over an agent that doesn't exist.
+  // Shape first (a malformed id would otherwise die as a driver error),
+  // then one existence query per list.
+  const UUID_SHAPE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+  for (const field of ["trustedAgentIds", "blockedAgentIds"] as const) {
+    const ids = body[field];
+    if (!Array.isArray(ids)) continue;
+    if (ids.some((id) => typeof id !== "string" || !UUID_SHAPE.test(id))) {
+      return c.json({ error: `${field} must contain only agent ids` }, 400);
+    }
+    const uniqueIds = [...new Set(ids)];
+    if (uniqueIds.length > 0) {
+      const found = await db.query.agents.findMany({
+        where: inArray(agents.id, uniqueIds),
+        columns: { id: true },
+      });
+      if (found.length !== uniqueIds.length) {
+        return c.json({ error: `${field} contains an unknown agent id` }, 400);
+      }
+    }
+  }
   const patch: any = {};
   if (Array.isArray(body.trustedAgentIds)) patch.trustedAgentIds = body.trustedAgentIds;
   if (Array.isArray(body.blockedAgentIds)) patch.blockedAgentIds = body.blockedAgentIds;
@@ -841,6 +895,9 @@ ownersRoute.post("/agents/:id/rotate-key", ownerAuth, async (c) => {
   const agentId = c.req.param("id");
   const agent = await loadOwnedAgent(ownerId, agentId);
   if (!agent) return c.json({ error: "not found" }, 404);
+  // Kill is terminal (AIV-KILL-RESURRECTION-001): a rotation must never
+  // mint a working credential for a killed agent.
+  if (agent.killedAt) return c.json({ error: "agent was killed; kill is terminal — create a fresh agent" }, 409);
 
   const body = await c.req.json<{ publicKey: string }>();
   if (!body.publicKey || typeof body.publicKey !== "string") {
@@ -887,6 +944,9 @@ ownersRoute.post("/agents/:id/rotate-token", ownerAuth, async (c) => {
   const agentId = c.req.param("id");
   const agent = await loadOwnedAgent(ownerId, agentId);
   if (!agent) return c.json({ error: "not found" }, 404);
+  // Kill is terminal (AIV-KILL-RESURRECTION-001): a rotation must never
+  // mint a working credential for a killed agent.
+  if (agent.killedAt) return c.json({ error: "agent was killed; kill is terminal — create a fresh agent" }, 409);
 
   const { token, hash } = generateAgentToken();
   await db.update(agents).set({ apiKeyHash: hash }).where(eq(agents.id, agentId));
@@ -909,7 +969,10 @@ ownersRoute.post("/agents/:id/kill", ownerAuth, async (c) => {
   // publicKey also fails every outstanding session JWT (resolveAgent.ts
   // rejects a session whose agent has no key).
   const { hash } = generateAgentToken();
-  await db.update(agents).set({ status: "offline", pausedBy: null, apiKeyHash: hash, publicKey: null }).where(eq(agents.id, agentId));
+  // killedAt is the durable terminal marker the rotations check
+  // (AIV-KILL-RESURRECTION-001) — status alone can't carry it, since a
+  // killed agent's plain "offline" is indistinguishable from a live one.
+  await db.update(agents).set({ status: "offline", pausedBy: null, apiKeyHash: hash, publicKey: null, killedAt: new Date() }).where(eq(agents.id, agentId));
   forceDisconnectAgent(agentId, 4004, "agent killed");
   broadcastToOwnerConsole(
     ownerId,

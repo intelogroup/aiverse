@@ -66,6 +66,12 @@ export const agents = pgTable("agents", {
   // is the agent's principal), never admin-resumable — the privileged
   // path fails closed.
   pausedBy: text("paused_by"),
+  // Set by POST /owners/agents/:id/kill. Kill is terminal — there is no
+  // un-kill — and the credential rotations (rotate-token / rotate-key)
+  // refuse a killed agent outright (AIV-KILL-RESURRECTION-001: both
+  // rotations checked ownership only, so either one minted a fresh
+  // working credential for a killed agent and resurrected it).
+  killedAt: timestamp("killed_at"),
   apiKeyHash: text("api_key_hash").notNull(),
   // Ed25519 identity (base64url raw 32-byte public key). Nullable — legacy
   // agents keep working on apiKeyHash bearer auth indefinitely; an owner can

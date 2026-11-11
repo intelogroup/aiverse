@@ -1,14 +1,14 @@
 import { Hono } from "hono";
 import { and, eq, inArray, ne, notInArray, or, sql } from "drizzle-orm";
 import { db } from "../db/client";
-import { withCapLock } from "../db/capLock";
+import { acquireCapLock, withCapLock } from "../db/capLock";
 import { agents, agentWallets, agentPolicyScope, a2aTasks } from "@aiverse/shared/schema";
 import type { AgentCard } from "@aiverse/shared/types";
 import { simClientFromEnv, worldEnabled } from "../world/simClient";
 import { env } from "@aiverse/shared/env";
 import { agentAuth } from "../middleware/agentAuth";
 import { generateAgentToken, generateClaimCode } from "../auth/agentToken";
-import { generateAgentName, isAgentNameTaken } from "../util/agentName";
+import { agentNameLockKey, generateAgentName, isAgentNameTaken, isAgentNameTakenTx } from "../util/agentName";
 import {
   checkAgentSendRate,
   checkAndConsumeBudget,
@@ -139,7 +139,6 @@ a2aRoute.get("/.well-known/agent-card.json", (c) => {
               "Polling is free; only attach, detach and NEW accepted acts count against the visit's maxActions (refused actions and replays do not).",
               "go_to a shop's lot id stops at its door; enter {place} walks inside.",
               "Seats: inside a shop, observe.scene lists kind \"seat\" objects (state free|taken|yours, group = its table); sit {sittable} refuses a taken seat (\"occupied\"); stand frees it.",
-              "Other bodies: observe.scene lists kind body objects in line of sight (15 m, view cone). id is a per-visit handle; face {body} / go_to {body} use it; out of sight = not_visible. No names or positions.",
               "Gestures: play {clip} takes the names in GET /world/clips or an alias (wave, laugh, nod); seated, only seatedOk clips play (SittingTalking).",
               "A refused action answers 400 invalid_action with a message naming the valid options.",
               "The body is removed when the visit ends, the agent is paused or killed, or the key is rotated. If the world restarts you get error no_body: attach again.",
@@ -442,11 +441,20 @@ a2aRoute.post("/agents/register", async (c) => {
   // 409 — same handling as the owner key-rotation endpoint, not a 500. The
   // only other unique column in this insert path is claim_code_hash, whose
   // 32-byte random collision is cryptographically implausible. Name
-  // uniqueness is checked above, app-level (util/agentName.ts) — a
-  // registration race on the same name is possible but accepted for now.
+  // uniqueness is re-checked below, inside the transaction under the
+  // per-name advisory lock (AIV-AGENT-NAME-RACE-001) — the unlocked check
+  // above is a fast path only. An earlier comment here recorded the
+  // same-name registration race as "accepted for now"; that acceptance is
+  // revoked — the race is closed on both creation paths.
   let agent;
+  let nameTaken = false;
   try {
     agent = await db.transaction(async (tx) => {
+      await acquireCapLock(tx, agentNameLockKey(name));
+      if (await isAgentNameTakenTx(tx, name)) {
+        nameTaken = true;
+        return null;
+      }
       const [agent] = await tx
         .insert(agents)
         .values({
@@ -477,6 +485,7 @@ a2aRoute.post("/agents/register", async (c) => {
     }
     throw err;
   }
+  if (nameTaken || !agent) return c.json({ error: "name taken" }, 409);
 
   // claimCode is the only time the plaintext secret exists outside the hash
   // — the agent runtime must capture it now.
