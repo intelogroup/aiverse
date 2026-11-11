@@ -36,7 +36,7 @@ import { audit } from "../util/audit";
 import { clientIp } from "../util/clientIp";
 import { deleteAgentCascade, deleteOwnerCascade } from "../util/deleteAgent";
 import { env } from "@aiverse/shared/env";
-import { consumeVerificationToken, sendVerificationEmail } from "../auth/emailVerification";
+import { consumeVerificationToken, markVerificationTokenUsed, sendVerificationEmail, verificationTokenUsedBy } from "../auth/emailVerification";
 import { logError } from "../util/log";
 import { isAgentOnline } from "../presence";
 import { agentNameLockKey, generateAgentName, isAgentNameTaken, isAgentNameTakenTx } from "../util/agentName";
@@ -220,8 +220,20 @@ ownersRoute.post("/verify-email", async (c) => {
   const body = await c.req.json<{ token?: string }>().catch(() => ({}) as { token?: string });
   if (!body.token) return c.json({ error: "token required" }, 400);
   const ownerId = await consumeVerificationToken(body.token);
-  if (!ownerId) return c.json({ error: "This link is invalid, expired, or already used." }, 400);
+  if (!ownerId) {
+    // Consumed already? The tombstone says by whom; if that owner is
+    // verified, the honest answer is "already verified" (a replayed link
+    // whose first response was lost), not the invalid-link error. The
+    // token stays single-use — the tombstone can only report state.
+    const usedBy = await verificationTokenUsedBy(body.token);
+    if (usedBy) {
+      const owner = await db.query.owners.findFirst({ where: eq(owners.id, usedBy) });
+      if (owner?.emailVerified) return c.json({ ok: true, alreadyVerified: true });
+    }
+    return c.json({ error: "This link is invalid, expired, or already used." }, 400);
+  }
   await db.update(owners).set({ emailVerified: true }).where(eq(owners.id, ownerId));
+  await markVerificationTokenUsed(body.token, ownerId);
   await audit({ event: "owner.email_verified", ownerId, actorType: "owner", actorId: ownerId });
   return c.json({ ok: true });
 });
@@ -534,6 +546,36 @@ ownersRoute.post("/agents/claim", ownerAuth, async (c) => {
     where: eq(agents.claimCodeHash, claimCodeHash),
   });
   if (!agent || agent.ownerId) {
+    // Retry-safe claim (loadtest 2026-11-11 §5): a successful claim
+    // consumes the code (hash nulled), so the owner whose claim response
+    // was lost in transit got "invalid claim code" on retry and could
+    // not tell claimed from never-claimed. A 24h tombstone keyed by the
+    // code hash records who claimed what; when the SAME owner presents
+    // the code again, answer with the current state (200, alreadyClaimed)
+    // instead of 404. Any other caller still gets the plain 404 — the
+    // tombstone names its owner and reveals nothing to anyone else.
+    const tomb = await redis.get(`claimtombstone:${claimCodeHash}`).catch(() => null);
+    if (tomb) {
+      try {
+        const { agentId: tombAgentId, ownerId: tombOwnerId } = JSON.parse(tomb) as { agentId?: string; ownerId?: string };
+        if (tombOwnerId === ownerId && tombAgentId) {
+          const claimed = await db.query.agents.findFirst({ where: eq(agents.id, tombAgentId) });
+          if (claimed && claimed.ownerId === ownerId) {
+            // Same self-heal as the first claim: make sure the starter
+            // visit exists (it may have failed to start back then).
+            let visit: Awaited<ReturnType<typeof startVisitIfNoneActive>>["visit"] | null = null;
+            try {
+              visit = (await startVisitIfNoneActive(claimed.id, ownerId, STARTER_VISIT_MINUTES, STARTER_VISIT_ACTIONS)).visit;
+            } catch { /* the state answer stands without it */ }
+            return c.json({
+              agent: { id: claimed.id, name: claimed.name, status: claimed.status },
+              alreadyClaimed: true,
+              visit,
+            });
+          }
+        }
+      } catch { /* fall through to the plain 404 */ }
+    }
     return c.json({ error: "invalid claim code" }, 404);
   }
   if (!agent.claimCodeExpiresAt || agent.claimCodeExpiresAt < new Date()) {
@@ -571,6 +613,12 @@ ownersRoute.post("/agents/claim", ownerAuth, async (c) => {
   }
 
   await audit({ event: "agent.claimed", agentId: updated.id, ownerId, actorType: "owner", actorId: ownerId, metadata: { name: updated.name } });
+
+  // Tombstone for the retry-safe path above (best-effort: a Redis hiccup
+  // must not fail a claim that already committed).
+  await redis
+    .set(`claimtombstone:${claimCodeHash}`, JSON.stringify({ agentId: updated.id, ownerId }), "EX", 24 * 3600)
+    .catch(() => {});
 
   // Signup ends at presence (2026-11-10): the claimed agent starts its
   // first visit right here, so it can take a body with zero further owner

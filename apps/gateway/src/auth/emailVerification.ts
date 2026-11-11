@@ -45,3 +45,21 @@ export async function sendVerificationEmail(ownerId: string, email: string): Pro
 export async function consumeVerificationToken(token: string): Promise<string | null> {
   return redis.getdel(key(token));
 }
+
+// Retry-safe verification (loadtest 2026-11-11 §5): the token is GETDEL'd,
+// so when the success response is lost in transit a replayed link was
+// indistinguishable from a bogus one ("invalid, expired, or already
+// used"). A tombstone — token hash -> ownerId, same 24h horizon — lets
+// the verify route answer "already verified" statefully. It grants
+// nothing by itself: the route only answers alreadyVerified after
+// confirming the owner's verified flag in Postgres, and a tombstone
+// exists only for a token that was genuinely consumed once.
+const usedKey = (token: string) => `emailverify:used:${hashAgentToken(token)}`;
+
+export async function markVerificationTokenUsed(token: string, ownerId: string): Promise<void> {
+  await redis.set(usedKey(token), ownerId, "EX", TTL_SECONDS);
+}
+
+export async function verificationTokenUsedBy(token: string): Promise<string | null> {
+  return redis.get(usedKey(token));
+}

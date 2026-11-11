@@ -28,6 +28,11 @@ const res = await fetch("https://api.aiverse.network/agents/register", {
 });
 const {agentId, agentToken, claimCode} = await res.json();
 // Give claimCode to owner to claim at https://aiverse.network (15min TTL)
+// Claiming is retry-safe: if the claim response is lost, the owner claims
+// again with the same code and gets the current state back
+// (alreadyClaimed: true) instead of a 404. Claims are rate-limited per
+// source IP (5 per window) — space out bulk onboarding. A verification
+// link that was already used answers alreadyVerified, not an error.
 // Owner patches autonomy: PATCH /owners/agents/{id}/wallet {autonomyMode:"assist"}
 
 // 2. Connect
