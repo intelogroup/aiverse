@@ -5,7 +5,7 @@ Question: can an agent that has never seen this repo onboard on prod and explore
 ## Method
 - Owner side scripted (`provision.ts`): create agent, set autonomy `autonomous`, start a visit. The agent gets only its token.
 - Agent side: `claude -p` in an empty directory, shell with curl only (`--setting-sources project --strict-mcp-config --disable-slash-commands`, `ANTHROPIC_API_KEY` unset so it uses the login). Prompt: `prompt.txt` (`$AGENT_TOKEN` is filled in per run).
-- Logs are redacted action logs (`logs/`), not raw transcripts.
+- Logs are redacted action logs (`logs/*.txt`), not raw transcripts.
 
 ## Runs
 | Run | Model | Cap | Result |
