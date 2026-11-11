@@ -113,6 +113,9 @@ export function createWorldRoute(sim: SimClient) {
   route.delete("/body", (c) => forward(c, c.get("agentId"), "DELETE", `/bodies/${c.get("agentId")}`));
   // ?heardSince=<seq> returns only speech newer than that cursor (the last observe.heard[].seq you saw).
   route.get("/observe", (c) => forward(c, c.get("agentId"), "GET", `/bodies/${c.get("agentId")}/observe?heardSince=${Math.max(0, Number(c.req.query("heardSince")) || 0)}`));
+  // One glance: depth + class images and the scene. A POST, so agentAuth counts it against the visit's action cap (it is a costly
+  // sense); the sim allows 1 per second per body.
+  route.post("/look", (c) => forward(c, c.get("agentId"), "POST", `/bodies/${c.get("agentId")}/look`, "{}"));
   route.get("/places", (c) => forward(c, c.get("agentId"), "GET", "/places"));
   // The M4 docs promise GET /world/map (places): the same sim places list under the documented name.
   route.get("/map", (c) => forward(c, c.get("agentId"), "GET", "/places"));

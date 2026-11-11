@@ -157,6 +157,25 @@ describe("sim internal API", () => {
     expect(service.has(AID)).toBe(false);
   });
 
+  test("look returns the images and scene, and is limited to one per second per body", async () => {
+    const LID = "22222222-2222-4222-8222-222222222222";
+    expect((await call("POST", "/bodies", { agentId: LID, expiresAtMs: clock + 60_000 })).status).toBe(201);
+    const ok = await call("POST", `/bodies/${LID}/look`, {});
+    expect(ok.status).toBe(200);
+    const v = ((await ok.json()) as any).look;
+    expect(v.width).toBe(128);
+    expect(v.height).toBe(72);
+    expect(typeof v.depthPng).toBe("string");
+    expect(v.observation.body.id).toBeDefined();
+    const fast = await call("POST", `/bodies/${LID}/look`, {});
+    expect(fast.status).toBe(429);
+    expect(fast.headers.get("retry-after")).toBe("1");
+    clock += 1100;
+    expect((await call("POST", `/bodies/${LID}/look`, {})).status).toBe(200);
+    expect((await call("POST", `/bodies/33333333-3333-4333-8333-333333333333/look`, {})).status).toBe(404);
+    await call("DELETE", `/bodies/${LID}`);
+  });
+
   test("caps the number of bodies", async () => {
     clock += 10_000;
     const ids = ["aaaaaaa1", "aaaaaaa2", "aaaaaaa3", "aaaaaaa4"];

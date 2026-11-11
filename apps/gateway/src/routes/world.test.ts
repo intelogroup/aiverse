@@ -341,6 +341,22 @@ describe("/world (agent body)", () => {
     await w(b.agentToken, "DELETE", "/body");
   }, 60_000);
 
+  test("look: gateway forwards it, it counts as an action, and a second one inside a second is limited", async () => {
+    const { ownerToken, agentId, agentToken } = await ownerWithAgent("WorldLook");
+    await startVisit(ownerToken, agentId);
+    await w(agentToken, "POST", "/body");
+    clock += 1000;
+    const r = await w(agentToken, "POST", "/look", {});
+    expect(r.status).toBe(200);
+    const v = ((await r.json()) as { look: { width: number; height: number; legend: Record<string, string>; depthPng: string; observation: { heard: unknown[] } } }).look;
+    expect([v.width, v.height]).toEqual([128, 72]);
+    expect(v.legend["1"]).toBe("floor");
+    expect(v.depthPng.length).toBeGreaterThan(100);
+    expect(v.observation.heard).toEqual([]);
+    expect((await w(agentToken, "POST", "/look", {})).status).toBe(429);
+    await w(agentToken, "DELETE", "/body");
+  });
+
   test("pausing the agent removes its body and shuts the door", async () => {
     const { ownerToken, agentId, agentToken } = await ownerWithAgent("WorldPaused");
     await startVisit(ownerToken, agentId);

@@ -8,7 +8,7 @@ import { WorldError, WorldService, type WorldErrorCode } from "@aiverse/world-si
 
 export const MAX_BODY_BYTES = 4096;
 /** Wire version: the gateway sends it; a mismatch is refused so a half-deployed pair fails loudly instead of misreading actions. */
-export const SIM_API_VERSION = 1;
+export const SIM_API_VERSION = 2;
 
 const STATUS: Record<WorldErrorCode, number> = {
   no_body: 404, invalid_action: 400, id_conflict: 409, world_full: 503, not_ready: 503, spawn_failed: 503,
@@ -46,6 +46,8 @@ export function createSimServer(opts: SimServerOpts) {
   const actRate = opts.actPerS ?? 2;
   const readRate = opts.readPerS ?? 5;
   const acts = new Map<string, Bucket>();
+  /** One look per second per body: it costs about 10 ms of the sim tick. */
+  const looks = new Map<string, Bucket>();
   const reads = new Map<string, Bucket>();
   const expiry = new Map<string, number>();
   // One gateway pulls at <= ~10/s; allow a few gateways plus bursts.
@@ -55,6 +57,13 @@ export function createSimServer(opts: SimServerOpts) {
   const bucket = (m: Map<string, Bucket>, id: string, rate: number) => {
     let b = m.get(id);
     if (!b) m.set(id, (b = new Bucket(rate, Math.max(2, rate * 2), now())));
+    return b;
+  };
+
+  /** Burst 1, unlike the others: a second look inside a second is refused, not banked. */
+  const lookBucket = (id: string) => {
+    let b = looks.get(id);
+    if (!b) looks.set(id, (b = new Bucket(1, 1, now())));
     return b;
   };
 
@@ -118,6 +127,10 @@ export function createSimServer(opts: SimServerOpts) {
           if (!bucket(reads, id, readRate).take(now())) return json({ error: "rate_limited" }, 429, { "retry-after": "1" });
           const rec = service.actRecord(id, actId);
           return rec ? json({ act: rec }) : json({ error: "unknown_act" }, 404);
+        }
+        if (req.method === "POST" && sub === "look" && !actId) {
+          if (!lookBucket(id).take(now())) return json({ error: "rate_limited" }, 429, { "retry-after": "1" });
+          return json({ look: service.look(id) });
         }
         if (req.method === "POST" && sub === "act" && !actId) {
           if (!bucket(acts, id, actRate).take(now())) return json({ error: "rate_limited" }, 429, { "retry-after": "1" });

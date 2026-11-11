@@ -12,6 +12,8 @@ import { encodePose, type PoseTuple } from "./streamProtocol";
 import { nearestPlace, oracleScene, roomAt, type OracleObject, type ScoutAction, type ScoutOutcome, type ScoutSeat } from "./scout";
 import { clipDef, SOCIAL_CLIPS } from "./clips";
 import { agentBodies, BODIES, BODY_REMY } from "./bodies";
+import { LOOK_FAR_M, LOOK_HFOV_DEG, LOOK_LEGEND, LOOK_NO_HIT } from "./look";
+import { encodeGrayPng } from "./png";
 import type { VerseSim } from "./verseSim";
 
 export type WorldErrorCode = "no_body" | "invalid_action" | "id_conflict" | "world_full" | "not_ready" | "spawn_failed";
@@ -64,6 +66,20 @@ export interface Observation {
   lastAct: ActRecord | null;
   /** Speech overheard since `heardSince` (all of the last 60 s when absent). */
   heard: HeardMsg[];
+}
+
+/** What `look` returns: two small PNGs (base64) plus how to read them, and the ordinary observation taken at the same instant. */
+export interface LookView {
+  width: number;
+  height: number;
+  /** 16-bit grey PNG, value = millimetres along the ray; 65535 = nothing within `farM`. */
+  depthPng: string;
+  /** 8-bit grey PNG, value = a key of `legend`. */
+  classPng: string;
+  legend: Record<number, string>;
+  /** Rows run top to bottom, columns left to right (bearing increases to the right, as in observe.scene). */
+  camera: { hfovDeg: number; vfovDeg: number; farM: number; noHit: number; note: string };
+  observation: Observation;
 }
 
 export interface WorldServiceOpts {
@@ -259,6 +275,24 @@ export class WorldService {
     // stop 1.2 m short of them, on the near side
     const d = Math.max(seen.distance, 1e-6), stand = Math.max(0, d - 1.2) / d;
     return { type: action.type, point: [round(me.x + (t.x - me.x) * stand, 2), round(me.z + (t.z - me.z) * stand, 2)] };
+  }
+
+  /** One glance from the body's eyes: a depth image and a class image (look.ts), with the scene read at the same instant. */
+  look(agentId: string): LookView {
+    const s = this.session(agentId);
+    const r = this.sim.look(agentId);
+    if (!r) throw new WorldError("no_body", "no body: attach one first");
+    const b64 = (u: Uint8Array) => Buffer.from(u).toString("base64");
+    const vfov = (2 * Math.atan(Math.tan((LOOK_HFOV_DEG * Math.PI) / 360) * (r.height / r.width)) * 180) / Math.PI;
+    void s;
+    return {
+      width: r.width, height: r.height,
+      depthPng: b64(encodeGrayPng(r.width, r.height, 16, r.depthMm)),
+      classPng: b64(encodeGrayPng(r.width, r.height, 8, r.classes)),
+      legend: LOOK_LEGEND,
+      camera: { hfovDeg: LOOK_HFOV_DEG, vfovDeg: round(vfov, 1), farM: LOOK_FAR_M, noHit: LOOK_NO_HIT, note: "collision geometry, not visual: glass reads as wall, doors as wall or gap; seats and props are small markers; bodies carry no handle (match them to observe.scene by bearing)" },
+      observation: this.observe(agentId),
+    };
   }
 
   /** The body's own state, without the scene (cheap "do I have a body, where am I" check). Names the figure worn. */
