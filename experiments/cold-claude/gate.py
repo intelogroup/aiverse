@@ -7,7 +7,7 @@ Measured from the agents' own transcripts (their curl commands and the tool resu
   polls_per_act GET /world/act/<id> calls / POST /world/act calls
   waitms_users  agents that used ?waitMs
   inside_shop   agents that stood inside a room rect >= 2 m past its door
-  enter_ok      tool results with an enter action that arrived
+  enter_ok      settled act records (read back by the agent) for an enter that arrived
   sat_agents    agents with a settled sit ("seated" in a result to a sit command)
   gesture_agents agents with a settled play ("done" after a play command)
   invalid_play  results where a play command was refused as invalid_action
@@ -43,6 +43,15 @@ def tool_events(path):
                 out.append((cmds.get(c.get("tool_use_id"), ""), r))
     return out
 
+ACT_REC = re.compile(r'"action":\{"type":"(\w+)"[^{}]*\}[^{}]*?"outcome":\{"ok":(?:true|false),"status":"(\w+)"(?:,"target":"[^"]*")?(?:,"detail":"([^"]*)")?')
+
+
+def act_records(res):
+    """(action type, outcome status, detail) for every settled act record in a tool result (JSON text, escaped or not)."""
+    t = res.replace('\\"', '"')
+    return [(m.group(1), m.group(2) or "", m.group(3) or "") for m in ACT_REC.finditer(t) if m.group(2)]
+
+
 def is_act_cmd(cmd): return "/world/act" in cmd and "POST" in cmd
 
 def gate(run):
@@ -68,14 +77,14 @@ def gate(run):
             m["posts"] += len(re.findall(r"-X\s*POST[^|]*?/world/act\b(?!/)", cmd))
             m["polls"] += len(re.findall(r"/world/act/[A-Za-z0-9-]+", cmd))
             used_wait |= "waitMs" in cmd
-            is_sit, is_play = '\\"sit\\"' in cmd or '"type":"sit"' in cmd or '"type": "sit"' in cmd, 'play' in cmd and 'clip' in cmd
-            sat |= is_sit and '"seated"' in res
-            gest |= is_play and '"done"' in res
+            recs = act_records(res)
+            sat |= any(t == "sit" and st == "seated" for t, st, _ in recs)
+            gest |= any(t == "play" and st == "done" for t, st, _ in recs)
+            m["occupied"] += sum(t == "sit" and "occupied" in d for t, _, d in recs)
+            m["invalid_play"] += ("invalid_action" in res and "clip" in cmd and "play" in cmd)
+            m["enter_ok"] += sum(t == "enter" and st == "arrived" for t, st, _ in recs)
             m["handle_acts"] += bool(re.search(r'(face|go_to|run_to)\\*"[^}]*\\*"body\\*"\s*:\s*\\*"b-', cmd)) and is_act_cmd(cmd)
-            m["invalid_play"] += is_play and 'invalid_action' in res
-            m["occupied"] += is_sit and 'occupied' in res
             if "hall-0" in cmd and "no safe route" in res: m["hall_blocked"] += 1
-            if '\\"enter\\"' in cmd and '"arrived"' in res: m["enter_ok"] += 1
         m["waitms_users"] += used_wait
         m["sat_agents"] += sat
         m["gesture_agents"] += gest
