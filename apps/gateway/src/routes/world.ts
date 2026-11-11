@@ -15,6 +15,8 @@ import type { SimClient } from "../world/simClient";
 // Non-GET calls (attach, detach, act) count against the visit's action cap through agentAuth; polling (observe, act status) is GET.
 const ID_RE = /^[a-zA-Z0-9-]{1,80}$/;
 const MAX_BODY = 4096;
+const MAX_WAIT_MS = 10_000;
+const POLL_MS = 400;
 
 type Env = { Variables: { agentId: string; visitEndsAt: number } };
 
@@ -79,10 +81,19 @@ export function createWorldRoute(sim: SimClient) {
     return forward(c, c.get("agentId"), "POST", `/bodies/${c.get("agentId")}/act`, JSON.stringify({ id: b.id, action: b.action }));
   });
 
-  route.get("/act/:id", (c) => {
+  // ?waitMs=<=10000 holds the call until the act settles (or the wait ends), so an agent needs one call per act instead of a polling
+  // loop (about two thirds of cold agents' calls were polls). Still a free GET; it re-reads the sim every POLL_MS within its read bucket.
+  route.get("/act/:id", async (c) => {
     const id = c.req.param("id");
     if (!ID_RE.test(id)) return c.json({ error: "invalid_action" }, 400);
-    return forward(c, c.get("agentId"), "GET", `/bodies/${c.get("agentId")}/act/${id}`);
+    const waitMs = Math.min(MAX_WAIT_MS, Math.max(0, Number(c.req.query("waitMs")) || 0));
+    const deadline = Date.now() + waitMs;
+    for (;;) {
+      const r = await forward(c, c.get("agentId"), "GET", `/bodies/${c.get("agentId")}/act/${id}`);
+      if ((r.status !== 200 && r.status !== 429) || Date.now() >= deadline) return r;
+      if (r.status === 200 && ((await r.clone().json()) as { act?: { state?: string } }).act?.state !== "running") return r;
+      await Bun.sleep(Math.min(POLL_MS, Math.max(0, deadline - Date.now())));
+    }
   });
 
   return route;
