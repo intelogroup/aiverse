@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, and, asc, desc, sql } from "drizzle-orm";
+import { eq, and, asc, desc, notInArray, sql } from "drizzle-orm";
 import { db } from "../db/client";
 import { goals, a2aTasks, agentMemory } from "@aiverse/shared/schema";
 import { agentAuth } from "../middleware/agentAuth";
@@ -76,7 +76,16 @@ goalsRoute.patch("/goals/:id", agentAuth, async (c) => {
   const patch: any = { updatedAt: new Date() };
   if (body.status) patch.status = body.status;
   if (body.result !== undefined) patch.result = body.result;
-  const [updated] = await db.update(goals).set(patch).where(eq(goals.id, id)).returning();
+  // AIV-AGENT-PATCH-VERDICT-RACE-001: the not-in-a-verdict-state predicate
+  // lives IN the UPDATE, not just in the read above — an owner verdict that
+  // lands between the read and this write must not be overwritten (or the
+  // goal resurrected back to open) by this PATCH. 0 rows = verdict won.
+  const [updated] = await db
+    .update(goals)
+    .set(patch)
+    .where(and(eq(goals.id, id), eq(goals.agentId, agentId), notInArray(goals.status, ["accepted", "rejected"])))
+    .returning();
+  if (!updated) return c.json({ error: "goal has an owner verdict and is final" }, 409);
   return c.json({ goal: updated });
 });
 
@@ -165,18 +174,30 @@ const goalVerdictHandler = (verdict: "accepted" | "rejected") => async (c: any) 
     return c.json({ error: `goal must be synthesized before a verdict (current: ${goal.status})` }, 409);
   }
   const now = new Date();
-  const [updated] = await db
-    .update(goals)
-    .set({ status: verdict, acceptedAt: verdict === "accepted" ? now : null, updatedAt: now })
-    .where(eq(goals.id, id))
-    .returning();
-  // Backfill the outcome ledger for every task in this goal's context. Tasks
-  // materialized into the ledger LATER are stamped by the reconcile sweep
-  // (jobs/outcomeLedger.ts) — both paths are idempotent.
-  await db.execute(sql`
-    UPDATE task_outcomes SET goal_accepted = ${verdict === "accepted"}
-    WHERE context_id = ${goal.contextId} AND goal_accepted IS NULL
-  `);
+  // AIV-GOAL-VERDICT-RACE-001: the status='synthesized' predicate lives IN
+  // the UPDATE, and the UPDATE shares ONE transaction with the outcome-
+  // ledger backfill. A competing transition that lands first makes this
+  // update match 0 rows; the loser then writes nothing — no backfill, no
+  // audit — and gets a 409.
+  const updated = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(goals)
+      .set({ status: verdict, acceptedAt: verdict === "accepted" ? now : null, updatedAt: now })
+      .where(and(eq(goals.id, id), eq(goals.status, "synthesized")))
+      .returning();
+    if (!row) return null;
+    // Backfill the outcome ledger for every task in this goal's context.
+    // Tasks materialized into the ledger LATER are stamped by the reconcile
+    // sweep (jobs/outcomeLedger.ts) — both paths are idempotent.
+    await tx.execute(sql`
+      UPDATE task_outcomes SET goal_accepted = ${verdict === "accepted"}
+      WHERE context_id = ${goal.contextId} AND goal_accepted IS NULL
+    `);
+    return row;
+  });
+  if (!updated) {
+    return c.json({ error: "goal verdict already recorded — verdicts are final" }, 409);
+  }
   await audit({
     event: `goal.${verdict}`,
     ownerId,

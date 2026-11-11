@@ -630,6 +630,10 @@ a2aRoute.post("/a2a/agents/:id", agentAuth, async (c) => {
 
     const rate = await checkAgentSendRate(callerAgentId);
     if (!rate.allowed) {
+      // Budget was consumed above for a task this gate refuses — refund
+      // it, the same contract as the cap-lock and insert-failure paths
+      // below (no-charge-on-refusal).
+      await refundBudget(callerAgentId, tokensUsed);
       return c.json(rpcError(body.id, -32012, rate.reason ?? "rate limited"), 429);
     }
 

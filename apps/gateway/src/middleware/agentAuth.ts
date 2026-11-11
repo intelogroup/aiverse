@@ -1,7 +1,7 @@
 import type { MiddlewareHandler } from "hono";
 import { resolveAgentFromToken } from "../auth/resolveAgent";
 import { setPresence, API_PRESENCE_TTL_SECONDS } from "../presence";
-import { checkAndConsumeVisit } from "../policy/visits";
+import { checkAndConsumeVisit, refundVisitAction } from "../policy/visits";
 import { announceVisitEnded } from "../ws/gateway";
 
 // `countVisit: false` still enforces the visit (deadline, cap) but leaves the
@@ -47,6 +47,17 @@ const makeAgentAuth = (countVisit: boolean): MiddlewareHandler<{ Variables: { ag
   // slowing a request over.
   setPresence(agent.id, API_PRESENCE_TTL_SECONDS).catch(() => {});
   await next();
+
+  // No-charge-on-refusal for the visit counter: the consume above ran
+  // before the handler (the cap/deadline refusal must precede handler
+  // work), so a request the handler then refuses — a 400 validation, a
+  // 403, a 429 gate — performed no action and must not spend one. Give
+  // the action back on any error response; only a call that actually
+  // acted (2xx/3xx) keeps its charge. Best-effort: the response is
+  // already built, and a failed refund must never replace it.
+  if (countVisit && visit.consumed && visit.visitId && c.res.status >= 400) {
+    await refundVisitAction(visit.visitId).catch(() => {});
+  }
 };
 
 export const agentAuth = makeAgentAuth(true);

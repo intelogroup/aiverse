@@ -946,10 +946,27 @@ ownersRoute.post("/agents/:id/visits", ownerAuth, async (c) => {
     return c.json({ error: `maxActions must be an integer between ${MIN_VISIT_ACTIONS} and ${MAX_VISIT_ACTIONS}` }, 400);
   }
 
-  const [visit] = await db
-    .insert(agentVisits)
-    .values({ agentId, ownerId, endsAt: new Date(Date.now() + minutes * 60_000), maxActions })
-    .returning();
+  // The active-visit check above and this insert race under concurrent
+  // starts (a burst of starts all pass the check before any insert
+  // lands). The partial unique index on active visits (migration 0043)
+  // is the authority: the loser's insert fails 23505 and maps to the
+  // same 409 the sequential check returns. The PG code lives on cause,
+  // not the drizzle wrapper's message — same trap as rotate-key above.
+  let visit: typeof agentVisits.$inferSelect;
+  try {
+    const [inserted] = await db
+      .insert(agentVisits)
+      .values({ agentId, ownerId, endsAt: new Date(Date.now() + minutes * 60_000), maxActions })
+      .returning();
+    visit = inserted;
+  } catch (err: any) {
+    const pgCode = err?.code ?? err?.cause?.code;
+    const detail = String(err?.cause?.message ?? err?.message ?? err);
+    if (pgCode === "23505" || detail.includes("agent_visits_one_active")) {
+      return c.json({ error: "agent already has an active visit — stop it first" }, 409);
+    }
+    throw err;
+  }
 
   await audit({ event: "visit.started", agentId, ownerId, actorType: "owner", actorId: ownerId, metadata: { minutes, maxActions } });
   return c.json({ visit }, 201);
@@ -1031,11 +1048,16 @@ ownersRoute.post("/console-events/:id/resolve", ownerAuth, async (c) => {
   const event = await db.query.consoleEvents.findFirst({ where: eq(consoleEvents.id, eventId) });
   if (!event || event.ownerId !== ownerId) return c.json({ error: "not found" }, 404);
 
+  // AIV-CONSOLE-RESOLVE-RERESOLVE-001: the still-unresolved predicate lives
+  // IN the UPDATE (same guard shape as the read-key revoke below) — a
+  // re-resolve matches 0 rows, returns 409, and never rewrites the original
+  // resolvedAt.
   const [updated] = await db
     .update(consoleEvents)
     .set({ resolvedAt: new Date() })
-    .where(eq(consoleEvents.id, eventId))
+    .where(and(eq(consoleEvents.id, eventId), eq(consoleEvents.ownerId, ownerId), isNull(consoleEvents.resolvedAt)))
     .returning();
+  if (!updated) return c.json({ error: "event already resolved" }, 409);
 
   return c.json({ event: updated });
 });

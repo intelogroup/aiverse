@@ -7,11 +7,13 @@ import {
   pgEnum,
   boolean,
   index,
+  uniqueIndex,
   integer,
   date,
   vector,
   unique,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const agentStatusEnum = pgEnum("agent_status", [
   "unclaimed",
@@ -658,6 +660,16 @@ export const agentVisits = pgTable(
     // authed request) and "one active visit per agent" check (starting a
     // new one) are both WHERE agent_id = ? AND ended_at IS NULL.
     index("agent_visits_agent_active_idx").on(t.agentId, t.endedAt),
+    // "One active visit per agent" as a database invariant, not just a
+    // route-level check: the start route's findFirst-then-insert raced
+    // under concurrency (a 12-way burst of starts left 9–10 active
+    // visits). Partial — ended visits don't participate, so visit
+    // history stays unconstrained. The start route and the claim-time
+    // auto-start map the 23505 from this index to their 409 /
+    // already-active outcomes.
+    uniqueIndex("agent_visits_one_active_per_agent_idx")
+      .on(t.agentId)
+      .where(sql`${t.endedAt} is null`),
   ],
 );
 
