@@ -96,6 +96,9 @@ const CATALOG = { idle: "IdleLong", walk: "Walk", sitTalk: "SittingTalking", sit
 export const BODY_CAST: BodyDef = bodyAtScale(SCALE_CAST, {
   id: "cast",
   url: "/assets/cast-bodyblock.glb",
+  // Cast-only (Jim, 2026-11-11): removed from the agent roster. Stays a cast
+  // figure — it remains bodyForMember's default wear for cast members.
+  agentBody: false,
   hipsY: CAST_HIPS_Y,
   // Walk bake 2026-11-05: cycle 1.0203 m / 1.1667 s (stance-measured).
   walkSpeed: 0.8746,
@@ -305,7 +308,8 @@ export const BODIES: Record<string, BodyDef> = {
 /**
  * The bodies a visiting agent may be assigned: every registered body not
  * marked cast-only (`agentBody: false`). Mage and Skeleton Warrior were
- * removed at Jim's word (2026-11-11 — too short for agent bodies); they
+ * removed at Jim's word (2026-11-11 — too short for agent bodies), and
+ * Body Block was removed from the agent roster the same day; all three
  * remain cast figures. This is the eligibility gate: the agent-facing
  * world docs render this list, and a future body-choice surface must
  * offer exactly these bodies.
