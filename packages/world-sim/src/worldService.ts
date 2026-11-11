@@ -5,6 +5,7 @@
 //
 // Senses are only what the sensorium charter allows: the body's own state and the projected scene (`oracleScene`: what is in
 // range and in the view cone). No other agent's identity, no hidden state, no debug surface.
+import { createHmac, randomBytes } from "node:crypto";
 import { AgentBody, type AgentSnapshot } from "./agentBody";
 import { explainAction, validRequestId } from "./actionProtocol";
 import { encodePose, type PoseTuple } from "./streamProtocol";
@@ -57,6 +58,8 @@ interface Session {
   records: Map<string, ActRecord>;
   last: ActRecord | null;
   lastSeen: number;
+  /** Per-visit secret: other bodies' handles are HMAC(salt, id), so they mean nothing to anyone else or in a later visit. */
+  salt: Buffer;
 }
 
 export class WorldService {
@@ -93,7 +96,7 @@ export class WorldService {
     } catch (e) {
       throw new WorldError("spawn_failed", e instanceof Error ? e.message : String(e));
     }
-    this.sessions.set(agentId, { n: this.nextN++, body, records: new Map(), last: null, lastSeen: this.sim.t });
+    this.sessions.set(agentId, { n: this.nextN++, body, records: new Map(), last: null, lastSeen: this.sim.t, salt: randomBytes(16) });
     this.rosterRev++;
     return this.observe(agentId);
   }
@@ -129,12 +132,19 @@ export class WorldService {
     if (existing && JSON.stringify(existing.action) !== JSON.stringify(action)) throw new WorldError("id_conflict", "request ID reused with different action");
     if (existing) return existing;
     const rec: ActRecord = { id, action: action as ScoutAction, state: "running", startedAt: this.sim.t };
-    // Submitted synchronously (the executor's submit is), so the very next tick already walks; the record is the idempotency ledger.
-    void s.body.act(rec.action).then((outcome) => {
-      rec.outcome = outcome;
+    const resolved = this.resolveBody(agentId, s, rec.action);
+    if (resolved === null) {
       rec.state = "settled";
       rec.settledAt = this.sim.t;
-    });
+      rec.outcome = { ok: false, status: "unavailable", detail: "not_visible: no such body in sight. Handles come from observe.scene (kind body), change every visit, and only work while you can see the body" };
+    } else {
+      // Submitted synchronously (the executor's submit is), so the very next tick already walks; the record is the idempotency ledger.
+      void s.body.act(resolved).then((outcome) => {
+        rec.outcome = outcome;
+        rec.state = "settled";
+        rec.settledAt = this.sim.t;
+      });
+    }
     s.records.set(id, rec);
     s.last = rec;
     while (s.records.size > this.keepRecords) {
@@ -143,6 +153,24 @@ export class WorldService {
       s.records.delete(oldest);
     }
     return rec;
+  }
+
+  /** The opaque name this agent's visit gives to another body (stable within the visit, meaningless elsewhere). */
+  private handleFor(s: Session, targetId: string): string {
+    return "b-" + createHmac("sha256", s.salt).update(targetId).digest("hex").slice(0, 8);
+  }
+
+  /** An action naming a body by handle becomes a point action on where that body is NOW; null when it is not in sight. */
+  private resolveBody(agentId: string, s: Session, action: ScoutAction): ScoutAction | null {
+    if (!("body" in action) || action.body === undefined) return action;
+    const seen = this.sim.visibleBodies(agentId).find((v) => this.handleFor(s, v.id) === action.body);
+    if (!seen) return null;
+    const me = s.body.state, t = seen.body.state;
+    if (action.type === "face") return { type: "face", point: [t.x, t.z] };
+    if (action.type !== "go_to" && action.type !== "run_to") return null;
+    // stop 1.2 m short of them, on the near side
+    const d = Math.max(seen.distance, 1e-6), stand = Math.max(0, d - 1.2) / d;
+    return { type: action.type, point: [round(me.x + (t.x - me.x) * stand, 2), round(me.z + (t.z - me.z) * stand, 2)] };
   }
 
   /** The body's own state, without the scene (cheap "do I have a body, where am I" check). */
@@ -173,9 +201,25 @@ export class WorldService {
       body: s.body.snapshot(),
       nearestPlace: np ? { id: np.place.id, name: np.place.name, kind: np.place.kind, dist: round(np.dist, 2) } : null,
       insideRoom: room?.name ?? null,
-      scene: oracleScene(this.sim.places, this.sim.rooms, { x: st.x, z: st.z, heading: st.body }, {}, interactables, seats),
+      scene: [...oracleScene(this.sim.places, this.sim.rooms, { x: st.x, z: st.z, heading: st.body }, {}, interactables, seats), ...this.seenBodies(agentId, s)]
+        .sort((a, b) => a.distance - b.distance),
       lastAct: s.last,
     };
+  }
+
+  /** Other bodies in sight as oracle objects. No agent id, no name, no coordinates: a handle, where, and what they are doing. */
+  private seenBodies(agentId: string, s: Session): OracleObject[] {
+    const me = s.body.state;
+    return this.sim.visibleBodies(agentId).map((v) => {
+      const snap = v.body.snapshot();
+      const toMe = Math.atan2(me.x - snap.x, me.z - snap.z);
+      const facingYou = Math.abs(Math.atan2(Math.sin(toMe - snap.heading), Math.cos(toMe - snap.heading))) <= Math.PI / 4;
+      return {
+        kind: "body" as const, id: this.handleFor(s, v.id), name: "someone", bearingDeg: round(v.bearingDeg, 1), distance: round(v.distance, 2),
+        posture: snap.posture, doing: snap.clip, facingYou, moving: snap.speed > 0.3,
+        note: "use with face {body} or go_to {body}",
+      };
+    });
   }
 
   /** Every body's pose this instant, quantised for the viewer stream. Not agent-scoped: it is the public picture of the world. */

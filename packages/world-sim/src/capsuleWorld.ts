@@ -157,6 +157,23 @@ export function createCapsuleWorld(getMeshes: () => THREE.Mesh[], opts: CapsuleO
       return best;
     },
 
+    sightBlocked(from: Vec3, to: Vec3): boolean {
+      const dx = to[0] - from[0], dy = to[1] - from[1], dz = to[2] - from[2];
+      const dist = Math.hypot(dx, dy, dz);
+      if (dist < 1e-3) return false;
+      const far = dist - 0.1; // the target's own capsule is not geometry
+      for (const m of getMeshes()) {
+        if (m.userData.collisionDisabled) continue;
+        const bvh = bvhOf(m);
+        if (!bvh) continue;
+        const o = m.userData.collisionOffset as THREE.Vector3 | undefined;
+        ray.origin.set(from[0] - (o?.x ?? 0), from[1] - (o?.y ?? 0), from[2] - (o?.z ?? 0));
+        ray.direction.set(dx / dist, dy / dist, dz / dist);
+        if (bvh.raycast(ray, THREE.DoubleSide, 0, far).length) return true;
+      }
+      return false;
+    },
+
     blocked(from: Vec3, to: Vec3, radius: number): Hit | null {
       counters.blockedCalls++;
       const meshes = getMeshes();

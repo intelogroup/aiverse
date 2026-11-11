@@ -72,6 +72,8 @@ export interface World {
    * Casts at body height, above the step-up. Returns the obstruction (null = free).
    */
   blocked(from: Vec3, to: Vec3, radius: number): Hit | null;
+  /** True when a straight sight line from `from` to `to` (eye points) meets collision geometry. Absent: nothing blocks sight. */
+  sightBlocked?(from: Vec3, to: Vec3): boolean;
 }
 
 export type Vec3 = [number, number, number];

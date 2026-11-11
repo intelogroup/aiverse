@@ -7,7 +7,14 @@ Measured from the agents' own transcripts (their curl commands and the tool resu
   polls_per_act GET /world/act/<id> calls / POST /world/act calls
   waitms_users  agents that used ?waitMs
   inside_shop   agents that stood inside a room rect >= 2 m past its door
-  enter_ok      tool results with an enter action that arrived
+  enter_ok      settled act records (read back by the agent) for an enter that arrived
+  sat_agents    agents with a settled sit ("seated" in a result to a sit command)
+  gesture_agents agents with a settled play ("done" after a play command)
+  invalid_play  results where a play command was refused as invalid_action
+  occupied      sit refusals as occupied (the claim works)
+  see_agents    agents whose observe sample ever listed a body in sight
+  mutual_pairs  agent pairs within 15 m at the same 10 s sample where BOTH listed a body
+  handle_acts   face/go_to {body} commands the agents issued
 """
 import glob, json, math, os, re, sys
 
@@ -36,23 +43,59 @@ def tool_events(path):
                 out.append((cmds.get(c.get("tool_use_id"), ""), r))
     return out
 
+ACT_REC = re.compile(r'"action":\{"type":"(\w+)"[^{}]*\}[^{}]*?"outcome":\{"ok":(?:true|false),"status":"(\w+)"(?:,"target":"[^"]*")?(?:,"detail":"([^"]*)")?')
+
+
+def act_records(res):
+    """(action type, outcome status, detail) for every settled act record in a tool result (JSON text, escaped or not)."""
+    t = res.replace('\\"', '"')
+    return [(m.group(1), m.group(2) or "", m.group(3) or "") for m in ACT_REC.finditer(t) if m.group(2)]
+
+
+def is_act_cmd(cmd): return "/world/act" in cmd and "POST" in cmd
+
 def gate(run):
-    m = dict(agents=0, attach_2min=0, hall_blocked=0, posts=0, polls=0, waitms_users=0, inside_shop=0, enter_ok=0)
+    samples = {}
+    m = dict(agents=0, attach_2min=0, hall_blocked=0, posts=0, polls=0, waitms_users=0, inside_shop=0, enter_ok=0, sat_agents=0, gesture_agents=0, invalid_play=0, occupied=0, see_agents=0, mutual_pairs=0, handle_acts=0)
     for d in sorted(glob.glob(os.path.join(run, "claude-*/"))):
         m["agents"] += 1
         tr = [json.loads(l) for l in open(d + "trajectory.jsonl")]
         t0 = tr[0]["t"] if tr else 0
         if any(x["status"] == 200 and x["t"] - t0 <= 120 for x in tr): m["attach_2min"] += 1
         bodies = [x["obs"]["observation"]["body"] for x in tr if x["status"] == 200]
+        saw = False
+        for x in tr:
+            if x["status"] != 200: continue
+            o = x["obs"]["observation"]
+            has = any(e.get("kind") == "body" for e in o.get("scene", []))
+            saw |= has
+            samples.setdefault(round(x["t"] / 10), {})[d] = (o["body"]["x"], o["body"]["z"], has)
+        m["see_agents"] += saw
         if any(deep_inside(b["x"], b["z"]) for b in bodies): m["inside_shop"] += 1
-        used_wait = False
+        used_wait = sat = gest = False
         for cmd, res in tool_events(d + "transcript.jsonl"):
             m["posts"] += len(re.findall(r"-X\s*POST[^|]*?/world/act\b(?!/)", cmd))
             m["polls"] += len(re.findall(r"/world/act/[A-Za-z0-9-]+", cmd))
             used_wait |= "waitMs" in cmd
+            recs = act_records(res)
+            sat |= any(t == "sit" and st == "seated" for t, st, _ in recs)
+            gest |= any(t == "play" and st == "done" for t, st, _ in recs)
+            m["occupied"] += sum(t == "sit" and "occupied" in d for t, _, d in recs)
+            m["invalid_play"] += ("invalid_action" in res and "clip" in cmd and "play" in cmd)
+            m["enter_ok"] += sum(t == "enter" and st == "arrived" for t, st, _ in recs)
+            m["handle_acts"] += bool(re.search(r'(face|go_to|run_to)\\*"[^}]*\\*"body\\*"\s*:\s*\\*"b-', cmd)) and is_act_cmd(cmd)
             if "hall-0" in cmd and "no safe route" in res: m["hall_blocked"] += 1
-            if '\\"enter\\"' in cmd and '"arrived"' in res: m["enter_ok"] += 1
         m["waitms_users"] += used_wait
+        m["sat_agents"] += sat
+        m["gesture_agents"] += gest
+    pairs = set()
+    for t, per in samples.items():
+        ids = sorted(per)
+        for i, a in enumerate(ids):
+            for b in ids[i + 1:]:
+                (ax, az, ah), (bx, bz, bh) = per[a], per[b]
+                if ah and bh and math.dist((ax, az), (bx, bz)) <= 15: pairs.add((a, b, t))
+    m["mutual_pairs"] = len({(a, b) for a, b, _ in pairs})
     m["polls_per_act"] = round(m["polls"] / max(1, m["posts"]), 2)
     return m
 
