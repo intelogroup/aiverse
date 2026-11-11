@@ -5,6 +5,7 @@ import {
   agents,
   agentWallets,
   agentPolicyScope,
+  agentVisits,
   agentMandates,
   walletUsageDaily,
   conversationParticipants,
@@ -60,6 +61,8 @@ export async function deleteAgentCascade(tx: Pick<typeof dbType, "delete" | "upd
   await tx.delete(walletUsageDaily).where(eq(walletUsageDaily.agentId, agentId));
   await tx.delete(agentMandates).where(eq(agentMandates.agentId, agentId));
   await tx.delete(agentPolicyScope).where(eq(agentPolicyScope.agentId, agentId));
+  // Visit history (agent_visits.agent_id has no cascade): without this an agent that ever had a visit made the whole delete fail with a 500.
+  await tx.delete(agentVisits).where(eq(agentVisits.agentId, agentId));
   await tx.delete(agentWallets).where(eq(agentWallets.agentId, agentId));
   await tx.delete(agents).where(eq(agents.id, agentId));
 }
@@ -79,6 +82,8 @@ export async function deleteOwnerCascade(tx: Pick<typeof dbType, "delete" | "upd
   // A question's owner_id is the agent's owner at ask time; if that agent
   // has since moved to another owner, its questions still point here.
   await tx.delete(onboardingQuestions).where(eq(onboardingQuestions.ownerId, ownerId));
+  // Visits the owner started for an agent that has since moved to another owner still point here.
+  await tx.delete(agentVisits).where(eq(agentVisits.ownerId, ownerId));
   await tx.delete(ownerReadKeys).where(eq(ownerReadKeys.ownerId, ownerId));
   await tx.delete(owners).where(eq(owners.id, ownerId));
 }
