@@ -514,8 +514,8 @@ export class ScoutExecutor {
 
   private resolveTarget(action: { type?: string; place?: string; point?: Vec2 }, state: WalkerState): { pos: Vec2; id?: string } | null {
     // `enter` means "inside" (room ids mostly equal their lot ids, so the action, not the id, says it): the room centre, or, when
-    // furniture blocks it, the first plannable point stepped in from the door. Cold agents reached shop doors but never got inside;
-    // three of them guessed an `enter` action on their own.
+    // furniture blocks it, the first plannable point stepped in from the door. Cold agents got inside only by guessing coordinates
+    // for go_to {point}; three of them guessed an `enter` action on their own.
     if (action.type === "enter") {
       const lot = this.deps.places.find((pl) => pl.id === action.place || pl.room === action.place);
       const room = this.deps.rooms?.find((r) => r.id === action.place || r.id === lot?.room);
