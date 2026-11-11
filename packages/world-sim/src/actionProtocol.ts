@@ -1,12 +1,16 @@
 // actionProtocol.ts — the physical tool boundary of the server sim: what an agent may ask its body to do.
 //
 // Moved from tools/embodied/protocol.ts (which now re-exports it) so the browser experiment host and the server sim share ONE contract.
-// Only physical intents pass: no teleport, no debug or eval, no free text (`say` goes through the social path, not the body).
+// Only physical intents pass: no teleport, no debug or eval. The one free-text action is `say`: short, range-limited, and handled by
+// WorldService (it never reaches the body executor).
 // IDs make a request idempotent: a retry with the same id and the same action returns the first result and does not act twice.
 import { resolveSocialClip, SOCIAL_CLIPS } from "./clips";
 
 const ID_RE = /^[a-zA-Z0-9-]{1,80}$/;
 const MAX_NAME = 100;
+/** Longest spoken line, and how far it carries (needs a clear line of sight too). */
+export const MAX_SAY = 140;
+export const SAY_RANGE_M = 6;
 
 /** A request id: 1-80 letters, digits or dashes. */
 export function validRequestId(id: unknown): id is string { return typeof id === "string" && ID_RE.test(id); }
@@ -16,6 +20,7 @@ export const ACTION_TYPES = {
   go_to: "{place}, {point:[x,z]} or {body: handle}: stop 1.2 m in front of someone you see", run_to: "{place} or {point:[x,z]}", enter: "{place} (lot or room id): walk inside",
   face: "{headingDeg}, {point:[x,z]} or {body: handle}", wait: "{seconds} 0-30", sit: "{sittable?}", stand: "{}",
   play: "{clip, seconds?} (GET /world/clips)", interact: "{target}", stop: "{}",
+  say: `{text <= ${MAX_SAY} chars, to?: handle}: speak aloud; bodies within ${SAY_RANGE_M} m with a clear line of sight hear it (read observe.heard)`,
 } as const;
 
 export function validAction(a: unknown): boolean { return explainAction(a) === null; }
@@ -39,6 +44,10 @@ export function explainAction(a: unknown): string | null {
       return extra("clip", "seconds");
     case "sit":
       return v.sittable !== undefined && !name(v.sittable) ? "sittable must be a seat id" : extra("sittable");
+    case "say":
+      if (typeof v.text !== "string" || v.text.trim().length === 0 || v.text.length > MAX_SAY) return `say needs text, 1-${MAX_SAY} characters`;
+      if (v.to !== undefined && !name(v.to)) return "to must be a handle from observe.scene";
+      return extra("text", "to");
     case "interact": return name(v.target) ? extra("target") : "interact needs a target (a prop id from observe.scene)";
     case "wait": return num(v.seconds, 0, 30) ? extra("seconds") : "wait needs seconds, 0-30";
     case "face":
