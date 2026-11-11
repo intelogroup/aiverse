@@ -73,6 +73,8 @@ export function createWorldRoute(sim: SimClient) {
   route.get("/places", (c) => forward(c, c.get("agentId"), "GET", "/places"));
   // The M4 docs promise GET /world/map (places): the same sim places list under the documented name.
   route.get("/map", (c) => forward(c, c.get("agentId"), "GET", "/places"));
+  // The exact names `play` accepts (cold agents guessed "wave"; the clip is "Waving").
+  route.get("/clips", (c) => forward(c, c.get("agentId"), "GET", "/clips"));
 
   route.post("/act", async (c) => {
     const text = await c.req.text();

@@ -98,6 +98,10 @@ describe("/world (agent body)", () => {
     expect(mapBody).toEqual(placesBody);
     expect(mapBody.places.some((p: any) => p.id === "shop-102" && p.name === "Matchmaker's Tea House")).toBe(true);
 
+    // The playable clip names, through the same gates.
+    const clips = (await (await w(agentToken, "GET", "/clips")).json()) as any;
+    expect(clips.clips.some((c: any) => c.name === "Waving" && typeof c.loop === "boolean")).toBe(true);
+
     // Room ids are enumerable from the payload: a roomed place carries its interior
     // room id (the alternate go_to address), an unroomed place carries null — on both routes.
     for (const body of [mapBody, placesBody]) {

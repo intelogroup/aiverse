@@ -57,6 +57,25 @@ describe("sim internal API", () => {
     expect(((await (await call("GET", `/bodies/${AID}`)).json()) as any).error).toBe("no_body");
   });
 
+  test("clips lists what play accepts; a refused action says why and names the valid options", async () => {
+    const clips = ((await (await call("GET", "/clips")).json()) as any).clips;
+    expect(clips.map((c: any) => c.name)).toContain("Waving");
+    clock += 10_000;
+    await call("POST", "/bodies", { agentId: AID, expiresAtMs: clock + 60_000 });
+    const wave = (await (await call("POST", `/bodies/${AID}/act`, { id: "w1", action: { type: "play", clip: "wave" } })).json()) as any;
+    expect(wave.error).toBe("invalid_action");
+    expect(wave.message).toContain("Waving");
+    clock += 1000;
+    const type = (await (await call("POST", `/bodies/${AID}/act`, { id: "w2", action: { type: "dance" } })).json()) as any;
+    expect(type.message).toContain("go_to");
+    clock += 1000;
+    expect((await call("POST", `/bodies/${AID}/act`, { id: "w3", action: { type: "face", point: [0, 0] } })).status).toBe(202);
+    clock += 1000;
+    expect((await call("POST", `/bodies/${AID}/act`, { id: "w4", action: { type: "face", point: [0, 0], headingDeg: 3 } })).status).toBe(400);
+    clock += 1000;
+    await call("DELETE", `/bodies/${AID}`);
+  });
+
   test("rejects bad input: teleport, reused id, oversize body, bad agent id, past expiry", async () => {
     clock += 10_000;
     await call("POST", "/bodies", { agentId: AID, expiresAtMs: clock + 60_000 });

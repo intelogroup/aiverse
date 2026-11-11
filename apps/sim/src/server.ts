@@ -81,6 +81,7 @@ export function createSimServer(opts: SimServerOpts) {
     try {
       if (req.method === "GET" && url.pathname === "/healthz") return json({ ready: service.sim.ready, bodies: service.bodyCount, t: service.sim.t });
       if (req.method === "GET" && url.pathname === "/places") return json({ places: service.places() });
+      if (req.method === "GET" && url.pathname === "/clips") return json({ clips: service.clips() });
       if (req.method === "GET" && url.pathname === "/bodies") return json({ agentIds: service.agentIds() });
       // The viewer stream's source. Gateway-only like everything here; its own bucket so spectators never eat an agent's read budget.
       if (req.method === "GET" && url.pathname === "/frames") {

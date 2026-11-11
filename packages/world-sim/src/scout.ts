@@ -461,7 +461,10 @@ export class ScoutExecutor {
         const ia = this.deps.interact;
         if (!ia) return Promise.resolve({ ok: false, status: "unavailable", detail: "nothing here can be used" });
         const def = ia.defs().find((d) => d.id === action.target || d.kind === action.target || d.label.toLowerCase() === action.target.toLowerCase());
-        if (!def) return Promise.resolve({ ok: false, status: "unavailable", detail: `unknown prop: ${action.target}` });
+        if (!def) {
+          const known = ia.defs().map((d) => d.id).join(", ");
+          return Promise.resolve({ ok: false, status: "unavailable", detail: `unknown prop: ${action.target}; usable props: ${known || "none"} (doors and shops are entered with enter, not interact)` });
+        }
         const dist = Math.hypot(def.stand[0] - state.x, def.stand[1] - state.z);
         return this.begin(action, state, {
           phase: "to-stand",
