@@ -104,6 +104,10 @@ export function createSimServer(opts: SimServerOpts) {
       const [root, id, sub, actId] = parts;
       if (root === "bodies" && id) {
         if (req.method === "DELETE" && !sub) { expiry.delete(id); return json({ removed: service.detach(id) }); }
+        if (req.method === "GET" && !sub) {
+          if (!bucket(reads, id, readRate).take(now())) return json({ error: "rate_limited" }, 429, { "retry-after": "1" });
+          return json({ body: service.body(id) });
+        }
         if (req.method === "GET" && sub === "observe") {
           if (!bucket(reads, id, readRate).take(now())) return json({ error: "rate_limited" }, 429, { "retry-after": "1" });
           return json({ observation: service.observe(id) });

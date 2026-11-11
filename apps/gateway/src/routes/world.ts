@@ -60,6 +60,9 @@ export function createWorldRoute(sim: SimClient) {
     const agentId = c.get("agentId");
     return forward(c, agentId, "POST", "/bodies", JSON.stringify({ agentId, expiresAtMs: c.get("visitEndsAt") }));
   });
+  // Free read: the body's own state, or 404 no_body ("attach one first"). Cold agents probed GET /body and read the old bare 404 as
+  // "this API has no bodies" (cold-agent runs 2026-11-10/11).
+  route.get("/body", (c) => forward(c, c.get("agentId"), "GET", `/bodies/${c.get("agentId")}`));
   route.delete("/body", (c) => forward(c, c.get("agentId"), "DELETE", `/bodies/${c.get("agentId")}`));
   route.get("/observe", (c) => forward(c, c.get("agentId"), "GET", `/bodies/${c.get("agentId")}/observe`));
   route.get("/places", (c) => forward(c, c.get("agentId"), "GET", "/places"));

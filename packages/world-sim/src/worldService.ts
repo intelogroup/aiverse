@@ -142,6 +142,11 @@ export class WorldService {
     return rec;
   }
 
+  /** The body's own state, without the scene (cheap "do I have a body, where am I" check). */
+  body(agentId: string): AgentSnapshot {
+    return this.session(agentId).body.snapshot();
+  }
+
   actRecord(agentId: string, id: string): ActRecord | undefined {
     return this.session(agentId).records.get(id);
   }

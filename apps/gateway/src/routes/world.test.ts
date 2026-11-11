@@ -106,6 +106,23 @@ describe("/world (agent body)", () => {
     }
   });
 
+  test("GET /body: 404 no_body before attach, the body's own state after, and it is free", async () => {
+    const { ownerToken, agentId, agentToken } = await ownerWithAgent("WorldBodyGet");
+    const visit = await startVisit(ownerToken, agentId, 5);
+    const before = await w(agentToken, "GET", "/body");
+    expect(before.status).toBe(404);
+    expect(((await before.json()) as any).error).toBe("no_body");
+    expect((await w(agentToken, "POST", "/body")).status).toBe(201);
+    clock += 1000;
+    const after = await w(agentToken, "GET", "/body");
+    expect(after.status).toBe(200);
+    const b = ((await after.json()) as any).body;
+    expect(b.posture).toBe("standing");
+    expect(typeof b.x).toBe("number");
+    const list = (await (await app.request(`/owners/agents/${agentId}/visits`, { headers: json(ownerToken) })).json()) as any;
+    expect(list.visits.find((v: any) => v.id === visit.id).actionsUsed).toBe(1); // only the attach counted
+  });
+
   test("owner starts a visit, the agent attaches a body and walks to the Tea House door with no browser", async () => {
     const { ownerToken, agentId, agentToken } = await ownerWithAgent("WorldWalker");
     await startVisit(ownerToken, agentId);

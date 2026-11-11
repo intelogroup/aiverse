@@ -48,8 +48,13 @@ describe("sim internal API", () => {
     clock += 1000;
     const o = (await (await call("GET", `/bodies/${AID}/observe`)).json()) as any;
     expect(o.observation.nearestPlace.id).toBe("stall-0");
+    clock += 1000;
+    const b = (await (await call("GET", `/bodies/${AID}`)).json()) as any;
+    expect(b.body.posture).toBe("standing");
+    expect(b.body.x).toBeCloseTo(o.observation.body.x, 1);
     expect(((await (await call("DELETE", `/bodies/${AID}`)).json()) as any).removed).toBe(true);
     expect((await call("GET", `/bodies/${AID}/observe`)).status).toBe(404);
+    expect(((await (await call("GET", `/bodies/${AID}`)).json()) as any).error).toBe("no_body");
   });
 
   test("rejects bad input: teleport, reused id, oversize body, bad agent id, past expiry", async () => {
