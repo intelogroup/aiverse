@@ -123,6 +123,23 @@ describe("/world (agent body)", () => {
     expect(list.visits.find((v: any) => v.id === visit.id).actionsUsed).toBe(1); // only the attach counted
   });
 
+  test("visit counter: only a new accepted act counts (not a replay, a refused action or an id conflict)", async () => {
+    const { ownerToken, agentId, agentToken } = await ownerWithAgent("WorldCount");
+    const visit = await startVisit(ownerToken, agentId, 50);
+    const used = async () => ((await (await app.request(`/owners/agents/${agentId}/visits`, { headers: json(ownerToken) })).json()) as any)
+      .visits.find((v: any) => v.id === visit.id).actionsUsed;
+    expect((await w(agentToken, "POST", "/body")).status).toBe(201); // 1
+    clock += 1000;
+    expect((await w(agentToken, "POST", "/act", { id: "c-1", action: { type: "wait", seconds: 1 } })).status).toBe(202); // 2
+    clock += 1000;
+    expect((await w(agentToken, "POST", "/act", { id: "c-1", action: { type: "wait", seconds: 1 } })).status).toBe(200); // replay
+    clock += 1000;
+    expect((await w(agentToken, "POST", "/act", { id: "c-1", action: { type: "stop" } })).status).toBe(409);
+    clock += 1000;
+    expect((await w(agentToken, "POST", "/act", { id: "c-2", action: { type: "teleport", point: [0, 0] } })).status).toBe(400);
+    expect(await used()).toBe(2);
+  });
+
   test("GET /act/:id?waitMs holds until the act settles; waitMs=0 answers at once", async () => {
     const { ownerToken, agentId, agentToken } = await ownerWithAgent("WorldLongPoll");
     await startVisit(ownerToken, agentId);
@@ -158,7 +175,7 @@ describe("/world (agent body)", () => {
 
     // Same id, same action: the first record, not a second walk. Same id, other action: conflict.
     clock += 1000;
-    expect((await w(agentToken, "POST", "/act", { id: "go-tea", action: { type: "go_to", point: [-22.9, -75.0] } })).status).toBe(202);
+    expect((await w(agentToken, "POST", "/act", { id: "go-tea", action: { type: "go_to", point: [-22.9, -75.0] } })).status).toBe(200);
     clock += 1000;
     expect((await w(agentToken, "POST", "/act", { id: "go-tea", action: { type: "stop" } })).status).toBe(409);
 

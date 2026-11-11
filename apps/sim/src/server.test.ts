@@ -64,6 +64,8 @@ describe("sim internal API", () => {
     clock += 1000;
     expect((await call("POST", `/bodies/${AID}/act`, { id: "dup", action: { type: "wait", seconds: 1 } })).status).toBe(202);
     clock += 1000;
+    expect((await call("POST", `/bodies/${AID}/act`, { id: "dup", action: { type: "wait", seconds: 1 } })).status).toBe(200); // replay
+    clock += 1000;
     expect((await call("POST", `/bodies/${AID}/act`, { id: "dup", action: { type: "stop" } })).status).toBe(409);
     clock += 1000;
     expect((await call("POST", `/bodies/${AID}/act`, { id: "big", action: { type: "stop" }, pad: "x".repeat(5000) })).status).toBe(413);

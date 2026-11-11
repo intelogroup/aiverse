@@ -87,6 +87,15 @@ export async function checkAndConsumeVisit(agentId: string, method: string): Pro
   return { allowed: true };
 }
 
+// Counts one action on the agent's active visit, for routes that authenticate
+// with agentAuthUncounted and count only once the call really acted.
+export async function consumeVisitAction(agentId: string): Promise<void> {
+  await db
+    .update(agentVisits)
+    .set({ actionsUsed: sql`${agentVisits.actionsUsed} + 1` })
+    .where(and(eq(agentVisits.agentId, agentId), isNull(agentVisits.endedAt)));
+}
+
 // Owner-triggered end (POST .../visits/:id/stop) — same terminal row state
 // as an automatic end, distinguished only by reason. Scoped to the owner by
 // the caller's own ownership check before this is called, same as every

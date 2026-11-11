@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import { and, eq, isNull } from "drizzle-orm";
 import { agentVisits } from "@aiverse/shared/schema";
 import { db } from "../db/client";
-import { agentAuth } from "../middleware/agentAuth";
+import { agentAuth, agentAuthUncounted } from "../middleware/agentAuth";
+import { consumeVisitAction } from "../policy/visits";
 import { log, logError } from "../util/log";
 import { onAgentGone } from "../world/hooks";
 import type { SimClient } from "../world/simClient";
@@ -31,7 +32,8 @@ export function createWorldRoute(sim: SimClient) {
     ),
   );
 
-  route.use("*", agentAuth);
+  // POST /act counts in its handler, only for a NEW accepted act (sim 202): retries, 429s and refused actions do not spend the visit.
+  route.use("*", (c, next) => (c.req.method === "POST" && c.req.path.endsWith("/act") ? agentAuthUncounted : agentAuth)(c, next));
   route.use("*", async (c, next) => {
     const visit = await db.query.agentVisits.findFirst({
       where: and(eq(agentVisits.agentId, c.get("agentId")), isNull(agentVisits.endedAt)),
@@ -78,7 +80,9 @@ export function createWorldRoute(sim: SimClient) {
     try { b = JSON.parse(text); } catch { return c.json({ error: "bad_json" }, 400); }
     if (typeof b?.id !== "string" || !ID_RE.test(b.id)) return c.json({ error: "invalid_action", message: "id must be 1-80 letters, digits or dashes" }, 400);
     // Only the two fields cross; anything else the agent sent stays here.
-    return forward(c, c.get("agentId"), "POST", `/bodies/${c.get("agentId")}/act`, JSON.stringify({ id: b.id, action: b.action }));
+    const r = await forward(c, c.get("agentId"), "POST", `/bodies/${c.get("agentId")}/act`, JSON.stringify({ id: b.id, action: b.action }));
+    if (r.status === 202) await consumeVisitAction(c.get("agentId"));
+    return r;
   });
 
   // ?waitMs=<=10000 holds the call until the act settles (or the wait ends), so an agent needs one call per act instead of a polling

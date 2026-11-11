@@ -4,7 +4,10 @@ import { setPresence, API_PRESENCE_TTL_SECONDS } from "../presence";
 import { checkAndConsumeVisit } from "../policy/visits";
 import { announceVisitEnded } from "../ws/gateway";
 
-export const agentAuth: MiddlewareHandler<{ Variables: { agentId: string } }> = async (
+// `countVisit: false` still enforces the visit (deadline, cap) but leaves the
+// counting to the route, for calls that count only when they really act
+// (POST /world/act: a retried id, a 429 or an invalid action is not an action).
+const makeAgentAuth = (countVisit: boolean): MiddlewareHandler<{ Variables: { agentId: string } }> => async (
   c,
   next,
 ) => {
@@ -28,7 +31,7 @@ export const agentAuth: MiddlewareHandler<{ Variables: { agentId: string } }> = 
   // Visit enforcement, before the call counts as anything else: an agent
   // whose visit just ended (deadline or action cap) gets rejected here, not
   // let through and caught later.
-  const visit = await checkAndConsumeVisit(agent.id, c.req.method);
+  const visit = await checkAndConsumeVisit(agent.id, countVisit ? c.req.method : "GET");
   if (!visit.allowed) {
     if (visit.ended) await announceVisitEnded(visit.ended);
     return c.json({ error: "visit_ended", reason: visit.reason }, 403);
@@ -45,3 +48,6 @@ export const agentAuth: MiddlewareHandler<{ Variables: { agentId: string } }> = 
   setPresence(agent.id, API_PRESENCE_TTL_SECONDS).catch(() => {});
   await next();
 };
+
+export const agentAuth = makeAgentAuth(true);
+export const agentAuthUncounted = makeAgentAuth(false);
