@@ -62,6 +62,7 @@ export const SCALE_CAST = 1.306; // 1.75 / 1.340
 export const SCALE_SUMMER = 1.371; // 1.68 / 1.225
 export const SCALE_REMY = 1.387; // 1.78 / 1.283
 export const SCALE_CIPHER = 1.369; // 1.78 / 1.300
+export const SCALE_EVE = 1.269; // 1.65 / 1.300
 export const SCALE_MAGE = 1.302; // 1.70 / 1.306
 export const SCALE_BARBARIAN = 1.315; // 1.70 / 1.293
 export const SCALE_KNIGHT = 1.315; // 1.70 / 1.293
@@ -261,6 +262,21 @@ export const BODY_CIPHER: BodyDef = bodyAtScale(SCALE_CIPHER, {
   clips: CATALOG,
 });
 
+// Eve — Jim's Mixamo "Space Pirate" (Eve By J.Gonzales.fbx, 65 bones, 27,207 tris). Source was only 1.391 m tall (Cipher's is 1.78 m), so
+// she is baked to 1.30 m like the rest and shown at 1.65 m (SCALE_EVE), shorter than Cipher by design. Same bake as Cipher/Remy (53 clips).
+// Hips 0.7629 m measured in three at rest (longer legs than Remy 0.718 / Cipher 0.7045). walkSpeed/Run are ESTIMATES: Remy's zero-slip
+// values x hips ratio 1.063; footLift and phaseOffset copied from Remy. Re-measure before trusting them (hunt's speed limit derives from run).
+export const EVE_HIPS_Y = 0.7629; // m
+
+export const BODY_EVE: BodyDef = bodyAtScale(SCALE_EVE, {
+  id: "eve",
+  url: "/assets/cast-eve.glb",
+  hipsY: EVE_HIPS_Y,
+  walkSpeed: 0.82,
+  run: { speed: 2.83, footLift: 0.082, phaseOffset: -0.055 },
+  clips: CATALOG,
+});
+
 export const BODIES: Record<string, BodyDef> = {
   [BODY_REMY.id]: BODY_REMY,
   [BODY_CAST.id]: BODY_CAST,
@@ -270,6 +286,7 @@ export const BODIES: Record<string, BodyDef> = {
   [BODY_KNIGHT.id]: BODY_KNIGHT,
   [BODY_SKELETON_WARRIOR.id]: BODY_SKELETON_WARRIOR,
   [BODY_CIPHER.id]: BODY_CIPHER,
+  [BODY_EVE.id]: BODY_EVE,
 };
 
 /** The body a cast member wears; members name one via `body`, else cast. */
