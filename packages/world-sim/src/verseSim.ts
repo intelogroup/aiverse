@@ -153,11 +153,26 @@ export class VerseSim {
     const me = this.bodies.get(selfId);
     if (!me) return null;
     const a = me.state, near = (x: number, z: number) => Math.hypot(x - a.x, z - a.z) <= markerRangeM;
-    const scene: LookScene = { spheres: [], bodies: [] };
+    const scene: LookScene = { spheres: [], bodies: [], doors: [] };
     for (const [id, b] of this.bodies) {
       if (id === selfId) continue;
       const t = b.state;
       if (near(t.x, t.z)) scene.bodies.push({ x: t.x, z: t.z, y0: t.y, y1: t.y + BODY_HEIGHT_M, r: 0.4 });
+    }
+    // Doors: every room door sits on its room's rectangle edge; model it as a 1.2 x 2.1 m rectangle in that wall plane.
+    for (const r of this.rooms) {
+      if (!near(r.door[0], r.door[1])) continue;
+      const [x0, z0, x1, z1] = r.rect, [dx, dz] = r.door;
+      const edges = [
+        { axis: "x" as const, at: Math.min(x0, x1), off: Math.abs(dx - Math.min(x0, x1)), mid: dz },
+        { axis: "x" as const, at: Math.max(x0, x1), off: Math.abs(dx - Math.max(x0, x1)), mid: dz },
+        { axis: "z" as const, at: Math.min(z0, z1), off: Math.abs(dz - Math.min(z0, z1)), mid: dx },
+        { axis: "z" as const, at: Math.max(z0, z1), off: Math.abs(dz - Math.max(z0, z1)), mid: dx },
+      ];
+      const e = edges.reduce((p, q) => (q.off < p.off ? q : p));
+      if (e.off > 0.6) continue; // a door not on its edge: leave it as geometry
+      const y = this.staticWorld.groundY(dx, dz, a.y + 3) ?? a.y;
+      scene.doors.push({ axis: e.axis, at: e.at, mid: e.mid, half: 0.6, y0: y, y1: y + 2.1 });
     }
     // Seats and props are small markers, not their meshes: the collision geometry does not hold furniture shapes.
     for (const t of this.sittables) {

@@ -12,14 +12,18 @@ export const LOOK_FAR_M = 40;
 /** Depth sample for "nothing within range" (sky, void, past LOOK_FAR_M). */
 export const LOOK_NO_HIT = 65535;
 
-/** Class codes in the class image (the legend sent with every look). Doors are collision gaps or walls here, so they have no class. */
-export const LOOK_CLASSES = { sky: 0, floor: 1, wall: 2, seat: 3, prop: 4, body: 5 } as const;
+/** Class codes in the class image (the legend sent with every look). Codes never move: new classes are appended. */
+export const LOOK_CLASSES = { sky: 0, floor: 1, wall: 2, seat: 3, prop: 4, body: 5, door: 6 } as const;
+/** A door reads as `door` when its rectangle is within this of the wall behind it (a closed leaf and the wall are coplanar). */
+const DOOR_SLACK_M = 0.08;
 export const LOOK_LEGEND: Record<number, string> = Object.fromEntries(Object.entries(LOOK_CLASSES).map(([k, v]) => [v, k]));
 
 export interface LookSphere { c: Vec3; r: number; cls: number }
 /** A body: a vertical cylinder from y0 to y1 around (x, z). */
 export interface LookCylinder { x: number; z: number; y0: number; y1: number; r: number }
-export interface LookScene { spheres: LookSphere[]; bodies: LookCylinder[] }
+/** A doorway: a rectangle in a wall plane. axis "x": the wall is the plane x = at and the door spans z in mid +- half; axis "z" is the other way round. */
+export interface LookDoor { axis: "x" | "z"; at: number; mid: number; half: number; y0: number; y1: number }
+export interface LookScene { spheres: LookSphere[]; bodies: LookCylinder[]; doors: LookDoor[] }
 
 export interface LookResult {
   width: number;
@@ -51,6 +55,16 @@ function rayCylinder(o: Vec3, d: Vec3, c: LookCylinder): number {
   return y >= c.y0 && y <= c.y1 ? t : Infinity;
 }
 
+/** Distance to the door rectangle, or Infinity. */
+function rayDoor(o: Vec3, d: Vec3, r: LookDoor): number {
+  const [along, across, up] = r.axis === "x" ? [0, 2, 1] : [2, 0, 1];
+  if (Math.abs(d[along]) < 1e-6) return Infinity;
+  const t = (r.at - o[along]) / d[along];
+  if (t <= 0) return Infinity;
+  const c = o[across] + d[across] * t, y = o[up] + d[up] * t;
+  return Math.abs(c - r.mid) <= r.half && y >= r.y0 && y <= r.y1 ? t : Infinity;
+}
+
 /**
  * Cast a LOOK_W x LOOK_H grid of rays from `eye`, the camera facing `heading` (walker convention: forward is (sin h, cos h)).
  * Columns run left to right with increasing bearing, the same sign `observe` uses.
@@ -76,6 +90,7 @@ export function renderLook(world: World, eye: Vec3, heading: number, scene: Look
     d[0] = dirs[3 * k]; d[1] = dirs[3 * k + 1]; d[2] = dirs[3 * k + 2];
     let best = farM, cls: number = LOOK_CLASSES.sky;
     if (dist[k] < best) { best = dist[k]; cls = ny[k] > 0.7 ? LOOK_CLASSES.floor : LOOK_CLASSES.wall; }
+    for (const r of scene.doors) { const t = rayDoor(eye, d, r); if (t <= best + DOOR_SLACK_M) { best = Math.min(best, t); cls = LOOK_CLASSES.door; } }
     for (const s of scene.spheres) { const t = raySphere(eye, d, s); if (t < best) { best = t; cls = s.cls; } }
     for (const b of scene.bodies) { const t = rayCylinder(eye, d, b); if (t < best) { best = t; cls = LOOK_CLASSES.body; } }
     if (cls !== LOOK_CLASSES.sky) {
