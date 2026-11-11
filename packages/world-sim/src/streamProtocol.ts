@@ -62,7 +62,14 @@ export interface RosterMessage {
   bodies: { n: number; name: string; body: string }[];
 }
 
+/** Lines spoken in the world, for the speech bubble over the speaker. Public text: already cut to 140 characters. */
+export interface SayMessage {
+  epoch: string;
+  say: { seq: number; n: number; text: string }[];
+}
+
 export const WORLD_FRAMES = "world_frames";
+export const WORLD_SAY = "world_say";
 export const WORLD_ROSTER = "world_roster";
 export const SUBSCRIBE_WORLD = "subscribe_world";
 

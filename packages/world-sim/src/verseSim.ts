@@ -132,6 +132,21 @@ export class VerseSim {
     return out.sort((x, y) => x.distance - y.distance);
   }
 
+  /** Bodies that hear `selfId` speak: within `range` and a clear sight line (any facing: sound carries behind you). Nearest first. */
+  hearers(selfId: string, range: number): { id: string; distance: number }[] {
+    const me = this.bodies.get(selfId);
+    if (!me) return [];
+    const a = me.state, out: { id: string; distance: number }[] = [];
+    for (const [id, b] of this.bodies) {
+      if (id === selfId) continue;
+      const t = b.state, distance = Math.hypot(t.x - a.x, t.z - a.z);
+      if (distance > range || Math.abs(t.y - a.y) > 3) continue;
+      if (this.staticWorld.sightBlocked?.([a.x, a.y + EYE_M, a.z], [t.x, t.y + EYE_M, t.z])) continue;
+      out.push({ id, distance });
+    }
+    return out.sort((x, y) => x.distance - y.distance);
+  }
+
   body(id: string): AgentBody | undefined { return this.bodies.get(id); }
 
   bodyIds(): string[] { return [...this.bodies.keys()]; }

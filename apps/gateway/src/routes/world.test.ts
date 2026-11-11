@@ -305,12 +305,41 @@ describe("/world (agent body)", () => {
     clock += 1000;
     expect((await w(agentToken, "POST", "/act", { id: "a1", action: { type: "teleport", point: [0, 0] } })).status).toBe(400);
     clock += 1000;
-    expect((await w(agentToken, "POST", "/act", { id: "a2", action: { type: "say", text: "hello" } })).status).toBe(400);
+    expect((await w(agentToken, "POST", "/act", { id: "a2", action: { type: "chat", text: "hello" } })).status).toBe(400);
+    expect((await w(agentToken, "POST", "/act", { id: "a2b", action: { type: "say", text: "x".repeat(141) } })).status).toBe(400);
     expect((await w(agentToken, "POST", "/act", { action: { type: "stop" } })).status).toBe(400);
     expect((await w(agentToken, "POST", "/act", { id: "../x", action: { type: "stop" } })).status).toBe(400);
     expect((await w(agentToken, "GET", "/act/..%2Fx")).status).toBe(400);
     await w(agentToken, "DELETE", "/body");
   });
+
+  test("say: gated like a message, audited, carries the display name, and is heard by a neighbour with a cursor", async () => {
+    const a = await ownerWithAgent("WorldSayA"), b = await ownerWithAgent("WorldSayB");
+    await startVisit(a.ownerToken, a.agentId);
+    await startVisit(b.ownerToken, b.agentId);
+    await w(a.agentToken, "POST", "/body");
+    // b stands 3 m from a in the open (attach is idempotent: the gateway's POST /body keeps this body)
+    const at = service.body(a.agentId);
+    service.attach(b.agentId, { x: at.x + 3, z: at.z });
+    await w(b.agentToken, "POST", "/body");
+    clock += 1000;
+    const said = await w(a.agentToken, "POST", "/act", { id: "say1", action: { type: "say", text: "hello neighbour" } });
+    expect(said.status).toBe(202);
+    const rec = await settle(a.agentToken, "say1");
+    expect(rec.outcome.ok).toBe(true);
+    const seen = (await (await w(b.agentToken, "GET", "/observe")).json()) as { observation: { heard: { seq: number; text: string; name: string; untrusted: boolean }[] } };
+    const line = seen.observation.heard.find((m) => m.text === "hello neighbour");
+    expect(line, "neighbour heard it").toBeDefined();
+    expect(line!.name).toContain("WorldSayA"); // the helper adds a random suffix to the name
+    expect(line!.untrusted).toBe(true);
+    const after = (await (await w(b.agentToken, "GET", `/observe?heardSince=${line!.seq}`)).json()) as { observation: { heard: unknown[] } };
+    expect(after.observation.heard).toHaveLength(0);
+    // 1 message per second per agent: an immediate second line is rate limited by the same gate as conversation messages
+    const fast = await w(a.agentToken, "POST", "/act", { id: "say2", action: { type: "say", text: "again" } });
+    expect([202, 429]).toContain(fast.status);
+    await w(a.agentToken, "DELETE", "/body");
+    await w(b.agentToken, "DELETE", "/body");
+  }, 60_000);
 
   test("deleting an owner whose agent had visits and a body succeeds and removes the body (was a 500: agent_visits FK)", async () => {
     const { ownerToken, agentId, agentToken, email } = await ownerWithAgent("WorldOwnerDelete");
@@ -385,7 +414,7 @@ test("GET /llms.txt is a public plain-text world guide listing every action type
   expect(r.status).toBe(200);
   expect(r.headers.get("content-type")).toContain("text/plain");
   const t = await r.text();
-  for (const a of ["go_to", "enter", "face", "play", "GET /world/clips", "waitMs"]) expect(t).toContain(a);
+  for (const a of ["go_to", "enter", "face", "play", "say", "GET /world/clips", "waitMs", "heardSince", "untrusted"]) expect(t).toContain(a);
 });
 
 async function startVisitLookup(ownerToken: string, agentId: string) {

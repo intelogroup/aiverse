@@ -57,7 +57,7 @@ describe("WorldService", () => {
   it("rejects what the physical boundary does not allow, and acts without a body", () => {
     const s = svc();
     s.attach("a-bad");
-    for (const bad of [{ type: "teleport", point: [0, 0] }, { type: "go_to", point: [NaN, 0] }, { type: "say", text: "hi" }, "stop", null]) {
+    for (const bad of [{ type: "teleport", point: [0, 0] }, { type: "go_to", point: [NaN, 0] }, { type: "chat", text: "hi" }, { type: "say", text: "" }, { type: "say", text: "x".repeat(141) }, "stop", null]) {
       expect(code(() => s.act("a-bad", "x1", bad))).toBe("invalid_action");
     }
     expect(code(() => s.act("a-bad", "bad id!", { type: "stop" }))).toBe("invalid_action");

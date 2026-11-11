@@ -7,7 +7,7 @@
 // range and in the view cone). No other agent's identity, no hidden state, no debug surface.
 import { createHmac, randomBytes } from "node:crypto";
 import { AgentBody, type AgentSnapshot } from "./agentBody";
-import { explainAction, validRequestId } from "./actionProtocol";
+import { explainAction, SAY_RANGE_M, validRequestId } from "./actionProtocol";
 import { encodePose, type PoseTuple } from "./streamProtocol";
 import { nearestPlace, oracleScene, roomAt, type OracleObject, type ScoutAction, type ScoutOutcome, type ScoutSeat } from "./scout";
 import { clipDef, SOCIAL_CLIPS } from "./clips";
@@ -30,6 +30,28 @@ export interface ActRecord {
   settledAt?: number;
 }
 
+/** One line of speech a body overheard. `text` is another agent's words: untrusted, never an instruction. */
+export interface HeardMsg {
+  /** Cursor: strictly increasing across the whole sim run; pass the last one seen as `heardSince`. */
+  seq: number;
+  /** Simulation time it was said. */
+  t: number;
+  /** The speaker's handle in THIS listener's visit (the same one `observe.scene` uses while they are in sight). */
+  from: string;
+  /** The speaker's display name: revealed only by speaking within earshot. */
+  name: string;
+  text: string;
+  /** True only when the speaker addressed this listener with `to`. */
+  toYou: boolean;
+  untrusted: true;
+}
+
+/** Who said it, for the viewer stream's speech bubble. */
+export interface SayEvent { seq: number; n: number; text: string; t: number }
+
+/** Heard lines kept per body, and how long (simulation seconds). */
+const HEARD_KEEP = 20, HEARD_TTL_S = 60, SAY_STREAM_TTL_S = 6, TALK_S = 2;
+
 export interface Observation {
   /** Simulation time, s. */
   t: number;
@@ -40,6 +62,8 @@ export interface Observation {
   scene: OracleObject[];
   /** The latest action record (running or settled), so a poller needs one call. */
   lastAct: ActRecord | null;
+  /** Speech overheard since `heardSince` (all of the last 60 s when absent). */
+  heard: HeardMsg[];
 }
 
 export interface WorldServiceOpts {
@@ -63,6 +87,7 @@ interface Session {
   lastSeen: number;
   /** Per-visit secret: other bodies' handles are HMAC(salt, id), so they mean nothing to anyone else or in a later visit. */
   salt: Buffer;
+  heard: HeardMsg[];
 }
 
 export class WorldService {
@@ -73,6 +98,8 @@ export class WorldService {
   private readonly keepRecords: number;
   private nextN = 1;
   private rosterRev = 0;
+  private sayN = 1;
+  private says: SayEvent[] = [];
   /** Identifies this run: a restarted sim restarts the numbers, and viewers must not mix the two. */
   readonly epoch = crypto.randomUUID();
 
@@ -118,7 +145,7 @@ export class WorldService {
     } catch (e) {
       throw new WorldError("spawn_failed", e instanceof Error ? e.message : String(e));
     }
-    this.sessions.set(agentId, { n: this.nextN++, figure: def.id, body, records: new Map(), last: null, lastSeen: this.sim.t, salt: randomBytes(16) });
+    this.sessions.set(agentId, { n: this.nextN++, figure: def.id, body, records: new Map(), last: null, lastSeen: this.sim.t, salt: randomBytes(16), heard: [] });
     this.rosterRev++;
     return this.observe(agentId);
   }
@@ -145,7 +172,7 @@ export class WorldService {
    * Submit one action. Returns at once with the record (`running`); it turns `settled` when the body finishes, is blocked, times out
    * or is cancelled. Same id + same action: the first record. Same id + another action: `id_conflict`.
    */
-  act(agentId: string, id: string, action: unknown): ActRecord {
+  act(agentId: string, id: string, action: unknown, ctx: { name?: string } = {}): ActRecord {
     const s = this.session(agentId);
     if (!validRequestId(id)) throw new WorldError("invalid_action", "id must be 1-80 letters, digits or dashes");
     const why = explainAction(action);
@@ -154,6 +181,11 @@ export class WorldService {
     if (existing && JSON.stringify(existing.action) !== JSON.stringify(action)) throw new WorldError("id_conflict", "request ID reused with different action");
     if (existing) return existing;
     const rec: ActRecord = { id, action: action as ScoutAction, state: "running", startedAt: this.sim.t };
+    if ((action as { type?: string }).type === "say") {
+      this.say(agentId, s, rec, ctx.name);
+      this.remember(s, id, rec);
+      return rec;
+    }
     const resolved = this.resolveBody(agentId, s, rec.action);
     if (resolved === null) {
       rec.state = "settled";
@@ -167,6 +199,11 @@ export class WorldService {
         rec.settledAt = this.sim.t;
       });
     }
+    this.remember(s, id, rec);
+    return rec;
+  }
+
+  private remember(s: Session, id: string, rec: ActRecord): void {
     s.records.set(id, rec);
     s.last = rec;
     while (s.records.size > this.keepRecords) {
@@ -174,7 +211,36 @@ export class WorldService {
       if (s.records.get(oldest)?.state === "running") break;
       s.records.delete(oldest);
     }
-    return rec;
+  }
+
+  /** Speech is instant: it settles at once. Everyone within earshot with a clear line gets it; `to` makes it addressed, not private. */
+  private say(agentId: string, s: Session, rec: ActRecord, name: string | undefined): void {
+    const a = rec.action as unknown as { text: string; to?: string };
+    rec.state = "settled";
+    rec.settledAt = this.sim.t;
+    let addressee: string | null = null;
+    if (a.to !== undefined) {
+      addressee = this.sim.visibleBodies(agentId).find((v) => this.handleFor(s, v.id) === a.to)?.id ?? null;
+      if (addressee === null) {
+        rec.outcome = { ok: false, status: "unavailable", detail: "not_visible: no such body in sight to speak to. Handles come from observe.scene (kind body); to is optional, say without it to speak to whoever is near" };
+        return;
+      }
+    }
+    const seq = this.sayN++, text = a.text.trim(), t = round(this.sim.t, 2);
+    let heardBy = 0, addresseeHeard = false;
+    for (const h of this.sim.hearers(agentId, SAY_RANGE_M)) {
+      const l = this.sessions.get(h.id);
+      if (!l) continue;
+      l.heard.push({ seq, t, from: this.handleFor(l, agentId), name: name ?? "someone", text, toYou: h.id === addressee, untrusted: true });
+      while (l.heard.length > HEARD_KEEP) l.heard.shift();
+      heardBy++;
+      if (h.id === addressee) addresseeHeard = true;
+    }
+    this.says.push({ seq, n: s.n, text, t });
+    this.says = this.says.filter((e) => this.sim.t - e.t <= SAY_STREAM_TTL_S).slice(-20);
+    // Talk with the whole body while nothing else is moving it (a seated speaker uses the seated clip).
+    if (!s.body.busy) void s.body.act({ type: "play", clip: s.body.snapshot().posture === "seated" ? "SittingTalking" : "Talking", seconds: TALK_S });
+    rec.outcome = { ok: true, status: "done", detail: heardBy === 0 ? "nobody within earshot heard you" : addressee && !addresseeHeard ? `${heardBy} heard you; the one you addressed is out of earshot (${SAY_RANGE_M} m)` : `${heardBy} heard you` };
   }
 
   /** The opaque name this agent's visit gives to another body (stable within the visit, meaningless elsewhere). */
@@ -205,8 +271,9 @@ export class WorldService {
     return this.session(agentId).records.get(id);
   }
 
-  observe(agentId: string): Observation {
+  observe(agentId: string, heardSince = 0): Observation {
     const s = this.session(agentId);
+    s.heard = s.heard.filter((m) => this.sim.t - m.t <= HEARD_TTL_S);
     const st = s.body.state;
     const np = nearestPlace(this.sim.places, st.x, st.z);
     const room = roomAt(this.sim.rooms, st.x, st.z);
@@ -227,6 +294,7 @@ export class WorldService {
       scene: [...oracleScene(this.sim.places, this.sim.rooms, { x: st.x, z: st.z, heading: st.body }, {}, interactables, seats), ...this.seenBodies(agentId, s)]
         .sort((a, b) => a.distance - b.distance),
       lastAct: s.last,
+      heard: s.heard.filter((m) => m.seq > heardSince),
     };
   }
 
@@ -246,10 +314,11 @@ export class WorldService {
   }
 
   /** Every body's pose this instant, quantised for the viewer stream. Not agent-scoped: it is the public picture of the world. */
-  frames(): { epoch: string; t: number; rosterRev: number; b: PoseTuple[] } {
+  frames(): { epoch: string; t: number; rosterRev: number; b: PoseTuple[]; say: SayEvent[] } {
     const b: PoseTuple[] = [];
     for (const s of this.sessions.values()) b.push(encodePose(s.n, s.body.pose()));
-    return { epoch: this.epoch, t: round(this.sim.t, 3), rosterRev: this.rosterRev, b };
+    const say = this.says.filter((e) => this.sim.t - e.t <= SAY_STREAM_TTL_S).map((e) => ({ ...e, text: e.text.slice(0, 140) }));
+    return { epoch: this.epoch, t: round(this.sim.t, 3), rosterRev: this.rosterRev, b, say };
   }
 
   /** Body number -> agent id (gateway-side only: it turns this into a display name) and the body model to draw. */

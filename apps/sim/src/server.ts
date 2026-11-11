@@ -112,7 +112,7 @@ export function createSimServer(opts: SimServerOpts) {
         }
         if (req.method === "GET" && sub === "observe") {
           if (!bucket(reads, id, readRate).take(now())) return json({ error: "rate_limited" }, 429, { "retry-after": "1" });
-          return json({ observation: service.observe(id) });
+          return json({ observation: service.observe(id, Math.max(0, Number(url.searchParams.get("heardSince")) || 0)) });
         }
         if (req.method === "GET" && sub === "act" && actId) {
           if (!bucket(reads, id, readRate).take(now())) return json({ error: "rate_limited" }, 429, { "retry-after": "1" });
@@ -121,10 +121,12 @@ export function createSimServer(opts: SimServerOpts) {
         }
         if (req.method === "POST" && sub === "act" && !actId) {
           if (!bucket(acts, id, actRate).take(now())) return json({ error: "rate_limited" }, 429, { "retry-after": "1" });
-          const b = (await readJson(req)) as { id?: unknown; action?: unknown };
+          const b = (await readJson(req)) as { id?: unknown; action?: unknown; name?: unknown };
           // 202: a new act; 200: the same id and action again (idempotent replay, the gateway does not count it).
           const replay = typeof b.id === "string" && service.has(id) && service.actRecord(id, b.id) !== undefined;
-          return json({ act: service.act(id, b.id as string, b.action) }, replay ? 200 : 202);
+          // `name` is the speaker's display name, set by the gateway (an agent cannot choose it); only `say` uses it.
+          const name = typeof b.name === "string" ? b.name.slice(0, 60) : undefined;
+          return json({ act: service.act(id, b.id as string, b.action, { name }) }, replay ? 200 : 202);
         }
       }
       return json({ error: "not_found" }, 404);
