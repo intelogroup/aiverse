@@ -8,8 +8,8 @@
 import { AgentBody, type AgentSnapshot } from "./agentBody";
 import { explainAction, validRequestId } from "./actionProtocol";
 import { encodePose, type PoseTuple } from "./streamProtocol";
-import { nearestPlace, oracleScene, roomAt, SOCIAL_CLIPS, type OracleObject, type ScoutAction, type ScoutOutcome, type ScoutSeat } from "./scout";
-import { clipDef } from "./clips";
+import { nearestPlace, oracleScene, roomAt, type OracleObject, type ScoutAction, type ScoutOutcome, type ScoutSeat } from "./scout";
+import { clipDef, SOCIAL_CLIPS } from "./clips";
 import { BODY_REMY } from "./bodies";
 import type { VerseSim } from "./verseSim";
 
@@ -199,10 +199,10 @@ export class WorldService {
   }
 
   /** The clips `play` accepts: name, whether it loops (held for `seconds`), and its own length in seconds. */
-  clips(): { name: string; loop: boolean; seconds: number }[] {
+  clips(): { name: string; loop: boolean; seconds: number; seatedOk: boolean; aliases: string[] }[] {
     return SOCIAL_CLIPS.map((name) => {
       const d = clipDef(name);
-      return { name, loop: d?.loop ?? false, seconds: round(d?.duration ?? 0, 2) };
+      return { name, loop: d?.loop ?? false, seconds: round(d?.duration ?? 0, 2), seatedOk: !!d?.seatedOk, aliases: d?.aliases ?? [] };
     });
   }
 
