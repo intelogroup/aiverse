@@ -29,6 +29,7 @@ import {
   KNIGHT_HIPS_Y,
   MAGE_HIPS_Y,
   SUMMER_HIPS_Y,
+  agentBodies,
   bodyForMember,
   cruiseCapForBody,
   excludeBody,
@@ -178,6 +179,35 @@ describe("body registry", () => {
     expect(seatedRootY(bench, BODY_SUMMER.hipsY)).toBeCloseTo(bench.seatHeight - BODY_SUMMER.hipsY);
     expect(seatedRootY(bench, BODY_SUMMER.hipsY)).not.toBeCloseTo(seatedRootY(bench, BODY_CAST.hipsY));
     expect(seatedRootY(bench, BODY_MAGE.hipsY)).toBeCloseTo(bench.seatHeight - BODY_MAGE.hipsY);
+  });
+});
+
+describe("agentBodies — the agent-pickable set (Jim's ruling, 2026-11-11)", () => {
+  it("never offers mage or skeleton-warrior to an agent: too short, cast-only", () => {
+    expect(BODY_MAGE.agentBody).toBe(false);
+    expect(BODY_SKELETON_WARRIOR.agentBody).toBe(false);
+    const ids = agentBodies().map((b) => b.id);
+    expect(ids).not.toContain("mage");
+    expect(ids).not.toContain("skeleton-warrior");
+  });
+
+  it("keeps every other registered body pickable, Body Block included (its status quo)", () => {
+    expect(agentBodies().map((b) => b.id).sort()).toEqual([
+      "barbarian",
+      "cast",
+      "cipher",
+      "eve",
+      "knight",
+      "remy",
+      "summer",
+    ]);
+  });
+
+  it("cast resolution ignores eligibility: members still wear both removed bodies", () => {
+    expect(bodyForMember({ body: "mage" })).toBe(BODY_MAGE);
+    expect(bodyForMember({ body: "skeleton-warrior" })).toBe(BODY_SKELETON_WARRIOR);
+    expect(BODIES.mage).toBe(BODY_MAGE);
+    expect(BODIES["skeleton-warrior"]).toBe(BODY_SKELETON_WARRIOR);
   });
 });
 

@@ -47,6 +47,14 @@ export interface BodyDef {
    * run.speed, run.footLift) are ALREADY multiplied by it (bodyAtScale): consumers never scale them again.
    */
   scale?: number;
+  /**
+   * Whether a visiting agent may be assigned this body. Absent = it may.
+   * A body an agent must never wear sets it false; the body stays in the
+   * registry as a cast figure (residents, keepers, crowd dressing —
+   * bodyForMember ignores this field). Read the pickable set through
+   * agentBodies(), never by testing this field ad hoc.
+   */
+  agentBody?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -156,6 +164,9 @@ export const MAGE_HIPS_Y = 0.2457; // m (0.4601 x 0.53391 shrink)
 export const BODY_MAGE: BodyDef = bodyAtScale(SCALE_MAGE, {
   id: "mage",
   url: "/assets/cast-mage.glb",
+  // Cast-only (Jim, 2026-11-11): too short for an agent body. Stays a cast
+  // figure — the Bazaar keeper wears it (BazaarLife).
+  agentBody: false,
   hipsY: MAGE_HIPS_Y,
   // 0.5749 x 0.53391 shrink — see note above.
   walkSpeed: 0.3069,
@@ -214,6 +225,8 @@ export const SKELETON_WARRIOR_HIPS_Y = 0.3116; // m (upperleg joint, bind)
 export const BODY_SKELETON_WARRIOR: BodyDef = bodyAtScale(SCALE_SKELETON_WARRIOR, {
   id: "skeleton-warrior",
   url: "/assets/cast-skeleton-warrior.glb",
+  // Cast-only (Jim, 2026-11-11): too short for an agent body. Stays a cast figure.
+  agentBody: false,
   hipsY: SKELETON_WARRIOR_HIPS_Y,
   // FK stance: ankle pair 0.3826 / 0.4115 (Walk cycle 1.1667 s).
   walkSpeed: 0.3971,
@@ -288,6 +301,18 @@ export const BODIES: Record<string, BodyDef> = {
   [BODY_CIPHER.id]: BODY_CIPHER,
   [BODY_EVE.id]: BODY_EVE,
 };
+
+/**
+ * The bodies a visiting agent may be assigned: every registered body not
+ * marked cast-only (`agentBody: false`). Mage and Skeleton Warrior were
+ * removed at Jim's word (2026-11-11 — too short for agent bodies); they
+ * remain cast figures. This is the eligibility gate: the agent-facing
+ * world docs render this list, and a future body-choice surface must
+ * offer exactly these bodies.
+ */
+export function agentBodies(): BodyDef[] {
+  return Object.values(BODIES).filter((body) => body.agentBody !== false);
+}
 
 /** The body a cast member wears; members name one via `body`, else cast. */
 export function bodyForMember(member: { body?: string } | null | undefined): BodyDef {
