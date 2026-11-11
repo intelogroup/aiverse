@@ -17,7 +17,7 @@ import { readFileSync } from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
 import { loadVerseSim, NAVMESH_BIN } from "@aiverse/world-sim/node/loadWorld";
 import type { VerseSim } from "@aiverse/world-sim/verseSim";
-import type { ScoutAction, ScoutOutcome } from "@aiverse/world-sim/scout";
+import { roomAt, type ScoutAction, type ScoutOutcome } from "@aiverse/world-sim/scout";
 
 const ASSETS = new URL("../public/assets/", import.meta.url).pathname;
 const steps = JSON.parse(readFileSync(new URL("./fixtures/verse-sim-scenarios.json", import.meta.url), "utf8")) as { name: string; action: ScoutAction; maxS: number }[];
@@ -107,6 +107,20 @@ describe("planning does not block the tick", () => {
       expect(r.out?.status).toBe("blocked");
       expect(performance.now() - t, "refusal must not wait for a search").toBeLessThan(1500);
     }
+  });
+
+  it("enter walks inside a shop (by lot id or room id); a stall has no room", async () => {
+    for (const [i, place, room] of [[0, "shop-47", "shop-47"], [1, "shop-102", "tea"]] as const) {
+      const id = `enter-${i}`;
+      sim.removeBody(id);
+      const lot = sim.places.find((p) => p.id === place)!;
+      sim.addBody({ id, spawn: { x: lot.stand[0] + 3, z: lot.stand[1] + 3 } });
+      const r = await run(sim, id, { type: "enter", place } as ScoutAction, 150);
+      expect(r.out?.status).toBe("arrived");
+      expect(roomAt(sim.rooms, r.snap.x, r.snap.z)?.id).toBe(room);
+    }
+    const r = await run(sim, "enter-0", { type: "enter", place: "stall-0" } as ScoutAction, 5);
+    expect(r.out?.status).toBe("unavailable");
   });
 
   it("the Great Hall (hall-0) is reachable: its stand is off the wall line", async () => {

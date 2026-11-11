@@ -27,6 +27,7 @@ export function validAction(a: unknown): boolean {
       return only("target") && name(v.target);
     case "wait": return only("seconds") && typeof v.seconds === "number" && Number.isFinite(v.seconds) && v.seconds >= 0 && v.seconds <= 30;
     case "face": return only("headingDeg") && typeof v.headingDeg === "number" && Number.isFinite(v.headingDeg) && Math.abs(v.headingDeg) <= 360;
+    case "enter": return only("place") && name(v.place);
     case "go_to": case "run_to":
       return only("point", "place") && ((Array.isArray(v.point) && v.point.length === 2 && v.point.every((x) => typeof x === "number" && Number.isFinite(x) && Math.abs(x) <= 2000) && v.place === undefined) ||
         (v.point === undefined && name(v.place)));

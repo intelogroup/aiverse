@@ -85,6 +85,7 @@ export class VerseSim {
       actors: this.actors,
       places: this.data.places,
       sittables: this.data.sittables,
+      rooms: this.data.rooms,
       door: this.door,
       interact: this.interact,
       hipsY: opts.hipsY ?? BODY_REMY.hipsY, // the browser scout's seated-drop body

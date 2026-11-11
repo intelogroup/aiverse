@@ -227,6 +227,7 @@ export type SocialClip = (typeof SOCIAL_CLIPS)[number];
 export type ScoutAction =
   | { type: "go_to"; place?: string; point?: Vec2 }
   | { type: "run_to"; place?: string; point?: Vec2 }
+  | { type: "enter"; place: string }
   | { type: "face"; point?: Vec2; headingDeg?: number }
   | { type: "wait"; seconds: number }
   | { type: "sit"; sittable?: string }
@@ -319,6 +320,8 @@ export interface ExecutorDeps {
   avoid?: (state: WalkerState, wanted: WalkInput) => WalkInput;
   places: ScoutPlace[];
   sittables: Sittable[];
+  /** Interior rooms: `go_to {place: <room id>}` walks INTO the room (a lot id still stops at its door). */
+  rooms?: ScoutRoomShape[];
   /** The figure's clip tester (clips.ts): the executor fires sit/play clips. */
   clips: { fire: (name: string) => boolean; current: string | null };
   /** The body's measured hips height (for the seated drop in frameOverride). */
@@ -402,16 +405,17 @@ export class ScoutExecutor {
         // exists); nothing to animate in the executor.
         return Promise.resolve({ ok: true, status: "done" });
       case "go_to":
-      case "run_to": {
+      case "run_to":
+      case "enter": {
         if (this.posture !== "standing") {
           return Promise.resolve({ ok: false, status: "rejected", detail: "seated — stand first" });
         }
-        const target = this.resolveTarget(action);
+        const target = this.resolveTarget(action, state);
         if (!target) {
           return Promise.resolve({
             ok: false,
             status: "unavailable",
-            detail: action.place ? `unknown place: ${action.place}` : "go_to needs a place or a point",
+            detail: action.type === "enter" ? `no room to enter: ${action.place}` : action.place ? `unknown place: ${action.place}` : "go_to needs a place or a point",
           });
         }
         const dist = Math.hypot(target.pos[0] - state.x, target.pos[1] - state.z);
@@ -505,7 +509,21 @@ export class ScoutExecutor {
     }
   }
 
-  private resolveTarget(action: { place?: string; point?: Vec2 }): { pos: Vec2; id?: string } | null {
+  private resolveTarget(action: { type?: string; place?: string; point?: Vec2 }, state: WalkerState): { pos: Vec2; id?: string } | null {
+    // `enter` means "inside" (room ids mostly equal their lot ids, so the action, not the id, says it): the room centre, or, when
+    // furniture blocks it, the first plannable point stepped in from the door. Cold agents reached shop doors but never got inside;
+    // three of them guessed an `enter` action on their own.
+    if (action.type === "enter") {
+      const lot = this.deps.places.find((pl) => pl.id === action.place || pl.room === action.place);
+      const room = this.deps.rooms?.find((r) => r.id === action.place || r.id === lot?.room);
+      if (!room) return null;
+      const [dx, dz] = [room.center[0] - room.door[0], room.center[1] - room.door[1]];
+      const len = Math.hypot(dx, dz) || 1;
+      const inward = (m: number): Vec2 => [room.door[0] + (dx / len) * m, room.door[1] + (dz / len) * m];
+      const candidates: Vec2[] = [room.center, inward(Math.min(3, len * 0.6)), inward(Math.min(1.8, len * 0.4))];
+      const pos = this.deps.plan ? candidates.find((c) => this.deps.plan!(state, c) !== null) : candidates[0];
+      return pos ? { pos, id: room.id } : { pos: room.center, id: room.id }; // none plannable: let begin() report "no safe route"
+    }
     if (action.place) {
       // Addressable by lot id ("shop-102") or by room id ("tea") — a
       // decider thinks in named rooms, the nav in lots.
@@ -620,6 +638,7 @@ export class ScoutExecutor {
       }
       case "go_to":
       case "run_to":
+      case "enter":
       case "interact":
       case "sit": {
         if (p.action.type === "interact" && p.phase === "use") {
@@ -660,7 +679,7 @@ export class ScoutExecutor {
           return;
         }
         const target = p.target!;
-        const routed = !!this.deps.plan && (p.action.type === "go_to" || p.action.type === "run_to");
+        const routed = !!this.deps.plan && (p.action.type === "go_to" || p.action.type === "run_to" || p.action.type === "enter");
         if (routed && !p.route) {
           const route = this.deps.plan!(state, target);
           if (!route?.length) {
