@@ -48,8 +48,32 @@ describe("sim internal API", () => {
     clock += 1000;
     const o = (await (await call("GET", `/bodies/${AID}/observe`)).json()) as any;
     expect(o.observation.nearestPlace.id).toBe("stall-0");
+    clock += 1000;
+    const b = (await (await call("GET", `/bodies/${AID}`)).json()) as any;
+    expect(b.body.posture).toBe("standing");
+    expect(b.body.x).toBeCloseTo(o.observation.body.x, 1);
     expect(((await (await call("DELETE", `/bodies/${AID}`)).json()) as any).removed).toBe(true);
     expect((await call("GET", `/bodies/${AID}/observe`)).status).toBe(404);
+    expect(((await (await call("GET", `/bodies/${AID}`)).json()) as any).error).toBe("no_body");
+  });
+
+  test("clips lists what play accepts; a refused action says why and names the valid options", async () => {
+    const clips = ((await (await call("GET", "/clips")).json()) as any).clips;
+    expect(clips.map((c: any) => c.name)).toContain("Waving");
+    clock += 10_000;
+    await call("POST", "/bodies", { agentId: AID, expiresAtMs: clock + 60_000 });
+    const wave = (await (await call("POST", `/bodies/${AID}/act`, { id: "w1", action: { type: "play", clip: "wave" } })).json()) as any;
+    expect(wave.error).toBe("invalid_action");
+    expect(wave.message).toContain("Waving");
+    clock += 1000;
+    const type = (await (await call("POST", `/bodies/${AID}/act`, { id: "w2", action: { type: "dance" } })).json()) as any;
+    expect(type.message).toContain("go_to");
+    clock += 1000;
+    expect((await call("POST", `/bodies/${AID}/act`, { id: "w3", action: { type: "face", point: [0, 0] } })).status).toBe(202);
+    clock += 1000;
+    expect((await call("POST", `/bodies/${AID}/act`, { id: "w4", action: { type: "face", point: [0, 0], headingDeg: 3 } })).status).toBe(400);
+    clock += 1000;
+    await call("DELETE", `/bodies/${AID}`);
   });
 
   test("rejects bad input: teleport, reused id, oversize body, bad agent id, past expiry", async () => {
@@ -58,6 +82,8 @@ describe("sim internal API", () => {
     expect((await call("POST", `/bodies/${AID}/act`, { id: "t1", action: { type: "teleport", point: [0, 0] } })).status).toBe(400);
     clock += 1000;
     expect((await call("POST", `/bodies/${AID}/act`, { id: "dup", action: { type: "wait", seconds: 1 } })).status).toBe(202);
+    clock += 1000;
+    expect((await call("POST", `/bodies/${AID}/act`, { id: "dup", action: { type: "wait", seconds: 1 } })).status).toBe(200); // replay
     clock += 1000;
     expect((await call("POST", `/bodies/${AID}/act`, { id: "dup", action: { type: "stop" } })).status).toBe(409);
     clock += 1000;

@@ -81,6 +81,7 @@ export function createSimServer(opts: SimServerOpts) {
     try {
       if (req.method === "GET" && url.pathname === "/healthz") return json({ ready: service.sim.ready, bodies: service.bodyCount, t: service.sim.t });
       if (req.method === "GET" && url.pathname === "/places") return json({ places: service.places() });
+      if (req.method === "GET" && url.pathname === "/clips") return json({ clips: service.clips() });
       if (req.method === "GET" && url.pathname === "/bodies") return json({ agentIds: service.agentIds() });
       // The viewer stream's source. Gateway-only like everything here; its own bucket so spectators never eat an agent's read budget.
       if (req.method === "GET" && url.pathname === "/frames") {
@@ -104,6 +105,10 @@ export function createSimServer(opts: SimServerOpts) {
       const [root, id, sub, actId] = parts;
       if (root === "bodies" && id) {
         if (req.method === "DELETE" && !sub) { expiry.delete(id); return json({ removed: service.detach(id) }); }
+        if (req.method === "GET" && !sub) {
+          if (!bucket(reads, id, readRate).take(now())) return json({ error: "rate_limited" }, 429, { "retry-after": "1" });
+          return json({ body: service.body(id) });
+        }
         if (req.method === "GET" && sub === "observe") {
           if (!bucket(reads, id, readRate).take(now())) return json({ error: "rate_limited" }, 429, { "retry-after": "1" });
           return json({ observation: service.observe(id) });
@@ -116,7 +121,9 @@ export function createSimServer(opts: SimServerOpts) {
         if (req.method === "POST" && sub === "act" && !actId) {
           if (!bucket(acts, id, actRate).take(now())) return json({ error: "rate_limited" }, 429, { "retry-after": "1" });
           const b = (await readJson(req)) as { id?: unknown; action?: unknown };
-          return json({ act: service.act(id, b.id as string, b.action) }, 202);
+          // 202: a new act; 200: the same id and action again (idempotent replay, the gateway does not count it).
+          const replay = typeof b.id === "string" && service.has(id) && service.actRecord(id, b.id) !== undefined;
+          return json({ act: service.act(id, b.id as string, b.action) }, replay ? 200 : 202);
         }
       }
       return json({ error: "not_found" }, 404);

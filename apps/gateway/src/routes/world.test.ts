@@ -98,12 +98,67 @@ describe("/world (agent body)", () => {
     expect(mapBody).toEqual(placesBody);
     expect(mapBody.places.some((p: any) => p.id === "shop-102" && p.name === "Matchmaker's Tea House")).toBe(true);
 
+    // The playable clip names, through the same gates.
+    const clips = (await (await w(agentToken, "GET", "/clips")).json()) as any;
+    expect(clips.clips.some((c: any) => c.name === "Waving" && typeof c.loop === "boolean")).toBe(true);
+
     // Room ids are enumerable from the payload: a roomed place carries its interior
     // room id (the alternate go_to address), an unroomed place carries null — on both routes.
     for (const body of [mapBody, placesBody]) {
       expect(body.places.find((p: any) => p.id === "shop-102").room).toBe("tea");
       expect(body.places.find((p: any) => p.id === "stall-0").room).toBeNull();
     }
+  });
+
+  test("GET /body: 404 no_body before attach, the body's own state after, and it is free", async () => {
+    const { ownerToken, agentId, agentToken } = await ownerWithAgent("WorldBodyGet");
+    const visit = await startVisit(ownerToken, agentId, 5);
+    const before = await w(agentToken, "GET", "/body");
+    expect(before.status).toBe(404);
+    expect(((await before.json()) as any).error).toBe("no_body");
+    expect((await w(agentToken, "POST", "/body")).status).toBe(201);
+    clock += 1000;
+    const after = await w(agentToken, "GET", "/body");
+    expect(after.status).toBe(200);
+    const b = ((await after.json()) as any).body;
+    expect(b.posture).toBe("standing");
+    expect(typeof b.x).toBe("number");
+    const list = (await (await app.request(`/owners/agents/${agentId}/visits`, { headers: json(ownerToken) })).json()) as any;
+    expect(list.visits.find((v: any) => v.id === visit.id).actionsUsed).toBe(1); // only the attach counted
+  });
+
+  test("visit counter: only a new accepted act counts (not a replay, a refused action or an id conflict)", async () => {
+    const { ownerToken, agentId, agentToken } = await ownerWithAgent("WorldCount");
+    const visit = await startVisit(ownerToken, agentId, 50);
+    const used = async () => ((await (await app.request(`/owners/agents/${agentId}/visits`, { headers: json(ownerToken) })).json()) as any)
+      .visits.find((v: any) => v.id === visit.id).actionsUsed;
+    expect((await w(agentToken, "POST", "/body")).status).toBe(201); // 1
+    clock += 1000;
+    expect((await w(agentToken, "POST", "/act", { id: "c-1", action: { type: "wait", seconds: 1 } })).status).toBe(202); // 2
+    clock += 1000;
+    expect((await w(agentToken, "POST", "/act", { id: "c-1", action: { type: "wait", seconds: 1 } })).status).toBe(200); // replay
+    clock += 1000;
+    expect((await w(agentToken, "POST", "/act", { id: "c-1", action: { type: "stop" } })).status).toBe(409);
+    clock += 1000;
+    expect((await w(agentToken, "POST", "/act", { id: "c-2", action: { type: "teleport", point: [0, 0] } })).status).toBe(400);
+    expect(await used()).toBe(2);
+  });
+
+  test("GET /act/:id?waitMs holds until the act settles; waitMs=0 answers at once", async () => {
+    const { ownerToken, agentId, agentToken } = await ownerWithAgent("WorldLongPoll");
+    await startVisit(ownerToken, agentId);
+    expect((await w(agentToken, "POST", "/body")).status).toBe(201);
+    clock += 1000;
+    expect((await w(agentToken, "POST", "/act", { id: "lp-wait", action: { type: "wait", seconds: 2 } })).status).toBe(202);
+    const now = (await (await w(agentToken, "GET", "/act/lp-wait?waitMs=0")).json()) as any;
+    expect(now.act.state).toBe("running");
+    // Tick the sim (and the rate-limit clock) in the background while the long-poll waits.
+    const ticker = setInterval(() => { service.tick(0.5); clock += 500; }, 50);
+    const t0 = Date.now();
+    const held = (await (await w(agentToken, "GET", "/act/lp-wait?waitMs=8000")).json()) as any;
+    clearInterval(ticker);
+    expect(held.act.state).toBe("settled");
+    expect(Date.now() - t0).toBeLessThan(8000);
   });
 
   test("owner starts a visit, the agent attaches a body and walks to the Tea House door with no browser", async () => {
@@ -124,7 +179,7 @@ describe("/world (agent body)", () => {
 
     // Same id, same action: the first record, not a second walk. Same id, other action: conflict.
     clock += 1000;
-    expect((await w(agentToken, "POST", "/act", { id: "go-tea", action: { type: "go_to", point: [-22.9, -75.0] } })).status).toBe(202);
+    expect((await w(agentToken, "POST", "/act", { id: "go-tea", action: { type: "go_to", point: [-22.9, -75.0] } })).status).toBe(200);
     clock += 1000;
     expect((await w(agentToken, "POST", "/act", { id: "go-tea", action: { type: "stop" } })).status).toBe(409);
 
@@ -204,11 +259,22 @@ describe("agent card", () => {
       process.env.SIM_INTERNAL_SECRET = SECRET;
       const w = (await card())["x-aiverse-world"];
       expect(w.endpoints.act).toContain("POST /world/act");
+      expect(w.endpoints.body).toContain("GET /world/body");
+      expect(w.actions.some((a: string) => a.startsWith("enter "))).toBe(true);
+      expect(w.docs).toMatch(/\/llms\.txt$/);
       expect(JSON.stringify(w)).not.toContain(SECRET);
     } finally {
       for (const [k, v] of Object.entries({ AIVERSE_WORLD_MODE: saved.m, SIM_URL: saved.u, SIM_INTERNAL_SECRET: saved.s })) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
     }
   });
+});
+
+test("GET /llms.txt is a public plain-text world guide listing every action type", async () => {
+  const r = await app.request("/llms.txt");
+  expect(r.status).toBe(200);
+  expect(r.headers.get("content-type")).toContain("text/plain");
+  const t = await r.text();
+  for (const a of ["go_to", "enter", "face", "play", "GET /world/clips", "waitMs"]) expect(t).toContain(a);
 });
 
 async function startVisitLookup(ownerToken: string, agentId: string) {

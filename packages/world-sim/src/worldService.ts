@@ -6,9 +6,10 @@
 // Senses are only what the sensorium charter allows: the body's own state and the projected scene (`oracleScene`: what is in
 // range and in the view cone). No other agent's identity, no hidden state, no debug surface.
 import { AgentBody, type AgentSnapshot } from "./agentBody";
-import { validAction, validRequestId } from "./actionProtocol";
+import { explainAction, validRequestId } from "./actionProtocol";
 import { encodePose, type PoseTuple } from "./streamProtocol";
-import { nearestPlace, oracleScene, roomAt, type OracleObject, type ScoutAction, type ScoutOutcome } from "./scout";
+import { nearestPlace, oracleScene, roomAt, SOCIAL_CLIPS, type OracleObject, type ScoutAction, type ScoutOutcome } from "./scout";
+import { clipDef } from "./clips";
 import { BODY_REMY } from "./bodies";
 import type { VerseSim } from "./verseSim";
 
@@ -121,7 +122,9 @@ export class WorldService {
    */
   act(agentId: string, id: string, action: unknown): ActRecord {
     const s = this.session(agentId);
-    if (!validRequestId(id) || !validAction(action)) throw new WorldError("invalid_action", "invalid action or id");
+    if (!validRequestId(id)) throw new WorldError("invalid_action", "id must be 1-80 letters, digits or dashes");
+    const why = explainAction(action);
+    if (why) throw new WorldError("invalid_action", why);
     const existing = s.records.get(id);
     if (existing && JSON.stringify(existing.action) !== JSON.stringify(action)) throw new WorldError("id_conflict", "request ID reused with different action");
     if (existing) return existing;
@@ -140,6 +143,11 @@ export class WorldService {
       s.records.delete(oldest);
     }
     return rec;
+  }
+
+  /** The body's own state, without the scene (cheap "do I have a body, where am I" check). */
+  body(agentId: string): AgentSnapshot {
+    return this.session(agentId).body.snapshot();
   }
 
   actRecord(agentId: string, id: string): ActRecord | undefined {
@@ -180,6 +188,14 @@ export class WorldService {
    *  discover room targets from the API instead of only from observe's near-range doors. */
   places(): { id: string; name: string; kind: string; room: string | null }[] {
     return this.sim.places.map((p) => ({ id: p.id, name: p.name, kind: p.kind, room: p.room ?? null }));
+  }
+
+  /** The clips `play` accepts: name, whether it loops (held for `seconds`), and its own length in seconds. */
+  clips(): { name: string; loop: boolean; seconds: number }[] {
+    return SOCIAL_CLIPS.map((name) => {
+      const d = clipDef(name);
+      return { name, loop: d?.loop ?? false, seconds: round(d?.duration ?? 0, 2) };
+    });
   }
 
   /** Advance the world by `dt` simulation seconds and stop bodies whose agent went quiet. */

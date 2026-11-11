@@ -22,7 +22,8 @@ async function ownerWithAgent(name: string) {
   const email = `visit-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
   const reg = await app.request("/owners/register", { method: "POST", headers: json(), body: JSON.stringify({ email, password: "password123" }) });
   const { token: ownerToken } = (await reg.json()) as any;
-  const created = await app.request("/owners/agents", { method: "POST", headers: json(ownerToken), body: JSON.stringify({ name, capabilities: [] }) });
+  // Agent names are unique platform-wide and the test DB persists, so a fixed name fails every rerun.
+  const created = await app.request("/owners/agents", { method: "POST", headers: json(ownerToken), body: JSON.stringify({ name: `${name}${Math.random().toString(36).slice(2, 7)}`, capabilities: [] }) });
   const { agent, agentToken } = (await created.json()) as any;
   await app.request(`/owners/agents/${agent.id}/wallet`, { method: "PATCH", headers: json(ownerToken), body: JSON.stringify({ autonomyMode: "autonomous" }) });
   return { ownerToken: ownerToken as string, agentId: agent.id as string, agentToken: agentToken as string };

@@ -11,7 +11,7 @@ import { CityNav } from "./cityNav";
 import { ClipTestState } from "./clips";
 import type { InteractController } from "./interactables";
 import { navigationSegment, planRoute } from "./navigation";
-import { ScoutExecutor, type Posture, type ScoutAction, type ScoutOutcome, type ScoutPlace, type Sittable } from "./scout";
+import { ScoutExecutor, type Posture, type ScoutAction, type ScoutOutcome, type ScoutPlace, type ScoutRoomShape, type Sittable } from "./scout";
 import { clipChannel, type TeaDoorChannel, type TeaDoorController } from "./teaDoor";
 import { findSpawn, makeWalker, WALK_CONFIG, type Vec2, type WalkerState, type World } from "./walker";
 
@@ -38,6 +38,7 @@ export interface AgentBodyDeps {
   actors: ActorRegistry;
   places: ScoutPlace[];
   sittables: Sittable[];
+  rooms?: ScoutRoomShape[];
   door?: TeaDoorController;
   interact?: InteractController;
   /** Hips height for the seated drop (bodies.ts BODY_REMY.hipsY in the browser scout). */
@@ -98,6 +99,7 @@ export class AgentBody {
     this.exec = new ScoutExecutor({
       places: deps.places,
       sittables: deps.sittables,
+      rooms: deps.rooms,
       cancel: () => { door?.cancel(this.id); interact?.cancel(this.id); },
       plan: (s, target) => {
         const y = deps.planningWorld.groundY(target[0], target[1], s.y + WALK_CONFIG.stepUp + 0.05);

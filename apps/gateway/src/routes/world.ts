@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import { and, eq, isNull } from "drizzle-orm";
 import { agentVisits } from "@aiverse/shared/schema";
 import { db } from "../db/client";
-import { agentAuth } from "../middleware/agentAuth";
+import { agentAuth, agentAuthUncounted } from "../middleware/agentAuth";
+import { consumeVisitAction } from "../policy/visits";
 import { log, logError } from "../util/log";
 import { onAgentGone } from "../world/hooks";
 import type { SimClient } from "../world/simClient";
@@ -15,6 +16,8 @@ import type { SimClient } from "../world/simClient";
 // Non-GET calls (attach, detach, act) count against the visit's action cap through agentAuth; polling (observe, act status) is GET.
 const ID_RE = /^[a-zA-Z0-9-]{1,80}$/;
 const MAX_BODY = 4096;
+const MAX_WAIT_MS = 10_000;
+const POLL_MS = 400;
 
 type Env = { Variables: { agentId: string; visitEndsAt: number } };
 
@@ -29,7 +32,9 @@ export function createWorldRoute(sim: SimClient) {
     ),
   );
 
-  route.use("*", agentAuth);
+  // POST /act counts in its handler, only for a NEW accepted act (sim 202): retries, 429s and refused actions do not spend the visit.
+  route.use("*", (c, next) =>
+    (c.req.method === "POST" && c.req.path.endsWith("/act") ? agentAuthUncounted : agentAuth)(c as unknown as Parameters<typeof agentAuth>[0], next));
   route.use("*", async (c, next) => {
     const visit = await db.query.agentVisits.findFirst({
       where: and(eq(agentVisits.agentId, c.get("agentId")), isNull(agentVisits.endedAt)),
@@ -60,11 +65,16 @@ export function createWorldRoute(sim: SimClient) {
     const agentId = c.get("agentId");
     return forward(c, agentId, "POST", "/bodies", JSON.stringify({ agentId, expiresAtMs: c.get("visitEndsAt") }));
   });
+  // Free read: the body's own state, or 404 no_body ("attach one first"). Cold agents probed GET /body and read the old bare 404 as
+  // "this API has no bodies" (cold-agent runs 2026-11-10/11).
+  route.get("/body", (c) => forward(c, c.get("agentId"), "GET", `/bodies/${c.get("agentId")}`));
   route.delete("/body", (c) => forward(c, c.get("agentId"), "DELETE", `/bodies/${c.get("agentId")}`));
   route.get("/observe", (c) => forward(c, c.get("agentId"), "GET", `/bodies/${c.get("agentId")}/observe`));
   route.get("/places", (c) => forward(c, c.get("agentId"), "GET", "/places"));
   // The M4 docs promise GET /world/map (places): the same sim places list under the documented name.
   route.get("/map", (c) => forward(c, c.get("agentId"), "GET", "/places"));
+  // The exact names `play` accepts (cold agents guessed "wave"; the clip is "Waving").
+  route.get("/clips", (c) => forward(c, c.get("agentId"), "GET", "/clips"));
 
   route.post("/act", async (c) => {
     const text = await c.req.text();
@@ -73,13 +83,24 @@ export function createWorldRoute(sim: SimClient) {
     try { b = JSON.parse(text); } catch { return c.json({ error: "bad_json" }, 400); }
     if (typeof b?.id !== "string" || !ID_RE.test(b.id)) return c.json({ error: "invalid_action", message: "id must be 1-80 letters, digits or dashes" }, 400);
     // Only the two fields cross; anything else the agent sent stays here.
-    return forward(c, c.get("agentId"), "POST", `/bodies/${c.get("agentId")}/act`, JSON.stringify({ id: b.id, action: b.action }));
+    const r = await forward(c, c.get("agentId"), "POST", `/bodies/${c.get("agentId")}/act`, JSON.stringify({ id: b.id, action: b.action }));
+    if (r.status === 202) await consumeVisitAction(c.get("agentId"));
+    return r;
   });
 
-  route.get("/act/:id", (c) => {
+  // ?waitMs=<=10000 holds the call until the act settles (or the wait ends), so an agent needs one call per act instead of a polling
+  // loop (about two thirds of cold agents' calls were polls). Still a free GET; it re-reads the sim every POLL_MS within its read bucket.
+  route.get("/act/:id", async (c) => {
     const id = c.req.param("id");
     if (!ID_RE.test(id)) return c.json({ error: "invalid_action" }, 400);
-    return forward(c, c.get("agentId"), "GET", `/bodies/${c.get("agentId")}/act/${id}`);
+    const waitMs = Math.min(MAX_WAIT_MS, Math.max(0, Number(c.req.query("waitMs")) || 0));
+    const deadline = Date.now() + waitMs;
+    for (;;) {
+      const r = await forward(c, c.get("agentId"), "GET", `/bodies/${c.get("agentId")}/act/${id}`);
+      if ((r.status !== 200 && r.status !== 429) || Date.now() >= deadline) return r;
+      if (r.status === 200 && ((await r.clone().json()) as { act?: { state?: string } }).act?.state !== "running") return r;
+      await Bun.sleep(Math.min(POLL_MS, Math.max(0, deadline - Date.now())));
+    }
   });
 
   return route;

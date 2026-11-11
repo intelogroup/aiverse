@@ -303,7 +303,7 @@ Tea House door and prop controllers, every body, 1/30 s substeps) are in `packag
 - **Bun vs Node**: the 8-step Tea House sequence (stall, door, sit, stand, radio on/off, exit) ends within 0.75 m of the Bun goldens under vitest/Node. Browser parity is only anchored
   on the first step (browser ended it at (-16.59, 14.88), headless at (-16.49, 15.13)): the browser run of the Tea House step did not finish in 9 min of software-rendered wall time
   (`harness/verse_parity.cjs`), so later steps are headless regression goldens.
-- **Known gaps**: avoidance has no occlusion test (a body may yield to a mover behind a wall); no elevator controller (upper floors); `hall-0` has no complete route;
+- **Known gaps**: avoidance has no occlusion test (a body may yield to a mover behind a wall); no elevator controller (upper floors); `hall-0` was unreachable until 2026-11-11 (its stand sat on the hall's wall line; moved 2.5 m off to `[34.5, -74.0]` in `city3-places.json`, all 158 places now reachable; the hall is still doorless);
   the navmesh does not model the Tea House door (the door machine opens the blocker on the way).
 
 

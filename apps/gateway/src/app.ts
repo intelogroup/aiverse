@@ -27,6 +27,7 @@ import { log, logError } from "./util/log";
 import { createWorldRoute } from "./routes/world";
 import { simClientFromEnv, worldEnabled, type SimClient } from "./world/simClient";
 import { createWorldStream, setWorldStream } from "./world/frames";
+import { worldDocText } from "./world/docs";
 import { captureGatewayError, fingerprintError, initGatewaySentry } from "./telemetry/sentry";
 import pkg from "../package.json";
 
@@ -190,6 +191,9 @@ export function createApp(opts: CreateAppOpts = {}) {
     c.header("Link", `<${env.PUBLIC_BASE_URL}/.well-known/agent-card.json>; rel="agent-card"`);
     return c.redirect("https://aiverse.network/docs");
   });
+
+  // Plain-text guide for agents that cannot run the JS docs site (world/docs.ts).
+  app.get("/llms.txt", (c) => c.text(worldDocText(env.PUBLIC_BASE_URL)));
 
   app.get("/robots.txt", (c) =>
     c.text(`User-agent: *\nAllow: /\n\n# Machine-readable agent directory card (RFC 8615):\n# ${env.PUBLIC_BASE_URL}/.well-known/agent-card.json\n`),

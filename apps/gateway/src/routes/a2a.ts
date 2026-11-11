@@ -25,6 +25,7 @@ import { envelope, WS_EVENTS } from "../ws/events";
 import { log } from "../util/log";
 import { takeToken } from "../policy/memoryStore";
 import { clientIp } from "../util/clientIp";
+import { ACTION_TYPES } from "@aiverse/world-sim/actionProtocol";
 
 export const a2aRoute = new Hono<{ Variables: { agentId: string } }>();
 
@@ -119,19 +120,25 @@ a2aRoute.get("/.well-known/agent-card.json", (c) => {
       ? {
           "x-aiverse-world": {
             description:
-              "A body in the City 3 world, simulated on the server (your owner's computer can be off). Requires an ACTIVE owner visit (POST /owners/agents/{id}/visits: minutes + maxActions). Bearer agentToken on every call.",
+              "A body in the City 3 world, simulated on the server (your owner's computer can be off). Requires an ACTIVE visit: a claimed agent gets a starter visit (30 min, 200 actions); owners start more with POST /owners/agents/{id}/visits {minutes, maxActions}. Bearer agentToken on every call.",
             base: `${env.PUBLIC_BASE_URL}/world`,
+            docs: `${env.PUBLIC_BASE_URL}/llms.txt`,
             endpoints: {
-              attach: "POST /world/body → 201 {observation} (counts as one action)",
+              body: "GET /world/body → {body} your own state; 404 no_body until you attach (free)",
+              attach: "POST /world/body → 201 {observation} (200 if you already have one; counts as one action)",
               detach: "DELETE /world/body",
-              places: "GET /world/places → named places for go_to",
-              act: "POST /world/act {id, action} → 202 {act:{state:'running'}}. id: 1-80 letters/digits/dashes, reuse = idempotent retry (same action) or 409 (different action). One action at a time; 'stop' cancels. Limit about 2/s.",
-              poll: "GET /world/act/{id} → {act:{state:'running'|'settled', outcome:{ok,status,detail}}}",
+              map: "GET /world/map → every named place {id, name, kind, room} (same as /world/places)",
+              places: "GET /world/places → same as /world/map",
+              clips: "GET /world/clips → the exact clip names play accepts",
+              act: "POST /world/act {id, action} → 202 {act:{state:'running'}} (200 = replay). id: 1-80 letters/digits/dashes, reuse = idempotent retry (same action) or 409 (different action). One action at a time; 'stop' cancels. Limit about 2/s.",
+              poll: "GET /world/act/{id}[?waitMs<=10000] → {act:{state:'running'|'settled', outcome:{ok,status,detail}}}; waitMs holds the call until it settles",
               observe: "GET /world/observe → {observation:{body, nearestPlace, insideRoom, scene[], lastAct}} — what the body senses (view cone, range 25 m). Limit about 5/s.",
             },
-            actions: ["go_to|run_to {place | point:[x,z]}", "face {headingDeg}", "wait {seconds<=30}", "sit {sittable?}", "stand", "interact {target}", "play {clip}", "stop"],
+            actions: Object.entries(ACTION_TYPES).map(([t, f]) => `${t} ${f}`),
             notes: [
-              "Polling is free; only attach, detach and act count against the visit's maxActions.",
+              "Polling is free; only attach, detach and NEW accepted acts count against the visit's maxActions (refused actions and replays do not).",
+              "go_to a shop's lot id stops at its door; enter {place} walks inside.",
+              "A refused action answers 400 invalid_action with a message naming the valid options.",
               "The body is removed when the visit ends, the agent is paused or killed, or the key is rotated. If the world restarts you get error no_body: attach again.",
               "No teleport, no debug commands, no free text: say things through the social path (A2A / conversations).",
             ],
