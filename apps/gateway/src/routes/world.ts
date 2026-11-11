@@ -1,9 +1,11 @@
 import { Hono } from "hono";
 import { and, eq, isNull } from "drizzle-orm";
-import { agentVisits } from "@aiverse/shared/schema";
+import { agents, agentVisits, agentWallets } from "@aiverse/shared/schema";
 import { db } from "../db/client";
 import { agentAuth, agentAuthUncounted } from "../middleware/agentAuth";
+import { checkAgentSendRate, checkAutonomy } from "../policy/gate";
 import { consumeVisitAction } from "../policy/visits";
+import { audit } from "../util/audit";
 import { log, logError } from "../util/log";
 import { onAgentGone, onVisitExtended } from "../world/hooks";
 import { agentBodies, BODIES } from "@aiverse/world-sim/bodies";
@@ -109,7 +111,8 @@ export function createWorldRoute(sim: SimClient) {
   // "this API has no bodies" (cold-agent runs 2026-11-10/11).
   route.get("/body", (c) => forward(c, c.get("agentId"), "GET", `/bodies/${c.get("agentId")}`));
   route.delete("/body", (c) => forward(c, c.get("agentId"), "DELETE", `/bodies/${c.get("agentId")}`));
-  route.get("/observe", (c) => forward(c, c.get("agentId"), "GET", `/bodies/${c.get("agentId")}/observe`));
+  // ?heardSince=<seq> returns only speech newer than that cursor (the last observe.heard[].seq you saw).
+  route.get("/observe", (c) => forward(c, c.get("agentId"), "GET", `/bodies/${c.get("agentId")}/observe?heardSince=${Math.max(0, Number(c.req.query("heardSince")) || 0)}`));
   route.get("/places", (c) => forward(c, c.get("agentId"), "GET", "/places"));
   // The M4 docs promise GET /world/map (places): the same sim places list under the documented name.
   route.get("/map", (c) => forward(c, c.get("agentId"), "GET", "/places"));
@@ -122,9 +125,30 @@ export function createWorldRoute(sim: SimClient) {
     let b: { id?: unknown; action?: unknown };
     try { b = JSON.parse(text); } catch { return c.json({ error: "bad_json" }, 400); }
     if (typeof b?.id !== "string" || !ID_RE.test(b.id)) return c.json({ error: "invalid_action", message: "id must be 1-80 letters, digits or dashes" }, 400);
-    // Only the two fields cross; anything else the agent sent stays here.
-    const r = await forward(c, c.get("agentId"), "POST", `/bodies/${c.get("agentId")}/act`, JSON.stringify({ id: b.id, action: b.action }));
-    if (r.status === 202) await consumeVisitAction(c.get("agentId"));
+    const agentId = c.get("agentId");
+    // Speech is the one action with a social cost: it runs the same autonomy and send-rate gates as a conversation message, and the
+    // sim gets the speaker's display name from here (the agent cannot choose it).
+    let name: string | undefined;
+    const isSay = typeof b.action === "object" && b.action !== null && (b.action as { type?: unknown }).type === "say";
+    if (isSay) {
+      const [agent, wallet] = await Promise.all([
+        db.query.agents.findFirst({ where: eq(agents.id, agentId) }),
+        db.query.agentWallets.findFirst({ where: eq(agentWallets.agentId, agentId) }),
+      ]);
+      if (!agent || !wallet) return c.json({ error: "agent wallet not found" }, 500);
+      const autonomy = checkAutonomy(wallet.autonomyMode, 0);
+      if (!autonomy.allowed) return c.json({ error: autonomy.reason }, 403);
+      const rate = await checkAgentSendRate(agentId);
+      if (!rate.allowed) return c.json({ error: rate.reason }, 429, { "retry-after": "1" });
+      name = agent.name;
+    }
+    // Only the named fields cross; anything else the agent sent stays here.
+    const r = await forward(c, agentId, "POST", `/bodies/${agentId}/act`, JSON.stringify({ id: b.id, action: b.action, name }));
+    if (r.status === 202) {
+      await consumeVisitAction(agentId);
+      // One audit row per spoken line, so the report button and the owner can see what an agent said in the world.
+      if (isSay) await audit({ event: "world.say", agentId, actorType: "agent", actorId: agentId, metadata: { text: String((b.action as { text?: unknown }).text).slice(0, 140) } });
+    }
     return r;
   });
 

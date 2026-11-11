@@ -7,7 +7,7 @@
 //  * Spectators are anonymous and public: they get a display name and a body model per body number, never an agent id or owner.
 //  * Poses are latest-wins, so a slow socket simply misses frames (checked via its buffered amount) instead of queueing them.
 import { envelope } from "../ws/events";
-import { FrameDiffer, WORLD_FRAMES, WORLD_ROSTER, type FramesMessage, type PoseTuple, type RosterMessage } from "@aiverse/world-sim/streamProtocol";
+import { FrameDiffer, WORLD_FRAMES, WORLD_ROSTER, WORLD_SAY, type FramesMessage, type PoseTuple, type RosterMessage, type SayMessage } from "@aiverse/world-sim/streamProtocol";
 import type { SimClient } from "./simClient";
 
 export interface StreamSocket {
@@ -29,7 +29,7 @@ export interface WorldStreamOpts {
   log?: (event: string, extra?: Record<string, unknown>) => void;
 }
 
-interface SimFrames { epoch: string; t: number; rosterRev: number; b: PoseTuple[] }
+interface SimFrames { epoch: string; t: number; rosterRev: number; b: PoseTuple[]; say?: SayMessage["say"] }
 interface SimRoster { epoch: string; rev: number; bodies: { n: number; agentId: string; body: string }[] }
 
 export function createWorldStream(opts: WorldStreamOpts) {
@@ -42,6 +42,8 @@ export function createWorldStream(opts: WorldStreamOpts) {
   const differ = new FrameDiffer(opts.keyEveryMs ?? 2000);
   let roster: RosterMessage | null = null;
   let rosterRev = -1;
+  let saidEpoch = "";
+  let saidSeq = 0;
   let lastT = 0;
   let failures = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -81,6 +83,14 @@ export function createWorldStream(opts: WorldStreamOpts) {
     lastT = f.t;
     const msg = differ.next(f.epoch, f.t, f.b, now());
     if (msg.b.length || msg.gone.length || msg.key) broadcast(wire(WORLD_FRAMES, msg));
+    // Speech rides its own message: it must reach spectators even when no pose changed. The sim keeps a line for a few seconds,
+    // so each is sent once, the first cycle that shows a sequence number we have not sent.
+    if (f.epoch !== saidEpoch) { saidEpoch = f.epoch; saidSeq = 0; }
+    const fresh = (f.say ?? []).filter((e) => e.seq > saidSeq);
+    if (fresh.length) {
+      saidSeq = Math.max(...fresh.map((e) => e.seq));
+      broadcast(wire(WORLD_SAY, { epoch: f.epoch, say: fresh.map((e) => ({ seq: e.seq, n: e.n, text: String(e.text).slice(0, 140) })) } satisfies SayMessage));
+    }
   }
 
   async function loop(): Promise<void> {
