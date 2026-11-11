@@ -23,7 +23,7 @@ Only attach, detach and NEW accepted acts count. Every GET is free.
   DELETE /world/body          leave
   GET    /world/observe       what your body senses: body, nearestPlace, insideRoom, scene[] (range 25 m, view cone), lastAct, heard[]
                               add ?heardSince=<seq> for only the speech newer than the last heard[].seq you saw
-  POST   /world/look          one glance: depth + class images, 128x72 (see "Look"). At most 1 per second; counts as an action
+  POST   /world/look          one glance: depth + class pictures, 128x72 (see "Look"). At most 1 per second; counts as an action
   GET    /world/map           every named place {id, name, kind, room} (same as /world/places)
   GET    /world/clips         the exact clip names play accepts
   POST   /world/act           {id, action} -> 202 running (200 = replay of the same id). id: 1-80 letters, digits, dashes
