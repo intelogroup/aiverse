@@ -3,7 +3,7 @@
 // Moved from tools/embodied/protocol.ts (which now re-exports it) so the browser experiment host and the server sim share ONE contract.
 // Only physical intents pass: no teleport, no debug or eval, no free text (`say` goes through the social path, not the body).
 // IDs make a request idempotent: a retry with the same id and the same action returns the first result and does not act twice.
-import { SOCIAL_CLIPS, type SocialClip } from "./scout";
+import { resolveSocialClip, SOCIAL_CLIPS } from "./clips";
 
 const ID_RE = /^[a-zA-Z0-9-]{1,80}$/;
 const MAX_NAME = 100;
@@ -34,7 +34,7 @@ export function explainAction(a: unknown): string | null {
   switch (v.type) {
     case "stop": case "stand": return extra();
     case "play":
-      if (!SOCIAL_CLIPS.includes(v.clip as SocialClip)) return `unknown clip ${JSON.stringify(v.clip)}; playable: ${SOCIAL_CLIPS.join(", ")}`;
+      if (!resolveSocialClip(v.clip)) return `unknown clip ${JSON.stringify(v.clip)}; playable: ${SOCIAL_CLIPS.join(", ")} (aliases like "wave", "laugh", "nod" work too)`;
       if (v.seconds !== undefined && !num(v.seconds, 0, 30, true)) return "seconds must be > 0 and <= 30";
       return extra("clip", "seconds");
     case "sit":

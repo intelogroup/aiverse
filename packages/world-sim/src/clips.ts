@@ -22,66 +22,72 @@ export interface ClipDef {
   loop: boolean;
   /** Baked duration, seconds. */
   duration: number;
+  /** An agent may `play` it (the public gesture set; GET /world/clips). */
+  social?: boolean;
+  /** Safe to play while seated (the others are standing poses and would render at seat height). */
+  seatedOk?: boolean;
+  /** Extra names `play` accepts for it, besides its own (case, spaces, `_` and `-` are ignored). */
+  aliases?: string[];
 }
 
 const CORE: ClipDef[] = [
   { name: "Idle", loop: true, duration: 2.6667 },
   { name: "Walk", loop: true, duration: 1.1667 },
-  { name: "SittingTalking", loop: true, duration: 44.1 },
+  { name: "SittingTalking", loop: true, duration: 44.1, social: true, seatedOk: true, aliases: ["sittalk", "talkseated"] },
   { name: "SitDown", loop: false, duration: 2.2333 },
   { name: "StandUp", loop: false, duration: 2.2667 },
 ];
 
 /** The batch wave's additions, alphabetical. */
 const BATCH: ClipDef[] = [
-  { name: "Arguing", loop: false, duration: 20.8 },
+  { name: "Arguing", loop: false, duration: 20.8, social: true, aliases: ["argue", "angry"] },
   { name: "AttackPunch", loop: false, duration: 0.8667 },
   { name: "Block", loop: false, duration: 2.8667 },
-  { name: "Bow", loop: false, duration: 2.7333 },
+  { name: "Bow", loop: false, duration: 2.7333, social: true, aliases: ["bows"] },
   { name: "CastSpell", loop: false, duration: 2.3 },
-  { name: "Clapping", loop: true, duration: 1.1667 },
+  { name: "Clapping", loop: true, duration: 1.1667, social: true, aliases: ["clap", "applaud"] },
   { name: "Death", loop: false, duration: 3.0333 },
-  { name: "Defeated", loop: false, duration: 6.7333 },
-  { name: "Drinking", loop: false, duration: 8.8667 },
+  { name: "Defeated", loop: false, duration: 6.7333, social: true, aliases: ["sad", "defeat", "sigh"] },
+  { name: "Drinking", loop: false, duration: 8.8667, social: true, aliases: ["drink", "sip"] },
   { name: "EnterCar", loop: false, duration: 5.4667 },
   { name: "EnteringCode", loop: true, duration: 7.5000 },
   { name: "ExitCar", loop: false, duration: 5.8 },
-  { name: "Handshake1", loop: false, duration: 4.3667 },
+  { name: "Handshake1", loop: false, duration: 4.3667, social: true, aliases: ["handshake", "shakehands"] },
   { name: "Handshake2", loop: false, duration: 4.3667 },
   { name: "HitReaction", loop: false, duration: 0.4333 },
   { name: "HoldingTurnLeft", loop: false, duration: 1.2000 },
   { name: "IdleLong", loop: true, duration: 9.9333 },
   { name: "Interact", loop: false, duration: 3.2333 },
   { name: "Jump", loop: false, duration: 2.6 },
-  { name: "Laughing", loop: false, duration: 9.7667 },
+  { name: "Laughing", loop: false, duration: 9.7667, social: true, aliases: ["laugh", "lol", "haha"] },
   { name: "LookOverBothShoulders", loop: false, duration: 4.0 },
   { name: "LookOverShoulder", loop: false, duration: 3.7667 },
-  { name: "LookingAround", loop: false, duration: 6.3333 },
-  { name: "NodYes", loop: false, duration: 2.6 },
+  { name: "LookingAround", loop: false, duration: 6.3333, social: true, aliases: ["lookaround", "look", "scan"] },
+  { name: "NodYes", loop: false, duration: 2.6, social: true, aliases: ["nod", "yes", "agree"] },
   { name: "OpenDoorInwards", loop: false, duration: 6.3667 },
   { name: "OpenDoorOutwards", loop: false, duration: 4.1 },
   { name: "PickUp", loop: false, duration: 9.5667 },
-  { name: "Pointing", loop: false, duration: 1.8333 },
+  { name: "Pointing", loop: false, duration: 1.8333, social: true, aliases: ["point"] },
   { name: "PullingLever", loop: false, duration: 6.2667 },
   { name: "PuttingDown", loop: false, duration: 10.3333 },
   { name: "Run", loop: true, duration: 0.7333 },
-  { name: "Salute", loop: false, duration: 2.8333 },
-  { name: "ShakeHeadNo", loop: false, duration: 1.8 },
-  { name: "Shrug", loop: false, duration: 2.0 },
-  { name: "SillyDancing", loop: true, duration: 3.8333 },
+  { name: "Salute", loop: false, duration: 2.8333, social: true, aliases: ["salutes"] },
+  { name: "ShakeHeadNo", loop: false, duration: 1.8, social: true, aliases: ["no", "shake", "shakehead", "disagree"] },
+  { name: "Shrug", loop: false, duration: 2.0, social: true, aliases: ["idk"] },
+  { name: "SillyDancing", loop: true, duration: 3.8333, social: true, aliases: ["dance", "silly"] },
   { name: "SittingIdle", loop: true, duration: 6.4 },
   { name: "StandingUsingTouchscreenTablet", loop: true, duration: 33.1333 },
-  { name: "Talking", loop: true, duration: 3.9333 },
-  { name: "TalkingFunny", loop: false, duration: 5.9333 },
+  { name: "Talking", loop: true, duration: 3.9333, social: true, aliases: ["talk", "speak"] },
+  { name: "TalkingFunny", loop: false, duration: 5.9333, social: true, aliases: ["joke", "talkfunny"] },
   { name: "TalkingOnPhone", loop: true, duration: 37.2333 },
   { name: "TenderPlacement", loop: false, duration: 9.2667 },
   { name: "Texting", loop: true, duration: 18.5333 },
-  { name: "Thinking", loop: false, duration: 4.2333 },
+  { name: "Thinking", loop: false, duration: 4.2333, social: true, aliases: ["think", "hmm"] },
   { name: "Throw", loop: false, duration: 2.2 },
   { name: "TurnLeft90", loop: false, duration: 1.8667 },
   { name: "TurnRight90", loop: false, duration: 1.6333 },
-  { name: "Victory", loop: false, duration: 8.5333 },
-  { name: "Waving", loop: false, duration: 0.5333 },
+  { name: "Victory", loop: false, duration: 8.5333, social: true, aliases: ["cheer", "celebrate", "win"] },
+  { name: "Waving", loop: false, duration: 0.5333, social: true, aliases: ["wave", "hello", "hi", "greet"] },
 ];
 
 /** Every clip in the catalog: the five core clips first, then the batch. */
@@ -94,6 +100,19 @@ export const CLIP_BY_NAME: ReadonlyMap<string, ClipDef> = new Map(
 export function clipDef(name: string): ClipDef | undefined {
   return CLIP_BY_NAME.get(name);
 }
+
+const squash = (n: string) => n.toLowerCase().replace(/[\s_-]+/g, "");
+const SOCIAL_BY_KEY: ReadonlyMap<string, ClipDef> = new Map(
+  CLIP_CATALOG.filter((c) => c.social).flatMap((c) => [c.name, ...(c.aliases ?? [])].map((k): [string, ClipDef] => [squash(k), c])),
+);
+
+/** The gesture a name from an agent means: exact, case-insensitive or an alias ("wave" -> Waving). Social clips only. */
+export function resolveSocialClip(name: unknown): ClipDef | undefined {
+  return typeof name === "string" ? SOCIAL_BY_KEY.get(squash(name)) : undefined;
+}
+
+/** The gestures `play` accepts, by canonical name. */
+export const SOCIAL_CLIPS: readonly string[] = CLIP_CATALOG.filter((c) => c.social).map((c) => c.name);
 
 /**
  * How far a fired tester clip damps the body layer's Idle/Walk —

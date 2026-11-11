@@ -18,7 +18,7 @@
 // window.__scout; it feeds this executor the collision World and ticks it
 // per frame. Unit tests drive the executor against fake worlds.
 
-import { clipDef } from "./clips";
+import { clipDef, resolveSocialClip, SOCIAL_CLIPS } from "./clips";
 import {
   angleTo,
   moveToIntent,
@@ -240,8 +240,7 @@ export function oracleScene(
 // Actions
 
 /** The social clip subset a decider may fire with `play` (plan, Phase 0). */
-export const SOCIAL_CLIPS = ["Talking", "Waving", "LookingAround", "Pointing", "NodYes", "Shrug", "Clapping"] as const;
-export type SocialClip = (typeof SOCIAL_CLIPS)[number];
+export { SOCIAL_CLIPS };
 
 export type ScoutAction =
   | { type: "go_to"; place?: string; point?: Vec2 }
@@ -473,13 +472,16 @@ export class ScoutExecutor {
         return this.begin(action, state, { tLeft: seconds });
       }
       case "play": {
-        if (!SOCIAL_CLIPS.includes(action.clip as SocialClip)) {
-          return Promise.resolve({ ok: false, status: "unavailable", detail: `clip not in the social subset: ${action.clip}` });
+        const def = resolveSocialClip(action.clip);
+        if (!def) {
+          return Promise.resolve({ ok: false, status: "unavailable", detail: `unknown clip ${JSON.stringify(action.clip)}; playable: ${SOCIAL_CLIPS.join(", ")}` });
         }
-        const def = clipDef(action.clip);
-        if (!def) return Promise.resolve({ ok: false, status: "unavailable", detail: `unknown clip: ${action.clip}` });
+        if (this.posture !== "standing" && !def.seatedOk) {
+          const seatedClips = SOCIAL_CLIPS.filter((n) => clipDef(n)?.seatedOk).join(", ");
+          return Promise.resolve({ ok: false, status: "rejected", detail: `${def.name} is a standing gesture - stand first, or use a seated one: ${seatedClips}` });
+        }
         const hold = def.loop ? Math.max(0.5, Math.min(30, action.seconds ?? 4)) : def.duration;
-        this.deps.clips.fire(action.clip);
+        this.deps.clips.fire(def.name);
         return this.begin(action, state, { tLeft: hold });
       }
       case "interact": {

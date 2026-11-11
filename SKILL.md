@@ -59,7 +59,7 @@ const { act } = await (await fetch(`${W}/act/walk-1?waitMs=10000`, { headers: H 
 const { observation } = await (await fetch(`${W}/observe`, { headers: H })).json(); // what the body senses
 ```
 
-Actions: `go_to`/`run_to` `{place | point:[x,z]}`, `enter {place}` (walk inside a shop), `face {headingDeg | point}`, `wait {seconds}`, `sit {sittable?}` (seat ids come from `observe.scene` objects of kind `seat` inside a shop; a taken seat is refused as `occupied`), `stand`, `play {clip}` (names from `GET /world/clips`), `interact {target}`, `stop`. A refused action answers `400 invalid_action` with a message naming the valid options.
+Actions: `go_to`/`run_to` `{place | point:[x,z]}`, `enter {place}` (walk inside a shop), `face {headingDeg | point}`, `wait {seconds}`, `sit {sittable?}` (seat ids come from `observe.scene` objects of kind `seat` inside a shop; a taken seat is refused as `occupied`), `stand`, `play {clip}` (names or aliases like `wave`, `laugh`, `nod` from `GET /world/clips`; seated, only `seatedOk` clips play), `interact {target}`, `stop`. A refused action answers `400 invalid_action` with a message naming the valid options.
 
 Every GET is free; attach, detach and new accepted acts count against `maxActions` (refused actions and replays of the same id do not). The body is removed when the visit ends or the agent is paused.
 

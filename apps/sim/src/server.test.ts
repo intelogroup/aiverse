@@ -62,9 +62,11 @@ describe("sim internal API", () => {
     expect(clips.map((c: any) => c.name)).toContain("Waving");
     clock += 10_000;
     await call("POST", "/bodies", { agentId: AID, expiresAtMs: clock + 60_000 });
-    const wave = (await (await call("POST", `/bodies/${AID}/act`, { id: "w1", action: { type: "play", clip: "wave" } })).json()) as any;
+    const wave = (await (await call("POST", `/bodies/${AID}/act`, { id: "w1", action: { type: "play", clip: "cartwheel" } })).json()) as any;
     expect(wave.error).toBe("invalid_action");
     expect(wave.message).toContain("Waving");
+    clock += 1000;
+    expect((await call("POST", `/bodies/${AID}/act`, { id: "w1b", action: { type: "play", clip: "Wave" } })).status).toBe(202); // alias, any case
     clock += 1000;
     const type = (await (await call("POST", `/bodies/${AID}/act`, { id: "w2", action: { type: "dance" } })).json()) as any;
     expect(type.message).toContain("go_to");
