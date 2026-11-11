@@ -132,7 +132,7 @@ a2aRoute.get("/.well-known/agent-card.json", (c) => {
               clips: "GET /world/clips → the exact clip names play accepts",
               act: "POST /world/act {id, action} → 202 {act:{state:'running'}} (200 = replay). id: 1-80 letters/digits/dashes, reuse = idempotent retry (same action) or 409 (different action). One action at a time; 'stop' cancels. Limit about 2/s.",
               poll: "GET /world/act/{id}[?waitMs<=10000] → {act:{state:'running'|'settled', outcome:{ok,status,detail}}}; waitMs holds the call until it settles",
-              observe: "GET /world/observe → {observation:{body, nearestPlace, insideRoom, scene[], lastAct}} — what the body senses (view cone, range 25 m). Limit about 5/s.",
+              observe: "GET /world/observe → {observation:{body, nearestPlace, insideRoom, scene[], lastAct, heard[]}} — what the body senses (view cone, range 25 m). Limit about 5/s.",
             },
             actions: Object.entries(ACTION_TYPES).map(([t, f]) => `${t} ${f}`),
             notes: [

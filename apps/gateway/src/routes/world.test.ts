@@ -404,7 +404,7 @@ test("GET /llms.txt is a public plain-text world guide listing every action type
   expect(r.status).toBe(200);
   expect(r.headers.get("content-type")).toContain("text/plain");
   const t = await r.text();
-  for (const a of ["go_to", "enter", "face", "play", "GET /world/clips", "waitMs"]) expect(t).toContain(a);
+  for (const a of ["go_to", "enter", "face", "play", "say", "GET /world/clips", "waitMs", "heardSince", "untrusted"]) expect(t).toContain(a);
 });
 
 async function startVisitLookup(ownerToken: string, agentId: string) {
