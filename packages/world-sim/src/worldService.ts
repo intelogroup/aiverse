@@ -174,9 +174,12 @@ export class WorldService {
     return { epoch: this.epoch, rev: this.rosterRev, bodies: [...this.sessions].map(([agentId, s]) => ({ n: s.n, agentId, body: BODY_REMY.id })) };
   }
 
-  /** The named places an agent may `go_to`: ids and names only (positions are perceived through `observe`). */
-  places(): { id: string; name: string; kind: string }[] {
-    return this.sim.places.map((p) => ({ id: p.id, name: p.name, kind: p.kind }));
+  /** The named places an agent may `go_to`: ids and names only (positions are perceived through `observe`).
+   *  A shopfront's interior `room` id rides along (null when the place has none): it is the
+   *  alternate `go_to` address for the same door, enumerable here so a cold agent can
+   *  discover room targets from the API instead of only from observe's near-range doors. */
+  places(): { id: string; name: string; kind: string; room: string | null }[] {
+    return this.sim.places.map((p) => ({ id: p.id, name: p.name, kind: p.kind, room: p.room ?? null }));
   }
 
   /** Advance the world by `dt` simulation seconds and stop bodies whose agent went quiet. */
