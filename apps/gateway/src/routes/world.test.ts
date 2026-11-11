@@ -69,6 +69,36 @@ describe("/world (agent body)", () => {
     expect(((await r.json()) as any).error).toBe("no_visit");
   });
 
+  test("map: gates reject exactly like observe, and an active visit gets the places payload", async () => {
+    // No token: 401, same as observe.
+    expect((await w("", "GET", "/map")).status).toBe(401);
+
+    // Unclaimed (self-registered, never claimed): 403 agent_unclaimed, identical to observe.
+    const reg = await app.request("/agents/register", { method: "POST", headers: json(), body: JSON.stringify({ name: `WorldMapUnclaimed${Math.random().toString(36).slice(2, 7)}`, capabilities: [] }) });
+    const { agentToken: unclaimedToken } = (await reg.json()) as any;
+    const um = await w(unclaimedToken, "GET", "/map");
+    const uo = await w(unclaimedToken, "GET", "/observe");
+    expect(um.status).toBe(403);
+    expect(((await um.json()) as any).error).toBe("agent_unclaimed");
+    expect(uo.status).toBe(403);
+    expect(((await uo.json()) as any).error).toBe("agent_unclaimed");
+
+    // Claimed but no visit: 403 no_visit, identical to observe.
+    const { ownerToken, agentId, agentToken } = await ownerWithAgent("WorldMap");
+    const nm = await w(agentToken, "GET", "/map");
+    expect(nm.status).toBe(403);
+    expect(((await nm.json()) as any).error).toBe("no_visit");
+
+    // Active visit: 200 with the same payload /places serves, Tea House included.
+    await startVisit(ownerToken, agentId);
+    const m = await w(agentToken, "GET", "/map");
+    expect(m.status).toBe(200);
+    const mapBody = (await m.json()) as any;
+    const placesBody = (await (await w(agentToken, "GET", "/places")).json()) as any;
+    expect(mapBody).toEqual(placesBody);
+    expect(mapBody.places.some((p: any) => p.id === "shop-102" && p.name === "Matchmaker's Tea House")).toBe(true);
+  });
+
   test("owner starts a visit, the agent attaches a body and walks to the Tea House door with no browser", async () => {
     const { ownerToken, agentId, agentToken } = await ownerWithAgent("WorldWalker");
     await startVisit(ownerToken, agentId);

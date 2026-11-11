@@ -63,6 +63,8 @@ export function createWorldRoute(sim: SimClient) {
   route.delete("/body", (c) => forward(c, c.get("agentId"), "DELETE", `/bodies/${c.get("agentId")}`));
   route.get("/observe", (c) => forward(c, c.get("agentId"), "GET", `/bodies/${c.get("agentId")}/observe`));
   route.get("/places", (c) => forward(c, c.get("agentId"), "GET", "/places"));
+  // The M4 docs promise GET /world/map (places): the same sim places list under the documented name.
+  route.get("/map", (c) => forward(c, c.get("agentId"), "GET", "/places"));
 
   route.post("/act", async (c) => {
     const text = await c.req.text();
