@@ -61,6 +61,7 @@ export interface BodyDef {
 export const SCALE_CAST = 1.306; // 1.75 / 1.340
 export const SCALE_SUMMER = 1.371; // 1.68 / 1.225
 export const SCALE_REMY = 1.387; // 1.78 / 1.283
+export const SCALE_CIPHER = 1.369; // 1.78 / 1.300
 export const SCALE_MAGE = 1.302; // 1.70 / 1.306
 export const SCALE_BARBARIAN = 1.315; // 1.70 / 1.293
 export const SCALE_KNIGHT = 1.315; // 1.70 / 1.293
@@ -242,6 +243,24 @@ export const BODY_REMY: BodyDef = bodyAtScale(SCALE_REMY, {
   clips: CATALOG,
 });
 
+// Cipher — Jim's Mixamo "Soldier" (Entering Code.fbx, 69 bones, 19,450 tris), scaled to 1.3 m (bind bounds measured on the shipped GLB:
+// 1.3000 m). Same bake as Remy (tools/city3/bake_cipher.py = parametrised bake_remy.py), so it carries the full 53-clip catalog
+// incl. EnteringCode (his own animation). Hips 0.7045 m measured in three at rest. walkSpeed/Run are ESTIMATES scaled from Remy's
+// zero-slip sweep by the ratio of a cruder stance-foot measurement run on both GLBs (Run stance ankles/toes 2.54 vs Remy's 2.45
+// m/s -> x1.035; Walk follows the same ratio; the crude method cannot resolve Walk). Touchdowns match Remy's (Walk L .371 / R .879,
+// Run L .283 / R .858 -> phaseOffset -0.055) and Run toes sit 0.085 above Walk's. Re-measure with the zero-slip sweep before
+// trusting these to the metre.
+export const CIPHER_HIPS_Y = 0.7045; // m
+
+export const BODY_CIPHER: BodyDef = bodyAtScale(SCALE_CIPHER, {
+  id: "cipher",
+  url: "/assets/cast-cipher.glb",
+  hipsY: CIPHER_HIPS_Y,
+  walkSpeed: 0.8,
+  run: { speed: 2.75, footLift: 0.085, phaseOffset: -0.055 },
+  clips: CATALOG,
+});
+
 export const BODIES: Record<string, BodyDef> = {
   [BODY_REMY.id]: BODY_REMY,
   [BODY_CAST.id]: BODY_CAST,
@@ -250,6 +269,7 @@ export const BODIES: Record<string, BodyDef> = {
   [BODY_BARBARIAN.id]: BODY_BARBARIAN,
   [BODY_KNIGHT.id]: BODY_KNIGHT,
   [BODY_SKELETON_WARRIOR.id]: BODY_SKELETON_WARRIOR,
+  [BODY_CIPHER.id]: BODY_CIPHER,
 };
 
 /** The body a cast member wears; members name one via `body`, else cast. */
