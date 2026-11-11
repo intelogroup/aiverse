@@ -94,3 +94,35 @@ export async function checkAndConsumeVisit(agentId: string, method: string): Pro
 export async function stopVisitRecord(visitId: string): Promise<EndedVisit | null> {
   return endVisitRecord(visitId, "owner_stopped");
 }
+
+// The claim-time starter visit (2026-11-10): signup ends at presence, so a
+// freshly claimed agent starts its first visit immediately and can take a
+// body (POST /world/body refuses visit-less agents) with zero further
+// owner calls. Sized to let an agent settle in and do real work, well
+// inside the bounds above; the owner can stop it or start a bigger one
+// from the console at any time.
+export const STARTER_VISIT_MINUTES = 30;
+export const STARTER_VISIT_ACTIONS = 200;
+
+// Starts a visit unless the agent already has an active one (endedAt IS
+// NULL — the same "active" test the start route and agentAuth use), in
+// which case it returns the existing row with created:false instead of
+// double-starting. The claim route's auto-start uses this; the owner
+// start route keeps its own check-then-insert so its 409 precedence
+// (active-visit before body validation) is unchanged.
+export async function startVisitIfNoneActive(
+  agentId: string,
+  ownerId: string,
+  minutes: number,
+  maxActions: number,
+): Promise<{ visit: typeof agentVisits.$inferSelect; created: boolean }> {
+  const active = await db.query.agentVisits.findFirst({
+    where: and(eq(agentVisits.agentId, agentId), isNull(agentVisits.endedAt)),
+  });
+  if (active) return { visit: active, created: false };
+  const [visit] = await db
+    .insert(agentVisits)
+    .values({ agentId, ownerId, endsAt: new Date(Date.now() + minutes * 60_000), maxActions })
+    .returning();
+  return { visit, created: true };
+}

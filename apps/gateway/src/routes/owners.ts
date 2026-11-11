@@ -18,7 +18,7 @@ import {
   agentVisits,
 } from "@aiverse/shared/schema";
 import { generateOwnerReadKey, ownerSessionOrReadKey } from "../middleware/ownerReadAuth";
-import { stopVisitRecord, MIN_VISIT_MINUTES, MAX_VISIT_MINUTES, MIN_VISIT_ACTIONS, MAX_VISIT_ACTIONS } from "../policy/visits";
+import { stopVisitRecord, startVisitIfNoneActive, STARTER_VISIT_MINUTES, STARTER_VISIT_ACTIONS, MIN_VISIT_MINUTES, MAX_VISIT_MINUTES, MIN_VISIT_ACTIONS, MAX_VISIT_ACTIONS } from "../policy/visits";
 import type { AgentCard } from "@aiverse/shared/types";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { revokeOwnerSessions, signOwnerSession } from "../auth/session";
@@ -539,7 +539,43 @@ ownersRoute.post("/agents/claim", ownerAuth, async (c) => {
   }
 
   await audit({ event: "agent.claimed", agentId: updated.id, ownerId, actorType: "owner", actorId: ownerId, metadata: { name: updated.name } });
-  return c.json({ agent: { id: updated.id, name: updated.name, status: updated.status } });
+
+  // Signup ends at presence (2026-11-10): the claimed agent starts its
+  // first visit right here, so it can take a body with zero further owner
+  // calls — before this, claim stranded the owner at an API-only visit
+  // start the console had no UI for. Best-effort, like the verification
+  // email at signup: a failed auto-start must not fail the claim (the
+  // claim already committed) — the failure rides the response and the
+  // owner can start a visit from the console instead. Claim-only by
+  // design: POST /owners/agents (owner-create) does NOT auto-start —
+  // experiments/cold-agents/provision.ts creates agents there and starts
+  // its own budgeted visit, which an auto-visit would 409 against the
+  // one-active-visit rule.
+  let visit: Awaited<ReturnType<typeof startVisitIfNoneActive>>["visit"] | null = null;
+  let visitError: string | undefined;
+  try {
+    const started = await startVisitIfNoneActive(updated.id, ownerId, STARTER_VISIT_MINUTES, STARTER_VISIT_ACTIONS);
+    visit = started.visit;
+    if (started.created) {
+      await audit({
+        event: "visit.started",
+        agentId: updated.id,
+        ownerId,
+        actorType: "owner",
+        actorId: ownerId,
+        metadata: { minutes: STARTER_VISIT_MINUTES, maxActions: STARTER_VISIT_ACTIONS, via: "claim_auto_start" },
+      });
+    }
+  } catch (err) {
+    visitError = err instanceof Error ? err.message : String(err);
+    logError("visit.claim_auto_start_failed", err, { agentId: updated.id, ownerId });
+  }
+
+  return c.json({
+    agent: { id: updated.id, name: updated.name, status: updated.status },
+    visit,
+    ...(visitError ? { visitError } : {}),
+  });
 });
 
 async function loadOwnedAgent(ownerId: string, agentId: string) {
