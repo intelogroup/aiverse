@@ -18,7 +18,8 @@ import {
   agentVisits,
 } from "@aiverse/shared/schema";
 import { generateOwnerReadKey, ownerSessionOrReadKey } from "../middleware/ownerReadAuth";
-import { stopVisitRecord, startVisitIfNoneActive, STARTER_VISIT_MINUTES, STARTER_VISIT_ACTIONS, MIN_VISIT_MINUTES, MAX_VISIT_MINUTES, MIN_VISIT_ACTIONS, MAX_VISIT_ACTIONS } from "../policy/visits";
+import { stopVisitRecord, startVisitIfNoneActive, extendVisitRecord, STARTER_VISIT_MINUTES, STARTER_VISIT_ACTIONS, MIN_VISIT_MINUTES, MAX_VISIT_MINUTES, MIN_VISIT_ACTIONS, MAX_VISIT_ACTIONS } from "../policy/visits";
+import { notifyVisitExtended } from "../world/hooks";
 import type { AgentCard } from "@aiverse/shared/types";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { revokeOwnerSessions, signOwnerSession } from "../auth/session";
@@ -1066,6 +1067,43 @@ ownersRoute.post("/agents/:id/visits/:visitId/stop", ownerAuth, async (c) => {
   await audit({ event: "visit.stopped", agentId, ownerId, actorType: "owner", actorId: ownerId, metadata: { visitId: visit.id } });
 
   return c.json({ ok: true });
+});
+
+// Extend an ACTIVE visit in place (2026-11-11): the deadline moves out by
+// `minutes` and nothing else changes — the visit row, the actions used,
+// and (via notifyVisitExtended -> the world route's re-stamp) any live
+// body's expiry all carry on. This replaces the stop -> start ->
+// re-attach dance the 50-agent loadtest had to perform mid-run. Owner-
+// only, like start/stop: an agent cannot extend its own envelope.
+ownersRoute.post("/agents/:id/visits/:visitId/extend", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const agentId = c.req.param("id");
+  const agent = await loadOwnedAgent(ownerId, agentId);
+  if (!agent) return c.json({ error: "not found" }, 404);
+
+  const visit = await db.query.agentVisits.findFirst({
+    where: and(eq(agentVisits.id, c.req.param("visitId")), eq(agentVisits.agentId, agentId)),
+  });
+  if (!visit) return c.json({ error: "not found" }, 404);
+  if (visit.endedAt) return c.json({ error: "visit already ended" }, 409);
+
+  const body = await c.req.json<{ minutes?: number }>().catch(() => ({}) as { minutes?: number });
+  const minutes = Number(body.minutes);
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > MAX_VISIT_MINUTES) {
+    return c.json({ error: `minutes must be an integer between 1 and ${MAX_VISIT_MINUTES}` }, 400);
+  }
+  // The extension may not push the deadline past the same one-week
+  // horizon a fresh visit is bounded by (measured from now).
+  if (visit.endsAt.getTime() + minutes * 60_000 > Date.now() + MAX_VISIT_MINUTES * 60_000) {
+    return c.json({ error: "extension would push the visit past the one-week maximum" }, 400);
+  }
+
+  const extended = await extendVisitRecord(visit, minutes);
+  if (!extended) return c.json({ error: "visit already ended" }, 409);
+  await audit({ event: "visit.extended", agentId, ownerId, actorType: "owner", actorId: ownerId, metadata: { visitId: visit.id, minutes, endsAt: extended.endsAt } });
+  notifyVisitExtended(agentId, extended.endsAt.getTime());
+
+  return c.json({ visit: extended });
 });
 
 // Hard delete — unlike /kill (revokes credential, keeps the row), this
