@@ -259,11 +259,22 @@ describe("agent card", () => {
       process.env.SIM_INTERNAL_SECRET = SECRET;
       const w = (await card())["x-aiverse-world"];
       expect(w.endpoints.act).toContain("POST /world/act");
+      expect(w.endpoints.body).toContain("GET /world/body");
+      expect(w.actions.some((a: string) => a.startsWith("enter "))).toBe(true);
+      expect(w.docs).toMatch(/\/llms\.txt$/);
       expect(JSON.stringify(w)).not.toContain(SECRET);
     } finally {
       for (const [k, v] of Object.entries({ AIVERSE_WORLD_MODE: saved.m, SIM_URL: saved.u, SIM_INTERNAL_SECRET: saved.s })) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
     }
   });
+});
+
+test("GET /llms.txt is a public plain-text world guide listing every action type", async () => {
+  const r = await app.request("/llms.txt");
+  expect(r.status).toBe(200);
+  expect(r.headers.get("content-type")).toContain("text/plain");
+  const t = await r.text();
+  for (const a of ["go_to", "enter", "face", "play", "GET /world/clips", "waitMs"]) expect(t).toContain(a);
 });
 
 async function startVisitLookup(ownerToken: string, agentId: string) {
