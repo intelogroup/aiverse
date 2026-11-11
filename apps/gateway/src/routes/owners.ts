@@ -1031,11 +1031,16 @@ ownersRoute.post("/console-events/:id/resolve", ownerAuth, async (c) => {
   const event = await db.query.consoleEvents.findFirst({ where: eq(consoleEvents.id, eventId) });
   if (!event || event.ownerId !== ownerId) return c.json({ error: "not found" }, 404);
 
+  // AIV-CONSOLE-RESOLVE-RERESOLVE-001: the still-unresolved predicate lives
+  // IN the UPDATE (same guard shape as the read-key revoke below) — a
+  // re-resolve matches 0 rows, returns 409, and never rewrites the original
+  // resolvedAt.
   const [updated] = await db
     .update(consoleEvents)
     .set({ resolvedAt: new Date() })
-    .where(eq(consoleEvents.id, eventId))
+    .where(and(eq(consoleEvents.id, eventId), eq(consoleEvents.ownerId, ownerId), isNull(consoleEvents.resolvedAt)))
     .returning();
+  if (!updated) return c.json({ error: "event already resolved" }, 409);
 
   return c.json({ event: updated });
 });
