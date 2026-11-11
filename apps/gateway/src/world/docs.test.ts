@@ -16,5 +16,15 @@ describe("worldDocText — bodies offered to agents", () => {
   test("never offers the cast-only bodies (Jim's ruling, 2026-11-11)", () => {
     expect(doc).not.toContain("mage");
     expect(doc).not.toContain("skeleton-warrior");
+    // "cast" appears in the doc's prose ("cast-only figures"), so pin the
+    // offered list itself: Body Block must not be among the wearable ids.
+    const line = doc.split("\n").find((l) => l.includes("Bodies an agent may wear:"));
+    const offered = line
+      ?.split("Bodies an agent may wear:")[1]
+      .replace(".", "")
+      .split(",")
+      .map((s) => s.trim());
+    expect(offered).not.toContain("cast");
+    expect(offered).toEqual(agentBodies().map((b) => b.id));
   });
 });
