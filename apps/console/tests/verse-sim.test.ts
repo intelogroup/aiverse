@@ -123,6 +123,33 @@ describe("planning does not block the tick", () => {
     expect(r.out?.status).toBe("unavailable");
   });
 
+  it("shop seats are sittable once, and free again after the sitter stands", async () => {
+    const seats = sim.sittables.filter((t) => t.building.startsWith("shop-") && t.kind !== "stool");
+    const picks = seats.filter((_, i) => i % Math.ceil(seats.length / 12) === 0);
+    const fails: string[] = [];
+    for (const other of sim.bodyIds()) sim.removeBody(other); // a body parked in a shop would block the walk
+    for (const [i, seat] of picks.entries()) {
+      const a = `sit-a-${i}`, b = `sit-b-${i}`;
+      sim.removeBody(a); sim.removeBody(b);
+      const lot = sim.places.find((p) => p.id === seat.building)!;
+      sim.addBody({ id: a, spawn: { x: lot.stand[0] + 3, z: lot.stand[1] + 3 } });
+      sim.addBody({ id: b, spawn: { x: lot.stand[0] + 15, z: lot.stand[1] + 15 } });
+      let sat: ScoutOutcome | null = null;
+      void sim.body(a)!.act({ type: "sit", sittable: seat.id } as ScoutAction).then((o) => (sat = o));
+      sim.tick(0.1); await Promise.resolve();
+      // b asks while a is still walking there: a's claim already holds the seat
+      const rb = await run(sim, b, { type: "sit", sittable: seat.id } as ScoutAction, 1);
+      if (rb.out?.status !== "unavailable" || !/occupied/.test(rb.out.detail ?? "")) fails.push(`${seat.id}: claim not seen: ${JSON.stringify(rb.out)}`);
+      for (let t = 0; t < 3000 && !sat; t++) { sim.tick(0.1); await Promise.resolve(); }
+      if ((sat as ScoutOutcome | null)?.status !== "seated") { fails.push(`${seat.id}: ${JSON.stringify(sat)}`); continue; }
+      expect(sim.seatHolder(seat.id)).toBe(a);
+      const st = await run(sim, a, { type: "stand" } as ScoutAction, 8);
+      if (st.out?.status !== "stood") fails.push(`${seat.id}: stand ${JSON.stringify(st.out)}`);
+      if (sim.seatHolder(seat.id) !== null) fails.push(`${seat.id}: not freed`);
+    }
+    expect(fails).toEqual([]);
+  }, 120_000);
+
   it("the Great Hall (hall-0) is reachable: its stand is off the wall line", async () => {
     sim.removeBody("hall");
     sim.addBody({ id: "hall" });

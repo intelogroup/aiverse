@@ -38,6 +38,7 @@ export interface AgentBodyDeps {
   actors: ActorRegistry;
   places: ScoutPlace[];
   sittables: Sittable[];
+  seatTaken?: (id: string) => boolean;
   rooms?: ScoutRoomShape[];
   door?: TeaDoorController;
   interact?: InteractController;
@@ -99,6 +100,7 @@ export class AgentBody {
     this.exec = new ScoutExecutor({
       places: deps.places,
       sittables: deps.sittables,
+      seatTaken: deps.seatTaken,
       rooms: deps.rooms,
       cancel: () => { door?.cancel(this.id); interact?.cancel(this.id); },
       plan: (s, target) => {
