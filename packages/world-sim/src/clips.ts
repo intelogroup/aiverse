@@ -6,7 +6,8 @@
 // catalog wave baked the 43-file Mixamo batch onto all three bodies,
 // so every body now carries the SAME clip catalog (45 then; seven more
 // baked 2026-11-09 — Defeated, SillyDancing, StandingUsingTouchscreenTablet,
-// HoldingTurnLeft, PullingLever, TenderPlacement, PuttingDown — 52 total) — skills and the
+// HoldingTurnLeft, PullingLever, TenderPlacement, PuttingDown — 52 total;
+// one more baked 2026-11-10 — EnteringCode — 53 total) — skills and the
 // Embody panel's clip tester select by name, never per body.
 //
 // `loop` clips hold until another choice; one-shots play once and the
@@ -43,6 +44,7 @@ const BATCH: ClipDef[] = [
   { name: "Defeated", loop: false, duration: 6.7333 },
   { name: "Drinking", loop: false, duration: 8.8667 },
   { name: "EnterCar", loop: false, duration: 5.4667 },
+  { name: "EnteringCode", loop: true, duration: 7.5000 },
   { name: "ExitCar", loop: false, duration: 5.8 },
   { name: "Handshake1", loop: false, duration: 4.3667 },
   { name: "Handshake2", loop: false, duration: 4.3667 },

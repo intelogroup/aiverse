@@ -3,9 +3,9 @@ import { BODIES } from "./bodies";
 import { CLIP_BY_NAME, CLIP_CATALOG, ClipTestState, clipDef, clipTesterYield } from "./clips";
 
 describe("clip catalog", () => {
-  it("carries 52 clips with unique names", () => {
-    expect(CLIP_CATALOG).toHaveLength(52);
-    expect(new Set(CLIP_CATALOG.map((c) => c.name)).size).toBe(52);
+  it("carries 53 clips with unique names", () => {
+    expect(CLIP_CATALOG).toHaveLength(53);
+    expect(new Set(CLIP_CATALOG.map((c) => c.name)).size).toBe(53);
     for (const c of CLIP_CATALOG) {
       expect(CLIP_BY_NAME.get(c.name)).toBe(c);
       expect(c.duration).toBeGreaterThan(0);
@@ -37,6 +37,8 @@ describe("clip catalog", () => {
     expect(clipDef("PullingLever")?.loop).toBe(false);
     expect(clipDef("TenderPlacement")?.loop).toBe(false);
     expect(clipDef("PuttingDown")?.loop).toBe(false);
+    // 2026-11-10 addition: the code-entry cycle holds (its source pose closes exactly).
+    expect(clipDef("EnteringCode")?.loop).toBe(true);
   });
 });
 
