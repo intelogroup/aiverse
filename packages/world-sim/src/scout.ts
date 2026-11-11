@@ -86,6 +86,8 @@ export interface Sittable {
   seatHeight: number;
   /** Absolute height of the room floor, m. */
   floorY: number;
+  /** Seats sharing a table or booth share a group id (the export derives it). */
+  group?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -145,7 +147,7 @@ export function bearingDeg(heading: number, dx: number, dz: number): number {
 }
 
 export interface OracleObject {
-  kind: "place" | "door" | "room" | "interactable";
+  kind: "place" | "door" | "room" | "interactable" | "seat";
   id: string;
   name: string;
   bearingDeg: number;
@@ -153,8 +155,20 @@ export interface OracleObject {
   /** Doors are enterable by walking through them. */
   enterable?: boolean;
   note?: string;
-  /** Interactables: the prop's current state ("on" / "off"). */
+  /** Interactables: "on" / "off". Seats: "free" / "taken" / "yours". */
   state?: string;
+  /** Seats: what it is ("chair", "booth"...) and the table/booth group it shares with its neighbours. */
+  seatKind?: string;
+  group?: string;
+}
+
+/** A seat as Scout perceives it (only offered while inside the seat's room). */
+export interface ScoutSeat {
+  id: string;
+  kind: string;
+  pos: Vec2;
+  group?: string;
+  state: "free" | "taken" | "yours";
 }
 
 /** A usable prop as Scout perceives it (structural subset of interactables.ts InteractableDef + its state). */
@@ -183,6 +197,7 @@ export function oracleScene(
   self: { x: number; z: number; heading: number },
   opts: OracleOpts = {},
   interactables: ScoutInteractable[] = [],
+  seats: ScoutSeat[] = [],
 ): OracleObject[] {
   const range = opts.range ?? 25;
   const halfFov = opts.halfFovDeg ?? 65;
@@ -212,6 +227,10 @@ export function oracleScene(
   for (const i of interactables) {
     const s = seen(i.pos[0], i.pos[1]);
     if (s) out.push({ kind: "interactable", id: i.id, name: i.label, state: i.on ? "on" : "off", note: "use with interact", ...s });
+  }
+  for (const t of seats) {
+    const s = seen(t.pos[0], t.pos[1]);
+    if (s) out.push({ kind: "seat", id: t.id, name: t.kind, seatKind: t.kind, group: t.group, state: t.state, note: t.state === "free" ? "use with sit" : undefined, ...s });
   }
   out.sort((a, b) => a.distance - b.distance);
   return out;
@@ -267,10 +286,11 @@ export function sittableById(sittables: Sittable[], id: string): Sittable | unde
 }
 
 /** Nearest sittable (by approach point) to (x, z) within `range`, or null. */
-export function nearestSittable(sittables: Sittable[], x: number, z: number, range = SIT_ENGAGE_RANGE): Sittable | null {
+export function nearestSittable(sittables: Sittable[], x: number, z: number, range = SIT_ENGAGE_RANGE, free: (id: string) => boolean = () => true): Sittable | null {
   let best: Sittable | null = null;
   let bd = Infinity;
   for (const s of sittables) {
+    if (!free(s.id)) continue;
     const d = Math.hypot(s.approach[0] - x, s.approach[1] - z);
     if (d < bd) {
       bd = d;
@@ -320,6 +340,8 @@ export interface ExecutorDeps {
   avoid?: (state: WalkerState, wanted: WalkInput) => WalkInput;
   places: ScoutPlace[];
   sittables: Sittable[];
+  /** True while ANOTHER body is seated on, or walking to sit on, this seat. */
+  seatTaken?: (id: string) => boolean;
   /** Interior rooms: `go_to {place: <room id>}` walks INTO the room (a lot id still stops at its door). */
   rooms?: ScoutRoomShape[];
   /** The figure's clip tester (clips.ts): the executor fires sit/play clips. */
@@ -373,6 +395,12 @@ export class ScoutExecutor {
 
   get currentAction(): ScoutAction | null {
     return this.pending?.action ?? null;
+  }
+
+  /** The seat this body holds: sitting on it, or on its way to sit (others see it as taken). */
+  get claimedSeatId(): string | null {
+    if (this.seatedOn) return this.seatedOn.id;
+    return this.pending?.action.type === "sit" ? this.pending.sittable?.id ?? null : null;
   }
 
   get seatedSittable(): Sittable | null {
@@ -479,9 +507,13 @@ export class ScoutExecutor {
         if (this.posture !== "standing") {
           return Promise.resolve({ ok: false, status: "rejected", detail: "already seated" });
         }
+        const taken = this.deps.seatTaken ?? (() => false);
         const sittable = action.sittable
           ? sittableById(this.deps.sittables, action.sittable)
-          : nearestSittable(this.deps.sittables, state.x, state.z);
+          : nearestSittable(this.deps.sittables, state.x, state.z, SIT_ENGAGE_RANGE, (id) => !taken(id));
+        if (sittable && taken(sittable.id)) {
+          return Promise.resolve({ ok: false, status: "unavailable", target: sittable.id, detail: "occupied: pick another seat" });
+        }
         if (!sittable) {
           return Promise.resolve({
             ok: false,
@@ -682,7 +714,7 @@ export class ScoutExecutor {
           return;
         }
         const target = p.target!;
-        const routed = !!this.deps.plan && (p.action.type === "go_to" || p.action.type === "run_to" || p.action.type === "enter");
+        const routed = !!this.deps.plan && (p.action.type === "go_to" || p.action.type === "run_to" || p.action.type === "enter" || p.action.type === "sit");
         if (routed && !p.route) {
           const route = this.deps.plan!(state, target);
           if (!route?.length) {

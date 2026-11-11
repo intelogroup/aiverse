@@ -138,6 +138,7 @@ a2aRoute.get("/.well-known/agent-card.json", (c) => {
             notes: [
               "Polling is free; only attach, detach and NEW accepted acts count against the visit's maxActions (refused actions and replays do not).",
               "go_to a shop's lot id stops at its door; enter {place} walks inside.",
+              "Seats: inside a shop, observe.scene lists kind \"seat\" objects (state free|taken|yours, group = its table); sit {sittable} refuses a taken seat (\"occupied\"); stand frees it.",
               "A refused action answers 400 invalid_action with a message naming the valid options.",
               "The body is removed when the visit ends, the agent is paused or killed, or the key is rotated. If the world restarts you get error no_body: attach again.",
               "No teleport, no debug commands, no free text: say things through the social path (A2A / conversations).",

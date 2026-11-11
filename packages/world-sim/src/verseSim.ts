@@ -69,6 +69,7 @@ export class VerseSim {
   }
 
   get places(): ScoutPlace[] { return this.data.places; }
+  get sittables(): Sittable[] { return this.data.sittables; }
   get rooms(): ScoutRoomShape[] { return this.data.rooms ?? []; }
 
   /** True once the resident collision is loaded (a body cannot find ground before that). */
@@ -85,6 +86,7 @@ export class VerseSim {
       actors: this.actors,
       places: this.data.places,
       sittables: this.data.sittables,
+      seatTaken: (seat) => this.seatTakenBy(seat, opts.id),
       rooms: this.data.rooms,
       door: this.door,
       interact: this.interact,
@@ -96,6 +98,14 @@ export class VerseSim {
     this.actors.publishWalker(opts.id, body.state, 0.4, BODY_HEIGHT_M, true);
     return body;
   }
+
+  /** Id of the other body holding this seat, or null. */
+  seatHolder(seat: string, exceptId?: string): string | null {
+    for (const [id, b] of this.bodies) if (id !== exceptId && b.exec.claimedSeatId === seat) return id;
+    return null;
+  }
+
+  private seatTakenBy(seat: string, selfId: string): boolean { return this.seatHolder(seat, selfId) !== null; }
 
   body(id: string): AgentBody | undefined { return this.bodies.get(id); }
 

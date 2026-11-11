@@ -8,7 +8,7 @@
 import { AgentBody, type AgentSnapshot } from "./agentBody";
 import { explainAction, validRequestId } from "./actionProtocol";
 import { encodePose, type PoseTuple } from "./streamProtocol";
-import { nearestPlace, oracleScene, roomAt, SOCIAL_CLIPS, type OracleObject, type ScoutAction, type ScoutOutcome } from "./scout";
+import { nearestPlace, oracleScene, roomAt, SOCIAL_CLIPS, type OracleObject, type ScoutAction, type ScoutOutcome, type ScoutSeat } from "./scout";
 import { clipDef } from "./clips";
 import { BODY_REMY } from "./bodies";
 import type { VerseSim } from "./verseSim";
@@ -160,12 +160,20 @@ export class WorldService {
     const np = nearestPlace(this.sim.places, st.x, st.z);
     const room = roomAt(this.sim.rooms, st.x, st.z);
     const interactables = this.sim.interact.list().map((i) => ({ id: i.id, label: i.label, kind: i.kind, pos: [i.pos[0], i.pos[2]] as [number, number], on: this.sim.interact.isOn(i.id) }));
+    const seats: ScoutSeat[] = room
+      ? this.sim.sittables
+          .filter((t) => t.building === room.id)
+          .map((t) => {
+            const holder = this.sim.seatHolder(t.id);
+            return { id: t.id, kind: t.kind, pos: t.seat, group: t.group, state: holder === null ? "free" : holder === agentId ? "yours" : "taken" };
+          })
+      : [];
     return {
       t: round(this.sim.t, 2),
       body: s.body.snapshot(),
       nearestPlace: np ? { id: np.place.id, name: np.place.name, kind: np.place.kind, dist: round(np.dist, 2) } : null,
       insideRoom: room?.name ?? null,
-      scene: oracleScene(this.sim.places, this.sim.rooms, { x: st.x, z: st.z, heading: st.body }, {}, interactables),
+      scene: oracleScene(this.sim.places, this.sim.rooms, { x: st.x, z: st.z, heading: st.body }, {}, interactables, seats),
       lastAct: s.last,
     };
   }
