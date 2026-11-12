@@ -70,6 +70,25 @@ def place(door, x, z, yaw, swing):
     return out
 
 
+HEROES = os.path.join(HERE, "out", "heroes.json")
+OUT = {"S": (0, 1), "N": (0, -1), "E": (1, 0), "W": (-1, 0)}
+
+
+def clear_debris(g, rep):
+    """The procedural plain doors left a half-deleted stoop (2.6 x 0.85 m, 0.26 high) and two flat planter squares (u +-2, 1.6 m out) in the merged
+    `Props` mesh at every hero door spot (heroes.json `door`, where the old statics stood). Drop those triangles."""
+    props = next(n for n in g.gltf["nodes"] if n.get("name") == "Props"); prim = g.gltf["meshes"][props["mesh"]]["primitives"][0]
+    P = g.acc_raw(prim["attributes"]["POSITION"]); I = g.indices_of(prim).astype(np.uint32).reshape(-1, 3); c = P[I].mean(1); kill = np.zeros(len(I), bool)
+    for h in json.load(open(HEROES)):
+        if h["id"] == "tea" or h["template"] == "tea": continue
+        ox, oz = OUT[h["front"]]; rx, rz = c[:, 0] - h["door"][0], c[:, 2] - h["door"][1]
+        t = rx * ox + rz * oz; u = np.abs(-rx * oz + rz * ox); y = c[:, 1]
+        kill |= ((u < 1.45) & (t > -.05) & (t < 1.0) & (y > .15) & (y < .6)) | ((u > 1.4) & (u < 2.5) & (t > 1.4) & (t < 1.9) & (y > .15) & (y < 1.3))
+    rep["debris_tris"] = int(kill.sum())
+    I2 = I.copy(); I2[kill, 1] = I2[kill, 0]; I2[kill, 2] = I2[kill, 0]
+    prim["indices"] = add_accessor(g, add_view(g, I2.ravel().astype("<u4").tobytes(), 34963), 5125, I2.size, "SCALAR")  # the Props index view is plain, not meshopt
+
+
 def run(path, dry):
     g = Glb(path); j = g.gltf
     if j.get("extras", {}).get("bazaar_doors_pass"):
@@ -95,6 +114,7 @@ def run(path, dry):
         for i in range(len(T)):
             if not (TEA_LOT[0] < T[i, 0] < TEA_LOT[1] and TEA_LOT[2] < T[i, 2] < TEA_LOT[3]): T[i, 1] = -1000.0; rep["instances_parked"] += 1
         g.rewrite_accessor(at["TRANSLATION"], T)
+    clear_debris(g, rep)
     tex = {}
     def texture(fn):
         if fn not in tex:
