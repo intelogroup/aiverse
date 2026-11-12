@@ -5,8 +5,9 @@ import json, os, shutil, sys
 from PIL import Image
 SRC, DEC = sys.argv[1], sys.argv[2]
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "tea-props")
-NORMALS = {"chinese_tea_table", "chinese_stool", "chinese_armchair", "chinese_sofa", "chinese_console_table", "wooden_bookshelf_worn"}
-os.makedirs(OUT, exist_ok=True); meta = {}
+NORMALS = {"chinese_screen_panels", "chinese_cabinet", "chinese_commode", "chinese_tea_table", "chinese_stool", "chinese_armchair", "chinese_sofa", "chinese_console_table", "wooden_bookshelf_worn"}
+os.makedirs(OUT, exist_ok=True)
+_mp = os.path.join(OUT, "meta.json"); meta = json.load(open(_mp)) if os.path.exists(_mp) else {}  # merge: waves add to the library
 auth = {a: v for a, v in json.load(open(os.path.join(DEC, "report.json"))).items()}
 for pid in auth:
     j = json.load(open([os.path.join(SRC, pid, f) for f in os.listdir(os.path.join(SRC, pid)) if f.endswith(".gltf")][0]))

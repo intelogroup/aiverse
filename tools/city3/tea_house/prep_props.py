@@ -8,7 +8,15 @@ TARGET = {"chinese_tea_table": 1000, "chinese_stool": 600, "chinese_armchair": 1
           "chinese_console_table": 1500, "wooden_bookshelf_worn": 1500, "painted_wooden_table": 600,
           "painted_wooden_chair_01": 724, "painted_wooden_bench": 630, "vintage_day_bed": 1200,
           "painted_wooden_nightstand": 470, "sofa_02": 1200, "side_table_01": 600, "mid_century_lounge_chair": 1500,
-          "modern_coffee_table_01": 800, "round_wooden_table_02": 800, "planter_box_01": 800}
+          "modern_coffee_table_01": 800, "round_wooden_table_02": 800, "planter_box_01": 800,
+          # wave 2 (2026-11-12): tea-house character pieces
+          "chinese_screen_panels": 800, "chinese_cabinet": 1500, "chinese_commode": 1200, "bar_chair_round_01": 900,
+          "ornate_mirror_01": 700, "antique_ceramic_vase_01": 500, "wooden_display_shelves_01": 900, "painted_wooden_shelves": 524,
+          "Ottoman_01": 500, "ArmChair_01": 1000, "side_table_tall_01": 600, "vintage_oil_lamp": 600, "painted_wooden_cabinet": 900,
+          "painted_wooden_cabinet_02": 700, "painted_wooden_stool": 500, "throw_pillows_01": 600, "small_wooden_table_01": 500,
+          "dining_table": 700, "painted_wooden_chair_02": 700, "potted_plant_04": 900, "fern_02": 700,
+          "vintage_grandfather_clock_01": 1100, "planter_pot_clay": 500, "wicker_basket_02": 600}
+if os.environ.get("ONLY"): TARGET = {k: v for k, v in TARGET.items() if k in os.environ["ONLY"].split(",")}
 report = {}
 for pid, target in TARGET.items():
     bpy.ops.wm.read_factory_settings(use_empty=True)

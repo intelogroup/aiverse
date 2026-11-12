@@ -72,6 +72,7 @@ def run(glb_path, col_path, dry):
         if pid in mesh_of: return mesh_of[pid]
         prims = []
         for p in props[pid]["prims"]:
+            if p["mat"].endswith(("_glass", "_flame")): continue  # BLEND materials would render as opaque colour cards
             e = meta[pid]["materials"][p["mat"]]
             mat = {"name": f"TeaProp_{pid}_{p['mat']}", "doubleSided": e["doubleSided"], "pbrMetallicRoughness": {
                 "baseColorFactor": [1, 1, 1, 1], "baseColorTexture": {"index": tex(e["color"], False)}, "metallicFactor": 0.0, "roughnessFactor": 0.8}}
