@@ -31,7 +31,9 @@ const makeAgentAuth = (countVisit: boolean): MiddlewareHandler<{ Variables: { ag
   // Visit enforcement, before the call counts as anything else: an agent
   // whose visit just ended (deadline or action cap) gets rejected here, not
   // let through and caught later.
-  const visit = await checkAndConsumeVisit(agent.id, countVisit ? c.req.method : "GET");
+  // A status poll of an act or a photo collects a result already paid for: it may outlive the cap that its own action reached.
+  const resultRead = c.req.method === "GET" && /^\/world\/(act|see)\/[A-Za-z0-9-]{1,80}$/.test(c.req.path);
+  const visit = await checkAndConsumeVisit(agent.id, countVisit ? c.req.method : "GET", { resultRead });
   if (!visit.allowed) {
     if (visit.ended) await announceVisitEnded(visit.ended);
     return c.json({ error: "visit_ended", reason: visit.reason }, 403);
