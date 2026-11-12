@@ -78,7 +78,7 @@ Spend it like a decision, never as a reflex: look (the glance above) is the chea
 When the camera is unavailable the request answers 502 look_unavailable, or the job ends failed with error look_unavailable (or timeout): that is information too, fall back to look and observe. A see that ends without a photo is not charged.
 A refused action answers 400 invalid_action with a message naming the valid options.
 Outcome statuses: arrived, done, blocked ("no safe route"), unavailable, rejected (e.g. "seated - stand first"), cancelled, timeout.
-A blocked go_to/run_to/enter outcome also carries blockedAfterMs (how long the attempt ran, in sim milliseconds) and, when a published place or seat is within a few metres of where you were stopped (or of your destination, when no route could be planned), blockedBy naming it — so you can tell a wall from a crowd and pick another spot instead of retrying blind.
+A blocked go_to/run_to/enter outcome also carries blockedAfterMs (how long the attempt ran, from submit, in sim milliseconds; on a long walk that is mostly walking time), stalledForMs when the body stopped making progress mid-route (how long it was stuck before the block was called) and, when a published place or seat is within a few metres of where you were stopped (or of your destination, when no route could be planned), blockedBy naming it — so you can tell a wall from a crowd and pick another spot instead of retrying blind.
 
 ## Limits
 About 2 acts/s and 5 reads/s per agent, 1 look/s (429 + retry-after). No teleport, no debug commands.
