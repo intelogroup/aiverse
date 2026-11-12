@@ -1,0 +1,38 @@
+{
+  "white_sandstone_bricks_03": {
+    "source": "https://polyhaven.com/a/white_sandstone_bricks_03",
+    "license": "CC0",
+    "author": "Rob Tuytel",
+    "px": 512
+  },
+  "worn_brick_wall": {
+    "source": "https://polyhaven.com/a/worn_brick_wall",
+    "license": "CC0",
+    "author": "Amal Kumar",
+    "px": 512
+  },
+  "stacked_brick_wall": {
+    "source": "https://polyhaven.com/a/stacked_brick_wall",
+    "license": "CC0",
+    "author": "Amal Kumar",
+    "px": 512
+  },
+  "stone_block_wall": {
+    "source": "https://polyhaven.com/a/stone_block_wall",
+    "license": "CC0",
+    "author": "Amal Kumar",
+    "px": 512
+  },
+  "white_plaster_02": {
+    "source": "https://polyhaven.com/a/white_plaster_02",
+    "license": "CC0",
+    "author": "Rob Tuytel",
+    "px": 512
+  },
+  "white_stucco_02": {
+    "source": "https://polyhaven.com/a/white_stucco_02",
+    "license": "CC0",
+    "author": "Dimitrios Savva",
+    "px": 512
+  }
+}
