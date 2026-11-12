@@ -71,6 +71,8 @@ export const SCALE_SUMMER = 1.371; // 1.68 / 1.225
 export const SCALE_REMY = 1.387; // 1.78 / 1.283
 export const SCALE_CIPHER = 1.369; // 1.78 / 1.300
 export const SCALE_EVE = 1.269; // 1.65 / 1.300
+export const SCALE_ELF = 1.3077; // 1.70 / 1.300
+export const SCALE_JIM = 1.3077; // 1.70 / 1.300
 export const SCALE_MAGE = 1.302; // 1.70 / 1.306
 export const SCALE_BARBARIAN = 1.315; // 1.70 / 1.293
 export const SCALE_KNIGHT = 1.315; // 1.70 / 1.293
@@ -293,6 +295,49 @@ export const BODY_EVE: BodyDef = bodyAtScale(SCALE_EVE, {
   clips: CATALOG,
 });
 
+// Elf — Meshy-generated fantasy warrior (silver armour, two sheathed blades), generated 2026-11-11 via fal.ai
+// (Meshy 7.1 multi-image-to-3D) from Jim's reference images and rigged on Meshy's Mixamo template (28 bones,
+// 30,796 tris). Baked to 1.30 m with tools/city3/bake_meshy.py (Body Block donor, same world-space rest-delta
+// retarget as bake_cipher.py), so he carries the full 53-clip catalog; the bake drops the stray non-skinned
+// "Icosphere" Meshy ships alongside the rig. Source is 1.70 m tall as generated, shown at 1.70 m (SCALE_ELF).
+// Hips 0.7302 m measured in Blender at rest on the shipped GLB (the Meshy template's proportions — Jim below
+// shares them). Walk/Run MEASURED 2026-11-11 on the shipped GLB by FK stance sampling (a joint is in stance
+// within min(2 cm, 25% of its vertical excursion) of its low; speed = stance fore-aft slope; Walk reads the
+// ankle pair, Run reads ankles and toes, the Skeleton Warrior method): Walk 0.948 (ankles 0.863 / 1.033),
+// Run 2.199, Run stance toes sit 0.102 m above Walk's, touchdowns Walk L .383 / R .904, Run L .263 / R .813
+// -> Run leads by 0.106. The method reproduces Skeleton Warrior's registry Walk exactly and reads Remy's
+// zero-slip Walk +15% / Run -15%, so treat Run as +/-15%. Cross-check: the same stance read on Meshy's own
+// walk clip for this rig gives 0.99 m/s at bake scale (its own run cycle reads 3.00 — the catalog Run is
+// what plays in-world, so the catalog read governs).
+export const ELF_HIPS_Y = 0.7302; // m
+
+export const BODY_ELF: BodyDef = bodyAtScale(SCALE_ELF, {
+  id: "elf",
+  url: "/assets/cast-elf.glb",
+  hipsY: ELF_HIPS_Y,
+  walkSpeed: 0.948,
+  run: { speed: 2.199, footLift: 0.102, phaseOffset: -0.106 },
+  clips: CATALOG,
+});
+
+// Jim — Meshy-generated from Jim's own reference photos 2026-11-11 (same fal.ai Meshy 7.1 pipeline as the
+// Elf): black tee, black pants, black-and-white sneakers, short curly hair, goatee. Same Meshy Mixamo-template
+// rig (28 bones, 31,092 tris), baked by tools/city3/bake_meshy.py to 1.30 m with the full 53-clip catalog and
+// shown at his generated 1.70 m (SCALE_JIM). Hips 0.7302 m at rest — same template proportions as the Elf.
+// Walk/Run MEASURED on the shipped GLB with the Elf's FK stance sampling: Walk 0.851 (ankles 0.892 / 0.810),
+// Run 2.106, Run stance toes sit 0.103 m above Walk's, touchdowns Walk L .392 / R .888, Run L .267 / R .783
+// -> Run leads by 0.115. Same +/-15% Run caveat as the Elf.
+export const JIM_HIPS_Y = 0.7302; // m
+
+export const BODY_JIM: BodyDef = bodyAtScale(SCALE_JIM, {
+  id: "jim",
+  url: "/assets/cast-jim.glb",
+  hipsY: JIM_HIPS_Y,
+  walkSpeed: 0.851,
+  run: { speed: 2.106, footLift: 0.103, phaseOffset: -0.115 },
+  clips: CATALOG,
+});
+
 export const BODIES: Record<string, BodyDef> = {
   [BODY_REMY.id]: BODY_REMY,
   [BODY_CAST.id]: BODY_CAST,
@@ -303,6 +348,8 @@ export const BODIES: Record<string, BodyDef> = {
   [BODY_SKELETON_WARRIOR.id]: BODY_SKELETON_WARRIOR,
   [BODY_CIPHER.id]: BODY_CIPHER,
   [BODY_EVE.id]: BODY_EVE,
+  [BODY_ELF.id]: BODY_ELF,
+  [BODY_JIM.id]: BODY_JIM,
 };
 
 /**

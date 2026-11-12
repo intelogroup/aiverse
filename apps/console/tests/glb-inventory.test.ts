@@ -153,4 +153,26 @@ describe("shipped body GLBs — clip inventory", () => {
     expect(g.joints).toBe(65);
     expect(g.tris).toBe(27207);
   });
+
+  // Elf (Meshy-generated via fal.ai, Mixamo-template rig, 28 joints, 1.3 m): bake via tools/city3/bake_meshy.py, stray Icosphere dropped.
+  it("cast-elf.glb: full catalog, exact durations, 28 joints, 30,796 tris", () => {
+    const g = readGlb("../public/assets/cast-elf.glb");
+    expect(Object.keys(g.anims).sort()).toEqual(Object.keys(EXPECTED_CLIPS).sort());
+    for (const [name, dur] of Object.entries(EXPECTED_CLIPS)) {
+      expect(g.anims[name], name).toBeCloseTo(dur, 2);
+    }
+    expect(g.joints).toBe(28);
+    expect(g.tris).toBe(30796);
+  });
+
+  // Jim (Meshy-generated via fal.ai from Jim's photos, same template rig, 28 joints, 1.3 m): same bake as the Elf.
+  it("cast-jim.glb: full catalog, exact durations, 28 joints, 31,092 tris", () => {
+    const g = readGlb("../public/assets/cast-jim.glb");
+    expect(Object.keys(g.anims).sort()).toEqual(Object.keys(EXPECTED_CLIPS).sort());
+    for (const [name, dur] of Object.entries(EXPECTED_CLIPS)) {
+      expect(g.anims[name], name).toBeCloseTo(dur, 2);
+    }
+    expect(g.joints).toBe(28);
+    expect(g.tris).toBe(31092);
+  });
 });

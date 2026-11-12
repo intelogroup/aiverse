@@ -15,6 +15,8 @@ put through the identical check.
 | `cipher/VERDICT.md` + 3 frames | Cipher (Mixamo, PR #108) — **OK**. Posed height 1.750 m vs 1.78 m nominal (pose bend), feet at +0.0003 m idle. |
 | `eve/VERDICT.md` + 3 frames | Eve (Mixamo "Space Pirate", PR #108) — **OK**. Posed height 1.625 m vs 1.65 m nominal, feet at −0.0007 m idle. |
 | `skeleton-warrior/VERDICT.md` + 3 frames | Skeleton Warrior (KayKit original cast) — **OK**. Skull top 1.695 m vs 1.700 m nominal, horn silhouette 2.038 m vs 2.034 m, planted mid-walk at +0.0015 m. |
+| `elf/VERDICT.md` + 3 frames | Elf (Meshy-generated, this PR) — **OK**. Posed height 1.649 m vs 1.70 m nominal (pose bend on the longer-legged Meshy template), feet at +0.0024 m idle. |
+| `jim/VERDICT.md` + 3 frames | Jim (Meshy-generated from Jim's photos, this PR) — **OK**. Posed height 1.640 m vs 1.70 m nominal (same pose-bend signature), feet at +0.0029 m idle. |
 | `runner/bodyProof.tsx` | The stage: one parametrized proof page (see below). |
 | `runner/body-proof.html` | Page shell for the stage. |
 | `runner/run_proof.py` | The driver: body id in → frames + measurements out. |

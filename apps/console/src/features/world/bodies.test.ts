@@ -9,6 +9,12 @@ import {
   BODY_CAST,
   BODY_CIPHER,
   BODY_EVE,
+  BODY_ELF,
+  BODY_JIM,
+  ELF_HIPS_Y,
+  JIM_HIPS_Y,
+  SCALE_ELF,
+  SCALE_JIM,
   EVE_HIPS_Y,
   SCALE_EVE,
   BODY_KNIGHT,
@@ -67,6 +73,8 @@ describe("realistic heights (display scale)", () => {
       [BODY_SKELETON_WARRIOR, SCALE_SKELETON_WARRIOR, SKELETON_WARRIOR_HIPS_Y],
       [BODY_CIPHER, SCALE_CIPHER, CIPHER_HIPS_Y],
       [BODY_EVE, SCALE_EVE, EVE_HIPS_Y],
+      [BODY_ELF, SCALE_ELF, ELF_HIPS_Y],
+      [BODY_JIM, SCALE_JIM, JIM_HIPS_Y],
     ];
     for (const [b, sc, hips] of cases) {
       expect(b.scale).toBe(sc);
@@ -85,6 +93,8 @@ describe("realistic heights (display scale)", () => {
       [1.3, SCALE_SKELETON_WARRIOR, 1.7],
       [1.3, SCALE_CIPHER, 1.78],
       [1.3, SCALE_EVE, 1.65],
+      [1.3, SCALE_ELF, 1.7],
+      [1.3, SCALE_JIM, 1.7],
     ];
     for (const [h, sc, target] of heights) expect(h * sc).toBeCloseTo(target, 2);
   });
@@ -142,6 +152,14 @@ describe("body registry", () => {
     expect(BODY_EVE.url).toBe("/assets/cast-eve.glb");
     expect(BODY_EVE.hipsY).toBeCloseTo(EVE_HIPS_Y * SCALE_EVE, 9);
     expect(BODIES.eve).toBe(BODY_EVE);
+    expect(bodyForMember({ body: "elf" })).toBe(BODY_ELF);
+    expect(BODY_ELF.url).toBe("/assets/cast-elf.glb");
+    expect(BODY_ELF.hipsY).toBeCloseTo(ELF_HIPS_Y * SCALE_ELF, 9);
+    expect(BODIES.elf).toBe(BODY_ELF);
+    expect(bodyForMember({ body: "jim" })).toBe(BODY_JIM);
+    expect(BODY_JIM.url).toBe("/assets/cast-jim.glb");
+    expect(BODY_JIM.hipsY).toBeCloseTo(JIM_HIPS_Y * SCALE_JIM, 9);
+    expect(BODIES.jim).toBe(BODY_JIM);
   });
 
   it("every body carries a measured natural walk speed", () => {
@@ -200,7 +218,9 @@ describe("agentBodies — the agent-pickable set (Jim's ruling, 2026-11-11)", ()
     expect(agentBodies().map((b) => b.id).sort()).toEqual([
       "barbarian",
       "cipher",
+      "elf",
       "eve",
+      "jim",
       "knight",
       "remy",
       "summer",
