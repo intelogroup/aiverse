@@ -19,6 +19,8 @@ TEX = {
  "patterned_terracotta_tiling": (512, 2.15, "Amal Kumar"),
  "marble_mosaic_tiles": (512, 2.0, "Amal Kumar"),
  "stair_planks": (512, 1.2, "Rob Tuytel"),
+ "white_stucco": (512, 1.6, "Amal Kumar"),
+ "dark_wood": (512, 1.0, "Dario Barresi, Dimitrios Savva, Rico Cilliers"),
 }
 os.makedirs(OUT, exist_ok=True)
 meta = {}

@@ -75,5 +75,19 @@
     "author": "Rob Tuytel",
     "tileMetres": 1.2,
     "px": 512
+  },
+  "white_stucco": {
+    "source": "https://polyhaven.com/a/white_stucco",
+    "license": "CC0",
+    "author": "Amal Kumar",
+    "tileMetres": 1.6,
+    "px": 512
+  },
+  "dark_wood": {
+    "source": "https://polyhaven.com/a/dark_wood",
+    "license": "CC0",
+    "author": "Dario Barresi, Dimitrios Savva, Rico Cilliers",
+    "tileMetres": 1.0,
+    "px": 512
   }
 }
