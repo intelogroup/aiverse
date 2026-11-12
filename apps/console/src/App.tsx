@@ -1,15 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
-  api,
   describeError,
   getOwnerToken,
   setOwnerToken,
   setOwnerEmail,
   SESSION_ENDED_EVENT,
   SESSION_ENDED_MESSAGE,
-  type Agent,
-  type ConsoleEvent,
 } from "./lib/api";
+import { queryKeys } from "./lib/queryClient";
+import {
+  patchAgentStatus,
+  prependLiveEvent,
+  useAgentsQuery,
+  useLiveEventsQuery,
+} from "./lib/queries";
 import { useConsoleWs } from "./lib/consoleWs";
 import { pushToast } from "./lib/toast";
 import { AuthScreen } from "./features/auth/AuthScreen";
@@ -35,24 +40,34 @@ export default function App() {
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/reset-password")) return "reset-password";
     return "world";
   });
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [liveEvents, setLiveEvents] = useState<ConsoleEvent[]>([]);
+
+  // Server state lives in TanStack Query now (Phase 1 of the state
+  // migration): the agents list is a query keyed on `authed`, and the
+  // live-events list is a cache entry the console WS writes into — the
+  // two useState arrays and their hand-rolled WS patches are gone.
+  const queryClient = useQueryClient();
+  const agentsQuery = useAgentsQuery(authed);
+  const agents = agentsQuery.data?.agents ?? [];
+  const liveEvents = useLiveEventsQuery().data ?? [];
 
   const token = getOwnerToken();
 
-  function refreshAgents() {
-    api
-      .listAgents()
-      .then((r) => setAgents(r.agents))
-      .catch((err) => {
-        const { message, kind } = describeError(err);
-        pushToast(message, kind);
-      });
-  }
-
+  // The pre-Query code toasted when its imperative listAgents() failed.
+  // The query's error state (which surfaces after retries) drives the
+  // same toast now, once per failed fetch cycle.
+  const agentsError = agentsQuery.error;
+  const agentsErrorAt = agentsQuery.errorUpdatedAt;
+  const lastAgentsErrorAt = useRef(0);
   useEffect(() => {
-    if (authed) refreshAgents();
-  }, [authed, token]);
+    if (!agentsError || agentsErrorAt === 0 || agentsErrorAt === lastAgentsErrorAt.current) return;
+    lastAgentsErrorAt.current = agentsErrorAt;
+    const { message, kind } = describeError(agentsError);
+    pushToast(message, kind);
+  }, [agentsError, agentsErrorAt]);
+
+  function refreshAgents() {
+    void agentsQuery.refetch();
+  }
 
   useEffect(() => {
     const onEnded = () => {
@@ -65,12 +80,8 @@ export default function App() {
   }, [authed]);
 
   useConsoleWs(authed ? token : null, {
-    onConsoleEvent: (event) => setLiveEvents((prev) => [event, ...prev].slice(0, 200)),
-    onAgentStatusChanged: (payload) => {
-      setAgents((prev) =>
-        prev.map((a) => (a.id === payload.agent_id ? { ...a, status: payload.status as Agent["status"] } : a)),
-      );
-    },
+    onConsoleEvent: (event) => prependLiveEvent(queryClient, event),
+    onAgentStatusChanged: (payload) => patchAgentStatus(queryClient, payload),
   });
 
   function goWorld() {
@@ -87,7 +98,7 @@ export default function App() {
     setOwnerToken(null);
     setOwnerEmail(null);
     setAuthed(false);
-    setAgents([]);
+    queryClient.setQueryData(queryKeys.agents, { agents: [] });
   }
 
   if (view === "verse") {

@@ -275,10 +275,15 @@ export const api = {
   listGoals: () => request<{ goals: any[] }>("/owners/goals"),
   getGoal: (id: string) => request<{ goal: any; tasks: any[] }>(`/owners/goals/${id}`),
   publicConversation: (conversationId: string) =>
-    request<{ messages: { id: string; content: string; senderAgentId: string }[] }>(
+    request<{ messages: { id: string; content: string; senderAgentId: string; createdAt: string }[] }>(
       `/public/conversations/${conversationId}`,
     ),
-  publicActivity: () => request<{ activity: PublicActivityItem[] }>("/public/activity"),
+  // The gateway defaults limit to 30 and caps it at 50; VerseFeed passes
+  // 50 explicitly, the shell takes the default (no param, as before).
+  publicActivity: (limit?: number) =>
+    request<{ activity: PublicActivityItem[] }>(
+      limit === undefined ? "/public/activity" : `/public/activity?limit=${limit}`,
+    ),
   listRooms: () => request<{ rooms: Room[] }>("/rooms"),
   roomPresence: (slug: string) => request<RoomPresence>(`/rooms/${slug}/presence`),
 
@@ -286,7 +291,10 @@ export const api = {
   // ids to names + native flag in inbox/message views.
   discoverRoster: () =>
     fetch(`${BASE}/agents/discover`)
-      .then((r) => r.json())
+      .then(
+        (r) =>
+          r.json() as Promise<{ roster: { agentId: string; name: string; isNative?: boolean }[] }>,
+      )
       .catch(() => ({ roster: [] as { agentId: string; name: string; isNative?: boolean }[] })),
 
   // Unauthenticated liveness probe (app.ts's own /health) — the only real

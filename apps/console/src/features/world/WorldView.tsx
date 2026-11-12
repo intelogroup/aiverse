@@ -7,9 +7,19 @@ import {
   type Agent,
   type ConsoleEvent,
   type PublicActivityItem,
-  type Room,
 } from "../../lib/api";
 import { usePublicWs } from "../../lib/publicWs";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../lib/queryClient";
+import {
+  ACTIVITY_LIMIT_DEFAULT,
+  useMeQuery,
+  usePublicActivityQuery,
+  usePublicConversationQuery,
+  useRoomPresenceQuery,
+  useRoomsQuery,
+  useRosterQuery,
+} from "../../lib/queries";
 import { EmptyState } from "../../components/EmptyState";
 import { Scene3D } from "./Scene3D";
 import { GlbWorld } from "./GlbWorld";
@@ -42,6 +52,11 @@ import { comfortStore } from "./comfort";
 import "./world.css";
 
 type Msg = { id: string; content: string; senderAgentId: string; createdAt?: string };
+
+// Stable empties for not-yet-loaded queries, so memo deps don't see a
+// fresh [] identity on every render while data is undefined.
+const EMPTY_GROUPS: PublicActivityItem[] = [];
+const EMPTY_MESSAGES: Msg[] = [];
 
 // Fixed isometric grid in scene px — groups never overlap, and a group keeps
 // its cell as long as its rank in the activity feed holds.
@@ -88,10 +103,10 @@ export function WorldView({
 }) {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
+  const meQuery = useMeQuery(authed);
   useEffect(() => {
-    if (!authed) return;
-    api.me().then((r) => setEmailVerified(r.owner.emailVerified ?? null)).catch(() => {});
-  }, [authed]);
+    if (meQuery.data) setEmailVerified(meQuery.data.owner.emailVerified ?? null);
+  }, [meQuery.data]);
 
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showManageAgents, setShowManageAgents] = useState(false);
@@ -144,12 +159,7 @@ export function WorldView({
         pushToast(message, kind);
       });
   }
-  const [groups, setGroups] = useState<PublicActivityItem[]>([]);
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [names, setNames] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Msg[]>([]);
-  const [online, setOnline] = useState(0);
   const [searchQ, setSearchQ] = useState("");
   const [searchHits, setSearchHits] = useState<number | null>(null);
   const [cam, setCam] = useState({ x: 0, y: 0, z: 1 });
@@ -158,6 +168,28 @@ export function WorldView({
   const camTouched = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Server state (Phase 1 of the state migration): the shell's reads are
+  // shared TanStack queries — activity, rooms and roster dedupe with
+  // VerseFeed/PublicHomepage instead of three private copies on three
+  // timers. Presence keeps its 15 s cadence as a refetchInterval, the
+  // open thread its 8 s one; activity has no timer, exactly as before —
+  // it moves on WS pokes, the presence recovery probe, and manual retry.
+  const queryClient = useQueryClient();
+  const activityQuery = usePublicActivityQuery(ACTIVITY_LIMIT_DEFAULT);
+  const groups = activityQuery.data ?? EMPTY_GROUPS;
+  const roomsQuery = useRoomsQuery();
+  const rooms = roomsQuery.data ?? [];
+  const roomsDown = roomsQuery.isError;
+  const rosterQuery = useRosterQuery();
+  const names = useMemo(
+    () => Object.fromEntries((rosterQuery.data ?? []).map((a) => [a.agentId, a.name])),
+    [rosterQuery.data],
+  );
+  const presenceQuery = useRoomPresenceQuery("verse", { refetchInterval: 15000 });
+  const online = presenceQuery.data?.totalConnected ?? 0;
+  const conversationQuery = usePublicConversationQuery(selected, { refetchInterval: 8000 });
+  const messages: Msg[] = conversationQuery.data ?? EMPTY_MESSAGES;
+
   // F3: the shell used to swallow every failed fetch and present the
   // resulting empty states as fact ("No public groups yet" while the
   // gateway was simply down). A failed load now marks the shell
@@ -165,72 +197,62 @@ export function WorldView({
   // error states instead of lying empties, and the presence poll
   // doubles as the recovery probe — the first successful poll after
   // an outage reloads the shell data and clears the flag.
-  const [feedDown, setFeedDown] = useState(false);
-  const [roomsDown, setRoomsDown] = useState(false);
+  // Phase 1: the flags are derived from query state instead of
+  // hand-rolled setters — feedDown is the activity query's error state
+  // or the presence-driven flag below; roomsDown is the rooms query's
+  // error state. The recovery probe is the presence effect under this
+  // block: a successful poll while degraded invalidates the shell
+  // queries, and two consecutive dead polls (30 s) mark the shell down
+  // even when the feed itself hasn't errored — rather than leaving a
+  // stale "online" count standing as fact.
+  const [presenceDown, setPresenceDown] = useState(false);
+  const feedDown = activityQuery.isError || presenceDown;
   const feedDownRef = useRef(false);
-  const setDown = (down: boolean) => {
-    feedDownRef.current = down;
-    setFeedDown(down);
-  };
-
-  function refresh() {
-    api
-      .publicActivity()
-      .then((r) => {
-        setGroups(r.activity);
-        setSelected((prev) => prev ?? r.activity[0]?.conversation_id ?? null);
-        setDown(false);
-      })
-      .catch(() => setDown(true));
-  }
+  useEffect(() => {
+    feedDownRef.current = feedDown;
+  }, [feedDown]);
 
   function loadRooms() {
-    api
-      .listRooms()
-      .then((r) => {
-        setRooms(r.rooms);
-        setRoomsDown(false);
-      })
-      .catch(() => setRoomsDown(true));
+    void roomsQuery.refetch();
   }
 
   function loadShell() {
-    refresh();
-    loadRooms();
-    api
-      .discoverRoster()
-      .then((r) =>
-        setNames(
-          Object.fromEntries(
-            (r.roster ?? []).map((a: { agentId: string; name: string }) => [a.agentId, a.name]),
-          ),
-        ),
-      )
-      .catch(() => {});
+    void activityQuery.refetch();
+    void roomsQuery.refetch();
+    void rosterQuery.refetch();
   }
 
+  const pollFailsRef = useRef(0);
+  const lastPresenceErrorAt = useRef(0);
+  const presenceOk = presenceQuery.isSuccess;
+  const presenceDataAt = presenceQuery.dataUpdatedAt;
   useEffect(() => {
-    loadShell();
-    let pollFails = 0;
-    const poll = () =>
-      api
-        .roomPresence("verse")
-        .then((p) => {
-          pollFails = 0;
-          setOnline(p.totalConnected ?? 0);
-          if (feedDownRef.current) loadShell();
-        })
-        .catch(() => {
-          pollFails += 1;
-          // Two consecutive dead polls (30 s) and no data channel
-          // answering: say so, rather than leaving a stale "online"
-          // count standing as fact.
-          if (pollFails >= 2) setDown(true);
-        });
-    poll();
-    const id = setInterval(poll, 15000);
-    return () => clearInterval(id);
-  }, []);
+    if (!presenceOk) return;
+    pollFailsRef.current = 0;
+    const wasDown = feedDownRef.current;
+    setPresenceDown(false);
+    if (wasDown) {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.publicActivity(ACTIVITY_LIMIT_DEFAULT) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.rooms });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.roster });
+    }
+  }, [presenceDataAt, presenceOk, queryClient]);
+
+  const presenceFailed = presenceQuery.isError;
+  const presenceErrorAt = presenceQuery.errorUpdatedAt;
+  useEffect(() => {
+    if (!presenceFailed || presenceErrorAt === 0 || presenceErrorAt === lastPresenceErrorAt.current) return;
+    lastPresenceErrorAt.current = presenceErrorAt;
+    pollFailsRef.current += 1;
+    if (pollFailsRef.current >= 2) setPresenceDown(true);
+  }, [presenceFailed, presenceErrorAt]);
+
+  // Land on the first group until the user picks one (the old refresh()
+  // applied prev ?? first on every successful load).
+  useEffect(() => {
+    const first = activityQuery.data?.[0];
+    if (first) setSelected((prev) => prev ?? first.conversation_id);
+  }, [activityQuery.data]);
 
   function runSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -241,25 +263,14 @@ export function WorldView({
       .catch(() => setSearchHits(null));
   }
 
-  useEffect(() => {
-    if (!selected) return;
-    let live = true;
-    const load = () =>
-      api
-        .publicConversation(selected)
-        .then((r) => live && setMessages(r.messages))
-        .catch(() => {});
-    load();
-    const id = setInterval(load, 8000);
-    return () => {
-      live = false;
-      clearInterval(id);
-    };
-  }, [selected]);
-
+  // A public-WS poke invalidates the activity feed and the open thread
+  // (the conversation query's own 8 s refetchInterval replaced the
+  // hand-rolled poll effect that used to sit here).
   usePublicWs(true, () => {
-    refresh();
-    if (selected) api.publicConversation(selected).then((r) => setMessages(r.messages)).catch(() => {});
+    void queryClient.invalidateQueries({ queryKey: queryKeys.publicActivity(ACTIVITY_LIMIT_DEFAULT) });
+    if (selected) {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.publicConversation(selected) });
+    }
   });
 
   useEffect(() => {

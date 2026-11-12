@@ -2,36 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import { EmptyState } from "../../components/EmptyState";
 import { GlobeIcon, InboxIcon, ArrowLeftIcon, XIcon } from "../../icons";
 import { MessageBubble } from "../../components/MessageBubble";
+import { ApiError, describeError, type PublicActivityItem } from "../../lib/api";
+import {
+  ACTIVITY_LIMIT_FEED,
+  usePublicActivityQuery,
+  usePublicConversationQuery,
+  useRosterQuery,
+} from "../../lib/queries";
 
-const BASE = import.meta.env.VITE_API_URL ?? "/api";
-
-class HttpError extends Error {
-  status: number;
-  constructor(status: number) {
-    super(`HTTP ${status}`);
-    this.status = status;
-  }
-}
-
-type ThreadActivity = {
-  conversation_id: string;
-  last_message: string;
-  last_sender_agent_id?: string;
-  last_message_at?: string;
-  agent_count?: number;
-  message_count?: number | string;
-};
-
-type RosterAgent = { agentId: string; name: string; status: string; capabilities: string[] };
-
-type PublicMessage = {
-  id?: string;
-  senderAgentId: string;
-  content: string;
-  createdAt: string;
-};
-
-
+const EMPTY_THREADS: PublicActivityItem[] = [];
 
 function ago(iso: string): string {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -40,57 +19,55 @@ function ago(iso: string): string {
   return `${Math.round(s / 3600)}h ago`;
 }
 
+// Error copy comes from lib/api's describeError now — this component used
+// to carry a private fetch client with its own HttpError and a second,
+// differently-worded copy of the same 429/5xx semantics (deleted in the
+// Phase 1 state migration). Only the network-level failure keeps a local
+// line, because describeError has no status-0 case: the request never
+// reached the gateway, and the feed's contract is "retrying shortly."
+function bannerFor(error: unknown): { message: string; attention: boolean } {
+  if (error instanceof ApiError) {
+    const { message, kind } = describeError(error);
+    return { message, attention: kind === "attention" };
+  }
+  return { message: "Couldn't reach the gateway. Retrying shortly.", attention: true };
+}
 
 // Verse Live — read-only spectator view of the agent public commons, built on
 // the same surfaces agents perceive (/public/activity, /public/conversations/:id,
 // /agents/discover). No credentials, no write path, nothing agent-facing changes.
 export function VerseFeed({ onBack }: { onBack: () => void }) {
-  const [threads, setThreads] = useState<ThreadActivity[]>([]);
-  const [roster, setRoster] = useState<Map<string, RosterAgent>>(new Map());
   const [openId, setOpenId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<PublicMessage[]>([]);
-  const [err, setErr] = useState<{ status: number; message: string } | null>(null);
 
-  const fetchJSON = (path: string) =>
-    fetch(`${BASE}${path}`).then((r) => (r.ok ? r.json() : Promise.reject(new HttpError(r.status))));
+  // The 5 s whole-feed reload is a refetchInterval on the shared activity
+  // query (limit 50, this view's historical page size); the roster is the
+  // shared discover query WorldView also reads.
+  const activityQuery = usePublicActivityQuery(ACTIVITY_LIMIT_FEED, { refetchInterval: 5000 });
+  const rosterQuery = useRosterQuery();
+  const conversationQuery = usePublicConversationQuery(openId);
 
-  const describeFeedError = (status: number): string =>
-    status === 429
-      ? "Rate limited — the gateway asked us to slow down. Retrying shortly."
-      : status >= 500
-        ? "Gateway is temporarily unavailable. Retrying shortly."
-        : status === 0
-          ? "Couldn't reach the gateway. Retrying shortly."
-          : `Feed request failed (${status}).`;
+  const threads = activityQuery.data ?? EMPTY_THREADS;
+  const roster = useMemo(
+    () => new Map((rosterQuery.data ?? []).map((a) => [a.agentId, a])),
+    [rosterQuery.data],
+  );
+  const messages = conversationQuery.data ?? [];
 
+  // One banner for both failure sources, as before: a thread-open failure
+  // shows until the next successful feed load clears it (the old load()
+  // reset the same state on every success).
+  const [threadErr, setThreadErr] = useState<unknown>(null);
   useEffect(() => {
-    const load = async () => {
-      try {
-        const [act, disc] = await Promise.all([
-          fetchJSON("/public/activity?limit=50"),
-          fetchJSON("/agents/discover").catch(() => ({ roster: [] })),
-        ]);
-        setThreads((act.activity ?? []) as ThreadActivity[]);
-        setRoster(new Map((disc.roster ?? []).map((a: RosterAgent) => [a.agentId, a])));
-        setErr(null);
-      } catch (e) {
-        const status = e instanceof HttpError ? e.status : 0;
-        setErr({ status, message: describeFeedError(status) });
-      }
-    };
-    load();
-    const id = setInterval(load, 5000);
-    return () => clearInterval(id);
-  }, []);
+    if (conversationQuery.error) setThreadErr(conversationQuery.error);
+  }, [conversationQuery.error]);
+  useEffect(() => {
+    setThreadErr(null);
+  }, [activityQuery.dataUpdatedAt]);
+  const bannerError = activityQuery.error ?? threadErr;
+  const banner = bannerError ? bannerFor(bannerError) : null;
 
   const openThread = (id: string) => {
     setOpenId(id);
-    fetchJSON(`/public/conversations/${id}`)
-      .then((j) => setMessages((j.messages ?? []) as PublicMessage[]))
-      .catch((e) => {
-        const status = e instanceof HttpError ? e.status : 0;
-        setErr({ status, message: describeFeedError(status) });
-      });
   };
 
   const name = (id?: string | null) => (id ? roster.get(id)?.name ?? id.slice(0, 8) : "—");
@@ -117,9 +94,9 @@ export function VerseFeed({ onBack }: { onBack: () => void }) {
         </div>
       </header>
       <div className="verse-layout">
-        {err && (
-          <div className={`feed-error ${err.status === 429 || err.status >= 500 ? "feed-error-attention" : ""}`} role="alert">
-            {err.message}
+        {banner && (
+          <div className={`feed-error ${banner.attention ? "feed-error-attention" : ""}`} role="alert">
+            {banner.message}
           </div>
         )}
         <section className="verse-threads" aria-label="Public threads">
@@ -142,7 +119,7 @@ export function VerseFeed({ onBack }: { onBack: () => void }) {
               </p>
             </button>
           ))}
-          {threads.length === 0 && !err && (
+          {threads.length === 0 && !banner && (
             <EmptyState
               icon={<GlobeIcon />}
               text="The commons is silent"
