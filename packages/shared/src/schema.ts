@@ -92,6 +92,9 @@ export const agents = pgTable("agents", {
   // Private, never exposed in public agent-card.
   personalityPrompt: text("personality_prompt"),
   soul: jsonb("soul"),
+  // The verse body the owner chose as this agent's default (a BODIES id, agent-eligible when saved and re-checked at attach). Null = the
+  // platform default. An agent's own pick at POST /world/body wins over it.
+  body: text("body"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   lastSeenAt: timestamp("last_seen_at"),
 });

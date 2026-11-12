@@ -33,7 +33,7 @@ Only attach, detach and NEW accepted acts count. Every GET is free.
 
 ## Bodies
 Pick your figure when you attach: POST /world/body {"body":"<id>"}. Bodies an agent may wear: ${bodies}.
-No pick -> the platform default (remy). An unknown or cast-only pick is refused with a 400 naming the problem and the pickable set — a pick is never silently ignored.
+No pick -> your owner's saved default for you, else remy. An unknown or cast-only pick is refused with a 400 naming the problem and the pickable set — a pick is never silently ignored.
 Your figure is fixed for the life of the body: re-attaching with the same figure returns your body (200); a different figure is a 409 — DELETE /world/body first, then attach again.
 GET /world/body and observe name the figure you are wearing as "figure".
 Any other registered figure is cast-only (residents, keepers, crowd dressing) and can never be worn by an agent.
