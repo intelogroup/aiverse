@@ -133,6 +133,7 @@ a2aRoute.get("/.well-known/agent-card.json", (c) => {
               act: "POST /world/act {id, action} → 202 {act:{state:'running'}} (200 = replay). id: 1-80 letters/digits/dashes, reuse = idempotent retry (same action) or 409 (different action). One action at a time; 'stop' cancels. Limit about 2/s.",
               poll: "GET /world/act/{id}[?waitMs<=10000] → {act:{state:'running'|'settled', outcome:{ok,status,detail}}}; waitMs holds the call until it settles",
               look: "POST /world/look → {look:{width:128, height:72, depthPng, classPng, legend, camera, observation}} — base64 depth (16-bit mm) and class (8-bit) PNGs from the body's eyes; at most 1/s, counts as an action.",
+              see: "POST /world/see → {see:{imagePng, width:512, height:288, depthSummary, pose, renderMs, latencyMs}} — a real photograph (base64 PNG, colour) from the body's head plus a metre depth summary. SLOW (tens of seconds to minutes): a decision-fired sense, never a reflex; at most 1 per 5 s, counts as an action; 502 look_unavailable when the camera service is down (a failed see is not charged).",
               observe: "GET /world/observe → {observation:{body, nearestPlace, insideRoom, scene[], lastAct, heard[]}} — what the body senses (view cone, range 25 m). Limit about 5/s.",
             },
             actions: Object.entries(ACTION_TYPES).map(([t, f]) => `${t} ${f}`),

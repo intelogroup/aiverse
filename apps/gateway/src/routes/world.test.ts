@@ -8,6 +8,7 @@ import { createApp } from "../app";
 import { db } from "../db/client";
 import { websocket } from "../ws/gateway";
 import { httpSimClient } from "../world/simClient";
+import type { LookClient, LookOutcome } from "../world/lookClient";
 import { redis } from "../redis/client";
 import { sweepVisits } from "../jobs/visits";
 import { clearPresence } from "../presence";
@@ -16,6 +17,31 @@ import { clearPresence } from "../presence";
 // real sim server -> real world (City 3 collision + navmesh). The sim is ticked by hand so the walk is fast and deterministic.
 const SECRET = "x".repeat(48);
 const ASSETS = new URL("../../../console/public/assets/", import.meta.url).pathname;
+// The look service behind POST /world/see, faked at the client seam: records what the gateway asked for and answers a
+// canned frame (or a failure, when lookMode flips) — the real service is a Chromium process, not a test dependency.
+let lookMode: "ok" | "down" = "ok";
+const lookCalls: { agentId: string; position: [number, number]; headingDeg: number }[] = [];
+const fakeLook: LookClient = {
+  async look(agentId, position, headingDeg): Promise<LookOutcome> {
+    lookCalls.push({ agentId, position, headingDeg });
+    if (lookMode === "down") return { ok: false, reason: "unavailable" };
+    return {
+      ok: true,
+      serviceMs: 1234,
+      frame: {
+        imagePng: "aGVsbG8td29ybGQ=",
+        width: 512,
+        height: 288,
+        depthSummary: { units: "m", median: 3.5, centreMedian: 4.25 },
+        pose: { pos: [position[0], 0.2, position[1]] },
+        renderMs: 1000,
+        poseMs: 5,
+        pitchSupported: false,
+        capturedAt: "2026-11-12T00:00:00Z",
+      },
+    };
+  },
+};
 let service: WorldService;
 let clock = Date.now();
 let simHttp: ReturnType<typeof Bun.serve>;
@@ -30,7 +56,7 @@ beforeAll(async () => {
   service = new WorldService({ sim, maxBodies: 5 });
   const simApp = createSimServer({ service, secret: SECRET, now: () => clock });
   simHttp = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: simApp.fetch });
-  app = createApp({ sim: httpSimClient(`http://127.0.0.1:${simHttp.port}`, SECRET) });
+  app = createApp({ sim: httpSimClient(`http://127.0.0.1:${simHttp.port}`, SECRET), look: fakeLook });
   server = Bun.serve({ port: 0, fetch: app.fetch, websocket });
 }, 120_000);
 
@@ -355,6 +381,76 @@ describe("/world (agent body)", () => {
     expect(v.observation.heard).toEqual([]);
     expect((await w(agentToken, "POST", "/look", {})).status).toBe(429);
     await w(agentToken, "DELETE", "/body");
+  });
+
+  test("see: no visit -> 403 no_visit; visit without a body -> the sim's 404 no_body", async () => {
+    const noVisit = await ownerWithAgent("SeeNoVisit");
+    const r1 = await w(noVisit.agentToken, "POST", "/see", {});
+    expect(r1.status).toBe(403);
+    expect(((await r1.json()) as any).error).toBe("no_visit");
+    const a = await ownerWithAgent("SeeNoBody");
+    await startVisit(a.ownerToken, a.agentId);
+    const r2 = await w(a.agentToken, "POST", "/see", {});
+    expect(r2.status).toBe(404);
+    expect(((await r2.json()) as any).error).toBe("no_body");
+  });
+
+  test("see: the photograph comes from where the body stands, and a second see inside 5 s is limited", async () => {
+    const { ownerToken, agentId, agentToken } = await ownerWithAgent("SeeHappy");
+    await startVisit(ownerToken, agentId);
+    const attach = await w(agentToken, "POST", "/body");
+    expect(attach.status).toBe(201);
+    const body = ((await attach.json()) as any).observation.body as { x: number; z: number; heading: number };
+    clock += 1000;
+    lookCalls.length = 0;
+    const r = await w(agentToken, "POST", "/see", {});
+    expect(r.status).toBe(200);
+    const see = ((await r.json()) as any).see as { imagePng: string; width: number; height: number; depthSummary: { median: number }; latencyMs: number };
+    expect(see.imagePng).toBe("aGVsbG8td29ybGQ=");
+    expect([see.width, see.height]).toEqual([512, 288]);
+    expect(see.depthSummary.median).toBe(3.5);
+    expect(see.latencyMs).toBe(1234);
+    // The gateway asked the service for the body's own pose (position from the sim, heading converted rad -> deg).
+    expect(lookCalls).toHaveLength(1);
+    expect(lookCalls[0].agentId).toBe(agentId);
+    expect(lookCalls[0].position[0]).toBeCloseTo(body.x, 3);
+    expect(lookCalls[0].position[1]).toBeCloseTo(body.z, 3);
+    const wantDeg = (((body.heading * 180) / Math.PI) % 360 + 360) % 360;
+    expect(Math.abs(lookCalls[0].headingDeg - wantDeg)).toBeLessThan(0.2);
+    // Pacing: a second photograph inside the window is refused, not queued.
+    expect((await w(agentToken, "POST", "/see", {})).status).toBe(429);
+    await w(agentToken, "DELETE", "/body");
+  });
+
+  test("see: a down look service is a clean 502 look_unavailable, and the failed see is not charged", async () => {
+    const { ownerToken, agentId, agentToken } = await ownerWithAgent("SeeDown");
+    const visit = await startVisit(ownerToken, agentId, 2); // attach (1) + see (1) would exactly fill a charged cap
+    await w(agentToken, "POST", "/body");
+    clock += 1000;
+    lookMode = "down";
+    try {
+      const r = await w(agentToken, "POST", "/see", {});
+      expect(r.status).toBe(502);
+      expect(((await r.json()) as any).error).toBe("look_unavailable");
+    } finally {
+      lookMode = "ok";
+    }
+    // Refunded: the visit still has its second action — a retry once the service is back succeeds instead of 403ing.
+    clock += 1000;
+    expect((await w(agentToken, "POST", "/see", {})).status).toBe(200);
+    const after = await db.query.agentVisits.findFirst({ where: eq(agentVisits.id, visit.id) });
+    expect(after?.actionsUsed).toBe(2);
+    await w(agentToken, "DELETE", "/body");
+  });
+
+  test("see: a successful see counts against the visit's action cap", async () => {
+    const { ownerToken, agentId, agentToken } = await ownerWithAgent("SeeCounts");
+    await startVisit(ownerToken, agentId, 2);
+    await w(agentToken, "POST", "/body"); // 1
+    clock += 1000;
+    expect((await w(agentToken, "POST", "/see", {})).status).toBe(200); // 2 — cap reached
+    clock += 1000;
+    expect((await w(agentToken, "POST", "/act", { id: "after-cap", action: { type: "wait", seconds: 1 } })).status).toBe(403);
   });
 
   test("deleting an owner whose agent had visits and a body succeeds and removes the body (was a 500: agent_visits FK)", async () => {
