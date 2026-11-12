@@ -1,0 +1,33 @@
+<!doctype html><meta charset="utf-8"><title>probe</title>
+<script>
+window.__probe = (async () => {
+  const out = {};
+  // WebGL renderer string
+  try {
+    const c = document.createElement('canvas');
+    const gl = c.getContext('webgl2') || c.getContext('webgl');
+    if (gl) {
+      const ext = gl.getExtension('WEBGL_debug_renderer_info');
+      out.webglRenderer = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+      out.webglVersion = gl.getParameter(gl.VERSION);
+    } else out.webglRenderer = null;
+  } catch (e) { out.webglError = String(e); }
+  // WebGPU adapter
+  try {
+    if (!navigator.gpu) { out.webgpu = "navigator.gpu ABSENT"; }
+    else {
+      const adapter = await navigator.gpu.requestAdapter();
+      if (!adapter) out.webgpu = "adapter NULL";
+      else {
+        const info = adapter.info || (adapter.requestAdapterInfo ? await adapter.requestAdapterInfo() : {});
+        out.webgpu = {
+          vendor: info.vendor, architecture: info.architecture,
+          device: info.device, description: info.description,
+          isFallbackAdapter: adapter.isFallbackAdapter ?? info.isFallbackAdapter,
+        };
+      }
+    }
+  } catch (e) { out.webgpuError = String(e); }
+  return out;
+})();
+</script>

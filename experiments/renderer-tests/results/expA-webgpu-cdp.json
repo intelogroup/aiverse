@@ -1,0 +1,45 @@
+{
+ "info": {
+  "backend": "webgpu",
+  "subject": "world",
+  "errors": [],
+  "adapter": {
+   "vendor": "google",
+   "architecture": "swiftshader",
+   "device": "",
+   "description": "",
+   "isFallbackAdapter": true
+  },
+  "environment": "RoomEnvironment",
+  "ktx2": "enabled",
+  "pose": {
+   "pos": [
+    -26.19,
+    0.2,
+    -63.96
+   ],
+   "headingDeg": 155,
+   "eye": 1.55
+  },
+  "loadMs": 8150,
+  "triangles": 3028451
+ },
+ "captures": [
+  {
+   "renderMs": 23,
+   "totalMs": 158.6,
+   "bytes": 1074
+  },
+  {
+   "renderMs": 32.7,
+   "totalMs": 134.9,
+   "bytes": 1074
+  },
+  {
+   "renderMs": 23.7,
+   "totalMs": 66.0,
+   "bytes": 1074
+  }
+ ],
+ "method": "canvas + CDP page.screenshot"
+}

@@ -1,9 +1,11 @@
 # Renderer tests — WebGPU verification path + native static shots
 
-**Status:** INSTRUCTIONS / IN PROGRESS. This PR is the test brief first and the
-results record second. It exists so the test can move between hosts (this VM →
-Jim's MacBook) with its full context intact: anyone picking it up from this PR
-alone has the whole picture.
+**Status:** INSTRUCTIONS / RESULTS PARTIAL — **the test was shortened at
+Jim's word (2026-11-12, 10:21 ET)**. What was measured is recorded below;
+unfilled cells are marked "not run" and are gaps, not pending promises. This
+PR is the test brief first and the results record second. It exists so the
+test can move between hosts (this VM → Jim's MacBook) with its full context
+intact: anyone picking it up from this PR alone has the whole picture.
 
 ## Why this test exists
 
@@ -88,14 +90,42 @@ backend is first-class, so Experiment B also becomes meaningful there.
 
 | Host | Path | Renderer / adapter string | Warm capture (median of 3) | Parity | Notes |
 |---|---|---|---|---|---|
-| VM | WebGL (baseline) | | | | |
-| VM | WebGPU | | | | |
-| VM | Native (Exp. B) | | | | |
-| MacBook | WebGL | | | | |
-| MacBook | WebGPU | | | | |
-| MacBook | Native (Exp. B) | | | | |
+| VM | WebGL (baseline) | `ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)`, WebGL 2.0 | **3,308 ms** via render-target readback (render call alone 21.5 ms; the rest is readback + PNG encode). Canvas-readback variant: 7,690 ms | `a-webgl.png` produced and verified visually (Tea House framing, textures present). Parity vs WebGPU **not established** — see verdicts | World GLB load 8.6 s; 512×288; three 0.170.0; framing = Tea House pose pos [-26.19, 0.2, -63.96], heading 155°, eye 1.55 m. RT frame renders without output color-space conversion (more saturated than the canvas frame, `a-webgl-canvas.png`) — same pipeline for both backends, so the pair would have compared cleanly |
+| VM | WebGPU | `navigator.gpu` adapter: vendor `google`, architecture `swiftshader`, `isFallbackAdapter: true` (Dawn software Vulkan; flags `--enable-unsafe-webgpu --use-vulkan=swiftshader --enable-features=Vulkan --disable-vulkan-surface`) | **Not achieved** — render call 24–80 ms, but no capture completed | **Not established** — `a-webgpu.png` in this directory is the actual WebGPU readback: a black frame (evidence, not a render bug in the scene) | World loads (7.4 s) and draws execute (3,028,452 triangles counted ≈ 2× the WebGL count for the same scene — a renderer.info counting difference). All three readback avenues failed on this headless host: canvas `toBlob` → black; CDP `page.screenshot` → black; RT `readRenderTargetPixelsAsync` → `AbortError: Failed to execute 'mapAsync' on 'GPUBuffer': A valid external Instance reference no longer exists` (that attempt used the pre-fix RT class; the corrected-RT rerun was stopped by the shorten order) |
+| VM | Native (Exp. B) | n/a | not run — test shortened at Jim's word | n/a | **Environment facts only.** Rust toolchain **present**: cargo 1.99.1 / rustc 1.99.1 at `~/.cargo/bin` (not on the default PATH). **No system Vulkan adapter**: no `/usr/share/vulkan/icd.d`, no lavapipe, no `vulkaninfo`, no `/dev/dri`; loader `libvulkan.so.1` present. The only Vulkan device on the box is Chromium's bundled SwiftShader ICD (`libvk_swiftshader.so`). Native render not attempted; no `b-native.png`, and the Chromium reference `b-chromium.png` was also not captured before the shorten order. Full command evidence: `results/expB-toolchain-evidence.txt` |
+| MacBook | WebGL | | not run — test shortened at Jim's word | | |
+| MacBook | WebGPU | | not run — test shortened at Jim's word | | |
+| MacBook | Native (Exp. B) | | not run — test shortened at Jim's word | | |
 
-**Verdicts:** (pending)
+**Verdicts:**
+
+- **Experiment A — baseline established; WebGPU inconclusive (shortened).**
+  WebGL works end-to-end on this VM: warm capture median **3,308 ms** at
+  512×288 via RT readback (vs ~55 s for the full console look-service frame —
+  different scene load, so treat this rig's number as the renderer floor, not
+  a service measurement). The WebGPU pipeline genuinely runs — real adapter
+  (SwiftShader fallback), world loads, draws execute, render calls are fast —
+  but on this headless host **no pixel readback path succeeded**, so WebGPU
+  parity and capture cost are undecided here. The decision moves to the
+  MacBook run, where the canvas actually presents on Metal.
+- **Experiment B — not run (shortened).** Environment facts recorded in the
+  table: toolchain present off-PATH; no system Vulkan adapter. No native
+  frame exists.
+
+**Rig notes for whoever runs this next** (all three cost real time here):
+the rig lives in `rig/` (shared scene code `rig/rig.js`; per-backend pages
+`rig/page-webgl.html` / `rig/page-webgpu.html`; driver `rig/capture.py`).
+
+1. three r170's `three.webgpu.js` bundle exports `WebGPURenderer` but **not**
+   `WebGLRenderer` — the two backends need separate importmaps (hence the
+   two pages).
+2. `WebGLRenderer.readRenderTargetPixels` rejects a plain
+   `THREE.RenderTarget` ("renderTarget is not THREE.WebGLRenderTarget") and
+   silently leaves the buffer zeroed — WebGL readback needs
+   `THREE.WebGLRenderTarget`.
+3. `RenderTarget` defaults to `HalfFloatType` (r152+) — pin
+   `UnsignedByteType` for `Uint8Array` readback.
+4. Raw capture JSONs for every run above are in `results/`.
 
 ## What happens with the answer
 
