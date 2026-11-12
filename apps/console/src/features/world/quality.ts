@@ -14,6 +14,8 @@
 //   full     [1, 2]       2048, casting    Html callout (desktop design)
 //   reduced  [1, 1.5]     1024, casting    sprite
 //   lite     1            off              sprite
+// (DPR column is the tier value; the thermal guardrails below
+// hard-cap the applied touch DPR at TOUCH_DPR_MAX = 1.5.)
 
 export type QualityTier = "full" | "reduced" | "lite";
 export type QualityOverride = "auto" | QualityTier;
@@ -52,6 +54,68 @@ export function shadowMapForTier(tier: QualityTier): number {
       return 1024;
     case "lite":
       return 0;
+  }
+}
+
+// ── Thermal guardrails (2026-11-12) ────────────────────────────────
+//
+// Hard ceilings for the touch path, on top of the tier ladder. The
+// ladder optimises for smoothness; these caps optimise for heat: a
+// phone rendering a 3D world at full device pixel ratio and an
+// uncapped refresh rate throttles itself within minutes and takes
+// the frame rate (and the battery) down with it. Desktop is not
+// capped here — the Canvas sets its DPR explicitly to [1, 2] there.
+
+/** Hard DPR ceiling on the touch path, whatever tier the governor picks. */
+export const TOUCH_DPR_MAX = 1.5;
+
+/** Clamp a Canvas dpr value's upper bound (scalar or [min, max]). */
+export function capDpr(dpr: [number, number] | number, max: number): [number, number] | number {
+  if (typeof dpr === "number") return Math.min(dpr, max);
+  return [Math.min(dpr[0], max), Math.min(dpr[1], max)];
+}
+
+/** Render-rate ceiling on the touch path, frames per second. */
+export const TOUCH_FPS_CAP = 30;
+
+/**
+ * What the governor should be told the frame rate is. While the fps
+ * cap is active the meter can never read above TOUCH_FPS_CAP, and an
+ * unclamped read of ~30 sits exactly on FPS_STEP_DOWN — the governor
+ * would misread its own ceiling as a shortfall and walk the tier down
+ * to lite on a healthy phone. Clamping the sample at the cap makes
+ * "holding the cap" read as the hold band; real shortfalls below the
+ * cap still come through untouched.
+ */
+export function governorSampleFps(measuredFps: number): number {
+  return Math.min(measuredFps, TOUCH_FPS_CAP);
+}
+
+/**
+ * A frame throttle with the same pure-clock discipline as FpsMeter:
+ * the caller owns the clock (performance.now via rAF in the browser),
+ * the throttle decides whether this instant earns a rendered frame.
+ */
+export class FrameThrottle {
+  private readonly intervalMs: number;
+  private lastGrantedAt: number | null = null;
+
+  constructor(fpsCap: number) {
+    this.intervalMs = 1000 / fpsCap;
+  }
+
+  /** True (and stamped) when at least one interval has elapsed. The
+   * first call always grants — the world should paint immediately. */
+  shouldRender(nowMs: number): boolean {
+    if (this.lastGrantedAt === null || nowMs - this.lastGrantedAt >= this.intervalMs) {
+      this.lastGrantedAt = nowMs;
+      return true;
+    }
+    return false;
+  }
+
+  reset(): void {
+    this.lastGrantedAt = null;
   }
 }
 
