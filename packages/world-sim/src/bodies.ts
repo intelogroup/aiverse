@@ -183,6 +183,8 @@ export const BARBARIAN_HIPS_Y = 0.2778; // m (0.4601 x 0.60375 shrink)
 export const BODY_BARBARIAN: BodyDef = bodyAtScale(SCALE_BARBARIAN, {
   id: "barbarian",
   url: "/assets/cast-barbarian.glb",
+  // Cast-only (Jim, 2026-11-12): too short for an agent body (hips ~0.3 m), like the Mage. Stays a cast figure.
+  agentBody: false,
   hipsY: BARBARIAN_HIPS_Y,
   // Same Rig_Medium skeleton as the Mage — identical measured Walk
   // foot travel, shrunk by its own factor: 0.5749 x 0.60375.
@@ -195,6 +197,8 @@ export const KNIGHT_HIPS_Y = 0.2702; // m (0.4601 x 0.58713 shrink)
 export const BODY_KNIGHT: BodyDef = bodyAtScale(SCALE_KNIGHT, {
   id: "knight",
   url: "/assets/cast-knight.glb",
+  // Cast-only (Jim, 2026-11-12): too short for an agent body (hips ~0.3 m), like the Mage. Stays a cast figure.
+  agentBody: false,
   hipsY: KNIGHT_HIPS_Y,
   // Same Rig_Medium skeleton — identical measured Walk foot travel,
   // shrunk by its own factor: 0.5749 x 0.58713.

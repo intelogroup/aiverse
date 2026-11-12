@@ -201,12 +201,10 @@ describe("body registry", () => {
 });
 
 describe("agentBodies — the agent-pickable set (Jim's ruling, 2026-11-11)", () => {
-  it("never offers mage or skeleton-warrior to an agent: too short, cast-only", () => {
-    expect(BODY_MAGE.agentBody).toBe(false);
-    expect(BODY_SKELETON_WARRIOR.agentBody).toBe(false);
+  it("never offers mage, barbarian, knight or skeleton-warrior to an agent: too short, cast-only", () => {
+    for (const short of [BODY_MAGE, BODY_BARBARIAN, BODY_KNIGHT, BODY_SKELETON_WARRIOR]) expect(short.agentBody, short.id).toBe(false);
     const ids = agentBodies().map((b) => b.id);
-    expect(ids).not.toContain("mage");
-    expect(ids).not.toContain("skeleton-warrior");
+    for (const id of ["mage", "barbarian", "knight", "skeleton-warrior"]) expect(ids).not.toContain(id);
   });
 
   it("never offers Body Block to an agent: off the roster, cast-only", () => {
@@ -215,21 +213,14 @@ describe("agentBodies — the agent-pickable set (Jim's ruling, 2026-11-11)", ()
   });
 
   it("keeps every other registered body pickable", () => {
-    expect(agentBodies().map((b) => b.id).sort()).toEqual([
-      "barbarian",
-      "cipher",
-      "elf",
-      "eve",
-      "jim",
-      "knight",
-      "remy",
-      "summer",
-    ]);
+    expect(agentBodies().map((b) => b.id).sort()).toEqual(["cipher", "elf", "eve", "jim", "remy", "summer"]);
   });
 
-  it("cast resolution ignores eligibility: members still wear all three removed bodies", () => {
+  it("cast resolution ignores eligibility: members still wear every removed body", () => {
     expect(bodyForMember({ body: "mage" })).toBe(BODY_MAGE);
     expect(bodyForMember({ body: "skeleton-warrior" })).toBe(BODY_SKELETON_WARRIOR);
+    expect(bodyForMember({ body: "barbarian" })).toBe(BODY_BARBARIAN);
+    expect(bodyForMember({ body: "knight" })).toBe(BODY_KNIGHT);
     expect(bodyForMember({ body: "cast" })).toBe(BODY_CAST);
     expect(bodyForMember({})).toBe(BODY_CAST);
     expect(BODIES.mage).toBe(BODY_MAGE);
