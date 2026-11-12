@@ -219,5 +219,296 @@
   },
   "tris": 800,
   "author": "James Ray Cock"
+ },
+ "chinese_screen_panels": {
+  "source": "https://polyhaven.com/a/chinese_screen_panels",
+  "license": "CC0",
+  "materials": {
+   "chinese_screen_panels": {
+    "color": "chinese_screen_panels__chinese_screen_panels_c.jpg",
+    "normal": "chinese_screen_panels__chinese_screen_panels_n.jpg",
+    "doubleSided": true
+   }
+  },
+  "tris": 784
+ },
+ "chinese_cabinet": {
+  "source": "https://polyhaven.com/a/chinese_cabinet",
+  "license": "CC0",
+  "materials": {
+   "chinese_cabinet": {
+    "color": "chinese_cabinet__chinese_cabinet_c.jpg",
+    "normal": "chinese_cabinet__chinese_cabinet_n.jpg",
+    "doubleSided": true
+   }
+  },
+  "tris": 1500
+ },
+ "chinese_commode": {
+  "source": "https://polyhaven.com/a/chinese_commode",
+  "license": "CC0",
+  "materials": {
+   "chinese_commode": {
+    "color": "chinese_commode__chinese_commode_c.jpg",
+    "normal": "chinese_commode__chinese_commode_n.jpg",
+    "doubleSided": true
+   }
+  },
+  "tris": 1200
+ },
+ "bar_chair_round_01": {
+  "source": "https://polyhaven.com/a/bar_chair_round_01",
+  "license": "CC0",
+  "materials": {
+   "Bar Chair": {
+    "color": "bar_chair_round_01__Bar Chair_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 900
+ },
+ "ornate_mirror_01": {
+  "source": "https://polyhaven.com/a/ornate_mirror_01",
+  "license": "CC0",
+  "materials": {
+   "ornate_mirror_01": {
+    "color": "ornate_mirror_01__ornate_mirror_01_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 700
+ },
+ "antique_ceramic_vase_01": {
+  "source": "https://polyhaven.com/a/antique_ceramic_vase_01",
+  "license": "CC0",
+  "materials": {
+   "antique_ceramic_vase_01": {
+    "color": "antique_ceramic_vase_01__antique_ceramic_vase_01_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 499
+ },
+ "wooden_display_shelves_01": {
+  "source": "https://polyhaven.com/a/wooden_display_shelves_01",
+  "license": "CC0",
+  "materials": {
+   "wooden_display_shelves_01": {
+    "color": "wooden_display_shelves_01__wooden_display_shelves_01_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 900
+ },
+ "painted_wooden_shelves": {
+  "source": "https://polyhaven.com/a/painted_wooden_shelves",
+  "license": "CC0",
+  "materials": {
+   "painted_wooden_shelves": {
+    "color": "painted_wooden_shelves__painted_wooden_shelves_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 524
+ },
+ "Ottoman_01": {
+  "source": "https://polyhaven.com/a/Ottoman_01",
+  "license": "CC0",
+  "materials": {
+   "Ottoman_01": {
+    "color": "Ottoman_01__Ottoman_01_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 500
+ },
+ "ArmChair_01": {
+  "source": "https://polyhaven.com/a/ArmChair_01",
+  "license": "CC0",
+  "materials": {
+   "Armchair_01": {
+    "color": "ArmChair_01__Armchair_01_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 1000
+ },
+ "side_table_tall_01": {
+  "source": "https://polyhaven.com/a/side_table_tall_01",
+  "license": "CC0",
+  "materials": {
+   "side_table_tall_01": {
+    "color": "side_table_tall_01__side_table_tall_01_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 599
+ },
+ "vintage_oil_lamp": {
+  "source": "https://polyhaven.com/a/vintage_oil_lamp",
+  "license": "CC0",
+  "materials": {
+   "vintage_oil_lamp_glass": {
+    "color": "vintage_oil_lamp__vintage_oil_lamp_glass_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   },
+   "vintage_oil_lamp": {
+    "color": "vintage_oil_lamp__vintage_oil_lamp_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   },
+   "vintage_oil_lamp_flame": {
+    "color": "vintage_oil_lamp__vintage_oil_lamp_flame_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 600
+ },
+ "painted_wooden_cabinet": {
+  "source": "https://polyhaven.com/a/painted_wooden_cabinet",
+  "license": "CC0",
+  "materials": {
+   "painted_wooden_cabinet": {
+    "color": "painted_wooden_cabinet__painted_wooden_cabinet_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 900
+ },
+ "painted_wooden_cabinet_02": {
+  "source": "https://polyhaven.com/a/painted_wooden_cabinet_02",
+  "license": "CC0",
+  "materials": {
+   "painted_wooden_cabinet_02": {
+    "color": "painted_wooden_cabinet_02__painted_wooden_cabinet_02_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 699
+ },
+ "painted_wooden_stool": {
+  "source": "https://polyhaven.com/a/painted_wooden_stool",
+  "license": "CC0",
+  "materials": {
+   "painted_wooden_stool": {
+    "color": "painted_wooden_stool__painted_wooden_stool_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 498
+ },
+ "throw_pillows_01": {
+  "source": "https://polyhaven.com/a/throw_pillows_01",
+  "license": "CC0",
+  "materials": {
+   "throw_pillows_01": {
+    "color": "throw_pillows_01__throw_pillows_01_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 599
+ },
+ "small_wooden_table_01": {
+  "source": "https://polyhaven.com/a/small_wooden_table_01",
+  "license": "CC0",
+  "materials": {
+   "small_wooden_table_01": {
+    "color": "small_wooden_table_01__small_wooden_table_01_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 499
+ },
+ "dining_table": {
+  "source": "https://polyhaven.com/a/dining_table",
+  "license": "CC0",
+  "materials": {
+   "dining_table": {
+    "color": "dining_table__dining_table_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 699
+ },
+ "painted_wooden_chair_02": {
+  "source": "https://polyhaven.com/a/painted_wooden_chair_02",
+  "license": "CC0",
+  "materials": {
+   "painted_wooden_chair_02": {
+    "color": "painted_wooden_chair_02__painted_wooden_chair_02_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 700
+ },
+ "potted_plant_04": {
+  "source": "https://polyhaven.com/a/potted_plant_04",
+  "license": "CC0",
+  "materials": {
+   "potted_plant_04": {
+    "color": "potted_plant_04__potted_plant_04_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 900
+ },
+ "vintage_grandfather_clock_01": {
+  "source": "https://polyhaven.com/a/vintage_grandfather_clock_01",
+  "license": "CC0",
+  "materials": {
+   "vintage_grandfather_clock_01": {
+    "color": "vintage_grandfather_clock_01__vintage_grandfather_clock_01_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   },
+   "vintage_grandfather_clock_01_glass": {
+    "color": "vintage_grandfather_clock_01__vintage_grandfather_clock_01_glass_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 1100
+ },
+ "planter_pot_clay": {
+  "source": "https://polyhaven.com/a/planter_pot_clay",
+  "license": "CC0",
+  "materials": {
+   "planter_pot_clay": {
+    "color": "planter_pot_clay__planter_pot_clay_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 500
+ },
+ "wicker_basket_02": {
+  "source": "https://polyhaven.com/a/wicker_basket_02",
+  "license": "CC0",
+  "materials": {
+   "wicker_basket_02": {
+    "color": "wicker_basket_02__wicker_basket_02_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 599
  }
 }
