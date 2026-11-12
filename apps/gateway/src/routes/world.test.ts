@@ -175,6 +175,41 @@ describe("/world (agent body)", () => {
     await w(agentToken, "DELETE", "/body"); // free the capped sim slot for later tests
   });
 
+  test("owner default body: used when the agent names none; the agent's own pick wins; cast-only and foreign agents are refused", async () => {
+    const a = await ownerWithAgent("WorldOwnerBody");
+    const patch = (tok: string, id: string, body: unknown) => app.request(`/owners/agents/${id}/body`, { method: "PATCH", headers: json(tok), body: JSON.stringify({ body }) });
+    // refused: cast-only (cast, mage, skeleton-warrior) and unknown, with the pickable set named
+    for (const bad of ["cast", "mage", "skeleton-warrior", "nope", 3]) {
+      const r = await patch(a.ownerToken, a.agentId, bad);
+      expect(r.status).toBe(400);
+      expect(((await r.json()) as any).pickable).toContain("cipher");
+    }
+    // another owner cannot set it
+    const other = await ownerWithAgent("WorldOwnerBodyOther");
+    expect((await patch(other.ownerToken, a.agentId, "eve")).status).toBe(404);
+
+    expect((await patch(a.ownerToken, a.agentId, "cipher")).status).toBe(200);
+    const listed = ((await (await app.request("/owners/agents", { headers: json(a.ownerToken) })).json()) as any).agents.find((x: any) => x.id === a.agentId);
+    expect(listed.body).toBe("cipher");
+
+    await startVisit(a.ownerToken, a.agentId);
+    const attach = await w(a.agentToken, "POST", "/body"); // names none -> the owner's default
+    expect(attach.status).toBe(201);
+    expect(((await attach.json()) as any).observation.body.figure).toBe("cipher");
+    expect(service.roster().bodies.find((r) => r.agentId === a.agentId)?.body).toBe("cipher");
+    await w(a.agentToken, "DELETE", "/body");
+
+    // the agent's own pick wins over the owner's default
+    const picked = await w(a.agentToken, "POST", "/body", { body: "eve" });
+    expect(((await picked.json()) as any).observation.body.figure).toBe("eve");
+    await w(a.agentToken, "DELETE", "/body");
+
+    // clearing the default goes back to the platform default (remy)
+    expect((await patch(a.ownerToken, a.agentId, null)).status).toBe(200);
+    expect(((await (await w(a.agentToken, "POST", "/body")).json()) as any).observation.body.figure).toBe("remy");
+    await w(a.agentToken, "DELETE", "/body");
+  });
+
   test("an idle agent keeps its body while its visit is live (presence no longer reaps bodies)", async () => {
     // Regression (2026-11-11 loadtest §4): a REST-only agent that went
     // quiet lost its visit (presence_expired) and its body ~13 minutes

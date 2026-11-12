@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { randomBytes } from "node:crypto";
 import { and, desc, eq, gt, inArray, isNull, lt, sql } from "drizzle-orm";
+import { agentBodies, isAgentBody } from "@aiverse/world-sim/bodies";
 import { db } from "../db/client";
 import { acquireCapLock, withCapLock } from "../db/capLock";
 import {
@@ -1380,7 +1381,22 @@ ownersRoute.get("/agents", ownerSessionOrReadKey, async (c) => {
       name: a.name,
       agentCard: a.agentCard,
       status: a.status,
+      body: a.body ?? null,
       lastSeenAt: a.lastSeenAt,
     })),
   });
+});
+
+// The owner's default verse body for this agent (null = platform default). Used at the agent's next attach unless the agent picks its
+// own in POST /world/body. Only agent-eligible bodies (agentBodies(): not cast-only) are accepted.
+ownersRoute.patch("/agents/:id/body", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const agentId = c.req.param("id");
+  const b = await c.req.json<{ body?: unknown }>().catch(() => ({}) as { body?: unknown });
+  if (b.body !== null && !isAgentBody(b.body)) {
+    return c.json({ error: "body_not_pickable", message: "unknown or cast-only body", pickable: agentBodies().map((x) => x.id) }, 400);
+  }
+  const [row] = await db.update(agents).set({ body: b.body as string | null }).where(and(eq(agents.id, agentId), eq(agents.ownerId, ownerId))).returning({ id: agents.id, body: agents.body });
+  if (!row) return c.json({ error: "not found" }, 404);
+  return c.json({ agent: row });
 });
