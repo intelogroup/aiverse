@@ -1,0 +1,114 @@
+{
+  "hinoki_planks": {
+    "source": "https://polyhaven.com/a/hinoki_planks",
+    "license": "CC0",
+    "author": "Charlotte Baglioni",
+    "tileMetres": 1.9,
+    "px": 512
+  },
+  "oak_wood_planks": {
+    "source": "https://polyhaven.com/a/oak_wood_planks",
+    "license": "CC0",
+    "author": "Dimitrios Savva",
+    "tileMetres": 1.2,
+    "px": 512
+  },
+  "herringbone_parquet": {
+    "source": "https://polyhaven.com/a/herringbone_parquet",
+    "license": "CC0",
+    "author": "Jenelle van Heerden, Sergej Majboroda",
+    "tileMetres": 2.4,
+    "px": 1024
+  },
+  "tatami_mat": {
+    "source": "https://polyhaven.com/a/tatami_mat",
+    "license": "CC0",
+    "author": "Charlotte Baglioni",
+    "tileMetres": 1.8,
+    "px": 512
+  },
+  "wooden_floor_02": {
+    "source": "https://polyhaven.com/a/wooden_floor_02",
+    "license": "CC0",
+    "author": "Charlotte Baglioni, Rico Cilliers",
+    "tileMetres": 1.9,
+    "px": 512
+  },
+  "laminate_floor_02": {
+    "source": "https://polyhaven.com/a/laminate_floor_02",
+    "license": "CC0",
+    "author": "Dario Barresi, Charlotte Baglioni",
+    "tileMetres": 1.7,
+    "px": 512
+  },
+  "interior_tiles": {
+    "source": "https://polyhaven.com/a/interior_tiles",
+    "license": "CC0",
+    "author": "Charlotte Baglioni",
+    "tileMetres": 1.9,
+    "px": 512
+  },
+  "floor_tiles_06": {
+    "source": "https://polyhaven.com/a/floor_tiles_06",
+    "license": "CC0",
+    "author": "Rob Tuytel",
+    "tileMetres": 2.0,
+    "px": 512
+  },
+  "patterned_terracotta_tiling": {
+    "source": "https://polyhaven.com/a/patterned_terracotta_tiling",
+    "license": "CC0",
+    "author": "Amal Kumar",
+    "tileMetres": 2.15,
+    "px": 512
+  },
+  "marble_mosaic_tiles": {
+    "source": "https://polyhaven.com/a/marble_mosaic_tiles",
+    "license": "CC0",
+    "author": "Amal Kumar",
+    "tileMetres": 2.0,
+    "px": 512
+  },
+  "stair_planks": {
+    "source": "https://polyhaven.com/a/stair_planks",
+    "license": "CC0",
+    "author": "Rob Tuytel",
+    "tileMetres": 1.2,
+    "px": 512
+  },
+  "white_stucco": {
+    "source": "https://polyhaven.com/a/white_stucco",
+    "license": "CC0",
+    "author": "Amal Kumar",
+    "tileMetres": 1.6,
+    "px": 512
+  },
+  "dark_wood": {
+    "source": "https://polyhaven.com/a/dark_wood",
+    "license": "CC0",
+    "author": "Dario Barresi, Dimitrios Savva, Rico Cilliers",
+    "tileMetres": 1.0,
+    "px": 512
+  },
+  "wooden_panels": {
+    "source": "https://polyhaven.com/a/wooden_panels",
+    "license": "CC0",
+    "author": "Dimitrios Savva",
+    "tileMetres": 2.1,
+    "px": 512
+  },
+  "rosewood_veneer1": {
+    "source": "https://polyhaven.com/a/rosewood_veneer1",
+    "license": "CC0",
+    "author": "Jenelle van Heerden",
+    "tileMetres": 2.43,
+    "px": 512
+  },
+  "long_white_tiles": {
+    "source": "https://polyhaven.com/a/long_white_tiles",
+    "license": "CC0",
+    "author": "Jenelle van Heerden, Sergej Majboroda",
+    "tileMetres": 1.27,
+    "px": 512
+  }
+}
