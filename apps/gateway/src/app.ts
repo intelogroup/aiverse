@@ -31,6 +31,7 @@ import { createWorldStream, setWorldStream } from "./world/frames";
 import { worldDocText } from "./world/docs";
 import { captureGatewayError, fingerprintError, initGatewaySentry } from "./telemetry/sentry";
 import pkg from "../package.json";
+import { isGatewayLeader } from "./db/singleGatewayLock";
 
 export interface CreateAppOpts {
   /** World sim client; tests inject an in-process one. Default: from SIM_URL + SIM_INTERNAL_SECRET when AIVERSE_WORLD_MODE=1. */
@@ -167,7 +168,11 @@ export function createApp(opts: CreateAppOpts = {}) {
       natives = lastAt && Date.now() - new Date(lastAt).getTime() < NATIVE_STALE_MS ? "active" : "stale";
     }
 
-    return c.json({ status, db: dbOk ? "ok" : "down", redis: redisOk ? "ok" : "down", natives }, status === "ok" ? 200 : 503);
+    // Which process leads the singleton jobs (visit sweep, natives tick). A deploy that reports "follower" while no other
+    // gateway is meant to exist is the sign of a second process holding the lock (social15 Session 1: visits were ended
+    // with a reason this code no longer writes).
+    const role = isGatewayLeader() ? "leader" : "follower";
+    return c.json({ status, db: dbOk ? "ok" : "down", redis: redisOk ? "ok" : "down", natives, role }, status === "ok" ? 200 : 503);
   });
 
   // Which commit is actually live — Render injects RENDER_GIT_COMMIT/

@@ -26,7 +26,10 @@ export interface EndedVisit {
 // Guarded on ended_at IS NULL so a race between two callers (the request
 // path and the sweep job, say) ends a visit exactly once — the loser's
 // UPDATE affects zero rows and this returns null for it.
-export async function endVisitRecord(visitId: string, reason: VisitEndReason): Promise<EndedVisit | null> {
+// Only the reasons this code still produces: "presence_expired" is readable on historical rows but no longer writable
+// (a presence-ended visit contradicts the contract that a visit ends at its deadline or cap; see jobs/visits.ts).
+export type VisitEndWriteReason = Exclude<VisitEndReason, "presence_expired">;
+export async function endVisitRecord(visitId: string, reason: VisitEndWriteReason): Promise<EndedVisit | null> {
   const [ended] = await db
     .update(agentVisits)
     .set({ endedAt: new Date(), endedReason: reason })

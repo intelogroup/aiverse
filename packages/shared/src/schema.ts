@@ -12,6 +12,7 @@ import {
   date,
   vector,
   unique,
+  check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -676,6 +677,10 @@ export const agentVisits = pgTable(
     uniqueIndex("agent_visits_one_active_per_agent_idx")
       .on(t.agentId)
       .where(sql`${t.endedAt} is null`),
+    // No process may end a visit for presence any more (the contract: a visit ends at its deadline, its cap or the
+    // owner's stop). Historical rows keep the value (the constraint is added NOT VALID, so only new/updated rows are
+    // checked). A stale gateway that still runs the old presence sweep now fails its UPDATE instead of killing visits.
+    check("agent_visits_no_presence_expired", sql`${t.endedReason} is distinct from 'presence_expired'`),
   ],
 );
 

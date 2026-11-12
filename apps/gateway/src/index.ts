@@ -159,7 +159,7 @@ function startFollowerRetry() {
     try {
       if (await tryBecomeGatewayLeader({ timeoutMs: 0 })) {
         clearInterval(retry);
-        log("gateway_leader_failover", {});
+        log("gateway_leader_failover", { gitSha: process.env.RENDER_GIT_COMMIT ?? "unknown", pid: process.pid });
         await startSingletonJobsAfterPrep();
       }
     } catch (err) {
@@ -189,7 +189,7 @@ const leadership = (async () => {
   } catch (err) {
     logError("gateway_leader_boot_error", err);
   }
-  log("gateway_role", { leader: isLeader });
+  log("gateway_role", { leader: isLeader, gitSha: process.env.RENDER_GIT_COMMIT ?? "unknown", pid: process.pid });
   if (isLeader) {
     await startSingletonJobsAfterPrep();
   } else {

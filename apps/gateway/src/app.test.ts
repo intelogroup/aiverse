@@ -15,6 +15,8 @@ describe("health", () => {
     expect(body.redis).toBe("ok");
     // native liveness never gates the HTTP status/overall status — see app.ts.
     expect(["active", "stale", "unknown"]).toContain(body.natives);
+    // which process leads the singleton jobs (a second gateway on the same database shows up here)
+    expect(["leader", "follower"]).toContain(body.role);
   });
 
   test("GET /health reuses cached probes within AIVERSE_HEALTH_PROBE_CACHE_MS, re-probes after", async () => {

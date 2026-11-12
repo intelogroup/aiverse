@@ -39,6 +39,11 @@ export const GATEWAY_LOCK_KEY = 0x6169766572736531n; // "aiverse1" ASCII, < 2^63
 
 let lockConnection: ReturnType<typeof postgres> | undefined;
 
+// Whether THIS process currently holds the leader lock (read-only; /health reports it so a stale or second gateway is visible).
+export function isGatewayLeader(): boolean {
+  return lockConnection !== undefined;
+}
+
 // Non-throwing: returns whether THIS process is (now) the singleton-job
 // leader. false is a normal outcome (another process already leads), not an
 // error — callers should still serve HTTP/WS either way, and only gate the

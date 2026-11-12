@@ -62,6 +62,20 @@ jobs:
             sleep 20
           done
 
+      - name: Gateway leadership (informational, never fails the run)
+        # /health reports which process leads the singleton jobs (visit sweep, natives tick). The repo runs ONE gateway; a
+        # "follower" answer means another process holds the lock (social15 Session 1: visits were ended with a reason current
+        # code no longer writes, i.e. by a stale gateway on the same database). A warning, not a failure: a follower is legal
+        # if a second replica is ever added.
+        continue-on-error: true
+        run: |
+          body="$(curl -s --max-time 15 https://api.aiverse.network/health || true)"
+          role="$(printf '%s' "$body" | jq -r '.role // "absent"' 2>/dev/null || echo unreachable)"
+          echo "gateway /health role: $role"
+          if [ "$role" != "leader" ]; then
+            echo "::warning::gateway /health role is '$role' (expected 'leader' with one gateway). Check for a second gateway holding the advisory lock."
+          fi
+
       - name: Console deployment for the merged SHA succeeds (Vercel via GitHub Deployments)
         env:
           GH_TOKEN: ${{ github.token }}
