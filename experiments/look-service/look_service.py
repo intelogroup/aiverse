@@ -3,7 +3,7 @@
 
 A warm headless Chromium (SwiftShader) holds the production console world
 (Bazaar, City 3) loaded ONCE via the rigs' proven Vite path on :5199 with
-?world=city3&agent=1, which mounts ScoutAgent and exposes window.__scout.
+?world=city3&agent=1&stream=1, which mounts ScoutAgent and exposes window.__scout; stream=1 draws the server-driven agent bodies in front of the camera.
 The warm page IS the passed pipeline verdict (egg-hunt optimization runs):
 no cold page per look, ever — cold start is ~70 s and a first capture in a
 fresh area pays minutes of shader work, so a look is a decision-fired
@@ -58,7 +58,7 @@ from playwright.async_api import async_playwright  # noqa: E402
 HERE = Path(__file__).parent
 SNAP_DIR = HERE / "snapshots"
 INDEX = HERE / "index.jsonl"
-PAGE_URL = os.environ.get("LOOK_PAGE_URL", "http://127.0.0.1:5199/?world=city3&agent=1")
+PAGE_URL = os.environ.get("LOOK_PAGE_URL", "http://127.0.0.1:5199/?world=city3&agent=1&stream=1")
 HTTP_HOST = os.environ.get("LOOK_SERVICE_HOST", "127.0.0.1")
 HTTP_PORT = int(os.environ.get("LOOK_SERVICE_PORT", "5317"))
 SECRET = os.environ.get("LOOK_SERVICE_SECRET", "")

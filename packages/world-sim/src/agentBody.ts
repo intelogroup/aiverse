@@ -207,8 +207,13 @@ export class AgentBody {
     return null;
   }
 
-  /** "No progress" with another body at arm's length is a crowd, not a wall: say so, so the agent waits instead of retrying blind. */
+  /**
+   * "No progress" with another body at arm's length is a crowd, not a wall: say so, so the agent waits instead of retrying blind.
+   * Only for a stall on the way (no progress, route repeatedly obstructed): "no safe route" and "could not start" are
+   * planning refusals that a body standing nearby did not cause, and waiting would not fix them.
+   */
   private explainBlocked(o: ScoutOutcome): ScoutOutcome {
+    if (!/^(no progress|route repeatedly obstructed)/.test(o.detail ?? "")) return o;
     const s = this.state;
     const near = this.deps.actors.nearby(this.id, [s.x, s.y, s.z], 2.0).length;
     return near ? { ...o, detail: `${o.detail ?? "blocked"}; ${near === 1 ? "another body is" : `${near} other bodies are`} right beside you and may be in the way - wait a few seconds and retry, or pick another spot` } : o;
