@@ -402,5 +402,11 @@
     "licence": "CC0",
     "url": "https://polyhaven.com",
     "use": "Bazaar facades"
+  },
+  {
+    "asset": "Low Poly Doors (17 doors with frames), loafbrr",
+    "licence": "CC0",
+    "url": "https://opengameart.org/content/low-poly-doors-asset",
+    "use": "Bazaar shop entrance doors (bridge_bazaar_doors.py)"
   }
 ]

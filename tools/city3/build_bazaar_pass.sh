@@ -5,5 +5,6 @@ git checkout apps/console/public/assets/world-city3.glb apps/console/public/asse
 python3 tools/city3/bridge_bazaar_demolish.py
 python3 tools/city3/bridge_bazaar_interiors.py
 python3 tools/city3/bridge_bazaar_open_space.py
+python3 tools/city3/bridge_bazaar_doors.py
 python3 tools/city3/verify_bazaar_interiors.py
 bun run packages/world-sim/node/bakeNavmesh.ts | tail -1
