@@ -292,6 +292,12 @@ export interface ScoutOutcome {
   blockedBy?: string;
   /** Blocked movement acts only: sim milliseconds from submit to the blocked settle. Set by AgentBody, not the executor. */
   blockedAfterMs?: number;
+  /**
+   * Blocked movement acts that stalled mid-route only ("no progress"): how long the body made no progress before the block was
+   * called, in sim milliseconds. blockedAfterMs counts from the submit, so on a long walk it is mostly walking time; this is the
+   * stall itself. Absent when no route could be planned (the body never moved).
+   */
+  stalledForMs?: number;
 }
 
 export type Posture = "standing" | "sitting-down" | "seated" | "standing-up";
@@ -813,6 +819,7 @@ export class ScoutExecutor {
             status: "blocked",
             target: p.targetId,
             detail: `no progress for 2.5 s, ${dist.toFixed(1)} m out`,
+            stalledForMs: Math.round(p.staleFor * 1000),
           });
         }
         return;
