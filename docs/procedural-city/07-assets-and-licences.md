@@ -97,3 +97,11 @@ Poly Haven CC0 textures (colour + GL normal, 512 px, herringbone 1024), `tools/c
 ## Tea House furniture (2026-11-12)
 Poly Haven CC0 models, decimated to 470-1,500 tris (`tools/city3/tea_house/prep_props.py`) with 512 px colour (+ normal on the Chinese set and the bookshelf), `tools/city3/assets/tea-props/` (+ `meta.json`): chinese_tea_table, chinese_stool, chinese_armchair, chinese_sofa, chinese_console_table (Kirill Sannikov); wooden_bookshelf_worn, round_wooden_table_02 (Ulan Cabanilla); painted_wooden_table, painted_wooden_bench, painted_wooden_nightstand, sofa_02 (Kirill Sannikov); painted_wooden_chair_01, mid_century_lounge_chair (Kuutti Siitonen); vintage_day_bed (Aron Lyczek); side_table_01, planter_box_01 (James Ray Cock); modern_coffee_table_01 (Amin).
 Considered and NOT used: CGTrader free models (royalty-free, "must not be extractable by third parties"; a public web GLB is extractable, same reason BlenderKit is excluded); Sketchfab `licenses=cc0` returned nothing for tea set / shoji / tatami / lantern on 2026-11-12.
+
+## Bazaar interiors and exteriors (2026-11-12)
+- Kenney Furniture Kit (CC0, OBJ, flat colours): kitchen appliances, bathroom fixtures, rugs. `tools/city3/assets/bazaar-interiors/kenney/`, licence file alongside.
+- Quaternius Furniture Pack (CC0 via OpenGameArt) and Quaternius Fantasy Props MegaKit (CC0, 3 trim sheets): shop shelving, barrels, crates, chests, beds, workbench. `qfurn/`, `qfantasy/`.
+- Poly Haven CC0 models already in `assets/tea-props/` (sofa_02, painted_wooden_* set, vintage_day_bed, ornate_mirror_01, potted_plant_04, vintage_oil_lamp, ...) and floor textures from `assets/tea-floors/`.
+- Facade masonry: Poly Haven CC0 textures in `assets/bazaar-facades/` (white_stucco_02, white_plaster_02, white_sandstone_bricks_03, worn_brick_wall, stacked_brick_wall, stone_block_wall), authors in its `sources.json`.
+- Inspiration only (not redistributed): CGTrader, Fab (licence is not redistributable in a public web GLB), RenderHub, Sketchfab non-CC0.
+Per-source record: `tools/city3/assets/bazaar-interiors/sources.json`.
