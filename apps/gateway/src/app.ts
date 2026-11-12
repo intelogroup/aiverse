@@ -26,6 +26,7 @@ import { getHuntRuntime, huntEnabled } from "./hunt";
 import { log, logError } from "./util/log";
 import { createWorldRoute } from "./routes/world";
 import { simClientFromEnv, worldEnabled, type SimClient } from "./world/simClient";
+import { lookClientFromEnv, type LookClient } from "./world/lookClient";
 import { createWorldStream, setWorldStream } from "./world/frames";
 import { worldDocText } from "./world/docs";
 import { captureGatewayError, fingerprintError, initGatewaySentry } from "./telemetry/sentry";
@@ -34,6 +35,9 @@ import pkg from "../package.json";
 export interface CreateAppOpts {
   /** World sim client; tests inject an in-process one. Default: from SIM_URL + SIM_INTERNAL_SECRET when AIVERSE_WORLD_MODE=1. */
   sim?: SimClient;
+  /** Look service client for POST /world/see; tests inject a fake. Default: from LOOK_SERVICE_URL + LOOK_SERVICE_SECRET.
+   * Absent/null does not unmount the route: /world/see answers 502 look_unavailable (fail closed, discoverable in docs). */
+  look?: LookClient | null;
 }
 
 export function createApp(opts: CreateAppOpts = {}) {
@@ -235,7 +239,8 @@ export function createApp(opts: CreateAppOpts = {}) {
   // chars) mounts /world/*; otherwise the routes are absent (404) and the rest of the gateway is unaffected (fail closed, host open).
   const sim = opts.sim ?? (worldEnabled() ? simClientFromEnv() : null);
   if (sim) {
-    app.route("/world", createWorldRoute(sim));
+    const look = opts.look ?? (worldEnabled() ? lookClientFromEnv() : null);
+    app.route("/world", createWorldRoute(sim, look));
     // Spectators ask for the pose stream on /public/ws; the loop only runs while somebody is subscribed.
     setWorldStream(createWorldStream({
       sim,
