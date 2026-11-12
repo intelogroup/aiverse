@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
-"""LOOK SERVICE v1 (experiments-grade) — AIVerse agent look/snapshot service.
+"""LOOK SERVICE — AIVerse agent look/snapshot service (production-hardened).
 
 A warm headless Chromium (SwiftShader) holds the production console world
 (Bazaar, City 3) loaded ONCE via the rigs' proven Vite path on :5199 with
 ?world=city3&agent=1, which mounts ScoutAgent and exposes window.__scout.
+The warm page IS the passed pipeline verdict (egg-hunt optimization runs):
+no cold page per look, ever — cold start is ~70 s and a first capture in a
+fresh area pays minutes of shader work, so a look is a decision-fired
+event, never a reflex.
 
 POST /look     {agentId, position:[x,z], headingDeg, pitch?}
     Moves the agent's BODY to the requested pose (act go_to + face — the
@@ -16,15 +20,33 @@ POST /move     {agentId, position, headingDeg, mode} — locomotion only.
 POST /snapshot {agentId, position, headingDeg, note} — a look that PERSISTS:
     PNG -> local snapshots/ + R2 verse-assets snapshots/<agentId>/<file>
     (management-API object route, GET-back sha256 verify) + index.jsonl.
-GET  /health
+GET  /health   (never authenticated; carries no agent data)
+
+AUTH: when LOOK_SERVICE_SECRET is set (>= 32 chars), every route except
+GET /health requires `Authorization: Bearer <secret>` (constant-time
+compare) — the gateway's /world/see proxy is the only intended caller.
+When it is unset the service runs in DEV MODE: it binds 127.0.0.1 only
+and logs a loud warning. Never expose a dev-mode instance beyond loopback.
+
+CONFIG (env, defaults = the proven local rig):
+    LOOK_SERVICE_SECRET   shared secret (above); unset = dev mode
+    LOOK_SERVICE_HOST     bind host (default 127.0.0.1)
+    LOOK_SERVICE_PORT     bind port (default 5317)
+    LOOK_PAGE_URL         console page to hold warm (default the :5199 rig)
+    LOOK_R2_ACCOUNT       Cloudflare account for the snapshot store
+    LOOK_R2_BUCKET        snapshot bucket (default verse-assets)
+    LOOK_R2=0             disable R2 writes (snapshots persist locally only)
+
+SINGLE-BODY SERIALIZATION (a design limit, not a bug): one Scout page =
+one stand-in body. Every capture walks that body to the requested pose
+first, and all captures serialize on one lock — the page's main thread
+renders, and the v2 rig proved parallel captures wedge it. Serving N
+agents concurrently takes N instances (or pages), never threads here.
 
 Pitch is accepted but the head rig's camera is level: pitch is reported
 as 0 / pitchSupported=false. Honest v1 gap.
-
-Captures serialize on one lock: the page's main thread renders, and the
-v2 rig proved parallel captures wedge it.
 """
-import asyncio, base64, hashlib, json, sys, time, urllib.request, urllib.error
+import asyncio, base64, hashlib, hmac, json, os, sys, time, urllib.request, urllib.error
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -35,13 +57,28 @@ from playwright.async_api import async_playwright  # noqa: E402
 HERE = Path(__file__).parent
 SNAP_DIR = HERE / "snapshots"
 INDEX = HERE / "index.jsonl"
-PAGE_URL = "http://127.0.0.1:5199/?world=city3&agent=1"
-HTTP_HOST, HTTP_PORT = "127.0.0.1", 5317
+PAGE_URL = os.environ.get("LOOK_PAGE_URL", "http://127.0.0.1:5199/?world=city3&agent=1")
+HTTP_HOST = os.environ.get("LOOK_SERVICE_HOST", "127.0.0.1")
+HTTP_PORT = int(os.environ.get("LOOK_SERVICE_PORT", "5317"))
+SECRET = os.environ.get("LOOK_SERVICE_SECRET", "")
+AUTH_REQUIRED = len(SECRET) >= 32
+R2_ENABLED = os.environ.get("LOOK_R2", "1") != "0"
 
-ACCT = "c33b1793391df60672de585ebdee3791"
-BUCKET = "verse-assets"
+ACCT = os.environ.get("LOOK_R2_ACCOUNT", "c33b1793391df60672de585ebdee3791")
+BUCKET = os.environ.get("LOOK_R2_BUCKET", "verse-assets")
 R2_BASE = f"https://api.cloudflare.com/client/v4/accounts/{ACCT}/r2/buckets/{BUCKET}/objects"
 R2_CONN = "custom.cloudflare-aiverse"
+
+
+def authorized(headers):
+    """Constant-time bearer check. Dev mode (no/short secret) authorizes
+    everything and says so at boot — loopback is the boundary there."""
+    if not AUTH_REQUIRED:
+        return True
+    got = headers.get("authorization", "")
+    if got.startswith("Bearer "):
+        got = got[7:]
+    return hmac.compare_digest(got, SECRET)
 
 
 def utcnow():
@@ -241,15 +278,19 @@ class LookService:
         rec = {"utc": iso(ts), "agentId": agent, "note": req.get("note", ""),
                "pose": body["pose"], "file": fname, "bytes": len(data),
                "sha256": sha, "r2Key": key, "renderMs": body["renderMs"]}
-        try:
-            http, _res = await asyncio.to_thread(r2_put, key, data, "image/png")
-            n, sha2 = await asyncio.to_thread(r2_get_sha, key)
-            rec["r2Http"] = http
-            rec["r2Verified"] = (n == len(data) and sha2 == sha)
-            rec["r2GetBytes"] = n
-        except Exception as e:
+        if not R2_ENABLED:
             rec["r2Verified"] = False
-            rec["r2Error"] = f"{type(e).__name__}: {e}"[:200]
+            rec["r2Error"] = "disabled by LOOK_R2=0 (local persistence only)"
+        else:
+            try:
+                http, _res = await asyncio.to_thread(r2_put, key, data, "image/png")
+                n, sha2 = await asyncio.to_thread(r2_get_sha, key)
+                rec["r2Http"] = http
+                rec["r2Verified"] = (n == len(data) and sha2 == sha)
+                rec["r2GetBytes"] = n
+            except Exception as e:
+                rec["r2Verified"] = False
+                rec["r2Error"] = f"{type(e).__name__}: {e}"[:200]
         (SNAP_DIR / (fname + ".json")).write_text(json.dumps(rec, indent=1))
         with INDEX.open("a") as f:
             f.write(json.dumps(rec) + "\n")
@@ -270,10 +311,15 @@ async def handle(reader, writer):
         parts = line.decode("utf-8", "replace").split()
         method, path = parts[0], parts[1] if len(parts) > 1 else "/"
         length = 0
+        headers = {}
         while True:
             h = await reader.readline()
             if h in (b"\r\n", b"\n", b""):
                 break
+            if b":" in h:
+                k, v = h.split(b":", 1)
+                headers[k.decode("utf-8", "replace").strip().lower()] = \
+                    v.decode("utf-8", "replace").strip()
             if h.lower().startswith(b"content-length:"):
                 length = int(h.split(b":", 1)[1].strip())
         raw = await reader.readexactly(length) if length else b""
@@ -284,7 +330,11 @@ async def handle(reader, writer):
                                  "warmSince": SVC.warm_since,
                                  "looksServed": SVC.looks_served,
                                  "snapshotsKept": SVC.snapshots_kept,
+                                 "authRequired": AUTH_REQUIRED,
+                                 "r2Enabled": R2_ENABLED,
                                  "pageUrl": PAGE_URL, "lastError": SVC.last_error}
+        elif not authorized(headers):
+            status, body = 401, {"ok": False, "error": "unauthorized"}
         elif method == "POST" and path == "/look":
             status, body = await SVC.do_look(req)
         elif method == "POST" and path == "/snapshot":
@@ -303,7 +353,9 @@ async def handle(reader, writer):
     except Exception as e:
         status, body = 500, {"ok": False, "error": f"{type(e).__name__}: {e}"[:200]}
     payload = json.dumps(body).encode()
-    writer.write(f"HTTP/1.1 {status} OK\r\nContent-Type: application/json\r\n"
+    reason = {200: "OK", 400: "Bad Request", 401: "Unauthorized", 404: "Not Found",
+              500: "Internal Server Error", 503: "Service Unavailable"}.get(status, "Status")
+    writer.write(f"HTTP/1.1 {status} {reason}\r\nContent-Type: application/json\r\n"
                  f"Content-Length: {len(payload)}\r\nConnection: close\r\n\r\n".encode()
                  + payload)
     await writer.drain()
@@ -311,9 +363,16 @@ async def handle(reader, writer):
 
 
 async def main():
+    if not AUTH_REQUIRED:
+        print("[service] WARNING: LOOK_SERVICE_SECRET unset or < 32 chars — "
+              "DEV MODE, endpoints are UNAUTHENTICATED. Loopback bind only; "
+              "never expose this instance beyond 127.0.0.1.", flush=True)
+    if AUTH_REQUIRED and HTTP_HOST not in ("127.0.0.1", "localhost", "::1"):
+        print(f"[service] auth ON, binding {HTTP_HOST} — the gateway is the "
+              "only intended caller; keep the port firewalled to it.", flush=True)
     await SVC.start()
     server = await asyncio.start_server(handle, HTTP_HOST, HTTP_PORT)
-    print(f"[service] HTTP on {HTTP_HOST}:{HTTP_PORT}", flush=True)
+    print(f"[service] HTTP on {HTTP_HOST}:{HTTP_PORT} authRequired={AUTH_REQUIRED}", flush=True)
     async with server:
         await server.serve_forever()
 
