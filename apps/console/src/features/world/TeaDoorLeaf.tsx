@@ -25,6 +25,7 @@ import { registerCameraObstacle } from "./cameraClearance";
  */
 
 import { useGLTF } from "@react-three/drei";
+import { assetUrl } from "../../lib/assetUrl";
 import { extendGltf } from "./gltfExtensions";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useLayoutEffect, useState } from "react";
@@ -45,7 +46,7 @@ import {
 /** Same asset DistrictWorld renders resident (GlbWorld's CITY3_URL);
  * useGLTF's cache hands back the SAME scene object, so the instance
  * edit below is what the resident render shows. */
-const WORLD_URL = "/assets/world-city3.glb";
+const WORLD_URL = assetUrl("/assets/world-city3.glb");
 /** Tea's instance index inside inst_door_double (decoded + verified
  * against the measured translation at runtime before any edit). */
 const TEA_INSTANCE = 6;

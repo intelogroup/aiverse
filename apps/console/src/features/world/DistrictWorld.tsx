@@ -10,6 +10,7 @@ import { bakeCollisionParts } from "./capsuleWorld";
 import { FountainWater } from "./FountainWater";
 import { EasterEggs } from "./EasterEggs";
 import type { WalkColliders } from "./walkColliders";
+import { assetUrl, resolveManifestAssets } from "../../lib/assetUrl";
 import { blendTheme, collisionJobs, dueEvictions, isShellCovered, planDistricts, residentCollisionUrl, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
 
 export const DISTRICTS_URL = "/assets/districts.json";
@@ -112,7 +113,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
 
   useEffect(() => {
     let live = true;
-    fetch(DISTRICTS_URL).then((r) => r.json()).then((m: DistrictManifest) => live && setManifest(m)).catch(() => {});
+    fetch(DISTRICTS_URL).then((r) => r.json()).then((m: DistrictManifest) => live && setManifest(resolveManifestAssets(m))).catch(() => {});
     return () => { live = false; };
   }, []);
 
@@ -225,7 +226,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
   useEffect(() => {
     if (!walk || !manifest) return;
     let live = true; walk.status = "loading";
-    loadCollision("resident", residentCollisionUrl(manifest.districts), null, () => live, (ok) => { if (live) walk.status = ok ? "ready" : "failed"; });
+    loadCollision("resident", assetUrl(residentCollisionUrl(manifest.districts)), null, () => live, (ok) => { if (live) walk.status = ok ? "ready" : "failed"; });
     return () => { live = false; walk.drop("resident"); };
   }, [manifest, walk, loader]);
   const w = typeof window !== "undefined" ? (window as unknown as Record<string, unknown>) : null;

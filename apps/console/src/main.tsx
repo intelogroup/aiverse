@@ -8,6 +8,16 @@ import { initTelemetry } from './lib/telemetry/index.ts'
 // Inert when VITE_SENTRY_DSN is unset; never blocks first render.
 initTelemetry()
 
+// Asset service worker (public/sw.js): cache-first + LRU for the R2-hosted
+// world/body GLBs only — it never touches the app shell, HTML, or API.
+// Production builds only; a failed registration is non-fatal (assets fall
+// back to plain network loads).
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
