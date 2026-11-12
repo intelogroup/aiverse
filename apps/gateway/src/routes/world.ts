@@ -10,6 +10,7 @@ import { log, logError } from "../util/log";
 import { onAgentGone, onVisitExtended } from "../world/hooks";
 import { agentBodies, BODIES } from "@aiverse/world-sim/bodies";
 import type { SimClient } from "../world/simClient";
+import type { LookClient } from "../world/lookClient";
 
 // World: a body for an agent in the City 3 sim (apps/sim), reached only through here.
 //
@@ -21,11 +22,15 @@ const ID_RE = /^[a-zA-Z0-9-]{1,80}$/;
 const MAX_BODY = 4096;
 const MAX_WAIT_MS = 10_000;
 const POLL_MS = 400;
+/** Pace for POST /world/see: captures serialize on the look service's single page and take minutes there, so a second
+ * see inside the window is refused (429), never queued behind the first. */
+const SEE_MIN_INTERVAL_MS = 5_000;
 
 type Env = { Variables: { agentId: string; visitEndsAt: number } };
 
-export function createWorldRoute(sim: SimClient) {
+export function createWorldRoute(sim: SimClient, look?: LookClient | null) {
   const route = new Hono<Env>();
+  const lastSeeAt = new Map<string, number>();
 
   // Any path that removes an agent (visit end, pause, kill, key rotation, delete) removes its body.
   onAgentGone((agentId, reason) =>
@@ -116,6 +121,39 @@ export function createWorldRoute(sim: SimClient) {
   // One glance: depth + class images and the scene. A POST, so agentAuth counts it against the visit's action cap (it is a costly
   // sense); the sim allows 1 per second per body.
   route.post("/look", (c) => forward(c, c.get("agentId"), "POST", `/bodies/${c.get("agentId")}/look`, "{}"));
+  // One photograph: the photorealistic head-cam (the look service's warm Chromium page), as opposed to /look's synthetic
+  // depth+class glance. Also a POST (counts as an action; a failed see is refunded by agentAuth like any refused call).
+  // The pose comes from the sim — never from the request — so an agent can only photograph from where its body stands,
+  // facing where its body faces (turn with `face` first). Fail closed: no client configured, service down, service
+  // wedged — every failure is the same 502 look_unavailable; a frame is never fabricated.
+  route.post("/see", async (c) => {
+    const agentId = c.get("agentId");
+    if (!look) return c.json({ error: "look_unavailable" }, 502);
+    const nowMs = Date.now();
+    if (nowMs - (lastSeeAt.get(agentId) ?? 0) < SEE_MIN_INTERVAL_MS) {
+      return c.json({ error: "rate_limited" }, 429, { "retry-after": String(Math.ceil(SEE_MIN_INTERVAL_MS / 1000)) });
+    }
+    const poseRes = await forward(c, agentId, "GET", `/bodies/${agentId}`);
+    if (poseRes.status !== 200) return poseRes;
+    const pose = ((await poseRes.json().catch(() => null)) as { body?: { x?: unknown; z?: unknown; heading?: unknown } } | null)?.body;
+    if (!pose || typeof pose.x !== "number" || typeof pose.z !== "number" || typeof pose.heading !== "number") {
+      logError("world_see_bad_pose", new Error("sim body read carried no pose"), { agentId });
+      return c.json({ error: "look_unavailable" }, 502);
+    }
+    lastSeeAt.set(agentId, nowMs);
+    // Sim headings are radians (walker convention); the look service faces degrees of the same convention.
+    const headingDeg = Math.round(((((pose.heading * 180) / Math.PI) % 360) + 360) % 360 * 10) / 10;
+    const out = await look.look(agentId, [pose.x, pose.z], headingDeg);
+    if (!out.ok) {
+      // Refused at the door (service down / not ready) means no capture ever started: un-stamp, an immediate retry is
+      // legitimate. Anything else (a capture that ran, timed out, or answered garbage) keeps the pace.
+      if (out.reason === "unavailable" || out.reason === "not_ready") lastSeeAt.delete(agentId);
+      if (out.reason === "misconfigured") logError("world_see_misconfigured", new Error("look service refused the gateway secret"), { agentId });
+      else log("world_see_unavailable", { agentId, reason: out.reason });
+      return c.json({ error: "look_unavailable" }, 502);
+    }
+    return c.json({ see: { ...out.frame, latencyMs: out.serviceMs } });
+  });
   route.get("/places", (c) => forward(c, c.get("agentId"), "GET", "/places"));
   // The M4 docs promise GET /world/map (places): the same sim places list under the documented name.
   route.get("/map", (c) => forward(c, c.get("agentId"), "GET", "/places"));

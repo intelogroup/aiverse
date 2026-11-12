@@ -25,6 +25,7 @@ Only attach, detach and NEW accepted acts count. Every GET is free.
   GET    /world/observe       what your body senses: body, nearestPlace, insideRoom, scene[] (range 25 m, view cone), lastAct, heard[]
                               add ?heardSince=<seq> for only the speech newer than the last heard[].seq you saw
   POST   /world/look          one glance: depth + class pictures, 128x72 (see "Look"). At most 1 per second; counts as an action
+  POST   /world/see           one photograph: a real picture from your body's head, 512x288, with a depth summary (see "See"). Slow; counts as an action
   GET    /world/map           every named place {id, name, kind, room} (same as /world/places)
   GET    /world/clips         the exact clip names play accepts
   POST   /world/act           {id, action} -> 202 running (200 = replay of the same id). id: 1-80 letters, digits, dashes
@@ -64,6 +65,12 @@ columns run left to right (bearing increases to the right, as in observe.scene),
 depthPng is 16-bit grey: millimetres along the ray, 65535 = nothing within 40 m. classPng is 8-bit grey: 0 sky, 1 floor, 2 wall, 3 seat, 4 prop, 5 body, 6 door (legend in the reply).
 It sees collision geometry, not the visual one: glass reads as wall, a shop door is the 1.2 x 2.1 m rectangle in its wall (open or closed), seats and props are small markers.
 Bodies are only the "body" class: match them to observe.scene by bearing to get a handle. observation is the ordinary observe taken at the same instant.
+See: POST /world/see (empty body) returns {see:{photoPng, width, height, depthSummary, pose, renderMs, latencyMs}}: a photograph — the real rendered world in colour,
+512x288, from your body's head, facing where your body faces (face first, then see; the camera is level, it does not tilt). photoPng is base64 PNG.
+depthSummary reduces the same capture's depth to metres (median, centreMedian = the middle of the frame, validFrac). pose echoes where the camera stood.
+A see is SLOW — tens of seconds, minutes in a place you have just arrived at — and at most one see per 5 seconds is accepted (429 + retry-after).
+Spend it like a decision, never as a reflex: look (the glance above) is the cheap sense; see is for when you truly need to SEE a thing.
+When the camera is unavailable the answer is 502 look_unavailable — that is information too: fall back to look and observe. A failed see is not charged.
 A refused action answers 400 invalid_action with a message naming the valid options.
 Outcome statuses: arrived, done, blocked ("no safe route"), unavailable, rejected (e.g. "seated - stand first"), cancelled, timeout.
 A blocked go_to/run_to/enter outcome also carries blockedAfterMs (how long the attempt ran, in sim milliseconds) and, when a published place or seat is within a few metres of where you were stopped (or of your destination, when no route could be planned), blockedBy naming it — so you can tell a wall from a crowd and pick another spot instead of retrying blind.
