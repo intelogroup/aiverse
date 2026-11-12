@@ -336,7 +336,8 @@ class Agent:
         self.key = key
         self.name = NAMES[key]
         self.style = STYLES[key]
-        self.c = AgentClient(token, slot, f"s15-{key}", lambda ev: None)
+        self._cev_window = (0, 0)  # (minute, count): bounds client_event volume
+        self.c = AgentClient(token, slot, f"s15-{key}", self._client_event)
         self.bb = {"pose": None, "nearestPlace": None, "insideRoom": None,
                    "bodies": [], "seats": [], "heard_recent": [],
                    "last_acts": [], "updated_at": 0.0}
@@ -364,6 +365,20 @@ class Agent:
                       "acts": 0, "greets": 0, "sees": 0, "see_failed": 0}
         self.rng = random.Random(key)
 
+    def _client_event(self, ev):
+        """Client callback (was a no-op). Timing instrumentation only: log what
+        the client emits, at most 20 events per agent per minute. Never raises."""
+        try:
+            minute = int(time.time() // 60)
+            m, n = self._cev_window
+            n = n + 1 if m == minute else 1
+            self._cev_window = (minute, n)
+            if n <= 20:
+                log_event(self.key, {"kind": "client_event",
+                                     "ev": str(ev)[:300]})
+        except Exception:
+            pass
+
     # ---------------- transport: own act with true outcome ----------------
     def act(self, action, wait_s=60, tag=""):
         self.c.act_seq += 1
@@ -371,6 +386,8 @@ class Agent:
         act_id = f"s15-{self.key}-{self.c.act_seq:03d}-{raw_tag}"[:80]
         t0 = time.time()
         post = self.c.call("POST", "/act", {"id": act_id, "action": action})
+        post_ms = int((time.time() - t0) * 1000)
+        poll_n = poll_sum = poll_max = 0
         rec = {"post_status": post.status, "outcome": "post_failed",
                "record": post.body}
         if post.status in (200, 202):
@@ -379,8 +396,13 @@ class Agent:
             deadline = time.time() + wait_s
             final = {}
             while time.time() < deadline and not self.stop_flag.is_set():
+                tp = time.time()
                 r = self.c.call("GET", f"/act/{act_id}?waitMs=10000",
                                 max_attempts=4, timeout=30)
+                pm = int((time.time() - tp) * 1000)
+                poll_n += 1
+                poll_sum += pm
+                poll_max = max(poll_max, pm)
                 if r.status == 200 and isinstance(r.body, dict):
                     final = r.body
                     a = final.get("act") if isinstance(
@@ -421,6 +443,8 @@ class Agent:
                              "outcome": rec["outcome"],
                              "post_status": rec["post_status"],
                              "wall_ms": int((time.time() - t0) * 1000),
+                             "post_ms": post_ms, "poll_n": poll_n,
+                             "poll_ms_sum": poll_sum, "poll_ms_max": poll_max,
                              "acts_used": self.stats["acts"]})
         return rec
 
@@ -463,12 +487,14 @@ class Agent:
         if self.visit_dead:
             self._recover_probe()
             return
+        t_obs = time.time()
         r = self.c.observe()
+        obs_ms = int((time.time() - t_obs) * 1000)
         obs = parse_obs(r)
         if obs is None:
             body = r.body if isinstance(r.body, dict) else {}
             log_event(self.key, {"kind": "observe_error",
-                                  "status": r.status,
+                                  "status": r.status, "obs_ms": obs_ms,
                                   "body": str(body)[:200]})
             if body.get("error") == "visit_ended":
                 log_event(self.key, {"kind": "VISIT_ENDED",
@@ -513,6 +539,7 @@ class Agent:
             "nearestPlace": (obs.get("nearestPlace") or {}),
             "insideRoom": obs.get("insideRoom"), "others": others})
         log_event(self.key, {"kind": "observe", "status": r.status,
+                              "obs_ms": obs_ms,
                               "pose": pose, "bodies_seen": len(bodies),
                               "heard_new": len(new_heard)})
 
