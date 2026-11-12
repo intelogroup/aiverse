@@ -277,6 +277,14 @@ export interface ScoutOutcome {
   detail?: string;
   /** Place or sittable id the action resolved against, when applicable. */
   target?: string;
+  /**
+   * Blocked movement acts only: the nearest published place or seat to where the body was stopped — or, when no route could
+   * be planned, to the destination — when one is within a few metres. Proprioception as evidence (the published id, never
+   * geometry): the agent learns WHAT is in its way, not just that it stopped. Set by AgentBody, not the executor.
+   */
+  blockedBy?: string;
+  /** Blocked movement acts only: sim milliseconds from submit to the blocked settle. Set by AgentBody, not the executor. */
+  blockedAfterMs?: number;
 }
 
 export type Posture = "standing" | "sitting-down" | "seated" | "standing-up";

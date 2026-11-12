@@ -176,6 +176,27 @@ describe("sim internal API", () => {
     await call("DELETE", `/bodies/${LID}`);
   });
 
+  test("a blocked movement act carries proprioception: blockedBy + blockedAfterMs", async () => {
+    const D = "44444444-4444-4444-8444-444444444444";
+    clock += 10_000;
+    expect((await call("POST", "/bodies", { agentId: D, expiresAtMs: clock + 60_000 })).status).toBe(201);
+    clock += 1000;
+    // stall-0's structure centre (-17, 18): a point inside the stall's own collision, which the navmesh cannot route to
+    // (a visitor arrives at the stand point, 2.8 m off). The settle must be "blocked / no safe route", and the outcome
+    // must name the stall itself as what blocks the destination, plus how long the attempt ran.
+    const a = await call("POST", `/bodies/${D}/act`, { id: "blk-1", action: { type: "go_to", point: [-17, 18] } });
+    expect(a.status).toBe(202);
+    await tickUntil(() => service.actRecord(D, "blk-1")?.state === "settled", 30);
+    clock += 1000;
+    const rec = ((await (await call("GET", `/bodies/${D}/act/blk-1`)).json()) as any).act;
+    expect(rec.outcome.status).toBe("blocked");
+    expect(rec.outcome.detail).toBe("no safe route");
+    expect(typeof rec.outcome.blockedAfterMs).toBe("number");
+    expect(rec.outcome.blockedAfterMs).toBeGreaterThanOrEqual(0);
+    expect(rec.outcome.blockedBy).toBe("stall-0");
+    await call("DELETE", `/bodies/${D}`);
+  });
+
   test("caps the number of bodies", async () => {
     clock += 10_000;
     const ids = ["aaaaaaa1", "aaaaaaa2", "aaaaaaa3", "aaaaaaa4"];
