@@ -77,6 +77,50 @@ export async function isAgentOnline(agentId: string): Promise<boolean> {
   }
 }
 
+// --- Durable cross-instance activity (the presence-wall fix, 2026-11-12) ---
+//
+// The Redis key above is the live truth ONLY for a reader whose Redis is
+// the same store the serving instance writes to. Production broke that
+// assumption: two gateway services shared one Postgres but ran with
+// separate Redis stores, and the leader's visits sweep judged presence
+// from its own Redis — where agents served by the sibling instance never
+// appear — stamping offlineSince from birth and (in the stale build that
+// held the lock) ending every visit presence_expired at claim + ~10.5
+// min, in claim order, despite constant activity on the serving
+// instance. Postgres is the one store every instance truly shares, so
+// durable state (the sweep's offlineSince marker, and anything that ever
+// acts on presence again) must be corroborated against it:
+// agents.lastSeenAt, maintained on every authenticated call by whichever
+// instance serves it — the WS path already sets it on connect/disconnect;
+// agentAuth now maintains it for REST too.
+//
+// The touch is throttled on the value the caller already read during auth
+// (no extra read): at most one write per agent per interval, and only
+// when the stored value is actually stale.
+export const LAST_SEEN_TOUCH_INTERVAL_MS = 60_000;
+
+export async function touchAgentLastSeen(agentId: string, currentLastSeenAt: Date | null | undefined): Promise<void> {
+  if (currentLastSeenAt && Date.now() - new Date(currentLastSeenAt).getTime() < LAST_SEEN_TOUCH_INTERVAL_MS) return;
+  await db.update(agents).set({ lastSeenAt: new Date() }).where(eq(agents.id, agentId));
+}
+
+// True when the agent shows authenticated activity in the shared durable
+// record within the window — regardless of which instance served it or
+// which Redis that instance wrote to. Callers that turn "offline" into
+// durable state (the visits sweep) must require BOTH signals to agree
+// the agent is gone: no live key AND no recent durable activity.
+export async function wasRecentlyActive(
+  agentId: string,
+  withinSeconds: number = API_PRESENCE_TTL_SECONDS,
+): Promise<boolean> {
+  const row = await db.query.agents.findFirst({
+    where: eq(agents.id, agentId),
+    columns: { lastSeenAt: true },
+  });
+  if (!row?.lastSeenAt) return false;
+  return Date.now() - new Date(row.lastSeenAt).getTime() < withinSeconds * 1000;
+}
+
 // Every agent with a live presence key. SCAN, not KEYS — non-blocking at
 // thousands of agents. Falls back to the Postgres status column when Redis
 // is unreachable, so readers degrade to the old behavior instead of

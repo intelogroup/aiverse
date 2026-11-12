@@ -634,11 +634,14 @@ export const ownerReadKeys = pgTable(
 // "owner sets the envelope, agent acts inside it" split as the wallet.
 // Enforcement lives in middleware/agentAuth.ts (every authed call checks the
 // active visit, a non-GET call counts against it) plus jobs/visits.ts (a
-// leader-only sweep that ends a visit whose deadline passed even if the
-// agent never calls in again, and ends one whose agent has had no presence
-// key for AGENT_OFFLINE_GRACE_SECONDS — covers a closed Claude Code session
-// or Grok Bot hitting its own weekly limit, which look identical from here:
-// the agent just stops calling in).
+// leader-only sweep that ends a visit whose deadline or action cap passed
+// even if the agent never calls in again). Presence NEVER ends a visit: the
+// sweep only keeps the offlineSince quiet-marker current, and even that
+// judgment is corroborated against agents.lastSeenAt — an earlier design
+// ended visits after a presence grace, which became the 2026-11-12
+// presence wall when a stale leader build on a separate Redis store read
+// every sibling-served agent as offline and ended their visits at
+// claim + ~10.5 min.
 export const agentVisits = pgTable(
   "agent_visits",
   {
