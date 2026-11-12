@@ -1,0 +1,33 @@
+<!doctype html><body style="margin:0"><script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/webgpu":"./node_modules/three/build/three.webgpu.js","three/tsl":"./node_modules/three/build/three.tsl.js","three/addons/":"./node_modules/three/examples/jsm/"}}</script>
+<script type="module">
+import * as T from 'three';
+import * as TW from 'three/webgpu';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';
+const q=new URLSearchParams(location.search), path=q.get('r')||'webgl', glb=q.get('glb')||'cast-jim.glb';
+const W=768,H=768; const out={path,glb};
+try{
+let renderer;
+const t0=performance.now();
+if(path==='webgl'){renderer=new T.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
+ const gl=renderer.getContext();const e=gl.getExtension('WEBGL_debug_renderer_info');out.adapter=e?gl.getParameter(e.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER);}
+else{renderer=new TW.WebGPURenderer({antialias:true});await renderer.init();
+ const a=renderer.backend.device?.adapter||null; const ad=await navigator.gpu.requestAdapter();
+ const info=ad.info||await ad.requestAdapterInfo?.(); out.adapter=`${info.vendor}/${info.architecture}/${info.device}/${info.description}`; out.backend=renderer.backend.constructor.name; out.isWebGPUBackend=renderer.backend.isWebGPUBackend;}
+renderer.setSize(W,H);renderer.setPixelRatio(1);renderer.setClearColor(0x808890);document.body.appendChild(renderer.domElement);
+const L=path==='webgl'?T:TW;const scene=new L.Scene();scene.add(new L.HemisphereLight(0xffffff,0x444455,2.2));const d=new L.DirectionalLight(0xffffff,2.5);d.position.set(2,3,4);scene.add(d);
+const loader=new GLTFLoader();loader.setMeshoptDecoder(MeshoptDecoder);
+const t1=performance.now();
+const g=await loader.loadAsync(glb);scene.add(g.scene);out.loadMs=Math.round(performance.now()-t1);
+if(q.get('basic')&&path!=='webgl'){g.scene.traverse(o=>{if(o.isMesh){const m=o.material;o.material=new TW.MeshBasicNodeMaterial({map:m.map})}})}const fx=q.get('fx');if(fx&&path!=='webgl'){g.scene.traverse(o=>{if(o.isMesh){const m=o.material;if(fx.includes('m')){m.metalnessMap=null;m.metalness=0}if(fx.includes('n')){m.normalMap=null}if(fx.includes('r')){m.roughnessMap=null;m.roughness=0.8}m.needsUpdate=true}})}const box=new T.Box3().setFromObject(g.scene),c=box.getCenter(new T.Vector3()),s=box.getSize(new T.Vector3());
+const cam=new T.PerspectiveCamera(30,1,0.05,100);cam.position.set(c.x,c.y+s.y*0.25,c.z+s.y*1.9);cam.lookAt(c.x,c.y+s.y*0.25,c.z);
+out.cam={pos:cam.position.toArray(),target:[c.x,c.y+s.y*0.25,c.z]};const times=[];let mapInfo=[];g.scene.traverse(o=>{if(o.isMesh){const m=o.material;mapInfo.push([m.type,!!m.map,m.map&&m.map.image?String(m.map.image.constructor.name):null,m.color&&m.color.getHexString()])}});out.mats=mapInfo.slice(0,4);g.scene.traverse(o=>{if(o.isMesh){const m=o.material;out.pbr=[m.metalness,m.roughness,!!m.normalMap,!!m.metalnessMap,!!m.roughnessMap,m.side,m.transparent,!!o.isSkinnedMesh]}});
+for(let i=0;i<4;i++){const t=performance.now();
+ if(path==='webgl'){renderer.render(scene,cam);renderer.getContext().finish();renderer.getContext().readPixels(0,0,1,1,renderer.getContext().RGBA,renderer.getContext().UNSIGNED_BYTE,new Uint8Array(4));}
+ else{await renderer.renderAsync(scene,cam);await renderer.backend.device.queue.onSubmittedWorkDone();}
+ times.push(Math.round((performance.now()-t)*10)/10);}
+out.firstRenderMs=times[0];out.warmMs=times.slice(1);out.dataUrl=renderer.domElement.toDataURL('image/png');
+if(path!=='webgl'){await new Promise(r=>setTimeout(r,1500));await renderer.renderAsync(scene,cam);await renderer.backend.device.queue.onSubmittedWorkDone();out.dataUrl=renderer.domElement.toDataURL('image/png');}out.tris=0;g.scene.traverse(o=>{if(o.isMesh)out.tris+=(o.geometry.index?o.geometry.index.count:o.geometry.attributes.position.count)/3});
+}catch(e){out.error=String(e&&e.stack||e).slice(0,600)}
+window.__out=out;
+</script></body>
