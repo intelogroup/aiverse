@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Blackbox } from "./blackbox";
 import { deriveDistrict, FALLBACK_DISTRICTS } from "./context";
 import { classifyAsset } from "./index";
+import { sentryEnvironment } from "./sentry";
 
 describe("Blackbox ring buffer", () => {
   it("keeps the newest events and evicts the oldest past capacity", () => {
@@ -62,5 +63,23 @@ describe("classifyAsset", () => {
   it("ignores non-world traffic", () => {
     expect(classifyAsset("/assets/logo.png")).toBeNull();
     expect(classifyAsset("https://cdn.example.com/font.woff2")).toBeNull();
+  });
+});
+
+describe("sentryEnvironment", () => {
+  it("keeps the explicit VITE_SENTRY_ENVIRONMENT above all", () => {
+    expect(
+      sentryEnvironment({ VITE_SENTRY_ENVIRONMENT: "staging", MODE: "production" }, "aiverse.network"),
+    ).toBe("staging");
+  });
+
+  it("tags the real site production and Vercel previews preview", () => {
+    expect(sentryEnvironment({ MODE: "production" }, "aiverse.network")).toBe("production");
+    expect(sentryEnvironment({ MODE: "production" }, "console-git-foo.vercel.app")).toBe("preview");
+  });
+
+  it("falls back to MODE elsewhere (local dev stays development)", () => {
+    expect(sentryEnvironment({ MODE: "development" }, "localhost")).toBe("development");
+    expect(sentryEnvironment({}, undefined)).toBe("production");
   });
 });
