@@ -503,9 +503,31 @@ describe("/world (agent body)", () => {
     await startVisit(ownerToken, agentId, 2);
     await w(agentToken, "POST", "/body"); // 1
     clock += 1000;
-    expect((await w(agentToken, "POST", "/see", {})).status).toBe(202); // 2 — cap reached
+    const r = await w(agentToken, "POST", "/see", {}); // 2 — cap reached
+    expect(r.status).toBe(202);
+    const id = ((await r.json()) as any).see.id as string;
+    // Grace: the photo that reached the cap can still be collected (reading a result is not a new action)...
+    expect((await readSee(agentToken, id)).state).toBe("done");
+    // ...but anything else is refused, and that ends the visit; after that even the result read is refused.
     clock += 1000;
-    expect((await w(agentToken, "POST", "/act", { id: "after-cap", action: { type: "wait", seconds: 1 } })).status).toBe(403);
+    const next = await w(agentToken, "POST", "/act", { id: "after-cap", action: { type: "wait", seconds: 1 } });
+    expect(next.status).toBe(403);
+    expect(((await next.json()) as any).reason).toBe("action_cap");
+    expect((await w(agentToken, "GET", `/see/${id}`)).status).toBe(403);
+  });
+
+  test("act: the result of the cap-reaching act can be polled, and other reads are still refused", async () => {
+    const { ownerToken, agentId, agentToken } = await ownerWithAgent("ActGrace");
+    await startVisit(ownerToken, agentId, 2);
+    await w(agentToken, "POST", "/body"); // 1
+    const a = await w(agentToken, "POST", "/act", { id: "last-one", action: { type: "wait", seconds: 1 } }); // 2 — cap reached
+    expect(a.status).toBe(202);
+    const poll = await w(agentToken, "GET", "/act/last-one?waitMs=3000");
+    expect(poll.status).toBe(200);
+    // observe is not a result read: it ends the visit as before.
+    const obs = await w(agentToken, "GET", "/observe");
+    expect(obs.status).toBe(403);
+    expect(((await obs.json()) as any).reason).toBe("action_cap");
   });
 
   test("deleting an owner whose agent had visits and a body succeeds and removes the body (was a 500: agent_visits FK)", async () => {

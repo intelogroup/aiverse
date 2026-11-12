@@ -621,10 +621,26 @@ class Agent:
             return False
         self.last_see = now
         t0 = now
-        r = self.c.call("POST", "/see", {}, max_attempts=1, timeout=700)
-        ms = round((time.time() - t0) * 1000)
+        # /world/see is asynchronous: POST answers 202 with a job id at once,
+        # GET /see/:id[?waitMs] reads it (queued -> running -> done|failed).
+        r = self.c.call("POST", "/see", {}, max_attempts=1, timeout=30)
         see = r.body.get("see") if isinstance(r.body, dict) else None
-        if r.status != 200 or not isinstance(see, dict) \
+        if r.status == 202 and isinstance(see, dict) and see.get("id"):
+            see_id = see["id"]
+            deadline = time.time() + 700
+            while time.time() < deadline and not self.stop_flag.is_set():
+                g = self.c.call("GET", f"/see/{see_id}?waitMs=10000",
+                                max_attempts=3, timeout=30)
+                if g.status != 200 or not isinstance(g.body, dict):
+                    r = g
+                    break
+                see = g.body.get("see") if isinstance(
+                    g.body.get("see"), dict) else {}
+                r = g
+                if see.get("state") in ("done", "failed"):
+                    break
+        ms = round((time.time() - t0) * 1000)
+        if r.status not in (200, 202) or not isinstance(see, dict) \
                 or not see.get("photoPng"):
             self.stats["see_failed"] += 1
             log_event(self.key, {"kind": "see_failed", "status": r.status,
@@ -641,6 +657,8 @@ class Agent:
             log_event(self.key, {"kind": "see_save_error",
                                  "error": f"{type(e).__name__}: {e}"})
         log_event(self.key, {"kind": "see", "ms": ms,
+                             "ageMs": see.get("ageMs"),
+                             "moved": see.get("moved"),
                              "renderMs": see.get("renderMs"),
                              "latencyMs": see.get("latencyMs"),
                              "depth": see.get("depthSummary"),

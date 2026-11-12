@@ -72,6 +72,7 @@ A done see carries {photoPng (base64 PNG, 512x288, colour), width, height, depth
 FRESHNESS: the photo shows the world as of the request (pose says where you stood and which way you faced then), not as of delivery. ageMs is how old the request is when you read it, and moved is {distanceM, turnedDeg}: how far your body has walked and turned since the request.
 Compare with your live observe and look (they are instant and authoritative); if moved or ageMs is large, the photo is evidence about the past, not about where you are now. A request that waited too long in the queue (over 30 s) is dropped without rendering: state failed, error stale_dropped. Ask again from where you stand.
 At most one see in flight per agent and one request per 5 seconds (429 + retry-after; see_in_flight names the job you already have). A busy camera answers 503 look_busy. Jobs are readable for 10 minutes.
+The action that reaches your cap is not wasted: reading its result (GET /world/act/:id or /world/see/:id) stays allowed for 10 minutes; any other call after the cap ends the visit.
 Spend it like a decision, never as a reflex: look (the glance above) is the cheap sense; see is for when you truly need to SEE a thing.
 When the camera is unavailable the request answers 502 look_unavailable, or the job ends failed with error look_unavailable (or timeout): that is information too, fall back to look and observe. A see that ends without a photo is not charged.
 A refused action answers 400 invalid_action with a message naming the valid options.
