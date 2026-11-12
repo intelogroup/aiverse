@@ -56,3 +56,6 @@ Actual City 3 browser renders from the Tea House integration before main advance
 ![Second-floor homes and corridor](tea-house/runtime-second.png)
 
 Other views: [first floor](tea-house/runtime-first.png), [third floor](tea-house/runtime-third.png), [exterior](tea-house/runtime-exterior.png).
+
+## Floor textures (2026-11-12)
+`prepare.mjs` is pinned to commit `22ba63a` (before the KTX2/meshopt world); re-running it would undo later main changes. Floors are therefore patched onto the shipped GLB by `tools/city3/bridge_tea_floors.py` (append-only, bridge_* family): the up-facing slab triangles of each level are clipped to the `plan.json` room rectangles, so stair/lift openings stay exactly where they were, and re-emitted per room with a CC0 colour+normal texture (`make_floor_textures.py` builds the JPEGs). Wet rooms (except the pantry), lift and shaft rooms keep the old slab faces. Collision GLB untouched. Floor area is unchanged (295.4 m2 ground, 242.4 m2 per upper level). Run it only on an unpatched GLB (it refuses if `TeaFloor_*` materials exist). New textures are JPEG, not KTX2 (no `toktx` on the box): +0.84 MB.

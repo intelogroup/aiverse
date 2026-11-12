@@ -88,3 +88,6 @@ Roller doors, containers v2, pallets, loaded pallets, oil drums and bollards are
 | Voices "Zoey", "Master Aldric", "Hugh" (`public/assets/tts/voices/*.safetensors`) | Hugging Face `gradium/phonon-voices` @ 0ee17205 (`voices.jsonl`) | Apache-2.0 (repo licence) | designed catalog voices, not clones of real people |
 | Clips `public/assets/tts/lines/{mage,summer}*.mp3` | rendered locally with the engine + voices above | as the model | fallback while the engine warms |
 | Clips `public/assets/tts/lines/bartender{1,2}.mp3` | rendered in this repo's console with "Hugh" (ffmpeg, 24 kHz mono 48 kbps) | as the model | fallback while the engine warms |
+
+## Tea House floors (2026-11-12)
+Poly Haven CC0 textures (colour + GL normal, 512 px, herringbone 1024), `tools/city3/assets/tea-floors/` (+ `sources.json` with author and tile size): hinoki_planks, oak_wood_planks, herringbone_parquet, tatami_mat, wooden_floor_02, laminate_floor_02, interior_tiles, floor_tiles_06, patterned_terracotta_tiling, marble_mosaic_tiles, stair_planks. Authors: Charlotte Baglioni, Dimitrios Savva, Jenelle van Heerden, Sergej Majboroda, Rico Cilliers, Dario Barresi, Rob Tuytel, Amal Kumar. Poly Haven asks for a "Powered by Poly Haven" credit where practical.
