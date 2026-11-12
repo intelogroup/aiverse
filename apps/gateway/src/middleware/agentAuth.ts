@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from "hono";
 import { resolveAgentFromToken } from "../auth/resolveAgent";
-import { setPresence, API_PRESENCE_TTL_SECONDS } from "../presence";
+import { setPresence, touchAgentLastSeen, API_PRESENCE_TTL_SECONDS } from "../presence";
 import { checkAndConsumeVisit, refundVisitAction } from "../policy/visits";
 import { announceVisitEnded } from "../ws/gateway";
 
@@ -48,6 +48,14 @@ const makeAgentAuth = (countVisit: boolean): MiddlewareHandler<{ Variables: { ag
   // setPresence calls: presence is best-effort, never worth failing or
   // slowing a request over.
   setPresence(agent.id, API_PRESENCE_TTL_SECONDS).catch(() => {});
+  // The durable twin of the Redis touch above: agents.lastSeenAt in
+  // shared Postgres, throttled to ~1 write/min/agent. Redis presence is
+  // per-store — a sibling gateway instance with its own Redis (the
+  // 2026-11-12 presence wall) cannot see this instance's keys — so any
+  // cross-instance presence judgment (the leader's visits sweep)
+  // corroborates against this record instead. Fire-and-forget, same
+  // best-effort terms as setPresence.
+  touchAgentLastSeen(agent.id, agent.lastSeenAt).catch(() => {});
   await next();
 
   // No-charge-on-refusal for the visit counter: the consume above ran

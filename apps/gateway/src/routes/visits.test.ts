@@ -1,11 +1,11 @@
 import { describe, expect, test, afterAll } from "bun:test";
 import { eq } from "drizzle-orm";
-import { agentVisits } from "@aiverse/shared/schema";
+import { agentVisits, agents } from "@aiverse/shared/schema";
 import { db } from "../db/client";
 import { createApp } from "../app";
 import { websocket } from "../ws/gateway";
 import { sweepVisits } from "../jobs/visits";
-import { setPresence, clearPresence } from "../presence";
+import { setPresence, clearPresence, isAgentOnline } from "../presence";
 
 const app = createApp();
 const server = Bun.serve({ port: 0, fetch: app.fetch, websocket });
@@ -225,6 +225,67 @@ describe("sweepVisits", () => {
     row = await db.query.agentVisits.findFirst({ where: eq(agentVisits.id, visit.id) });
     expect(row?.endedAt).toBeNull();
     expect(row?.endedReason).toBeNull();
+  });
+
+  test("an authenticated REST call refreshes the agent's durable lastSeenAt", async () => {
+    // The cross-instance activity signal the sweep corroborates with:
+    // agentAuth on whichever instance serves the call keeps
+    // agents.lastSeenAt (shared Postgres) current, throttled — the WS
+    // path already maintains it on connect/disconnect, the REST path
+    // historically never did, so a REST-only agent's durable record went
+    // stale at birth.
+    const { agentId, agentToken } = await ownerWithAgent("VisitLastSeenTouch");
+    await db
+      .update(agents)
+      .set({ lastSeenAt: new Date(Date.now() - 2 * 60 * 60_000) })
+      .where(eq(agents.id, agentId));
+
+    const res = await readCall(agentToken);
+    expect(res.status).toBe(200);
+
+    // The touch is fire-and-forget like setPresence; give it a moment.
+    let row = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
+    for (let i = 0; i < 20 && row?.lastSeenAt && Date.now() - new Date(row.lastSeenAt).getTime() > 60_000; i++) {
+      await new Promise((r) => setTimeout(r, 50));
+      row = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
+    }
+    expect(row?.lastSeenAt).not.toBeNull();
+    expect(Date.now() - new Date(row!.lastSeenAt!).getTime()).toBeLessThan(60_000);
+  });
+
+  test("split-brain sweep: an agent active over REST but invisible to the sweep's own Redis is NOT marked offline", async () => {
+    // Regression (2026-11-12, the production presence wall): two gateway
+    // services shared one Postgres but ran with SEPARATE Redis stores,
+    // and the stale-build one held the leader lock. Its sweep judged
+    // presence from its own Redis — where agents served by the sibling
+    // instance never appear — stamped offlineSince within a minute of
+    // every claim, and (in that build) ended every visit
+    // presence_expired at offlineSince + 10 min, in claim order, despite
+    // constant activity on the serving instance. The sweep's presence
+    // judgment must therefore be corroborated by the durable,
+    // cross-instance activity record (agents.lastSeenAt), never by one
+    // instance's Redis view alone.
+    const { ownerToken, agentId, agentToken } = await ownerWithAgent("VisitSplitBrain");
+    const start = await startVisit(ownerToken, agentId, 30, 100);
+    const { visit } = (await start.json()) as any;
+
+    // The agent acts over REST on the "serving instance": an authed call
+    // lands (and, on fixed code, refreshes the durable lastSeenAt).
+    const res = await readCall(agentToken);
+    expect(res.status).toBe(200);
+    // Wait for the call's own presence write to settle, then wipe the
+    // key: from the sweeping instance's Redis, this agent has never been
+    // online — exactly the split-brain view.
+    for (let i = 0; i < 40 && !(await isAgentOnline(agentId)); i++) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    await clearPresence(agentId);
+    expect(await isAgentOnline(agentId)).toBe(false);
+
+    await sweepVisits();
+    const row = await db.query.agentVisits.findFirst({ where: eq(agentVisits.id, visit.id) });
+    expect(row?.endedAt).toBeNull();
+    expect(row?.offlineSince).toBeNull();
   });
 });
 
