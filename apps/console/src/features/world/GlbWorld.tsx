@@ -1,3 +1,4 @@
+import { assetUrl } from "../../lib/assetUrl";
 import { TeaElevator, TeaElevatorHud } from "./TeaElevatorView";
 import { TeaElevatorController } from "./teaElevator";
 import { VerseRecorder } from "./VerseRecorder";
@@ -91,7 +92,7 @@ import { TEA_FLOORS, teaCutHeight, teaEntranceView, teaViewTargetHeight } from "
 // three's built-in RoomEnvironment. One shadow-casting key light for
 // grounding, and a modest ambient fill.
 
-const CITY3_URL = "/assets/world-city3.glb";
+const CITY3_URL = assetUrl("/assets/world-city3.glb");
 
 // The island's plaza origin.
 const CITY3_CENTER: [number, number] = [0, 0];

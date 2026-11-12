@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useSyncExternalStore, type RefObject } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
+import { assetUrl } from "../../lib/assetUrl";
 import { extendGltf } from "./gltfExtensions";
 import * as THREE from "three";
 import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.js";
@@ -47,7 +48,7 @@ import { applyDissolve, createDissolveDepthMaterial, type Dissolve } from "./dis
 // local origin. Unlike the retired Y Bot there is NO height
 // normalization — the only fit applied is a measured floor lift.
 
-export const BOT_GLB_URL = "/assets/cast-bodyblock.glb";
+export const BOT_GLB_URL = assetUrl("/assets/cast-bodyblock.glb");
 
 
 
@@ -167,7 +168,7 @@ export function CastFigure({
   // (bodies.ts liteUrl — resampled/quantized) loads that instead.
   const quality = useSyncExternalStore(qualityStore.subscribe, qualityStore.getSnapshot);
   const gl = useThree((s) => s.gl);
-  const gltf = useGLTF(quality.tier === "lite" && body.liteUrl ? body.liteUrl : body.url, true, true, extendGltf(gl));
+  const gltf = useGLTF(assetUrl(quality.tier === "lite" && body.liteUrl ? body.liteUrl : body.url), true, true, extendGltf(gl));
   const group = useRef<THREE.Group>(null);
 
   // Own skeleton + own scene graph per cast member, shown at the body's display scale (bodies.ts: realistic heights).
