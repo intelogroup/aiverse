@@ -193,6 +193,43 @@ export function buildApp(deps: AppDeps): Hono<{ Variables: Vars }> {
     await next();
   };
 
+  /**
+   * Win-time prize-code email (Jim's call, 2026-11-10): on a win — and
+   * only on a win — the code goes to the winner's account email as well
+   * as in the claim response. Both claim entry points funnel here
+   * (/v1/claims and the /v1/positions continuous check, whose wins are
+   * real wins). A failed send NEVER fails or rolls back the claim: the
+   * win is already settled in evaluateClaim's transaction, the code
+   * stays readable via GET /v1/me/wins, and the attempt is audit-logged
+   * either way (email_sent / email_failed).
+   */
+  const emailClaimCode = async (
+    user: UserRow,
+    ev: EventRow,
+    won: { code: string; label: string; kind: string },
+  ): Promise<void> => {
+    const detail = {
+      channel: "claim_code",
+      event_id: ev.id,
+      event_slug: ev.slug,
+      label: won.label,
+      kind: won.kind,
+    };
+    try {
+      await mailer.sendClaimCode(user.email, { code: won.code, label: won.label, kind: won.kind });
+      auditInsert(db, "system", "email_sent", user.id, detail, Date.now());
+    } catch (e) {
+      auditInsert(
+        db,
+        "system",
+        "email_failed",
+        user.id,
+        { ...detail, error: String(e).slice(0, 200) },
+        Date.now(),
+      );
+    }
+  };
+
   // ---------- public ----------
   app.get("/health", (c) =>
     c.json({ ok: true, version: "0.1.0", server_time: Date.now() }),
@@ -306,6 +343,7 @@ export function buildApp(deps: AppDeps): Hono<{ Variables: Vars }> {
       codeKey,
       limiter,
     });
+    if (r.result === "won") await emailClaimCode(c.get("user"), ev, r);
     return claimResponse(c, r, ev.slug);
   });
 
@@ -326,6 +364,7 @@ export function buildApp(deps: AppDeps): Hono<{ Variables: Vars }> {
       codeKey,
       limiter,
     });
+    if (r.result === "won") await emailClaimCode(c.get("user"), ev, r);
     if (r.result === "no_prize_in_radius") return c.body(null, 204);
     return claimResponse(c, r, ev.slug);
   });

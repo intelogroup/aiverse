@@ -10,10 +10,15 @@
  *     (auth/session.ts). The gateway JWT (sub = owners.id) is the hunt's
  *     primary identity path; hunt resolves/adopts its user row by
  *     gateway_owner_id. Hunt code never imports gateway code.
- *   - a file mailer: embedded posture keeps magic-link email in the
- *     stub/outbox posture (SPEC §11.5 — the sender identity is Jim's
- *     open pick, design §e), writing links beside the hunt DB instead
- *     of sending real mail or logging live tokens.
+ *   - the mailer, chosen by HUNT_EMAIL_MODE: `resend` builds hunt's
+ *     ResendMailer — FROM is HUNT_EMAIL_FROM, defaulting to this
+ *     service's already-verified sender identity
+ *     `AIVerse <noreply@damhall.com>` (Jim's pick, 2026-11-10: "whoever
+ *     works fine"); the API key is HUNT_RESEND_API_KEY, falling back to
+ *     this service's RESEND_API_KEY. Any other mode keeps the file
+ *     mailer: the stub/outbox posture (SPEC §11.5), writing magic links
+ *     and prize codes beside the hunt DB instead of sending real mail
+ *     or logging live tokens. The stub stays the default.
  *
  * Fail-closed mount, fail-open host: if the runtime cannot be built
  * (e.g. mode flipped on before the HUNT_* secrets exist), the error is
@@ -25,6 +30,7 @@ import { dirname, join } from "node:path";
 import { eq } from "drizzle-orm";
 import { owners } from "@aiverse/shared/schema";
 import { createHuntRuntime, type HuntRuntime } from "@aiverse/hunt/runtime";
+import { ResendMailer, type Mailer } from "@aiverse/hunt/mailer";
 import { verifyOwnerSession } from "./auth/session";
 import { db } from "./db/client";
 import { log, logError } from "./util/log";
@@ -43,13 +49,41 @@ export function getHuntRuntime(): HuntRuntime | null {
       dirname(process.env.HUNT_DB_PATH ?? "/data/hunt.db"),
       "dev-outbox.jsonl",
     );
+    // HUNT_EMAIL_MODE=resend → real mail through the verified damhall
+    // identity; without a key the stub stays (in production loadConfig
+    // refuses resend-without-key before this matters). Otherwise the
+    // file stub — byte-identical posture to before for magic links,
+    // with prize codes appended in the same observable shape.
+    const resendApiKey = process.env.HUNT_RESEND_API_KEY ?? process.env.RESEND_API_KEY;
+    const mailer: Mailer =
+      process.env.HUNT_EMAIL_MODE === "resend" && resendApiKey
+        ? new ResendMailer(
+            resendApiKey,
+            process.env.HUNT_EMAIL_FROM ?? "AIVerse <noreply@damhall.com>",
+          )
+        : {
+            async sendMagicLink(email: string, link: string): Promise<void> {
+              appendFileSync(outboxPath, JSON.stringify({ email, link, at: Date.now() }) + "\n");
+            },
+            async sendClaimCode(
+              email: string,
+              prize: { code: string; label: string; kind: string },
+            ): Promise<void> {
+              appendFileSync(
+                outboxPath,
+                JSON.stringify({
+                  email,
+                  code: prize.code,
+                  label: prize.label,
+                  kind: prize.kind,
+                  at: Date.now(),
+                }) + "\n",
+              );
+            },
+          };
     runtime = createHuntRuntime(process.env, {
       cors: false,
-      mailer: {
-        async sendMagicLink(email: string, link: string): Promise<void> {
-          appendFileSync(outboxPath, JSON.stringify({ email, link, at: Date.now() }) + "\n");
-        },
-      },
+      mailer,
       verifyGatewayToken: async (token: string) => {
         let ownerId: string;
         try {
@@ -65,7 +99,7 @@ export function getHuntRuntime(): HuntRuntime | null {
         return { ownerId, email: owner.email, displayName: owner.displayName ?? "" };
       },
     });
-    log("hunt_runtime_ready", { dbPath: runtime.cfg.dbPath });
+    log("hunt_runtime_ready", { dbPath: runtime.cfg.dbPath, emailMode: runtime.cfg.emailMode });
   } catch (err) {
     runtimeFailed = true;
     logError("hunt_runtime_failed", err);
