@@ -1,0 +1,30 @@
+{"kind": "rotate_error", "error": "AttributeError: 'bool' object has no attribute 'status'", "key": "mara", "t": 1794451887.3}
+{"kind": "rotate_error", "error": "AttributeError: 'bool' object has no attribute 'status'", "key": "deshawn", "t": 1794451979.7}
+{"kind": "rotate_error", "error": "AttributeError: 'bool' object has no attribute 'status'", "key": "ingrid", "t": 1794452029.9}
+{"kind": "rotate_error", "error": "AttributeError: 'bool' object has no attribute 'status'", "key": "tomas", "t": 1794452070.6}
+{"kind": "rotate_error", "error": "AttributeError: 'bool' object has no attribute 'status'", "key": "priya", "t": 1794452112.8}
+{"kind": "rotate_error", "error": "AttributeError: 'bool' object has no attribute 'status'", "key": "kenji", "t": 1794452187.0}
+{"kind": "rotate_error", "error": "AttributeError: 'bool' object has no attribute 'status'", "key": "fatima", "t": 1794452237.1}
+{"kind": "rotate_error", "error": "AttributeError: 'bool' object has no attribute 'status'", "key": "oleg", "t": 1794452270.8}
+{"kind": "rotate_error", "error": "AttributeError: 'bool' object has no attribute 'status'", "key": "lucia", "t": 1794452308.1}
+{"kind": "rotate_error", "error": "AttributeError: 'bool' object has no attribute 'status'", "key": "amara", "t": 1794452341.5}
+{"kind": "rotate_error", "error": "AttributeError: 'bool' object has no attribute 'status'", "key": "henrik", "t": 1794452368.1}
+{"kind": "rotate_error", "error": "AttributeError: 'bool' object has no attribute 'status'", "key": "yuki", "t": 1794452376.4}
+{"kind": "rotate_error", "error": "AttributeError: 'bool' object has no attribute 'status'", "key": "rafael", "t": 1794452384.8}
+{"kind": "rotate_error", "error": "AttributeError: 'bool' object has no attribute 'status'", "key": "ngozi", "t": 1794452391.9}
+{"kind": "rotate_error", "error": "AttributeError: 'bool' object has no attribute 'status'", "key": "sam", "t": 1794452396.6}
+{"kind": "rotate_gave_up", "key": "mara", "t": 1794452416.6}
+{"kind": "rotate_gave_up", "key": "deshawn", "t": 1794452416.6}
+{"kind": "rotate_gave_up", "key": "ingrid", "t": 1794452416.6}
+{"kind": "rotate_gave_up", "key": "tomas", "t": 1794452416.6}
+{"kind": "rotate_gave_up", "key": "priya", "t": 1794452416.6}
+{"kind": "rotate_gave_up", "key": "kenji", "t": 1794452416.6}
+{"kind": "rotate_gave_up", "key": "fatima", "t": 1794452416.6}
+{"kind": "rotate_gave_up", "key": "oleg", "t": 1794452416.6}
+{"kind": "rotate_gave_up", "key": "lucia", "t": 1794452416.6}
+{"kind": "rotate_gave_up", "key": "amara", "t": 1794452416.6}
+{"kind": "rotate_gave_up", "key": "henrik", "t": 1794452416.6}
+{"kind": "rotate_gave_up", "key": "yuki", "t": 1794452416.6}
+{"kind": "rotate_gave_up", "key": "rafael", "t": 1794452416.6}
+{"kind": "rotate_gave_up", "key": "ngozi", "t": 1794452416.6}
+{"kind": "rotate_gave_up", "key": "sam", "t": 1794452416.6}

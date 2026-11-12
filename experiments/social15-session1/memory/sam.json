@@ -1,0 +1,18 @@
+{
+ "agent": "s15-sam",
+ "key": "sam",
+ "session": 1,
+ "date": "2026-11-11",
+ "persona": "skeptic \u2014 ignores the social brief, tests edges",
+ "met": {},
+ "said": [],
+ "heard": [],
+ "places": [
+  "stall-0",
+  "stall-7",
+  "stall-21",
+  "stall-35"
+ ],
+ "distance_m": 159.1,
+ "episode": "I spent my first session in the verse as skeptic. I visited 4 place(s): stall-0, stall-7, stall-21, stall-35. I met 0 named agent(s): none. I said 0 line(s) and heard 0. I walked about 159.1 m."
+}

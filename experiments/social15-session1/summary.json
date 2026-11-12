@@ -1,0 +1,308 @@
+{
+ "mara": {
+  "acts": 3,
+  "says": 0,
+  "heard": 2,
+  "deliberations": 9,
+  "greets": 0,
+  "greeted": [],
+  "names_known": {
+   "b-247c0df2": "s15-ingrid",
+   "b-d088af5d": "s15-deshawn"
+  },
+  "visited": [
+   "stall-40"
+  ],
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 25,
+  "log_lines": 47
+ },
+ "deshawn": {
+  "acts": 12,
+  "says": 3,
+  "heard": 1,
+  "deliberations": 3,
+  "greets": 3,
+  "greeted": [
+   "b-7ea74ad8",
+   "b-f31a1532"
+  ],
+  "names_known": {
+   "b-7ea74ad8": "s15-ingrid"
+  },
+  "visited": [
+   "stall-40"
+  ],
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 25,
+  "log_lines": 52
+ },
+ "ingrid": {
+  "acts": 8,
+  "says": 3,
+  "heard": 1,
+  "deliberations": 5,
+  "greets": 0,
+  "greeted": [],
+  "names_known": {
+   "b-b2ec834e": "s15-deshawn"
+  },
+  "visited": [
+   "stall-40",
+   "stall-0",
+   "stall-1"
+  ],
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 24,
+  "log_lines": 48
+ },
+ "tomas": {
+  "acts": 3,
+  "says": 0,
+  "heard": 1,
+  "deliberations": 2,
+  "greets": 0,
+  "greeted": [],
+  "names_known": {
+   "b-6273afe4": "s15-henrik"
+  },
+  "visited": [
+   "stall-40",
+   "stall-0",
+   "stall-1",
+   "stall-2"
+  ],
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 22,
+  "log_lines": 36
+ },
+ "priya": {
+  "acts": 4,
+  "says": 1,
+  "heard": 0,
+  "deliberations": 0,
+  "greets": 1,
+  "greeted": [
+   "b-5d3df17a"
+  ],
+  "names_known": {},
+  "visited": [
+   "stall-60"
+  ],
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 22,
+  "log_lines": 35
+ },
+ "kenji": {
+  "acts": 3,
+  "says": 0,
+  "heard": 3,
+  "deliberations": 2,
+  "greets": 0,
+  "greeted": [],
+  "names_known": {
+   "b-3f804e6f": "s15-ingrid",
+   "b-8409e747": "s15-deshawn"
+  },
+  "visited": [
+   "stall-60",
+   "stall-40"
+  ],
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 20,
+  "log_lines": 36
+ },
+ "fatima": {
+  "acts": 2,
+  "says": 0,
+  "heard": 2,
+  "deliberations": 3,
+  "greets": 0,
+  "greeted": [],
+  "names_known": {
+   "b-690f6be7": "s15-ingrid",
+   "b-735dcdcb": "s15-deshawn"
+  },
+  "visited": [
+   "stall-60",
+   "stall-40"
+  ],
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 18,
+  "log_lines": 34
+ },
+ "oleg": {
+  "acts": 1,
+  "says": 0,
+  "heard": 0,
+  "deliberations": 3,
+  "greets": 0,
+  "greeted": [],
+  "names_known": {},
+  "visited": [
+   "stall-60",
+   "hall-0",
+   "shop-179"
+  ],
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 16,
+  "log_lines": 30
+ },
+ "lucia": {
+  "acts": 4,
+  "says": 1,
+  "heard": 1,
+  "deliberations": 0,
+  "greets": 1,
+  "greeted": [
+   "b-d258a901"
+  ],
+  "names_known": {
+   "b-d258a901": "s15-amara"
+  },
+  "visited": [
+   "stall-20"
+  ],
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 15,
+  "log_lines": 29
+ },
+ "amara": {
+  "acts": 5,
+  "says": 2,
+  "heard": 1,
+  "deliberations": 1,
+  "greets": 1,
+  "greeted": [
+   "b-ee3e8d99"
+  ],
+  "names_known": {
+   "b-ee3e8d99": "s15-lucia"
+  },
+  "visited": [
+   "stall-20"
+  ],
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 17,
+  "log_lines": 36
+ },
+ "henrik": {
+  "acts": 5,
+  "says": 1,
+  "heard": 0,
+  "deliberations": 4,
+  "greets": 0,
+  "greeted": [],
+  "names_known": {},
+  "visited": [
+   "stall-20",
+   "stall-0",
+   "stall-1"
+  ],
+  "visit_dead": true,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 16,
+  "log_lines": 33
+ },
+ "yuki": {
+  "acts": 1,
+  "says": 0,
+  "heard": 0,
+  "deliberations": 10,
+  "greets": 0,
+  "greeted": [],
+  "names_known": {},
+  "visited": [
+   "stall-20",
+   "stall-0"
+  ],
+  "visit_dead": true,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 16,
+  "log_lines": 34
+ },
+ "rafael": {
+  "acts": 2,
+  "says": 0,
+  "heard": 0,
+  "deliberations": 6,
+  "greets": 0,
+  "greeted": [],
+  "names_known": {},
+  "visited": [
+   "stall-0",
+   "stall-20",
+   "stall-67",
+   "hall-0"
+  ],
+  "visit_dead": true,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 16,
+  "log_lines": 31
+ },
+ "ngozi": {
+  "acts": 4,
+  "says": 2,
+  "heard": 0,
+  "deliberations": 3,
+  "greets": 1,
+  "greeted": [
+   "b-f38ba182"
+  ],
+  "names_known": {},
+  "visited": [
+   "stall-0",
+   "stall-1",
+   "stall-0",
+   "stall-1"
+  ],
+  "visit_dead": true,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 16,
+  "log_lines": 36
+ },
+ "sam": {
+  "acts": 3,
+  "says": 0,
+  "heard": 0,
+  "deliberations": 4,
+  "greets": 0,
+  "greeted": [],
+  "names_known": {},
+  "visited": [
+   "stall-0",
+   "stall-7",
+   "stall-21",
+   "stall-35"
+  ],
+  "visit_dead": true,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 17,
+  "log_lines": 33
+ }
+}

@@ -1,0 +1,38 @@
+{
+ "deshawn": {
+  "acts_used": 2,
+  "says": 0,
+  "heard": 0,
+  "deliberations": 2,
+  "greeted": [],
+  "names_known": {},
+  "delete_status": 403,
+  "body_after_delete": 403,
+  "track_lines": 14,
+  "log_lines": 29
+ },
+ "priya": {
+  "acts_used": 10,
+  "says": 0,
+  "heard": 0,
+  "deliberations": 3,
+  "greeted": [],
+  "names_known": {},
+  "delete_status": 403,
+  "body_after_delete": 403,
+  "track_lines": 20,
+  "log_lines": 36
+ },
+ "amara": {
+  "acts_used": 11,
+  "says": 0,
+  "heard": 0,
+  "deliberations": 3,
+  "greeted": [],
+  "names_known": {},
+  "delete_status": 403,
+  "body_after_delete": 403,
+  "track_lines": 20,
+  "log_lines": 37
+ }
+}
