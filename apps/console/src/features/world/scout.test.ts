@@ -195,9 +195,12 @@ describe("executor: movement", () => {
       s,
       fakeWorld({ wallX: 3 }),
       exec.submit({ type: "go_to", point: [10, 0] }, s),
-    )) as { status: string };
+    )) as { status: string; detail?: string; stalledForMs?: number };
     expect(out.status).toBe("blocked");
     expect(s.x).toBeLessThan(3);
+    // stalledForMs is the stall itself (>= the 2.5 s no-progress window), not the walk before it
+    expect(out.detail).toMatch(/^no progress/);
+    expect(out.stalledForMs).toBeGreaterThanOrEqual(2500);
   });
 
   it("a second action while busy is rejected", async () => {

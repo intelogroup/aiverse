@@ -1,4 +1,5 @@
 import { useGLTF } from "@react-three/drei";
+import { assetUrl } from "../../lib/assetUrl";
 import { extendGltf } from "./gltfExtensions";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useRef, useState } from "react";
@@ -14,7 +15,7 @@ export type EggPlacement = {
 };
 
 type Batch = { mesh: THREE.InstancedMesh; district: string; source: THREE.Matrix4 };
-const MODEL = "/assets/collectibles/scifi-easter-egg.glb";
+const MODEL = assetUrl("/assets/collectibles/scifi-easter-egg.glb");
 const NEAR_METRES = 85;
 
 /** Shared geometry/materials, instanced by district. These are future hunt props, not collectible prizes yet. */

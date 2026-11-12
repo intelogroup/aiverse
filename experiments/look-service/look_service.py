@@ -3,13 +3,13 @@
 
 A warm headless Chromium (SwiftShader) holds the production console world
 (Bazaar, City 3) loaded ONCE via the rigs' proven Vite path on :5199 with
-?world=city3&agent=1, which mounts ScoutAgent and exposes window.__scout.
+?world=city3&agent=1&stream=1, which mounts ScoutAgent and exposes window.__scout; stream=1 draws the server-driven agent bodies in front of the camera.
 The warm page IS the passed pipeline verdict (egg-hunt optimization runs):
 no cold page per look, ever — cold start is ~70 s and a first capture in a
 fresh area pays minutes of shader work, so a look is a decision-fired
 event, never a reflex.
 
-POST /look     {agentId, position:[x,z], headingDeg, pitch?}
+POST /look     {agentId, position:[x,z], headingDeg, pitchDeg?}
     Moves the agent's BODY to the requested pose (act go_to + face — the
     pose comes from the request, never from console session state), then
     captures from the body's head via __scout.look(): ScoutVision's
@@ -43,8 +43,9 @@ first, and all captures serialize on one lock — the page's main thread
 renders, and the v2 rig proved parallel captures wedge it. Serving N
 agents concurrently takes N instances (or pages), never threads here.
 
-Pitch is accepted but the head rig's camera is level: pitch is reported
-as 0 / pitchSupported=false. Honest v1 gap.
+Pitch (head tilt, -60..45 degrees, + up) is applied to the head camera. headingDeg is the camera heading: the gateway sends body
+heading + head yaw, so the stand-in body faces where the head looks. pitchSupported=true means the console build honours pitchDeg;
+an older console build ignores it and shoots level.
 """
 import asyncio, base64, hashlib, hmac, json, os, sys, time, urllib.request, urllib.error
 from datetime import datetime, timezone
@@ -57,7 +58,7 @@ from playwright.async_api import async_playwright  # noqa: E402
 HERE = Path(__file__).parent
 SNAP_DIR = HERE / "snapshots"
 INDEX = HERE / "index.jsonl"
-PAGE_URL = os.environ.get("LOOK_PAGE_URL", "http://127.0.0.1:5199/?world=city3&agent=1")
+PAGE_URL = os.environ.get("LOOK_PAGE_URL", "http://127.0.0.1:5199/?world=city3&agent=1&stream=1")
 HTTP_HOST = os.environ.get("LOOK_SERVICE_HOST", "127.0.0.1")
 HTTP_PORT = int(os.environ.get("LOOK_SERVICE_PORT", "5317"))
 SECRET = os.environ.get("LOOK_SERVICE_SECRET", "")
@@ -229,6 +230,12 @@ class LookService:
         position = req.get("position")
         heading = req.get("headingDeg")
         mode = req.get("mode", "walk")
+        # Head pitch (gaze), degrees, + up. The gateway sends the camera HEADING (body heading + head yaw) in headingDeg, so the body
+        # is faced that way and only the pitch needs the camera.
+        try:
+            pitch = max(-60.0, min(45.0, float(req.get("pitchDeg", req.get("pitch", 0)) or 0)))
+        except (TypeError, ValueError):
+            pitch = 0.0
         async with self.lock:
             if not self.ready:
                 return 503, {"ok": False, "error": "not-ready", "detail": self.last_error}
@@ -236,7 +243,7 @@ class LookService:
             t0 = time.time()
             try:
                 res = await asyncio.wait_for(
-                    self.page.evaluate("window.__scout.look()"), timeout=600)
+                    self.page.evaluate("(p) => window.__scout.look({pitchDeg: p})", pitch), timeout=600)
             except Exception as e:
                 self.last_error = f"look: {type(e).__name__}: {e}"[:200]
                 return 500, {"ok": False, "error": "look-failed", "detail": self.last_error}
@@ -257,7 +264,7 @@ class LookService:
                 "camera": res.get("camera"),
                 "pose": pose, "poseOutcomes": outcomes,
                 "renderMs": render_ms, "poseMs": pose_ms,
-                "pitch": 0, "pitchSupported": False,
+                "pitch": pitch, "pitchSupported": True,
                 "simTime": res.get("simulationTime"),
                 "utc": iso(),
             }

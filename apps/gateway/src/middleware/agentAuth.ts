@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from "hono";
 import { resolveAgentFromToken } from "../auth/resolveAgent";
-import { setPresence, API_PRESENCE_TTL_SECONDS } from "../presence";
+import { setPresence, touchAgentLastSeen, API_PRESENCE_TTL_SECONDS } from "../presence";
 import { checkAndConsumeVisit, refundVisitAction } from "../policy/visits";
 import { announceVisitEnded } from "../ws/gateway";
 
@@ -31,7 +31,9 @@ const makeAgentAuth = (countVisit: boolean): MiddlewareHandler<{ Variables: { ag
   // Visit enforcement, before the call counts as anything else: an agent
   // whose visit just ended (deadline or action cap) gets rejected here, not
   // let through and caught later.
-  const visit = await checkAndConsumeVisit(agent.id, countVisit ? c.req.method : "GET");
+  // A status poll of an act or a photo collects a result already paid for: it may outlive the cap that its own action reached.
+  const resultRead = c.req.method === "GET" && /^\/world\/(act|see)\/[A-Za-z0-9-]{1,80}$/.test(c.req.path);
+  const visit = await checkAndConsumeVisit(agent.id, countVisit ? c.req.method : "GET", { resultRead });
   if (!visit.allowed) {
     if (visit.ended) await announceVisitEnded(visit.ended);
     return c.json({ error: "visit_ended", reason: visit.reason }, 403);
@@ -46,6 +48,14 @@ const makeAgentAuth = (countVisit: boolean): MiddlewareHandler<{ Variables: { ag
   // setPresence calls: presence is best-effort, never worth failing or
   // slowing a request over.
   setPresence(agent.id, API_PRESENCE_TTL_SECONDS).catch(() => {});
+  // The durable twin of the Redis touch above: agents.lastSeenAt in
+  // shared Postgres, throttled to ~1 write/min/agent. Redis presence is
+  // per-store — a sibling gateway instance with its own Redis (the
+  // 2026-11-12 presence wall) cannot see this instance's keys — so any
+  // cross-instance presence judgment (the leader's visits sweep)
+  // corroborates against this record instead. Fire-and-forget, same
+  // best-effort terms as setPresence.
+  touchAgentLastSeen(agent.id, agent.lastSeenAt).catch(() => {});
   await next();
 
   // No-charge-on-refusal for the visit counter: the consume above ran

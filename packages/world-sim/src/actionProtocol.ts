@@ -5,6 +5,7 @@
 // WorldService (it never reaches the body executor).
 // IDs make a request idempotent: a retry with the same id and the same action returns the first result and does not act twice.
 import { resolveSocialClip, SOCIAL_CLIPS } from "./clips";
+import { GAZE_PITCH_MAX_DEG, GAZE_PITCH_MIN_DEG, GAZE_YAW_MAX_DEG } from "./scout";
 
 const ID_RE = /^[a-zA-Z0-9-]{1,80}$/;
 const MAX_NAME = 100;
@@ -20,6 +21,7 @@ export const ACTION_TYPES = {
   go_to: "{place}, {point:[x,z]} or {body: handle}: stop 1.2 m in front of someone you see", run_to: "{place} or {point:[x,z]}", enter: "{place} (lot or room id): walk inside",
   face: "{headingDeg}, {point:[x,z]} or {body: handle}", wait: "{seconds} 0-30", sit: "{sittable?}", stand: "{}",
   play: "{clip, seconds?} (GET /world/clips)", interact: "{target}", stop: "{}",
+  gaze: `{yawDeg?: -${GAZE_YAW_MAX_DEG}..${GAZE_YAW_MAX_DEG} (+ right), pitchDeg?: ${GAZE_PITCH_MIN_DEG}..${GAZE_PITCH_MAX_DEG} (+ up)} or {reset:true}: turn your head, not your body; look and see follow it`,
   say: `{text <= ${MAX_SAY} chars, to?: handle}: speak aloud; bodies within ${SAY_RANGE_M} m with a clear line of sight hear it (read observe.heard)`,
 } as const;
 
@@ -48,6 +50,13 @@ export function explainAction(a: unknown): string | null {
       if (typeof v.text !== "string" || v.text.trim().length === 0 || v.text.length > MAX_SAY) return `say needs text, 1-${MAX_SAY} characters`;
       if (v.to !== undefined && !name(v.to)) return "to must be a handle from observe.scene";
       return extra("text", "to");
+    case "gaze": {
+      if (v.reset !== undefined) return v.reset === true && v.yawDeg === undefined && v.pitchDeg === undefined ? extra("reset") : "gaze: reset must be true and used alone";
+      if (v.yawDeg === undefined && v.pitchDeg === undefined) return "gaze needs yawDeg and/or pitchDeg, or reset:true";
+      if (v.yawDeg !== undefined && !num(v.yawDeg, -GAZE_YAW_MAX_DEG, GAZE_YAW_MAX_DEG)) return `yawDeg must be within +-${GAZE_YAW_MAX_DEG} (positive is right)`;
+      if (v.pitchDeg !== undefined && !num(v.pitchDeg, GAZE_PITCH_MIN_DEG, GAZE_PITCH_MAX_DEG)) return `pitchDeg must be between ${GAZE_PITCH_MIN_DEG} and ${GAZE_PITCH_MAX_DEG} (positive is up)`;
+      return extra("yawDeg", "pitchDeg");
+    }
     case "interact": return name(v.target) ? extra("target") : "interact needs a target (a prop id from observe.scene)";
     case "wait": return num(v.seconds, 0, 30) ? extra("seconds") : "wait needs seconds, 0-30";
     case "face":

@@ -20,10 +20,14 @@ const ASSETS = new URL("../../../console/public/assets/", import.meta.url).pathn
 // The look service behind POST /world/see, faked at the client seam: records what the gateway asked for and answers a
 // canned frame (or a failure, when lookMode flips) — the real service is a Chromium process, not a test dependency.
 let lookMode: "ok" | "down" = "ok";
-const lookCalls: { agentId: string; position: [number, number]; headingDeg: number }[] = [];
+// While set, a capture waits on it: lets a test hold a photo mid-render.
+let lookGate: Promise<void> | null = null;
+let openGate: () => void = () => {};
+const lookCalls: { agentId: string; position: [number, number]; headingDeg: number; gaze?: { yawDeg: number; pitchDeg: number } }[] = [];
 const fakeLook: LookClient = {
-  async look(agentId, position, headingDeg): Promise<LookOutcome> {
-    lookCalls.push({ agentId, position, headingDeg });
+  async look(agentId, position, headingDeg, gaze): Promise<LookOutcome> {
+    lookCalls.push({ agentId, position, headingDeg, gaze });
+    if (lookGate) await lookGate;
     if (lookMode === "down") return { ok: false, reason: "unavailable" };
     return {
       ok: true,
@@ -430,7 +434,10 @@ describe("/world (agent body)", () => {
     expect(((await r2.json()) as any).error).toBe("no_body");
   });
 
-  test("see: the photograph comes from where the body stands, and a second see inside 5 s is limited", async () => {
+  // POST /see answers 202 at once; the photo is read from GET /see/:id (long-poll).
+  const readSee = async (token: string, id: string, waitMs = 5000) => ((await (await w(token, "GET", `/see/${id}?waitMs=${waitMs}`)).json()) as any).see;
+
+  test("see: 202 at once, then the photograph from where the body stood, with its age and how far the body moved since", async () => {
     const { ownerToken, agentId, agentToken } = await ownerWithAgent("SeeHappy");
     await startVisit(ownerToken, agentId);
     const attach = await w(agentToken, "POST", "/body");
@@ -439,12 +446,20 @@ describe("/world (agent body)", () => {
     clock += 1000;
     lookCalls.length = 0;
     const r = await w(agentToken, "POST", "/see", {});
-    expect(r.status).toBe(200);
-    const see = ((await r.json()) as any).see as { photoPng: string; width: number; height: number; depthSummary: { median: number }; latencyMs: number };
+    expect(r.status).toBe(202);
+    const queued = ((await r.json()) as any).see as { id: string; state: string; requestedAt: number; pose: { x: number; z: number; headingDeg: number }; photoPng?: string };
+    expect(queued.id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(["queued", "running"]).toContain(queued.state);
+    expect(queued.photoPng).toBeUndefined();
+    expect(queued.pose.x).toBeCloseTo(body.x, 3);
+    const see = await readSee(agentToken, queued.id);
+    expect(see.state).toBe("done");
     expect(see.photoPng).toBe("aGVsbG8td29ybGQ=");
     expect([see.width, see.height]).toEqual([512, 288]);
     expect(see.depthSummary.median).toBe(3.5);
     expect(see.latencyMs).toBe(1234);
+    expect(see.ageMs).toBeGreaterThanOrEqual(0);
+    expect(see.moved).toEqual({ distanceM: 0, turnedDeg: 0 }); // the body stood still while the photo rendered
     // The gateway asked the service for the body's own pose (position from the sim, heading converted rad -> deg).
     expect(lookCalls).toHaveLength(1);
     expect(lookCalls[0].agentId).toBe(agentId);
@@ -454,38 +469,120 @@ describe("/world (agent body)", () => {
     expect(Math.abs(lookCalls[0].headingDeg - wantDeg)).toBeLessThan(0.2);
     // Pacing: a second photograph inside the window is refused, not queued.
     expect((await w(agentToken, "POST", "/see", {})).status).toBe(429);
+    // Only the owner of a job can read it.
+    const other = await ownerWithAgent("SeeOther");
+    await startVisit(other.ownerToken, other.agentId);
+    expect((await w(other.agentToken, "GET", `/see/${queued.id}`)).status).toBe(404);
+    expect((await w(agentToken, "GET", "/see/not-a-job")).status).toBe(404);
     await w(agentToken, "DELETE", "/body");
   });
 
-  test("see: a down look service is a clean 502 look_unavailable, and the failed see is not charged", async () => {
+  test("see: the head direction (gaze) travels with the request, and an out-of-range gaze is refused", async () => {
+    const { ownerToken, agentId, agentToken } = await ownerWithAgent("SeeGaze");
+    await startVisit(ownerToken, agentId);
+    await w(agentToken, "POST", "/body");
+    clock += 1000;
+    expect((await w(agentToken, "POST", "/act", { id: "bad-gaze", action: { type: "gaze", pitchDeg: 90 } })).status).toBe(400);
+    const g = await w(agentToken, "POST", "/act", { id: "g1", action: { type: "gaze", yawDeg: -25, pitchDeg: 15 } });
+    expect(g.status).toBe(202);
+    const poll = (await (await w(agentToken, "GET", "/act/g1?waitMs=3000")).json()) as any;
+    expect(poll.act.outcome.status).toBe("done");
+    expect(((await (await w(agentToken, "GET", "/observe")).json()) as any).observation.body.gaze).toEqual({ yawDeg: -25, pitchDeg: 15 });
+    clock += 1000;
+    lookCalls.length = 0;
+    const r = await w(agentToken, "POST", "/see", {});
+    expect(r.status).toBe(202);
+    await readSee(agentToken, ((await r.json()) as any).see.id);
+    expect(lookCalls[0].gaze).toEqual({ yawDeg: -25, pitchDeg: 15 });
+    await w(agentToken, "DELETE", "/body");
+  });
+
+  test("see: while a photo renders the agent keeps acting, and a body that walked on says how far", async () => {
+    const { ownerToken, agentId, agentToken } = await ownerWithAgent("SeeAsync");
+    await startVisit(ownerToken, agentId);
+    await w(agentToken, "POST", "/body");
+    clock += 1000;
+    lookGate = new Promise<void>((resolve) => { openGate = resolve; });
+    try {
+      const r = await w(agentToken, "POST", "/see", {});
+      expect(r.status).toBe(202);
+      const id = ((await r.json()) as any).see.id as string;
+      // The render is held open: the job is still pending, and the agent can act meanwhile.
+      expect((await readSee(agentToken, id, 0)).state).not.toBe("done");
+      const act = await w(agentToken, "POST", "/act", { id: "walk-on", action: { type: "go_to", point: [10, 10] } });
+      expect(act.status).toBe(202);
+      for (let i = 0; i < 20; i++) { service.tick(0.5); clock += 500; }
+      // A second request while one is in flight names the first.
+      clock += 1000;
+      const again = await w(agentToken, "POST", "/see", {});
+      expect(again.status).toBe(429);
+      expect(((await again.json()) as any).seeId).toBe(id);
+      openGate();
+      const see = await readSee(agentToken, id);
+      expect(see.state).toBe("done");
+      expect(typeof see.moved.distanceM).toBe("number");
+    } finally {
+      openGate?.(); lookGate = null;
+    }
+    await w(agentToken, "DELETE", "/body");
+  });
+
+  test("see: a down look service fails the job look_unavailable, and the failed see is not charged", async () => {
     const { ownerToken, agentId, agentToken } = await ownerWithAgent("SeeDown");
-    const visit = await startVisit(ownerToken, agentId, 2); // attach (1) + see (1) would exactly fill a charged cap
+    const visit = await startVisit(ownerToken, agentId, 3); // attach (1) + see (1) + retry (1): a charged failure would leave no room, and the cap-reaching call ends the visit on the NEXT call, reads included
     await w(agentToken, "POST", "/body");
     clock += 1000;
     lookMode = "down";
     try {
       const r = await w(agentToken, "POST", "/see", {});
-      expect(r.status).toBe(502);
-      expect(((await r.json()) as any).error).toBe("look_unavailable");
+      expect(r.status).toBe(202);
+      const see = await readSee(agentToken, ((await r.json()) as any).see.id);
+      expect(see.state).toBe("failed");
+      expect(see.error).toBe("look_unavailable");
     } finally {
       lookMode = "ok";
     }
-    // Refunded: the visit still has its second action — a retry once the service is back succeeds instead of 403ing.
+    // Refunded: the failed see gave its action back, so a retry once the service is back is accepted instead of 403ing.
     clock += 1000;
-    expect((await w(agentToken, "POST", "/see", {})).status).toBe(200);
+    const retry = await w(agentToken, "POST", "/see", {});
+    const retryBody = (await retry.json()) as any;
+    expect([retry.status, retryBody.error]).toEqual([202, undefined]);
+    expect((await readSee(agentToken, retryBody.see.id)).state).toBe("done");
     const after = await db.query.agentVisits.findFirst({ where: eq(agentVisits.id, visit.id) });
     expect(after?.actionsUsed).toBe(2);
     await w(agentToken, "DELETE", "/body");
   });
 
-  test("see: a successful see counts against the visit's action cap", async () => {
+  test("see: a requested photo counts against the visit's action cap", async () => {
     const { ownerToken, agentId, agentToken } = await ownerWithAgent("SeeCounts");
     await startVisit(ownerToken, agentId, 2);
     await w(agentToken, "POST", "/body"); // 1
     clock += 1000;
-    expect((await w(agentToken, "POST", "/see", {})).status).toBe(200); // 2 — cap reached
+    const r = await w(agentToken, "POST", "/see", {}); // 2 — cap reached
+    expect(r.status).toBe(202);
+    const id = ((await r.json()) as any).see.id as string;
+    // Grace: the photo that reached the cap can still be collected (reading a result is not a new action)...
+    expect((await readSee(agentToken, id)).state).toBe("done");
+    // ...but anything else is refused, and that ends the visit; after that even the result read is refused.
     clock += 1000;
-    expect((await w(agentToken, "POST", "/act", { id: "after-cap", action: { type: "wait", seconds: 1 } })).status).toBe(403);
+    const next = await w(agentToken, "POST", "/act", { id: "after-cap", action: { type: "wait", seconds: 1 } });
+    expect(next.status).toBe(403);
+    expect(((await next.json()) as any).reason).toBe("action_cap");
+    expect((await w(agentToken, "GET", `/see/${id}`)).status).toBe(403);
+  });
+
+  test("act: the result of the cap-reaching act can be polled, and other reads are still refused", async () => {
+    const { ownerToken, agentId, agentToken } = await ownerWithAgent("ActGrace");
+    await startVisit(ownerToken, agentId, 2);
+    await w(agentToken, "POST", "/body"); // 1
+    const a = await w(agentToken, "POST", "/act", { id: "last-one", action: { type: "wait", seconds: 1 } }); // 2 — cap reached
+    expect(a.status).toBe(202);
+    const poll = await w(agentToken, "GET", "/act/last-one?waitMs=3000");
+    expect(poll.status).toBe(200);
+    // observe is not a result read: it ends the visit as before.
+    const obs = await w(agentToken, "GET", "/observe");
+    expect(obs.status).toBe(403);
+    expect(((await obs.json()) as any).reason).toBe("action_cap");
   });
 
   test("deleting an owner whose agent had visits and a body succeeds and removes the body (was a 500: agent_visits FK)", async () => {

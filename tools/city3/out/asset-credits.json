@@ -1,382 +1,406 @@
 [
- {
-  "asset": "packtree_a",
-  "source": "https://sketchfab.com/3d-models/low-poly-forest-tree-pack-5ff5a51e74324845a4e4905f182dfb2b",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "packtree_b",
-  "source": "https://sketchfab.com/3d-models/low-poly-forest-tree-pack-5ff5a51e74324845a4e4905f182dfb2b",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "packtree_c",
-  "source": "https://sketchfab.com/3d-models/low-poly-forest-tree-pack-5ff5a51e74324845a4e4905f182dfb2b",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "sk_lantern",
-  "source": "https://sketchfab.com/3d-models/lantern-low-poly-medieval-cc0-8a3dc887ea9d48c19ad48469ba11e753",
-  "license": "CC0"
- },
- {
-  "asset": "sk_pot",
-  "source": "https://sketchfab.com/3d-models/pot-low-poly-medieval-cc0-6f619f25f5454455b9d86873160937aa",
-  "license": "CC0"
- },
- {
-  "asset": "sk_producecrate",
-  "source": "https://sketchfab.com/3d-models/produce-crate-low-poly-medieval-cc0-bcf35bfc9d584d65a0bc886f52a656c2",
-  "license": "CC0"
- },
- {
-  "asset": "sk_med_bench",
-  "source": "https://sketchfab.com/3d-models/bench-low-poly-medieval-cc0-00a5bc01eb254b1cadc51fbb3394b5b2",
-  "license": "CC0"
- },
- {
-  "asset": "sk_med_crate",
-  "source": "https://sketchfab.com/3d-models/crate-low-poly-medieval-cc0-d54d8752e2724d16b4b45f2afa929e28",
-  "license": "CC0"
- },
- {
-  "asset": "sk_med_stall",
-  "source": "https://sketchfab.com/3d-models/village-stall-low-poly-medieval-cc0-5793f3eb1a684699ad8d38cea222909a",
-  "license": "CC0"
- },
- {
-  "asset": "goods_g_basket",
-  "source": "https://sketchfab.com/3d-models/basket-low-poly-medieval-cc0-aef0f7e9add24013acd7c7d9867d800d",
-  "license": "CC0"
- },
- {
-  "asset": "goods_g_grainsack",
-  "source": "https://sketchfab.com/3d-models/grain-sack-low-poly-medieval-cc0-7db2a14529fd4e1f9391c68337f71eac",
-  "license": "CC0"
- },
- {
-  "asset": "goods_g_sack",
-  "source": "https://sketchfab.com/3d-models/sack-low-poly-medieval-cc0-3deb43fe85ea43248cae8ed12837ea4e",
-  "license": "CC0"
- },
- {
-  "asset": "goods_g_roll",
-  "source": "https://sketchfab.com/3d-models/roll-low-poly-medieval-cc0-9cd0c6d36336456e86c2a79e968e47b6",
-  "license": "CC0"
- },
- {
-  "asset": "goods_g_cheese",
-  "source": "https://sketchfab.com/3d-models/cheese-wheel-low-poly-medieval-cc0-c66175e51d044dfda9e6edff21d4d38a",
-  "license": "CC0"
- },
- {
-  "asset": "goods_g_barrel",
-  "source": "https://sketchfab.com/3d-models/barrel-low-poly-medieval-cc0-72b757582d034946bf5cb44226b471a5",
-  "license": "CC0"
- },
- {
-  "asset": "goods_pot",
-  "source": "https://sketchfab.com/3d-models/pot-low-poly-medieval-cc0-6f619f25f5454455b9d86873160937aa",
-  "license": "CC0"
- },
- {
-  "asset": "goods_lantern",
-  "source": "https://sketchfab.com/3d-models/lantern-low-poly-medieval-cc0-8a3dc887ea9d48c19ad48469ba11e753",
-  "license": "CC0"
- },
- {
-  "asset": "goods_wooden_bucket_01",
-  "source": "https://polyhaven.com/a/wooden_bucket_01",
-  "license": "CC0"
- },
- {
-  "asset": "goods_metal_jug",
-  "source": "https://polyhaven.com/a/metal_jug",
-  "license": "CC0"
- },
- {
-  "asset": "ArmChair_01",
-  "source": "https://polyhaven.com/a/ArmChair_01",
-  "license": "CC0"
- },
- {
-  "asset": "CashRegister_01",
-  "source": "https://polyhaven.com/a/CashRegister_01",
-  "license": "CC0"
- },
- {
-  "asset": "ChairCushioned",
-  "source": "https://opengameart.org/content/furniture-low-poly",
-  "license": "CC0"
- },
- {
-  "asset": "WoodenTable_02",
-  "source": "https://polyhaven.com/a/WoodenTable_02",
-  "license": "CC0"
- },
- {
-  "asset": "binder_notebook",
-  "source": "https://polyhaven.com/a/binder_notebook",
-  "license": "CC0"
- },
- {
-  "asset": "book_encyclopedia_set_01",
-  "source": "https://polyhaven.com/a/book_encyclopedia_set_01",
-  "license": "CC0"
- },
- {
-  "asset": "brass_goblets",
-  "source": "https://polyhaven.com/a/brass_goblets",
-  "license": "CC0"
- },
- {
-  "asset": "ceramic_pot",
-  "source": "https://polyhaven.com/a/ceramic_pot",
-  "license": "CC0"
- },
- {
-  "asset": "desk_lamp_arm_01",
-  "source": "https://polyhaven.com/a/desk_lamp_arm_01",
-  "license": "CC0"
- },
- {
-  "asset": "drawer_cabinet",
-  "source": "https://polyhaven.com/a/drawer_cabinet",
-  "license": "CC0"
- },
- {
-  "asset": "metal_jug",
-  "source": "https://polyhaven.com/a/metal_jug",
-  "license": "CC0"
- },
- {
-  "asset": "potted_plant_02",
-  "source": "https://polyhaven.com/a/potted_plant_02",
-  "license": "CC0"
- },
- {
-  "asset": "vintage_grandfather_clock_01",
-  "source": "https://polyhaven.com/a/vintage_grandfather_clock_01",
-  "license": "CC0"
- },
- {
-  "asset": "vintage_oil_lamp",
-  "source": "https://polyhaven.com/a/vintage_oil_lamp",
-  "license": "CC0"
- },
- {
-  "asset": "vintage_radio_transceiver",
-  "source": "https://polyhaven.com/a/vintage_radio_transceiver",
-  "license": "CC0"
- },
- {
-  "asset": "wall_clock",
-  "source": "https://polyhaven.com/a/wall_clock",
-  "license": "CC0"
- },
- {
-  "asset": "wooden_bookshelf_worn",
-  "source": "https://polyhaven.com/a/wooden_bookshelf_worn",
-  "license": "CC0"
- },
- {
-  "asset": "wooden_crate_01",
-  "source": "https://polyhaven.com/a/wooden_crate_01",
-  "license": "CC0"
- },
- {
-  "asset": "bottle_0_green",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_0_amber",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_0_clear",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_0_cobalt",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_0_wine",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_1_green",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_1_amber",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_1_clear",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_1_cobalt",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_1_wine",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_2_green",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_2_amber",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_2_clear",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_2_cobalt",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_2_wine",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_3_green",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_3_amber",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_3_clear",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_3_cobalt",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_3_wine",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "pc_table",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupRed_full",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupBlue_full",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupBlue_stack",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupYellow_shortStack",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupRed_used",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupBlue_used",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupYellow_used",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupPink_full",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupGreen_full",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupGreen_shortStack",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupGreen_stack",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupGreen_used",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupPink_used",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupYellow_full",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupRed_shortStack",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "forklift",
-  "source": "https://sketchfab.com/3d-models/low-poly-forklift-truck-81b895de490646de8c6fb1ba03099e08",
-  "license": "CC-BY 4.0, Kolos Studios (Foundry Wharf)"
- },
- {
-  "asset": "barrel",
-  "source": "https://polyhaven.com/a/barrel_03",
-  "license": "CC0 (Foundry Wharf)"
- },
- {
-  "asset": "crate",
-  "source": "https://polyhaven.com/a/wooden_crate_01",
-  "license": "CC0 (Foundry Wharf)"
- }
+  {
+    "asset": "packtree_a",
+    "source": "https://sketchfab.com/3d-models/low-poly-forest-tree-pack-5ff5a51e74324845a4e4905f182dfb2b",
+    "license": "CC-BY 4.0"
+  },
+  {
+    "asset": "packtree_b",
+    "source": "https://sketchfab.com/3d-models/low-poly-forest-tree-pack-5ff5a51e74324845a4e4905f182dfb2b",
+    "license": "CC-BY 4.0"
+  },
+  {
+    "asset": "packtree_c",
+    "source": "https://sketchfab.com/3d-models/low-poly-forest-tree-pack-5ff5a51e74324845a4e4905f182dfb2b",
+    "license": "CC-BY 4.0"
+  },
+  {
+    "asset": "sk_lantern",
+    "source": "https://sketchfab.com/3d-models/lantern-low-poly-medieval-cc0-8a3dc887ea9d48c19ad48469ba11e753",
+    "license": "CC0"
+  },
+  {
+    "asset": "sk_pot",
+    "source": "https://sketchfab.com/3d-models/pot-low-poly-medieval-cc0-6f619f25f5454455b9d86873160937aa",
+    "license": "CC0"
+  },
+  {
+    "asset": "sk_producecrate",
+    "source": "https://sketchfab.com/3d-models/produce-crate-low-poly-medieval-cc0-bcf35bfc9d584d65a0bc886f52a656c2",
+    "license": "CC0"
+  },
+  {
+    "asset": "sk_med_bench",
+    "source": "https://sketchfab.com/3d-models/bench-low-poly-medieval-cc0-00a5bc01eb254b1cadc51fbb3394b5b2",
+    "license": "CC0"
+  },
+  {
+    "asset": "sk_med_crate",
+    "source": "https://sketchfab.com/3d-models/crate-low-poly-medieval-cc0-d54d8752e2724d16b4b45f2afa929e28",
+    "license": "CC0"
+  },
+  {
+    "asset": "sk_med_stall",
+    "source": "https://sketchfab.com/3d-models/village-stall-low-poly-medieval-cc0-5793f3eb1a684699ad8d38cea222909a",
+    "license": "CC0"
+  },
+  {
+    "asset": "goods_g_basket",
+    "source": "https://sketchfab.com/3d-models/basket-low-poly-medieval-cc0-aef0f7e9add24013acd7c7d9867d800d",
+    "license": "CC0"
+  },
+  {
+    "asset": "goods_g_grainsack",
+    "source": "https://sketchfab.com/3d-models/grain-sack-low-poly-medieval-cc0-7db2a14529fd4e1f9391c68337f71eac",
+    "license": "CC0"
+  },
+  {
+    "asset": "goods_g_sack",
+    "source": "https://sketchfab.com/3d-models/sack-low-poly-medieval-cc0-3deb43fe85ea43248cae8ed12837ea4e",
+    "license": "CC0"
+  },
+  {
+    "asset": "goods_g_roll",
+    "source": "https://sketchfab.com/3d-models/roll-low-poly-medieval-cc0-9cd0c6d36336456e86c2a79e968e47b6",
+    "license": "CC0"
+  },
+  {
+    "asset": "goods_g_cheese",
+    "source": "https://sketchfab.com/3d-models/cheese-wheel-low-poly-medieval-cc0-c66175e51d044dfda9e6edff21d4d38a",
+    "license": "CC0"
+  },
+  {
+    "asset": "goods_g_barrel",
+    "source": "https://sketchfab.com/3d-models/barrel-low-poly-medieval-cc0-72b757582d034946bf5cb44226b471a5",
+    "license": "CC0"
+  },
+  {
+    "asset": "goods_pot",
+    "source": "https://sketchfab.com/3d-models/pot-low-poly-medieval-cc0-6f619f25f5454455b9d86873160937aa",
+    "license": "CC0"
+  },
+  {
+    "asset": "goods_lantern",
+    "source": "https://sketchfab.com/3d-models/lantern-low-poly-medieval-cc0-8a3dc887ea9d48c19ad48469ba11e753",
+    "license": "CC0"
+  },
+  {
+    "asset": "goods_wooden_bucket_01",
+    "source": "https://polyhaven.com/a/wooden_bucket_01",
+    "license": "CC0"
+  },
+  {
+    "asset": "goods_metal_jug",
+    "source": "https://polyhaven.com/a/metal_jug",
+    "license": "CC0"
+  },
+  {
+    "asset": "ArmChair_01",
+    "source": "https://polyhaven.com/a/ArmChair_01",
+    "license": "CC0"
+  },
+  {
+    "asset": "CashRegister_01",
+    "source": "https://polyhaven.com/a/CashRegister_01",
+    "license": "CC0"
+  },
+  {
+    "asset": "ChairCushioned",
+    "source": "https://opengameart.org/content/furniture-low-poly",
+    "license": "CC0"
+  },
+  {
+    "asset": "WoodenTable_02",
+    "source": "https://polyhaven.com/a/WoodenTable_02",
+    "license": "CC0"
+  },
+  {
+    "asset": "binder_notebook",
+    "source": "https://polyhaven.com/a/binder_notebook",
+    "license": "CC0"
+  },
+  {
+    "asset": "book_encyclopedia_set_01",
+    "source": "https://polyhaven.com/a/book_encyclopedia_set_01",
+    "license": "CC0"
+  },
+  {
+    "asset": "brass_goblets",
+    "source": "https://polyhaven.com/a/brass_goblets",
+    "license": "CC0"
+  },
+  {
+    "asset": "ceramic_pot",
+    "source": "https://polyhaven.com/a/ceramic_pot",
+    "license": "CC0"
+  },
+  {
+    "asset": "desk_lamp_arm_01",
+    "source": "https://polyhaven.com/a/desk_lamp_arm_01",
+    "license": "CC0"
+  },
+  {
+    "asset": "drawer_cabinet",
+    "source": "https://polyhaven.com/a/drawer_cabinet",
+    "license": "CC0"
+  },
+  {
+    "asset": "metal_jug",
+    "source": "https://polyhaven.com/a/metal_jug",
+    "license": "CC0"
+  },
+  {
+    "asset": "potted_plant_02",
+    "source": "https://polyhaven.com/a/potted_plant_02",
+    "license": "CC0"
+  },
+  {
+    "asset": "vintage_grandfather_clock_01",
+    "source": "https://polyhaven.com/a/vintage_grandfather_clock_01",
+    "license": "CC0"
+  },
+  {
+    "asset": "vintage_oil_lamp",
+    "source": "https://polyhaven.com/a/vintage_oil_lamp",
+    "license": "CC0"
+  },
+  {
+    "asset": "vintage_radio_transceiver",
+    "source": "https://polyhaven.com/a/vintage_radio_transceiver",
+    "license": "CC0"
+  },
+  {
+    "asset": "wall_clock",
+    "source": "https://polyhaven.com/a/wall_clock",
+    "license": "CC0"
+  },
+  {
+    "asset": "wooden_bookshelf_worn",
+    "source": "https://polyhaven.com/a/wooden_bookshelf_worn",
+    "license": "CC0"
+  },
+  {
+    "asset": "wooden_crate_01",
+    "source": "https://polyhaven.com/a/wooden_crate_01",
+    "license": "CC0"
+  },
+  {
+    "asset": "bottle_0_green",
+    "source": "https://blendswap.com/blend/33793",
+    "license": "CC0 (uploader-declared), coldpengu"
+  },
+  {
+    "asset": "bottle_0_amber",
+    "source": "https://blendswap.com/blend/33793",
+    "license": "CC0 (uploader-declared), coldpengu"
+  },
+  {
+    "asset": "bottle_0_clear",
+    "source": "https://blendswap.com/blend/33793",
+    "license": "CC0 (uploader-declared), coldpengu"
+  },
+  {
+    "asset": "bottle_0_cobalt",
+    "source": "https://blendswap.com/blend/33793",
+    "license": "CC0 (uploader-declared), coldpengu"
+  },
+  {
+    "asset": "bottle_0_wine",
+    "source": "https://blendswap.com/blend/33793",
+    "license": "CC0 (uploader-declared), coldpengu"
+  },
+  {
+    "asset": "bottle_1_green",
+    "source": "https://blendswap.com/blend/33793",
+    "license": "CC0 (uploader-declared), coldpengu"
+  },
+  {
+    "asset": "bottle_1_amber",
+    "source": "https://blendswap.com/blend/33793",
+    "license": "CC0 (uploader-declared), coldpengu"
+  },
+  {
+    "asset": "bottle_1_clear",
+    "source": "https://blendswap.com/blend/33793",
+    "license": "CC0 (uploader-declared), coldpengu"
+  },
+  {
+    "asset": "bottle_1_cobalt",
+    "source": "https://blendswap.com/blend/33793",
+    "license": "CC0 (uploader-declared), coldpengu"
+  },
+  {
+    "asset": "bottle_1_wine",
+    "source": "https://blendswap.com/blend/33793",
+    "license": "CC0 (uploader-declared), coldpengu"
+  },
+  {
+    "asset": "bottle_2_green",
+    "source": "https://blendswap.com/blend/33793",
+    "license": "CC0 (uploader-declared), coldpengu"
+  },
+  {
+    "asset": "bottle_2_amber",
+    "source": "https://blendswap.com/blend/33793",
+    "license": "CC0 (uploader-declared), coldpengu"
+  },
+  {
+    "asset": "bottle_2_clear",
+    "source": "https://blendswap.com/blend/33793",
+    "license": "CC0 (uploader-declared), coldpengu"
+  },
+  {
+    "asset": "bottle_2_cobalt",
+    "source": "https://blendswap.com/blend/33793",
+    "license": "CC0 (uploader-declared), coldpengu"
+  },
+  {
+    "asset": "bottle_2_wine",
+    "source": "https://blendswap.com/blend/33793",
+    "license": "CC0 (uploader-declared), coldpengu"
+  },
+  {
+    "asset": "bottle_3_green",
+    "source": "https://blendswap.com/blend/33793",
+    "license": "CC0 (uploader-declared), coldpengu"
+  },
+  {
+    "asset": "bottle_3_amber",
+    "source": "https://blendswap.com/blend/33793",
+    "license": "CC0 (uploader-declared), coldpengu"
+  },
+  {
+    "asset": "bottle_3_clear",
+    "source": "https://blendswap.com/blend/33793",
+    "license": "CC0 (uploader-declared), coldpengu"
+  },
+  {
+    "asset": "bottle_3_cobalt",
+    "source": "https://blendswap.com/blend/33793",
+    "license": "CC0 (uploader-declared), coldpengu"
+  },
+  {
+    "asset": "bottle_3_wine",
+    "source": "https://blendswap.com/blend/33793",
+    "license": "CC0 (uploader-declared), coldpengu"
+  },
+  {
+    "asset": "pc_table",
+    "source": "user-supplied upload (partycups_usdz.zip)",
+    "license": "not stated"
+  },
+  {
+    "asset": "pc_partyCupRed_full",
+    "source": "user-supplied upload (partycups_usdz.zip)",
+    "license": "not stated"
+  },
+  {
+    "asset": "pc_partyCupBlue_full",
+    "source": "user-supplied upload (partycups_usdz.zip)",
+    "license": "not stated"
+  },
+  {
+    "asset": "pc_partyCupBlue_stack",
+    "source": "user-supplied upload (partycups_usdz.zip)",
+    "license": "not stated"
+  },
+  {
+    "asset": "pc_partyCupYellow_shortStack",
+    "source": "user-supplied upload (partycups_usdz.zip)",
+    "license": "not stated"
+  },
+  {
+    "asset": "pc_partyCupRed_used",
+    "source": "user-supplied upload (partycups_usdz.zip)",
+    "license": "not stated"
+  },
+  {
+    "asset": "pc_partyCupBlue_used",
+    "source": "user-supplied upload (partycups_usdz.zip)",
+    "license": "not stated"
+  },
+  {
+    "asset": "pc_partyCupYellow_used",
+    "source": "user-supplied upload (partycups_usdz.zip)",
+    "license": "not stated"
+  },
+  {
+    "asset": "pc_partyCupPink_full",
+    "source": "user-supplied upload (partycups_usdz.zip)",
+    "license": "not stated"
+  },
+  {
+    "asset": "pc_partyCupGreen_full",
+    "source": "user-supplied upload (partycups_usdz.zip)",
+    "license": "not stated"
+  },
+  {
+    "asset": "pc_partyCupGreen_shortStack",
+    "source": "user-supplied upload (partycups_usdz.zip)",
+    "license": "not stated"
+  },
+  {
+    "asset": "pc_partyCupGreen_stack",
+    "source": "user-supplied upload (partycups_usdz.zip)",
+    "license": "not stated"
+  },
+  {
+    "asset": "pc_partyCupGreen_used",
+    "source": "user-supplied upload (partycups_usdz.zip)",
+    "license": "not stated"
+  },
+  {
+    "asset": "pc_partyCupPink_used",
+    "source": "user-supplied upload (partycups_usdz.zip)",
+    "license": "not stated"
+  },
+  {
+    "asset": "pc_partyCupYellow_full",
+    "source": "user-supplied upload (partycups_usdz.zip)",
+    "license": "not stated"
+  },
+  {
+    "asset": "pc_partyCupRed_shortStack",
+    "source": "user-supplied upload (partycups_usdz.zip)",
+    "license": "not stated"
+  },
+  {
+    "asset": "forklift",
+    "source": "https://sketchfab.com/3d-models/low-poly-forklift-truck-81b895de490646de8c6fb1ba03099e08",
+    "license": "CC-BY 4.0, Kolos Studios (Foundry Wharf)"
+  },
+  {
+    "asset": "barrel",
+    "source": "https://polyhaven.com/a/barrel_03",
+    "license": "CC0 (Foundry Wharf)"
+  },
+  {
+    "asset": "crate",
+    "source": "https://polyhaven.com/a/wooden_crate_01",
+    "license": "CC0 (Foundry Wharf)"
+  },
+  {
+    "asset": "Kenney Furniture Kit",
+    "licence": "CC0",
+    "url": "https://kenney.nl/assets/furniture-kit",
+    "use": "Bazaar interiors"
+  },
+  {
+    "asset": "Quaternius Furniture Pack",
+    "licence": "CC0",
+    "url": "https://opengameart.org/content/furniture-low-poly",
+    "use": "Bazaar interiors"
+  },
+  {
+    "asset": "Quaternius Fantasy Props MegaKit",
+    "licence": "CC0",
+    "url": "https://quaternius.com/packs/fantasypropsmegakit.html",
+    "use": "Bazaar interiors"
+  },
+  {
+    "asset": "Poly Haven stucco, plaster, sandstone, brick textures",
+    "licence": "CC0",
+    "url": "https://polyhaven.com",
+    "use": "Bazaar facades"
+  }
 ]

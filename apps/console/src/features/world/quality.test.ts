@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+  FrameThrottle,
   GOVERNOR_DWELL_MS,
   GOVERNOR_WARMUP_MS,
   QualityGovernor,
+  TOUCH_DPR_MAX,
+  TOUCH_FPS_CAP,
+  capDpr,
   dprForTier,
   formatMB,
+  governorSampleFps,
   shadowMapForTier,
   summarizeLoad,
 } from "./quality";
@@ -62,6 +67,37 @@ describe("QualityGovernor", () => {
     g.sample(0, 0);
     expect(g.sample(0, T)).toBeNull();
     expect(g.current()).toBe("reduced");
+  });
+});
+
+describe("thermal guardrails", () => {
+  it("caps every tier's DPR at the touch ceiling — even a governor step-up to full", () => {
+    for (const tier of ["full", "reduced", "lite"] as const) {
+      const capped = capDpr(dprForTier(tier), TOUCH_DPR_MAX);
+      const max = typeof capped === "number" ? capped : capped[1];
+      expect(max).toBeLessThanOrEqual(TOUCH_DPR_MAX);
+    }
+    expect(capDpr([1, 2], TOUCH_DPR_MAX)).toEqual([1, 1.5]);
+    expect(capDpr([1, 1.5], TOUCH_DPR_MAX)).toEqual([1, 1.5]);
+    expect(capDpr(1, TOUCH_DPR_MAX)).toBe(1);
+  });
+
+  it("clamps the governor's fps sample at the render cap, passing real shortfalls through", () => {
+    expect(governorSampleFps(60)).toBe(TOUCH_FPS_CAP);
+    expect(governorSampleFps(TOUCH_FPS_CAP)).toBe(TOUCH_FPS_CAP);
+    expect(governorSampleFps(17)).toBe(17);
+  });
+
+  it("FrameThrottle grants the first frame, then at most one per interval", () => {
+    const t = new FrameThrottle(30); // 33.33 ms interval
+    expect(t.shouldRender(0)).toBe(true);
+    expect(t.shouldRender(16)).toBe(false);
+    expect(t.shouldRender(33)).toBe(false); // 33 < 33.33
+    expect(t.shouldRender(34)).toBe(true);
+    expect(t.shouldRender(100)).toBe(true); // a stall earns a frame at once
+    expect(t.shouldRender(101)).toBe(false);
+    t.reset();
+    expect(t.shouldRender(101)).toBe(true);
   });
 });
 

@@ -1,6 +1,7 @@
 import { and, eq, gt, isNull, lt, sql } from "drizzle-orm";
 import { db } from "../db/client";
 import { agentVisits } from "@aiverse/shared/schema";
+import { redis } from "../redis/client";
 
 // Pure DB logic — no ws/gateway import here, on purpose: ws/gateway.ts's own
 // WS-connect handler needs to call checkAndConsumeVisit too, and it already
@@ -68,7 +69,18 @@ export interface VisitCheckResult {
 // call; otherwise a non-GET/HEAD call (a real action, not a read) counts
 // against it. Passing method "GET" checks without ever consuming — what WS
 // connect uses, since connecting isn't itself an action.
-export async function checkAndConsumeVisit(agentId: string, method: string): Promise<VisitCheckResult> {
+// Reading the RESULT of the action that reached the cap is not a new action: an agent whose last action was a minutes-long `see` (or a
+// long walk) must still be able to collect it. A pending-result read (GET /world/act/:id, /world/see/:id) is let through for this long
+// after the cap was first hit; every other call after the cap ends the visit exactly as before. The window is opened once per visit
+// (SET NX), so polling cannot extend it, and the deadline still applies.
+export const CAP_GRACE_SECONDS = 600;
+
+export interface VisitCheckOptions {
+  /** True for a read that only collects the result of an action already taken (act/see status polls). */
+  resultRead?: boolean;
+}
+
+export async function checkAndConsumeVisit(agentId: string, method: string, opts: VisitCheckOptions = {}): Promise<VisitCheckResult> {
   const visit = await db.query.agentVisits.findFirst({
     where: eq(agentVisits.agentId, agentId),
     orderBy: (v, { desc }) => [desc(v.startedAt)],
@@ -77,6 +89,12 @@ export async function checkAndConsumeVisit(agentId: string, method: string): Pro
   if (visit.endedAt) return { allowed: false, reason: (visit.endedReason as VisitEndReason) ?? undefined };
 
   if (visit.actionsUsed >= visit.maxActions) {
+    const isRead = method === "GET" || method === "HEAD";
+    if (isRead && opts.resultRead && visit.endsAt.getTime() > Date.now()) {
+      const opened = await redis.set(`visit:cap-grace:${visit.id}`, "1", "EX", CAP_GRACE_SECONDS, "NX").catch(() => null);
+      const open = opened === "OK" || (opened === null && (await redis.exists(`visit:cap-grace:${visit.id}`).catch(() => 0)) === 1);
+      if (open) return { allowed: true };
+    }
     const ended = await endVisitRecord(visit.id, "action_cap");
     return { allowed: false, ended: ended ?? undefined, reason: "action_cap" };
   }

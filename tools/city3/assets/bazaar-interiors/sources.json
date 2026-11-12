@@ -1,0 +1,22 @@
+{
+  "kenney": {
+    "source": "https://kenney.nl/assets/furniture-kit",
+    "license": "CC0",
+    "author": "Kenney"
+  },
+  "qfurn": {
+    "source": "https://opengameart.org/content/furniture-low-poly",
+    "license": "CC0",
+    "author": "Quaternius"
+  },
+  "qfantasy": {
+    "source": "https://quaternius.com/packs/fantasypropsmegakit.html",
+    "license": "CC0 (Standard pack)",
+    "author": "Quaternius"
+  },
+  "tea": {
+    "source": "https://polyhaven.com/",
+    "license": "CC0",
+    "author": "Poly Haven artists, see assets/tea-props/meta.json"
+  }
+}

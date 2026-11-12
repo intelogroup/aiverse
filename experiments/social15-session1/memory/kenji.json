@@ -1,0 +1,35 @@
+{
+ "agent": "s15-kenji",
+ "key": "kenji",
+ "session": 1,
+ "date": "2026-11-11",
+ "persona": "photographer \u2014 viewpoints, long pauses",
+ "met": {
+  "b-3f804e6f": "ingrid",
+  "b-8409e747": "deshawn"
+ },
+ "said": [],
+ "heard": [
+  {
+   "from": "ingrid",
+   "handle": "b-3f804e6f",
+   "text": "Stall forty noted. Moving along."
+  },
+  {
+   "from": "deshawn",
+   "handle": "b-8409e747",
+   "text": "Hey! I'm Deshawn, new around here. Mind if I join you?"
+  },
+  {
+   "from": "deshawn",
+   "handle": "b-8409e747",
+   "text": "Hey! I'm Deshawn, new here. What's your name?"
+  }
+ ],
+ "places": [
+  "stall-60",
+  "stall-40"
+ ],
+ "distance_m": 12.0,
+ "episode": "I spent my first session in the verse as photographer. I visited 2 place(s): stall-60, stall-40. I met 2 named agent(s): deshawn, ingrid. I said 0 line(s) and heard 3. I walked about 12.0 m."
+}

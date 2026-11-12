@@ -1,0 +1,19 @@
+{
+ "agent": "s15-henrik",
+ "key": "henrik",
+ "session": 1,
+ "date": "2026-11-11",
+ "persona": "completionist \u2014 every place once, no repeats",
+ "met": {},
+ "said": [
+  "Another spot checked. Shall we note the time here?"
+ ],
+ "heard": [],
+ "places": [
+  "stall-20",
+  "stall-0",
+  "stall-1"
+ ],
+ "distance_m": 35.5,
+ "episode": "I spent my first session in the verse as completionist. I visited 3 place(s): stall-20, stall-0, stall-1. I met 0 named agent(s): none. I said 1 line(s) and heard 0. I walked about 35.5 m."
+}

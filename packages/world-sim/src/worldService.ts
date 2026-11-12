@@ -78,7 +78,7 @@ export interface LookView {
   classPng: string;
   legend: Record<number, string>;
   /** Rows run top to bottom, columns left to right (bearing increases to the right, as in observe.scene). */
-  camera: { hfovDeg: number; vfovDeg: number; farM: number; noHit: number; note: string };
+  camera: { gaze: { yawDeg: number; pitchDeg: number }; hfovDeg: number; vfovDeg: number; farM: number; noHit: number; note: string };
   observation: Observation;
 }
 
@@ -290,7 +290,7 @@ export class WorldService {
       depthPng: b64(encodeGrayPng(r.width, r.height, 16, r.depthMm)),
       classPng: b64(encodeGrayPng(r.width, r.height, 8, r.classes)),
       legend: LOOK_LEGEND,
-      camera: { hfovDeg: LOOK_HFOV_DEG, vfovDeg: round(vfov, 1), farM: LOOK_FAR_M, noHit: LOOK_NO_HIT, note: "collision geometry, not visual: glass reads as wall; shop doors are marked as door (a 1.2 x 2.1 m rectangle in the wall); seats and props are small markers; bodies carry no handle (match them to observe.scene by bearing)" },
+      camera: { gaze: { ...s.body.exec.gaze }, hfovDeg: LOOK_HFOV_DEG, vfovDeg: round(vfov, 1), farM: LOOK_FAR_M, noHit: LOOK_NO_HIT, note: "collision geometry, not visual: glass reads as wall; shop doors are marked as door (a 1.2 x 2.1 m rectangle in the wall); seats and props are small markers; bodies carry no handle (match them to observe.scene by bearing)" },
       observation: this.observe(agentId),
     };
   }

@@ -235,7 +235,7 @@ describe("sensorium guard (leak-audit L3/L4 closure)", () => {
   it("__scout.look() returns frames + scene, never a verdict payload", () => {
     const scout = SOURCES[SCOUT];
     expect(scout).toMatch(
-      /look:\s*\(\)\s*=>\s*Promise<\{\s*image:[^}]*scene:\s*OracleObject\[\]/,
+      /look:\s*\((?:opts\?:[^)]*)?\)\s*=>\s*Promise<\{\s*image:[^}]*scene:\s*OracleObject\[\]/,
     );
     expect(scout).not.toMatch(/[{,]\s*view\s*:/);
   });

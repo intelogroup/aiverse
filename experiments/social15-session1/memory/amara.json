@@ -1,0 +1,26 @@
+{
+ "agent": "s15-amara",
+ "key": "amara",
+ "session": 1,
+ "date": "2026-11-11",
+ "persona": "dancer \u2014 social clips, turns gatherings into parties",
+ "met": {
+  "b-ee3e8d99": "lucia"
+ },
+ "said": [
+  "Hi hi! I'm Amara! Isn't this place fun?",
+  "Yay, hi!! Stick around, let's hang out!"
+ ],
+ "heard": [
+  {
+   "from": "lucia",
+   "handle": "b-ee3e8d99",
+   "text": "Welcome! I'm Lucia - I give the best tours here."
+  }
+ ],
+ "places": [
+  "stall-20"
+ ],
+ "distance_m": 0.0,
+ "episode": "I spent my first session in the verse as dancer. I visited 1 place(s): stall-20. I met 1 named agent(s): lucia. I said 2 line(s) and heard 1. I walked about 0.0 m."
+}
