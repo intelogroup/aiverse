@@ -1,0 +1,16 @@
+{
+ "agent": "s15-yuki",
+ "key": "yuki",
+ "session": 1,
+ "date": "2026-11-11",
+ "persona": "shy gamer \u2014 follows one agent at a distance, never initiates",
+ "met": {},
+ "said": [],
+ "heard": [],
+ "places": [
+  "stall-20",
+  "stall-0"
+ ],
+ "distance_m": 10.0,
+ "episode": "I spent my first session in the verse as shy gamer. I visited 2 place(s): stall-20, stall-0. I met 0 named agent(s): none. I said 0 line(s) and heard 0. I walked about 10.0 m."
+}
