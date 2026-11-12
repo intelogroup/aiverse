@@ -107,3 +107,13 @@ Path prefix for every screenshot: `.../scratchpad/audit/` (file name given). Tri
 - Sketchfab (public search works without a token; downloads need `SKETCHFAB_TOKEN`, which was NOT used): CC0 candidates are the Avramania "Low Poly Medieval, CC0" family (fruit basket, basket, sack, grain sack, roll, rope coil, barrel 2348, bush, flowers, village well 1004). Everything else useful is CC-BY: needs an entry in `tools/city3/ASSETS.md` and `out/asset-credits.json` (author + title + url). Avoid brand-named items (Mitsubishi AC, Nissan truck, Ikea).
 - Sketchfab texture sizes are unknown until download: check after fetch (doc 11 caveat).
 - No suitable CC0/CC-BY generic cars found in the 15k face limit apart from stylised car packs; procedural Halo cars remain the fallback.
+
+## Bazaar replace pass (2026-11-12, `tools/city3/bridge_bazaar_fixes.py`)
+Visual meshes only, run after `bridge_bazaar.py`; refuses to run twice (`extras.bazaar_fixes_pass`).
+- Orphan cornice slabs: the merged `Props` mesh kept the old procedural blocks' cornice bands, which floated above the lower `Bones_shop` roofs. Slab groups not supported by a building top (heightfield from `Bones_shop`/`Roof`/`B_Facade`) or left as split fragments (<12 tris) are degenerated (282 tris, 78 groups). The Tea House lot is skipped.
+- 33 procedural stalls (flat awning sliver, box counter, floating baskets) become `SK_med_stall` nodes; their baked counter, posts and awning are removed.
+- Baked hex barrels and cuboid crate stacks beside all 80 stalls become `SK_med_crate` nodes (20 + the 33 new stalls).
+- 56 `SK_pot` ground pots dropped (goods already put pots on the tables).
+- `egg-bazaar-03` moved to the new table top (y 1.4008); the old counter top was 1.2.
+- Not changed: `world-city3-collision.glb` still has the old counter boxes and pot boxes (invisible blockers), and navmesh is untouched.
+Verify by rendering fixed cameras with real textures (a small three.js page with KTX2Loader); Blender shows KTX2 as pink.
