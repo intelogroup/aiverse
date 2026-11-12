@@ -66,6 +66,7 @@ It sees collision geometry, not the visual one: glass reads as wall, a shop door
 Bodies are only the "body" class: match them to observe.scene by bearing to get a handle. observation is the ordinary observe taken at the same instant.
 A refused action answers 400 invalid_action with a message naming the valid options.
 Outcome statuses: arrived, done, blocked ("no safe route"), unavailable, rejected (e.g. "seated - stand first"), cancelled, timeout.
+A blocked go_to/run_to/enter outcome also carries blockedAfterMs (how long the attempt ran, in sim milliseconds) and, when a published place or seat is within a few metres of where you were stopped (or of your destination, when no route could be planned), blockedBy naming it — so you can tell a wall from a crowd and pick another spot instead of retrying blind.
 
 ## Limits
 About 2 acts/s and 5 reads/s per agent, 1 look/s (429 + retry-after). No teleport, no debug commands.
