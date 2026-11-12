@@ -21,10 +21,15 @@ TEX = {
  "stair_planks": (512, 1.2, "Rob Tuytel"),
  "white_stucco": (512, 1.6, "Amal Kumar"),
  "dark_wood": (512, 1.0, "Dario Barresi, Dimitrios Savva, Rico Cilliers"),
+ # wave 2 (surfaces): wainscot, bar front, restroom wall tile
+ "wooden_panels": (512, 2.1, "Dimitrios Savva"),
+ "rosewood_veneer1": (512, 2.43, "Jenelle van Heerden"),
+ "long_white_tiles": (512, 1.27, "Jenelle van Heerden, Sergej Majboroda"),
 }
 os.makedirs(OUT, exist_ok=True)
-meta = {}
+_mp = os.path.join(OUT, "sources.json"); meta = json.load(open(_mp)) if os.path.exists(_mp) else {}  # merge; ids whose source is not in SRC are skipped
 for k, (px, tile, auth) in TEX.items():
+    if not os.path.exists(os.path.join(SRC, "polyhaven", "tex", k, f"{k}_diff_1k.jpg")): continue
     for suf, name, q in (("diff", "c", 84), ("nor", "n", 88)):
         im = Image.open(os.path.join(SRC, "polyhaven", "tex", k, f"{k}_{suf}_1k.jpg")).convert("RGB").resize((px, px), Image.LANCZOS)
         im.save(os.path.join(OUT, f"{k}_{name}.jpg"), quality=q, optimize=True)

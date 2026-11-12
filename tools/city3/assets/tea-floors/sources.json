@@ -89,5 +89,26 @@
     "author": "Dario Barresi, Dimitrios Savva, Rico Cilliers",
     "tileMetres": 1.0,
     "px": 512
+  },
+  "wooden_panels": {
+    "source": "https://polyhaven.com/a/wooden_panels",
+    "license": "CC0",
+    "author": "Dimitrios Savva",
+    "tileMetres": 2.1,
+    "px": 512
+  },
+  "rosewood_veneer1": {
+    "source": "https://polyhaven.com/a/rosewood_veneer1",
+    "license": "CC0",
+    "author": "Jenelle van Heerden",
+    "tileMetres": 2.43,
+    "px": 512
+  },
+  "long_white_tiles": {
+    "source": "https://polyhaven.com/a/long_white_tiles",
+    "license": "CC0",
+    "author": "Jenelle van Heerden, Sergej Majboroda",
+    "tileMetres": 1.27,
+    "px": 512
   }
 }
