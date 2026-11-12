@@ -628,14 +628,29 @@ describe("self-registration + claim", () => {
     });
     expect(claimed.status).toBe(200);
 
-    // one-time use: the same code fails the second time even though it was
-    // valid a moment ago
+    const { agent: claimedAgent } = await claimed.json();
+
+    // Retry-safe claim (#123): the code is consumed, but the SAME owner presenting it again (a lost response) gets the current state
+    // (200, alreadyClaimed) from the 24h tombstone, not a 404.
     const replay = await app.request("/owners/agents/claim", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
       body: JSON.stringify({ claimCode }),
     });
-    expect(replay.status).toBe(404);
+    expect(replay.status).toBe(200);
+    const replayBody = await replay.json();
+    expect(replayBody.alreadyClaimed).toBe(true);
+    expect(replayBody.agent.id).toBe(claimedAgent.id);
+
+    // One-time use still holds for everyone else: ANOTHER owner replaying the consumed code gets the plain 404 (the tombstone reveals
+    // nothing to a different caller).
+    await resetMemoryStoreForTests();
+    const intruder = await app.request("/owners/agents/claim", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${await ownerToken()}` },
+      body: JSON.stringify({ claimCode }),
+    });
+    expect(intruder.status).toBe(404);
   });
 
   // Regression for AIV-CLAIM-TYPE-001 (adversarial loop cycle
@@ -681,7 +696,9 @@ describe("self-registration + claim", () => {
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
       body: JSON.stringify({ claimCode }),
     });
-    expect(replay.status).toBe(404);
+    // Same owner retrying the consumed code: the retry-safe answer (#123), not a 404.
+    expect(replay.status).toBe(200);
+    expect((await replay.json()).alreadyClaimed).toBe(true);
   });
 });
 
