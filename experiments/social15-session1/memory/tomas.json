@@ -1,0 +1,26 @@
+{
+ "agent": "s15-tomas",
+ "key": "tomas",
+ "session": 1,
+ "date": "2026-11-11",
+ "persona": "chef \u2014 Tea House / food first, judge each place",
+ "met": {
+  "b-6273afe4": "henrik"
+ },
+ "said": [],
+ "heard": [
+  {
+   "from": "henrik",
+   "handle": "b-6273afe4",
+   "text": "Another spot checked. Shall we note the time here?"
+  }
+ ],
+ "places": [
+  "stall-40",
+  "stall-0",
+  "stall-1",
+  "stall-2"
+ ],
+ "distance_m": 53.8,
+ "episode": "I spent my first session in the verse as chef. I visited 4 place(s): stall-40, stall-0, stall-1, stall-2. I met 1 named agent(s): henrik. I said 0 line(s) and heard 1. I walked about 53.8 m."
+}

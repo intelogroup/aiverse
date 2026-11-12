@@ -107,7 +107,7 @@ export interface ScoutApi {
   /** The interactables (headless checks); null without a controller. */
   interact: () => { session: { id: string; phase: string; t: number } | null; props: { id: string; on: boolean }[] } | null;
   snapshot: () => ScoutSnapshot | null;
-  look: () => Promise<{ image: string | null; scene: OracleObject[]; depth: ScoutVisionFrame["depth"] | null; camera: ScoutVisionFrame["camera"] | null; simulationTime: number; snapshot: ScoutSnapshot | null; routeImage: string | null; route: ReturnType<typeof projectRoute> }>;
+  look: (opts?: { pitchDeg?: number }) => Promise<{ image: string | null; scene: OracleObject[]; depth: ScoutVisionFrame["depth"] | null; camera: ScoutVisionFrame["camera"] | null; simulationTime: number; snapshot: ScoutSnapshot | null; routeImage: string | null; route: ReturnType<typeof projectRoute> }>;
   act: (action: ScoutAction) => Promise<(ScoutOutcome & { snapshot: ScoutSnapshot | null }) | null>;
   map: () => (NavigationPatch & { simulationTime: number; session: string }) | null;
   places: () => ScoutPlace[];
@@ -286,7 +286,7 @@ export function ScoutAgent({
     };
   };
 
-  const captureLook = (): ScoutVisionFrame | null => {
+  const captureLook = (pitchDeg = 0): ScoutVisionFrame | null => {
     const s = state.current;
     if (!s) return null;
     const rig = lookRig.current ??= new ScoutVision();
@@ -295,7 +295,9 @@ export function ScoutAgent({
     const sn = Math.sin(s.body), cs = Math.cos(s.body);
     const pose = exec.current?.frameOverride();
     cam.position.set((pose?.x ?? s.x) + sn * EYE_FORWARD, (pose?.y ?? s.y) + (pose?.drop ?? 0) + HEAD_HEIGHT, (pose?.z ?? s.z) + cs * EYE_FORWARD);
-    cam.lookAt(cam.position.x + sn * 5, cam.position.y, cam.position.z + cs * 5);
+    // Head pitch (gaze): the look target rises or falls over the 5 m lever; the service turns the BODY to the requested camera heading.
+    const pitch = Math.max(-60, Math.min(45, Number.isFinite(pitchDeg) ? pitchDeg : 0)) * Math.PI / 180;
+    cam.lookAt(cam.position.x + sn * 5 * Math.cos(pitch), cam.position.y + 5 * Math.sin(pitch), cam.position.z + cs * 5 * Math.cos(pitch));
     return rig.capture(gl, scene, exec.current?.t ?? 0, figure.current);
   };
 
@@ -312,7 +314,7 @@ export function ScoutAgent({
         const s = state.current;
         return s ? {...sampleNavigationPatch(staticWorld,[s.x,s.y,s.z],{halfExtent:12,cellSize:1,maxExpansions:700}),simulationTime:exec.current?.t ?? 0,session:session.current} : null;
       },
-      look: async () => {
+      look: async (opts) => {
         looksUsed.current += 1;
         const s = state.current;
         const d = data.current;
@@ -320,7 +322,7 @@ export function ScoutAgent({
           s && d
             ? oracleScene(d.places, rooms, { x: s.x, z: s.z, heading: s.body }, {}, (interact?.list() ?? []).map((i) => ({ id: i.id, label: i.label, kind: i.kind, pos: [i.pos[0], i.pos[2]] as [number, number], on: interact!.isOn(i.id) })))
             : [];
-        const frame = captureLook();
+        const frame = captureLook(opts?.pitchDeg ?? 0);
         const visible = frame && lookRig.current && s ? sceneObjs.filter(o => {
           if (o.kind === "room" && o.note === "you are inside") return true;
           const angle = s.body + o.bearingDeg * Math.PI / 180;

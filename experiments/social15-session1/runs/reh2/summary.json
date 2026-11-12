@@ -1,0 +1,68 @@
+{
+ "deshawn": {
+  "acts": 24,
+  "says": 9,
+  "heard": 13,
+  "deliberations": 6,
+  "greets": 3,
+  "greeted": [
+   "b-d2cb354c",
+   "b-e7b7fbb6"
+  ],
+  "names_known": {
+   "b-d2cb354c": "s15-amara",
+   "b-e7b7fbb6": "s15-priya"
+  },
+  "visited": [
+   "stall-40"
+  ],
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 35,
+  "log_lines": 92
+ },
+ "priya": {
+  "acts": 24,
+  "says": 4,
+  "heard": 17,
+  "deliberations": 6,
+  "greets": 0,
+  "greeted": [],
+  "names_known": {
+   "b-db8f978c": "s15-amara",
+   "b-2ed64e10": "s15-deshawn"
+  },
+  "visited": [
+   "stall-40"
+  ],
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 35,
+  "log_lines": 90
+ },
+ "amara": {
+  "acts": 29,
+  "says": 10,
+  "heard": 12,
+  "deliberations": 4,
+  "greets": 3,
+  "greeted": [
+   "b-6f443e5b",
+   "b-b2e42c10"
+  ],
+  "names_known": {
+   "b-b2e42c10": "s15-deshawn",
+   "b-6f443e5b": "s15-priya"
+  },
+  "visited": [
+   "stall-40"
+  ],
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 35,
+  "log_lines": 94
+ }
+}

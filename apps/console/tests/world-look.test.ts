@@ -5,6 +5,7 @@ import { inflateSync } from "node:zlib";
 import { loadVerseSim } from "@aiverse/world-sim/node/loadWorld";
 import { LOOK_CLASSES, LOOK_H, LOOK_NO_HIT, LOOK_W } from "@aiverse/world-sim/look";
 import { encodeGrayPng } from "@aiverse/world-sim/png";
+import { explainAction } from "@aiverse/world-sim/actionProtocol";
 import { WorldService } from "@aiverse/world-sim/worldService";
 
 const ASSETS = new URL("../public/assets/", import.meta.url).pathname;
@@ -98,6 +99,53 @@ describe("look", () => {
     const away = decode(service.look("amy").classPng);
     expect([...away.px].includes(LOOK_CLASSES.body)).toBe(false);
     service.detach("ben");
+  });
+
+  it("gaze turns the head, not the body: yaw moves another body across the picture, pitch trades floor for sky, reset restores", async () => {
+    service.attach("gz");
+    const { x, z } = service.body("gz");
+    service.attach("gt", { x: x + 5, z });
+    const t = service.body("gt"); // the spawn may have moved it: face where it really stands
+    await settle("gz", service.act("gz", "g0", { type: "face", point: [t.x, t.z] }).id);
+    const count = (v: ReturnType<WorldService["look"]>, cls: number) => { const c = decode(v.classPng); let n = 0, sum = 0; for (let j = 0; j < LOOK_H; j++) for (let i = 0; i < LOOK_W; i++) if (c.px[j * LOOK_W + i] === cls) { n++; sum += i; } return { n, mean: n ? sum / n : 0 }; };
+    const ahead = count(service.look("gz"), LOOK_CLASSES.body);
+    expect(Math.abs(ahead.mean - LOOK_W / 2), "centred before gaze").toBeLessThan(8);
+    // head 30 degrees to the left: the body is to the RIGHT in the picture; the body itself did not turn
+    const heading0 = service.body("gz").heading;
+    const r = await settle("gz", service.act("gz", "g1", { type: "gaze", yawDeg: -30 }).id);
+    expect(r.outcome?.status).toBe("done");
+    expect(service.body("gz").heading).toBe(heading0);
+    expect(service.body("gz").gaze).toEqual({ yawDeg: -30, pitchDeg: 0 });
+    const left = count(service.look("gz"), LOOK_CLASSES.body);
+    expect(left.n, "still in the 86 degree field").toBeGreaterThan(10);
+    expect(left.mean, "to the right of centre").toBeGreaterThan(LOOK_W / 2 + 15);
+    // yaw past the field of view: nothing
+    await settle("gz", service.act("gz", "g2", { type: "gaze", yawDeg: 60 }).id);
+    expect(count(service.look("gz"), LOOK_CLASSES.body).n).toBe(0);
+    // pitch: looking up shows more sky and less floor than looking down (pitch alone keeps the earlier yaw until reset)
+    await settle("gz", service.act("gz", "g3", { type: "gaze", reset: true }).id);
+    expect(service.body("gz").gaze).toEqual({ yawDeg: 0, pitchDeg: 0 });
+    await settle("gz", service.act("gz", "g4", { type: "gaze", pitchDeg: 40 }).id);
+    const up = service.look("gz");
+    await settle("gz", service.act("gz", "g5", { type: "gaze", pitchDeg: -50 }).id);
+    const down = service.look("gz");
+    expect(up.camera.gaze).toEqual({ yawDeg: 0, pitchDeg: 40 });
+    expect(count(up, LOOK_CLASSES.sky).n).toBeGreaterThan(count(down, LOOK_CLASSES.sky).n);
+    expect(count(down, LOOK_CLASSES.floor).n).toBeGreaterThan(count(up, LOOK_CLASSES.floor).n);
+    // the ordinary observation reports it
+    expect(service.observe("gz").body.gaze).toEqual({ yawDeg: 0, pitchDeg: -50 });
+    service.detach("gt");
+    service.detach("gz");
+  });
+
+  it("gaze validation names the limits", () => {
+    const why = (a: unknown) => explainAction(a);
+    expect(why({ type: "gaze", yawDeg: 90 })).toMatch(/yawDeg must be within \+-70/);
+    expect(why({ type: "gaze", pitchDeg: 80 })).toMatch(/pitchDeg must be between -60 and 45/);
+    expect(why({ type: "gaze" })).toMatch(/needs yawDeg and\/or pitchDeg, or reset:true/);
+    expect(why({ type: "gaze", reset: true, yawDeg: 10 })).toMatch(/reset must be true and used alone/);
+    expect(why({ type: "gaze", yawDeg: 10, pitchDeg: -20 })).toBeNull();
+    expect(why({ type: "gaze", reset: true })).toBeNull();
   });
 
   it("a wall is a wall: inside a shop facing the back wall, no sky and a near wall", async () => {

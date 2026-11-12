@@ -11,7 +11,7 @@ import { CityNav } from "./cityNav";
 import { ClipTestState } from "./clips";
 import type { InteractController } from "./interactables";
 import { navigationSegment, planRoute } from "./navigation";
-import { ScoutExecutor, type Posture, type ScoutAction, type ScoutOutcome, type ScoutPlace, type ScoutRoomShape, type Sittable } from "./scout";
+import { ScoutExecutor, type Gaze, type Posture, type ScoutAction, type ScoutOutcome, type ScoutPlace, type ScoutRoomShape, type Sittable } from "./scout";
 import { clipChannel, type TeaDoorChannel, type TeaDoorController } from "./teaDoor";
 import { findSpawn, makeWalker, WALK_CONFIG, type Vec2, type WalkerState, type World } from "./walker";
 
@@ -26,6 +26,10 @@ const AVOID_HALF_FOV = Math.PI / 4;
 /** A Detour corridor may stop this far (XZ, m) from the goal and still count as reached (inside every interaction radius). */
 const NAV_END_GAP_M = 1.0;
 const NAV = { halfExtent: 128, cellSize: 1, maxExpansions: 10000 };
+/** Action types that move the body: their blocked outcomes carry proprioception evidence (blockedBy / blockedAfterMs). */
+const MOVEMENT_TYPES: ReadonlySet<ScoutAction["type"]> = new Set(["go_to", "run_to", "enter"]);
+/** blockedBy names a published place or seat only within this distance of the obstruction (m); farther, the field is omitted. */
+const BLOCKED_BY_RANGE_M = 5;
 
 export interface AgentBodyDeps {
   id: string;
@@ -66,6 +70,8 @@ export interface AgentSnapshot {
   /** The clip the figure should be playing (one-shots: sit, door, interact, social), or null for locomotion. */
   clip: string | null;
   seatedOn: string | null;
+  /** Head direction relative to the body, degrees (yaw + right, pitch + up); look and see follow it. */
+  gaze: Gaze;
 }
 
 /** What a viewer needs to draw the figure this instant (the console's AgentFrame, plus height and clip). */
@@ -161,11 +167,53 @@ export class AgentBody {
 
   /** Submit one action. Resolves when it settles (arrived / done / blocked / timeout / rejected ...). */
   act(action: ScoutAction): Promise<ScoutOutcome> {
-    return this.exec.submit(action, this.state).then((o) => (o.status === "blocked" ? this.explainBlocked(o) : o));
+    const t0 = this.exec.t;
+    return this.exec.submit(action, this.state).then((o) => {
+      if (o.status !== "blocked") return o;
+      const explained = this.explainBlocked(o);
+      return MOVEMENT_TYPES.has(action.type) ? this.blockedEvidence(action, explained, t0) : explained;
+    });
   }
 
-  /** "No progress" with another body at arm's length is a crowd, not a wall: say so, so the agent waits instead of retrying blind. */
+  /**
+   * Proprioception for a blocked movement act: how long the attempt ran, and the nearest published place or seat to the
+   * obstruction. The anchor is the destination when no route could be planned (the body never moved; the block is at the
+   * target) and the body's final position otherwise (it stopped where it was stopped). Ids only — places and seats are
+   * published (map / observe scene), so naming one leaks nothing unpublished.
+   */
+  private blockedEvidence(action: ScoutAction, o: ScoutOutcome, t0: number): ScoutOutcome {
+    const anchor = o.detail === "no safe route" ? (this.actionTarget(action) ?? [this.state.x, this.state.z]) : [this.state.x, this.state.z];
+    let best: string | undefined;
+    let bestD = BLOCKED_BY_RANGE_M;
+    for (const p of this.deps.places) {
+      const d = Math.hypot(p.pos[0] - anchor[0], p.pos[1] - anchor[1]);
+      if (d <= bestD) { bestD = d; best = p.id; }
+    }
+    for (const s of this.deps.sittables) {
+      const d = Math.hypot(s.seat[0] - anchor[0], s.seat[1] - anchor[1]);
+      if (d <= bestD) { bestD = d; best = s.id; }
+    }
+    return { ...o, blockedAfterMs: Math.round((this.exec.t - t0) * 1000), ...(best ? { blockedBy: best } : {}) };
+  }
+
+  /** Where a movement action was headed, as a point: its point, or its place's stand point. */
+  private actionTarget(action: ScoutAction): Vec2 | null {
+    if (action.type !== "go_to" && action.type !== "run_to" && action.type !== "enter") return null;
+    if (action.type !== "enter" && action.point) return action.point;
+    if (action.place) {
+      const p = this.deps.places.find((pl) => pl.id === action.place);
+      if (p) return p.stand;
+    }
+    return null;
+  }
+
+  /**
+   * "No progress" with another body at arm's length is a crowd, not a wall: say so, so the agent waits instead of retrying blind.
+   * Only for a stall on the way (no progress, route repeatedly obstructed): "no safe route" and "could not start" are
+   * planning refusals that a body standing nearby did not cause, and waiting would not fix them.
+   */
   private explainBlocked(o: ScoutOutcome): ScoutOutcome {
+    if (!/^(no progress|route repeatedly obstructed)/.test(o.detail ?? "")) return o;
     const s = this.state;
     const near = this.deps.actors.nearby(this.id, [s.x, s.y, s.z], 2.0).length;
     return near ? { ...o, detail: `${o.detail ?? "blocked"}; ${near === 1 ? "another body is" : `${near} other bodies are`} right beside you and may be in the way - wait a few seconds and retry, or pick another spot` } : o;
@@ -191,6 +239,7 @@ export class AgentBody {
       action: this.exec.currentAction?.type ?? null,
       clip: this.clips.current,
       seatedOn: this.exec.seatedSittable?.id ?? null,
+      gaze: { ...this.exec.gaze },
     };
   }
 

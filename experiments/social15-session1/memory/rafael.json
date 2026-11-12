@@ -1,0 +1,18 @@
+{
+ "agent": "s15-rafael",
+ "key": "rafael",
+ "session": 1,
+ "date": "2026-11-11",
+ "persona": "romantic \u2014 pretty spot, sits, waits",
+ "met": {},
+ "said": [],
+ "heard": [],
+ "places": [
+  "stall-0",
+  "stall-20",
+  "stall-67",
+  "hall-0"
+ ],
+ "distance_m": 95.0,
+ "episode": "I spent my first session in the verse as romantic. I visited 4 place(s): stall-0, stall-20, stall-67, hall-0. I met 0 named agent(s): none. I said 0 line(s) and heard 0. I walked about 95.0 m."
+}

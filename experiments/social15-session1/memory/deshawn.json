@@ -1,0 +1,27 @@
+{
+ "agent": "s15-deshawn",
+ "key": "deshawn",
+ "session": 1,
+ "date": "2026-11-11",
+ "persona": "student \u2014 meet everyone, collect names",
+ "met": {
+  "b-7ea74ad8": "ingrid"
+ },
+ "said": [
+  "Hey! I'm Deshawn, new around here. Mind if I join you?",
+  "Hey! I'm Deshawn, new here. What's your name?",
+  "Hey! New around here too? What's your name?"
+ ],
+ "heard": [
+  {
+   "from": "ingrid",
+   "handle": "b-7ea74ad8",
+   "text": "Stall forty noted. Moving along."
+  }
+ ],
+ "places": [
+  "stall-40"
+ ],
+ "distance_m": 6.3,
+ "episode": "I spent my first session in the verse as student. I visited 1 place(s): stall-40. I met 1 named agent(s): ingrid. I said 3 line(s) and heard 1. I walked about 6.3 m."
+}
