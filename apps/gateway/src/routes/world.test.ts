@@ -23,10 +23,10 @@ let lookMode: "ok" | "down" = "ok";
 // While set, a capture waits on it: lets a test hold a photo mid-render.
 let lookGate: Promise<void> | null = null;
 let openGate: () => void = () => {};
-const lookCalls: { agentId: string; position: [number, number]; headingDeg: number }[] = [];
+const lookCalls: { agentId: string; position: [number, number]; headingDeg: number; gaze?: { yawDeg: number; pitchDeg: number } }[] = [];
 const fakeLook: LookClient = {
-  async look(agentId, position, headingDeg): Promise<LookOutcome> {
-    lookCalls.push({ agentId, position, headingDeg });
+  async look(agentId, position, headingDeg, gaze): Promise<LookOutcome> {
+    lookCalls.push({ agentId, position, headingDeg, gaze });
     if (lookGate) await lookGate;
     if (lookMode === "down") return { ok: false, reason: "unavailable" };
     return {
@@ -439,6 +439,26 @@ describe("/world (agent body)", () => {
     await startVisit(other.ownerToken, other.agentId);
     expect((await w(other.agentToken, "GET", `/see/${queued.id}`)).status).toBe(404);
     expect((await w(agentToken, "GET", "/see/not-a-job")).status).toBe(404);
+    await w(agentToken, "DELETE", "/body");
+  });
+
+  test("see: the head direction (gaze) travels with the request, and an out-of-range gaze is refused", async () => {
+    const { ownerToken, agentId, agentToken } = await ownerWithAgent("SeeGaze");
+    await startVisit(ownerToken, agentId);
+    await w(agentToken, "POST", "/body");
+    clock += 1000;
+    expect((await w(agentToken, "POST", "/act", { id: "bad-gaze", action: { type: "gaze", pitchDeg: 90 } })).status).toBe(400);
+    const g = await w(agentToken, "POST", "/act", { id: "g1", action: { type: "gaze", yawDeg: -25, pitchDeg: 15 } });
+    expect(g.status).toBe(202);
+    const poll = (await (await w(agentToken, "GET", "/act/g1?waitMs=3000")).json()) as any;
+    expect(poll.act.outcome.status).toBe("done");
+    expect(((await (await w(agentToken, "GET", "/observe")).json()) as any).observation.body.gaze).toEqual({ yawDeg: -25, pitchDeg: 15 });
+    clock += 1000;
+    lookCalls.length = 0;
+    const r = await w(agentToken, "POST", "/see", {});
+    expect(r.status).toBe(202);
+    await readSee(agentToken, ((await r.json()) as any).see.id);
+    expect(lookCalls[0].gaze).toEqual({ yawDeg: -25, pitchDeg: 15 });
     await w(agentToken, "DELETE", "/body");
   });
 
