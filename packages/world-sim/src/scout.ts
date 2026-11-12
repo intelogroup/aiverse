@@ -258,8 +258,15 @@ export type ScoutAction =
   | { type: "play"; clip: string; seconds?: number }
   | { type: "interact"; target: string }
   | { type: "say"; text: string }
+  | { type: "gaze"; yawDeg?: number; pitchDeg?: number; reset?: boolean }
   | { type: "stop" }
   | { type: "finish" };
+
+/** Where the head points relative to the body, degrees: yaw + is to the right, pitch + is up. Camera senses (look, see) follow it. */
+export interface Gaze { yawDeg: number; pitchDeg: number }
+export const GAZE_YAW_MAX_DEG = 70;
+export const GAZE_PITCH_MIN_DEG = -60;
+export const GAZE_PITCH_MAX_DEG = 45;
 
 export type OutcomeStatus =
   | "arrived"
@@ -391,6 +398,8 @@ export class ScoutExecutor {
   /** Elapsed harness clock, seconds since construction. */
   t = 0;
   posture: Posture = "standing";
+  /** Head direction relative to the body (instant to set, persists until changed or reset). */
+  gaze: Gaze = { yawDeg: 0, pitchDeg: 0 };
   finished = false;
   private pending: Pending | null = null;
   private seatedOn: Sittable | null = null;
@@ -440,6 +449,11 @@ export class ScoutExecutor {
       case "finish":
         this.finished = true;
         return Promise.resolve({ ok: true, status: "done" });
+      case "gaze": {
+        // Instant, and allowed seated: people look around while sitting. Fields left out keep their current value.
+        this.gaze = action.reset ? { yawDeg: 0, pitchDeg: 0 } : { yawDeg: action.yawDeg ?? this.gaze.yawDeg, pitchDeg: action.pitchDeg ?? this.gaze.pitchDeg };
+        return Promise.resolve({ ok: true, status: "done", detail: `gaze yaw ${this.gaze.yawDeg} pitch ${this.gaze.pitchDeg}` });
+      }
       case "say":
         // Logged by the shell (and captioned there if a cheap mechanism
         // exists); nothing to animate in the executor.

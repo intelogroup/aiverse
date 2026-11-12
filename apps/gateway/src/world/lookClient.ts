@@ -17,7 +17,7 @@ export interface LookFrame {
   renderMs: number | null;
   /** Time spent moving the stand-in body to the requested pose before capturing. */
   poseMs: number | null;
-  /** The head rig's camera is level-only; a see is always pitch 0. */
+  /** True when the camera honoured the requested pitch (a head rig without pitch support reports false and shoots level). */
   pitchSupported: boolean;
   capturedAt: string | null;
 }
@@ -27,7 +27,8 @@ export type LookOutcome =
   | { ok: false; reason: "unavailable" | "misconfigured" | "not_ready" | "bad_response" | "timeout" };
 
 export interface LookClient {
-  look(agentId: string, position: [number, number], headingDeg: number): Promise<LookOutcome>;
+  /** headingDeg is the BODY heading; `gaze` is the head direction relative to it (the camera faces heading + yaw, pitched). */
+  look(agentId: string, position: [number, number], headingDeg: number, gaze?: { yawDeg: number; pitchDeg: number }): Promise<LookOutcome>;
 }
 
 /**
@@ -54,14 +55,14 @@ interface ServiceLookBody {
 export function httpLookClient(baseUrl: string, secret: string, timeoutMs = LOOK_TIMEOUT_MS): LookClient {
   const base = baseUrl.replace(/\/$/, "");
   return {
-    async look(agentId, position, headingDeg) {
+    async look(agentId, position, headingDeg, gaze) {
       const t0 = Date.now();
       let r: Response;
       try {
         r = await fetch(`${base}/look`, {
           method: "POST",
           headers: { authorization: `Bearer ${secret}`, "content-type": "application/json" },
-          body: JSON.stringify({ agentId, position, headingDeg }),
+          body: JSON.stringify({ agentId, position, headingDeg: Math.round((((headingDeg + (gaze?.yawDeg ?? 0)) % 360) + 360) % 360 * 10) / 10, pitchDeg: gaze?.pitchDeg ?? 0, gaze: gaze ?? { yawDeg: 0, pitchDeg: 0 } }),
           signal: AbortSignal.timeout(timeoutMs),
         });
       } catch (e) {

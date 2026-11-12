@@ -149,14 +149,16 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
     }
     const poseRes = await forward(c, agentId, "GET", `/bodies/${agentId}`);
     if (poseRes.status !== 200) return poseRes;
-    const pose = ((await poseRes.json().catch(() => null)) as { body?: { x?: unknown; z?: unknown; heading?: unknown } } | null)?.body;
+    const pose = ((await poseRes.json().catch(() => null)) as { body?: { x?: unknown; z?: unknown; heading?: unknown; gaze?: { yawDeg?: unknown; pitchDeg?: unknown } } } | null)?.body;
     if (!pose || typeof pose.x !== "number" || typeof pose.z !== "number" || typeof pose.heading !== "number") {
       logError("world_see_bad_pose", new Error("sim body read carried no pose"), { agentId });
       return c.json({ error: "look_unavailable" }, 502);
     }
     // Sim headings are radians (walker convention); the look service faces degrees of the same convention.
     const toDeg = (rad: number) => Math.round(((((rad * 180) / Math.PI) % 360) + 360) % 360 * 10) / 10;
-    const requested = { x: pose.x, z: pose.z, headingDeg: toDeg(pose.heading) };
+    const g = pose.gaze;
+    const gaze = g && typeof g.yawDeg === "number" && typeof g.pitchDeg === "number" ? { yawDeg: g.yawDeg, pitchDeg: g.pitchDeg } : undefined;
+    const requested = { x: pose.x, z: pose.z, headingDeg: toDeg(pose.heading), ...(gaze ? { gaze } : {}) };
     const visitId = c.get("visitId");
     // Stamp BEFORE submitting: a capture that fails at once refunds (and un-stamps) from inside submit, which must not be overwritten after.
     const prevStamp = lastSeeAt.get(agentId);

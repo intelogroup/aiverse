@@ -11,7 +11,7 @@ import { CityNav } from "./cityNav";
 import { ClipTestState } from "./clips";
 import type { InteractController } from "./interactables";
 import { navigationSegment, planRoute } from "./navigation";
-import { ScoutExecutor, type Posture, type ScoutAction, type ScoutOutcome, type ScoutPlace, type ScoutRoomShape, type Sittable } from "./scout";
+import { ScoutExecutor, type Gaze, type Posture, type ScoutAction, type ScoutOutcome, type ScoutPlace, type ScoutRoomShape, type Sittable } from "./scout";
 import { clipChannel, type TeaDoorChannel, type TeaDoorController } from "./teaDoor";
 import { findSpawn, makeWalker, WALK_CONFIG, type Vec2, type WalkerState, type World } from "./walker";
 
@@ -70,6 +70,8 @@ export interface AgentSnapshot {
   /** The clip the figure should be playing (one-shots: sit, door, interact, social), or null for locomotion. */
   clip: string | null;
   seatedOn: string | null;
+  /** Head direction relative to the body, degrees (yaw + right, pitch + up); look and see follow it. */
+  gaze: Gaze;
 }
 
 /** What a viewer needs to draw the figure this instant (the console's AgentFrame, plus height and clip). */
@@ -232,6 +234,7 @@ export class AgentBody {
       action: this.exec.currentAction?.type ?? null,
       clip: this.clips.current,
       seatedOn: this.exec.seatedSittable?.id ?? null,
+      gaze: { ...this.exec.gaze },
     };
   }
 

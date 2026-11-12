@@ -17,7 +17,7 @@ import type { LookClient, LookFrame } from "./lookClient";
 export type SeeState = "queued" | "running" | "done" | "failed";
 export type SeeFailure = "look_unavailable" | "timeout" | "stale_dropped" | "cancelled";
 
-export interface SeePose { x: number; z: number; headingDeg: number }
+export interface SeePose { x: number; z: number; headingDeg: number; gaze?: { yawDeg: number; pitchDeg: number } }
 export interface SeeMoved { distanceM: number; turnedDeg: number }
 
 export interface SeeJob {
@@ -94,7 +94,7 @@ export function createSeeQueue(look: LookClient, opts: SeeQueueOptions) {
     job.startedAt = now();
     let out: Awaited<ReturnType<LookClient["look"]>>;
     try {
-      out = await look.look(job.agentId, [job.pose.x, job.pose.z], job.pose.headingDeg);
+      out = await look.look(job.agentId, [job.pose.x, job.pose.z], job.pose.headingDeg, job.pose.gaze);
     } catch {
       out = { ok: false, reason: "unavailable" };
     }

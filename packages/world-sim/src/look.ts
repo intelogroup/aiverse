@@ -68,6 +68,8 @@ function rayDoor(o: Vec3, d: Vec3, r: LookDoor): number {
 export interface LookOpts {
   /** Cast every one of the 9,216 rays (the reference the adaptive pass is measured against). Default: adaptive. */
   full?: boolean;
+  /** Head direction relative to the body, degrees (yaw + right, pitch + up). Default: straight ahead. */
+  gaze?: { yawDeg: number; pitchDeg: number };
 }
 
 /**
@@ -82,13 +84,18 @@ export interface LookOpts {
 export function renderLook(world: World, eye: Vec3, heading: number, scene: LookScene, farM = LOOK_FAR_M, opts: LookOpts = {}): LookResult {
   const depthMm = new Uint16Array(LOOK_W * LOOK_H).fill(LOOK_NO_HIT), classes = new Uint8Array(LOOK_W * LOOK_H);
   const tanH = Math.tan((LOOK_HFOV_DEG * Math.PI) / 360), tanV = tanH * (LOOK_H / LOOK_W);
-  const fx = Math.sin(heading), fz = Math.cos(heading), rx = Math.cos(heading), rz = -Math.sin(heading);
+  // Camera basis: forward F (yawed by the gaze, pitched up/down), right R (horizontal) and up U = F x R. With no gaze this is exactly the old
+  // level camera: F = (sin h, 0, cos h), R = (cos h, 0, -sin h), U = (0, 1, 0).
+  const camH = heading + ((opts.gaze?.yawDeg ?? 0) * Math.PI) / 180, pitch = ((opts.gaze?.pitchDeg ?? 0) * Math.PI) / 180;
+  const cp = Math.cos(pitch), sp = Math.sin(pitch);
+  const Fx = cp * Math.sin(camH), Fy = sp, Fz = cp * Math.cos(camH), Rx = Math.cos(camH), Rz = -Math.sin(camH);
+  const Ux = Fy * Rz, Uy = Fz * Rx - Fx * Rz, Uz = -Fy * Rx; // F x R
   const n = LOOK_W * LOOK_H, dirs = new Float32Array(n * 3), dist = new Float32Array(n), ny = new Float32Array(n);
   for (let j = 0; j < LOOK_H; j++) {
     const v = (1 - ((j + 0.5) / LOOK_H) * 2) * tanV;
     for (let i = 0; i < LOOK_W; i++) {
       const u = (((i + 0.5) / LOOK_W) * 2 - 1) * tanH, k = j * LOOK_W + i;
-      const x = fx + rx * u, y = v, z = fz + rz * u, m = Math.hypot(x, y, z);
+      const x = Fx + Rx * u + Ux * v, y = Fy + Uy * v, z = Fz + Rz * u + Uz * v, m = Math.hypot(x, y, z);
       dirs[3 * k] = x / m; dirs[3 * k + 1] = y / m; dirs[3 * k + 2] = z / m;
     }
   }
