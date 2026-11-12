@@ -50,6 +50,27 @@ LAYOUT = {
            ("painted_wooden_chair_01", 19.0, 1.55, (20.6, 1.55)), ("painted_wooden_chair_01", 22.2, 1.55, (20.6, 1.55))],
     "L2": [], "L3": [],
 }
+# wave 2 (2026-11-12): Chinese tea-house character pieces. Spots found by scanning each room for the nearest position that the validator accepts.
+WAVE2 = [
+    ("G", "ArmChair_01", 21.6, 4.9, (21.65, 1.0)),
+    ("G", "chinese_screen_panels", 12.3, 3.0, (7.45, 3.05)),
+    ("G", "chinese_cabinet", 2.5, 1.4, (9.0, 1.4)),
+    ("L1", "ArmChair_01", 7.5, 3.5, (4.4, 2.0)),
+    ("L1", "painted_wooden_cabinet", 5.1, 11.0, (6.43, 8.75)),
+    ("L1", "painted_wooden_shelves", 8.3, 8.5, (4.3, 8.5)),
+    ("L1", "small_wooden_table_01", 6.4, 10.0, (6.43, 8.75)),
+    ("L1", "painted_wooden_stool", 5.5, 10.0, (6.4, 10.0)),
+    ("L1", "painted_wooden_stool", 7.3, 10.0, (6.4, 10.0)),
+    ("L1", "Ottoman_01", 14.0, 2.9, (14.0, 1.0)),
+    ("L1", "ArmChair_01", 23.4, 3.5, (20.0, 2.2)),
+    ("L1", "side_table_tall_01", 23.7, 2.4, (20.65, 2.3)),
+    ("L2", "painted_wooden_cabinet", 5.1, 11.0, (6.43, 8.75)),
+    ("L2", "painted_wooden_cabinet", 11.75, 8.9, (10.68, 8.75)),
+    ("L2", "painted_wooden_stool", 9.95, 9.0, (10.68, 8.75)),
+    ("L3", "painted_wooden_cabinet", 11.75, 8.9, (10.68, 8.75)),
+    ("L3", "painted_wooden_stool", 9.95, 9.0, (10.68, 8.75)),
+]
+for _L, *_it in WAVE2: LAYOUT[_L].append(tuple(_it))
 LAYOUT["L1"] += study(8.55, 12.8, 11.7)
 for L in ("L2", "L3"):
     for u0 in (0.3, 8.5, 16.6): LAYOUT[L] += home(u0, L)
