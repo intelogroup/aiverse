@@ -12,7 +12,10 @@ def sets_G():
     for u in (5.45, 9.05):                                                    # second row behind the existing tea tables
         out += [("chinese_tea_table", u, 4.95, 0.0), ("chinese_stool", u - 0.82, 4.95, (u, 4.95)), ("chinese_stool", u + 0.82, 4.95, (u, 4.95))]
     out += [("chinese_sofa", 18.6, 0.95, (18.6, 5.0)), ("chinese_tea_table", 18.4, 1.95, 0.0),
-            ("chinese_armchair", 16.95, 1.95, (18.4, 1.95))]                      # entry lounge
+            ("chinese_armchair", 16.95, 1.95, (18.4, 1.95)),                      # entry lounge
+            ("round_wooden_table_02", 16.4, 4.55, 0.0), ("painted_wooden_chair_01", 15.5, 4.55, (16.4, 4.55)),
+            ("painted_wooden_chair_01", 17.3, 4.55, (16.4, 4.55)),                # window-side pair in the entry hall
+            ("mid_century_lounge_chair", 13.9, 4.7, (16.4, 4.55)), ("planter_box_01", 19.6, 5.25, (19.6, 0.5))]
     return out
 
 
