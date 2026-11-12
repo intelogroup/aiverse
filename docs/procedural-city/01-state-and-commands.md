@@ -48,3 +48,13 @@ Root-level `bunx tsc --noEmit` (no `-p`) is the repo's real typecheck per CLAUDE
 ## Not done / next
 City 3 has no crowd or navmesh (footprints + lots + anchors exist in `out/city3-nav.json`, `out/hero-anchors.json`); no head look-at;
 skills cannot preempt (`embody.ts` refuses a second skill as "busy"); tea house/press are the only hand-tuned rooms; no KTX2 (needs `toktx`).
+
+## Bazaar pass 2026-11-12 (exterior, demolition, interiors, open space)
+Rebuild everything from the committed Bazaar GLBs: `tools/city3/build_bazaar_pass.sh` (demolish -> interiors -> open space -> `verify_bazaar_interiors.py` -> navmesh rebake).
+- `bridge_bazaar_facades.py`: class masonry on shop shells (committed earlier).
+- `bridge_bazaar_demolish.py`: 19 shops removed (lido block 124-129, sports block 156-163, NW park block 72-76) incl. facade/cornice/awning/courtyard triangles, collision nodes, interior json.
+- `bridge_bazaar_open_space.py`: lido (deck, 30 x 14 m pool), sports field (track, pitch, goals, benches), park (lawn, paths, pond, 26 trees, benches); collision boxes in the collision GLB.
+- `bridge_bazaar_interiors.py`: every remaining shop (57) gets per-floor `BzInt_<lot>_F<n>` meshes: room program by floor (street room shop/cafe-dining, back rooms store/kitchen/study/dining, upper homes: living, kitchen, dining, study, bath, bedrooms, attic), floor textures, furniture from 3+ free sources. Placement is collision-aware (inside room, door lane 0.95 m, street-door lane, no overlap), furniture boxes go to `interiors/shop-N.col.json`, chair seats to `city3-anchors.json`.
+- Frame trap: `heroes.json` rects are WORLD `[x0, z0, x1, z1]` (Bones_shop124 spans z 110.5..122.5), but `bones.py --emit` lot/room rects use plan y = -z.
+- Check without screenshots: `python3 tools/city3/verify_bazaar_interiors.py` reads the GLB back (finite, inside lot, above floor slab, materials, <= 100 MB). `gltf-transform validate` baseline already has thousands of messages; the pass adds none of type ACCESSOR_INVALID_FLOAT after NaN sanitising.
+- Known gaps: no doors that open, no elevators except the Tea House, no cars; upper-floor furniture has no collision/nav (ground floor only for seats); loungers are boxes; bridge_compact reports accessor mismatches on the patched GLB so it is not run (saves only 1.3 MB).
