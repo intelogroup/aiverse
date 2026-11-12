@@ -1,0 +1,223 @@
+{
+ "chinese_tea_table": {
+  "source": "https://polyhaven.com/a/chinese_tea_table",
+  "license": "CC0",
+  "materials": {
+   "chinese_tea_table": {
+    "color": "chinese_tea_table__chinese_tea_table_c.jpg",
+    "normal": "chinese_tea_table__chinese_tea_table_n.jpg",
+    "doubleSided": true
+   }
+  },
+  "tris": 1000,
+  "author": "Kirill Sannikov"
+ },
+ "chinese_stool": {
+  "source": "https://polyhaven.com/a/chinese_stool",
+  "license": "CC0",
+  "materials": {
+   "chinese_stool": {
+    "color": "chinese_stool__chinese_stool_c.jpg",
+    "normal": "chinese_stool__chinese_stool_n.jpg",
+    "doubleSided": true
+   }
+  },
+  "tris": 599,
+  "author": "Kirill Sannikov"
+ },
+ "chinese_armchair": {
+  "source": "https://polyhaven.com/a/chinese_armchair",
+  "license": "CC0",
+  "materials": {
+   "chinese_armchair": {
+    "color": "chinese_armchair__chinese_armchair_c.jpg",
+    "normal": "chinese_armchair__chinese_armchair_n.jpg",
+    "doubleSided": true
+   }
+  },
+  "tris": 1200,
+  "author": "Kirill Sannikov"
+ },
+ "chinese_sofa": {
+  "source": "https://polyhaven.com/a/chinese_sofa",
+  "license": "CC0",
+  "materials": {
+   "chinese_sofa": {
+    "color": "chinese_sofa__chinese_sofa_c.jpg",
+    "normal": "chinese_sofa__chinese_sofa_n.jpg",
+    "doubleSided": true
+   }
+  },
+  "tris": 704,
+  "author": "Kirill Sannikov"
+ },
+ "chinese_console_table": {
+  "source": "https://polyhaven.com/a/chinese_console_table",
+  "license": "CC0",
+  "materials": {
+   "chinese_console_table": {
+    "color": "chinese_console_table__chinese_console_table_c.jpg",
+    "normal": "chinese_console_table__chinese_console_table_n.jpg",
+    "doubleSided": true
+   }
+  },
+  "tris": 1500,
+  "author": "Kirill Sannikov"
+ },
+ "wooden_bookshelf_worn": {
+  "source": "https://polyhaven.com/a/wooden_bookshelf_worn",
+  "license": "CC0",
+  "materials": {
+   "wooden_bookshelf_worn": {
+    "color": "wooden_bookshelf_worn__wooden_bookshelf_worn_c.jpg",
+    "normal": "wooden_bookshelf_worn__wooden_bookshelf_worn_n.jpg",
+    "doubleSided": true
+   }
+  },
+  "tris": 1499,
+  "author": "Ulan Cabanilla"
+ },
+ "painted_wooden_table": {
+  "source": "https://polyhaven.com/a/painted_wooden_table",
+  "license": "CC0",
+  "materials": {
+   "painted_wooden_table": {
+    "color": "painted_wooden_table__painted_wooden_table_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 600,
+  "author": "Kirill Sannikov"
+ },
+ "painted_wooden_chair_01": {
+  "source": "https://polyhaven.com/a/painted_wooden_chair_01",
+  "license": "CC0",
+  "materials": {
+   "painted_wooden_chair_01": {
+    "color": "painted_wooden_chair_01__painted_wooden_chair_01_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 724,
+  "author": "Kuutti Siitonen"
+ },
+ "painted_wooden_bench": {
+  "source": "https://polyhaven.com/a/painted_wooden_bench",
+  "license": "CC0",
+  "materials": {
+   "painted_wooden_bench": {
+    "color": "painted_wooden_bench__painted_wooden_bench_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 630,
+  "author": "Kirill Sannikov"
+ },
+ "vintage_day_bed": {
+  "source": "https://polyhaven.com/a/vintage_day_bed",
+  "license": "CC0",
+  "materials": {
+   "vintage_day_bed": {
+    "color": "vintage_day_bed__vintage_day_bed_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 1200,
+  "author": "Aron \u0141yczek"
+ },
+ "painted_wooden_nightstand": {
+  "source": "https://polyhaven.com/a/painted_wooden_nightstand",
+  "license": "CC0",
+  "materials": {
+   "painted_wooden_nightstand": {
+    "color": "painted_wooden_nightstand__painted_wooden_nightstand_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 470,
+  "author": "Kirill Sannikov"
+ },
+ "sofa_02": {
+  "source": "https://polyhaven.com/a/sofa_02",
+  "license": "CC0",
+  "materials": {
+   "sofa_02": {
+    "color": "sofa_02__sofa_02_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 1200,
+  "author": "Kirill Sannikov"
+ },
+ "side_table_01": {
+  "source": "https://polyhaven.com/a/side_table_01",
+  "license": "CC0",
+  "materials": {
+   "side_table_01": {
+    "color": "side_table_01__side_table_01_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 600,
+  "author": "James Ray Cock"
+ },
+ "mid_century_lounge_chair": {
+  "source": "https://polyhaven.com/a/mid_century_lounge_chair",
+  "license": "CC0",
+  "materials": {
+   "mid_century_lounge_chair": {
+    "color": "mid_century_lounge_chair__mid_century_lounge_chair_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 1499,
+  "author": "Kuutti Siitonen"
+ },
+ "modern_coffee_table_01": {
+  "source": "https://polyhaven.com/a/modern_coffee_table_01",
+  "license": "CC0",
+  "materials": {
+   "modern_coffee_table_01": {
+    "color": "modern_coffee_table_01__modern_coffee_table_01_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 800,
+  "author": "Amin"
+ },
+ "round_wooden_table_02": {
+  "source": "https://polyhaven.com/a/round_wooden_table_02",
+  "license": "CC0",
+  "materials": {
+   "round_wooden_table_02": {
+    "color": "round_wooden_table_02__round_wooden_table_02_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 800,
+  "author": "Ulan Cabanilla"
+ },
+ "planter_box_01": {
+  "source": "https://polyhaven.com/a/planter_box_01",
+  "license": "CC0",
+  "materials": {
+   "planter_box_01": {
+    "color": "planter_box_01__planter_box_01_c.jpg",
+    "normal": null,
+    "doubleSided": true
+   }
+  },
+  "tris": 800,
+  "author": "James Ray Cock"
+ }
+}
