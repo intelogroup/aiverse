@@ -1010,9 +1010,11 @@ export function GlbWorld() {
   const agentPair = agentMode === "pair";
   const agentOn = agentMode === "1" || agentPair;
   // Server-driven agents (apps/sim) streamed over the public feed. Off unless asked: VITE_WORLD_STREAM=1 for a build, ?stream=1 per visit
-  //. Never together with the local Scout, which would draw a second copy.
+  //. The ambient VITE_WORLD_STREAM default never combines with the local Scout (a second copy of that figure); only an explicit ?stream=1 does.
   const streamParam = useMemo(() => new URLSearchParams(window.location.search).get("stream"), []);
-  const streamOn = !agentOn && (streamParam === "1" || (streamParam !== "0" && import.meta.env.VITE_WORLD_STREAM === "1"));
+  // An explicit ?stream=1 wins even with ?agent=1: the look service's page is `?agent=1` (its scout is a stand-in head-cam, not an
+  // agent in the world), and its photos must show the server-driven bodies standing in front of the camera.
+  const streamOn = streamParam === "1" || (!agentOn && streamParam !== "0" && import.meta.env.VITE_WORLD_STREAM === "1");
   const [camMode, setCamMode] = useState<CameraMode>(walkLink ? "ride" : "wide");
   // City 3 collider meshes (DistrictWorld fills it), read by the walker.
   const colliderMeshesRef = useRef<(() => THREE.Mesh[]) | null>(null);
