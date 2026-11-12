@@ -46,5 +46,9 @@ describe("refusals explain themselves", () => {
     const c2 = service.body("c2");
     expect(Math.hypot(c2.x - me.x, c2.z - me.z), "spawned beside c1").toBeLessThan(2.0);
     expect(explain("c1").detail).toMatch(/another body is right beside you.*wait a few seconds/);
+    // a planning refusal is not a crowd problem, even with a body at arm's length (waiting would not fix it)
+    const noRoute = { ok: false, status: "blocked" as const, detail: "no safe route" };
+    const explainNoRoute = (service.sim.body("c1") as unknown as { explainBlocked(o: typeof noRoute): { detail: string } }).explainBlocked(noRoute);
+    expect(explainNoRoute.detail).toBe("no safe route");
   });
 });
