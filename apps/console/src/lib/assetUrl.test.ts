@@ -50,9 +50,9 @@ describe("resolveManifestAssets", () => {
       ],
     };
     const out = resolveManifestAssets(m);
-    expect(out.links).toMatch(/\.r2\.dev\/glbs\/[0-9a-f]{16}\/world-city3\.glb$/);
-    expect(out.districts[0].url).toMatch(/\.r2\.dev\/glbs\/[0-9a-f]{16}\/world-city3\.glb$/);
-    expect(out.districts[0].collisionUrl).toMatch(/\.r2\.dev\/glbs\/[0-9a-f]{16}\/world-city3-collision\.glb$/);
+    expect(out.links).toMatch(/verse\.clixen\.app\/glbs\/[0-9a-f]{16}\/world-city3\.glb$/);
+    expect(out.districts[0].url).toMatch(/verse\.clixen\.app\/glbs\/[0-9a-f]{16}\/world-city3\.glb$/);
+    expect(out.districts[0].collisionUrl).toMatch(/verse\.clixen\.app\/glbs\/[0-9a-f]{16}\/world-city3-collision\.glb$/);
     expect(out.districts[1].url).toBe("/assets/world-far.glb");
     expect(out.districts[1].collisionUrl).toBeUndefined();
     expect(out.themes).toBe(m.themes);
