@@ -50,3 +50,15 @@ describe("walk world: collision coverage gate", () => {
     expect(world.groundY(20, 5, 2)).toBeNull(); // uncovered: the walker meets a ledge and stops
   });
 });
+
+describe("tilesEnabled", () => {
+  it("follows the build default, and ?tiles=0 / ?tiles=1 override it", async () => {
+    const { tilesEnabled } = await import("./tilesMode");
+    expect(tilesEnabled("", true)).toBe(true);
+    expect(tilesEnabled("", false)).toBe(false);
+    expect(tilesEnabled("?walk=1", true)).toBe(true);
+    expect(tilesEnabled("?tiles=0", true)).toBe(false);
+    expect(tilesEnabled("?tiles=1", false)).toBe(true);
+    expect(tilesEnabled("?tiles", false)).toBe(true); // the old bare flag still means on
+  });
+});
