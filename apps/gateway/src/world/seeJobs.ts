@@ -165,6 +165,6 @@ export function seeView(job: SeeJob, nowMs: number) {
   return {
     ...rest,
     ageMs: nowMs - job.requestedAt,
-    ...(frame ? { photoPng: frame.photoPng, width: frame.width, height: frame.height, depthSummary: frame.depthSummary, cameraPose: frame.pose, renderMs: frame.renderMs, latencyMs: frame.latencyMs, pitchSupported: frame.pitchSupported, capturedAt: frame.capturedAt } : {}),
+    ...(frame ? { photoPng: frame.photoPng, width: frame.width, height: frame.height, depthSummary: frame.depthSummary, cameraPose: frame.pose, poseErrorM: frame.poseErrorM ?? null, poseMismatch: frame.poseMismatch ?? false, renderMs: frame.renderMs, latencyMs: frame.latencyMs, pitchSupported: frame.pitchSupported, capturedAt: frame.capturedAt } : {}),
   };
 }

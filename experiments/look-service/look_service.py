@@ -62,6 +62,21 @@ PAGE_URL = os.environ.get("LOOK_PAGE_URL", "http://127.0.0.1:5199/?world=city3&a
 HTTP_HOST = os.environ.get("LOOK_SERVICE_HOST", "127.0.0.1")
 HTTP_PORT = int(os.environ.get("LOOK_SERVICE_PORT", "5317"))
 SECRET = os.environ.get("LOOK_SERVICE_SECRET", "")
+# How far (m) the stand-in may stand from the requested position before the frame counts as "not from where you stand" (a normal
+# arrival stops ~0.5 m short; the local measurement was 0.53 m with the body on the spot).
+POSE_TOL_M = float(os.environ.get("LOOK_POSE_TOL_M", "0.75"))
+
+
+def pose_error_m(position, pose):
+    """Horizontal distance between the requested [x, z] and the stand-in's echoed pose, metres (None when either is missing)."""
+    try:
+        if position is None or not pose:
+            return None
+        p = pose["pos"]
+        return round(((p[0] - position[0]) ** 2 + (p[2] - position[1]) ** 2) ** 0.5, 2)
+    except (KeyError, TypeError, IndexError):
+        return None
+
 AUTH_REQUIRED = len(SECRET) >= 32
 R2_ENABLED = os.environ.get("LOOK_R2", "1") != "0"
 
@@ -240,6 +255,16 @@ class LookService:
             if not self.ready:
                 return 503, {"ok": False, "error": "not-ready", "detail": self.last_error}
             pose, pose_ms, outcomes = await self.apply_pose(position, heading, mode)
+            # The stand-in must stand where the agent's body stands. A loaded page advances its sim slowly, so the move can time out or
+            # stop short and the frame would be shot from the wrong place: retry once, then report the remaining error either way.
+            retried = False
+            err0 = pose_error_m(position, pose)
+            if position is not None and (err0 is None or err0 > POSE_TOL_M):
+                outcomes1 = outcomes
+                pose, ms2, outcomes = await self.apply_pose(position, heading, mode)
+                pose_ms += ms2
+                outcomes = {**outcomes, "firstTry": outcomes1}
+                retried = True
             t0 = time.time()
             try:
                 res = await asyncio.wait_for(
@@ -257,6 +282,7 @@ class LookService:
                         "bodyHeadingDeg": snap["bodyHeadingDeg"],
                         "groundY": snap["groundY"], "district": snap["district"],
                         "nearestPlace": snap["nearestPlace"]}
+            err = pose_error_m(position, pose)
             return 200, {
                 "ok": bool(png_b64), "agentId": agent,
                 "png_b64": png_b64, "width": 512, "height": 288,
@@ -264,6 +290,8 @@ class LookService:
                 "camera": res.get("camera"),
                 "pose": pose, "poseOutcomes": outcomes,
                 "renderMs": render_ms, "poseMs": pose_ms,
+                "poseErrorM": err, "poseRetried": retried,
+                "poseMismatch": err is not None and err > POSE_TOL_M,
                 "pitch": pitch, "pitchSupported": True,
                 "simTime": res.get("simulationTime"),
                 "utc": iso(),
