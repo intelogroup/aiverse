@@ -104,6 +104,8 @@ interface Session {
   /** Per-visit secret: other bodies' handles are HMAC(salt, id), so they mean nothing to anyone else or in a later visit. */
   salt: Buffer;
   heard: HeardMsg[];
+  /** True while the body is playing the gesture that `say` started on its own (not one the agent asked for): any new action replaces it. */
+  autoTalk: boolean;
 }
 
 export class WorldService {
@@ -161,7 +163,7 @@ export class WorldService {
     } catch (e) {
       throw new WorldError("spawn_failed", e instanceof Error ? e.message : String(e));
     }
-    this.sessions.set(agentId, { n: this.nextN++, figure: def.id, body, records: new Map(), last: null, lastSeen: this.sim.t, salt: randomBytes(16), heard: [] });
+    this.sessions.set(agentId, { n: this.nextN++, figure: def.id, body, records: new Map(), last: null, lastSeen: this.sim.t, salt: randomBytes(16), heard: [], autoTalk: false });
     this.rosterRev++;
     return this.observe(agentId);
   }
@@ -202,6 +204,8 @@ export class WorldService {
       this.remember(s, id, rec);
       return rec;
     }
+    // The talking gesture that speech started is cosmetic: whatever the agent does next replaces it instead of being refused as "busy".
+    if (s.autoTalk) { s.autoTalk = false; if (s.body.busy) void s.body.act({ type: "stop" }); }
     const resolved = this.resolveBody(agentId, s, rec.action);
     if (resolved === null) {
       rec.state = "settled";
@@ -255,7 +259,11 @@ export class WorldService {
     this.says.push({ seq, n: s.n, text, t });
     this.says = this.says.filter((e) => this.sim.t - e.t <= SAY_STREAM_TTL_S).slice(-20);
     // Talk with the whole body while nothing else is moving it (a seated speaker uses the seated clip).
-    if (!s.body.busy) void s.body.act({ type: "play", clip: s.body.snapshot().posture === "seated" ? "SittingTalking" : "Talking", seconds: TALK_S });
+    // It is a pending action, so without the autoTalk flag it would refuse the speaker's next action as "busy" for about a second.
+    if (!s.body.busy) {
+      s.autoTalk = true;
+      void s.body.act({ type: "play", clip: s.body.snapshot().posture === "seated" ? "SittingTalking" : "Talking", seconds: TALK_S }).finally(() => { s.autoTalk = false; });
+    }
     rec.outcome = { ok: true, status: "done", detail: heardBy === 0 ? "nobody within earshot heard you" : addressee && !addresseeHeard ? `${heardBy} heard you; the one you addressed is out of earshot (${SAY_RANGE_M} m)` : `${heardBy} heard you` };
   }
 

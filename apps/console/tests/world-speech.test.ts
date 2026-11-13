@@ -114,3 +114,43 @@ describe("say", () => {
     service.detach("ivy"); service.detach("jon");
   });
 });
+
+describe("say does not block the speaker's body", () => {
+  const step = async (n = 3) => { for (let i = 0; i < n; i++) { service.tick(0.1); await Promise.resolve(); } };
+  it("the next action after a say is accepted at once (the automatic Talking gesture is replaced, not refused as busy)", async () => {
+    service.attach("quinn", { x: 20, z: 40, heading: 0 });
+    service.act("quinn", "s1", { type: "say", text: "hello" });
+    await step(2);
+    expect(service.observe("quinn").body.action).toBe("play"); // the talking gesture is playing
+    const rec = service.act("quinn", "f1", { type: "face", headingDeg: 90 });
+    const done = await settle("quinn", "f1", 5);
+    expect(done.outcome?.status, JSON.stringify(done.outcome)).toBe("done");
+    expect(rec.id).toBe("f1");
+  });
+  it("a say while the body is walking does not cancel the walk, and starts no gesture over it", async () => {
+    service.attach("rita", { x: 30, z: 40, heading: 0 });
+    service.act("rita", "w1", { type: "go_to", point: [38, 40] });
+    await step(3);
+    service.act("rita", "s1", { type: "say", text: "on my way" });
+    const w = await settle("rita", "w1", 30);
+    expect(w.outcome?.status).toBe("arrived");
+  });
+  it("an explicit play by the agent is NOT preempted by a later say, and speaking does not start a gesture over it", async () => {
+    service.attach("sam", { x: 40, z: 40, heading: 0 });
+    service.act("sam", "p1", { type: "play", clip: "Waving", seconds: 3 });
+    await step(2);
+    service.act("sam", "s1", { type: "say", text: "look at me" });
+    await step(2);
+    expect(service.observe("sam").body.action).toBe("play"); // still waving
+    const p = await settle("sam", "p1", 10);
+    expect(p.outcome?.status).toBe("done");
+  });
+  it("an agent's own action right after another's explicit play is still refused busy (only the automatic gesture is preemptible)", async () => {
+    service.attach("tess", { x: 50, z: 40, heading: 0 });
+    service.act("tess", "p1", { type: "play", clip: "Waving", seconds: 3 });
+    await step(2);
+    const f = await settle("tess", (service.act("tess", "f1", { type: "face", headingDeg: 10 }), "f1"), 2);
+    expect(f.outcome?.detail).toBe("busy");
+  });
+});
+
