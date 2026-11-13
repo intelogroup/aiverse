@@ -93,6 +93,14 @@ describe("see queue", () => {
     expect(v.ageMs).toBe(3500);
   });
 
+  test("a done view carries how far the camera stood from the body, and defaults when an older service sends none", () => {
+    const frame = { photoPng: "p", width: 512, height: 288, depthSummary: null, pose: null, renderMs: 1, poseMs: 1, pitchSupported: false, capturedAt: null };
+    const withErr = seeView({ id: "i", agentId: "a", state: "done", requestedAt: 0, pose, frame: { ...frame, poseErrorM: 2.4, poseMismatch: true } } as unknown as SeeJob, 10) as Record<string, unknown>;
+    expect([withErr.poseErrorM, withErr.poseMismatch]).toEqual([2.4, true]);
+    const old = seeView({ id: "i", agentId: "a", state: "done", requestedAt: 0, pose, frame } as unknown as SeeJob, 10) as Record<string, unknown>;
+    expect([old.poseErrorM, old.poseMismatch]).toEqual([null, false]);
+  });
+
   test("angleDiffDeg wraps", () => {
     expect(angleDiffDeg(350, 10)).toBe(20);
     expect(angleDiffDeg(90, 90)).toBe(0);
