@@ -58,8 +58,10 @@ describe("resolveManifestAssets", () => {
     expect(out.themes).toBe(m.themes);
   });
 
-  it("serves the world GLB from the origin, not R2 (R2 has no compression: 87 MB vs 35 MB brotli on Vercel)", () => {
+  it("serves the world GLB from the R2 custom domain (pre-compressed optimized object)", () => {
     const out = resolveManifestAssets({ districts: [{ id: "bazaar", url: "/assets/world-city3.glb" }] });
-    expect(out.districts[0].url).toBe("/assets/world-city3.glb");
+    expect(out.districts[0].url).toBe(
+      "https://verse.clixen.app/glbs/b14cb2dc1a3bfa8d/world-city3.glb",
+    );
   });
 });
