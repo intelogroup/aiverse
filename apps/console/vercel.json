@@ -1,4 +1,9 @@
 {
+  "headers": [
+    { "source": "/assets/tiles/tex/:file*", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] },
+    { "source": "/assets/tiles/:name([a-z0-9_]+\\.[0-9a-f]{10}\\.glb)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] },
+    { "source": "/assets/tiles/col/:name([a-z0-9_]+\\.[0-9a-f]{10}\\.glb)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] }
+  ],
   "rewrites": [
     { "source": "/.well-known/:path*", "destination": "https://api.aiverse.network/.well-known/:path*" },
     { "source": "/agents/:path*", "destination": "https://api.aiverse.network/agents/:path*" },
