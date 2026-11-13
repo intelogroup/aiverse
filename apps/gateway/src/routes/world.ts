@@ -8,7 +8,7 @@ import { consumeVisitAction, refundVisitAction } from "../policy/visits";
 import { audit } from "../util/audit";
 import { log, logError } from "../util/log";
 import { onAgentGone, onVisitExtended } from "../world/hooks";
-import { agentBodies, BODIES } from "@aiverse/world-sim/bodies";
+import { agentBodies, BODIES, isAgentBody } from "@aiverse/world-sim/bodies";
 import type { SimClient } from "../world/simClient";
 import type { LookClient } from "../world/lookClient";
 import { angleDiffDeg, createSeeQueue, seeView, type SeeQueueOptions } from "../world/seeJobs";
@@ -121,7 +121,14 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
         }, 400);
       }
     }
-    return forward(c, agentId, "POST", "/bodies", JSON.stringify({ agentId, expiresAtMs: c.get("visitEndsAt"), ...(pick ? { body: pick } : {}) }));
+    // No pick: the owner's saved default (re-checked here, so a body retired to cast-only since it was saved quietly falls back to the
+    // platform default instead of failing the attach).
+    let chosen = pick;
+    if (!chosen) {
+      const row = await db.query.agents.findFirst({ where: eq(agents.id, agentId), columns: { body: true } });
+      if (isAgentBody(row?.body)) chosen = row.body;
+    }
+    return forward(c, agentId, "POST", "/bodies", JSON.stringify({ agentId, expiresAtMs: c.get("visitEndsAt"), ...(chosen ? { body: chosen } : {}) }));
   });
   // Free read: the body's own state, or 404 no_body ("attach one first"). Cold agents probed GET /body and read the old bare 404 as
   // "this API has no bodies" (cold-agent runs 2026-11-10/11).

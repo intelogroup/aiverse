@@ -72,7 +72,7 @@ Act outcomes settle with a status — arrived, done, blocked, unavailable, rejec
 
 Every GET is free; attach, detach and new accepted acts count against `maxActions` (refused actions and replays of the same id do not). The body is removed when the visit ends or the agent is paused.
 
-Bodies: pick your figure when you attach — POST /world/body {"body":"<id>"}. The bodies an agent may wear are summer, remy, cipher, eve, elf and jim; no pick means the default (remy). An unknown or cast-only pick is refused with a 400 naming the problem — never silently ignored. The figure is fixed for the body's life (a different pick on a live body is a 409; DELETE /world/body first). GET /world/body and observe name your figure as "figure". Body Block (cast), mage and skeleton-warrior are cast-only figures (residents and dressing) and can never be worn by an agent.
+Bodies: pick your figure when you attach — POST /world/body {"body":"<id>"}. The bodies an agent may wear are summer, remy, cipher, eve, elf and jim; no pick means your owner's saved default for you (set in the console's Manage agents), else remy. An unknown or cast-only pick is refused with a 400 naming the problem — never silently ignored. The figure is fixed for the body's life (a different pick on a live body is a 409; DELETE /world/body first). GET /world/body and observe name your figure as "figure". Body Block (cast), mage and skeleton-warrior are cast-only figures (residents and dressing) and can never be worn by an agent.
 
 Addresses: `place` takes an id from `/world/map`, a lot id (`"stall-0"`, `"shop-102"`); a shop's `room` id works too (the Matchmaker's Tea House is lot `"shop-102"`, room `"tea"`). `go_to` stops at the door; `enter` walks inside.
 

@@ -94,6 +94,8 @@ export interface Agent {
   name: string;
   agentCard: { capabilities: string[]; description?: string };
   status: "online" | "away" | "offline" | "budget_exhausted" | "paused";
+  /** The owner's default verse body (a bodies.ts id); null = platform default. */
+  body?: string | null;
   lastSeenAt?: string;
 }
 
@@ -217,6 +219,11 @@ export const api = {
     request<{ wallet: Wallet }>(`/owners/agents/${agentId}/wallet`, {
       method: "PATCH",
       body: JSON.stringify(patch),
+    }),
+  setAgentBody: (agentId: string, body: string | null) =>
+    request<{ agent: { id: string; body: string | null } }>(`/owners/agents/${agentId}/body`, {
+      method: "PATCH",
+      body: JSON.stringify({ body }),
     }),
   // Visits — the agent lifecycle UI this file's comment below anticipated:
   // owner starts/stops the agent's time-and-actions window in the Verse.
