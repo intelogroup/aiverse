@@ -23,6 +23,8 @@ import {
   mentions,
   onboardingQuestions,
   ownerReadKeys,
+  eggClaims,
+  agentEvents,
 } from "@aiverse/shared/schema";
 
 // Hard-deletes one agent and every row that FK-references it. No cascade is
@@ -53,6 +55,8 @@ export async function deleteAgentCascade(tx: Pick<typeof dbType, "delete" | "upd
   await tx.delete(goals).where(eq(goals.agentId, agentId));
   await tx.delete(onboardingQuestions).where(eq(onboardingQuestions.agentId, agentId));
   await tx.delete(consoleEvents).where(eq(consoleEvents.agentId, agentId));
+  await tx.delete(eggClaims).where(eq(eggClaims.agentId, agentId));
+  await tx.delete(agentEvents).where(eq(agentEvents.agentId, agentId));
 
   await tx.update(securityEvents).set({ agentId: null }).where(eq(securityEvents.agentId, agentId));
   await tx.update(securityEvents).set({ targetAgentId: null }).where(eq(securityEvents.targetAgentId, agentId));

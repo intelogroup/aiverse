@@ -2,6 +2,8 @@ import { assetUrl } from "../../lib/assetUrl";
 import { TeaElevator, TeaElevatorHud } from "./TeaElevatorView";
 import { TeaElevatorController } from "./teaElevator";
 import { VerseRecorder } from "./VerseRecorder";
+import { VerseShare } from "./VerseShare";
+import { ToyProps } from "./ToyProps";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, useGLTF, useProgress } from "@react-three/drei";
@@ -1435,6 +1437,7 @@ export function GlbWorld() {
   return (
     <div ref={rootRef} className={touchUi ? "w-glb-root w-touch-root" : "w-glb-root"}>
       <VerseRecorder root={rootRef} />
+      <VerseShare root={rootRef} />
       <TeaElevatorHud controller={elevator} frame={walkFrameRef} walking={walking} walk={walkColliders} />
       {glSupported ? (
       <Canvas
@@ -1470,7 +1473,7 @@ export function GlbWorld() {
         {touchUi && !agentOn ? <TouchFpsCap /> : null}
         <Suspense fallback={null}>
           <PresentedSignal onPresented={markPresented} />
-          <DistrictWorld residentUrl={CITY3_URL} light={keyLightRef} collide={camMode === "wide" && !(heroFocus?.id === "tea" && teaFloor === null)} meshesRef={colliderMeshesRef} walk={walkColliders} streamCap={touchUi ? 2 : undefined} />
+          <DistrictWorld residentUrl={CITY3_URL} light={keyLightRef} collide={camMode === "wide" && !(heroFocus?.id === "tea" && teaFloor === null)} meshesRef={colliderMeshesRef} walk={walkColliders} streamCap={touchUi ? 2 : undefined} interact={interactRef.current ?? undefined} />
           <>
               <TeaElevator controller={elevator} walk={walkColliders} url={CITY3_URL} frame={walkFrameRef} getDirector={() => soundRef.current} />
               <ClipCutaway rooms={city3Rooms} focus={heroFocus} teaFloor={teaFloor} walking={walking} />
@@ -1535,6 +1538,7 @@ export function GlbWorld() {
               <TouchTapPicker pickRef={tapPickRef} />
             </>
           ) : null}
+          {interactRef.current ? <ToyProps interact={interactRef.current} /> : null}
         </Suspense>
         <Suspense fallback={null}>
           {agentOn ? (

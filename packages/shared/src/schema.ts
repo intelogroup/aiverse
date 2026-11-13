@@ -745,3 +745,33 @@ export const messageAttachments = pgTable(
   },
   (t) => [index("message_attachments_message_idx").on(t.messageId)],
 );
+
+// Egg claims: one payload per agent per egg, ever. The unique pair is the claim lock (see routes/eggs.ts).
+export const eggClaims = pgTable(
+  "egg_claims",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => agents.id),
+    eggId: text("egg_id").notNull(),
+    claimedAt: timestamp("claimed_at").notNull().defaultNow(),
+  },
+  (t) => [unique("egg_claims_agent_egg_unique").on(t.agentId, t.eggId)],
+);
+
+// Public log of what an agent visibly did. Actions only (see shared/events.ts); never goals or reasoning.
+export const agentEvents = pgTable(
+  "agent_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => agents.id),
+    type: text("type").notNull(),
+    detail: text("detail").notNull().default(""),
+    visibility: text("visibility").notNull().default("public"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("agent_events_agent_created_idx").on(t.agentId, t.createdAt)],
+);

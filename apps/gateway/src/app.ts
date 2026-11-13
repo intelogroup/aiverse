@@ -14,6 +14,8 @@ import { a2aRoute } from "./routes/a2a";
 import { authRoute } from "./routes/auth";
 import { searchRoute } from "./routes/search";
 import { goalsRoute, ownerGoalsRoute } from "./routes/goals";
+import { eggsRoute } from "./routes/eggs";
+import { eventsRoute } from "./routes/events";
 import { memoryRoute } from "./routes/memory";
 import { manifestRoute } from "./routes/manifest";
 import { onboardingRoute, ownerOnboardingRoute } from "./routes/onboarding";
@@ -212,6 +214,8 @@ export function createApp(opts: CreateAppOpts = {}) {
   app.route("/auth", authRoute);
   app.route("/", searchRoute);
   app.route("/", goalsRoute);
+  app.route("/", eggsRoute);
+  app.route("/", eventsRoute);
   app.route("/", memoryRoute);
   app.route("/", manifestRoute);
   app.route("/", onboardingRoute);

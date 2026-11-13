@@ -42,7 +42,7 @@
 // time.
 
 import { useFrame, useThree } from "@react-three/fiber";
-import { Suspense, useEffect, useMemo, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { CastFigure } from "./CastFigure";
 import { BODY_REMY } from "./bodies";
@@ -53,6 +53,7 @@ import { ClipTestState } from "./clips";
 import type { AgentFrame } from "./locomotion";
 import {
   ScoutExecutor,
+  autoActivateTarget,
   districtAt,
   nearestPlace,
   oracleScene,
@@ -72,6 +73,11 @@ import { createCapsuleWorld } from "./capsuleWorld";
 import { newWalkerFrame, useWalkWorld, writeWalkerFrame } from "./walkerBody";
 import { clipChannel, type TeaDoorChannel, type TeaDoorController } from "./teaDoor";
 import type { InteractController } from "./interactables";
+import { BASE } from "../../lib/api";
+import { AgentAura, AgentLabel, CHEER_GLYPH, CheerFloat, cleanSpeech, type CheerState, type SpeechState } from "./SpeechBubble";
+import { emitMoment, fetchEvents, fetchPassport, getIdentity, reportEvent, setIdentityFromToken } from "./verseEvents";
+import { toyKindOf, toyPhrase } from "./toys";
+import { COSMETICS, isCosmetic } from "@aiverse/shared/events";
 
 const SCOUT_ACTOR = "scout";
 import { clipFor, findSpawn, makeWalker, WALK_CONFIG, type WalkerState } from "./walker";
@@ -113,6 +119,8 @@ export interface ScoutApi {
   map: () => (NavigationPatch & { simulationTime: number; session: string }) | null;
   places: () => ScoutPlace[];
   sittables: () => Sittable[];
+  /** The runner hands over its agent token so egg activations can claim server-side. Memory only: never stored or logged. */
+  setAgentToken: (token: string | null) => void;
 }
 
 const deg = (r: number) => Math.round(((r * 180) / Math.PI) * 10) / 10;
@@ -125,10 +133,13 @@ export function ScoutAgent({
   interact,
   positionRef,
   actorId = SCOUT_ACTOR,
+  label,
   primary = true,
   spawn,
 }: {
   actorId?: string;
+  /** Name tag above the head (owner-chosen agent name). Defaults from the actor id. */
+  label?: string;
   primary?: boolean;
   spawn?: readonly [x: number, z: number, heading: number];
   getMeshes: () => THREE.Mesh[];
@@ -216,6 +227,23 @@ export function ScoutAgent({
           avoid: (s, wanted) => {
             const self: ActorBody = {id:actorId,position:[s.x,s.y,s.z],velocity:[Math.sin(s.heading)*wanted.forward*1.3,Math.cos(s.heading)*wanted.forward*1.3],radius:.4,height:1.7,updatedAtMs:performance.now()};
             return avoidActorInput(self, visibleMovers(), wanted);
+          },
+          claim: async (eggId, at) => {
+            const token = agentToken.current;
+            if (!token) throw new Error("no agent token");
+            const r = await fetch(`${BASE}/eggs/${encodeURIComponent(eggId)}/claim`, {
+              method: "POST",
+              headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+              body: JSON.stringify(at),
+              signal: AbortSignal.timeout(5000),
+            });
+            if (!r.ok) throw new Error(`claim ${r.status}`);
+            const body = (await r.json()) as { result: string; payload?: { text: string }; cosmetic?: string };
+            interact?.markSpent(eggId);
+            if (body.result !== "claimed" || !body.payload) return null;
+            if (isCosmetic(body.cosmetic)) setAura(COSMETICS[body.cosmetic].color);
+            emitMoment("claimed", body.payload.text); // the server already logged it; this only offers the clip
+            return { text: body.payload.text };
           },
           clips: clips.current!,
           hipsY: BODY_REMY.hipsY,
@@ -347,14 +375,25 @@ export function ScoutAgent({
         if (!ex || !s) return null;
         if (action.type === "say") {
           console.info(`[scout-say] ${action.text}`);
+          const text = cleanSpeech(action.text);
+          speech.current = text ? { text, at: ex.t } : null;
+          if (text) reportEvent("said", text);
         }
         const pending = ex.submit(action, s);
         if (action.type === "play") invalidate();
         const outcome = await pending;
+        // A prop the agent chose to use (on or off) is not auto-activated again until it walks away and back.
+        if (action.type === "interact" && outcome.target) autoSpent.current.add(outcome.target);
+        if (outcome.ok && action.type === "play") reportEvent("gesture", `does the ${action.clip}`);
+        if (outcome.ok && action.type === "sit") reportEvent("sat", "");
         return { ...outcome, snapshot: snapshot() };
       },
       places: () => data.current?.places ?? [],
       sittables: () => data.current?.sittables ?? [],
+      setAgentToken: (token) => {
+        agentToken.current = token;
+        if (primary) void setIdentityFromToken(token);
+      },
     };
     const w = window as unknown as Record<string, unknown>;
     const key = primary ? "__scout" : "__scoutPeer";
@@ -372,6 +411,45 @@ export function ScoutAgent({
   // enough to keep InteriorStreamer planning around Scout (its load
   // radius is 140 m) without letting SwiftShader's ~0.5 s frames starve
   // the sim.
+  const autoSpent = useRef(new Set<string>());
+  const agentToken = useRef<string | null>(null);
+  const speech = useRef<SpeechState>(null);
+  const labelPose = useRef<{ x: number; y: number; z: number } | null>(null);
+  const cheer = useRef<CheerState>(null);
+  const [aura, setAura] = useState<string | null>(null);
+  // Public-log effects (primary Scout only): wear the newest cosmetic, show spectator cheers, report toy and prop use.
+  useEffect(() => {
+    if (!primary || !interact) return;
+    const off = interact.subscribe((id, on) => {
+      const d = interact.get(id);
+      const s = state.current;
+      if (!on || !d || !s || Math.hypot(s.x - d.stand[0], s.z - d.stand[1]) > 3) return; // only the actor that stands there
+      const k = toyKindOf(d);
+      if (k) reportEvent("toy", toyPhrase(k));
+      else if (d.kind !== "egg") reportEvent("activated", d.label);
+    });
+    let since = new Date().toISOString();
+    let passportFor = "";
+    const seen = new Set<string>();
+    const poll = window.setInterval(async () => {
+      const me = getIdentity();
+      if (!me) return;
+      if (passportFor !== me.id) {
+        passportFor = me.id;
+        const last = (await fetchPassport(me.id))?.cosmetics.at(-1);
+        if (last && isCosmetic(last)) setAura(COSMETICS[last].color);
+      }
+      const r = await fetchEvents(me.id, since);
+      if (!r?.events.length) return;
+      since = r.events[0]!.at;
+      // The server clock has finer ticks than `since`, so the same event can come back once: dedupe by id.
+      const c = r.events.find(e => e.type === "cheered" && !seen.has(e.id));
+      r.events.forEach(e => seen.add(e.id));
+      if (c && exec.current) cheer.current = { glyph: CHEER_GLYPH[c.detail as keyof typeof CHEER_GLYPH] ?? "\u2764", at: exec.current.t };
+    }, 2000);
+    return () => { off(); window.clearInterval(poll); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [primary, interact]);
   useEffect(() => {
     let last = performance.now();
     let ticks = 0;
@@ -392,6 +470,11 @@ export function ScoutAgent({
       last = now;
       while (dt > 0) {
         const stepDt = Math.min(dt, 1 / 30);
+        interact?.observe(actorId, s.x, s.z);
+        if (interact && !ex.busy && !ex.finished && ex.posture === "standing") {
+          const near = autoActivateTarget(interact.list().filter((d) => !interact.isOn(d.id)), { x: s.x, z: s.z, heading: s.body }, autoSpent.current);
+          if (near) void ex.submit({ type: "interact", target: near }, s);
+        }
         ex.tick(stepDt, s, world);
         const action = ex.currentAction;
         walk?.actors.publishWalker(actorId, s, WALK_CONFIG.radius, 1.7, true,
@@ -416,6 +499,7 @@ export function ScoutAgent({
     const fx = f.position[0];
     const fz = f.position[1];
     if (figure.current) figure.current.position.y = ov ? ov.y + ov.drop : s.y;
+    labelPose.current = { x: fx, y: ov ? ov.y : s.y, z: fz };
 
     if (!primary) return;
     // Streaming + theme follow Scout; the follow camera keeps interiors
@@ -436,6 +520,10 @@ export function ScoutAgent({
   }, -1);
 
   return (
+    <>
+    <AgentAura getPose={() => labelPose.current} color={aura} />
+    <CheerFloat getPose={() => labelPose.current} cheer={cheer} clock={() => exec.current?.t ?? 0} />
+    <AgentLabel name={label ?? (actorId === SCOUT_ACTOR ? "Scout" : actorId)} getPose={() => labelPose.current} speech={speech} clock={() => exec.current?.t ?? 0} />
     <group ref={figure}>
       <Suspense fallback={null}>
         <CastFigure
@@ -451,5 +539,6 @@ export function ScoutAgent({
         />
       </Suspense>
     </group>
+    </>
   );
 }

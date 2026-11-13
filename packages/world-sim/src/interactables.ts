@@ -80,7 +80,9 @@ function atPose(s: WalkerState, pose: StandPose): boolean {
 
 export class InteractController {
   private readonly defs = new Map<string, InteractableDef>();
+  private readonly sources = new Map<string, readonly InteractableDef[]>();
   private readonly on = new Map<string, boolean>();
+  private readonly spent = new Set<string>();
   private readonly sessions = new Map<string, Session>();
   private readonly seen = new Map<string, { x: number; z: number; at: number }>();
   private readonly listeners = new Set<(id: string, on: boolean) => void>();
@@ -96,9 +98,11 @@ export class InteractController {
   }
 
   /** Replace the known interactables (the room index loaded). State survives for ids that stay. */
-  register(defs: readonly InteractableDef[]): void {
+  register(defs: readonly InteractableDef[], source = "rooms"): void {
+    // Several owners feed one controller (room index, easter eggs): each replaces only its own source.
+    this.sources.set(source, defs);
     this.defs.clear();
-    for (const d of defs) {
+    for (const d of [...this.sources.values()].flat()) {
       this.defs.set(d.id, d);
       if (!this.on.has(d.id)) this.on.set(d.id, false);
     }
@@ -121,6 +125,34 @@ export class InteractController {
     return this.on.get(id) ?? false;
   }
 
+  /** Note where an actor is, without a session: the approach glow and request-range checks read it. */
+  observe(actor: string, x: number, z: number): void {
+    this.seen.set(actor, { x, z, at: this.now });
+  }
+  /** A prop whose payload was taken (eggs): the glow greys out. Per mount; the server stays the source of truth. */
+  markSpent(id: string): void {
+    if (this.spent.has(id)) return;
+    this.spent.add(id);
+    for (const fn of this.listeners) fn(id, this.isOn(id));
+  }
+  isSpent(id: string): boolean {
+    return this.spent.has(id);
+  }
+  /** True while a live actor stands within the prompt range of this prop's stand point (the "usable now" glow). */
+  isApproached(id: string): boolean {
+    const d = this.defs.get(id);
+    if (!d) return false;
+    for (const a of this.seen.values()) {
+      if (this.now - a.at <= ACTOR_TTL && Math.hypot(a.x - d.stand[0], a.z - d.stand[1]) <= INTERACT_PROMPT_RANGE) return true;
+    }
+    return false;
+  }
+  /** Live actors within r metres of a point (the dance floor counts its dancers). */
+  actorsNear(x: number, z: number, r: number): number {
+    let n = 0;
+    for (const a of this.seen.values()) if (this.now - a.at <= ACTOR_TTL && Math.hypot(a.x - x, a.z - z) <= r) n++;
+    return n;
+  }
   /** State changes (visual + sound follow). Returns an unsubscribe. */
   subscribe(fn: (id: string, on: boolean) => void): () => void {
     this.listeners.add(fn);

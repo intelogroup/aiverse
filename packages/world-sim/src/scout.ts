@@ -146,6 +146,35 @@ export function bearingDeg(heading: number, dx: number, dz: number): number {
   return ((deg + 540) % 360) - 180;
 }
 
+/** Auto-activate: an idle agent this close (m) to a prop's stand point, facing it, uses it. */
+export const AUTO_ACTIVATE_RANGE = 0.6;
+/** A used prop re-arms only once the agent has been this far (m) from its stand point, so standing still never toggles twice. */
+export const AUTO_ACTIVATE_REARM = 1.5;
+const AUTO_ACTIVATE_HALF_FOV_DEG = 35;
+
+/**
+ * The prop an idle agent should activate now, or null. `spent` is the caller's per-agent memory: ids already
+ * auto-activated and not yet re-armed (mutated here).
+ */
+export function autoActivateTarget(
+  defs: { id: string; pos: readonly number[]; stand: Vec2 }[],
+  self: { x: number; z: number; heading: number },
+  spent: Set<string>,
+): string | null {
+  let best: string | null = null;
+  let bd = Infinity;
+  for (const d of defs) {
+    const dist = Math.hypot(d.stand[0] - self.x, d.stand[1] - self.z);
+    if (dist > AUTO_ACTIVATE_REARM) { spent.delete(d.id); continue; }
+    if (spent.has(d.id) || dist > AUTO_ACTIVATE_RANGE || dist >= bd) continue;
+    if (Math.abs(bearingDeg(self.heading, d.pos[0] - self.x, d.pos[2] - self.z)) > AUTO_ACTIVATE_HALF_FOV_DEG) continue;
+    best = d.id;
+    bd = dist;
+  }
+  if (best) spent.add(best);
+  return best;
+}
+
 export interface OracleObject {
   kind: "place" | "door" | "room" | "interactable" | "seat" | "body";
   id: string;
@@ -330,7 +359,7 @@ export function nearestSittable(sittables: Sittable[], x: number, z: number, ran
 // ---------------------------------------------------------------------------
 // Executor
 
-type SitPhase = "to-approach" | "turn" | "down" | "up" | "to-stand" | "use";
+type SitPhase = "to-approach" | "turn" | "down" | "up" | "to-stand" | "use" | "claiming";
 
 interface Pending {
   action: ScoutAction;
@@ -385,6 +414,8 @@ export interface ExecutorDeps {
    * Usable props (interactables.ts): `interact` walks to the prop's stand point itself, then hands the body to the
    * controller (align, the Interact clip, the state flip). While a session holds the body the action's clocks pause.
    */
+  /** Egg payload claim (server-validated, once per agent per egg). Resolves the payload text, or null when already taken. */
+  claim?: (eggId: string, at: { x: number; z: number }) => Promise<{ text: string } | null>;
   interact?: {
     defs: () => { id: string; label: string; kind: string; stand: Vec2 }[];
     isOn: (id: string) => boolean;
@@ -713,6 +744,11 @@ export class ScoutExecutor {
       case "enter":
       case "interact":
       case "sit": {
+        if (p.action.type === "interact" && p.phase === "claiming") {
+          step(state, ZERO_INPUT, dt, world);
+          p.tLeft += dt; // the server round trip is not "no progress"; the claim dep owns its own timeout
+          return;
+        }
         if (p.action.type === "interact" && p.phase === "use") {
           // The controller owns the body: align, the Interact clip, the flip. Clocks pause while it does.
           const held = this.deps.interact!.drive(state, dt);
@@ -724,6 +760,17 @@ export class ScoutExecutor {
           }
           step(state, ZERO_INPUT, dt, world);
           const now = this.deps.interact!.isOn(p.targetId!);
+          const def = this.deps.interact!.defs().find((d) => d.id === p.targetId);
+          if (now && now !== p.wasOn && def?.kind === "egg" && this.deps.claim) {
+            // A freshly activated egg pays out once, server-side. A failed claim never undoes the activation.
+            p.phase = "claiming";
+            const done = (detail: string) => { if (this.pending === p) this.settle({ ok: true, status: "done", target: p.targetId, detail }); };
+            this.deps.claim(p.targetId!, { x: state.x, z: state.z }).then(
+              (r) => done(r?.text ? `on; egg payload: ${r.text}` : "on; egg already emptied"),
+              () => done("on; claim unavailable"),
+            );
+            return;
+          }
           this.settle(
             now !== p.wasOn
               ? { ok: true, status: "done", target: p.targetId, detail: now ? "on" : "off" }
