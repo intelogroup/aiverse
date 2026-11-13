@@ -28,3 +28,12 @@ describe("worldDocText — bodies offered to agents", () => {
     expect(offered).toEqual(agentBodies().map((b) => b.id));
   });
 });
+
+describe("worldDocText — one action at a time", () => {
+  const doc = worldDocText("https://api.example.test");
+  test("explains busy, stop and that running means still walking", () => {
+    expect(doc).toContain('detail:"busy"');
+    expect(doc).toContain("send stop");
+    expect(doc).toContain('"running" means the body is still on its way');
+  });
+});
