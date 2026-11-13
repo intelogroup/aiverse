@@ -53,6 +53,7 @@ import { ClipTestState } from "./clips";
 import type { AgentFrame } from "./locomotion";
 import {
   ScoutExecutor,
+  autoActivateTarget,
   districtAt,
   nearestPlace,
   oracleScene,
@@ -72,6 +73,8 @@ import { createCapsuleWorld } from "./capsuleWorld";
 import { newWalkerFrame, useWalkWorld, writeWalkerFrame } from "./walkerBody";
 import { clipChannel, type TeaDoorChannel, type TeaDoorController } from "./teaDoor";
 import type { InteractController } from "./interactables";
+import { BASE } from "../../lib/api";
+import { AgentLabel, cleanSpeech, type SpeechState } from "./SpeechBubble";
 
 const SCOUT_ACTOR = "scout";
 import { clipFor, findSpawn, makeWalker, WALK_CONFIG, type WalkerState } from "./walker";
@@ -113,6 +116,8 @@ export interface ScoutApi {
   map: () => (NavigationPatch & { simulationTime: number; session: string }) | null;
   places: () => ScoutPlace[];
   sittables: () => Sittable[];
+  /** The runner hands over its agent token so egg activations can claim server-side. Memory only: never stored or logged. */
+  setAgentToken: (token: string | null) => void;
 }
 
 const deg = (r: number) => Math.round(((r * 180) / Math.PI) * 10) / 10;
@@ -125,10 +130,13 @@ export function ScoutAgent({
   interact,
   positionRef,
   actorId = SCOUT_ACTOR,
+  label,
   primary = true,
   spawn,
 }: {
   actorId?: string;
+  /** Name tag above the head (owner-chosen agent name). Defaults from the actor id. */
+  label?: string;
   primary?: boolean;
   spawn?: readonly [x: number, z: number, heading: number];
   getMeshes: () => THREE.Mesh[];
@@ -216,6 +224,20 @@ export function ScoutAgent({
           avoid: (s, wanted) => {
             const self: ActorBody = {id:actorId,position:[s.x,s.y,s.z],velocity:[Math.sin(s.heading)*wanted.forward*1.3,Math.cos(s.heading)*wanted.forward*1.3],radius:.4,height:1.7,updatedAtMs:performance.now()};
             return avoidActorInput(self, visibleMovers(), wanted);
+          },
+          claim: async (eggId, at) => {
+            const token = agentToken.current;
+            if (!token) throw new Error("no agent token");
+            const r = await fetch(`${BASE}/eggs/${encodeURIComponent(eggId)}/claim`, {
+              method: "POST",
+              headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+              body: JSON.stringify(at),
+              signal: AbortSignal.timeout(5000),
+            });
+            if (!r.ok) throw new Error(`claim ${r.status}`);
+            const body = (await r.json()) as { result: string; payload?: { text: string } };
+            interact?.markSpent(eggId);
+            return body.result === "claimed" && body.payload ? { text: body.payload.text } : null;
           },
           clips: clips.current!,
           hipsY: BODY_REMY.hipsY,
@@ -347,14 +369,19 @@ export function ScoutAgent({
         if (!ex || !s) return null;
         if (action.type === "say") {
           console.info(`[scout-say] ${action.text}`);
+          const text = cleanSpeech(action.text);
+          speech.current = text ? { text, at: ex.t } : null;
         }
         const pending = ex.submit(action, s);
         if (action.type === "play") invalidate();
         const outcome = await pending;
+        // A prop the agent chose to use (on or off) is not auto-activated again until it walks away and back.
+        if (action.type === "interact" && outcome.target) autoSpent.current.add(outcome.target);
         return { ...outcome, snapshot: snapshot() };
       },
       places: () => data.current?.places ?? [],
       sittables: () => data.current?.sittables ?? [],
+      setAgentToken: (token) => { agentToken.current = token; },
     };
     const w = window as unknown as Record<string, unknown>;
     const key = primary ? "__scout" : "__scoutPeer";
@@ -372,6 +399,10 @@ export function ScoutAgent({
   // enough to keep InteriorStreamer planning around Scout (its load
   // radius is 140 m) without letting SwiftShader's ~0.5 s frames starve
   // the sim.
+  const autoSpent = useRef(new Set<string>());
+  const agentToken = useRef<string | null>(null);
+  const speech = useRef<SpeechState>(null);
+  const labelPose = useRef<{ x: number; y: number; z: number } | null>(null);
   useEffect(() => {
     let last = performance.now();
     let ticks = 0;
@@ -392,6 +423,11 @@ export function ScoutAgent({
       last = now;
       while (dt > 0) {
         const stepDt = Math.min(dt, 1 / 30);
+        interact?.observe(actorId, s.x, s.z);
+        if (interact && !ex.busy && !ex.finished && ex.posture === "standing") {
+          const near = autoActivateTarget(interact.list().filter((d) => !interact.isOn(d.id)), { x: s.x, z: s.z, heading: s.body }, autoSpent.current);
+          if (near) void ex.submit({ type: "interact", target: near }, s);
+        }
         ex.tick(stepDt, s, world);
         const action = ex.currentAction;
         walk?.actors.publishWalker(actorId, s, WALK_CONFIG.radius, 1.7, true,
@@ -416,6 +452,7 @@ export function ScoutAgent({
     const fx = f.position[0];
     const fz = f.position[1];
     if (figure.current) figure.current.position.y = ov ? ov.y + ov.drop : s.y;
+    labelPose.current = { x: fx, y: ov ? ov.y : s.y, z: fz };
 
     if (!primary) return;
     // Streaming + theme follow Scout; the follow camera keeps interiors
@@ -436,6 +473,8 @@ export function ScoutAgent({
   }, -1);
 
   return (
+    <>
+    <AgentLabel name={label ?? (actorId === SCOUT_ACTOR ? "Scout" : actorId)} getPose={() => labelPose.current} speech={speech} clock={() => exec.current?.t ?? 0} />
     <group ref={figure}>
       <Suspense fallback={null}>
         <CastFigure
@@ -451,5 +490,6 @@ export function ScoutAgent({
         />
       </Suspense>
     </group>
+    </>
   );
 }

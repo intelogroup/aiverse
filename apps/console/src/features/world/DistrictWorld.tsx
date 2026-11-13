@@ -9,6 +9,7 @@ import { CameraCollider, buildColliders, type ColliderStats } from "./CameraColl
 import { bakeCollisionParts } from "./capsuleWorld";
 import { FountainWater } from "./FountainWater";
 import { EasterEggs } from "./EasterEggs";
+import type { InteractController } from "./interactables";
 import type { WalkColliders } from "./walkColliders";
 import { assetUrl, resolveManifestAssets } from "../../lib/assetUrl";
 import { blendTheme, collisionJobs, dueEvictions, isShellCovered, originOf, planDistricts, residentCollisionUrl, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
@@ -64,7 +65,7 @@ void main(){ float h = clamp(vDir.y, -0.2, 1.0); vec3 c = mix(horizon, top, pow(
  * places). `window.__districts` exposes counters + the load/unload event log for the memory test
  * (?districtDebug=1).
  */
-export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, walk, streamCap }: { residentUrl: string; light: React.RefObject<THREE.DirectionalLight | null>; collide?: boolean; meshesRef?: { current: (() => THREE.Mesh[]) | null }; walk?: WalkColliders; streamCap?: number }) {
+export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, walk, streamCap, interact }: { interact?: InteractController; residentUrl: string; light: React.RefObject<THREE.DirectionalLight | null>; collide?: boolean; meshesRef?: { current: (() => THREE.Mesh[]) | null }; walk?: WalkColliders; streamCap?: number }) {
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
   const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3 } | null;
@@ -366,7 +367,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
       <primitive object={resident.scene} />
       <FountainWater />
       {/* The egg model is a separate download; it must not hold the world back (own boundary). */}
-      <Suspense fallback={null}><EasterEggs activeDistricts={["bazaar", ...groups.current.keys()]} /></Suspense>
+      <Suspense fallback={null}><EasterEggs activeDistricts={["bazaar", ...groups.current.keys()]} interact={interact} /></Suspense>
       <CameraCollider getMeshes={getMeshes} enabled={collide && collideDebug.current} stats={stats.current} />
     </>
   );

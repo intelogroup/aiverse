@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL ?? "/api";
+export const BASE = import.meta.env.VITE_API_URL ?? "/api";
 
 let ownerToken: string | null = localStorage.getItem("aiverse_owner_token");
 let ownerEmail: string | null = localStorage.getItem("aiverse_owner_email");

@@ -1,7 +1,7 @@
 // @vitest-environment node
 // Scout harness core against fake worlds — no three, no DOM.
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ClipTestState } from "./clips";
 import { TeaDoorController, clipChannel } from "./teaDoor";
 import { InteractController, type InteractableDef } from "./interactables";
@@ -239,6 +239,15 @@ describe("executor: play / say / finish", () => {
     expect(clips.current).toBeNull();
   });
 
+  it("plays a shipped head shake through the Scout action interface", async () => {
+    const { exec, clips } = makeExec();
+    const state = makeWalker(0, 0, 0, 0);
+    const result = exec.submit({ type: "play", clip: "ShakeHeadNo" }, state);
+    expect(clips.current).toBe("ShakeHeadNo");
+    expect(await drive(exec, state, fakeWorld(), result)).toMatchObject({ status: "done" });
+    expect(clips.current).toBeNull();
+  });
+
   it("play rejects clips outside the social subset", async () => {
     const { exec } = makeExec();
     const s = makeWalker(0, 0.2, 0, 0);
@@ -405,6 +414,50 @@ describe("executor: interact", () => {
     const out = (await driveWithCtl(exec, ctl, s, fakeWorld({ wallX: -18 }), exec.submit({ type: "interact", target: "tea-radio" }, s))) as { status: string };
     expect(["blocked", "timeout"]).toContain(out.status);
     expect(ctl.isOn("tea-radio")).toBe(false);
+  });
+});
+
+describe("executor: egg claim", () => {
+  const EGG: InteractableDef = {
+    id: "egg-t", room: "bazaar", kind: "egg", asset: "scifi-easter-egg", label: "Easter egg",
+    pos: [-17.44, 0.2, -78.5], rotY: 1.5708, stand: [-16.95, -78.5], heading: -1.5708, floorY: 0.2,
+  };
+  function rig(claim?: (id: string, at: { x: number; z: number }) => Promise<{ text: string } | null>) {
+    const clips = new ClipTestState();
+    const ctl = new InteractController();
+    ctl.register([EGG]);
+    const exec = new ScoutExecutor({
+      places: PLACES, sittables: [SITTING], clips, hipsY: 0.718, claim,
+      interact: {
+        defs: () => ctl.list(),
+        isOn: (id) => ctl.isOn(id),
+        request: (id, at) => ctl.request(id, "scout", clips, at),
+        drive: (st, dt) => ctl.drive(st, dt, "scout"),
+      },
+    });
+    return { exec, ctl };
+  }
+  const run = async (r: ReturnType<typeof rig>) => {
+    const s = makeWalker(-21.0, 0.2, -76.0, 0.5);
+    return (await driveWithCtl(r.exec, r.ctl, s, fakeWorld(), r.exec.submit({ type: "interact", target: "egg-t" }, s))) as { ok: boolean; status: string; detail?: string };
+  };
+
+  it("hands the payload text to the agent when the activation pays out", async () => {
+    const claim = vi.fn(async () => ({ text: "The fountain remembers." }));
+    const out = await run(rig(claim));
+    expect(out).toMatchObject({ ok: true, status: "done", detail: "on; egg payload: The fountain remembers." });
+    expect(claim).toHaveBeenCalledWith("egg-t", expect.objectContaining({ x: expect.any(Number), z: expect.any(Number) }));
+  });
+  it("says so when the egg was already emptied", async () => {
+    expect(await run(rig(async () => null))).toMatchObject({ ok: true, detail: "on; egg already emptied" });
+  });
+  it("a failed claim keeps the activation", async () => {
+    const r = rig(async () => { throw new Error("offline"); });
+    expect(await run(r)).toMatchObject({ ok: true, detail: "on; claim unavailable" });
+    expect(r.ctl.isOn("egg-t")).toBe(true);
+  });
+  it("without a claim dep an egg is a plain toggle", async () => {
+    expect(await run(rig())).toMatchObject({ ok: true, detail: "on" });
   });
 });
 
