@@ -8,6 +8,8 @@ import { OrbitControls, useGLTF, useProgress } from "@react-three/drei";
 import { extendGltf } from "./gltfExtensions";
 import * as THREE from "three";
 import { DistrictWorld } from "./DistrictWorld";
+import { TILES, CORE_TILE_URL } from "./tilesMode";
+import { useTileEpoch } from "./tileScenes";
 import { buildColliders } from "./CameraCollider";
 import { registerCameraObstacle } from "./cameraClearance";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
@@ -104,7 +106,7 @@ import { TEA_FLOORS, teaCutHeight, teaEntranceView, teaViewTargetHeight } from "
 // three's built-in RoomEnvironment. One shadow-casting key light for
 // grounding, and a modest ambient fill.
 
-const CITY3_URL = assetUrl("/assets/world-city3.glb");
+const CITY3_URL = assetUrl(TILES ? CORE_TILE_URL : "/assets/world-city3.glb"); // tile mode: the small core first, the rest streams (tilesMode.ts)
 
 // The island's plaza origin.
 const CITY3_CENTER: [number, number] = [0, 0];
@@ -183,6 +185,20 @@ function ClipCutaway({
       gl.localClippingEnabled = false;
     };
   }, [scene, gl, planes]);
+  // Tile mode: geometry streams in after the effect above ran, so its materials never got the clip planes. Give every
+  // tile material the shared planes as it arrives (same rule as above; no reset of the open room).
+  const tileEpoch = useTileEpoch();
+  useEffect(() => {
+    if (!tileEpoch) return;
+    scene.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || (m as THREE.InstancedMesh).isInstancedMesh) return;
+      for (const mat of Array.isArray(m.material) ? m.material : [m.material]) {
+        if (mat.userData.noCutaway || mat.clippingPlanes === planes) continue;
+        mat.clippingPlanes = planes; mat.clipIntersection = true; mat.clipShadows = true; mat.needsUpdate = true;
+      }
+    });
+  }, [scene, planes, tileEpoch]);
   useEffect(() => {
     const room = focus && rooms.find((r) => r.id === focus.id);
     if (!room || !controls || walking) return;
@@ -1459,6 +1475,14 @@ export function GlbWorld() {
               <TeaElevator controller={elevator} walk={walkColliders} url={CITY3_URL} frame={walkFrameRef} getDirector={() => soundRef.current} />
               <ClipCutaway rooms={city3Rooms} focus={heroFocus} teaFloor={teaFloor} walking={walking} />
               <InteriorStreamer rooms={city3Rooms} walk={walkColliders} interact={interactRef.current} />
+              <TeaDoorLeaf controller={teaDoorRef.current} />
+              {!agentOn ? <TeaDoorTicker controller={teaDoorRef.current} /> : null}
+              {!agentOn ? <InteractTicker controller={interactRef.current} /> : null}
+          </>
+        </Suspense>
+        {/* Figures stream in on their own boundaries: a character model (animation-heavy, parsed on the main thread) must not hold the whole world back. */}
+        <Suspense fallback={null}>
+          <>
               <BazaarLife
                 getMeshes={getColliderMeshes}
                 walk={walkColliders}
@@ -1475,14 +1499,6 @@ export function GlbWorld() {
                 onFigureLong={
                   touchUi && !walking
                     ? (fig) => {
-              <TeaDoorLeaf controller={teaDoorRef.current} />
-              {!agentOn ? <TeaDoorTicker controller={teaDoorRef.current} /> : null}
-              {!agentOn ? <InteractTicker controller={interactRef.current} /> : null}
-          </>
-        </Suspense>
-        {/* Figures stream in on their own boundaries: a character model (animation-heavy, parsed on the main thread) must not hold the whole world back. */}
-        <Suspense fallback={null}>
-          <>
                         noteLongPress();
                         openContextSheet({ kind: "figure", fig });
                       }
@@ -1493,6 +1509,8 @@ export function GlbWorld() {
               <TeaBartender visitors={[botPosRef, scoutPosRef]} walk={walkColliders} getDirector={() => soundRef.current} />
               <MiraResident walk={walkColliders} visitNonce={miraVisitNonce} />
           </>
+        </Suspense>
+        <Suspense fallback={null}>
           {walking && !agentOn ? (
             <CityWalker
               mode={camMode === "follow" ? "follow" : "ride"}
@@ -1509,8 +1527,6 @@ export function GlbWorld() {
               interact={interactRef.current}
               touch={touchUi ? touchSourceRef.current : undefined}
               spawnRef={walkSpawnRef}
-        </Suspense>
-        <Suspense fallback={null}>
             />
           ) : null}
           {walking && !agentOn && touchUi ? (
@@ -1519,6 +1535,8 @@ export function GlbWorld() {
               <TouchTapPicker pickRef={tapPickRef} />
             </>
           ) : null}
+        </Suspense>
+        <Suspense fallback={null}>
           {agentOn ? (
             <ScoutAgent getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} door={teaDoorRef.current} positionRef={scoutPosRef} interact={interactRef.current} spawn={agentPair ? [-22.9, -68, 0] : undefined} />
           ) : null}
@@ -1535,8 +1553,6 @@ export function GlbWorld() {
           enableDamping
           // Parked while a bot camera mode owns the camera (drei only
           // updates controls when enabled, so the rig never fights it).
-        </Suspense>
-        <Suspense fallback={null}>
           enabled={!walking && !agentOn}
           maxPolarAngle={Math.PI / 2 - 0.04}
           // 3 m close-ups; CameraCollider (in DistrictWorld) keeps the camera out of walls.
