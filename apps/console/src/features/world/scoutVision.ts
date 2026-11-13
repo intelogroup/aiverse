@@ -84,11 +84,13 @@ export class ScoutVision {
     this.depthBytes = new Uint8Array(width * height * 4);
   }
 
-  capture(renderer: THREE.WebGLRenderer, scene: THREE.Scene, simulationTime: number, hidden?: THREE.Object3D | null): ScoutVisionFrame {
+  /** `hidden`: objects left out of this capture only (the stand-in figure, the camera's own streamed body); visibility is restored after. */
+  capture(renderer: THREE.WebGLRenderer, scene: THREE.Scene, simulationTime: number, hidden?: THREE.Object3D | null | readonly (THREE.Object3D | null | undefined)[]): ScoutVisionFrame {
     const priorTarget = renderer.getRenderTarget();
-    const priorVisible = hidden?.visible;
+    const hide = ((Array.isArray(hidden) ? hidden : [hidden]) as (THREE.Object3D | null | undefined)[]).filter((o): o is THREE.Object3D => !!o);
+    const priorVisible = hide.map((o) => o.visible);
     const priorAutoClear = renderer.autoClear;
-    if (hidden) hidden.visible = false;
+    for (const o of hide) o.visible = false;
     this.camera.updateMatrixWorld();
     try {
       renderer.autoClear = true;
@@ -101,7 +103,7 @@ export class ScoutVision {
     } finally {
       renderer.setRenderTarget(priorTarget);
       renderer.autoClear = priorAutoClear;
-      if (hidden && priorVisible !== undefined) hidden.visible = priorVisible;
+      hide.forEach((o, i) => { o.visible = priorVisible[i]; });
     }
     const canvas = document.createElement("canvas");
     canvas.width = this.width; canvas.height = this.height;

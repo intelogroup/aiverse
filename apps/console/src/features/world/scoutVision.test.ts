@@ -56,3 +56,20 @@ describe("Scout metric vision", () => {
     expect(current).toBe(target); expect(renderer.autoClear).toBe(false); expect(body.visible).toBe(true);
     vision.dispose(); target.dispose();
  });
+
+describe("ScoutVision.capture hidden objects", () => {
+  const fakeRenderer = (renderSpy: (visibleDuring: boolean[]) => void, throwOn = false) => {
+    return { getRenderTarget: () => null, autoClear: true, setRenderTarget() {}, readRenderTargetPixels() {},
+      render() { renderSpy(hidden.map((o) => o.visible)); if (throwOn) throw new Error("gl lost"); } } as unknown as THREE.WebGLRenderer;
+  };
+  const hidden = [new THREE.Group(), new THREE.Group()];
+  it("hides every listed object during the pass and restores each one afterwards, even when the render throws", () => {
+    const rig = Object.create(ScoutVision.prototype) as ScoutVision;
+    Object.assign(rig, { camera: new THREE.PerspectiveCamera(), color: {}, packed: {}, copyScene: new THREE.Scene(), copyCamera: new THREE.Camera(), width: 1, height: 1, rgba: new Uint8Array(4), depthBytes: new Uint8Array(4) });
+    hidden[0].visible = true; hidden[1].visible = false; // a pre-hidden object must stay hidden afterwards
+    let seen: boolean[] = [];
+    expect(() => rig.capture(fakeRenderer((v) => { seen = v; }, true), new THREE.Scene(), 0, [hidden[0], null, hidden[1], undefined])).toThrow("gl lost");
+    expect(seen).toEqual([false, false]);
+    expect([hidden[0].visible, hidden[1].visible]).toEqual([true, false]);
+  });
+});
