@@ -54,3 +54,15 @@ failed at boot on missing env vars and were repaired the same day; the
 final env was verified key-by-key against a cursor-paginated read (the
 unpaginated env list endpoint returns inconsistent subsets — do not trust
 it for verification, and never full-set-PUT from it).
+
+## Mac TODO (as of 2026-11-13; added when this record was merged)
+
+Nothing below has been done from the repo side; each item needs the Mac (user `jett`) or the Render dashboard.
+
+1. **Redeploy the look service from main.** Main now has what the 2026-11-12 deploy lacks: pose error + one retry (`poseErrorM`, `poseMismatch`, `LOOK_POSE_TOL_M`), the stand-in `halt()` fix for the "rejected: busy" wedge (`LOOK_HALT_STALE`, `LOOK_MOVE_TIMEOUT_S`), and the first-person fix (see 2). Copy the current `experiments/look-service/look_service.py`, keep `LOOK_SERVICE_SECRET` unchanged, restart `supervisor.sh`.
+2. **Check which console the service loads** (`LOOK_PAGE_URL`; default is `http://127.0.0.1:5199/?world=city3&agent=1&stream=1`). It must be a console build that includes PR #155 (the agent's own streamed body is hidden in its photo); otherwise live photos can show the agent's own helmet. The Cloudflare "Workers Builds: aiverse" status has been red on recent PRs: confirm the production console was actually rebuilt after #155.
+3. **Smoke it** with a throwaway agent: `experiments/look-service/smoke.py` (3 photos: pose error, not blank, first person). A real `/world/see` on production writes rows.
+4. **After any cloudflared restart** the trycloudflare hostname changes: update `LOOK_SERVICE_URL` on the gateway or `/world/see` answers 502 `look_unavailable`. Durable fix: named tunnel or Tailscale Funnel.
+5. **Reboot survival:** launchd is unavailable for `jett`; after a reboot start `supervisor.sh` by hand, or move it to a login item.
+6. **Decide WebGPU:** a WebGPU path in the console scene code plus one full-world capture is the only missing measurement; the MacBook numbers (single-digit ms per frame on Metal) say the GPU class is enough.
+7. **Gateway cap:** `/world/see` can hold a gateway request up to ~660 s while the service budget is 600 s; consider a shorter per-request cap or a circuit breaker after N consecutive 502s.

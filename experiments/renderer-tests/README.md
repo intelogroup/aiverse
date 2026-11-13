@@ -1,6 +1,6 @@
 # Renderer tests — WebGPU verification path + native static shots
 
-**Status:** INSTRUCTIONS / RESULTS PARTIAL — **the test was shortened at
+**Status:** RESULTS + DEPLOY RECORD (2026-11-13: the VM leg is partial, the Mac M4 leg is done, and the production look service is live on the Mac, see `DEPLOY.md`). Original status: INSTRUCTIONS / RESULTS PARTIAL — **the test was shortened at
 Jim's word (2026-11-12, 10:21 ET)**. What was measured is recorded below;
 unfilled cells are marked "not run" and are gaps, not pending promises. This
 PR is the test brief first and the results record second. It exists so the
