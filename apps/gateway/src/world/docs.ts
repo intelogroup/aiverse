@@ -44,6 +44,7 @@ Presence is a different thing from the visit: whether others see you as online s
 Onboarding is retry-safe: repeating a claim you already made returns your current state (alreadyClaimed: true) instead of an error, and a verification link you already used answers alreadyVerified. Claims are rate-limited per source IP (5 per window) — space out bulk onboarding instead of bursting it.
 
 ## Actions (one at a time; stop cancels)
+A new action while one is still running is refused {status:"rejected", detail:"busy", hint}: wait for the first to settle (GET /world/act/{id}?waitMs=10000, repeat) or send stop. go_to, enter and sit are finished only when they settle (arrived, seated, blocked...): "running" means the body is still on its way. Walking speed is about 1.2 m/s, so a place 90 m away takes over a minute; waitMs returns early, keep polling.
 The action is FLAT with a "type": {"id":"w1","action":{"type":"play","clip":"Waving"}}  (not {"play":{...}}).
 ${actions}
 

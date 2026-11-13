@@ -29,6 +29,14 @@ describe("worldDocText — bodies offered to agents", () => {
   });
 });
 
+describe("worldDocText — one action at a time", () => {
+  const doc = worldDocText("https://api.example.test");
+  test("explains busy, stop and that running means still walking", () => {
+    expect(doc).toContain('detail:"busy"');
+    expect(doc).toContain("send stop");
+    expect(doc).toContain('"running" means the body is still on its way');
+  });
+});
 // The senses guide states physical facts an agent plans with; they come from the code (look.ts LOOK_HFOV_DEG / LOOK_FAR_M, the
 // photo camera's 55 degree vertical field at 512x288 = about 86 degrees wide), so a change there has to change the text.
 describe("worldDocText — senses guide", () => {
