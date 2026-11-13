@@ -121,3 +121,51 @@ export function AgentLabel({ name, getPose, speech, clock }: {
     </group>
   );
 }
+
+/** Soft additive ring on the ground under an agent: the equipped cosmetic from egg finds. */
+export function AgentAura({ getPose, color }: { getPose: () => { x: number; y: number; z: number } | null; color: string | null }) {
+  const mesh = useRef<THREE.Mesh>(null);
+  useFrame(({ clock }) => {
+    const p = getPose(), m = mesh.current;
+    if (!m) return;
+    m.visible = !!p && !!color;
+    if (!p || !color) return;
+    m.position.set(p.x, p.y + 0.04, p.z);
+    m.scale.setScalar(1 + 0.08 * Math.sin(clock.elapsedTime * 2.2));
+  });
+  return (
+    <mesh ref={mesh} rotation={[-Math.PI / 2, 0, 0]} visible={false} renderOrder={4}>
+      <ringGeometry args={[0.55, 0.85, 40]} />
+      <meshBasicMaterial color={color ?? "#fff"} transparent opacity={0.65} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} side={THREE.DoubleSide} />
+    </mesh>
+  );
+}
+
+export const CHEER_GLYPH = { heart: "\u2764\uFE0F", clap: "\u{1F44F}", fire: "\u{1F525}", wow: "\u2728" } as const;
+export type CheerState = { glyph: string; at: number } | null;
+export const CHEER_SHOW_S = 2.5;
+
+/** A spectator reaction floating up over the head for CHEER_SHOW_S. */
+export function CheerFloat({ getPose, cheer, clock }: { getPose: () => { x: number; y: number; z: number } | null; cheer: { current: CheerState }; clock: () => number }) {
+  const sprite = useRef<THREE.Sprite>(null);
+  const shown = useRef("");
+  const tex = useRef<THREE.CanvasTexture | null>(null);
+  useFrame(() => {
+    const sp = sprite.current, p = getPose(), c = cheer.current;
+    if (!sp) return;
+    const age = c ? clock() - c.at : 99;
+    sp.visible = !!p && !!c && age >= 0 && age < CHEER_SHOW_S;
+    if (!sp.visible || !p || !c) return;
+    if (shown.current !== c.glyph) {
+      const cv = document.createElement("canvas"); cv.width = cv.height = 128;
+      const g = cv.getContext("2d")!; g.font = "96px serif"; g.fillStyle = "#ff4d6d"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(c.glyph, 64, 70);
+      tex.current?.dispose(); tex.current = new THREE.CanvasTexture(cv);
+      (sp.material as THREE.SpriteMaterial).map = tex.current; (sp.material as THREE.SpriteMaterial).needsUpdate = true;
+      shown.current = c.glyph;
+    }
+    sp.position.set(p.x, p.y + 2.9 + age * 0.5, p.z);
+    (sp.material as THREE.SpriteMaterial).opacity = Math.min(1, (CHEER_SHOW_S - age) / 0.6);
+  });
+  useEffect(() => () => tex.current?.dispose(), []);
+  return <sprite ref={sprite} visible={false} scale={[0.9, 0.9, 1]} renderOrder={22}><spriteMaterial transparent depthWrite={false} toneMapped={false} /></sprite>;
+}

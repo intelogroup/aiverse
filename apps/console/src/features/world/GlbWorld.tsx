@@ -2,6 +2,7 @@ import { assetUrl } from "../../lib/assetUrl";
 import { TeaElevator, TeaElevatorHud } from "./TeaElevatorView";
 import { TeaElevatorController } from "./teaElevator";
 import { VerseRecorder } from "./VerseRecorder";
+import { VerseShare } from "./VerseShare";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, useGLTF, useProgress } from "@react-three/drei";
@@ -1435,6 +1436,7 @@ export function GlbWorld() {
   return (
     <div ref={rootRef} className={touchUi ? "w-glb-root w-touch-root" : "w-glb-root"}>
       <VerseRecorder root={rootRef} />
+      <VerseShare root={rootRef} />
       <TeaElevatorHud controller={elevator} frame={walkFrameRef} walking={walking} walk={walkColliders} />
       {glSupported ? (
       <Canvas
