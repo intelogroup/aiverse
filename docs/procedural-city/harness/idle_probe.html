@@ -1,0 +1,40 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#dfe6ea}canvas{display:block}</style></head><body>
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
+import { clone as skClone } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { contactPoints, soleClearance, clipMinClearance, groundingOffset, rootMotionDelta } from "/src/features/world/grounding.ts";
+import { FootLock } from "/src/features/world/footLock.ts";
+const q = new URLSearchParams(location.search); const id = q.get("body") ?? "cipher";
+function strip(ab) { const dv = new DataView(ab); const jl = dv.getUint32(12, true); const json = JSON.parse(new TextDecoder().decode(new Uint8Array(ab, 20, jl)));
+  delete json.images; delete json.textures; delete json.samplers; for (const k of ["extensionsUsed", "extensionsRequired"]) if (json[k]) json[k] = json[k].filter((e) => !/texture|basisu|webp/i.test(e));
+  const kill = (o) => { if (o && typeof o === "object") for (const k of Object.keys(o)) { if (/Texture$/.test(k)) delete o[k]; else kill(o[k]); } }; kill(json.materials);
+  let js = new TextEncoder().encode(JSON.stringify(json)); const pad = (4 - js.length % 4) % 4; const j2 = new Uint8Array(js.length + pad).fill(32); j2.set(js);
+  const rest = new Uint8Array(ab, 20 + json.__jl ?? 20 + jl); const r2 = new Uint8Array(ab, 20 + jl); const out = new Uint8Array(20 + j2.length + r2.length); const o = new DataView(out.buffer);
+  o.setUint32(0, 0x46546c67, true); o.setUint32(4, 2, true); o.setUint32(8, out.length, true); o.setUint32(12, j2.length, true); o.setUint32(16, 0x4e4f534a, true); out.set(j2, 20); out.set(r2, 20 + j2.length); return out.buffer; }
+const ab = await (await fetch(`/assets/cast-${id}.glb`)).arrayBuffer(); const ld = new GLTFLoader(); ld.setMeshoptDecoder(MeshoptDecoder);
+const gltf = await new Promise((r, j) => ld.parse(strip(ab), "", r, j)); const clip = gltf.animations.find((a) => a.name === "IdleLong");
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); renderer.setSize(900, 700); renderer.setPixelRatio(1); document.body.appendChild(renderer.domElement);
+const sc = new THREE.Scene(); sc.background = new THREE.Color("#dfe6ea"); sc.add(new THREE.HemisphereLight("#fff", "#889", 2.2)); const dl = new THREE.DirectionalLight("#fff", 1.5); dl.position.set(3, 4, 2); sc.add(dl);
+sc.add(new THREE.Mesh(new THREE.BoxGeometry(6, 0.1, 3), new THREE.MeshBasicMaterial({ color: "#4a5a3c" }))); sc.children.at(-1).position.y = -0.05;
+const mk = (x, ik) => { const scene = skClone(gltf.scene); scene.traverse((o) => { if (o.isMesh) { o.material = new THREE.MeshLambertMaterial({ color: o.name === "Shoes" ? "#333" : "#c9a27e" }); o.frustumCulled = false; } });
+  scene.updateMatrixWorld(true); const lift = -new THREE.Box3().setFromObject(scene).min.y; const grp = new THREE.Group(); grp.add(scene); scene.position.y = lift; grp.position.x = x; sc.add(grp);
+  let hips; scene.traverse((o) => { if (!hips && o.name.endsWith("Hips")) hips = o; }); const parent = hips.parent, hipsRest = hips.position.clone(), parentRest = parent.position.clone(), pq = parent.quaternion.clone();
+  const pts = contactPoints(scene); const mixer = new THREE.AnimationMixer(scene); mixer.clipAction(clip).play(); const lock = ik ? new FootLock(scene, pts) : null; const d = new THREE.Vector3();
+  return { grp, scene, hips, parent, hipsRest, parentRest, pq, pts, mixer, lock, d, runMin: 0 }; };
+const A = mk(-0.9, false), B = mk(0.9, true);
+const step = (f, dt) => { f.mixer.update(dt); rootMotionDelta(f.hips.position, f.hipsRest, f.parent.scale, f.pq, f.d); f.parent.position.copy(f.parentRest).sub(f.d); f.grp.updateMatrixWorld(true);
+  f.grp.position.y = -groundingOffset(soleClearance(f.pts, f.scene), 0, 0); f.grp.updateMatrixWorld(true); if (f.lock) f.lock.update(f.grp, f.scene, 0, dt, -f.grp.position.y); f.grp.updateMatrixWorld(true); };
+const cam = new THREE.OrthographicCamera(-2.0, 2.0, 1.55, -0.1, 0.1, 50); cam.position.set(2.5, 0.8, 5); cam.lookAt(0, 0.8, 0); cam.updateProjectionMatrix();
+const cam2 = new THREE.PerspectiveCamera(30, 900 / 350, 0.1, 50); cam2.position.set(0, 0.35, 4.2); cam2.lookAt(0, 0.35, 0);
+const lbl = document.createElement("div"); lbl.style.cssText = "position:absolute;top:6px;left:8px;font:16px monospace;background:#fffc;padding:3px 6px"; document.body.appendChild(lbl);
+const feetOf = (f) => { const r = []; f.scene.traverse((o) => { if (/(Left|Right)Foot$/.test(o.name)) r.push(o); }); return r; };
+A.feet = feetOf(A); B.feet = feetOf(B); window.__trace = { A: [], B: [] }; const wp = new THREE.Vector3();
+const rec = (f, key) => { const row = []; for (const o of f.feet) { o.getWorldPosition(wp); row.push(wp.x - f.grp.position.x, wp.y, wp.z); } window.__trace[key].push(row); };
+let t = 0; window.__n = 0; window.__step = (dt) => { step(A, dt); step(B, dt); t += dt; rec(A, 'A'); rec(B, 'B');
+  renderer.setScissorTest(true); renderer.setViewport(0, 350, 900, 350); renderer.setScissor(0, 350, 900, 350); renderer.render(sc, cam);
+  renderer.setViewport(0, 0, 900, 350); renderer.setScissor(0, 0, 900, 350); renderer.render(sc, cam2);
+  lbl.textContent = `${id} IdleLong t=${t.toFixed(2)}s   LEFT: no foot lock   RIGHT: foot lock (as shipped)`; window.__n++; };
+window.__ready = true;
+</script></body></html>
