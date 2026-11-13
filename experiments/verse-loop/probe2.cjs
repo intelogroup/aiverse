@@ -1,0 +1,16 @@
+const { Agent, sleep, setExp, dist } = require("./lib.cjs");
+(async () => { setExp("probe2"); const A = await new Agent("Qa").onboard(); await sleep(1400); const B = await new Agent("Qb").onboard();
+  console.log("A go", JSON.stringify(await A.act({ type: "go_to", point: [-6, 10.6] })), "pos", JSON.stringify(await A.pos()));
+  console.log("B go", JSON.stringify(await B.act({ type: "go_to", point: [-3, 10.6] })), "pos", JSON.stringify(await B.pos()));
+  console.log("A face", JSON.stringify(await A.act({ type: "face", point: [-3, 10.6] })), "B face", JSON.stringify(await B.act({ type: "face", point: [-6, 10.6] })));
+  const oa = await A.observe(), ob = await B.observe();
+  console.log("A scene bodies", JSON.stringify((oa.scene || []).filter((o) => o.kind === "body").map((o) => [o.id, o.distance, o.bearingDeg, o.facingYou])));
+  console.log("B scene bodies", JSON.stringify((ob.scene || []).filter((o) => o.kind === "body").map((o) => [o.id, o.distance, o.bearingDeg, o.facingYou])));
+  const hb = (oa.scene || []).filter((o) => o.kind === "body").sort((x, y) => Math.abs(x.distance - 3) - Math.abs(y.distance - 3))[0];
+  console.log("A says to", hb && hb.id, JSON.stringify(await A.say("addressed hello", hb && hb.id)));
+  const ob2 = await B.observe(); console.log("B heard", JSON.stringify(ob2.heard));
+  const from = ob2.heard && ob2.heard.slice(-1)[0] && ob2.heard.slice(-1)[0].from;
+  await sleep(1200); console.log("B replies to", from, JSON.stringify(await B.say("reply hello", from)));
+  console.log("A heard", JSON.stringify((await A.observe()).heard));
+  await A.detach(); await B.detach();
+})();

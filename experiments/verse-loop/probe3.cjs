@@ -1,0 +1,11 @@
+const { Agent, sleep, setExp, dist } = require("./lib.cjs");
+(async () => { setExp("probe3");
+  const A = await new Agent("T1").onboard();
+  console.log("enter tea:", JSON.stringify(await A.act({ type: "enter", place: "tea" }, 170000)));
+  const o = await A.observe(); console.log("insideRoom", JSON.stringify(o.insideRoom), "pos", o.body.x.toFixed(1), o.body.z.toFixed(1));
+  const kinds = {}; for (const x of o.scene || []) kinds[x.kind] = (kinds[x.kind] || 0) + 1; console.log("scene kinds", JSON.stringify(kinds));
+  console.log("seats", JSON.stringify((o.scene || []).filter((x) => x.kind === "seat").slice(0, 4)));
+  await A.act({ type: "face", headingDeg: 90 }); const o2 = await A.observe(); const k2 = {}; for (const x of o2.scene || []) k2[x.kind] = (k2[x.kind] || 0) + 1; console.log("after turning 90:", JSON.stringify(k2));
+  console.log("sit (no id):", JSON.stringify(await A.act({ type: "sit" }, 60000)));
+  await A.detach();
+})();

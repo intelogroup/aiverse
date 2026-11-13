@@ -1,0 +1,11 @@
+const { Agent, sleep, setExp } = require("./lib.cjs");
+(async () => { setExp("probe"); const a = await new Agent("Pa").onboard(); const b = await new Agent("Pb").onboard();
+  console.log("attach", a.attach, b.attach, "claimErr", a.claimErr, b.claimErr);
+  console.log("A obs", JSON.stringify(await a.observe()).slice(0, 700));
+  console.log("A go", JSON.stringify(await a.act({ type: "go_to", point: [8, 10.6] })));
+  console.log("B go", JSON.stringify(await b.act({ type: "go_to", point: [12, 10.6] })));
+  console.log("A face", JSON.stringify(await a.act({ type: "face", point: [12, 10.6] })));
+  console.log("A scene", JSON.stringify((await a.observe()).scene).slice(0, 500));
+  console.log("A say", JSON.stringify(await a.say("hello probe")));
+  console.log("B heard", JSON.stringify((await b.observe()).heard));
+})();
