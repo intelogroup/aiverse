@@ -65,6 +65,9 @@ SECRET = os.environ.get("LOOK_SERVICE_SECRET", "")
 # How far (m) the stand-in may stand from the requested position before the frame counts as "not from where you stand" (a normal
 # arrival stops ~0.5 m short; the local measurement was 0.53 m with the body on the spot).
 POSE_TOL_M = float(os.environ.get("LOOK_POSE_TOL_M", "0.75"))
+# Stop a lingering stand-in action before and after a move (default on). LOOK_MOVE_TIMEOUT_S fixes the move timeout (tests); 0 = by distance.
+HALT_STALE = os.environ.get("LOOK_HALT_STALE", "1") != "0"
+MOVE_TIMEOUT_S = float(os.environ.get("LOOK_MOVE_TIMEOUT_S", "0"))
 
 
 def pose_error_m(position, pose):
@@ -188,20 +191,34 @@ class LookService:
                 }""" % int(timeout_s * 1000), action),
             timeout=timeout_s + 15)
 
+    async def halt(self):
+        """Cancel whatever the stand-in is still doing. A move that timed out (or a capture that was abandoned) leaves its action running in
+        the page, and the next move is then refused ("busy") or blocked: stop first so every move starts from a standing body."""
+        try:
+            await self.act({"type": "stop"}, 10)
+        except Exception:
+            pass
+
     async def apply_pose(self, position, heading_deg, mode="walk"):
         """Move the body to the requested pose; return (pose_echo, pose_ms, outcomes)."""
         t0 = time.time()
         outcomes = {}
         snap = await self.snapshot()
+        if HALT_STALE and snap and (snap.get("busy") or snap.get("currentAction")):
+            await self.halt()
+            outcomes["haltedStale"] = True
+            snap = await self.snapshot()
         if position is not None and snap:
             cur = snap["pos"]
             dist = ((position[0] - cur[0]) ** 2 + (position[1] - cur[2]) ** 2) ** 0.5
             if dist > 0.4:
                 act_type = "run_to" if mode == "run" else "go_to"
-                timeout_s = min(600, 45 + dist * 3.0)
+                timeout_s = MOVE_TIMEOUT_S if MOVE_TIMEOUT_S else min(600, 45 + dist * 3.0)
                 res = await self.act(
                     {"type": act_type, "point": [position[0], position[1]]}, timeout_s)
                 outcomes["move"] = {k: (res or {}).get(k) for k in ("ok", "status", "detail", "target")}
+                if HALT_STALE and (res or {}).get("status") not in ("arrived", "done"):
+                    await self.halt()  # a failed move must not leave its action running for the next request
         if heading_deg is not None:
             res = await self.act({"type": "face", "headingDeg": heading_deg}, 30)
             outcomes["face"] = {k: (res or {}).get(k) for k in ("ok", "status", "detail")}
