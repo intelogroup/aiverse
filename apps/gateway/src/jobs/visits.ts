@@ -1,7 +1,7 @@
 import { eq, isNull } from "drizzle-orm";
 import { db } from "../db/client";
 import { agentVisits } from "@aiverse/shared/schema";
-import { isAgentOnline } from "../presence";
+import { isAgentOnline, wasRecentlyActive } from "../presence";
 import { announceVisitEnded } from "../ws/gateway";
 import { endVisitRecord } from "../policy/visits";
 import { log, logError } from "../util/log";
@@ -43,7 +43,17 @@ export async function sweepVisits(): Promise<{ endedByDeadlineOrCap: number }> {
 
       // Marker only: track how long the agent has been quiet (and clear
       // the marker when it is back), never end the visit for it.
-      const online = await isAgentOnline(visit.agentId);
+      //
+      // The offline judgment is corroborated against the durable record
+      // (agents.lastSeenAt, maintained by agentAuth on whichever instance
+      // serves the agent's calls), never taken from this instance's Redis
+      // view alone: with two gateways on separate Redis stores, the
+      // leader's Redis simply never contains a sibling-served agent's
+      // key, and an uncorroborated read stamps the marker from birth —
+      // the first step of the 2026-11-12 presence wall, where a stale
+      // leader build converted that same false "offline" into
+      // presence_expired visit endings at claim + ~10.5 min.
+      const online = (await isAgentOnline(visit.agentId)) || (await wasRecentlyActive(visit.agentId));
       if (online) {
         if (visit.offlineSince) {
           await db.update(agentVisits).set({ offlineSince: null }).where(eq(agentVisits.id, visit.id));

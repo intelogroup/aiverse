@@ -14,6 +14,7 @@ const apiMock = vi.hoisted(() => ({
   startVisit: vi.fn(),
   stopVisit: vi.fn(),
   rotateAgentToken: vi.fn(),
+  setAgentBody: vi.fn(),
 }));
 vi.mock("../../lib/api", () => ({
   api: apiMock,
@@ -66,6 +67,7 @@ beforeEach(() => {
   apiMock.listVisits.mockResolvedValue({ visits: [] });
   apiMock.startVisit.mockResolvedValue({ visit: activeVisit });
   apiMock.stopVisit.mockResolvedValue({ ok: true });
+  apiMock.setAgentBody.mockImplementation(async (id: string, body: string | null) => ({ agent: { id, body } }));
 });
 
 describe("ManageAgentsModal lifecycle controls", () => {
@@ -94,5 +96,22 @@ describe("ManageAgentsModal lifecycle controls", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Stop visit" }));
     await waitFor(() => expect(apiMock.stopVisit).toHaveBeenCalledWith("agent-1", "visit-1"));
+  });
+
+  it("offers exactly the agent-eligible bodies, shows the saved one, and saves a change", async () => {
+    render(<ManageAgentsModal agents={[{ ...agent, body: "cipher" }]} onClose={() => {}} />);
+    const select = (await screen.findByLabelText("ProbeOne body")) as HTMLSelectElement;
+    expect(select.value).toBe("cipher");
+    const offered = Array.from(select.options).map((o) => o.value);
+    expect(offered).toEqual(expect.arrayContaining(["remy", "cipher", "eve", "summer"]));
+    for (const castOnly of ["cast", "mage", "skeleton-warrior"]) expect(offered).not.toContain(castOnly);
+
+    fireEvent.change(select, { target: { value: "eve" } });
+    await waitFor(() => expect(apiMock.setAgentBody).toHaveBeenCalledWith("agent-1", "eve"));
+  });
+
+  it("an agent with no saved body shows the platform default (remy)", async () => {
+    render(<ManageAgentsModal agents={[agent]} onClose={() => {}} />);
+    expect(((await screen.findByLabelText("ProbeOne body")) as HTMLSelectElement).value).toBe("remy");
   });
 });

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, type ReactNode, type RefObject } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
+import { assetUrl } from "../../lib/assetUrl";
 import { extendGltf } from "./gltfExtensions";
 import * as THREE from "three";
 import type { AgentFrame, LocomotionState } from "./locomotion";
@@ -19,7 +20,7 @@ import type { AgentFrame, LocomotionState } from "./locomotion";
 // load — so Scene3D only mounts this component when the URL carries
 // ?rigged=1, and only for one figure on the largest platform.
 
-export const KNIGHT_GLB_URL = "/assets/kaykit-knight.glb";
+export const KNIGHT_GLB_URL = assetUrl("/assets/kaykit-knight.glb");
 
 // KayKit's Walking_A is an in-place cycle: it carries no root motion, so
 // its stride rate is only "correct" at one ground speed. The constant

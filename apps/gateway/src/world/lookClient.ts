@@ -13,6 +13,10 @@ export interface LookFrame {
   depthSummary: unknown;
   /** The service's pose echo after applying the requested pose: where its stand-in body actually stood for the frame. */
   pose: unknown;
+  /** Metres between the requested body position and where the service's camera stood (the service retries a short move once). Absent from an older service. */
+  poseErrorM?: number | null;
+  /** True when that error is over the service's tolerance: the picture is NOT from where the body stands. */
+  poseMismatch?: boolean;
   /** In-service render time for the capture itself. */
   renderMs: number | null;
   /** Time spent moving the stand-in body to the requested pose before capturing. */
@@ -47,6 +51,8 @@ interface ServiceLookBody {
   pose?: unknown;
   renderMs?: number;
   poseMs?: number;
+  poseErrorM?: number | null;
+  poseMismatch?: boolean;
   pitchSupported?: boolean;
   utc?: string;
   error?: string;
@@ -86,6 +92,8 @@ export function httpLookClient(baseUrl: string, secret: string, timeoutMs = LOOK
           pose: body.pose ?? null,
           renderMs: typeof body.renderMs === "number" ? body.renderMs : null,
           poseMs: typeof body.poseMs === "number" ? body.poseMs : null,
+          poseErrorM: typeof body.poseErrorM === "number" ? body.poseErrorM : null,
+          poseMismatch: body.poseMismatch === true,
           pitchSupported: body.pitchSupported === true,
           capturedAt: typeof body.utc === "string" ? body.utc : null,
         },

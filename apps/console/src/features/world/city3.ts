@@ -6,6 +6,7 @@
 // of placements into the shared asset library; only the nearest few are ever resident.
 import type { CutBox } from "./cutaway";
 import type { InteractableDef } from "./interactables";
+import { assetUrl } from "../../lib/assetUrl";
 
 export type Side = "S" | "N" | "E" | "W";
 
@@ -33,7 +34,7 @@ export interface City3Room {
 
 export const CITY3_INDEX_URL = "/assets/interiors/index.json";
 /** One shared asset library for every streamed interior (loaded once, kept). */
-export const CITY3_LIBRARY_URL = "/assets/world-city3-library.glb";
+export const CITY3_LIBRARY_URL = assetUrl("/assets/world-city3-library.glb");
 
 /** Open (cut away) the nearest room within HIDE_WITHIN m; close it again past SHOW_BEYOND m. */
 export const HIDE_WITHIN = 48;

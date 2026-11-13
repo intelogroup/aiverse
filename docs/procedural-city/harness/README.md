@@ -29,3 +29,4 @@ Inspect a GLB's JSON in Python:
 import json,struct; f=open(p,"rb").read(); n=struct.unpack("<I",f[12:16])[0]; j=json.loads(f[20:20+n])
 print(j.get("extensionsUsed"), [m["name"] for m in j["materials"] if m.get("doubleSided")], [x["name"] for x in j["nodes"]][:20])
 ```
+| `idle_probe.html` + `idle_trace.cjs` | Standing IdleLong, no foot lock (left) vs shipped foot lock (right), deterministic time steps. Copy `idle_probe.html` into `apps/console/`, serve with vite, `node idle_trace.cjs <body>` prints per-foot range and max per-frame step; a loop of screenshots makes a video. 2026-11-13: no lock = 12-15 cm foot slide per cycle; lock = 0 for Cipher/Eve/Remy/Jim; Summer re-stepped (fixed by STEP_DIST 0.2). |

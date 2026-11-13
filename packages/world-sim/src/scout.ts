@@ -298,6 +298,8 @@ export interface ScoutOutcome {
    * stall itself. Absent when no route could be planned (the body never moved).
    */
   stalledForMs?: number;
+  /** A `busy` refusal only: what the agent should do next. Added by WorldService (it knows which action is still running), not the executor. */
+  hint?: string;
 }
 
 export type Posture = "standing" | "sitting-down" | "seated" | "standing-up";

@@ -1,3 +1,4 @@
+import { assetUrl } from "../../lib/assetUrl";
 import { TeaElevator, TeaElevatorHud } from "./TeaElevatorView";
 import { TeaElevatorController } from "./teaElevator";
 import { VerseRecorder } from "./VerseRecorder";
@@ -38,7 +39,19 @@ import { GREETING_SCRIPT, createPlazaGreeting, type PlazaGreeting } from "./plaz
 import { type CameraMode } from "./cameraRig";
 import { attachWorldRenderer } from "../../lib/telemetry/index";
 import { FpsMeter } from "./fpsMeter";
-import { QualityGovernor, dprForTier, qualityStore, shadowMapForTier } from "./quality";
+import {
+  FrameThrottle,
+  QualityGovernor,
+  TOUCH_DPR_MAX,
+  TOUCH_FPS_CAP,
+  capDpr,
+  dprForTier,
+  governorSampleFps,
+  qualityStore,
+  shadowMapForTier,
+} from "./quality";
+import { attachContextLossHandlers } from "./contextLoss";
+import { probeWebGLSupport } from "./contextCreate";
 import {
   LONG_PRESS_MAX_MOVE_PX,
   LONG_PRESS_MS,
@@ -91,7 +104,7 @@ import { TEA_FLOORS, teaCutHeight, teaEntranceView, teaViewTargetHeight } from "
 // three's built-in RoomEnvironment. One shadow-casting key light for
 // grounding, and a modest ambient fill.
 
-const CITY3_URL = "/assets/world-city3.glb";
+const CITY3_URL = assetUrl("/assets/world-city3.glb");
 
 // The island's plaza origin.
 const CITY3_CENTER: [number, number] = [0, 0];
@@ -610,9 +623,42 @@ function QualityDriver({ meterRef }: { meterRef: RefObject<FpsMeter | null> }) {
     acc.current = 0;
     const meter = meterRef.current;
     if (!meter) return;
-    const verdict = governor.current?.sample(meter.fps(), performance.now());
+    // The touch render cap (TouchFpsCap) bounds the meter's read at
+    // TOUCH_FPS_CAP; governorSampleFps keeps "holding the cap" out of
+    // the step-down band so the governor never fights the cap.
+    const verdict = governor.current?.sample(governorSampleFps(meter.fps()), performance.now());
     if (verdict) qualityStore.govern(verdict);
   });
+  return null;
+}
+
+/**
+ * Thermal guardrail (2026-11-12): the touch path's render-rate cap.
+ * Switches the Canvas to demand rendering and pumps invalidate() at
+ * TOUCH_FPS_CAP — a phone holding a 3D world at full refresh cooks
+ * itself into throttling within minutes; 30 fps is the rate the
+ * quality governor already treats as the touch floor, so the cap and
+ * the ladder agree. Mounted on the human touch path only: agent mode
+ * already runs demand (ScoutAgent pumps its own frames), and desktop
+ * keeps its uncapped "always" loop. Restores "always" on unmount.
+ */
+function TouchFpsCap() {
+  const set = useThree((s) => s.set);
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => {
+    set({ frameloop: "demand" });
+    const throttle = new FrameThrottle(TOUCH_FPS_CAP);
+    let raf = 0;
+    const loop = (t: number) => {
+      raf = requestAnimationFrame(loop);
+      if (throttle.shouldRender(t)) invalidate();
+    };
+    raf = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(raf);
+      set({ frameloop: "always" });
+    };
+  }, [set, invalidate]);
   return null;
 }
 
@@ -1333,9 +1379,27 @@ export function GlbWorld() {
   // boundary) raises it again when the world actually mounts.
   const [loadNonce, setLoadNonce] = useState(0);
   const [worldPresented, setWorldPresented] = useState(false);
+  // WebGL context loss: the recovery overlay's state. The Canvas is
+  // keyed by loadNonce, so a reload remounts a fresh canvas and the
+  // flag resets with the generation (same effect as `presented`); a
+  // browser-side restore clears it via the contextrestored handler
+  // attached in onCreated.
+  const [contextLost, setContextLost] = useState(false);
   useEffect(() => {
     setWorldPresented(false);
+    setContextLost(false);
   }, [loadNonce]);
+  // Context CREATION (contextCreate.ts): probe before the Canvas
+  // mounts. When the browser refuses a WebGL context outright, the
+  // Canvas can never present and the load overlay would spin
+  // forever; the probe turns that dead end into the graphics
+  // fallback overlay below. Keyed by loadNonce so the overlay's
+  // reload action re-probes on the fresh generation.
+  const glSupported = useMemo(() => {
+    void loadNonce; // the dependency IS the re-probe trigger (see above)
+    return probeWebGLSupport();
+  }, [loadNonce]);
+  const contextLossDetachRef = useRef<(() => void) | null>(null);
   const markPresented = useCallback(() => setWorldPresented(true), []);
   useEffect(() => {
     return () => {
@@ -1356,10 +1420,11 @@ export function GlbWorld() {
     <div ref={rootRef} className={touchUi ? "w-glb-root w-touch-root" : "w-glb-root"}>
       <VerseRecorder root={rootRef} />
       <TeaElevatorHud controller={elevator} frame={walkFrameRef} walking={walking} walk={walkColliders} />
+      {glSupported ? (
       <Canvas
         key={`world-${loadNonce}`}
         camera={camera}
-        dpr={touchUi ? dprForTier(quality.tier) : undefined}
+        dpr={touchUi ? capDpr(dprForTier(quality.tier), TOUCH_DPR_MAX) : [1, 2]}
         frameloop={agentOn ? "demand" : "always"}
         shadows={agentOn ? false : "soft"}
         gl={{ antialias: true }}
@@ -1369,6 +1434,14 @@ export function GlbWorld() {
           gl.domElement.setAttribute("aria-label", "3D world view");
           // Telemetry Phase 1: camera context + WebGL loss/shader hooks.
           attachWorldRenderer(gl, camera);
+          // Recovery (2026-11-12): telemetry records a context loss,
+          // this makes it survivable — preventDefault keeps restore
+          // possible, the overlay offers a remount when it isn't.
+          contextLossDetachRef.current?.();
+          contextLossDetachRef.current = attachContextLossHandlers(gl.domElement, {
+            onLost: () => setContextLost(true),
+            onRestored: () => setContextLost(false),
+          });
         }}
         style={{ position: "absolute", inset: 0 }}
       >
@@ -1378,6 +1451,7 @@ export function GlbWorld() {
         <ShadowTagger />
         {touchUi ? <FpsTracker meterRef={fpsMeterRef} /> : null}
         {touchUi ? <QualityDriver meterRef={fpsMeterRef} /> : null}
+        {touchUi && !agentOn ? <TouchFpsCap /> : null}
         <Suspense fallback={null}>
           <PresentedSignal onPresented={markPresented} />
           <DistrictWorld residentUrl={CITY3_URL} light={keyLightRef} collide={camMode === "wide" && !(heroFocus?.id === "tea" && teaFloor === null)} meshesRef={colliderMeshesRef} walk={walkColliders} streamCap={touchUi ? 2 : undefined} />
@@ -1461,18 +1535,72 @@ export function GlbWorld() {
           maxDistance={1100}
         />
       </Canvas>
+      ) : null}
       {soundRef.current ? (
         <ShellPaBanner sound={soundRef.current} spectator={!walking} />
       ) : null}
-      <WorldLoadOverlay
-        key={`loading-${loadNonce}`}
-        presented={worldPresented}
-        onRetry={() => {
-          useGLTF.clear(CITY3_URL);
-          useGLTF.clear(CITY3_LIBRARY_URL);
-          setLoadNonce((n) => n + 1);
-        }}
-      />
+      {glSupported ? (
+        <WorldLoadOverlay
+          key={`loading-${loadNonce}`}
+          presented={worldPresented}
+          onRetry={() => {
+            useGLTF.clear(CITY3_URL);
+            useGLTF.clear(CITY3_LIBRARY_URL);
+            setLoadNonce((n) => n + 1);
+          }}
+        />
+      ) : null}
+      {contextLost ? (
+        <div className="w-load" role="alert" aria-live="assertive">
+          <div className="w-load-card">
+            <div className="w-load-eyebrow">Graphics interrupted</div>
+            <div className="w-load-title">The graphics context was lost</div>
+            <p className="w-load-sub">
+              Your device dropped the 3D view — this can happen under memory or heat
+              pressure. The world is still here; reload it to keep going.
+            </p>
+            <div className="w-load-actions">
+              <button
+                type="button"
+                className="w-load-primary"
+                onClick={() => {
+                  useGLTF.clear(CITY3_URL);
+                  useGLTF.clear(CITY3_LIBRARY_URL);
+                  setLoadNonce((n) => n + 1);
+                }}
+              >
+                Reload the world
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {!glSupported ? (
+        <div className="w-load" role="alert" aria-live="assertive">
+          <div className="w-load-card">
+            <div className="w-load-eyebrow">Graphics unavailable</div>
+            <div className="w-load-title">Graphics couldn’t start on this device</div>
+            <p className="w-load-sub">
+              The verse needs WebGL to draw its 3D world, and this browser couldn’t
+              create a graphics context. Reloading can clear a temporary failure;
+              if it keeps happening, a different browser or device will get you in.
+            </p>
+            <div className="w-load-actions">
+              <button
+                type="button"
+                className="w-load-primary"
+                onClick={() => {
+                  useGLTF.clear(CITY3_URL);
+                  useGLTF.clear(CITY3_LIBRARY_URL);
+                  setLoadNonce((n) => n + 1);
+                }}
+              >
+                Reload the world
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {!(walking && touchUi) ? (
         <div className="w-glb-toggle w-glb-walk" role="group" aria-label="Walk City 3">
           {walking ? (

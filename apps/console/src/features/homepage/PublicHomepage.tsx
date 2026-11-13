@@ -1,5 +1,14 @@
-import { useEffect, useRef, useState } from "react";
-import { api, type TrendingTopic, type SearchDigest, type PublicActivityItem } from "../../lib/api";
+import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { api, type SearchDigest } from "../../lib/api";
+import { queryKeys } from "../../lib/queryClient";
+import {
+  ACTIVITY_LIMIT_DEFAULT,
+  usePublicActivityQuery,
+  usePublicConversationQuery,
+  useRosterQuery,
+  useTrendingQuery,
+} from "../../lib/queries";
 import { usePublicWs } from "../../lib/publicWs";
 import { EmptyState } from "../../components/EmptyState";
 import { SearchIcon, HashIcon, GlobeIcon, BellIcon, ArrowLeftIcon } from "../../icons";
@@ -19,36 +28,37 @@ function relativeTime(iso: string): string {
 
 export function PublicHomepage({ onBack }: { onBack: () => void }) {
   const [tab, setTab] = useState<BrowseTab>("trending");
-  const [trending, setTrending] = useState<TrendingTopic[]>([]);
-  const [activity, setActivity] = useState<PublicActivityItem[]>([]);
-  const [activityLoading, setActivityLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [digest, setDigest] = useState<SearchDigest | null>(null);
   const [rawConversationId, setRawConversationId] = useState<string | null>(null);
-  const [rawMessages, setRawMessages] = useState<{ id: string; content: string; senderAgentId: string; createdAt: string }[]>([]);
-  const [roster, setRoster] = useState<Map<string, string>>(new Map());
 
-  useEffect(() => {
-    api.trending("24h").then((r) => setTrending(r.topics));
-  }, []);
+  const queryClient = useQueryClient();
+
+  // Server reads are shared TanStack queries now (Phase 1 of the state
+  // migration): trending and activity dedupe with every other surface
+  // that reads them, and the roster comes from the shared discover query
+  // instead of this page's own raw /agents/discover fetch.
+  const trending = useTrendingQuery("24h").data ?? [];
 
   const activityActive = tab === "activity" && !digest;
-  const fetchActivity = useRef(() => {
-    api.publicActivity().then((r) => {
-      setActivity(r.activity);
-      setActivityLoading(false);
-    });
+  const activityQuery = usePublicActivityQuery(ACTIVITY_LIMIT_DEFAULT, {
+    enabled: activityActive,
+    // WS delivers live updates; this is just a safety net for a dropped socket.
+    refetchInterval: activityActive ? 30000 : false,
+  });
+  const activity = activityQuery.data ?? [];
+
+  usePublicWs(activityActive, () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.publicActivity(ACTIVITY_LIMIT_DEFAULT) });
   });
 
-  useEffect(() => {
-    if (!activityActive) return;
-    fetchActivity.current();
-    // WS delivers live updates; this is just a safety net for a dropped socket.
-    const id = setInterval(() => fetchActivity.current(), 30000);
-    return () => clearInterval(id);
-  }, [activityActive]);
-
-  usePublicWs(activityActive, () => fetchActivity.current());
+  const conversationQuery = usePublicConversationQuery(rawConversationId);
+  const rawMessages = conversationQuery.data ?? [];
+  const rosterQuery = useRosterQuery({ enabled: rawConversationId !== null });
+  const roster = useMemo(
+    () => new Map((rosterQuery.data ?? []).map((a) => [a.agentId, a.name])),
+    [rosterQuery.data],
+  );
 
   async function runSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -58,18 +68,8 @@ export function PublicHomepage({ onBack }: { onBack: () => void }) {
     setDigest(result);
   }
 
-  async function openThread(conversationId: string) {
+  function openThread(conversationId: string) {
     setRawConversationId(conversationId);
-    const [res, disc] = await Promise.all([
-      api.publicConversation(conversationId),
-      fetch(`${import.meta.env.VITE_API_URL ?? "/api"}/agents/discover`)
-        .then((r) => r.json())
-        .catch(() => ({ roster: [] })),
-    ]);
-    setRawMessages(res.messages as typeof rawMessages);
-    const m = new Map<string, string>();
-    for (const a of (disc.roster ?? []) as { agentId: string; name: string }[]) m.set(a.agentId, a.name);
-    setRoster(m);
   }
 
   return (
@@ -139,7 +139,7 @@ export function PublicHomepage({ onBack }: { onBack: () => void }) {
         {!digest && tab === "activity" && (
           <section className="activity-section">
             <h3>All public activity</h3>
-            {!activityLoading && activity.length === 0 && (
+            {activityQuery.isSuccess && activity.length === 0 && (
               <EmptyState
                 icon={<BellIcon />}
                 text="No public activity yet"
@@ -206,7 +206,7 @@ export function PublicHomepage({ onBack }: { onBack: () => void }) {
                   senderId={m.senderAgentId}
                   senderName={roster.get(m.senderAgentId)}
                   content={m.content}
-                  createdAt={(m as unknown as { createdAt: string }).createdAt ?? new Date().toISOString()}
+                  createdAt={m.createdAt}
                 />
               ))}
             </div>

@@ -369,6 +369,9 @@ export function agentBodies(): BodyDef[] {
   return Object.values(BODIES).filter((body) => body.agentBody !== false);
 }
 
+/** Whether `id` is a body an agent may wear (registered and not cast-only). */
+export const isAgentBody = (id: unknown): id is string => typeof id === "string" && agentBodies().some((b) => b.id === id);
+
 /** The body a cast member wears; members name one via `body`, else cast. */
 export function bodyForMember(member: { body?: string } | null | undefined): BodyDef {
   return (member?.body && BODIES[member.body]) || BODY_CAST;

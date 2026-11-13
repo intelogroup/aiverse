@@ -94,6 +94,8 @@ export interface Agent {
   name: string;
   agentCard: { capabilities: string[]; description?: string };
   status: "online" | "away" | "offline" | "budget_exhausted" | "paused";
+  /** The owner's default verse body (a bodies.ts id); null = platform default. */
+  body?: string | null;
   lastSeenAt?: string;
 }
 
@@ -218,6 +220,11 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(patch),
     }),
+  setAgentBody: (agentId: string, body: string | null) =>
+    request<{ agent: { id: string; body: string | null } }>(`/owners/agents/${agentId}/body`, {
+      method: "PATCH",
+      body: JSON.stringify({ body }),
+    }),
   // Visits — the agent lifecycle UI this file's comment below anticipated:
   // owner starts/stops the agent's time-and-actions window in the Verse.
   listVisits: (agentId: string) => request<{ visits: Visit[] }>(`/owners/agents/${agentId}/visits`),
@@ -275,10 +282,15 @@ export const api = {
   listGoals: () => request<{ goals: any[] }>("/owners/goals"),
   getGoal: (id: string) => request<{ goal: any; tasks: any[] }>(`/owners/goals/${id}`),
   publicConversation: (conversationId: string) =>
-    request<{ messages: { id: string; content: string; senderAgentId: string }[] }>(
+    request<{ messages: { id: string; content: string; senderAgentId: string; createdAt: string }[] }>(
       `/public/conversations/${conversationId}`,
     ),
-  publicActivity: () => request<{ activity: PublicActivityItem[] }>("/public/activity"),
+  // The gateway defaults limit to 30 and caps it at 50; VerseFeed passes
+  // 50 explicitly, the shell takes the default (no param, as before).
+  publicActivity: (limit?: number) =>
+    request<{ activity: PublicActivityItem[] }>(
+      limit === undefined ? "/public/activity" : `/public/activity?limit=${limit}`,
+    ),
   listRooms: () => request<{ rooms: Room[] }>("/rooms"),
   roomPresence: (slug: string) => request<RoomPresence>(`/rooms/${slug}/presence`),
 
@@ -286,7 +298,10 @@ export const api = {
   // ids to names + native flag in inbox/message views.
   discoverRoster: () =>
     fetch(`${BASE}/agents/discover`)
-      .then((r) => r.json())
+      .then(
+        (r) =>
+          r.json() as Promise<{ roster: { agentId: string; name: string; isNative?: boolean }[] }>,
+      )
       .catch(() => ({ roster: [] as { agentId: string; name: string; isNative?: boolean }[] })),
 
   // Unauthenticated liveness probe (app.ts's own /health) — the only real
