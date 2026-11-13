@@ -10,3 +10,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/** Build-time: this build ships the world tiles (vite.config.ts). */
+declare const __TILES_DEFAULT__: boolean;

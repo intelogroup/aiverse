@@ -1,5 +1,5 @@
 # World tiles (phone-load plan, option B)
-Status 2026-11-13: built and gated, behind `?tiles=1`, off by default. Cold start to a walkable spawn is 1.3-1.5 s on Fast 4G (see Numbers); not met on Slow 4G.
+Status 2026-11-13: live and the DEFAULT in builds that contain the tiles (`__TILES_DEFAULT__` in vite.config.ts; `?tiles=0` forces the one-file world, `?tiles=1` forces tiles; a build whose tile step was skipped falls back to the one-file world on its own). Cold start to a walkable spawn is 1.3-1.5 s on Fast 4G (see Numbers); not met on Slow 4G.
 
 ## What it is
 `world-city3.glb` (91 MB, 35 MB brotli) is cut into tiles that stream by distance, so a phone downloads a small core on the fountain first.

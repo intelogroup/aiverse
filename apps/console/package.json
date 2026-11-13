@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build:tiles": "bash ../../tools/city3/build_tiles.sh",
-    "build": "(bun run build:tiles || echo 'world tiles skipped: ?tiles=1 will not work on this build') && tsc -b && vite build",
+    "build": "(bun run build:tiles || echo 'world tiles skipped: this build falls back to the one-file world') && tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run"
