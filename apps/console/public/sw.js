@@ -23,7 +23,7 @@
 
 const VERSION = "v1";
 const CACHE_NAME = `aiverse-glbs-${VERSION}`;
-const R2_ORIGIN = "https://verse.clixen.app";
+const R2_ORIGIN = "https://assets.aiverse.network";
 const MAX_BYTES = 500 * 1024 * 1024; // ~500 MB: the full staged set is ~215 MB; headroom for a second world version during deploys, far below desktop quotas and near what a phone can spare.
 const DB_NAME = "aiverse-asset-lru";
 const STORE = "entries";

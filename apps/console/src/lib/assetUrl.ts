@@ -13,7 +13,7 @@
  */
 import staged from "./staged-assets.json";
 
-export const DEFAULT_ASSET_BASE = "https://verse.clixen.app";
+export const DEFAULT_ASSET_BASE = "https://assets.aiverse.network";
 
 const rawBase = import.meta.env.VITE_ASSET_BASE as string | undefined;
 /** "" disables R2 delivery entirely; undefined falls back to the default bucket. */
