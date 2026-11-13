@@ -51,6 +51,7 @@ import {
   shadowMapForTier,
 } from "./quality";
 import { attachContextLossHandlers } from "./contextLoss";
+import { probeWebGLSupport } from "./contextCreate";
 import {
   LONG_PRESS_MAX_MOVE_PX,
   LONG_PRESS_MS,
@@ -1388,6 +1389,16 @@ export function GlbWorld() {
     setWorldPresented(false);
     setContextLost(false);
   }, [loadNonce]);
+  // Context CREATION (contextCreate.ts): probe before the Canvas
+  // mounts. When the browser refuses a WebGL context outright, the
+  // Canvas can never present and the load overlay would spin
+  // forever; the probe turns that dead end into the graphics
+  // fallback overlay below. Keyed by loadNonce so the overlay's
+  // reload action re-probes on the fresh generation.
+  const glSupported = useMemo(() => {
+    void loadNonce; // the dependency IS the re-probe trigger (see above)
+    return probeWebGLSupport();
+  }, [loadNonce]);
   const contextLossDetachRef = useRef<(() => void) | null>(null);
   const markPresented = useCallback(() => setWorldPresented(true), []);
   useEffect(() => {
@@ -1409,6 +1420,7 @@ export function GlbWorld() {
     <div ref={rootRef} className={touchUi ? "w-glb-root w-touch-root" : "w-glb-root"}>
       <VerseRecorder root={rootRef} />
       <TeaElevatorHud controller={elevator} frame={walkFrameRef} walking={walking} walk={walkColliders} />
+      {glSupported ? (
       <Canvas
         key={`world-${loadNonce}`}
         camera={camera}
@@ -1523,18 +1535,21 @@ export function GlbWorld() {
           maxDistance={1100}
         />
       </Canvas>
+      ) : null}
       {soundRef.current ? (
         <ShellPaBanner sound={soundRef.current} spectator={!walking} />
       ) : null}
-      <WorldLoadOverlay
-        key={`loading-${loadNonce}`}
-        presented={worldPresented}
-        onRetry={() => {
-          useGLTF.clear(CITY3_URL);
-          useGLTF.clear(CITY3_LIBRARY_URL);
-          setLoadNonce((n) => n + 1);
-        }}
-      />
+      {glSupported ? (
+        <WorldLoadOverlay
+          key={`loading-${loadNonce}`}
+          presented={worldPresented}
+          onRetry={() => {
+            useGLTF.clear(CITY3_URL);
+            useGLTF.clear(CITY3_LIBRARY_URL);
+            setLoadNonce((n) => n + 1);
+          }}
+        />
+      ) : null}
       {contextLost ? (
         <div className="w-load" role="alert" aria-live="assertive">
           <div className="w-load-card">
@@ -1543,6 +1558,32 @@ export function GlbWorld() {
             <p className="w-load-sub">
               Your device dropped the 3D view — this can happen under memory or heat
               pressure. The world is still here; reload it to keep going.
+            </p>
+            <div className="w-load-actions">
+              <button
+                type="button"
+                className="w-load-primary"
+                onClick={() => {
+                  useGLTF.clear(CITY3_URL);
+                  useGLTF.clear(CITY3_LIBRARY_URL);
+                  setLoadNonce((n) => n + 1);
+                }}
+              >
+                Reload the world
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {!glSupported ? (
+        <div className="w-load" role="alert" aria-live="assertive">
+          <div className="w-load-card">
+            <div className="w-load-eyebrow">Graphics unavailable</div>
+            <div className="w-load-title">Graphics couldn’t start on this device</div>
+            <p className="w-load-sub">
+              The verse needs WebGL to draw its 3D world, and this browser couldn’t
+              create a graphics context. Reloading can clear a temporary failure;
+              if it keeps happening, a different browser or device will get you in.
             </p>
             <div className="w-load-actions">
               <button

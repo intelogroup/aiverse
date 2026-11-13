@@ -55,7 +55,9 @@ export const SWING_CLEARANCE = 0.015;
 export const MAX_HOLD_YAW = 0.6;
 /** Turn stepping (standing): a held foot this far (m) from where the clip puts it, or turned this far (rad) from the clip's
  * heading, steps there: lifts in an arc of STEP_LIFT over STEP_S and re-plants under the body. One foot at a time. */
-export const STEP_DIST = 0.1;
+// 0.2 (was 0.1): the resting clip IdleLong itself drifts the feet 12-15 cm over its 9.9 s loop (measured, harness/idle_trace.cjs), so at 0.1 a standing
+// Summer re-stepped one foot every cycle (2 cm/frame, 5 cm vertical jump). A turn still steps through STEP_YAW.
+export const STEP_DIST = 0.2;
 export const STEP_YAW = 0.35;
 export const STEP_S = 0.28;
 export const STEP_LIFT = 0.05;

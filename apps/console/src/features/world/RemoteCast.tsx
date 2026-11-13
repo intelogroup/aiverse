@@ -17,6 +17,7 @@ import { ClipTestState } from "./clips";
 import { createDissolve, type Dissolve } from "./dissolve";
 import type { AgentFrame } from "./locomotion";
 import { RemoteBodies, writeRemoteFrame } from "./remoteFrames";
+import { registerRemoteFigure, unregisterRemoteFigure } from "./remoteFigures";
 import { useWorldStream } from "./useWorldStream";
 import { newWalkerFrame } from "./walkerBody";
 import type { WalkColliders } from "./walkColliders";
@@ -139,7 +140,11 @@ export function RemoteCast({ walk }: { walk?: WalkColliders }) {
         const fig = figures.current.get(n);
         if (!fig) return null;
         return (
-          <group key={n} ref={(g) => { fig.group = g; }}>
+          <group key={n} ref={(g) => {
+            fig.group = g;
+            if (g) registerRemoteFigure(n, { group: g, at: () => frames.current[n]?.position });
+            else unregisterRemoteFigure(n);
+          }}>
             <Suspense fallback={null}>
               <CastFigure framesRef={frames} index={n} baseY={0} home={[0, 0, 0]} body={BODIES[body] ?? BODY_REMY} clipTester={fig.clips} dissolve={fig.dissolve} />
             </Suspense>

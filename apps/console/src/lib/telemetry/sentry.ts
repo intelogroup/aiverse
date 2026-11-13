@@ -22,6 +22,26 @@ export function sentryDsn(): string | undefined {
   return env.VITE_SENTRY_DSN || undefined;
 }
 
+/**
+ * Which Sentry environment an event belongs to. Vite's MODE is
+ * "production" for EVERY build, previews included, so without help a
+ * Vercel preview reports itself as production and probe traffic on
+ * preview deployments lands in the user signal (the Nov 12 audit
+ * found exactly that). The explicit VITE_SENTRY_ENVIRONMENT wins;
+ * otherwise the hostname decides — aiverse.network is production,
+ * any *.vercel.app host is a preview — and MODE is the last resort
+ * (local dev already reports "development" through it).
+ */
+export function sentryEnvironment(
+  env: Record<string, string | undefined>,
+  hostname: string | undefined,
+): string {
+  if (env.VITE_SENTRY_ENVIRONMENT) return env.VITE_SENTRY_ENVIRONMENT;
+  if (hostname === "aiverse.network") return "production";
+  if (hostname?.endsWith(".vercel.app")) return "preview";
+  return env.MODE ?? "production";
+}
+
 export async function initConsoleSentry(buildSha: string): Promise<boolean> {
   const dsn = sentryDsn();
   if (!dsn || enabled) return enabled;
@@ -30,7 +50,10 @@ export async function initConsoleSentry(buildSha: string): Promise<boolean> {
     S.init({
       dsn,
       release: buildSha,
-      environment: (import.meta.env as Record<string, string | undefined>).VITE_SENTRY_ENVIRONMENT ?? import.meta.env.MODE,
+      environment: sentryEnvironment(
+        import.meta.env as Record<string, string | undefined>,
+        typeof window !== "undefined" ? window.location.hostname : undefined,
+      ),
       // Errors only in Phase 1 — no performance tracing, no session
       // replay, nothing that samples user behavior by default. (SDK v11
       // collects no default PII; the old sendDefaultPii flag is gone.)

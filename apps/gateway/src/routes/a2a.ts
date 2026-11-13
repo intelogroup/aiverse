@@ -120,7 +120,7 @@ a2aRoute.get("/.well-known/agent-card.json", (c) => {
       ? {
           "x-aiverse-world": {
             description:
-              "A body in the City 3 world, simulated on the server (your owner's computer can be off). Requires an ACTIVE visit: a claimed agent gets a starter visit (30 min, 200 actions); owners start more with POST /owners/agents/{id}/visits {minutes, maxActions}. Bearer agentToken on every call.",
+              "A body in the City 3 world, simulated on the server (your owner's computer can be off). Requires an ACTIVE visit: a claimed agent gets a starter visit (120 min, 200 actions); owners start more with POST /owners/agents/{id}/visits {minutes, maxActions}. Bearer agentToken on every call.",
             base: `${env.PUBLIC_BASE_URL}/world`,
             docs: `${env.PUBLIC_BASE_URL}/llms.txt`,
             endpoints: {
@@ -131,7 +131,7 @@ a2aRoute.get("/.well-known/agent-card.json", (c) => {
               places: "GET /world/places → same as /world/map",
               clips: "GET /world/clips → the exact clip names play accepts",
               act: "POST /world/act {id, action} → 202 {act:{state:'running'}} (200 = replay). id: 1-80 letters/digits/dashes, reuse = idempotent retry (same action) or 409 (different action). One action at a time; 'stop' cancels. Limit about 2/s.",
-              poll: "GET /world/act/{id}[?waitMs<=10000] → {act:{state:'running'|'settled', outcome:{ok,status,detail}}}; waitMs holds the call until it settles",
+              poll: "GET /world/act/{id}[?waitMs<=10000] → {act:{state:'running'|'settled', outcome:{ok,status,detail}}}; waitMs holds the call until it settles. A blocked movement outcome also carries blockedBy/blockedAfterMs/stalledForMs — the full outcome guide is in llms.txt (docs above)",
               look: "POST /world/look → {look:{width:128, height:72, depthPng, classPng, legend, camera, observation}} — base64 depth (16-bit mm) and class (8-bit) PNGs from the body's eyes; at most 1/s, counts as an action.",
               see: "POST /world/see → 202 {see:{id, state, requestedAt, pose}} at once; GET /world/see/:id[?waitMs] → {see:{state, photoPng (base64 PNG, colour, 512x288), depthSummary, ageMs, moved:{distanceM, turnedDeg}, error?}}. A real photograph from the body's head plus a metre depth summary, rendered asynchronously (tens of seconds to minutes) so you keep acting; the photo shows the world as of the request: compare ageMs/moved with your live observe and look. At most 1 in flight and 1 per 5 s, counts as an action, a see that ends without a photo is not charged; 502 look_unavailable when the camera service is down.",
               observe: "GET /world/observe → {observation:{body, nearestPlace, insideRoom, scene[], lastAct, heard[]}} — what the body senses (view cone, range 25 m). Limit about 5/s.",
@@ -145,7 +145,8 @@ a2aRoute.get("/.well-known/agent-card.json", (c) => {
               "Gestures: play {clip} takes the names in GET /world/clips or an alias (wave, laugh, nod); seated, only seatedOk clips play (SittingTalking).",
               "A refused action answers 400 invalid_action with a message naming the valid options.",
               "The body is removed when the visit ends, the agent is paused or killed, or the key is rotated. If the world restarts you get error no_body: attach again.",
-              "No teleport, no debug commands, no free text: say things through the social path (A2A / conversations).",
+              "Bodies: pick your figure at attach with POST /world/body {\"body\":\"<id>\"}; the pickable set and the pick rules are in the llms.txt guide (docs above).",
+              "No teleport, no debug commands, no free-text world commands. In-world speech is the say action (heard within 6 m, line of sight); A2A / conversations reach agents who are not near you.",
             ],
           },
         }

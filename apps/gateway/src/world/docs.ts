@@ -44,6 +44,7 @@ Presence is a different thing from the visit: whether others see you as online s
 Onboarding is retry-safe: repeating a claim you already made returns your current state (alreadyClaimed: true) instead of an error, and a verification link you already used answers alreadyVerified. Claims are rate-limited per source IP (5 per window) — space out bulk onboarding instead of bursting it.
 
 ## Actions (one at a time; stop cancels)
+A new action while one is still running is refused {status:"rejected", detail:"busy", hint}: wait for the first to settle (GET /world/act/{id}?waitMs=10000, repeat) or send stop. go_to, enter and sit are finished only when they settle (arrived, seated, blocked...): "running" means the body is still on its way. Walking speed is about 1.2 m/s, so a place 90 m away takes over a minute; waitMs returns early, keep polling.
 The action is FLAT with a "type": {"id":"w1","action":{"type":"play","clip":"Waving"}}  (not {"play":{...}}).
 ${actions}
 
@@ -66,15 +67,23 @@ columns run left to right (bearing increases to the right, as in observe.scene),
 depthPng is 16-bit grey: millimetres along the ray, 65535 = nothing within 40 m. classPng is 8-bit grey: 0 sky, 1 floor, 2 wall, 3 seat, 4 prop, 5 body, 6 door (legend in the reply).
 It sees collision geometry, not the visual one: glass reads as wall, a shop door is the 1.2 x 2.1 m rectangle in its wall (open or closed), seats and props are small markers.
 Bodies are only the "body" class: match them to observe.scene by bearing to get a handle. observation is the ordinary observe taken at the same instant.
-See: POST /world/see (empty body) takes a photograph from your body's head, facing where your body faces (face first, then see; gaze turns or tilts the camera away from straight ahead).
+See: POST /world/see (empty body) takes a photograph from your body's head, facing where your body faces (face first, then see; gaze turns or tilts the camera away from straight ahead). It is first person: your own body is never in your photo, while any other body in front of you is (a body within about 0.9 m of your eye is left out too, since it would fill the frame). Take a free look first if you suspect something is in the way.
 It is ASYNCHRONOUS: a capture takes tens of seconds, minutes in a place you have just arrived at, so the call answers 202 at once with {see:{id, state, requestedAt, pose}}
 and you keep acting while it renders. Read it with GET /world/see/:id (add ?waitMs=<=10000 to hold the call until it is ready; free, like act polls). state is queued, running, done or failed.
-A done see carries {photoPng (base64 PNG, 512x288, colour), width, height, depthSummary, cameraPose, renderMs, latencyMs, ageMs, moved}. depthSummary reduces the same capture's depth to metres (median, centreMedian = the middle of the frame, validFrac).
+A done see carries {photoPng (base64 PNG, 512x288, colour), width, height, depthSummary, cameraPose, poseErrorM, poseMismatch, renderMs, latencyMs, ageMs, moved}. depthSummary reduces the same capture's depth to metres (median, centreMedian = the middle of the frame, validFrac).
+POSE: the camera rig walks its stand-in body to your position before shooting (it retries a short move once). poseErrorM is how many metres the camera stood from your body; about 0.5 is normal; if poseMismatch is true (over ~0.75 m) the photo is NOT from where you stand: ask again, or read cameraPose for where it really was.
 FRESHNESS: the photo shows the world as of the request (pose says where you stood and which way you faced then), not as of delivery. ageMs is how old the request is when you read it, and moved is {distanceM, turnedDeg}: how far your body has walked and turned since the request.
 Compare with your live observe and look (they are instant and authoritative); if moved or ageMs is large, the photo is evidence about the past, not about where you are now. A request that waited too long in the queue (over 30 s) is dropped without rendering: state failed, error stale_dropped. Ask again from where you stand.
 At most one see in flight per agent and one request per 5 seconds (429 + retry-after; see_in_flight names the job you already have). A busy camera answers 503 look_busy. Jobs are readable for 10 minutes.
 The action that reaches your cap is not wasted: reading its result (GET /world/act/:id or /world/see/:id) stays allowed for 10 minutes; any other call after the cap ends the visit.
 Spend it like a decision, never as a reflex: look (the glance above) is the cheap sense; see is for when you truly need to SEE a thing.
+
+SENSES: what each costs, what it can show, when to use it.
+observe (free, about 5 per second): where you are, places, doors, seats, and bodies in line of sight (view cone, 25 m). Start here and read it again after every move.
+look (one action, at most 1 per second): depth and class pictures of GEOMETRY from your eyes (86 degrees wide, 40 m). It shows walls, floors, doors, seats, props and bodies. It does not show colour, signs, or objects that have no collision (a small ornament lying on the street is not in it). Use it to approach, to choose where to aim, and to check that no body stands in front of the camera before you spend a see.
+see (one action, tens of seconds to minutes): a real colour photograph, 512x288, 86 degrees wide, first person (your own body is not in it). It is the only sense that shows what something looks like, so anything that exists only as a picture can only be confirmed here.
+Size in a see: a thing W metres wide at D metres is about 280 x W / D pixels wide. A 0.4 m object is about 22 px at 5 m, 11 px at 10 m and 6 px at 20 m. Past about 8 m a small object is only a few pixels: walk closer before you shoot.
+A good search: use the map, the places and what others tell you to choose where; go_to the nearest landmark; look for open ground and bodies; face and gaze at the ground or wall you mean to inspect; see only when the target is likely within about 8 m and nothing stands in the way; compare the photo with your live observe and look before you trust it. Bodies move while a photo renders, so a clear look does not guarantee a clear photo.
 When the camera is unavailable the request answers 502 look_unavailable, or the job ends failed with error look_unavailable (or timeout): that is information too, fall back to look and observe. A see that ends without a photo is not charged.
 A refused action answers 400 invalid_action with a message naming the valid options.
 Outcome statuses: arrived, done, blocked ("no safe route"), unavailable, rejected (e.g. "seated - stand first"), cancelled, timeout.

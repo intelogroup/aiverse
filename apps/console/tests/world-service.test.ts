@@ -73,6 +73,10 @@ describe("WorldService", () => {
     s.tick(0.1); await Promise.resolve(); await Promise.resolve();
     expect(second.state).toBe("settled");
     expect(second.outcome).toMatchObject({ ok: false, status: "rejected", detail: "busy" });
+    // the refusal names the open action and the two ways out (E17: agents read a running go_to as "wandering")
+    expect(second.outcome?.hint).toContain("go_to stall-0");
+    expect(second.outcome?.hint).toContain("w1");
+    expect(second.outcome?.hint).toContain("stop");
     const stop = s.act("a-busy", "w3", { type: "stop" });
     await until(s, () => stop.state === "settled" && first.state === "settled", 2);
     expect(first.outcome?.detail).toBe("cancelled");

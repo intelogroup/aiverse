@@ -209,8 +209,12 @@ export class WorldService {
       rec.outcome = { ok: false, status: "unavailable", detail: "not_visible: no such body in sight. Handles come from observe.scene (kind body), change every visit, and only work while you can see the body" };
     } else {
       // Submitted synchronously (the executor's submit is), so the very next tick already walks; the record is the idempotency ledger.
+      const running = s.last?.state === "running" ? s.last : undefined;
       void s.body.act(resolved).then((outcome) => {
-        rec.outcome = outcome;
+        // A bare "busy" taught agents nothing (E17: four of four read a running go_to as "wandering"): say which action is open and what to do.
+        rec.outcome = outcome.status === "rejected" && outcome.detail === "busy"
+          ? { ...outcome, hint: busyHint(running) }
+          : outcome;
         rec.state = "settled";
         rec.settledAt = this.sim.t;
       });
@@ -390,3 +394,9 @@ export class WorldService {
 }
 
 const round = (x: number, d: number) => Math.round(x * 10 ** d) / 10 ** d;
+
+/** What to tell an agent whose action was refused because an earlier one is still open. */
+function busyHint(running: ActRecord | undefined): string {
+  const open = running ? `your ${running.action.type}${"place" in running.action && running.action.place ? ` ${running.action.place}` : ""} (id ${running.id}) is still running` : "an earlier action is still running";
+  return `${open}. One action at a time: wait for it to settle (GET /world/act/<id>?waitMs=10000, repeat; a long walk takes minutes) or send {"type":"stop"} to cancel it.`;
+}
