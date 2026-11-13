@@ -41,20 +41,25 @@ describe("resolveAssetUrl", () => {
 describe("resolveManifestAssets", () => {
   it("resolves district url/collisionUrl plus links and shell, keeps the rest", () => {
     const m = {
-      links: "/assets/world-city3.glb",
+      links: "/assets/world-links.glb",
       shell: "/assets/world-shell.glb",
       themes: { bazaar: { night: 0 } },
       districts: [
-        { id: "bazaar", url: "/assets/world-city3.glb", collisionUrl: "/assets/world-city3-collision.glb" },
+        { id: "bazaar", url: "/assets/world-city3-library.glb", collisionUrl: "/assets/world-city3-collision.glb" },
         { id: "far", url: "/assets/world-far.glb" },
       ],
     };
     const out = resolveManifestAssets(m);
-    expect(out.links).toMatch(/verse\.clixen\.app\/glbs\/[0-9a-f]{16}\/world-city3\.glb$/);
-    expect(out.districts[0].url).toMatch(/verse\.clixen\.app\/glbs\/[0-9a-f]{16}\/world-city3\.glb$/);
+    expect(out.links).toMatch(/verse\.clixen\.app\/glbs\/[0-9a-f]{16}\/world-links\.glb$/);
+    expect(out.districts[0].url).toMatch(/verse\.clixen\.app\/glbs\/[0-9a-f]{16}\/world-city3-library\.glb$/);
     expect(out.districts[0].collisionUrl).toMatch(/verse\.clixen\.app\/glbs\/[0-9a-f]{16}\/world-city3-collision\.glb$/);
     expect(out.districts[1].url).toBe("/assets/world-far.glb");
     expect(out.districts[1].collisionUrl).toBeUndefined();
     expect(out.themes).toBe(m.themes);
+  });
+
+  it("serves the world GLB from the origin, not R2 (R2 has no compression: 87 MB vs 35 MB brotli on Vercel)", () => {
+    const out = resolveManifestAssets({ districts: [{ id: "bazaar", url: "/assets/world-city3.glb" }] });
+    expect(out.districts[0].url).toBe("/assets/world-city3.glb");
   });
 });
