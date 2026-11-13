@@ -47,6 +47,7 @@ import * as THREE from "three";
 import { CastFigure } from "./CastFigure";
 import { BODY_REMY } from "./bodies";
 import { EYE_FORWARD, HEAD_HEIGHT, damp } from "./cameraRig";
+import { remoteFiguresNear } from "./remoteFigures";
 import type { City3Room } from "./city3";
 import { ClipTestState } from "./clips";
 import type { AgentFrame } from "./locomotion";
@@ -298,7 +299,8 @@ export function ScoutAgent({
     // Head pitch (gaze): the look target rises or falls over the 5 m lever; the service turns the BODY to the requested camera heading.
     const pitch = Math.max(-60, Math.min(45, Number.isFinite(pitchDeg) ? pitchDeg : 0)) * Math.PI / 180;
     cam.lookAt(cam.position.x + sn * 5 * Math.cos(pitch), cam.position.y + 5 * Math.sin(pitch), cam.position.z + cs * 5 * Math.cos(pitch));
-    return rig.capture(gl, scene, exec.current?.t ?? 0, figure.current);
+    // First person: leave out the stand-in AND the streamed copy of this very body (and anything standing in the eye).
+    return rig.capture(gl, scene, exec.current?.t ?? 0, [figure.current, ...remoteFiguresNear(cam.position.x, cam.position.z)]);
   };
 
   // window.__scout — the runner's door in.
