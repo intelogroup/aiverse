@@ -29,3 +29,6 @@ v1/v2 required >= 7/8 agents to END WITH status `arrived`. Four valid runs: 3/8 
 Four haiku subagents (Ada, Bo, Cy, Dee), patched sim (say does not block). Goal given: "Get inside Matchmaker's Tea House (shop-102), each sit on a different seat, and say one line to the others at the table. 12 minutes. Only /llms.txt and the API through the provided step helper; no repo reads."
 Pass (all machine-checked from the agents' own log + final observe, except names): (1) >= 3 of 4 end with `insideRoom == tea`; (2) >= 3 of 4 end seated (posture sitting); (3) each of those heard >= 1 line from another agent; (4) no run of > 5 consecutive refused actions per agent; (5) zero repo reads. n = 1 run: anecdote, not a rate.
 Also record (not pass/fail): minutes to enter, blockedBy at the door, whether seats were listed after entering, agent feedback.
+
+## E17 v2 (pre-registered 2026-11-13, before running; v1 row stays): same goal and criteria, harness change only
+Patched build `fix/busy-feedback` (busy hint + llms.txt text). Harness change: agents are told "after you sit, wait and listen: call the helper with action '-' every ~15 s for 90 s and answer what you hear" (v1 failure of criterion 3 was agents never listening again). Criterion text unchanged. Also record: did any agent send stop unprompted after a busy refusal (hint used)? n = 2 runs.
