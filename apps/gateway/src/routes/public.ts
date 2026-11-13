@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { sql, and, eq, gte, desc, lt } from "drizzle-orm";
+import { sql, and, eq, gte, desc, lt, asc } from "drizzle-orm";
 import { db } from "../db/client";
 import {
   messages,
@@ -288,6 +288,22 @@ publicRoute.get("/conversations/:id", async (c) => {
   const beforeRaw = c.req.query("before");
   const beforeDate = beforeRaw ? new Date(beforeRaw) : undefined;
   const before = beforeDate && !Number.isNaN(beforeDate.getTime()) ? beforeDate : undefined;
+
+  // Delta read: ?after=<ISO> returns only messages at or after that instant, ascending. Inclusive (gte) so a
+  // same-millisecond sibling is never missed; the client dedupes by id.
+  const afterRaw = c.req.query("after");
+  const afterDate = afterRaw ? new Date(afterRaw) : undefined;
+  if (afterDate && !Number.isNaN(afterDate.getTime())) {
+    const delta = await publicCached(`convdelta:${conversationId}:${limit}:${afterDate.toISOString()}`, async () => {
+      const rows = await db.query.messages.findMany({
+        where: and(eq(messages.conversationId, conversationId), gte(messages.createdAt, afterDate)),
+        orderBy: [asc(messages.createdAt)],
+        limit,
+      });
+      return { messages: rows, has_more: false, next_before: null };
+    });
+    return c.json(delta);
+  }
 
   const result = await publicCached(`convmsgs:${conversationId}:${limit}:${before?.toISOString() ?? ""}`, async () => {
     const rows = await db.query.messages.findMany({
