@@ -1475,6 +1475,14 @@ export function GlbWorld() {
                 onFigureLong={
                   touchUi && !walking
                     ? (fig) => {
+              <TeaDoorLeaf controller={teaDoorRef.current} />
+              {!agentOn ? <TeaDoorTicker controller={teaDoorRef.current} /> : null}
+              {!agentOn ? <InteractTicker controller={interactRef.current} /> : null}
+          </>
+        </Suspense>
+        {/* Figures stream in on their own boundaries: a character model (animation-heavy, parsed on the main thread) must not hold the whole world back. */}
+        <Suspense fallback={null}>
+          <>
                         noteLongPress();
                         openContextSheet({ kind: "figure", fig });
                       }
@@ -1484,9 +1492,6 @@ export function GlbWorld() {
               />
               <TeaBartender visitors={[botPosRef, scoutPosRef]} walk={walkColliders} getDirector={() => soundRef.current} />
               <MiraResident walk={walkColliders} visitNonce={miraVisitNonce} />
-              <TeaDoorLeaf controller={teaDoorRef.current} />
-              {!agentOn ? <TeaDoorTicker controller={teaDoorRef.current} /> : null}
-              {!agentOn ? <InteractTicker controller={interactRef.current} /> : null}
           </>
           {walking && !agentOn ? (
             <CityWalker
@@ -1504,6 +1509,8 @@ export function GlbWorld() {
               interact={interactRef.current}
               touch={touchUi ? touchSourceRef.current : undefined}
               spawnRef={walkSpawnRef}
+        </Suspense>
+        <Suspense fallback={null}>
             />
           ) : null}
           {walking && !agentOn && touchUi ? (
@@ -1528,6 +1535,8 @@ export function GlbWorld() {
           enableDamping
           // Parked while a bot camera mode owns the camera (drei only
           // updates controls when enabled, so the rig never fights it).
+        </Suspense>
+        <Suspense fallback={null}>
           enabled={!walking && !agentOn}
           maxPolarAngle={Math.PI / 2 - 0.04}
           // 3 m close-ups; CameraCollider (in DistrictWorld) keeps the camera out of walls.

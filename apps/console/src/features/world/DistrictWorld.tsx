@@ -1,5 +1,5 @@
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
@@ -163,6 +163,10 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     });
     gl.toneMapping = THREE.AgXToneMapping;
     // useGLTF caches the resident, so its BVHs are built once and kept with it (buildColliders is idempotent).
+    // three reads each program's link status (getProgramInfoLog) the moment it is created, which makes the main thread wait for the
+    // driver's compile: ~7 s of a 16 s cold start on the emulated phone, spread over a few hundred programs. Off in production the
+    // link stays asynchronous (KHR_parallel_shader_compile) and the wait moves to the GPU. Development keeps the error log.
+    gl.debug.checkShaderErrors = !import.meta.env.PROD;
     addColliders("resident", resident.scene);
     // The resident is mounted: its far-shell group is covered from here on (isShellCovered).
     residentReadyRef.current = true;
@@ -332,7 +336,8 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     <>
       <primitive object={resident.scene} />
       <FountainWater />
-      <EasterEggs activeDistricts={["bazaar", ...groups.current.keys()]} />
+      {/* The egg model is a separate download; it must not hold the world back (own boundary). */}
+      <Suspense fallback={null}><EasterEggs activeDistricts={["bazaar", ...groups.current.keys()]} /></Suspense>
       <CameraCollider getMeshes={getMeshes} enabled={collide && collideDebug.current} stats={stats.current} />
     </>
   );
