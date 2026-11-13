@@ -15,7 +15,7 @@
  * text. Never chat content, form input, or credentials. See blackbox.ts.
  */
 
-import { DefaultLoadingManager, type Camera, type WebGLRenderer } from "three";
+import type { Camera, WebGLRenderer } from "three";
 import { blackbox, noteErrorKind, recordWorldEvent } from "./blackbox";
 import {
   currentCameraPose,
@@ -66,7 +66,12 @@ function shortUrl(url: string): string {
  *  event-based items mean the district-streaming loader composes with
  *  this unchanged (each streamed file is just another item). */
 function instrumentAssetLoading(): void {
-  const mgr = DefaultLoadingManager as unknown as {
+  // Dynamic so three stays out of the entry chunk; the world chunk shares the same module.
+  void import("three").then(({ DefaultLoadingManager }) => patchLoadingManager(DefaultLoadingManager)).catch(() => {});
+}
+
+function patchLoadingManager(loadingManager: unknown): void {
+  const mgr = loadingManager as {
     itemStart: (url: string) => void;
     itemEnd: (url: string) => void;
     itemError: (url: string) => void;
