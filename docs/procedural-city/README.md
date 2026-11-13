@@ -23,7 +23,7 @@ re-deriving it. Written 2026-11-06 at the end of a long build; update it, don't 
 | `20-tea-house-building.md` | Four-floor Tea House structure and physical route audit: two stairs, elevator/toilet core, door swings, headroom and exit access |
 | `21-tea-house-runtime.md` | Local City 3 integration, floor selection, production stair walking, collision categories and source-preserving asset patch |
 | `22-tea-house-elevator.md` | Proposed elevator mechanics, moving passenger support, dispatch, doors, lifecycle and acceptance gates |
-| `23-world-tiles.md` | Streaming the Bazaar from tiles (`?tiles=1`): build, gates, traps, cold-start numbers, what is still open |
+| `23-world-tiles.md` | Streaming the Bazaar from tiles (the default; `?tiles=0` for the one-file world): build, gates, traps, cold-start numbers, what is still open |
 | `19-easter-eggs.md` | Thirty licensed SciFi eggs across five districts; placement manifest and future hunt integration |
 | `16-mira-resident.md` | Uploaded static character Mira: preparation, placement and source status |
 | `17-drinking-glasses.md` | Uploaded glass replacements, physical rendering, and saved bottle/shader packs |
