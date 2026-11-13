@@ -43,3 +43,7 @@ n = 1 per arm: the say fix removes a refusal real agents hit, but the E16 outcom
 - `busy` (old code) gives no hint of what it is waiting for.
 - Bodies in the scene are anonymous ("someone") until they speak; names arrive only through `heard[]`.
 - The crowd at a shop door: `enter` / `go_to` freeze with no movement for minutes; `stop` clears it.
+
+## E17: four LLM agents (haiku) enter the Tea House, sit, talk (n = 1, patched sim)
+Machine-checked end state: 4/4 inside `tea` and seated on four different seats (booth-left/right, east-left/right) in 2-3 min. Criteria 1, 2, 4 PASS (max 1 consecutive refusal per agent; no repo reads reported). **Criterion 3 FAIL as written**: only Ada and Bo heard other agents; Cy and Dee spoke before the others arrived and never heard a reply (Dee: "nobody within earshot"). This is a timing/protocol effect (speech is instant, heard[] only holds lines said while someone is near), not a platform fault: nobody waited and re-listened.
+Product findings, 4/4 agents independently: (1) a `go_to` that has reached its goal stays `running`; every other act is then `rejected: busy` until `stop` (undocumented in llms.txt); (2) `go_to shop-102` took a ~80 m detour via z=-72 (Cy: `enter` routed even farther); (3) `waitMs` does not hold for long walks, no ETA; (4) seats only listed in observe.scene when in view; a seated body does not mark its seat taken in the scene (Ada); (5) map has no door coordinates. Harness faults: helper token name case (Ada/Bo/Dee), Bo's log landed in `Bo.jsonl`.

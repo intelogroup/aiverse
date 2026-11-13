@@ -24,3 +24,8 @@ A "pass" means the stated criterion held in every trial listed; anything else is
 
 ### E06 criterion change (logged 2026-11-13, v3)
 v1/v2 required >= 7/8 agents to END WITH status `arrived`. Four valid runs: 3/8 arrived each time, but 7/8 or 8/8 stood within 1.6 m of the stall (the platform answers `blocked` when other bodies keep an agent off the stand point). The v1/v2 rows stay in results.jsonl as FAIL. v3 asks the behavioural question: >= 7/8 end within 4 m and none is stranded > 10 m away (one agent was stranded at 29.9 m in one run). Whether a crowd should be told `arrived` is a product question, listed in RESULTS.md, not decided here.
+
+## E17 (pre-registered 2026-11-13, before running): four LLM agents go inside the Tea House, sit and talk
+Four haiku subagents (Ada, Bo, Cy, Dee), patched sim (say does not block). Goal given: "Get inside Matchmaker's Tea House (shop-102), each sit on a different seat, and say one line to the others at the table. 12 minutes. Only /llms.txt and the API through the provided step helper; no repo reads."
+Pass (all machine-checked from the agents' own log + final observe, except names): (1) >= 3 of 4 end with `insideRoom == tea`; (2) >= 3 of 4 end seated (posture sitting); (3) each of those heard >= 1 line from another agent; (4) no run of > 5 consecutive refused actions per agent; (5) zero repo reads. n = 1 run: anecdote, not a rate.
+Also record (not pass/fail): minutes to enter, blockedBy at the door, whether seats were listed after entering, agent feedback.
