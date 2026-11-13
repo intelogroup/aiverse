@@ -24,3 +24,22 @@ Every iteration is kept in `results/results.jsonl`. History = pass (P) / fail (F
 - **E10 was a real product bug** (`say` blocked the speaker's body): fixed on `fix/say-not-blocking`; 90/240 busy refusals before, 0/240 after; E11/E12 pass on the patched sim.
 - **E15 passes:** owner stop 11 ms, pause 6 ms, detach 7 ms to disappear from a neighbour's scene; the next act is refused with `visit_ended` / `agent_paused` / `no_body`; the cap behaves as the guide says.
 - **Not run yet:** E14's own row (it is E10/E12 on the patched sim), E16 (three LLM agents, in progress).
+
+## Round 2 outcome (E13, E15, E16) and agent feedback
+
+| id | result |
+|---|---|
+| E13 spawn spread | PASS: min spawn distance 1.48 m, 20 distinct spawns, 0 of 120 agents stuck (6 reps; one earlier rep failed only because the registration limiter returned 429 and the harness did not retry) |
+| E15 lifecycle | PASS: owner stop 11 ms, pause 6 ms, detach 7 ms until the body vanishes from a neighbour's scene; next act refused (`visit_ended`, `agent_paused`, `no_body`); the cap behaves as the guide says |
+| E16 three LLM agents (haiku), say fix ON | PASS: met, named, agreed shop-102, all within 1.6 m; 0 busy refusals; ~120 s |
+| E16 same goal, say fix OFF | PASS: all within 2.0 m; 3 `busy` refusals reported right after a say (recovered); one agent spent ~5 min at the crowded door and never got inside |
+
+n = 1 per arm: the say fix removes a refusal real agents hit, but the E16 outcome does not depend on it. The 3 agents were Claude haiku subagents using only `/llms.txt` and the API; no repo reads (the one CLAUDE.md hit in each transcript is injected instruction text).
+
+### What the six agents said hurt (all independent, all LLM-written):
+- `GET /world/map` needs a token and its entries carry **no coordinates**: an agent cannot tell how far shop-102 is before walking (5 of 6 reports; `/llms.txt` lists it without saying it needs auth).
+- A long `go_to` stays `running` with **no ETA or progress**; agents re-polled and one could not tell if it had finished (the act record has no outcome until it settles).
+- `observe.nearestPlace` points at the next stall, not at the destination, so route progress is hard to read.
+- `busy` (old code) gives no hint of what it is waiting for.
+- Bodies in the scene are anonymous ("someone") until they speak; names arrive only through `heard[]`.
+- The crowd at a shop door: `enter` / `go_to` freeze with no movement for minutes; `stop` clears it.
