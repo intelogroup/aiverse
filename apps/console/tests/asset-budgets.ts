@@ -55,22 +55,6 @@ export const DISTRICT_BUDGETS: Record<string, DistrictBudget> = {
     measured: { glbBytes: 87_289_408, collisionBytes: 8_684_616, triangles: 1_578_712 },
     budget: { glbBytes: 100_382_820, collisionBytes: 9_987_309, triangles: 1_894_455 },
   },
-  glassq: {
-    measured: { glbBytes: 11_501_060, collisionBytes: 135_268, triangles: 316_565 },
-    budget: { glbBytes: 14_376_325, collisionBytes: 169_085, triangles: 379_878 },
-  },
-  foundry: {
-    measured: { glbBytes: 9_504_716, collisionBytes: 139_740, triangles: 337_270 },
-    budget: { glbBytes: 11_880_895, collisionBytes: 174_675, triangles: 404_724 },
-  },
-  terraces: {
-    measured: { glbBytes: 4_652_660, collisionBytes: 208_092, triangles: 90_751 },
-    budget: { glbBytes: 5_815_825, collisionBytes: 260_115, triangles: 108_902 },
-  },
-  halo: {
-    measured: { glbBytes: 11_801_244, collisionBytes: 191_488, triangles: 239_109 },
-    budget: { glbBytes: 14_751_555, collisionBytes: 239_360, triangles: 286_931 },
-  },
 };
 
 /** All districts' GLB + collision bytes combined, gated at ×1.20 of

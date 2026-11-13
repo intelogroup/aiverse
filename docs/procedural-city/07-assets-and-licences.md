@@ -104,4 +104,5 @@ Considered and NOT used: CGTrader free models (royalty-free, "must not be extrac
 - Poly Haven CC0 models already in `assets/tea-props/` (sofa_02, painted_wooden_* set, vintage_day_bed, ornate_mirror_01, potted_plant_04, vintage_oil_lamp, ...) and floor textures from `assets/tea-floors/`.
 - Facade masonry: Poly Haven CC0 textures in `assets/bazaar-facades/` (white_stucco_02, white_plaster_02, white_sandstone_bricks_03, worn_brick_wall, stacked_brick_wall, stone_block_wall), authors in its `sources.json`.
 - Inspiration only (not redistributed): CGTrader, Fab (licence is not redistributable in a public web GLB), RenderHub, Sketchfab non-CC0.
-Per-source record: `tools/city3/assets/bazaar-interiors/sources.json`.
+- Entrance doors: loafbrr "Low Poly Doors" (CC0, OpenGameArt), `assets/bazaar-doors/` (glTF + 7 colour-variant JPEGs + normal). 15 of 17 used, placed by `bridge_bazaar_doors.py` at the real opening from `interiors/index.json` (`door` + `front`), not at the old `inst_door_*` spots; Tea House's instance stays (index-addressed by TeaDoorLeaf), the rest are parked at y=-1000.
+Per-source record: `tools/city3/assets/bazaar-interiors/sources.json`, `assets/bazaar-doors/sources.json`.

@@ -22,7 +22,7 @@ async function load(path: string) {
 describe("shipped Easter eggs", () => {
   it("has stable unique IDs in every district, without enabling a contest", () => {
     expect(manifest.contestActive).toBe(false);
-    expect(new Set(manifest.eggs.map(egg => egg.id)).size).toBe(30);
+    expect(new Set(manifest.eggs.map(egg => egg.id)).size).toBe(districts.length * 6);
     for (const district of districts) {
       const eggs = manifest.eggs.filter(egg => egg.district === district.id);
       expect(eggs).toHaveLength(6);

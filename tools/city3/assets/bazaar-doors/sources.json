@@ -1,0 +1,9 @@
+{
+  "doors": {
+    "source": "https://opengameart.org/content/low-poly-doors-asset",
+    "also": "https://loafbrr.itch.io/low-poly-doors",
+    "license": "CC0",
+    "author": "loafbrr",
+    "notes": "17 doors with frames, 5 windows; one 1024 atlas, 7 colour variants. Door_5 (roller shutter) and Door_17 (slatted) unused."
+  }
+}
