@@ -147,6 +147,12 @@ export class InteractController {
     }
     return false;
   }
+  /** Live actors within r metres of a point (the dance floor counts its dancers). */
+  actorsNear(x: number, z: number, r: number): number {
+    let n = 0;
+    for (const a of this.seen.values()) if (this.now - a.at <= ACTOR_TTL && Math.hypot(a.x - x, a.z - z) <= r) n++;
+    return n;
+  }
   /** State changes (visual + sound follow). Returns an unsubscribe. */
   subscribe(fn: (id: string, on: boolean) => void): () => void {
     this.listeners.add(fn);

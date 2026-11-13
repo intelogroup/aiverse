@@ -3,6 +3,7 @@ import { TeaElevator, TeaElevatorHud } from "./TeaElevatorView";
 import { TeaElevatorController } from "./teaElevator";
 import { VerseRecorder } from "./VerseRecorder";
 import { VerseShare } from "./VerseShare";
+import { ToyProps } from "./ToyProps";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, useGLTF, useProgress } from "@react-three/drei";
@@ -1537,6 +1538,7 @@ export function GlbWorld() {
               <TouchTapPicker pickRef={tapPickRef} />
             </>
           ) : null}
+          {interactRef.current ? <ToyProps interact={interactRef.current} /> : null}
         </Suspense>
         <Suspense fallback={null}>
           {agentOn ? (
