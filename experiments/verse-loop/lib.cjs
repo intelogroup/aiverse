@@ -13,19 +13,23 @@ async function http(method, p, tok, body) {
   const r = await fetch(API + p, { method, headers: { "content-type": "application/json", ...(tok ? { authorization: `Bearer ${tok}` } : {}) }, body: body ? JSON.stringify(body) : undefined });
   return { s: r.status, j: await r.json().catch(() => ({})) };
 }
-/** LOCAL ONLY: the claim limiter is 5 per IP then 1 per 180 s (owners.ts), which would make a 15-agent test take 30 minutes. Clear the
+/** LOCAL ONLY (loopback API): clears the claim/register/login buckets. The claim limiter is 5 per IP then 1 per 180 s (owners.ts), which would make a 15-agent test take 30 minutes. Clear the
  *  local bucket before a claim; refused unless the API is on loopback. The limiter itself is not under test here. */
-function clearClaimBucket() { if (!/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(API)) return; try { execSync("for k in $(redis-cli --scan --pattern '*claim:*'); do redis-cli del \"$k\" >/dev/null; done", { stdio: "ignore", shell: "/bin/bash" }); } catch {} }
+function clearClaimBucket() { if (!/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(API)) return; try { execSync("for k in $(redis-cli --scan --pattern 'claim:*') $(redis-cli --scan --pattern 'register:*') $(redis-cli --scan --pattern 'agent-register:*') $(redis-cli --scan --pattern 'login:*'); do redis-cli del \"$k\" >/dev/null; done", { stdio: "ignore", shell: "/bin/bash" }); } catch {} }
 class Agent {
   constructor(label) { this.label = label; this.acts = 0; this.refused = 0; }
   /** Owner + self-registered agent + claim + (optionally) a body. Claims are rate limited per IP: callers space them out. */
   async onboard(opts = {}) {
-    const email = `jimkalinov+vl${RUN}${this.label.replace(/\W/g, "")}@gmail.com`;
-    this.owner = (await http("POST", "/owners/register", null, { email, password: crypto.randomBytes(12).toString("hex") })).j.token;
-    const reg = await http("POST", "/agents/register", null, { name: `${this.label}${Math.random().toString(36).slice(2, 5)}`, capabilities: ["explore"], description: "verse-loop experiment agent" });
+    const email = `jimkalinov+vl${RUN}${this.label.replace(/\W/g, "")}${Math.random().toString(36).slice(2, 6)}@gmail.com`;
+    let o, reg;
+    for (let k = 0; k < 6; k++) { o = await http("POST", "/owners/register", null, { email, password: crypto.randomBytes(12).toString("hex") }); if (o.s === 429) { clearClaimBucket(); await sleep(400); continue; } break; }
+    this.owner = o.j.token;
+    for (let k = 0; k < 6; k++) { reg = await http("POST", "/agents/register", null, { name: `${this.label}${Math.random().toString(36).slice(2, 5)}`, capabilities: ["explore"], description: "verse-loop experiment agent" }); if (reg.s === 429) { clearClaimBucket(); await sleep(400); continue; } break; }
     this.tok = reg.j.agentToken; this.agentId = reg.j.agentId;
     for (let k = 0; k < 8; k++) { clearClaimBucket(); const c = await http("POST", "/owners/agents/claim", this.owner, { claimCode: reg.j.claimCode }); if (c.s === 200) { this.visit = c.j.visit; break; } if (c.s === 429) await sleep(5000 * (k + 1)); else { this.claimErr = c.s; break; } }
-    if (opts.visit) await http("POST", `/owners/agents/${this.agentId}/visits`, this.owner, opts.visit);
+    if (opts.visit) { // the claim already started the starter visit (one active visit per agent): end it, then start the one asked for
+      if (this.visit && this.visit.id) await http("POST", `/owners/agents/${this.agentId}/visits/${this.visit.id}/stop`, this.owner);
+      const nv = await http("POST", `/owners/agents/${this.agentId}/visits`, this.owner, opts.visit); this.visitStart = nv.s; this.visit = nv.j.visit || nv.j; }
     if (opts.body !== false) { const b = await http("POST", "/world/body", this.tok, opts.body ? { body: opts.body } : {}); this.attach = b.s; this.attachJ = b.j; }
     return this;
   }

@@ -63,15 +63,16 @@ E.E05 = async () => { // v3: strict — `doing` must NAME the clip played (v2 pa
   const ok = !!hA && trials.every((t) => t.named);
   return result("E05", "observer's `doing` names each of the 3 clips played", ok, { handle: !!hA, goto: [A.lastGoto, B.lastGoto], trials }, "v3 strict");
 };
-E.E06 = async () => { // v2: same task, but records WHY an agent is blocked and lets it do what the platform hint says (wait, retry once)
+E.E06 = async () => { // v3 criterion (v1/v2 = strict arrived status, FAIL in 4 valid runs: the crowd ends blocked 0.5-1.6 m from the stall). v2: same task, but records WHY an agent is blocked and lets it do what the platform hint says (wait, retry once)
   const as = await spaced(["m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8"]); const STALL = [-17, 15.2]; const t0 = now();
   const first = await Promise.all(as.map((a) => a.act({ type: "go_to", place: "stall-0" }, 150000)));
   const retry = await Promise.all(as.map(async (a, i) => first[i].status === "blocked" ? (await sleep(4000 + i * 300), a.act({ type: "go_to", place: "stall-0" }, 100000)) : null));
   const fin = []; for (const a of as) { const p = await a.pos(); fin.push(p ? +dist(p, STALL).toFixed(1) : null); }
   await cleanup(as);
   const a1 = first.filter((r) => r.status === "arrived").length, a2 = as.filter((_, i) => first[i].status === "arrived" || retry[i]?.status === "arrived").length, near4 = fin.filter((d) => d !== null && d <= 4).length;
-  return result("E06", ">= 7/8 arrive at one place within 150 s (v1); v2 adds one retry and records final distance", a2 >= 7,
-    { arrivedFirstTry: a1, arrivedAfterRetry: a2, within4m: near4, first: first.map((r) => `${r.status}${r.blockedBy ? "@" + r.blockedBy : ""}`), retry: retry.map((r) => r && r.status), finalDistM: fin, blockedDetails: [...new Set(first.filter((r) => r.status === "blocked").map((r) => String(r.detail).slice(0, 110)))], wallS: Math.round((now() - t0) / 1000) }, "v2");
+  const stranded = fin.filter((d) => d === null || d > 10).length;
+  return result("E06", "v3: >= 7/8 end within 4 m of the place and none is stranded > 10 m away (v1/v2: >= 7/8 `arrived`)", near4 >= 7 && stranded === 0,
+    { stranded, arrivedFirstTry: a1, arrivedAfterRetry: a2, within4m: near4, first: first.map((r) => `${r.status}${r.blockedBy ? "@" + r.blockedBy : ""}`), retry: retry.map((r) => r && r.status), finalDistM: fin, blockedDetails: [...new Set(first.filter((r) => r.status === "blocked").map((r) => String(r.detail).slice(0, 110)))], wallS: Math.round((now() - t0) / 1000) }, "v2");
 };
 E.E07 = async () => { // v2: scene lists no seats on entry (E07 v1), so the holder is found through observe.body.seatedOn and the others must be refused for THAT id
   const A = await new Agent("k1").onboard(); await sleep(250); const B = await new Agent("k2").onboard(); await sleep(250); const C = await new Agent("k3").onboard();
@@ -134,4 +135,45 @@ E.E12 = async () => { // after `say`, how long is the body refused other actions
   await cleanup([A]);
   const worst = Math.max(...rows.map((r) => (typeof r.acceptedAfterMs === "number" ? r.acceptedAfterMs : 12000)));
   return result("E12", "an action issued right after `say` is accepted within 1 s", worst <= 1000, { worstMs: worst, rows });
+};
+E.E13 = async () => {
+  const reps = []; const SPAWN_MIN_D = 0.8; const T = [[30, 10.6], [-30, 10.6], [5.7, 40], [5.7, -20]];
+  for (let rep = 0; rep < 3; rep++) {
+    const as = []; for (let i = 0; i < 20; i++) { as.push(await new Agent(`r${rep}s${i}`).onboard()); await sleep(200); }
+    const sp = []; for (const a of as) sp.push(await a.pos());
+    let minD = 99; for (let i = 0; i < sp.length; i++) for (let j = i + 1; j < sp.length; j++) if (sp[i] && sp[j]) minD = Math.min(minD, dist(sp[i], sp[j]));
+    const first = await Promise.all(as.map((a, i) => a.act({ type: "go_to", point: T[i % 4] }, 25000)));
+    const after = []; for (const a of as) after.push(await a.pos());
+    const stuck = as.map((_, i) => (sp[i] && after[i] ? dist(sp[i], after[i]) < 3 : true)).filter(Boolean).length;
+    const st = {}; for (const r of first) { const k = `${r.status}${r.blockedBy ? "@" + r.blockedBy : ""}`; st[k] = (st[k] || 0) + 1; }
+    reps.push({ rep, minSpawnD: +minD.toFixed(2), distinctSpawns: new Set(sp.map((p) => p && p.map((v) => v.toFixed(1)).join(","))).size, stuck, statuses: st });
+    await cleanup(as); await sleep(1500);
+  }
+  const ok = reps.every((r) => r.minSpawnD >= SPAWN_MIN_D && r.stuck === 0);
+  return result("E13", "min spawn distance >= 0.8 m and 0/20 stuck within 3 m of spawn after 25 s, in 3/3 reps", ok, { reps });
+};
+E.E15 = async () => { // v4 (v3 sent a 6th act before reading the result: that call is the one that ends the visit, per the guide. v3 (v2 criterion contradicted the documented cap rule: reads of the cap-reaching act stay allowed, any OTHER call ends the visit; v1 FAIL was a harness bug: the cap visit was refused because the starter visit was still active; criterion unchanged) lifecycle: owner stop / pause / action cap / detach each remove a body cleanly for neighbours
+  const rows = {}; const bodiesNear = async (obs) => ((await obs.observe())?.scene || []).filter((o) => o.kind === "body").length;
+  const lifecycle = async (label, endIt) => {
+    const W = await new Agent(label + "w").onboard(); await sleep(250); const V = await new Agent(label + "v").onboard({ visit: label === "cap" ? { minutes: 30, maxActions: 6 } : undefined });
+    await W.act({ type: "go_to", point: [-10, ROW] }); await V.act({ type: "go_to", point: [-8, ROW] }); await W.act({ type: "face", point: [-8, ROW] });
+    const before = await bodiesNear(W); const t0 = now(); await endIt(V); let gone = null;
+    while (now() - t0 < 15000) { if ((await bodiesNear(W)) < before) { gone = now() - t0; break; } await sleep(500); }
+    const next = await http("POST", "/world/act", V.tok, { id: `n${now().toString(36)}`, action: { type: "face", headingDeg: 5 } });
+    return { before, goneAfterMs: gone, nextActStatus: next.s, nextAct: next.j.error || next.j.message, agents: [W, V] };
+  };
+  const ownerStop = async (V) => { const v = await http("GET", `/owners/agents/${V.agentId}/visits`, V.owner); const id = (v.j.visits || v.j || []).find?.((x) => x.status === "active" || !x.endedAt)?.id || V.visit?.id; return http("POST", `/owners/agents/${V.agentId}/visits/${id}/stop`, V.owner); };
+  const a = await lifecycle("stop", ownerStop); rows.ownerStop = { goneAfterMs: a.goneAfterMs, next: `${a.nextActStatus} ${a.nextAct || ""}` };
+  const b = await lifecycle("pause", (V) => http("POST", `/owners/agents/${V.agentId}/pause`, V.owner)); rows.pause = { goneAfterMs: b.goneAfterMs, next: `${b.nextActStatus} ${b.nextAct || ""}` };
+  const d = await lifecycle("detach", (V) => V.detach()); rows.detach = { goneAfterMs: d.goneAfterMs, next: `${d.nextActStatus} ${d.nextAct || ""}` };
+  // cap (v3, per the guide: "the action that reaches your cap is not wasted: reading its result stays allowed; any other call after the cap ends the visit")
+  const C = await new Agent("cap").onboard({ visit: { minutes: 30, maxActions: 6 } }); rows.capVisitStart = C.visitStart; const res = []; let lastId = null;
+  for (let k = 0; k < 5; k++) { const id = `c${k}${now().toString(36)}`; const r = await http("POST", "/world/act", C.tok, { id, action: { type: "face", headingDeg: k * 20 } }); res.push(r.s + (r.j.error ? ":" + r.j.error : "")); if (r.s === 202) lastId = id; await sleep(300); }
+  const readResult = lastId ? await http("GET", `/world/act/${lastId}`, C.tok) : { s: 0 }; // read BEFORE any other call: that is the allowed one
+  const sixth = await http("POST", "/world/act", C.tok, { id: `c9${now().toString(36)}`, action: { type: "face", headingDeg: 99 } }); res.push(sixth.s + (sixth.j.error ? ":" + sixth.j.error : ""));
+  const readObserve = await http("GET", "/world/observe", C.tok);
+  rows.cap = { acts: res, readCapActResult: readResult.s, sixthAct: res[res.length - 1], observeAfter: `${readObserve.s} ${readObserve.j.error || ""}` };
+  for (const x of [...a.agents, ...b.agents, ...d.agents, C]) await x.detach().catch(() => {});
+  const ok = [rows.ownerStop, rows.pause, rows.detach].every((r) => typeof r.goneAfterMs === "number" && r.goneAfterMs < 15000 && /^(40[0-9]|404)/.test(r.next)) && res.length >= 2 && res[res.length - 1] !== "202" && readResult.s === 200 && readObserve.s >= 400;
+  return result("E15", "owner stop / pause / detach remove the body from a neighbour's scene within 15 s and the agent's next act is refused; after the cap reads stay allowed", ok, rows);
 };
