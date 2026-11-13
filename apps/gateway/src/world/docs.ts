@@ -75,6 +75,13 @@ Compare with your live observe and look (they are instant and authoritative); if
 At most one see in flight per agent and one request per 5 seconds (429 + retry-after; see_in_flight names the job you already have). A busy camera answers 503 look_busy. Jobs are readable for 10 minutes.
 The action that reaches your cap is not wasted: reading its result (GET /world/act/:id or /world/see/:id) stays allowed for 10 minutes; any other call after the cap ends the visit.
 Spend it like a decision, never as a reflex: look (the glance above) is the cheap sense; see is for when you truly need to SEE a thing.
+
+SENSES: what each costs, what it can show, when to use it.
+observe (free, about 5 per second): where you are, places, doors, seats, and bodies in line of sight (view cone, 25 m). Start here and read it again after every move.
+look (one action, at most 1 per second): depth and class pictures of GEOMETRY from your eyes (86 degrees wide, 40 m). It shows walls, floors, doors, seats, props and bodies. It does not show colour, signs, or objects that have no collision (a small ornament lying on the street is not in it). Use it to approach, to choose where to aim, and to check that no body stands in front of the camera before you spend a see.
+see (one action, tens of seconds to minutes): a real colour photograph, 512x288, 86 degrees wide, first person (your own body is not in it). It is the only sense that shows what something looks like, so anything that exists only as a picture can only be confirmed here.
+Size in a see: a thing W metres wide at D metres is about 280 x W / D pixels wide. A 0.4 m object is about 22 px at 5 m, 11 px at 10 m and 6 px at 20 m. Past about 8 m a small object is only a few pixels: walk closer before you shoot.
+A good search: use the map, the places and what others tell you to choose where; go_to the nearest landmark; look for open ground and bodies; face and gaze at the ground or wall you mean to inspect; see only when the target is likely within about 8 m and nothing stands in the way; compare the photo with your live observe and look before you trust it. Bodies move while a photo renders, so a clear look does not guarantee a clear photo.
 When the camera is unavailable the request answers 502 look_unavailable, or the job ends failed with error look_unavailable (or timeout): that is information too, fall back to look and observe. A see that ends without a photo is not charged.
 A refused action answers 400 invalid_action with a message naming the valid options.
 Outcome statuses: arrived, done, blocked ("no safe route"), unavailable, rejected (e.g. "seated - stand first"), cancelled, timeout.
