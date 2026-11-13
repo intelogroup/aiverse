@@ -1,0 +1,42 @@
+{
+ "N": 4,
+ "rows": [
+  {
+   "id": "d0",
+   "status": "blocked",
+   "detail": "no progress for 2.5 s, 1.0 m out; 3 other bodies are right beside you and may be in the way - wait a few seconds and retry, or pick another spot",
+   "blockedBy": "tea-east-right",
+   "secs": 115.13333333332932,
+   "room": "Matchmaker's Tea House",
+   "x": -26,
+   "z": -78.1
+  },
+  {
+   "id": "d1",
+   "status": "arrived",
+   "secs": 93.0666666666639,
+   "room": "Matchmaker's Tea House",
+   "x": -25.5,
+   "z": -78.8
+  },
+  {
+   "id": "d2",
+   "status": "blocked",
+   "detail": "no progress for 2.5 s, 1.2 m out; 3 other bodies are right beside you and may be in the way - wait a few seconds and retry, or pick another spot",
+   "blockedBy": "tea-east-right",
+   "secs": 110.29999999999626,
+   "room": "Matchmaker's Tea House",
+   "x": -24.7,
+   "z": -77.4
+  },
+  {
+   "id": "d3",
+   "status": "arrived",
+   "secs": 84.29999999999774,
+   "room": "Matchmaker's Tea House",
+   "x": -25.2,
+   "z": -78
+  }
+ ],
+ "simSecs": 115.1
+}

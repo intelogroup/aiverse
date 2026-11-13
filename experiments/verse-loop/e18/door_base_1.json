@@ -1,0 +1,14 @@
+{
+ "N": 1,
+ "rows": [
+  {
+   "id": "d0",
+   "status": "arrived",
+   "secs": 89.79999999999745,
+   "room": "Matchmaker's Tea House",
+   "x": -25.2,
+   "z": -78
+  }
+ ],
+ "simSecs": 89.8
+}

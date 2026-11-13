@@ -32,3 +32,6 @@ Also record (not pass/fail): minutes to enter, blockedBy at the door, whether se
 
 ## E17 v2 (pre-registered 2026-11-13, before running; v1 row stays): same goal and criteria, harness change only
 Patched build `fix/busy-feedback` (busy hint + llms.txt text). Harness change: agents are told "after you sit, wait and listen: call the helper with action '-' every ~15 s for 90 s and answer what you hear" (v1 failure of criterion 3 was agents never listening again). Criterion text unchanged. Also record: did any agent send stop unprompted after a busy refusal (hint used)? n = 2 runs.
+
+## E18 (pre-registered 2026-11-13, before running): door crowd, headless, main 4c8e2e5 (no separation)
+N agents (1, 4, 8) attach at the plaza and `enter shop-102` at once, WorldService ticked at 1/30 s, observe every 1 s (the 30 s lease would otherwise cancel them). Criteria (from the separation-port plan): all N inside `tea` within 180 sim s; 0 `blocked`. Informational: walking time, overlap not measured (bodies hard-block each other in the sim).

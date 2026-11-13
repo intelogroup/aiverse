@@ -1,0 +1,23 @@
+// @vitest-environment node
+// THROWAWAY probe: N agents all `enter` the Tea House at once, headless, 1/30 s ticks. Writes metrics to a file.
+import { beforeAll, it } from "vitest";
+import { writeFileSync } from "node:fs";
+import { loadVerseSim } from "@aiverse/world-sim/node/loadWorld";
+import { WorldService } from "@aiverse/world-sim/worldService";
+const ASSETS = new URL("../public/assets/", import.meta.url).pathname;
+let sim: any; beforeAll(async () => { ({ sim } = await loadVerseSim(ASSETS)); }, 120_000);
+const N = Number(process.env.DOOR_N ?? 8);
+it("door crowd", async () => {
+  const s: any = new WorldService({ sim }); const ids = Array.from({ length: N }, (_, i) => `d${i}`);
+  for (const i of ids) { s.attach(i); for (let k = 0; k < 6; k++) { s.tick(1 / 30); await Promise.resolve(); } }
+  const recs = ids.map((i) => s.act(i, "e1", { type: "enter", place: "shop-102" }));
+  const t0 = s.sim.t; const done: Record<string, number> = {}; const out: any = { N, rows: [] as any[] };
+  const maxS = 240;
+  for (let k = 0; k < maxS * 30; k++) { s.tick(1 / 30); await Promise.resolve(); if (k % 30 === 0) for (const i of ids) s.observe(i);
+    ids.forEach((i, j) => { if (recs[j].state === "settled" && done[i] === undefined) done[i] = s.sim.t - t0; });
+    if (Object.keys(done).length === N) break; }
+  // minimum pairwise distance over time is not tracked here; report final states
+  const fin = ids.map((i, j) => { const o = s.observe(i); return { id: i, status: recs[j].outcome?.status ?? "running", detail: recs[j].outcome?.detail, blockedBy: recs[j].outcome?.blockedBy, secs: done[i] ?? null, room: o.insideRoom ?? o.body?.room ?? null, x: +o.body.x.toFixed(1), z: +o.body.z.toFixed(1) }; });
+  out.rows = fin; out.simSecs = +(s.sim.t - t0).toFixed(1);
+  writeFileSync(process.env.PROBE_OUT ?? "/tmp/door.json", JSON.stringify(out, null, 1));
+}, 300000);
