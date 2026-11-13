@@ -1,5 +1,5 @@
 # World tiles (phone-load plan, option B)
-Status 2026-11-13: built and gated, behind `?tiles=1`, off by default. The 2 s cold-start target is NOT met (see Numbers).
+Status 2026-11-13: built and gated, behind `?tiles=1`, off by default. Cold start to a walkable spawn is 1.3-1.5 s on Fast 4G (see Numbers); not met on Slow 4G.
 
 ## What it is
 `world-city3.glb` (91 MB, 35 MB brotli) is cut into tiles that stream by distance, so a phone downloads a small core on the fountain first.
@@ -19,15 +19,19 @@ Status 2026-11-13: built and gated, behind `?tiles=1`, off by default. The 2 s c
 - The R2 custom domain allows CORS only from `http://localhost:5183`; serve acceptance builds on that port.
 - Characters, not tiles, were the first main-thread stall (GLTFLoader loadAccessor/loadAnimation) and shader program creation the second (`checkShaderErrors` forces a synchronous link check).
 
-## Numbers (emulated phone: 390x844 @3x, Fast 4G, cold context; real GPU, Apple M4)
-| | monolith | tiles |
-|---|---|---|
-| transferred to a walkable spawn | 35 MB world + app | 2.3 MB |
-| walkable | ~52 s (4x CPU) | 6.5 s first run (4x CPU); 9.5-14 s in later runs (1x and 4x, high variance) |
-Main-thread profile of the tiles cold start (JS Self-Profiling, 1x CPU): program creation/link (three `C`, `n`) 6-7 s, GLTF parse of the characters ~1 s, render frames the rest. The wire is no longer the limit; first-render CPU/GPU work is.
+## Numbers (emulated phone: 390x844 @3x, cold isolated context, ONE test tab, real GPU Apple M4)
+| | monolith | tiles, textures blocking | tiles, textures deferred |
+|---|---|---|---|
+| Fast 4G, 1x CPU | ~35 s download | 4.6 s (2.3 MB) | 1.30 s (0.53 MB) |
+| Fast 4G, 4x CPU | ~52 s | 6.5-14 s* | 1.46 s, 1.47 s (0.76 MB) |
+| Slow 4G, 4x CPU | | | 6.6 s (JS bundle alone takes 3 s) |
+*Those runs had 4-8 other WebGL tabs open and were inflated; never time with other tabs rendering.
+What gated the 4.6 s: the core's 1.5 MB of textures, not its 82 KB of geometry (the last core texture landed at 4.44 s, the world mounted at 4.46 s). `deferTextures.ts` answers each external-uri texture with a neutral placeholder and swaps the real one in after parse, so the scene mounts and the body walks at once; the plaza reads as flat grey for a moment on a slow link. Walkable is measured as `window.__walk.state()` non-null (`?walkDebug=1`).
+Before that: the first profile blamed shader link checks (`checkShaderErrors`) and character parsing, which was real main-thread cost but not the wait; the main thread was idle while the textures downloaded.
 
 ## Open
-- 2 s needs far fewer distinct shader programs (676 materials in the world, ~100 per tile) and/or compileAsync per tile, a lighter first scene, and deferred characters.
+- Slow networks: the 412 KB JS bundle is the floor (3 s at Slow 4G); only code-splitting the console shell would move that. Preloading core.glb / manifest from index.html (not from JS) would save ~0.5 s once tiles are the default.
+- Deferred textures change the first frames: grey ground until the images land. Core textures are 1.5 MB (six 1024 px maps); lower-res core textures would shorten that window.
 - Each tile decodes its own copy of shared textures (GPU memory), and collision BVH builds per tile cost 200-3700 ms at 4x CPU.
 - Tiles are not committed; decide how they reach Vercel (commit 85 MB, or build in CI) before flipping the default.
 - Streaming radius 40 m means distant buildings are shell massing until you walk there; the removed districts' shell nodes (glassq, foundry, terraces, halo) still render in both modes.
