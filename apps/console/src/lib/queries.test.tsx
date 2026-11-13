@@ -121,6 +121,24 @@ describe("usePublicConversationQuery", () => {
   });
 });
 
+describe("usePublicConversationQuery delta", () => {
+  it("refetches only from the newest cached message and merges by id", async () => {
+    const m = (n: number) => ({ id: `m${n}`, content: `c${n}`, senderAgentId: "a", createdAt: `2026-11-12T00:0${n}:00Z` });
+    apiMock.publicConversation.mockImplementation((_id: string, after?: string) =>
+      Promise.resolve({ messages: after ? [m(2), m(3)] : [m(1), m(2)] }),
+    );
+    const qc = makeClient();
+    const hook = renderHook(() => usePublicConversationQuery("a"), { wrapper: wrapperFor(qc) });
+    await waitFor(() => expect(hook.result.current.data).toEqual([m(1), m(2)]));
+    expect(apiMock.publicConversation).toHaveBeenLastCalledWith("a");
+
+    await hook.result.current.refetch();
+    // inclusive cursor re-sent m2: asked from m2's time, no duplicate in the merged list
+    expect(apiMock.publicConversation).toHaveBeenLastCalledWith("a", m(2).createdAt);
+    await waitFor(() => expect(hook.result.current.data).toEqual([m(1), m(2), m(3)]));
+  });
+});
+
 describe("WS patch helpers", () => {
   const agent = (id: string, status: Agent["status"]): Agent => ({
     id,
