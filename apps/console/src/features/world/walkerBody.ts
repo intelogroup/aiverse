@@ -26,7 +26,8 @@ export function makeWalkWorld(getMeshes: () => THREE.Mesh[], walk?: WalkCollider
   return {
     prepareStep: (s) => walk.elevator?.prepare(s),
     finishStep: (s) => walk.elevator?.observe(s),
-    groundY: (x, z, fromY) => pick().groundY(x, z, fromY),
+    // Tile mode: no ground where the tile's collision has not streamed in yet, so every body halts at the edge (it reads as a ledge).
+    groundY: (x, z, fromY) => (walk.covered && !walk.covered(x, z) ? null : pick().groundY(x, z, fromY)),
     blocked: (a, b, r) => pick().blocked(a, b, r),
     kind: () => (walk.status === "ready" ? "capsule" : walk.status === "failed" ? "raycast" : "pending"),
   };

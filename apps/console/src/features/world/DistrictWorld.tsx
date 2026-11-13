@@ -1,5 +1,5 @@
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
@@ -11,9 +11,11 @@ import { FountainWater } from "./FountainWater";
 import { EasterEggs } from "./EasterEggs";
 import type { WalkColliders } from "./walkColliders";
 import { assetUrl, resolveManifestAssets } from "../../lib/assetUrl";
-import { blendTheme, collisionJobs, dueEvictions, isShellCovered, planDistricts, residentCollisionUrl, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
+import { blendTheme, collisionJobs, dueEvictions, isShellCovered, originOf, planDistricts, residentCollisionUrl, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
+import { TILES } from "./tilesMode";
+import { tileScenes } from "./tileScenes";
 
-export const DISTRICTS_URL = "/assets/districts.json";
+export const DISTRICTS_URL = TILES ? "/assets/tiles/districts.json" : "/assets/districts.json";
 
 const disposeTree = (root: THREE.Object3D) =>
   root.traverse((o) => {
@@ -161,9 +163,14 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
         hiddenWater.push({ mesh: m, visible: m.visible }); m.visible = false;
       }
     });
+    // three reads each program's link status (getProgramInfoLog) the moment it is created, which makes the main thread wait for the
+    // driver's compile: ~7 s of a 16 s cold start on the emulated phone, spread over a few hundred programs. Off in production the
+    // link stays asynchronous (KHR_parallel_shader_compile) and the wait moves to the GPU. Development keeps the error log.
+    gl.debug.checkShaderErrors = !import.meta.env.PROD;
     gl.toneMapping = THREE.AgXToneMapping;
     // useGLTF caches the resident, so its BVHs are built once and kept with it (buildColliders is idempotent).
     addColliders("resident", resident.scene);
+    if (residentIdRef.current) tileScenes.set(residentIdRef.current, resident.scene);
     // The resident is mounted: its far-shell group is covered from here on (isShellCovered).
     residentReadyRef.current = true;
     syncShell();
@@ -171,6 +178,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
       residentReadyRef.current = false;
       hiddenWater.forEach(({ mesh, visible }) => { mesh.visible = visible; });
       dropColliders("resident");
+      if (residentIdRef.current) tileScenes.drop(residentIdRef.current);
       // StageEnvironment owns the reflection map; clearing it here loses glass/metal reflections on remount.
       scene.remove(sky); scene.remove(water); scene.remove(hemi); scene.fog = null; scene.background = null;
       for (const [id, g] of groups.current) { scene.remove(g); dropColliders(id); walk?.drop(id); disposeTree(g); }
@@ -220,15 +228,28 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
       const meshes = bakeCollisionParts(g, `collision:${key}`, m => !(walk.elevator?.ready && m.userData.elevatorDoor));
       disposeTree(gltf.scene);
       if (meshes.length) walk.set(key, meshes, performance.now() - t0);
+      collisionDone.current.add(key);
       onDone?.(meshes.length > 0);
     }, undefined, () => onDone?.(false));
   };
   useEffect(() => {
     if (!walk || !manifest) return;
     let live = true; walk.status = "loading";
-    loadCollision("resident", assetUrl(residentCollisionUrl(manifest.districts)), null, () => live, (ok) => { if (live) walk.status = ok ? "ready" : "failed"; });
-    return () => { live = false; walk.drop("resident"); };
+    const coreId = manifest.districts.find((d) => d.resident)?.id;
+    loadCollision("resident", assetUrl(residentCollisionUrl(manifest.districts)), null, () => live, (ok) => { if (live) { walk.status = ok ? "ready" : "failed"; if (coreId) collisionDone.current.add(coreId); } });
+    return () => { live = false; walk.drop("resident"); collisionDone.current.clear(); };
   }, [manifest, walk, loader]);
+  // Tile mode: a point is walkable only once every collision tile whose square holds it has loaded (see WalkColliders.covered).
+  const collisionDone = useRef(new Set<string>());
+  useEffect(() => {
+    if (!walk || !manifest?.tiles) return;
+    const tiles = manifest.districts.filter((d) => d.collisionUrl);
+    walk.covered = (x, z) => {
+      for (const d of tiles) if (Math.abs(x - d.center[0]) <= d.half && Math.abs(z - d.center[1]) <= d.half && !collisionDone.current.has(d.id)) return false;
+      return true;
+    };
+    return () => { walk.covered = undefined; };
+  }, [manifest, walk]);
   const w = typeof window !== "undefined" ? (window as unknown as Record<string, unknown>) : null;
   useEffect(() => {
     if (!w || !new URLSearchParams(window.location.search).has("districtDebug")) return;
@@ -248,17 +269,27 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     return () => { delete w.__districts; };
   }, [w, gl, controls, camera]);
 
+  // Water and sea surfaces are replaced by the ocean + FountainWater below, in every root (the resident does the same in its effect).
+  const hideLegacyWater = (root: THREE.Object3D) => root.traverse((o) => {
+    const m = o as THREE.Mesh; if (!m.isMesh) return;
+    if ((Array.isArray(m.material) ? m.material : [m.material]).some((mat) => mat.name === "water" || mat.name === "sea")) m.visible = false;
+  });
+  const mount = (d: DistrictDef, root: THREE.Object3D | null, t0: number) => {
+    const g = new THREE.Group(); g.name = `district:${d.id}`; const [ox, oz] = originOf(d); g.position.set(ox, 0, oz); if (root) g.add(root);
+    applyNight(g, themeRef.current?.night ?? 0);
+    if (manifest?.tiles) hideLegacyWater(g);
+    g.updateMatrixWorld(true); addColliders(d.id, g);
+    for (const [key, url] of collisionJobs([d.id], defs)) loadCollision(key, url, originOf(d), () => groups.current.has(d.id));
+    groups.current.set(d.id, g); scene.add(g); tileScenes.set(d.id, g); stats.current.loads++; stats.current.loadMs.push(Math.round(performance.now() - t0)); pushEvent("load-ok", d.id); syncShell(); bump((n) => n + 1);
+  };
   const load = (d: DistrictDef, isRetry = false) => {
     if (loading.current.has(d.id) || groups.current.has(d.id)) return;
     loading.current.add(d.id); const t0 = performance.now();
     pushEvent(isRetry ? "retry" : "load-start", d.id);
+    if (!d.url) { loading.current.delete(d.id); mount(d, null, t0); return; } // collision-only tile
     loader.load(d.url, (gltf) => {
       loading.current.delete(d.id);
-      const g = new THREE.Group(); g.name = `district:${d.id}`; g.position.set(d.center[0], 0, d.center[1]); g.add(gltf.scene);
-      applyNight(g, themeRef.current?.night ?? 0);
-      g.updateMatrixWorld(true); addColliders(d.id, g);
-      for (const [key, url] of collisionJobs([d.id], defs)) loadCollision(key, url, d.center, () => groups.current.has(d.id));
-      groups.current.set(d.id, g); scene.add(g); stats.current.loads++; stats.current.loadMs.push(Math.round(performance.now() - t0)); pushEvent("load-ok", d.id); syncShell(); bump((n) => n + 1);
+      mount(d, gltf.scene, t0);
     }, undefined, () => {
       loading.current.delete(d.id);
       stats.current.failures++; pushEvent("load-fail", d.id);
@@ -274,7 +305,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
   };
   const unload = (id: string) => {
     const g = groups.current.get(id); if (!g) return;
-    scene.remove(g); dropColliders(id); walk?.drop(id); disposeTree(g); groups.current.delete(id); stats.current.evictions++; evictSince.current.delete(id); pushEvent("unload", id); syncShell(); bump((n) => n + 1);
+    scene.remove(g); tileScenes.drop(id); dropColliders(id); walk?.drop(id); collisionDone.current.delete(id); disposeTree(g); groups.current.delete(id); stats.current.evictions++; evictSince.current.delete(id); pushEvent("unload", id); syncShell(); bump((n) => n + 1);
   };
 
   useFrame((_, dt) => {
@@ -300,14 +331,16 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     const loadedSet = new Set(groups.current.keys());
     const plan = fullMode
       ? { load: defs.filter((d) => !d.resident && !loadedSet.has(d.id) && !loading.current.has(d.id)).map((d) => d.id), unload: [] as string[] }
-      : planDistricts(focus, defs, loadedSet, { ahead, cap: streamCap });
+      : planDistricts(focus, defs, loadedSet, { ahead, cap: manifest.streaming?.maxStreamed ?? streamCap, loadR: manifest.streaming?.loadRadius, keepR: manifest.streaming?.keepRadius });
     wantedRef.current = new Set([...loadedSet].filter((id) => !plan.unload.includes(id)).concat(plan.load));
     for (const id of [...retriedRef.current]) if (!wantedRef.current.has(id)) retriedRef.current.delete(id);
     // Eviction grace: stamp when a district first falls out of the keep radius; evict only the due.
     for (const id of plan.unload) if (!evictSince.current.has(id)) evictSince.current.set(id, nowMs);
     for (const id of [...evictSince.current.keys()]) if (!plan.unload.includes(id)) evictSince.current.delete(id);
-    dueEvictions(plan.unload, evictSince.current, nowMs).forEach(unload);
-    plan.load.forEach((id) => { const d = defs.find((x) => x.id === id); if (d) load(d); });
+    dueEvictions(plan.unload, evictSince.current, nowMs, manifest.streaming?.evictGraceMs).forEach(unload);
+    // Tiles are many and small: cap simultaneous requests so decode + BVH builds spread over frames instead of landing as one hitch.
+    const maxLoading = manifest.streaming?.maxConcurrent ?? Infinity;
+    for (const id of plan.load) { if (loading.current.size >= maxLoading) break; const d = defs.find((x) => x.id === id); if (d) load(d); }
     // theme
     const t = blendTheme(focus, manifest); const prev = themeRef.current; themeRef.current = t;
     const u = (sky.material as THREE.ShaderMaterial).uniforms;
@@ -332,7 +365,8 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     <>
       <primitive object={resident.scene} />
       <FountainWater />
-      <EasterEggs activeDistricts={["bazaar", ...groups.current.keys()]} />
+      {/* The egg model is a separate download; it must not hold the world back (own boundary). */}
+      <Suspense fallback={null}><EasterEggs activeDistricts={["bazaar", ...groups.current.keys()]} /></Suspense>
       <CameraCollider getMeshes={getMeshes} enabled={collide && collideDebug.current} stats={stats.current} />
     </>
   );

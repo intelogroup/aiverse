@@ -29,6 +29,11 @@ export class WalkColliders {
   private loads = 0;
   private drops = 0;
   private buildMs: Record<string, number> = {};
+  /**
+   * World tiles stream in, so collision does not exist everywhere at once. When set, a point is walkable only where this says
+   * its collision tiles are loaded: the walker then stops at the edge of the loaded area instead of stepping into a void.
+   */
+  covered?: (x: number, z: number) => boolean;
   /** Resident (Bazaar) collision state: the walker waits while "loading" and falls back to visual meshes on "failed". */
   status: CollisionStatus = "loading";
 

@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { KTX2Loader } from "three/addons/loaders/KTX2Loader.js";
+import { TILES } from "./tilesMode";
+import { deferTextures } from "./deferTextures";
 
 // world-city3.glb ships KHR_texture_basisu (KTX2) textures. three's GLTFLoader fails on
 // them unless a KTX2Loader is attached, and a KTX2Loader throws unless detectSupport()
@@ -21,6 +23,7 @@ export function configureGltfLoader(loader: GltfLoaderLike, renderer?: THREE.Web
     primed = true;
   }
   loader.setKTX2Loader(ktx2);
+  if (TILES) deferTextures(loader, ktx2); // tile mode: textures stream in after the geometry has mounted (deferTextures.ts)
 }
 
 /** drei useGLTF extendLoader form: useGLTF(url, true, true, extendGltf(gl)).

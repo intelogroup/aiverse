@@ -29,6 +29,8 @@ import { assetUrl } from "../../lib/assetUrl";
 import { extendGltf } from "./gltfExtensions";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useLayoutEffect, useState } from "react";
+import { TILES } from "./tilesMode";
+import { useTileScene } from "./tileScenes";
 import * as THREE from "three";
 import {
   TEA_DOOR_ORIGIN,
@@ -47,9 +49,8 @@ import {
  * useGLTF's cache hands back the SAME scene object, so the instance
  * edit below is what the resident render shows. */
 const WORLD_URL = assetUrl("/assets/world-city3.glb");
-/** Tea's instance index inside inst_door_double (decoded + verified
- * against the measured translation at runtime before any edit). */
-const TEA_INSTANCE = 6;
+/** The tea tile (tools/city3/build_tiles.sh --hero): the tile that holds the whole Tea House, door instance included. */
+const TEA_TILE = "tea";
 
 const DEG = Math.PI / 180;
 
@@ -125,7 +126,8 @@ interface BuiltDoor {
   restore: () => void;
 }
 
-function buildDoor(scene: THREE.Object3D): BuiltDoor | null {
+/** Exported for tests/tea-tile.test.ts (the shipped tea tile must still yield a door). */
+export function buildDoor(scene: THREE.Object3D): BuiltDoor | null {
   // Find the instanced double-door meshes (one per GLB primitive).
   const instanced: THREE.InstancedMesh[] = [];
   scene.traverse((o) => {
@@ -139,27 +141,28 @@ function buildDoor(scene: THREE.Object3D): BuiltDoor | null {
   });
   if (!instanced.length) return null;
 
-  // Verify the tea instance is where the survey measured it before
-  // touching anything — a different build of the world must fail safe
-  // (leave the static door alone) rather than hide the wrong leaf.
+  // Find the tea instance by where the survey measured it, in every primitive mesh, before touching anything — a different
+  // build of the world must fail safe (leave the static door alone) rather than hide the wrong leaf. The index is found, not
+  // assumed: the monolith had it at 6, a world tile keeps only the instances that fall inside it.
   const probe = new THREE.Matrix4();
   const tp = new THREE.Vector3();
   const tq = new THREE.Quaternion();
   const ts = new THREE.Vector3();
+  const teaIndex = new Map<THREE.InstancedMesh, number>();
   for (const m of instanced) {
-    if (m.count <= TEA_INSTANCE) return null;
-    m.getMatrixAt(TEA_INSTANCE, probe);
-    probe.decompose(tp, tq, ts);
-    if (
-      Math.abs(tp.x - TEA_DOOR_ORIGIN.x) > 0.02 ||
-      Math.abs(tp.y - TEA_GROUND_Y) > 0.02 ||
-      Math.abs(tp.z - TEA_DOOR_ORIGIN.z) > 0.02
-    ) return null;
+    const hits: number[] = [];
+    for (let i = 0; i < m.count; i++) {
+      m.getMatrixAt(i, probe);
+      probe.decompose(tp, tq, ts);
+      if (Math.abs(tp.x - TEA_DOOR_ORIGIN.x) <= 0.02 && Math.abs(tp.y - TEA_GROUND_Y) <= 0.02 && Math.abs(tp.z - TEA_DOOR_ORIGIN.z) <= 0.02) hits.push(i);
+    }
+    if (hits.length !== 1) return null;
+    teaIndex.set(m, hits[0]);
   }
 
   // Hide the tea instance in every primitive mesh; remember the
   // originals for restore-on-unmount.
-  const originals: { mesh: THREE.InstancedMesh; matrix: THREE.Matrix4 }[] = [];
+  const originals: { mesh: THREE.InstancedMesh; matrix: THREE.Matrix4; index: number }[] = [];
   const zero = new THREE.Matrix4().compose(
     new THREE.Vector3(TEA_DOOR_ORIGIN.x, TEA_GROUND_Y, TEA_DOOR_ORIGIN.z),
     new THREE.Quaternion(),
@@ -167,9 +170,10 @@ function buildDoor(scene: THREE.Object3D): BuiltDoor | null {
   );
   for (const m of instanced) {
     const orig = new THREE.Matrix4();
-    m.getMatrixAt(TEA_INSTANCE, orig);
-    originals.push({ mesh: m, matrix: orig });
-    m.setMatrixAt(TEA_INSTANCE, zero);
+    const index = teaIndex.get(m)!;
+    m.getMatrixAt(index, orig);
+    originals.push({ mesh: m, matrix: orig, index });
+    m.setMatrixAt(index, zero);
     m.instanceMatrix.needsUpdate = true;
   }
 
@@ -254,8 +258,8 @@ function buildDoor(scene: THREE.Object3D): BuiltDoor | null {
     disposables,
     restore: () => {
       for (const { mesh, geometry } of panels) mesh.geometry = geometry;
-      for (const { mesh, matrix } of originals) {
-        mesh.setMatrixAt(TEA_INSTANCE, matrix);
+      for (const { mesh, matrix, index } of originals) {
+        mesh.setMatrixAt(index, matrix);
         mesh.instanceMatrix.needsUpdate = true;
       }
     },
@@ -263,12 +267,23 @@ function buildDoor(scene: THREE.Object3D): BuiltDoor | null {
 }
 
 export function TeaDoorLeaf({ controller }: { controller: TeaDoorController }) {
+  return TILES ? <TeaDoorLeafTile controller={controller} /> : <TeaDoorLeafMono controller={controller} />;
+}
+function TeaDoorLeafMono({ controller }: { controller: TeaDoorController }) {
   const gl = useThree((s) => s.gl);
   const gltf = useGLTF(WORLD_URL, true, true, extendGltf(gl));
+  return <TeaDoorLeafView controller={controller} scene={gltf.scene} />;
+}
+/** Tile mode: wait for the tea tile to stream in; the door leaf appears once it has. */
+function TeaDoorLeafTile({ controller }: { controller: TeaDoorController }) {
+  const scene = useTileScene(TEA_TILE);
+  return scene ? <TeaDoorLeafView controller={controller} scene={scene} /> : null;
+}
+function TeaDoorLeafView({ controller, scene }: { controller: TeaDoorController; scene: THREE.Object3D }) {
   const [built, setBuilt] = useState<BuiltDoor | null>(null);
 
   useLayoutEffect(() => {
-    const built = buildDoor(gltf.scene);
+    const built = buildDoor(scene);
     setBuilt(built);
     if (!built) return;
     const unregister = registerCameraObstacle(built.group);
@@ -278,7 +293,7 @@ export function TeaDoorLeaf({ controller }: { controller: TeaDoorController }) {
       for (const g of built.disposables) g.dispose();
       (built.group.userData.knobMaterial as THREE.Material | undefined)?.dispose();
     };
-  }, [gltf.scene]);
+  }, [scene]);
 
   useFrame(() => {
     if (!built) return;

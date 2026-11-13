@@ -9,13 +9,20 @@ import type { SoundDirector } from './soundDirector';
 import { TEA_FLOORS } from './teaBuilding';
 import { bakeCollisionParts, createCapsuleWorld } from './capsuleWorld';
 import { registerCameraObstacle } from './cameraClearance';
+import { TILES } from './tilesMode';
+import { useTileScene } from './tileScenes';
 import type { WalkColliders } from './walkColliders';
 import type { WalkFrameInfo } from './walkOverride';
-export function TeaElevator({controller,walk,url,frame,getDirector}:{controller:TeaElevatorController;walk:WalkColliders;url:string;frame?:RefObject<WalkFrameInfo|null>;getDirector?:()=>SoundDirector|null}) {
-  const gl=useThree(s=>s.gl);const resident=useGLTF(url,true,true,extendGltf(gl));const scene=useThree(s=>s.scene);const assembly=useRef<ReturnType<typeof createTeaElevatorAssembly>|null>(null);const generation=useRef(0);const priorPhase=useRef(controller.phase);
+type TeaElevatorProps={controller:TeaElevatorController;walk:WalkColliders;frame?:RefObject<WalkFrameInfo|null>;getDirector?:()=>SoundDirector|null};
+export function TeaElevator(p:TeaElevatorProps&{url:string}){return TILES?<TeaElevatorTile {...p}/>:<TeaElevatorMono {...p}/>;}
+function TeaElevatorMono({url,...p}:TeaElevatorProps&{url:string}){const gl=useThree(s=>s.gl);const g=useGLTF(url,true,true,extendGltf(gl));return <TeaElevatorBody {...p} root={g.scene}/>;}
+/** Tile mode: the lift's four door placeholders all live in the tea tile; mount once it has streamed in. */
+function TeaElevatorTile(p:TeaElevatorProps){const root=useTileScene('tea');return root?<TeaElevatorBody {...p} root={root}/>:null;}
+function TeaElevatorBody({controller,walk,root,frame,getDirector}:{controller:TeaElevatorController;walk:WalkColliders;root:THREE.Object3D;frame?:RefObject<WalkFrameInfo|null>;getDirector?:()=>SoundDirector|null}) {
+  const scene=useThree(s=>s.scene);const assembly=useRef<ReturnType<typeof createTeaElevatorAssembly>|null>(null);const generation=useRef(0);const priorPhase=useRef(controller.phase);
   useLayoutEffect(()=>{
     const token=++generation.current;const a=createTeaElevatorAssembly();assembly.current=a;
-    const placeholders:THREE.Mesh[]=[];resident.scene.traverse(o=>{if((o as THREE.Mesh).isMesh&&o.userData.elevatorDoor)placeholders.push(o as THREE.Mesh);});
+    const placeholders:THREE.Mesh[]=[];root.traverse(o=>{if((o as THREE.Mesh).isMesh&&o.userData.elevatorDoor)placeholders.push(o as THREE.Mesh);});
     if(placeholders.length!==4){a.dispose();assembly.current=null;controller.ready=false;controller.fail('Elevator asset mismatch');return;}
     a.update(controller);walk.set('elevator:dynamic',a.colliders);walk.drop('elevator:safety');scene.add(a.root);walk.elevator=controller;controller.ready=true;
     placeholders.forEach(m=>m.visible=false);const unregister=registerCameraObstacle(a.root);
@@ -26,7 +33,7 @@ export function TeaElevator({controller,walk,url,frame,getDirector}:{controller:
       if(debug)delete (window as unknown as Record<string,unknown>).__elevator;
       queueMicrotask(()=>{if(generation.current===token){controller.shutdown();walk.elevator=undefined;}});
     };
-  },[controller,walk,resident.scene,scene]);
+  },[controller,walk,root,scene]);
   useFrame((_,dt)=>{if(document.hidden)return;controller.tick(dt);assembly.current?.update(controller);
     if(controller.phase==='opening'&&priorPhase.current!==controller.phase){const p=frame?.current;if(p?.x!==undefined&&p.y!==undefined&&p.z!==undefined&&controller.access({x:p.x,y:p.y,z:p.z})!==null)getDirector?.()?.elevatorChime();}
     priorPhase.current=controller.phase;

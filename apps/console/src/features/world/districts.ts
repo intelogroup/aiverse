@@ -28,8 +28,14 @@ export type DistrictDef = {
   resident?: boolean; // always loaded (the Bazaar)
   /** Walker collision GLB (closed solids, `col_*`), same frame as `url`; loaded and dropped with the district. Never rendered. */
   collisionUrl?: string;
+  /** Where the GLB's local origin sits in the world. Defaults to `center` (the per-district GLBs are centred on themselves); world tiles are already in world coordinates and say [0, 0]. */
+  origin?: [number, number];
+  /** Empty `url` = collision-only square (tiles whose visual triangles all fell in neighbours). */
 };
-export type DistrictManifest = { districts: DistrictDef[]; themes: Record<string, Theme>; links?: string; shell?: string };
+/** Streaming knobs a manifest can override; the constants below stay the defaults for the district world. */
+export type StreamingCfg = { loadRadius?: number; keepRadius?: number; maxStreamed?: number; evictGraceMs?: number; maxConcurrent?: number };
+export type DistrictManifest = { districts: DistrictDef[]; themes: Record<string, Theme>; links?: string; shell?: string; /** Bazaar world tiles (tools/city3/build_tiles.sh) instead of one GLB. */ tiles?: boolean; streaming?: StreamingCfg };
+export const originOf = (d: DistrictDef): [number, number] => d.origin ?? d.center;
 
 /**
  * Streaming policy (Jim, 2026-11-08): spawn loads ONLY the resident district;
