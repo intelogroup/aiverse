@@ -1,0 +1,48 @@
+{
+ "info": {
+  "backend": "webgpu",
+  "subject": "world",
+  "errors": [],
+  "adapter": {
+   "vendor": "google",
+   "architecture": "swiftshader",
+   "device": "",
+   "description": "",
+   "isFallbackAdapter": true
+  },
+  "environment": "RoomEnvironment",
+  "ktx2": "enabled",
+  "pose": {
+   "pos": [
+    -26.19,
+    0.2,
+    -63.96
+   ],
+   "headingDeg": 155,
+   "eye": 1.55
+  },
+  "loadMs": 7402,
+  "triangles": 3028452
+ },
+ "captures": [
+  {
+   "renderMs": 74.6,
+   "totalMs": 356.3,
+   "bytes": 4031
+  },
+  {
+   "renderMs": 35.7,
+   "totalMs": 39.4,
+   "bytes": 4031
+  },
+  {
+   "renderMs": 51.7,
+   "totalMs": 64.5,
+   "bytes": 4031
+  }
+ ],
+ "console": [
+  "error: Failed to load resource: the server responded with a status of 404 (Not Found)",
+  "warning: Calling [RenderPassEncoder (unlabeled)].Draw with an index count of 0 is unusual."
+ ]
+}

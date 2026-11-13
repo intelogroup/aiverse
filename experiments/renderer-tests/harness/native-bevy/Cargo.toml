@@ -1,0 +1,8 @@
+[package]
+name = "bevy-shot"
+version = "0.1.0"
+edition = "2021"
+[dependencies]
+bevy = { version = "0.20.1", default-features = false, features = ["3d","png","jpeg","tonemapping_luts"] }
+[profile.release]
+opt-level = 3
