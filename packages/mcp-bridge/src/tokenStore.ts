@@ -58,9 +58,17 @@ export class TokenStore {
     const dir = dirname(this.file);
     mkdirSync(dir, { recursive: true, mode: 0o700 });
     const tmp = `${this.file}.tmp-${process.pid}`;
-    writeFileSync(tmp, `${JSON.stringify(grant, null, 2)}\n`, { mode: 0o600 });
-    chmodSync(tmp, 0o600); // writeFileSync's mode is creation-only and umask-masked; pin it
-    renameSync(tmp, this.file);
+    try {
+      writeFileSync(tmp, `${JSON.stringify(grant, null, 2)}\n`, { mode: 0o600 });
+      chmodSync(tmp, 0o600); // writeFileSync's mode is creation-only and umask-masked; pin it
+      renameSync(tmp, this.file);
+    } catch (err) {
+      // A failed save leaves no trace: the tmp file holds a live refresh
+      // token, and leaving it behind would strand a credential on disk
+      // and invite confusion about which file is the real store.
+      rmSync(tmp, { force: true });
+      throw err;
+    }
   }
 
   clear(): void {

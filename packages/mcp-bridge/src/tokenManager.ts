@@ -65,12 +65,24 @@ export class TokenManager {
         fetchFn: this.fetchFn,
       });
       // Persist the rotated refresh token FIRST, then cache the access token.
-      this.store.save({
-        ...grant,
-        refreshToken: tokens.refreshToken,
-        scope: tokens.scope || grant.scope,
-        updatedAt: new Date().toISOString(),
-      });
+      try {
+        this.store.save({
+          ...grant,
+          refreshToken: tokens.refreshToken,
+          scope: tokens.scope || grant.scope,
+          updatedAt: new Date().toISOString(),
+        });
+      } catch (err) {
+        // The presented token is already burned server-side and its
+        // replacement is lost with this failed write: presenting the
+        // stored token again would read as reuse and revoke the grant
+        // outright. Fail stickily, exactly like a dead grant — the way
+        // back is a fresh connect flow, never a quiet retry.
+        this.gone = new GrantGoneError(
+          `the rotated refresh token could not be saved (${err instanceof Error ? err.message : String(err)}), so the stored token is burned and must not be presented again`,
+        );
+        throw this.gone;
+      }
       this.access = { token: tokens.accessToken, expiresAt: Date.now() + tokens.expiresIn * 1000 };
       return tokens.accessToken;
     } catch (err) {
