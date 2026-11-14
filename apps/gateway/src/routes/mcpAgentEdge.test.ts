@@ -9,7 +9,7 @@ import { explainAction } from "@aiverse/world-sim/actionProtocol";
 import { createApp } from "../app";
 import { db } from "../db/client";
 import { computeS256Challenge, oauthIssuer } from "../auth/oauthCore";
-import { resolveAgentAuth } from "../auth/resolveAgent";
+import { INTERNAL_CHANNEL_HEADER, resolveAgentAuth } from "../auth/resolveAgent";
 import { resetMemoryStoreForTests } from "../policy/memoryStore";
 import { drainIngestStream } from "../jobs/ingestConsumer";
 import type { SimClient } from "../world/simClient";
@@ -318,24 +318,30 @@ describe("an agent transferred away from the grant's owner fails closed", () => 
     const b = await ownerWithAgent("TransferB");
     const { accessToken } = await mintOAuthToken(a, [a.agentId], "world:observe");
 
-    // Before: the resolver resolves the token to A's agent, and a REST
-    // world call authenticates (the refusal is the world's no_visit, not auth's).
-    const before = await resolveAgentAuth(accessToken, a.agentId);
+    // Before: on the internal channel (the acting path) the resolver
+    // resolves the token to A's agent — and whoami answers (Fix B sanity:
+    // a live, owner-matched grant still reads its agent).
+    const before = await resolveAgentAuth(accessToken, a.agentId, { internalChannel: true });
     expect(before?.agent.id).toBe(a.agentId);
     expect(before?.auth.kind).toBe("oauth");
+    const whoamiBefore = toolJson((await callTool(accessToken, "agent_whoami")).body);
+    expect(whoamiBefore.agent.id).toBe(a.agentId);
+
+    // A direct REST presentation of the same token is refused before and
+    // after alike — channel isolation (oauth_at_rest), not the transfer.
     const restBefore = await app.request("/world/observe", {
       headers: { ...json(accessToken), "x-agent-id": a.agentId },
     });
-    expect(restBefore.status).toBe(403);
-    expect(((await restBefore.json()) as any).error).toBe("no_visit");
+    expect(restBefore.status).toBe(401);
+    expect(((await restBefore.json()) as any).error).toBe("unauthorized");
 
     // The agent changes owners (an owner-side transfer, fixture-applied).
     const newOwner = await db.query.owners.findFirst({ where: eq(owners.email, b.email) });
     expect(newOwner).toBeTruthy();
     await db.update(agents).set({ ownerId: newOwner!.id }).where(eq(agents.id, a.agentId));
 
-    // After: the resolver's fail-closed check bites at every layer.
-    expect(await resolveAgentAuth(accessToken, a.agentId)).toBeUndefined();
+    // After: the resolver's fail-closed owner check bites at every layer.
+    expect(await resolveAgentAuth(accessToken, a.agentId, { internalChannel: true })).toBeUndefined();
     const restAfter = await app.request("/world/observe", {
       headers: { ...json(accessToken), "x-agent-id": a.agentId },
     });
@@ -345,6 +351,63 @@ describe("an agent transferred away from the grant's owner fails closed", () => 
     const viaMcp = await callTool(accessToken, "world_observe");
     expect(viaMcp.body.result.isError).toBe(true);
     expect(toolText(viaMcp.body)).toContain("unauthorized");
+
+    // Fix B (was the case-11 gap): whoami re-runs the acting path's
+    // owner-matched resolution, so it goes dark too — no agent data
+    // leaks through the one tool that reads the row directly.
+    const whoamiAfter = await callTool(accessToken, "agent_whoami");
+    expect(whoamiAfter.body.result.isError).toBe(true);
+    expect(toolText(whoamiAfter.body)).toContain("unauthorized");
+    expect(toolText(whoamiAfter.body)).not.toContain(a.agentName);
+  });
+});
+
+describe("OAuth tokens die at REST (channel isolation)", () => {
+  test("a live delegated token at REST is 401 — resolver, route, and forged-mark levels", async () => {
+    const o = await ownerWithAgent("RestIsolationAgent");
+    const { accessToken } = await mintOAuthToken(o, [o.agentId], "world:observe world:act inbox:read relay:send discover");
+
+    // Resolver level: the default (external) channel refuses a token
+    // whose grant is perfectly live; the internal channel resolves it.
+    expect(await resolveAgentAuth(accessToken, o.agentId)).toBeUndefined();
+    const internal = await resolveAgentAuth(accessToken, o.agentId, { internalChannel: true });
+    expect(internal?.agent.id).toBe(o.agentId);
+    expect(internal?.auth.kind).toBe("oauth");
+
+    // Route level: representative agent routes refuse it outright.
+    const conv = await app.request("/conversations", { headers: json(accessToken) });
+    expect(conv.status).toBe(401);
+    expect(((await conv.json()) as any).error).toBe("unauthorized");
+    const observe = await app.request("/world/observe", {
+      headers: { ...json(accessToken), "x-agent-id": o.agentId },
+    });
+    expect(observe.status).toBe(401);
+
+    // A forged mark header opens nothing — the value is a process secret,
+    // the header NAME is public knowledge and worthless on its own.
+    const forged = await app.request("/conversations", {
+      headers: { ...json(accessToken), [INTERNAL_CHANNEL_HEADER]: "guessed-value" },
+    });
+    expect(forged.status).toBe(401);
+
+    // The classic credential is channel-blind: same route, still resolves.
+    const classic = await app.request("/conversations", { headers: json(o.agentToken) });
+    expect(classic.status).toBe(200);
+  });
+
+  test("the same token through /mcp/agent completes the full body loop", async () => {
+    const o = await ownerWithAgent("RestPairingAgent");
+    const { accessToken } = await mintOAuthToken(o, [o.agentId], "world:observe world:act inbox:read relay:send discover");
+    await startVisit(o.session, o.agentId);
+
+    const attach = toolJson((await callTool(accessToken, "body_attach", { body: "summer" })).body);
+    expect(attach.observation.body.figure).toBe("summer");
+    const observe = toolJson((await callTool(accessToken, "world_observe")).body);
+    expect(observe.observation.body.figure).toBe("summer");
+    const act = toolJson((await callTool(accessToken, "world_act", { action: { type: "wait", seconds: 1 } })).body);
+    expect(act.act.action).toEqual({ type: "wait", seconds: 1 });
+    const detach = toolJson((await callTool(accessToken, "body_detach")).body);
+    expect(detach.removed).toBe(true);
   });
 });
 
