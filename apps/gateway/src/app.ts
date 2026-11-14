@@ -23,6 +23,7 @@ import { adminRoute } from "./routes/admin";
 import { reportsRoute } from "./routes/reports";
 import { bazaarRoute } from "./routes/bazaar";
 import { createMcpRoute } from "./routes/mcp";
+import { oauthRoute } from "./routes/oauth";
 import { registerAgentWsRoute, registerConsoleWsRoute, registerPublicWsRoute } from "./ws/gateway";
 import { getHuntRuntime, huntEnabled } from "./hunt";
 import { log, logError } from "./util/log";
@@ -256,6 +257,10 @@ export function createApp(opts: CreateAppOpts = {}) {
       },
     }));
   } else if (worldEnabled()) logError("world_not_mounted", new Error("AIVERSE_WORLD_MODE=1 but SIM_URL / SIM_INTERNAL_SECRET are not configured"));
+  // OAuth 2.1 authorization server (MCP delegation, Phase 1): /.well-known
+  // metadata + /oauth/* — paths are absolute, so it mounts at the root like
+  // the A2A route.
+  app.route("/", oauthRoute);
   app.route("/mcp", createMcpRoute((path, authorization) => app.request(path, { headers: { authorization } })));
   registerAgentWsRoute(app);
   registerConsoleWsRoute(app);
