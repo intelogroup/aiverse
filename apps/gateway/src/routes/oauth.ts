@@ -11,6 +11,8 @@ import {
 } from "@aiverse/shared/schema";
 import { env } from "@aiverse/shared/env";
 import { ownerAuth } from "../middleware/ownerAuth";
+import { takeToken } from "../policy/memoryStore";
+import { clientIp } from "../util/clientIp";
 import { log, logError } from "../util/log";
 import {
   ACCESS_TOKEN_TTL_SECONDS,
@@ -53,7 +55,7 @@ export const oauthRoute = new Hono<{ Variables: { ownerId: string } }>();
 
 const UUID_SHAPE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
-function oauthError(c: Context, status: 400 | 401 | 500, error: string, description: string) {
+function oauthError(c: Context, status: 400 | 401 | 429 | 500, error: string, description: string) {
   return c.json({ error, error_description: description }, status);
 }
 
@@ -126,6 +128,11 @@ oauthRoute.get("/.well-known/oauth-protected-resource", (c) =>
 // issued, no secret — PKCE is the credential.
 
 oauthRoute.post("/oauth/register", async (c) => {
+  // Open registration (RFC 7591) needs no login, so cap it per client IP like POST /agents/register.
+  if (!(await takeToken(`oauth-register:${clientIp(c)}`, 30, 30 / 3600))) {
+    log("oauth_register_rejected", { reason: "rate_limited" });
+    return oauthError(c, 429, "rate_limited", "too many client registrations from this address; try again later");
+  }
   try {
     const body = (await c.req.json().catch(() => null)) as {
       client_name?: unknown;
@@ -510,6 +517,7 @@ async function issueTokens(c: Context, grant: GrantRow, familyId: string) {
   });
   const accessToken = await signAccessToken({
     ownerId: grant.ownerId,
+    grantId: grant.id,
     scope: ((grant.scopes as string[] | null) ?? []).join(" "),
     agents: (grant.agentIds as string[] | null) ?? [],
   });
