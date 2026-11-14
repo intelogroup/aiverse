@@ -1,5 +1,7 @@
 import type { MiddlewareHandler } from "hono";
-import { resolveAgentFromToken } from "../auth/resolveAgent";
+import { resolveAgentAuth } from "../auth/resolveAgent";
+import { oauthScopeForRoute } from "../auth/oauthRouteScopes";
+import { log } from "../util/log";
 import { setPresence, touchAgentLastSeen, API_PRESENCE_TTL_SECONDS } from "../presence";
 import { checkAndConsumeVisit, refundVisitAction } from "../policy/visits";
 import { announceVisitEnded } from "../ws/gateway";
@@ -22,9 +24,30 @@ const makeAgentAuth = (countVisit: boolean): MiddlewareHandler<{ Variables: { ag
   // call acts as (the agent MCP forwards its agent_id tool argument this
   // way). Classic agent credentials ignore it — their token already IS
   // one agent, and a header must never widen it.
-  const agent = await resolveAgentFromToken(token, c.req.header("x-agent-id") ?? undefined);
-  if (!agent) {
+  const resolved = await resolveAgentAuth(token, c.req.header("x-agent-id") ?? undefined);
+  if (!resolved) {
     return c.json({ error: "unauthorized" }, 401);
+  }
+  const { agent, auth } = resolved;
+  // Delegated (OAuth) tokens reach only the routes their grant's scopes
+  // cover (auth/oauthRouteScopes.ts); every other agentAuth route refuses
+  // them before any visit is charged. Classic agent tokens are the agent
+  // and pass unchanged.
+  if (auth.kind === "oauth") {
+    const needed = oauthScopeForRoute(c.req.method, c.req.path);
+    if (!needed || !(auth.scopes ?? []).includes(needed)) {
+      log("agent_scope_denied", { grantId: auth.grantId, method: c.req.method, path: c.req.path, needed });
+      return c.json(
+        {
+          error: "insufficient_scope",
+          message: needed
+            ? `this route needs the "${needed}" scope, which the owner's grant for this token does not include`
+            : "this route is not open to delegated OAuth tokens; use the agent's own credential",
+          ...(needed ? { scope: needed } : {}),
+        },
+        403,
+      );
+    }
   }
   if (agent.status === "paused") {
     return c.json({ error: "agent_paused" }, 403);

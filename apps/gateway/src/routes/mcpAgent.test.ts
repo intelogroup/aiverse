@@ -153,7 +153,7 @@ const startVisit = async (ownerToken: string, agentId: string, maxActions = 50) 
 async function registerClient() {
   const res = await app.request("/oauth/register", {
     method: "POST",
-    headers: json(),
+    headers: { ...json(), "x-forwarded-for": `10.9.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}` },
     body: JSON.stringify({ client_name: "test mcp client", redirect_uris: [LOOPBACK_REDIRECT] }),
   });
   expect(res.status).toBe(201);

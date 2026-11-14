@@ -25,6 +25,9 @@ import {
   ownerReadKeys,
   eggClaims,
   agentEvents,
+  oauthGrants,
+  oauthCodes,
+  oauthRefreshTokens,
 } from "@aiverse/shared/schema";
 
 // Hard-deletes one agent and every row that FK-references it. No cascade is
@@ -89,5 +92,15 @@ export async function deleteOwnerCascade(tx: Pick<typeof dbType, "delete" | "upd
   // Visits the owner started for an agent that has since moved to another owner still point here.
   await tx.delete(agentVisits).where(eq(agentVisits.ownerId, ownerId));
   await tx.delete(ownerReadKeys).where(eq(ownerReadKeys.ownerId, ownerId));
+  // OAuth delegations (oauth_grants.owner_id and the code/refresh rows on
+  // each grant have no cascade): without this an owner who ever connected
+  // a client could not be deleted.
+  const grantRows = await tx.select({ id: oauthGrants.id }).from(oauthGrants).where(eq(oauthGrants.ownerId, ownerId));
+  if (grantRows.length > 0) {
+    const grantIds = grantRows.map((g) => g.id);
+    await tx.delete(oauthRefreshTokens).where(inArray(oauthRefreshTokens.grantId, grantIds));
+    await tx.delete(oauthCodes).where(inArray(oauthCodes.grantId, grantIds));
+    await tx.delete(oauthGrants).where(inArray(oauthGrants.id, grantIds));
+  }
   await tx.delete(owners).where(eq(owners.id, ownerId));
 }

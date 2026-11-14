@@ -373,6 +373,8 @@ export async function resetMemoryStoreForTests(): Promise<void> {
   const challengeKeys = await redis.keys("challenge:*");
   const authChallengeKeys = await redis.keys("auth-challenge:*");
   const authVerifyKeys = await redis.keys("auth-verify:*");
+  // OAuth dynamic client registration IP bucket (routes/oauth.ts).
+  const oauthRegisterKeys = await redis.keys("oauth-register:*");
   const discoverKeys = await redis.keys("discover:*");
   const searchKeys = await redis.keys("search:*");
   // Native-agent social cooldown buckets (jobs/nativeAgents.ts takeToken keys).
@@ -421,6 +423,7 @@ export async function resetMemoryStoreForTests(): Promise<void> {
     ...challengeKeys,
     ...authChallengeKeys,
     ...authVerifyKeys,
+    ...oauthRegisterKeys,
     ...discoverKeys,
     ...searchKeys,
     ...nativeSocialKeys,

@@ -157,7 +157,7 @@ async function setAutonomous(session: string, agentId: string) {
 async function registerClient() {
   const res = await app.request("/oauth/register", {
     method: "POST",
-    headers: json(),
+    headers: { ...json(), "x-forwarded-for": `10.9.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}` },
     body: JSON.stringify({ client_name: "edge mcp client", redirect_uris: [LOOPBACK_REDIRECT] }),
   });
   expect(res.status).toBe(201);
@@ -499,5 +499,69 @@ describe("visit ending mid-body", () => {
     const observe = await callTool(o.agentToken, "world_observe");
     expect(observe.body.result.isError).toBe(true);
     expect(toolErrorJson(observe.body).error).toBe("visit_ended");
+  });
+});
+
+// --- Review of #173: REST scope gate, grant-bound tokens, owner delete ---
+
+describe("OAuth tokens at the REST API are scope-gated", () => {
+  test("an observe-only grant cannot write goals, memory or attach a body", async () => {
+    const owner = await ownerWithAgent("scopegate");
+    await startVisit(owner.session, owner.agentId);
+    const { accessToken } = await mintOAuthToken(owner, [owner.agentId], "world:observe");
+    const goals = await app.request("/goals", { method: "POST", headers: json(accessToken), body: JSON.stringify({ objective: "should never be stored" }) });
+    expect(goals.status).toBe(403);
+    expect(((await goals.json()) as any).error).toBe("insufficient_scope");
+    const memory = await app.request("/memory", { method: "POST", headers: json(accessToken), body: JSON.stringify({ content: "nope" }) });
+    expect(memory.status).toBe(403);
+    const body = await app.request("/world/body", { method: "POST", headers: json(accessToken), body: JSON.stringify({}) });
+    expect(body.status).toBe(403);
+    expect(((await body.json()) as any).scope).toBe("world:act");
+    // The granted scope still works: observe reaches the world (no body yet = the world's own 404).
+    const observe = await app.request("/world/observe", { headers: json(accessToken) });
+    expect(observe.status).toBe(404);
+    expect(((await observe.json()) as any).error).toBe("no_body");
+  });
+
+  test("a world:act grant attaches over REST; the agent's own token is not gated", async () => {
+    const owner = await ownerWithAgent("scopegate2");
+    await startVisit(owner.session, owner.agentId);
+    const { accessToken } = await mintOAuthToken(owner, [owner.agentId], "world:act");
+    const body = await app.request("/world/body", { method: "POST", headers: json(accessToken), body: JSON.stringify({}) });
+    expect(body.status).toBe(201);
+    const goals = await app.request("/goals", { method: "POST", headers: json(owner.agentToken), body: JSON.stringify({ objective: "the agent's own credential" }) });
+    expect(goals.status).toBe(201);
+  });
+});
+
+describe("access tokens are bound to their own grant", () => {
+  test("revoking client A kills A's token even when client B holds an identical grant", async () => {
+    const owner = await ownerWithAgent("gid");
+    const a = await mintOAuthToken(owner, [owner.agentId], "world:observe");
+    const b = await mintOAuthToken(owner, [owner.agentId], "world:observe");
+    const list = (await (await app.request("/oauth/grants", { headers: json(owner.session) })).json()) as any;
+    const grantA = list.grants.find((g: any) => g.client_id === a.clientId);
+    expect((await app.request(`/oauth/grants/${grantA.id}/revoke`, { method: "POST", headers: json(owner.session) })).status).toBe(200);
+    expect(await resolveAgentAuth(a.accessToken)).toBeUndefined();
+    expect((await resolveAgentAuth(b.accessToken))?.agent.id).toBe(owner.agentId);
+  });
+
+  test("a validly signed token without a grant id is refused", async () => {
+    const owner = await ownerWithAgent("nogid");
+    const now = Math.floor(Date.now() / 1000);
+    const forged = await sign(
+      { sub: "00000000-0000-0000-0000-000000000000", iss: oauthIssuer(), aud: `${oauthIssuer()}/mcp/agent`, scope: "world:observe", agents: [owner.agentId], iat: now, exp: now + 600 },
+      env.JWT_SECRET,
+    );
+    expect(await resolveAgentAuth(forged)).toBeUndefined();
+  });
+});
+
+describe("owner delete clears OAuth delegations", () => {
+  test("an owner with a connected client can still delete their account", async () => {
+    const owner = await ownerWithAgent("ownerdel");
+    await mintOAuthToken(owner, [owner.agentId], "world:observe");
+    const del = await app.request("/owners/me", { method: "DELETE", headers: json(owner.session), body: JSON.stringify({ confirmEmail: owner.email }) });
+    expect(del.status).toBe(200);
   });
 });

@@ -11,7 +11,8 @@ import { hashAgentToken } from "./agentToken";
 // The model: an owner delegates a slice of their authority to a registered
 // client for specific agents. The client never sees a password or an agent
 // key — it holds a 1 h access JWT (audience-bound to the agent MCP
-// resource, so it is worthless at the plain REST API) plus a rotating
+// resource; at the REST API it reaches only the routes its scopes map to,
+// see auth/oauthRouteScopes.ts) plus a rotating
 // refresh token whose SHA-256 hash is all that is stored.
 
 export const OAUTH_SCOPES = [
@@ -98,6 +99,10 @@ export function generateRefreshFamilyId(): string {
 
 export interface OAuthAccessClaims {
   ownerId: string;
+  /** The grant this token was minted from (`gid`). Liveness is checked on
+   *  THIS grant, so revoking one client's grant kills that client's tokens
+   *  even when another client holds an identical grant. */
+  grantId: string;
   scope: string;
   agents: string[];
 }
@@ -107,6 +112,7 @@ export function signAccessToken(claims: OAuthAccessClaims): Promise<string> {
   return sign(
     {
       sub: claims.ownerId,
+      gid: claims.grantId,
       iss: oauthIssuer(),
       aud: oauthResource(),
       scope: claims.scope,
@@ -125,6 +131,9 @@ export async function verifyAccessToken(token: string): Promise<OAuthAccessClaim
   if (typeof payload.sub !== "string" || payload.sub.length === 0) {
     throw new Error("access token: missing subject");
   }
+  if (typeof payload.gid !== "string" || payload.gid.length === 0) {
+    throw new Error("access token: missing grant id");
+  }
   if (typeof payload.scope !== "string") throw new Error("access token: missing scope");
   if (
     !Array.isArray(payload.agents) ||
@@ -134,6 +143,7 @@ export async function verifyAccessToken(token: string): Promise<OAuthAccessClaim
   }
   return {
     ownerId: payload.sub,
+    grantId: payload.gid,
     scope: payload.scope,
     agents: payload.agents as string[],
   };

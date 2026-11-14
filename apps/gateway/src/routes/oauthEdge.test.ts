@@ -45,7 +45,7 @@ async function ownerWithAgent(name: string) {
 async function registerClient() {
   const res = await app.request("/oauth/register", {
     method: "POST",
-    headers: jsonHeaders(),
+    headers: { ...jsonHeaders(), "x-forwarded-for": `10.9.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}` },
     body: JSON.stringify({ client_name: "edge mcp client", redirect_uris: [LOOPBACK_REDIRECT] }),
   });
   expect(res.status).toBe(201);
@@ -336,5 +336,17 @@ describe("consent decision edges", () => {
     expect(((await foreign.json()) as any).error).toBe("invalid_request");
     expect(await listGrants(stranger.session)).toEqual([]);
     expect(await listGrants(owner.session)).toEqual([]);
+  });
+});
+
+describe("dynamic client registration is rate limited per address", () => {
+  test("the 31st registration within the hour from one address is 429", async () => {
+    const headers = { ...jsonHeaders(), "x-forwarded-for": "10.250.1.1" };
+    const reg = () =>
+      app.request("/oauth/register", { method: "POST", headers, body: JSON.stringify({ client_name: "flood", redirect_uris: ["http://localhost:1/cb"] }) });
+    for (let i = 0; i < 30; i++) expect((await reg()).status).toBe(201);
+    const blocked = await reg();
+    expect(blocked.status).toBe(429);
+    expect(((await blocked.json()) as any).error).toBe("rate_limited");
   });
 });

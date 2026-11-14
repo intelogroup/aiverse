@@ -66,6 +66,8 @@ export interface ResolvedAgent {
 
 type AgentRow = typeof agents.$inferSelect;
 
+const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const sameSet = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length && a.every((x) => b.includes(x));
 
@@ -74,16 +76,11 @@ type OAuthResolution =
   | { ok: false; reason: OAuthFailureReason };
 
 /**
- * Verify an OAuth access token and re-check its grant's liveness,
- * classifying every failure. The JWT carries owner/agents/scope but no
- * grant id, so the grant is re-found by exact match: same owner, same
- * agent set, same scope set. Any LIVE match authorizes (a second,
- * identical grant grants the same slice, so the outcome is the
- * delegation the owner currently has in force either way); when no
- * match is live, the reason distinguishes a grant that never matched
- * (grant_missing) from one that was revoked or expired — the three
- * production stories look identical from the client's seat (a 401) and
- * must not look identical in the logs.
+ * Verify an OAuth access token and re-check the liveness of the grant it
+ * names (gid), classifying every failure: a grant that is gone or no
+ * longer matches the token's owner/agents/scopes (grant_missing), one
+ * revoked, one expired. The three look identical from the client's seat
+ * (a 401) and must not look identical in the logs.
  */
 async function resolveOAuthDetailed(token: string): Promise<OAuthResolution> {
   let claims: OAuthAccessClaims;
@@ -94,19 +91,23 @@ async function resolveOAuthDetailed(token: string): Promise<OAuthResolution> {
   }
   const scopes = parseScope(claims.scope);
   if (scopes === null) return { ok: false, reason: "token_invalid" };
-  const rows = await db.query.oauthGrants.findMany({
-    where: eq(oauthGrants.ownerId, claims.ownerId),
-  });
-  const matching = rows.filter(
-    (g) =>
-      sameSet(((g.agentIds as string[] | null) ?? []), claims.agents) &&
-      sameSet(((g.scopes as string[] | null) ?? []), scopes),
-  );
-  const live = matching.find((g) => g.revokedAt === null && g.expiresAt.getTime() > Date.now());
-  if (live) return { ok: true, claims, grant: live };
-  if (matching.some((g) => g.revokedAt !== null)) return { ok: false, reason: "grant_revoked" };
-  if (matching.length > 0) return { ok: false, reason: "grant_expired" };
-  return { ok: false, reason: "grant_missing" };
+  // The token names its grant (gid): liveness is judged on that grant
+  // alone, never on a look-alike. Matching by owner/agents/scopes let a
+  // revoked client's token live on through another client's identical
+  // grant (review of #173).
+  if (!UUID_SHAPE.test(claims.grantId)) return { ok: false, reason: "token_invalid" };
+  const grant = await db.query.oauthGrants.findFirst({ where: eq(oauthGrants.id, claims.grantId) });
+  if (
+    !grant ||
+    grant.ownerId !== claims.ownerId ||
+    !sameSet(((grant.agentIds as string[] | null) ?? []), claims.agents) ||
+    !sameSet(((grant.scopes as string[] | null) ?? []), scopes)
+  ) {
+    return { ok: false, reason: "grant_missing" };
+  }
+  if (grant.revokedAt !== null) return { ok: false, reason: "grant_revoked" };
+  if (grant.expiresAt.getTime() <= Date.now()) return { ok: false, reason: "grant_expired" };
+  return { ok: true, claims, grant };
 }
 
 export async function resolveAgentAuth(
