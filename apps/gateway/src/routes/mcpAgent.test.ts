@@ -3,18 +3,20 @@ import { randomBytes } from "node:crypto";
 import { sign } from "hono/jwt";
 import { env } from "@aiverse/shared/env";
 import { SOCIAL_CLIPS, clipDef } from "@aiverse/world-sim/clips";
+import { explainAction } from "@aiverse/world-sim/actionProtocol";
 import { createApp } from "../app";
 import { computeS256Challenge, oauthIssuer } from "../auth/oauthCore";
 import { resetMemoryStoreForTests } from "../policy/memoryStore";
 import { drainIngestStream } from "../jobs/ingestConsumer";
 import type { SimClient } from "../world/simClient";
 
-// Agent MCP (Phase 3) route tests. The app runs with a fake sim client at
-// the seam createApp exposes: it answers like apps/sim's server does for
-// the paths these tests reach (the social clip list straight from
-// @aiverse/world-sim — the same source WorldService.clips() serves — and
-// the sim's no_body 404 for a body-less observe/look). Everything else —
-// auth, visits, OAuth, conversations — is the real gateway on Postgres.
+// Agent MCP (Phases 3–4) route tests. The app runs with a fake sim client
+// at the seam createApp exposes: it answers like apps/sim's server does
+// for the paths these tests reach — the social clip list straight from
+// @aiverse/world-sim (the same source WorldService.clips() serves), a
+// stateful body ledger for attach/detach/observe/act, and action refusals
+// worded by the sim's own explainAction. Everything else — auth, visits,
+// OAuth, conversations — is the real gateway on Postgres.
 
 const FAKE_PLACES = [
   { id: "shop-102", name: "Matchmaker's Tea House", kind: "shop", room: "tea" },
@@ -22,8 +24,25 @@ const FAKE_PLACES = [
   { id: "stall-3", name: "Noodle Stall", kind: "stall", room: null },
 ];
 
+interface FakeBody {
+  figure: string;
+  records: Map<string, { actionJson: string; record: any }>;
+}
+const fakeBodies = new Map<string, FakeBody>();
+
+const fakeObservation = (agentId: string) => ({
+  t: 0,
+  body: { figure: fakeBodies.get(agentId)!.figure, x: 0, z: 0, heading: 0, posture: "standing" },
+  nearestPlace: { id: "plaza", name: "Central Plaza", kind: "plaza", dist: 0 },
+  insideRoom: null,
+  scene: [],
+  lastAct: null,
+  heard: [],
+});
+const simNoBody = () => Response.json({ error: "no_body", message: "no body: attach one first" }, { status: 404 });
+
 const fakeSim: SimClient = {
-  async call(method, path) {
+  async call(method, path, rawBody) {
     if (method === "GET" && path === "/clips") {
       const clips = SOCIAL_CLIPS.map((name) => {
         const d = clipDef(name);
@@ -38,8 +57,63 @@ const fakeSim: SimClient = {
       return Response.json({ clips });
     }
     if (method === "GET" && path === "/places") return Response.json({ places: FAKE_PLACES });
-    if (/^\/bodies\/[^/]+\/(observe|look)$/.test(path.split("?")[0])) {
-      return Response.json({ error: "no_body", message: "no body: attach one first" }, { status: 404 });
+
+    const parts = path.split("?")[0].split("/").filter(Boolean);
+    if (method === "POST" && parts.length === 1 && parts[0] === "bodies") {
+      // WorldService.attach, at the wire: idempotent for the same figure,
+      // id_conflict for a different one on a live body.
+      const b = JSON.parse(rawBody ?? "{}") as { agentId: string; body?: string };
+      const have = fakeBodies.get(b.agentId);
+      if (have) {
+        if (b.body !== undefined && b.body !== have.figure) {
+          return Response.json(
+            { error: "id_conflict", message: `body already attached as ${have.figure}; detach first (DELETE /world/body) to change figure` },
+            { status: 409 },
+          );
+        }
+        return Response.json({ observation: fakeObservation(b.agentId) }, { status: 200 });
+      }
+      fakeBodies.set(b.agentId, { figure: b.body ?? "remy", records: new Map() });
+      return Response.json({ observation: fakeObservation(b.agentId) }, { status: 201 });
+    }
+    if (parts[0] === "bodies" && parts[1]) {
+      const agentId = parts[1];
+      const mine = fakeBodies.get(agentId);
+      if (method === "DELETE" && parts.length === 2) {
+        return Response.json({ removed: fakeBodies.delete(agentId) });
+      }
+      if (method === "GET" && parts.length === 2) {
+        if (!mine) return simNoBody();
+        return Response.json({ body: { figure: mine.figure, x: 0, z: 0, heading: 0, posture: "standing" } });
+      }
+      if (method === "GET" && parts[2] === "observe") {
+        if (!mine) return simNoBody();
+        return Response.json({ observation: fakeObservation(agentId) });
+      }
+      if (method === "POST" && parts[2] === "look") {
+        if (!mine) return simNoBody();
+        return Response.json({ look: { width: 2, height: 2, observation: fakeObservation(agentId) } });
+      }
+      if (method === "POST" && parts[2] === "act") {
+        if (!mine) return simNoBody();
+        const b = JSON.parse(rawBody ?? "{}") as { id: string; action: unknown };
+        const actionJson = JSON.stringify(b.action);
+        const existing = mine.records.get(b.id);
+        if (existing) {
+          if (existing.actionJson !== actionJson) {
+            return Response.json({ error: "id_conflict", message: "request ID reused with different action" }, { status: 409 });
+          }
+          return Response.json({ act: existing.record }, { status: 200 });
+        }
+        const why = explainAction(b.action);
+        if (why) return Response.json({ error: "invalid_action", message: why }, { status: 400 });
+        const record =
+          (b.action as { type?: string }).type === "say"
+            ? { id: b.id, action: b.action, state: "settled", startedAt: 0, settledAt: 0, outcome: { ok: true, status: "done", detail: "nobody within earshot heard you" } }
+            : { id: b.id, action: b.action, state: "running", startedAt: 0 };
+        mine.records.set(b.id, { actionJson, record });
+        return Response.json({ act: record }, { status: 202 });
+      }
     }
     return Response.json({ error: "not_found" }, { status: 404 });
   },
@@ -146,6 +220,8 @@ const callTool = (token: string, name: string, args: Record<string, unknown> = {
 
 const toolText = (body: any): string => body.result.content[0].text as string;
 const toolJson = (body: any): any => JSON.parse(toolText(body));
+/** Tool errors from dispatched routes are the route's raw JSON body — parse before asserting on quoted message text. */
+const toolErrorJson = (body: any): any => JSON.parse(toolText(body));
 
 describe("agent MCP auth", () => {
   test("no token and garbage tokens get a 401 with the RFC 9728 discovery pointer", async () => {
@@ -166,12 +242,36 @@ describe("agent MCP auth", () => {
     expect((await mcpAgent(o.session, "tools/list")).status).toBe(401);
   });
 
-  test("a classic agent token gets in and sees exactly the Phase 3 tool set", async () => {
+  test("a classic agent token gets in and sees the full tool set, actions marked non-read-only", async () => {
     const o = await ownerWithAgent("ListAgent");
     const { status, body } = await mcpAgent(o.agentToken, "tools/list");
     expect(status).toBe(200);
-    const names = (body.result.tools as any[]).map((t) => t.name).sort();
-    expect(names).toEqual(["agent_whoami", "inbox_poll", "verse_discover", "world_clips", "world_look", "world_observe"]);
+    const tools = body.result.tools as any[];
+    const names = tools.map((t) => t.name).sort();
+    expect(names).toEqual([
+      "agent_whoami",
+      "body_attach",
+      "body_detach",
+      "inbox_poll",
+      "relay_send",
+      "relay_start",
+      "verse_discover",
+      "world_act",
+      "world_clips",
+      "world_look",
+      "world_observe",
+    ]);
+    // No visit tools, by design (owner decision 2026-11-13): starting a
+    // visit is a human tap, never an agent tool.
+    expect(names).not.toContain("visit_start");
+    expect(names).not.toContain("visit_end");
+    const byName = new Map(tools.map((t) => [t.name, t]));
+    for (const read of ["agent_whoami", "inbox_poll", "verse_discover", "world_clips", "world_look", "world_observe"]) {
+      expect(byName.get(read).annotations.readOnlyHint).toBe(true);
+    }
+    for (const act of ["body_attach", "body_detach", "world_act", "relay_send", "relay_start"]) {
+      expect(byName.get(act).annotations.readOnlyHint).toBe(false);
+    }
   });
 
   test("a wrong-audience JWT is refused even with a live grant behind its claims", async () => {
@@ -410,5 +510,199 @@ describe("resources", () => {
 
     const card = await mcpAgent(o.agentToken, "resources/read", { uri: "aiverse://agent-card" });
     expect(JSON.parse(card.body.result.contents[0].text).name).toBe("AIVerse");
+  });
+});
+
+// --- Phase 4: actions -----------------------------------------------------
+
+describe("agent MCP actions with a classic agent token (Phase 4)", () => {
+  test("with no visit, body tools surface the world's no_visit refusal verbatim — the cue to ask the human to tap", async () => {
+    const o = await ownerWithAgent("NoVisitActor");
+    const who = toolJson((await callTool(o.agentToken, "agent_whoami")).body);
+    expect(who.visit.active).toBe(false);
+
+    const attach = await callTool(o.agentToken, "body_attach", { body: "summer" });
+    expect(attach.body.result.isError).toBe(true);
+    const err = toolErrorJson(attach.body);
+    expect(err.error).toBe("no_visit");
+    expect(err.hint).toContain("the owner must start a visit");
+
+    const act = await callTool(o.agentToken, "world_act", { action: { type: "wait", seconds: 1 } });
+    expect(act.body.result.isError).toBe(true);
+    expect(toolErrorJson(act.body).error).toBe("no_visit");
+  });
+
+  test("attach → observe returns a body instead of no_body → act in the sim's words → detach", async () => {
+    const o = await ownerWithAgent("ActorAgent");
+    await startVisit(o.session, o.agentId);
+
+    const before = await callTool(o.agentToken, "world_observe");
+    expect(before.body.result.isError).toBe(true);
+    expect(toolText(before.body)).toContain('"error":"no_body"');
+
+    const attach = toolJson((await callTool(o.agentToken, "body_attach", { body: "summer" })).body);
+    expect(attach.observation.body.figure).toBe("summer");
+
+    const seen = toolJson((await callTool(o.agentToken, "world_observe")).body);
+    expect(seen.observation.body.figure).toBe("summer");
+
+    const played = toolJson((await callTool(o.agentToken, "world_act", { id: "p4-wave", action: { type: "play", clip: "Waving" } })).body);
+    expect(played.act.id).toBe("p4-wave");
+    expect(played.act.state).toBe("running");
+    expect(played.act.action).toEqual({ type: "play", clip: "Waving" });
+
+    // Idempotent replay: same id + same action returns the first record.
+    const replay = toolJson((await callTool(o.agentToken, "world_act", { id: "p4-wave", action: { type: "play", clip: "Waving" } })).body);
+    expect(replay.act.id).toBe("p4-wave");
+
+    // Refusals are asserted on the sim's own wording (explainAction via
+    // the gateway), never on text the tool composed.
+    const badClip = await callTool(o.agentToken, "world_act", { action: { type: "play", clip: "Backflip" } });
+    expect(badClip.body.result.isError).toBe(true);
+    const badClipErr = toolErrorJson(badClip.body);
+    expect(badClipErr.error).toBe("invalid_action");
+    expect(badClipErr.message).toContain('unknown clip "Backflip"');
+
+    const badType = await callTool(o.agentToken, "world_act", { action: { type: "teleport", point: [0, 0] } });
+    expect(badType.body.result.isError).toBe(true);
+    const badTypeErr = toolErrorJson(badType.body);
+    expect(badTypeErr.error).toBe("invalid_action");
+    expect(badTypeErr.message).toContain('unknown action type "teleport"');
+
+    const detach = toolJson((await callTool(o.agentToken, "body_detach")).body);
+    expect(detach.removed).toBe(true);
+
+    const after = await callTool(o.agentToken, "world_observe");
+    expect(after.body.result.isError).toBe(true);
+    expect(toolText(after.body)).toContain('"error":"no_body"');
+  });
+
+  test("attach refusals surface verbatim: cast-only pick, unknown pick, figure conflict", async () => {
+    const o = await ownerWithAgent("RefusalAgent");
+    await startVisit(o.session, o.agentId);
+
+    const castOnly = await callTool(o.agentToken, "body_attach", { body: "mage" });
+    expect(castOnly.body.result.isError).toBe(true);
+    const castOnlyErr = toolErrorJson(castOnly.body);
+    expect(castOnlyErr.error).toBe("body_not_pickable");
+    expect(castOnlyErr.message).toBe('body "mage" is cast-only and cannot be worn by an agent');
+
+    const unknown = await callTool(o.agentToken, "body_attach", { body: "nope" });
+    expect(unknown.body.result.isError).toBe(true);
+    expect(toolErrorJson(unknown.body).message).toBe('unknown body "nope"');
+
+    await callTool(o.agentToken, "body_attach", { body: "summer" });
+    const conflict = await callTool(o.agentToken, "body_attach", { body: "eve" });
+    expect(conflict.body.result.isError).toBe(true);
+    const conflictErr = toolErrorJson(conflict.body);
+    expect(conflictErr.error).toBe("id_conflict");
+    expect(conflictErr.message).toContain("body already attached as summer; detach first");
+  });
+});
+
+describe("agent MCP relay (Phase 4)", () => {
+  test("relay_start opens a conversation, relay_send posts in it, inbox_poll reads it back", async () => {
+    const a = await ownerWithAgent("RelayA");
+    const b = await ownerWithAgent("RelayB");
+    for (const t of [a, b]) {
+      await app.request(`/owners/agents/${t.agentId}/wallet`, { method: "PATCH", headers: json(t.session), body: JSON.stringify({ autonomyMode: "autonomous" }) });
+    }
+
+    const started = toolJson((await callTool(a.agentToken, "relay_start", { participant_ids: [b.agentId], name: "phase4-relay" })).body);
+    const conversationId = started.conversation.id as string;
+    expect(conversationId).toBeTruthy();
+
+    await resetMemoryStoreForTests();
+    const sent = toolJson((await callTool(a.agentToken, "relay_send", { conversation_id: conversationId, content: "hello from relay" })).body);
+    expect(sent.message.content).toBe("hello from relay");
+    expect(sent.message.senderAgentId).toBe(a.agentId);
+    await drainIngestStream();
+
+    const read = toolJson((await callTool(b.agentToken, "inbox_poll", { conversation_id: conversationId })).body);
+    expect((read.messages as any[]).map((m) => m.content)).toContain("hello from relay");
+  });
+
+  test("an OAuth token with relay:send sends as its agent, read back via inbox:read", async () => {
+    const a = await ownerWithAgent("RelayOAuthA");
+    const b = await ownerWithAgent("RelayOAuthB");
+    for (const t of [a, b]) {
+      await app.request(`/owners/agents/${t.agentId}/wallet`, { method: "PATCH", headers: json(t.session), body: JSON.stringify({ autonomyMode: "autonomous" }) });
+    }
+    const conv = (await (await app.request("/conversations", {
+      method: "POST",
+      headers: json(a.agentToken),
+      body: JSON.stringify({ isPublic: false, name: "mcp-agent-relay-oauth", participantIds: [b.agentId] }),
+    })).json()) as any;
+    const conversationId = conv.conversation.id as string;
+
+    const { accessToken } = await mintOAuthToken(a, [a.agentId], "relay:send inbox:read");
+    await resetMemoryStoreForTests();
+    const sent = await callTool(accessToken, "relay_send", { conversation_id: conversationId, content: "sent by delegation" });
+    expect(sent.body.result.isError).toBeFalsy();
+    await drainIngestStream();
+
+    const read = toolJson((await callTool(accessToken, "inbox_poll", { conversation_id: conversationId })).body);
+    expect((read.messages as any[]).map((m) => m.content)).toContain("sent by delegation");
+  });
+});
+
+describe("scope gates for actions (OAuth only)", () => {
+  test("a read-only token is refused every action tool, naming the missing scope; reads still work", async () => {
+    const o = await ownerWithAgent("ActionGateAgent");
+    await startVisit(o.session, o.agentId);
+    const { accessToken } = await mintOAuthToken(o, [o.agentId], "discover world:observe inbox:read");
+
+    const gated: Array<[string, Record<string, unknown>, string]> = [
+      ["body_attach", { body: "summer" }, "world:act"],
+      ["body_detach", {}, "world:act"],
+      ["world_act", { action: { type: "wait", seconds: 1 } }, "world:act"],
+      ["relay_send", { conversation_id: "whatever", content: "x" }, "relay:send"],
+      ["relay_start", { participant_ids: [o.agentId] }, "relay:send"],
+    ];
+    for (const [tool, args, scope] of gated) {
+      const res = await callTool(accessToken, tool, args);
+      expect(res.body.result.isError).toBe(true);
+      expect(toolText(res.body)).toContain("insufficient_scope");
+      expect(toolText(res.body)).toContain(scope);
+    }
+
+    const observe = await callTool(accessToken, "world_observe");
+    expect(toolText(observe.body)).not.toContain("insufficient_scope");
+    const who = await callTool(accessToken, "agent_whoami");
+    expect(who.body.result.isError).toBeFalsy();
+  });
+
+  test("revoking the grant kills action tools at once — 401 at resolve, not at JWT expiry", async () => {
+    const o = await ownerWithAgent("ActionRevokeAgent");
+    await startVisit(o.session, o.agentId);
+    const { accessToken } = await mintOAuthToken(o, [o.agentId], "world:act");
+    const ok = await callTool(accessToken, "body_attach", { body: "remy" });
+    expect(ok.body.result.isError).toBeFalsy();
+
+    const grants = ((await (await app.request("/oauth/grants", { headers: json(o.session) })).json()) as any).grants as any[];
+    const revoke = await app.request(`/oauth/grants/${grants[0].id}/revoke`, { method: "POST", headers: json(o.session) });
+    expect(revoke.status).toBe(200);
+
+    const denied = await callTool(accessToken, "body_attach", { body: "remy" });
+    expect(denied.status).toBe(401);
+  });
+});
+
+describe("multi-agent grants: actions", () => {
+  test("attach needs an explicit, granted agent_id and lands on that agent", async () => {
+    const o = await ownerWithAgent("ActMultiA");
+    const b = await secondAgent(o.session, "ActMultiB");
+    await startVisit(o.session, b);
+    const { accessToken } = await mintOAuthToken(o, [o.agentId, b], "world:act world:observe");
+
+    const noPick = await callTool(accessToken, "body_attach", { body: "remy" });
+    expect(noPick.body.result.isError).toBe(true);
+    expect(toolText(noPick.body)).toContain("agent_id");
+
+    const attached = toolJson((await callTool(accessToken, "body_attach", { body: "remy", agent_id: b })).body);
+    expect(attached.observation.body.figure).toBe("remy");
+
+    const seen = toolJson((await callTool(accessToken, "world_observe", { agent_id: b })).body);
+    expect(seen.observation.body.figure).toBe("remy");
   });
 });
