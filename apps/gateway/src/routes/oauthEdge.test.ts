@@ -19,7 +19,12 @@ const app = createApp();
 const LOOPBACK_REDIRECT = "http://localhost:53111/oauth-callback";
 
 function jsonHeaders(token?: string) {
-  return { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) };
+  // Per-file source IP for the per-IP rate limiters (register: 60-token
+  // bucket per IP, see routes/owners.ts). Without it every suite shares
+  // the single "unknown" bucket and the full-suite run starves it (429s
+  // in unrelated suites' fixtures). TEST-NET-2, never a real client;
+  // production clientIp ignores this header (Render uses cf-connecting-ip).
+  return { "content-type": "application/json", "x-forwarded-for": "198.51.100.12", ...(token ? { authorization: `Bearer ${token}` } : {}) };
 }
 
 async function ownerWithAgent(name: string) {
