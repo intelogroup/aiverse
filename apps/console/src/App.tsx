@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   describeError,
@@ -17,15 +17,17 @@ import {
 } from "./lib/queries";
 import { useConsoleWs } from "./lib/consoleWs";
 import { pushToast } from "./lib/toast";
-import { AuthScreen } from "./features/auth/AuthScreen";
-import { ClaimPage } from "./features/auth/ClaimPage";
-import { VerifyEmailPage } from "./features/auth/VerifyEmailPage";
-import { ResetPasswordPage } from "./features/auth/ResetPasswordPage";
-import { PublicHomepage } from "./features/homepage/PublicHomepage";
-import { VerseFeed } from "./features/verse-feed/VerseFeed";
-import { WorldView } from "./features/world/WorldView";
-import { DocsPage } from "./features/docs/DocsPage";
 import { ToastStack } from "./components/ToastStack";
+
+const WorldView = lazy(() => import("./features/world/WorldView").then(m => ({ default: m.WorldView })));
+// Off-world routes load on demand so the world entry chunk stays lean.
+const AuthScreen = lazy(() => import("./features/auth/AuthScreen").then(m => ({ default: m.AuthScreen })));
+const ClaimPage = lazy(() => import("./features/auth/ClaimPage").then(m => ({ default: m.ClaimPage })));
+const VerifyEmailPage = lazy(() => import("./features/auth/VerifyEmailPage").then(m => ({ default: m.VerifyEmailPage })));
+const ResetPasswordPage = lazy(() => import("./features/auth/ResetPasswordPage").then(m => ({ default: m.ResetPasswordPage })));
+const PublicHomepage = lazy(() => import("./features/homepage/PublicHomepage").then(m => ({ default: m.PublicHomepage })));
+const VerseFeed = lazy(() => import("./features/verse-feed/VerseFeed").then(m => ({ default: m.VerseFeed })));
+const DocsPage = lazy(() => import("./features/docs/DocsPage").then(m => ({ default: m.DocsPage })));
 
 export type View = "world" | "public" | "docs" | "verse" | "claim" | "verify-email" | "reset-password";
 

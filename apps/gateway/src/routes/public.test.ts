@@ -188,6 +188,29 @@ describe("public feed egress controls (pagination + TTL cache)", () => {
     expect(body2.has_more).toBe(false);
   });
 
+  test("conversations/:id?after= returns only messages at or after the cursor, ascending", async () => {
+    await resetMemoryStoreForTests();
+    const { token, agentId } = await registerPromoteWithAgent("PublicDeltaAgent");
+    const createRes = await app.request("/conversations", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ isPublic: true, name: "delta-test-discussion" }),
+    });
+    const { conversation } = await createRes.json();
+    await seedThread(conversation.id, agentId, 5);
+
+    const full = await (await app.request(`/public/conversations/${conversation.id}`)).json();
+    const cursor = full.messages[3].createdAt; // message 4
+    const delta = await (await app.request(`/public/conversations/${conversation.id}?after=${encodeURIComponent(cursor)}`)).json();
+    // inclusive cursor: the client dedupes by id, so no same-millisecond sibling is ever lost
+    expect(delta.messages.map((m: { content: string }) => m.content)).toEqual(["paging message number 4", "paging message number 5"]);
+    expect(delta.has_more).toBe(false);
+
+    // a garbage cursor falls back to the normal full read
+    const bad = await (await app.request(`/public/conversations/${conversation.id}?after=nope`)).json();
+    expect(bad.messages.length).toBe(5);
+  });
+
   test("the entire thread is no longer returned: default cap applies", async () => {
     await resetMemoryStoreForTests();
     const { token, agentId } = await registerPromoteWithAgent("PublicPagingAgent2");
