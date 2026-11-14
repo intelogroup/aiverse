@@ -1,10 +1,35 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "../db/client";
 import { agents, oauthGrants } from "@aiverse/shared/schema";
 import { hashAgentToken } from "./agentToken";
 import { verifyAgentSession, keyFingerprint } from "./agentSession";
 import { parseScope, verifyAccessToken, type OAuthAccessClaims } from "./oauthCore";
 import { log } from "../util/log";
+
+type GrantRow = typeof oauthGrants.$inferSelect;
+
+/**
+ * Why an OAuth access token did not resolve, in the vocabulary the
+ * production logs speak (agent_auth_failed.reason). Every OAuth failure
+ * path in this module lands on exactly one of these — a hiccup in the
+ * login lifecycle is debuggable from the reason alone, no token material
+ * is ever logged.
+ */
+export type OAuthFailureReason =
+  | "token_invalid" // bad signature/structure, wrong issuer, malformed claims
+  | "wrong_audience" // a JWT minted for some other resource
+  | "token_expired" // past its 1 h life
+  | "grant_missing" // no grant matches the token's owner/agents/scopes at all
+  | "grant_revoked" // the matching grant was revoked — outstanding tokens die with it
+  | "grant_expired" // the matching grant outlived its consented lifetime
+  | "agent_owner_mismatch" // the granted agent changed owners since consent (fail closed)
+  | "agent_pick_refused"; // an explicit agent pick outside the grant (x-agent-id)
+
+function classifyVerifyError(err: unknown): OAuthFailureReason {
+  if (err instanceof Error && err.message === "access token: wrong audience") return "wrong_audience";
+  if (err instanceof Error && err.name === "JwtTokenExpired") return "token_expired";
+  return "token_invalid";
+}
 
 // Single resolver for both REST (agentAuth middleware) and WS (gateway.ts
 // onOpen) — same dual-path logic, one place to fix if either auth method
@@ -44,40 +69,44 @@ type AgentRow = typeof agents.$inferSelect;
 const sameSet = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length && a.every((x) => b.includes(x));
 
-/**
- * The live grant an access token's claims were minted from, or undefined.
- * The JWT carries owner/agents/scope but no grant id, so the grant is
- * re-found by exact match: same owner, same agent set, same scope set,
- * not revoked, not expired. Any live match authorizes; revoking the
- * grant the token came from removes the match (a second, identical grant
- * would still match — it grants the same slice, so the outcome is the
- * delegation the owner currently has in force either way).
- */
-async function liveGrantForClaims(claims: OAuthAccessClaims) {
-  const scopes = parseScope(claims.scope);
-  if (scopes === null) return undefined;
-  const rows = await db.query.oauthGrants.findMany({
-    where: and(eq(oauthGrants.ownerId, claims.ownerId), isNull(oauthGrants.revokedAt)),
-  });
-  return rows.find(
-    (g) =>
-      g.expiresAt.getTime() > Date.now() &&
-      sameSet(((g.agentIds as string[] | null) ?? []), claims.agents) &&
-      sameSet(((g.scopes as string[] | null) ?? []), scopes),
-  );
-}
+type OAuthResolution =
+  | { ok: true; claims: OAuthAccessClaims; grant: GrantRow }
+  | { ok: false; reason: OAuthFailureReason };
 
-/** Verify an OAuth access token and re-check its grant's liveness. */
-async function resolveOAuthCaller(token: string) {
+/**
+ * Verify an OAuth access token and re-check its grant's liveness,
+ * classifying every failure. The JWT carries owner/agents/scope but no
+ * grant id, so the grant is re-found by exact match: same owner, same
+ * agent set, same scope set. Any LIVE match authorizes (a second,
+ * identical grant grants the same slice, so the outcome is the
+ * delegation the owner currently has in force either way); when no
+ * match is live, the reason distinguishes a grant that never matched
+ * (grant_missing) from one that was revoked or expired — the three
+ * production stories look identical from the client's seat (a 401) and
+ * must not look identical in the logs.
+ */
+async function resolveOAuthDetailed(token: string): Promise<OAuthResolution> {
   let claims: OAuthAccessClaims;
   try {
     claims = await verifyAccessToken(token);
-  } catch {
-    return undefined;
+  } catch (err) {
+    return { ok: false, reason: classifyVerifyError(err) };
   }
-  const grant = await liveGrantForClaims(claims);
-  if (!grant) return undefined;
-  return { claims, grant };
+  const scopes = parseScope(claims.scope);
+  if (scopes === null) return { ok: false, reason: "token_invalid" };
+  const rows = await db.query.oauthGrants.findMany({
+    where: eq(oauthGrants.ownerId, claims.ownerId),
+  });
+  const matching = rows.filter(
+    (g) =>
+      sameSet(((g.agentIds as string[] | null) ?? []), claims.agents) &&
+      sameSet(((g.scopes as string[] | null) ?? []), scopes),
+  );
+  const live = matching.find((g) => g.revokedAt === null && g.expiresAt.getTime() > Date.now());
+  if (live) return { ok: true, claims, grant: live };
+  if (matching.some((g) => g.revokedAt !== null)) return { ok: false, reason: "grant_revoked" };
+  if (matching.length > 0) return { ok: false, reason: "grant_expired" };
+  return { ok: false, reason: "grant_missing" };
 }
 
 export async function resolveAgentAuth(
@@ -96,40 +125,54 @@ export async function resolveAgentAuth(
       // Not an agent session token — fall through to the OAuth path.
     }
 
-    const oauth = await resolveOAuthCaller(token);
-    if (oauth) {
-      const { claims, grant } = oauth;
-      const granted = claims.agents;
-      // Agent selection: a single-agent grant has exactly one possible
-      // agent (a conflicting request is refused, never silently honored);
-      // a multi-agent grant resolves only through an explicit request for
-      // one of its own agents (the MCP route forwards the tool's agent_id
-      // as x-agent-id). No default is ever guessed.
-      let agentId: string | undefined;
-      if (granted.length === 1) {
-        if (requestedAgentId && requestedAgentId !== granted[0]) return undefined;
-        agentId = granted[0];
-      } else if (granted.length > 1) {
-        if (!requestedAgentId || !granted.includes(requestedAgentId)) return undefined;
-        agentId = requestedAgentId;
-      }
-      if (!agentId) return undefined;
-      const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
-      // Fail closed if the granted agent has moved owners since consent.
-      if (!agent || agent.ownerId !== claims.ownerId) return undefined;
-      log("agent_auth", { agentId: agent.id, authMethod: "oauth" });
-      return {
-        agent,
-        auth: {
-          kind: "oauth",
-          ownerId: claims.ownerId,
-          grantId: grant.id,
-          scopes: parseScope(claims.scope) ?? [],
-          grantedAgentIds: granted,
-        },
-      };
+    const oauth = await resolveOAuthDetailed(token);
+    if (!oauth.ok) {
+      log("agent_auth_failed", { authMethod: "oauth", reason: oauth.reason });
+      return undefined;
     }
-    return undefined;
+    const { claims, grant } = oauth;
+    const granted = claims.agents;
+    // Agent selection: a single-agent grant has exactly one possible
+    // agent (a conflicting request is refused, never silently honored);
+    // a multi-agent grant resolves only through an explicit request for
+    // one of its own agents (the MCP route forwards the tool's agent_id
+    // as x-agent-id). No default is ever guessed. A refused EXPLICIT
+    // pick is an auth failure worth logging; a multi-agent token with
+    // no pick yet is not one — caller resolution (resolveAgentCaller)
+    // legitimately holds such a token without choosing.
+    let agentId: string | undefined;
+    if (granted.length === 1) {
+      if (requestedAgentId && requestedAgentId !== granted[0]) {
+        log("agent_auth_failed", { authMethod: "oauth", reason: "agent_pick_refused", grantId: grant.id });
+        return undefined;
+      }
+      agentId = granted[0];
+    } else if (granted.length > 1) {
+      if (!requestedAgentId) return undefined;
+      if (!granted.includes(requestedAgentId)) {
+        log("agent_auth_failed", { authMethod: "oauth", reason: "agent_pick_refused", grantId: grant.id });
+        return undefined;
+      }
+      agentId = requestedAgentId;
+    }
+    if (!agentId) return undefined;
+    const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
+    // Fail closed if the granted agent has moved owners since consent.
+    if (!agent || agent.ownerId !== claims.ownerId) {
+      log("agent_auth_failed", { authMethod: "oauth", reason: "agent_owner_mismatch", grantId: grant.id, agentId });
+      return undefined;
+    }
+    log("agent_auth", { agentId: agent.id, authMethod: "oauth" });
+    return {
+      agent,
+      auth: {
+        kind: "oauth",
+        ownerId: claims.ownerId,
+        grantId: grant.id,
+        scopes: parseScope(claims.scope) ?? [],
+        grantedAgentIds: granted,
+      },
+    };
   }
 
   const agent = await db.query.agents.findFirst({ where: eq(agents.apiKeyHash, hashAgentToken(token)) });
@@ -154,21 +197,35 @@ export type AgentCaller =
   | { kind: "oauth"; ownerId: string; grantId: string; scopes: string[]; grantedAgentIds: string[] };
 
 export async function resolveAgentCaller(token: string): Promise<AgentCaller | undefined> {
+  return (await resolveAgentCallerDetailed(token)).caller;
+}
+
+/**
+ * resolveAgentCaller plus WHY, for callers that answer 401s: the MCP
+ * route logs the reason at connect time (mcp_agent_unauthorized) so a
+ * refused client is debuggable from the gateway's logs alone. The
+ * reason is the resolver's own classification — never re-derived.
+ */
+export async function resolveAgentCallerDetailed(
+  token: string,
+): Promise<{ caller?: AgentCaller; failureReason?: OAuthFailureReason }> {
   if (token.split(".").length === 3) {
     const classic = await resolveAgentAuth(token);
-    if (classic && classic.auth.kind === "agent") return { kind: "agent", agent: classic.agent };
-    const oauth = await resolveOAuthCaller(token);
-    if (oauth) {
+    if (classic && classic.auth.kind === "agent") return { caller: { kind: "agent", agent: classic.agent } };
+    const oauth = await resolveOAuthDetailed(token);
+    if (oauth.ok) {
       return {
-        kind: "oauth",
-        ownerId: oauth.claims.ownerId,
-        grantId: oauth.grant.id,
-        scopes: parseScope(oauth.claims.scope) ?? [],
-        grantedAgentIds: oauth.claims.agents,
+        caller: {
+          kind: "oauth",
+          ownerId: oauth.claims.ownerId,
+          grantId: oauth.grant.id,
+          scopes: parseScope(oauth.claims.scope) ?? [],
+          grantedAgentIds: oauth.claims.agents,
+        },
       };
     }
-    return undefined;
+    return { failureReason: oauth.reason };
   }
   const resolved = await resolveAgentAuth(token);
-  return resolved ? { kind: "agent", agent: resolved.agent } : undefined;
+  return resolved ? { caller: { kind: "agent", agent: resolved.agent } } : { failureReason: "token_invalid" };
 }

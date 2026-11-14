@@ -7,9 +7,9 @@ import type { CallToolResult, ToolAnnotations } from "@modelcontextprotocol/sdk/
 import { z } from "zod";
 import { agentVisits, agents } from "@aiverse/shared/schema";
 import { db } from "../db/client";
-import { resolveAgentCaller, type AgentCaller } from "../auth/resolveAgent";
+import { resolveAgentCallerDetailed, type AgentCaller } from "../auth/resolveAgent";
 import { oauthIssuer } from "../auth/oauthCore";
-import { log } from "../util/log";
+import { log, logError } from "../util/log";
 
 // The agent MCP (MCP + OAuth plan, Phases 3–4): how an outside LLM client —
 // Claude, ChatGPT, a user's own harness — acts as an agent in the Verse
@@ -69,9 +69,18 @@ const agentIdArg = z
   );
 
 /** OAuth-only scope gate (classic agent tokens are the agent itself and pass). */
-function scopeGate(caller: AgentCaller, scope: string): CallToolResult | null {
+function scopeGate(caller: AgentCaller, scope: string, tool: string): CallToolResult | null {
   if (caller.kind !== "oauth") return null;
   if (caller.scopes.includes(scope)) return null;
+  // A denial is a lifecycle event, not just a refusal: it means a live
+  // client is asking for more than its owner consented to — the first
+  // sign of a misconfigured (or over-reaching) client integration.
+  log("mcp_agent_scope_denied", {
+    tool,
+    missingScope: scope,
+    grantedScopes: caller.scopes,
+    grantId: caller.grantId,
+  });
   return fail(
     `insufficient_scope: this tool requires the "${scope}" scope, which the owner's grant for this token does not include (granted: ${
       caller.scopes.join(" ") || "none"
@@ -111,7 +120,7 @@ function buildServer(caller: AgentCaller, call: Call): McpServer {
     name: string,
     description: string,
     inputSchema: S,
-    run: (args: z.infer<z.ZodObject<S>>) => Promise<CallToolResult>,
+    run: (args: z.infer<z.ZodObject<S>>, call: Call) => Promise<CallToolResult>,
     annotations: ToolAnnotations = { readOnlyHint: true },
   ) => {
     server.registerTool(
@@ -123,7 +132,39 @@ function buildServer(caller: AgentCaller, call: Call): McpServer {
           authKind: caller.kind,
           ...(caller.kind === "oauth" ? { grantId: caller.grantId } : { agentId: caller.agent.id }),
         });
-        return run(args);
+        // Dispatch discipline: expected refusals (4xx — no_visit,
+        // no_body, the sim's own words) are the tool's answer and pass
+        // through unlogged; a 5xx from an internal route or a dispatch
+        // exception is a production hiccup and is captured with the
+        // tool name + status. Tool ARGUMENTS are never logged (they
+        // carry message content and world actions); paths and ids are
+        // enough to find the failing leg.
+        const toolCall: Call = async (path, opts) => {
+          try {
+            const res = await call(path, opts);
+            if (res.status >= 500) {
+              logError("mcp_agent_dispatch_error", new Error(`internal route answered ${res.status}`), {
+                tool: name,
+                path,
+                status: res.status,
+              });
+            }
+            return res;
+          } catch (err) {
+            logError("mcp_agent_dispatch_error", err, { tool: name, path });
+            throw err;
+          }
+        };
+        try {
+          return await run(args, toolCall);
+        } catch (err) {
+          logError("mcp_agent_tool_error", err, {
+            tool: name,
+            authKind: caller.kind,
+            ...(caller.kind === "oauth" ? { grantId: caller.grantId } : { agentId: caller.agent.id }),
+          });
+          throw err;
+        }
       }) as any,
     );
   };
@@ -143,7 +184,7 @@ function buildServer(caller: AgentCaller, call: Call): McpServer {
     "verse_discover",
     "Discover the Verse: the network agent card (bootstrap endpoints, world info), how many agents are here, and a compact world summary (places, when your visit and the world allow). Start here when you arrive cold.",
     { agent_id: agentIdArg },
-    async ({ agent_id }) => {
+    async ({ agent_id }, call) => {
       const card = await call("/.well-known/agent-card.json");
       if (!card.ok) return fail(`agent card unavailable (error ${card.status})`);
       const roster = await call("/agents/discover");
@@ -214,8 +255,8 @@ function buildServer(caller: AgentCaller, call: Call): McpServer {
     "world_clips",
     "The animation clips your body can play in the world (GET /world/clips): the exact clip names the play action accepts, with loop flags and durations. Requires the world:observe scope for OAuth tokens.",
     { agent_id: agentIdArg },
-    async ({ agent_id }) => {
-      const gate = scopeGate(caller, "world:observe");
+    async ({ agent_id }, call) => {
+      const gate = scopeGate(caller, "world:observe", "world_clips");
       if (gate) return gate;
       return asAgent({ agent_id }, async (agentId) => {
         const res = await call("/world/clips", { agentId: caller.kind === "oauth" ? agentId : undefined });
@@ -228,8 +269,8 @@ function buildServer(caller: AgentCaller, call: Call): McpServer {
     "world_observe",
     "Observe the world from your body's senses (GET /world/observe): where you are, what is near, what you can see and have heard. Needs an attached body — with none, the world's own no_body error comes back unchanged. Requires the world:observe scope for OAuth tokens.",
     { agent_id: agentIdArg },
-    async ({ agent_id }) => {
-      const gate = scopeGate(caller, "world:observe");
+    async ({ agent_id }, call) => {
+      const gate = scopeGate(caller, "world:observe", "world_observe");
       if (gate) return gate;
       return asAgent({ agent_id }, async (agentId) => {
         const res = await call("/world/observe", { agentId: caller.kind === "oauth" ? agentId : undefined });
@@ -242,8 +283,8 @@ function buildServer(caller: AgentCaller, call: Call): McpServer {
     "world_look",
     "Take one look through your body's eyes (POST /world/look): depth + class images and the scene, as the world route returns them. Needs an attached body. Requires the world:observe scope for OAuth tokens.",
     { agent_id: agentIdArg },
-    async ({ agent_id }) => {
-      const gate = scopeGate(caller, "world:observe");
+    async ({ agent_id }, call) => {
+      const gate = scopeGate(caller, "world:observe", "world_look");
       if (gate) return gate;
       return asAgent({ agent_id }, async (agentId) => {
         const res = await call("/world/look", { method: "POST", agentId: caller.kind === "oauth" ? agentId : undefined });
@@ -261,8 +302,8 @@ function buildServer(caller: AgentCaller, call: Call): McpServer {
       limit: z.number().int().min(1).max(500).optional().describe("Page size for message reads, default 100"),
       agent_id: agentIdArg,
     },
-    async ({ conversation_id, after, limit, agent_id }) => {
-      const gate = scopeGate(caller, "inbox:read");
+    async ({ conversation_id, after, limit, agent_id }, call) => {
+      const gate = scopeGate(caller, "inbox:read", "inbox_poll");
       if (gate) return gate;
       return asAgent({ agent_id }, async (agentId) => {
         const fwd = caller.kind === "oauth" ? agentId : undefined;
@@ -296,8 +337,8 @@ function buildServer(caller: AgentCaller, call: Call): McpServer {
       body: z.string().min(1).optional().describe("Body id to wear (e.g. \"summer\"). Omit for the owner's saved default figure."),
       agent_id: agentIdArg,
     },
-    async ({ body, agent_id }) => {
-      const gate = scopeGate(caller, "world:act");
+    async ({ body, agent_id }, call) => {
+      const gate = scopeGate(caller, "world:act", "body_attach");
       if (gate) return gate;
       return asAgent({ agent_id }, async (agentId) => {
         const res = await call("/world/body", {
@@ -315,8 +356,8 @@ function buildServer(caller: AgentCaller, call: Call): McpServer {
     "body_detach",
     "Detach your body (DELETE /world/body): leave the world; the visit stays open and you can attach again. Answers {removed} — false when there was no body. Requires the world:act scope for OAuth tokens.",
     { agent_id: agentIdArg },
-    async ({ agent_id }) => {
-      const gate = scopeGate(caller, "world:act");
+    async ({ agent_id }, call) => {
+      const gate = scopeGate(caller, "world:act", "body_detach");
       if (gate) return gate;
       return asAgent({ agent_id }, async (agentId) => {
         const res = await call("/world/body", { method: "DELETE", agentId: caller.kind === "oauth" ? agentId : undefined });
@@ -339,8 +380,8 @@ function buildServer(caller: AgentCaller, call: Call): McpServer {
         .describe("Idempotency id for this act (1-80 letters, digits or dashes). Generated when omitted."),
       agent_id: agentIdArg,
     },
-    async ({ action, id, agent_id }) => {
-      const gate = scopeGate(caller, "world:act");
+    async ({ action, id, agent_id }, call) => {
+      const gate = scopeGate(caller, "world:act", "world_act");
       if (gate) return gate;
       return asAgent({ agent_id }, async (agentId) => {
         const res = await call("/world/act", {
@@ -362,8 +403,8 @@ function buildServer(caller: AgentCaller, call: Call): McpServer {
       content: z.string().min(1).describe("The message text"),
       agent_id: agentIdArg,
     },
-    async ({ conversation_id, content, agent_id }) => {
-      const gate = scopeGate(caller, "relay:send");
+    async ({ conversation_id, content, agent_id }, call) => {
+      const gate = scopeGate(caller, "relay:send", "relay_send");
       if (gate) return gate;
       return asAgent({ agent_id }, async (agentId) => {
         const res = await call(`/conversations/${encodeURIComponent(conversation_id)}/messages`, {
@@ -387,8 +428,8 @@ function buildServer(caller: AgentCaller, call: Call): McpServer {
       kind: z.enum(["dm", "group", "room"]).optional().describe("Conversation kind; omit for the service's default"),
       agent_id: agentIdArg,
     },
-    async ({ participant_ids, name, is_public, kind, agent_id }) => {
-      const gate = scopeGate(caller, "relay:send");
+    async ({ participant_ids, name, is_public, kind, agent_id }, call) => {
+      const gate = scopeGate(caller, "relay:send", "relay_start");
       if (gate) return gate;
       return asAgent({ agent_id }, async (agentId) => {
         const res = await call("/conversations", {
@@ -445,8 +486,15 @@ export function createMcpAgentRoute(internalCall: InternalCall) {
     }
     const authorization = c.req.header("authorization");
     const token = authorization?.startsWith("Bearer ") ? authorization.slice(7) : undefined;
-    const caller = token ? await resolveAgentCaller(token) : undefined;
+    const resolution = token ? await resolveAgentCallerDetailed(token) : undefined;
+    const caller = resolution?.caller;
     if (!caller) {
+      // The reason is the resolver's own classification (grant_revoked,
+      // token_expired, …) — logged here once, at the door, so a client
+      // integration failing in production is greppable by reason.
+      log("mcp_agent_unauthorized", {
+        reason: token ? (resolution?.failureReason ?? "token_invalid") : "missing_token",
+      });
       c.header(
         "WWW-Authenticate",
         `Bearer resource_metadata="${oauthIssuer()}/.well-known/oauth-protected-resource"`,
@@ -476,6 +524,14 @@ export function createMcpAgentRoute(internalCall: InternalCall) {
     await server.connect(transport);
     try {
       return await transport.handleRequest(c.req.raw);
+    } catch (err) {
+      // A transport/protocol blow-up is captured server-side and the
+      // client gets a JSON-RPC internal error — not a bare 500.
+      logError("mcp_agent_request_error", err, {
+        authKind: caller.kind,
+        ...(caller.kind === "oauth" ? { grantId: caller.grantId } : { agentId: caller.agent.id }),
+      });
+      return c.json({ jsonrpc: "2.0", error: { code: -32603, message: "Internal error" }, id: null }, 500);
     } finally {
       await server.close();
     }
