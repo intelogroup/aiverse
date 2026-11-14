@@ -11,6 +11,7 @@ import { extendGltf } from "./gltfExtensions";
 import * as THREE from "three";
 import { DistrictWorld } from "./DistrictWorld";
 import { TILES, CORE_TILE_URL } from "./tilesMode";
+import { coreTexturesPending, subscribeCoreTextures, CORE_TEXTURES_HOLD_MS } from "./coreTextures";
 import { useTileEpoch } from "./tileScenes";
 import { buildColliders } from "./CameraCollider";
 import { registerCameraObstacle } from "./cameraClearance";
@@ -678,6 +679,27 @@ function TouchFpsCap() {
     };
   }, [set, invalidate]);
   return null;
+}
+
+/**
+ * True once the core tile's textures are in (or CORE_TEXTURES_HOLD_MS after `mounted`, so a slow network still shows the world).
+ * Tile mode mounts the plaza on gray placeholders; presenting it that early showed several seconds of flat gray and then
+ * textures popping in. Not in tile mode: no batch is ever registered, so this is true as soon as `mounted` is.
+ */
+function useCoreTexturesReady(mounted: boolean): boolean {
+  const [pending, setPending] = useState(coreTexturesPending);
+  const [expired, setExpired] = useState(false);
+  useEffect(() => {
+    const sync = () => setPending(coreTexturesPending());
+    sync();
+    return subscribeCoreTextures(sync);
+  }, []);
+  useEffect(() => {
+    if (!mounted) return;
+    const id = setTimeout(() => setExpired(true), CORE_TEXTURES_HOLD_MS);
+    return () => clearTimeout(id);
+  }, [mounted]);
+  return mounted && (!pending || expired);
 }
 
 /** Fires once when the Suspense subtree it sits in actually mounts —
@@ -1419,6 +1441,8 @@ export function GlbWorld() {
   }, [loadNonce]);
   const contextLossDetachRef = useRef<(() => void) | null>(null);
   const markPresented = useCallback(() => setWorldPresented(true), []);
+  // The overlay leaves when the world is mounted AND the plaza's textures are in (or the hold ran out), not at first mount.
+  const worldTextured = useCoreTexturesReady(worldPresented);
   useEffect(() => {
     return () => {
       soundRef.current?.dispose();
@@ -1574,7 +1598,7 @@ export function GlbWorld() {
       {glSupported ? (
         <WorldLoadOverlay
           key={`loading-${loadNonce}`}
-          presented={worldPresented}
+          presented={worldTextured}
           onRetry={() => {
             useGLTF.clear(CITY3_URL);
             useGLTF.clear(CITY3_LIBRARY_URL);

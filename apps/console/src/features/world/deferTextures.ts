@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { KTX2Loader } from "three/addons/loaders/KTX2Loader.js";
+import { beginCoreTextureBatch } from "./coreTextures";
 
 /**
  * Tile mode: a GLB's textures must not hold its geometry back. GLTFLoader resolves only once every texture has downloaded and
@@ -89,6 +90,7 @@ export function deferTextures(loader: object, ktx2: KTX2Loader): void {
             for (const slot of slotsOf(mat)) { const u = slot.tex.userData.deferUrl as string | undefined; if (u) (waiting.get(u) ?? waiting.set(u, []).get(u)!).push(slot); }
           }
         });
+        const settled = beginCoreTextureBatch(waiting.size); // the first GLB parsed is the core tile: the load overlay waits for its textures
         for (const [url, slots] of waiting) {
           real(url, !!slots[0].tex.userData.deferKtx2).then((base) => {
             // Slots that shared one placeholder (one texture index) share one real texture; only a different placeholder (another
@@ -105,7 +107,7 @@ export function deferTextures(loader: object, ktx2: KTX2Loader): void {
               for (const { mat, key } of ss) { (mat as unknown as Record<string, unknown>)[key] = t; mat.needsUpdate = true; }
               ph.dispose();
             }
-          }).catch((e) => console.warn("[tiles] texture failed", url, e));
+          }).catch((e) => console.warn("[tiles] texture failed", url, e)).finally(settled);
         }
       },
     };
