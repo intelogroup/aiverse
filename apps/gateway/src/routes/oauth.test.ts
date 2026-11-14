@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { randomBytes } from "node:crypto";
+import { eq } from "drizzle-orm";
+import { oauthAuthRequests, oauthGrants } from "@aiverse/shared/schema";
 import { createApp } from "../app";
+import { db } from "../db/client";
 import { computeS256Challenge } from "../auth/oauthCore";
 
 // Route-level tests for the OAuth 2.1 authorization server (Phase 1).
@@ -388,6 +391,184 @@ describe("token endpoint", () => {
     const res = await tokenRequest({ grant_type: "password", client_id: "00000000-0000-0000-0000-000000000000" });
     expect(res.status).toBe(400);
     expect(res.body.error).toBe("unsupported_grant_type");
+  });
+});
+
+describe("consent page data + grant management (Phase 2)", () => {
+  async function getRequest(session: string, requestId: string) {
+    const res = await app.request(`/oauth/authorize/request/${requestId}`, {
+      headers: jsonHeaders(session),
+    });
+    return { status: res.status, body: (await res.json().catch(() => null)) as any };
+  }
+
+  async function listGrants(session: string) {
+    const res = await app.request("/oauth/grants", { headers: jsonHeaders(session) });
+    expect(res.status).toBe(200);
+    return ((await res.json()) as any).grants as any[];
+  }
+
+  test("request endpoint renders a pending request for the consent page", async () => {
+    const owner = await ownerWithAgent("ConsentRenderAgent");
+    const clientId = await registerClient();
+    const requestId = await authorize(clientId, { scope: "world:observe inbox:read" });
+    const { status, body } = await getRequest(owner.session, requestId);
+    expect(status).toBe(200);
+    expect(body.client_name).toBe("test mcp client");
+    expect(body.client_id).toBe(clientId);
+    expect(body.redirect_host).toBe("localhost:53111");
+    expect(body.scopes).toEqual(["world:observe", "inbox:read"]);
+    expect(new Date(body.expires_at).getTime()).toBeGreaterThan(Date.now());
+  });
+
+  test("request endpoint requires an owner session", async () => {
+    const clientId = await registerClient();
+    const requestId = await authorize(clientId);
+    const res = await app.request(`/oauth/authorize/request/${requestId}`);
+    expect(res.status).toBe(401);
+  });
+
+  test("request endpoint 404s unknown, consumed, and expired requests alike", async () => {
+    const owner = await ownerWithAgent("Consent404Agent");
+
+    const unknown = await getRequest(owner.session, "00000000-0000-0000-0000-000000000000");
+    expect(unknown.status).toBe(404);
+    expect(unknown.body).toEqual({ error: "not_found" });
+
+    const clientId = await registerClient();
+    const consumedId = await authorize(clientId);
+    const deny = await decide(owner.session, consumedId, { approve: false });
+    expect(deny.status).toBe(200);
+    const consumed = await getRequest(owner.session, consumedId);
+    expect(consumed.status).toBe(404);
+    expect(consumed.body).toEqual({ error: "not_found" });
+
+    const expiredId = await authorize(clientId);
+    await db
+      .update(oauthAuthRequests)
+      .set({ expiresAt: new Date(Date.now() - 1000) })
+      .where(eq(oauthAuthRequests.id, expiredId));
+    const expired = await getRequest(owner.session, expiredId);
+    expect(expired.status).toBe(404);
+    expect(expired.body).toEqual({ error: "not_found" });
+  });
+
+  test("grants list starts empty, then shows the approved grant with names, newest first", async () => {
+    const owner = await ownerWithAgent("GrantListAgent");
+    expect(await listGrants(owner.session)).toEqual([]);
+
+    const first = await approveFlow(owner);
+    // Backdate the first grant so newest-first ordering is deterministic.
+    const afterFirst = await listGrants(owner.session);
+    expect(afterFirst).toHaveLength(1);
+    expect(afterFirst[0].client_id).toBe(first.clientId);
+    expect(afterFirst[0].client_name).toBe("test mcp client");
+    expect(afterFirst[0].agent_ids).toEqual([owner.agentId]);
+    expect(afterFirst[0].agent_names[owner.agentId]).toContain("GrantListAgent");
+    expect(afterFirst[0].scopes).toContain("world:act");
+    expect(afterFirst[0].revoked_at).toBeNull();
+    expect(new Date(afterFirst[0].expires_at).getTime()).toBeGreaterThan(Date.now());
+    await db
+      .update(oauthGrants)
+      .set({ createdAt: new Date(Date.now() - 60_000) })
+      .where(eq(oauthGrants.id, afterFirst[0].id));
+
+    await approveFlow(owner);
+    const both = await listGrants(owner.session);
+    expect(both).toHaveLength(2);
+    expect(both[0].id).not.toBe(afterFirst[0].id);
+    expect(both[1].id).toBe(afterFirst[0].id);
+  });
+
+  test("grants list never shows another owner's grants", async () => {
+    const owner = await ownerWithAgent("GrantOwnerA");
+    const stranger = await ownerWithAgent("GrantOwnerB");
+    await approveFlow(owner);
+    expect(await listGrants(owner.session)).toHaveLength(1);
+    expect(await listGrants(stranger.session)).toEqual([]);
+    const unauthed = await app.request("/oauth/grants");
+    expect(unauthed.status).toBe(401);
+  });
+
+  test("revoking an own grant kills its refresh tokens and is idempotent", async () => {
+    const owner = await ownerWithAgent("GrantRevokeAgent");
+    const { clientId, code, verifier } = await approveFlow(owner);
+    const exchanged = await tokenRequest({
+      grant_type: "authorization_code",
+      client_id: clientId,
+      code,
+      redirect_uri: LOOPBACK_REDIRECT,
+      code_verifier: verifier,
+    });
+    expect(exchanged.status).toBe(200);
+    const grants = await listGrants(owner.session);
+    const grantId = grants[0].id as string;
+
+    const revoke = await app.request(`/oauth/grants/${grantId}/revoke`, {
+      method: "POST",
+      headers: jsonHeaders(owner.session),
+    });
+    expect(revoke.status).toBe(200);
+    expect(((await revoke.json()) as any).ok).toBe(true);
+
+    const after = await listGrants(owner.session);
+    expect(after[0].revoked_at).toBeTruthy();
+
+    const dead = await tokenRequest({
+      grant_type: "refresh_token",
+      client_id: clientId,
+      refresh_token: exchanged.body.refresh_token,
+    });
+    expect(dead.status).toBe(400);
+    expect(dead.body.error).toBe("invalid_grant");
+
+    const again = await app.request(`/oauth/grants/${grantId}/revoke`, {
+      method: "POST",
+      headers: jsonHeaders(owner.session),
+    });
+    expect(again.status).toBe(200);
+  });
+
+  test("revoking a foreign or unknown grant is a 404 and changes nothing", async () => {
+    const owner = await ownerWithAgent("GrantForeignA");
+    const stranger = await ownerWithAgent("GrantForeignB");
+    const { clientId, code, verifier } = await approveFlow(owner);
+    const exchanged = await tokenRequest({
+      grant_type: "authorization_code",
+      client_id: clientId,
+      code,
+      redirect_uri: LOOPBACK_REDIRECT,
+      code_verifier: verifier,
+    });
+    expect(exchanged.status).toBe(200);
+    const grantId = (await listGrants(owner.session))[0].id as string;
+
+    const foreign = await app.request(`/oauth/grants/${grantId}/revoke`, {
+      method: "POST",
+      headers: jsonHeaders(stranger.session),
+    });
+    expect(foreign.status).toBe(404);
+    expect(((await foreign.json()) as any).error).toBe("not_found");
+
+    const unknown = await app.request(`/oauth/grants/00000000-0000-0000-0000-000000000000/revoke`, {
+      method: "POST",
+      headers: jsonHeaders(owner.session),
+    });
+    expect(unknown.status).toBe(404);
+
+    const unauthed = await app.request(`/oauth/grants/${grantId}/revoke`, { method: "POST" });
+    expect(unauthed.status).toBe(401);
+
+    // The grant survived: still unrevoked in the owner's list, and its
+    // refresh token still rotates.
+    const mine = await listGrants(owner.session);
+    expect(mine[0].revoked_at).toBeNull();
+    const alive = await tokenRequest({
+      grant_type: "refresh_token",
+      client_id: clientId,
+      refresh_token: exchanged.body.refresh_token,
+    });
+    expect(alive.status).toBe(200);
   });
 });
 

@@ -32,9 +32,11 @@ import {
   verifyPkceS256,
 } from "../auth/oauthCore";
 
-// OAuth 2.1 authorization server (MCP + OAuth plan, Phase 1): metadata,
-// dynamic client registration, authorize (parked for the Phase 2 console
-// consent page), the owner decision endpoint, token, and revocation.
+// OAuth 2.1 authorization server (MCP + OAuth plan, Phases 1–2): metadata,
+// dynamic client registration, authorize, the owner decision endpoint,
+// token, and revocation — plus the Phase 2 owner-session endpoints the
+// console consent page and "Connected clients" surface read (parked-request
+// detail, grant list, grant revoke).
 // Every error on these endpoints is OAuth error JSON ({error,
 // error_description}) — except authorize errors AFTER the redirect_uri has
 // been validated against the client's registered list, which redirect back
@@ -327,6 +329,98 @@ oauthRoute.post("/oauth/authorize/decision", ownerAuth, async (c) => {
 });
 
 // ---------------------------------------------------------------------------
+// Phase 2 console surface: the consent page's render data and the owner's
+// grant management ("Connected clients"). All owner-session only. Grants
+// are strictly scoped to the session owner, and a foreign grant id is a
+// 404, never a 403 — these endpoints do not confirm that other owners'
+// grants exist. Errors here are the console's plain {error: "not_found"}
+// shape, not OAuth protocol errors.
+
+oauthRoute.get("/oauth/authorize/request/:id", ownerAuth, async (c) => {
+  const id = c.req.param("id");
+  if (!UUID_SHAPE.test(id)) return c.json({ error: "not_found" }, 404);
+  const request = await db.query.oauthAuthRequests.findFirst({
+    where: eq(oauthAuthRequests.id, id),
+  });
+  // Only a live, undecided request renders a consent page; a consumed or
+  // expired one is indistinguishable from an unknown id.
+  if (!request || request.consumedAt || request.expiresAt.getTime() <= Date.now()) {
+    return c.json({ error: "not_found" }, 404);
+  }
+  const client = await db.query.oauthClients.findFirst({
+    where: eq(oauthClients.id, request.clientId),
+  });
+  if (!client) return c.json({ error: "not_found" }, 404);
+  return c.json({
+    client_name: client.name,
+    client_id: request.clientId,
+    redirect_host: new URL(request.redirectUri).host,
+    scopes: parseScope(request.scope) ?? [],
+    expires_at: request.expiresAt.toISOString(),
+  });
+});
+
+oauthRoute.get("/oauth/grants", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const rows = await db.query.oauthGrants.findMany({
+    where: eq(oauthGrants.ownerId, ownerId),
+    orderBy: (g, { desc: descFn }) => [descFn(g.createdAt), descFn(g.id)],
+  });
+  // Client and agent names are one batched lookup each — grants store ids
+  // only, and the console renders names.
+  const clientIds = [...new Set(rows.map((g) => g.clientId))];
+  const clients =
+    clientIds.length > 0
+      ? await db.query.oauthClients.findMany({
+          where: inArray(oauthClients.id, clientIds),
+          columns: { id: true, name: true },
+        })
+      : [];
+  const clientName = new Map(clients.map((cl) => [cl.id, cl.name]));
+  const allAgentIds = [...new Set(rows.flatMap((g) => (g.agentIds as string[] | null) ?? []))];
+  const agentRows =
+    allAgentIds.length > 0
+      ? await db.query.agents.findMany({
+          where: inArray(agents.id, allAgentIds),
+          columns: { id: true, name: true },
+        })
+      : [];
+  const agentName = new Map(agentRows.map((a) => [a.id, a.name]));
+  return c.json({
+    grants: rows.map((g) => {
+      const ids = (g.agentIds as string[] | null) ?? [];
+      return {
+        id: g.id,
+        client_id: g.clientId,
+        client_name: clientName.get(g.clientId) ?? "Unknown client",
+        agent_ids: ids,
+        agent_names: Object.fromEntries(ids.map((id) => [id, agentName.get(id) ?? "Unknown agent"])),
+        scopes: (g.scopes as string[] | null) ?? [],
+        created_at: g.createdAt.toISOString(),
+        expires_at: g.expiresAt.toISOString(),
+        revoked_at: g.revokedAt ? g.revokedAt.toISOString() : null,
+      };
+    }),
+  });
+});
+
+oauthRoute.post("/oauth/grants/:id/revoke", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const id = c.req.param("id");
+  if (!UUID_SHAPE.test(id)) return c.json({ error: "not_found" }, 404);
+  const grant = await db.query.oauthGrants.findFirst({
+    where: and(eq(oauthGrants.id, id), eq(oauthGrants.ownerId, ownerId)),
+  });
+  if (!grant) return c.json({ error: "not_found" }, 404);
+  // Idempotent: revoking an already-revoked grant is still a 200 — the
+  // owner's intent ("this client must not act for me") is already true.
+  if (!grant.revokedAt) {
+    await revokeGrantAndTokens(grant.id);
+  }
+  return c.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
 // Token endpoint: authorization_code exchange and refresh rotation.
 
 type GrantRow = typeof oauthGrants.$inferSelect;
@@ -369,6 +463,19 @@ async function revokeFamilyAndGrant(familyId: string, grantId: string): Promise<
     .update(oauthGrants)
     .set({ revokedAt: now })
     .where(and(eq(oauthGrants.id, grantId), isNull(oauthGrants.revokedAt)));
+}
+
+/** Revoke a grant and every refresh token minted from it (all families). */
+async function revokeGrantAndTokens(grantId: string): Promise<void> {
+  const now = new Date();
+  await db
+    .update(oauthGrants)
+    .set({ revokedAt: now })
+    .where(and(eq(oauthGrants.id, grantId), isNull(oauthGrants.revokedAt)));
+  await db
+    .update(oauthRefreshTokens)
+    .set({ revokedAt: now })
+    .where(and(eq(oauthRefreshTokens.grantId, grantId), isNull(oauthRefreshTokens.revokedAt)));
 }
 
 oauthRoute.post("/oauth/token", async (c) => {
@@ -478,15 +585,7 @@ oauthRoute.post("/oauth/revoke", async (c) => {
     if (tokenRow) {
       const grant = await db.query.oauthGrants.findFirst({ where: eq(oauthGrants.id, tokenRow.grantId) });
       if (grant && (!params.client_id || params.client_id === grant.clientId)) {
-        const now = new Date();
-        await db
-          .update(oauthGrants)
-          .set({ revokedAt: now })
-          .where(and(eq(oauthGrants.id, grant.id), isNull(oauthGrants.revokedAt)));
-        await db
-          .update(oauthRefreshTokens)
-          .set({ revokedAt: now })
-          .where(and(eq(oauthRefreshTokens.grantId, grant.id), isNull(oauthRefreshTokens.revokedAt)));
+        await revokeGrantAndTokens(grant.id);
       }
     }
   }
