@@ -1,8 +1,9 @@
 import { Hono } from "hono";
+import { randomBytes } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type { CallToolResult, ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { agentVisits, agents } from "@aiverse/shared/schema";
 import { db } from "../db/client";
@@ -10,11 +11,11 @@ import { resolveAgentCaller, type AgentCaller } from "../auth/resolveAgent";
 import { oauthIssuer } from "../auth/oauthCore";
 import { log } from "../util/log";
 
-// The agent MCP (MCP + OAuth plan, Phase 3): how an outside LLM client —
+// The agent MCP (MCP + OAuth plan, Phases 3–4): how an outside LLM client —
 // Claude, ChatGPT, a user's own harness — acts as an agent in the Verse
-// without holding the agent's key. Read-mostly: discovery, identity, the
-// world senses, and the inbox. Actions (world_act, body attach, relay
-// send) are Phase 4 and deliberately absent.
+// without holding the agent's key. Discovery, identity, the world senses
+// and the inbox (Phase 3), plus the actions behind their own scopes
+// (Phase 4): body attach/detach, world_act, and relay send/start.
 //
 // Auth is delegation-aware (auth/resolveAgent.ts): a classic agent token
 // acts as its agent, exactly as at REST; an OAuth 2.1 access token acts
@@ -23,10 +24,18 @@ import { log } from "../util/log";
 // tool, and pinned to the grant's agent set. A multi-agent token picks its
 // agent per call via the agent_id tool argument, forwarded to the internal
 // routes as x-agent-id, where the resolver honors it only inside the
-// grant. No tool can widen any of this: every read dispatches through the
+// grant. No tool can widen any of this: every call dispatches through the
 // same internal routes a direct caller would hit, with the caller's own
 // Authorization, so visit gating, refusal text and rate limits are the
 // gateway's own, unchanged.
+//
+// There are deliberately NO visit tools (owner decision, 2026-11-13):
+// starting a visit is a human tap. Visits stay owner-started (console,
+// POST /owners/agents/:id/visits, the claim-time starter visit); the
+// agent's way in is to ask its human, and the world's own no_visit
+// refusal — surfaced verbatim by every world/body tool — is how it knows
+// to ask. agent_whoami still reports the visit state, and body_detach
+// remains the agent's way to leave.
 //
 // Unauthenticated requests get the RFC 9728 pointer (WWW-Authenticate:
 // resource_metadata) so a cold client can discover the authorization
@@ -41,7 +50,7 @@ interface CallResult {
   text: string;
 }
 
-type Call = (path: string, opts?: { method?: string; agentId?: string }) => Promise<CallResult>;
+type Call = (path: string, opts?: { method?: string; agentId?: string; body?: unknown }) => Promise<CallResult>;
 
 function ok(text: string): CallToolResult {
   return { content: [{ type: "text", text }] };
@@ -103,10 +112,11 @@ function buildServer(caller: AgentCaller, call: Call): McpServer {
     description: string,
     inputSchema: S,
     run: (args: z.infer<z.ZodObject<S>>) => Promise<CallToolResult>,
+    annotations: ToolAnnotations = { readOnlyHint: true },
   ) => {
     server.registerTool(
       name,
-      { description, inputSchema, annotations: { readOnlyHint: true, openWorldHint: false } },
+      { description, inputSchema, annotations: { openWorldHint: false, ...annotations } },
       (async (args: any) => {
         log("mcp_agent_tool_call", {
           tool: name,
@@ -272,6 +282,131 @@ function buildServer(caller: AgentCaller, call: Call): McpServer {
     },
   );
 
+  // --- Phase 4: actions -------------------------------------------------
+  // Everything below changes the world, so nothing here is read-only and
+  // every tool sits behind its own scope (OAuth) — the same
+  // insufficient_scope shape as the read gates. The tools add no judgment
+  // of their own: bodies, acts and messages dispatch to the same routes a
+  // direct caller hits, and the routes' refusals come back verbatim.
+
+  register(
+    "body_attach",
+    "Attach a body in the world (POST /world/body): step into the Verse wearing the named figure (a body id from the cast roster, e.g. \"summer\", \"remy\"; omit it to wear the owner's saved default). Needs an active visit. Refusals — an unknown or cast-only figure, a different figure already worn — are the world's own, verbatim. Requires the world:act scope for OAuth tokens.",
+    {
+      body: z.string().min(1).optional().describe("Body id to wear (e.g. \"summer\"). Omit for the owner's saved default figure."),
+      agent_id: agentIdArg,
+    },
+    async ({ body, agent_id }) => {
+      const gate = scopeGate(caller, "world:act");
+      if (gate) return gate;
+      return asAgent({ agent_id }, async (agentId) => {
+        const res = await call("/world/body", {
+          method: "POST",
+          agentId: caller.kind === "oauth" ? agentId : undefined,
+          body: body ? { body } : {},
+        });
+        return res.ok ? okJson(res.data) : fail(res.text);
+      });
+    },
+    { readOnlyHint: false, idempotentHint: true },
+  );
+
+  register(
+    "body_detach",
+    "Detach your body (DELETE /world/body): leave the world; the visit stays open and you can attach again. Answers {removed} — false when there was no body. Requires the world:act scope for OAuth tokens.",
+    { agent_id: agentIdArg },
+    async ({ agent_id }) => {
+      const gate = scopeGate(caller, "world:act");
+      if (gate) return gate;
+      return asAgent({ agent_id }, async (agentId) => {
+        const res = await call("/world/body", { method: "DELETE", agentId: caller.kind === "oauth" ? agentId : undefined });
+        return res.ok ? okJson(res.data) : fail(res.text);
+      });
+    },
+    { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
+  );
+
+  register(
+    "world_act",
+    "Act in the world (POST /world/act): one flat action object, passed through untouched — {type:\"go_to\"|\"run_to\"|\"enter\"|\"face\"|\"wait\"|\"sit\"|\"stand\"|\"play\"|\"interact\"|\"gaze\"|\"say\"|\"stop\", ...fields} (see the guide resource or GET /world/clips for the play vocabulary). Needs an attached body. The sim accepts or refuses in its own words, returned verbatim. An optional id makes the act idempotent (a retry with the same id and action replays the first record); one is generated when omitted. Requires the world:act scope for OAuth tokens.",
+    {
+      action: z.any().describe("The flat action object, e.g. {\"type\":\"play\",\"clip\":\"Waving\"} or {\"type\":\"go_to\",\"place\":\"shop-102\"}. Passed to the world untouched."),
+      id: z
+        .string()
+        .min(1)
+        .max(80)
+        .optional()
+        .describe("Idempotency id for this act (1-80 letters, digits or dashes). Generated when omitted."),
+      agent_id: agentIdArg,
+    },
+    async ({ action, id, agent_id }) => {
+      const gate = scopeGate(caller, "world:act");
+      if (gate) return gate;
+      return asAgent({ agent_id }, async (agentId) => {
+        const res = await call("/world/act", {
+          method: "POST",
+          agentId: caller.kind === "oauth" ? agentId : undefined,
+          body: { id: id ?? `mcp-${randomBytes(8).toString("hex")}`, action },
+        });
+        return res.ok ? okJson(res.data) : fail(res.text);
+      });
+    },
+    { readOnlyHint: false },
+  );
+
+  register(
+    "relay_send",
+    "Send a message in a conversation you belong to (POST /conversations/:id/messages): reply in a thread your agent is part of. The conversation service's gates (autonomy, send rate) and refusals apply unchanged. Requires the relay:send scope for OAuth tokens.",
+    {
+      conversation_id: z.string().min(1).describe("The conversation to post in (from inbox_poll)"),
+      content: z.string().min(1).describe("The message text"),
+      agent_id: agentIdArg,
+    },
+    async ({ conversation_id, content, agent_id }) => {
+      const gate = scopeGate(caller, "relay:send");
+      if (gate) return gate;
+      return asAgent({ agent_id }, async (agentId) => {
+        const res = await call(`/conversations/${encodeURIComponent(conversation_id)}/messages`, {
+          method: "POST",
+          agentId: caller.kind === "oauth" ? agentId : undefined,
+          body: { content },
+        });
+        return res.ok ? okJson(res.data) : fail(res.text);
+      });
+    },
+    { readOnlyHint: false },
+  );
+
+  register(
+    "relay_start",
+    "Open a new conversation with other agents (POST /conversations): a DM with one participant or a group with several. Answers the created conversation — post in it with relay_send, read it with inbox_poll. Requires the relay:send scope for OAuth tokens.",
+    {
+      participant_ids: z.array(z.string().min(1)).min(1).describe("The other agents to bring into the conversation"),
+      name: z.string().min(1).optional().describe("A name for a group conversation"),
+      is_public: z.boolean().optional().describe("Public conversations are visible on the public activity feed"),
+      kind: z.enum(["dm", "group", "room"]).optional().describe("Conversation kind; omit for the service's default"),
+      agent_id: agentIdArg,
+    },
+    async ({ participant_ids, name, is_public, kind, agent_id }) => {
+      const gate = scopeGate(caller, "relay:send");
+      if (gate) return gate;
+      return asAgent({ agent_id }, async (agentId) => {
+        const res = await call("/conversations", {
+          method: "POST",
+          agentId: caller.kind === "oauth" ? agentId : undefined,
+          body: {
+            participantIds: participant_ids,
+            ...(name ? { name } : {}),
+            ...(is_public !== undefined ? { isPublic: is_public } : {}),
+            ...(kind ? { kind } : {}),
+          },
+        });
+        return res.ok ? okJson(res.data) : fail(res.text);
+      });
+    },
+    { readOnlyHint: false },
+  );
+
   // The manual and the card, readable in-protocol: a client that can only
   // speak MCP still gets the full operating guide.
   server.registerResource(
@@ -321,7 +456,12 @@ export function createMcpAgentRoute(internalCall: InternalCall) {
     const call: Call = async (path, opts = {}) => {
       const headers: Record<string, string> = { authorization: authorization! };
       if (opts.agentId) headers["x-agent-id"] = opts.agentId;
-      const res = await internalCall(path, { method: opts.method ?? "GET", headers });
+      const init: RequestInit = { method: opts.method ?? "GET", headers };
+      if (opts.body !== undefined) {
+        headers["content-type"] = "application/json";
+        init.body = JSON.stringify(opts.body);
+      }
+      const res = await internalCall(path, init);
       const text = await res.text();
       let data: any = null;
       try {
