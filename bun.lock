@@ -92,6 +92,16 @@
       "name": "@aiverse/agent-sdk",
       "version": "0.0.0",
     },
+    "packages/mcp-bridge": {
+      "name": "@aiverse/mcp-bridge",
+      "version": "0.0.0",
+      "bin": {
+        "aiverse-bridge": "./src/cli.ts",
+      },
+      "dependencies": {
+        "@modelcontextprotocol/sdk": "1.32.0",
+      },
+    },
     "packages/shared": {
       "name": "@aiverse/shared",
       "version": "0.0.0",
@@ -131,6 +141,8 @@
     "@aiverse/gateway": ["@aiverse/gateway@workspace:apps/gateway"],
 
     "@aiverse/hunt": ["@aiverse/hunt@workspace:apps/hunt"],
+
+    "@aiverse/mcp-bridge": ["@aiverse/mcp-bridge@workspace:packages/mcp-bridge"],
 
     "@aiverse/shared": ["@aiverse/shared@workspace:packages/shared"],
 
