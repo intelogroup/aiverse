@@ -255,7 +255,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
   useEffect(() => {
     if (!w || !new URLSearchParams(window.location.search).has("districtDebug")) return;
     w.__districts = {
-      stats: () => ({ loaded: [...groups.current.keys()], mode: fullMode ? "full" : "streamed", ...stats.current, collision: walk?.stats() ?? null, geometries: gl.info.memory.geometries, textures: gl.info.memory.textures, calls: gl.info.render.calls, triangles: gl.info.render.triangles, shell: Object.fromEntries([...shellGroups.current].map(([id, g]) => [id, g.visible])) }),
+      stats: () => ({ camDist: controls ? +camera.position.distanceTo(controls.target).toFixed(2) : null, camY: +camera.position.y.toFixed(2), loaded: [...groups.current.keys()], mode: fullMode ? "full" : "streamed", ...stats.current, collision: walk?.stats() ?? null, geometries: gl.info.memory.geometries, textures: gl.info.memory.textures, calls: gl.info.render.calls, triangles: gl.info.render.triangles, shell: Object.fromEntries([...shellGroups.current].map(([id, g]) => [id, g.visible])) }),
       events: () => stats.current.events,
       theme: () => themeRef.current,
       // Debug: first collider hit distance along o->dir (null = none), and switch the camera collider off/on.

@@ -3,7 +3,7 @@ import { useRef } from "react";
 import * as THREE from "three";
 import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from "three-mesh-bvh";
 import { resolveDistance, stepDistance } from "./cameraCollision";
-import { CameraClearance } from "./cameraClearance";
+import { CameraClearance, pointEnclosed } from "./cameraClearance";
 import { cameraInstanceRaycast } from "./cameraInstanceRaycast";
 
 // BVH extension methods on geometries (only meshes we build a tree for use it). Mesh.prototype.raycast is NOT
@@ -62,6 +62,8 @@ export function CameraCollider({ getMeshes, enabled, stats }: { getMeshes: () =>
   const shown = useRef<number | null>(null);
   const clearance = useRef(new CameraClearance());
   const dir = useRef(new THREE.Vector3());
+  // Cache of "is the orbit target inside solid geometry", recomputed when the target moves or the mesh set changes.
+  const enclosed = useRef<{ x: number; y: number; z: number; n: number; inside: boolean } | null>(null);
 
   useFrame(() => {
     const a = applied.current;
@@ -77,6 +79,13 @@ export function CameraCollider({ getMeshes, enabled, stats }: { getMeshes: () =>
     const d = dir.current.subVectors(camera.position, t);
     const len = d.length();
     if (len < 1e-6 || meshes.length === 0) { shown.current = len; return; }
+    // A target inside a solid would pin the camera to that solid's inner wall (the homepage's default target sat in
+    // the fountain tower: the camera was snapped from 508 m to 4 m on load). Nothing sensible to protect: skip.
+    const e = enclosed.current;
+    if (!e || e.n !== meshes.length || Math.abs(e.x - t.x) + Math.abs(e.y - t.y) + Math.abs(e.z - t.z) > 0.01) {
+      enclosed.current = { x: t.x, y: t.y, z: t.z, n: meshes.length, inside: pointEnclosed(t, meshes) };
+    }
+    if (enclosed.current!.inside) { shown.current = len; return; }
     d.multiplyScalar(1 / len);
     const t0 = performance.now();
     const hit = clearance.current.hitDistance(t, desired.current, camera, meshes);
