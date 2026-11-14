@@ -630,6 +630,119 @@ export const ownerReadKeys = pgTable(
   (t) => [index("owner_read_keys_owner_idx").on(t.ownerId)],
 );
 
+// OAuth 2.1 delegation (MCP + OAuth plan, Phase 1): an owner delegates a
+// slice of their authority to an external client (an MCP app / harness) for
+// specific agents — never a password, never the agent's own key. The client
+// holds short-lived access JWTs (not stored) plus rotating refresh tokens
+// (hashed at rest, same pattern as agent tokens). oauth_grants is the
+// durable record of the delegation and is checked per-request by token
+// consumers, so setting revoked_at kills a delegation immediately rather
+// than at access-token expiry.
+export const oauthClients = pgTable("oauth_clients", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  // Registered redirect URIs (RFC 7591 dynamic client registration). The
+  // authorize endpoint requires an exact string match against this list —
+  // no prefix or pattern matching, ever.
+  redirectUris: jsonb("redirect_uris").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const oauthGrants = pgTable(
+  "oauth_grants",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => owners.id),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => oauthClients.id),
+    // The agents this delegation covers (owner-verified at consent time).
+    // An access token minted from this grant carries the same list and can
+    // never act as an agent outside it.
+    agentIds: jsonb("agent_ids").notNull(),
+    scopes: jsonb("scopes").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    revokedAt: timestamp("revoked_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("oauth_grants_owner_idx").on(t.ownerId),
+    index("oauth_grants_client_idx").on(t.clientId),
+  ],
+);
+
+// A validated GET /oauth/authorize call, parked for the console consent
+// page (Phase 2) to render and the owner to decide on. Short-lived and
+// single-decision: consumed_at is set by the decision either way, so a
+// request id can never be approved twice.
+export const oauthAuthRequests = pgTable(
+  "oauth_auth_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => oauthClients.id),
+    redirectUri: text("redirect_uri").notNull(),
+    state: text("state"),
+    // Space-delimited scope string exactly as requested (post-validation).
+    scope: text("scope").notNull(),
+    codeChallenge: text("code_challenge").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    consumedAt: timestamp("consumed_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("oauth_auth_requests_client_idx").on(t.clientId)],
+);
+
+// Authorization codes: single-use, 60 s life, only the SHA-256 hash is
+// stored (same pattern as agent tokens) so a database read never yields a
+// redeemable code. The PKCE challenge is copied from the auth request so
+// the token endpoint verifies the verifier against the code's own row.
+export const oauthCodes = pgTable(
+  "oauth_codes",
+  {
+    codeHash: text("code_hash").primaryKey(),
+    grantId: uuid("grant_id")
+      .notNull()
+      .references(() => oauthGrants.id),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => oauthClients.id),
+    redirectUri: text("redirect_uri").notNull(),
+    codeChallenge: text("code_challenge").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    usedAt: timestamp("used_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("oauth_codes_grant_idx").on(t.grantId)],
+);
+
+// Refresh tokens: hashed at rest, one row per rotation. family_id groups
+// every token descended from one authorization-code exchange; replaying an
+// already-used token revokes the whole family AND the grant (RFC 6819
+// reuse detection) — a leaked old token burns the delegation, not just
+// itself.
+export const oauthRefreshTokens = pgTable(
+  "oauth_refresh_tokens",
+  {
+    tokenHash: text("token_hash").primaryKey(),
+    grantId: uuid("grant_id")
+      .notNull()
+      .references(() => oauthGrants.id),
+    familyId: uuid("family_id").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    usedAt: timestamp("used_at"),
+    revokedAt: timestamp("revoked_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("oauth_refresh_tokens_grant_idx").on(t.grantId),
+    index("oauth_refresh_tokens_family_idx").on(t.familyId),
+  ],
+);
+
 // A time-and-action-boxed autonomous session: "send my agent into the Verse
 // for 2 hours, at most 200 actions." The owner-only surface for starting one
 // is deliberately narrow (POST .../visits, POST .../visits/:id/stop) — an

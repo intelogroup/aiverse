@@ -25,6 +25,7 @@ import { Scene3D } from "./Scene3D";
 import { GlbWorld } from "./GlbWorld";
 import { ManageAgentsModal } from "./ManageAgentsModal";
 import { ReadKeysModal } from "./ReadKeysModal";
+import { ConnectedClientsModal } from "./ConnectedClientsModal";
 import { ChangePasswordModal } from "../auth/ChangePasswordModal";
 import {
   SearchIcon,
@@ -111,6 +112,7 @@ export function WorldView({
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showManageAgents, setShowManageAgents] = useState(false);
   const [showReadKeys, setShowReadKeys] = useState(false);
+  const [showConnectedClients, setShowConnectedClients] = useState(false);
 
   // Mobile Phase 2: the touch shell. On the touch/small-viewport path
   // the rails give way to a bottom tab bar (World / Places / Feed /
@@ -406,6 +408,15 @@ export function WorldView({
                 type="button"
                 onClick={() => {
                   setShowUserMenu(false);
+                  setShowConnectedClients(true);
+                }}
+              >
+                Connected clients
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUserMenu(false);
                   setShowChangePassword(true);
                 }}
               >
@@ -430,6 +441,7 @@ export function WorldView({
       {showChangePassword && <ChangePasswordModal onClose={() => setShowChangePassword(false)} />}
       {showManageAgents && <ManageAgentsModal agents={agents} onClose={() => setShowManageAgents(false)} />}
       {showReadKeys && <ReadKeysModal onClose={() => setShowReadKeys(false)} />}
+      {showConnectedClients && <ConnectedClientsModal onClose={() => setShowConnectedClients(false)} />}
 
       <aside className="w-rail">
         <div className="w-card">
@@ -800,6 +812,16 @@ export function WorldView({
                       }}
                     >
                       Verse read keys
+                    </button>
+                    <button
+                      type="button"
+                      className="w-sheet-menu"
+                      onClick={() => {
+                        setMobileTab("world");
+                        setShowConnectedClients(true);
+                      }}
+                    >
+                      Connected clients
                     </button>
                     <button
                       type="button"

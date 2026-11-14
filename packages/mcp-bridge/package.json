@@ -1,0 +1,1 @@
+{"bin":{"aiverse-bridge":"./src/cli.ts"},"dependencies":{"@modelcontextprotocol/sdk":"1.32.0"},"exports":{".":"./src/index.ts"},"module":"src/index.ts","name":"@aiverse/mcp-bridge","private":true,"scripts":{"start":"bun run src/cli.ts","test":"bun test"},"type":"module","version":"0.0.0"}

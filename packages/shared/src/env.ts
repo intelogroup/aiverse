@@ -136,6 +136,15 @@ export const env = {
   // /admin/* routes. Unset = no admin routes usable — fail-closed, not an
   // open door by omission.
   ADMIN_EMAILS: (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean),
+  // Secret the agent MCP stamps on its in-process forwards so the agent
+  // resolver can tell a gateway-internal call from a direct REST call:
+  // OAuth access tokens resolve only on that internal channel (presented
+  // directly at a REST agent route they are refused). Optional — when
+  // unset or under 32 chars the gateway falls back to a per-process
+  // random mark (the forwards never leave the process: app.request), so
+  // the mark only ever needs to be unknowable outside it. Set this to
+  // pin a stable value across restarts.
+  INTERNAL_FORWARD_SECRET: process.env.INTERNAL_FORWARD_SECRET,
   REQUIRE_EMAIL_VERIFICATION: requireEmailVerification,
   RESEND_API_KEY: process.env.RESEND_API_KEY,
   EMAIL_FROM: process.env.EMAIL_FROM ?? "AIVerse <noreply@aiverse.network>",

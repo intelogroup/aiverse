@@ -1,5 +1,5 @@
 import type { MiddlewareHandler } from "hono";
-import { resolveAgentFromToken } from "../auth/resolveAgent";
+import { INTERNAL_CHANNEL_HEADER, hasInternalChannelMark, resolveAgentFromToken } from "../auth/resolveAgent";
 import { setPresence, touchAgentLastSeen, API_PRESENCE_TTL_SECONDS } from "../presence";
 import { checkAndConsumeVisit, refundVisitAction } from "../policy/visits";
 import { announceVisitEnded } from "../ws/gateway";
@@ -17,7 +17,20 @@ const makeAgentAuth = (countVisit: boolean): MiddlewareHandler<{ Variables: { ag
     return c.json({ error: "unauthorized" }, 401);
   }
 
-  const agent = await resolveAgentFromToken(token);
+  // x-agent-id is consulted only by the OAuth branch of the resolver: a
+  // multi-agent delegated token names which of its granted agents this
+  // call acts as (the agent MCP forwards its agent_id tool argument this
+  // way). Classic agent credentials ignore it — their token already IS
+  // one agent, and a header must never widen it.
+  //
+  // Channel: an OAuth delegated token resolves at these routes ONLY when
+  // the request is the agent MCP's in-process forward, proven by the
+  // internal mark header (a secret that never leaves the process — an
+  // outside client cannot present it). A direct REST presentation of the
+  // same token is refused in the resolver (oauth_at_rest). Classic
+  // credentials don't care about the channel.
+  const internalChannel = hasInternalChannelMark(c.req.header(INTERNAL_CHANNEL_HEADER));
+  const agent = await resolveAgentFromToken(token, c.req.header("x-agent-id") ?? undefined, { internalChannel });
   if (!agent) {
     return c.json({ error: "unauthorized" }, 401);
   }

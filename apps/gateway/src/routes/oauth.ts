@@ -1,0 +1,724 @@
+import { Hono, type Context } from "hono";
+import { and, eq, inArray, isNull } from "drizzle-orm";
+import { db } from "../db/client";
+import {
+  agents,
+  oauthAuthRequests,
+  oauthClients,
+  oauthCodes,
+  oauthGrants,
+  oauthRefreshTokens,
+} from "@aiverse/shared/schema";
+import { env } from "@aiverse/shared/env";
+import { ownerAuth } from "../middleware/ownerAuth";
+import { log, logError } from "../util/log";
+import {
+  ACCESS_TOKEN_TTL_SECONDS,
+  AUTH_CODE_TTL_MS,
+  AUTH_REQUEST_TTL_MS,
+  DEFAULT_GRANT_DAYS,
+  MAX_GRANT_DAYS,
+  OAUTH_SCOPES,
+  generateAuthorizationCode,
+  generateRefreshFamilyId,
+  generateRefreshToken,
+  hashAuthorizationCode,
+  hashRefreshToken,
+  isAllowedRedirectUri,
+  isScopeSubset,
+  oauthIssuer,
+  oauthResource,
+  parseScope,
+  signAccessToken,
+  verifyPkceS256,
+} from "../auth/oauthCore";
+
+// OAuth 2.1 authorization server (MCP + OAuth plan, Phases 1–2): metadata,
+// dynamic client registration, authorize, the owner decision endpoint,
+// token, and revocation — plus the Phase 2 owner-session endpoints the
+// console consent page and "Connected clients" surface read (parked-request
+// detail, grant list, grant revoke).
+// Every error on these endpoints is OAuth error JSON ({error,
+// error_description}) — except authorize errors AFTER the redirect_uri has
+// been validated against the client's registered list, which redirect back
+// to the client per RFC 6749 §4.1.2.1. An unvalidated redirect_uri is
+// never redirected to.
+//
+// Clients are public (no client_secret): PKCE S256 is the proof of
+// possession, per OAuth 2.1. Codes are single-use and live 60 s; refresh
+// tokens rotate on every use and replaying one revokes the whole family
+// plus the grant.
+
+export const oauthRoute = new Hono<{ Variables: { ownerId: string } }>();
+
+const UUID_SHAPE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+function oauthError(c: Context, status: 400 | 401 | 500, error: string, description: string) {
+  return c.json({ error, error_description: description }, status);
+}
+
+/**
+ * An unexpected failure inside a lifecycle handler: the exception is
+ * captured server-side (logError, with stack) and the client gets
+ * proper OAuth error JSON — never Hono's bare 500 text. Lifecycle
+ * logging discipline for this whole module: events carry ids and
+ * reason codes ONLY (client/owner/grant/agent ids, scope sets,
+ * lifetimes) — never codes, verifiers, tokens, or secrets, which the
+ * handlers below are careful to keep out of every field.
+ */
+function oauthServerError(c: Context, event: string, err: unknown, fields: Record<string, unknown> = {}) {
+  logError(event, err, fields);
+  return oauthError(c, 500, "server_error", "the authorization server hit an unexpected error; the failure is logged");
+}
+
+function redirectWithParams(redirectUri: string, params: Record<string, string | undefined>) {
+  const url = new URL(redirectUri);
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined) url.searchParams.set(key, value);
+  }
+  return url.toString();
+}
+
+/** Token/revoke endpoints take form-encoded bodies per RFC 6749; accept JSON too. */
+async function readParams(c: Context): Promise<Record<string, string>> {
+  const contentType = c.req.header("content-type") ?? "";
+  const out: Record<string, string> = {};
+  if (contentType.includes("application/json")) {
+    const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
+    for (const [k, v] of Object.entries(body ?? {})) if (typeof v === "string") out[k] = v;
+    return out;
+  }
+  const form = await c.req.parseBody().catch(() => ({}) as Record<string, unknown>);
+  for (const [k, v] of Object.entries(form)) if (typeof v === "string") out[k] = v;
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Discovery metadata.
+
+oauthRoute.get("/.well-known/oauth-authorization-server", (c) =>
+  c.json({
+    issuer: oauthIssuer(),
+    authorization_endpoint: `${oauthIssuer()}/oauth/authorize`,
+    token_endpoint: `${oauthIssuer()}/oauth/token`,
+    registration_endpoint: `${oauthIssuer()}/oauth/register`,
+    revocation_endpoint: `${oauthIssuer()}/oauth/revoke`,
+    scopes_supported: [...OAUTH_SCOPES],
+    response_types_supported: ["code"],
+    grant_types_supported: ["authorization_code", "refresh_token"],
+    code_challenge_methods_supported: ["S256"],
+    token_endpoint_auth_methods_supported: ["none"],
+    revocation_endpoint_auth_methods_supported: ["none"],
+  }),
+);
+
+oauthRoute.get("/.well-known/oauth-protected-resource", (c) =>
+  c.json({
+    resource: oauthResource(),
+    authorization_servers: [oauthIssuer()],
+    scopes_supported: [...OAUTH_SCOPES],
+    bearer_methods_supported: ["header"],
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// Dynamic client registration (RFC 7591). Public clients: a client_id is
+// issued, no secret — PKCE is the credential.
+
+oauthRoute.post("/oauth/register", async (c) => {
+  try {
+    const body = (await c.req.json().catch(() => null)) as {
+      client_name?: unknown;
+      redirect_uris?: unknown;
+    } | null;
+    if (!body || typeof body.client_name !== "string" || body.client_name.trim() === "") {
+      log("oauth_register_rejected", { reason: "missing_client_name" });
+      return oauthError(c, 400, "invalid_client_metadata", "client_name is required");
+    }
+    if (
+      !Array.isArray(body.redirect_uris) ||
+      body.redirect_uris.length === 0 ||
+      body.redirect_uris.some((u) => typeof u !== "string")
+    ) {
+      log("oauth_register_rejected", { reason: "invalid_redirect_uris" });
+      return oauthError(c, 400, "invalid_redirect_uri", "redirect_uris must be a non-empty array of URIs");
+    }
+    const redirectUris = body.redirect_uris as string[];
+    const bad = redirectUris.find((u) => !isAllowedRedirectUri(u));
+    if (bad) {
+      log("oauth_register_rejected", { reason: "redirect_uri_not_allowed", redirectUriCount: redirectUris.length });
+      return oauthError(
+        c,
+        400,
+        "invalid_redirect_uri",
+        `redirect_uri must be https (http allowed only for localhost): ${bad}`,
+      );
+    }
+    const [client] = await db
+      .insert(oauthClients)
+      .values({ name: body.client_name.trim(), redirectUris })
+      .returning();
+    log("oauth_client_registered", {
+      clientId: client.id,
+      redirectUriCount: redirectUris.length,
+      redirectHosts: redirectUris.map((u) => {
+        try {
+          return new URL(u).host;
+        } catch {
+          return "unparseable";
+        }
+      }),
+    });
+    return c.json(
+      {
+        client_id: client.id,
+        client_name: client.name,
+        redirect_uris: redirectUris,
+        grant_types: ["authorization_code", "refresh_token"],
+        response_types: ["code"],
+        token_endpoint_auth_method: "none",
+      },
+      201,
+    );
+  } catch (err) {
+    return oauthServerError(c, "oauth_register_error", err);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Authorize: validate everything up front, park the request, and hand the
+// owner to the console consent page (Phase 2 renders it; the decision comes
+// back through POST /oauth/authorize/decision).
+
+oauthRoute.get("/oauth/authorize", async (c) => {
+  const clientId = c.req.query("client_id");
+  const redirectUri = c.req.query("redirect_uri");
+  const state = c.req.query("state");
+  try {
+    // Client and redirect_uri first: until both are validated, errors are
+    // answered directly — redirecting to an unverified URI would make this
+    // endpoint an open redirector.
+    if (!clientId || !UUID_SHAPE.test(clientId)) {
+      log("oauth_authorize_rejected", { reason: "invalid_client_id" });
+      return oauthError(c, 400, "invalid_request", "client_id is required");
+    }
+    const client = await db.query.oauthClients.findFirst({ where: eq(oauthClients.id, clientId) });
+    if (!client) {
+      log("oauth_authorize_rejected", { reason: "unknown_client", clientId });
+      return oauthError(c, 400, "invalid_client", "unknown client_id");
+    }
+    const registered = (client.redirectUris as string[] | null) ?? [];
+    if (!redirectUri || !registered.includes(redirectUri)) {
+      // The presented URI is untrusted input — its value is never logged.
+      log("oauth_authorize_rejected", { reason: "redirect_uri_mismatch", clientId });
+      return oauthError(c, 400, "invalid_request", "redirect_uri does not match a registered URI");
+    }
+
+    // From here the redirect_uri is trusted, so remaining errors ride back to
+    // the client on it (RFC 6749 §4.1.2.1).
+    const fail = (error: string, description: string, reason: string) => {
+      log("oauth_authorize_rejected", { reason, clientId });
+      return c.redirect(redirectWithParams(redirectUri, { error, error_description: description, state }));
+    };
+    if (c.req.query("response_type") !== "code") {
+      return fail("unsupported_response_type", "only response_type=code is supported", "unsupported_response_type");
+    }
+    const codeChallenge = c.req.query("code_challenge");
+    if (!codeChallenge || c.req.query("code_challenge_method") !== "S256") {
+      return fail("invalid_request", "PKCE with code_challenge_method=S256 is required", "pkce_required");
+    }
+    const scopes = parseScope(c.req.query("scope"));
+    if (scopes === null) {
+      return fail("invalid_scope", `scope must be a subset of: ${OAUTH_SCOPES.join(" ")}`, "invalid_scope");
+    }
+    const effectiveScopes = scopes.length > 0 ? scopes : [...OAUTH_SCOPES];
+
+    const [request] = await db
+      .insert(oauthAuthRequests)
+      .values({
+        clientId,
+        redirectUri,
+        state: state ?? null,
+        scope: effectiveScopes.join(" "),
+        codeChallenge,
+        expiresAt: new Date(Date.now() + AUTH_REQUEST_TTL_MS),
+      })
+      .returning();
+    log("oauth_authorize_request_created", { requestId: request.id, clientId, scopes: effectiveScopes });
+    const consoleOrigin = env.CONSOLE_ORIGINS[0];
+    return c.redirect(`${consoleOrigin}/oauth/consent?request_id=${request.id}`);
+  } catch (err) {
+    return oauthServerError(c, "oauth_authorize_error", err, { clientId: clientId ?? undefined });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// The owner's consent decision (the Phase 2 console page posts here with
+// the owner's session). Approve mints the grant + a 60 s authorization
+// code; deny redirects the client with access_denied. Either way the auth
+// request is consumed exactly once.
+
+oauthRoute.post("/oauth/authorize/decision", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  try {
+    const body = (await c.req.json().catch(() => null)) as {
+      request_id?: unknown;
+      approve?: unknown;
+      agent_ids?: unknown;
+      scopes?: unknown;
+      grant_days?: unknown;
+    } | null;
+    if (!body || typeof body.request_id !== "string" || !UUID_SHAPE.test(body.request_id)) {
+      log("oauth_authorize_decision", { outcome: "rejected", reason: "invalid_request_id", ownerId });
+      return oauthError(c, 400, "invalid_request", "request_id is required");
+    }
+    const requestId = body.request_id;
+    const request = await db.query.oauthAuthRequests.findFirst({
+      where: eq(oauthAuthRequests.id, requestId),
+    });
+    if (!request || request.consumedAt || request.expiresAt.getTime() <= Date.now()) {
+      log("oauth_authorize_decision", { outcome: "rejected", reason: "request_not_live", requestId, ownerId });
+      return oauthError(c, 400, "invalid_request", "authorization request is unknown, decided, or expired");
+    }
+    const clientState = request.state ?? undefined;
+
+    // Consume atomically before doing any work: a second decision on the
+    // same request (double-click, replay) finds no row to consume and fails.
+    const consume = async (): Promise<boolean> => {
+      const consumed = await db
+        .update(oauthAuthRequests)
+        .set({ consumedAt: new Date() })
+        .where(and(eq(oauthAuthRequests.id, request.id), isNull(oauthAuthRequests.consumedAt)))
+        .returning({ id: oauthAuthRequests.id });
+      return consumed.length === 1;
+    };
+
+    if (body.approve !== true) {
+      if (!(await consume())) {
+        log("oauth_authorize_decision", { outcome: "rejected", reason: "already_decided", requestId, clientId: request.clientId, ownerId });
+        return oauthError(c, 400, "invalid_request", "authorization request already decided");
+      }
+      log("oauth_authorize_decision", { outcome: "denied", requestId, clientId: request.clientId, ownerId });
+      return c.json({
+        redirect: redirectWithParams(request.redirectUri, {
+          error: "access_denied",
+          error_description: "the owner denied this request",
+          state: clientState,
+        }),
+      });
+    }
+
+    // Every granted agent must belong to the deciding owner — the same
+    // fail-closed ownership check owner routes use for agent id lists.
+    if (
+      !Array.isArray(body.agent_ids) ||
+      body.agent_ids.length === 0 ||
+      body.agent_ids.some((id) => typeof id !== "string" || !UUID_SHAPE.test(id as string))
+    ) {
+      log("oauth_authorize_decision", { outcome: "rejected", reason: "invalid_agent_ids", requestId, ownerId });
+      return oauthError(c, 400, "invalid_request", "agent_ids must be a non-empty list of agent ids");
+    }
+    const agentIds = [...new Set(body.agent_ids as string[])];
+    const owned = await db.query.agents.findMany({
+      where: and(inArray(agents.id, agentIds), eq(agents.ownerId, ownerId)),
+      columns: { id: true },
+    });
+    if (owned.length !== agentIds.length) {
+      log("oauth_authorize_decision", { outcome: "rejected", reason: "agents_not_owned", requestId, ownerId });
+      return oauthError(c, 400, "invalid_request", "agent_ids contains an agent not owned by this owner");
+    }
+
+    const requestedScopes = parseScope(request.scope) ?? [];
+    let grantScopes = requestedScopes;
+    if (body.scopes !== undefined) {
+      if (!Array.isArray(body.scopes) || body.scopes.some((s) => typeof s !== "string")) {
+        log("oauth_authorize_decision", { outcome: "rejected", reason: "invalid_scopes", requestId, ownerId });
+        return oauthError(c, 400, "invalid_scope", "scopes must be a list of scope strings");
+      }
+      grantScopes = [...new Set(body.scopes as string[])];
+      if (!isScopeSubset(grantScopes, requestedScopes)) {
+        log("oauth_authorize_decision", { outcome: "rejected", reason: "scope_widening", requestId, ownerId });
+        return oauthError(c, 400, "invalid_scope", "scopes may only narrow the requested set");
+      }
+    }
+    let grantDays = DEFAULT_GRANT_DAYS;
+    if (body.grant_days !== undefined) {
+      if (
+        typeof body.grant_days !== "number" ||
+        !Number.isFinite(body.grant_days) ||
+        body.grant_days < 1 ||
+        body.grant_days > MAX_GRANT_DAYS
+      ) {
+        log("oauth_authorize_decision", { outcome: "rejected", reason: "invalid_grant_days", requestId, ownerId });
+        return oauthError(c, 400, "invalid_request", `grant_days must be between 1 and ${MAX_GRANT_DAYS}`);
+      }
+      grantDays = Math.floor(body.grant_days);
+    }
+
+    if (!(await consume())) {
+      log("oauth_authorize_decision", { outcome: "rejected", reason: "already_decided", requestId, clientId: request.clientId, ownerId });
+      return oauthError(c, 400, "invalid_request", "authorization request already decided");
+    }
+    const [grant] = await db
+      .insert(oauthGrants)
+      .values({
+        ownerId,
+        clientId: request.clientId,
+        agentIds,
+        scopes: grantScopes,
+        expiresAt: new Date(Date.now() + grantDays * 24 * 60 * 60 * 1000),
+      })
+      .returning();
+    const { code, hash } = generateAuthorizationCode();
+    await db.insert(oauthCodes).values({
+      codeHash: hash,
+      grantId: grant.id,
+      clientId: request.clientId,
+      redirectUri: request.redirectUri,
+      codeChallenge: request.codeChallenge,
+      expiresAt: new Date(Date.now() + AUTH_CODE_TTL_MS),
+    });
+    log("oauth_authorize_decision", {
+      outcome: "approved",
+      requestId,
+      clientId: request.clientId,
+      ownerId,
+      grantId: grant.id,
+      scopes: grantScopes,
+      agentCount: agentIds.length,
+      lifetimeDays: grantDays,
+    });
+    return c.json({
+      redirect: redirectWithParams(request.redirectUri, { code, state: clientState }),
+    });
+  } catch (err) {
+    return oauthServerError(c, "oauth_authorize_decision_error", err, { ownerId });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Phase 2 console surface: the consent page's render data and the owner's
+// grant management ("Connected clients"). All owner-session only. Grants
+// are strictly scoped to the session owner, and a foreign grant id is a
+// 404, never a 403 — these endpoints do not confirm that other owners'
+// grants exist. Errors here are the console's plain {error: "not_found"}
+// shape, not OAuth protocol errors.
+
+oauthRoute.get("/oauth/authorize/request/:id", ownerAuth, async (c) => {
+  const id = c.req.param("id");
+  if (!UUID_SHAPE.test(id)) return c.json({ error: "not_found" }, 404);
+  const request = await db.query.oauthAuthRequests.findFirst({
+    where: eq(oauthAuthRequests.id, id),
+  });
+  // Only a live, undecided request renders a consent page; a consumed or
+  // expired one is indistinguishable from an unknown id.
+  if (!request || request.consumedAt || request.expiresAt.getTime() <= Date.now()) {
+    return c.json({ error: "not_found" }, 404);
+  }
+  const client = await db.query.oauthClients.findFirst({
+    where: eq(oauthClients.id, request.clientId),
+  });
+  if (!client) return c.json({ error: "not_found" }, 404);
+  return c.json({
+    client_name: client.name,
+    client_id: request.clientId,
+    redirect_host: new URL(request.redirectUri).host,
+    scopes: parseScope(request.scope) ?? [],
+    expires_at: request.expiresAt.toISOString(),
+  });
+});
+
+oauthRoute.get("/oauth/grants", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const rows = await db.query.oauthGrants.findMany({
+    where: eq(oauthGrants.ownerId, ownerId),
+    orderBy: (g, { desc: descFn }) => [descFn(g.createdAt), descFn(g.id)],
+  });
+  // Client and agent names are one batched lookup each — grants store ids
+  // only, and the console renders names.
+  const clientIds = [...new Set(rows.map((g) => g.clientId))];
+  const clients =
+    clientIds.length > 0
+      ? await db.query.oauthClients.findMany({
+          where: inArray(oauthClients.id, clientIds),
+          columns: { id: true, name: true },
+        })
+      : [];
+  const clientName = new Map(clients.map((cl) => [cl.id, cl.name]));
+  const allAgentIds = [...new Set(rows.flatMap((g) => (g.agentIds as string[] | null) ?? []))];
+  const agentRows =
+    allAgentIds.length > 0
+      ? await db.query.agents.findMany({
+          where: inArray(agents.id, allAgentIds),
+          columns: { id: true, name: true },
+        })
+      : [];
+  const agentName = new Map(agentRows.map((a) => [a.id, a.name]));
+  return c.json({
+    grants: rows.map((g) => {
+      const ids = (g.agentIds as string[] | null) ?? [];
+      return {
+        id: g.id,
+        client_id: g.clientId,
+        client_name: clientName.get(g.clientId) ?? "Unknown client",
+        agent_ids: ids,
+        agent_names: Object.fromEntries(ids.map((id) => [id, agentName.get(id) ?? "Unknown agent"])),
+        scopes: (g.scopes as string[] | null) ?? [],
+        created_at: g.createdAt.toISOString(),
+        expires_at: g.expiresAt.toISOString(),
+        revoked_at: g.revokedAt ? g.revokedAt.toISOString() : null,
+      };
+    }),
+  });
+});
+
+oauthRoute.post("/oauth/grants/:id/revoke", ownerAuth, async (c) => {
+  const ownerId = c.get("ownerId");
+  const id = c.req.param("id");
+  if (!UUID_SHAPE.test(id)) return c.json({ error: "not_found" }, 404);
+  const grant = await db.query.oauthGrants.findFirst({
+    where: and(eq(oauthGrants.id, id), eq(oauthGrants.ownerId, ownerId)),
+  });
+  if (!grant) return c.json({ error: "not_found" }, 404);
+  // Idempotent: revoking an already-revoked grant is still a 200 — the
+  // owner's intent ("this client must not act for me") is already true.
+  if (!grant.revokedAt) {
+    await revokeGrantAndTokens(grant.id);
+    log("oauth_grant_revoked", { grantId: grant.id, ownerId, source: "owner" });
+  }
+  return c.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// Token endpoint: authorization_code exchange and refresh rotation.
+
+type GrantRow = typeof oauthGrants.$inferSelect;
+
+function grantLive(grant: GrantRow): boolean {
+  return grant.revokedAt === null && grant.expiresAt.getTime() > Date.now();
+}
+
+async function issueTokens(c: Context, grant: GrantRow, familyId: string) {
+  const refresh = generateRefreshToken();
+  await db.insert(oauthRefreshTokens).values({
+    tokenHash: refresh.hash,
+    grantId: grant.id,
+    familyId,
+    // A refresh token never outlives its grant: when the delegation ends,
+    // every way back in ends with it.
+    expiresAt: grant.expiresAt,
+  });
+  const accessToken = await signAccessToken({
+    ownerId: grant.ownerId,
+    scope: ((grant.scopes as string[] | null) ?? []).join(" "),
+    agents: (grant.agentIds as string[] | null) ?? [],
+  });
+  return c.json({
+    access_token: accessToken,
+    token_type: "Bearer",
+    expires_in: ACCESS_TOKEN_TTL_SECONDS,
+    refresh_token: refresh.token,
+    scope: ((grant.scopes as string[] | null) ?? []).join(" "),
+  });
+}
+
+async function revokeFamilyAndGrant(familyId: string, grantId: string): Promise<void> {
+  const now = new Date();
+  await db
+    .update(oauthRefreshTokens)
+    .set({ revokedAt: now })
+    .where(and(eq(oauthRefreshTokens.familyId, familyId), isNull(oauthRefreshTokens.revokedAt)));
+  await db
+    .update(oauthGrants)
+    .set({ revokedAt: now })
+    .where(and(eq(oauthGrants.id, grantId), isNull(oauthGrants.revokedAt)));
+}
+
+/** Revoke a grant and every refresh token minted from it (all families). */
+async function revokeGrantAndTokens(grantId: string): Promise<void> {
+  const now = new Date();
+  await db
+    .update(oauthGrants)
+    .set({ revokedAt: now })
+    .where(and(eq(oauthGrants.id, grantId), isNull(oauthGrants.revokedAt)));
+  await db
+    .update(oauthRefreshTokens)
+    .set({ revokedAt: now })
+    .where(and(eq(oauthRefreshTokens.grantId, grantId), isNull(oauthRefreshTokens.revokedAt)));
+}
+
+async function handleToken(c: Context) {
+  const params = await readParams(c);
+  const grantType = params.grant_type;
+  if (grantType !== "authorization_code" && grantType !== "refresh_token") {
+    log("oauth_token_exchange_failed", { reason: "unsupported_grant_type" });
+    return oauthError(c, 400, "unsupported_grant_type", "grant_type must be authorization_code or refresh_token");
+  }
+  const clientId = params.client_id;
+  if (!clientId || !UUID_SHAPE.test(clientId)) {
+    log("oauth_token_exchange_failed", { reason: "missing_client_id", grantType });
+    return oauthError(c, 400, "invalid_request", "client_id is required");
+  }
+
+  if (grantType === "authorization_code") {
+    const code = params.code;
+    const redirectUri = params.redirect_uri;
+    const verifier = params.code_verifier;
+    if (!code || !redirectUri || !verifier) {
+      log("oauth_token_exchange_failed", { reason: "missing_params", clientId });
+      return oauthError(c, 400, "invalid_request", "code, redirect_uri and code_verifier are required");
+    }
+    const codeRow = await db.query.oauthCodes.findFirst({
+      where: eq(oauthCodes.codeHash, hashAuthorizationCode(code)),
+    });
+    if (!codeRow) {
+      log("oauth_token_exchange_failed", { reason: "unknown_code", clientId });
+      return oauthError(c, 400, "invalid_grant", "unknown authorization code");
+    }
+    if (codeRow.usedAt) {
+      log("oauth_token_exchange_failed", { reason: "code_burned", clientId, grantId: codeRow.grantId });
+      return oauthError(c, 400, "invalid_grant", "authorization code already used");
+    }
+    if (codeRow.expiresAt.getTime() <= Date.now()) {
+      log("oauth_token_exchange_failed", { reason: "code_expired", clientId, grantId: codeRow.grantId });
+      return oauthError(c, 400, "invalid_grant", "authorization code expired");
+    }
+    if (codeRow.clientId !== clientId) {
+      log("oauth_token_exchange_failed", { reason: "wrong_client", clientId, grantId: codeRow.grantId });
+      return oauthError(c, 400, "invalid_grant", "client_id does not match the code");
+    }
+    if (codeRow.redirectUri !== redirectUri) {
+      log("oauth_token_exchange_failed", { reason: "redirect_mismatch", clientId, grantId: codeRow.grantId });
+      return oauthError(c, 400, "invalid_grant", "redirect_uri does not match the code");
+    }
+    if (!verifyPkceS256(verifier, codeRow.codeChallenge)) {
+      log("oauth_token_exchange_failed", { reason: "pkce_mismatch", clientId, grantId: codeRow.grantId });
+      return oauthError(c, 400, "invalid_grant", "PKCE verification failed");
+    }
+    const grant = await db.query.oauthGrants.findFirst({ where: eq(oauthGrants.id, codeRow.grantId) });
+    if (!grant || !grantLive(grant)) {
+      log("oauth_token_exchange_failed", { reason: "grant_not_live", clientId, grantId: codeRow.grantId });
+      return oauthError(c, 400, "invalid_grant", "grant is revoked or expired");
+    }
+    // Burn the code atomically: a concurrent second redemption finds the
+    // row already used and gets nothing.
+    const burned = await db
+      .update(oauthCodes)
+      .set({ usedAt: new Date() })
+      .where(and(eq(oauthCodes.codeHash, codeRow.codeHash), isNull(oauthCodes.usedAt)))
+      .returning({ codeHash: oauthCodes.codeHash });
+    if (burned.length !== 1) {
+      log("oauth_token_exchange_failed", { reason: "code_burned", clientId, grantId: codeRow.grantId });
+      return oauthError(c, 400, "invalid_grant", "authorization code already used");
+    }
+    const res = await issueTokens(c, grant, generateRefreshFamilyId());
+    log("oauth_token_exchange", { grantId: grant.id, clientId });
+    return res;
+  }
+
+  // grant_type=refresh_token: rotate on every use. Presenting an
+  // already-used (or revoked) token is reuse — the whole family and the
+  // grant are revoked before answering (RFC 6819 §5.2.2.3).
+  const presented = params.refresh_token;
+  if (!presented) {
+    log("oauth_token_refresh_failed", { reason: "missing_token", clientId });
+    return oauthError(c, 400, "invalid_request", "refresh_token is required");
+  }
+  const tokenRow = await db.query.oauthRefreshTokens.findFirst({
+    where: eq(oauthRefreshTokens.tokenHash, hashRefreshToken(presented)),
+  });
+  if (!tokenRow) {
+    log("oauth_token_refresh_failed", { reason: "unknown_token", clientId });
+    return oauthError(c, 400, "invalid_grant", "unknown refresh token");
+  }
+  const grant = await db.query.oauthGrants.findFirst({ where: eq(oauthGrants.id, tokenRow.grantId) });
+  if (!grant) {
+    log("oauth_token_refresh_failed", { reason: "grant_missing", clientId });
+    return oauthError(c, 400, "invalid_grant", "grant not found");
+  }
+  if (grant.clientId !== clientId) {
+    log("oauth_token_refresh_failed", { reason: "wrong_client", clientId, grantId: grant.id });
+    return oauthError(c, 400, "invalid_grant", "client_id does not match the grant");
+  }
+  if (tokenRow.usedAt || tokenRow.revokedAt) {
+    await revokeFamilyAndGrant(tokenRow.familyId, grant.id);
+    // LOUD by design: a replay means a burned token resurfaced — theft
+    // or a stranded client — and the response is the nuclear one (the
+    // whole family and grant are already revoked above). This event is
+    // the one production alerting should page on.
+    log("oauth_refresh_replay_family_revoked", {
+      grantId: grant.id,
+      clientId,
+      familyId: tokenRow.familyId,
+      detectedBy: "presented_used_token",
+    });
+    return oauthError(c, 400, "invalid_grant", "refresh token reuse detected; grant revoked");
+  }
+  if (tokenRow.expiresAt.getTime() <= Date.now() || !grantLive(grant)) {
+    log("oauth_token_refresh_failed", { reason: "grant_not_live", clientId, grantId: grant.id });
+    return oauthError(c, 400, "invalid_grant", "grant is revoked or expired");
+  }
+  const rotated = await db
+    .update(oauthRefreshTokens)
+    .set({ usedAt: new Date() })
+    .where(
+      and(
+        eq(oauthRefreshTokens.tokenHash, tokenRow.tokenHash),
+        isNull(oauthRefreshTokens.usedAt),
+        isNull(oauthRefreshTokens.revokedAt),
+      ),
+    )
+    .returning({ tokenHash: oauthRefreshTokens.tokenHash });
+  if (rotated.length !== 1) {
+    await revokeFamilyAndGrant(tokenRow.familyId, grant.id);
+    log("oauth_refresh_replay_family_revoked", {
+      grantId: grant.id,
+      clientId,
+      familyId: tokenRow.familyId,
+      detectedBy: "rotation_race",
+    });
+    return oauthError(c, 400, "invalid_grant", "refresh token reuse detected; grant revoked");
+  }
+  const res = await issueTokens(c, grant, tokenRow.familyId);
+  log("oauth_token_refresh", { grantId: grant.id, clientId, familyId: tokenRow.familyId });
+  return res;
+}
+
+oauthRoute.post("/oauth/token", async (c) => {
+  try {
+    return await handleToken(c);
+  } catch (err) {
+    return oauthServerError(c, "oauth_token_error", err);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Revocation (RFC 7009): the presented refresh token's grant is revoked.
+// Always 200 — an unknown, foreign, or garbage token is indistinguishable
+// from success, so the endpoint never leaks which tokens exist. A
+// client_id that does not match the token's grant revokes nothing.
+
+oauthRoute.post("/oauth/revoke", async (c) => {
+  try {
+    const params = await readParams(c);
+    const presented = params.token;
+    if (presented) {
+      const tokenRow = await db.query.oauthRefreshTokens.findFirst({
+        where: eq(oauthRefreshTokens.tokenHash, hashRefreshToken(presented)),
+      });
+      if (tokenRow) {
+        const grant = await db.query.oauthGrants.findFirst({ where: eq(oauthGrants.id, tokenRow.grantId) });
+        if (grant && (!params.client_id || params.client_id === grant.clientId)) {
+          const wasLive = grant.revokedAt === null;
+          await revokeGrantAndTokens(grant.id);
+          if (wasLive) log("oauth_grant_revoked", { grantId: grant.id, source: "revoke_endpoint" });
+        }
+      }
+    }
+  } catch (err) {
+    // The 200 contract holds even here (the endpoint must not leak
+    // state), but the failure itself is captured server-side.
+    logError("oauth_revoke_error", err);
+  }
+  return c.body(null, 200);
+});

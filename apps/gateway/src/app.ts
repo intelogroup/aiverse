@@ -23,6 +23,8 @@ import { adminRoute } from "./routes/admin";
 import { reportsRoute } from "./routes/reports";
 import { bazaarRoute } from "./routes/bazaar";
 import { createMcpRoute } from "./routes/mcp";
+import { createMcpAgentRoute } from "./routes/mcpAgent";
+import { oauthRoute } from "./routes/oauth";
 import { registerAgentWsRoute, registerConsoleWsRoute, registerPublicWsRoute } from "./ws/gateway";
 import { getHuntRuntime, huntEnabled } from "./hunt";
 import { log, logError } from "./util/log";
@@ -256,7 +258,15 @@ export function createApp(opts: CreateAppOpts = {}) {
       },
     }));
   } else if (worldEnabled()) logError("world_not_mounted", new Error("AIVERSE_WORLD_MODE=1 but SIM_URL / SIM_INTERNAL_SECRET are not configured"));
+  // OAuth 2.1 authorization server (MCP delegation, Phase 1): /.well-known
+  // metadata + /oauth/* — paths are absolute, so it mounts at the root like
+  // the A2A route.
+  app.route("/", oauthRoute);
   app.route("/mcp", createMcpRoute((path, authorization) => app.request(path, { headers: { authorization } })));
+  // Agent MCP (Phase 3): the delegated-agent surface at /mcp/agent. Its
+  // internal calls carry method + the x-agent-id selection header as well
+  // as the caller's Authorization, so it mounts with the general form.
+  app.route("/mcp/agent", createMcpAgentRoute((path, init) => app.request(path, init)));
   registerAgentWsRoute(app);
   registerConsoleWsRoute(app);
   registerPublicWsRoute(app);

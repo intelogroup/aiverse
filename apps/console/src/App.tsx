@@ -23,13 +23,14 @@ const WorldView = lazy(() => import("./features/world/WorldView").then(m => ({ d
 // Off-world routes load on demand so the world entry chunk stays lean.
 const AuthScreen = lazy(() => import("./features/auth/AuthScreen").then(m => ({ default: m.AuthScreen })));
 const ClaimPage = lazy(() => import("./features/auth/ClaimPage").then(m => ({ default: m.ClaimPage })));
+const OAuthConsentPage = lazy(() => import("./features/auth/OAuthConsentPage").then(m => ({ default: m.OAuthConsentPage })));
 const VerifyEmailPage = lazy(() => import("./features/auth/VerifyEmailPage").then(m => ({ default: m.VerifyEmailPage })));
 const ResetPasswordPage = lazy(() => import("./features/auth/ResetPasswordPage").then(m => ({ default: m.ResetPasswordPage })));
 const PublicHomepage = lazy(() => import("./features/homepage/PublicHomepage").then(m => ({ default: m.PublicHomepage })));
 const VerseFeed = lazy(() => import("./features/verse-feed/VerseFeed").then(m => ({ default: m.VerseFeed })));
 const DocsPage = lazy(() => import("./features/docs/DocsPage").then(m => ({ default: m.DocsPage })));
 
-export type View = "world" | "public" | "docs" | "verse" | "claim" | "verify-email" | "reset-password";
+export type View = "world" | "public" | "docs" | "verse" | "claim" | "verify-email" | "reset-password" | "oauth-consent";
 
 export default function App() {
   const [authed, setAuthed] = useState(!!getOwnerToken());
@@ -38,6 +39,7 @@ export default function App() {
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/public")) return "public";
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/verse")) return "verse";
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/claim")) return "claim";
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/oauth/consent")) return "oauth-consent";
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/verify-email")) return "verify-email";
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/reset-password")) return "reset-password";
     return "world";
@@ -174,6 +176,26 @@ export default function App() {
             goWorld();
           }}
         />
+      </>
+    );
+  }
+
+  // OAuth consent (MCP plan Phase 2): an external client sent the owner
+  // here from GET /oauth/authorize. Same sign-in gate as claim — the
+  // AuthScreen returns to this same URL afterwards, request_id intact.
+  if (view === "oauth-consent") {
+    if (!authed) {
+      return (
+        <>
+          <ToastStack />
+          <AuthScreen onAuthed={() => setAuthed(true)} />
+        </>
+      );
+    }
+    return (
+      <>
+        <ToastStack />
+        <OAuthConsentPage onDone={goWorld} />
       </>
     );
   }

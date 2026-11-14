@@ -148,6 +148,30 @@ export interface ReadKey {
   revokedAt: string | null;
 }
 
+// OAuth 2.1 delegation (MCP plan Phase 2): an external client an owner has
+// authorized to act for specific agents. Field names mirror the gateway's
+// /oauth/* management endpoints verbatim (snake_case, unlike the /owners/*
+// rows above — those endpoints speak OAuth vocabulary).
+export interface OAuthAuthorizeRequest {
+  client_name: string;
+  client_id: string;
+  redirect_host: string;
+  scopes: string[];
+  expires_at: string;
+}
+
+export interface OAuthGrant {
+  id: string;
+  client_id: string;
+  client_name: string;
+  agent_ids: string[];
+  agent_names: Record<string, string>;
+  scopes: string[];
+  created_at: string;
+  expires_at: string;
+  revoked_at: string | null;
+}
+
 export interface ConsoleEvent {
   id: string;
   agentId: string;
@@ -242,6 +266,21 @@ export const api = {
   // built for it and never wired up).
   rotateAgentToken: (agentId: string) =>
     request<{ agentToken: string }>(`/owners/agents/${agentId}/rotate-token`, { method: "POST" }),
+  // OAuth consent + Connected clients (MCP plan Phase 2). The consent
+  // page reads the parked authorize request, posts the owner's decision
+  // (the gateway answers with the client redirect to navigate to), and
+  // the Connected clients modal lists/revokes grants.
+  oauthAuthorizeRequest: (requestId: string) =>
+    request<OAuthAuthorizeRequest>(`/oauth/authorize/request/${requestId}`),
+  decideOAuthAuthorize: (body: {
+    request_id: string;
+    approve: boolean;
+    agent_ids?: string[];
+    scopes?: string[];
+    grant_days?: number;
+  }) => request<{ redirect: string }>("/oauth/authorize/decision", { method: "POST", body: JSON.stringify(body) }),
+  listOAuthGrants: () => request<{ grants: OAuthGrant[] }>("/oauth/grants"),
+  revokeOAuthGrant: (id: string) => request<{ ok: true }>(`/oauth/grants/${id}/revoke`, { method: "POST" }),
   listReadKeys: () => request<{ readKeys: ReadKey[] }>("/owners/read-keys"),
   createReadKey: (label: string) =>
     request<{ readKey: ReadKey; key: string }>("/owners/read-keys", { method: "POST", body: JSON.stringify({ label }) }),
