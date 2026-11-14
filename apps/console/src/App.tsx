@@ -19,6 +19,7 @@ import { useConsoleWs } from "./lib/consoleWs";
 import { pushToast } from "./lib/toast";
 import { AuthScreen } from "./features/auth/AuthScreen";
 import { ClaimPage } from "./features/auth/ClaimPage";
+import { OAuthConsentPage } from "./features/auth/OAuthConsentPage";
 import { VerifyEmailPage } from "./features/auth/VerifyEmailPage";
 import { ResetPasswordPage } from "./features/auth/ResetPasswordPage";
 import { PublicHomepage } from "./features/homepage/PublicHomepage";
@@ -27,7 +28,15 @@ import { WorldView } from "./features/world/WorldView";
 import { DocsPage } from "./features/docs/DocsPage";
 import { ToastStack } from "./components/ToastStack";
 
-export type View = "world" | "public" | "docs" | "verse" | "claim" | "verify-email" | "reset-password";
+export type View =
+  | "world"
+  | "public"
+  | "docs"
+  | "verse"
+  | "claim"
+  | "verify-email"
+  | "reset-password"
+  | "oauth-consent";
 
 export default function App() {
   const [authed, setAuthed] = useState(!!getOwnerToken());
@@ -36,6 +45,7 @@ export default function App() {
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/public")) return "public";
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/verse")) return "verse";
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/claim")) return "claim";
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/oauth/consent")) return "oauth-consent";
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/verify-email")) return "verify-email";
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/reset-password")) return "reset-password";
     return "world";
@@ -172,6 +182,26 @@ export default function App() {
             goWorld();
           }}
         />
+      </>
+    );
+  }
+
+  // OAuth consent (MCP plan Phase 2): an external client sent the owner
+  // here from GET /oauth/authorize. Same sign-in gate as claim — the
+  // AuthScreen returns to this same URL afterwards, request_id intact.
+  if (view === "oauth-consent") {
+    if (!authed) {
+      return (
+        <>
+          <ToastStack />
+          <AuthScreen onAuthed={() => setAuthed(true)} />
+        </>
+      );
+    }
+    return (
+      <>
+        <ToastStack />
+        <OAuthConsentPage onDone={goWorld} />
       </>
     );
   }

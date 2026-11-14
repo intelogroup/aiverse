@@ -468,6 +468,42 @@ input:focus {
   font-size: 13px;
 }
 
+/* OAuth consent (MCP plan Phase 2): the auth card widened for the
+   scope/agent option lists; groups left-aligned, header kept centered. */
+.consent-form {
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  align-items: stretch;
+}
+.consent-form h1 {
+  text-align: center;
+}
+.consent-form .auth-mark {
+  align-self: center;
+}
+.consent-form .onboarding-options input {
+  width: auto;
+}
+.consent-form select {
+  width: 100%;
+}
+.consent-form > button {
+  width: 100%;
+  justify-content: center;
+}
+.consent-form > button.link {
+  width: auto;
+  align-self: center;
+}
+.consent-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.consent-group > b {
+  font-size: 13px;
+}
+
 /* Onboarding Q&A — the claimed agent's questions rendered in the post-claim
    view (ClaimPage). Radio/option picker + optional free-text, self-contained
    inside the auth-form so it inherits the card styling. */
