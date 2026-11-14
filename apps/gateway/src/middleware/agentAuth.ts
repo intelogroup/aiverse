@@ -17,7 +17,12 @@ const makeAgentAuth = (countVisit: boolean): MiddlewareHandler<{ Variables: { ag
     return c.json({ error: "unauthorized" }, 401);
   }
 
-  const agent = await resolveAgentFromToken(token);
+  // x-agent-id is consulted only by the OAuth branch of the resolver: a
+  // multi-agent delegated token names which of its granted agents this
+  // call acts as (the agent MCP forwards its agent_id tool argument this
+  // way). Classic agent credentials ignore it — their token already IS
+  // one agent, and a header must never widen it.
+  const agent = await resolveAgentFromToken(token, c.req.header("x-agent-id") ?? undefined);
   if (!agent) {
     return c.json({ error: "unauthorized" }, 401);
   }

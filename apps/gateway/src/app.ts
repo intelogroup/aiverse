@@ -23,6 +23,7 @@ import { adminRoute } from "./routes/admin";
 import { reportsRoute } from "./routes/reports";
 import { bazaarRoute } from "./routes/bazaar";
 import { createMcpRoute } from "./routes/mcp";
+import { createMcpAgentRoute } from "./routes/mcpAgent";
 import { oauthRoute } from "./routes/oauth";
 import { registerAgentWsRoute, registerConsoleWsRoute, registerPublicWsRoute } from "./ws/gateway";
 import { getHuntRuntime, huntEnabled } from "./hunt";
@@ -262,6 +263,10 @@ export function createApp(opts: CreateAppOpts = {}) {
   // the A2A route.
   app.route("/", oauthRoute);
   app.route("/mcp", createMcpRoute((path, authorization) => app.request(path, { headers: { authorization } })));
+  // Agent MCP (Phase 3): the delegated-agent surface at /mcp/agent. Its
+  // internal calls carry method + the x-agent-id selection header as well
+  // as the caller's Authorization, so it mounts with the general form.
+  app.route("/mcp/agent", createMcpAgentRoute((path, init) => app.request(path, init)));
   registerAgentWsRoute(app);
   registerConsoleWsRoute(app);
   registerPublicWsRoute(app);
