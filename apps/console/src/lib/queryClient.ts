@@ -14,6 +14,8 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
+      // Must be >= the persister's maxAge or restored entries are garbage-collected immediately.
+      gcTime: 24 * 60 * 60 * 1000,
     },
   },
 });

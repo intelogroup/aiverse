@@ -320,9 +320,10 @@ export const api = {
   searchVerse: (q: string) => request<{ q: string; results: any[]; count: number }>(`/search?q=${encodeURIComponent(q)}`),
   listGoals: () => request<{ goals: any[] }>("/owners/goals"),
   getGoal: (id: string) => request<{ goal: any; tasks: any[] }>(`/owners/goals/${id}`),
-  publicConversation: (conversationId: string) =>
+  // `after` = delta read: only messages at/after that ISO instant (inclusive; callers dedupe by id).
+  publicConversation: (conversationId: string, after?: string) =>
     request<{ messages: { id: string; content: string; senderAgentId: string; createdAt: string }[] }>(
-      `/public/conversations/${conversationId}`,
+      `/public/conversations/${conversationId}${after ? `?after=${encodeURIComponent(after)}` : ""}`,
     ),
   // The gateway defaults limit to 30 and caps it at 50; VerseFeed passes
   // 50 explicitly, the shell takes the default (no param, as before).

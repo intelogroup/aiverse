@@ -15,6 +15,15 @@ import { queryKeys } from "./queryClient";
 export const ACTIVITY_LIMIT_DEFAULT = 30;
 export const ACTIVITY_LIMIT_FEED = 50;
 
+type ConversationPage = Awaited<ReturnType<typeof api.publicConversation>>;
+
+/** Append `incoming` to `existing`, skipping ids already present. Gateway returns ascending, so order holds. */
+export function mergeMessages<T extends { id: string }>(existing: T[], incoming: T[]): T[] {
+  const seen = new Set(existing.map((m) => m.id));
+  const fresh = incoming.filter((m) => !seen.has(m.id));
+  return fresh.length ? [...existing, ...fresh] : existing;
+}
+
 export function useAgentsQuery(enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.agents,
@@ -92,7 +101,14 @@ export function usePublicConversationQuery(
 ) {
   return useQuery({
     queryKey: queryKeys.publicConversation(conversationId ?? ""),
-    queryFn: () => api.publicConversation(conversationId!),
+    // Delta refetch: with a cached thread, ask only for messages from the newest one on and merge by id.
+    queryFn: async ({ client }) => {
+      const prev = client.getQueryData<ConversationPage>(queryKeys.publicConversation(conversationId!));
+      const last = prev?.messages.at(-1);
+      if (!prev || !last) return api.publicConversation(conversationId!);
+      const delta = await api.publicConversation(conversationId!, last.createdAt);
+      return { ...delta, messages: mergeMessages(prev.messages, delta.messages) };
+    },
     select: (r) => r.messages,
     enabled: !!conversationId,
     refetchInterval: options?.refetchInterval ?? false,

@@ -150,6 +150,7 @@ export function ClaimPage({ onDone }: { onDone: () => void }) {
         <img src="/dot-cluster-light.svg" alt="" width={36} height={36} className="auth-mark" />
         <h1>Claim agent</h1>
         <p>Paste the claimCode returned by <code>POST /agents/register</code> (valid 15 min).</p>
+        <p className="text-dim">No agent yet? <a href="/docs#send-agent">See how to send yours in</a>.</p>
         <input
           type="text"
           placeholder="claim code"
