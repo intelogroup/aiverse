@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { createServer, type Server } from "node:http";
+import type { BridgeLog } from "./log";
 import type { TokenStore } from "./tokenStore";
 
 // The bridge's half of the OAuth 2.1 flow (RFC 6749 + RFC 7591 + RFC
@@ -245,10 +246,13 @@ export async function performAuthFlow(args: {
   /** Called with the authorize URL: open it in the owner's browser (and/or print it to stderr). */
   openUrl: (url: string) => void | Promise<void>;
   log?: (message: string) => void;
+  /** Structured lifecycle events (auth_flow_started / auth_flow_completed). */
+  events?: BridgeLog;
   fetchFn?: FetchFn;
   callbackTimeoutMs?: number;
 }): Promise<AuthFlowResult> {
   const fetchFn = args.fetchFn ?? defaultFetch;
+  args.events?.("auth_flow_started", { baseUrl: args.baseUrl, scopes: args.scopes });
   const loopback = await startLoopback();
   try {
     const clientId = await registerClient(args.baseUrl, loopback.redirectUri, fetchFn);
@@ -283,6 +287,10 @@ export async function performAuthFlow(args: {
       refreshToken: tokens.refreshToken,
       scope: tokens.scope,
       updatedAt: new Date().toISOString(),
+    });
+    args.events?.("auth_flow_completed", {
+      baseUrl: args.baseUrl,
+      scopes: tokens.scope ? tokens.scope.split(/\s+/).filter(Boolean) : args.scopes,
     });
     return {
       clientId,

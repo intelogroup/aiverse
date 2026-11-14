@@ -2,6 +2,7 @@
 import { spawn } from "node:child_process";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { resolveConfig } from "./config";
+import { stderrLog } from "./log";
 import { performAuthFlow } from "./oauth";
 import { buildBridgeServer } from "./server";
 import { TokenManager } from "./tokenManager";
@@ -44,22 +45,23 @@ function openInBrowser(url: string): void {
 async function main(): Promise<void> {
   const config = resolveConfig();
   const store = new TokenStore(config.tokenFile);
-  const tokens = new TokenManager(config, store);
+  const tokens = new TokenManager(config, store, { log: stderrLog });
 
   if (!tokens.hasGrant()) {
-    log(`aiverse-bridge: no stored grant for ${config.baseUrl} — connecting now.`);
+    // The flow emits auth_flow_started / auth_flow_completed itself;
+    // the prose `log` below only carries the browser-open UX line.
     const result = await performAuthFlow({
       baseUrl: config.baseUrl,
       scopes: config.scopes,
       store,
       openUrl: openInBrowser,
       log,
+      events: stderrLog,
     });
     tokens.adoptFlowResult(result);
-    log(`aiverse-bridge: connected. Refresh token saved to ${config.tokenFile} (mode 0600).`);
   }
 
-  const server = buildBridgeServer({ baseUrl: config.baseUrl, tokens, log });
+  const server = buildBridgeServer({ baseUrl: config.baseUrl, tokens, log: stderrLog });
   server.onclose = () => process.exit(0);
   process.on("SIGINT", () => process.exit(0));
   process.on("SIGTERM", () => process.exit(0));

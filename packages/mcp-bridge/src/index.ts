@@ -6,6 +6,7 @@
 // every tool call to the gateway's /mcp/agent. See README.md.
 
 export { DEFAULT_BASE_URL, DEFAULT_SCOPES, resolveConfig, type BridgeConfig } from "./config";
+export { stderrLog, type BridgeLog } from "./log";
 export { TokenStore, type StoredGrant } from "./tokenStore";
 export {
   GRANT_GONE_MESSAGE,

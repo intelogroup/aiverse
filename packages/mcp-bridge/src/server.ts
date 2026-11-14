@@ -5,6 +5,7 @@ import {
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import type { BridgeLog } from "./log";
 import { GRANT_GONE_MESSAGE, GrantGoneError, type FetchFn } from "./oauth";
 import { postJsonRpc } from "./remote";
 import type { TokenManager } from "./tokenManager";
@@ -27,7 +28,8 @@ export interface BridgeServerDeps {
   baseUrl: string;
   tokens: TokenManager;
   fetchFn?: FetchFn;
-  log?: (message: string) => void;
+  /** Structured lifecycle events (proxy_auth_retry, grant_gone). */
+  log?: BridgeLog;
 }
 
 /** A JSON-RPC error the gateway itself returned (a protocol-level refusal, not a tool result). */
@@ -44,10 +46,13 @@ export function buildBridgeServer(deps: BridgeServerDeps): Server {
   const forward = async (method: string, params: unknown): Promise<any> => {
     let res = await attempt(method, params);
     if (res.status === 401) {
-      deps.log?.("aiverse-bridge: gateway refused the access token (401) — refreshing once and retrying");
+      deps.log?.("proxy_auth_retry", { method });
       deps.tokens.invalidateAccess();
       res = await attempt(method, params); // getAccessToken() refreshes; a dead grant throws GrantGoneError here
-      if (res.status === 401) throw new GrantGoneError("gateway still answered 401 after a refresh");
+      if (res.status === 401) {
+        deps.log?.("grant_gone", { reason: "gateway_401_after_refresh", method });
+        throw new GrantGoneError("gateway still answered 401 after a refresh");
+      }
     }
     if (res.status !== 200) {
       throw new Error(`aiverse gateway answered HTTP ${res.status} for ${method}: ${res.text.slice(0, 200)}`);

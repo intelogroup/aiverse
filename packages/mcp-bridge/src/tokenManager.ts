@@ -1,4 +1,5 @@
 import type { BridgeConfig } from "./config";
+import type { BridgeLog } from "./log";
 import { GrantGoneError, refreshTokens, type AuthFlowResult, type FetchFn } from "./oauth";
 import type { TokenStore } from "./tokenStore";
 
@@ -20,13 +21,28 @@ export class TokenManager {
   private access: { token: string; expiresAt: number } | null = null;
   private gone: GrantGoneError | null = null;
   private readonly fetchFn?: FetchFn;
+  private readonly log?: BridgeLog;
 
   constructor(
     private readonly config: BridgeConfig,
     private readonly store: TokenStore,
-    opts: { fetchFn?: FetchFn } = {},
+    opts: { fetchFn?: FetchFn; log?: BridgeLog } = {},
   ) {
     this.fetchFn = opts.fetchFn;
+    this.log = opts.log;
+  }
+
+  /**
+   * The grant's death is recorded exactly once, at the moment it turns
+   * sticky — every later call rethrows the same error silently, so the
+   * lifecycle log shows one grant_gone per death, not one per attempt.
+   */
+  private markGone(err: GrantGoneError): GrantGoneError {
+    if (!this.gone) {
+      this.gone = err;
+      this.log?.("grant_gone", { baseUrl: this.config.baseUrl, reason: err.message });
+    }
+    return this.gone;
   }
 
   /** A stored grant exists AND was minted by the configured gateway. */
@@ -78,15 +94,23 @@ export class TokenManager {
         // stored token again would read as reuse and revoke the grant
         // outright. Fail stickily, exactly like a dead grant — the way
         // back is a fresh connect flow, never a quiet retry.
-        this.gone = new GrantGoneError(
-          `the rotated refresh token could not be saved (${err instanceof Error ? err.message : String(err)}), so the stored token is burned and must not be presented again`,
+        this.log?.("token_store_error", {
+          operation: "save",
+          error: err instanceof Error ? err.message : String(err),
+        });
+        throw this.markGone(
+          new GrantGoneError(
+            `the rotated refresh token could not be saved (${err instanceof Error ? err.message : String(err)}), so the stored token is burned and must not be presented again`,
+          ),
         );
-        throw this.gone;
       }
+      // The rotation is durable at this point — say so, so a production
+      // log can prove refreshes (and their persistence) actually happen.
+      this.log?.("token_refreshed", { baseUrl: this.config.baseUrl });
       this.access = { token: tokens.accessToken, expiresAt: Date.now() + tokens.expiresIn * 1000 };
       return tokens.accessToken;
     } catch (err) {
-      if (err instanceof GrantGoneError) this.gone = err;
+      if (err instanceof GrantGoneError) this.markGone(err);
       throw err;
     }
   }
