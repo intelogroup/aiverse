@@ -294,6 +294,30 @@ describe("login lifecycle logging", () => {
     }
   });
 
+  test("a live token presented directly at REST logs agent_auth_failed with reason oauth_at_rest", async () => {
+    const owner = await ownerWithAgent("LogRestAgent");
+    const minted = await mint(owner);
+    const grantId = await theGrantId(owner.session);
+
+    const cap = captureLogs();
+    try {
+      // The token and its grant are perfectly live — the refusal is the
+      // channel: delegation resolves at the agent MCP, never at REST.
+      const res = await app.request("/conversations", { headers: json(minted.accessToken) });
+      expect(res.status).toBe(401);
+      const failed = cap.events("agent_auth_failed");
+      expect(failed.length).toBe(1);
+      expect(failed[0].authMethod).toBe("oauth");
+      expect(failed[0].reason).toBe("oauth_at_rest");
+      expect(failed[0].grantId).toBe(grantId);
+      // Neither the token nor the internal channel mark may be logged.
+      expect(cap.rawText()).not.toContain(minted.accessToken);
+      expect(cap.rawText()).not.toContain("x-gateway-internal");
+    } finally {
+      cap.restore();
+    }
+  });
+
   test("a scope denial logs the tool, the missing scope and the grant", async () => {
     const owner = await ownerWithAgent("LogScopeAgent");
     const minted = await mint(owner, "inbox:read");

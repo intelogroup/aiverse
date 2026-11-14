@@ -5,9 +5,15 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { CallToolResult, ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
-import { agentVisits, agents } from "@aiverse/shared/schema";
+import { agentVisits } from "@aiverse/shared/schema";
 import { db } from "../db/client";
-import { resolveAgentCallerDetailed, type AgentCaller } from "../auth/resolveAgent";
+import {
+  INTERNAL_CHANNEL_HEADER,
+  internalChannelMark,
+  resolveAgentAuth,
+  resolveAgentCallerDetailed,
+  type AgentCaller,
+} from "../auth/resolveAgent";
 import { oauthIssuer } from "../auth/oauthCore";
 import { log, logError } from "../util/log";
 
@@ -27,7 +33,10 @@ import { log, logError } from "../util/log";
 // grant. No tool can widen any of this: every call dispatches through the
 // same internal routes a direct caller would hit, with the caller's own
 // Authorization, so visit gating, refusal text and rate limits are the
-// gateway's own, unchanged.
+// gateway's own, unchanged. The forwards also carry the gateway-internal
+// channel mark (auth/resolveAgent.ts): an OAuth token resolves at those
+// routes ONLY under that mark, so the same token presented directly at
+// REST is refused — delegation enters through this door or not at all.
 //
 // There are deliberately NO visit tools (owner decision, 2026-11-13):
 // starting a visit is a human tap. Visits stay owner-started (console,
@@ -113,7 +122,7 @@ function effectiveAgent(caller: AgentCaller, agentIdArgValue: string | undefined
   return { agentId: agentIdArgValue };
 }
 
-function buildServer(caller: AgentCaller, call: Call): McpServer {
+function buildServer(caller: AgentCaller, call: Call, token: string): McpServer {
   const server = new McpServer({ name: "aiverse-agent", version: "1.0.0" });
 
   const register = <S extends z.ZodRawShape>(
@@ -224,11 +233,18 @@ function buildServer(caller: AgentCaller, call: Call): McpServer {
     { agent_id: agentIdArg },
     async ({ agent_id }) =>
       asAgent({ agent_id }, async (agentId) => {
+        // OAuth callers: whoami reads the agent row itself (no internal
+        // route serves it), so it must re-run the acting path's
+        // resolution — grant liveness AND the fail-closed owner match —
+        // instead of trusting the connect-time caller context. A grant
+        // that died, or an agent transferred to another owner since
+        // consent, goes dark here exactly as it does at dispatch: no
+        // agent data without a live, owner-matched grant.
         const row =
           caller.kind === "agent"
             ? caller.agent
-            : await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
-        if (!row) return fail(`agent ${agentId} no longer exists`);
+            : (await resolveAgentAuth(token, agentId, { internalChannel: true }))?.agent;
+        if (!row) return fail(JSON.stringify({ error: "unauthorized" }));
         const visit = await db.query.agentVisits.findFirst({
           where: and(eq(agentVisits.agentId, agentId), isNull(agentVisits.endedAt)),
         });
@@ -488,7 +504,7 @@ export function createMcpAgentRoute(internalCall: InternalCall) {
     const token = authorization?.startsWith("Bearer ") ? authorization.slice(7) : undefined;
     const resolution = token ? await resolveAgentCallerDetailed(token) : undefined;
     const caller = resolution?.caller;
-    if (!caller) {
+    if (!caller || !token) {
       // The reason is the resolver's own classification (grant_revoked,
       // token_expired, …) — logged here once, at the door, so a client
       // integration failing in production is greppable by reason.
@@ -502,7 +518,14 @@ export function createMcpAgentRoute(internalCall: InternalCall) {
       return c.json({ error: "unauthorized" }, 401);
     }
     const call: Call = async (path, opts = {}) => {
-      const headers: Record<string, string> = { authorization: authorization! };
+      // The internal mark proves to the agent resolver that this call is
+      // the MCP's own in-process forward — the only channel an OAuth
+      // delegated token resolves on. It rides beside the caller's own
+      // Authorization, which still decides everything else.
+      const headers: Record<string, string> = {
+        authorization: authorization!,
+        [INTERNAL_CHANNEL_HEADER]: internalChannelMark(),
+      };
       if (opts.agentId) headers["x-agent-id"] = opts.agentId;
       const init: RequestInit = { method: opts.method ?? "GET", headers };
       if (opts.body !== undefined) {
@@ -519,7 +542,7 @@ export function createMcpAgentRoute(internalCall: InternalCall) {
       }
       return { ok: res.ok, status: res.status, data, text };
     };
-    const server = buildServer(caller, call);
+    const server = buildServer(caller, call, token);
     const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     await server.connect(transport);
     try {

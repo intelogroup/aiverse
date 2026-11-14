@@ -1,4 +1,6 @@
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { eq } from "drizzle-orm";
+import { env } from "@aiverse/shared/env";
 import { db } from "../db/client";
 import { agents, oauthGrants } from "@aiverse/shared/schema";
 import { hashAgentToken } from "./agentToken";
@@ -23,7 +25,8 @@ export type OAuthFailureReason =
   | "grant_revoked" // the matching grant was revoked — outstanding tokens die with it
   | "grant_expired" // the matching grant outlived its consented lifetime
   | "agent_owner_mismatch" // the granted agent changed owners since consent (fail closed)
-  | "agent_pick_refused"; // an explicit agent pick outside the grant (x-agent-id)
+  | "agent_pick_refused" // an explicit agent pick outside the grant (x-agent-id)
+  | "oauth_at_rest"; // a live OAuth token presented directly at REST, off the MCP channel
 
 function classifyVerifyError(err: unknown): OAuthFailureReason {
   if (err instanceof Error && err.message === "access token: wrong audience") return "wrong_audience";
@@ -47,6 +50,61 @@ function classifyVerifyError(err: unknown): OAuthFailureReason {
 // scopes) so callers like the agent MCP can gate on it; classic agent
 // credentials resolve with kind "agent" and no scope limit — the token IS
 // the agent, there is nothing narrower to enforce.
+//
+// CHANNEL ISOLATION (hardening, 2026-11-14): an OAuth access token is a
+// delegation to the agent MCP, not a general agent credential — it
+// resolves ONLY on the gateway-internal channel, i.e. when the caller is
+// the agent MCP itself (its own connect-time resolution) or one of its
+// in-process forwards to the internal routes. Presented directly at a
+// REST agent route (or at the ws-ticket mint those routes guard) it is
+// refused: oauth_at_rest. The channel is proven by a mark header the MCP
+// route stamps on its forwards — a secret that never leaves the process
+// (the forwards are in-process app.request calls), so nothing an outside
+// client sends can carry it. Classic credentials are channel-blind: the
+// token IS the agent, on every channel.
+
+/**
+ * The internal-channel mark: header + secret proving a request is the
+ * agent MCP's own in-process forward. Same shape as the sim's internal
+ * secret (SIM_INTERNAL_SECRET): a shared secret presented in a header,
+ * compared by sha256 digest in constant time. The value comes from
+ * INTERNAL_FORWARD_SECRET when the operator pins one (>= 32 chars, the same
+ * floor the sim secret has); otherwise each process generates its own at
+ * boot — sufficient because the forwards are in-process by construction,
+ * so the mark only needs to be unknowable outside this process. The value
+ * is never logged, never in an error, never on the wire.
+ */
+export const INTERNAL_CHANNEL_HEADER = "x-gateway-internal";
+
+const processInternalMark = randomBytes(32).toString("base64url");
+
+function internalChannelSecret(): string {
+  const pinned = env.INTERNAL_FORWARD_SECRET;
+  return pinned && pinned.length >= 32 ? pinned : processInternalMark;
+}
+
+/** The mark value the agent MCP stamps on its internal forwards. */
+export function internalChannelMark(): string {
+  return internalChannelSecret();
+}
+
+const digest = (s: string) => createHash("sha256").update(s).digest();
+
+/** Constant-time check of a presented mark (digest-compared, like the sim server). */
+export function hasInternalChannelMark(value: string | undefined): boolean {
+  if (!value) return false;
+  return timingSafeEqual(digest(value), digest(internalChannelSecret()));
+}
+
+export interface ResolveAgentOptions {
+  /**
+   * True only when the request arrived on the gateway-internal channel
+   * (the agent MCP's own resolution, or a forward carrying a valid
+   * internal mark). OAuth access tokens resolve only then; classic agent
+   * credentials ignore the channel entirely.
+   */
+  internalChannel?: boolean;
+}
 
 export interface AgentAuthContext {
   kind: "agent" | "oauth";
@@ -112,6 +170,7 @@ async function resolveOAuthDetailed(token: string): Promise<OAuthResolution> {
 export async function resolveAgentAuth(
   token: string,
   requestedAgentId?: string,
+  opts: ResolveAgentOptions = {},
 ): Promise<ResolvedAgent | undefined> {
   if (token.split(".").length === 3) {
     try {
@@ -131,6 +190,14 @@ export async function resolveAgentAuth(
       return undefined;
     }
     const { claims, grant } = oauth;
+    // Channel gate, after the token and its grant check out (so the log
+    // carries the grant): a live delegated token off the internal channel
+    // is a direct REST presentation — refused, distinctly from every
+    // credential failure above.
+    if (!opts.internalChannel) {
+      log("agent_auth_failed", { authMethod: "oauth", reason: "oauth_at_rest", grantId: grant.id });
+      return undefined;
+    }
     const granted = claims.agents;
     // Agent selection: a single-agent grant has exactly one possible
     // agent (a conflicting request is refused, never silently honored);
@@ -180,8 +247,8 @@ export async function resolveAgentAuth(
   return agent ? { agent, auth: { kind: "agent" } } : undefined;
 }
 
-export async function resolveAgentFromToken(token: string, requestedAgentId?: string) {
-  return (await resolveAgentAuth(token, requestedAgentId))?.agent;
+export async function resolveAgentFromToken(token: string, requestedAgentId?: string, opts: ResolveAgentOptions = {}) {
+  return (await resolveAgentAuth(token, requestedAgentId, opts))?.agent;
 }
 
 /**
@@ -210,7 +277,10 @@ export async function resolveAgentCallerDetailed(
   token: string,
 ): Promise<{ caller?: AgentCaller; failureReason?: OAuthFailureReason }> {
   if (token.split(".").length === 3) {
-    const classic = await resolveAgentAuth(token);
+    // This resolver serves the agent MCP's own door — the internal
+    // channel by definition — so its probe resolves delegated tokens
+    // instead of refusing them as at-REST presentations.
+    const classic = await resolveAgentAuth(token, undefined, { internalChannel: true });
     if (classic && classic.auth.kind === "agent") return { caller: { kind: "agent", agent: classic.agent } };
     const oauth = await resolveOAuthDetailed(token);
     if (oauth.ok) {
