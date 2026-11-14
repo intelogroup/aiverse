@@ -1432,7 +1432,10 @@ export function GlbWorld() {
     () => ({ position: [290, 250, 340] as [number, number, number], fov: 45, near: 0.5, far: 6000 }),
     [],
   );
-  const target: [number, number, number] = [CITY3_CENTER[0], 8, CITY3_CENTER[1]];
+  // Orbit pivot just in front of the fountain tower (core tile: a solid 6.4 m column on CITY3_CENTER, 0-45 m tall), on
+  // the side the opening camera looks from. A pivot inside the tower pinned the camera to its inner wall (CameraCollider)
+  // and made close orbits start inside it. 9 m out keeps the opening aerial composition unchanged.
+  const target: [number, number, number] = [CITY3_CENTER[0] + 5.8, 8, CITY3_CENTER[1] + 6.8];
 
   return (
     <div ref={rootRef} className={touchUi ? "w-glb-root w-touch-root" : "w-glb-root"}>

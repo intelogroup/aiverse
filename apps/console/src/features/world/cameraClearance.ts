@@ -15,6 +15,45 @@ export function registerCameraObstacle(root: THREE.Object3D): () => void {
   return () => { dynamicRoots.delete(root); };
 }
 
+// No downward probe: solids sitting on the ground (the tower) have no bottom face, so down always finds the ground.
+const AXES = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, -1]].map(([x, y, z]) => new THREE.Vector3(x, y, z));
+const enclosedRay = Object.assign(new THREE.Raycaster(), { firstHitOnly: false });
+const normalMatrix = new THREE.Matrix3();
+const worldNormal = new THREE.Vector3();
+
+/**
+ * True when `point` sits inside closed geometry: the first surface in each horizontal direction and straight up is a
+ * back face. An orbit target inside a solid (the plaza's fountain tower) makes every clearance ray hit the solid's inner
+ * wall, so the collider would pin the camera against it; the caller skips collision instead. An open spot under an
+ * awning or in a room has at least one direction with no hit or a front face first, so it never counts as enclosed.
+ */
+export function pointEnclosed(point: THREE.Vector3, meshes: THREE.Object3D[], far = 200): boolean {
+  if (meshes.length === 0) return false;
+  // Back faces of one-sided materials are invisible to raycasts; make them hittable for the probe (as hitDistance does).
+  const sides = new Map<THREE.Material, THREE.Side>();
+  for (const o of meshes) {
+    const m = o as THREE.Mesh;
+    for (const material of Array.isArray(m.material) ? m.material : [m.material]) {
+      if (material && !sides.has(material)) { sides.set(material, material.side); material.side = THREE.DoubleSide; }
+    }
+  }
+  try {
+    for (const dir of AXES) {
+      enclosedRay.set(point, dir);
+      enclosedRay.near = 0;
+      enclosedRay.far = far;
+      const hit = enclosedRay.intersectObjects(meshes, false).find((h) => h.object.visible && !clippedHit(h));
+      if (!hit?.face) return false;
+      normalMatrix.getNormalMatrix(hit.object.matrixWorld);
+      worldNormal.copy(hit.face.normal).applyMatrix3(normalMatrix);
+      if (worldNormal.dot(dir) <= 0) return false; // front face: the point is outside this surface
+    }
+    return true;
+  } finally {
+    for (const [material, side] of sides) material.side = side;
+  }
+}
+
 /** Reusable nine-ray sweep of the camera's near-plane footprint, including its centre.
  * Parallel probes protect the whole path, not just the camera's centre ray. */
 export class CameraClearance {

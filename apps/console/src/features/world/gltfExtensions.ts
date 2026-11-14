@@ -20,6 +20,9 @@ export function configureGltfLoader(loader: GltfLoaderLike, renderer?: THREE.Web
   if (!ktx2) ktx2 = new KTX2Loader().setTranscoderPath("/basis/");
   if (renderer && !primed) {
     ktx2.detectSupport(renderer);
+    // Start the transcoder workers now (fetch + compile basis_transcoder.wasm), not on the first texture request: in tile
+    // mode the first request comes only after the core GLB has parsed, so every material waited gray for it.
+    if (TILES) void ktx2.init().catch(() => {});
     primed = true;
   }
   loader.setKTX2Loader(ktx2);

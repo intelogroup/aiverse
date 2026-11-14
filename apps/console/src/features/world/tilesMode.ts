@@ -16,8 +16,10 @@ export const CORE_TILE_URL = "/assets/tiles/core.glb";
  * JS is requestable up front, so start it at module load rather than after the previous link finished: the manifest and the
  * core collision used to be asked for only once the core had rendered (5.9 s on the emulated phone, 0.3 s of data).
  */
-// Only on a world URL: the homepage and other views never fetch the core.
-if (TILES && typeof document !== "undefined" && new URLSearchParams(window.location.search).has("walk")) {
+// This module is only evaluated with the lazily loaded world chunk (WorldView), so any page that evaluates it is about to
+// draw the world, including the homepage (it IS the world view). Gating this on ?walk left `/` waiting for the transcoder
+// until the first texture asked for it (~7 s on the emulated phone, while the whole world sat gray).
+if (TILES && typeof document !== "undefined") {
   const preload = (href: string) => { const l = document.createElement("link"); l.rel = "preload"; l.as = "fetch"; l.crossOrigin = "anonymous"; l.href = href; document.head.appendChild(l); };
   [CORE_TILE_URL, "/assets/tiles/districts.json", "/assets/tiles/core.col.glb", "/basis/basis_transcoder.js", "/basis/basis_transcoder.wasm"].forEach(preload);
 }
