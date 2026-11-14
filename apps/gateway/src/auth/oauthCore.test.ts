@@ -71,7 +71,7 @@ describe("authorization codes and refresh tokens", () => {
 });
 
 describe("access tokens", () => {
-  const claims = { ownerId: "owner-123", scope: "world:observe inbox:read", agents: ["agent-1", "agent-2"] };
+  const claims = { ownerId: "owner-123", grantId: "grant-1", scope: "world:observe inbox:read", agents: ["agent-1", "agent-2"] };
 
   test("sign/verify round-trips the delegation claims", async () => {
     const token = await signAccessToken(claims);

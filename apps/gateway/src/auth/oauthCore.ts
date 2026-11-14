@@ -98,6 +98,9 @@ export function generateRefreshFamilyId(): string {
 
 export interface OAuthAccessClaims {
   ownerId: string;
+  /** The grant this token was minted from (`gid`). Liveness is checked on THIS grant, so revoking one client's grant
+   *  kills that client's tokens even when another client holds an identical grant. */
+  grantId: string;
   scope: string;
   agents: string[];
 }
@@ -107,6 +110,7 @@ export function signAccessToken(claims: OAuthAccessClaims): Promise<string> {
   return sign(
     {
       sub: claims.ownerId,
+      gid: claims.grantId,
       iss: oauthIssuer(),
       aud: oauthResource(),
       scope: claims.scope,
@@ -125,6 +129,9 @@ export async function verifyAccessToken(token: string): Promise<OAuthAccessClaim
   if (typeof payload.sub !== "string" || payload.sub.length === 0) {
     throw new Error("access token: missing subject");
   }
+  if (typeof payload.gid !== "string" || payload.gid.length === 0) {
+    throw new Error("access token: missing grant id");
+  }
   if (typeof payload.scope !== "string") throw new Error("access token: missing scope");
   if (
     !Array.isArray(payload.agents) ||
@@ -134,6 +141,7 @@ export async function verifyAccessToken(token: string): Promise<OAuthAccessClaim
   }
   return {
     ownerId: payload.sub,
+    grantId: payload.gid,
     scope: payload.scope,
     agents: payload.agents as string[],
   };

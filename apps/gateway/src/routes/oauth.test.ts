@@ -49,7 +49,7 @@ async function ownerWithAgent(name: string) {
 async function registerClient(redirectUris: string[] = [LOOPBACK_REDIRECT]) {
   const res = await app.request("/oauth/register", {
     method: "POST",
-    headers: jsonHeaders(),
+    headers: { ...jsonHeaders(), "x-forwarded-for": `10.9.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}` },
     body: JSON.stringify({ client_name: "test mcp client", redirect_uris: redirectUris }),
   });
   expect(res.status).toBe(201);
@@ -154,7 +154,7 @@ describe("dynamic client registration", () => {
   test("registers a public client with loopback redirects", async () => {
     const res = await app.request("/oauth/register", {
       method: "POST",
-      headers: jsonHeaders(),
+      headers: { ...jsonHeaders(), "x-forwarded-for": `10.9.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}` },
       body: JSON.stringify({ client_name: "cli client", redirect_uris: [LOOPBACK_REDIRECT] }),
     });
     expect(res.status).toBe(201);
@@ -167,7 +167,7 @@ describe("dynamic client registration", () => {
   test("refuses http redirects off loopback and missing names", async () => {
     const bad = await app.request("/oauth/register", {
       method: "POST",
-      headers: jsonHeaders(),
+      headers: { ...jsonHeaders(), "x-forwarded-for": `10.9.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}` },
       body: JSON.stringify({ client_name: "bad", redirect_uris: ["http://evil.example.com/cb"] }),
     });
     expect(bad.status).toBe(400);
@@ -175,7 +175,7 @@ describe("dynamic client registration", () => {
 
     const noName = await app.request("/oauth/register", {
       method: "POST",
-      headers: jsonHeaders(),
+      headers: { ...jsonHeaders(), "x-forwarded-for": `10.9.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}` },
       body: JSON.stringify({ redirect_uris: [LOOPBACK_REDIRECT] }),
     });
     expect(noName.status).toBe(400);

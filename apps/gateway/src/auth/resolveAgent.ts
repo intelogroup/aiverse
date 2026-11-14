@@ -124,6 +124,8 @@ export interface ResolvedAgent {
 
 type AgentRow = typeof agents.$inferSelect;
 
+const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const sameSet = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length && a.every((x) => b.includes(x));
 
@@ -152,19 +154,21 @@ async function resolveOAuthDetailed(token: string): Promise<OAuthResolution> {
   }
   const scopes = parseScope(claims.scope);
   if (scopes === null) return { ok: false, reason: "token_invalid" };
-  const rows = await db.query.oauthGrants.findMany({
-    where: eq(oauthGrants.ownerId, claims.ownerId),
-  });
-  const matching = rows.filter(
-    (g) =>
-      sameSet(((g.agentIds as string[] | null) ?? []), claims.agents) &&
-      sameSet(((g.scopes as string[] | null) ?? []), scopes),
-  );
-  const live = matching.find((g) => g.revokedAt === null && g.expiresAt.getTime() > Date.now());
-  if (live) return { ok: true, claims, grant: live };
-  if (matching.some((g) => g.revokedAt !== null)) return { ok: false, reason: "grant_revoked" };
-  if (matching.length > 0) return { ok: false, reason: "grant_expired" };
-  return { ok: false, reason: "grant_missing" };
+  // The token names its grant (gid): liveness is judged on that grant alone. Matching any grant with the same
+  // owner/agents/scopes let a revoked client's token live on through another client's identical grant.
+  if (!UUID_SHAPE.test(claims.grantId)) return { ok: false, reason: "token_invalid" };
+  const grant = await db.query.oauthGrants.findFirst({ where: eq(oauthGrants.id, claims.grantId) });
+  if (
+    !grant ||
+    grant.ownerId !== claims.ownerId ||
+    !sameSet(((grant.agentIds as string[] | null) ?? []), claims.agents) ||
+    !sameSet(((grant.scopes as string[] | null) ?? []), scopes)
+  ) {
+    return { ok: false, reason: "grant_missing" };
+  }
+  if (grant.revokedAt !== null) return { ok: false, reason: "grant_revoked" };
+  if (grant.expiresAt.getTime() <= Date.now()) return { ok: false, reason: "grant_expired" };
+  return { ok: true, claims, grant };
 }
 
 export async function resolveAgentAuth(
