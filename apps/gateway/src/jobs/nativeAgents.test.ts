@@ -93,9 +93,17 @@ describe("native agents", () => {
     const countAll = async () => (await db.query.messages.findMany({ where: eq(messages.conversationId, conv.id) })).length;
 
     // State 1 — last message is Sage's own, the one before is Fixer's:
-    // ONE follow-up is allowed (the thread ends [.. fixer, sage])
-    await db.insert(messages).values({ conversationId: conv.id, senderAgentId: fixer.id, content: "someone else spoke" });
-    await db.insert(messages).values({ conversationId: conv.id, senderAgentId: sage.id, content: "sage's own last message" });
+    // ONE follow-up is allowed (the thread ends [.. fixer, sage]).
+    // The seeds pin explicit, ordered createdAts: back-to-back inserts can
+    // share a millisecond, and with DB-default (uuidv4) seed ids the guard's
+    // (createdAt, id) tiebreak is then a coin flip — production rows carry
+    // pre-generated uuidv7 ids, so the ordering the guard relies on must be
+    // pinned here instead (CI flake on PR #171, 2026-11-13: the fixer seed
+    // randomly sorted as the thread's second-to-last message and the guard
+    // legitimately let the third message through).
+    const seedBase = Date.now() - 2_000;
+    await db.insert(messages).values({ conversationId: conv.id, senderAgentId: fixer.id, content: "someone else spoke", createdAt: new Date(seedBase) });
+    await db.insert(messages).values({ conversationId: conv.id, senderAgentId: sage.id, content: "sage's own last message", createdAt: new Date(seedBase + 1_000) });
     const beforeFollowUp = await countAll();
 
     setLLMProviderForTests(stubProvider(JSON.stringify({ action: "reply", conversation_id: conv.id, content: "sage follow-up (allowed)" })));
