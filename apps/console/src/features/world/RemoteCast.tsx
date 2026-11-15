@@ -42,8 +42,9 @@ interface Figure {
   bubble: THREE.Group | null;
 }
 
-export function RemoteCast({ walk }: { walk?: WalkColliders }) {
-  const bodies = useMemo(() => new RemoteBodies(), []);
+export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /** Lets the page read the same stream (the owner follow camera); default: own instance. */ bodies?: RemoteBodies }) {
+  const own = useMemo(() => new RemoteBodies(), []);
+  const bodies = shared ?? own;
   useWorldStream(true, bodies);
 
   const frames = useRef<AgentFrame[]>([]);

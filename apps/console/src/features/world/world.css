@@ -751,8 +751,9 @@
 }
 .world-root .w-glb-poi button { white-space: nowrap; }
 .world-root .w-tea-floors { top: 110px; width: max-content; max-width: calc(100% - 24px); overflow-x: auto; }
-.world-root .w-verse-recorder { top: 110px; }
-.world-root:has(.w-tea-floor-panel) .w-verse-recorder { top: auto; bottom: 14px; }
+.world-root .w-tools { position: absolute; top: 14px; right: 14px; z-index: 20; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; max-width: calc(100% - 28px); pointer-events: none; }
+.world-root .w-tools > * { pointer-events: auto; }
+.world-root:has(.w-tea-floor-panel) .w-tools { top: auto; bottom: 14px; }
 .world-root .w-tea-floors button { padding: 7px 10px; white-space: nowrap; }
 .world-root .w-tea-floor-caption { position: absolute; top: 158px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 24px); padding: 5px 10px; border-radius: 8px; background: rgba(9,13,28,.85); color: var(--w-dim); font-size: 12px; text-align: center; z-index: 5; pointer-events: none; }
 .world-root .w-glb-walk {
@@ -1679,3 +1680,29 @@
 .world-root .w-lift-hud button { min-height:44px; margin:3px; padding:8px 12px; border:1px solid #61748d; border-radius:7px; background:#202c40; color:inherit; }
 .world-root .w-lift-hud button[aria-pressed=true] { background:#28594f; }
 .world-root .w-lift-hud p { margin:7px 0 0; font-size:12px; }
+
+/* "Follow <agent>" chip: lands on the owner's agent, toggles back to the spectator camera. Top-left, clear of the top-centre
+   toggle and the right-hand controls. */
+.world-root .w-follow-chip {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 5;
+  max-width: calc(100% - 28px);
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(12, 14, 20, 0.72);
+  color: #f2f4f8;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  backdrop-filter: blur(6px);
+  cursor: pointer;
+}
+.world-root .w-follow-chip.active {
+  border-color: rgba(120, 200, 255, 0.55);
+}

@@ -36,6 +36,9 @@ import {
 } from "./TouchWalkLayer";
 import { ScoutAgent } from "./ScoutAgent";
 import { RemoteCast } from "./RemoteCast";
+import { OwnerFollowCam } from "./OwnerFollowCam";
+import { pickOwnBody, type RosterBody } from "./ownerFollow";
+import { RemoteBodies } from "./remoteFrames";
 import { WalkClipOverride, type WalkFrameInfo } from "./walkOverride";
 import { SoundDirector } from "./soundDirector";
 import { VOICE_BARTENDER, benchPhonon, phononWarmth, synthLine, warmPhonon } from "./phononTts";
@@ -1010,14 +1013,14 @@ function FigureFlyRig({
   return null;
 }
 
-export function GlbWorld() {
+export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner's agents (empty for a visitor). With one in the world, the camera lands on it. */ ownerAgentNames?: readonly string[] } = {}) {
   // City 3 is the only world: the Agora was deleted 2026-11-08 (Jim's
   // order — a planned lobby will bring back world navigation later).
   // Any ?world= value, stale or current, lands here.
   // Walk-mode HUD (City 3): one shared override state — the panel's
   // Run/door buttons drive it, the walk bot's CastFigure consumes it as
   // its clip tester. Plus the walker's latest frame for the status line.
-  const [miraVisitNonce, setMiraVisitNonce] = useState(0);
+  const [miraVisitNonce] = useState(0); // the "Meet Mira" shortcut was removed; Mira still lives in the Tea House
   const walkOverrideRef = useRef<WalkClipOverride | null>(null);
   if (walkOverrideRef.current === null) walkOverrideRef.current = new WalkClipOverride();
   const walkFrameRef = useRef<WalkFrameInfo | null>(null);
@@ -1078,7 +1081,31 @@ export function GlbWorld() {
   const streamParam = useMemo(() => new URLSearchParams(window.location.search).get("stream"), []);
   // An explicit ?stream=1 wins even with ?agent=1: the look service's page is `?agent=1` (its scout is a stand-in head-cam, not an
   // agent in the world), and its photos must show the server-driven bodies standing in front of the camera.
-  const streamOn = streamParam === "1" || (!agentOn && streamParam !== "0" && import.meta.env.VITE_WORLD_STREAM === "1");
+  // An owner with agents always gets the stream (nothing to land on otherwise); visitors keep the flag-only default.
+  const ownerKey = (ownerAgentNames ?? []).join("\u0000");
+  const ownerNames = useMemo(() => (ownerKey ? ownerKey.split("\u0000") : []), [ownerKey]);
+  const streamOn = streamParam === "1" || (!agentOn && streamParam !== "0" && (import.meta.env.VITE_WORLD_STREAM === "1" || ownerNames.length > 0));
+  // The stream's state lives here (RemoteCast draws from it, OwnerFollowCam reads it) so the owner's body can be found by name.
+  const remoteBodies = useMemo(() => new RemoteBodies(), []);
+  const [ownBody, setOwnBody] = useState<RosterBody | null>(null);
+  useEffect(() => {
+    if (!streamOn || ownerNames.length === 0) {
+      setOwnBody(null);
+      return;
+    }
+    const look = () => {
+      const b = pickOwnBody(remoteBodies.list(), ownerNames);
+      setOwnBody((prev) => (prev?.n === b?.n && prev?.name === b?.name ? prev : b));
+    };
+    look();
+    const id = window.setInterval(look, 400);
+    return () => window.clearInterval(id);
+  }, [streamOn, ownerNames, remoteBodies]);
+  // Follow the owner's agent (third person). Lands there once per visit, unless the user already moved the camera or came by a
+  // walk/agent deep link; any drag/pinch/wheel on the world hands the camera back (OwnerFollowCam fires onTakeOver).
+  const [following, setFollowing] = useState(false);
+  const followAuto = useRef(true);
+  const takeOver = useCallback(() => setFollowing(false), []);
   const [camMode, setCamMode] = useState<CameraMode>(walkLink ? "ride" : "wide");
   // City 3 collider meshes (DistrictWorld fills it), read by the walker.
   const colliderMeshesRef = useRef<(() => THREE.Mesh[]) | null>(null);
@@ -1419,6 +1446,22 @@ export function GlbWorld() {
   }, [loadNonce]);
   const contextLossDetachRef = useRef<(() => void) | null>(null);
   const markPresented = useCallback(() => setWorldPresented(true), []);
+  // Land on the owner's agent: engage once the world is on screen and the body is in the stream. Never over a deep link, a walk
+  // mode, a hero fly-to, or a camera the user already touched. Losing the body (visit ended) drops back to the spectator camera
+  // where it stands; heroFocus (a UI fly-to) also ends it.
+  useEffect(() => {
+    if (!ownBody) {
+      setFollowing(false);
+      return;
+    }
+    if (followAuto.current && worldPresented && !walkLink && !agentOn && camMode === "wide" && !heroFocus) {
+      followAuto.current = false;
+      setFollowing(true);
+    }
+  }, [ownBody, worldPresented, walkLink, agentOn, camMode, heroFocus]);
+  useEffect(() => {
+    if (heroFocus || camMode !== "wide") setFollowing(false);
+  }, [heroFocus, camMode]);
   useEffect(() => {
     return () => {
       soundRef.current?.dispose();
@@ -1438,9 +1481,28 @@ export function GlbWorld() {
   const target: [number, number, number] = [CITY3_CENTER[0] + 5.8, 8, CITY3_CENTER[1] + 6.8];
 
   return (
-    <div ref={rootRef} className={touchUi ? "w-glb-root w-touch-root" : "w-glb-root"}>
-      <VerseRecorder root={rootRef} />
-      <VerseShare root={rootRef} />
+    <div
+      ref={rootRef}
+      className={touchUi ? "w-glb-root w-touch-root" : "w-glb-root"}
+      // A touch on the world itself means the user is steering: never auto-land on their agent afterwards.
+      onPointerDownCapture={(e) => { if (e.target instanceof HTMLCanvasElement) followAuto.current = false; }}
+      onWheelCapture={(e) => { if (e.target instanceof HTMLCanvasElement) followAuto.current = false; }}
+    >
+      {ownBody && !agentOn && !walking ? (
+        <button
+          type="button"
+          className={following ? "w-follow-chip active" : "w-follow-chip"}
+          data-testid="follow-chip"
+          onClick={() => { followAuto.current = false; setFollowing((f) => !f); }}
+        >
+          {following ? `Following ${ownBody.name} · drag to explore` : `Follow ${ownBody.name}`}
+        </button>
+      ) : null}
+      {/* One stack, top-right: Share and Record no longer sit on top of each other or the phone tab bar. */}
+      <div className="w-tools">
+        <VerseRecorder root={rootRef} />
+        <VerseShare root={rootRef} />
+      </div>
       <TeaElevatorHud controller={elevator} frame={walkFrameRef} walking={walking} walk={walkColliders} />
       {glSupported ? (
       <Canvas
@@ -1476,7 +1538,7 @@ export function GlbWorld() {
         {touchUi && !agentOn ? <TouchFpsCap /> : null}
         <Suspense fallback={null}>
           <PresentedSignal onPresented={markPresented} />
-          <DistrictWorld residentUrl={CITY3_URL} light={keyLightRef} collide={camMode === "wide" && !(heroFocus?.id === "tea" && teaFloor === null)} meshesRef={colliderMeshesRef} walk={walkColliders} streamCap={touchUi ? 2 : undefined} interact={interactRef.current ?? undefined} />
+          <DistrictWorld residentUrl={CITY3_URL} light={keyLightRef} collide={camMode === "wide" && !following && !(heroFocus?.id === "tea" && teaFloor === null)} meshesRef={colliderMeshesRef} walk={walkColliders} streamCap={touchUi ? 2 : undefined} interact={interactRef.current ?? undefined} />
           <>
               <TeaElevator controller={elevator} walk={walkColliders} url={CITY3_URL} frame={walkFrameRef} getDirector={() => soundRef.current} />
               <ClipCutaway rooms={city3Rooms} focus={heroFocus} teaFloor={teaFloor} walking={walking} />
@@ -1547,7 +1609,8 @@ export function GlbWorld() {
           {agentOn ? (
             <ScoutAgent getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} door={teaDoorRef.current} positionRef={scoutPosRef} interact={interactRef.current} spawn={agentPair ? [-22.9, -68, 0] : undefined} />
           ) : null}
-          {streamOn ? <RemoteCast walk={walkColliders} /> : null}
+          {streamOn ? <RemoteCast walk={walkColliders} bodies={remoteBodies} /> : null}
+          {following && ownBody ? <OwnerFollowCam bodies={remoteBodies} n={ownBody.n} onTakeOver={takeOver} /> : null}
           {agentPair ? (
             <ScoutAgent actorId="scout-peer" primary={false} spawn={[-22.9, -64, Math.PI]}
               getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} door={teaDoorRef.current} interact={interactRef.current} />
@@ -1783,22 +1846,6 @@ export function GlbWorld() {
         </div>
       ) : null}
       <a className="w-asset-credit" href="/assets/collectibles/credits.html" target="_blank" rel="noreferrer" title="SciFi EasterEgg by Cécile Amstad — CC BY 4.0">3D asset credit</a>
-      {!walking ? (
-        <div className="w-glb-toggle w-glb-poi" role="group" aria-label="Places in City 3">
-          {city3Rooms.filter((r) => r.featured).map((hero) => (
-            <button
-              key={hero.id}
-              type="button"
-              onClick={() => setHeroFocus((f) => ({ id: hero.id, nonce: (f?.nonce ?? 0) + 1 }))}
-            >
-              {hero.name}
-            </button>
-          ))}
-          <button type="button" onClick={() => setMiraVisitNonce((n) => n + 1)}>
-            Meet Mira
-          </button>
-        </div>
-      ) : null}
       {!walking && heroFocus?.id === "tea" ? (
         <div className="w-tea-floor-panel">
           <div className="w-glb-toggle w-tea-floors" role="group" aria-label="Tea House floors">
