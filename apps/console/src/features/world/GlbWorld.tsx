@@ -1106,6 +1106,21 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
   const [following, setFollowing] = useState(false);
   const followAuto = useRef(true);
   const takeOver = useCallback(() => setFollowing(false), []);
+  // Full view: hides the app chrome (header, tab bar, tips) and asks the browser for real fullscreen where it exists (not iPhone
+  // Safari, which has no Fullscreen API for pages: there the chrome-less view is what you get). Esc / the button leaves.
+  const [fullView, setFullView] = useState(false);
+  useEffect(() => {
+    const appRoot = rootRef.current?.closest(".world-root") as HTMLElement | null;
+    appRoot?.classList.toggle("w-immersive", fullView);
+    if (fullView && appRoot?.requestFullscreen && !document.fullscreenElement) void appRoot.requestFullscreen().catch(() => {});
+    if (!fullView && document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    return () => appRoot?.classList.remove("w-immersive");
+  }, [fullView]);
+  useEffect(() => {
+    const onFs = () => { if (!document.fullscreenElement) setFullView(false); };
+    document.addEventListener("fullscreenchange", onFs);
+    return () => document.removeEventListener("fullscreenchange", onFs);
+  }, []);
   const [camMode, setCamMode] = useState<CameraMode>(walkLink ? "ride" : "wide");
   // City 3 collider meshes (DistrictWorld fills it), read by the walker.
   const colliderMeshesRef = useRef<(() => THREE.Mesh[]) | null>(null);
@@ -1502,6 +1517,9 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
       <div className="w-tools">
         <VerseRecorder root={rootRef} />
         <VerseShare root={rootRef} />
+        <button type="button" className="w-fullview-btn" data-testid="full-view" onClick={() => setFullView((v) => !v)}>
+          {fullView ? "Exit full view" : "Full view"}
+        </button>
       </div>
       <TeaElevatorHud controller={elevator} frame={walkFrameRef} walking={walking} walk={walkColliders} />
       {glSupported ? (

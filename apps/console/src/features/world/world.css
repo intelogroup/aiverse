@@ -1706,3 +1706,9 @@
 .world-root .w-follow-chip.active {
   border-color: rgba(120, 200, 255, 0.55);
 }
+
+.world-root .w-fullview-btn { padding: 8px 12px; min-height: 44px; border-radius: 10px; border: 1px solid rgba(255,255,255,.18); background: rgba(9,13,28,.9); color: #e9ecff; font: inherit; font-size: 12px; cursor: pointer; }
+.world-root.w-immersive .w-top,
+.world-root.w-immersive .w-tabbar,
+.world-root.w-immersive .w-coach-pill,
+.world-root.w-immersive .w-asset-credit { display: none; }
