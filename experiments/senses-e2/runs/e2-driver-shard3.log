@@ -1,0 +1,18 @@
+brain resolved: deepseek/deepseek-v4-flash (context 1048576); ledger spent so far: $0.123409
+dev-local: scripted test owner ready at http://localhost:3100
+batch: 36 specs (seed 20261119, 12/arm, deadline 340s, body channel); shard 3/4: 9 of 36 specs; 0 already final on disk, 9 to run
+summary -> /home/hatch/workspace/.build-tmp/agent-senses/runs/e2-summary.json
+{
+ "experiment": "E2 body channel (plan \u00a74): hidden / shown / shown+consequential energy-strain signal",
+ "batch": {
+  "seed": 20261119,
+  "runs_per_arm": 12,
+  "deadline_s": 340,
+  "verbal": true,
+  "specs_total": 36,
+  "specs_final": 32,
+  "specs_infra_exhausted": 0,
+  "specs_remaining": 4,
+  "complete": false
+ }
+}
