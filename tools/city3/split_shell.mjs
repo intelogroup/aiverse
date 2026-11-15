@@ -2,9 +2,12 @@
 // Split the far shell's `shell_bazaar` massing into one `shell_<tileId>` node per world tile, so the runtime's existing rule
 // (a shell group hides once its district id is loaded) hides massing tile by tile instead of carpeting loaded detail.
 //   bun tools/city3/split_shell.mjs <world-shell.glb> <tilesDir>     writes <tilesDir>/shell.<hash>.glb
-// Other districts' shell nodes pass through untouched.
+// Shell nodes of districts that are not tiles any more (glassq, foundry, terraces, halo were dropped from the world on 2026-11-13, but
+// world-shell.glb still carries their massing) are dropped here: nothing ever loads their detail, so their shell group would stay
+// visible forever as phantom districts around the Bazaar.
 import { NodeIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS, EXTMeshoptCompression } from "@gltf-transform/extensions";
+import { prune } from "@gltf-transform/functions";
 import { MeshoptDecoder, MeshoptEncoder } from "meshoptimizer";
 import { readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -31,6 +34,13 @@ for (const prim of mesh.listPrimitives()) {
   for (const [li, tris] of per) (byLeaf.get(li) ?? byLeaf.set(li, []).get(li)).push({ prim, tris });
 }
 let total = 0;
+// Every shell_<id> the run produces is a tile id; anything else under that prefix belongs to a district the world no longer has.
+const known = new Set(layoutIds.map(id => `shell_${id}`));
+for (const n of scene.listChildren()) {
+  if (n === node || !n.getName().startsWith("shell_") || known.has(n.getName())) continue;
+  console.log(`dropping stale shell node ${n.getName()} (${n.getMesh()?.listPrimitives().length ?? 0} primitives)`);
+  const m = n.getMesh(); n.dispose(); if (m) { m.listPrimitives().forEach(p => p.dispose()); m.dispose(); }
+}
 for (const [li, parts] of byLeaf) {
   const m = doc.createMesh(`${FROM}_${layoutIds[li]}`);
   for (const { prim, tris } of parts) { const p = prim.clone(); subset(doc, p, Int32Array.from(tris)); m.addPrimitive(p); total += tris.length; }
@@ -39,6 +49,7 @@ for (const [li, parts] of byLeaf) {
 const before = mesh.listPrimitives().reduce((a, p) => a + (p.getIndices()?.getCount() ?? p.getAttribute("POSITION").getCount()) / 3, 0);
 if (total !== before) throw new Error(`triangles lost: ${before} -> ${total}`);
 node.dispose(); mesh.listPrimitives().forEach(p => p.dispose()); mesh.dispose();
+await doc.transform(prune({ keepLeaves: false, keepAttributes: false })); // disposed nodes/meshes leave their accessors behind: without this they are still written into the GLB
 doc.createExtension(EXTMeshoptCompression).setRequired(true).setEncoderOptions({ method: EXTMeshoptCompression.EncoderMethod.QUANTIZE }); // bytes only, no position filter
 const out = Buffer.from(await io.writeBinary(doc)); const name = `shell.${createHash("sha1").update(out).digest("hex").slice(0, 10)}.glb`;
 writeFileSync(`${DIR}/${name}`, out);

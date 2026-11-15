@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EVICT_GRACE_MS, RESIDENT_COLLISION_URL, blendTheme, collisionJobs, dueEvictions, isShellCovered, planDistricts, residentCollisionUrl, rectDistance, themeDelta, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
+import { EVICT_GRACE_MS, RESIDENT_COLLISION_URL, blendTheme, collisionJobs, dueEvictions, isShellCovered, planDistricts, staleShellIds, residentCollisionUrl, rectDistance, themeDelta, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
 
 const th = (r: number, night = 0): Theme => ({ skyTop: [r, 0, 0], skyHorizon: [r, 0, 0], fog: [r, 0, 0], fogDensity: 0.001, water: [0, 0, 0], sun: [1, 1, 1],
   sunIntensity: 2, sunDir: [0, 1, 0], ambient: 0.1, envIntensity: 0.5, exposure: 1, night });
@@ -93,5 +93,15 @@ describe("district collision urls", () => {
     expect(collisionJobs(p.load, withCol).size).toBe(0);
     expect(residentCollisionUrl(withCol)).toBe("/c/bazaar.glb");
     expect(residentCollisionUrl(defs)).toBe(RESIDENT_COLLISION_URL);
+  });
+});
+
+describe("staleShellIds", () => {
+  it("flags shell groups of districts the manifest no longer has (the four dropped districts)", () => {
+    expect(staleShellIds(["glassq", "foundry", "terraces", "halo", "t3_13_13", "tea"], ["t3_13_13", "tea", "t2_3_9"]).sort()).toEqual(["foundry", "glassq", "halo", "terraces"]);
+  });
+  it("keeps every live shell group, and works for the one-file world (bazaar)", () => {
+    expect(staleShellIds(["bazaar"], ["bazaar"])).toEqual([]);
+    expect(staleShellIds([], ["bazaar"])).toEqual([]);
   });
 });

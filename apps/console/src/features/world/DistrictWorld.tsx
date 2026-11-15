@@ -12,7 +12,7 @@ import { EasterEggs } from "./EasterEggs";
 import type { InteractController } from "./interactables";
 import type { WalkColliders } from "./walkColliders";
 import { assetUrl, resolveManifestAssets } from "../../lib/assetUrl";
-import { blendTheme, collisionJobs, dueEvictions, isShellCovered, originOf, planDistricts, residentCollisionUrl, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
+import { blendTheme, collisionJobs, dueEvictions, isShellCovered, originOf, planDistricts, residentCollisionUrl, staleShellIds, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
 import { TILES } from "./tilesMode";
 import { tileScenes } from "./tileScenes";
 
@@ -212,6 +212,12 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
       // generator names these `shell_<id>` — a `shell:` prefix match would silently never fire and no
       // shell group would ever hide (found by probe, 2026-11-09). Accept the legacy colon form too.
       root.traverse((o) => { const m = /^shell[_:](.+)$/.exec(o.name); if (m) shellGroups.current.set(m[1], o); });
+      // Massing of districts the world no longer has (still baked into the shell GLB) would stay visible forever: remove it.
+      for (const id of staleShellIds(shellGroups.current.keys(), manifest.districts.map((d) => d.id))) {
+        const g = shellGroups.current.get(id); shellGroups.current.delete(id);
+        if (g) { g.removeFromParent(); disposeTree(g); }
+        pushEvent(`shell-stale-${id}`);
+      }
       syncShell(); pushEvent("shell-ok");
     }, undefined, () => { if (live) { console.warn("[districts] far shell failed to load; unloaded districts will show water until their detail streams in"); pushEvent("shell-fail"); } });
     return () => { live = false; shellGroups.current.clear(); if (root) { scene.remove(root); disposeTree(root); } };
