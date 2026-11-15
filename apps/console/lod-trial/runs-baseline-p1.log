@@ -1,0 +1,5 @@
+asset -> dist: 68501036 bytes sha256 b14cb2dc1a3bfa8d0a1b8d6570f45379f750a03569f76b9eda0643113ae190a0
+goto http://127.0.0.1:8901/?tiles=0&streamDebug=1
+world presenting: {"calls":1694,"tris":4117660,"lodCount":null} after 88.2 s
+pose P1 produced no read
+FINALIZED {"samples":0,"drawCalls":{"mean":0,"peak":0},"triangles":{"mean":0,"peak":0},"film":"26 frames @ 0.05 fps","glbTotal":102943852}

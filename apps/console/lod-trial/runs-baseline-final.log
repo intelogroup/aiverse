@@ -1,0 +1,7 @@
+presenting: {"calls":1694,"triangles":4117660}
+teleport: {"ok":true,"v":"tp-ok"}
+read timeout 1
+warm timeout 2
+warm timeout 3
+warm timeout 4
+META {"reads":0,"lodCount":null,"glbTotal":102943852,"film":6}

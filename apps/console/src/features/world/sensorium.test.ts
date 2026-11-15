@@ -49,6 +49,7 @@ const KNOWN_GLOBALS: Record<string, string> = {
   __walk: "walker debug handle, ?walkDebug=1 only (CityWalker)",
   __districts: "district streaming state for the console UI (DistrictWorld)",
   __city3Stream: "streaming debug handle, ?streamDebug=1 only (GlbWorld)",
+  __bazaarLod: "bazaar LOD trial handle (level histogram + triangle census), ?lod=1 only (bazaarLod, tmp/lod-bazaar)",
   __sound: "sound director / PA debug surface (GlbWorld)",
   __tts: "plaza speech debug surface (GlbWorld)",
   __quality: "quality governor debug handle, ?qualityDebug=1 only (GlbWorld)",

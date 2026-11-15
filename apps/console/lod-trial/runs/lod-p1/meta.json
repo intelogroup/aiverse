@@ -1,0 +1,81 @@
+{
+ "run": "lod",
+ "lodMode": true,
+ "pose": {
+  "id": "P1",
+  "pos": [
+   14,
+   2.2,
+   46
+  ]
+ },
+ "asset": {
+  "path": "./world-city3-lod.glb",
+  "bytes": 73244804,
+  "sha256": "c945d676fb80622e3ffefc5948c2805ca1c200d7774207c22294d39758644cca"
+ },
+ "viewport": {
+  "width": 640,
+  "height": 360
+ },
+ "presenting": {
+  "calls": 1690,
+  "triangles": 1909266
+ },
+ "reads": [],
+ "lodCount": null,
+ "glbServedBytes": [
+  {
+   "path": "/assets/world-city3.glb",
+   "bytes": 73244804
+  },
+  {
+   "path": "/assets/cast-mage.glb",
+   "bytes": 4451464
+  },
+  {
+   "path": "/assets/cast-remy.glb",
+   "bytes": 9203448
+  },
+  {
+   "path": "/assets/world-city3-library.glb",
+   "bytes": 8055844
+  },
+  {
+   "path": "/assets/collectibles/scifi-easter-egg.glb",
+   "bytes": 281620
+  },
+  {
+   "path": "/assets/world-links.glb",
+   "bytes": 695020
+  },
+  {
+   "path": "/assets/world-shell.glb",
+   "bytes": 3070804
+  },
+  {
+   "path": "/assets/world-city3-collision.glb",
+   "bytes": 8684616
+  }
+ ],
+ "glbServedTotal": 107687620,
+ "film": {
+  "capturedFrames": 9,
+  "captureDurationS": 197.75,
+  "capturedFps": 0.05,
+  "probe": {
+   "programs": [],
+   "stream_groups": [],
+   "streams": [
+    {
+     "codec_name": "h264",
+     "width": 640,
+     "height": 360,
+     "duration": "171.200000",
+     "nb_read_frames": "10"
+    }
+   ]
+  }
+ },
+ "pageErrors": []
+}

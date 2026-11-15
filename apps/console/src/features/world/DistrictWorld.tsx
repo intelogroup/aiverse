@@ -13,6 +13,7 @@ import type { InteractController } from "./interactables";
 import type { WalkColliders } from "./walkColliders";
 import { assetUrl, resolveManifestAssets } from "../../lib/assetUrl";
 import { blendTheme, collisionJobs, dueEvictions, isShellCovered, originOf, planDistricts, residentCollisionUrl, staleShellIds, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
+import { applyBazaarLod } from "./bazaarLod";
 import { TILES } from "./tilesMode";
 import { tileScenes } from "./tileScenes";
 
@@ -171,6 +172,13 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     gl.toneMapping = THREE.AgXToneMapping;
     // useGLTF caches the resident, so its BVHs are built once and kept with it (buildColliders is idempotent).
     addColliders("resident", resident.scene);
+    // LOD trial (tmp/lod-bazaar): with ?lod=1 and the variant resident asset,
+    // wrap the bazaar props carrying __lvl children in screen-space-error
+    // LODs. Runs after addColliders so camera collision keeps the pristine
+    // LOD0 geometry (the level objects are the same meshes, re-parented).
+    if (new URLSearchParams(window.location.search).get("lod") === "1") {
+      applyBazaarLod(resident.scene, camera as THREE.PerspectiveCamera, gl);
+    }
     if (residentIdRef.current) tileScenes.set(residentIdRef.current, resident.scene);
     // The resident is mounted: its far-shell group is covered from here on (isShellCovered).
     residentReadyRef.current = true;
