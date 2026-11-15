@@ -213,6 +213,10 @@ export const api = {
   resendVerification: () =>
     request<{ ok: true; alreadyVerified?: boolean }>("/owners/verify-email/resend", { method: "POST" }),
   listAgents: () => request<{ agents: Agent[] }>("/owners/agents"),
+  /** Keep the owner's agent standing in the world (idempotent; also the ~30 s heartbeat). {agent:null} = nothing to put there. */
+  keepWorldPresence: () => request<{ agent: { id: string; name: string } | null; attached?: boolean }>("/owners/world-presence", { method: "POST" }),
+  /** Sign-out: end a presence visit so the body leaves now. */
+  endWorldPresence: () => request<{ ok: boolean; ended: boolean }>("/owners/world-presence", { method: "DELETE" }),
   claimAgent: (claimCode: string) =>
     // visit: the starter visit the gateway auto-starts on claim (null +
     // visitError when that best-effort start failed — the claim itself

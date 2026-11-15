@@ -29,6 +29,7 @@ import { registerAgentWsRoute, registerConsoleWsRoute, registerPublicWsRoute } f
 import { getHuntRuntime, huntEnabled } from "./hunt";
 import { log, logError } from "./util/log";
 import { createWorldRoute } from "./routes/world";
+import { createOwnerWorldRoute } from "./routes/ownerWorld";
 import { simClientFromEnv, worldEnabled, type SimClient } from "./world/simClient";
 import { lookClientFromEnv, type LookClient } from "./world/lookClient";
 import { createWorldStream, setWorldStream } from "./world/frames";
@@ -247,6 +248,7 @@ export function createApp(opts: CreateAppOpts = {}) {
   if (sim) {
     const look = opts.look ?? (worldEnabled() ? lookClientFromEnv() : null);
     app.route("/world", createWorldRoute(sim, look));
+    app.route("/owners/world-presence", createOwnerWorldRoute(sim));
     // Spectators ask for the pose stream on /public/ws; the loop only runs while somebody is subscribed.
     setWorldStream(createWorldStream({
       sim,
