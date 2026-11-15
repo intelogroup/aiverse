@@ -1,0 +1,90 @@
++ cd /home/hatch/workspace/.build-tmp/unimate-test/repo
++ CKPT=outputs/unimate_uniml3d_f60_v3/checkpoints/checkpoint_step_150000.pt
++ WANT=1185836040
+++ seq 1 120
++ for i in $(seq 1 120)
+++ stat -c %s outputs/unimate_uniml3d_f60_v3/checkpoints/checkpoint_step_150000.pt
++ SZ=928817152
++ echo 'ckpt size: 928817152 / 1185836040'
+ckpt size: 928817152 / 1185836040
++ '[' 928817152 -ge 1185836040 ']'
++ sleep 15
++ for i in $(seq 1 120)
+++ stat -c %s outputs/unimate_uniml3d_f60_v3/checkpoints/checkpoint_step_150000.pt
++ SZ=966057984
++ echo 'ckpt size: 966057984 / 1185836040'
+ckpt size: 966057984 / 1185836040
++ '[' 966057984 -ge 1185836040 ']'
++ sleep 15
++ for i in $(seq 1 120)
+++ stat -c %s outputs/unimate_uniml3d_f60_v3/checkpoints/checkpoint_step_150000.pt
++ SZ=1003638784
++ echo 'ckpt size: 1003638784 / 1185836040'
+ckpt size: 1003638784 / 1185836040
++ '[' 1003638784 -ge 1185836040 ']'
++ sleep 15
++ for i in $(seq 1 120)
+++ stat -c %s outputs/unimate_uniml3d_f60_v3/checkpoints/checkpoint_step_150000.pt
++ SZ=1041133568
++ echo 'ckpt size: 1041133568 / 1185836040'
+ckpt size: 1041133568 / 1185836040
++ '[' 1041133568 -ge 1185836040 ']'
++ sleep 15
++ for i in $(seq 1 120)
+++ stat -c %s outputs/unimate_uniml3d_f60_v3/checkpoints/checkpoint_step_150000.pt
++ SZ=1078624256
++ echo 'ckpt size: 1078624256 / 1185836040'
+ckpt size: 1078624256 / 1185836040
++ '[' 1078624256 -ge 1185836040 ']'
++ sleep 15
++ for i in $(seq 1 120)
+++ stat -c %s outputs/unimate_uniml3d_f60_v3/checkpoints/checkpoint_step_150000.pt
++ SZ=1116311552
++ echo 'ckpt size: 1116311552 / 1185836040'
+ckpt size: 1116311552 / 1185836040
++ '[' 1116311552 -ge 1185836040 ']'
++ sleep 15
++ for i in $(seq 1 120)
+++ stat -c %s outputs/unimate_uniml3d_f60_v3/checkpoints/checkpoint_step_150000.pt
++ SZ=1153744896
++ echo 'ckpt size: 1153744896 / 1185836040'
+ckpt size: 1153744896 / 1185836040
++ '[' 1153744896 -ge 1185836040 ']'
++ sleep 15
++ for i in $(seq 1 120)
+++ stat -c %s outputs/unimate_uniml3d_f60_v3/checkpoints/checkpoint_step_150000.pt
++ SZ=1185836040
++ echo 'ckpt size: 1185836040 / 1185836040'
+ckpt size: 1185836040 / 1185836040
++ '[' 1185836040 -ge 1185836040 ']'
++ break
+++ stat -c %s outputs/unimate_uniml3d_f60_v3/checkpoints/checkpoint_step_150000.pt
++ SZ=1185836040
++ '[' 1185836040 -ge 1185836040 ']'
++ echo CKPT_OK
+CKPT_OK
++ PY=../venv/bin/python
++ tail -30
++ ../venv/bin/python -m unimate.inference.sample --exp_dir outputs/unimate_uniml3d_f60_v3 --asset assets/examples/unitree_go2 --prompt 'An object trots forward.' --num_repetitions 1 --output_dir outputs/samples/go2
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/hatch/workspace/.build-tmp/unimate-test/repo/unimate/inference/sample.py", line 29, in <module>
+    from unimate.dataset.conditioning import create_sample_condition
+  File "/home/hatch/workspace/.build-tmp/unimate-test/repo/unimate/dataset/conditioning.py", line 16, in <module>
+    from Quaternions import Quaternions
+ModuleNotFoundError: No module named 'Quaternions'
++ echo SAMPLE_EXIT=0
+SAMPLE_EXIT=0
++ ls -la outputs/samples/go2/
++ SKIP_INVALID=1
++ bash scripts/run_animate_motion.sh outputs/samples/go2
++ tail -30
+ERROR: expected at least 2 positional args: <DATASET_TYPE> <INPUT...> [OUTPUT_DIR]
+Usage: bash run_animate_motion.sh <DATASET_TYPE> <INPUT...> [OUTPUT_DIR]
++ echo ANIMATE_EXIT=0
+ANIMATE_EXIT=0
++ find outputs/samples/go2 -name '*.glb' -o -name '*.fbx'
++ head
++ echo PIPELINE_DONE
+PIPELINE_DONE

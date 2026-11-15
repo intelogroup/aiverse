@@ -1,0 +1,88 @@
+18:19:24 | INFO: Data are loaded, start creating Blender stuff
+18:19:24 | INFO: Blender create Mesh node mesh.011
+18:19:24 | INFO: Blender create Mesh node mesh.004
+18:19:24 | INFO: Blender create Mesh node mesh.013
+18:19:24 | INFO: Blender create Mesh node mesh.002
+18:19:24 | INFO: Blender create Mesh node mesh.008
+18:19:24 | INFO: Blender create Mesh node mesh
+18:19:24 | INFO: Blender create Mesh node mesh.003
+18:19:24 | INFO: Blender create Mesh node mesh.007
+18:19:24 | INFO: Blender create Mesh node mesh.012
+18:19:24 | INFO: Blender create Mesh node mesh.001
+18:19:24 | INFO: Blender create Mesh node mesh.006
+18:19:24 | INFO: Blender create Mesh node mesh.010
+18:19:24 | INFO: Blender create Mesh node mesh.016
+18:19:24 | INFO: Blender create Mesh node mesh.005
+18:19:24 | INFO: Blender create Mesh node mesh.015
+18:19:25 | INFO: Blender create Mesh node mesh.009
+18:19:25 | INFO: Blender create Mesh node mesh.014
+18:19:25 | INFO: glTF import finished in 1.20s
+/home/hatch/workspace/.build-tmp/unimate-test/render_follow.py:30: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0
+  gmat.use_nodes = True
+/home/hatch/workspace/.build-tmp/unimate-test/render_follow.py:42: DeprecationWarning: 'World.use_nodes' is expected to be removed in Blender 6.0
+  world.use_nodes = True
+00:11.166  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0001.png'
+00:18.346  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0002.png'
+00:26.141  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0003.png'
+00:33.937  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0004.png'
+00:41.046  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0005.png'
+00:48.159  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0006.png'
+00:55.568  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0007.png'
+01:02.658  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0008.png'
+01:09.546  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0009.png'
+01:16.457  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0010.png'
+01:23.527  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0011.png'
+01:30.845  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0012.png'
+01:37.919  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0013.png'
+01:45.045  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0014.png'
+01:52.130  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0015.png'
+01:59.111  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0016.png'
+02:06.028  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0017.png'
+02:13.222  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0018.png'
+02:20.513  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0019.png'
+02:27.530  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0020.png'
+02:33.947  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0021.png'
+02:40.697  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0022.png'
+02:47.544  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0023.png'
+02:54.721  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0024.png'
+03:02.055  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0025.png'
+03:08.603  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0026.png'
+03:15.847  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0027.png'
+03:22.753  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0028.png'
+03:29.850  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0029.png'
+03:36.706  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0030.png'
+03:43.257  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0031.png'
+03:50.143  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0032.png'
+03:57.144  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0033.png'
+04:04.527  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0034.png'
+04:11.952  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0035.png'
+04:19.438  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0036.png'
+04:26.681  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0037.png'
+04:33.528  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0038.png'
+04:40.837  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0039.png'
+04:48.214  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0040.png'
+04:55.322  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0041.png'
+05:02.452  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0042.png'
+05:09.607  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0043.png'
+05:16.749  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0044.png'
+05:23.838  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0045.png'
+05:32.402  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0046.png'
+05:39.200  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0047.png'
+05:46.245  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0048.png'
+05:53.250  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0049.png'
+06:01.009  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0050.png'
+06:08.432  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0051.png'
+06:15.796  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0052.png'
+06:23.213  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0053.png'
+06:31.249  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0054.png'
+06:38.453  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0055.png'
+06:45.099  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0056.png'
+06:52.132  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0057.png'
+06:59.061  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0058.png'
+07:05.540  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0059.png'
+07:11.958  render           | Saved: '/home/hatch/workspace/.build-tmp/unimate-test/frames_follow/f_0060.png'
+TRAVEL: (-1.11, -5.62, 0.0)
+FOLLOW_RENDER_DONE
+Blender 5.2.3 LTS (hash e13b728c6880 built 2026-10-22 01:35:05)
+
+Blender quit
