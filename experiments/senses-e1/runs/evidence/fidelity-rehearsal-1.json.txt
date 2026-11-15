@@ -1,0 +1,103 @@
+{
+ "base": "http://localhost:3100",
+ "legs": {
+  "go_tea_query": {
+   "post_status": 202,
+   "seconds": 78.2,
+   "state": "settled",
+   "outcome": {
+    "ok": true,
+    "status": "arrived",
+    "target": "shop-102"
+   }
+  },
+  "enter_tea": {
+   "post_status": 202,
+   "seconds": 123.3,
+   "state": "settled",
+   "outcome": {
+    "ok": false,
+    "status": "timeout",
+    "target": "tea"
+   }
+  },
+  "interact_radio": {
+   "post_status": 202,
+   "seconds": 6.0,
+   "state": "settled",
+   "outcome": {
+    "ok": false,
+    "status": "blocked",
+    "target": "tea-radio",
+    "detail": "no progress for 2.5 s, 1.1 m out",
+    "stalledForMs": 2509
+   }
+  },
+  "return": {
+   "post_status": 202,
+   "seconds": 90.2,
+   "state": "settled",
+   "outcome": {
+    "ok": true,
+    "status": "arrived",
+    "target": "stall-40"
+   }
+  }
+ },
+ "agent_id": "53a8e18e-3ad1-448d-98c3-748954638260",
+ "spawn_pos": {
+  "x": 5.67712268203212,
+  "z": 10.572146331429414
+ },
+ "spawn_nearest": {
+  "id": "stall-40",
+  "name": "stall-40",
+  "kind": "stall",
+  "dist": 13.54
+ },
+ "place_count": 158,
+ "plaza_basis": "spawn_nearest",
+ "tea": {
+  "id": "shop-102",
+  "name": "Matchmaker's Tea House",
+  "kind": "shopfront",
+  "room": "tea"
+ },
+ "plaza": {
+  "id": "stall-40",
+  "name": "stall-40",
+  "kind": "stall",
+  "room": null
+ },
+ "tea_match_count": 5,
+ "inside_room": "Matchmaker's Tea House",
+ "radio_after_interact": [
+  {
+   "kind": "interactable",
+   "id": "tea-radio",
+   "name": "Radio",
+   "state": "off",
+   "note": "use with interact",
+   "bearingDeg": 24.8,
+   "distance": 0.87
+  }
+ ],
+ "home_nearest": {
+  "id": "stall-40",
+  "name": "stall-40",
+  "kind": "stall",
+  "dist": 3.33
+ },
+ "checks": {
+  "place_count_is_158": true,
+  "tea_is_shop_102": true,
+  "plaza_resolves": true,
+  "sim_resolves_tea_to_shop_102": true,
+  "enter_puts_body_inside": true,
+  "interact_radio_ok": false,
+  "radio_perceivable_at_stand": true,
+  "return_arrived": true,
+  "home_nearest_is_plaza": true
+ },
+ "verdict": false
+}

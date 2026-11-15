@@ -1,0 +1,178 @@
+{
+ "base": "http://localhost:3100",
+ "legs": {
+  "go_tea": {
+   "post_status": 202,
+   "seconds": 78.2,
+   "state": "settled",
+   "outcome": {
+    "ok": true,
+    "status": "arrived",
+    "target": "shop-102"
+   }
+  },
+  "enter_tea": {
+   "post_status": 202,
+   "seconds": 123.3,
+   "state": "settled",
+   "outcome": {
+    "ok": false,
+    "status": "timeout",
+    "target": "tea"
+   }
+  },
+  "sit": {
+   "post_status": 202,
+   "seconds": 6.0,
+   "state": "settled",
+   "outcome": {
+    "ok": true,
+    "status": "seated",
+    "target": "tea-booth-right"
+   }
+  },
+  "stand": {
+   "post_status": 202,
+   "seconds": 3.0,
+   "state": "settled",
+   "outcome": {
+    "ok": true,
+    "status": "stood",
+    "target": "tea-booth-right"
+   }
+  },
+  "return": {
+   "post_status": 202,
+   "seconds": 90.4,
+   "state": "settled",
+   "outcome": {
+    "ok": true,
+    "status": "arrived",
+    "target": "stall-40"
+   }
+  }
+ },
+ "agent_id": "465b8a68-e976-4bb6-a3d2-2343609c7d2b",
+ "spawn_pos": {
+  "x": 5.67712268203212,
+  "z": 10.572146331429414
+ },
+ "spawn_nearest": {
+  "id": "stall-40",
+  "name": "stall-40",
+  "kind": "stall",
+  "dist": 13.54
+ },
+ "place_count": 158,
+ "plaza_basis": "spawn_nearest",
+ "tea": {
+  "id": "shop-102",
+  "name": "Matchmaker's Tea House",
+  "kind": "shopfront",
+  "room": "tea"
+ },
+ "plaza": {
+  "id": "stall-40",
+  "name": "stall-40",
+  "kind": "stall",
+  "room": null
+ },
+ "inside_room": "Matchmaker's Tea House",
+ "posture_inside": "standing",
+ "seats_perceived_inside": [
+  {
+   "kind": "seat",
+   "id": "tea-booth-right",
+   "name": "booth",
+   "seatKind": "booth",
+   "group": "tea-booth",
+   "state": "free",
+   "note": "use with sit",
+   "bearingDeg": -24.3,
+   "distance": 3.61
+  },
+  {
+   "kind": "seat",
+   "id": "tea-booth-left",
+   "name": "booth",
+   "seatKind": "booth",
+   "group": "tea-booth",
+   "state": "free",
+   "note": "use with sit",
+   "bearingDeg": -25.3,
+   "distance": 4.81
+  },
+  {
+   "kind": "seat",
+   "id": "tea-east-right",
+   "name": "chair",
+   "seatKind": "chair",
+   "group": "tea-east",
+   "state": "free",
+   "note": "use with sit",
+   "bearingDeg": -49.3,
+   "distance": 5.01
+  },
+  {
+   "kind": "seat",
+   "id": "tea-east-left",
+   "name": "chair",
+   "seatKind": "chair",
+   "group": "tea-east",
+   "state": "free",
+   "note": "use with sit",
+   "bearingDeg": -44.1,
+   "distance": 6.59
+  },
+  {
+   "kind": "seat",
+   "id": "tea-west-right",
+   "name": "chair",
+   "seatKind": "chair",
+   "group": "tea-west",
+   "state": "free",
+   "note": "use with sit",
+   "bearingDeg": -40.4,
+   "distance": 8.47
+  },
+  {
+   "kind": "seat",
+   "id": "tea-west-left",
+   "name": "chair",
+   "seatKind": "chair",
+   "group": "tea-west",
+   "state": "free",
+   "note": "use with sit",
+   "bearingDeg": -38.4,
+   "distance": 10.1
+  }
+ ],
+ "sit_intent": {
+  "type": "sit",
+  "sittable": "tea-booth-right"
+ },
+ "posture_after_sit": "seated",
+ "seated_on": "tea-booth-right",
+ "posture_after_stand": "standing",
+ "home_nearest": {
+  "id": "stall-40",
+  "name": "stall-40",
+  "kind": "stall",
+  "dist": 3.34
+ },
+ "checks": {
+  "tea_is_shop_102": true,
+  "plaza_resolves": true,
+  "go_tea_arrived": true,
+  "enter_puts_body_inside": true,
+  "seat_perceivable_inside": true,
+  "sit_settled_seated": true,
+  "posture_seated_after_sit": true,
+  "seated_on_a_tea_seat": true,
+  "stand_settled_stood": true,
+  "posture_standing_after_stand": true,
+  "return_arrived": true,
+  "home_nearest_is_plaza": true
+ },
+ "verdict": true
+}
