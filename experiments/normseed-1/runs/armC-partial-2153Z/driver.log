@@ -1,0 +1,9 @@
+[ns] 158 places; directory 78 named
+[ns] clips ok: ['Bow', 'Clapping', 'Laughing', 'NodYes', 'SillyDancing', 'Waving']
+[ns] res-wren: spawn 201, body 200, figure=summer
+[ns] res-cato: spawn 201, body 200, figure=cipher
+[ns] res-mina: spawn 201, body 200, figure=eve
+[ns] c-hugo: spawn 201, body 200, figure=remy
+[ns] c-sana: spawn 201, body 200, figure=elf
+[ns] c-vera: spawn 201, body 200, figure=jim
+[ns] running 6 bodies for 2700s arm=C tag=armC1

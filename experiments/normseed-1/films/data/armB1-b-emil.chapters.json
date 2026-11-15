@@ -1,0 +1,251 @@
+{
+ "agent": "ns1-b-emil",
+ "run": "armB1",
+ "timelapse": "20x",
+ "chapters": [
+  {
+   "t": 0.0,
+   "title": "at stall-60"
+  },
+  {
+   "t": 0.0,
+   "title": "meets someone"
+  },
+  {
+   "t": 0.0,
+   "title": "meets someone"
+  },
+  {
+   "t": 0.0,
+   "title": "meets someone"
+  },
+  {
+   "t": 0.0,
+   "title": "meets someone"
+  },
+  {
+   "t": 0.0,
+   "title": "meets someone"
+  },
+  {
+   "t": 192.25,
+   "title": "at stall-64"
+  },
+  {
+   "t": 213.51,
+   "title": "at stall-65"
+  },
+  {
+   "t": 223.63,
+   "title": "at stall-71"
+  },
+  {
+   "t": 248.95,
+   "title": "at hall-0"
+  },
+  {
+   "t": 270.71,
+   "title": "at stall-75"
+  },
+  {
+   "t": 283.42,
+   "title": "at stall-79"
+  },
+  {
+   "t": 295.93,
+   "title": "at shop-170"
+  },
+  {
+   "t": 319.97,
+   "title": "at shop-164"
+  },
+  {
+   "t": 331.31,
+   "title": "at shop-165"
+  },
+  {
+   "t": 343.35,
+   "title": "at shop-160"
+  },
+  {
+   "t": 356.37,
+   "title": "at shop-161"
+  },
+  {
+   "t": 366.65,
+   "title": "at shop-163"
+  },
+  {
+   "t": 671.1,
+   "title": "at shop-157"
+  },
+  {
+   "t": 682.13,
+   "title": "at shop-156"
+  },
+  {
+   "t": 704.53,
+   "title": "at shop-127"
+  },
+  {
+   "t": 731.34,
+   "title": "at shop-126"
+  },
+  {
+   "t": 746.23,
+   "title": "at shop-128"
+  },
+  {
+   "t": 774.46,
+   "title": "at shop-96"
+  },
+  {
+   "t": 879.23,
+   "title": "at shop-100"
+  },
+  {
+   "t": 905.3,
+   "title": "at shop-98"
+  },
+  {
+   "t": 1470.64,
+   "title": "at stall-3"
+  },
+  {
+   "t": 1482.69,
+   "title": "at stall-2"
+  },
+  {
+   "t": 1496.39,
+   "title": "at stall-1"
+  },
+  {
+   "t": 1508.43,
+   "title": "at stall-0"
+  },
+  {
+   "t": 1518.68,
+   "title": "at stall-40"
+  },
+  {
+   "t": 1531.15,
+   "title": "at stall-60"
+  },
+  {
+   "t": 1542.27,
+   "title": "at stall-64"
+  },
+  {
+   "t": 1555.26,
+   "title": "at stall-65"
+  },
+  {
+   "t": 1564.87,
+   "title": "at stall-70"
+  },
+  {
+   "t": 1575.43,
+   "title": "at stall-71"
+  },
+  {
+   "t": 1585.76,
+   "title": "at hall-0"
+  },
+  {
+   "t": 1612.8,
+   "title": "at stall-71"
+  },
+  {
+   "t": 1635.42,
+   "title": "at stall-65"
+  },
+  {
+   "t": 1647.57,
+   "title": "at stall-64"
+  },
+  {
+   "t": 1670.5,
+   "title": "at stall-40"
+  },
+  {
+   "t": 1692.12,
+   "title": "at stall-41"
+  },
+  {
+   "t": 1704.31,
+   "title": "at stall-43"
+  },
+  {
+   "t": 1725.32,
+   "title": "at shop-126"
+  },
+  {
+   "t": 1738.07,
+   "title": "at shop-100"
+  },
+  {
+   "t": 1759.88,
+   "title": "at shop-96"
+  },
+  {
+   "t": 1831.01,
+   "title": "at shop-100"
+  },
+  {
+   "t": 1855.94,
+   "title": "at shop-98"
+  },
+  {
+   "t": 1867.97,
+   "title": "at stall-3"
+  },
+  {
+   "t": 1878.72,
+   "title": "at stall-2"
+  },
+  {
+   "t": 1890.12,
+   "title": "at stall-1"
+  },
+  {
+   "t": 1899.7,
+   "title": "at stall-0"
+  },
+  {
+   "t": 1924.41,
+   "title": "at stall-20"
+  },
+  {
+   "t": 1935.7,
+   "title": "at stall-21"
+  },
+  {
+   "t": 1946.47,
+   "title": "at stall-22"
+  },
+  {
+   "t": 1958.27,
+   "title": "at stall-23"
+  },
+  {
+   "t": 1972.55,
+   "title": "at shop-102"
+  },
+  {
+   "t": 2482.3,
+   "title": "at shop-101"
+  },
+  {
+   "t": 2506.34,
+   "title": "at shop-105"
+  },
+  {
+   "t": 2528.79,
+   "title": "at shop-103"
+  },
+  {
+   "t": 2554.79,
+   "title": "at shop-104"
+  }
+ ]
+}

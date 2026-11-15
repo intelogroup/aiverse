@@ -1,0 +1,394 @@
+{
+ "tag": "armA1",
+ "arm": "A",
+ "duration": 2700,
+ "arm_joint": 0.0,
+ "newcomers": {
+  "a-theo": {
+   "name": "Theo",
+   "greetings": 2,
+   "compliant": 0,
+   "compliance_rate": 0.0,
+   "total_says": 12,
+   "excluded_reflex_says": 0,
+   "undelivered_says": 10,
+   "exposures_total": 0,
+   "exposures_before_first_compliant": 0,
+   "first_compliant_t": null,
+   "spread_compliant_to_newcomers": 0,
+   "spread_ambient_with_newcomer_hearers": 0,
+   "buckets": [
+    {
+     "bucket": 0,
+     "from_s": 0,
+     "greetings": 0,
+     "compliant": 0,
+     "rate": null
+    },
+    {
+     "bucket": 1,
+     "from_s": 300,
+     "greetings": 0,
+     "compliant": 0,
+     "rate": null
+    },
+    {
+     "bucket": 2,
+     "from_s": 600,
+     "greetings": 0,
+     "compliant": 0,
+     "rate": null
+    },
+    {
+     "bucket": 3,
+     "from_s": 900,
+     "greetings": 0,
+     "compliant": 0,
+     "rate": null
+    },
+    {
+     "bucket": 4,
+     "from_s": 1200,
+     "greetings": 0,
+     "compliant": 0,
+     "rate": null
+    },
+    {
+     "bucket": 5,
+     "from_s": 1500,
+     "greetings": 2,
+     "compliant": 0,
+     "rate": 0.0
+    },
+    {
+     "bucket": 6,
+     "from_s": 1800,
+     "greetings": 0,
+     "compliant": 0,
+     "rate": null
+    },
+    {
+     "bucket": 7,
+     "from_s": 2100,
+     "greetings": 0,
+     "compliant": 0,
+     "rate": null
+    },
+    {
+     "bucket": 8,
+     "from_s": 2400,
+     "greetings": 0,
+     "compliant": 0,
+     "rate": null
+    },
+    {
+     "bucket": 9,
+     "from_s": 2700,
+     "greetings": 0,
+     "compliant": 0,
+     "rate": null
+    }
+   ],
+   "persistence": null,
+   "engagement": {
+    "distance_m": 488.0,
+    "places_visited": 21,
+    "deliberations": 48,
+    "acts": 38,
+    "score": 1.0
+   },
+   "joint": 0.0,
+   "greeting_events": [
+    {
+     "t": 1583.2,
+     "text": "Hi there! I'm new to town\u2014what's a handy place around here for fixing things?",
+     "compliant": false,
+     "place": null,
+     "mode": "direct",
+     "target_key": "a-june",
+     "target_role": "newcomer",
+     "hearer_keys": null
+    },
+    {
+     "t": 1739.0,
+     "text": "Hey! I'm new here \u2014 got any tips on good repair spots or handy folks around?",
+     "compliant": false,
+     "place": null,
+     "mode": "direct",
+     "target_key": "a-june",
+     "target_role": "newcomer",
+     "hearer_keys": null
+    }
+   ]
+  },
+  "a-june": {
+   "name": "June",
+   "greetings": 4,
+   "compliant": 0,
+   "compliance_rate": 0.0,
+   "total_says": 24,
+   "excluded_reflex_says": 0,
+   "undelivered_says": 12,
+   "exposures_total": 0,
+   "exposures_before_first_compliant": 0,
+   "first_compliant_t": null,
+   "spread_compliant_to_newcomers": 0,
+   "spread_ambient_with_newcomer_hearers": 0,
+   "buckets": [
+    {
+     "bucket": 0,
+     "from_s": 0,
+     "greetings": 2,
+     "compliant": 0,
+     "rate": 0.0
+    },
+    {
+     "bucket": 1,
+     "from_s": 300,
+     "greetings": 1,
+     "compliant": 0,
+     "rate": 0.0
+    },
+    {
+     "bucket": 2,
+     "from_s": 600,
+     "greetings": 1,
+     "compliant": 0,
+     "rate": 0.0
+    },
+    {
+     "bucket": 3,
+     "from_s": 900,
+     "greetings": 0,
+     "compliant": 0,
+     "rate": null
+    },
+    {
+     "bucket": 4,
+     "from_s": 1200,
+     "greetings": 0,
+     "compliant": 0,
+     "rate": null
+    },
+    {
+     "bucket": 5,
+     "from_s": 1500,
+     "greetings": 0,
+     "compliant": 0,
+     "rate": null
+    },
+    {
+     "bucket": 6,
+     "from_s": 1800,
+     "greetings": 0,
+     "compliant": 0,
+     "rate": null
+    },
+    {
+     "bucket": 7,
+     "from_s": 2100,
+     "greetings": 0,
+     "compliant": 0,
+     "rate": null
+    },
+    {
+     "bucket": 8,
+     "from_s": 2400,
+     "greetings": 0,
+     "compliant": 0,
+     "rate": null
+    },
+    {
+     "bucket": 9,
+     "from_s": 2700,
+     "greetings": 0,
+     "compliant": 0,
+     "rate": null
+    }
+   ],
+   "persistence": null,
+   "engagement": {
+    "distance_m": 79.6,
+    "places_visited": 6,
+    "deliberations": 52,
+    "acts": 49,
+    "score": 0.76
+   },
+   "joint": 0.0,
+   "greeting_events": [
+    {
+     "t": 241.8,
+     "text": "Hello there! I'm June, new to town. Mind if I ask around a bit? What's this place known for?",
+     "compliant": false,
+     "place": null,
+     "mode": "direct",
+     "target_key": "a-alba",
+     "target_role": "newcomer",
+     "hearer_keys": null
+    },
+    {
+     "t": 275.9,
+     "text": "Nice to meet you! I'm looking to settle in here \u2014 what kind of place is this? Any advice for a newcomer?",
+     "compliant": false,
+     "place": null,
+     "mode": "ambient",
+     "target_key": null,
+     "target_role": "unknown",
+     "hearer_keys": null
+    },
+    {
+     "t": 588.9,
+     "text": "Hello! New in town. Any community gardens or spots good for plants?",
+     "compliant": false,
+     "place": null,
+     "mode": "direct",
+     "target_key": "a-alba",
+     "target_role": "newcomer",
+     "hearer_keys": null
+    },
+    {
+     "t": 679.5,
+     "text": "Nice to meet you! I'm looking for community gardens too. Any ideas around here?",
+     "compliant": false,
+     "place": null,
+     "mode": "direct",
+     "target_key": "a-alba",
+     "target_role": "newcomer",
+     "hearer_keys": null
+    }
+   ]
+  },
+  "a-alba": {
+   "name": "Alba",
+   "greetings": 3,
+   "compliant": 0,
+   "compliance_rate": 0.0,
+   "total_says": 9,
+   "excluded_reflex_says": 0,
+   "undelivered_says": 0,
+   "exposures_total": 0,
+   "exposures_before_first_compliant": 0,
+   "first_compliant_t": null,
+   "spread_compliant_to_newcomers": 0,
+   "spread_ambient_with_newcomer_hearers": 0,
+   "buckets": [
+    {
+     "bucket": 0,
+     "from_s": 0,
+     "greetings": 0,
+     "compliant": 0,
+     "rate": null
+    },
+    {
+     "bucket": 1,
+     "from_s": 300,
+     "greetings": 0,
+     "compliant": 0,
+     "rate": null
+    },
+    {
+     "bucket": 2,
+     "from_s": 600,
+     "greetings": 2,
+     "compliant": 0,
+     "rate": 0.0
+    },
+    {
+     "bucket": 3,
+     "from_s": 900,
+     "greetings": 1,
+     "compliant": 0,
+     "rate": 0.0
+    },
+    {
+     "bucket": 4,
+     "from_s": 1200,
+     "greetings": 0,
+     "compliant": 0,
+     "rate": null
+    },
+    {
+     "bucket": 5,
+     "from_s": 1500,
+     "greetings": 0,
+     "compliant": 0,
+     "rate": null
+    },
+    {
+     "bucket": 6,
+     "from_s": 1800,
+     "greetings": 0,
+     "compliant": 0,
+     "rate": null
+    },
+    {
+     "bucket": 7,
+     "from_s": 2100,
+     "greetings": 0,
+     "compliant": 0,
+     "rate": null
+    },
+    {
+     "bucket": 8,
+     "from_s": 2400,
+     "greetings": 0,
+     "compliant": 0,
+     "rate": null
+    },
+    {
+     "bucket": 9,
+     "from_s": 2700,
+     "greetings": 0,
+     "compliant": 0,
+     "rate": null
+    }
+   ],
+   "persistence": null,
+   "engagement": {
+    "distance_m": 207.5,
+    "places_visited": 12,
+    "deliberations": 45,
+    "acts": 33,
+    "score": 1.0
+   },
+   "joint": 0.0,
+   "greeting_events": [
+    {
+     "t": 644.4,
+     "text": "Hello! I'm new too. An artist, so I love places with interesting light and colour. Know any quiet spots or community gardens?",
+     "compliant": false,
+     "place": null,
+     "mode": "direct",
+     "target_key": "a-june",
+     "target_role": "newcomer",
+     "hearer_keys": null
+    },
+    {
+     "t": 682.8,
+     "text": "Hello! I'm new too. An artist, so I love places with interesting light and colour. Know any good sketching spots?",
+     "compliant": false,
+     "place": null,
+     "mode": "direct",
+     "target_key": "a-june",
+     "target_role": "newcomer",
+     "hearer_keys": null
+    },
+    {
+     "t": 1186.1,
+     "text": "The herb garden is behind Sage's Library. It's quiet there\u2014good for sketching.",
+     "compliant": false,
+     "place": "sage's library",
+     "mode": "direct",
+     "target_key": "a-theo",
+     "target_role": "newcomer",
+     "hearer_keys": null
+    }
+   ]
+  }
+ },
+ "residents": [
+  "res-wren",
+  "res-cato",
+  "res-mina"
+ ]
+}

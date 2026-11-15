@@ -1,0 +1,80 @@
+{
+ "res-wren": {
+  "role": "resident",
+  "acts": 2,
+  "says": 0,
+  "heard": 0,
+  "deliberations": 0,
+  "rejections": 0,
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 228,
+  "log_lines": 234
+ },
+ "res-cato": {
+  "role": "resident",
+  "acts": 2,
+  "says": 0,
+  "heard": 0,
+  "deliberations": 0,
+  "rejections": 0,
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 228,
+  "log_lines": 234
+ },
+ "res-mina": {
+  "role": "resident",
+  "acts": 2,
+  "says": 0,
+  "heard": 0,
+  "deliberations": 0,
+  "rejections": 0,
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 228,
+  "log_lines": 234
+ },
+ "b-ruth": {
+  "role": "newcomer",
+  "acts": 39,
+  "says": 9,
+  "heard": 7,
+  "deliberations": 47,
+  "rejections": 11,
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 226,
+  "log_lines": 403
+ },
+ "b-emil": {
+  "role": "newcomer",
+  "acts": 28,
+  "says": 0,
+  "heard": 0,
+  "deliberations": 39,
+  "rejections": 4,
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 227,
+  "log_lines": 357
+ },
+ "b-noor": {
+  "role": "newcomer",
+  "acts": 39,
+  "says": 8,
+  "heard": 7,
+  "deliberations": 45,
+  "rejections": 14,
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 227,
+  "log_lines": 398
+ }
+}
