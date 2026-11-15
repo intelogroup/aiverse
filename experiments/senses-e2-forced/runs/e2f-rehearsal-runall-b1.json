@@ -1,0 +1,114 @@
+{
+ "base": "http://localhost:3100",
+ "deadline_s": 276,
+ "stop2_id": "shop-98",
+ "body_rates": {
+  "walk_drain_per_s": 0.15,
+  "run_drain_per_s": 1.22
+ },
+ "design_check": {
+  "a_walk_fails_by_40": true,
+  "b_runall_b2_enforced_and_not_blasting": true,
+  "c_runall_b1_completes": true,
+  "d_mixed_b2_completes_with_margin": true,
+  "e_walk_b2_fails_on_time_not_energy": true,
+  "all": true
+ },
+ "modes": {
+  "runall-b1": {
+   "mode": "runall-b1",
+   "arm": "B1",
+   "run_id": "e2fcal-runall-b1-2be1cf",
+   "outcome": "completed",
+   "reason": "sat at the tea house; visited stop 2; arrived back at the plaza place",
+   "turns": 6,
+   "wall_seconds": 224.16,
+   "enter_seconds": 108.91,
+   "enter_branch": "timeout",
+   "sat_done_turn": 3,
+   "stop2_done_turn": 5,
+   "body_min_energy": 0.0,
+   "body_final": {
+    "energy": 0.0,
+    "strain": 76.7,
+    "context_pressure": 0.0,
+    "depleted_lock": true
+   },
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "first_refusal_turn": null,
+   "trajectory": [
+    {
+     "turn": 1,
+     "intent": "run_to",
+     "executed": "run_to",
+     "energy": 100.0,
+     "strain": 0.0,
+     "act_seconds": 30.22,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 2,
+     "intent": "enter",
+     "executed": "enter",
+     "energy": 63.1,
+     "strain": 22.7,
+     "act_seconds": 108.91,
+     "enforcement": [],
+     "status": "failed"
+    },
+    {
+     "turn": 3,
+     "intent": "sit",
+     "executed": "sit",
+     "energy": 46.8,
+     "strain": 21.3,
+     "act_seconds": 6.1,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 4,
+     "intent": "stand",
+     "executed": "stand",
+     "energy": 56.0,
+     "strain": 20.4,
+     "act_seconds": 3.09,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 5,
+     "intent": "run_to",
+     "executed": "run_to",
+     "energy": 60.6,
+     "strain": 19.9,
+     "act_seconds": 54.48,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 6,
+     "intent": "run_to",
+     "executed": "run_to",
+     "energy": 0.0,
+     "strain": 60.8,
+     "act_seconds": 21.19,
+     "enforcement": [],
+     "status": "ok"
+    }
+   ],
+   "checks": {
+    "completed": true,
+    "zero_enforcement": true
+   },
+   "verdict": true
+  }
+ },
+ "spend_delta_usd": 0.0,
+ "verdict": true
+}

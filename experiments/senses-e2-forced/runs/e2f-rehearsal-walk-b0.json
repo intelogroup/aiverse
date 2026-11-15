@@ -1,0 +1,115 @@
+{
+ "base": "http://localhost:3100",
+ "deadline_s": 276,
+ "stop2_id": "shop-98",
+ "body_rates": {
+  "walk_drain_per_s": 0.15,
+  "run_drain_per_s": 1.22
+ },
+ "design_check": {
+  "a_walk_fails_by_40": true,
+  "b_runall_b2_enforced_and_not_blasting": true,
+  "c_runall_b1_completes": true,
+  "d_mixed_b2_completes_with_margin": true,
+  "e_walk_b2_fails_on_time_not_energy": true,
+  "all": true
+ },
+ "modes": {
+  "walk-b0": {
+   "mode": "walk-b0",
+   "arm": "B0",
+   "run_id": "e2fcal-walk-b0-c1b5c9",
+   "outcome": "failed_deadline",
+   "reason": "4:36 deadline passed",
+   "turns": 6,
+   "wall_seconds": 276.01,
+   "enter_seconds": 21.29,
+   "enter_branch": "fast",
+   "sat_done_turn": 3,
+   "stop2_done_turn": 5,
+   "body_min_energy": 73.8,
+   "body_final": {
+    "energy": 73.8,
+    "strain": 0.0,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "first_refusal_turn": null,
+   "trajectory": [
+    {
+     "turn": 1,
+     "intent": "go_to",
+     "executed": "go_to",
+     "energy": 100.0,
+     "strain": 0.0,
+     "act_seconds": 79.26,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 2,
+     "intent": "enter",
+     "executed": "enter",
+     "energy": 88.1,
+     "strain": 0.0,
+     "act_seconds": 21.29,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 3,
+     "intent": "sit",
+     "executed": "sit",
+     "energy": 84.9,
+     "strain": 0.0,
+     "act_seconds": 6.1,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 4,
+     "intent": "stand",
+     "executed": "stand",
+     "energy": 94.1,
+     "strain": 0.0,
+     "act_seconds": 3.02,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 5,
+     "intent": "go_to",
+     "executed": "go_to",
+     "energy": 98.7,
+     "strain": 0.0,
+     "act_seconds": 133.6,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 6,
+     "intent": "go_to",
+     "executed": "go_to",
+     "energy": 78.7,
+     "strain": 0.0,
+     "act_seconds": 32.52,
+     "enforcement": [],
+     "status": "failed"
+    }
+   ],
+   "checks": {
+    "fails_on_deadline": true,
+    "zero_enforcement": true,
+    "min_energy_above_zone": true
+   },
+   "verdict": true
+  }
+ },
+ "spend_delta_usd": 0.0,
+ "verdict": true
+}
