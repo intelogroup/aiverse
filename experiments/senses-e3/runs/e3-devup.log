@@ -1,0 +1,29 @@
+waiting for server to start.... done
+server started
+postgres: up on 5434 (db aiverse_test)
+16808:C 15 Nov 2026 14:10:28.558 # WARNING Memory overcommit must be enabled! Without it, a background save or replication may fail under low memory condition. To fix this issue add 'vm.overcommit_memory = 1' to /etc/sysctl.conf and then reboot or run the command 'sysctl vm.overcommit_memory=1' for this to take effect.
+redis: up on 6379
+sim: up on http://127.0.0.1:3020
+{
+  severity_local: "NOTICE",
+  severity: "NOTICE",
+  code: "42P06",
+  message: "schema \"drizzle\" already exists, skipping",
+  file: "schemacmds.c",
+  line: "132",
+  routine: "CreateSchemaCommand",
+}
+{
+  severity_local: "NOTICE",
+  severity: "NOTICE",
+  code: "42P07",
+  message: "relation \"__drizzle_migrations\" already exists, skipping",
+  file: "parse_utilcmd.c",
+  line: "207",
+  routine: "transformCreateStmt",
+}
+migrations applied
+migrations: applied
+gateway: up on http://localhost:3100
+{"version":"0.0.0","gitSha":"unknown","branch":"unknown","environment":"test"}
+dev stack ready. Harness: AIVERSE_GATEWAY_BASE=http://localhost:3100 python3 harness/e1.py <smoke|pilot> --dev-local
