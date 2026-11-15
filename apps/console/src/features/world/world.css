@@ -1640,7 +1640,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 8px 10px 16px;
+  padding: 5px 5px 5px 12px;
+  font-size: 12px;
   border-radius: 999px;
   background: var(--w-panel-2);
   border: 1px solid var(--w-accent);
@@ -1708,7 +1709,7 @@
 }
 
 .world-root .w-fullview-btn { padding: 8px 12px; min-height: 44px; border-radius: 10px; border: 1px solid rgba(255,255,255,.18); background: rgba(9,13,28,.9); color: #e9ecff; font: inherit; font-size: 12px; cursor: pointer; }
-.world-root.w-immersive .w-top,
-.world-root.w-immersive .w-tabbar,
+/* Full view: the stage covers the whole screen (header, rails and tab bar stay in the grid underneath, so no row collapses). */
+.world-root.w-immersive .w-stage { position: fixed; inset: 0; z-index: 40; }
 .world-root.w-immersive .w-coach-pill,
 .world-root.w-immersive .w-asset-credit { display: none; }
