@@ -529,7 +529,7 @@ export function WorldView({
           : {})}
       >
         {!ringMode ? (
-          <GlbWorld />
+          <GlbWorld ownerAgentNames={authed ? agents.map((a) => a.name) : undefined} />
         ) : (
           <>
             <Scene3D cam={cam} placed={placed} selected={selected} speakers={speakers} onSelect={focusGroup} />

@@ -46,8 +46,8 @@ export function VerseRecorder({ root }: { root: RefObject<HTMLDivElement | null>
       setRecording(true);
     } catch (e) { stream.current?.getTracks().forEach(t => t.stop()); setError(e instanceof Error ? e.message : "Could not start recording."); }
   };
-  return <div className="w-verse-recorder" style={{ position: "absolute", right: 14, zIndex: 20, maxWidth: 260, padding: 10, borderRadius: 10, background: "rgba(9,13,28,.9)", color: "#e9ecff", fontSize: 12 }} onPointerDown={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
-    <button type="button" aria-label={recording ? "Stop recording video" : "Record Verse video"} onClick={() => recording ? recorder.current?.stop() : start()} style={{ color: recording ? "#ff9292" : "inherit", padding: "8px 12px", minHeight: 44 }}>
+  return <div className="w-verse-recorder" style={{ maxWidth: 260, ...(recording || download || error ? { padding: 10, borderRadius: 10, background: "rgba(9,13,28,.9)" } : {}), color: "#e9ecff", fontSize: 12 }} onPointerDown={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+    <button type="button" aria-label={recording ? "Stop recording video" : "Record Verse video"} onClick={() => recording ? recorder.current?.stop() : start()} style={{ color: recording ? "#ff9292" : "inherit", padding: "8px 12px", minHeight: 44, borderRadius: 10, border: "1px solid rgba(255,255,255,.18)", background: "rgba(9,13,28,.9)", fontSize: 12 }}>
       {recording ? "■ Stop & save video" : "● Record video"}
     </button>
     {recording && <div role="status">Recording the 3D view · silent video<br />Automatically saves after 3 minutes.</div>}
