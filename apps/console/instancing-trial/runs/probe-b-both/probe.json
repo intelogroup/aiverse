@@ -1,0 +1,344 @@
+{
+ "run": "b-both",
+ "mode": "both",
+ "assetSha": "b14cb2dc1a3bfa8d0a1b8d6570f45379f750a03569f76b9eda0643113ae190a0",
+ "phases": {
+  "orbit": {
+   "plateau": {
+    "calls": 1797,
+    "tris": 7779994,
+    "geometries": 896,
+    "textures": 356,
+    "interiors": 0,
+    "built": [],
+    "batch": {
+     "census": {
+      "mode": "both",
+      "items": 9056,
+      "byCategory": {
+       "otherStatic": {
+        "items": 8814,
+        "prims": 8814,
+        "instances": 8917,
+        "tris": 2299236
+       },
+       "door": {
+        "items": 65,
+        "prims": 65,
+        "instances": 219,
+        "tris": 43570
+       },
+       "propFamily": {
+        "items": 172,
+        "prims": 172,
+        "instances": 1266,
+        "tris": 1572988
+       },
+       "hidden": {
+        "items": 5,
+        "prims": 5,
+        "instances": 5,
+        "tris": 162
+       }
+      },
+      "inScope": {
+       "items": 8986,
+       "prims": 8986,
+       "instances": 10183,
+       "tris": 3872224
+      },
+      "distinctMaterialsInScope": 399,
+      "multiMaterialItems": 0,
+      "instancedInScope": 104
+     },
+     "stats": {
+      "buckets": 749,
+      "pieces": 10183,
+      "mergedMeshes": 749,
+      "mergeFallbacks": 0,
+      "bakedVerts": 5071768,
+      "bakedBytes": 202920966,
+      "bakeMs": 8910,
+      "addedObjects": 749
+     }
+    }
+   },
+   "plateaued": true,
+   "reads": 2,
+   "deltaMedianMs": null,
+   "deltaSamples": 0,
+   "castFrames30s": 0
+  },
+  "staticP1CastFrames30s": 1,
+  "p1": {
+   "plateau": {
+    "calls": 1458,
+    "tris": 7039214,
+    "geometries": 928,
+    "textures": 394,
+    "interiors": 35,
+    "built": [
+     "press",
+     "shop-100",
+     "shop-97"
+    ],
+    "batch": {
+     "census": {
+      "mode": "both",
+      "items": 9056,
+      "byCategory": {
+       "otherStatic": {
+        "items": 8814,
+        "prims": 8814,
+        "instances": 8917,
+        "tris": 2299236
+       },
+       "door": {
+        "items": 65,
+        "prims": 65,
+        "instances": 219,
+        "tris": 43570
+       },
+       "propFamily": {
+        "items": 172,
+        "prims": 172,
+        "instances": 1266,
+        "tris": 1572988
+       },
+       "hidden": {
+        "items": 5,
+        "prims": 5,
+        "instances": 5,
+        "tris": 162
+       }
+      },
+      "inScope": {
+       "items": 8986,
+       "prims": 8986,
+       "instances": 10183,
+       "tris": 3872224
+      },
+      "distinctMaterialsInScope": 399,
+      "multiMaterialItems": 0,
+      "instancedInScope": 104
+     },
+     "stats": {
+      "buckets": 749,
+      "pieces": 10183,
+      "mergedMeshes": 749,
+      "mergeFallbacks": 0,
+      "bakedVerts": 5071768,
+      "bakedBytes": 202920966,
+      "bakeMs": 8910,
+      "addedObjects": 749
+     }
+    }
+   },
+   "plateaued": true,
+   "reads": 2
+  },
+  "liveness": {
+   "nodoors": {
+    "calls": 1458,
+    "tris": 7039214,
+    "geometries": 928,
+    "textures": 394,
+    "interiors": 35,
+    "built": [
+     "press",
+     "shop-100",
+     "shop-97"
+    ],
+    "batch": {
+     "census": {
+      "mode": "both",
+      "items": 9056,
+      "byCategory": {
+       "otherStatic": {
+        "items": 8814,
+        "prims": 8814,
+        "instances": 8917,
+        "tris": 2299236
+       },
+       "door": {
+        "items": 65,
+        "prims": 65,
+        "instances": 219,
+        "tris": 43570
+       },
+       "propFamily": {
+        "items": 172,
+        "prims": 172,
+        "instances": 1266,
+        "tris": 1572988
+       },
+       "hidden": {
+        "items": 5,
+        "prims": 5,
+        "instances": 5,
+        "tris": 162
+       }
+      },
+      "inScope": {
+       "items": 8986,
+       "prims": 8986,
+       "instances": 10183,
+       "tris": 3872224
+      },
+      "distinctMaterialsInScope": 399,
+      "multiMaterialItems": 0,
+      "instancedInScope": 104
+     },
+     "stats": {
+      "buckets": 749,
+      "pieces": 10183,
+      "mergedMeshes": 749,
+      "mergeFallbacks": 0,
+      "bakedVerts": 5071768,
+      "bakedBytes": 202920966,
+      "bakeMs": 8910,
+      "addedObjects": 749
+     }
+    }
+   },
+   "nodoorsPlateaued": true,
+   "restored": {
+    "calls": 1458,
+    "tris": 7039214,
+    "geometries": 928,
+    "textures": 394,
+    "interiors": 35,
+    "built": [
+     "press",
+     "shop-100",
+     "shop-97"
+    ],
+    "batch": {
+     "census": {
+      "mode": "both",
+      "items": 9056,
+      "byCategory": {
+       "otherStatic": {
+        "items": 8814,
+        "prims": 8814,
+        "instances": 8917,
+        "tris": 2299236
+       },
+       "door": {
+        "items": 65,
+        "prims": 65,
+        "instances": 219,
+        "tris": 43570
+       },
+       "propFamily": {
+        "items": 172,
+        "prims": 172,
+        "instances": 1266,
+        "tris": 1572988
+       },
+       "hidden": {
+        "items": 5,
+        "prims": 5,
+        "instances": 5,
+        "tris": 162
+       }
+      },
+      "inScope": {
+       "items": 8986,
+       "prims": 8986,
+       "instances": 10183,
+       "tris": 3872224
+      },
+      "distinctMaterialsInScope": 399,
+      "multiMaterialItems": 0,
+      "instancedInScope": 104
+     },
+     "stats": {
+      "buckets": 749,
+      "pieces": 10183,
+      "mergedMeshes": 749,
+      "mergeFallbacks": 0,
+      "bakedVerts": 5071768,
+      "bakedBytes": 202920966,
+      "bakeMs": 8910,
+      "addedObjects": 749
+     }
+    }
+   },
+   "restoredPlateaued": true
+  },
+  "p1Harvest": {
+   "deltaMedianMs": null,
+   "deltaSamples": 0,
+   "castFrames30s": 2
+  },
+  "drag": {
+   "skipped": true
+  }
+ },
+ "p1Reported": {
+  "calls": 1458,
+  "tris": 7039214,
+  "geometries": 928,
+  "textures": 394,
+  "interiors": 35,
+  "built": [
+   "press",
+   "shop-100",
+   "shop-97"
+  ],
+  "batch": {
+   "census": {
+    "mode": "both",
+    "items": 9056,
+    "byCategory": {
+     "otherStatic": {
+      "items": 8814,
+      "prims": 8814,
+      "instances": 8917,
+      "tris": 2299236
+     },
+     "door": {
+      "items": 65,
+      "prims": 65,
+      "instances": 219,
+      "tris": 43570
+     },
+     "propFamily": {
+      "items": 172,
+      "prims": 172,
+      "instances": 1266,
+      "tris": 1572988
+     },
+     "hidden": {
+      "items": 5,
+      "prims": 5,
+      "instances": 5,
+      "tris": 162
+     }
+    },
+    "inScope": {
+     "items": 8986,
+     "prims": 8986,
+     "instances": 10183,
+     "tris": 3872224
+    },
+    "distinctMaterialsInScope": 399,
+    "multiMaterialItems": 0,
+    "instancedInScope": 104
+   },
+   "stats": {
+    "buckets": 749,
+    "pieces": 10183,
+    "mergedMeshes": 749,
+    "mergeFallbacks": 0,
+    "bakedVerts": 5071768,
+    "bakedBytes": 202920966,
+    "bakeMs": 8910,
+    "addedObjects": 749
+   }
+  }
+ },
+ "totalCastFrames": 371,
+ "pageErrors": []
+}

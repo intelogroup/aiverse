@@ -49,7 +49,7 @@ whole mechanism is flag-gated.
 
 `measure.mjs` / `film.mjs` are the batching trial's rig, adapted:
 playwright-core and the Chromium build repointed (the `.build-tmp`
-toolchain was wiped), ports 8913 / 8916, modes `none | both | both-inst |
+toolchain was wiped), ports 8923 / 8926, modes `none | both | both-inst |
 inst`. Same poses (ORBIT = settled spawn view; P1 = teleport (14, 2.2, 46)),
 same settled-plateau rule (two consecutive identical `renderer.info`
 reads), same asset (`world-city3-optimized.glb`, sha256 `b14cb2dc…`,
@@ -63,6 +63,13 @@ node film.mjs    <run-name> <mode> <path-to-world-city3-optimized.glb>
 `census2.py` is the offline (mesh, prim) placement census used to pick the
 claim set. Results land in `runs/<name>/meta.json` / `film.json`; the
 verdict record is `TRIAL-NOTES.md` in this directory.
+
+`probe-p1.mjs` is the forced-frame P1 probe added mid-trial: the measure
+rig's P1 settle plateaued on stale pre-teleport frames in both batch
+states (the app renders on demand), so P1 was re-measured with a CDP
+screencast started before load to keep frames landing — same poses, same
+snapshot, same plateau rule. It reproduces the batching trial's (b) P1
+exactly (1,458 / 7,039,214); see TRIAL-NOTES.md, Results and deviation 3.
 
 ## Measurement hygiene
 

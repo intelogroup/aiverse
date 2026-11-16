@@ -1,5 +1,5 @@
 // film.mjs — INSTANCING trial film pass, adapted from the batching trial's
-// film.mjs v2 (same capture discipline; repointed modules/chromium; port 8916;
+// film.mjs v2 (same capture discipline; repointed modules/chromium; port 8926;
 // modes: none | both | both-inst | inst). Original header follows:
 // film.mjs — film + frame-time pass for one variant, v2.
 // What the probes established on current main (0636bcc):
@@ -50,7 +50,7 @@ const server = http.createServer((req, res) => {
   res.writeHead(200, { "Content-Type": MIME[path.extname(p)] || "application/octet-stream", "Cache-Control": "no-store", "Content-Length": fs.statSync(p).size });
   fs.createReadStream(p).pipe(res);
 });
-await new Promise((r) => server.listen(8916, "127.0.0.1", r));
+await new Promise((r) => server.listen(8926, "127.0.0.1", r));
 
 const exe = process.env.HOME + "/.cache/ms-playwright/chromium_headless_shell-1200/chrome-headless-shell-linux64/chrome-headless-shell";
 const browser = await chromium.launch({ executablePath: exe, args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--no-sandbox", "--disable-background-timer-throttling", "--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding"] });
@@ -66,7 +66,7 @@ const timed = async (p, ms = 90000) => Promise.race([
 const QUERIES = { none: "", both: "&batch=both", "both-inst": "&batch=both&instance=1", inst: "&instance=1" };
 const batchQuery = QUERIES[mode];
 if (batchQuery === undefined) { console.error("bad mode", mode); process.exit(2); }
-await page.goto(`http://127.0.0.1:8916/?tiles=0&streamDebug=1${batchQuery}`, { waitUntil: "load", timeout: 120000 });
+await page.goto(`http://127.0.0.1:8926/?tiles=0&streamDebug=1${batchQuery}`, { waitUntil: "load", timeout: 120000 });
 
 const cdp = await ctx.newCDPSession(page);
 const frames = [];

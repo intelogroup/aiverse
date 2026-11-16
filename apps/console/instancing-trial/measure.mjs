@@ -1,6 +1,6 @@
 // measure.mjs — INSTANCING trial measurement rig, adapted from the batching
 // trial's measure.mjs (same server, poses, settle rule; playwright-core and
-// chromium build repointed after the .build-tmp wipe; port 8913; modes:
+// chromium build repointed after the .build-tmp wipe; port 8923; modes:
 // none | both | both-inst | inst). Original header follows:
 // measure.mjs — batching trial measurement rig, ported from the LOD
 // trial's protocol (same server, same headless SwiftShader Chromium,
@@ -59,7 +59,7 @@ const server = http.createServer((req, res) => {
   fs.createReadStream(p).pipe(res);
   served.push({ path: url.pathname, bytes: size });
 });
-await new Promise((r) => server.listen(8913, "127.0.0.1", r));
+await new Promise((r) => server.listen(8923, "127.0.0.1", r));
 
 const exe = process.env.HOME + "/.cache/ms-playwright/chromium_headless_shell-1200/chrome-headless-shell-linux64/chrome-headless-shell";
 const browser = await chromium.launch({ executablePath: exe, args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--no-sandbox", "--disable-background-timer-throttling", "--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding"] });
@@ -75,7 +75,7 @@ const timed = async (p, ms = 90000) => Promise.race([
 const QUERIES = { none: "", both: "&batch=both", "both-inst": "&batch=both&instance=1", inst: "&instance=1" };
 const batchQuery = QUERIES[mode];
 if (batchQuery === undefined) { console.error("bad mode", mode); process.exit(2); }
-const url = `http://127.0.0.1:8913/?tiles=0&streamDebug=1${batchQuery}`;
+const url = `http://127.0.0.1:8923/?tiles=0&streamDebug=1${batchQuery}`;
 console.log("goto", url);
 await page.goto(url, { waitUntil: "load", timeout: 120000 });
 
