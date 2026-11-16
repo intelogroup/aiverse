@@ -51,9 +51,9 @@ const PROP_NAME = /^(SK_med_stall|inst_goods_|FountainClayPot)/;
 const DOOR_NAME = /door/i;
 const STATEFUL_NAME = /radio|interactable/i;
 
-type Category = "propFamily" | "otherStatic" | "door" | "waterSea" | "stateful" | "hidden";
+export type Category = "propFamily" | "otherStatic" | "door" | "waterSea" | "stateful" | "hidden";
 
-interface Item {
+export interface Item {
   obj: THREE.Mesh | THREE.InstancedMesh;
   category: Category;
   prims: number;
@@ -68,7 +68,7 @@ function trisOfGeometry(g: THREE.BufferGeometry): number {
   return (g.index ? g.index.count : g.attributes.position?.count ?? 0) / 3;
 }
 
-function attributeSignature(g: THREE.BufferGeometry): string {
+export function attributeSignature(g: THREE.BufferGeometry): string {
   return Object.keys(g.attributes).sort().join(",");
 }
 
@@ -83,7 +83,7 @@ function cellKeyOf(x: number, z: number): string {
  * batch hook runs — those items land in `hidden`/`waterSea` and are
  * never touched).
  */
-function collectItems(root: THREE.Object3D): Item[] {
+export function collectItems(root: THREE.Object3D): Item[] {
   const items: Item[] = [];
   // Category tests run against the item's FULL ancestor name chain:
   // GLTFLoader nests multi-primitive meshes under a Group, so a leaf
@@ -143,10 +143,10 @@ declare global {
   }
 }
 
-const IN_SCOPE = (c: Category) => c === "propFamily" || c === "otherStatic";
+export const IN_SCOPE = (c: Category) => c === "propFamily" || c === "otherStatic";
 
 /** Slice one material group out of an indexed geometry, compacting vertices. */
-function sliceGroup(geo: THREE.BufferGeometry, start: number, count: number): THREE.BufferGeometry {
+export function sliceGroup(geo: THREE.BufferGeometry, start: number, count: number): THREE.BufferGeometry {
   const index = geo.index!;
   const used = new Map<number, number>();
   const newIndex: number[] = [];
@@ -215,10 +215,21 @@ function piecesOf(item: Item): Piece[] {
   return pieces;
 }
 
-export function applyBazaarBatch(root: THREE.Object3D, scene: THREE.Scene, mode: BatchMode): BazaarBatchHandle {
+export interface BazaarBatchOptions {
+  /**
+   * Instancing trial composition (?instance=1): items claimed by the
+   * instancing pass are skipped by every bake/split/hide path here —
+   * the instancing pass renders and hides them instead. Default
+   * (absent) behavior is exactly the batching trial's.
+   */
+  exclude?: (item: Item) => boolean;
+}
+
+export function applyBazaarBatch(root: THREE.Object3D, scene: THREE.Scene, mode: BatchMode, opts?: BazaarBatchOptions): BazaarBatchHandle {
   const t0 = performance.now();
   root.updateWorldMatrix(true, true);
   const items = collectItems(root);
+  const claimed = (it: Item): boolean => (opts?.exclude ? opts.exclude(it) : false);
   const stats: Record<string, number> = {};
 
   const census = (): BatchCensus => {
@@ -276,6 +287,7 @@ export function applyBazaarBatch(root: THREE.Object3D, scene: THREE.Scene, mode:
     let pieceCount = 0;
     for (const it of items) {
       if (!IN_SCOPE(it.category)) continue;
+      if (claimed(it)) { stats.excludedItems = (stats.excludedItems ?? 0) + 1; continue; }
       for (const piece of piecesOf(it)) {
         pieceCount++;
         const key = `${piece.material.uuid}|${attributeSignature(piece.geo)}${mode === "both" ? `|${piece.cell}` : ""}`;
@@ -327,7 +339,7 @@ export function applyBazaarBatch(root: THREE.Object3D, scene: THREE.Scene, mode:
     stats.mergeFallbacks = fallbacks;
     stats.bakedVerts = bakedVerts;
     stats.bakedBytes = bakedBytes;
-    setVisible((it) => IN_SCOPE(it.category), false);
+    setVisible((it) => IN_SCOPE(it.category) && !claimed(it), false);
   }
 
   if (mode === "cells") {
@@ -336,6 +348,7 @@ export function applyBazaarBatch(root: THREE.Object3D, scene: THREE.Scene, mode:
     let skippedMultiMaterial = 0;
     for (const it of items) {
       if (!IN_SCOPE(it.category)) continue;
+      if (claimed(it)) continue;
       const im = it.obj as THREE.InstancedMesh;
       if (!im.isInstancedMesh) continue;
       if (Array.isArray(im.material)) {
@@ -380,7 +393,7 @@ export function applyBazaarBatch(root: THREE.Object3D, scene: THREE.Scene, mode:
     stats.splitItems = splitItems;
     stats.cellMeshes = cellMeshes;
     stats.skippedMultiMaterial = skippedMultiMaterial;
-    setVisible((it) => IN_SCOPE(it.category) && (it.obj as THREE.InstancedMesh).isInstancedMesh && !Array.isArray(it.obj.material), false);
+    setVisible((it) => IN_SCOPE(it.category) && !claimed(it) && (it.obj as THREE.InstancedMesh).isInstancedMesh && !Array.isArray(it.obj.material), false);
   }
 
   if (added.length && mode !== "cells") scene.add(group);

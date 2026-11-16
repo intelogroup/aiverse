@@ -16,6 +16,7 @@ import { blendTheme, collisionJobs, dueEvictions, isShellCovered, originOf, plan
 import { TILES } from "./tilesMode";
 import { tileScenes } from "./tileScenes";
 import { applyBazaarBatch, type BazaarBatchHandle } from "./bazaarBatch";
+import { planBazaarInstance, type BazaarInstanceHandle } from "./bazaarInstance";
 
 export const DISTRICTS_URL = TILES ? "/assets/tiles/districts.json" : "/assets/districts.json";
 
@@ -177,8 +178,22 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     // addColliders so camera collision keeps the pristine meshes (the batch
     // hides originals but never removes or mutates them).
     let batchHandle: BazaarBatchHandle | null = null;
-    const batchMode = new URLSearchParams(window.location.search).get("batch");
-    if (batchMode === "census" || batchMode === "merge" || batchMode === "cells" || batchMode === "both") {
+    let instanceHandle: BazaarInstanceHandle | null = null;
+    const qs = new URLSearchParams(window.location.search);
+    const batchModeRaw = qs.get("batch");
+    const batchMode = batchModeRaw === "census" || batchModeRaw === "merge" || batchModeRaw === "cells" || batchModeRaw === "both" ? batchModeRaw : null;
+    if (qs.get("instance") === "1") {
+      // Instancing trial (tmp/instancing-on-batching): claim the tree /
+      // repeated-prop groups FIRST, so the batch pass excludes them via
+      // its exclude predicate; then build one InstancedMesh per group.
+      // Runs at the same post-addColliders point, same discipline:
+      // originals stay in the tree, hidden, untouched.
+      const plan = planBazaarInstance(resident.scene);
+      if (batchMode) {
+        batchHandle = applyBazaarBatch(resident.scene, scene, batchMode, { exclude: (it) => plan.claimedObjs.has(it.obj) });
+      }
+      instanceHandle = plan.apply(resident.scene, scene);
+    } else if (batchMode) {
       batchHandle = applyBazaarBatch(resident.scene, scene, batchMode);
     }
     if (residentIdRef.current) tileScenes.set(residentIdRef.current, resident.scene);
@@ -187,6 +202,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     syncShell();
     return () => {
       residentReadyRef.current = false;
+      instanceHandle?.dispose();
       batchHandle?.dispose();
       hiddenWater.forEach(({ mesh, visible }) => { mesh.visible = visible; });
       dropColliders("resident");
