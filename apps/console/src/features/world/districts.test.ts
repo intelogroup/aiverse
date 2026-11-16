@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EVICT_GRACE_MS, RESIDENT_COLLISION_URL, blendTheme, collisionJobs, dueEvictions, isShellCovered, planDistricts, staleShellIds, residentCollisionUrl, rectDistance, themeDelta, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
+import { EVICT_GRACE_MS, RESIDENT_COLLISION_URL, blendTheme, collisionJobs, dueEvictions, farGroupVisible, isShellCovered, planDistricts, staleShellIds, residentCollisionUrl, rectDistance, themeDelta, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
 
 const th = (r: number, night = 0): Theme => ({ skyTop: [r, 0, 0], skyHorizon: [r, 0, 0], fog: [r, 0, 0], fogDensity: 0.001, water: [0, 0, 0], sun: [1, 1, 1],
   sunIntensity: 2, sunDir: [0, 1, 0], ambient: 0.1, envIntensity: 0.5, exposure: 1, night });
@@ -10,6 +10,18 @@ const defs: DistrictDef[] = [
   { id: "w", name: "W", url: "w", center: [-400, 0], half: 180, theme: "a" },
   { id: "s", name: "S", url: "s", center: [0, 400], half: 180, theme: "a" },
 ];
+describe("farGroupVisible", () => {
+  it("shows the beige shell only while uncovered and no LOD has arrived", () => {
+    expect(farGroupVisible("shell", false, false)).toBe(true);
+    expect(farGroupVisible("shell", true, false)).toBe(false);
+    expect(farGroupVisible("shell", false, true)).toBe(false); // superseded by the LOD
+  });
+  it("shows a LOD group exactly while its district is uncovered", () => {
+    expect(farGroupVisible("lod", false, true)).toBe(true);
+    expect(farGroupVisible("lod", true, true)).toBe(false);
+  });
+});
+
 describe("districts", () => {
   it("rectDistance is 0 inside and euclidean outside", () => {
     expect(rectDistance(10, 10, defs[0])).toBe(0);

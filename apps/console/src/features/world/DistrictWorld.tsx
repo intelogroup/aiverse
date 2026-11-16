@@ -12,7 +12,7 @@ import { EasterEggs } from "./EasterEggs";
 import type { InteractController } from "./interactables";
 import type { WalkColliders } from "./walkColliders";
 import { assetUrl, resolveManifestAssets } from "../../lib/assetUrl";
-import { blendTheme, collisionJobs, dueEvictions, isShellCovered, originOf, planDistricts, residentCollisionUrl, staleShellIds, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
+import { blendTheme, collisionJobs, dueEvictions, farGroupVisible, isShellCovered, originOf, planDistricts, residentCollisionUrl, staleShellIds, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
 import { TILES } from "./tilesMode";
 import { tileScenes } from "./tileScenes";
 
@@ -83,6 +83,8 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
   const retriedRef = useRef(new Set<string>());
   const aliveRef = useRef(true);
   const shellGroups = useRef(new Map<string, THREE.Object3D>());
+  // Textured far view (manifest `lod`): same `shell_<id>` groups; once it has arrived the beige shell groups stay hidden.
+  const lodGroups = useRef(new Map<string, THREE.Object3D>());
   // The resident (manifest `resident` flag) never enters the streamed `groups` set — it loads via
   // useGLTF — so shell coverage needs its id + a mounted flag beside the streamed set (isShellCovered).
   const residentIdRef = useRef<string | undefined>(undefined);
@@ -95,7 +97,9 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
   };
   const syncShell = () => {
     const loaded = new Set(groups.current.keys());
-    for (const [id, g] of shellGroups.current) g.visible = !isShellCovered(id, loaded, residentIdRef.current, residentReadyRef.current);
+    const lodUp = lodGroups.current.size > 0;
+    for (const [id, g] of shellGroups.current) g.visible = farGroupVisible("shell", isShellCovered(id, loaded, residentIdRef.current, residentReadyRef.current), lodUp);
+    for (const [id, g] of lodGroups.current) g.visible = farGroupVisible("lod", isShellCovered(id, loaded, residentIdRef.current, residentReadyRef.current), lodUp);
   };
   // Camera-collision meshes per root (resident, links, each streamed district); flattened lazily for the collider.
   const colliderSets = useRef(new Map<string, THREE.Mesh[]>());
@@ -221,6 +225,33 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
       syncShell(); pushEvent("shell-ok");
     }, undefined, () => { if (live) { console.warn("[districts] far shell failed to load; unloaded districts will show water until their detail streams in"); pushEvent("shell-fail"); } });
     return () => { live = false; shellGroups.current.clear(); if (root) { scene.remove(root); disposeTree(root); } };
+  }, [manifest, loader, scene]);
+
+  // Far LOD: fetched only after the resident has mounted (plus a beat, so the nearest tiles' requests go first): ~5 MB that must not
+  // compete with the first paint. A failure only warns: the beige shell stays.
+  useEffect(() => {
+    if (!manifest?.lod) return;
+    let live = true; let root: THREE.Object3D | null = null; let timer: ReturnType<typeof setTimeout> | undefined;
+    const start = () => {
+      if (!live) return;
+      if (!residentReadyRef.current) { timer = setTimeout(start, 500); return; }
+      timer = setTimeout(() => {
+        if (!live || !manifest.lod) return;
+        loader.load(manifest.lod, (g) => {
+          if (!live) { disposeTree(g.scene); return; }
+          root = g.scene; scene.add(root);
+          root.traverse((o) => { const m = /^shell[_:](.+)$/.exec(o.name); if (m) lodGroups.current.set(m[1], o); });
+          for (const id of staleShellIds(lodGroups.current.keys(), manifest.districts.map((d) => d.id))) {
+            const gr = lodGroups.current.get(id); lodGroups.current.delete(id);
+            if (gr) { gr.removeFromParent(); disposeTree(gr); }
+          }
+          syncShell(); pushEvent("lod-ok");
+        }, undefined, () => { if (live) { console.warn("[districts] far LOD failed to load; the plain far shell stays"); pushEvent("lod-fail"); } });
+      }, 1500);
+    };
+    start();
+    return () => { live = false; if (timer) clearTimeout(timer); lodGroups.current.clear(); if (root) { scene.remove(root); disposeTree(root); } };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [manifest, loader, scene]);
 
   const defs = manifest?.districts ?? [];
