@@ -50,6 +50,8 @@ const KNOWN_GLOBALS: Record<string, string> = {
   __districts: "district streaming state for the console UI (DistrictWorld)",
   __city3Stream: "streaming debug handle, ?streamDebug=1 only (GlbWorld)",
   __sound: "sound director / PA debug surface (GlbWorld)",
+  __splatTrial:
+    "splat load-test trial handle, ?splat= only (SplatTrial) — load state/timing for the trial rig, no scene access",
   __tts: "plaza speech debug surface (GlbWorld)",
   __quality: "quality governor debug handle, ?qualityDebug=1 only (GlbWorld)",
   __bartender: "Tea House bartender scene handle (TeaBartender)",

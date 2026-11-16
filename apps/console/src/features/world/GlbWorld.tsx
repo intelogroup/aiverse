@@ -10,6 +10,7 @@ import { OrbitControls, useGLTF, useProgress } from "@react-three/drei";
 import { extendGltf } from "./gltfExtensions";
 import * as THREE from "three";
 import { DistrictWorld } from "./DistrictWorld";
+import { SplatTrial } from "./SplatTrial";
 import { TILES, CORE_TILE_URL } from "./tilesMode";
 import { useTileEpoch } from "./tileScenes";
 import { buildColliders } from "./CameraCollider";
@@ -1557,6 +1558,8 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
         <Suspense fallback={null}>
           <PresentedSignal onPresented={markPresented} />
           <DistrictWorld residentUrl={CITY3_URL} light={keyLightRef} collide={camMode === "wide" && !following && !(heroFocus?.id === "tea" && teaFloor === null)} meshesRef={colliderMeshesRef} walk={walkColliders} streamCap={touchUi ? 2 : undefined} interact={interactRef.current ?? undefined} />
+          {/* Splat-in-verse trial: renders nothing unless ?splat=1|1m (see SplatTrial.tsx). */}
+          <SplatTrial />
           <>
               <TeaElevator controller={elevator} walk={walkColliders} url={CITY3_URL} frame={walkFrameRef} getDirector={() => soundRef.current} />
               <ClipCutaway rooms={city3Rooms} focus={heroFocus} teaFloor={teaFloor} walking={walking} />
