@@ -209,4 +209,64 @@ describe("slice 6 — announcements + counter", () => {
     await waitFor(() => feed2.events.some((e) => e.event === "hunt_start"));
     feed2.close();
   }, 30000);
+
+  test("state ETag is stable across wall-clock time and rotates on state change", async () => {
+    const h: Harness = makeHarness();
+    const ev = await adminCreateEvent(h, { slug: "etag-event" });
+    await adminSeedPrize(h, ev.id, {
+      label_public: "etag prize",
+      kind: "gift_code",
+      face_value_cents: 500,
+      x: 10,
+      y: 0,
+      z: 10,
+      code: "ETAG-CODE-1",
+    });
+
+    const s1 = await req(h.app, "GET", "/v1/events/etag-event/state");
+    expect(s1.status).toBe(200);
+    const etag1 = s1.headers.get("ETag");
+    expect(etag1).toBeTruthy();
+    expect(typeof s1.json.server_time).toBe("number");
+
+    // Advance the wall clock past at least one second boundary. The old
+    // ETag hashed server_time at millisecond precision, so ANY delay
+    // rotated it and the 304 path below could never be reached by a
+    // real client; this gap makes the old code fail every run, not
+    // just when two requests straddle a millisecond.
+    await new Promise((r) => setTimeout(r, 1200));
+
+    const s2 = await req(h.app, "GET", "/v1/events/etag-event/state");
+    expect(s2.json.server_time).toBeGreaterThan(s1.json.server_time);
+    expect(s2.headers.get("ETag")).toBe(etag1);
+
+    const cached = await h.app.request("/v1/events/etag-event/state", {
+      headers: { "If-None-Match": etag1! },
+    });
+    expect(cached.status).toBe(304);
+
+    // A genuine state change (the prize pool grows) rotates the ETag,
+    // and the stale ETag stops matching.
+    await adminSeedPrize(h, ev.id, {
+      label_public: "etag prize two",
+      kind: "gift_code",
+      face_value_cents: 500,
+      x: -30,
+      y: 0,
+      z: -30,
+      code: "ETAG-CODE-2",
+    });
+    const s3 = await req(h.app, "GET", "/v1/events/etag-event/state");
+    expect(s3.json.prizes_total).toBe(2);
+    const etag3 = s3.headers.get("ETag");
+    expect(etag3).not.toBe(etag1);
+    const stale = await h.app.request("/v1/events/etag-event/state", {
+      headers: { "If-None-Match": etag1! },
+    });
+    expect(stale.status).toBe(200);
+    const recached = await h.app.request("/v1/events/etag-event/state", {
+      headers: { "If-None-Match": etag3! },
+    });
+    expect(recached.status).toBe(304);
+  }, 15000);
 });

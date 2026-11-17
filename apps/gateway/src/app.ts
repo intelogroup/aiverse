@@ -6,6 +6,9 @@ import { env } from "@aiverse/shared/env";
 import { db } from "./db/client";
 import { redis } from "./redis/client";
 import { ownersRoute } from "./routes/owners";
+import { ownersReadKeysRoute } from "./routes/ownersReadKeys";
+import { ownersAgentsRoute } from "./routes/ownersAgents";
+import { ownersVisitsRoute } from "./routes/visits";
 import { roomsRoute } from "./routes/rooms";
 import { conversationsRoute } from "./routes/conversations";
 import { topicsRoute } from "./routes/topics";
@@ -29,6 +32,7 @@ import { registerAgentWsRoute, registerConsoleWsRoute, registerPublicWsRoute } f
 import { getHuntRuntime, huntEnabled } from "./hunt";
 import { log, logError } from "./util/log";
 import { createWorldRoute } from "./routes/world";
+import { createOwnerWorldRoute } from "./routes/ownerWorld";
 import { simClientFromEnv, worldEnabled, type SimClient } from "./world/simClient";
 import { lookClientFromEnv, type LookClient } from "./world/lookClient";
 import { createWorldStream, setWorldStream } from "./world/frames";
@@ -208,6 +212,9 @@ export function createApp(opts: CreateAppOpts = {}) {
   );
 
   app.route("/owners", ownersRoute);
+  app.route("/owners", ownersReadKeysRoute);
+  app.route("/owners", ownersAgentsRoute);
+  app.route("/owners", ownersVisitsRoute);
   app.route("/rooms", roomsRoute);
   app.route("/conversations", conversationsRoute);
   app.route("/topics", topicsRoute);
@@ -247,6 +254,7 @@ export function createApp(opts: CreateAppOpts = {}) {
   if (sim) {
     const look = opts.look ?? (worldEnabled() ? lookClientFromEnv() : null);
     app.route("/world", createWorldRoute(sim, look));
+    app.route("/owners/world-presence", createOwnerWorldRoute(sim));
     // Spectators ask for the pose stream on /public/ws; the loop only runs while somebody is subscribed.
     setWorldStream(createWorldStream({
       sim,

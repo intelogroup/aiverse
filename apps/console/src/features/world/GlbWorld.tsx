@@ -4,39 +4,26 @@ import { TeaElevatorController } from "./teaElevator";
 import { VerseRecorder } from "./VerseRecorder";
 import { VerseShare } from "./VerseShare";
 import { ToyProps } from "./ToyProps";
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls, useGLTF, useProgress } from "@react-three/drei";
-import { extendGltf } from "./gltfExtensions";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { DistrictWorld } from "./DistrictWorld";
 import { TILES, CORE_TILE_URL } from "./tilesMode";
 import { coreTexturesPending, subscribeCoreTextures, CORE_TEXTURES_HOLD_MS } from "./coreTextures";
-import { useTileEpoch } from "./tileScenes";
-import { buildColliders } from "./CameraCollider";
-import { registerCameraObstacle } from "./cameraClearance";
-import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { BazaarLife, type BazaarFigureTap } from "./BazaarLife";
 import { MiraResident } from "./MiraResident";
-import {
-  mobileShell,
-  spawnRequestForPoint,
-  spawnRequestForRoom,
-  type WalkSpawnRequest,
-} from "./mobileShell";
+import { mobileShell, spawnRequestForPoint, spawnRequestForRoom, type WalkSpawnRequest } from "./mobileShell";
 import { TeaBartender } from "./TeaBartender";
 import { BARTENDER_LINES } from "./bartender";
 import { CityWalker } from "./CityWalker";
 import { TouchWalkSource, setLookPrefs } from "./walkTouch";
-import {
-  InteractHighlight,
-  TouchTapPicker,
-  TouchWalkLayer,
-  useTouchUi,
-  type TapPicker,
-} from "./TouchWalkLayer";
+import { InteractHighlight, TouchTapPicker, TouchWalkLayer, useTouchUi, type TapPicker } from "./TouchWalkLayer";
 import { ScoutAgent } from "./ScoutAgent";
 import { RemoteCast } from "./RemoteCast";
+import { OwnerFollowCam } from "./OwnerFollowCam";
+import { pickOwnBody, type RosterBody } from "./ownerFollow";
+import { RemoteBodies } from "./remoteFrames";
 import { WalkClipOverride, type WalkFrameInfo } from "./walkOverride";
 import { SoundDirector } from "./soundDirector";
 import { VOICE_BARTENDER, benchPhonon, phononWarmth, synthLine, warmPhonon } from "./phononTts";
@@ -44,52 +31,24 @@ import { GREETING_SCRIPT, createPlazaGreeting, type PlazaGreeting } from "./plaz
 import { type CameraMode } from "./cameraRig";
 import { attachWorldRenderer } from "../../lib/telemetry/index";
 import { FpsMeter } from "./fpsMeter";
-import {
-  FrameThrottle,
-  QualityGovernor,
-  TOUCH_DPR_MAX,
-  TOUCH_FPS_CAP,
-  capDpr,
-  dprForTier,
-  governorSampleFps,
-  qualityStore,
-  shadowMapForTier,
-} from "./quality";
+import { TOUCH_DPR_MAX, capDpr, dprForTier, qualityStore } from "./quality";
 import { attachContextLossHandlers } from "./contextLoss";
 import { probeWebGLSupport } from "./contextCreate";
-import {
-  LONG_PRESS_MAX_MOVE_PX,
-  LONG_PRESS_MS,
-  coachSeen,
-  comfortStore,
-  hapticTick,
-  isReducedMotion,
-  markCoachSeen,
-} from "./comfort";
-import {
-  CITY3_INDEX_URL,
-  CITY3_LIBRARY_URL,
-  HIDE_WITHIN,
-  INTERIOR_KEEP_WITHIN,
-  INTERIOR_LOAD_WITHIN,
-  MAX_LOADED_INTERIORS,
-  SHOW_BEYOND,
-  roomView,
-  syntheticRooms,
-  type City3Room,
-} from "./city3";
-import { boxPlanes, inactivePlanes, pickCutRoom } from "./cutaway";
-import { buildInterior, indexLibrary, type InteriorHandle } from "./interiorBuild";
-import { colUrl, parseColBoxes, planStreaming, type InteriorLayout } from "./interiors";
+import { LONG_PRESS_MAX_MOVE_PX, LONG_PRESS_MS, coachSeen, comfortStore, hapticTick, markCoachSeen } from "./comfort";
+import { CITY3_LIBRARY_URL } from "./city3";
 import { boxesMesh } from "./capsuleWorld";
 import { WalkColliders } from "./walkColliders";
-import { PLAYER, TEA_BLOCKER_BOX, TeaDoorController } from "./teaDoor";
-import { InteractController, type InteractableDef } from "./interactables";
-import { buildInteractableVisual } from "./interactableMesh";
+import { TEA_BLOCKER_BOX, TeaDoorController } from "./teaDoor";
+import { InteractController } from "./interactables";
 import { InteractTicker } from "./InteractTicker";
 import { TeaDoorLeaf, TeaDoorTicker } from "./TeaDoorLeaf";
-import { loadPercent, worldLoadPhase } from "./worldLoad";
-import { TEA_FLOORS, teaCutHeight, teaEntranceView, teaViewTargetHeight } from "./teaBuilding";
+import { TEA_FLOORS } from "./teaBuilding";
+import { ClipCutaway, InteriorStreamer, useCity3Rooms } from "./glbInteriors";
+import { KeyLight, ShadowTagger, StageEnvironment } from "./glbStage";
+import { FpsTracker, QualityDriver, TouchFpsCap } from "./glbPerf";
+import { PresentedSignal, ShellPaBanner, WalkHudPanel, WorldLoadOverlay, soundDebugSurface } from "./glbHud";
+import { FigureFlyRig } from "./glbCamera";
+import { CITY3_CENTER } from "./glbConstants";
 
 // GlbWorld — the modeled world (Blender-authored GLB) as the console's
 // default stage: City 3, the Sunstone Bazaar — a 360 m island (generated
@@ -111,581 +70,6 @@ import { TEA_FLOORS, teaCutHeight, teaEntranceView, teaViewTargetHeight } from "
 
 const CITY3_URL = assetUrl(TILES ? CORE_TILE_URL : "/assets/world-city3.glb"); // tile mode: the small core first, the rest streams (tilesMode.ts)
 
-// The island's plaza origin.
-const CITY3_CENTER: [number, number] = [0, 0];
-
-/** City 3's room index (generated: tools/city3/out/interiors/index.json); empty until fetched. */
-function useCity3Rooms(enabled: boolean): City3Room[] {
-  const [rooms, setRooms] = useState<City3Room[]>([]);
-  useEffect(() => {
-    if (!enabled || rooms.length) return;
-    let live = true;
-    fetch(CITY3_INDEX_URL)
-      .then((r) => r.json() as Promise<City3Room[]>)
-      .then((r) => live && setRooms(r))
-      .catch(() => {});
-    return () => {
-      live = false;
-    };
-  }, [enabled, rooms.length]);
-  return rooms;
-}
-
-/**
- * City 3 cutaway: opens one building at a time with a clipping box. Every room building's upper
- * floors and roof sit in the merged city meshes, so instead of hiding objects the city materials get
- * six shared clipping planes with clipIntersection (a fragment is discarded only inside the box);
- * moving the box updates uniforms and never recompiles a shader. `focus` flies to a room.
- */
-function ClipCutaway({
-  rooms,
-  focus,
-  teaFloor,
-  walking,
-}: {
-  rooms: City3Room[];
-  focus: { id: string; nonce: number } | null;
-  teaFloor: number | null;
-  walking: boolean;
-}) {
-  const scene = useThree((s) => s.scene);
-  const camera = useThree((s) => s.camera);
-  const gl = useThree((s) => s.gl);
-  const controls = useThree((s) => s.controls) as unknown as {
-    target: THREE.Vector3;
-    update: () => void;
-  } | null;
-  const planes = useMemo(
-    () => inactivePlanes().map(([x, y, z, c]) => new THREE.Plane(new THREE.Vector3(x, y, z), c)),
-    [],
-  );
-  const open = useRef<string | null>(null);
-  const cutRooms = useMemo(() => rooms.filter(r => r.id !== "tea" || (focus?.id === "tea" && teaFloor !== null)).map((r) => ({ id: r.id, center: r.center, rect: r.rect, cut: r.cut })), [rooms, teaFloor, focus]);
-  const cutHeight = useRef<number | null>(null);
-  useEffect(() => {
-    open.current = null;
-    cutHeight.current = null;
-    gl.localClippingEnabled = true;
-    const mats = new Set<THREE.Material>();
-    scene.traverse((o) => {
-      const m = o as THREE.Mesh;
-      if (!m.isMesh || (m as THREE.InstancedMesh).isInstancedMesh) return; // library furnishings are never clipped
-      for (const mat of Array.isArray(m.material) ? m.material : [m.material]) if(!mat.userData.noCutaway) mats.add(mat);
-    });
-    for (const mat of mats) {
-      mat.clippingPlanes = planes;
-      mat.clipIntersection = true;
-      mat.clipShadows = true;
-      mat.needsUpdate = true;
-    }
-    return () => {
-      for (const mat of mats) {
-        mat.clippingPlanes = null;
-        mat.clipIntersection = false;
-        mat.clipShadows = false;
-        mat.needsUpdate = true;
-      }
-      gl.localClippingEnabled = false;
-    };
-  }, [scene, gl, planes]);
-  // Tile mode: geometry streams in after the effect above ran, so its materials never got the clip planes. Give every
-  // tile material the shared planes as it arrives (same rule as above; no reset of the open room).
-  const tileEpoch = useTileEpoch();
-  useEffect(() => {
-    if (!tileEpoch) return;
-    scene.traverse((o) => {
-      const m = o as THREE.Mesh;
-      if (!m.isMesh || (m as THREE.InstancedMesh).isInstancedMesh) return;
-      for (const mat of Array.isArray(m.material) ? m.material : [m.material]) {
-        if (mat.userData.noCutaway || mat.clippingPlanes === planes) continue;
-        mat.clippingPlanes = planes; mat.clipIntersection = true; mat.clipShadows = true; mat.needsUpdate = true;
-      }
-    });
-  }, [scene, planes, tileEpoch]);
-  useEffect(() => {
-    const room = focus && rooms.find((r) => r.id === focus.id);
-    if (!room || !controls || walking) return;
-    const v = roomView(room);
-    if (room.id === "tea") {
-      if (teaFloor === 0) {
-        // Ground floor: stand in the entrance and look in, eye level.
-        const e = teaEntranceView(room);
-        v.position = e.position;
-        v.target = e.target;
-      } else {
-        const y = teaFloor === null ? 7.5 : teaViewTargetHeight(teaFloor);
-        v.target[1] = y;
-        v.position[1] = teaFloor === null ? 24 : y + 15;
-      }
-    }
-    camera.position.set(...v.position);
-    controls.target.set(...v.target);
-    controls.update();
-  }, [focus, rooms, camera, controls, teaFloor, walking]);
-  useFrame(() => {
-    // What the camera is looking at decides which building opens, not where the camera stands
-    // (from a street-side viewpoint the nearest building centre is often across the road).
-    const target = controls?.target;
-    if (!target) return;
-    const candidate = pickCutRoom(
-      cutRooms,
-      { x: target.x, z: target.z },
-      camera.position.distanceTo(target),
-      open.current,
-      HIDE_WITHIN,
-      SHOW_BEYOND,
-    );
-    const next = walking ? null : candidate;
-    const height = next === "tea" && teaFloor !== null ? teaCutHeight(teaFloor) : null;
-    if (next === open.current && height === cutHeight.current) return;
-    open.current = next;
-    cutHeight.current = height;
-    const box = next ? rooms.find((r) => r.id === next)!.cut : null;
-    const spec = box ? boxPlanes(height === null ? box : { ...box, y: height }) : inactivePlanes();
-    spec.forEach(([x, y, z, c], i) => {
-      planes[i].normal.set(x, y, z);
-      planes[i].constant = c;
-    });
-  });
-  return null;
-}
-
-/**
- * Streams City 3's interiors by camera distance. One shared asset library is
- * fetched the first time any room is near; each room is a small layout JSON
- * built into instanced meshes over that library. At most MAX_LOADED_INTERIORS
- * stay resident: farther or surplus rooms are dropped and their instance
- * buffers disposed (geometry and materials stay with the library).
- *
- * `?streamDebug=1` exposes window.__city3Stream (counters, renderer memory,
- * teleport) for the memory test; `&fake=N` adds N synthetic rooms to arbitrate.
- */
-function InteriorStreamer({ rooms: realRooms, walk, interact }: { rooms: City3Room[]; walk?: WalkColliders; interact?: InteractController }) {
-  const camera = useThree((s) => s.camera);
-  const gl = useThree((s) => s.gl);
-  const scene = useThree((s) => s.scene);
-  const controls = useThree((s) => s.controls) as unknown as {
-    target: THREE.Vector3;
-    update: () => void;
-  } | null;
-  const debug = useMemo(() => new URLSearchParams(window.location.search).get("streamDebug") === "1", []);
-  const heroes = useMemo<City3Room[]>(() => {
-    const n = Number(new URLSearchParams(window.location.search).get("fake") ?? 0);
-    const src = realRooms.find((r) => r.id === "press") ?? realRooms[0];
-    return debug && n > 0 && src ? [...realRooms, ...syntheticRooms(n, src)] : realRooms;
-  }, [debug, realRooms]);
-  const [wanted, setWanted] = useState<string[]>([]);
-  const wantedRef = useRef<string[]>([]);
-  const layouts = useRef(new Map<string, InteriorLayout>());
-  const inflight = useRef(new Set<string>());
-  const [layoutsReady, setLayoutsReady] = useState<string[]>([]);
-  const acc = useRef(1);
-  const stats = useRef({ loads: 0, evictions: 0, maxResident: 0, builds: 0 });
-  const handles = useRef(new Map<string, InteriorHandle>());
-
-  useFrame((_, dt) => {
-    acc.current += dt;
-    if (acc.current < 0.25) return;
-    acc.current = 0;
-    const plan = planStreaming({
-      cam: camera.position,
-      heroes: heroes.map((h) => ({ id: h.id, center: h.center })),
-      loaded: wantedRef.current,
-      loadWithin: INTERIOR_LOAD_WITHIN,
-      keepWithin: INTERIOR_KEEP_WITHIN,
-      maxLoaded: MAX_LOADED_INTERIORS,
-    });
-    if (!plan.load.length && !plan.evict.length) return;
-    stats.current.loads += plan.load.length;
-    stats.current.evictions += plan.evict.length;
-    wantedRef.current = wantedRef.current.filter((id) => !plan.evict.includes(id)).concat(plan.load);
-    stats.current.maxResident = Math.max(stats.current.maxResident, wantedRef.current.length);
-    setWanted(wantedRef.current);
-    for (const id of plan.load) {
-      const hero = heroes.find((h) => h.id === id);
-      if (!hero || layouts.current.has(hero.layout) || inflight.current.has(hero.layout)) continue;
-      const url = hero.layout;
-      inflight.current.add(url); // rooms that share a layout fetch it once
-      fetch(url)
-        .then((r) => r.json() as Promise<InteriorLayout>)
-        .then((l) => {
-          layouts.current.set(url, l);
-          setLayoutsReady((r) => (r.includes(url) ? r : [...r, url]));
-        })
-        .catch(() => {})
-        .finally(() => inflight.current.delete(url));
-    }
-  });
-
-  useEffect(() => {
-    if (!debug) return;
-    const w = window as unknown as Record<string, unknown>;
-    w.__city3Stream = {
-      /** World position + bounding box of the first scene object with this name (e.g. "interactable:tea-radio", "tea-radio:pilot"). */
-      probe: (name: string) => {
-        const o = scene.getObjectByName(name);
-        if (!o) return null;
-        o.updateWorldMatrix(true, true);
-        const pos = new THREE.Vector3();
-        o.getWorldPosition(pos);
-        const box = new THREE.Box3().setFromObject(o);
-        return { pos: pos.toArray(), min: box.min.toArray(), max: box.max.toArray(), children: o.children.map((c) => c.name) };
-      },
-      snapshot: () => ({
-        resident: [...wantedRef.current],
-        built: [...handles.current.keys()],
-        ...stats.current,
-        drawCallsInteriors: [...handles.current.values()].reduce((a, h) => a + h.drawCalls, 0),
-        memory: { geometries: gl.info.memory.geometries, textures: gl.info.memory.textures },
-        render: { calls: gl.info.render.calls, triangles: gl.info.render.triangles },
-        scene: (() => {
-          const ims: THREE.InstancedMesh[] = [];
-          scene.traverse((o) => {
-            if ((o as THREE.InstancedMesh).isInstancedMesh) ims.push(o as THREE.InstancedMesh);
-          });
-          const f = ims[0];
-          const m = new THREE.Matrix4();
-          const p = new THREE.Vector3();
-          if (f) f.getMatrixAt(0, m);
-          p.setFromMatrixPosition(m);
-          return {
-            instancedMeshes: ims.length,
-            visible: ims.filter((i) => i.visible).length,
-            first: f ? { name: f.name, count: f.count, pos0: p.toArray(), sphere: f.boundingSphere ? [f.boundingSphere.center.toArray(), f.boundingSphere.radius] : null, parent: f.parent?.name, matWorldPos: new THREE.Vector3().setFromMatrixPosition(f.matrixWorld).toArray() } : null,
-          };
-        })(),
-      }),
-      teleport: (x: number, y: number, z: number) => {
-        camera.position.set(x, y, z);
-        controls?.target.set(x, 0, z - 20);
-        controls?.update();
-      },
-    };
-    return () => {
-      delete w.__city3Stream;
-    };
-  }, [debug, gl, scene, camera, controls]);
-
-  return (
-    <Suspense fallback={null}>
-      {wanted.length ? (
-        <StreamedRooms
-          ids={wanted}
-          heroes={heroes}
-          layouts={layouts.current}
-          ready={layoutsReady}
-          handles={handles.current}
-          stats={stats.current}
-          walk={walk}
-          interact={interact}
-        />
-      ) : null}
-    </Suspense>
-  );
-}
-
-/** Mounts one InteriorRoom per resident id once the shared library has loaded. */
-function StreamedRooms({
-  ids,
-  heroes,
-  layouts,
-  ready,
-  handles,
-  stats,
-  walk,
-  interact,
-}: {
-  ids: string[];
-  heroes: City3Room[];
-  layouts: Map<string, InteriorLayout>;
-  ready: string[];
-  handles: Map<string, InteriorHandle>;
-  stats: { builds: number };
-  walk?: WalkColliders;
-  interact?: InteractController;
-}) {
-  const gl = useThree((s) => s.gl);
-  const library = useGLTF(CITY3_LIBRARY_URL, true, true, extendGltf(gl));
-  const assets = useMemo(() => indexLibrary(library.scene), [library]);
-  // Pay the texture-upload cost once, here, instead of as a hitch the first time a room draws.
-  useEffect(() => {
-    const seen = new Set<THREE.Texture>();
-    library.scene.traverse((o) => {
-      const mat = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
-      const tex = mat?.map;
-      if (tex && !seen.has(tex)) {
-        seen.add(tex);
-        gl.initTexture(tex);
-      }
-    });
-  }, [library, gl]);
-  return (
-    <>
-      {ids.map((id) => {
-        const hero = heroes.find((h) => h.id === id);
-        const layout = hero ? layouts.get(hero.layout) : undefined;
-        if (!hero || !layout || !ready.length) return null;
-        return (
-          <InteriorRoom key={id} id={id} layout={layout} layoutUrl={hero.layout} assets={assets} offset={hero.shift ?? ZERO_SHIFT} handles={handles} stats={stats} walk={walk} interactables={hero.interactables} interact={interact} />
-        );
-      })}
-    </>
-  );
-}
-
-const ZERO_SHIFT: [number, number] = [0, 0];
-
-function InteriorRoom({
-  id,
-  layout,
-  layoutUrl,
-  assets,
-  offset,
-  handles,
-  stats,
-  walk,
-  interactables,
-  interact,
-}: {
-  id: string;
-  layout: InteriorLayout;
-  layoutUrl: string;
-  assets: Map<string, THREE.Object3D>;
-  offset: [number, number];
-  handles: Map<string, InteriorHandle>;
-  stats: { builds: number };
-  walk?: WalkColliders;
-  /** Usable props of this room (the radio): cloned from the library, owned by this room's lifecycle. */
-  interactables?: InteractableDef[];
-  interact?: InteractController;
-}) {
-  // Built inside the effect, not memoised: React (StrictMode in dev) runs cleanup then the effect
-  // again on the same render, and a memoised handle would come back already disposed and empty.
-  const [handle, setHandle] = useState<InteriorHandle | null>(null);
-  useEffect(() => {
-    const h = buildInterior(layout, assets, offset);
-    handles.set(id, h);
-    stats.builds += 1;
-    // Usable props: plain meshes over the shared library + a pilot light of our own, wired to the controller's state.
-    const visuals: { stop: () => void; dispose: () => void }[] = [];
-    for (const def of interactables ?? []) {
-      const v = buildInteractableVisual(def, assets, offset);
-      if (!v) continue;
-      h.group.add(v.group);
-      v.setOn(interact?.isOn(def.id) ?? false);
-      const unsub = interact?.subscribe((pid, on) => { if (pid === def.id) v.setOn(on); });
-      visuals.push({ stop: () => unsub?.(), dispose: v.dispose });
-    }
-    buildColliders(h.group);
-    const unregisterCamera = registerCameraObstacle(h.group);
-    setHandle(h);
-    return () => {
-      unregisterCamera();
-      for (const v of visuals) { v.stop(); v.dispose(); }
-      handles.delete(id);
-      h.dispose();
-      setHandle(null);
-    };
-  }, [id, layout, assets, offset, handles, stats, interactables, interact]);
-  // Invisible furniture boxes for the walker (one merged BVH), fetched with the room and dropped on eviction.
-  useEffect(() => {
-    if (!walk) return;
-    let live = true;
-    const key = `interior:${id}`;
-    fetch(colUrl(layoutUrl))
-      .then((r) => (r.ok ? r.json() : []))
-      .then((j) => {
-        if (!live) return;
-        const m = boxesMesh(parseColBoxes(j), offset, key);
-        if (m) walk.set(key, [m]);
-      })
-      .catch(() => {});
-    return () => { live = false; walk.drop(key); };
-  }, [id, layoutUrl, offset, walk]);
-  return handle ? <primitive object={handle.group} /> : null;
-}
-
-/**
- * Environment for the stage. City 3 uses three's built-in
- * RoomEnvironment: with no environment at all, AgX + the single key
- * light washed the district foliage pale (the districts' palette data
- * was intact in the GLBs). DistrictWorld drives
- * scene.environmentIntensity from the blended theme's envIntensity, so
- * the 0.6 set here is only the pre-first-tick value.
- */
-function StageEnvironment() {
-  const gl = useThree((s) => s.gl);
-  const scene = useThree((s) => s.scene);
-  useEffect(() => {
-    const pmrem = new THREE.PMREMGenerator(gl);
-    // Matched tone-curve pair with the Blender authoring (AgX view transform):
-    // R3F otherwise defaults to ACES Filmic, which grades the stage on a
-    // different curve than the one it was authored under.
-    gl.toneMapping = THREE.AgXToneMapping;
-    gl.toneMappingExposure = 1.1;
-    const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-    scene.environment = envMap;
-    scene.environmentIntensity = 0.6;
-    return () => {
-      scene.environment = null;
-      envMap.dispose();
-      pmrem.dispose();
-    };
-  }, [gl, scene]);
-  return null;
-}
-
-/**
- * The stage's one shadow-casting key light, its ortho shadow camera
- * fitted to City 3's span. The target is added to the scene graph
- * explicitly — three only tracks a light's aim if the target's
- * matrixWorld updates.
- */
-function KeyLight({ lightRef }: { lightRef?: React.RefObject<THREE.DirectionalLight | null> }) {
-  const ownRef = useRef<THREE.DirectionalLight>(null!);
-  const light = (lightRef ?? ownRef) as React.RefObject<THREE.DirectionalLight>;
-  const scene = useThree((s) => s.scene);
-  useEffect(() => {
-    const l = light.current;
-    l.target.position.set(CITY3_CENTER[0], 0, CITY3_CENTER[1]);
-    scene.add(l.target);
-    l.target.updateMatrixWorld();
-    return () => {
-      l.target.removeFromParent();
-    };
-  }, [scene]);
-  // Mobile Phase 3: the tier sizes (or kills) the shadow map. The
-  // store only moves on the touch path, so desktop reads "full"
-  // forever — 2048 and casting, exactly as before. The key remounts
-  // the light when the map size changes (three will not realloc a
-  // live shadow map).
-  const quality = useSyncExternalStore(qualityStore.subscribe, qualityStore.getSnapshot);
-  const shadowMap = shadowMapForTier(quality.tier);
-  return (
-    <directionalLight
-      key={shadowMap}
-      ref={light}
-      castShadow={shadowMap > 0}
-      position={[120, 220, 90]}
-      intensity={2.6}
-      shadow-mapSize-width={Math.max(shadowMap, 1)}
-      shadow-mapSize-height={Math.max(shadowMap, 1)}
-      shadow-camera-left={-220}
-      shadow-camera-right={220}
-      shadow-camera-top={220}
-      shadow-camera-bottom={-220}
-      shadow-camera-near={10}
-      shadow-camera-far={800}
-      shadow-bias={-0.0004}
-      // City 3 spans 440 m of shadow frustum on one map: its flat roofs and
-      // plaza need a wide normal bias or the soft shadow shows acne rings.
-      shadow-normalBias={0.8}
-    />
-  );
-}
-
-/**
- * Flags every mesh in the stage as a shadow caster/receiver. The world
- * GLB and the cast figures both arrive as raw primitives (neither sets
- * shadow flags), so the stage tags them itself: opaque meshes cast and
- * receive, transparent ones (the hologlobe shell) only receive. The
- * walk is throttled and skips meshes it has already tagged, so after the
- * first pass it costs a few hundred no-op node visits a few times a
- * second — cast members load async, hence the repeats.
- */
-function ShadowTagger() {
-  const scene = useThree((s) => s.scene);
-  const acc = useRef(1); // first frame tags immediately
-  useFrame((_, delta) => {
-    acc.current += delta;
-    if (acc.current < 0.3) return;
-    acc.current = 0;
-    scene.traverse((o) => {
-      const mesh = o as THREE.Mesh;
-      if (!mesh.isMesh || mesh.userData.__glbShadowTagged) return;
-      const mat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
-      mesh.castShadow = !mat?.transparent;
-      mesh.receiveShadow = true;
-      mesh.userData.__glbShadowTagged = true;
-    });
-  });
-  return null;
-}
-
-/**
- * Render-rate tracker: one timestamp per rendered frame into the
- * shared FpsMeter (fpsMeter.ts), which the touch QualityDriver reads
- * to govern the quality tier. Mounted on the touch path — the meter
- * costs one array push per frame.
- */
-function FpsTracker({ meterRef }: { meterRef: RefObject<FpsMeter | null> }) {
-  useFrame((state) => {
-    meterRef.current?.push(state.clock.elapsedTime * 1000);
-  });
-  return null;
-}
-
-/**
- * Mobile Phase 3: the quality governor's driver. Once a second it
- * feeds the FpsMeter's rolling rate to a QualityGovernor and lands
- * verdicts on the shared quality store (which the Canvas props and
- * the You sheet read). Mounted on the touch path only — desktop
- * quality never moves.
- */
-function QualityDriver({ meterRef }: { meterRef: RefObject<FpsMeter | null> }) {
-  const governor = useRef<QualityGovernor | null>(null);
-  if (governor.current === null) governor.current = new QualityGovernor("reduced");
-  const acc = useRef(0);
-  useFrame((_, delta) => {
-    acc.current += delta;
-    if (acc.current < 1) return;
-    acc.current = 0;
-    const meter = meterRef.current;
-    if (!meter) return;
-    // The touch render cap (TouchFpsCap) bounds the meter's read at
-    // TOUCH_FPS_CAP; governorSampleFps keeps "holding the cap" out of
-    // the step-down band so the governor never fights the cap.
-    const verdict = governor.current?.sample(governorSampleFps(meter.fps()), performance.now());
-    if (verdict) qualityStore.govern(verdict);
-  });
-  return null;
-}
-
-/**
- * Thermal guardrail (2026-11-12): the touch path's render-rate cap.
- * Switches the Canvas to demand rendering and pumps invalidate() at
- * TOUCH_FPS_CAP — a phone holding a 3D world at full refresh cooks
- * itself into throttling within minutes; 30 fps is the rate the
- * quality governor already treats as the touch floor, so the cap and
- * the ladder agree. Mounted on the human touch path only: agent mode
- * already runs demand (ScoutAgent pumps its own frames), and desktop
- * keeps its uncapped "always" loop. Restores "always" on unmount.
- */
-function TouchFpsCap() {
-  const set = useThree((s) => s.set);
-  const invalidate = useThree((s) => s.invalidate);
-  useEffect(() => {
-    set({ frameloop: "demand" });
-    const throttle = new FrameThrottle(TOUCH_FPS_CAP);
-    let raf = 0;
-    const loop = (t: number) => {
-      raf = requestAnimationFrame(loop);
-      if (throttle.shouldRender(t)) invalidate();
-    };
-    raf = requestAnimationFrame(loop);
-    return () => {
-      cancelAnimationFrame(raf);
-      set({ frameloop: "always" });
-    };
-  }, [set, invalidate]);
-  return null;
-}
-
-/**
- * True once the core tile's textures are in (or CORE_TEXTURES_HOLD_MS after `mounted`, so a slow network still shows the world).
- * Tile mode mounts the plaza on gray placeholders; presenting it that early showed several seconds of flat gray and then
- * textures popping in. Not in tile mode: no batch is ever registered, so this is true as soon as `mounted` is.
- */
 function useCoreTexturesReady(mounted: boolean): boolean {
   const [pending, setPending] = useState(coreTexturesPending);
   const [expired, setExpired] = useState(false);
@@ -702,344 +86,14 @@ function useCoreTexturesReady(mounted: boolean): boolean {
   return mounted && (!pending || expired);
 }
 
-/** Fires once when the Suspense subtree it sits in actually mounts —
- * the "the world is on screen" signal the loading overlay waits for. */
-function PresentedSignal({ onPresented }: { onPresented: () => void }) {
-  useEffect(() => {
-    onPresented();
-  }, [onPresented]);
-  return null;
-}
-
-/**
- * E1 — the stage's loading state (worldLoad.ts decides the phase;
- * skeleton-states.md is the rulebook). The Suspense fallback inside
- * the Canvas stays null — a DOM overlay is where a human-facing
- * state belongs: world name, skeleton, the LoadingManager's real
- * progress, and an honest error with a retry when it fails.
- * Cross-fades out once the world presents; never traps the user.
- */
-function WorldLoadOverlay({
-  presented,
-  onRetry,
-}: {
-  presented: boolean;
-  onRetry: () => void;
-}) {
-  const { progress, errors } = useProgress();
-  const [startedAt] = useState(() => performance.now());
-  const [now, setNow] = useState(() => performance.now());
-  const [gone, setGone] = useState(false);
-  const phase = worldLoadPhase({
-    presented,
-    failed: errors.length > 0,
-    elapsedMs: now - startedAt,
-  });
-  useEffect(() => {
-    if (phase === "ready") {
-      const id = setTimeout(() => setGone(true), 380);
-      return () => clearTimeout(id);
-    }
-    const id = setInterval(() => setNow(performance.now()), 250);
-    return () => clearInterval(id);
-  }, [phase]);
-  if (gone || phase === "waiting") return null;
-  const pct = loadPercent(progress);
-  return (
-    <div className={`w-load${phase === "ready" ? " leaving" : ""}`} role="status" aria-live="polite">
-      {phase !== "ready" ? (
-        <div className="w-load-card">
-          <div className="w-load-eyebrow">Entering the verse</div>
-          {phase === "failed" ? (
-            <>
-              <div className="w-load-title">The world didn’t load</div>
-              <p className="w-load-sub">
-                Something interrupted the download. Check your connection, then try again.
-              </p>
-              <div className="w-load-actions">
-                <button type="button" className="w-load-primary" onClick={onRetry}>
-                  Retry
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="w-load-title">City 3</div>
-              <p className="w-load-sub">
-                {phase === "stalled"
-                  ? "Still loading — this is a large world and a real download."
-                  : "Loading the world and its cast."}
-              </p>
-              <div className="w-load-shimmer w-load-line-lg" aria-hidden="true" />
-              <div className="w-load-shimmer w-load-line-sm" aria-hidden="true" />
-              {phase === "progress" || phase === "stalled" ? (
-                <div
-                  className="w-load-bar"
-                  role="progressbar"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={pct}
-                  aria-label="Loading City 3"
-                >
-                  <i style={{ width: `${pct}%` }} />
-                </div>
-              ) : null}
-              {phase === "progress" || phase === "stalled" ? (
-                <div className="w-load-pct">{pct}%</div>
-              ) : null}
-            </>
-          )}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-/**
- * F1 — the central-PA banner at the shell level. It used to render
- * only inside the walk HUD panel, so a spectator in the default wide
- * view never saw an announcement. One banner, above the stage, fed
- * by the same director: listener-scoped while walking, viewing-
- * district-scoped while spectating (SoundDirector.tickSpectator).
- */
-function ShellPaBanner({
-  sound,
-  spectator,
-}: {
-  sound: SoundDirector;
-  spectator: boolean;
-}) {
-  const [, setPulse] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setPulse((p) => p + 1), 400);
-    return () => clearInterval(id);
-  }, []);
-  const text = spectator ? sound.spectatorBannerText() : sound.bannerText();
-  if (!text) return null;
-  return (
-    <div className="w-pa-banner w-pa-shell" role="status">
-      📣 {text}
-    </div>
-  );
-}
-
-/** The ?soundDebug=1 surface, shared by the walk and spectator drives. */
-function soundDebugSurface(sound: SoundDirector) {
-  return {
-    snapshot: () => sound.snapshot(),
-    announce: (text: string, scope: string, clip?: string) =>
-      sound.announce(text, scope, clip ?? null),
-    setMuted: (m: boolean) => sound.setMuted(m),
-    arm: () => sound.arm(),
-    grantConsent: () => sound.grantConsent(),
-    declineConsent: () => sound.declineConsent(),
-  };
-}
-
-/**
- * Walk-mode clip HUD (City 3, shown while walking, ride and follow
- * alike): Jim's test buttons for the clips speed alone cannot reach on
- * the walk bot — the Run loop (the bot's walk pace never crosses the
- * run threshold) and the two door one-shots the door work performs
- * with. The buttons drive a WalkClipOverride (walkOverride.ts); the
- * bot's CastFigure consumes it as its clip tester, the same
- * clip-firing path as the Embody panel's tester below.
- */
-function WalkHudPanel({
-  override,
-  frameRef,
-  door,
-  interact,
-  sound,
-}: {
-  /** The shared override state the buttons drive (walkOverride.ts). */
-  override: WalkClipOverride;
-  /** The walker's latest frame (state + speed), written per frame by CityWalker — read on the 400 ms pulse. */
-  frameRef: RefObject<WalkFrameInfo | null>;
-  /**
-   * Tea House door pilot: when present, the door buttons request a
-   * full door session (align + performance + step-through) from the
-   * controller instead of firing the raw one-shot; the controller's
-   * status (aligning / opening / too far …) joins the status line.
-   */
-  door?: TeaDoorController;
-  /** Usable props: the status line shows the E prompt / session state. */
-  interact?: InteractController;
-  /** Sound v1: consent + mute state come from the director (the PA banner itself renders at the shell — see ShellPaBanner). */
-  sound?: SoundDirector;
-}) {
-  const [, setPulse] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setPulse((p) => p + 1), 400);
-    return () => clearInterval(id);
-  }, []);
-  const bump = () => setPulse((p) => p + 1);
-  const fr = frameRef.current;
-  const doorStatus = door?.status() ?? null;
-  const interactStatus = interact?.status(PLAYER) ?? null;
-  // The PA banner no longer renders here (F1): it moved to the shell
-  // (ShellPaBanner in GlbWorld) so spectators in the wide view see
-  // platform announcements too, not only walkers.
-  return (
-    <div className="w-embody-panel w-walk-panel">
-      <div className="w-embody-title">Walk clips — test</div>
-      <div className="w-embody-row" role="group" aria-label="Walk clip tests">
-        <button
-          type="button"
-          className={override.runHeld ? "active" : ""}
-          onClick={() => {
-            override.toggleRun();
-            bump();
-          }}
-        >
-          Run
-        </button>
-        <button
-          type="button"
-          className={override.doorClip === "OpenDoorInwards" ? "active" : ""}
-          onClick={() => {
-            if (door) door.request("OpenDoorInwards");
-            else override.fireDoor("OpenDoorInwards");
-            bump();
-          }}
-        >
-          Open door in
-        </button>
-        <button
-          type="button"
-          className={override.doorClip === "OpenDoorOutwards" ? "active" : ""}
-          onClick={() => {
-            if (door) door.request("OpenDoorOutwards");
-            else override.fireDoor("OpenDoorOutwards");
-            bump();
-          }}
-        >
-          Open door out
-        </button>
-      </div>
-      {sound && sound.consent === "unknown" ? (
-        <div className="w-embody-row" role="group" aria-label="Sound permission">
-          <span className="w-sound-ask">Hear the verse on this device?</span>
-          <button
-            type="button"
-            className="w-sound-enable"
-            onClick={() => {
-              // Inside this click's call stack on purpose: the
-              // director creates + resumes its AudioContext here,
-              // which is what unlocks audio on iOS Safari.
-              sound.grantConsent();
-              bump();
-            }}
-          >
-            Enable sound
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              sound.declineConsent();
-              bump();
-            }}
-          >
-            No thanks
-          </button>
-        </div>
-      ) : null}
-      {sound && sound.consent === "granted" ? (
-        <div className="w-embody-row" role="group" aria-label="Sound">
-          <button
-            type="button"
-            className={sound.muted ? "" : "active"}
-            onClick={() => {
-              sound.setMuted(!sound.muted);
-              bump();
-            }}
-          >
-            {sound.muted ? "Sound: off" : "Sound: on"}
-          </button>
-        </div>
-      ) : null}
-      <div className="w-embody-status">
-        {fr
-          ? `anim ${override.displayClip(fr.state)} · ${fr.speed.toFixed(2)} m/s`
-          : "anim — · no frame yet"}
-        {override.doorPlaying
-          ? " · door one-shot — bot standing"
-          : override.runHeld
-            ? " · Run held"
-            : ""}
-        {doorStatus ? ` · ${doorStatus}` : ""}
-        {interactStatus ? ` · ${interactStatus}` : ""}
-      </div>
-    </div>
-  );
-}
-
-/**
- * Mobile Phase 2: the double-tap fly-to for a tapped figure. When the
- * shared ref gains a point, fly the spectator camera to a three-quarter
- * view of it over ~1.1 s (smoothstep), moving OrbitControls' target
- * with it — the same write-the-controls pattern the room flights use.
- */
-function FigureFlyRig({
-  flyRef,
-}: {
-  flyRef: { current: { x: number; z: number } | null };
-}) {
-  // Mobile Phase 4: reduced motion turns the flight into a cut — the
-  // goal state applies in the first frame instead of easing over 1.1 s.
-  const reduced = isReducedMotion();
-  const camera = useThree((s) => s.camera);
-  const controls = useThree((s) => s.controls) as unknown as {
-    target: THREE.Vector3;
-    update?: () => void;
-  } | null;
-  const anim = useRef<{
-    t: number;
-    fromPos: THREE.Vector3;
-    fromTgt: THREE.Vector3;
-    toPos: THREE.Vector3;
-    toTgt: THREE.Vector3;
-  } | null>(null);
-  useFrame((_, delta) => {
-    const goal = flyRef.current;
-    if (goal && !anim.current) {
-      flyRef.current = null;
-      const toTgt = new THREE.Vector3(goal.x, 1.1, goal.z);
-      const away = camera.position.clone().sub(toTgt);
-      away.y = 0;
-      if (away.lengthSq() < 0.01) away.set(1, 0, 1);
-      away.normalize();
-      anim.current = {
-        t: 0,
-        fromPos: camera.position.clone(),
-        fromTgt: controls?.target.clone() ?? new THREE.Vector3(),
-        toPos: toTgt.clone().add(away.multiplyScalar(6.5)).add(new THREE.Vector3(0, 3.2, 0)),
-        toTgt,
-      };
-      if (reduced) anim.current.t = 0.999; // one frame: the cut
-    }
-    const a = anim.current;
-    if (!a) return;
-    a.t = Math.min(1, a.t + delta / 1.1);
-    const k = a.t * a.t * (3 - 2 * a.t);
-    camera.position.lerpVectors(a.fromPos, a.toPos, k);
-    if (controls) {
-      controls.target.lerpVectors(a.fromTgt, a.toTgt, k);
-      controls.update?.();
-    }
-    if (a.t >= 1) anim.current = null;
-  });
-  return null;
-}
-
-export function GlbWorld() {
+export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner's agents (empty for a visitor). With one in the world, the camera lands on it. */ ownerAgentNames?: readonly string[] } = {}) {
   // City 3 is the only world: the Agora was deleted 2026-11-08 (Jim's
   // order — a planned lobby will bring back world navigation later).
   // Any ?world= value, stale or current, lands here.
   // Walk-mode HUD (City 3): one shared override state — the panel's
   // Run/door buttons drive it, the walk bot's CastFigure consumes it as
   // its clip tester. Plus the walker's latest frame for the status line.
-  const [miraVisitNonce, setMiraVisitNonce] = useState(0);
+  const [miraVisitNonce] = useState(0); // the "Meet Mira" shortcut was removed; Mira still lives in the Tea House
   const walkOverrideRef = useRef<WalkClipOverride | null>(null);
   if (walkOverrideRef.current === null) walkOverrideRef.current = new WalkClipOverride();
   const walkFrameRef = useRef<WalkFrameInfo | null>(null);
@@ -1100,7 +154,46 @@ export function GlbWorld() {
   const streamParam = useMemo(() => new URLSearchParams(window.location.search).get("stream"), []);
   // An explicit ?stream=1 wins even with ?agent=1: the look service's page is `?agent=1` (its scout is a stand-in head-cam, not an
   // agent in the world), and its photos must show the server-driven bodies standing in front of the camera.
-  const streamOn = streamParam === "1" || (!agentOn && streamParam !== "0" && import.meta.env.VITE_WORLD_STREAM === "1");
+  // An owner with agents always gets the stream (nothing to land on otherwise); visitors keep the flag-only default.
+  const ownerKey = (ownerAgentNames ?? []).join("\u0000");
+  const ownerNames = useMemo(() => (ownerKey ? ownerKey.split("\u0000") : []), [ownerKey]);
+  const streamOn = streamParam === "1" || (!agentOn && streamParam !== "0" && (import.meta.env.VITE_WORLD_STREAM === "1" || ownerNames.length > 0));
+  // The stream's state lives here (RemoteCast draws from it, OwnerFollowCam reads it) so the owner's body can be found by name.
+  const remoteBodies = useMemo(() => new RemoteBodies(), []);
+  const [ownBody, setOwnBody] = useState<RosterBody | null>(null);
+  useEffect(() => {
+    if (!streamOn || ownerNames.length === 0) {
+      setOwnBody(null);
+      return;
+    }
+    const look = () => {
+      const b = pickOwnBody(remoteBodies.list(), ownerNames);
+      setOwnBody((prev) => (prev?.n === b?.n && prev?.name === b?.name ? prev : b));
+    };
+    look();
+    const id = window.setInterval(look, 400);
+    return () => window.clearInterval(id);
+  }, [streamOn, ownerNames, remoteBodies]);
+  // Follow the owner's agent (third person). Lands there once per visit, unless the user already moved the camera or came by a
+  // walk/agent deep link; any drag/pinch/wheel on the world hands the camera back (OwnerFollowCam fires onTakeOver).
+  const [following, setFollowing] = useState(false);
+  const followAuto = useRef(true);
+  const takeOver = useCallback(() => setFollowing(false), []);
+  // Full view: hides the app chrome (header, tab bar, tips) and asks the browser for real fullscreen where it exists (not iPhone
+  // Safari, which has no Fullscreen API for pages: there the chrome-less view is what you get). Esc / the button leaves.
+  const [fullView, setFullView] = useState(false);
+  useEffect(() => {
+    const appRoot = rootRef.current?.closest(".world-root") as HTMLElement | null;
+    appRoot?.classList.toggle("w-immersive", fullView);
+    if (fullView && appRoot?.requestFullscreen && !document.fullscreenElement) void appRoot.requestFullscreen().catch(() => {});
+    if (!fullView && document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    return () => appRoot?.classList.remove("w-immersive");
+  }, [fullView]);
+  useEffect(() => {
+    const onFs = () => { if (!document.fullscreenElement) setFullView(false); };
+    document.addEventListener("fullscreenchange", onFs);
+    return () => document.removeEventListener("fullscreenchange", onFs);
+  }, []);
   const [camMode, setCamMode] = useState<CameraMode>(walkLink ? "ride" : "wide");
   // City 3 collider meshes (DistrictWorld fills it), read by the walker.
   const colliderMeshesRef = useRef<(() => THREE.Mesh[]) | null>(null);
@@ -1441,8 +534,23 @@ export function GlbWorld() {
   }, [loadNonce]);
   const contextLossDetachRef = useRef<(() => void) | null>(null);
   const markPresented = useCallback(() => setWorldPresented(true), []);
-  // The overlay leaves when the world is mounted AND the plaza's textures are in (or the hold ran out), not at first mount.
   const worldTextured = useCoreTexturesReady(worldPresented);
+  // Land on the owner's agent: engage once the world is on screen and the body is in the stream. Never over a deep link, a walk
+  // mode, a hero fly-to, or a camera the user already touched. Losing the body (visit ended) drops back to the spectator camera
+  // where it stands; heroFocus (a UI fly-to) also ends it.
+  useEffect(() => {
+    if (!ownBody) {
+      setFollowing(false);
+      return;
+    }
+    if (followAuto.current && worldPresented && !walkLink && !agentOn && camMode === "wide" && !heroFocus) {
+      followAuto.current = false;
+      setFollowing(true);
+    }
+  }, [ownBody, worldPresented, walkLink, agentOn, camMode, heroFocus]);
+  useEffect(() => {
+    if (heroFocus || camMode !== "wide") setFollowing(false);
+  }, [heroFocus, camMode]);
   useEffect(() => {
     return () => {
       soundRef.current?.dispose();
@@ -1462,9 +570,31 @@ export function GlbWorld() {
   const target: [number, number, number] = [CITY3_CENTER[0] + 5.8, 8, CITY3_CENTER[1] + 6.8];
 
   return (
-    <div ref={rootRef} className={touchUi ? "w-glb-root w-touch-root" : "w-glb-root"}>
-      <VerseRecorder root={rootRef} />
-      <VerseShare root={rootRef} />
+    <div
+      ref={rootRef}
+      className={touchUi ? "w-glb-root w-touch-root" : "w-glb-root"}
+      // A touch on the world itself means the user is steering: never auto-land on their agent afterwards.
+      onPointerDownCapture={(e) => { if (e.target instanceof HTMLCanvasElement) followAuto.current = false; }}
+      onWheelCapture={(e) => { if (e.target instanceof HTMLCanvasElement) followAuto.current = false; }}
+    >
+      {ownBody && !agentOn && !walking ? (
+        <button
+          type="button"
+          className={following ? "w-follow-chip active" : "w-follow-chip"}
+          data-testid="follow-chip"
+          onClick={() => { followAuto.current = false; setFollowing((f) => !f); }}
+        >
+          {following ? `Following ${ownBody.name} · drag to explore` : `Follow ${ownBody.name}`}
+        </button>
+      ) : null}
+      {/* One stack, top-right: Share and Record no longer sit on top of each other or the phone tab bar. */}
+      <div className="w-tools">
+        <VerseRecorder root={rootRef} />
+        <VerseShare root={rootRef} />
+        <button type="button" className="w-fullview-btn" data-testid="full-view" onClick={() => setFullView((v) => !v)}>
+          {fullView ? "Exit full view" : "Full view"}
+        </button>
+      </div>
       <TeaElevatorHud controller={elevator} frame={walkFrameRef} walking={walking} walk={walkColliders} />
       {glSupported ? (
       <Canvas
@@ -1500,7 +630,7 @@ export function GlbWorld() {
         {touchUi && !agentOn ? <TouchFpsCap /> : null}
         <Suspense fallback={null}>
           <PresentedSignal onPresented={markPresented} />
-          <DistrictWorld residentUrl={CITY3_URL} light={keyLightRef} collide={camMode === "wide" && !(heroFocus?.id === "tea" && teaFloor === null)} meshesRef={colliderMeshesRef} walk={walkColliders} streamCap={touchUi ? 2 : undefined} interact={interactRef.current ?? undefined} />
+          <DistrictWorld residentUrl={CITY3_URL} light={keyLightRef} collide={camMode === "wide" && !following && !(heroFocus?.id === "tea" && teaFloor === null)} meshesRef={colliderMeshesRef} walk={walkColliders} streamCap={touchUi ? 2 : undefined} interact={interactRef.current ?? undefined} />
           <>
               <TeaElevator controller={elevator} walk={walkColliders} url={CITY3_URL} frame={walkFrameRef} getDirector={() => soundRef.current} />
               <ClipCutaway rooms={city3Rooms} focus={heroFocus} teaFloor={teaFloor} walking={walking} />
@@ -1571,7 +701,8 @@ export function GlbWorld() {
           {agentOn ? (
             <ScoutAgent getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} door={teaDoorRef.current} positionRef={scoutPosRef} interact={interactRef.current} spawn={agentPair ? [-22.9, -68, 0] : undefined} />
           ) : null}
-          {streamOn ? <RemoteCast walk={walkColliders} /> : null}
+          {streamOn ? <RemoteCast walk={walkColliders} bodies={remoteBodies} /> : null}
+          {following && ownBody ? <OwnerFollowCam bodies={remoteBodies} n={ownBody.n} onTakeOver={takeOver} /> : null}
           {agentPair ? (
             <ScoutAgent actorId="scout-peer" primary={false} spawn={[-22.9, -64, Math.PI]}
               getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} door={teaDoorRef.current} interact={interactRef.current} />
@@ -1807,22 +938,6 @@ export function GlbWorld() {
         </div>
       ) : null}
       <a className="w-asset-credit" href="/assets/collectibles/credits.html" target="_blank" rel="noreferrer" title="SciFi EasterEgg by Cécile Amstad — CC BY 4.0">3D asset credit</a>
-      {!walking ? (
-        <div className="w-glb-toggle w-glb-poi" role="group" aria-label="Places in City 3">
-          {city3Rooms.filter((r) => r.featured).map((hero) => (
-            <button
-              key={hero.id}
-              type="button"
-              onClick={() => setHeroFocus((f) => ({ id: hero.id, nonce: (f?.nonce ?? 0) + 1 }))}
-            >
-              {hero.name}
-            </button>
-          ))}
-          <button type="button" onClick={() => setMiraVisitNonce((n) => n + 1)}>
-            Meet Mira
-          </button>
-        </div>
-      ) : null}
       {!walking && heroFocus?.id === "tea" ? (
         <div className="w-tea-floor-panel">
           <div className="w-glb-toggle w-tea-floors" role="group" aria-label="Tea House floors">

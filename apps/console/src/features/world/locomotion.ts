@@ -19,8 +19,8 @@
 // +Z facing onto the velocity vector). When an agent is idle its last
 // non-idle heading is retained so figures don't snap to a default facing.
 
-import { Crowd, NavMeshQuery, init, setRandomSeed } from "recast-navigation";
-import { generateSoloNavMesh } from "recast-navigation/generators";
+import { Crowd, NavMeshQuery, init, setRandomSeed } from "@recast-navigation/core";
+import { generateSoloNavMesh } from "@recast-navigation/generators";
 import type { CrowdAgent, NavMesh } from "@recast-navigation/core";
 import type { BodyOutput } from "./bodyController";
 

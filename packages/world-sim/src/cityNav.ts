@@ -8,7 +8,7 @@
 // walker's step-up (an obstacle the mesh calls climbable but the walker cannot step over strands the body; see 10-walker.md).
 // Pure module (three-free, DOM-free): callers read the .bin and hand the bytes in; one Recast WASM init per process.
 
-import { NavMeshQuery, importNavMesh, init } from "recast-navigation";
+import { NavMeshQuery, importNavMesh, init } from "@recast-navigation/core";
 import type { NavMesh } from "@recast-navigation/core";
 import type { Vec3, World } from "./walker";
 

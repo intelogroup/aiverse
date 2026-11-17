@@ -2,7 +2,7 @@
 // Turn split_world output (visual tiles + collision tiles) into a district manifest the console can stream.
 //   bun tools/city3/tiles_manifest.mjs <assets dir>   (reads <dir>/districts.json for themes/links/shell, tiles/tiles.json, tiles/col/tiles.json)
 // Every tile is a DistrictDef: centre/half give the streaming rect, `origin` [0,0] says the GLB is already in world coordinates.
-import { readFileSync, writeFileSync, copyFileSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, copyFileSync, readdirSync, existsSync } from "node:fs";
 const A = process.argv[2] ?? "apps/console/public/assets";
 const base = JSON.parse(readFileSync(`${A}/districts.json`, "utf8"));
 const vis = JSON.parse(readFileSync(`${A}/tiles/tiles.json`, "utf8"));
@@ -24,6 +24,11 @@ const districts = [...vis.tiles, ...orphan.map(t => ({ ...t, url: "" }))].map(t 
 }));
 const shell = readdirSync(`${A}/tiles`).find(f => /^shell\.[0-9a-f]+\.glb$/.test(f)); // split_shell.mjs output: shell_bazaar cut into shell_<tileId> nodes
 if (!shell) throw new Error("no tiles/shell.*.glb: run split_shell.mjs first");
-const out = { ...base, shell: `/assets/tiles/${shell}`, districts, tiles: true, streaming: { loadRadius: 40, keepRadius: 110, maxStreamed: 48, evictGraceMs: 20000, maxConcurrent: 4 } };
+const lod = readdirSync(`${A}/tiles`).find(f => /^lod\.[0-9a-f]+\.glb$/.test(f)); // split_lod.mjs output (optional): the textured far view that replaces the beige shell
+// The core's KTX2 textures (the plaza you open on): the console injects <link rel=preload> for them into index.html at build, so they
+// download in parallel with core.glb instead of after it has parsed. jpg/png are left out (small, and loaded through <img>).
+const coreTextures = (core.textures ?? []).filter(u => u.endsWith(".ktx2")).map(u => `/assets/tiles/${u}`);
+for (const u of coreTextures) if (!existsSync(`${A}/tiles/${u.slice("/assets/tiles/".length)}`)) throw new Error(`core texture ${u} is listed but missing on disk`); // a broken preload list must fail the build step
+const out = { ...base, shell: `/assets/tiles/${shell}`, ...(lod ? { lod: `/assets/tiles/${lod}` } : {}), districts, tiles: true, coreTextures, streaming: { loadRadius: 40, keepRadius: 110, maxStreamed: 48, evictGraceMs: 20000, maxConcurrent: 4 } };
 writeFileSync(`${A}/tiles/districts.json`, JSON.stringify(out));
 console.log(`${districts.length} tiles (${orphan.length} collision-only), ${districts.filter(d => d.collisionUrl).length} with collision; core ${districts.find(d => d.resident)?.id}`);

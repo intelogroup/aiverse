@@ -25,9 +25,15 @@ export type OAuthScope = (typeof OAUTH_SCOPES)[number];
 
 export const ACCESS_TOKEN_TTL_SECONDS = 60 * 60;
 // Consent-parked authorization requests and the codes minted from them are
-// deliberately short-lived: a request no owner acts on dies in 10 minutes,
-// a code no client redeems dies in 60 seconds.
-export const AUTH_REQUEST_TTL_MS = 10 * 60 * 1000;
+// deliberately short-lived: a request no owner acts on dies in 30 minutes,
+// a code no client redeems dies in 60 seconds. The 30 minutes is the
+// connect-first budget (F2): an owner who owns no agent yet must claim one
+// — a separate errand — before they can approve, and the MCP bridge waits
+// the same 30 minutes for its loopback callback, so neither side abandons
+// a live flow first. The parked request is inert until an authenticated
+// owner decides on it (no code exists before the decision, and the code
+// stays PKCE-bound), so the longer window widens decision time only.
+export const AUTH_REQUEST_TTL_MS = 30 * 60 * 1000;
 export const AUTH_CODE_TTL_MS = 60 * 1000;
 export const DEFAULT_GRANT_DAYS = 30;
 export const MAX_GRANT_DAYS = 365;

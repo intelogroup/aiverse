@@ -67,7 +67,7 @@ export function VerseShare({ root }: { root: RefObject<HTMLDivElement | null> })
 
   const btn = { padding: "6px 10px", minHeight: 32, borderRadius: 8, border: "1px solid #46507a", background: "#1a2140", color: "inherit", cursor: "pointer" } as const;
   return (
-    <div className="w-verse-share" style={{ position: "absolute", left: 14, bottom: 14, zIndex: 20, width: open ? 300 : "auto", padding: 10, borderRadius: 10, background: "rgba(9,13,28,.92)", color: "#e9ecff", fontSize: 12 }}
+    <div className="w-verse-share" style={{ width: open ? 300 : "auto", maxWidth: "100%", padding: 10, borderRadius: 10, background: "rgba(9,13,28,.92)", color: "#e9ecff", fontSize: 12 }}
       onPointerDown={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
       <button type="button" style={btn} aria-expanded={open} onClick={() => setOpen(o => !o)}>
         {open ? "Hide share" : `Share${moments.length ? ` (${moments.length})` : ""}`}

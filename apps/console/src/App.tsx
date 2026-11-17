@@ -2,6 +2,7 @@ import { lazy, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   describeError,
+  api,
   getOwnerToken,
   setOwnerToken,
   setOwnerEmail,
@@ -83,6 +84,17 @@ export default function App() {
     return () => window.removeEventListener(SESSION_ENDED_EVENT, onEnded);
   }, [authed]);
 
+  // The owner's agent stands in the world while they are signed in and looking at it (gateway: routes/ownerWorld.ts), so the world
+  // opens on their agent. A short visit renewed every 30 s: closing the tab just lets it lapse. No agents, nothing to do.
+  const hasAgents = agents.length > 0;
+  useEffect(() => {
+    if (!authed || view !== "world" || !hasAgents) return;
+    const beat = () => { if (document.visibilityState === "visible") void api.keepWorldPresence().catch(() => {}); };
+    beat();
+    const id = window.setInterval(beat, 30_000);
+    return () => window.clearInterval(id);
+  }, [authed, view, hasAgents]);
+
   useConsoleWs(authed ? token : null, {
     onConsoleEvent: (event) => prependLiveEvent(queryClient, event),
     onAgentStatusChanged: (payload) => patchAgentStatus(queryClient, payload),
@@ -99,6 +111,8 @@ export default function App() {
   }
 
   function logout() {
+    // Best effort, before the token goes: the owner's agent leaves the world now instead of when its short visit lapses.
+    void api.endWorldPresence().catch(() => {});
     setOwnerToken(null);
     setOwnerEmail(null);
     setAuthed(false);

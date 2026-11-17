@@ -5,7 +5,7 @@
 // the sha256 of the collision GLB it was baked from, and a test fails when the GLB changes without a rebake.
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
-import { exportNavMesh, init } from "recast-navigation";
+import { exportNavMesh, init } from "@recast-navigation/core";
 import { generateTiledNavMesh } from "@recast-navigation/generators";
 import { loadVerseSim } from "./loadWorld";
 

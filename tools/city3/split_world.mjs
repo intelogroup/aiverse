@@ -137,13 +137,16 @@ async function writeTile(doc, id) {
     if (!texSeen.has(name)) { texSeen.add(name); texBytes += data.length; writeFileSync(`${OUT}/${name}`, data); }
     im.uri = name;
   }
+  // Relative `tex/<hash>.<ext>` of the images a texture actually loads (the KTX2 source when there is one, else the plain source): the
+  // manifest lists the core's so the page can fetch them early. Images no texture points at are never requested, so they are left out.
+  const textures = [...new Set((json.textures ?? []).map(t => (json.images ?? [])[t.extensions?.KHR_texture_basisu?.source ?? t.source]?.uri).filter(Boolean))];
   let js = Buffer.from(JSON.stringify(json)); js = Buffer.concat([js, Buffer.alloc((4 - js.length % 4) % 4, 0x20)]);
   const b = Buffer.concat([Buffer.from(bin), Buffer.alloc((4 - bin.length % 4) % 4)]);
   const head = Buffer.alloc(12); head.write("glTF", 0); head.writeUInt32LE(2, 4); head.writeUInt32LE(12 + 8 + js.length + 8 + b.length, 8);
   const ch = (len, type) => { const h = Buffer.alloc(8); h.writeUInt32LE(len, 0); h.write(type, 4, "latin1"); return h; };
   const glb = Buffer.concat([head, ch(js.length, "JSON"), js, ch(b.length, "BIN\0"), b]);
   const file = `${id}.${sha(glb).slice(0, 10)}.glb`; writeFileSync(`${OUT}/${file}`, glb);
-  return { file, bytes: glb.length };
+  return { file, bytes: glb.length, textures };
 }
 for (let ti = 0; ti < tiles.length; ti++) {
   const T = tiles[ti]; const doc = cloneDocument(src); const dn = doc.getRoot().listNodes();
@@ -174,8 +177,8 @@ for (let ti = 0; ti < tiles.length; ti++) {
   await doc.transform(prune({ keepLeaves: false, keepAttributes: false }));
   doc.createExtension(EXTMeshoptCompression).setRequired(true).setEncoderOptions({ method: EXTMeshoptCompression.EncoderMethod.QUANTIZE });
   if (!doc.getRoot().listNodes().some(n => n.getMesh() || n.getExtension("KHR_lights_punctual"))) continue; // nothing of this file lands in this square
-  const { file, bytes } = await writeTile(doc, T.id);
-  manifest.push({ id: T.id, url: file, center: [T.cx, T.cz], half: T.half, tris: T.tris, bytes, core: T.core || undefined });
+  const { file, bytes, textures } = await writeTile(doc, T.id);
+  manifest.push({ id: T.id, url: file, center: [T.cx, T.cz], half: T.half, tris: T.tris, bytes, core: T.core || undefined, textures });
   console.log(`${T.id} ${T.core ? "CORE " : ""}tris ${T.tris} -> ${(bytes / 1048576).toFixed(2)} MB`);
 }
 writeFileSync(`${OUT}/tiles.json`, JSON.stringify({ source: IN, rootHalf: ROOT_HALF, limit: LIMIT, totalTris, textureBytes: texBytes, heroes: HEROES, layout, tiles: manifest }, null, 1));

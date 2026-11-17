@@ -267,7 +267,20 @@ export function buildApp(deps: AppDeps): Hono<{ Variables: Vars }> {
       prizes_remaining: total - claimed,
       server_time: now,
     };
-    const etag = `W/"${Bun.hash(JSON.stringify(body)).toString(16)}"`;
+    // The ETag hashes the STABLE state only. Field audit: starts_at /
+    // ends_at are stored columns; prizes_* move only on prize/claim
+    // mutations; `state` is a step function of now that flips only at
+    // the starts_at/ends_at crossings — a genuine transition that MUST
+    // rotate the ETag, so it stays in the hash. server_time is the one
+    // excluded field: it changes every millisecond with no state
+    // change, and hashing it rotated the ETag per-request, so a real
+    // client's If-None-Match could never match (304 unreachable; the
+    // slice6 ETag test passed only when both of its requests landed in
+    // the same millisecond). server_time still ships in the body —
+    // only the hash input drops it. Any future per-request field must
+    // be excluded here the same way.
+    const { server_time: _serverTime, ...stableState } = body;
+    const etag = `W/"${Bun.hash(JSON.stringify(stableState)).toString(16)}"`;
     if (c.req.header("If-None-Match") === etag) {
       return c.body(null, 304, { ETag: etag, "Cache-Control": "public, max-age=2" });
     }

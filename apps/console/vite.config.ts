@@ -1,7 +1,8 @@
 /// <reference types="vitest/config" />
 import react from "@vitejs/plugin-react";
-import { existsSync } from "node:fs";
-import { defineConfig } from "vite";
+import { existsSync, readFileSync } from "node:fs";
+import { defineConfig, type Plugin } from "vite";
+import { worldPreloadScript, type WorldManifestLike } from "./worldPreload.js";
 
 // Telemetry Phase 1: the build SHA the console reports (window global +
 // meta tag + Sentry release) — parity with the gateway's /version.
@@ -13,8 +14,23 @@ const buildSha = process.env.VITE_BUILD_SHA || process.env.VERCEL_GIT_COMMIT_SHA
 // without tiles, and the test run, fall back to the one-file world. ?tiles=0 / ?tiles=1 still override at runtime.
 const tilesDefault = !process.env.VITEST && existsSync(new URL("./public/assets/tiles/districts.json", import.meta.url));
 
+// Tile mode: ask for the core tile, its textures and the KTX2 transcoder from index.html (first byte), not from the JS (worldPreload.ts).
+function worldPreload(): Plugin {
+  return {
+    name: "aiverse-world-preload",
+    apply: "build",
+    transformIndexHtml() {
+      if (!tilesDefault) return;
+      let manifest: WorldManifestLike | null = null;
+      try { manifest = JSON.parse(readFileSync(new URL("./public/assets/tiles/districts.json", import.meta.url), "utf8")); } catch { return; }
+      const script = worldPreloadScript(manifest);
+      return script ? [{ tag: "script", children: script, injectTo: "head-prepend" }] : undefined;
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), worldPreload()],
   define: {
     __AIVERSE_BUILD_SHA__: JSON.stringify(buildSha),
     __TILES_DEFAULT__: JSON.stringify(tilesDefault),
