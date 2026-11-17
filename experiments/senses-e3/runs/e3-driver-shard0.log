@@ -1,0 +1,17 @@
+brain resolved: deepseek/deepseek-v4-flash (context 1048576); ledger spent so far: $0.080394
+dev-local: scripted test owner ready at http://localhost:3100
+batch: 40 specs (seed 20261117, 10/arm, deadline 340s); shard 0/4: 10 of 40 specs; 0 already final on disk, 10 to run
+summary -> /home/hatch/workspace/.build-tmp/agent-senses/runs/e3-summary.json
+{
+ "experiment": "E3 sham-clock control (plan \u00a75)",
+ "batch": {
+  "seed": 20261117,
+  "runs_per_arm": 10,
+  "deadline_s": 340,
+  "specs_total": 40,
+  "specs_final": 39,
+  "specs_infra_exhausted": 0,
+  "specs_remaining": 1,
+  "complete": false
+ }
+}
