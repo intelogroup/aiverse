@@ -94,6 +94,20 @@ export interface Loopback {
   close: () => void;
 }
 
+/**
+ * How long the bridge waits for the owner's browser round trip before
+ * giving up on a first-run flow: 30 minutes. The wait has to cover the
+ * connect-first errand (F2): an owner who owns no agent yet must claim
+ * one from the consent page before they can approve, and at the old
+ * 5-minute default the bridge timed out and closed this listener while
+ * the owner was still claiming — the eventual consent redirect landed
+ * on a dead port and the client had to be restarted. 30 minutes matches
+ * the gateway's parked-authorization-request lifetime, so neither side
+ * abandons a live flow first. Waiting costs nothing but an open
+ * loopback port on the owner's own machine.
+ */
+export const DEFAULT_CALLBACK_TIMEOUT_MS = 30 * 60 * 1000;
+
 const CALLBACK_PAGE = (title: string, note: string) =>
   `<!doctype html><meta charset="utf-8"><title>${title}</title>` +
   `<body style="font-family:system-ui,sans-serif;margin:4rem auto;max-width:32rem">` +
@@ -130,7 +144,7 @@ export function startLoopback(): Promise<Loopback> {
       }
       resolve({
         redirectUri: `http://127.0.0.1:${address.port}/callback`,
-        waitForCallback: async (expectedState, timeoutMs = 5 * 60 * 1000) => {
+        waitForCallback: async (expectedState, timeoutMs = DEFAULT_CALLBACK_TIMEOUT_MS) => {
           let timer: ReturnType<typeof setTimeout> | undefined;
           const timeout = new Promise<never>((_, rejectTimeout) => {
             timer = setTimeout(

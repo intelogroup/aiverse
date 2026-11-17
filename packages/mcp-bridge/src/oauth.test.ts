@@ -5,7 +5,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DEFAULT_SCOPES, type BridgeConfig } from "./config";
-import { GrantGoneError, performAuthFlow, startLoopback } from "./oauth";
+import { DEFAULT_CALLBACK_TIMEOUT_MS, GrantGoneError, performAuthFlow, startLoopback } from "./oauth";
 import { TokenManager } from "./tokenManager";
 import { TokenStore } from "./tokenStore";
 
@@ -212,6 +212,69 @@ describe("OAuth flow against a fake authorization server", () => {
       const callsAfterDeath = fake.refreshCalls.length;
       await expect(staleManager.getAccessToken()).rejects.toBeInstanceOf(GrantGoneError);
       expect(fake.refreshCalls.length).toBe(callsAfterDeath); // sticky: no retry storm
+    } finally {
+      fake.close();
+    }
+  });
+
+  test("the default callback wait is 30 minutes — the connect-first budget (F2)", () => {
+    // The gateway parks an authorize request for the same 30 minutes
+    // (AUTH_REQUEST_TTL_MS, pinned in the gateway suite): neither side
+    // of a connect-first flow gives up first. At the old 5-minute
+    // default the bridge closed its loopback listener while the owner
+    // was still claiming an agent, and the client had to be restarted.
+    expect(DEFAULT_CALLBACK_TIMEOUT_MS).toBe(30 * 60 * 1000);
+  });
+
+  test("waitForCallback with no explicit timeout outlives a slow owner, then resolves on the callback", async () => {
+    const loopback = await startLoopback();
+    try {
+      // Plain-promise capture, for the same bun-test reason as the
+      // state-mismatch test below.
+      let settled = false;
+      const waiting = loopback.waitForCallback("the-state").then(
+        (r) => {
+          settled = true;
+          return r;
+        },
+        (e: Error) => {
+          settled = true;
+          throw e;
+        },
+      );
+      // No callback yet: with the default wait the promise must still
+      // be pending (a 0/short default would have rejected by now).
+      await new Promise((r) => setTimeout(r, 300));
+      expect(settled).toBe(false);
+      const res = await fetch(`${loopback.redirectUri}?code=late-code&state=the-state`);
+      await res.text();
+      expect((await waiting).code).toBe("late-code");
+      expect(settled).toBe(true);
+    } finally {
+      loopback.close();
+    }
+  });
+
+  test("a first-run flow with no explicit timeout completes when the owner takes their time", async () => {
+    const fake = await startFakeAS();
+    try {
+      const store = tmpStore();
+      const result = await performAuthFlow({
+        baseUrl: fake.baseUrl,
+        scopes: [...DEFAULT_SCOPES],
+        store,
+        // The owner spends ~a second away (claiming an agent, at test
+        // scale) before following the authorize redirect; crucially no
+        // callbackTimeoutMs is passed — this is the default wait.
+        openUrl: async (url) => {
+          await new Promise((r) => setTimeout(r, 750));
+          const res = await fetch(url);
+          await res.text();
+          expect(res.status).toBe(200);
+        },
+      });
+      expect(result.accessToken).toBe("at-1");
+      expect(store.load()?.refreshToken).toBe("rt-1");
     } finally {
       fake.close();
     }

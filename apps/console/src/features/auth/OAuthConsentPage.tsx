@@ -11,6 +11,12 @@ import { oauthScopeLabel } from "../../lib/oauthScopes";
 // access_denied on deny). A request that is unknown, already decided, or
 // expired renders a dead end — there is nothing safe to offer but a way
 // back to the console.
+//
+// An owner who owns no agent yet is NOT a dead end (F2): the client
+// that sent them here is still waiting on this exact request, so the
+// page offers an in-flow claim by code; the claimed agent lands in the
+// list, selected, and the same parked request approves without the
+// client being restarted.
 
 const GRANT_DAY_OPTIONS = [7, 30, 90];
 
@@ -26,6 +32,10 @@ export function OAuthConsentPage({ onDone }: { onDone: () => void }) {
   const [selectedScopes, setSelectedScopes] = useState<ReadonlySet<string>>(new Set());
   const [grantDays, setGrantDays] = useState(30);
   const [error, setError] = useState<string | null>(null);
+  const [claimCode, setClaimCode] = useState("");
+  const [claiming, setClaiming] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
+  const [claimedName, setClaimedName] = useState<string | null>(null);
 
   useEffect(() => {
     if (!requestId) {
@@ -65,6 +75,38 @@ export function OAuthConsentPage({ onDone }: { onDone: () => void }) {
       else next.add(value);
       return next;
     });
+  }
+
+  // In-flow claim (F2): the claim itself goes through the owner's
+  // existing claim endpoint; afterwards the agent list is refreshed so
+  // the claimed agent renders in place, pre-selected for the approval
+  // this page was already holding. If the refresh fails, the claim
+  // response's own record is merged in instead — the code is one-time,
+  // so making the owner re-enter it after a successful claim would burn
+  // it against an "invalid claim code" error.
+  async function claim() {
+    const code = claimCode.trim();
+    if (!code || claiming) return;
+    setClaiming(true);
+    setClaimError(null);
+    try {
+      const result = await api.claimAgent(code);
+      let next: Agent[] = [{ ...result.agent, agentCard: { capabilities: [] } }];
+      try {
+        const res = await api.listAgents();
+        if (res.agents.some((a) => a.id === result.agent.id)) next = res.agents;
+      } catch {
+        // Keep the claim response's record (merged above).
+      }
+      setAgents(next);
+      setSelectedAgents(new Set([result.agent.id]));
+      setClaimedName(result.agent.name);
+      setClaimCode("");
+    } catch (err) {
+      setClaimError(describeError(err).message);
+    } finally {
+      setClaiming(false);
+    }
   }
 
   async function decide(approve: boolean) {
@@ -151,21 +193,52 @@ export function OAuthConsentPage({ onDone }: { onDone: () => void }) {
         <div className="consent-group">
           <b>Acting for these agents</b>
           {agents.length === 0 ? (
-            <p>You have no agents yet — claim or create one first, then ask the app to connect again.</p>
+            <>
+              <p>
+                You have no agents yet. If your agent gave you a claim code, claim it here —{" "}
+                <strong>{request.client_name}</strong> stays connected to this request while you do, no need to
+                start over.
+              </p>
+              <p>
+                Paste the claim code returned by <code>POST /agents/register</code> (valid 15 min).
+              </p>
+              <p className="text-dim">
+                No agent yet? <a href="/docs#send-agent">See how to send yours in</a>.
+              </p>
+              <input
+                type="text"
+                aria-label="Claim code"
+                placeholder="claim code"
+                value={claimCode}
+                disabled={claiming}
+                onChange={(e) => setClaimCode(e.target.value)}
+              />
+              {claimError && <p className="error">{claimError}</p>}
+              <button type="button" disabled={!claimCode.trim() || claiming} onClick={claim}>
+                {claiming ? "Claiming…" : "Claim agent"}
+              </button>
+            </>
           ) : (
-            <div className="onboarding-options">
-              {agents.map((agent) => (
-                <label key={agent.id}>
-                  <input
-                    type="checkbox"
-                    checked={selectedAgents.has(agent.id)}
-                    disabled={submitting}
-                    onChange={() => toggle(setSelectedAgents, agent.id)}
-                  />
-                  {agent.name} <small>({agent.status})</small>
-                </label>
-              ))}
-            </div>
+            <>
+              {claimedName && (
+                <p>
+                  Claimed <strong>{claimedName}</strong> — it's selected below; approve to finish connecting.
+                </p>
+              )}
+              <div className="onboarding-options">
+                {agents.map((agent) => (
+                  <label key={agent.id}>
+                    <input
+                      type="checkbox"
+                      checked={selectedAgents.has(agent.id)}
+                      disabled={submitting}
+                      onChange={() => toggle(setSelectedAgents, agent.id)}
+                    />
+                    {agent.name} <small>({agent.status})</small>
+                  </label>
+                ))}
+              </div>
+            </>
           )}
         </div>
 
