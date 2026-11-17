@@ -1,0 +1,19 @@
+brain resolved: deepseek/deepseek-v4-flash (context 1048576); ledger spent so far: $0.146705
+dev-local: scripted test owner ready at http://localhost:3100
+batch: 36 specs (seed 20261120, 12/arm, deadline 276s, chained errand via shop-98); shard 0/4: 9 of 36 specs; 0 already final on disk, 9 to run
+summary -> /home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-summary.json
+{
+ "experiment": "E2-forced: body channel on a route where walking cannot finish and running everywhere breaks the budget",
+ "batch": {
+  "seed": 20261120,
+  "runs_per_arm": 12,
+  "deadline_s": 276,
+  "stop2_id": "shop-98",
+  "verbal": true,
+  "specs_total": 36,
+  "specs_final": 35,
+  "specs_infra_exhausted": 0,
+  "specs_remaining": 1,
+  "complete": false
+ }
+}
