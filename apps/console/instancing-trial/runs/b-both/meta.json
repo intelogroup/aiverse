@@ -1,0 +1,317 @@
+{
+ "run": "b-both",
+ "mode": "both",
+ "asset": {
+  "path": "/home/hatch/workspace/aiverse-instancing/assets/world-city3-optimized.glb",
+  "bytes": 68501036,
+  "sha256": "b14cb2dc1a3bfa8d0a1b8d6570f45379f750a03569f76b9eda0643113ae190a0"
+ },
+ "viewport": {
+  "width": 640,
+  "height": 360
+ },
+ "presenting": {
+  "calls": 1757,
+  "triangles": 7757846
+ },
+ "orbit": {
+  "plateau": {
+   "calls": 1797,
+   "tris": 7779994,
+   "geometries": 896,
+   "textures": 356,
+   "interiors": 0,
+   "built": [],
+   "batch": {
+    "census": {
+     "mode": "both",
+     "items": 9056,
+     "byCategory": {
+      "otherStatic": {
+       "items": 8814,
+       "prims": 8814,
+       "instances": 8917,
+       "tris": 2299236
+      },
+      "door": {
+       "items": 65,
+       "prims": 65,
+       "instances": 219,
+       "tris": 43570
+      },
+      "propFamily": {
+       "items": 172,
+       "prims": 172,
+       "instances": 1266,
+       "tris": 1572988
+      },
+      "hidden": {
+       "items": 5,
+       "prims": 5,
+       "instances": 5,
+       "tris": 162
+      }
+     },
+     "inScope": {
+      "items": 8986,
+      "prims": 8986,
+      "instances": 10183,
+      "tris": 3872224
+     },
+     "distinctMaterialsInScope": 399,
+     "multiMaterialItems": 0,
+     "instancedInScope": 104
+    },
+    "stats": {
+     "buckets": 749,
+     "pieces": 10183,
+     "mergedMeshes": 749,
+     "mergeFallbacks": 0,
+     "bakedVerts": 5071768,
+     "bakedBytes": 202920966,
+     "bakeMs": 10611,
+     "addedObjects": 749
+    }
+   }
+  },
+  "plateaued": true,
+  "reads": 2
+ },
+ "p1": {
+  "plateau": {
+   "calls": 1797,
+   "tris": 7779994,
+   "geometries": 896,
+   "textures": 356,
+   "interiors": 0,
+   "built": [],
+   "batch": {
+    "census": {
+     "mode": "both",
+     "items": 9056,
+     "byCategory": {
+      "otherStatic": {
+       "items": 8814,
+       "prims": 8814,
+       "instances": 8917,
+       "tris": 2299236
+      },
+      "door": {
+       "items": 65,
+       "prims": 65,
+       "instances": 219,
+       "tris": 43570
+      },
+      "propFamily": {
+       "items": 172,
+       "prims": 172,
+       "instances": 1266,
+       "tris": 1572988
+      },
+      "hidden": {
+       "items": 5,
+       "prims": 5,
+       "instances": 5,
+       "tris": 162
+      }
+     },
+     "inScope": {
+      "items": 8986,
+      "prims": 8986,
+      "instances": 10183,
+      "tris": 3872224
+     },
+     "distinctMaterialsInScope": 399,
+     "multiMaterialItems": 0,
+     "instancedInScope": 104
+    },
+    "stats": {
+     "buckets": 749,
+     "pieces": 10183,
+     "mergedMeshes": 749,
+     "mergeFallbacks": 0,
+     "bakedVerts": 5071768,
+     "bakedBytes": 202920966,
+     "bakeMs": 10611,
+     "addedObjects": 749
+    }
+   }
+  },
+  "plateaued": true,
+  "reads": 2
+ },
+ "p1Reported": {
+  "calls": 1797,
+  "tris": 7779994,
+  "geometries": 896,
+  "textures": 356,
+  "interiors": 0,
+  "built": [],
+  "batch": {
+   "census": {
+    "mode": "both",
+    "items": 9056,
+    "byCategory": {
+     "otherStatic": {
+      "items": 8814,
+      "prims": 8814,
+      "instances": 8917,
+      "tris": 2299236
+     },
+     "door": {
+      "items": 65,
+      "prims": 65,
+      "instances": 219,
+      "tris": 43570
+     },
+     "propFamily": {
+      "items": 172,
+      "prims": 172,
+      "instances": 1266,
+      "tris": 1572988
+     },
+     "hidden": {
+      "items": 5,
+      "prims": 5,
+      "instances": 5,
+      "tris": 162
+     }
+    },
+    "inScope": {
+     "items": 8986,
+     "prims": 8986,
+     "instances": 10183,
+     "tris": 3872224
+    },
+    "distinctMaterialsInScope": 399,
+    "multiMaterialItems": 0,
+    "instancedInScope": 104
+   },
+   "stats": {
+    "buckets": 749,
+    "pieces": 10183,
+    "mergedMeshes": 749,
+    "mergeFallbacks": 0,
+    "bakedVerts": 5071768,
+    "bakedBytes": 202920966,
+    "bakeMs": 10611,
+    "addedObjects": 749
+   }
+  }
+ },
+ "livenessProof": {
+  "nodoors": {
+   "calls": 1344,
+   "tris": 6975750,
+   "geometries": 928,
+   "textures": 394,
+   "interiors": 35,
+   "built": [
+    "press",
+    "shop-100",
+    "shop-97"
+   ],
+   "batch": {
+    "census": {
+     "mode": "both",
+     "items": 9056,
+     "byCategory": {
+      "otherStatic": {
+       "items": 8814,
+       "prims": 8814,
+       "instances": 8917,
+       "tris": 2299236
+      },
+      "door": {
+       "items": 65,
+       "prims": 65,
+       "instances": 219,
+       "tris": 43570
+      },
+      "propFamily": {
+       "items": 172,
+       "prims": 172,
+       "instances": 1266,
+       "tris": 1572988
+      },
+      "hidden": {
+       "items": 5,
+       "prims": 5,
+       "instances": 5,
+       "tris": 162
+      }
+     },
+     "inScope": {
+      "items": 8986,
+      "prims": 8986,
+      "instances": 10183,
+      "tris": 3872224
+     },
+     "distinctMaterialsInScope": 399,
+     "multiMaterialItems": 0,
+     "instancedInScope": 104
+    },
+    "stats": {
+     "buckets": 749,
+     "pieces": 10183,
+     "mergedMeshes": 749,
+     "mergeFallbacks": 0,
+     "bakedVerts": 5071768,
+     "bakedBytes": 202920966,
+     "bakeMs": 10611,
+     "addedObjects": 749
+    }
+   }
+  },
+  "restored": null,
+  "nodoorsPlateaued": true,
+  "restoredPlateaued": false
+ },
+ "hideDiff": null,
+ "glbServedBytes": [
+  {
+   "path": "/assets/world-city3.glb",
+   "bytes": 68501036
+  },
+  {
+   "path": "/assets/cast-mage.glb",
+   "bytes": 4451464
+  },
+  {
+   "path": "/assets/cast-remy.glb",
+   "bytes": 9203448
+  },
+  {
+   "path": "/assets/collectibles/scifi-easter-egg.glb",
+   "bytes": 281620
+  },
+  {
+   "path": "/assets/world-links.glb",
+   "bytes": 695020
+  },
+  {
+   "path": "/assets/world-shell.glb",
+   "bytes": 3070804
+  },
+  {
+   "path": "/assets/world-city3-collision.glb",
+   "bytes": 8684616
+  },
+  {
+   "path": "/assets/world-city3-library.glb",
+   "bytes": 8055844
+  }
+ ],
+ "glbServedTotal": 102943852,
+ "frameTime": {
+  "orbitMedianMs": 1183,
+  "orbitSamples": 6,
+  "p1MedianMs": null,
+  "p1Samples": 0,
+  "filmCapturedFrames": 0,
+  "filmDurationS": 0,
+  "filmFps": 0
+ },
+ "film": null,
+ "pageErrors": []
+}

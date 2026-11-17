@@ -50,6 +50,7 @@ const KNOWN_GLOBALS: Record<string, string> = {
   __districts: "district streaming state for the console UI (DistrictWorld)",
   __city3Stream: "streaming debug handle, ?streamDebug=1 only (GlbWorld)",
   __bazaarBatch: "batching trial handle (census + hide-diff + bake stats), ?batch= only (bazaarBatch, tmp/batching-statics)",
+  __bazaarInstance: "instancing trial handle (claim census + group stats), ?instance=1 only (bazaarInstance, tmp/instancing-on-batching)",
   __sound: "sound director / PA debug surface (GlbWorld)",
   __tts: "plaza speech debug surface (GlbWorld)",
   __quality: "quality governor debug handle, ?qualityDebug=1 only (GlbWorld)",

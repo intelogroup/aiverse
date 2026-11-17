@@ -1,0 +1,1672 @@
+{
+ "run": "c-both-inst",
+ "mode": "both-inst",
+ "asset": {
+  "path": "/home/hatch/workspace/aiverse-instancing/assets/world-city3-optimized.glb",
+  "bytes": 68501036,
+  "sha256": "b14cb2dc1a3bfa8d0a1b8d6570f45379f750a03569f76b9eda0643113ae190a0"
+ },
+ "viewport": {
+  "width": 640,
+  "height": 360
+ },
+ "presenting": {
+  "calls": 1460,
+  "triangles": 7757846
+ },
+ "orbit": {
+  "plateau": {
+   "calls": 1500,
+   "tris": 7779994,
+   "geometries": 746,
+   "textures": 356,
+   "interiors": 0,
+   "built": [],
+   "batch": {
+    "census": {
+     "mode": "both",
+     "items": 9056,
+     "byCategory": {
+      "otherStatic": {
+       "items": 8814,
+       "prims": 8814,
+       "instances": 8917,
+       "tris": 2299236
+      },
+      "door": {
+       "items": 65,
+       "prims": 65,
+       "instances": 219,
+       "tris": 43570
+      },
+      "propFamily": {
+       "items": 172,
+       "prims": 172,
+       "instances": 1266,
+       "tris": 1572988
+      },
+      "hidden": {
+       "items": 5,
+       "prims": 5,
+       "instances": 5,
+       "tris": 162
+      }
+     },
+     "inScope": {
+      "items": 8986,
+      "prims": 8986,
+      "instances": 10183,
+      "tris": 3872224
+     },
+     "distinctMaterialsInScope": 399,
+     "multiMaterialItems": 0,
+     "instancedInScope": 104
+    },
+    "stats": {
+     "excludedItems": 4716,
+     "buckets": 569,
+     "pieces": 5127,
+     "mergedMeshes": 569,
+     "mergeFallbacks": 0,
+     "bakedVerts": 3219602,
+     "bakedBytes": 126742012,
+     "bakeMs": 7017,
+     "addedObjects": 569
+    }
+   },
+   "instance": {
+    "census": {
+     "groups": 30,
+     "claimedItems": 4716,
+     "placements": 5056,
+     "tris": 959449,
+     "perGroup": [
+      {
+       "label": "ls_bush_2",
+       "material": "ls_grass",
+       "tree": false,
+       "placements": 409,
+       "tris": 42536,
+       "cells": 10
+      },
+      {
+       "label": "ls_bush",
+       "material": "ls_grass",
+       "tree": false,
+       "placements": 399,
+       "tris": 12768,
+       "cells": 10
+      },
+      {
+       "label": "ls_flower_redA",
+       "material": "ls_grass",
+       "tree": false,
+       "placements": 291,
+       "tris": 11640,
+       "cells": 10
+      },
+      {
+       "label": "ls_flower_redA_1",
+       "material": "ls_colorRed",
+       "tree": false,
+       "placements": 291,
+       "tris": 10476,
+       "cells": 10
+      },
+      {
+       "label": "ls_flower_yellowA",
+       "material": "ls_grass",
+       "tree": false,
+       "placements": 285,
+       "tris": 11400,
+       "cells": 10
+      },
+      {
+       "label": "ls_flower_yellowA_1",
+       "material": "ls_colorYellow",
+       "tree": false,
+       "placements": 285,
+       "tris": 10260,
+       "cells": 10
+      },
+      {
+       "label": "ls_flower_purpleA",
+       "material": "ls_grass",
+       "tree": false,
+       "placements": 285,
+       "tris": 11400,
+       "cells": 10
+      },
+      {
+       "label": "ls_flower_purpleA_1",
+       "material": "ls_colorPurple",
+       "tree": false,
+       "placements": 285,
+       "tris": 10260,
+       "cells": 10
+      },
+      {
+       "label": "ls_rock_smallA",
+       "material": "ls_grass",
+       "tree": false,
+       "placements": 247,
+       "tris": 741,
+       "cells": 10
+      },
+      {
+       "label": "ls_rock_smallA_1",
+       "material": "ls_dirt",
+       "tree": false,
+       "placements": 247,
+       "tris": 3211,
+       "cells": 10
+      },
+      {
+       "label": "LIB_hero_tall",
+       "material": "Tree_Trunk_01",
+       "tree": true,
+       "placements": 189,
+       "tris": 49896,
+       "cells": 16
+      },
+      {
+       "label": "LIB_hero_tall_1",
+       "material": "Tree_Branches_01.001",
+       "tree": true,
+       "placements": 189,
+       "tris": 69174,
+       "cells": 16
+      },
+      {
+       "label": "ls_path_stone",
+       "material": "ls_stoneDark",
+       "tree": false,
+       "placements": 156,
+       "tris": 13728,
+       "cells": 10
+      },
+      {
+       "label": "ls_path_stone_1",
+       "material": "ls_stone",
+       "tree": false,
+       "placements": 156,
+       "tris": 4992,
+       "cells": 10
+      },
+      {
+       "label": "ls_path_stone_2",
+       "material": "ls__defaultMat",
+       "tree": false,
+       "placements": 156,
+       "tris": 2496,
+       "cells": 10
+      },
+      {
+       "label": "SK_lantern",
+       "material": "mdvl_palette",
+       "tree": false,
+       "placements": 150,
+       "tris": 50700,
+       "cells": 4
+      },
+      {
+       "label": "LIB_hero_full",
+       "material": "Tree_Trunk_01",
+       "tree": true,
+       "placements": 141,
+       "tris": 47658,
+       "cells": 16
+      },
+      {
+       "label": "LIB_hero_full_1",
+       "material": "Tree_Branches_01.001",
+       "tree": true,
+       "placements": 141,
+       "tris": 40326,
+       "cells": 16
+      },
+      {
+       "label": "inst_goods_r_basket",
+       "material": "BazaarWovenBasket",
+       "tree": false,
+       "placements": 135,
+       "tris": 138240,
+       "cells": 4
+      },
+      {
+       "label": "SK_med_crate",
+       "material": "mdvl_palette.004",
+       "tree": false,
+       "placements": 114,
+       "tris": 68400,
+       "cells": 4
+      },
+      {
+       "label": "SK_med_stall",
+       "material": "mdvl_palette.005",
+       "tree": false,
+       "placements": 80,
+       "tris": 48000,
+       "cells": 4
+      },
+      {
+       "label": "LIB_hero_birch",
+       "material": "Tree_Trunk_02",
+       "tree": true,
+       "placements": 78,
+       "tris": 10062,
+       "cells": 14
+      },
+      {
+       "label": "LIB_hero_birch_1",
+       "material": "Tree_Branches_02",
+       "tree": true,
+       "placements": 78,
+       "tris": 12168,
+       "cells": 14
+      },
+      {
+       "label": "SK_med_bench",
+       "material": "mdvl_palette.003",
+       "tree": false,
+       "placements": 57,
+       "tris": 34200,
+       "cells": 4
+      },
+      {
+       "label": "inst_goods_r_lantern",
+       "material": "mdvl_palette.013",
+       "tree": false,
+       "placements": 51,
+       "tris": 6630,
+       "cells": 4
+      },
+      {
+       "label": "inst_goods_r_grainsack",
+       "material": "mdvl_palette.007",
+       "tree": false,
+       "placements": 45,
+       "tris": 9900,
+       "cells": 4
+      },
+      {
+       "label": "inst_goods_r_sack",
+       "material": "mdvl_palette.008",
+       "tree": false,
+       "placements": 33,
+       "tris": 7887,
+       "cells": 4
+      },
+      {
+       "label": "inst_goods_r_bucket",
+       "material": "wooden_bucket_01",
+       "tree": false,
+       "placements": 28,
+       "tris": 5572,
+       "cells": 4
+      },
+      {
+       "label": "inst_goods_rollpile",
+       "material": "palette",
+       "tree": false,
+       "placements": 28,
+       "tris": 8232,
+       "cells": 4
+      },
+      {
+       "label": "inst_goods_goblets",
+       "material": "Drinkware_Clear_Glass",
+       "tree": false,
+       "placements": 27,
+       "tris": 206496,
+       "cells": 4
+      }
+     ]
+    },
+    "stats": {
+     "groups": 30,
+     "claimedItems": 4716,
+     "placements": 5056,
+     "tris": 959449,
+     "bucketsAvoided": 266,
+     "geoBytesOnce": 719122,
+     "geoBytesSavedVsBaked": 76335280,
+     "buildMs": 11
+    }
+   }
+  },
+  "plateaued": true,
+  "reads": 3
+ },
+ "p1": {
+  "plateau": {
+   "calls": 1500,
+   "tris": 7779994,
+   "geometries": 746,
+   "textures": 356,
+   "interiors": 0,
+   "built": [],
+   "batch": {
+    "census": {
+     "mode": "both",
+     "items": 9056,
+     "byCategory": {
+      "otherStatic": {
+       "items": 8814,
+       "prims": 8814,
+       "instances": 8917,
+       "tris": 2299236
+      },
+      "door": {
+       "items": 65,
+       "prims": 65,
+       "instances": 219,
+       "tris": 43570
+      },
+      "propFamily": {
+       "items": 172,
+       "prims": 172,
+       "instances": 1266,
+       "tris": 1572988
+      },
+      "hidden": {
+       "items": 5,
+       "prims": 5,
+       "instances": 5,
+       "tris": 162
+      }
+     },
+     "inScope": {
+      "items": 8986,
+      "prims": 8986,
+      "instances": 10183,
+      "tris": 3872224
+     },
+     "distinctMaterialsInScope": 399,
+     "multiMaterialItems": 0,
+     "instancedInScope": 104
+    },
+    "stats": {
+     "excludedItems": 4716,
+     "buckets": 569,
+     "pieces": 5127,
+     "mergedMeshes": 569,
+     "mergeFallbacks": 0,
+     "bakedVerts": 3219602,
+     "bakedBytes": 126742012,
+     "bakeMs": 7017,
+     "addedObjects": 569
+    }
+   },
+   "instance": {
+    "census": {
+     "groups": 30,
+     "claimedItems": 4716,
+     "placements": 5056,
+     "tris": 959449,
+     "perGroup": [
+      {
+       "label": "ls_bush_2",
+       "material": "ls_grass",
+       "tree": false,
+       "placements": 409,
+       "tris": 42536,
+       "cells": 10
+      },
+      {
+       "label": "ls_bush",
+       "material": "ls_grass",
+       "tree": false,
+       "placements": 399,
+       "tris": 12768,
+       "cells": 10
+      },
+      {
+       "label": "ls_flower_redA",
+       "material": "ls_grass",
+       "tree": false,
+       "placements": 291,
+       "tris": 11640,
+       "cells": 10
+      },
+      {
+       "label": "ls_flower_redA_1",
+       "material": "ls_colorRed",
+       "tree": false,
+       "placements": 291,
+       "tris": 10476,
+       "cells": 10
+      },
+      {
+       "label": "ls_flower_yellowA",
+       "material": "ls_grass",
+       "tree": false,
+       "placements": 285,
+       "tris": 11400,
+       "cells": 10
+      },
+      {
+       "label": "ls_flower_yellowA_1",
+       "material": "ls_colorYellow",
+       "tree": false,
+       "placements": 285,
+       "tris": 10260,
+       "cells": 10
+      },
+      {
+       "label": "ls_flower_purpleA",
+       "material": "ls_grass",
+       "tree": false,
+       "placements": 285,
+       "tris": 11400,
+       "cells": 10
+      },
+      {
+       "label": "ls_flower_purpleA_1",
+       "material": "ls_colorPurple",
+       "tree": false,
+       "placements": 285,
+       "tris": 10260,
+       "cells": 10
+      },
+      {
+       "label": "ls_rock_smallA",
+       "material": "ls_grass",
+       "tree": false,
+       "placements": 247,
+       "tris": 741,
+       "cells": 10
+      },
+      {
+       "label": "ls_rock_smallA_1",
+       "material": "ls_dirt",
+       "tree": false,
+       "placements": 247,
+       "tris": 3211,
+       "cells": 10
+      },
+      {
+       "label": "LIB_hero_tall",
+       "material": "Tree_Trunk_01",
+       "tree": true,
+       "placements": 189,
+       "tris": 49896,
+       "cells": 16
+      },
+      {
+       "label": "LIB_hero_tall_1",
+       "material": "Tree_Branches_01.001",
+       "tree": true,
+       "placements": 189,
+       "tris": 69174,
+       "cells": 16
+      },
+      {
+       "label": "ls_path_stone",
+       "material": "ls_stoneDark",
+       "tree": false,
+       "placements": 156,
+       "tris": 13728,
+       "cells": 10
+      },
+      {
+       "label": "ls_path_stone_1",
+       "material": "ls_stone",
+       "tree": false,
+       "placements": 156,
+       "tris": 4992,
+       "cells": 10
+      },
+      {
+       "label": "ls_path_stone_2",
+       "material": "ls__defaultMat",
+       "tree": false,
+       "placements": 156,
+       "tris": 2496,
+       "cells": 10
+      },
+      {
+       "label": "SK_lantern",
+       "material": "mdvl_palette",
+       "tree": false,
+       "placements": 150,
+       "tris": 50700,
+       "cells": 4
+      },
+      {
+       "label": "LIB_hero_full",
+       "material": "Tree_Trunk_01",
+       "tree": true,
+       "placements": 141,
+       "tris": 47658,
+       "cells": 16
+      },
+      {
+       "label": "LIB_hero_full_1",
+       "material": "Tree_Branches_01.001",
+       "tree": true,
+       "placements": 141,
+       "tris": 40326,
+       "cells": 16
+      },
+      {
+       "label": "inst_goods_r_basket",
+       "material": "BazaarWovenBasket",
+       "tree": false,
+       "placements": 135,
+       "tris": 138240,
+       "cells": 4
+      },
+      {
+       "label": "SK_med_crate",
+       "material": "mdvl_palette.004",
+       "tree": false,
+       "placements": 114,
+       "tris": 68400,
+       "cells": 4
+      },
+      {
+       "label": "SK_med_stall",
+       "material": "mdvl_palette.005",
+       "tree": false,
+       "placements": 80,
+       "tris": 48000,
+       "cells": 4
+      },
+      {
+       "label": "LIB_hero_birch",
+       "material": "Tree_Trunk_02",
+       "tree": true,
+       "placements": 78,
+       "tris": 10062,
+       "cells": 14
+      },
+      {
+       "label": "LIB_hero_birch_1",
+       "material": "Tree_Branches_02",
+       "tree": true,
+       "placements": 78,
+       "tris": 12168,
+       "cells": 14
+      },
+      {
+       "label": "SK_med_bench",
+       "material": "mdvl_palette.003",
+       "tree": false,
+       "placements": 57,
+       "tris": 34200,
+       "cells": 4
+      },
+      {
+       "label": "inst_goods_r_lantern",
+       "material": "mdvl_palette.013",
+       "tree": false,
+       "placements": 51,
+       "tris": 6630,
+       "cells": 4
+      },
+      {
+       "label": "inst_goods_r_grainsack",
+       "material": "mdvl_palette.007",
+       "tree": false,
+       "placements": 45,
+       "tris": 9900,
+       "cells": 4
+      },
+      {
+       "label": "inst_goods_r_sack",
+       "material": "mdvl_palette.008",
+       "tree": false,
+       "placements": 33,
+       "tris": 7887,
+       "cells": 4
+      },
+      {
+       "label": "inst_goods_r_bucket",
+       "material": "wooden_bucket_01",
+       "tree": false,
+       "placements": 28,
+       "tris": 5572,
+       "cells": 4
+      },
+      {
+       "label": "inst_goods_rollpile",
+       "material": "palette",
+       "tree": false,
+       "placements": 28,
+       "tris": 8232,
+       "cells": 4
+      },
+      {
+       "label": "inst_goods_goblets",
+       "material": "Drinkware_Clear_Glass",
+       "tree": false,
+       "placements": 27,
+       "tris": 206496,
+       "cells": 4
+      }
+     ]
+    },
+    "stats": {
+     "groups": 30,
+     "claimedItems": 4716,
+     "placements": 5056,
+     "tris": 959449,
+     "bucketsAvoided": 266,
+     "geoBytesOnce": 719122,
+     "geoBytesSavedVsBaked": 76335280,
+     "buildMs": 11
+    }
+   }
+  },
+  "plateaued": true,
+  "reads": 2
+ },
+ "p1Reported": {
+  "calls": 1500,
+  "tris": 7779994,
+  "geometries": 746,
+  "textures": 356,
+  "interiors": 0,
+  "built": [],
+  "batch": {
+   "census": {
+    "mode": "both",
+    "items": 9056,
+    "byCategory": {
+     "otherStatic": {
+      "items": 8814,
+      "prims": 8814,
+      "instances": 8917,
+      "tris": 2299236
+     },
+     "door": {
+      "items": 65,
+      "prims": 65,
+      "instances": 219,
+      "tris": 43570
+     },
+     "propFamily": {
+      "items": 172,
+      "prims": 172,
+      "instances": 1266,
+      "tris": 1572988
+     },
+     "hidden": {
+      "items": 5,
+      "prims": 5,
+      "instances": 5,
+      "tris": 162
+     }
+    },
+    "inScope": {
+     "items": 8986,
+     "prims": 8986,
+     "instances": 10183,
+     "tris": 3872224
+    },
+    "distinctMaterialsInScope": 399,
+    "multiMaterialItems": 0,
+    "instancedInScope": 104
+   },
+   "stats": {
+    "excludedItems": 4716,
+    "buckets": 569,
+    "pieces": 5127,
+    "mergedMeshes": 569,
+    "mergeFallbacks": 0,
+    "bakedVerts": 3219602,
+    "bakedBytes": 126742012,
+    "bakeMs": 7017,
+    "addedObjects": 569
+   }
+  },
+  "instance": {
+   "census": {
+    "groups": 30,
+    "claimedItems": 4716,
+    "placements": 5056,
+    "tris": 959449,
+    "perGroup": [
+     {
+      "label": "ls_bush_2",
+      "material": "ls_grass",
+      "tree": false,
+      "placements": 409,
+      "tris": 42536,
+      "cells": 10
+     },
+     {
+      "label": "ls_bush",
+      "material": "ls_grass",
+      "tree": false,
+      "placements": 399,
+      "tris": 12768,
+      "cells": 10
+     },
+     {
+      "label": "ls_flower_redA",
+      "material": "ls_grass",
+      "tree": false,
+      "placements": 291,
+      "tris": 11640,
+      "cells": 10
+     },
+     {
+      "label": "ls_flower_redA_1",
+      "material": "ls_colorRed",
+      "tree": false,
+      "placements": 291,
+      "tris": 10476,
+      "cells": 10
+     },
+     {
+      "label": "ls_flower_yellowA",
+      "material": "ls_grass",
+      "tree": false,
+      "placements": 285,
+      "tris": 11400,
+      "cells": 10
+     },
+     {
+      "label": "ls_flower_yellowA_1",
+      "material": "ls_colorYellow",
+      "tree": false,
+      "placements": 285,
+      "tris": 10260,
+      "cells": 10
+     },
+     {
+      "label": "ls_flower_purpleA",
+      "material": "ls_grass",
+      "tree": false,
+      "placements": 285,
+      "tris": 11400,
+      "cells": 10
+     },
+     {
+      "label": "ls_flower_purpleA_1",
+      "material": "ls_colorPurple",
+      "tree": false,
+      "placements": 285,
+      "tris": 10260,
+      "cells": 10
+     },
+     {
+      "label": "ls_rock_smallA",
+      "material": "ls_grass",
+      "tree": false,
+      "placements": 247,
+      "tris": 741,
+      "cells": 10
+     },
+     {
+      "label": "ls_rock_smallA_1",
+      "material": "ls_dirt",
+      "tree": false,
+      "placements": 247,
+      "tris": 3211,
+      "cells": 10
+     },
+     {
+      "label": "LIB_hero_tall",
+      "material": "Tree_Trunk_01",
+      "tree": true,
+      "placements": 189,
+      "tris": 49896,
+      "cells": 16
+     },
+     {
+      "label": "LIB_hero_tall_1",
+      "material": "Tree_Branches_01.001",
+      "tree": true,
+      "placements": 189,
+      "tris": 69174,
+      "cells": 16
+     },
+     {
+      "label": "ls_path_stone",
+      "material": "ls_stoneDark",
+      "tree": false,
+      "placements": 156,
+      "tris": 13728,
+      "cells": 10
+     },
+     {
+      "label": "ls_path_stone_1",
+      "material": "ls_stone",
+      "tree": false,
+      "placements": 156,
+      "tris": 4992,
+      "cells": 10
+     },
+     {
+      "label": "ls_path_stone_2",
+      "material": "ls__defaultMat",
+      "tree": false,
+      "placements": 156,
+      "tris": 2496,
+      "cells": 10
+     },
+     {
+      "label": "SK_lantern",
+      "material": "mdvl_palette",
+      "tree": false,
+      "placements": 150,
+      "tris": 50700,
+      "cells": 4
+     },
+     {
+      "label": "LIB_hero_full",
+      "material": "Tree_Trunk_01",
+      "tree": true,
+      "placements": 141,
+      "tris": 47658,
+      "cells": 16
+     },
+     {
+      "label": "LIB_hero_full_1",
+      "material": "Tree_Branches_01.001",
+      "tree": true,
+      "placements": 141,
+      "tris": 40326,
+      "cells": 16
+     },
+     {
+      "label": "inst_goods_r_basket",
+      "material": "BazaarWovenBasket",
+      "tree": false,
+      "placements": 135,
+      "tris": 138240,
+      "cells": 4
+     },
+     {
+      "label": "SK_med_crate",
+      "material": "mdvl_palette.004",
+      "tree": false,
+      "placements": 114,
+      "tris": 68400,
+      "cells": 4
+     },
+     {
+      "label": "SK_med_stall",
+      "material": "mdvl_palette.005",
+      "tree": false,
+      "placements": 80,
+      "tris": 48000,
+      "cells": 4
+     },
+     {
+      "label": "LIB_hero_birch",
+      "material": "Tree_Trunk_02",
+      "tree": true,
+      "placements": 78,
+      "tris": 10062,
+      "cells": 14
+     },
+     {
+      "label": "LIB_hero_birch_1",
+      "material": "Tree_Branches_02",
+      "tree": true,
+      "placements": 78,
+      "tris": 12168,
+      "cells": 14
+     },
+     {
+      "label": "SK_med_bench",
+      "material": "mdvl_palette.003",
+      "tree": false,
+      "placements": 57,
+      "tris": 34200,
+      "cells": 4
+     },
+     {
+      "label": "inst_goods_r_lantern",
+      "material": "mdvl_palette.013",
+      "tree": false,
+      "placements": 51,
+      "tris": 6630,
+      "cells": 4
+     },
+     {
+      "label": "inst_goods_r_grainsack",
+      "material": "mdvl_palette.007",
+      "tree": false,
+      "placements": 45,
+      "tris": 9900,
+      "cells": 4
+     },
+     {
+      "label": "inst_goods_r_sack",
+      "material": "mdvl_palette.008",
+      "tree": false,
+      "placements": 33,
+      "tris": 7887,
+      "cells": 4
+     },
+     {
+      "label": "inst_goods_r_bucket",
+      "material": "wooden_bucket_01",
+      "tree": false,
+      "placements": 28,
+      "tris": 5572,
+      "cells": 4
+     },
+     {
+      "label": "inst_goods_rollpile",
+      "material": "palette",
+      "tree": false,
+      "placements": 28,
+      "tris": 8232,
+      "cells": 4
+     },
+     {
+      "label": "inst_goods_goblets",
+      "material": "Drinkware_Clear_Glass",
+      "tree": false,
+      "placements": 27,
+      "tris": 206496,
+      "cells": 4
+     }
+    ]
+   },
+   "stats": {
+    "groups": 30,
+    "claimedItems": 4716,
+    "placements": 5056,
+    "tris": 959449,
+    "bucketsAvoided": 266,
+    "geoBytesOnce": 719122,
+    "geoBytesSavedVsBaked": 76335280,
+    "buildMs": 11
+   }
+  }
+ },
+ "livenessProof": {
+  "nodoors": {
+   "calls": 1500,
+   "tris": 7779994,
+   "geometries": 746,
+   "textures": 356,
+   "interiors": 0,
+   "built": [],
+   "batch": {
+    "census": {
+     "mode": "both",
+     "items": 9056,
+     "byCategory": {
+      "otherStatic": {
+       "items": 8814,
+       "prims": 8814,
+       "instances": 8917,
+       "tris": 2299236
+      },
+      "door": {
+       "items": 65,
+       "prims": 65,
+       "instances": 219,
+       "tris": 43570
+      },
+      "propFamily": {
+       "items": 172,
+       "prims": 172,
+       "instances": 1266,
+       "tris": 1572988
+      },
+      "hidden": {
+       "items": 5,
+       "prims": 5,
+       "instances": 5,
+       "tris": 162
+      }
+     },
+     "inScope": {
+      "items": 8986,
+      "prims": 8986,
+      "instances": 10183,
+      "tris": 3872224
+     },
+     "distinctMaterialsInScope": 399,
+     "multiMaterialItems": 0,
+     "instancedInScope": 104
+    },
+    "stats": {
+     "excludedItems": 4716,
+     "buckets": 569,
+     "pieces": 5127,
+     "mergedMeshes": 569,
+     "mergeFallbacks": 0,
+     "bakedVerts": 3219602,
+     "bakedBytes": 126742012,
+     "bakeMs": 7017,
+     "addedObjects": 569
+    }
+   },
+   "instance": {
+    "census": {
+     "groups": 30,
+     "claimedItems": 4716,
+     "placements": 5056,
+     "tris": 959449,
+     "perGroup": [
+      {
+       "label": "ls_bush_2",
+       "material": "ls_grass",
+       "tree": false,
+       "placements": 409,
+       "tris": 42536,
+       "cells": 10
+      },
+      {
+       "label": "ls_bush",
+       "material": "ls_grass",
+       "tree": false,
+       "placements": 399,
+       "tris": 12768,
+       "cells": 10
+      },
+      {
+       "label": "ls_flower_redA",
+       "material": "ls_grass",
+       "tree": false,
+       "placements": 291,
+       "tris": 11640,
+       "cells": 10
+      },
+      {
+       "label": "ls_flower_redA_1",
+       "material": "ls_colorRed",
+       "tree": false,
+       "placements": 291,
+       "tris": 10476,
+       "cells": 10
+      },
+      {
+       "label": "ls_flower_yellowA",
+       "material": "ls_grass",
+       "tree": false,
+       "placements": 285,
+       "tris": 11400,
+       "cells": 10
+      },
+      {
+       "label": "ls_flower_yellowA_1",
+       "material": "ls_colorYellow",
+       "tree": false,
+       "placements": 285,
+       "tris": 10260,
+       "cells": 10
+      },
+      {
+       "label": "ls_flower_purpleA",
+       "material": "ls_grass",
+       "tree": false,
+       "placements": 285,
+       "tris": 11400,
+       "cells": 10
+      },
+      {
+       "label": "ls_flower_purpleA_1",
+       "material": "ls_colorPurple",
+       "tree": false,
+       "placements": 285,
+       "tris": 10260,
+       "cells": 10
+      },
+      {
+       "label": "ls_rock_smallA",
+       "material": "ls_grass",
+       "tree": false,
+       "placements": 247,
+       "tris": 741,
+       "cells": 10
+      },
+      {
+       "label": "ls_rock_smallA_1",
+       "material": "ls_dirt",
+       "tree": false,
+       "placements": 247,
+       "tris": 3211,
+       "cells": 10
+      },
+      {
+       "label": "LIB_hero_tall",
+       "material": "Tree_Trunk_01",
+       "tree": true,
+       "placements": 189,
+       "tris": 49896,
+       "cells": 16
+      },
+      {
+       "label": "LIB_hero_tall_1",
+       "material": "Tree_Branches_01.001",
+       "tree": true,
+       "placements": 189,
+       "tris": 69174,
+       "cells": 16
+      },
+      {
+       "label": "ls_path_stone",
+       "material": "ls_stoneDark",
+       "tree": false,
+       "placements": 156,
+       "tris": 13728,
+       "cells": 10
+      },
+      {
+       "label": "ls_path_stone_1",
+       "material": "ls_stone",
+       "tree": false,
+       "placements": 156,
+       "tris": 4992,
+       "cells": 10
+      },
+      {
+       "label": "ls_path_stone_2",
+       "material": "ls__defaultMat",
+       "tree": false,
+       "placements": 156,
+       "tris": 2496,
+       "cells": 10
+      },
+      {
+       "label": "SK_lantern",
+       "material": "mdvl_palette",
+       "tree": false,
+       "placements": 150,
+       "tris": 50700,
+       "cells": 4
+      },
+      {
+       "label": "LIB_hero_full",
+       "material": "Tree_Trunk_01",
+       "tree": true,
+       "placements": 141,
+       "tris": 47658,
+       "cells": 16
+      },
+      {
+       "label": "LIB_hero_full_1",
+       "material": "Tree_Branches_01.001",
+       "tree": true,
+       "placements": 141,
+       "tris": 40326,
+       "cells": 16
+      },
+      {
+       "label": "inst_goods_r_basket",
+       "material": "BazaarWovenBasket",
+       "tree": false,
+       "placements": 135,
+       "tris": 138240,
+       "cells": 4
+      },
+      {
+       "label": "SK_med_crate",
+       "material": "mdvl_palette.004",
+       "tree": false,
+       "placements": 114,
+       "tris": 68400,
+       "cells": 4
+      },
+      {
+       "label": "SK_med_stall",
+       "material": "mdvl_palette.005",
+       "tree": false,
+       "placements": 80,
+       "tris": 48000,
+       "cells": 4
+      },
+      {
+       "label": "LIB_hero_birch",
+       "material": "Tree_Trunk_02",
+       "tree": true,
+       "placements": 78,
+       "tris": 10062,
+       "cells": 14
+      },
+      {
+       "label": "LIB_hero_birch_1",
+       "material": "Tree_Branches_02",
+       "tree": true,
+       "placements": 78,
+       "tris": 12168,
+       "cells": 14
+      },
+      {
+       "label": "SK_med_bench",
+       "material": "mdvl_palette.003",
+       "tree": false,
+       "placements": 57,
+       "tris": 34200,
+       "cells": 4
+      },
+      {
+       "label": "inst_goods_r_lantern",
+       "material": "mdvl_palette.013",
+       "tree": false,
+       "placements": 51,
+       "tris": 6630,
+       "cells": 4
+      },
+      {
+       "label": "inst_goods_r_grainsack",
+       "material": "mdvl_palette.007",
+       "tree": false,
+       "placements": 45,
+       "tris": 9900,
+       "cells": 4
+      },
+      {
+       "label": "inst_goods_r_sack",
+       "material": "mdvl_palette.008",
+       "tree": false,
+       "placements": 33,
+       "tris": 7887,
+       "cells": 4
+      },
+      {
+       "label": "inst_goods_r_bucket",
+       "material": "wooden_bucket_01",
+       "tree": false,
+       "placements": 28,
+       "tris": 5572,
+       "cells": 4
+      },
+      {
+       "label": "inst_goods_rollpile",
+       "material": "palette",
+       "tree": false,
+       "placements": 28,
+       "tris": 8232,
+       "cells": 4
+      },
+      {
+       "label": "inst_goods_goblets",
+       "material": "Drinkware_Clear_Glass",
+       "tree": false,
+       "placements": 27,
+       "tris": 206496,
+       "cells": 4
+      }
+     ]
+    },
+    "stats": {
+     "groups": 30,
+     "claimedItems": 4716,
+     "placements": 5056,
+     "tris": 959449,
+     "bucketsAvoided": 266,
+     "geoBytesOnce": 719122,
+     "geoBytesSavedVsBaked": 76335280,
+     "buildMs": 11
+    }
+   }
+  },
+  "restored": {
+   "calls": 1500,
+   "tris": 7779994,
+   "geometries": 746,
+   "textures": 356,
+   "interiors": 0,
+   "built": [],
+   "batch": {
+    "census": {
+     "mode": "both",
+     "items": 9056,
+     "byCategory": {
+      "otherStatic": {
+       "items": 8814,
+       "prims": 8814,
+       "instances": 8917,
+       "tris": 2299236
+      },
+      "door": {
+       "items": 65,
+       "prims": 65,
+       "instances": 219,
+       "tris": 43570
+      },
+      "propFamily": {
+       "items": 172,
+       "prims": 172,
+       "instances": 1266,
+       "tris": 1572988
+      },
+      "hidden": {
+       "items": 5,
+       "prims": 5,
+       "instances": 5,
+       "tris": 162
+      }
+     },
+     "inScope": {
+      "items": 8986,
+      "prims": 8986,
+      "instances": 10183,
+      "tris": 3872224
+     },
+     "distinctMaterialsInScope": 399,
+     "multiMaterialItems": 0,
+     "instancedInScope": 104
+    },
+    "stats": {
+     "excludedItems": 4716,
+     "buckets": 569,
+     "pieces": 5127,
+     "mergedMeshes": 569,
+     "mergeFallbacks": 0,
+     "bakedVerts": 3219602,
+     "bakedBytes": 126742012,
+     "bakeMs": 7017,
+     "addedObjects": 569
+    }
+   },
+   "instance": {
+    "census": {
+     "groups": 30,
+     "claimedItems": 4716,
+     "placements": 5056,
+     "tris": 959449,
+     "perGroup": [
+      {
+       "label": "ls_bush_2",
+       "material": "ls_grass",
+       "tree": false,
+       "placements": 409,
+       "tris": 42536,
+       "cells": 10
+      },
+      {
+       "label": "ls_bush",
+       "material": "ls_grass",
+       "tree": false,
+       "placements": 399,
+       "tris": 12768,
+       "cells": 10
+      },
+      {
+       "label": "ls_flower_redA",
+       "material": "ls_grass",
+       "tree": false,
+       "placements": 291,
+       "tris": 11640,
+       "cells": 10
+      },
+      {
+       "label": "ls_flower_redA_1",
+       "material": "ls_colorRed",
+       "tree": false,
+       "placements": 291,
+       "tris": 10476,
+       "cells": 10
+      },
+      {
+       "label": "ls_flower_yellowA",
+       "material": "ls_grass",
+       "tree": false,
+       "placements": 285,
+       "tris": 11400,
+       "cells": 10
+      },
+      {
+       "label": "ls_flower_yellowA_1",
+       "material": "ls_colorYellow",
+       "tree": false,
+       "placements": 285,
+       "tris": 10260,
+       "cells": 10
+      },
+      {
+       "label": "ls_flower_purpleA",
+       "material": "ls_grass",
+       "tree": false,
+       "placements": 285,
+       "tris": 11400,
+       "cells": 10
+      },
+      {
+       "label": "ls_flower_purpleA_1",
+       "material": "ls_colorPurple",
+       "tree": false,
+       "placements": 285,
+       "tris": 10260,
+       "cells": 10
+      },
+      {
+       "label": "ls_rock_smallA",
+       "material": "ls_grass",
+       "tree": false,
+       "placements": 247,
+       "tris": 741,
+       "cells": 10
+      },
+      {
+       "label": "ls_rock_smallA_1",
+       "material": "ls_dirt",
+       "tree": false,
+       "placements": 247,
+       "tris": 3211,
+       "cells": 10
+      },
+      {
+       "label": "LIB_hero_tall",
+       "material": "Tree_Trunk_01",
+       "tree": true,
+       "placements": 189,
+       "tris": 49896,
+       "cells": 16
+      },
+      {
+       "label": "LIB_hero_tall_1",
+       "material": "Tree_Branches_01.001",
+       "tree": true,
+       "placements": 189,
+       "tris": 69174,
+       "cells": 16
+      },
+      {
+       "label": "ls_path_stone",
+       "material": "ls_stoneDark",
+       "tree": false,
+       "placements": 156,
+       "tris": 13728,
+       "cells": 10
+      },
+      {
+       "label": "ls_path_stone_1",
+       "material": "ls_stone",
+       "tree": false,
+       "placements": 156,
+       "tris": 4992,
+       "cells": 10
+      },
+      {
+       "label": "ls_path_stone_2",
+       "material": "ls__defaultMat",
+       "tree": false,
+       "placements": 156,
+       "tris": 2496,
+       "cells": 10
+      },
+      {
+       "label": "SK_lantern",
+       "material": "mdvl_palette",
+       "tree": false,
+       "placements": 150,
+       "tris": 50700,
+       "cells": 4
+      },
+      {
+       "label": "LIB_hero_full",
+       "material": "Tree_Trunk_01",
+       "tree": true,
+       "placements": 141,
+       "tris": 47658,
+       "cells": 16
+      },
+      {
+       "label": "LIB_hero_full_1",
+       "material": "Tree_Branches_01.001",
+       "tree": true,
+       "placements": 141,
+       "tris": 40326,
+       "cells": 16
+      },
+      {
+       "label": "inst_goods_r_basket",
+       "material": "BazaarWovenBasket",
+       "tree": false,
+       "placements": 135,
+       "tris": 138240,
+       "cells": 4
+      },
+      {
+       "label": "SK_med_crate",
+       "material": "mdvl_palette.004",
+       "tree": false,
+       "placements": 114,
+       "tris": 68400,
+       "cells": 4
+      },
+      {
+       "label": "SK_med_stall",
+       "material": "mdvl_palette.005",
+       "tree": false,
+       "placements": 80,
+       "tris": 48000,
+       "cells": 4
+      },
+      {
+       "label": "LIB_hero_birch",
+       "material": "Tree_Trunk_02",
+       "tree": true,
+       "placements": 78,
+       "tris": 10062,
+       "cells": 14
+      },
+      {
+       "label": "LIB_hero_birch_1",
+       "material": "Tree_Branches_02",
+       "tree": true,
+       "placements": 78,
+       "tris": 12168,
+       "cells": 14
+      },
+      {
+       "label": "SK_med_bench",
+       "material": "mdvl_palette.003",
+       "tree": false,
+       "placements": 57,
+       "tris": 34200,
+       "cells": 4
+      },
+      {
+       "label": "inst_goods_r_lantern",
+       "material": "mdvl_palette.013",
+       "tree": false,
+       "placements": 51,
+       "tris": 6630,
+       "cells": 4
+      },
+      {
+       "label": "inst_goods_r_grainsack",
+       "material": "mdvl_palette.007",
+       "tree": false,
+       "placements": 45,
+       "tris": 9900,
+       "cells": 4
+      },
+      {
+       "label": "inst_goods_r_sack",
+       "material": "mdvl_palette.008",
+       "tree": false,
+       "placements": 33,
+       "tris": 7887,
+       "cells": 4
+      },
+      {
+       "label": "inst_goods_r_bucket",
+       "material": "wooden_bucket_01",
+       "tree": false,
+       "placements": 28,
+       "tris": 5572,
+       "cells": 4
+      },
+      {
+       "label": "inst_goods_rollpile",
+       "material": "palette",
+       "tree": false,
+       "placements": 28,
+       "tris": 8232,
+       "cells": 4
+      },
+      {
+       "label": "inst_goods_goblets",
+       "material": "Drinkware_Clear_Glass",
+       "tree": false,
+       "placements": 27,
+       "tris": 206496,
+       "cells": 4
+      }
+     ]
+    },
+    "stats": {
+     "groups": 30,
+     "claimedItems": 4716,
+     "placements": 5056,
+     "tris": 959449,
+     "bucketsAvoided": 266,
+     "geoBytesOnce": 719122,
+     "geoBytesSavedVsBaked": 76335280,
+     "buildMs": 11
+    }
+   }
+  },
+  "nodoorsPlateaued": true,
+  "restoredPlateaued": true
+ },
+ "hideDiff": null,
+ "glbServedBytes": [
+  {
+   "path": "/assets/world-city3.glb",
+   "bytes": 68501036
+  },
+  {
+   "path": "/assets/cast-mage.glb",
+   "bytes": 4451464
+  },
+  {
+   "path": "/assets/cast-remy.glb",
+   "bytes": 9203448
+  },
+  {
+   "path": "/assets/collectibles/scifi-easter-egg.glb",
+   "bytes": 281620
+  },
+  {
+   "path": "/assets/world-links.glb",
+   "bytes": 695020
+  },
+  {
+   "path": "/assets/world-shell.glb",
+   "bytes": 3070804
+  },
+  {
+   "path": "/assets/world-city3-collision.glb",
+   "bytes": 8684616
+  }
+ ],
+ "glbServedTotal": 94888008,
+ "frameTime": {
+  "orbitMedianMs": 800,
+  "orbitSamples": 9,
+  "p1MedianMs": null,
+  "p1Samples": 0,
+  "filmCapturedFrames": 0,
+  "filmDurationS": 0,
+  "filmFps": 0
+ },
+ "film": null,
+ "pageErrors": []
+}
