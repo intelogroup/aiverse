@@ -12,7 +12,6 @@
   "dependencies": {
     "three": "^0.170.0",
     "three-mesh-bvh": "0.9.16",
-    "recast-navigation": "0.44.0",
     "@recast-navigation/core": "0.44.0",
     "@recast-navigation/generators": "0.44.0"
   },
