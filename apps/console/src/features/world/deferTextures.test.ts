@@ -4,6 +4,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import type { KTX2Loader } from "three/addons/loaders/KTX2Loader.js";
 import { deferTextures } from "./deferTextures";
+import { coreTexturesPending, resetCoreTextures } from "./coreTextures";
 
 // One triangle, a base-colour map and a normal map, both external KTX2 uris (as in the world tiles).
 const gltf = {
@@ -33,6 +34,22 @@ describe("deferTextures", () => {
     expect(urls.sort()).toEqual([expect.stringMatching(/\/assets\/tiles\/a\.ktx2$/), expect.stringMatching(/\/assets\/tiles\/n\.ktx2$/)]);
     expect(real.a.colorSpace).toBe(THREE.SRGBColorSpace);
     expect(real.a.flipY).toBe(false);
+  });
+  it("holds the core gate until the first tile's textures settle (a failed texture settles too), not for later tiles", async () => {
+    resetCoreTextures();
+    const fail = { a: false };
+    let release!: () => void; const gate = new Promise<void>((r) => { release = r; });
+    const ktx2 = { loadAsync: (u: string) => gate.then(() => { if (u.endsWith("n.ktx2") && fail.a) throw new Error("boom"); return new THREE.Texture(); }) } as unknown as KTX2Loader;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder); deferTextures(loader, ktx2);
+    await parse(loader);
+    expect(coreTexturesPending()).toBe(true); // the core tile mounted on placeholders; its textures are in flight
+    await parse(loader); // a second tile
+    fail.a = true;
+    release();
+    await vi.waitFor(() => expect(coreTexturesPending()).toBe(false)); // one texture failed: the gate still opens
+    warn.mockRestore();
+    resetCoreTextures();
   });
   it("leaves embedded images to the stock loader", () => {
     const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder); deferTextures(loader, {} as KTX2Loader);

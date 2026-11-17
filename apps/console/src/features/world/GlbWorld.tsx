@@ -10,6 +10,7 @@ import { OrbitControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { DistrictWorld } from "./DistrictWorld";
 import { TILES, CORE_TILE_URL } from "./tilesMode";
+import { coreTexturesPending, subscribeCoreTextures, CORE_TEXTURES_HOLD_MS } from "./coreTextures";
 import { BazaarLife, type BazaarFigureTap } from "./BazaarLife";
 import { MiraResident } from "./MiraResident";
 import { mobileShell, spawnRequestForPoint, spawnRequestForRoom, type WalkSpawnRequest } from "./mobileShell";
@@ -68,6 +69,22 @@ import { CITY3_CENTER } from "./glbConstants";
 // grounding, and a modest ambient fill.
 
 const CITY3_URL = assetUrl(TILES ? CORE_TILE_URL : "/assets/world-city3.glb"); // tile mode: the small core first, the rest streams (tilesMode.ts)
+
+function useCoreTexturesReady(mounted: boolean): boolean {
+  const [pending, setPending] = useState(coreTexturesPending);
+  const [expired, setExpired] = useState(false);
+  useEffect(() => {
+    const sync = () => setPending(coreTexturesPending());
+    sync();
+    return subscribeCoreTextures(sync);
+  }, []);
+  useEffect(() => {
+    if (!mounted) return;
+    const id = setTimeout(() => setExpired(true), CORE_TEXTURES_HOLD_MS);
+    return () => clearTimeout(id);
+  }, [mounted]);
+  return mounted && (!pending || expired);
+}
 
 export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner's agents (empty for a visitor). With one in the world, the camera lands on it. */ ownerAgentNames?: readonly string[] } = {}) {
   // City 3 is the only world: the Agora was deleted 2026-11-08 (Jim's
@@ -517,6 +534,7 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
   }, [loadNonce]);
   const contextLossDetachRef = useRef<(() => void) | null>(null);
   const markPresented = useCallback(() => setWorldPresented(true), []);
+  const worldTextured = useCoreTexturesReady(worldPresented);
   // Land on the owner's agent: engage once the world is on screen and the body is in the stream. Never over a deep link, a walk
   // mode, a hero fly-to, or a camera the user already touched. Losing the body (visit ended) drops back to the spectator camera
   // where it stands; heroFocus (a UI fly-to) also ends it.
@@ -711,7 +729,7 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
       {glSupported ? (
         <WorldLoadOverlay
           key={`loading-${loadNonce}`}
-          presented={worldPresented}
+          presented={worldTextured}
           onRetry={() => {
             useGLTF.clear(CITY3_URL);
             useGLTF.clear(CITY3_LIBRARY_URL);
