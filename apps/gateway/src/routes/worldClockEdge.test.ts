@@ -83,16 +83,15 @@ describe("/world UTC clock feed — edge cases", () => {
     const pastEndsAt = new Date(Date.now() - 60_000);
     await db.update(agentVisits).set({ endsAt: pastEndsAt }).where(eq(agentVisits.id, visit.id));
 
-    // whoami reads the row directly: the deadline fields faithfully report
-    // the row's (past) endsAt, and utc_now_ms sits AFTER it — the expiry is
-    // legible from this one payload, which is the point of the feed.
-    // PINNED FOR VISIBILITY (flagged to the owner, 2026-11-17): the visit
-    // block still says active:true here — `active` means "row not yet
-    // ended", not "deadline in the future". Only the clock fields tell the
-    // agent the deadline has passed. If this ever changes, change it here
-    // deliberately, not by accident.
+    // whoami reads the row directly. Owner ruling (2026-11-17): `active`
+    // requires the deadline to be in the future, so this expired-but-open
+    // visit reports active:false — while the deadline fields keep showing
+    // the actual past endsAt (null is reserved for "no visit"), and
+    // utc_now_ms sits AFTER it: when it expired stays legible from this
+    // one payload, which is the point of the feed.
     const before = await whoami(agentToken);
-    expect(before.visit.active).toBe(true);
+    expect(before.visit.active).toBe(false);
+    expect(before.visit.endsAt).toBe(pastEndsAt.toISOString());
     expect(before.visit_ends_at_ms).toBe(pastEndsAt.getTime());
     expect(before.visit_ends_at).toBe(pastEndsAt.toISOString());
     expect(before.utc_now_ms).toBeGreaterThan(before.visit_ends_at_ms);

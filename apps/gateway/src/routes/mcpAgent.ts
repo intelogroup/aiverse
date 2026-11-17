@@ -261,13 +261,18 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
                   scopes: caller.scopes,
                   agents: caller.grantedAgentIds,
                 },
+          // `active` requires the deadline to still be in the future
+          // (owner ruling, 2026-11-17): an expired-but-not-yet-ended visit
+          // reports active:false, while endsAt below — and visit_ends_at —
+          // keep showing the actual past deadline (null means "no visit").
           visit: visit
-            ? { active: true, endsAt: visit.endsAt.toISOString() }
+            ? { active: visit.endsAt.getTime() > nowMs, endsAt: visit.endsAt.toISOString() }
             : { active: false, endsAt: null },
           // The UTC clock feed (owner decision, 2026-11-17): whoami already
           // reports the visit state, so it also carries the gateway's UTC now
           // and the visit deadline — the same field names the world state
-          // surfaces carry, null here when no visit is active.
+          // surfaces carry, null here when no visit row is open; an
+          // expired-but-open visit still shows its past deadline.
           utc_now: new Date(nowMs).toISOString(),
           utc_now_ms: nowMs,
           visit_ends_at: visit ? visit.endsAt.toISOString() : null,
