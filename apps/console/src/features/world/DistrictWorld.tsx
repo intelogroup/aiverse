@@ -15,6 +15,7 @@ import { assetUrl, resolveManifestAssets } from "../../lib/assetUrl";
 import { blendTheme, collisionJobs, dueEvictions, farGroupVisible, isShellCovered, originOf, planDistricts, residentCollisionUrl, staleShellIds, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
 import { TILES } from "./tilesMode";
 import { tileScenes } from "./tileScenes";
+import { applyBazaarBatch, type BazaarBatchHandle } from "./bazaarBatch";
 import { applyNight, disposeTree, hideLegacyWater } from "./districtTree";
 import { createHemiFill, createOcean, createSkyDome } from "./districtSky";
 
@@ -126,12 +127,22 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     gl.toneMapping = THREE.AgXToneMapping;
     // useGLTF caches the resident, so its BVHs are built once and kept with it (buildColliders is idempotent).
     addColliders("resident", resident.scene);
+    // Batching trial (tmp/batching-statics): with ?batch=census|merge|cells|both,
+    // classify / merge / cell-split the resident's static geometry. Runs after
+    // addColliders so camera collision keeps the pristine meshes (the batch
+    // hides originals but never removes or mutates them).
+    let batchHandle: BazaarBatchHandle | null = null;
+    const batchMode = new URLSearchParams(window.location.search).get("batch");
+    if (batchMode === "census" || batchMode === "merge" || batchMode === "cells" || batchMode === "both") {
+      batchHandle = applyBazaarBatch(resident.scene, scene, batchMode);
+    }
     if (residentIdRef.current) tileScenes.set(residentIdRef.current, resident.scene);
     // The resident is mounted: its far-shell group is covered from here on (isShellCovered).
     residentReadyRef.current = true;
     syncShell();
     return () => {
       residentReadyRef.current = false;
+      batchHandle?.dispose();
       hiddenWater.forEach(({ mesh, visible }) => { mesh.visible = visible; });
       dropColliders("resident");
       if (residentIdRef.current) tileScenes.drop(residentIdRef.current);

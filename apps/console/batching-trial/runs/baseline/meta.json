@@ -1,0 +1,90 @@
+{
+ "run": "baseline",
+ "mode": "none",
+ "asset": {
+  "path": "/home/hatch/workspace/.build-tmp/world-compress/world-city3-optimized.glb",
+  "bytes": 68501036,
+  "sha256": "b14cb2dc1a3bfa8d0a1b8d6570f45379f750a03569f76b9eda0643113ae190a0"
+ },
+ "viewport": {
+  "width": 640,
+  "height": 360
+ },
+ "presenting": {
+  "calls": 18234,
+  "triangles": 7757846
+ },
+ "orbit": {
+  "plateau": {
+   "calls": 18274,
+   "tris": 7779994,
+   "geometries": 4306,
+   "textures": 356,
+   "interiors": 0,
+   "built": [],
+   "batch": null
+  },
+  "plateaued": true,
+  "reads": 3
+ },
+ "p1": {
+  "plateau": {
+   "calls": 8948,
+   "tris": 5972986,
+   "geometries": 4307,
+   "textures": 356,
+   "interiors": 0,
+   "built": [],
+   "batch": null
+  },
+  "plateaued": true,
+  "reads": 2
+ },
+ "hideDiff": null,
+ "glbServedBytes": [
+  {
+   "path": "/assets/world-city3.glb",
+   "bytes": 68501036
+  },
+  {
+   "path": "/assets/cast-mage.glb",
+   "bytes": 4451464
+  },
+  {
+   "path": "/assets/cast-remy.glb",
+   "bytes": 9203448
+  },
+  {
+   "path": "/assets/collectibles/scifi-easter-egg.glb",
+   "bytes": 281620
+  },
+  {
+   "path": "/assets/world-links.glb",
+   "bytes": 695020
+  },
+  {
+   "path": "/assets/world-shell.glb",
+   "bytes": 3070804
+  },
+  {
+   "path": "/assets/world-city3-collision.glb",
+   "bytes": 8684616
+  },
+  {
+   "path": "/assets/world-city3-library.glb",
+   "bytes": 8055844
+  }
+ ],
+ "glbServedTotal": 102943852,
+ "frameTime": {
+  "orbitMedianMs": 9689,
+  "orbitSamples": 8,
+  "p1MedianMs": null,
+  "p1Samples": 0,
+  "filmCapturedFrames": 0,
+  "filmDurationS": 0,
+  "filmFps": 0
+ },
+ "film": null,
+ "pageErrors": []
+}
