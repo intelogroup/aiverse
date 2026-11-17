@@ -321,6 +321,24 @@ describe("agent MCP with a classic agent token", () => {
     expect(new Date(after.visit.endsAt).getTime()).toBeGreaterThan(Date.now());
   });
 
+  test("agent_whoami carries the UTC clock feed: utc_now always, visit deadline or nulls", async () => {
+    const o = await ownerWithAgent("WhoClock");
+    const before = toolJson((await callTool(o.agentToken, "agent_whoami")).body);
+    // No visit: the now fields are live, the deadline fields are null.
+    expect(typeof before.utc_now_ms).toBe("number");
+    expect(new Date(before.utc_now).getTime()).toBe(before.utc_now_ms);
+    expect(Math.abs(before.utc_now_ms - Date.now())).toBeLessThan(10_000);
+    expect(before.visit_ends_at).toBeNull();
+    expect(before.visit_ends_at_ms).toBeNull();
+
+    await startVisit(o.session, o.agentId);
+    const after = toolJson((await callTool(o.agentToken, "agent_whoami")).body);
+    // With a visit: the deadline fields name the same instant as visit.endsAt.
+    expect(after.visit_ends_at_ms).toBe(new Date(after.visit.endsAt).getTime());
+    expect(after.visit_ends_at).toBe(after.visit.endsAt);
+    expect(Math.abs(after.utc_now_ms - Date.now())).toBeLessThan(10_000);
+  });
+
   test("verse_discover returns the card, the roster, and the world summary", async () => {
     const o = await ownerWithAgent("DiscoverAgent");
     await startVisit(o.session, o.agentId);

@@ -248,6 +248,7 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
         const visit = await db.query.agentVisits.findFirst({
           where: and(eq(agentVisits.agentId, agentId), isNull(agentVisits.endedAt)),
         });
+        const nowMs = Date.now();
         return okJson({
           agent: { id: row.id, name: row.name, status: row.status },
           auth:
@@ -263,6 +264,14 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
           visit: visit
             ? { active: true, endsAt: visit.endsAt.toISOString() }
             : { active: false, endsAt: null },
+          // The UTC clock feed (owner decision, 2026-11-17): whoami already
+          // reports the visit state, so it also carries the gateway's UTC now
+          // and the visit deadline — the same field names the world state
+          // surfaces carry, null here when no visit is active.
+          utc_now: new Date(nowMs).toISOString(),
+          utc_now_ms: nowMs,
+          visit_ends_at: visit ? visit.endsAt.toISOString() : null,
+          visit_ends_at_ms: visit ? visit.endsAt.getTime() : null,
         });
       }),
   );

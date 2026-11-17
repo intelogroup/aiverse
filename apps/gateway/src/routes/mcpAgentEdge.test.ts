@@ -496,9 +496,17 @@ describe("malformed world_act", () => {
     expect(notObjErr.error).toBe("invalid_action");
     expect(notObjErr.message).toContain("action must be an object");
 
-    // No phantom action: the body is exactly where and how it was.
+    // No phantom action: the body is exactly where and how it was. The
+    // comparison strips the gateway's UTC clock stamp (utc_now /
+    // utc_now_ms / visit_ends_at / visit_ends_at_ms, added 2026-11-17):
+    // utc_now* is per-call wall time by design, so two observes can never
+    // be byte-equal; everything the sim owns must be identical.
     const after = toolJson((await callTool(o.agentToken, "world_observe")).body);
-    expect(after).toEqual(before);
+    const stripClock = (o: any) => {
+      const { utc_now, utc_now_ms, visit_ends_at, visit_ends_at_ms, ...rest } = o;
+      return rest;
+    };
+    expect(stripClock(after)).toEqual(stripClock(before));
   });
 });
 
