@@ -161,7 +161,16 @@ describe("slice 5 — claims", () => {
     const ev = await liveEventWithPrize(h);
     const state = await req(h.app, "GET", `/v1/events/${ev.slug}/state`);
     const list = await req(h.app, "GET", "/v1/events");
-    const blob = JSON.stringify(state.json) + JSON.stringify(list.json);
+    // Scan everything EXCEPT the epoch-ms time fields: starts_at / ends_at /
+    // server_time legitimately contain the digit pair "10" at ~1 wall-clock
+    // instant in 8, which made the "10" scan below fail at random regardless
+    // of test order. The scan's target is leaked prize coordinates (x/z = 10),
+    // not the payload's own timestamps.
+    const { starts_at: _s, ends_at: _e, server_time: _t, ...statePub } = state.json;
+    const eventsPub = (list.json.events as any[]).map(
+      ({ starts_at: _s2, ends_at: _e2, ...rest }) => rest,
+    );
+    const blob = JSON.stringify(statePub) + JSON.stringify(eventsPub);
     expect(blob).not.toContain("winner@");
     expect(blob).not.toContain('"x"');
     expect(blob).not.toContain("10"); // no coordinate leakage via counts either (total=1)

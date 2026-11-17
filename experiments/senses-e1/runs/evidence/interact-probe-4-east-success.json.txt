@@ -1,0 +1,103 @@
+{
+ "legs": [
+  {
+   "intent": {
+    "type": "go_to",
+    "place": "tea"
+   },
+   "post": 202,
+   "seconds": 78.2,
+   "state": "settled",
+   "outcome": {
+    "ok": true,
+    "status": "arrived",
+    "target": "shop-102"
+   },
+   "pos": {
+    "x": -24.62366758007182,
+    "z": -71.8407218281396
+   },
+   "radio_scene": []
+  },
+  {
+   "intent": {
+    "type": "enter",
+    "place": "shop-102"
+   },
+   "post": 202,
+   "seconds": 123.3,
+   "state": "settled",
+   "outcome": {
+    "ok": false,
+    "status": "timeout",
+    "target": "tea"
+   },
+   "pos": {
+    "x": -22.958475204976665,
+    "z": -73.82611755069419
+   },
+   "radio_scene": []
+  },
+  {
+   "intent": {
+    "type": "go_to",
+    "point": [
+     -19.6,
+     -75.9
+    ]
+   },
+   "post": 202,
+   "seconds": 12.0,
+   "state": "settled",
+   "outcome": {
+    "ok": true,
+    "status": "arrived"
+   },
+   "pos": {
+    "x": -19.510093349719515,
+    "z": -76.43293442444953
+   },
+   "radio_scene": [
+    {
+     "kind": "interactable",
+     "id": "tea-radio",
+     "name": "Radio",
+     "state": "off",
+     "note": "use with interact",
+     "bearingDeg": -61.2,
+     "distance": 1.62
+    }
+   ]
+  },
+  {
+   "intent": {
+    "type": "interact",
+    "target": "tea-radio"
+   },
+   "post": 202,
+   "seconds": 6.0,
+   "state": "settled",
+   "outcome": {
+    "ok": true,
+    "status": "done",
+    "target": "tea-radio",
+    "detail": "on"
+   },
+   "pos": {
+    "x": -20.544877806326422,
+    "z": -75.90253321330715
+   },
+   "radio_scene": [
+    {
+     "kind": "interactable",
+     "id": "tea-radio",
+     "name": "Radio",
+     "state": "on",
+     "note": "use with interact",
+     "bearingDeg": 0.3,
+     "distance": 0.5
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,98 @@
+{
+ "legs": [
+  {
+   "intent": {
+    "type": "go_to",
+    "place": "tea"
+   },
+   "post": 202,
+   "seconds": 78.2,
+   "state": "settled",
+   "outcome": {
+    "ok": true,
+    "status": "arrived",
+    "target": "shop-102"
+   },
+   "pos": {
+    "x": -24.624608415302013,
+    "z": -71.84263627470689
+   },
+   "inside": null,
+   "radio_scene": []
+  },
+  {
+   "intent": {
+    "type": "enter",
+    "place": "shop-102"
+   },
+   "post": 202,
+   "seconds": 123.3,
+   "state": "settled",
+   "outcome": {
+    "ok": false,
+    "status": "timeout",
+    "target": "tea"
+   },
+   "pos": {
+    "x": -22.964877186976356,
+    "z": -73.82246612285655
+   },
+   "inside": "Matchmaker's Tea House",
+   "radio_scene": []
+  },
+  {
+   "intent": {
+    "type": "go_to",
+    "point": [
+     -25.0,
+     -78.5
+    ]
+   },
+   "post": 202,
+   "seconds": 6.1,
+   "state": "settled",
+   "outcome": {
+    "ok": true,
+    "status": "arrived"
+   },
+   "pos": {
+    "x": -25.191944798705862,
+    "z": -77.99253455559368
+   },
+   "inside": "Matchmaker's Tea House",
+   "radio_scene": []
+  },
+  {
+   "intent": {
+    "type": "interact",
+    "target": "tea-radio"
+   },
+   "post": 202,
+   "seconds": 12.0,
+   "state": "settled",
+   "outcome": {
+    "ok": false,
+    "status": "blocked",
+    "target": "tea-radio",
+    "detail": "no progress for 2.5 s, 1.8 m out",
+    "stalledForMs": 2508
+   },
+   "pos": {
+    "x": -22.360217381081323,
+    "z": -75.92659823356765
+   },
+   "inside": "Matchmaker's Tea House",
+   "radio_scene": [
+    {
+     "kind": "interactable",
+     "id": "tea-radio",
+     "name": "Radio",
+     "state": "off",
+     "note": "use with interact",
+     "bearingDeg": -0.3,
+     "distance": 1.32
+    }
+   ]
+  }
+ ]
+}

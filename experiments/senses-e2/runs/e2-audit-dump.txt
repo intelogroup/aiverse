@@ -1,0 +1,72 @@
+=== PER-RUN ONE-LINERS ===
+e2-b0-p1-19-80c439: completed turns=9 wall=262.28 run_to=None minE=62.6 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b0-p10-20-7e6a7c: failed_deadline turns=15 wall=340.02 run_to=None minE=70.7 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b0-p11-16-24c4cb: completed turns=5 wall=230.05 run_to=None minE=68.1 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b0-p12-28-187e5f: task_infeasible turns=8 wall=249.59 run_to=None minE=58.1 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b0-p2-33-95d5e8: completed turns=6 wall=321.83 run_to=None minE=35.6 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b0-p3-02-6f876b: completed turns=9 wall=258.71 run_to=None minE=66.2 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b0-p4-11-a0c2ee: completed turns=9 wall=249.7 run_to=None minE=64.5 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b0-p5-15-923d9d: completed turns=30 wall=313.53 run_to=None minE=0.0 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=9 cost=None
+e2-b0-p6-21-69abef: completed turns=11 wall=303.1 run_to=None minE=59.6 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b0-p7-04-eadd2b: completed turns=6 wall=230.37 run_to=None minE=70.0 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b0-p8-06-3f848e: failed_deadline turns=6 wall=340.08 run_to=None minE=34.1 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b0-p9-26-3e9ee6: completed turns=7 wall=295.49 run_to=None minE=57.5 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b1-p1-14-7312d2: completed turns=10 wall=273.54 run_to=None minE=60.8 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b1-p10-23-a91ee6: completed turns=10 wall=238.61 run_to=None minE=70.7 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b1-p11-30-a7bd1e: failed_deadline turns=15 wall=340.07 run_to=None minE=42.1 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b1-p12-07-7e1a44: failed_deadline turns=8 wall=340.01 run_to=None minE=54.6 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b1-p2-34-c44934: failed_deadline turns=13 wall=340.02 run_to=None minE=61.8 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b1-p3-29-48b43d: completed turns=9 wall=311.38 run_to=None minE=70.0 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b1-p4-18-7cdbb1: failed_deadline turns=14 wall=340.02 run_to=None minE=61.4 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b1-p5-32-a36d75: failed_deadline turns=2 wall=340.01 run_to=None minE=0.0 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b1-p6-08-2f742e: completed turns=8 wall=233.58 run_to=None minE=70.9 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b1-p7-31-1cbc83: failed_deadline turns=2 wall=340.07 run_to=None minE=3.3 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b1-p8-25-bbd888: failed_deadline turns=2 wall=340.06 run_to=None minE=5.0 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b1-p9-03-7136e9: completed turns=9 wall=265.79 run_to=None minE=65.5 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b2-p1-09-abf226: failed_deadline turns=29 wall=341.07 run_to=None minE=43.6 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b2-p10-35-cab4d2: completed turns=9 wall=286.09 run_to=None minE=54.0 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b2-p11-12-cfc76e: completed turns=14 wall=313.2 run_to=None minE=55.6 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b2-p12-10-cf368e: task_infeasible turns=4 wall=131.5 run_to=None minE=68.3 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b2-p2-13-b57c72: completed turns=6 wall=239.88 run_to=None minE=63.6 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b2-p3-24-b263db: task_infeasible turns=7 wall=277.89 run_to=None minE=45.3 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b2-p4-05-3eb044: failed_deadline turns=12 wall=340.02 run_to=None minE=62.4 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b2-p5-01-c926ed: failed_deadline turns=11 wall=340.08 run_to=None minE=53.2 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b2-p6-22-c90d2b: completed turns=14 wall=279.77 run_to=None minE=70.8 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b2-p7-36-f27d6d: completed turns=7 wall=280.71 run_to=None minE=56.0 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b2-p8-17-fdcb38: completed turns=8 wall=303.12 run_to=None minE=54.8 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+e2-b2-p9-27-94aa5e: completed turns=6 wall=223.12 run_to=None minE=68.1 enf={'downgrade': 0, 'refusal': 0, 'fumble': 0} refs=0 regs=0 cost=None
+
+=== FLAGGED BODY REFERENCES: 0 ===
+
+=== REGULATION EVENTS: 9 ===
+[B0] e2-b0-p5-15-923d9d turn 10 walk_down dispE=17.1: The radio is not part of my task, so I'll ignore it.
+[B0] e2-b0-p5-15-923d9d turn 11 walk_down dispE=19.1: I found the seats! I see several chairs and a booth nearby. I will walk closer and sit on the nearest free chair.
+[B0] e2-b0-p5-15-923d9d turn 12 walk_down dispE=20.1: I've moved a bit too far back and lost sight of the seats again—I'll turn around and head toward where they were.
+[B0] e2-b0-p5-15-923d9d turn 13 walk_down dispE=19.9: I ended up near the radio again but still no seats visible; I'll move deeper into the room behind me.
+[B0] e2-b0-p5-15-923d9d turn 14 walk_down dispE=19.8: Still no seats visible, but I recall there was a booth; I'll move closer to coordinates where I saw them earlier.
+[B0] e2-b0-p5-15-923d9d turn 16 walk_down dispE=23.7: The seating area must be behind the pillar; I'll walk toward the coordinates where I last saw them.
+[B0] e2-b0-p5-15-923d9d turn 17 walk_down dispE=24.1: I'm back near the radio again but not seeing the seats. I'll try a different area of the room.
+[B0] e2-b0-p5-15-923d9d turn 19 walk_down dispE=25.4: I still can't see the seats. I need to walk through the door to the main room where the seating area is.
+[B0] e2-b0-p5-15-923d9d turn 20 walk_down dispE=26.0: I can see the chairs and booths again. I'll sit on the nearest free chair.
+
+=== B2 FIRST REFUSALS: 0 ===
+
+=== UNFLAGGED VOICED SAMPLE: 18 of 350 ===
+[B2] e2-b2-p6-22-c90d2b turn 13: I see the tea house door as part of the place itself—I'll walk to the place to exit.
+[B0] e2-b0-p4-11-a0c2ee turn 6: No seats are appearing in the tea house - perhaps they aren't visible from this position, but the task requires me to proceed.
+[B0] e2-b0-p10-20-7e6a7c turn 4: I still don't see any seats nearby; I should move deeper into the tea house to find one.
+[B1] e2-b1-p10-23-a91ee6 turn 10: I'm standing again inside the tea house, now I need to leave and return to stall-40.
+[B1] e2-b1-p1-14-7312d2 turn 5: I still don't see any seats—perhaps I need to move closer to where they might be.
+[B0] e2-b0-p9-26-3e9ee6 turn 1: I see stall-40 nearby; I need to head to Matchmaker's Tea House.
+[B0] e2-b0-p5-15-923d9d turn 11: I found the seats! I see several chairs and a booth nearby. I will walk closer and sit on the nearest free chair.
+[B0] e2-b0-p4-11-a0c2ee turn 1: I'm at my starting stall-40, about 13.5 meters away from it, and can see only two stalls nearby.
+[B2] e2-b2-p9-27-94aa5e turn 3: I am inside the tea house but do not see any seats nearby yet in the scene.
+[B2] e2-b2-p2-13-b57c72 turn 1: I see stall-40 and stall-41 nearby; my starting point is stall-40.
+[B0] e2-b0-p3-02-6f876b turn 2: I have arrived at Matchmaker's Tea House and its door is nearby; I will enter now.
+[B2] e2-b2-p4-05-3eb044 turn 11: I'm sitting on the west left chair inside the tea house.
+[B1] e2-b1-p9-03-7136e9 turn 3: I'm inside the tea house, but no seats are visible yet. I should look around to find one.
+[B0] e2-b0-p10-20-7e6a7c turn 8: I'm exploring more of the tea house interior but haven't spotted seats yet.
+[B0] e2-b0-p10-20-7e6a7c turn 7: There are no seats visible in this scene, so I'll try moving further in a different direction to find them.
+[B0] e2-b0-p3-02-6f876b turn 5: I have moved further inside, but still no seats appear—I will keep looking.
+[B0] e2-b0-p8-06-3f848e turn 4: I still don't see any seats, so I'll sit on the nearest available seat without specifying an id.
+[B0] e2-b0-p9-26-3e9ee6 turn 6: I'm seated now—time to stand up and head back to stall-40.

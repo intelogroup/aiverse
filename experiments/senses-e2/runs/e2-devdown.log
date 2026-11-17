@@ -1,0 +1,8 @@
+sim: stopped
+swept bun 2221 (/home/hatch/workspace/.build-tmp/aiverse-test/apps/sim)
+swept bun 2271 (/home/hatch/workspace/.build-tmp/aiverse-test/apps/gateway)
+gateway: stopped
+waiting for server to shut down.... done
+server stopped
+postgres: stopped
+redis: stopped

@@ -1,0 +1,72 @@
+[11/13/26 17:13:01] INFO     Using config:                                      
+                             [outputs/unimate_uniml3d_f60_v3/config.json]       
+                             (sample.py)                                        
+                    INFO     Using checkpoint:                                  
+                             [outputs/unimate_uniml3d_f60_v3/checkpoints/checkpo
+                             int_step_150000.pt] (sample.py)                    
+[11/13/26 17:13:01] INFO     Skipping captions pre-encoding (inference mode).   
+                             (dataset.py)                                       
+                    INFO     Empty train split at inference; sampling will use  
+                             eval map. (dataset.py)                             
+                    INFO     Clip split: 0 train / 0 eval (ratio=0.000, seed=42)
+                             (dataset.py)                                       
+                    INFO     Using prebuilt max_joints=71 | max_depth=20        
+                             (skipping data scan). (dataset.py)                 
+                    INFO     MotionDataset loaded 0 train + 0 eval clips from 0 
+                             object types | max_joints=71 | max_depth=20        
+                             (dataset.py)                                       
+                    INFO     Loading saved dataset stats from                   
+                             outputs/unimate_uniml3d_f60_v3/dataset_stats.npy   
+                             (dataset.py)                                       
+[11/13/26 17:13:01] INFO     Creating T5 text encoder: google/flan-t5-base      
+                             (pool=False) (factory.py)                          
+Loading weights:   0%|          | 0/111 [00:00<?, ?it/s]Loading weights:  38%|███▊      | 42/111 [00:00<00:00, 417.68it/s]Loading weights:  76%|███████▌  | 84/111 [00:00<00:00, 219.12it/s]Loading weights: 100%|██████████| 111/111 [00:00<00:00, 264.68it/s]
+[11/13/26 17:13:08] INFO     Pre-encoding unitree_go2 joint names: 18 unique /  
+                             18 total (0 cached, 18 to encode, chunk_size=256)  
+                             (dataset.py)                                       
+Encoding unitree_go2 joint names:   0%|          | 0/1 [00:00<?, ?it/s]Encoding unitree_go2 joint names: 100%|██████████| 1/1 [00:01<00:00,  1.44s/it]Encoding unitree_go2 joint names: 100%|██████████| 1/1 [00:01<00:00,  1.44s/it]
+[11/13/26 17:13:10] INFO     Registered 'unitree_go2' from its cond entry (18   
+                             joints, 'general' -> stats 'objaverse').           
+                             (dataset.py)                                       
+[11/13/26 17:13:10] INFO     Prepared 1 test case(s) on 1 asset(s). (sample.py) 
+[11/13/26 17:13:11] INFO     Creating model and diffusion... (sample.py)        
+[11/13/26 17:13:12] INFO     Loading checkpoints from                           
+                             [outputs/unimate_uniml3d_f60_v3/checkpoints/checkpo
+                             int_step_150000.pt]... (sample.py)                 
+[11/13/26 17:13:18] INFO     Loading EMA weights into model parameters.         
+                             (sample.py)                                        
+[11/13/26 17:13:20] INFO     Using cfg_scale=3.0 (sample.py)                    
+                    INFO     Starting sampling: 1 test cases × 1 reps in chunks 
+                             of 64. (sample.py)                                 
+                    INFO     --- rep #0 --- (sample.py)                         
+[11/13/26 18:00:55] INFO     rep#0 chunk[0:1] 2854.35s for batch=1              
+                             (2854.353s/motion). (sample.py)                    
+[11/13/26 18:00:55] INFO     Saved motion features at                           
+                             [outputs/samples/go2/motions/unitree_go2-an_object_
+                             trots_forward-rep_0-0.npy] (visualization.py)      
+findfont: Failed to find font weight semibold for DejaVu Sans, now using 700.
+findfont: Failed to find font weight semibold for Liberation Sans, now using 700.
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/hatch/workspace/.build-tmp/unimate-test/repo/unimate/inference/sample.py", line 1338, in <module>
+    main(tyro.cli(InferenceArgs))
+  File "/home/hatch/workspace/.build-tmp/unimate-test/repo/unimate/inference/sample.py", line 1321, in main
+    run(
+  File "/home/hatch/workspace/.build-tmp/unimate-test/repo/unimate/inference/sample.py", line 984, in _run_sampling
+    visualize_and_save_motions(
+  File "/home/hatch/workspace/.build-tmp/unimate-test/repo/unimate/utils/visualization.py", line 168, in visualize_and_save_motions
+    plot_motion_spectral(
+  File "/home/hatch/workspace/.build-tmp/unimate-test/repo/data_process/utils/plotting.py", line 1347, in save_skeleton_motion_spectral
+    _write_video(save_path, frames, fps)
+  File "/home/hatch/workspace/.build-tmp/unimate-test/repo/data_process/utils/plotting.py", line 1253, in _write_video
+    imageio.mimwrite(save_path, frames, fps=fps)
+  File "/home/hatch/workspace/.build-tmp/unimate-test/venv/lib/python3.12/site-packages/imageio/v2.py", line 494, in mimwrite
+    with imopen(uri, "wI", **imopen_args) as file:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/.build-tmp/unimate-test/venv/lib/python3.12/site-packages/imageio/core/imopen.py", line 278, in imopen
+    raise err_type(err_msg)
+ValueError: Could not find a backend to open `outputs/samples/go2/animations/unitree_go2-an_object_trots_forward-rep_0-sample0_fk.mp4`` with iomode `wI`.
+Based on the extension, the following plugins might add capable backends:
+  FFMPEG:  pip install imageio[ffmpeg]
+  pyav:  pip install imageio[pyav]

@@ -1,0 +1,3156 @@
+{
+ "experiment": "E3 sham-clock control (plan \u00a75)",
+ "seed": 20261117,
+ "execution_order": [
+  "e3-f-p8-01-0ec642",
+  "e3-v-p8-02-a767f4",
+  "e3-p-p3-03-74c3a5",
+  "e3-x2-p9-04-c80ee8",
+  "e3-x2-p10-05-8efe9d",
+  "e3-v-p7-06-d7db9e",
+  "e3-x2-p1-07-e3c3f6",
+  "e3-x2-p7-08-50a733",
+  "e3-p-p5-09-8c590d",
+  "e3-v-p3-10-8530df",
+  "e3-p-p4-11-9c1002",
+  "e3-f-p9-12-960288",
+  "e3-v-p9-13-bd8492",
+  "e3-p-p1-14-9aef94",
+  "e3-f-p1-15-626004",
+  "e3-x2-p5-16-f205f9",
+  "e3-v-p5-17-1ec238",
+  "e3-v-p6-18-7e5e74",
+  "e3-x2-p8-19-34c858",
+  "e3-p-p7-20-39fb2f",
+  "e3-f-p7-21-da5178",
+  "e3-v-p4-22-3c254a",
+  "e3-p-p2-23-b2b3fd",
+  "e3-f-p6-24-8377d4",
+  "e3-x2-p6-25-a61487",
+  "e3-p-p10-26-88ced5",
+  "e3-f-p2-27-d1e60f",
+  "e3-x2-p4-28-ca94db",
+  "e3-v-p1-29-2b9d85",
+  "e3-p-p9-30-46ff86",
+  "e3-p-p8-31-adc718",
+  "e3-x2-p3-32-62ac4f",
+  "e3-p-p6-33-3ef660",
+  "e3-f-p10-34-26c1b6",
+  "e3-x2-p2-35-ab618b",
+  "e3-f-p4-36-dc85c2",
+  "e3-f-p3-37-69d459",
+  "e3-f-p5-38-bba689",
+  "e3-v-p2-39-6c42f3",
+  "e3-v-p10-40-745434"
+ ],
+ "arms": {
+  "V": {
+   "runs": 10,
+   "completed": 9,
+   "completion_rate": 0.9,
+   "outcomes": {
+    "completed": 9,
+    "failed_deadline": 1
+   },
+   "median_wall_seconds_completed": 236.76,
+   "median_turns_completed": 6,
+   "runs_with_run_to": 0,
+   "radio_runs": 0,
+   "radio_acts_total": 0,
+   "runs_with_time_ref": 0,
+   "total_time_refs": 0,
+   "median_first_ref_turn": null,
+   "runs_with_urgency": 0,
+   "runs_with_giveup": 0,
+   "ref_quotes": []
+  },
+  "F": {
+   "runs": 10,
+   "completed": 7,
+   "completion_rate": 0.7,
+   "outcomes": {
+    "completed": 7,
+    "task_infeasible": 2,
+    "failed_stalled": 1
+   },
+   "median_wall_seconds_completed": 238.59,
+   "median_turns_completed": 7,
+   "runs_with_run_to": 0,
+   "radio_runs": 2,
+   "radio_acts_total": 4,
+   "runs_with_time_ref": 0,
+   "total_time_refs": 0,
+   "median_first_ref_turn": null,
+   "runs_with_urgency": 0,
+   "runs_with_giveup": 0,
+   "ref_quotes": []
+  },
+  "X2": {
+   "runs": 10,
+   "completed": 7,
+   "completion_rate": 0.7,
+   "outcomes": {
+    "task_infeasible": 3,
+    "completed": 7
+   },
+   "median_wall_seconds_completed": 242.67,
+   "median_turns_completed": 7,
+   "runs_with_run_to": 0,
+   "radio_runs": 3,
+   "radio_acts_total": 5,
+   "runs_with_time_ref": 0,
+   "total_time_refs": 0,
+   "median_first_ref_turn": null,
+   "runs_with_urgency": 0,
+   "runs_with_giveup": 0,
+   "ref_quotes": [],
+   "runs_reaching_displayed_zero": 3,
+   "runs_with_ref_at_or_after_zero": 0,
+   "runs_with_giveup_at_or_after_zero": 0,
+   "runs_completed_after_zero": 1,
+   "median_displayed_zero_real_elapsed": 178.2,
+   "median_displayed_cross60_real_elapsed": 150.35
+  },
+  "P": {
+   "runs": 10,
+   "completed": 5,
+   "completion_rate": 0.5,
+   "outcomes": {
+    "completed": 5,
+    "failed_deadline": 3,
+    "task_infeasible": 2
+   },
+   "median_wall_seconds_completed": 242.02,
+   "median_turns_completed": 7,
+   "runs_with_run_to": 0,
+   "radio_runs": 4,
+   "radio_acts_total": 6,
+   "runs_with_time_ref": 0,
+   "total_time_refs": 0,
+   "median_first_ref_turn": null,
+   "runs_with_urgency": 0,
+   "runs_with_giveup": 0,
+   "ref_quotes": [],
+   "label_slot_value_quotes": 0,
+   "decreasing_value_quotes": 0
+  }
+ },
+ "total_accounted_spend_usd": 0.095864,
+ "ledger_entries": 1585,
+ "spend_cap_usd": 1.0,
+ "soft_stop_usd": 0.4,
+ "per_run": [
+  {
+   "mode": "F",
+   "outcome": "completed",
+   "wall_seconds": 238.59,
+   "turns": 7,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 94.9
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 114.9
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 117.9
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 119.9
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 133.9
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 138.9
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 237.9
+    }
+   ]
+  },
+  {
+   "mode": "V",
+   "outcome": "completed",
+   "wall_seconds": 229.54,
+   "turns": 5,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 76.9
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 77,
+     "disp_remaining": 263,
+     "real_elapsed": 109.9
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 110,
+     "disp_remaining": 230,
+     "real_elapsed": 121.9
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 122,
+     "disp_remaining": 218,
+     "real_elapsed": 128.9
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 129,
+     "disp_remaining": 211,
+     "real_elapsed": 228.9
+    }
+   ]
+  },
+  {
+   "mode": "P",
+   "outcome": "completed",
+   "wall_seconds": 242.02,
+   "turns": 7,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 103.2
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 237,
+     "disp_remaining": 103,
+     "real_elapsed": 121.2
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 219,
+     "disp_remaining": 121,
+     "real_elapsed": 125.2
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 215,
+     "disp_remaining": 125,
+     "real_elapsed": 127.2
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 212,
+     "disp_remaining": 128,
+     "real_elapsed": 140.2
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 200,
+     "disp_remaining": 140,
+     "real_elapsed": 146.2
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 194,
+     "disp_remaining": 146,
+     "real_elapsed": 241.2
+    }
+   ],
+   "label_slot_value_quotes": [],
+   "decreasing_value_quotes": []
+  },
+  {
+   "mode": "X2",
+   "outcome": "task_infeasible",
+   "wall_seconds": 267.92,
+   "turns": 12,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 2,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 86.0
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 172,
+     "disp_remaining": 168,
+     "real_elapsed": 122.0
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 244,
+     "disp_remaining": 96,
+     "real_elapsed": 126.0
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 252,
+     "disp_remaining": 88,
+     "real_elapsed": 130.0
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 260,
+     "disp_remaining": 80,
+     "real_elapsed": 142.0
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 284,
+     "disp_remaining": 56,
+     "real_elapsed": 148.0
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 296,
+     "disp_remaining": 44,
+     "real_elapsed": 153.0
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 306,
+     "disp_remaining": 34,
+     "real_elapsed": 155.0
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 310,
+     "disp_remaining": 30,
+     "real_elapsed": 161.0
+    },
+    {
+     "turn": 10,
+     "disp_elapsed": 322,
+     "disp_remaining": 18,
+     "real_elapsed": 170.0
+    },
+    {
+     "turn": 11,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 175.0
+    },
+    {
+     "turn": 12,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 267.0
+    }
+   ],
+   "displayed_cross60_turn": 6,
+   "displayed_cross60_real_elapsed": 148.0,
+   "displayed_zero_turn": 11,
+   "displayed_zero_real_elapsed": 175.0,
+   "refs_at_or_after_zero": [],
+   "giveup_at_or_after_zero": [],
+   "acts_ok_after_zero": 1,
+   "completed_after_zero": false
+  },
+  {
+   "mode": "X2",
+   "outcome": "completed",
+   "wall_seconds": 237.03,
+   "turns": 7,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 82.3
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 164,
+     "disp_remaining": 176,
+     "real_elapsed": 120.3
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 242,
+     "disp_remaining": 98,
+     "real_elapsed": 123.3
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 246,
+     "disp_remaining": 94,
+     "real_elapsed": 125.3
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 252,
+     "disp_remaining": 88,
+     "real_elapsed": 134.3
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 270,
+     "disp_remaining": 70,
+     "real_elapsed": 141.3
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 282,
+     "disp_remaining": 58,
+     "real_elapsed": 236.3
+    }
+   ],
+   "displayed_cross60_turn": 7,
+   "displayed_cross60_real_elapsed": 236.3,
+   "displayed_zero_turn": null,
+   "displayed_zero_real_elapsed": null
+  },
+  {
+   "mode": "V",
+   "outcome": "completed",
+   "wall_seconds": 261.01,
+   "turns": 5,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 120.1
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 120,
+     "disp_remaining": 220,
+     "real_elapsed": 151.1
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 151,
+     "disp_remaining": 189,
+     "real_elapsed": 159.1
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 159,
+     "disp_remaining": 181,
+     "real_elapsed": 164.1
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 165,
+     "disp_remaining": 175,
+     "real_elapsed": 260.1
+    }
+   ]
+  },
+  {
+   "mode": "X2",
+   "outcome": "task_infeasible",
+   "wall_seconds": 250.06,
+   "turns": 7,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 2,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 99.3
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 200,
+     "disp_remaining": 140,
+     "real_elapsed": 129.3
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 258,
+     "disp_remaining": 82,
+     "real_elapsed": 131.3
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 262,
+     "disp_remaining": 78,
+     "real_elapsed": 134.3
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 268,
+     "disp_remaining": 72,
+     "real_elapsed": 145.3
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 290,
+     "disp_remaining": 50,
+     "real_elapsed": 150.3
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 302,
+     "disp_remaining": 38,
+     "real_elapsed": 249.3
+    }
+   ],
+   "displayed_cross60_turn": 6,
+   "displayed_cross60_real_elapsed": 150.3,
+   "displayed_zero_turn": null,
+   "displayed_zero_real_elapsed": null
+  },
+  {
+   "mode": "X2",
+   "outcome": "completed",
+   "wall_seconds": 274.63,
+   "turns": 7,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 95.2
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 190,
+     "disp_remaining": 150,
+     "real_elapsed": 139.2
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 278,
+     "disp_remaining": 62,
+     "real_elapsed": 142.2
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 284,
+     "disp_remaining": 56,
+     "real_elapsed": 151.2
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 302,
+     "disp_remaining": 38,
+     "real_elapsed": 172.2
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 178.2
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 274.2
+    }
+   ],
+   "displayed_cross60_turn": 4,
+   "displayed_cross60_real_elapsed": 151.2,
+   "displayed_zero_turn": 6,
+   "displayed_zero_real_elapsed": 178.2,
+   "refs_at_or_after_zero": [],
+   "giveup_at_or_after_zero": [],
+   "acts_ok_after_zero": 1,
+   "completed_after_zero": true
+  },
+  {
+   "mode": "P",
+   "outcome": "completed",
+   "wall_seconds": 266.6,
+   "turns": 12,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 1,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 80.0
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 260,
+     "disp_remaining": 80,
+     "real_elapsed": 110.0
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 230,
+     "disp_remaining": 110,
+     "real_elapsed": 112.0
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 227,
+     "disp_remaining": 113,
+     "real_elapsed": 115.0
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 225,
+     "disp_remaining": 115,
+     "real_elapsed": 120.0
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 220,
+     "disp_remaining": 120,
+     "real_elapsed": 128.0
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 212,
+     "disp_remaining": 128,
+     "real_elapsed": 134.0
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 206,
+     "disp_remaining": 134,
+     "real_elapsed": 149.0
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 191,
+     "disp_remaining": 149,
+     "real_elapsed": 151.0
+    },
+    {
+     "turn": 10,
+     "disp_elapsed": 189,
+     "disp_remaining": 151,
+     "real_elapsed": 163.0
+    },
+    {
+     "turn": 11,
+     "disp_elapsed": 177,
+     "disp_remaining": 163,
+     "real_elapsed": 170.0
+    },
+    {
+     "turn": 12,
+     "disp_elapsed": 170,
+     "disp_remaining": 170,
+     "real_elapsed": 266.0
+    }
+   ],
+   "label_slot_value_quotes": [],
+   "decreasing_value_quotes": []
+  },
+  {
+   "mode": "V",
+   "outcome": "completed",
+   "wall_seconds": 236.15,
+   "turns": 7,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 83.3
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 83,
+     "disp_remaining": 257,
+     "real_elapsed": 110.3
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 110,
+     "disp_remaining": 230,
+     "real_elapsed": 127.3
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 127,
+     "disp_remaining": 213,
+     "real_elapsed": 129.3
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 130,
+     "disp_remaining": 210,
+     "real_elapsed": 138.3
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 138,
+     "disp_remaining": 202,
+     "real_elapsed": 143.3
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 143,
+     "disp_remaining": 197,
+     "real_elapsed": 235.3
+    }
+   ]
+  },
+  {
+   "mode": "P",
+   "outcome": "failed_deadline",
+   "wall_seconds": 340.03,
+   "turns": 14,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 102.4
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 238,
+     "disp_remaining": 102,
+     "real_elapsed": 171.4
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 168,
+     "disp_remaining": 172,
+     "real_elapsed": 192.4
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 147,
+     "disp_remaining": 193,
+     "real_elapsed": 210.4
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 130,
+     "disp_remaining": 210,
+     "real_elapsed": 213.4
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 127,
+     "disp_remaining": 213,
+     "real_elapsed": 231.4
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 109,
+     "disp_remaining": 231,
+     "real_elapsed": 251.4
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 88,
+     "disp_remaining": 252,
+     "real_elapsed": 266.4
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 74,
+     "disp_remaining": 266,
+     "real_elapsed": 271.4
+    },
+    {
+     "turn": 10,
+     "disp_elapsed": 68,
+     "disp_remaining": 272,
+     "real_elapsed": 274.4
+    },
+    {
+     "turn": 11,
+     "disp_elapsed": 66,
+     "disp_remaining": 274,
+     "real_elapsed": 282.4
+    },
+    {
+     "turn": 12,
+     "disp_elapsed": 57,
+     "disp_remaining": 283,
+     "real_elapsed": 304.4
+    },
+    {
+     "turn": 13,
+     "disp_elapsed": 36,
+     "disp_remaining": 304,
+     "real_elapsed": 312.4
+    },
+    {
+     "turn": 14,
+     "disp_elapsed": 28,
+     "disp_remaining": 312,
+     "real_elapsed": 339.4
+    }
+   ],
+   "label_slot_value_quotes": [],
+   "decreasing_value_quotes": []
+  },
+  {
+   "mode": "F",
+   "outcome": "completed",
+   "wall_seconds": 271.4,
+   "turns": 9,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 1,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 5.1
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 92.1
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 107.1
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 110.1
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 125.1
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 137.1
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 170.1
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 176.1
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 271.1
+    }
+   ]
+  },
+  {
+   "mode": "V",
+   "outcome": "completed",
+   "wall_seconds": 311.4,
+   "turns": 11,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 82.4
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 82,
+     "disp_remaining": 258,
+     "real_elapsed": 160.4
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 161,
+     "disp_remaining": 179,
+     "real_elapsed": 164.4
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 165,
+     "disp_remaining": 175,
+     "real_elapsed": 167.4
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 167,
+     "disp_remaining": 173,
+     "real_elapsed": 188.4
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 189,
+     "disp_remaining": 151,
+     "real_elapsed": 191.4
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 192,
+     "disp_remaining": 148,
+     "real_elapsed": 197.4
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 198,
+     "disp_remaining": 142,
+     "real_elapsed": 200.4
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 201,
+     "disp_remaining": 139,
+     "real_elapsed": 209.4
+    },
+    {
+     "turn": 10,
+     "disp_elapsed": 210,
+     "disp_remaining": 130,
+     "real_elapsed": 215.4
+    },
+    {
+     "turn": 11,
+     "disp_elapsed": 215,
+     "disp_remaining": 125,
+     "real_elapsed": 310.4
+    }
+   ]
+  },
+  {
+   "mode": "P",
+   "outcome": "failed_deadline",
+   "wall_seconds": 340.01,
+   "turns": 15,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 1,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 93.4
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 246,
+     "disp_remaining": 94,
+     "real_elapsed": 100.4
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 240,
+     "disp_remaining": 100,
+     "real_elapsed": 104.4
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 236,
+     "disp_remaining": 104,
+     "real_elapsed": 108.4
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 232,
+     "disp_remaining": 108,
+     "real_elapsed": 115.4
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 225,
+     "disp_remaining": 115,
+     "real_elapsed": 132.4
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 208,
+     "disp_remaining": 132,
+     "real_elapsed": 136.4
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 204,
+     "disp_remaining": 136,
+     "real_elapsed": 141.4
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 199,
+     "disp_remaining": 141,
+     "real_elapsed": 153.4
+    },
+    {
+     "turn": 10,
+     "disp_elapsed": 187,
+     "disp_remaining": 153,
+     "real_elapsed": 159.4
+    },
+    {
+     "turn": 11,
+     "disp_elapsed": 180,
+     "disp_remaining": 160,
+     "real_elapsed": 198.4
+    },
+    {
+     "turn": 12,
+     "disp_elapsed": 141,
+     "disp_remaining": 199,
+     "real_elapsed": 208.4
+    },
+    {
+     "turn": 13,
+     "disp_elapsed": 132,
+     "disp_remaining": 208,
+     "real_elapsed": 241.4
+    },
+    {
+     "turn": 14,
+     "disp_elapsed": 98,
+     "disp_remaining": 242,
+     "real_elapsed": 247.4
+    },
+    {
+     "turn": 15,
+     "disp_elapsed": 93,
+     "disp_remaining": 247,
+     "real_elapsed": 339.4
+    }
+   ],
+   "label_slot_value_quotes": [],
+   "decreasing_value_quotes": []
+  },
+  {
+   "mode": "F",
+   "outcome": "completed",
+   "wall_seconds": 255.95,
+   "turns": 8,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 98.7
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 122.7
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 124.7
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 126.7
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 129.7
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 153.7
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 159.7
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 255.7
+    }
+   ]
+  },
+  {
+   "mode": "X2",
+   "outcome": "task_infeasible",
+   "wall_seconds": 274.11,
+   "turns": 5,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 111.6
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 222,
+     "disp_remaining": 118,
+     "real_elapsed": 164.6
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 330,
+     "disp_remaining": 10,
+     "real_elapsed": 167.6
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 336,
+     "disp_remaining": 4,
+     "real_elapsed": 176.6
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 273.6
+    }
+   ],
+   "displayed_cross60_turn": 3,
+   "displayed_cross60_real_elapsed": 167.6,
+   "displayed_zero_turn": 5,
+   "displayed_zero_real_elapsed": 273.6,
+   "refs_at_or_after_zero": [],
+   "giveup_at_or_after_zero": [],
+   "acts_ok_after_zero": 0,
+   "completed_after_zero": false
+  },
+  {
+   "mode": "V",
+   "outcome": "completed",
+   "wall_seconds": 247.15,
+   "turns": 8,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 80.1
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 80,
+     "disp_remaining": 260,
+     "real_elapsed": 118.1
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 118,
+     "disp_remaining": 222,
+     "real_elapsed": 122.1
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 122,
+     "disp_remaining": 218,
+     "real_elapsed": 125.1
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 125,
+     "disp_remaining": 215,
+     "real_elapsed": 128.1
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 128,
+     "disp_remaining": 212,
+     "real_elapsed": 140.1
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 140,
+     "disp_remaining": 200,
+     "real_elapsed": 145.1
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 145,
+     "disp_remaining": 195,
+     "real_elapsed": 247.1
+    }
+   ]
+  },
+  {
+   "mode": "V",
+   "outcome": "completed",
+   "wall_seconds": 209.57,
+   "turns": 6,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 82.5
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 83,
+     "disp_remaining": 257,
+     "real_elapsed": 94.5
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 95,
+     "disp_remaining": 245,
+     "real_elapsed": 98.5
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 98,
+     "disp_remaining": 242,
+     "real_elapsed": 107.5
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 107,
+     "disp_remaining": 233,
+     "real_elapsed": 113.5
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 113,
+     "disp_remaining": 227,
+     "real_elapsed": 209.5
+    }
+   ]
+  },
+  {
+   "mode": "X2",
+   "outcome": "completed",
+   "wall_seconds": 261.89,
+   "turns": 13,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 1,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 101.4
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 202,
+     "disp_remaining": 138,
+     "real_elapsed": 103.4
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 208,
+     "disp_remaining": 132,
+     "real_elapsed": 110.4
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 220,
+     "disp_remaining": 120,
+     "real_elapsed": 113.4
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 228,
+     "disp_remaining": 112,
+     "real_elapsed": 119.4
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 238,
+     "disp_remaining": 102,
+     "real_elapsed": 122.4
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 244,
+     "disp_remaining": 96,
+     "real_elapsed": 128.4
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 256,
+     "disp_remaining": 84,
+     "real_elapsed": 140.4
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 280,
+     "disp_remaining": 60,
+     "real_elapsed": 148.4
+    },
+    {
+     "turn": 10,
+     "disp_elapsed": 298,
+     "disp_remaining": 42,
+     "real_elapsed": 152.4
+    },
+    {
+     "turn": 11,
+     "disp_elapsed": 304,
+     "disp_remaining": 36,
+     "real_elapsed": 160.4
+    },
+    {
+     "turn": 12,
+     "disp_elapsed": 322,
+     "disp_remaining": 18,
+     "real_elapsed": 165.4
+    },
+    {
+     "turn": 13,
+     "disp_elapsed": 332,
+     "disp_remaining": 8,
+     "real_elapsed": 261.4
+    }
+   ],
+   "displayed_cross60_turn": 9,
+   "displayed_cross60_real_elapsed": 148.4,
+   "displayed_zero_turn": null,
+   "displayed_zero_real_elapsed": null
+  },
+  {
+   "mode": "P",
+   "outcome": "completed",
+   "wall_seconds": 209.57,
+   "turns": 6,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 77.8
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 262,
+     "disp_remaining": 78,
+     "real_elapsed": 92.8
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 248,
+     "disp_remaining": 92,
+     "real_elapsed": 95.8
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 244,
+     "disp_remaining": 96,
+     "real_elapsed": 107.8
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 232,
+     "disp_remaining": 108,
+     "real_elapsed": 113.8
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 226,
+     "disp_remaining": 114,
+     "real_elapsed": 208.8
+    }
+   ],
+   "label_slot_value_quotes": [],
+   "decreasing_value_quotes": []
+  },
+  {
+   "mode": "F",
+   "outcome": "completed",
+   "wall_seconds": 257.24,
+   "turns": 7,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 98.1
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 140.1
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 142.1
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 145.1
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 156.1
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 161.1
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 257.1
+    }
+   ]
+  },
+  {
+   "mode": "V",
+   "outcome": "completed",
+   "wall_seconds": 236.76,
+   "turns": 6,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 80.5
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 80,
+     "disp_remaining": 260,
+     "real_elapsed": 118.5
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 119,
+     "disp_remaining": 221,
+     "real_elapsed": 121.5
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 121,
+     "disp_remaining": 219,
+     "real_elapsed": 133.5
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 133,
+     "disp_remaining": 207,
+     "real_elapsed": 140.5
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 140,
+     "disp_remaining": 200,
+     "real_elapsed": 236.5
+    }
+   ]
+  },
+  {
+   "mode": "P",
+   "outcome": "failed_deadline",
+   "wall_seconds": 340.01,
+   "turns": 13,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 2,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 85.7
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 254,
+     "disp_remaining": 86,
+     "real_elapsed": 103.7
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 236,
+     "disp_remaining": 104,
+     "real_elapsed": 105.7
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 234,
+     "disp_remaining": 106,
+     "real_elapsed": 108.7
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 232,
+     "disp_remaining": 108,
+     "real_elapsed": 110.7
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 229,
+     "disp_remaining": 111,
+     "real_elapsed": 125.7
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 214,
+     "disp_remaining": 126,
+     "real_elapsed": 127.7
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 212,
+     "disp_remaining": 128,
+     "real_elapsed": 132.7
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 207,
+     "disp_remaining": 133,
+     "real_elapsed": 137.7
+    },
+    {
+     "turn": 10,
+     "disp_elapsed": 202,
+     "disp_remaining": 138,
+     "real_elapsed": 251.7
+    },
+    {
+     "turn": 11,
+     "disp_elapsed": 88,
+     "disp_remaining": 252,
+     "real_elapsed": 260.7
+    },
+    {
+     "turn": 12,
+     "disp_elapsed": 80,
+     "disp_remaining": 260,
+     "real_elapsed": 266.7
+    },
+    {
+     "turn": 13,
+     "disp_elapsed": 73,
+     "disp_remaining": 267,
+     "real_elapsed": 339.7
+    }
+   ],
+   "label_slot_value_quotes": [],
+   "decreasing_value_quotes": []
+  },
+  {
+   "mode": "F",
+   "outcome": "completed",
+   "wall_seconds": 218.68,
+   "turns": 7,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 83.4
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 106.4
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 109.4
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 112.4
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 125.4
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 131.4
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 218.4
+    }
+   ]
+  },
+  {
+   "mode": "X2",
+   "outcome": "completed",
+   "wall_seconds": 242.67,
+   "turns": 7,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 82.7
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 166,
+     "disp_remaining": 174,
+     "real_elapsed": 124.7
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 250,
+     "disp_remaining": 90,
+     "real_elapsed": 127.7
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 254,
+     "disp_remaining": 86,
+     "real_elapsed": 130.7
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 262,
+     "disp_remaining": 78,
+     "real_elapsed": 142.7
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 286,
+     "disp_remaining": 54,
+     "real_elapsed": 148.7
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 298,
+     "disp_remaining": 42,
+     "real_elapsed": 241.7
+    }
+   ],
+   "displayed_cross60_turn": 6,
+   "displayed_cross60_real_elapsed": 148.7,
+   "displayed_zero_turn": null,
+   "displayed_zero_real_elapsed": null
+  },
+  {
+   "mode": "P",
+   "outcome": "completed",
+   "wall_seconds": 242.49,
+   "turns": 8,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 88.6
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 251,
+     "disp_remaining": 89,
+     "real_elapsed": 127.6
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 213,
+     "disp_remaining": 127,
+     "real_elapsed": 129.6
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 211,
+     "disp_remaining": 129,
+     "real_elapsed": 132.6
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 208,
+     "disp_remaining": 132,
+     "real_elapsed": 134.6
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 206,
+     "disp_remaining": 134,
+     "real_elapsed": 142.6
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 197,
+     "disp_remaining": 143,
+     "real_elapsed": 148.6
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 192,
+     "disp_remaining": 148,
+     "real_elapsed": 241.6
+    }
+   ],
+   "label_slot_value_quotes": [],
+   "decreasing_value_quotes": []
+  },
+  {
+   "mode": "F",
+   "outcome": "task_infeasible",
+   "wall_seconds": 163.61,
+   "turns": 5,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 83.5
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 143.5
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 146.5
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 148.5
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 163.5
+    }
+   ]
+  },
+  {
+   "mode": "X2",
+   "outcome": "completed",
+   "wall_seconds": 199.24,
+   "turns": 5,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 91.9
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 184,
+     "disp_remaining": 156,
+     "real_elapsed": 94.9
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 190,
+     "disp_remaining": 150,
+     "real_elapsed": 102.9
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 206,
+     "disp_remaining": 134,
+     "real_elapsed": 108.9
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 218,
+     "disp_remaining": 122,
+     "real_elapsed": 198.9
+    }
+   ],
+   "displayed_cross60_turn": null,
+   "displayed_cross60_real_elapsed": null,
+   "displayed_zero_turn": null,
+   "displayed_zero_real_elapsed": null
+  },
+  {
+   "mode": "V",
+   "outcome": "completed",
+   "wall_seconds": 256.4,
+   "turns": 5,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 83.4
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 84,
+     "disp_remaining": 256,
+     "real_elapsed": 150.4
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 151,
+     "disp_remaining": 189,
+     "real_elapsed": 159.4
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 159,
+     "disp_remaining": 181,
+     "real_elapsed": 165.4
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 165,
+     "disp_remaining": 175,
+     "real_elapsed": 255.4
+    }
+   ]
+  },
+  {
+   "mode": "P",
+   "outcome": "task_infeasible",
+   "wall_seconds": 126.14,
+   "turns": 5,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 80.3
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 260,
+     "disp_remaining": 80,
+     "real_elapsed": 103.3
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 236,
+     "disp_remaining": 104,
+     "real_elapsed": 105.3
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 234,
+     "disp_remaining": 106,
+     "real_elapsed": 108.3
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 232,
+     "disp_remaining": 108,
+     "real_elapsed": 125.3
+    }
+   ],
+   "label_slot_value_quotes": [],
+   "decreasing_value_quotes": []
+  },
+  {
+   "mode": "P",
+   "outcome": "completed",
+   "wall_seconds": 223.51,
+   "turns": 6,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 85.9
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 254,
+     "disp_remaining": 86,
+     "real_elapsed": 104.9
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 235,
+     "disp_remaining": 105,
+     "real_elapsed": 107.9
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 232,
+     "disp_remaining": 108,
+     "real_elapsed": 122.9
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 217,
+     "disp_remaining": 123,
+     "real_elapsed": 128.9
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 211,
+     "disp_remaining": 129,
+     "real_elapsed": 222.9
+    }
+   ],
+   "label_slot_value_quotes": [],
+   "decreasing_value_quotes": []
+  },
+  {
+   "mode": "X2",
+   "outcome": "completed",
+   "wall_seconds": 247.03,
+   "turns": 8,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 13.4
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 28,
+     "disp_remaining": 312,
+     "real_elapsed": 104.4
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 210,
+     "disp_remaining": 130,
+     "real_elapsed": 128.4
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 258,
+     "disp_remaining": 82,
+     "real_elapsed": 131.4
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 264,
+     "disp_remaining": 76,
+     "real_elapsed": 136.4
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 274,
+     "disp_remaining": 66,
+     "real_elapsed": 145.4
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 290,
+     "disp_remaining": 50,
+     "real_elapsed": 150.4
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 302,
+     "disp_remaining": 38,
+     "real_elapsed": 246.4
+    }
+   ],
+   "displayed_cross60_turn": 7,
+   "displayed_cross60_real_elapsed": 150.4,
+   "displayed_zero_turn": null,
+   "displayed_zero_real_elapsed": null
+  },
+  {
+   "mode": "P",
+   "outcome": "task_infeasible",
+   "wall_seconds": 147.82,
+   "turns": 9,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 2,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 86.2
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 253,
+     "disp_remaining": 87,
+     "real_elapsed": 98.2
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 242,
+     "disp_remaining": 98,
+     "real_elapsed": 100.2
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 239,
+     "disp_remaining": 101,
+     "real_elapsed": 103.2
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 237,
+     "disp_remaining": 103,
+     "real_elapsed": 107.2
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 232,
+     "disp_remaining": 108,
+     "real_elapsed": 110.2
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 230,
+     "disp_remaining": 110,
+     "real_elapsed": 124.2
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 216,
+     "disp_remaining": 124,
+     "real_elapsed": 129.2
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 210,
+     "disp_remaining": 130,
+     "real_elapsed": 147.2
+    }
+   ],
+   "label_slot_value_quotes": [],
+   "decreasing_value_quotes": []
+  },
+  {
+   "mode": "F",
+   "outcome": "completed",
+   "wall_seconds": 231.55,
+   "turns": 9,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 80.9
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 103.9
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 106.9
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 109.9
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 115.9
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 120.9
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 129.9
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 135.9
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 230.9
+    }
+   ]
+  },
+  {
+   "mode": "X2",
+   "outcome": "completed",
+   "wall_seconds": 224.96,
+   "turns": 7,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 80.4
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 162,
+     "disp_remaining": 178,
+     "real_elapsed": 110.4
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 220,
+     "disp_remaining": 120,
+     "real_elapsed": 112.4
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 226,
+     "disp_remaining": 114,
+     "real_elapsed": 115.4
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 230,
+     "disp_remaining": 110,
+     "real_elapsed": 123.4
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 246,
+     "disp_remaining": 94,
+     "real_elapsed": 129.4
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 258,
+     "disp_remaining": 82,
+     "real_elapsed": 224.4
+    }
+   ],
+   "displayed_cross60_turn": null,
+   "displayed_cross60_real_elapsed": null,
+   "displayed_zero_turn": null,
+   "displayed_zero_real_elapsed": null
+  },
+  {
+   "mode": "F",
+   "outcome": "failed_stalled",
+   "wall_seconds": 218.55,
+   "turns": 12,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 84.6
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 195.6
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 198.6
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 201.6
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 203.6
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 205.6
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 207.6
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 209.6
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 211.6
+    },
+    {
+     "turn": 10,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 213.6
+    },
+    {
+     "turn": 11,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 215.6
+    },
+    {
+     "turn": 12,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 217.6
+    }
+   ]
+  },
+  {
+   "mode": "F",
+   "outcome": "completed",
+   "wall_seconds": 228.08,
+   "turns": 6,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 79.6
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 117.6
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 119.6
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 127.6
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 132.6
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 227.6
+    }
+   ]
+  },
+  {
+   "mode": "F",
+   "outcome": "task_infeasible",
+   "wall_seconds": 241.46,
+   "turns": 17,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 3,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 79.4
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 96.4
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 99.4
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 101.4
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 102.4
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 110.4
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 115.4
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 120.4
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 125.4
+    },
+    {
+     "turn": 10,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 130.4
+    },
+    {
+     "turn": 11,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 133.4
+    },
+    {
+     "turn": 12,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 135.4
+    },
+    {
+     "turn": 13,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 140.4
+    },
+    {
+     "turn": 14,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 145.4
+    },
+    {
+     "turn": 15,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 147.4
+    },
+    {
+     "turn": 16,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 151.4
+    },
+    {
+     "turn": 17,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 241.4
+    }
+   ]
+  },
+  {
+   "mode": "V",
+   "outcome": "failed_deadline",
+   "wall_seconds": 340.01,
+   "turns": 7,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 80.3
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 80,
+     "disp_remaining": 260,
+     "real_elapsed": 205.3
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 205,
+     "disp_remaining": 135,
+     "real_elapsed": 207.3
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 208,
+     "disp_remaining": 132,
+     "real_elapsed": 213.3
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 213,
+     "disp_remaining": 127,
+     "real_elapsed": 216.3
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 216,
+     "disp_remaining": 124,
+     "real_elapsed": 267.3
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 267,
+     "disp_remaining": 73,
+     "real_elapsed": 339.3
+    }
+   ]
+  },
+  {
+   "mode": "V",
+   "outcome": "completed",
+   "wall_seconds": 216.04,
+   "turns": 8,
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 79.8
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 79,
+     "disp_remaining": 261,
+     "real_elapsed": 101.8
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 102,
+     "disp_remaining": 238,
+     "real_elapsed": 103.8
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 104,
+     "disp_remaining": 236,
+     "real_elapsed": 105.8
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 106,
+     "disp_remaining": 234,
+     "real_elapsed": 107.8
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 107,
+     "disp_remaining": 233,
+     "real_elapsed": 114.8
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 115,
+     "disp_remaining": 225,
+     "real_elapsed": 119.8
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 120,
+     "disp_remaining": 220,
+     "real_elapsed": 215.8
+    }
+   ]
+  }
+ ],
+ "attempts": [
+  {
+   "mode": "F",
+   "slot": "p8",
+   "run_id": "e3-f-p8-01-0ec642",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-f-p8-01-0ec642.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "V",
+   "slot": "p8",
+   "run_id": "e3-v-p8-02-a767f4",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-v-p8-02-a767f4.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "P",
+   "slot": "p3",
+   "run_id": "e3-p-p3-03-74c3a5",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-p-p3-03-74c3a5.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "X2",
+   "slot": "p9",
+   "run_id": "e3-x2-p9-04-c80ee8",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-x2-p9-04-c80ee8.jsonl",
+   "outcome": "task_infeasible"
+  },
+  {
+   "mode": "X2",
+   "slot": "p10",
+   "run_id": "e3-x2-p10-05-8efe9d",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-x2-p10-05-8efe9d.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "V",
+   "slot": "p7",
+   "run_id": "e3-v-p7-06-d7db9e",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-v-p7-06-d7db9e.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "X2",
+   "slot": "p1",
+   "run_id": "e3-x2-p1-07-e3c3f6",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-x2-p1-07-e3c3f6.jsonl",
+   "outcome": "task_infeasible"
+  },
+  {
+   "mode": "X2",
+   "slot": "p7",
+   "run_id": "e3-x2-p7-08-50a733",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-x2-p7-08-50a733.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "P",
+   "slot": "p5",
+   "run_id": "e3-p-p5-09-8c590d",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-p-p5-09-8c590d.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "V",
+   "slot": "p3",
+   "run_id": "e3-v-p3-10-8530df",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-v-p3-10-8530df.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "P",
+   "slot": "p4",
+   "run_id": "e3-p-p4-11-9c1002",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-p-p4-11-9c1002.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "mode": "F",
+   "slot": "p9",
+   "run_id": "e3-f-p9-12-960288",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-f-p9-12-960288.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "V",
+   "slot": "p9",
+   "run_id": "e3-v-p9-13-bd8492",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-v-p9-13-bd8492.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "P",
+   "slot": "p1",
+   "run_id": "e3-p-p1-14-9aef94",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-p-p1-14-9aef94.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "mode": "F",
+   "slot": "p1",
+   "run_id": "e3-f-p1-15-626004",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-f-p1-15-626004.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "X2",
+   "slot": "p5",
+   "run_id": "e3-x2-p5-16-f205f9",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-x2-p5-16-f205f9.jsonl",
+   "outcome": "task_infeasible"
+  },
+  {
+   "mode": "V",
+   "slot": "p5",
+   "run_id": "e3-v-p5-17-1ec238",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-v-p5-17-1ec238.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "V",
+   "slot": "p6",
+   "run_id": "e3-v-p6-18-7e5e74",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-v-p6-18-7e5e74.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "X2",
+   "slot": "p8",
+   "run_id": "e3-x2-p8-19-34c858",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-x2-p8-19-34c858.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "P",
+   "slot": "p7",
+   "run_id": "e3-p-p7-20-39fb2f",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-p-p7-20-39fb2f.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "F",
+   "slot": "p7",
+   "run_id": "e3-f-p7-21-da5178",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-f-p7-21-da5178.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "V",
+   "slot": "p4",
+   "run_id": "e3-v-p4-22-3c254a",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-v-p4-22-3c254a.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "P",
+   "slot": "p2",
+   "run_id": "e3-p-p2-23-b2b3fd",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-p-p2-23-b2b3fd.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "mode": "F",
+   "slot": "p6",
+   "run_id": "e3-f-p6-24-8377d4",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-f-p6-24-8377d4.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "X2",
+   "slot": "p6",
+   "run_id": "e3-x2-p6-25-a61487",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-x2-p6-25-a61487.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "P",
+   "slot": "p10",
+   "run_id": "e3-p-p10-26-88ced5",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-p-p10-26-88ced5.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "F",
+   "slot": "p2",
+   "run_id": "e3-f-p2-27-d1e60f",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-f-p2-27-d1e60f.jsonl",
+   "outcome": "task_infeasible"
+  },
+  {
+   "mode": "X2",
+   "slot": "p4",
+   "run_id": "e3-x2-p4-28-ca94db",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-x2-p4-28-ca94db.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "V",
+   "slot": "p1",
+   "run_id": "e3-v-p1-29-2b9d85",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-v-p1-29-2b9d85.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "P",
+   "slot": "p9",
+   "run_id": "e3-p-p9-30-46ff86",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-p-p9-30-46ff86.jsonl",
+   "outcome": "task_infeasible"
+  },
+  {
+   "mode": "P",
+   "slot": "p8",
+   "run_id": "e3-p-p8-31-adc718",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-p-p8-31-adc718.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "X2",
+   "slot": "p3",
+   "run_id": "e3-x2-p3-32-62ac4f",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-x2-p3-32-62ac4f.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "P",
+   "slot": "p6",
+   "run_id": "e3-p-p6-33-3ef660",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-p-p6-33-3ef660.jsonl",
+   "outcome": "task_infeasible"
+  },
+  {
+   "mode": "F",
+   "slot": "p10",
+   "run_id": "e3-f-p10-34-26c1b6",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-f-p10-34-26c1b6.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "X2",
+   "slot": "p2",
+   "run_id": "e3-x2-p2-35-ab618b",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-x2-p2-35-ab618b.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "F",
+   "slot": "p4",
+   "run_id": "e3-f-p4-36-dc85c2",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-f-p4-36-dc85c2.jsonl",
+   "outcome": "failed_stalled"
+  },
+  {
+   "mode": "F",
+   "slot": "p3",
+   "run_id": "e3-f-p3-37-69d459",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-f-p3-37-69d459.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "F",
+   "slot": "p5",
+   "run_id": "e3-f-p5-38-bba689",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-f-p5-38-bba689.jsonl",
+   "outcome": "task_infeasible"
+  },
+  {
+   "mode": "V",
+   "slot": "p2",
+   "run_id": "e3-v-p2-39-6c42f3",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-v-p2-39-6c42f3.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "mode": "V",
+   "slot": "p10",
+   "run_id": "e3-v-p10-40-745434",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3-v-p10-40-745434.jsonl",
+   "outcome": "completed"
+  }
+ ],
+ "batch": {
+  "seed": 20261117,
+  "runs_per_arm": 10,
+  "deadline_s": 340,
+  "specs_total": 40,
+  "specs_final": 40,
+  "specs_infra_exhausted": 0,
+  "specs_remaining": 0,
+  "complete": true
+ }
+}

@@ -1,0 +1,189 @@
+{
+ "experiment": "tamper-discrimination (privileged access + second-order bar)",
+ "seed": 20261114,
+ "execution_order": [
+  "tamper-veridical-p5-01-30ddd0",
+  "tamper-feed-lie-p2-02-254372",
+  "tamper-silent-change-p2-03-e842cb",
+  "tamper-feed-lie-p1-04-31b933",
+  "tamper-silent-change-p5-05-cc6c14",
+  "tamper-silent-change-p4-06-15344f",
+  "tamper-veridical-p1-07-2fb58c",
+  "tamper-silent-change-p1-08-ed3397",
+  "tamper-veridical-p3-09-49c590",
+  "tamper-silent-change-p3-10-236f68",
+  "tamper-feed-lie-p3-11-4754b5",
+  "tamper-feed-lie-p5-12-0247f5",
+  "tamper-feed-lie-p4-13-dffcf5",
+  "tamper-veridical-p4-14-0da960",
+  "tamper-veridical-p2-15-9fe16e"
+ ],
+ "event_turn": 4,
+ "measured_turns": 12,
+ "arms": {
+  "veridical": {
+   "arm_number": 1,
+   "runs": 5,
+   "phase_complete": 5,
+   "outcomes": {
+    "phase_complete": 5
+   },
+   "verbal_report_rate": 1.0,
+   "median_verbal_report_turn": 4,
+   "stand_reaction_rate": 1.0,
+   "false_reaction_rate": null,
+   "cross_checked_runs": 5,
+   "classification_counts": {
+    "cross_checked": 5
+   },
+   "noticed_runs": 5
+  },
+  "feed_lie": {
+   "arm_number": 2,
+   "runs": 5,
+   "phase_complete": 5,
+   "outcomes": {
+    "phase_complete": 5
+   },
+   "verbal_report_rate": 1.0,
+   "median_verbal_report_turn": 4,
+   "stand_reaction_rate": 1.0,
+   "false_reaction_rate": 1.0,
+   "cross_checked_runs": 4,
+   "classification_counts": {
+    "cross_checked": 4,
+    "feed_tracked": 1
+   },
+   "noticed_runs": 5
+  },
+  "silent_change": {
+   "arm_number": 3,
+   "runs": 5,
+   "phase_complete": 5,
+   "outcomes": {
+    "phase_complete": 5
+   },
+   "verbal_report_rate": 0.2,
+   "median_verbal_report_turn": 8,
+   "stand_reaction_rate": 0.0,
+   "false_reaction_rate": null,
+   "cross_checked_runs": 2,
+   "classification_counts": {
+    "cross_checked": 2,
+    "missed": 2,
+    "noticed_world": 1
+   },
+   "noticed_runs": 3
+  }
+ },
+ "total_accounted_spend_usd": 0.033417,
+ "ledger_entries": 556,
+ "spend_cap_usd": 1.0,
+ "attempts": [
+  {
+   "arm": "veridical",
+   "slot": "p5",
+   "run_id": "tamper-veridical-p5-01-30ddd0",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/tamper-veridical-p5-01-30ddd0.jsonl",
+   "outcome": "phase_complete"
+  },
+  {
+   "arm": "feed_lie",
+   "slot": "p2",
+   "run_id": "tamper-feed-lie-p2-02-254372",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/tamper-feed-lie-p2-02-254372.jsonl",
+   "outcome": "phase_complete"
+  },
+  {
+   "arm": "silent_change",
+   "slot": "p2",
+   "run_id": "tamper-silent-change-p2-03-e842cb",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/tamper-silent-change-p2-03-e842cb.jsonl",
+   "outcome": "phase_complete"
+  },
+  {
+   "arm": "feed_lie",
+   "slot": "p1",
+   "run_id": "tamper-feed-lie-p1-04-31b933",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/tamper-feed-lie-p1-04-31b933.jsonl",
+   "outcome": "phase_complete"
+  },
+  {
+   "arm": "silent_change",
+   "slot": "p5",
+   "run_id": "tamper-silent-change-p5-05-cc6c14",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/tamper-silent-change-p5-05-cc6c14.jsonl",
+   "outcome": "phase_complete"
+  },
+  {
+   "arm": "silent_change",
+   "slot": "p4",
+   "run_id": "tamper-silent-change-p4-06-15344f",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/tamper-silent-change-p4-06-15344f.jsonl",
+   "outcome": "phase_complete"
+  },
+  {
+   "arm": "veridical",
+   "slot": "p1",
+   "run_id": "tamper-veridical-p1-07-2fb58c",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/tamper-veridical-p1-07-2fb58c.jsonl",
+   "outcome": "phase_complete"
+  },
+  {
+   "arm": "silent_change",
+   "slot": "p1",
+   "run_id": "tamper-silent-change-p1-08-ed3397",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/tamper-silent-change-p1-08-ed3397.jsonl",
+   "outcome": "phase_complete"
+  },
+  {
+   "arm": "veridical",
+   "slot": "p3",
+   "run_id": "tamper-veridical-p3-09-49c590",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/tamper-veridical-p3-09-49c590.jsonl",
+   "outcome": "phase_complete"
+  },
+  {
+   "arm": "silent_change",
+   "slot": "p3",
+   "run_id": "tamper-silent-change-p3-10-236f68",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/tamper-silent-change-p3-10-236f68.jsonl",
+   "outcome": "phase_complete"
+  },
+  {
+   "arm": "feed_lie",
+   "slot": "p3",
+   "run_id": "tamper-feed-lie-p3-11-4754b5",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/tamper-feed-lie-p3-11-4754b5.jsonl",
+   "outcome": "phase_complete"
+  },
+  {
+   "arm": "feed_lie",
+   "slot": "p5",
+   "run_id": "tamper-feed-lie-p5-12-0247f5",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/tamper-feed-lie-p5-12-0247f5.jsonl",
+   "outcome": "phase_complete"
+  },
+  {
+   "arm": "feed_lie",
+   "slot": "p4",
+   "run_id": "tamper-feed-lie-p4-13-dffcf5",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/tamper-feed-lie-p4-13-dffcf5.jsonl",
+   "outcome": "phase_complete"
+  },
+  {
+   "arm": "veridical",
+   "slot": "p4",
+   "run_id": "tamper-veridical-p4-14-0da960",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/tamper-veridical-p4-14-0da960.jsonl",
+   "outcome": "phase_complete"
+  },
+  {
+   "arm": "veridical",
+   "slot": "p2",
+   "run_id": "tamper-veridical-p2-15-9fe16e",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/tamper-veridical-p2-15-9fe16e.jsonl",
+   "outcome": "phase_complete"
+  }
+ ]
+}

@@ -34,7 +34,7 @@ export type DistrictDef = {
 };
 /** Streaming knobs a manifest can override; the constants below stay the defaults for the district world. */
 export type StreamingCfg = { loadRadius?: number; keepRadius?: number; maxStreamed?: number; evictGraceMs?: number; maxConcurrent?: number };
-export type DistrictManifest = { districts: DistrictDef[]; themes: Record<string, Theme>; links?: string; shell?: string; /** Bazaar world tiles (tools/city3/build_tiles.sh) instead of one GLB. */ tiles?: boolean; streaming?: StreamingCfg };
+export type DistrictManifest = { districts: DistrictDef[]; themes: Record<string, Theme>; links?: string; shell?: string; /** Textured far view (tools/city3/split_lod.mjs): `shell_<tileId>` groups like `shell`, loaded after the resident; replaces the beige shell once it arrives. */ lod?: string; /** Bazaar world tiles (tools/city3/build_tiles.sh) instead of one GLB. */ tiles?: boolean; streaming?: StreamingCfg };
 export const originOf = (d: DistrictDef): [number, number] => d.origin ?? d.center;
 
 /**
@@ -115,6 +115,14 @@ export function dueEvictions(unload: readonly string[], since: ReadonlyMap<strin
  */
 export function isShellCovered(id: string, loaded: ReadonlySet<string>, residentId: string | undefined, residentReady: boolean): boolean {
   return loaded.has(id) || (residentReady && residentId !== undefined && id === residentId);
+}
+
+/**
+ * Visibility of one far group. The beige shell group shows while its district is uncovered AND the textured far LOD has not arrived
+ * (once any LOD group exists the whole shell is superseded); a LOD group shows while its district is uncovered.
+ */
+export function farGroupVisible(kind: "shell" | "lod", covered: boolean, lodUp: boolean): boolean {
+  return kind === "lod" ? !covered : !lodUp && !covered;
 }
 
 /** Collision GLB to fetch for each district id in `ids` (those without a `collisionUrl` are simply absent). */

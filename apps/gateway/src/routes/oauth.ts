@@ -32,6 +32,7 @@ import {
   oauthResource,
   parseScope,
   signAccessToken,
+  verifyAccessToken,
   verifyPkceS256,
 } from "../auth/oauthCore";
 
@@ -701,10 +702,17 @@ oauthRoute.post("/oauth/token", async (c) => {
 });
 
 // ---------------------------------------------------------------------------
-// Revocation (RFC 7009): the presented refresh token's grant is revoked.
-// Always 200 — an unknown, foreign, or garbage token is indistinguishable
-// from success, so the endpoint never leaks which tokens exist. A
-// client_id that does not match the token's grant revokes nothing.
+// Revocation (RFC 7009): the presented token's grant is revoked. A
+// refresh token names its grant through the token table; an access token
+// names it through its verified `gid` claim (F5) — either way the whole
+// grant dies, because access-token liveness is re-checked against the
+// grant at resolve time, so killing the grant is what "revoke this
+// access token" means in this architecture. (Before the access-token
+// branch existed, revoking an access token silently revoked nothing: a
+// JWT matches no refresh-table row.) Always 200 — an unknown, foreign,
+// or garbage token is indistinguishable from success, so the endpoint
+// never leaks which tokens exist. A client_id that does not match the
+// token's grant revokes nothing.
 
 oauthRoute.post("/oauth/revoke", async (c) => {
   try {
@@ -720,6 +728,21 @@ oauthRoute.post("/oauth/revoke", async (c) => {
           const wasLive = grant.revokedAt === null;
           await revokeGrantAndTokens(grant.id);
           if (wasLive) log("oauth_grant_revoked", { grantId: grant.id, source: "revoke_endpoint" });
+        }
+      } else {
+        // Not a refresh token: it may be an access token. Verify it
+        // (signature, issuer, audience, expiry) and revoke the grant it
+        // was minted from. Anything that does not verify — garbage, an
+        // expired token, another issuer's JWT — revokes nothing and
+        // still gets the same 200 below.
+        const claims = await verifyAccessToken(presented).catch(() => null);
+        if (claims) {
+          const grant = await db.query.oauthGrants.findFirst({ where: eq(oauthGrants.id, claims.grantId) });
+          if (grant && (!params.client_id || params.client_id === grant.clientId)) {
+            const wasLive = grant.revokedAt === null;
+            await revokeGrantAndTokens(grant.id);
+            if (wasLive) log("oauth_grant_revoked", { grantId: grant.id, source: "revoke_endpoint" });
+          }
         }
       }
     }

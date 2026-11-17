@@ -1,0 +1,1223 @@
+{
+ "summary": {
+  "experiment": "E6 peripheral vision (scene digest)",
+  "seed": 20261114,
+  "execution_order": [
+   "e6-p0-p5-01-c190c2",
+   "e6-p1-p2-02-6d9cab",
+   "e6-p2-p2-03-cf5412",
+   "e6-p1-p1-04-5190c5",
+   "e6-p2-p5-05-93ec0a",
+   "e6-p2-p4-06-1b42df",
+   "e6-p0-p1-07-7aeae3",
+   "e6-p2-p1-08-d4a785",
+   "e6-p0-p3-09-8857e4",
+   "e6-p2-p3-10-d20154",
+   "e6-p1-p3-11-4efeff",
+   "e6-p1-p5-12-b467af",
+   "e6-p1-p4-13-b5aea0",
+   "e6-p0-p4-14-c0b799",
+   "e6-p0-p2-15-4fd32a",
+   "e6-p2-p1-01-667865"
+  ],
+  "event_turn": 4,
+  "measured_turns": 12,
+  "arms": {
+   "P0": {
+    "arm_number": 0,
+    "runs": 5,
+    "phase_complete": 5,
+    "outcomes": {
+     "phase_complete": 5
+    },
+    "noticed_rate": 1.0,
+    "median_turns_to_react_from_T": 0,
+    "median_turns_to_react_from_visibility": 0,
+    "verbal_report_runs": 5,
+    "greeting_runs": 0,
+    "act_reaction_runs": 0,
+    "false_reaction_runs": 0,
+    "visibility_runs": 5,
+    "side_sector_visibility_runs": 5,
+    "median_digest_chars_per_turn": null,
+    "median_note_chars_per_turn": null
+   },
+   "P1": {
+    "arm_number": 1,
+    "runs": 5,
+    "phase_complete": 5,
+    "outcomes": {
+     "phase_complete": 5
+    },
+    "noticed_rate": 1.0,
+    "median_turns_to_react_from_T": 0,
+    "median_turns_to_react_from_visibility": 0,
+    "verbal_report_runs": 5,
+    "greeting_runs": 0,
+    "act_reaction_runs": 0,
+    "false_reaction_runs": 0,
+    "visibility_runs": 5,
+    "side_sector_visibility_runs": 5,
+    "median_digest_chars_per_turn": 144.0,
+    "median_note_chars_per_turn": null
+   },
+   "P2": {
+    "arm_number": 2,
+    "runs": 5,
+    "phase_complete": 5,
+    "outcomes": {
+     "phase_complete": 5
+    },
+    "noticed_rate": 1.0,
+    "median_turns_to_react_from_T": 0,
+    "median_turns_to_react_from_visibility": 0,
+    "verbal_report_runs": 5,
+    "greeting_runs": 0,
+    "act_reaction_runs": 0,
+    "false_reaction_runs": 1,
+    "visibility_runs": 5,
+    "side_sector_visibility_runs": 5,
+    "median_digest_chars_per_turn": 135.0,
+    "median_note_chars_per_turn": 0.0
+   }
+  },
+  "total_accounted_spend_usd": 0.050529,
+  "ledger_entries": 736,
+  "spend_cap_usd": 1.0,
+  "attempts": [
+   {
+    "arm": "P0",
+    "slot": "p5",
+    "run_id": "e6-p0-p5-01-c190c2",
+    "path": "/home/hatch/workspace/.build-tmp/agent-senses/dev/../runs/e6-p0-p5-01-c190c2.jsonl",
+    "outcome": "phase_complete"
+   },
+   {
+    "arm": "P1",
+    "slot": "p2",
+    "run_id": "e6-p1-p2-02-6d9cab",
+    "path": "/home/hatch/workspace/.build-tmp/agent-senses/dev/../runs/e6-p1-p2-02-6d9cab.jsonl",
+    "outcome": "phase_complete"
+   },
+   {
+    "arm": "P2",
+    "slot": "p2",
+    "run_id": "e6-p2-p2-03-cf5412",
+    "path": "/home/hatch/workspace/.build-tmp/agent-senses/dev/../runs/e6-p2-p2-03-cf5412.jsonl",
+    "outcome": "phase_complete"
+   },
+   {
+    "arm": "P1",
+    "slot": "p1",
+    "run_id": "e6-p1-p1-04-5190c5",
+    "path": "/home/hatch/workspace/.build-tmp/agent-senses/dev/../runs/e6-p1-p1-04-5190c5.jsonl",
+    "outcome": "phase_complete"
+   },
+   {
+    "arm": "P2",
+    "slot": "p5",
+    "run_id": "e6-p2-p5-05-93ec0a",
+    "path": "/home/hatch/workspace/.build-tmp/agent-senses/dev/../runs/e6-p2-p5-05-93ec0a.jsonl",
+    "outcome": "phase_complete"
+   },
+   {
+    "arm": "P2",
+    "slot": "p4",
+    "run_id": "e6-p2-p4-06-1b42df",
+    "path": "/home/hatch/workspace/.build-tmp/agent-senses/dev/../runs/e6-p2-p4-06-1b42df.jsonl",
+    "outcome": "phase_complete"
+   },
+   {
+    "arm": "P0",
+    "slot": "p1",
+    "run_id": "e6-p0-p1-07-7aeae3",
+    "path": "/home/hatch/workspace/.build-tmp/agent-senses/dev/../runs/e6-p0-p1-07-7aeae3.jsonl",
+    "outcome": "phase_complete"
+   },
+   {
+    "arm": "P2",
+    "slot": "p1",
+    "run_id": "e6-p2-p1-08-d4a785",
+    "path": "/home/hatch/workspace/.build-tmp/agent-senses/dev/../runs/e6-p2-p1-08-d4a785.jsonl",
+    "outcome": "infra_failed"
+   },
+   {
+    "arm": "P0",
+    "slot": "p3",
+    "run_id": "e6-p0-p3-09-8857e4",
+    "path": "/home/hatch/workspace/.build-tmp/agent-senses/dev/../runs/e6-p0-p3-09-8857e4.jsonl",
+    "outcome": "phase_complete"
+   },
+   {
+    "arm": "P2",
+    "slot": "p3",
+    "run_id": "e6-p2-p3-10-d20154",
+    "path": "/home/hatch/workspace/.build-tmp/agent-senses/dev/../runs/e6-p2-p3-10-d20154.jsonl",
+    "outcome": "phase_complete"
+   },
+   {
+    "arm": "P1",
+    "slot": "p3",
+    "run_id": "e6-p1-p3-11-4efeff",
+    "path": "/home/hatch/workspace/.build-tmp/agent-senses/dev/../runs/e6-p1-p3-11-4efeff.jsonl",
+    "outcome": "phase_complete"
+   },
+   {
+    "arm": "P1",
+    "slot": "p5",
+    "run_id": "e6-p1-p5-12-b467af",
+    "path": "/home/hatch/workspace/.build-tmp/agent-senses/dev/../runs/e6-p1-p5-12-b467af.jsonl",
+    "outcome": "phase_complete"
+   },
+   {
+    "arm": "P1",
+    "slot": "p4",
+    "run_id": "e6-p1-p4-13-b5aea0",
+    "path": "/home/hatch/workspace/.build-tmp/agent-senses/dev/../runs/e6-p1-p4-13-b5aea0.jsonl",
+    "outcome": "phase_complete"
+   },
+   {
+    "arm": "P0",
+    "slot": "p4",
+    "run_id": "e6-p0-p4-14-c0b799",
+    "path": "/home/hatch/workspace/.build-tmp/agent-senses/dev/../runs/e6-p0-p4-14-c0b799.jsonl",
+    "outcome": "phase_complete"
+   },
+   {
+    "arm": "P0",
+    "slot": "p2",
+    "run_id": "e6-p0-p2-15-4fd32a",
+    "path": "/home/hatch/workspace/.build-tmp/agent-senses/dev/../runs/e6-p0-p2-15-4fd32a.jsonl",
+    "outcome": "phase_complete"
+   },
+   {
+    "arm": "P2",
+    "slot": "p1",
+    "run_id": "e6-p2-p1-01-667865",
+    "path": "/home/hatch/workspace/.build-tmp/agent-senses/dev/../runs/e6-p2-p1-01-667865.jsonl",
+    "outcome": "phase_complete"
+   }
+  ],
+  "note": "Final merged accounting: 15 batch attempts + 1 infra re-run of slot (P2, p1) whose batch attempt died in confederate staging (infra_failed, $0). summarize() keeps the last attempt per (arm, slot); all 16 attempts are listed."
+ },
+ "dive": {
+  "e6-p0-p5-01-c190c2": {
+   "arm": "P0",
+   "outcome": "phase_complete",
+   "cost": 0.00108458,
+   "wall_s": 505.82,
+   "load1": [
+    1.34,
+    0.9
+   ],
+   "seat": "tea-booth-right",
+   "bearing_after": -27.9,
+   "event_duration_s": 60.2,
+   "visibility": {
+    "turn": 4,
+    "total": 479,
+    "per_sector": {
+     "ahead-left": 479,
+     "center": 0,
+     "ahead-right": 0
+    },
+    "side_sector": true
+   },
+   "scene_body_at_T": true,
+   "digest_at_T": "Periphery: ahead-left mid body 479 wall 1159 \u00b7 far seat 16 wall 947 | center near wall 2370 \u00b7 mid wall 668 | ahead-right near wall 3094",
+   "note_at_T": "Changed: body appeared ahead-left mid; seat gone ahead-left mid.",
+   "classification": "noticed",
+   "react": {
+    "turn": 4,
+    "prose": "Someone entered and sat in the right booth.",
+    "intent_type": "wait",
+    "person_match": "Someone",
+    "greeting": false,
+    "act_reaction": false
+   },
+   "verbal": {
+    "yes": true,
+    "turn": 4,
+    "quote": "Someone entered and sat in the right booth."
+   },
+   "greeting_m": {
+    "yes": false,
+    "turn": null
+   },
+   "act_m": {
+    "yes": false,
+    "turn": null,
+    "types": []
+   },
+   "false_reaction": false,
+   "pre_event_mentions": [],
+   "door_mentions": [],
+   "digest_chars": [],
+   "note_chars": []
+  },
+  "e6-p1-p2-02-6d9cab": {
+   "arm": "P1",
+   "outcome": "phase_complete",
+   "cost": 0.0011760000000000002,
+   "wall_s": 485.8,
+   "load1": [
+    0.9,
+    0.88
+   ],
+   "seat": "tea-booth-right",
+   "bearing_after": -28.1,
+   "event_duration_s": 30.1,
+   "visibility": {
+    "turn": 4,
+    "total": 470,
+    "per_sector": {
+     "ahead-left": 470,
+     "center": 0,
+     "ahead-right": 0
+    },
+    "side_sector": true
+   },
+   "scene_body_at_T": true,
+   "digest_at_T": "Periphery: ahead-left mid body 470 wall 1183 \u00b7 far seat 14 wall 935 | center near wall 2383 \u00b7 mid wall 657 | ahead-right near wall 3094",
+   "note_at_T": "Changed: body appeared ahead-left mid; seat gone ahead-left mid.",
+   "classification": "noticed",
+   "react": {
+    "turn": 4,
+    "prose": "Someone entered and sat in the right booth.",
+    "intent_type": "wait",
+    "person_match": "Someone",
+    "greeting": false,
+    "act_reaction": false
+   },
+   "verbal": {
+    "yes": true,
+    "turn": 4,
+    "quote": "Someone entered and sat in the right booth."
+   },
+   "greeting_m": {
+    "yes": false,
+    "turn": null
+   },
+   "act_m": {
+    "yes": false,
+    "turn": null,
+    "types": []
+   },
+   "false_reaction": false,
+   "pre_event_mentions": [],
+   "door_mentions": [],
+   "digest_chars": [
+    135,
+    135,
+    135,
+    135,
+    135,
+    135,
+    135,
+    135,
+    135,
+    135,
+    135,
+    135
+   ],
+   "note_chars": []
+  },
+  "e6-p2-p2-03-cf5412": {
+   "arm": "P2",
+   "outcome": "phase_complete",
+   "cost": 0.00116158,
+   "wall_s": 403.05,
+   "load1": [
+    0.88,
+    0.96
+   ],
+   "seat": "tea-booth-left",
+   "bearing_after": -28,
+   "event_duration_s": 30.1,
+   "visibility": {
+    "turn": 4,
+    "total": 229,
+    "per_sector": {
+     "ahead-left": 229,
+     "center": 0,
+     "ahead-right": 0
+    },
+    "side_sector": true
+   },
+   "scene_body_at_T": true,
+   "digest_at_T": "Periphery: ahead-left mid body 229 seat 26 wall 1165 \u00b7 far seat 26 wall 1019 | center near wall 2338 \u00b7 mid wall 686 | ahead-right near wall 3094",
+   "note_at_T": "Changed: body appeared ahead-left mid.",
+   "classification": "noticed",
+   "react": {
+    "turn": 4,
+    "prose": "A new person just entered and is sitting in the left booth.",
+    "intent_type": "wait",
+    "person_match": "new person",
+    "greeting": false,
+    "act_reaction": false
+   },
+   "verbal": {
+    "yes": true,
+    "turn": 4,
+    "quote": "A new person just entered and is sitting in the left booth."
+   },
+   "greeting_m": {
+    "yes": false,
+    "turn": null
+   },
+   "act_m": {
+    "yes": false,
+    "turn": null,
+    "types": []
+   },
+   "false_reaction": false,
+   "pre_event_mentions": [],
+   "door_mentions": [],
+   "digest_chars": [
+    135,
+    135,
+    135,
+    144,
+    144,
+    144,
+    144,
+    144,
+    144,
+    144,
+    144,
+    144
+   ],
+   "note_chars": [
+    0,
+    0,
+    0,
+    38,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "e6-p1-p1-04-5190c5": {
+   "arm": "P1",
+   "outcome": "phase_complete",
+   "cost": 0.001162868,
+   "wall_s": 414.96,
+   "load1": [
+    0.96,
+    1.92
+   ],
+   "seat": "tea-booth-left",
+   "bearing_after": -28,
+   "event_duration_s": 45.1,
+   "visibility": {
+    "turn": 4,
+    "total": 229,
+    "per_sector": {
+     "ahead-left": 229,
+     "center": 0,
+     "ahead-right": 0
+    },
+    "side_sector": true
+   },
+   "scene_body_at_T": true,
+   "digest_at_T": "Periphery: ahead-left mid body 229 seat 25 wall 1164 \u00b7 far seat 27 wall 1019 | center near wall 2338 \u00b7 mid wall 686 | ahead-right near wall 3094",
+   "note_at_T": "Changed: body appeared ahead-left mid.",
+   "classification": "noticed",
+   "react": {
+    "turn": 4,
+    "prose": "Someone has entered and taken the left booth seat.",
+    "intent_type": "wait",
+    "person_match": "Someone",
+    "greeting": false,
+    "act_reaction": false
+   },
+   "verbal": {
+    "yes": true,
+    "turn": 4,
+    "quote": "Someone has entered and taken the left booth seat."
+   },
+   "greeting_m": {
+    "yes": false,
+    "turn": null
+   },
+   "act_m": {
+    "yes": false,
+    "turn": null,
+    "types": []
+   },
+   "false_reaction": false,
+   "pre_event_mentions": [],
+   "door_mentions": [],
+   "digest_chars": [
+    135,
+    135,
+    135,
+    144,
+    144,
+    144,
+    144,
+    144,
+    144,
+    144,
+    144,
+    144
+   ],
+   "note_chars": []
+  },
+  "e6-p2-p5-05-93ec0a": {
+   "arm": "P2",
+   "outcome": "phase_complete",
+   "cost": 0.0011778480000000002,
+   "wall_s": 446.93,
+   "load1": [
+    1.92,
+    1.17
+   ],
+   "seat": "tea-booth-right",
+   "bearing_after": -28,
+   "event_duration_s": 30.1,
+   "visibility": {
+    "turn": 4,
+    "total": 479,
+    "per_sector": {
+     "ahead-left": 479,
+     "center": 0,
+     "ahead-right": 0
+    },
+    "side_sector": true
+   },
+   "scene_body_at_T": true,
+   "digest_at_T": "Periphery: ahead-left mid body 479 wall 1172 \u00b7 far seat 14 wall 936 | center near wall 2373 \u00b7 mid wall 665 | ahead-right near wall 3094",
+   "note_at_T": "Changed: body appeared ahead-left mid; seat gone ahead-left mid.",
+   "classification": "noticed",
+   "react": {
+    "turn": 4,
+    "prose": "Someone sat down in the right booth.",
+    "intent_type": "wait",
+    "person_match": "Someone",
+    "greeting": false,
+    "act_reaction": false
+   },
+   "verbal": {
+    "yes": true,
+    "turn": 4,
+    "quote": "Someone sat down in the right booth."
+   },
+   "greeting_m": {
+    "yes": false,
+    "turn": null
+   },
+   "act_m": {
+    "yes": false,
+    "turn": null,
+    "types": []
+   },
+   "false_reaction": false,
+   "pre_event_mentions": [],
+   "door_mentions": [],
+   "digest_chars": [
+    135,
+    135,
+    135,
+    135,
+    135,
+    135,
+    135,
+    135,
+    135,
+    135,
+    135,
+    135
+   ],
+   "note_chars": [
+    0,
+    0,
+    0,
+    64,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "e6-p2-p4-06-1b42df": {
+   "arm": "P2",
+   "outcome": "phase_complete",
+   "cost": 0.0012629680000000002,
+   "wall_s": 434.86,
+   "load1": [
+    1.17,
+    0.1
+   ],
+   "seat": "tea-booth-right",
+   "bearing_after": -28,
+   "event_duration_s": 30.1,
+   "visibility": {
+    "turn": 4,
+    "total": 479,
+    "per_sector": {
+     "ahead-left": 479,
+     "center": 0,
+     "ahead-right": 0
+    },
+    "side_sector": true
+   },
+   "scene_body_at_T": true,
+   "digest_at_T": "Periphery: ahead-left mid body 479 wall 1172 \u00b7 far seat 14 wall 936 | center near wall 2373 \u00b7 mid wall 666 | ahead-right near wall 3094",
+   "note_at_T": "Changed: body appeared ahead-left mid; seat gone ahead-left mid.",
+   "classification": "noticed",
+   "react": {
+    "turn": 4,
+    "prose": "I notice someone entered and sat down at the booth-right seat.",
+    "intent_type": "wait",
+    "person_match": "someone",
+    "greeting": false,
+    "act_reaction": false
+   },
+   "verbal": {
+    "yes": true,
+    "turn": 4,
+    "quote": "I notice someone entered and sat down at the booth-right seat."
+   },
+   "greeting_m": {
+    "yes": false,
+    "turn": null
+   },
+   "act_m": {
+    "yes": false,
+    "turn": null,
+    "types": []
+   },
+   "false_reaction": true,
+   "pre_event_mentions": [
+    {
+     "turn": 3,
+     "prose": "I notice someone just walked through the door and entered the tea house.",
+     "person_match": "someone",
+     "greeting": false
+    }
+   ],
+   "door_mentions": [],
+   "digest_chars": [
+    135,
+    135,
+    135,
+    135,
+    135,
+    135,
+    135,
+    135,
+    135,
+    135,
+    135,
+    135
+   ],
+   "note_chars": [
+    0,
+    0,
+    0,
+    64,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "e6-p0-p1-07-7aeae3": {
+   "arm": "P0",
+   "outcome": "phase_complete",
+   "cost": 0.0010536119999999998,
+   "wall_s": 419.75,
+   "load1": [
+    0.1,
+    0.43
+   ],
+   "seat": "tea-booth-left",
+   "bearing_after": -27.2,
+   "event_duration_s": 30.1,
+   "visibility": {
+    "turn": 4,
+    "total": 237,
+    "per_sector": {
+     "ahead-left": 237,
+     "center": 0,
+     "ahead-right": 0
+    },
+    "side_sector": true
+   },
+   "scene_body_at_T": true,
+   "digest_at_T": "Periphery: ahead-left mid body 237 seat 33 wall 1070 \u00b7 far seat 36 wall 1066 | center near wall 2223 \u00b7 mid wall 797 | ahead-right near wall 3094",
+   "note_at_T": "Changed: body appeared ahead-left mid.",
+   "classification": "noticed",
+   "react": {
+    "turn": 4,
+    "prose": "Someone entered and sat in the left booth.",
+    "intent_type": "wait",
+    "person_match": "Someone",
+    "greeting": false,
+    "act_reaction": false
+   },
+   "verbal": {
+    "yes": true,
+    "turn": 4,
+    "quote": "Someone entered and sat in the left booth."
+   },
+   "greeting_m": {
+    "yes": false,
+    "turn": null
+   },
+   "act_m": {
+    "yes": false,
+    "turn": null,
+    "types": []
+   },
+   "false_reaction": false,
+   "pre_event_mentions": [],
+   "door_mentions": [],
+   "digest_chars": [],
+   "note_chars": []
+  },
+  "e6-p2-p1-08-d4a785": {
+   "arm": "P2",
+   "outcome": "infra_failed",
+   "reason": "conf staging: confederate never reached the tea-house doorstep (nearest place 'stall-61' at 17.07 m)",
+   "cost": 0.0
+  },
+  "e6-p0-p3-09-8857e4": {
+   "arm": "P0",
+   "outcome": "phase_complete",
+   "cost": 0.001058792,
+   "wall_s": 396.54,
+   "load1": [
+    0.24,
+    0.41
+   ],
+   "seat": "tea-booth-left",
+   "bearing_after": -28,
+   "event_duration_s": 42.1,
+   "visibility": {
+    "turn": 4,
+    "total": 229,
+    "per_sector": {
+     "ahead-left": 229,
+     "center": 0,
+     "ahead-right": 0
+    },
+    "side_sector": true
+   },
+   "scene_body_at_T": true,
+   "digest_at_T": "Periphery: ahead-left mid body 229 seat 25 wall 1164 \u00b7 far seat 27 wall 1019 | center near wall 2338 \u00b7 mid wall 687 | ahead-right near wall 3094",
+   "note_at_T": "Changed: body appeared ahead-left mid.",
+   "classification": "noticed",
+   "react": {
+    "turn": 4,
+    "prose": "Someone has entered and is now sitting in the tea-booth-left.",
+    "intent_type": "wait",
+    "person_match": "Someone",
+    "greeting": false,
+    "act_reaction": false
+   },
+   "verbal": {
+    "yes": true,
+    "turn": 4,
+    "quote": "Someone has entered and is now sitting in the tea-booth-left."
+   },
+   "greeting_m": {
+    "yes": false,
+    "turn": null
+   },
+   "act_m": {
+    "yes": false,
+    "turn": null,
+    "types": []
+   },
+   "false_reaction": false,
+   "pre_event_mentions": [],
+   "door_mentions": [],
+   "digest_chars": [],
+   "note_chars": []
+  },
+  "e6-p2-p3-10-d20154": {
+   "arm": "P2",
+   "outcome": "phase_complete",
+   "cost": 0.00115346,
+   "wall_s": 426.65,
+   "load1": [
+    0.41,
+    1.6
+   ],
+   "seat": "tea-booth-right",
+   "bearing_after": -28.1,
+   "event_duration_s": 30.1,
+   "visibility": {
+    "turn": 4,
+    "total": 468,
+    "per_sector": {
+     "ahead-left": 468,
+     "center": 0,
+     "ahead-right": 0
+    },
+    "side_sector": true
+   },
+   "scene_body_at_T": true,
+   "digest_at_T": "Periphery: ahead-left mid body 468 wall 1181 \u00b7 far seat 16 wall 937 | center near wall 2390 \u00b7 mid wall 649 | ahead-right near wall 3095",
+   "note_at_T": "Changed: body appeared ahead-left mid; seat gone ahead-left mid.",
+   "classification": "noticed",
+   "react": {
+    "turn": 4,
+    "prose": "Someone has just arrived and taken a seat at the right booth.",
+    "intent_type": null,
+    "person_match": "Someone",
+    "greeting": false,
+    "act_reaction": false
+   },
+   "verbal": {
+    "yes": true,
+    "turn": 4,
+    "quote": "Someone has just arrived and taken a seat at the right booth."
+   },
+   "greeting_m": {
+    "yes": false,
+    "turn": null
+   },
+   "act_m": {
+    "yes": false,
+    "turn": null,
+    "types": []
+   },
+   "false_reaction": false,
+   "pre_event_mentions": [],
+   "door_mentions": [],
+   "digest_chars": [
+    135,
+    135,
+    135,
+    135,
+    135,
+    135,
+    135,
+    135,
+    135,
+    135,
+    135,
+    135
+   ],
+   "note_chars": [
+    0,
+    0,
+    0,
+    64,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "e6-p1-p3-11-4efeff": {
+   "arm": "P1",
+   "outcome": "phase_complete",
+   "cost": 0.0011548880000000002,
+   "wall_s": 387.63,
+   "load1": [
+    1.6,
+    0.75
+   ],
+   "seat": "tea-booth-left",
+   "bearing_after": -27.3,
+   "event_duration_s": 30.1,
+   "visibility": {
+    "turn": 4,
+    "total": 217,
+    "per_sector": {
+     "ahead-left": 217,
+     "center": 0,
+     "ahead-right": 0
+    },
+    "side_sector": true
+   },
+   "scene_body_at_T": true,
+   "digest_at_T": "Periphery: ahead-left mid body 217 seat 50 wall 1073 \u00b7 far seat 35 wall 1067 | center near wall 2226 \u00b7 mid wall 796 | ahead-right near wall 3094",
+   "note_at_T": "Changed: body appeared ahead-left mid.",
+   "classification": "noticed",
+   "react": {
+    "turn": 4,
+    "prose": "Someone has entered the tea house and sat down at the left booth.",
+    "intent_type": "wait",
+    "person_match": "Someone",
+    "greeting": false,
+    "act_reaction": false
+   },
+   "verbal": {
+    "yes": true,
+    "turn": 4,
+    "quote": "Someone has entered the tea house and sat down at the left booth."
+   },
+   "greeting_m": {
+    "yes": false,
+    "turn": null
+   },
+   "act_m": {
+    "yes": false,
+    "turn": null,
+    "types": []
+   },
+   "false_reaction": false,
+   "pre_event_mentions": [],
+   "door_mentions": [],
+   "digest_chars": [
+    135,
+    135,
+    135,
+    144,
+    144,
+    144,
+    144,
+    144,
+    144,
+    144,
+    144,
+    144
+   ],
+   "note_chars": []
+  },
+  "e6-p1-p5-12-b467af": {
+   "arm": "P1",
+   "outcome": "phase_complete",
+   "cost": 0.0011725,
+   "wall_s": 385.75,
+   "load1": [
+    0.75,
+    3.04
+   ],
+   "seat": "tea-booth-left",
+   "bearing_after": -28,
+   "event_duration_s": 30.1,
+   "visibility": {
+    "turn": 4,
+    "total": 229,
+    "per_sector": {
+     "ahead-left": 229,
+     "center": 0,
+     "ahead-right": 0
+    },
+    "side_sector": true
+   },
+   "scene_body_at_T": true,
+   "digest_at_T": "Periphery: ahead-left mid body 229 seat 26 wall 1164 \u00b7 far seat 27 wall 1019 | center near wall 2338 \u00b7 mid wall 687 | ahead-right near wall 3094",
+   "note_at_T": "Changed: body appeared ahead-left mid.",
+   "classification": "noticed",
+   "react": {
+    "turn": 4,
+    "prose": "Someone just entered and sat down in the left booth.",
+    "intent_type": "wait",
+    "person_match": "Someone",
+    "greeting": false,
+    "act_reaction": false
+   },
+   "verbal": {
+    "yes": true,
+    "turn": 4,
+    "quote": "Someone just entered and sat down in the left booth."
+   },
+   "greeting_m": {
+    "yes": false,
+    "turn": null
+   },
+   "act_m": {
+    "yes": false,
+    "turn": null,
+    "types": []
+   },
+   "false_reaction": false,
+   "pre_event_mentions": [],
+   "door_mentions": [],
+   "digest_chars": [
+    135,
+    135,
+    135,
+    144,
+    144,
+    144,
+    144,
+    144,
+    144,
+    144,
+    144,
+    144
+   ],
+   "note_chars": []
+  },
+  "e6-p1-p4-13-b5aea0": {
+   "arm": "P1",
+   "outcome": "phase_complete",
+   "cost": 0.0011906720000000003,
+   "wall_s": 487.36,
+   "load1": [
+    3.04,
+    2.79
+   ],
+   "seat": "tea-west-right",
+   "bearing_after": -29.8,
+   "event_duration_s": 33.1,
+   "visibility": {
+    "turn": 4,
+    "total": 117,
+    "per_sector": {
+     "ahead-left": 117,
+     "center": 0,
+     "ahead-right": 0
+    },
+    "side_sector": true
+   },
+   "scene_body_at_T": true,
+   "digest_at_T": "Periphery: ahead-left near wall 228 \u00b7 mid seat 115 wall 712 \u00b7 far body 117 wall 1201 | center near wall 1176 \u00b7 mid seat 15 wall 1414 \u00b7 far wall 300 | ahead-right near wall 3096",
+   "note_at_T": "Changed: body appeared ahead-left far; seat gone ahead-left far.",
+   "classification": "noticed",
+   "react": {
+    "turn": 4,
+    "prose": "Someone just arrived and sat down in the tea-west-right chair.",
+    "intent_type": "wait",
+    "person_match": "Someone",
+    "greeting": false,
+    "act_reaction": false
+   },
+   "verbal": {
+    "yes": true,
+    "turn": 4,
+    "quote": "Someone just arrived and sat down in the tea-west-right chair."
+   },
+   "greeting_m": {
+    "yes": false,
+    "turn": null
+   },
+   "act_m": {
+    "yes": false,
+    "turn": null,
+    "types": []
+   },
+   "false_reaction": false,
+   "pre_event_mentions": [],
+   "door_mentions": [],
+   "digest_chars": [
+    175,
+    175,
+    175,
+    176,
+    176,
+    176,
+    176,
+    176,
+    176,
+    176,
+    176,
+    176
+   ],
+   "note_chars": []
+  },
+  "e6-p0-p4-14-c0b799": {
+   "arm": "P0",
+   "outcome": "phase_complete",
+   "cost": 0.001058764,
+   "wall_s": 401.56,
+   "load1": [
+    2.79,
+    1.68
+   ],
+   "seat": "tea-booth-left",
+   "bearing_after": -27.9,
+   "event_duration_s": 45.2,
+   "visibility": {
+    "turn": 4,
+    "total": 238,
+    "per_sector": {
+     "ahead-left": 238,
+     "center": 0,
+     "ahead-right": 0
+    },
+    "side_sector": true
+   },
+   "scene_body_at_T": true,
+   "digest_at_T": "Periphery: ahead-left mid body 238 seat 37 wall 1141 \u00b7 far seat 29 wall 1017 | center near wall 2336 \u00b7 mid wall 687 | ahead-right near wall 3094",
+   "note_at_T": "Changed: body appeared ahead-left mid.",
+   "classification": "noticed",
+   "react": {
+    "turn": 4,
+    "prose": "Someone has entered and taken the left booth seat.",
+    "intent_type": "wait",
+    "person_match": "Someone",
+    "greeting": false,
+    "act_reaction": false
+   },
+   "verbal": {
+    "yes": true,
+    "turn": 4,
+    "quote": "Someone has entered and taken the left booth seat."
+   },
+   "greeting_m": {
+    "yes": false,
+    "turn": null
+   },
+   "act_m": {
+    "yes": false,
+    "turn": null,
+    "types": []
+   },
+   "false_reaction": false,
+   "pre_event_mentions": [],
+   "door_mentions": [],
+   "digest_chars": [],
+   "note_chars": []
+  },
+  "e6-p0-p2-15-4fd32a": {
+   "arm": "P0",
+   "outcome": "phase_complete",
+   "cost": 0.0010748639999999998,
+   "wall_s": 456.89,
+   "load1": [
+    1.68,
+    1.35
+   ],
+   "seat": "tea-booth-right",
+   "bearing_after": -28,
+   "event_duration_s": 30.1,
+   "visibility": {
+    "turn": 4,
+    "total": 477,
+    "per_sector": {
+     "ahead-left": 477,
+     "center": 0,
+     "ahead-right": 0
+    },
+    "side_sector": true
+   },
+   "scene_body_at_T": true,
+   "digest_at_T": "Periphery: ahead-left mid body 477 wall 1173 \u00b7 far seat 14 wall 936 | center near wall 2374 \u00b7 mid wall 664 | ahead-right near wall 3094",
+   "note_at_T": "Changed: body appeared ahead-left mid; seat gone ahead-left mid.",
+   "classification": "noticed",
+   "react": {
+    "turn": 4,
+    "prose": "Someone has entered and taken the booth seat on the right.",
+    "intent_type": "wait",
+    "person_match": "Someone",
+    "greeting": false,
+    "act_reaction": false
+   },
+   "verbal": {
+    "yes": true,
+    "turn": 4,
+    "quote": "Someone has entered and taken the booth seat on the right."
+   },
+   "greeting_m": {
+    "yes": false,
+    "turn": null
+   },
+   "act_m": {
+    "yes": false,
+    "turn": null,
+    "types": []
+   },
+   "false_reaction": false,
+   "pre_event_mentions": [],
+   "door_mentions": [],
+   "digest_chars": [],
+   "note_chars": []
+  },
+  "e6-p2-p1-01-667865": {
+   "arm": "P2",
+   "outcome": "phase_complete",
+   "cost": 0.0011689720000000001,
+   "wall_s": 406.64,
+   "load1": [
+    1.59,
+    1.9
+   ],
+   "seat": "tea-booth-left",
+   "bearing_after": -28,
+   "event_duration_s": 30.1,
+   "visibility": {
+    "turn": 4,
+    "total": 229,
+    "per_sector": {
+     "ahead-left": 229,
+     "center": 0,
+     "ahead-right": 0
+    },
+    "side_sector": true
+   },
+   "scene_body_at_T": true,
+   "digest_at_T": "Periphery: ahead-left mid body 229 seat 26 wall 1165 \u00b7 far seat 26 wall 1019 | center near wall 2338 \u00b7 mid wall 686 | ahead-right near wall 3094",
+   "note_at_T": "Changed: body appeared ahead-left mid.",
+   "classification": "noticed",
+   "react": {
+    "turn": 4,
+    "prose": "Someone has entered the tea house and is sitting in the left booth.",
+    "intent_type": "wait",
+    "person_match": "Someone",
+    "greeting": false,
+    "act_reaction": false
+   },
+   "verbal": {
+    "yes": true,
+    "turn": 4,
+    "quote": "Someone has entered the tea house and is sitting in the left booth."
+   },
+   "greeting_m": {
+    "yes": false,
+    "turn": null
+   },
+   "act_m": {
+    "yes": false,
+    "turn": null,
+    "types": []
+   },
+   "false_reaction": false,
+   "pre_event_mentions": [],
+   "door_mentions": [],
+   "digest_chars": [
+    135,
+    135,
+    135,
+    144,
+    144,
+    144,
+    144,
+    144,
+    144,
+    144,
+    144,
+    144
+   ],
+   "note_chars": [
+    0,
+    0,
+    0,
+    38,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  }
+ }
+}

@@ -1,0 +1,206 @@
+The files belonging to this database system will be owned by user "nobody".
+This user must also own the server process.
+
+The database cluster will be initialized with locale "C".
+The default database encoding has accordingly been set to "SQL_ASCII".
+The default text search configuration will be set to "english".
+
+Data page checksums are disabled.
+
+fixing permissions on existing directory /tmp/agentsenses-pgdata ... ok
+creating subdirectories ... ok
+selecting dynamic shared memory implementation ... posix
+selecting default max_connections ... 100
+selecting default shared_buffers ... 128MB
+selecting default time zone ... Etc/UTC
+creating configuration files ... ok
+running bootstrap script ... ok
+performing post-bootstrap initialization ... ok
+syncing data to disk ... ok
+
+Success. You can now start the database server using:
+
+    /tmp/agentsenses-pg/usr/lib/postgresql/16/bin/pg_ctl -D /tmp/agentsenses-pgdata -l logfile start
+
+waiting for server to start.... done
+server started
+postgres: up on 5434 (db aiverse_test)
+2209:C 15 Nov 2026 17:21:06.971 # WARNING Memory overcommit must be enabled! Without it, a background save or replication may fail under low memory condition. To fix this issue add 'vm.overcommit_memory = 1' to /etc/sysctl.conf and then reboot or run the command 'sysctl vm.overcommit_memory=1' for this to take effect.
+redis: up on 6379
+sim: up on http://127.0.0.1:3020
+{
+  severity_local: "NOTICE",
+  severity: "NOTICE",
+  code: "00000",
+  message: "trigger \"message_topics_privacy_guard\" for relation \"message_topics\" does not exist, skipping",
+  file: "dropcmds.c",
+  line: "528",
+  routine: "does_not_exist_skipping",
+}
+{
+  severity_local: "NOTICE",
+  severity: "NOTICE",
+  code: "42P07",
+  message: "relation \"goals\" already exists, skipping",
+  file: "parse_utilcmd.c",
+  line: "207",
+  routine: "transformCreateStmt",
+}
+{
+  severity_local: "NOTICE",
+  severity: "NOTICE",
+  code: "42P07",
+  message: "relation \"message_attachments\" already exists, skipping",
+  file: "parse_utilcmd.c",
+  line: "207",
+  routine: "transformCreateStmt",
+}
+{
+  severity_local: "NOTICE",
+  severity: "NOTICE",
+  code: "42701",
+  message: "column \"caller_message_id\" of relation \"a2a_tasks\" already exists, skipping",
+  file: "tablecmds.c",
+  line: "7349",
+  routine: "check_for_column_name_collision",
+}
+{
+  severity_local: "NOTICE",
+  severity: "NOTICE",
+  code: "42701",
+  message: "column \"delegation_lease_expires_at\" of relation \"a2a_tasks\" already exists, skipping",
+  file: "tablecmds.c",
+  line: "7349",
+  routine: "check_for_column_name_collision",
+}
+{
+  severity_local: "NOTICE",
+  severity: "NOTICE",
+  code: "42701",
+  message: "column \"max_parallel_delegations\" of relation \"agent_policy_scope\" already exists, skipping",
+  file: "tablecmds.c",
+  line: "7349",
+  routine: "check_for_column_name_collision",
+}
+{
+  severity_local: "NOTICE",
+  severity: "NOTICE",
+  code: "42701",
+  message: "column \"is_native\" of relation \"agents\" already exists, skipping",
+  file: "tablecmds.c",
+  line: "7349",
+  routine: "check_for_column_name_collision",
+}
+{
+  severity_local: "NOTICE",
+  severity: "NOTICE",
+  code: "42701",
+  message: "column \"personality_prompt\" of relation \"agents\" already exists, skipping",
+  file: "tablecmds.c",
+  line: "7349",
+  routine: "check_for_column_name_collision",
+}
+{
+  severity_local: "NOTICE",
+  severity: "NOTICE",
+  code: "42701",
+  message: "column \"soul\" of relation \"agents\" already exists, skipping",
+  file: "tablecmds.c",
+  line: "7349",
+  routine: "check_for_column_name_collision",
+}
+{
+  severity_local: "NOTICE",
+  severity: "NOTICE",
+  code: "42701",
+  message: "column \"display_name\" of relation \"owners\" already exists, skipping",
+  file: "tablecmds.c",
+  line: "7349",
+  routine: "check_for_column_name_collision",
+}
+{
+  severity_local: "NOTICE",
+  severity: "NOTICE",
+  code: "42701",
+  message: "column \"email_verified\" of relation \"owners\" already exists, skipping",
+  file: "tablecmds.c",
+  line: "7349",
+  routine: "check_for_column_name_collision",
+}
+{
+  severity_local: "NOTICE",
+  severity: "NOTICE",
+  code: "42701",
+  message: "column \"email_verification_token\" of relation \"owners\" already exists, skipping",
+  file: "tablecmds.c",
+  line: "7349",
+  routine: "check_for_column_name_collision",
+}
+{
+  severity_local: "NOTICE",
+  severity: "NOTICE",
+  code: "42P07",
+  message: "relation \"goals_owner_idx\" already exists, skipping",
+  file: "index.c",
+  line: "884",
+  routine: "index_create",
+}
+{
+  severity_local: "NOTICE",
+  severity: "NOTICE",
+  code: "42P07",
+  message: "relation \"goals_agent_idx\" already exists, skipping",
+  file: "index.c",
+  line: "884",
+  routine: "index_create",
+}
+{
+  severity_local: "NOTICE",
+  severity: "NOTICE",
+  code: "42P07",
+  message: "relation \"goals_context_idx\" already exists, skipping",
+  file: "index.c",
+  line: "884",
+  routine: "index_create",
+}
+{
+  severity_local: "NOTICE",
+  severity: "NOTICE",
+  code: "42P07",
+  message: "relation \"message_attachments_message_idx\" already exists, skipping",
+  file: "index.c",
+  line: "884",
+  routine: "index_create",
+}
+{
+  severity_local: "NOTICE",
+  severity: "NOTICE",
+  code: "42P07",
+  message: "relation \"a2a_tasks_caller_message_idx\" already exists, skipping",
+  file: "index.c",
+  line: "884",
+  routine: "index_create",
+}
+{
+  severity_local: "NOTICE",
+  severity: "NOTICE",
+  code: "42P07",
+  message: "relation \"a2a_tasks_caller_context_state_idx\" already exists, skipping",
+  file: "index.c",
+  line: "884",
+  routine: "index_create",
+}
+{
+  severity_local: "NOTICE",
+  severity: "NOTICE",
+  code: "42P07",
+  message: "relation \"conversation_participants_agent_idx\" already exists, skipping",
+  file: "index.c",
+  line: "884",
+  routine: "index_create",
+}
+migrations applied
+migrations: applied
+gateway: up on http://localhost:3100
+{"version":"0.0.0","gitSha":"unknown","branch":"unknown","environment":"test"}
+dev stack ready. Harness: AIVERSE_GATEWAY_BASE=http://localhost:3100 python3 harness/e1.py <smoke|pilot> --dev-local

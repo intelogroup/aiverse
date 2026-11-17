@@ -7,11 +7,14 @@ import { ApiError } from "../../lib/api";
 // requested scopes pre-granted), that Approve stays disabled until the
 // owner has picked at least one agent and one scope, and that the
 // decision posts the owner's narrowed set — never a wider one — before
-// navigating to the gateway's returned redirect.
+// navigating to the gateway's returned redirect. They also pin the F2
+// in-flow claim: an owner with no agents claims one from this page and
+// approves the same parked request, instead of hitting a dead end.
 const apiMock = vi.hoisted(() => ({
   oauthAuthorizeRequest: vi.fn(),
   listAgents: vi.fn(),
   decideOAuthAuthorize: vi.fn(),
+  claimAgent: vi.fn(),
 }));
 vi.mock("../../lib/api", () => {
   class MockApiError extends Error {
@@ -73,6 +76,10 @@ beforeEach(() => {
   apiMock.oauthAuthorizeRequest.mockResolvedValue(parkedRequest);
   apiMock.listAgents.mockResolvedValue({ agents: [agent] });
   apiMock.decideOAuthAuthorize.mockResolvedValue({ redirect: CLIENT_REDIRECT });
+  apiMock.claimAgent.mockResolvedValue({
+    agent: { id: "agent-1", name: "ProbeOne", status: "offline" },
+    visit: null,
+  });
 });
 
 describe("OAuthConsentPage", () => {
@@ -123,6 +130,64 @@ describe("OAuthConsentPage", () => {
       expect(apiMock.decideOAuthAuthorize).toHaveBeenCalledWith({ request_id: "req-1", approve: false }),
     );
     await waitFor(() => expect(assignMock).toHaveBeenCalledWith(CLIENT_REDIRECT));
+  });
+
+  it("with no agents, the page offers an in-flow claim instead of a dead end (F2)", async () => {
+    apiMock.listAgents.mockResolvedValue({ agents: [] });
+    render(<OAuthConsentPage onDone={() => {}} />);
+    expect(await screen.findByText(/You have no agents yet/)).toBeTruthy();
+    // The claim path is right here: a code input, register guidance,
+    // and a claim button — while Approve stays disabled (nothing to
+    // approve for yet).
+    expect(screen.getByLabelText("Claim code")).toBeTruthy();
+    expect(screen.getByText(/POST \/agents\/register/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Claim agent" })).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Approve connection" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(apiMock.decideOAuthAuthorize).not.toHaveBeenCalled();
+  });
+
+  it("claiming in flow selects the claimed agent and the SAME request approves (F2)", async () => {
+    apiMock.listAgents.mockResolvedValueOnce({ agents: [] }).mockResolvedValue({ agents: [agent] });
+    render(<OAuthConsentPage onDone={() => {}} />);
+    const input = (await screen.findByLabelText("Claim code")) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "claim-xyz" } });
+    fireEvent.click(screen.getByRole("button", { name: "Claim agent" }));
+    await waitFor(() => expect(apiMock.claimAgent).toHaveBeenCalledWith("claim-xyz"));
+
+    // The claimed agent appears, pre-selected, with the confirmation…
+    const agentBox = (await screen.findByLabelText(/ProbeOne/)) as HTMLInputElement;
+    await waitFor(() => expect(agentBox.checked).toBe(true));
+    expect(await screen.findByText(/Claimed/)).toBeTruthy();
+
+    // …and approving posts the decision against the original request.
+    const approve = screen.getByRole("button", { name: "Approve connection" }) as HTMLButtonElement;
+    expect(approve.disabled).toBe(false);
+    fireEvent.click(approve);
+    await waitFor(() =>
+      expect(apiMock.decideOAuthAuthorize).toHaveBeenCalledWith({
+        request_id: "req-1",
+        approve: true,
+        agent_ids: ["agent-1"],
+        scopes: ["world:observe", "world:act"],
+        grant_days: 30,
+      }),
+    );
+    await waitFor(() => expect(assignMock).toHaveBeenCalledWith(CLIENT_REDIRECT));
+  });
+
+  it("a failed claim shows the error and keeps the form live (F2)", async () => {
+    apiMock.listAgents.mockResolvedValue({ agents: [] });
+    apiMock.claimAgent.mockRejectedValue(new ApiError(400, "invalid claim code"));
+    render(<OAuthConsentPage onDone={() => {}} />);
+    const input = (await screen.findByLabelText("Claim code")) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "bogus-code" } });
+    fireEvent.click(screen.getByRole("button", { name: "Claim agent" }));
+    expect(await screen.findByText(/invalid claim code/)).toBeTruthy();
+    // Nothing was decided, Approve is still disabled, and the form can
+    // be retried with a corrected code.
+    expect(apiMock.decideOAuthAuthorize).not.toHaveBeenCalled();
+    expect((screen.getByRole("button", { name: "Approve connection" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "Claim agent" }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("a 404 request renders a dead end with no live decision buttons", async () => {
