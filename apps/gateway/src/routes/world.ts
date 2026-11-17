@@ -96,6 +96,31 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
     return new Response(JSON.stringify(data), { status: r.status, headers: { "content-type": "application/json", ...(retry ? { "retry-after": retry } : {}) } });
   }
 
+  // The UTC clock feed (owner decision, 2026-11-17): the sim's `t` is elapsed
+  // seconds in this world incarnation — an agent cannot compare it with
+  // anything outside the verse. The gateway lives on wall time, so the state
+  // surfaces (attach, body, observe) are stamped HERE with the gateway's UTC
+  // now and the visit's deadline, each in ISO + epoch-ms form (the hunt
+  // payload's units, so an agent can subtract directly), as siblings of the
+  // sim payload — the sim's own fields are never edited, and non-state
+  // surfaces (places, clips, act receipts) are never stamped.
+  async function stampClock(res: Response, visitEndsAtMs: number): Promise<Response> {
+    if (res.status !== 200 && res.status !== 201) return res;
+    const data = (await res.clone().json().catch(() => null)) as Record<string, unknown> | null;
+    if (!data || typeof data !== "object" || Array.isArray(data)) return res;
+    const nowMs = Date.now();
+    return new Response(
+      JSON.stringify({
+        ...data,
+        utc_now: new Date(nowMs).toISOString(),
+        utc_now_ms: nowMs,
+        visit_ends_at: new Date(visitEndsAtMs).toISOString(),
+        visit_ends_at_ms: visitEndsAtMs,
+      }),
+      { status: res.status, headers: res.headers },
+    );
+  }
+
   route.post("/body", async (c) => {
     const agentId = c.get("agentId");
     // Optional figure pick: {"body": "<id>"} (loadtest 2026-11-11: picks
@@ -128,14 +153,14 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
       const row = await db.query.agents.findFirst({ where: eq(agents.id, agentId), columns: { body: true } });
       if (isAgentBody(row?.body)) chosen = row.body;
     }
-    return forward(c, agentId, "POST", "/bodies", JSON.stringify({ agentId, expiresAtMs: c.get("visitEndsAt"), ...(chosen ? { body: chosen } : {}) }));
+    return stampClock(await forward(c, agentId, "POST", "/bodies", JSON.stringify({ agentId, expiresAtMs: c.get("visitEndsAt"), ...(chosen ? { body: chosen } : {}) })), c.get("visitEndsAt"));
   });
   // Free read: the body's own state, or 404 no_body ("attach one first"). Cold agents probed GET /body and read the old bare 404 as
   // "this API has no bodies" (cold-agent runs 2026-11-10/11).
-  route.get("/body", (c) => forward(c, c.get("agentId"), "GET", `/bodies/${c.get("agentId")}`));
+  route.get("/body", async (c) => stampClock(await forward(c, c.get("agentId"), "GET", `/bodies/${c.get("agentId")}`), c.get("visitEndsAt")));
   route.delete("/body", (c) => forward(c, c.get("agentId"), "DELETE", `/bodies/${c.get("agentId")}`));
   // ?heardSince=<seq> returns only speech newer than that cursor (the last observe.heard[].seq you saw).
-  route.get("/observe", (c) => forward(c, c.get("agentId"), "GET", `/bodies/${c.get("agentId")}/observe?heardSince=${Math.max(0, Number(c.req.query("heardSince")) || 0)}`));
+  route.get("/observe", async (c) => stampClock(await forward(c, c.get("agentId"), "GET", `/bodies/${c.get("agentId")}/observe?heardSince=${Math.max(0, Number(c.req.query("heardSince")) || 0)}`), c.get("visitEndsAt")));
   // One glance: depth + class images and the scene. A POST, so agentAuth counts it against the visit's action cap (it is a costly
   // sense); the sim allows 1 per second per body.
   route.post("/look", (c) => forward(c, c.get("agentId"), "POST", `/bodies/${c.get("agentId")}/look`, "{}"));
