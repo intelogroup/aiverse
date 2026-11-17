@@ -1,0 +1,366 @@
+{
+ "base": "http://localhost:3100",
+ "arms": {
+  "P0": {
+   "outcome": "phase_complete",
+   "target_seat": "tea-booth-right",
+   "seat_choice": {
+    "seat": "tea-booth-right",
+    "distance": 3.59,
+    "bearing_before_deg": -30.7,
+    "heading_before_deg": -55.7,
+    "staged_bearing_deg": -28.0,
+    "face_heading_deg": -58.4,
+    "bearing_after_deg": -28,
+    "state_after": "free"
+   },
+   "conf_staging": {
+    "go": {
+     "attempt_1": {
+      "post_status": 202,
+      "state": "settled",
+      "outcome": {
+       "ok": true,
+       "status": "arrived",
+       "target": "shop-102"
+      }
+     },
+     "arrived": true
+    },
+    "inside_room": null,
+    "pos": {
+     "x": -24.61113128981825,
+     "z": -71.83540503414787
+    },
+    "nearest_place": {
+     "id": "shop-102",
+     "dist": 0.77
+    }
+   },
+   "event": {
+    "turn": 4,
+    "enter_1": {
+     "post_status": 202,
+     "state": "settled",
+     "outcome": {
+      "ok": false,
+      "status": "blocked",
+      "target": "tea",
+      "detail": "no progress for 2.5 s, 5.9 m out; another body is right beside you and may be in the way - wait a few seconds and retry, or pick another spot",
+      "stalledForMs": 2526,
+      "blockedAfterMs": 37507,
+      "blockedBy": "shop-102"
+     }
+    },
+    "sit": {
+     "post_status": 202,
+     "state": "settled",
+     "outcome": {
+      "ok": true,
+      "status": "seated",
+      "target": "tea-booth-right"
+     }
+    },
+    "post_posture": "seated",
+    "post_seated_on": "tea-booth-right",
+    "post_pos": {
+     "x": -26.55,
+     "z": -73.6
+    },
+    "duration_s": 54.2
+   },
+   "visibility": {
+    "turn": 4,
+    "total": 471,
+    "per_sector": {
+     "ahead-left": 471,
+     "center": 0,
+     "ahead-right": 0
+    },
+    "side_sector": true
+   },
+   "body_pixels_per_turn": [
+    0,
+    0,
+    0,
+    471,
+    471,
+    471,
+    471,
+    471,
+    471,
+    471,
+    471,
+    471
+   ],
+   "side_share_per_turn": [
+    null,
+    null,
+    null,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "digest_line_turn1": "Periphery: ahead-left mid seat 47 wall 1221 \u00b7 far seat 14 wall 1163 | center near wall 2381 \u00b7 mid wall 658 | ahead-right near wall 3094",
+   "digest_line_turn4": "Periphery: ahead-left mid body 471 wall 1182 \u00b7 far seat 14 wall 935 | center near wall 2381 \u00b7 mid wall 658 | ahead-right near wall 3094",
+   "change_note_turn4": "Changed: body appeared ahead-left mid; seat gone ahead-left mid.",
+   "look_errors": []
+  },
+  "P1": {
+   "outcome": "phase_complete",
+   "target_seat": "tea-east-left",
+   "seat_choice": {
+    "seat": "tea-east-left",
+    "distance": 4.72,
+    "bearing_before_deg": 29.9,
+    "heading_before_deg": -90.0,
+    "staged_bearing_deg": 28.0,
+    "face_heading_deg": -88.1,
+    "bearing_after_deg": 28,
+    "state_after": "free"
+   },
+   "conf_staging": {
+    "go": {
+     "attempt_1": {
+      "post_status": 202,
+      "state": "settled",
+      "outcome": {
+       "ok": true,
+       "status": "arrived",
+       "target": "shop-102"
+      }
+     },
+     "arrived": true
+    },
+    "inside_room": null,
+    "pos": {
+     "x": -24.614304597438284,
+     "z": -71.83763075193185
+    },
+    "nearest_place": {
+     "id": "shop-102",
+     "dist": 0.77
+    }
+   },
+   "event": {
+    "turn": 4,
+    "enter_1": {
+     "post_status": 202,
+     "state": "settled",
+     "outcome": {
+      "ok": false,
+      "status": "timeout",
+      "target": "tea"
+     }
+    },
+    "sit": {
+     "post_status": 202,
+     "state": "settled",
+     "outcome": {
+      "ok": true,
+      "status": "seated",
+      "target": "tea-east-left"
+     }
+    },
+    "post_posture": "seated",
+    "post_seated_on": "tea-east-left",
+    "post_pos": {
+     "x": -29.28,
+     "z": -75.65
+    },
+    "duration_s": 135.4
+   },
+   "visibility": {
+    "turn": 4,
+    "total": 290,
+    "per_sector": {
+     "ahead-left": 0,
+     "center": 0,
+     "ahead-right": 290
+    },
+    "side_sector": true
+   },
+   "body_pixels_per_turn": [
+    0,
+    0,
+    0,
+    290,
+    290,
+    290,
+    290,
+    290,
+    290,
+    290,
+    290,
+    290
+   ],
+   "side_share_per_turn": [
+    null,
+    null,
+    null,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "digest_line_turn1": "Periphery: ahead-left mid wall 1142 \u00b7 far wall 1258 | center near wall 119 \u00b7 mid seat 4 wall 983 \u00b7 far wall 1207 | ahead-right near wall 14 \u00b7 mid seat 215 wall 1307 \u00b7 far wall 1226",
+   "digest_line_turn4": "Periphery: ahead-left mid wall 1142 \u00b7 far wall 1258 | center near wall 119 \u00b7 mid seat 4 wall 983 \u00b7 far wall 1207 | ahead-right near wall 14 \u00b7 mid body 290 seat 203 wall 1268 \u00b7 far wall 1029",
+   "change_note_turn4": "Changed: body appeared ahead-right mid.",
+   "look_errors": []
+  },
+  "P2": {
+   "outcome": "phase_complete",
+   "target_seat": "tea-booth-left",
+   "seat_choice": {
+    "seat": "tea-booth-left",
+    "distance": 4.81,
+    "bearing_before_deg": -25.6,
+    "heading_before_deg": -61.7,
+    "staged_bearing_deg": -28.0,
+    "face_heading_deg": -59.3,
+    "bearing_after_deg": -27.9,
+    "state_after": "free"
+   },
+   "conf_staging": {
+    "go": {
+     "attempt_1": {
+      "post_status": 202,
+      "state": "settled",
+      "outcome": {
+       "ok": true,
+       "status": "arrived",
+       "target": "shop-102"
+      }
+     },
+     "arrived": true
+    },
+    "inside_room": null,
+    "pos": {
+     "x": -24.632865245912562,
+     "z": -71.84399883040854
+    },
+    "nearest_place": {
+     "id": "shop-102",
+     "dist": 0.75
+    }
+   },
+   "event": {
+    "turn": 4,
+    "enter_1": {
+     "post_status": 202,
+     "state": "settled",
+     "outcome": {
+      "ok": true,
+      "status": "arrived",
+      "target": "tea"
+     }
+    },
+    "sit": {
+     "post_status": 202,
+     "state": "settled",
+     "outcome": {
+      "ok": true,
+      "status": "seated",
+      "target": "tea-booth-left"
+     }
+    },
+    "post_posture": "seated",
+    "post_seated_on": "tea-booth-left",
+    "post_pos": {
+     "x": -27.75,
+     "z": -73.6
+    },
+    "duration_s": 45.1
+   },
+   "visibility": {
+    "turn": 4,
+    "total": 238,
+    "per_sector": {
+     "ahead-left": 238,
+     "center": 0,
+     "ahead-right": 0
+    },
+    "side_sector": true
+   },
+   "body_pixels_per_turn": [
+    0,
+    0,
+    0,
+    238,
+    238,
+    238,
+    238,
+    238,
+    238,
+    238,
+    238,
+    238
+   ],
+   "side_share_per_turn": [
+    null,
+    null,
+    null,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "digest_line_turn1": "Periphery: ahead-left mid seat 45 wall 1148 \u00b7 far seat 29 wall 1199 | center near wall 2336 \u00b7 mid wall 687 | ahead-right near wall 3094",
+   "digest_line_turn4": "Periphery: ahead-left mid body 238 seat 37 wall 1141 \u00b7 far seat 29 wall 1017 | center near wall 2336 \u00b7 mid wall 687 | ahead-right near wall 3094",
+   "change_note_turn4": "Changed: body appeared ahead-left mid.",
+   "look_errors": []
+  }
+ },
+ "checks": {
+  "P0: phase_complete": true,
+  "P0: conf_outside_before_event": true,
+  "P0: conf_seated_on_target": true,
+  "P0: staged_bearing_side_band": true,
+  "P0: no_body_pixels_pre_event": true,
+  "P0: body_pixels_from_event": true,
+  "P0: visibility_turn_4": true,
+  "P0: visibility_side_sector": true,
+  "P0: no_look_errors": true,
+  "P0: prompts_digest_free": true,
+  "P1: phase_complete": true,
+  "P1: conf_outside_before_event": true,
+  "P1: conf_seated_on_target": true,
+  "P1: staged_bearing_side_band": true,
+  "P1: no_body_pixels_pre_event": true,
+  "P1: body_pixels_from_event": true,
+  "P1: visibility_turn_4": true,
+  "P1: visibility_side_sector": true,
+  "P1: no_look_errors": true,
+  "P1: prompts_carry_digest": true,
+  "P1: prompts_note_free": true,
+  "P2: phase_complete": true,
+  "P2: conf_outside_before_event": true,
+  "P2: conf_seated_on_target": true,
+  "P2: staged_bearing_side_band": true,
+  "P2: no_body_pixels_pre_event": true,
+  "P2: body_pixels_from_event": true,
+  "P2: visibility_turn_4": true,
+  "P2: visibility_side_sector": true,
+  "P2: no_look_errors": true,
+  "P2: prompts_carry_digest": true,
+  "P2: turn4_change_note_names_body": true,
+  "zero_spend": true
+ },
+ "verdict": true
+}
