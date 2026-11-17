@@ -12,47 +12,14 @@ import { EasterEggs } from "./EasterEggs";
 import type { InteractController } from "./interactables";
 import type { WalkColliders } from "./walkColliders";
 import { assetUrl, resolveManifestAssets } from "../../lib/assetUrl";
-import { blendTheme, collisionJobs, dueEvictions, isShellCovered, originOf, planDistricts, residentCollisionUrl, staleShellIds, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
+import { blendTheme, collisionJobs, dueEvictions, farGroupVisible, isShellCovered, originOf, planDistricts, residentCollisionUrl, staleShellIds, type DistrictDef, type DistrictManifest, type Theme } from "./districts";
 import { TILES } from "./tilesMode";
 import { tileScenes } from "./tileScenes";
 import { applyBazaarBatch, type BazaarBatchHandle } from "./bazaarBatch";
+import { applyNight, disposeTree, hideLegacyWater } from "./districtTree";
+import { createHemiFill, createOcean, createSkyDome } from "./districtSky";
 
 export const DISTRICTS_URL = TILES ? "/assets/tiles/districts.json" : "/assets/districts.json";
-
-const disposeTree = (root: THREE.Object3D) =>
-  root.traverse((o) => {
-    const m = o as THREE.Mesh;
-    if (!m.isMesh) return;
-    if (m.geometry.boundsTree) m.geometry.disposeBoundsTree();
-    m.geometry.dispose();
-    for (const mat of Array.isArray(m.material) ? m.material : [m.material]) {
-      for (const v of Object.values(mat as unknown as Record<string, unknown>)) if (v && (v as THREE.Texture).isTexture) (v as THREE.Texture).dispose();
-      mat.dispose();
-    }
-  });
-
-const EMISSIVE: Record<string, number> = { glass: 1.5, msign: 0.9, led: 1.0 };
-/** Scale emissive windows/signs/LEDs by the theme's `night`; the base intensity is remembered on the material. */
-function applyNight(root: THREE.Object3D, night: number) {
-  root.traverse((o) => {
-    const m = o as THREE.Mesh;
-    if (!m.isMesh) return;
-    for (const mat of Array.isArray(m.material) ? m.material : [m.material]) {
-      const std = mat as THREE.MeshStandardMaterial;
-      const k = EMISSIVE[std.name];
-      if (k === undefined || !std.emissive) continue;
-      std.userData.baseEmissive ??= std.emissiveIntensity || 1;
-      std.emissiveIntensity = std.userData.baseEmissive * (std.name === "led" ? 0.15 + night * k : night * k);
-    }
-  });
-}
-
-const SKY_VERT = `varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); gl_Position.z = gl_Position.w; }`;
-const SKY_FRAG = `varying vec3 vDir; uniform vec3 top; uniform vec3 horizon; uniform vec3 sunDir; uniform vec3 sunCol;
-void main(){ float h = clamp(vDir.y, -0.2, 1.0); vec3 c = mix(horizon, top, pow(max(h,0.0), 0.55));
-  c = mix(c, horizon * 0.8, smoothstep(0.0, -0.2, vDir.y));
-  float s = max(dot(normalize(vDir), normalize(sunDir)), 0.0); c += sunCol * (pow(s, 600.0) * 4.0 + pow(s, 8.0) * 0.28);
-  gl_FragColor = vec4(c, 1.0); }`;
 
 /**
  * The district world: the Bazaar stays resident (useGLTF); other islands stream by the orbit target's distance
@@ -84,6 +51,8 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
   const retriedRef = useRef(new Set<string>());
   const aliveRef = useRef(true);
   const shellGroups = useRef(new Map<string, THREE.Object3D>());
+  // Textured far view (manifest `lod`): same `shell_<id>` groups; once it has arrived the beige shell groups stay hidden.
+  const lodGroups = useRef(new Map<string, THREE.Object3D>());
   // The resident (manifest `resident` flag) never enters the streamed `groups` set — it loads via
   // useGLTF — so shell coverage needs its id + a mounted flag beside the streamed set (isShellCovered).
   const residentIdRef = useRef<string | undefined>(undefined);
@@ -96,7 +65,9 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
   };
   const syncShell = () => {
     const loaded = new Set(groups.current.keys());
-    for (const [id, g] of shellGroups.current) g.visible = !isShellCovered(id, loaded, residentIdRef.current, residentReadyRef.current);
+    const lodUp = lodGroups.current.size > 0;
+    for (const [id, g] of shellGroups.current) g.visible = farGroupVisible("shell", isShellCovered(id, loaded, residentIdRef.current, residentReadyRef.current), lodUp);
+    for (const [id, g] of lodGroups.current) g.visible = farGroupVisible("lod", isShellCovered(id, loaded, residentIdRef.current, residentReadyRef.current), lodUp);
   };
   // Camera-collision meshes per root (resident, links, each streamed district); flattened lazily for the collider.
   const colliderSets = useRef(new Map<string, THREE.Mesh[]>());
@@ -131,25 +102,9 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     configureGltfLoader(l, gl);
     return l;
   }, [gl]);
-  const sky = useMemo(() => {
-    const mat = new THREE.ShaderMaterial({ vertexShader: SKY_VERT, fragmentShader: SKY_FRAG, side: THREE.BackSide, depthWrite: false, fog: false,
-      uniforms: { top: { value: new THREE.Color() }, horizon: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3(0, 1, 0) }, sunCol: { value: new THREE.Color() } } });
-    const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), mat); mesh.frustumCulled = false; mesh.renderOrder = -1000; mesh.scale.setScalar(2500);
-    return mesh;
-  }, []);
-  const water = useMemo(() => {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), new THREE.MeshStandardMaterial({ color: "#1c6a84", roughness: 0.12, metalness: 0.0 }));
-    m.rotation.x = -Math.PI / 2; m.position.y = -1.25; m.receiveShadow = true; return m;
-  }, []);
-  // Warm hemisphere fill (deeper-grade tune): with envIntensity lowered the
-  // RoomEnvironment wash no longer flattens the palette, and this fill —
-  // sky warm, ground earth — keeps shade readable without desaturating it.
-  // Intensity comes from the theme's ambient field in the frame loop.
-  const hemi = useMemo(() => {
-    const h = new THREE.HemisphereLight();
-    h.color.setRGB(1.0, 0.85, 0.62); h.groundColor.setRGB(0.45, 0.36, 0.22); h.intensity = 0;
-    return h;
-  }, []);
+  const sky = useMemo(createSkyDome, []);
+  const water = useMemo(createOcean, []);
+  const hemi = useMemo(createHemiFill, []);
   useEffect(() => {
     scene.add(sky); scene.add(water); scene.add(hemi);
     scene.fog = new THREE.FogExp2(0xb0b8c8, 0.0006);
@@ -234,6 +189,33 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     return () => { live = false; shellGroups.current.clear(); if (root) { scene.remove(root); disposeTree(root); } };
   }, [manifest, loader, scene]);
 
+  // Far LOD: fetched only after the resident has mounted (plus a beat, so the nearest tiles' requests go first): ~5 MB that must not
+  // compete with the first paint. A failure only warns: the beige shell stays.
+  useEffect(() => {
+    if (!manifest?.lod) return;
+    let live = true; let root: THREE.Object3D | null = null; let timer: ReturnType<typeof setTimeout> | undefined;
+    const start = () => {
+      if (!live) return;
+      if (!residentReadyRef.current) { timer = setTimeout(start, 500); return; }
+      timer = setTimeout(() => {
+        if (!live || !manifest.lod) return;
+        loader.load(manifest.lod, (g) => {
+          if (!live) { disposeTree(g.scene); return; }
+          root = g.scene; scene.add(root);
+          root.traverse((o) => { const m = /^shell[_:](.+)$/.exec(o.name); if (m) lodGroups.current.set(m[1], o); });
+          for (const id of staleShellIds(lodGroups.current.keys(), manifest.districts.map((d) => d.id))) {
+            const gr = lodGroups.current.get(id); lodGroups.current.delete(id);
+            if (gr) { gr.removeFromParent(); disposeTree(gr); }
+          }
+          syncShell(); pushEvent("lod-ok");
+        }, undefined, () => { if (live) { console.warn("[districts] far LOD failed to load; the plain far shell stays"); pushEvent("lod-fail"); } });
+      }, 1500);
+    };
+    start();
+    return () => { live = false; if (timer) clearTimeout(timer); lodGroups.current.clear(); if (root) { scene.remove(root); disposeTree(root); } };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [manifest, loader, scene]);
+
   const defs = manifest?.districts ?? [];
 
   // Walker collision (separate from the camera's colliderSets): never added to the scene, baked into one BVH mesh per GLB.
@@ -287,11 +269,6 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     return () => { delete w.__districts; };
   }, [w, gl, controls, camera]);
 
-  // Water and sea surfaces are replaced by the ocean + FountainWater below, in every root (the resident does the same in its effect).
-  const hideLegacyWater = (root: THREE.Object3D) => root.traverse((o) => {
-    const m = o as THREE.Mesh; if (!m.isMesh) return;
-    if ((Array.isArray(m.material) ? m.material : [m.material]).some((mat) => mat.name === "water" || mat.name === "sea")) m.visible = false;
-  });
   const mount = (d: DistrictDef, root: THREE.Object3D | null, t0: number) => {
     const g = new THREE.Group(); g.name = `district:${d.id}`; const [ox, oz] = originOf(d); g.position.set(ox, 0, oz); if (root) g.add(root);
     applyNight(g, themeRef.current?.night ?? 0);

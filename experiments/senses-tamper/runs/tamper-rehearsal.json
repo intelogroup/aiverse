@@ -1,0 +1,213 @@
+{
+ "base": "http://localhost:3100",
+ "arms": {
+  "veridical": {
+   "outcome": "phase_complete",
+   "selected_seat": "tea-booth-right",
+   "event": {
+    "turn": 4,
+    "arm": "veridical",
+    "silent_sit": {
+     "post_status": 202,
+     "state": "settled",
+     "outcome": {
+      "ok": true,
+      "status": "seated",
+      "target": "tea-booth-right"
+     }
+    },
+    "post_posture": "seated",
+    "post_seated_on": "tea-booth-right"
+   },
+   "real_postures": [
+    "standing",
+    "standing",
+    "standing",
+    "seated",
+    "seated",
+    "seated",
+    "standing",
+    "standing",
+    "standing",
+    "standing",
+    "standing",
+    "standing"
+   ],
+   "proprio_lines": [
+    "posture standing \u00b7 not on any seat \u00b7 speed 0.0 m/s",
+    "posture standing \u00b7 not on any seat \u00b7 speed 0.0 m/s",
+    "posture standing \u00b7 not on any seat \u00b7 speed 0.0 m/s",
+    "posture seated \u00b7 on seat tea-booth-right \u00b7 speed 0.0 m/s",
+    "posture seated \u00b7 on seat tea-booth-right \u00b7 speed 0.0 m/s",
+    "posture seated \u00b7 on seat tea-booth-right \u00b7 speed 0.0 m/s",
+    "posture standing \u00b7 not on any seat \u00b7 speed 0.0 m/s",
+    "posture standing \u00b7 not on any seat \u00b7 speed 0.0 m/s",
+    "posture standing \u00b7 not on any seat \u00b7 speed 0.0 m/s",
+    "posture standing \u00b7 not on any seat \u00b7 speed 0.0 m/s",
+    "posture standing \u00b7 not on any seat \u00b7 speed 0.0 m/s",
+    "posture standing \u00b7 not on any seat \u00b7 speed 0.0 m/s"
+   ],
+   "seat_states": [
+    "free",
+    "free",
+    "free",
+    "yours",
+    "yours",
+    "yours",
+    "free",
+    "free",
+    "free",
+    "free",
+    "free",
+    "free"
+   ],
+   "classification": "cross_checked"
+  },
+  "feed_lie": {
+   "outcome": "phase_complete",
+   "selected_seat": "tea-booth-right",
+   "event": {
+    "turn": 4,
+    "arm": "feed_lie",
+    "silent_sit": null,
+    "note": "no world act; body channel source flipped"
+   },
+   "real_postures": [
+    "standing",
+    "standing",
+    "standing",
+    "standing",
+    "standing",
+    "standing",
+    "standing",
+    "standing",
+    "standing",
+    "standing",
+    "standing",
+    "standing"
+   ],
+   "proprio_lines": [
+    "posture standing \u00b7 not on any seat \u00b7 speed 0.0 m/s",
+    "posture standing \u00b7 not on any seat \u00b7 speed 0.0 m/s",
+    "posture standing \u00b7 not on any seat \u00b7 speed 0.0 m/s",
+    "posture seated \u00b7 on seat tea-booth-right \u00b7 speed 0.0 m/s",
+    "posture seated \u00b7 on seat tea-booth-right \u00b7 speed 0.0 m/s",
+    "posture seated \u00b7 on seat tea-booth-right \u00b7 speed 0.0 m/s",
+    "posture seated \u00b7 on seat tea-booth-right \u00b7 speed 0.0 m/s",
+    "posture seated \u00b7 on seat tea-booth-right \u00b7 speed 0.0 m/s",
+    "posture seated \u00b7 on seat tea-booth-right \u00b7 speed 0.0 m/s",
+    "posture seated \u00b7 on seat tea-booth-right \u00b7 speed 0.0 m/s",
+    "posture seated \u00b7 on seat tea-booth-right \u00b7 speed 0.0 m/s",
+    "posture seated \u00b7 on seat tea-booth-right \u00b7 speed 0.0 m/s"
+   ],
+   "seat_states": [
+    "free",
+    "free",
+    "free",
+    "free",
+    "free",
+    "free",
+    "free",
+    "free",
+    "free",
+    "free",
+    "free",
+    "free"
+   ],
+   "classification": "cross_checked"
+  },
+  "silent_change": {
+   "outcome": "phase_complete",
+   "selected_seat": "tea-booth-right",
+   "event": {
+    "turn": 4,
+    "arm": "silent_change",
+    "silent_sit": {
+     "post_status": 202,
+     "state": "settled",
+     "outcome": {
+      "ok": true,
+      "status": "seated",
+      "target": "tea-booth-right"
+     }
+    },
+    "post_posture": "seated",
+    "post_seated_on": "tea-booth-right"
+   },
+   "real_postures": [
+    "standing",
+    "standing",
+    "standing",
+    "seated",
+    "seated",
+    "seated",
+    "standing",
+    "standing",
+    "standing",
+    "standing",
+    "standing",
+    "standing"
+   ],
+   "proprio_lines": [
+    "posture standing \u00b7 not on any seat \u00b7 speed 0.0 m/s",
+    "posture standing \u00b7 not on any seat \u00b7 speed 0.0 m/s",
+    "posture standing \u00b7 not on any seat \u00b7 speed 0.0 m/s",
+    "posture standing \u00b7 not on any seat \u00b7 speed 0.0 m/s",
+    "posture standing \u00b7 not on any seat \u00b7 speed 0.0 m/s",
+    "posture standing \u00b7 not on any seat \u00b7 speed 0.0 m/s",
+    "posture standing \u00b7 not on any seat \u00b7 speed 0.0 m/s",
+    "posture standing \u00b7 not on any seat \u00b7 speed 0.0 m/s",
+    "posture standing \u00b7 not on any seat \u00b7 speed 0.0 m/s",
+    "posture standing \u00b7 not on any seat \u00b7 speed 0.0 m/s",
+    "posture standing \u00b7 not on any seat \u00b7 speed 0.0 m/s",
+    "posture standing \u00b7 not on any seat \u00b7 speed 0.0 m/s"
+   ],
+   "seat_states": [
+    "free",
+    "free",
+    "free",
+    "yours",
+    "yours",
+    "yours",
+    "free",
+    "free",
+    "free",
+    "free",
+    "free",
+    "free"
+   ],
+   "classification": "cross_checked"
+  }
+ },
+ "checks": {
+  "veridical: phase_complete": true,
+  "veridical: turns_12": true,
+  "veridical: pre_event_channel_standing": true,
+  "veridical: sit_seated_on_selected": true,
+  "veridical: channel_seated_4_to_6": true,
+  "veridical: channel_standing_after_stand": true,
+  "veridical: real_seated_4_to_6": true,
+  "veridical: position_shifted_at_event": true,
+  "feed_lie: phase_complete": true,
+  "feed_lie: turns_12": true,
+  "feed_lie: pre_event_channel_standing": true,
+  "feed_lie: no_silent_sit": true,
+  "feed_lie: real_standing_all": true,
+  "feed_lie: channel_seated_from_4": true,
+  "feed_lie: seat_free_all": true,
+  "feed_lie: position_unmoved_at_event": true,
+  "feed_lie: stand_refused_not_seated": true,
+  "silent_change: phase_complete": true,
+  "silent_change: turns_12": true,
+  "silent_change: pre_event_channel_standing": true,
+  "silent_change: sit_seated_on_selected": true,
+  "silent_change: channel_byte_flat": true,
+  "silent_change: channel_always_standing": true,
+  "silent_change: real_seated_4_to_6": true,
+  "silent_change: seat_yours_4_to_6": true,
+  "silent_change: position_shifted_at_event": true,
+  "silent_change: position_line_token_never_seated": true,
+  "zero_spend": true
+ },
+ "verdict": true
+}

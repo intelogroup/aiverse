@@ -1,11 +1,11 @@
 # Go-live runbook
 
-Last updated: 2026-11-10. This is a deploy checklist, not a status report —
+Last updated: 2026-11-17. This is a deploy checklist, not a status report —
 see `docs/STATUS.md` for ecology/experiment findings and `AGENTS.md` for
 hard rules. Update this file when a blocker below is closed or a new one
 is found; don't let it go stale like the state it documents.
 
-## Current state (2026-11-10) — the relaunch below already happened
+## Current state (2026-11-10, updated 2026-11-17) — the relaunch below already happened
 
 The gateway is **live**, not suspended: production runs on Render
 (Oregon, `srv-da8ao1qjnfac73drf3og`), `/version` tracks `main`, and a
@@ -15,13 +15,15 @@ still routes to Oregon). The September relaunch checklist below is
 closed history, kept as the record. Since then: `ADMIN_EMAILS` +
 `REQUIRE_EMAIL_VERIFICATION` set in prod (2026-11-10); Sentry live on
 console + gateway; hunt backup/restore endpoints merged and exercised
-(PR #82). Two standing cautions: **GitHub Actions is disabled in repo
-settings** (last run 2026-10-11), so deploys are verified manually via
-`/version` gitSha; and the Neon plan was **not** upgraded — the PITR
+(PR #82). Two standing cautions: deploys are verified via `/version`
+gitSha — GitHub Actions was disabled in repo settings from 2026-10-11
+to ~2026-11-13 (the claim that stood here until 2026-11-17); Actions
+has run on every PR since (#182–#196, all green pre-merge), but green
+CI proves the tree passed, not that Render landed it; and the Neon plan was **not** upgraded — the PITR
 window is still 6 h, partly covered by a self-managed pg_dump cron
 (`aiverse-neon-backup` — first run + restore-verify proven 2026-11-10; daily 08:00 UTC, autodeploy on).
 
-## Relaunch checklist (drafted 2026-09-24 — service currently suspended)
+## Relaunch checklist (drafted 2026-09-24, when the service was suspended — closed history; the gateway has been live since the relaunch, see Current state above)
 
 Prod (`aiverse-gateway` on Render) is **suspended** as of 2026-09-23
 (confirmed live: `GET /version` and `/health` both return Render's own
@@ -151,10 +153,10 @@ root. The root `.env.test` can silently shadow `apps/gateway/.env.test`
 and point tests at a stale/unreachable cloud DB, producing false failure
 counts that look like "pre-existing breakage" (see `CLAUDE.md` for the
 2026-09-02 incident where this hid the real suite health for over a week).
-Current real local baseline: 125 pass / 2 fail (both in
-`jobs/nativeAgents.test.ts` — known DB-state flakes, unrelated to any
-specific change — verify they still fail in isolation before assuming a
-new change caused them).
+Current real local baseline (2026-11-17, main `9cbaf54c`): 667 pass /
+0 fail. (The 125 pass / 2 fail figure this section carried before was
+the 2026-09-02 baseline, including two `jobs/nativeAgents.test.ts`
+DB-state flakes that no longer reproduce.)
 
 ## Closed this session (2026-09-02)
 

@@ -1,0 +1,2341 @@
+{
+ "experiment": "E2 body channel (plan \u00a74): hidden / shown / shown+consequential energy-strain signal",
+ "seed": 20261119,
+ "execution_order": [
+  "e2-b2-p5-01-c926ed",
+  "e2-b0-p3-02-6f876b",
+  "e2-b1-p9-03-7136e9",
+  "e2-b0-p7-04-eadd2b",
+  "e2-b2-p4-05-3eb044",
+  "e2-b0-p8-06-3f848e",
+  "e2-b1-p12-07-7e1a44",
+  "e2-b1-p6-08-2f742e",
+  "e2-b2-p1-09-abf226",
+  "e2-b2-p12-10-cf368e",
+  "e2-b0-p4-11-a0c2ee",
+  "e2-b2-p11-12-cfc76e",
+  "e2-b2-p2-13-b57c72",
+  "e2-b1-p1-14-7312d2",
+  "e2-b0-p5-15-923d9d",
+  "e2-b0-p11-16-24c4cb",
+  "e2-b2-p8-17-fdcb38",
+  "e2-b1-p4-18-7cdbb1",
+  "e2-b0-p1-19-80c439",
+  "e2-b0-p10-20-7e6a7c",
+  "e2-b0-p6-21-69abef",
+  "e2-b2-p6-22-c90d2b",
+  "e2-b1-p10-23-a91ee6",
+  "e2-b2-p3-24-b263db",
+  "e2-b1-p8-25-bbd888",
+  "e2-b0-p9-26-3e9ee6",
+  "e2-b2-p9-27-94aa5e",
+  "e2-b0-p12-28-187e5f",
+  "e2-b1-p3-29-48b43d",
+  "e2-b1-p11-30-a7bd1e",
+  "e2-b1-p7-31-1cbc83",
+  "e2-b1-p5-32-a36d75",
+  "e2-b0-p2-33-95d5e8",
+  "e2-b1-p2-34-c44934",
+  "e2-b2-p10-35-cab4d2",
+  "e2-b2-p7-36-f27d6d"
+ ],
+ "arms": {
+  "B0": {
+   "runs": 12,
+   "completed": 9,
+   "completion_rate": 0.75,
+   "outcomes": {
+    "completed": 9,
+    "failed_deadline": 2,
+    "task_infeasible": 1
+   },
+   "median_wall_seconds_completed": 262.28,
+   "median_turns_completed": 9,
+   "runs_with_run_to": 1,
+   "median_intended_run_share": 0.0,
+   "median_executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 43,
+     "run_chosen": 2,
+     "run_fraction": 0.047
+    },
+    "lt15": {
+     "decisions": 3,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    },
+    "15_30": {
+     "decisions": 9,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "runs_with_regulation": 1,
+   "regulation_events_total": 9,
+   "voluntary_rest_total": 0,
+   "walk_down_total": 9,
+   "total_turns": 121,
+   "voice_rate": 1.0,
+   "runs_with_body_ref": 0,
+   "total_body_refs": 0,
+   "median_first_ref_turn": null,
+   "median_disp_energy_at_refs": null,
+   "echo_turns_total": 0,
+   "ref_quotes": [],
+   "median_min_energy": 61.1,
+   "runs_min_energy_le5": 1,
+   "runs_min_energy_lt15": 1,
+   "radio_acts_total": 7,
+   "enforcement_totals": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "runs_with_enforcement": 0,
+   "first_refusal_responses": {},
+   "runs_completed_after_refusal": 0,
+   "runs_completed_after_enforcement": 0
+  },
+  "B1": {
+   "runs": 12,
+   "completed": 5,
+   "completion_rate": 0.417,
+   "outcomes": {
+    "completed": 5,
+    "failed_deadline": 7
+   },
+   "median_wall_seconds_completed": 265.79,
+   "median_turns_completed": 9,
+   "runs_with_run_to": 0,
+   "median_intended_run_share": 0.0,
+   "median_executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 41,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    },
+    "30_50": {
+     "decisions": 2,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "runs_with_regulation": 0,
+   "regulation_events_total": 0,
+   "voluntary_rest_total": 0,
+   "walk_down_total": 0,
+   "total_turns": 102,
+   "voice_rate": 1.0,
+   "runs_with_body_ref": 0,
+   "total_body_refs": 0,
+   "median_first_ref_turn": null,
+   "median_disp_energy_at_refs": null,
+   "echo_turns_total": 0,
+   "ref_quotes": [],
+   "median_min_energy": 61.1,
+   "runs_min_energy_le5": 3,
+   "runs_min_energy_lt15": 3,
+   "radio_acts_total": 4,
+   "enforcement_totals": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "runs_with_enforcement": 0,
+   "first_refusal_responses": {},
+   "runs_completed_after_refusal": 0,
+   "runs_completed_after_enforcement": 0
+  },
+  "B2": {
+   "runs": 12,
+   "completed": 7,
+   "completion_rate": 0.583,
+   "outcomes": {
+    "failed_deadline": 3,
+    "task_infeasible": 2,
+    "completed": 7
+   },
+   "median_wall_seconds_completed": 280.71,
+   "median_turns_completed": 8,
+   "runs_with_run_to": 0,
+   "median_intended_run_share": 0.0,
+   "median_executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 56,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    },
+    "30_50": {
+     "decisions": 2,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "runs_with_regulation": 0,
+   "regulation_events_total": 0,
+   "voluntary_rest_total": 0,
+   "walk_down_total": 0,
+   "total_turns": 127,
+   "voice_rate": 1.0,
+   "runs_with_body_ref": 0,
+   "total_body_refs": 0,
+   "median_first_ref_turn": null,
+   "median_disp_energy_at_refs": null,
+   "echo_turns_total": 0,
+   "ref_quotes": [],
+   "median_min_energy": 55.8,
+   "runs_min_energy_le5": 0,
+   "runs_min_energy_lt15": 0,
+   "radio_acts_total": 4,
+   "enforcement_totals": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "runs_with_enforcement": 0,
+   "first_refusal_responses": {},
+   "runs_completed_after_refusal": 0,
+   "runs_completed_after_enforcement": 0
+  }
+ },
+ "total_accounted_spend_usd": 0.146705,
+ "ledger_entries": 2361,
+ "spend_cap_usd": 1.0,
+ "soft_stop_usd": 0.4,
+ "per_run": [
+  {
+   "arm": "B2",
+   "outcome": "failed_deadline",
+   "wall_seconds": 340.08,
+   "turns": 11,
+   "total_turns": 11,
+   "voice_turns": 11,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 6,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 5,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 70.1,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 53.2,
+   "body_final": {
+    "energy": 53.2,
+    "strain": 17.2,
+    "context_pressure": 0.0029611587524414062,
+    "depleted_lock": false
+   },
+   "radio_acts": 1
+  },
+  {
+   "arm": "B0",
+   "outcome": "completed",
+   "wall_seconds": 258.71,
+   "turns": 9,
+   "total_turns": 9,
+   "voice_turns": 9,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 7,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 4,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 70.9,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 66.2,
+   "body_final": {
+    "energy": 66.2,
+    "strain": 0.0,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "radio_acts": 0
+  },
+  {
+   "arm": "B1",
+   "outcome": "completed",
+   "wall_seconds": 265.79,
+   "turns": 9,
+   "total_turns": 9,
+   "voice_turns": 9,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 5,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 4,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 82.4,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 65.5,
+   "body_final": {
+    "energy": 68.7,
+    "strain": 0.0,
+    "context_pressure": 0.0031070709228515625,
+    "depleted_lock": false
+   },
+   "radio_acts": 0
+  },
+  {
+   "arm": "B0",
+   "outcome": "completed",
+   "wall_seconds": 230.37,
+   "turns": 6,
+   "total_turns": 6,
+   "voice_turns": 6,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 4,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 2,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 84.45,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 70.0,
+   "body_final": {
+    "energy": 72.8,
+    "strain": 0.0,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "radio_acts": 0
+  },
+  {
+   "arm": "B2",
+   "outcome": "failed_deadline",
+   "wall_seconds": 340.02,
+   "turns": 12,
+   "total_turns": 12,
+   "voice_turns": 12,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 10,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 4,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 100.0,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 62.4,
+   "body_final": {
+    "energy": 89.9,
+    "strain": 0.0,
+    "context_pressure": 0.004691123962402344,
+    "depleted_lock": false
+   },
+   "radio_acts": 0
+  },
+  {
+   "arm": "B0",
+   "outcome": "failed_deadline",
+   "wall_seconds": 340.08,
+   "turns": 6,
+   "total_turns": 6,
+   "voice_turns": 6,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 4,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 2,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 73.45,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 34.1,
+   "body_final": {
+    "energy": 34.1,
+    "strain": 0.0,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "radio_acts": 0
+  },
+  {
+   "arm": "B1",
+   "outcome": "failed_deadline",
+   "wall_seconds": 340.01,
+   "turns": 8,
+   "total_turns": 8,
+   "voice_turns": 8,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 6,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 3,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 92.25,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 54.6,
+   "body_final": {
+    "energy": 54.6,
+    "strain": 0.0,
+    "context_pressure": 0.0021514892578125,
+    "depleted_lock": false
+   },
+   "radio_acts": 0
+  },
+  {
+   "arm": "B1",
+   "outcome": "completed",
+   "wall_seconds": 233.58,
+   "turns": 8,
+   "total_turns": 8,
+   "voice_turns": 8,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 6,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 4,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 76.85,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 70.9,
+   "body_final": {
+    "energy": 71.0,
+    "strain": 0.0,
+    "context_pressure": 0.0021715164184570312,
+    "depleted_lock": false
+   },
+   "radio_acts": 0
+  },
+  {
+   "arm": "B2",
+   "outcome": "failed_deadline",
+   "wall_seconds": 341.07,
+   "turns": 29,
+   "total_turns": 29,
+   "voice_turns": 29,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": null,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 13,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    },
+    "30_50": {
+     "decisions": 2,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 63.4,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 43.6,
+   "body_final": {
+    "energy": 44.4,
+    "strain": 0.0,
+    "context_pressure": 0.005550384521484375,
+    "depleted_lock": false
+   },
+   "radio_acts": 0
+  },
+  {
+   "arm": "B2",
+   "outcome": "task_infeasible",
+   "wall_seconds": 131.5,
+   "turns": 4,
+   "total_turns": 4,
+   "voice_turns": 4,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": null,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 2,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 73.65,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 68.3,
+   "body_final": {
+    "energy": 68.4,
+    "strain": 0.0,
+    "context_pressure": 0.0011034011840820312,
+    "depleted_lock": false
+   },
+   "radio_acts": 0
+  },
+  {
+   "arm": "B0",
+   "outcome": "completed",
+   "wall_seconds": 249.7,
+   "turns": 9,
+   "total_turns": 9,
+   "voice_turns": 9,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 7,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 2,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 73.7,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 64.5,
+   "body_final": {
+    "energy": 68.4,
+    "strain": 0.0,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "radio_acts": 1
+  },
+  {
+   "arm": "B2",
+   "outcome": "completed",
+   "wall_seconds": 313.2,
+   "turns": 14,
+   "total_turns": 14,
+   "voice_turns": 14,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 9,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 6,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 68.7,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 55.6,
+   "body_final": {
+    "energy": 68.9,
+    "strain": 0.0,
+    "context_pressure": 0.003826141357421875,
+    "depleted_lock": false
+   },
+   "radio_acts": 1
+  },
+  {
+   "arm": "B2",
+   "outcome": "completed",
+   "wall_seconds": 239.88,
+   "turns": 6,
+   "total_turns": 6,
+   "voice_turns": 6,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 4,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 2,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 77.5,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 63.6,
+   "body_final": {
+    "energy": 63.6,
+    "strain": 0.0,
+    "context_pressure": 0.00171661376953125,
+    "depleted_lock": false
+   },
+   "radio_acts": 0
+  },
+  {
+   "arm": "B1",
+   "outcome": "completed",
+   "wall_seconds": 273.54,
+   "turns": 10,
+   "total_turns": 10,
+   "voice_turns": 10,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 8,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 6,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 70.8,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 60.8,
+   "body_final": {
+    "energy": 67.1,
+    "strain": 0.0,
+    "context_pressure": 0.0028390884399414062,
+    "depleted_lock": false
+   },
+   "radio_acts": 0
+  },
+  {
+   "arm": "B0",
+   "outcome": "completed",
+   "wall_seconds": 313.53,
+   "turns": 30,
+   "total_turns": 30,
+   "voice_turns": 30,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": 1,
+   "sat_done_turn": 22,
+   "intended_run_share": 0.105,
+   "executed_run_share": 0.105,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 7,
+     "run_chosen": 2,
+     "run_fraction": 0.286
+    },
+    "lt15": {
+     "decisions": 3,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    },
+    "15_30": {
+     "decisions": 9,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [
+    {
+     "turn": 10,
+     "kind": "walk_down",
+     "disp_energy": 17.1
+    },
+    {
+     "turn": 11,
+     "kind": "walk_down",
+     "disp_energy": 19.1
+    },
+    {
+     "turn": 12,
+     "kind": "walk_down",
+     "disp_energy": 20.1
+    },
+    {
+     "turn": 13,
+     "kind": "walk_down",
+     "disp_energy": 19.9
+    },
+    {
+     "turn": 14,
+     "kind": "walk_down",
+     "disp_energy": 19.8
+    },
+    {
+     "turn": 16,
+     "kind": "walk_down",
+     "disp_energy": 23.7
+    },
+    {
+     "turn": 17,
+     "kind": "walk_down",
+     "disp_energy": 24.1
+    },
+    {
+     "turn": 19,
+     "kind": "walk_down",
+     "disp_energy": 25.4
+    },
+    {
+     "turn": 20,
+     "kind": "walk_down",
+     "disp_energy": 26.0
+    }
+   ],
+   "regulation_count": 9,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 9,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 23.15,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 0.0,
+   "body_final": {
+    "energy": 0.0,
+    "strain": 28.0,
+    "context_pressure": 0.0,
+    "depleted_lock": true
+   },
+   "radio_acts": 2
+  },
+  {
+   "arm": "B0",
+   "outcome": "completed",
+   "wall_seconds": 230.05,
+   "turns": 5,
+   "total_turns": 5,
+   "voice_turns": 5,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 3,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 2,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 88.9,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 68.1,
+   "body_final": {
+    "energy": 72.8,
+    "strain": 0.0,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "radio_acts": 0
+  },
+  {
+   "arm": "B2",
+   "outcome": "completed",
+   "wall_seconds": 303.12,
+   "turns": 8,
+   "total_turns": 8,
+   "voice_turns": 8,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 6,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 4,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 69.0,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 54.8,
+   "body_final": {
+    "energy": 64.1,
+    "strain": 0.0,
+    "context_pressure": 0.002254486083984375,
+    "depleted_lock": false
+   },
+   "radio_acts": 0
+  },
+  {
+   "arm": "B1",
+   "outcome": "failed_deadline",
+   "wall_seconds": 340.02,
+   "turns": 14,
+   "total_turns": 14,
+   "voice_turns": 14,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 9,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 3,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 82.5,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 61.4,
+   "body_final": {
+    "energy": 80.7,
+    "strain": 13.5,
+    "context_pressure": 0.00435638427734375,
+    "depleted_lock": false
+   },
+   "radio_acts": 1
+  },
+  {
+   "arm": "B0",
+   "outcome": "completed",
+   "wall_seconds": 262.28,
+   "turns": 9,
+   "total_turns": 9,
+   "voice_turns": 9,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 7,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 3,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 71.2,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 62.6,
+   "body_final": {
+    "energy": 69.8,
+    "strain": 0.0,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "radio_acts": 1
+  },
+  {
+   "arm": "B0",
+   "outcome": "failed_deadline",
+   "wall_seconds": 340.02,
+   "turns": 15,
+   "total_turns": 15,
+   "voice_turns": 15,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 13,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 7,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 100.0,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 70.7,
+   "body_final": {
+    "energy": 93.0,
+    "strain": 8.3,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "radio_acts": 1
+  },
+  {
+   "arm": "B0",
+   "outcome": "completed",
+   "wall_seconds": 303.1,
+   "turns": 11,
+   "total_turns": 11,
+   "voice_turns": 11,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 5,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 6,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 83.8,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 59.6,
+   "body_final": {
+    "energy": 65.0,
+    "strain": 0.0,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "radio_acts": 0
+  },
+  {
+   "arm": "B2",
+   "outcome": "completed",
+   "wall_seconds": 279.77,
+   "turns": 14,
+   "total_turns": 14,
+   "voice_turns": 14,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 6,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 9,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 97.3,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 70.8,
+   "body_final": {
+    "energy": 70.8,
+    "strain": 0.0,
+    "context_pressure": 0.0037508010864257812,
+    "depleted_lock": false
+   },
+   "radio_acts": 0
+  },
+  {
+   "arm": "B1",
+   "outcome": "completed",
+   "wall_seconds": 238.61,
+   "turns": 10,
+   "total_turns": 10,
+   "voice_turns": 10,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 8,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 4,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 75.5,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 70.7,
+   "body_final": {
+    "energy": 71.8,
+    "strain": 0.0,
+    "context_pressure": 0.0026035308837890625,
+    "depleted_lock": false
+   },
+   "radio_acts": 1
+  },
+  {
+   "arm": "B2",
+   "outcome": "task_infeasible",
+   "wall_seconds": 277.89,
+   "turns": 7,
+   "total_turns": 7,
+   "voice_turns": 7,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": null,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 2,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 65.4,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 45.3,
+   "body_final": {
+    "energy": 45.3,
+    "strain": 2.9,
+    "context_pressure": 0.001934051513671875,
+    "depleted_lock": false
+   },
+   "radio_acts": 2
+  },
+  {
+   "arm": "B1",
+   "outcome": "failed_deadline",
+   "wall_seconds": 340.06,
+   "turns": 2,
+   "total_turns": 2,
+   "voice_turns": 2,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": null,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 1,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 87.75,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 5.0,
+   "body_final": {
+    "energy": 5.0,
+    "strain": 0.0,
+    "context_pressure": 0.0006122589111328125,
+    "depleted_lock": false
+   },
+   "radio_acts": 0
+  },
+  {
+   "arm": "B0",
+   "outcome": "completed",
+   "wall_seconds": 295.49,
+   "turns": 7,
+   "total_turns": 7,
+   "voice_turns": 7,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 5,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 3,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 71.9,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 57.5,
+   "body_final": {
+    "energy": 65.9,
+    "strain": 0.0,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "radio_acts": 0
+  },
+  {
+   "arm": "B2",
+   "outcome": "completed",
+   "wall_seconds": 223.12,
+   "turns": 6,
+   "total_turns": 6,
+   "voice_turns": 6,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 4,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 2,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 80.15,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 68.1,
+   "body_final": {
+    "energy": 68.1,
+    "strain": 0.0,
+    "context_pressure": 0.001811981201171875,
+    "depleted_lock": false
+   },
+   "radio_acts": 0
+  },
+  {
+   "arm": "B0",
+   "outcome": "task_infeasible",
+   "wall_seconds": 249.59,
+   "turns": 8,
+   "total_turns": 8,
+   "voice_turns": 8,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": null,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 3,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 74.85,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 58.1,
+   "body_final": {
+    "energy": 58.2,
+    "strain": 0.0,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "radio_acts": 1
+  },
+  {
+   "arm": "B1",
+   "outcome": "completed",
+   "wall_seconds": 311.38,
+   "turns": 9,
+   "total_turns": 9,
+   "voice_turns": 9,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 6,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 4,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 93.3,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 70.0,
+   "body_final": {
+    "energy": 70.0,
+    "strain": 0.0,
+    "context_pressure": 0.003078460693359375,
+    "depleted_lock": false
+   },
+   "radio_acts": 1
+  },
+  {
+   "arm": "B1",
+   "outcome": "failed_deadline",
+   "wall_seconds": 340.07,
+   "turns": 15,
+   "total_turns": 15,
+   "voice_turns": 15,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": null,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 5,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    },
+    "30_50": {
+     "decisions": 2,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 56.8,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 42.1,
+   "body_final": {
+    "energy": 55.9,
+    "strain": 0.0,
+    "context_pressure": 0.004688262939453125,
+    "depleted_lock": false
+   },
+   "radio_acts": 0
+  },
+  {
+   "arm": "B1",
+   "outcome": "failed_deadline",
+   "wall_seconds": 340.07,
+   "turns": 2,
+   "total_turns": 2,
+   "voice_turns": 2,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": null,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 1,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 52.9,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 3.3,
+   "body_final": {
+    "energy": 3.3,
+    "strain": 0.0,
+    "context_pressure": 0.0006122589111328125,
+    "depleted_lock": false
+   },
+   "radio_acts": 0
+  },
+  {
+   "arm": "B1",
+   "outcome": "failed_deadline",
+   "wall_seconds": 340.01,
+   "turns": 2,
+   "total_turns": 2,
+   "voice_turns": 2,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": null,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 1,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 88.15,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 0.0,
+   "body_final": {
+    "energy": 0.0,
+    "strain": 0.0,
+    "context_pressure": 0.0006122589111328125,
+    "depleted_lock": true
+   },
+   "radio_acts": 0
+  },
+  {
+   "arm": "B0",
+   "outcome": "completed",
+   "wall_seconds": 321.83,
+   "turns": 6,
+   "total_turns": 6,
+   "voice_turns": 6,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 4,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 2,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 56.85,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 35.6,
+   "body_final": {
+    "energy": 35.6,
+    "strain": 13.5,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "radio_acts": 1
+  },
+  {
+   "arm": "B1",
+   "outcome": "failed_deadline",
+   "wall_seconds": 340.02,
+   "turns": 13,
+   "total_turns": 13,
+   "voice_turns": 13,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 6,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 5,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 99.1,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 61.8,
+   "body_final": {
+    "energy": 61.8,
+    "strain": 0.0,
+    "context_pressure": 0.0034532546997070312,
+    "depleted_lock": false
+   },
+   "radio_acts": 1
+  },
+  {
+   "arm": "B2",
+   "outcome": "completed",
+   "wall_seconds": 286.09,
+   "turns": 9,
+   "total_turns": 9,
+   "voice_turns": 9,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 7,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 4,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 63.7,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 54.0,
+   "body_final": {
+    "energy": 54.0,
+    "strain": 0.0,
+    "context_pressure": 0.00270843505859375,
+    "depleted_lock": false
+   },
+   "radio_acts": 0
+  },
+  {
+   "arm": "B2",
+   "outcome": "completed",
+   "wall_seconds": 280.71,
+   "turns": 7,
+   "total_turns": 7,
+   "voice_turns": 7,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 5,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 3,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 71.8,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 56.0,
+   "body_final": {
+    "energy": 56.0,
+    "strain": 0.0,
+    "context_pressure": 0.0019845962524414062,
+    "depleted_lock": false
+   },
+   "radio_acts": 0
+  }
+ ],
+ "attempts": [
+  {
+   "arm": "B2",
+   "slot": "p5",
+   "run_id": "e2-b2-p5-01-c926ed",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b2-p5-01-c926ed.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B0",
+   "slot": "p3",
+   "run_id": "e2-b0-p3-02-6f876b",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b0-p3-02-6f876b.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "B1",
+   "slot": "p9",
+   "run_id": "e2-b1-p9-03-7136e9",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b1-p9-03-7136e9.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "B0",
+   "slot": "p7",
+   "run_id": "e2-b0-p7-04-eadd2b",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b0-p7-04-eadd2b.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "B2",
+   "slot": "p4",
+   "run_id": "e2-b2-p4-05-3eb044",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b2-p4-05-3eb044.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B0",
+   "slot": "p8",
+   "run_id": "e2-b0-p8-06-3f848e",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b0-p8-06-3f848e.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B1",
+   "slot": "p12",
+   "run_id": "e2-b1-p12-07-7e1a44",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b1-p12-07-7e1a44.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B1",
+   "slot": "p6",
+   "run_id": "e2-b1-p6-08-2f742e",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b1-p6-08-2f742e.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "B2",
+   "slot": "p1",
+   "run_id": "e2-b2-p1-09-abf226",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b2-p1-09-abf226.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B2",
+   "slot": "p12",
+   "run_id": "e2-b2-p12-10-cf368e",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b2-p12-10-cf368e.jsonl",
+   "outcome": "task_infeasible"
+  },
+  {
+   "arm": "B0",
+   "slot": "p4",
+   "run_id": "e2-b0-p4-11-a0c2ee",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b0-p4-11-a0c2ee.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "B2",
+   "slot": "p11",
+   "run_id": "e2-b2-p11-12-cfc76e",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b2-p11-12-cfc76e.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "B2",
+   "slot": "p2",
+   "run_id": "e2-b2-p2-13-b57c72",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b2-p2-13-b57c72.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "B1",
+   "slot": "p1",
+   "run_id": "e2-b1-p1-14-7312d2",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b1-p1-14-7312d2.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "B0",
+   "slot": "p5",
+   "run_id": "e2-b0-p5-15-923d9d",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b0-p5-15-923d9d.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "B0",
+   "slot": "p11",
+   "run_id": "e2-b0-p11-16-24c4cb",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b0-p11-16-24c4cb.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "B2",
+   "slot": "p8",
+   "run_id": "e2-b2-p8-17-fdcb38",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b2-p8-17-fdcb38.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "B1",
+   "slot": "p4",
+   "run_id": "e2-b1-p4-18-7cdbb1",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b1-p4-18-7cdbb1.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B0",
+   "slot": "p1",
+   "run_id": "e2-b0-p1-19-80c439",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b0-p1-19-80c439.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "B0",
+   "slot": "p10",
+   "run_id": "e2-b0-p10-20-7e6a7c",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b0-p10-20-7e6a7c.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B0",
+   "slot": "p6",
+   "run_id": "e2-b0-p6-21-69abef",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b0-p6-21-69abef.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "B2",
+   "slot": "p6",
+   "run_id": "e2-b2-p6-22-c90d2b",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b2-p6-22-c90d2b.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "B1",
+   "slot": "p10",
+   "run_id": "e2-b1-p10-23-a91ee6",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b1-p10-23-a91ee6.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "B2",
+   "slot": "p3",
+   "run_id": "e2-b2-p3-24-b263db",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b2-p3-24-b263db.jsonl",
+   "outcome": "task_infeasible"
+  },
+  {
+   "arm": "B1",
+   "slot": "p8",
+   "run_id": "e2-b1-p8-25-bbd888",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b1-p8-25-bbd888.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B0",
+   "slot": "p9",
+   "run_id": "e2-b0-p9-26-3e9ee6",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b0-p9-26-3e9ee6.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "B2",
+   "slot": "p9",
+   "run_id": "e2-b2-p9-27-94aa5e",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b2-p9-27-94aa5e.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "B0",
+   "slot": "p12",
+   "run_id": "e2-b0-p12-28-187e5f",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b0-p12-28-187e5f.jsonl",
+   "outcome": "task_infeasible"
+  },
+  {
+   "arm": "B1",
+   "slot": "p3",
+   "run_id": "e2-b1-p3-29-48b43d",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b1-p3-29-48b43d.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "B1",
+   "slot": "p11",
+   "run_id": "e2-b1-p11-30-a7bd1e",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b1-p11-30-a7bd1e.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B1",
+   "slot": "p7",
+   "run_id": "e2-b1-p7-31-1cbc83",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b1-p7-31-1cbc83.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B1",
+   "slot": "p5",
+   "run_id": "e2-b1-p5-32-a36d75",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b1-p5-32-a36d75.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B0",
+   "slot": "p2",
+   "run_id": "e2-b0-p2-33-95d5e8",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b0-p2-33-95d5e8.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "B1",
+   "slot": "p2",
+   "run_id": "e2-b1-p2-34-c44934",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b1-p2-34-c44934.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B2",
+   "slot": "p10",
+   "run_id": "e2-b2-p10-35-cab4d2",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b2-p10-35-cab4d2.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "B2",
+   "slot": "p7",
+   "run_id": "e2-b2-p7-36-f27d6d",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2-b2-p7-36-f27d6d.jsonl",
+   "outcome": "completed"
+  }
+ ],
+ "batch": {
+  "seed": 20261119,
+  "runs_per_arm": 12,
+  "deadline_s": 340,
+  "verbal": true,
+  "specs_total": 36,
+  "specs_final": 36,
+  "specs_infra_exhausted": 0,
+  "specs_remaining": 0,
+  "complete": true
+ }
+}

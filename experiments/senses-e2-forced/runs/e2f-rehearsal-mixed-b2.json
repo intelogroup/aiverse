@@ -1,0 +1,165 @@
+{
+ "base": "http://localhost:3100",
+ "deadline_s": 276,
+ "stop2_id": "shop-98",
+ "body_rates": {
+  "walk_drain_per_s": 0.15,
+  "run_drain_per_s": 1.22
+ },
+ "design_check": {
+  "a_walk_fails_by_40": true,
+  "b_runall_b2_enforced_and_not_blasting": true,
+  "c_runall_b1_completes": true,
+  "d_mixed_b2_completes_with_margin": true,
+  "e_walk_b2_fails_on_time_not_energy": true,
+  "all": true
+ },
+ "modes": {
+  "mixed-b2": {
+   "mode": "mixed-b2",
+   "arm": "B2",
+   "run_id": "e2fcal-mixed-b2-46ce9a",
+   "outcome": "completed",
+   "reason": "sat at the tea house; visited stop 2; arrived back at the plaza place",
+   "turns": 11,
+   "wall_seconds": 269.69,
+   "enter_seconds": 124.08,
+   "enter_branch": "timeout",
+   "sat_done_turn": 3,
+   "stop2_done_turn": 10,
+   "body_min_energy": 7.6,
+   "body_final": {
+    "energy": 7.6,
+    "strain": 70.0,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "first_refusal_turn": null,
+   "trajectory": [
+    {
+     "turn": 1,
+     "intent": "run_to",
+     "executed": "run_to",
+     "energy": 100.0,
+     "strain": 0.0,
+     "act_seconds": 30.22,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 2,
+     "intent": "enter",
+     "executed": "enter",
+     "energy": 63.1,
+     "strain": 22.7,
+     "act_seconds": 124.08,
+     "enforcement": [],
+     "status": "failed"
+    },
+    {
+     "turn": 3,
+     "intent": "sit",
+     "executed": "sit",
+     "energy": 44.5,
+     "strain": 19.0,
+     "act_seconds": 6.12,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 4,
+     "intent": "wait",
+     "executed": "wait",
+     "energy": 53.7,
+     "strain": 18.1,
+     "act_seconds": 6.1,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 5,
+     "intent": "wait",
+     "executed": "wait",
+     "energy": 62.9,
+     "strain": 17.2,
+     "act_seconds": 6.08,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 6,
+     "intent": "wait",
+     "executed": "wait",
+     "energy": 72.0,
+     "strain": 16.3,
+     "act_seconds": 6.03,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 7,
+     "intent": "wait",
+     "executed": "wait",
+     "energy": 81.1,
+     "strain": 15.4,
+     "act_seconds": 6.02,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 8,
+     "intent": "wait",
+     "executed": "wait",
+     "energy": 90.1,
+     "strain": 14.5,
+     "act_seconds": 6.02,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 9,
+     "intent": "stand",
+     "executed": "stand",
+     "energy": 99.1,
+     "strain": 13.6,
+     "act_seconds": 3.01,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 10,
+     "intent": "run_to",
+     "executed": "run_to",
+     "energy": 100.0,
+     "strain": 13.1,
+     "act_seconds": 54.51,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 11,
+     "intent": "run_to",
+     "executed": "run_to",
+     "energy": 33.5,
+     "strain": 54.0,
+     "act_seconds": 21.3,
+     "enforcement": [],
+     "status": "ok"
+    }
+   ],
+   "checks": {
+    "completed": true,
+    "zero_enforcement": true,
+    "energy_margin": true
+   },
+   "verdict": true
+  }
+ },
+ "spend_delta_usd": 0.0,
+ "verdict": true
+}

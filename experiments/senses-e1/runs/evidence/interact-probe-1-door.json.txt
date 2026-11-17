@@ -1,0 +1,144 @@
+{
+ "legs": [
+  {
+   "intent": {
+    "type": "go_to",
+    "place": "tea"
+   },
+   "post": 202,
+   "seconds": 78.2,
+   "state": "settled",
+   "outcome": {
+    "ok": true,
+    "status": "arrived",
+    "target": "shop-102"
+   }
+  },
+  {
+   "intent": {
+    "type": "enter",
+    "place": "shop-102"
+   },
+   "post": 202,
+   "seconds": 123.3,
+   "state": "settled",
+   "outcome": {
+    "ok": false,
+    "status": "timeout",
+    "target": "tea"
+   }
+  },
+  {
+   "intent": {
+    "type": "interact",
+    "target": "tea-radio"
+   },
+   "post": 202,
+   "seconds": 6.0,
+   "state": "settled",
+   "outcome": {
+    "ok": false,
+    "status": "blocked",
+    "target": "tea-radio",
+    "detail": "no progress for 2.5 s, 1.1 m out",
+    "stalledForMs": 2507
+   },
+   "radio_scene_after": [
+    {
+     "kind": "interactable",
+     "id": "tea-radio",
+     "name": "Radio",
+     "state": "off",
+     "note": "use with interact",
+     "bearingDeg": 24.8,
+     "distance": 0.87
+    }
+   ],
+   "pos_after": {
+    "x": -21.29137979960588,
+    "z": -75.06263354734469
+   }
+  },
+  {
+   "intent": {
+    "type": "interact",
+    "target": "tea-radio"
+   },
+   "post": 202,
+   "seconds": 3.0,
+   "state": "settled",
+   "outcome": {
+    "ok": false,
+    "status": "blocked",
+    "target": "tea-radio",
+    "detail": "no progress for 2.5 s, 1.1 m out",
+    "stalledForMs": 2511
+   },
+   "radio_scene_after": [
+    {
+     "kind": "interactable",
+     "id": "tea-radio",
+     "name": "Radio",
+     "state": "off",
+     "note": "use with interact",
+     "bearingDeg": 24.8,
+     "distance": 0.87
+    }
+   ],
+   "pos_after": {
+    "x": -21.291326809945218,
+    "z": -75.0626903873067
+   }
+  },
+  {
+   "intent": {
+    "type": "interact",
+    "target": "tea-radio"
+   },
+   "post": 202,
+   "seconds": 3.0,
+   "state": "settled",
+   "outcome": {
+    "ok": false,
+    "status": "blocked",
+    "target": "tea-radio",
+    "detail": "no progress for 2.5 s, 1.1 m out",
+    "stalledForMs": 2509
+   },
+   "radio_scene_after": [
+    {
+     "kind": "interactable",
+     "id": "tea-radio",
+     "name": "Radio",
+     "state": "off",
+     "note": "use with interact",
+     "bearingDeg": 24.8,
+     "distance": 0.87
+    }
+   ],
+   "pos_after": {
+    "x": -21.29127750628391,
+    "z": -75.0627433174579
+   }
+  }
+ ],
+ "pos_inside": {
+  "id": "d4d26eb9-d450-4c15-8492-4b2bc973f193",
+  "t": 201.46078029099434,
+  "x": -22.946596000180634,
+  "y": 0.47999998927116394,
+  "z": -73.83356761959915,
+  "heading": -1.0823808933581878,
+  "speed": 0,
+  "posture": "standing",
+  "action": null,
+  "clip": null,
+  "seatedOn": null,
+  "gaze": {
+   "yawDeg": 0,
+   "pitchDeg": 0
+  },
+  "figure": "remy"
+ },
+ "inside": "Matchmaker's Tea House"
+}

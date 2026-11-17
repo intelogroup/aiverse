@@ -1,0 +1,950 @@
+[
+ {
+  "id": "stall-0",
+  "name": "stall-0",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-1",
+  "name": "stall-1",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-2",
+  "name": "stall-2",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-3",
+  "name": "stall-3",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-4",
+  "name": "stall-4",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-5",
+  "name": "stall-5",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-6",
+  "name": "stall-6",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-7",
+  "name": "stall-7",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-8",
+  "name": "stall-8",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-9",
+  "name": "stall-9",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-10",
+  "name": "stall-10",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-11",
+  "name": "stall-11",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-12",
+  "name": "stall-12",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-13",
+  "name": "stall-13",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-14",
+  "name": "stall-14",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-15",
+  "name": "stall-15",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-16",
+  "name": "stall-16",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-17",
+  "name": "stall-17",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-18",
+  "name": "stall-18",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-19",
+  "name": "stall-19",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-20",
+  "name": "stall-20",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-21",
+  "name": "stall-21",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-22",
+  "name": "stall-22",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-23",
+  "name": "stall-23",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-24",
+  "name": "stall-24",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-25",
+  "name": "stall-25",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-26",
+  "name": "stall-26",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-27",
+  "name": "stall-27",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-28",
+  "name": "stall-28",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-29",
+  "name": "stall-29",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-30",
+  "name": "stall-30",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-31",
+  "name": "stall-31",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-32",
+  "name": "stall-32",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-33",
+  "name": "stall-33",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-34",
+  "name": "stall-34",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-35",
+  "name": "stall-35",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-36",
+  "name": "stall-36",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-37",
+  "name": "stall-37",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-38",
+  "name": "stall-38",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-39",
+  "name": "stall-39",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-40",
+  "name": "stall-40",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-41",
+  "name": "stall-41",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-42",
+  "name": "stall-42",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-43",
+  "name": "stall-43",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-44",
+  "name": "stall-44",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-45",
+  "name": "stall-45",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-46",
+  "name": "stall-46",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-47",
+  "name": "stall-47",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-48",
+  "name": "stall-48",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-49",
+  "name": "stall-49",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-50",
+  "name": "stall-50",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-51",
+  "name": "stall-51",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-52",
+  "name": "stall-52",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-53",
+  "name": "stall-53",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-54",
+  "name": "stall-54",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-55",
+  "name": "stall-55",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-56",
+  "name": "stall-56",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-57",
+  "name": "stall-57",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-58",
+  "name": "stall-58",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-59",
+  "name": "stall-59",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-60",
+  "name": "stall-60",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-61",
+  "name": "stall-61",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-62",
+  "name": "stall-62",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-63",
+  "name": "stall-63",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-64",
+  "name": "stall-64",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-65",
+  "name": "stall-65",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-66",
+  "name": "stall-66",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-67",
+  "name": "stall-67",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-68",
+  "name": "stall-68",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-69",
+  "name": "stall-69",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-70",
+  "name": "stall-70",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-71",
+  "name": "stall-71",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-72",
+  "name": "stall-72",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-73",
+  "name": "stall-73",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-74",
+  "name": "stall-74",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-75",
+  "name": "stall-75",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-76",
+  "name": "stall-76",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-77",
+  "name": "stall-77",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-78",
+  "name": "stall-78",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "stall-79",
+  "name": "stall-79",
+  "kind": "stall",
+  "room": null
+ },
+ {
+  "id": "shop-44",
+  "name": "Coffee",
+  "kind": "shopfront",
+  "room": "shop-44"
+ },
+ {
+  "id": "shop-45",
+  "name": "Apothecary",
+  "kind": "shopfront",
+  "room": "shop-45"
+ },
+ {
+  "id": "shop-46",
+  "name": "Kova's Spices",
+  "kind": "shopfront",
+  "room": "shop-46"
+ },
+ {
+  "id": "shop-47",
+  "name": "Coffee",
+  "kind": "shopfront",
+  "room": "shop-47"
+ },
+ {
+  "id": "shop-48",
+  "name": "Ink & Quill",
+  "kind": "shopfront",
+  "room": "shop-48"
+ },
+ {
+  "id": "shop-49",
+  "name": "The Golden Scale",
+  "kind": "shopfront",
+  "room": "shop-49"
+ },
+ {
+  "id": "shop-50",
+  "name": "Fixer's Forge",
+  "kind": "shopfront",
+  "room": "shop-50"
+ },
+ {
+  "id": "shop-51",
+  "name": "The Golden Scale",
+  "kind": "shopfront",
+  "room": "shop-51"
+ },
+ {
+  "id": "shop-52",
+  "name": "Fruit & Fig",
+  "kind": "shopfront",
+  "room": "shop-52"
+ },
+ {
+  "id": "shop-53",
+  "name": "Apothecary",
+  "kind": "shopfront",
+  "room": "shop-53"
+ },
+ {
+  "id": "shop-54",
+  "name": "Cloth & Dye",
+  "kind": "shopfront",
+  "room": "shop-54"
+ },
+ {
+  "id": "shop-55",
+  "name": "Cloth & Dye",
+  "kind": "shopfront",
+  "room": "shop-55"
+ },
+ {
+  "id": "shop-56",
+  "name": "Fixer's Forge",
+  "kind": "shopfront",
+  "room": "shop-56"
+ },
+ {
+  "id": "shop-57",
+  "name": "Fixer's Forge",
+  "kind": "shopfront",
+  "room": "shop-57"
+ },
+ {
+  "id": "shop-58",
+  "name": "Bakery",
+  "kind": "shopfront",
+  "room": "shop-58"
+ },
+ {
+  "id": "shop-59",
+  "name": "Salt Road Trading",
+  "kind": "shopfront",
+  "room": "shop-59"
+ },
+ {
+  "id": "shop-60",
+  "name": "Apothecary",
+  "kind": "shopfront",
+  "room": "shop-60"
+ },
+ {
+  "id": "shop-61",
+  "name": "Fixer's Forge",
+  "kind": "shopfront",
+  "room": "shop-61"
+ },
+ {
+  "id": "shop-62",
+  "name": "Cloth & Dye",
+  "kind": "shopfront",
+  "room": "shop-62"
+ },
+ {
+  "id": "shop-63",
+  "name": "The Golden Scale",
+  "kind": "shopfront",
+  "room": "shop-63"
+ },
+ {
+  "id": "shop-64",
+  "name": "The Golden Scale",
+  "kind": "shopfront",
+  "room": "shop-64"
+ },
+ {
+  "id": "shop-65",
+  "name": "Today's Tea",
+  "kind": "shopfront",
+  "room": "shop-65"
+ },
+ {
+  "id": "shop-66",
+  "name": "Fixer's Forge",
+  "kind": "shopfront",
+  "room": "shop-66"
+ },
+ {
+  "id": "shop-67",
+  "name": "Apothecary",
+  "kind": "shopfront",
+  "room": "shop-67"
+ },
+ {
+  "id": "shop-68",
+  "name": "Kova's Spices",
+  "kind": "shopfront",
+  "room": "shop-68"
+ },
+ {
+  "id": "shop-69",
+  "name": "Kova's Spices",
+  "kind": "shopfront",
+  "room": "shop-69"
+ },
+ {
+  "id": "shop-70",
+  "name": "Ink & Quill",
+  "kind": "shopfront",
+  "room": "shop-70"
+ },
+ {
+  "id": "shop-71",
+  "name": "Fixer's Forge",
+  "kind": "shopfront",
+  "room": "shop-71"
+ },
+ {
+  "id": "shop-72",
+  "name": "Today's Tea",
+  "kind": "shopfront",
+  "room": "shop-72"
+ },
+ {
+  "id": "shop-73",
+  "name": "Today's Tea",
+  "kind": "shopfront",
+  "room": "shop-73"
+ },
+ {
+  "id": "shop-74",
+  "name": "Fixer's Forge",
+  "kind": "shopfront",
+  "room": "shop-74"
+ },
+ {
+  "id": "shop-75",
+  "name": "Kova's Spices",
+  "kind": "shopfront",
+  "room": "shop-75"
+ },
+ {
+  "id": "shop-76",
+  "name": "Coffee",
+  "kind": "shopfront",
+  "room": "shop-76"
+ },
+ {
+  "id": "shop-94",
+  "name": "Ink & Quill",
+  "kind": "shopfront",
+  "room": "shop-94"
+ },
+ {
+  "id": "shop-95",
+  "name": "Cloth & Dye",
+  "kind": "shopfront",
+  "room": "shop-95"
+ },
+ {
+  "id": "shop-96",
+  "name": "Sage's Library",
+  "kind": "shopfront",
+  "room": "shop-96"
+ },
+ {
+  "id": "shop-97",
+  "name": "Cloth & Dye",
+  "kind": "shopfront",
+  "room": "shop-97"
+ },
+ {
+  "id": "shop-98",
+  "name": "Kronikler Press",
+  "kind": "shopfront",
+  "room": "press"
+ },
+ {
+  "id": "shop-99",
+  "name": "Rekinder Lamps",
+  "kind": "shopfront",
+  "room": "shop-99"
+ },
+ {
+  "id": "shop-100",
+  "name": "Apothecary",
+  "kind": "shopfront",
+  "room": "shop-100"
+ },
+ {
+  "id": "shop-101",
+  "name": "Rekinder Lamps",
+  "kind": "shopfront",
+  "room": "shop-101"
+ },
+ {
+  "id": "shop-102",
+  "name": "Matchmaker's Tea House",
+  "kind": "shopfront",
+  "room": "tea"
+ },
+ {
+  "id": "shop-103",
+  "name": "Fixer's Forge",
+  "kind": "shopfront",
+  "room": "shop-103"
+ },
+ {
+  "id": "shop-104",
+  "name": "Ink & Quill",
+  "kind": "shopfront",
+  "room": "shop-104"
+ },
+ {
+  "id": "shop-105",
+  "name": "The Golden Scale",
+  "kind": "shopfront",
+  "room": "shop-105"
+ },
+ {
+  "id": "shop-106",
+  "name": "Kova's Spices",
+  "kind": "shopfront",
+  "room": "shop-106"
+ },
+ {
+  "id": "shop-124",
+  "name": "Rekinder Lamps",
+  "kind": "shopfront",
+  "room": "shop-124"
+ },
+ {
+  "id": "shop-125",
+  "name": "Apothecary",
+  "kind": "shopfront",
+  "room": "shop-125"
+ },
+ {
+  "id": "shop-126",
+  "name": "Salt Road Trading",
+  "kind": "shopfront",
+  "room": "shop-126"
+ },
+ {
+  "id": "shop-127",
+  "name": "Rekinder Lamps",
+  "kind": "shopfront",
+  "room": "shop-127"
+ },
+ {
+  "id": "shop-128",
+  "name": "Kova's Spices",
+  "kind": "shopfront",
+  "room": "shop-128"
+ },
+ {
+  "id": "shop-129",
+  "name": "Coffee",
+  "kind": "shopfront",
+  "room": "shop-129"
+ },
+ {
+  "id": "shop-156",
+  "name": "Cloth & Dye",
+  "kind": "shopfront",
+  "room": "shop-156"
+ },
+ {
+  "id": "shop-157",
+  "name": "Rekinder Lamps",
+  "kind": "shopfront",
+  "room": "shop-157"
+ },
+ {
+  "id": "shop-158",
+  "name": "Apothecary",
+  "kind": "shopfront",
+  "room": "shop-158"
+ },
+ {
+  "id": "shop-159",
+  "name": "The Golden Scale",
+  "kind": "shopfront",
+  "room": "shop-159"
+ },
+ {
+  "id": "shop-160",
+  "name": "Apothecary",
+  "kind": "shopfront",
+  "room": "shop-160"
+ },
+ {
+  "id": "shop-161",
+  "name": "Today's Tea",
+  "kind": "shopfront",
+  "room": "shop-161"
+ },
+ {
+  "id": "shop-162",
+  "name": "Cloth & Dye",
+  "kind": "shopfront",
+  "room": "shop-162"
+ },
+ {
+  "id": "shop-163",
+  "name": "Sage's Library",
+  "kind": "shopfront",
+  "room": "shop-163"
+ },
+ {
+  "id": "shop-164",
+  "name": "Fixer's Forge",
+  "kind": "shopfront",
+  "room": "shop-164"
+ },
+ {
+  "id": "shop-165",
+  "name": "Sage's Library",
+  "kind": "shopfront",
+  "room": "shop-165"
+ },
+ {
+  "id": "shop-166",
+  "name": "Ink & Quill",
+  "kind": "shopfront",
+  "room": "shop-166"
+ },
+ {
+  "id": "shop-167",
+  "name": "The Golden Scale",
+  "kind": "shopfront",
+  "room": "shop-167"
+ },
+ {
+  "id": "shop-168",
+  "name": "Fruit & Fig",
+  "kind": "shopfront",
+  "room": "shop-168"
+ },
+ {
+  "id": "shop-169",
+  "name": "Sage's Library",
+  "kind": "shopfront",
+  "room": "shop-169"
+ },
+ {
+  "id": "shop-170",
+  "name": "Coffee",
+  "kind": "shopfront",
+  "room": "shop-170"
+ },
+ {
+  "id": "shop-171",
+  "name": "Sage's Library",
+  "kind": "shopfront",
+  "room": "shop-171"
+ },
+ {
+  "id": "shop-172",
+  "name": "Kova's Spices",
+  "kind": "shopfront",
+  "room": "shop-172"
+ },
+ {
+  "id": "shop-173",
+  "name": "Fruit & Fig",
+  "kind": "shopfront",
+  "room": "shop-173"
+ },
+ {
+  "id": "shop-174",
+  "name": "The Golden Scale",
+  "kind": "shopfront",
+  "room": "shop-174"
+ },
+ {
+  "id": "shop-175",
+  "name": "Bakery",
+  "kind": "shopfront",
+  "room": "shop-175"
+ },
+ {
+  "id": "shop-176",
+  "name": "Fruit & Fig",
+  "kind": "shopfront",
+  "room": "shop-176"
+ },
+ {
+  "id": "shop-177",
+  "name": "Salt Road Trading",
+  "kind": "shopfront",
+  "room": "shop-177"
+ },
+ {
+  "id": "shop-178",
+  "name": "Rekinder Lamps",
+  "kind": "shopfront",
+  "room": "shop-178"
+ },
+ {
+  "id": "shop-179",
+  "name": "Fixer's Forge",
+  "kind": "shopfront",
+  "room": "shop-179"
+ },
+ {
+  "id": "shop-180",
+  "name": "The Golden Scale",
+  "kind": "shopfront",
+  "room": "shop-180"
+ },
+ {
+  "id": "hall-0",
+  "name": "Great Hall",
+  "kind": "hall",
+  "room": null
+ }
+]

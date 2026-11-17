@@ -1,0 +1,105 @@
+{
+ "base": "http://localhost:3100",
+ "deadline_s": 276,
+ "stop2_id": "shop-98",
+ "body_rates": {
+  "walk_drain_per_s": 0.15,
+  "run_drain_per_s": 1.22
+ },
+ "design_check": {
+  "a_walk_fails_by_40": true,
+  "b_runall_b2_enforced_and_not_blasting": true,
+  "c_runall_b1_completes": true,
+  "d_mixed_b2_completes_with_margin": true,
+  "e_walk_b2_fails_on_time_not_energy": true,
+  "all": true
+ },
+ "modes": {
+  "walk-b2": {
+   "mode": "walk-b2",
+   "arm": "B2",
+   "run_id": "e2fcal-walk-b2-cb3fa8",
+   "outcome": "failed_deadline",
+   "reason": "4:36 deadline passed",
+   "turns": 5,
+   "wall_seconds": 276.02,
+   "enter_seconds": 123.89,
+   "enter_branch": "timeout",
+   "sat_done_turn": 3,
+   "stop2_done_turn": null,
+   "body_min_energy": 69.6,
+   "body_final": {
+    "energy": 73.8,
+    "strain": 4.0,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "first_refusal_turn": null,
+   "trajectory": [
+    {
+     "turn": 1,
+     "intent": "go_to",
+     "executed": "go_to",
+     "energy": 100.0,
+     "strain": 0.0,
+     "act_seconds": 78.69,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 2,
+     "intent": "enter",
+     "executed": "enter",
+     "energy": 88.2,
+     "strain": 0.0,
+     "act_seconds": 123.89,
+     "enforcement": [],
+     "status": "failed"
+    },
+    {
+     "turn": 3,
+     "intent": "sit",
+     "executed": "sit",
+     "energy": 69.6,
+     "strain": 15.0,
+     "act_seconds": 6.11,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 4,
+     "intent": "stand",
+     "executed": "stand",
+     "energy": 78.8,
+     "strain": 14.1,
+     "act_seconds": 3.08,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 5,
+     "intent": "go_to",
+     "executed": "go_to",
+     "energy": 83.4,
+     "strain": 13.6,
+     "act_seconds": 64.18,
+     "enforcement": [],
+     "status": "failed"
+    }
+   ],
+   "checks": {
+    "fails_on_deadline": true,
+    "zero_enforcement": true,
+    "min_energy_above_zone": true
+   },
+   "verdict": true
+  }
+ },
+ "spend_delta_usd": 0.0,
+ "verdict": true
+}

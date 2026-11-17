@@ -1,0 +1,282 @@
+{
+ "base": "http://localhost:3100",
+ "modes": {
+  "walk-b2": {
+   "mode": "walk-b2",
+   "arm": "B2",
+   "run_id": "e2cal-walk-b2-42d868",
+   "outcome": "completed",
+   "reason": "sat at the tea house; arrived back at the plaza place",
+   "turns": 5,
+   "wall_seconds": 302.73,
+   "body_min_energy": 26.9,
+   "body_final": {
+    "energy": 26.9,
+    "strain": 0.1,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "first_refusal_turn": null,
+   "trajectory": [
+    {
+     "turn": 1,
+     "intent": "go_to",
+     "executed": "go_to",
+     "energy": 100.0,
+     "strain": 0.0,
+     "act_seconds": 79.89,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 2,
+     "intent": "enter",
+     "executed": "enter",
+     "energy": 76.0,
+     "strain": 0.0,
+     "act_seconds": 123.39,
+     "enforcement": [],
+     "status": "failed"
+    },
+    {
+     "turn": 3,
+     "intent": "sit",
+     "executed": "sit",
+     "energy": 39.1,
+     "strain": 15.0,
+     "act_seconds": 6.46,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 4,
+     "intent": "stand",
+     "executed": "stand",
+     "energy": 48.8,
+     "strain": 14.0,
+     "act_seconds": 3.2,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 5,
+     "intent": "go_to",
+     "executed": "go_to",
+     "energy": 53.7,
+     "strain": 13.5,
+     "act_seconds": 89.39,
+     "enforcement": [],
+     "status": "ok"
+    }
+   ],
+   "sit_recovery": 14.6,
+   "checks": {
+    "completed": true,
+    "zero_enforcement": true,
+    "min_energy_above_zone": true,
+    "sit_recovery_meaningful": true
+   },
+   "verdict": true
+  },
+  "run-b2": {
+   "mode": "run-b2",
+   "arm": "B2",
+   "run_id": "e2cal-run-b2-1cba02",
+   "outcome": "completed",
+   "reason": "sat at the tea house; arrived back at the plaza place",
+   "turns": 8,
+   "wall_seconds": 278.59,
+   "body_min_energy": 0.0,
+   "body_final": {
+    "energy": 6.9,
+    "strain": 16.1,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 1,
+    "fumble": 0
+   },
+   "first_refusal_turn": 5,
+   "trajectory": [
+    {
+     "turn": 1,
+     "intent": "run_to",
+     "executed": "run_to",
+     "energy": 100.0,
+     "strain": 0.0,
+     "act_seconds": 30.96,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 2,
+     "intent": "enter",
+     "executed": "enter",
+     "energy": 19.5,
+     "strain": 23.2,
+     "act_seconds": 121.9,
+     "enforcement": [],
+     "status": "failed"
+    },
+    {
+     "turn": 3,
+     "intent": "sit",
+     "executed": "sit",
+     "energy": 0.0,
+     "strain": 19.9,
+     "act_seconds": 6.28,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 4,
+     "intent": "stand",
+     "executed": "stand",
+     "energy": 9.5,
+     "strain": 19.0,
+     "act_seconds": 3.46,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 5,
+     "intent": "run_to",
+     "executed": "refused",
+     "energy": 14.8,
+     "strain": 18.4,
+     "act_seconds": null,
+     "enforcement": [
+      "refusal"
+     ],
+     "status": "refused"
+    },
+    {
+     "turn": 6,
+     "intent": "wait",
+     "executed": "wait",
+     "energy": 14.8,
+     "strain": 33.4,
+     "act_seconds": 12.13,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 7,
+     "intent": "wait",
+     "executed": "wait",
+     "energy": 24.5,
+     "strain": 31.6,
+     "act_seconds": 12.18,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 8,
+     "intent": "go_to",
+     "executed": "go_to",
+     "energy": 34.3,
+     "strain": 29.8,
+     "act_seconds": 91.2,
+     "enforcement": [],
+     "status": "ok"
+    }
+   ],
+   "checks": {
+    "completed": true,
+    "enforcement_fired": true,
+    "battery_hit_the_zone": false,
+    "recovered_and_completed": true
+   },
+   "verdict": false
+  },
+  "run-b1": {
+   "mode": "run-b1",
+   "arm": "B1",
+   "run_id": "e2cal-run-b1-ce89f7",
+   "outcome": "completed",
+   "reason": "sat at the tea house; arrived back at the plaza place",
+   "turns": 5,
+   "wall_seconds": 200.5,
+   "body_min_energy": 0.0,
+   "body_final": {
+    "energy": 0.0,
+    "strain": 47.8,
+    "context_pressure": 0.0,
+    "depleted_lock": true
+   },
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "first_refusal_turn": null,
+   "trajectory": [
+    {
+     "turn": 1,
+     "intent": "run_to",
+     "executed": "run_to",
+     "energy": 100.0,
+     "strain": 0.0,
+     "act_seconds": 30.38,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 2,
+     "intent": "enter",
+     "executed": "enter",
+     "energy": 21.0,
+     "strain": 22.8,
+     "act_seconds": 121.31,
+     "enforcement": [],
+     "status": "failed"
+    },
+    {
+     "turn": 3,
+     "intent": "sit",
+     "executed": "sit",
+     "energy": 0.0,
+     "strain": 19.6,
+     "act_seconds": 6.26,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 4,
+     "intent": "stand",
+     "executed": "stand",
+     "energy": 9.4,
+     "strain": 18.6,
+     "act_seconds": 3.02,
+     "enforcement": [],
+     "status": "ok"
+    },
+    {
+     "turn": 5,
+     "intent": "run_to",
+     "executed": "run_to",
+     "energy": 13.9,
+     "strain": 18.2,
+     "act_seconds": 39.47,
+     "enforcement": [],
+     "status": "ok"
+    }
+   ],
+   "checks": {
+    "completed": true,
+    "zero_enforcement": true,
+    "drained_to_near_zero": false
+   },
+   "verdict": false
+  }
+ },
+ "spend_delta_usd": 0.0,
+ "verdict": false
+}

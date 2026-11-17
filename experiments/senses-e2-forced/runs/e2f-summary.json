@@ -1,0 +1,4515 @@
+{
+ "experiment": "E2-forced: body channel on a route where walking cannot finish and running everywhere breaks the budget",
+ "seed": 20261120,
+ "execution_order": [
+  "e2f-b1-p1-01-ce1d79",
+  "e2f-b0-p8-02-1e34fa",
+  "e2f-b2-p3-03-e542bb",
+  "e2f-b1-p10-04-b53873",
+  "e2f-b0-p9-05-eaae7d",
+  "e2f-b2-p4-06-fba279",
+  "e2f-b1-p4-07-143578",
+  "e2f-b1-p8-08-66efc2",
+  "e2f-b2-p7-09-cdda70",
+  "e2f-b1-p5-10-8fd45f",
+  "e2f-b2-p9-11-a64d46",
+  "e2f-b1-p9-12-d53ea0",
+  "e2f-b0-p2-13-1a7f81",
+  "e2f-b0-p1-14-6f9739",
+  "e2f-b2-p11-15-d866e2",
+  "e2f-b0-p3-16-86ea3a",
+  "e2f-b1-p12-17-ac19e8",
+  "e2f-b1-p6-18-1cd9b0",
+  "e2f-b0-p6-19-f33bdd",
+  "e2f-b0-p11-20-bacd6c",
+  "e2f-b0-p12-21-8adb6e",
+  "e2f-b1-p3-22-a37354",
+  "e2f-b0-p7-23-8b178f",
+  "e2f-b0-p10-24-10c622",
+  "e2f-b2-p2-25-b91267",
+  "e2f-b2-p6-26-34a681",
+  "e2f-b2-p12-27-bc9769",
+  "e2f-b0-p4-28-bab88d",
+  "e2f-b2-p8-29-680b1f",
+  "e2f-b0-p5-30-9b1e54",
+  "e2f-b1-p11-31-afa193",
+  "e2f-b1-p2-32-1eb613",
+  "e2f-b1-p7-33-431898",
+  "e2f-b2-p1-34-243301",
+  "e2f-b2-p10-35-41cd1d",
+  "e2f-b2-p5-36-975550"
+ ],
+ "design": {
+  "stop2_id": "shop-98",
+  "deadline_s": 276,
+  "body_rates": {
+   "walk_drain_per_s": 0.15,
+   "run_drain_per_s": 1.22
+  },
+  "measured_legs": {
+   "l1_walk": 78.97,
+   "enter_fast": 39.4,
+   "enter_timeout": 121.4,
+   "sit": 6.13,
+   "stand": 3.1,
+   "l2_walk": 133.3,
+   "l3_walk": 58.11,
+   "run_ratio": 2.63
+  }
+ },
+ "arms": {
+  "B0": {
+   "runs": 12,
+   "completed": 0,
+   "completion_rate": 0.0,
+   "outcomes": {
+    "failed_deadline": 12
+   },
+   "median_wall_seconds_completed": null,
+   "median_turns_completed": null,
+   "runs_with_run_to": 2,
+   "median_first_run_turn": 9.5,
+   "median_first_run_leg": 4.5,
+   "first_run_phases": {
+    "middle": 2
+   },
+   "median_intended_run_share": 0.0,
+   "strategy_mix": {
+    "walk_only": 10,
+    "mixed_paced": 2
+   },
+   "movement_bands": {
+    "ge50": {
+     "decisions": 57,
+     "run_chosen": 2,
+     "run_fraction": 0.035
+    },
+    "30_50": {
+     "decisions": 1,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "runs_with_regulation": 1,
+   "regulation_events_total": 1,
+   "voluntary_rest_total": 0,
+   "walk_down_total": 1,
+   "runs_with_voluntary_recharge": 1,
+   "enforcement_totals": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "runs_with_enforcement": 0,
+   "first_refusal_responses": {},
+   "runs_completed_after_refusal": 0,
+   "runs_completed_after_enforcement": 0,
+   "total_turns": 122,
+   "voice_rate": 1.0,
+   "runs_with_body_ref": 0,
+   "total_body_refs": 0,
+   "median_first_body_ref_turn": null,
+   "body_ref_quotes": [],
+   "runs_with_time_ref": 2,
+   "total_time_refs": 2,
+   "median_first_time_ref_turn": 12.5,
+   "time_ref_quotes": [
+    {
+     "turn": 11,
+     "quote": "I'm standing again inside the tea house\u2014time to leave and head to Kronikler Press."
+    },
+    {
+     "turn": 14,
+     "quote": "I'm standing now; time to leave the tea house and head to Kronikler Press."
+    }
+   ],
+   "median_min_energy": 81.9,
+   "radio_acts_total": 5
+  },
+  "B1": {
+   "runs": 12,
+   "completed": 1,
+   "completion_rate": 0.083,
+   "outcomes": {
+    "failed_deadline": 11,
+    "completed": 1
+   },
+   "median_wall_seconds_completed": 252.4,
+   "median_turns_completed": 8,
+   "runs_with_run_to": 3,
+   "median_first_run_turn": 7,
+   "median_first_run_leg": 3,
+   "first_run_phases": {
+    "middle": 2,
+    "outbound": 1
+   },
+   "median_intended_run_share": 0.0,
+   "strategy_mix": {
+    "walk_only": 9,
+    "mixed_paced": 2,
+    "run_all": 1
+   },
+   "movement_bands": {
+    "ge50": {
+     "decisions": 50,
+     "run_chosen": 5,
+     "run_fraction": 0.1
+    },
+    "15_30": {
+     "decisions": 1,
+     "run_chosen": 1,
+     "run_fraction": 1.0
+    }
+   },
+   "runs_with_regulation": 0,
+   "regulation_events_total": 0,
+   "voluntary_rest_total": 0,
+   "walk_down_total": 0,
+   "runs_with_voluntary_recharge": 1,
+   "enforcement_totals": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "runs_with_enforcement": 0,
+   "first_refusal_responses": {},
+   "runs_completed_after_refusal": 0,
+   "runs_completed_after_enforcement": 0,
+   "total_turns": 118,
+   "voice_rate": 1.0,
+   "runs_with_body_ref": 0,
+   "total_body_refs": 0,
+   "median_first_body_ref_turn": null,
+   "body_ref_quotes": [],
+   "runs_with_time_ref": 1,
+   "total_time_refs": 1,
+   "median_first_time_ref_turn": 10,
+   "time_ref_quotes": [
+    {
+     "turn": 10,
+     "quote": "I'm standing up now inside the tea house; time to leave and head to Kronikler Press."
+    }
+   ],
+   "median_min_energy": 81.85,
+   "radio_acts_total": 5
+  },
+  "B2": {
+   "runs": 12,
+   "completed": 0,
+   "completion_rate": 0.0,
+   "outcomes": {
+    "failed_deadline": 12
+   },
+   "median_wall_seconds_completed": null,
+   "median_turns_completed": null,
+   "runs_with_run_to": 1,
+   "median_first_run_turn": 8,
+   "median_first_run_leg": 3,
+   "first_run_phases": {
+    "middle": 1
+   },
+   "median_intended_run_share": 0.0,
+   "strategy_mix": {
+    "walk_only": 11,
+    "mixed_paced": 1
+   },
+   "movement_bands": {
+    "ge50": {
+     "decisions": 50,
+     "run_chosen": 1,
+     "run_fraction": 0.02
+    }
+   },
+   "runs_with_regulation": 0,
+   "regulation_events_total": 0,
+   "voluntary_rest_total": 0,
+   "walk_down_total": 0,
+   "runs_with_voluntary_recharge": 0,
+   "enforcement_totals": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "runs_with_enforcement": 0,
+   "first_refusal_responses": {},
+   "runs_completed_after_refusal": 0,
+   "runs_completed_after_enforcement": 0,
+   "total_turns": 122,
+   "voice_rate": 1.0,
+   "runs_with_body_ref": 1,
+   "total_body_refs": 1,
+   "median_first_body_ref_turn": 9,
+   "body_ref_quotes": [
+    {
+     "turn": 9,
+     "quote": "Still no seats visible; with time running low I'll attempt to sit using the generic \"sit\" intent, hoping it finds a seat."
+    }
+   ],
+   "runs_with_time_ref": 2,
+   "total_time_refs": 3,
+   "median_first_time_ref_turn": 7.5,
+   "time_ref_quotes": [
+    {
+     "turn": 9,
+     "quote": "Still no seats visible; with time running low I'll attempt to sit using the generic \"sit\" intent, hoping it finds a seat."
+    },
+    {
+     "turn": 10,
+     "quote": "I've searched but no seats appear in this tea house\u2014given time, I'll proceed to Kronikler Press."
+    },
+    {
+     "turn": 6,
+     "quote": "I'm seated on a chair inside the tea house; time to stand back up."
+    }
+   ],
+   "median_min_energy": 83.0,
+   "radio_acts_total": 10
+  }
+ },
+ "total_accounted_spend_usd": 0.169779,
+ "ledger_entries": 2723,
+ "spend_cap_usd": 1.0,
+ "soft_stop_usd": 0.4,
+ "per_run": [
+  {
+   "arm": "B1",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.08,
+   "turns": 5,
+   "total_turns": 5,
+   "voice_turns": 5,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 3,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 2,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 96.0,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 81.2,
+   "body_final": {
+    "energy": 81.2,
+    "strain": 0.0,
+    "context_pressure": 0.0017108917236328125,
+    "depleted_lock": false
+   },
+   "radio_acts": 0,
+   "strategy": "walk_only",
+   "destination_decisions": 2,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 5,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B0",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.01,
+   "turns": 6,
+   "total_turns": 6,
+   "voice_turns": 6,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 4,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 2,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 84.1,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 72.3,
+   "body_final": {
+    "energy": 88.0,
+    "strain": 0.0,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "radio_acts": 0,
+   "strategy": "walk_only",
+   "destination_decisions": 2,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 6,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 94.1,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B2",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.07,
+   "turns": 11,
+   "total_turns": 11,
+   "voice_turns": 11,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 9,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 3,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 96.9,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 84.2,
+   "body_final": {
+    "energy": 84.2,
+    "strain": 0.0,
+    "context_pressure": 0.0032358169555664062,
+    "depleted_lock": false
+   },
+   "radio_acts": 2,
+   "strategy": "walk_only",
+   "destination_decisions": 3,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 4,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -25.2,
+      -80.0
+     ],
+     "disp_energy": 88.2,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 11,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B1",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.01,
+   "turns": 12,
+   "total_turns": 12,
+   "voice_turns": 12,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 9,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 4,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 95.4,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 83.1,
+   "body_final": {
+    "energy": 87.2,
+    "strain": 1.5,
+    "context_pressure": 0.003322601318359375,
+    "depleted_lock": false
+   },
+   "radio_acts": 1,
+   "strategy": "walk_only",
+   "destination_decisions": 4,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 4,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -25.0,
+      -82.0
+     ],
+     "disp_energy": 86.3,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 6,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -25.0,
+      -84.0
+     ],
+     "disp_energy": 92.2,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 12,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 99.1,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B0",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.02,
+   "turns": 8,
+   "total_turns": 8,
+   "voice_turns": 8,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 3,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 4,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 95.95,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 84.8,
+   "body_final": {
+    "energy": 84.8,
+    "strain": 0.0,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "radio_acts": 0,
+   "strategy": "walk_only",
+   "destination_decisions": 4,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 5,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 7,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -17,
+      -67
+     ],
+     "disp_energy": 95.8,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 8,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 96.1,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B2",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.01,
+   "turns": 9,
+   "total_turns": 9,
+   "voice_turns": 9,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 6,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 3,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 93.3,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 80.9,
+   "body_final": {
+    "energy": 93.6,
+    "strain": 13.6,
+    "context_pressure": 0.0026636123657226562,
+    "depleted_lock": false
+   },
+   "radio_acts": 0,
+   "strategy": "walk_only",
+   "destination_decisions": 3,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 4,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -24.8,
+      -83.0
+     ],
+     "disp_energy": 83.7,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 8,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B1",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.08,
+   "turns": 6,
+   "total_turns": 6,
+   "voice_turns": 6,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 4,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 2,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 93.2,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 82.5,
+   "body_final": {
+    "energy": 82.5,
+    "strain": 0.0,
+    "context_pressure": 0.0020389556884765625,
+    "depleted_lock": false
+   },
+   "radio_acts": 0,
+   "strategy": "walk_only",
+   "destination_decisions": 2,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 6,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B1",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.02,
+   "turns": 8,
+   "total_turns": 8,
+   "voice_turns": 8,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 5,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 3,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 93.85,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 83.3,
+   "body_final": {
+    "energy": 83.3,
+    "strain": 0.0,
+    "context_pressure": 0.00262451171875,
+    "depleted_lock": false
+   },
+   "radio_acts": 0,
+   "strategy": "walk_only",
+   "destination_decisions": 3,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 4,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -24.8,
+      -79.0
+     ],
+     "disp_energy": 86.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 8,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 99.1,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B2",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.08,
+   "turns": 10,
+   "total_turns": 10,
+   "voice_turns": 10,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": null,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 5,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [
+    9
+   ],
+   "body_ref_count": 1,
+   "first_ref_turn": 9,
+   "ref_events": [
+    {
+     "turn": 9,
+     "disp_energy": 99.6,
+     "quote": "Still no seats visible; with time running low I'll attempt to sit using the generic \"sit\" intent, hoping it finds a seat."
+    }
+   ],
+   "ref_quotes": [
+    {
+     "turn": 9,
+     "quote": "Still no seats visible; with time running low I'll attempt to sit using the generic \"sit\" intent, hoping it finds a seat."
+    }
+   ],
+   "median_disp_energy_at_refs": 99.6,
+   "median_disp_energy_all": 95.6,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 81.4,
+   "body_final": {
+    "energy": 81.4,
+    "strain": 0.0,
+    "context_pressure": 0.00316619873046875,
+    "depleted_lock": false
+   },
+   "radio_acts": 1,
+   "strategy": "walk_only",
+   "destination_decisions": 5,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 4,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -25.2,
+      -79.5
+     ],
+     "disp_energy": 88.5,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 6,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -24.8,
+      -77.0
+     ],
+     "disp_energy": 95.3,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 8,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -24.0,
+      -78.0
+     ],
+     "disp_energy": 97.9,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 10,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [
+    9,
+    10
+   ],
+   "time_ref_count": 2,
+   "first_time_ref_turn": 9,
+   "time_ref_quotes": [
+    {
+     "turn": 9,
+     "quote": "Still no seats visible; with time running low I'll attempt to sit using the generic \"sit\" intent, hoping it finds a seat."
+    },
+    {
+     "turn": 10,
+     "quote": "I've searched but no seats appear in this tea house\u2014given time, I'll proceed to Kronikler Press."
+    }
+   ],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B1",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.01,
+   "turns": 10,
+   "total_turns": 10,
+   "voice_turns": 10,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": 7,
+   "sat_done_turn": 3,
+   "intended_run_share": 0.333,
+   "executed_run_share": 0.333,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 6,
+     "run_chosen": 2,
+     "run_fraction": 0.333
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 90.7,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 49.3,
+   "body_final": {
+    "energy": 49.3,
+    "strain": 31.9,
+    "context_pressure": 0.0034036636352539062,
+    "depleted_lock": false
+   },
+   "radio_acts": 0,
+   "strategy": "mixed_paced",
+   "destination_decisions": 6,
+   "run_decisions": 2,
+   "first_run_leg": 3,
+   "first_run_phase": "middle",
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 5,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 7,
+     "type": "run_to",
+     "place": null,
+     "point": [
+      -25.0,
+      -75.0
+     ],
+     "disp_energy": 96.4,
+     "executed_type": "run_to",
+     "status": "ok"
+    },
+    {
+     "turn": 8,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 82.4,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 9,
+     "type": "run_to",
+     "place": null,
+     "point": [
+      32.4,
+      72.5
+     ],
+     "disp_energy": 79.0,
+     "executed_type": "run_to",
+     "status": "failed"
+    },
+    {
+     "turn": 10,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -10.0,
+      -40.0
+     ],
+     "disp_energy": 50.2,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [
+    6
+   ],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B2",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.01,
+   "turns": 5,
+   "total_turns": 5,
+   "voice_turns": 5,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 3,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 2,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 100.0,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 81.8,
+   "body_final": {
+    "energy": 81.8,
+    "strain": 0.0,
+    "context_pressure": 0.0017347335815429688,
+    "depleted_lock": false
+   },
+   "radio_acts": 0,
+   "strategy": "walk_only",
+   "destination_decisions": 2,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 5,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B1",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.02,
+   "turns": 9,
+   "total_turns": 9,
+   "voice_turns": 9,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 4,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 4,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 94.4,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 82.9,
+   "body_final": {
+    "energy": 86.2,
+    "strain": 0.0,
+    "context_pressure": 0.00298309326171875,
+    "depleted_lock": false
+   },
+   "radio_acts": 0,
+   "strategy": "walk_only",
+   "destination_decisions": 4,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 6,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 8,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -15,
+      -65
+     ],
+     "disp_energy": 94.6,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 9,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 94.4,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B0",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.01,
+   "turns": 6,
+   "total_turns": 6,
+   "voice_turns": 6,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 3,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 3,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 94.55,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 79.5,
+   "body_final": {
+    "energy": 79.5,
+    "strain": 0.0,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "radio_acts": 0,
+   "strategy": "walk_only",
+   "destination_decisions": 3,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 5,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 6,
+     "type": "go_to",
+     "place": "stall-40",
+     "point": null,
+     "disp_energy": 80.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": 5
+  },
+  {
+   "arm": "B0",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.02,
+   "turns": 8,
+   "total_turns": 8,
+   "voice_turns": 8,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 6,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 3,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 91.75,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 81.5,
+   "body_final": {
+    "energy": 81.5,
+    "strain": 0.0,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "radio_acts": 1,
+   "strategy": "walk_only",
+   "destination_decisions": 3,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 5,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -25.0,
+      -77.0
+     ],
+     "disp_energy": 90.9,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 8,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B2",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.01,
+   "turns": 10,
+   "total_turns": 10,
+   "voice_turns": 10,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 8,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 4,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 89.1,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 82.6,
+   "body_final": {
+    "energy": 86.3,
+    "strain": 0.0,
+    "context_pressure": 0.0029325485229492188,
+    "depleted_lock": false
+   },
+   "radio_acts": 1,
+   "strategy": "walk_only",
+   "destination_decisions": 4,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 4,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -24.8,
+      -76.0
+     ],
+     "disp_energy": 85.6,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 6,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -24.5,
+      -73.0
+     ],
+     "disp_energy": 88.4,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 10,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B0",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.01,
+   "turns": 11,
+   "total_turns": 11,
+   "voice_turns": 11,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 9,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 5,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 87.6,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 77.8,
+   "body_final": {
+    "energy": 90.1,
+    "strain": 4.2,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "radio_acts": 1,
+   "strategy": "walk_only",
+   "destination_decisions": 5,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 5,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -25.0,
+      -80.0
+     ],
+     "disp_energy": 83.1,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 7,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -25.0,
+      -82.0
+     ],
+     "disp_energy": 87.6,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 8,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -25.5,
+      -85.0
+     ],
+     "disp_energy": 90.2,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 11,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [
+    11
+   ],
+   "time_ref_count": 1,
+   "first_time_ref_turn": 11,
+   "time_ref_quotes": [
+    {
+     "turn": 11,
+     "quote": "I'm standing again inside the tea house\u2014time to leave and head to Kronikler Press."
+    }
+   ],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B1",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.23,
+   "turns": 8,
+   "total_turns": 8,
+   "voice_turns": 8,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 5,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 3,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 89.3,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 79.7,
+   "body_final": {
+    "energy": 80.4,
+    "strain": 0.0,
+    "context_pressure": 0.0026874542236328125,
+    "depleted_lock": false
+   },
+   "radio_acts": 1,
+   "strategy": "walk_only",
+   "destination_decisions": 3,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 7,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 8,
+     "type": "go_to",
+     "place": "stall-40",
+     "point": null,
+     "disp_energy": 79.7,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": 7
+  },
+  {
+   "arm": "B1",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.01,
+   "turns": 13,
+   "total_turns": 13,
+   "voice_turns": 13,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": 12,
+   "sat_done_turn": 6,
+   "intended_run_share": 0.167,
+   "executed_run_share": 0.167,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 6,
+     "run_chosen": 1,
+     "run_fraction": 0.167
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 92.5,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 64.2,
+   "body_final": {
+    "energy": 64.5,
+    "strain": 31.7,
+    "context_pressure": 0.0038852691650390625,
+    "depleted_lock": false
+   },
+   "radio_acts": 0,
+   "strategy": "mixed_paced",
+   "destination_decisions": 6,
+   "run_decisions": 1,
+   "first_run_leg": 5,
+   "first_run_phase": "middle",
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 4,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -25.0,
+      -78.0
+     ],
+     "disp_energy": 83.1,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 10,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -25.0,
+      -72.0
+     ],
+     "disp_energy": 99.1,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 11,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 96.4,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 12,
+     "type": "run_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 92.5,
+     "executed_type": "run_to",
+     "status": "failed"
+    },
+    {
+     "turn": 13,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      50.0,
+      -80.0
+     ],
+     "disp_energy": 64.2,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B0",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.0,
+   "turns": 10,
+   "total_turns": 10,
+   "voice_turns": 10,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": 9,
+   "sat_done_turn": 6,
+   "intended_run_share": 0.2,
+   "executed_run_share": 0.2,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 4,
+     "run_chosen": 1,
+     "run_fraction": 0.25
+    },
+    "30_50": {
+     "decisions": 1,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [
+    {
+     "turn": 10,
+     "kind": "walk_down",
+     "disp_energy": 36.1
+    }
+   ],
+   "regulation_count": 1,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 1,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 87.85,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 33.2,
+   "body_final": {
+    "energy": 33.2,
+    "strain": 56.2,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "radio_acts": 1,
+   "strategy": "mixed_paced",
+   "destination_decisions": 5,
+   "run_decisions": 1,
+   "first_run_leg": 4,
+   "first_run_phase": "middle",
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 5,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -24.7,
+      -77.3
+     ],
+     "disp_energy": 87.1,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 8,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 9,
+     "type": "run_to",
+     "place": null,
+     "point": [
+      142.0,
+      -69.4
+     ],
+     "disp_energy": 94.1,
+     "executed_type": "run_to",
+     "status": "ok"
+    },
+    {
+     "turn": 10,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 36.1,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B0",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.01,
+   "turns": 14,
+   "total_turns": 14,
+   "voice_turns": 14,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 12,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 8,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 94.4,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 83.4,
+   "body_final": {
+    "energy": 87.3,
+    "strain": 0.0,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "radio_acts": 0,
+   "strategy": "walk_only",
+   "destination_decisions": 8,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 4,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -25.1,
+      -78.0
+     ],
+     "disp_energy": 85.2,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 5,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -25.0,
+      -79.0
+     ],
+     "disp_energy": 87.4,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 6,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -25.0,
+      -80.0
+     ],
+     "disp_energy": 89.8,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 8,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -24.5,
+      -80.0
+     ],
+     "disp_energy": 93.7,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 10,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -24.5,
+      -81.0
+     ],
+     "disp_energy": 97.1,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 11,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -25.5,
+      -80.0
+     ],
+     "disp_energy": 99.6,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 14,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [
+    14
+   ],
+   "time_ref_count": 1,
+   "first_time_ref_turn": 14,
+   "time_ref_quotes": [
+    {
+     "turn": 14,
+     "quote": "I'm standing now; time to leave the tea house and head to Kronikler Press."
+    }
+   ],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B0",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.01,
+   "turns": 12,
+   "total_turns": 12,
+   "voice_turns": 12,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 6,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 6,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 92.45,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 85.6,
+   "body_final": {
+    "energy": 88.5,
+    "strain": 0.0,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "radio_acts": 0,
+   "strategy": "walk_only",
+   "destination_decisions": 6,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 4,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -25.0,
+      -79.0
+     ],
+     "disp_energy": 88.1,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 8,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 10,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 95.5,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 11,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -15.0,
+      -70.0
+     ],
+     "disp_energy": 92.6,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 12,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 92.3,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B1",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.03,
+   "turns": 13,
+   "total_turns": 13,
+   "voice_turns": 13,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 8,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 5,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 90.9,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 79.7,
+   "body_final": {
+    "energy": 96.2,
+    "strain": 14.4,
+    "context_pressure": 0.0036077499389648438,
+    "depleted_lock": false
+   },
+   "radio_acts": 1,
+   "strategy": "walk_only",
+   "destination_decisions": 5,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 5,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -24.0,
+      -77.0
+     ],
+     "disp_energy": 86.2,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 10,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 12,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -24.9,
+      -77.5
+     ],
+     "disp_energy": 91.6,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 13,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -24.1,
+      -72.0
+     ],
+     "disp_energy": 93.7,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B0",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.03,
+   "turns": 10,
+   "total_turns": 10,
+   "voice_turns": 10,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": 10,
+   "sat_done_turn": 5,
+   "intended_run_share": 0.2,
+   "executed_run_share": 0.2,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 5,
+     "run_chosen": 1,
+     "run_fraction": 0.2
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 92.5,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 44.3,
+   "body_final": {
+    "energy": 44.3,
+    "strain": 34.3,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "radio_acts": 0,
+   "strategy": "mixed_paced",
+   "destination_decisions": 5,
+   "run_decisions": 1,
+   "first_run_leg": 5,
+   "first_run_phase": "middle",
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 4,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -25.2,
+      -76.0
+     ],
+     "disp_energy": 86.6,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 7,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 9,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -15.0,
+      -65.0
+     ],
+     "disp_energy": 94.6,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 10,
+     "type": "run_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 91.8,
+     "executed_type": "run_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B0",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.01,
+   "turns": 13,
+   "total_turns": 13,
+   "voice_turns": 13,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 3,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 6,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 93.9,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 85.9,
+   "body_final": {
+    "energy": 95.4,
+    "strain": 13.4,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "radio_acts": 1,
+   "strategy": "walk_only",
+   "destination_decisions": 6,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 5,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 6,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -28.5,
+      -10.0
+     ],
+     "disp_energy": 94.6,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 9,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -28.5,
+      -10.0
+     ],
+     "disp_energy": 95.9,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 12,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -24.0,
+      -76.0
+     ],
+     "disp_energy": 92.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 13,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 92.7,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [
+    7,
+    8
+   ],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B2",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.82,
+   "turns": 10,
+   "total_turns": 10,
+   "voice_turns": 10,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": 8,
+   "sat_done_turn": 5,
+   "intended_run_share": 0.25,
+   "executed_run_share": 0.25,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 4,
+     "run_chosen": 1,
+     "run_fraction": 0.25
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 86.1,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 62.2,
+   "body_final": {
+    "energy": 63.2,
+    "strain": 34.0,
+    "context_pressure": 0.0030536651611328125,
+    "depleted_lock": false
+   },
+   "radio_acts": 0,
+   "strategy": "mixed_paced",
+   "destination_decisions": 4,
+   "run_decisions": 1,
+   "first_run_leg": 3,
+   "first_run_phase": "middle",
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 7,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 95.1,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 8,
+     "type": "run_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 91.0,
+     "executed_type": "run_to",
+     "status": "failed"
+    },
+    {
+     "turn": 10,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -25.7,
+      -99.9
+     ],
+     "disp_energy": 62.7,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [
+    6
+   ],
+   "time_ref_count": 1,
+   "first_time_ref_turn": 6,
+   "time_ref_quotes": [
+    {
+     "turn": 6,
+     "quote": "I'm seated on a chair inside the tea house; time to stand back up."
+    }
+   ],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B2",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.01,
+   "turns": 11,
+   "total_turns": 11,
+   "voice_turns": 11,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 9,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 4,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 91.1,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 83.5,
+   "body_final": {
+    "energy": 88.1,
+    "strain": 12.5,
+    "context_pressure": 0.0034503936767578125,
+    "depleted_lock": false
+   },
+   "radio_acts": 2,
+   "strategy": "walk_only",
+   "destination_decisions": 4,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 4,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -24.8,
+      -80.0
+     ],
+     "disp_energy": 86.1,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 8,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 95.7,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 11,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B2",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.01,
+   "turns": 12,
+   "total_turns": 12,
+   "voice_turns": 12,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 8,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 6,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 90.45,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 84.2,
+   "body_final": {
+    "energy": 86.5,
+    "strain": 0.5,
+    "context_pressure": 0.004044532775878906,
+    "depleted_lock": false
+   },
+   "radio_acts": 1,
+   "strategy": "walk_only",
+   "destination_decisions": 6,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 5,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -25.1,
+      -74.0
+     ],
+     "disp_energy": 86.9,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 7,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -25.6,
+      -74.3
+     ],
+     "disp_energy": 89.9,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 10,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 11,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -15.0,
+      -65.0
+     ],
+     "disp_energy": 94.2,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 12,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 93.8,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B0",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.04,
+   "turns": 9,
+   "total_turns": 9,
+   "voice_turns": 9,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 6,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 3,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 92.0,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 82.3,
+   "body_final": {
+    "energy": 82.3,
+    "strain": 0.0,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "radio_acts": 1,
+   "strategy": "walk_only",
+   "destination_decisions": 3,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 4,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -25.2,
+      -76.0
+     ],
+     "disp_energy": 88.7,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 9,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 98.7,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B2",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.01,
+   "turns": 11,
+   "total_turns": 11,
+   "voice_turns": 11,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 5,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 5,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 92.0,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 83.4,
+   "body_final": {
+    "energy": 87.3,
+    "strain": 0.0,
+    "context_pressure": 0.0035266876220703125,
+    "depleted_lock": false
+   },
+   "radio_acts": 0,
+   "strategy": "walk_only",
+   "destination_decisions": 5,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 7,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 9,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 95.6,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 10,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -15,
+      -70
+     ],
+     "disp_energy": 92.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 11,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 91.5,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B0",
+   "outcome": "failed_deadline",
+   "wall_seconds": 277.11,
+   "turns": 15,
+   "total_turns": 15,
+   "voice_turns": 15,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 9,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 8,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 87.8,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 82.4,
+   "body_final": {
+    "energy": 90.4,
+    "strain": 4.1,
+    "context_pressure": 0.0,
+    "depleted_lock": false
+   },
+   "radio_acts": 0,
+   "strategy": "walk_only",
+   "destination_decisions": 8,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 6,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -24.0,
+      -78.0
+     ],
+     "disp_energy": 83.9,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 7,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -25.0,
+      -79.0
+     ],
+     "disp_energy": 85.4,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 8,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -25.5,
+      -79.0
+     ],
+     "disp_energy": 86.7,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 11,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 13,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 92.7,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 14,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -21.0,
+      -69.0
+     ],
+     "disp_energy": 89.6,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 15,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      10.0,
+      0.0
+     ],
+     "disp_energy": 89.7,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B1",
+   "outcome": "completed",
+   "wall_seconds": 252.4,
+   "turns": 8,
+   "total_turns": 8,
+   "voice_turns": 8,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": 1,
+   "sat_done_turn": 4,
+   "intended_run_share": 0.75,
+   "executed_run_share": 0.75,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 3,
+     "run_chosen": 2,
+     "run_fraction": 0.667
+    },
+    "15_30": {
+     "decisions": 1,
+     "run_chosen": 1,
+     "run_fraction": 1.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 66.7,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 0.0,
+   "body_final": {
+    "energy": 0.0,
+    "strain": 92.8,
+    "context_pressure": 0.0029039382934570312,
+    "depleted_lock": true
+   },
+   "radio_acts": 1,
+   "strategy": "run_all",
+   "destination_decisions": 4,
+   "run_decisions": 3,
+   "first_run_leg": 1,
+   "first_run_phase": "outbound",
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "run_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "run_to",
+     "status": "ok"
+    },
+    {
+     "turn": 6,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -24.7,
+      -71.9
+     ],
+     "disp_energy": 85.7,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 7,
+     "type": "run_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 82.6,
+     "executed_type": "run_to",
+     "status": "ok"
+    },
+    {
+     "turn": 8,
+     "type": "run_to",
+     "place": "stall-40",
+     "point": null,
+     "disp_energy": 17.3,
+     "executed_type": "run_to",
+     "status": "ok"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": 7
+  },
+  {
+   "arm": "B1",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.01,
+   "turns": 13,
+   "total_turns": 13,
+   "voice_turns": 13,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 8,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 5,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 94.2,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 83.8,
+   "body_final": {
+    "energy": 86.3,
+    "strain": 0.4,
+    "context_pressure": 0.004137992858886719,
+    "depleted_lock": false
+   },
+   "radio_acts": 1,
+   "strategy": "walk_only",
+   "destination_decisions": 5,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 6,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -25,
+      -80
+     ],
+     "disp_energy": 92.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 10,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    },
+    {
+     "turn": 12,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -10,
+      -60
+     ],
+     "disp_energy": 95.9,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 13,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 94.6,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [
+    10
+   ],
+   "time_ref_count": 1,
+   "first_time_ref_turn": 10,
+   "time_ref_quotes": [
+    {
+     "turn": 10,
+     "quote": "I'm standing up now inside the tea house; time to leave and head to Kronikler Press."
+    }
+   ],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B1",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.01,
+   "turns": 13,
+   "total_turns": 13,
+   "voice_turns": 13,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 8,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 7,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 91.9,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 85.7,
+   "body_final": {
+    "energy": 87.5,
+    "strain": 0.0,
+    "context_pressure": 0.0038957595825195312,
+    "depleted_lock": false
+   },
+   "radio_acts": 0,
+   "strategy": "walk_only",
+   "destination_decisions": 7,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 4,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -24.5,
+      -77.0
+     ],
+     "disp_energy": 87.8,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 6,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -24.5,
+      -78.5
+     ],
+     "disp_energy": 90.6,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 7,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -26.0,
+      -79.5
+     ],
+     "disp_energy": 90.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 10,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -25.0,
+      -78.0
+     ],
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 12,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -24.6,
+      -72.0
+     ],
+     "disp_energy": 99.6,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 13,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 96.8,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B2",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.01,
+   "turns": 6,
+   "total_turns": 6,
+   "voice_turns": 6,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 4,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 2,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 86.4,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 75.2,
+   "body_final": {
+    "energy": 84.2,
+    "strain": 14.7,
+    "context_pressure": 0.0022945404052734375,
+    "depleted_lock": false
+   },
+   "radio_acts": 1,
+   "strategy": "walk_only",
+   "destination_decisions": 2,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 6,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 95.1,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B2",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.01,
+   "turns": 12,
+   "total_turns": 12,
+   "voice_turns": 12,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 8,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 7,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 90.9,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 84.9,
+   "body_final": {
+    "energy": 84.9,
+    "strain": 0.0,
+    "context_pressure": 0.003528594970703125,
+    "depleted_lock": false
+   },
+   "radio_acts": 0,
+   "strategy": "walk_only",
+   "destination_decisions": 7,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 4,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -24.5,
+      -78.5
+     ],
+     "disp_energy": 86.6,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 5,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -26.0,
+      -79.5
+     ],
+     "disp_energy": 87.8,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 6,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -24.0,
+      -80.0
+     ],
+     "disp_energy": 89.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 7,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -26.5,
+      -81.0
+     ],
+     "disp_energy": 90.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 11,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 98.6,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 12,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 97.7,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  },
+  {
+   "arm": "B2",
+   "outcome": "failed_deadline",
+   "wall_seconds": 276.01,
+   "turns": 15,
+   "total_turns": 15,
+   "voice_turns": 15,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "sat_done_turn": 13,
+   "intended_run_share": 0.0,
+   "executed_run_share": 0.0,
+   "movement_bands": {
+    "ge50": {
+     "decisions": 5,
+     "run_chosen": 0,
+     "run_fraction": 0.0
+    }
+   },
+   "regulation_events": [],
+   "regulation_count": 0,
+   "voluntary_rest_count": 0,
+   "walk_down_count": 0,
+   "body_ref_turns": [],
+   "body_ref_count": 0,
+   "first_ref_turn": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "median_disp_energy_at_refs": null,
+   "median_disp_energy_all": 96.4,
+   "enforcement": {
+    "downgrade": 0,
+    "refusal": 0,
+    "fumble": 0
+   },
+   "enforcement_total": 0,
+   "first_refusal_turn": null,
+   "first_refusal_response": null,
+   "completed_after_refusal": false,
+   "completed_after_enforcement": false,
+   "body_min_energy": 83.8,
+   "body_final": {
+    "energy": 88.1,
+    "strain": 10.7,
+    "context_pressure": 0.0042858123779296875,
+    "depleted_lock": false
+   },
+   "radio_acts": 2,
+   "strategy": "walk_only",
+   "destination_decisions": 5,
+   "run_decisions": 0,
+   "first_run_leg": null,
+   "first_run_phase": null,
+   "decisions": [
+    {
+     "turn": 1,
+     "type": "go_to",
+     "place": "shop-102",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 5,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -24.7,
+      -78.1
+     ],
+     "disp_energy": 89.8,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 7,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -23,
+      -80
+     ],
+     "disp_energy": 95.2,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 11,
+     "type": "go_to",
+     "place": null,
+     "point": [
+      -25,
+      -76
+     ],
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "ok"
+    },
+    {
+     "turn": 15,
+     "type": "go_to",
+     "place": "shop-98",
+     "point": null,
+     "disp_energy": 100.0,
+     "executed_type": "go_to",
+     "status": "failed"
+    }
+   ],
+   "voluntary_recharge_turns": [],
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_time_ref_turn": null,
+   "time_ref_quotes": [],
+   "stop2_done_turn": null
+  }
+ ],
+ "attempts": [
+  {
+   "arm": "B1",
+   "slot": "p1",
+   "run_id": "e2f-b1-p1-01-ce1d79",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b1-p1-01-ce1d79.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B0",
+   "slot": "p8",
+   "run_id": "e2f-b0-p8-02-1e34fa",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b0-p8-02-1e34fa.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B2",
+   "slot": "p3",
+   "run_id": "e2f-b2-p3-03-e542bb",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b2-p3-03-e542bb.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B1",
+   "slot": "p10",
+   "run_id": "e2f-b1-p10-04-b53873",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b1-p10-04-b53873.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B0",
+   "slot": "p9",
+   "run_id": "e2f-b0-p9-05-eaae7d",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b0-p9-05-eaae7d.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B2",
+   "slot": "p4",
+   "run_id": "e2f-b2-p4-06-fba279",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b2-p4-06-fba279.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B1",
+   "slot": "p4",
+   "run_id": "e2f-b1-p4-07-143578",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b1-p4-07-143578.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B1",
+   "slot": "p8",
+   "run_id": "e2f-b1-p8-08-66efc2",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b1-p8-08-66efc2.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B2",
+   "slot": "p7",
+   "run_id": "e2f-b2-p7-09-cdda70",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b2-p7-09-cdda70.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B1",
+   "slot": "p5",
+   "run_id": "e2f-b1-p5-10-8fd45f",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b1-p5-10-8fd45f.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B2",
+   "slot": "p9",
+   "run_id": "e2f-b2-p9-11-a64d46",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b2-p9-11-a64d46.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B1",
+   "slot": "p9",
+   "run_id": "e2f-b1-p9-12-d53ea0",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b1-p9-12-d53ea0.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B0",
+   "slot": "p2",
+   "run_id": "e2f-b0-p2-13-1a7f81",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b0-p2-13-1a7f81.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B0",
+   "slot": "p1",
+   "run_id": "e2f-b0-p1-14-6f9739",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b0-p1-14-6f9739.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B2",
+   "slot": "p11",
+   "run_id": "e2f-b2-p11-15-d866e2",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b2-p11-15-d866e2.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B0",
+   "slot": "p3",
+   "run_id": "e2f-b0-p3-16-86ea3a",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b0-p3-16-86ea3a.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B1",
+   "slot": "p12",
+   "run_id": "e2f-b1-p12-17-ac19e8",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b1-p12-17-ac19e8.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B1",
+   "slot": "p6",
+   "run_id": "e2f-b1-p6-18-1cd9b0",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b1-p6-18-1cd9b0.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B0",
+   "slot": "p6",
+   "run_id": "e2f-b0-p6-19-f33bdd",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b0-p6-19-f33bdd.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B0",
+   "slot": "p11",
+   "run_id": "e2f-b0-p11-20-bacd6c",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b0-p11-20-bacd6c.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B0",
+   "slot": "p12",
+   "run_id": "e2f-b0-p12-21-8adb6e",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b0-p12-21-8adb6e.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B1",
+   "slot": "p3",
+   "run_id": "e2f-b1-p3-22-a37354",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b1-p3-22-a37354.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B0",
+   "slot": "p7",
+   "run_id": "e2f-b0-p7-23-8b178f",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b0-p7-23-8b178f.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B0",
+   "slot": "p10",
+   "run_id": "e2f-b0-p10-24-10c622",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b0-p10-24-10c622.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B2",
+   "slot": "p2",
+   "run_id": "e2f-b2-p2-25-b91267",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b2-p2-25-b91267.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B2",
+   "slot": "p6",
+   "run_id": "e2f-b2-p6-26-34a681",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b2-p6-26-34a681.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B2",
+   "slot": "p12",
+   "run_id": "e2f-b2-p12-27-bc9769",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b2-p12-27-bc9769.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B0",
+   "slot": "p4",
+   "run_id": "e2f-b0-p4-28-bab88d",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b0-p4-28-bab88d.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B2",
+   "slot": "p8",
+   "run_id": "e2f-b2-p8-29-680b1f",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b2-p8-29-680b1f.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B0",
+   "slot": "p5",
+   "run_id": "e2f-b0-p5-30-9b1e54",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b0-p5-30-9b1e54.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B1",
+   "slot": "p11",
+   "run_id": "e2f-b1-p11-31-afa193",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b1-p11-31-afa193.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "B1",
+   "slot": "p2",
+   "run_id": "e2f-b1-p2-32-1eb613",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b1-p2-32-1eb613.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B1",
+   "slot": "p7",
+   "run_id": "e2f-b1-p7-33-431898",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b1-p7-33-431898.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B2",
+   "slot": "p1",
+   "run_id": "e2f-b2-p1-34-243301",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b2-p1-34-243301.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B2",
+   "slot": "p10",
+   "run_id": "e2f-b2-p10-35-41cd1d",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b2-p10-35-41cd1d.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "B2",
+   "slot": "p5",
+   "run_id": "e2f-b2-p5-36-975550",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e2f-b2-p5-36-975550.jsonl",
+   "outcome": "failed_deadline"
+  }
+ ],
+ "batch": {
+  "seed": 20261120,
+  "runs_per_arm": 12,
+  "deadline_s": 276,
+  "stop2_id": "shop-98",
+  "verbal": true,
+  "specs_total": 36,
+  "specs_final": 36,
+  "specs_infra_exhausted": 0,
+  "specs_remaining": 0,
+  "complete": true
+ }
+}

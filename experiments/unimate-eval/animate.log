@@ -1,0 +1,117 @@
+ℹ️  blendkit: Verbose is enabled [18:09:27.398, addon_updater.py:150]
+ℹ️  blendkit: Read in JSON settings from file [18:09:27.399, addon_updater.py:150]
+ℹ️  blendkit: Ports reordered so first port is now 62485 (previous index was 0) [18:09:27.402, client_lib.py:163]
+BlenderMCP addon registered
+Reloading external rigs...
+Reloading external metarigs...
+LOADED UPDATER!
+Error: LZ4 module didn't load. Unsupported OS or Python version!
+Traceback (most recent call last):
+  File "/home/hatch/.config/blender/5.2/scripts/addons/rokoko_studio_live/core/login_manager.py", line 27, in <module>
+    import boto3
+ModuleNotFoundError: No module named 'boto3'
+
+
+### Loading Rokoko Studio Live for Blender...
+Custom bone list not found.
+Custom name list file is not a valid name list file
+### Loaded Rokoko Studio Live for Blender successfully!
+
+Created history step 73f7ca50-a33a-4c36-b51d-60437b425bf2
+ℹ️  blendkit: Created new search history step [18:09:28.201, search.py:2741]
+ℹ️  blendkit: No temporarily enabled addons to clean up [18:09:28.201, download.py:431]
+2026-11-13 18:09:29.723 -05:00 | INFO     | __main__:<module>:434 - Using character mesh: assets/examples/unitree_go2/unitree_go2.glb
+2026-11-13 18:09:29.723 -05:00 | INFO     | __main__:<module>:435 - Using cond file: assets/examples/unitree_go2/cond.npy
+ℹ️  blendkit: Unregistering Blendkit add-on [18:09:29.733, __init__.py:3030]
+ℹ️  blendkit: No temporarily enabled addons to clean up [18:09:29.734, download.py:431]
+BlenderMCP addon unregistered
+### Unloading Rokoko Studio Live for Blender...
+### Unloaded Rokoko Studio Live for Blender successfully!
+
+18:09:30 | INFO: Data are loaded, start creating Blender stuff
+18:09:30 | INFO: Blender create Mesh node mesh.011
+18:09:30 | INFO: Blender create Mesh node mesh.004
+18:09:30 | INFO: Blender create Mesh node mesh.013
+18:09:30 | INFO: Blender create Mesh node mesh.002
+18:09:30 | INFO: Blender create Mesh node mesh.008
+18:09:30 | INFO: Blender create Mesh node mesh
+18:09:30 | INFO: Blender create Mesh node mesh.003
+18:09:30 | INFO: Blender create Mesh node mesh.007
+18:09:30 | INFO: Blender create Mesh node mesh.012
+18:09:30 | INFO: Blender create Mesh node mesh.001
+18:09:30 | INFO: Blender create Mesh node mesh.006
+18:09:30 | INFO: Blender create Mesh node mesh.010
+18:09:30 | INFO: Blender create Mesh node mesh.016
+18:09:30 | INFO: Blender create Mesh node mesh.005
+18:09:31 | INFO: Blender create Mesh node mesh.015
+18:09:31 | INFO: Blender create Mesh node mesh.009
+18:09:31 | INFO: Blender create Mesh node mesh.014
+18:09:31 | INFO: glTF import finished in 1.36s
+2026-11-13 18:09:31.459 -05:00 | INFO     | data_process.utils.blender_rig:load_file:79 - Imported: ['FacingFix', 'Icosphere', 'base.002', 'calf.002', 'calf.003', 'calf_mirror.002', 'calf_mirror.003', 'foot.004', 'foot.005', 'foot.006', 'foot.007', 'hip.004', 'hip.005', 'hip.006', 'hip.007', 'thigh.002', 'thigh.003', 'thigh_mirror.002', 'thigh_mirror.003']
+2026-11-13 18:09:31.460 -05:00 | INFO     | __main__:animate_character:366 - Canonical asset: motion kept in the canonical frame and scale
+2026-11-13 18:09:36.855 -05:00 | INFO     | __main__:build_anim_from_npy:163 - Recovering animation using FK mode
+2026-11-13 18:09:36.891 -05:00 | INFO     | data_process.utils.skeleton:motion_axis_alignment:674 - Rig bone axes differ from the motion's on 18 bone(s) (['base', 'FR_hip', 'RL_hip', 'FL_hip']...): keys re-expressed in the rig's axes (rest skeletons agree within 1.2e-07)
+INFO Draco is available, use library at /home/hatch/workspace/blender-5.2.3/lib/libbf_intern_draco_bridge.so
+INFO MeshOptimizer is available, use library at /home/hatch/workspace/blender-5.2.3/lib/libbf_intern_meshopt_bridge.so
+18:09:37 | INFO: Starting glTF 2.0 export
+18:09:37 | INFO: Extracting primitive: mesh.011
+18:09:37 | INFO: Primitives created: 5
+18:09:37 | INFO: Extracting primitive: mesh.004
+18:09:37 | INFO: Primitives created: 2
+18:09:37 | INFO: Extracting primitive: mesh.013
+18:09:37 | INFO: Primitives created: 2
+18:09:37 | INFO: Extracting primitive: mesh.002
+18:09:37 | INFO: Primitives created: 2
+18:09:37 | INFO: Extracting primitive: mesh.008
+18:09:37 | INFO: Primitives created: 2
+18:09:37 | INFO: Extracting primitive: mesh
+18:09:37 | INFO: Primitives created: 1
+18:09:37 | INFO: Extracting primitive: mesh.003
+18:09:37 | INFO: Primitives created: 1
+18:09:37 | INFO: Extracting primitive: mesh.007
+18:09:37 | INFO: Primitives created: 1
+18:09:37 | INFO: Extracting primitive: mesh.012
+18:09:37 | INFO: Primitives created: 1
+18:09:37 | INFO: Extracting primitive: mesh.001
+18:09:37 | INFO: Primitives created: 2
+18:09:37 | INFO: Extracting primitive: mesh.006
+18:09:37 | INFO: Primitives created: 2
+18:09:37 | INFO: Extracting primitive: mesh.010
+18:09:37 | INFO: Primitives created: 2
+18:09:37 | INFO: Extracting primitive: mesh.016
+18:09:38 | INFO: Primitives created: 2
+18:09:38 | INFO: Extracting primitive: mesh.005
+18:09:38 | INFO: Primitives created: 2
+18:09:38 | INFO: Extracting primitive: mesh.015
+18:09:38 | INFO: Primitives created: 2
+18:09:38 | INFO: Extracting primitive: mesh.009
+18:09:38 | INFO: Primitives created: 2
+18:09:38 | INFO: Extracting primitive: mesh.014
+18:09:38 | INFO: Primitives created: 2
+18:09:38 | INFO: Finished glTF 2.0 export in 1.5450916290283203 s
+2026-11-13 18:09:38.668 -05:00 | INFO     | data_process.utils.blender_rig:export_selected_to_file:877 - Saved animated character: outputs/samples/go2/animated/unitree_go2-an_object_trots_forward-rep_0-0.glb
+2026-11-13 18:09:40.874 -05:00 | INFO     | data_process.utils.blender_rig:export_selected_to_file:877 - Saved animated character: outputs/samples/go2/animated/unitree_go2-an_object_trots_forward-rep_0-0.fbx
+
+
+FBX export starting... 'outputs/samples/go2/animated/unitree_go2-an_object_trots_forward-rep_0-0.fbx'
+(bpy.data.armatures['FacingFix'], 'POSE')
+(bpy.data.armatures['FacingFix'], 'POSE')
+(bpy.data.armatures['FacingFix'], 'POSE')
+(bpy.data.armatures['FacingFix'], 'POSE')
+(bpy.data.armatures['FacingFix'], 'POSE')
+(bpy.data.armatures['FacingFix'], 'POSE')
+(bpy.data.armatures['FacingFix'], 'POSE')
+(bpy.data.armatures['FacingFix'], 'POSE')
+(bpy.data.armatures['FacingFix'], 'POSE')
+(bpy.data.armatures['FacingFix'], 'POSE')
+(bpy.data.armatures['FacingFix'], 'POSE')
+(bpy.data.armatures['FacingFix'], 'POSE')
+(bpy.data.armatures['FacingFix'], 'POSE')
+(bpy.data.armatures['FacingFix'], 'POSE')
+(bpy.data.armatures['FacingFix'], 'POSE')
+(bpy.data.armatures['FacingFix'], 'POSE')
+(bpy.data.armatures['FacingFix'], 'POSE')
+export finished in 2.0987 sec.
+Blender 5.2.3 LTS (hash e13b728c6880 built 2026-10-22 01:35:05)
+
+Blender quit

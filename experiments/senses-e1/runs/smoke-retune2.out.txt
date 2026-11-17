@@ -1,0 +1,40 @@
+{
+ "mode": "smoke",
+ "run_id": "e1-a2-smoke-01-afc2f3",
+ "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a2-smoke-01-afc2f3.jsonl",
+ "footer": {
+  "outcome": "failed_deadline",
+  "reason": "6-minute deadline passed",
+  "turns": 9,
+  "actions_used": 8,
+  "first_run_turn": null,
+  "redundant_observe_count": 0,
+  "wall_seconds": 360.06,
+  "total_usage": {
+   "prompt_tokens": 12704,
+   "completion_tokens": 1606
+  },
+  "accounted_cost_usd": 0.000445648,
+  "dev_agent_id": "af66de3d-6410-4dc8-9241-eaa1d36414e5",
+  "attach_ts": 1794705736.7616296,
+  "resolved_places": {
+   "tea": {
+    "id": "shop-102",
+    "name": "Matchmaker's Tea House",
+    "kind": "shopfront",
+    "room": "tea"
+   },
+   "plaza": {
+    "id": "stall-40",
+    "name": "stall-40",
+    "kind": "stall",
+    "room": null
+   },
+   "plaza_basis": "spawn_nearest",
+   "tea_match_count": 5,
+   "plaza_match_count": 0,
+   "map_places": 158
+  },
+  "sat_done_turn": 7
+ }
+}

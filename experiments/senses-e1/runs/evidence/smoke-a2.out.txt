@@ -1,0 +1,41 @@
+brain resolved: deepseek/deepseek-v4-flash (context 1048576); ledger spent so far: $0.000000
+dev-local: scripted test owner ready at http://localhost:3100
+{
+ "mode": "smoke",
+ "run_id": "e1-a2-smoke-01-5beb16",
+ "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a2-smoke-01-5beb16.jsonl",
+ "footer": {
+  "outcome": "failed_deadline",
+  "reason": "5-minute deadline passed",
+  "turns": 6,
+  "actions_used": 6,
+  "first_run_turn": null,
+  "redundant_observe_count": 0,
+  "wall_seconds": 300.03,
+  "total_usage": {
+   "prompt_tokens": 7764,
+   "completion_tokens": 79
+  },
+  "accounted_cost_usd": 0.000221816,
+  "dev_agent_id": "0ff17696-33fc-4680-b66e-64c6596d9c82",
+  "attach_ts": 1794695665.3715825,
+  "resolved_places": {
+   "tea": {
+    "id": "shop-102",
+    "name": "Matchmaker's Tea House",
+    "kind": "shopfront",
+    "room": "tea"
+   },
+   "plaza": {
+    "id": "stall-40",
+    "name": "stall-40",
+    "kind": "stall",
+    "room": null
+   },
+   "plaza_basis": "spawn_nearest",
+   "tea_match_count": 5,
+   "plaza_match_count": 0,
+   "map_places": 158
+  }
+ }
+}

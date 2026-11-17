@@ -1,0 +1,3 @@
+brain resolved: deepseek/deepseek-v4-flash (context 1048576); ledger spent so far: $0.018731
+dev-local: scripted test owner ready at http://localhost:3100
+summary -> /home/hatch/workspace/.build-tmp/agent-senses/runs/tamper-summary.json

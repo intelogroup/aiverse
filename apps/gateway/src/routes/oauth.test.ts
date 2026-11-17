@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { oauthAuthRequests, oauthGrants } from "@aiverse/shared/schema";
 import { createApp } from "../app";
 import { db } from "../db/client";
-import { computeS256Challenge } from "../auth/oauthCore";
+import { AUTH_REQUEST_TTL_MS, computeS256Challenge } from "../auth/oauthCore";
 
 // Route-level tests for the OAuth 2.1 authorization server (Phase 1).
 // Like the other gateway suites these need live Postgres + Redis (the test
@@ -629,5 +629,183 @@ describe("revocation", () => {
     expect(revoke.status).toBe(200);
     const stillAlive = await tokenRequest({ grant_type: "refresh_token", client_id: clientId, refresh_token: refresh });
     expect(stillAlive.status).toBe(200);
+  });
+});
+
+describe("revocation of access tokens (F5)", () => {
+  async function exchange(clientId: string, code: string, verifier: string) {
+    const exchanged = await tokenRequest({
+      grant_type: "authorization_code",
+      client_id: clientId,
+      code,
+      redirect_uri: LOOPBACK_REDIRECT,
+      code_verifier: verifier,
+    });
+    expect(exchanged.status).toBe(200);
+    return exchanged.body as any;
+  }
+
+  /** Auth resolution at the agent MCP surface: 200 = the token lives, 401 = it does not. */
+  async function mcpToolsList(token: string) {
+    const res = await app.request("/mcp/agent", {
+      method: "POST",
+      headers: { ...jsonHeaders(token), accept: "application/json, text/event-stream" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }),
+    });
+    return res.status;
+  }
+
+  async function revokeWith(params: Record<string, string>) {
+    const res = await app.request("/oauth/revoke", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams(params).toString(),
+    });
+    return res.status;
+  }
+
+  test("revoking an access token kills its grant: the token 401s at /mcp/agent and refresh dies", async () => {
+    const owner = await ownerWithAgent("RevokeAccessAgent");
+    const { clientId, code, verifier } = await approveFlow(owner);
+    const tokens = await exchange(clientId, code, verifier);
+    const access = tokens.access_token as string;
+    const refresh = tokens.refresh_token as string;
+
+    expect(await mcpToolsList(access)).toBe(200);
+
+    expect(await revokeWith({ token: access, token_type_hint: "access_token", client_id: clientId })).toBe(200);
+
+    expect(await mcpToolsList(access)).toBe(401);
+    const after = await tokenRequest({ grant_type: "refresh_token", client_id: clientId, refresh_token: refresh });
+    expect(after.status).toBe(400);
+    expect(after.body.error).toBe("invalid_grant");
+  });
+
+  test("revoking garbage still returns 200 and changes nothing", async () => {
+    const owner = await ownerWithAgent("RevokeGarbageAgent");
+    const { clientId, code, verifier } = await approveFlow(owner);
+    const tokens = await exchange(clientId, code, verifier);
+
+    // A plain unknown string and a JWT-shaped forgery alike: the 200
+    // contract holds (no validity leak) and the live grant is untouched.
+    for (const junk of ["not-a-real-token", "aaa.bbb.ccc"]) {
+      expect(await revokeWith({ token: junk })).toBe(200);
+    }
+    expect(await mcpToolsList(tokens.access_token as string)).toBe(200);
+    const rotated = await tokenRequest({
+      grant_type: "refresh_token",
+      client_id: clientId,
+      refresh_token: tokens.refresh_token as string,
+    });
+    expect(rotated.status).toBe(200);
+  });
+
+  test("an access-token revoke with a mismatched client_id revokes nothing", async () => {
+    const owner = await ownerWithAgent("RevokeAccessGuardAgent");
+    const { clientId, code, verifier } = await approveFlow(owner);
+    const tokens = await exchange(clientId, code, verifier);
+    const foreign = await registerClient();
+
+    expect(await revokeWith({ token: tokens.access_token as string, client_id: foreign })).toBe(200);
+
+    expect(await mcpToolsList(tokens.access_token as string)).toBe(200);
+    const rotated = await tokenRequest({
+      grant_type: "refresh_token",
+      client_id: clientId,
+      refresh_token: tokens.refresh_token as string,
+    });
+    expect(rotated.status).toBe(200);
+  });
+
+  test("revoking one grant's access token leaves another grant's tokens untouched", async () => {
+    const ownerA = await ownerWithAgent("RevokeIsoA");
+    const ownerB = await ownerWithAgent("RevokeIsoB");
+    const flowA = await approveFlow(ownerA);
+    const tokensA = await exchange(flowA.clientId, flowA.code, flowA.verifier);
+    const flowB = await approveFlow(ownerB);
+    const tokensB = await exchange(flowB.clientId, flowB.code, flowB.verifier);
+
+    expect(await revokeWith({ token: tokensA.access_token as string, client_id: flowA.clientId })).toBe(200);
+
+    expect(await mcpToolsList(tokensA.access_token as string)).toBe(401);
+    expect(await mcpToolsList(tokensB.access_token as string)).toBe(200);
+    const rotatedB = await tokenRequest({
+      grant_type: "refresh_token",
+      client_id: flowB.clientId,
+      refresh_token: tokensB.refresh_token as string,
+    });
+    expect(rotatedB.status).toBe(200);
+  });
+});
+
+describe("connect-first resumability (F2)", () => {
+  test("an owner with no agents claims one mid-flow and approves the SAME parked request", async () => {
+    // The connect-first order: the owner registers (no agents), the
+    // client parks its authorize request, and only then does an agent
+    // exist to approve for. Before the fix this order dead-ended: the
+    // consent page offered no claim path, the bridge's 5-minute
+    // loopback wait expired while the owner claimed elsewhere, and the
+    // client had to be restarted against a fresh request.
+    const email = `oauth-f2-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
+    const reg = await app.request("/owners/register", {
+      method: "POST",
+      headers: jsonHeaders(),
+      body: JSON.stringify({ email, password: "password123" }),
+    });
+    expect(reg.status).toBe(201);
+    const { token: session } = (await reg.json()) as any;
+
+    const clientId = await registerClient();
+    const requestId = await authorize(clientId);
+
+    // The consent page's data renders for this owner: the request is live.
+    const detail = await app.request(`/oauth/authorize/request/${requestId}`, {
+      headers: jsonHeaders(session),
+    });
+    expect(detail.status).toBe(200);
+
+    // In-flow claim: the agent self-registers, the owner claims by code.
+    const agentReg = await app.request("/agents/register", {
+      method: "POST",
+      headers: jsonHeaders(),
+      body: JSON.stringify({ name: `connect-first-${Math.random().toString(36).slice(2, 8)}` }),
+    });
+    expect(agentReg.status).toBe(201);
+    const { agentId, claimCode } = (await agentReg.json()) as any;
+    const claim = await app.request("/owners/agents/claim", {
+      method: "POST",
+      headers: jsonHeaders(session),
+      body: JSON.stringify({ claimCode }),
+    });
+    expect(claim.status).toBe(200);
+
+    // The SAME parked request approves for the just-claimed agent, and
+    // the code it mints exchanges for working tokens.
+    const res = await decide(session, requestId, { approve: true, agent_ids: [agentId] });
+    expect(res.status).toBe(200);
+    const { redirect } = (await res.json()) as any;
+    const code = new URL(redirect).searchParams.get("code");
+    expect(code).toBeTruthy();
+    const exchanged = await tokenRequest({
+      grant_type: "authorization_code",
+      client_id: clientId,
+      code: code!,
+      redirect_uri: LOOPBACK_REDIRECT,
+      code_verifier: pkceFor(clientId).verifier,
+    });
+    expect(exchanged.status).toBe(200);
+    expect(exchanged.body.access_token).toBeTruthy();
+  });
+
+  test("a parked request lives 30 minutes — the connect-first budget, matched to the bridge's wait", async () => {
+    expect(AUTH_REQUEST_TTL_MS).toBe(30 * 60 * 1000);
+    const clientId = await registerClient();
+    const before = Date.now();
+    const requestId = await authorize(clientId);
+    const row = await db.query.oauthAuthRequests.findFirst({
+      where: eq(oauthAuthRequests.id, requestId),
+    });
+    expect(row).toBeTruthy();
+    expect(row!.expiresAt.getTime() - before).toBeGreaterThan(29 * 60 * 1000);
   });
 });
