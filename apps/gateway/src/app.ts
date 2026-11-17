@@ -6,6 +6,9 @@ import { env } from "@aiverse/shared/env";
 import { db } from "./db/client";
 import { redis } from "./redis/client";
 import { ownersRoute } from "./routes/owners";
+import { ownersReadKeysRoute } from "./routes/ownersReadKeys";
+import { ownersAgentsRoute } from "./routes/ownersAgents";
+import { ownersVisitsRoute } from "./routes/visits";
 import { roomsRoute } from "./routes/rooms";
 import { conversationsRoute } from "./routes/conversations";
 import { topicsRoute } from "./routes/topics";
@@ -209,6 +212,9 @@ export function createApp(opts: CreateAppOpts = {}) {
   );
 
   app.route("/owners", ownersRoute);
+  app.route("/owners", ownersReadKeysRoute);
+  app.route("/owners", ownersAgentsRoute);
+  app.route("/owners", ownersVisitsRoute);
   app.route("/rooms", roomsRoute);
   app.route("/conversations", conversationsRoute);
   app.route("/topics", topicsRoute);
