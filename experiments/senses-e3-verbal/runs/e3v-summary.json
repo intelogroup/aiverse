@@ -1,0 +1,4329 @@
+{
+ "experiment": "E3-verbal sham-clock control (report-inviting rerun of E3, plan \u00a75)",
+ "seed": 20261118,
+ "execution_order": [
+  "e3v-f-p1-01-4c5226",
+  "e3v-x2-p8-02-9063e9",
+  "e3v-p-p8-03-361d77",
+  "e3v-f-p10-04-75ccb3",
+  "e3v-x2-p4-05-87adf2",
+  "e3v-f-p7-06-4f917d",
+  "e3v-x2-p10-07-220d69",
+  "e3v-x2-p6-08-5bdd1c",
+  "e3v-p-p5-09-dfab87",
+  "e3v-f-p3-10-20452f",
+  "e3v-p-p7-11-f52759",
+  "e3v-f-p9-12-f6431a",
+  "e3v-f-p6-13-604836",
+  "e3v-x2-p9-14-0e8e92",
+  "e3v-v-p10-15-05214a",
+  "e3v-v-p4-16-bf6c27",
+  "e3v-p-p3-17-37b941",
+  "e3v-v-p9-18-40e73f",
+  "e3v-x2-p7-19-dd7790",
+  "e3v-p-p4-20-f932ab",
+  "e3v-f-p2-21-45cb7e",
+  "e3v-p-p6-22-55dd5a",
+  "e3v-f-p8-23-75a9d4",
+  "e3v-v-p8-24-5678af",
+  "e3v-v-p1-25-a676ff",
+  "e3v-p-p9-26-5f4ace",
+  "e3v-v-p7-27-ebb457",
+  "e3v-v-p6-28-5ef02e",
+  "e3v-p-p1-29-06c8a5",
+  "e3v-p-p10-30-d60f7d",
+  "e3v-x2-p3-31-1d8ab8",
+  "e3v-p-p2-32-ac2e0f",
+  "e3v-x2-p1-33-b9251e",
+  "e3v-x2-p5-34-a7cc8e",
+  "e3v-f-p5-35-9c8f34",
+  "e3v-v-p2-36-ffe19e",
+  "e3v-v-p3-37-8a3fe7",
+  "e3v-v-p5-38-ec053c",
+  "e3v-x2-p2-39-9b464e",
+  "e3v-f-p4-40-cf3d9b"
+ ],
+ "arms": {
+  "V": {
+   "runs": 10,
+   "completed": 5,
+   "completion_rate": 0.5,
+   "outcomes": {
+    "failed_deadline": 2,
+    "task_infeasible": 3,
+    "completed": 5
+   },
+   "median_wall_seconds_completed": 263.02,
+   "median_turns_completed": 7,
+   "runs_with_run_to": 0,
+   "radio_runs": 2,
+   "radio_acts_total": 2,
+   "total_turns": 102,
+   "voice_turns": 102,
+   "voice_rate": 1.0,
+   "median_run_voice_rate": 1.0,
+   "runs_with_voice": 10,
+   "echo_turns_total": 0,
+   "runs_with_time_ref": 4,
+   "total_time_refs": 6,
+   "median_first_ref_turn": 11.0,
+   "median_first_ref_real_elapsed": 270.25,
+   "runs_with_urgency": 2,
+   "runs_with_giveup": 2,
+   "ref_quotes": [
+    {
+     "turn": 11,
+     "quote": "The door remains blocked and I'm running out of time; I'll try one more short wait."
+    },
+    {
+     "turn": 14,
+     "quote": "I'm seated in the tea house; now I need to stand up and hurry back to stall-40 before time runs out."
+    },
+    {
+     "turn": 14,
+     "quote": "I'm trapped and time is running low - I'll try to walk directly toward one of the bodies to force them aside."
+    },
+    {
+     "turn": 15,
+     "quote": "I am now outside the tea house but have very little time left to reach stall-40."
+    },
+    {
+     "turn": 11,
+     "quote": "Time to leave and return to stall-40."
+    },
+    {
+     "turn": 5,
+     "quote": "I'm seated on \"tea-east-right\", time to stand up now."
+    }
+   ],
+   "ref_real_remaining_bands": {
+    "gt226": 0,
+    "113_226": 1,
+    "le113": 5
+   },
+   "median_ref_real_remaining": 43.95
+  },
+  "F": {
+   "runs": 10,
+   "completed": 8,
+   "completion_rate": 0.8,
+   "outcomes": {
+    "completed": 8,
+    "task_infeasible": 1,
+    "failed_deadline": 1
+   },
+   "median_wall_seconds_completed": 265.5,
+   "median_turns_completed": 8.5,
+   "runs_with_run_to": 0,
+   "radio_runs": 0,
+   "radio_acts_total": 0,
+   "total_turns": 90,
+   "voice_turns": 90,
+   "voice_rate": 1.0,
+   "median_run_voice_rate": 1.0,
+   "runs_with_voice": 10,
+   "echo_turns_total": 0,
+   "runs_with_time_ref": 4,
+   "total_time_refs": 4,
+   "median_first_ref_turn": 8.5,
+   "median_first_ref_real_elapsed": 224.8,
+   "runs_with_urgency": 0,
+   "runs_with_giveup": 0,
+   "ref_quotes": [
+    {
+     "turn": 9,
+     "quote": "I'm standing inside the tea house\u2014time to leave and return to stall-40."
+    },
+    {
+     "turn": 12,
+     "quote": "I'm standing again inside the tea house; time to leave and return to stall-40."
+    },
+    {
+     "turn": 8,
+     "quote": "Even more people now; I'll wait a longer time to let the crowd thin."
+    },
+    {
+     "turn": 8,
+     "quote": "I see some free seats now\u2014time to sit down."
+    }
+   ],
+   "refs_first_half_real": 1,
+   "refs_second_half_real": 3,
+   "urgency_first_half_real": 0,
+   "urgency_second_half_real": 0
+  },
+  "X2": {
+   "runs": 10,
+   "completed": 7,
+   "completion_rate": 0.7,
+   "outcomes": {
+    "completed": 7,
+    "task_infeasible": 2,
+    "failed_stalled": 1
+   },
+   "median_wall_seconds_completed": 249.22,
+   "median_turns_completed": 6,
+   "runs_with_run_to": 3,
+   "radio_runs": 0,
+   "radio_acts_total": 0,
+   "total_turns": 92,
+   "voice_turns": 92,
+   "voice_rate": 1.0,
+   "median_run_voice_rate": 1.0,
+   "runs_with_voice": 10,
+   "echo_turns_total": 0,
+   "runs_with_time_ref": 4,
+   "total_time_refs": 11,
+   "median_first_ref_turn": 5.0,
+   "median_first_ref_real_elapsed": 160.4,
+   "runs_with_urgency": 3,
+   "runs_with_giveup": 2,
+   "ref_quotes": [
+    {
+     "turn": 4,
+     "quote": "I'm inside but still no seats visible; time is almost out."
+    },
+    {
+     "turn": 3,
+     "quote": "I'm inside the tea house and see free seats\u2014time to sit down on the nearest one."
+    },
+    {
+     "turn": 6,
+     "quote": "I'm standing inside the tea house, out of time now to reach stall-40."
+    },
+    {
+     "turn": 10,
+     "quote": "More stalls, still no tea house\u2014time is running low; I'll sprint toward where a different place ID might appear."
+    },
+    {
+     "turn": 12,
+     "quote": "I'm in an empty area with no places nearby and time is running out\u2014let me try heading toward where shops might be."
+    },
+    {
+     "turn": 13,
+     "quote": "Still only stalls around me and almost no time left\u2014I'll try one last run toward the opposite corner where the tea house might be."
+    }
+   ],
+   "runs_reaching_displayed_zero": 4,
+   "runs_with_ref_at_or_after_cross60": 3,
+   "runs_with_ref_at_or_after_zero": 2,
+   "runs_with_giveup_at_or_after_zero": 2,
+   "runs_completed_after_zero": 3,
+   "median_displayed_zero_real_elapsed": 222.8,
+   "median_displayed_cross60_real_elapsed": 153.7
+  },
+  "P": {
+   "runs": 10,
+   "completed": 9,
+   "completion_rate": 0.9,
+   "outcomes": {
+    "completed": 9,
+    "failed_turn_cap": 1
+   },
+   "median_wall_seconds_completed": 271.28,
+   "median_turns_completed": 8,
+   "runs_with_run_to": 1,
+   "radio_runs": 0,
+   "radio_acts_total": 0,
+   "total_turns": 115,
+   "voice_turns": 115,
+   "voice_rate": 1.0,
+   "median_run_voice_rate": 1.0,
+   "runs_with_voice": 10,
+   "echo_turns_total": 0,
+   "runs_with_time_ref": 0,
+   "total_time_refs": 0,
+   "median_first_ref_turn": null,
+   "median_first_ref_real_elapsed": null,
+   "runs_with_urgency": 0,
+   "runs_with_giveup": 0,
+   "ref_quotes": [],
+   "label_slot_value_quotes": 0,
+   "decreasing_value_quotes": 0
+  }
+ },
+ "total_accounted_spend_usd": 0.122079,
+ "ledger_entries": 1984,
+ "spend_cap_usd": 1.0,
+ "soft_stop_usd": 0.4,
+ "per_run": [
+  {
+   "mode": "F",
+   "outcome": "completed",
+   "wall_seconds": 236.87,
+   "turns": 7,
+   "total_turns": 7,
+   "voice_turns": 7,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 92.7
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 121.7
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 125.7
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 131.7
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 140.7
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 146.7
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 236.7
+    }
+   ]
+  },
+  {
+   "mode": "X2",
+   "outcome": "completed",
+   "wall_seconds": 276.59,
+   "turns": 6,
+   "total_turns": 6,
+   "voice_turns": 6,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [
+    4
+   ],
+   "time_ref_count": 1,
+   "first_ref_turn": 4,
+   "first_ref_real_elapsed": 174.3,
+   "ref_events": [
+    {
+     "turn": 4,
+     "real_elapsed": 174.3,
+     "real_remaining": 165.7,
+     "disp_remaining": 8,
+     "quote": "I'm inside but still no seats visible; time is almost out."
+    }
+   ],
+   "ref_quotes": [
+    {
+     "turn": 4,
+     "quote": "I'm inside but still no seats visible; time is almost out."
+    }
+   ],
+   "urgency_turns": [
+    4
+   ],
+   "urgency_events": [
+    {
+     "turn": 4,
+     "real_elapsed": 174.3
+    }
+   ],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 104.3
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 208,
+     "disp_remaining": 132,
+     "real_elapsed": 164.3
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 328,
+     "disp_remaining": 12,
+     "real_elapsed": 166.3
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 332,
+     "disp_remaining": 8,
+     "real_elapsed": 174.3
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 180.3
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 276.3
+    }
+   ],
+   "displayed_cross60_turn": 3,
+   "displayed_cross60_real_elapsed": 166.3,
+   "displayed_zero_turn": 5,
+   "displayed_zero_real_elapsed": 180.3,
+   "refs_at_or_after_cross60": [
+    4
+   ],
+   "refs_at_or_after_zero": [],
+   "giveup_at_or_after_zero": [],
+   "acts_ok_after_zero": 1,
+   "completed_after_zero": true
+  },
+  {
+   "mode": "P",
+   "outcome": "completed",
+   "wall_seconds": 258.88,
+   "turns": 8,
+   "total_turns": 8,
+   "voice_turns": 8,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 86.3
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 254,
+     "disp_remaining": 86,
+     "real_elapsed": 119.3
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 221,
+     "disp_remaining": 119,
+     "real_elapsed": 121.3
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 218,
+     "disp_remaining": 122,
+     "real_elapsed": 139.3
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 201,
+     "disp_remaining": 139,
+     "real_elapsed": 141.3
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 198,
+     "disp_remaining": 142,
+     "real_elapsed": 159.3
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 181,
+     "disp_remaining": 159,
+     "real_elapsed": 165.3
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 175,
+     "disp_remaining": 165,
+     "real_elapsed": 258.3
+    }
+   ],
+   "label_slot_value_quotes": [],
+   "decreasing_value_quotes": []
+  },
+  {
+   "mode": "F",
+   "outcome": "completed",
+   "wall_seconds": 239.8,
+   "turns": 9,
+   "total_turns": 9,
+   "voice_turns": 9,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [
+    9
+   ],
+   "time_ref_count": 1,
+   "first_ref_turn": 9,
+   "first_ref_real_elapsed": 239.3,
+   "ref_events": [
+    {
+     "turn": 9,
+     "real_elapsed": 239.3,
+     "real_remaining": 100.7,
+     "disp_remaining": 340,
+     "quote": "I'm standing inside the tea house\u2014time to leave and return to stall-40."
+    }
+   ],
+   "ref_quotes": [
+    {
+     "turn": 9,
+     "quote": "I'm standing inside the tea house\u2014time to leave and return to stall-40."
+    }
+   ],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 77.3
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 107.3
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 110.3
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 113.3
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 118.3
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 124.3
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 136.3
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 142.3
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 239.3
+    }
+   ]
+  },
+  {
+   "mode": "X2",
+   "outcome": "completed",
+   "wall_seconds": 268.42,
+   "turns": 12,
+   "total_turns": 12,
+   "voice_turns": 12,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 91.7
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 184,
+     "disp_remaining": 156,
+     "real_elapsed": 125.7
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 250,
+     "disp_remaining": 90,
+     "real_elapsed": 127.7
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 256,
+     "disp_remaining": 84,
+     "real_elapsed": 129.7
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 260,
+     "disp_remaining": 80,
+     "real_elapsed": 135.7
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 270,
+     "disp_remaining": 70,
+     "real_elapsed": 138.7
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 278,
+     "disp_remaining": 62,
+     "real_elapsed": 142.7
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 286,
+     "disp_remaining": 54,
+     "real_elapsed": 154.7
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 308,
+     "disp_remaining": 32,
+     "real_elapsed": 156.7
+    },
+    {
+     "turn": 10,
+     "disp_elapsed": 314,
+     "disp_remaining": 26,
+     "real_elapsed": 168.7
+    },
+    {
+     "turn": 11,
+     "disp_elapsed": 338,
+     "disp_remaining": 2,
+     "real_elapsed": 174.7
+    },
+    {
+     "turn": 12,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 267.7
+    }
+   ],
+   "displayed_cross60_turn": 8,
+   "displayed_cross60_real_elapsed": 154.7,
+   "displayed_zero_turn": 12,
+   "displayed_zero_real_elapsed": 267.7,
+   "refs_at_or_after_cross60": [],
+   "refs_at_or_after_zero": [],
+   "giveup_at_or_after_zero": [],
+   "acts_ok_after_zero": 0,
+   "completed_after_zero": true
+  },
+  {
+   "mode": "F",
+   "outcome": "task_infeasible",
+   "wall_seconds": 116.04,
+   "turns": 4,
+   "total_turns": 4,
+   "voice_turns": 4,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 80.0
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 96.0
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 100.0
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 116.0
+    }
+   ]
+  },
+  {
+   "mode": "X2",
+   "outcome": "completed",
+   "wall_seconds": 249.22,
+   "turns": 5,
+   "total_turns": 5,
+   "voice_turns": 5,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [
+    3
+   ],
+   "time_ref_count": 1,
+   "first_ref_turn": 3,
+   "first_ref_real_elapsed": 146.5,
+   "ref_events": [
+    {
+     "turn": 3,
+     "real_elapsed": 146.5,
+     "real_remaining": 193.5,
+     "disp_remaining": 78,
+     "quote": "I'm inside the tea house and see free seats\u2014time to sit down on the nearest one."
+    }
+   ],
+   "ref_quotes": [
+    {
+     "turn": 3,
+     "quote": "I'm inside the tea house and see free seats\u2014time to sit down on the nearest one."
+    }
+   ],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 80.5
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 160,
+     "disp_remaining": 180,
+     "real_elapsed": 131.5
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 262,
+     "disp_remaining": 78,
+     "real_elapsed": 146.5
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 292,
+     "disp_remaining": 48,
+     "real_elapsed": 152.5
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 306,
+     "disp_remaining": 34,
+     "real_elapsed": 248.5
+    }
+   ],
+   "displayed_cross60_turn": 4,
+   "displayed_cross60_real_elapsed": 152.5,
+   "displayed_zero_turn": null,
+   "displayed_zero_real_elapsed": null,
+   "refs_at_or_after_cross60": []
+  },
+  {
+   "mode": "X2",
+   "outcome": "completed",
+   "wall_seconds": 229.81,
+   "turns": 8,
+   "total_turns": 8,
+   "voice_turns": 8,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 77.7
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 156,
+     "disp_remaining": 184,
+     "real_elapsed": 103.7
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 208,
+     "disp_remaining": 132,
+     "real_elapsed": 107.7
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 214,
+     "disp_remaining": 126,
+     "real_elapsed": 113.7
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 228,
+     "disp_remaining": 112,
+     "real_elapsed": 121.7
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 242,
+     "disp_remaining": 98,
+     "real_elapsed": 129.7
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 260,
+     "disp_remaining": 80,
+     "real_elapsed": 134.7
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 270,
+     "disp_remaining": 70,
+     "real_elapsed": 229.7
+    }
+   ],
+   "displayed_cross60_turn": null,
+   "displayed_cross60_real_elapsed": null,
+   "displayed_zero_turn": null,
+   "displayed_zero_real_elapsed": null
+  },
+  {
+   "mode": "P",
+   "outcome": "completed",
+   "wall_seconds": 283.0,
+   "turns": 6,
+   "total_turns": 6,
+   "voice_turns": 6,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 89.3
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 250,
+     "disp_remaining": 90,
+     "real_elapsed": 123.3
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 217,
+     "disp_remaining": 123,
+     "real_elapsed": 137.3
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 203,
+     "disp_remaining": 137,
+     "real_elapsed": 142.3
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 197,
+     "disp_remaining": 143,
+     "real_elapsed": 196.3
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 143,
+     "disp_remaining": 197,
+     "real_elapsed": 282.3
+    }
+   ],
+   "label_slot_value_quotes": [],
+   "decreasing_value_quotes": []
+  },
+  {
+   "mode": "F",
+   "outcome": "completed",
+   "wall_seconds": 307.15,
+   "turns": 7,
+   "total_turns": 7,
+   "voice_turns": 7,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 80.0
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 188.0
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 191.0
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 197.0
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 205.0
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 211.0
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 307.0
+    }
+   ]
+  },
+  {
+   "mode": "P",
+   "outcome": "completed",
+   "wall_seconds": 271.28,
+   "turns": 14,
+   "total_turns": 14,
+   "voice_turns": 14,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 77.3
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 263,
+     "disp_remaining": 77,
+     "real_elapsed": 109.3
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 230,
+     "disp_remaining": 110,
+     "real_elapsed": 112.3
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 228,
+     "disp_remaining": 112,
+     "real_elapsed": 121.3
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 219,
+     "disp_remaining": 121,
+     "real_elapsed": 123.3
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 216,
+     "disp_remaining": 124,
+     "real_elapsed": 129.3
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 211,
+     "disp_remaining": 129,
+     "real_elapsed": 138.3
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 202,
+     "disp_remaining": 138,
+     "real_elapsed": 147.3
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 193,
+     "disp_remaining": 147,
+     "real_elapsed": 152.3
+    },
+    {
+     "turn": 10,
+     "disp_elapsed": 187,
+     "disp_remaining": 153,
+     "real_elapsed": 161.3
+    },
+    {
+     "turn": 11,
+     "disp_elapsed": 179,
+     "disp_remaining": 161,
+     "real_elapsed": 166.3
+    },
+    {
+     "turn": 12,
+     "disp_elapsed": 173,
+     "disp_remaining": 167,
+     "real_elapsed": 172.3
+    },
+    {
+     "turn": 13,
+     "disp_elapsed": 168,
+     "disp_remaining": 172,
+     "real_elapsed": 186.3
+    },
+    {
+     "turn": 14,
+     "disp_elapsed": 154,
+     "disp_remaining": 186,
+     "real_elapsed": 270.3
+    }
+   ],
+   "label_slot_value_quotes": [],
+   "decreasing_value_quotes": []
+  },
+  {
+   "mode": "F",
+   "outcome": "completed",
+   "wall_seconds": 265.61,
+   "turns": 12,
+   "total_turns": 12,
+   "voice_turns": 12,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [
+    12
+   ],
+   "time_ref_count": 1,
+   "first_ref_turn": 12,
+   "first_ref_real_elapsed": 265.6,
+   "ref_events": [
+    {
+     "turn": 12,
+     "real_elapsed": 265.6,
+     "real_remaining": 74.4,
+     "disp_remaining": 340,
+     "quote": "I'm standing again inside the tea house; time to leave and return to stall-40."
+    }
+   ],
+   "ref_quotes": [
+    {
+     "turn": 12,
+     "quote": "I'm standing again inside the tea house; time to leave and return to stall-40."
+    }
+   ],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 97.6
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 124.6
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 127.6
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 130.6
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 135.6
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 138.6
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 143.6
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 149.6
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 152.6
+    },
+    {
+     "turn": 10,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 164.6
+    },
+    {
+     "turn": 11,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 169.6
+    },
+    {
+     "turn": 12,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 265.6
+    }
+   ]
+  },
+  {
+   "mode": "F",
+   "outcome": "failed_deadline",
+   "wall_seconds": 340.01,
+   "turns": 11,
+   "total_turns": 11,
+   "voice_turns": 11,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [
+    8
+   ],
+   "time_ref_count": 1,
+   "first_ref_turn": 8,
+   "first_ref_real_elapsed": 210.3,
+   "ref_events": [
+    {
+     "turn": 8,
+     "real_elapsed": 210.3,
+     "real_remaining": 129.7,
+     "disp_remaining": 340,
+     "quote": "Even more people now; I'll wait a longer time to let the crowd thin."
+    }
+   ],
+   "ref_quotes": [
+    {
+     "turn": 8,
+     "quote": "Even more people now; I'll wait a longer time to let the crowd thin."
+    }
+   ],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 104.3
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 112.3
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 123.3
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 151.3
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 160.3
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 169.3
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 196.3
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 210.3
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 229.3
+    },
+    {
+     "turn": 10,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 256.3
+    },
+    {
+     "turn": 11,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 339.3
+    }
+   ]
+  },
+  {
+   "mode": "X2",
+   "outcome": "completed",
+   "wall_seconds": 184.09,
+   "turns": 6,
+   "total_turns": 6,
+   "voice_turns": 6,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": 6,
+   "run_to_turns": 1,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 81.3
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 164,
+     "disp_remaining": 176,
+     "real_elapsed": 129.3
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 258,
+     "disp_remaining": 82,
+     "real_elapsed": 131.3
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 264,
+     "disp_remaining": 76,
+     "real_elapsed": 140.3
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 280,
+     "disp_remaining": 60,
+     "real_elapsed": 145.3
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 290,
+     "disp_remaining": 50,
+     "real_elapsed": 183.3
+    }
+   ],
+   "displayed_cross60_turn": 5,
+   "displayed_cross60_real_elapsed": 145.3,
+   "displayed_zero_turn": null,
+   "displayed_zero_real_elapsed": null,
+   "refs_at_or_after_cross60": []
+  },
+  {
+   "mode": "V",
+   "outcome": "failed_deadline",
+   "wall_seconds": 340.01,
+   "turns": 14,
+   "total_turns": 14,
+   "voice_turns": 14,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [
+    11,
+    14
+   ],
+   "time_ref_count": 2,
+   "first_ref_turn": 11,
+   "first_ref_real_elapsed": 276.1,
+   "ref_events": [
+    {
+     "turn": 11,
+     "real_elapsed": 276.1,
+     "real_remaining": 63.9,
+     "disp_remaining": 72,
+     "quote": "The door remains blocked and I'm running out of time; I'll try one more short wait."
+    },
+    {
+     "turn": 14,
+     "real_elapsed": 339.1,
+     "real_remaining": 0.9,
+     "disp_remaining": 5,
+     "quote": "I'm seated in the tea house; now I need to stand up and hurry back to stall-40 before time runs out."
+    }
+   ],
+   "ref_quotes": [
+    {
+     "turn": 11,
+     "quote": "The door remains blocked and I'm running out of time; I'll try one more short wait."
+    },
+    {
+     "turn": 14,
+     "quote": "I'm seated in the tea house; now I need to stand up and hurry back to stall-40 before time runs out."
+    }
+   ],
+   "urgency_turns": [
+    11,
+    14
+   ],
+   "urgency_events": [
+    {
+     "turn": 11,
+     "real_elapsed": 276.1
+    },
+    {
+     "turn": 14,
+     "real_elapsed": 339.1
+    }
+   ],
+   "giveup_turns": [
+    11
+   ],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 83.1
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 83,
+     "disp_remaining": 257,
+     "real_elapsed": 111.1
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 111,
+     "disp_remaining": 229,
+     "real_elapsed": 121.1
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 121,
+     "disp_remaining": 219,
+     "real_elapsed": 150.1
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 150,
+     "disp_remaining": 190,
+     "real_elapsed": 159.1
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 159,
+     "disp_remaining": 181,
+     "real_elapsed": 188.1
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 188,
+     "disp_remaining": 152,
+     "real_elapsed": 200.1
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 200,
+     "disp_remaining": 140,
+     "real_elapsed": 227.1
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 227,
+     "disp_remaining": 113,
+     "real_elapsed": 241.1
+    },
+    {
+     "turn": 10,
+     "disp_elapsed": 241,
+     "disp_remaining": 99,
+     "real_elapsed": 268.1
+    },
+    {
+     "turn": 11,
+     "disp_elapsed": 268,
+     "disp_remaining": 72,
+     "real_elapsed": 276.1
+    },
+    {
+     "turn": 12,
+     "disp_elapsed": 276,
+     "disp_remaining": 64,
+     "real_elapsed": 320.1
+    },
+    {
+     "turn": 13,
+     "disp_elapsed": 320,
+     "disp_remaining": 20,
+     "real_elapsed": 335.1
+    },
+    {
+     "turn": 14,
+     "disp_elapsed": 335,
+     "disp_remaining": 5,
+     "real_elapsed": 339.1
+    }
+   ]
+  },
+  {
+   "mode": "V",
+   "outcome": "failed_deadline",
+   "wall_seconds": 340.01,
+   "turns": 15,
+   "total_turns": 15,
+   "voice_turns": 15,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [
+    14,
+    15
+   ],
+   "time_ref_count": 2,
+   "first_ref_turn": 14,
+   "first_ref_real_elapsed": 316.0,
+   "ref_events": [
+    {
+     "turn": 14,
+     "real_elapsed": 316.0,
+     "real_remaining": 24.0,
+     "disp_remaining": 47,
+     "quote": "I'm trapped and time is running low - I'll try to walk directly toward one of the bodies to force them aside."
+    },
+    {
+     "turn": 15,
+     "real_elapsed": 339.0,
+     "real_remaining": 1.0,
+     "disp_remaining": 24,
+     "quote": "I am now outside the tea house but have very little time left to reach stall-40."
+    }
+   ],
+   "ref_quotes": [
+    {
+     "turn": 14,
+     "quote": "I'm trapped and time is running low - I'll try to walk directly toward one of the bodies to force them aside."
+    },
+    {
+     "turn": 15,
+     "quote": "I am now outside the tea house but have very little time left to reach stall-40."
+    }
+   ],
+   "urgency_turns": [
+    14
+   ],
+   "urgency_events": [
+    {
+     "turn": 14,
+     "real_elapsed": 316.0
+    }
+   ],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 88.0
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 88,
+     "disp_remaining": 252,
+     "real_elapsed": 125.0
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 125,
+     "disp_remaining": 215,
+     "real_elapsed": 129.0
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 129,
+     "disp_remaining": 211,
+     "real_elapsed": 135.0
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 135,
+     "disp_remaining": 205,
+     "real_elapsed": 138.0
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 138,
+     "disp_remaining": 202,
+     "real_elapsed": 146.0
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 146,
+     "disp_remaining": 194,
+     "real_elapsed": 154.0
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 154,
+     "disp_remaining": 186,
+     "real_elapsed": 193.0
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 193,
+     "disp_remaining": 147,
+     "real_elapsed": 200.0
+    },
+    {
+     "turn": 10,
+     "disp_elapsed": 200,
+     "disp_remaining": 140,
+     "real_elapsed": 227.0
+    },
+    {
+     "turn": 11,
+     "disp_elapsed": 227,
+     "disp_remaining": 113,
+     "real_elapsed": 254.0
+    },
+    {
+     "turn": 12,
+     "disp_elapsed": 254,
+     "disp_remaining": 86,
+     "real_elapsed": 263.0
+    },
+    {
+     "turn": 13,
+     "disp_elapsed": 263,
+     "disp_remaining": 77,
+     "real_elapsed": 292.0
+    },
+    {
+     "turn": 14,
+     "disp_elapsed": 293,
+     "disp_remaining": 47,
+     "real_elapsed": 316.0
+    },
+    {
+     "turn": 15,
+     "disp_elapsed": 316,
+     "disp_remaining": 24,
+     "real_elapsed": 339.0
+    }
+   ]
+  },
+  {
+   "mode": "P",
+   "outcome": "completed",
+   "wall_seconds": 214.59,
+   "turns": 7,
+   "total_turns": 7,
+   "voice_turns": 7,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 80.3
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 260,
+     "disp_remaining": 80,
+     "real_elapsed": 97.3
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 242,
+     "disp_remaining": 98,
+     "real_elapsed": 100.3
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 239,
+     "disp_remaining": 101,
+     "real_elapsed": 106.3
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 233,
+     "disp_remaining": 107,
+     "real_elapsed": 118.3
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 222,
+     "disp_remaining": 118,
+     "real_elapsed": 123.3
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 216,
+     "disp_remaining": 124,
+     "real_elapsed": 214.3
+    }
+   ],
+   "label_slot_value_quotes": [],
+   "decreasing_value_quotes": []
+  },
+  {
+   "mode": "V",
+   "outcome": "task_infeasible",
+   "wall_seconds": 329.91,
+   "turns": 16,
+   "total_turns": 16,
+   "voice_turns": 16,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 1,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 84.1
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 84,
+     "disp_remaining": 256,
+     "real_elapsed": 113.1
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 113,
+     "disp_remaining": 227,
+     "real_elapsed": 124.1
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 124,
+     "disp_remaining": 216,
+     "real_elapsed": 150.1
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 150,
+     "disp_remaining": 190,
+     "real_elapsed": 159.1
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 159,
+     "disp_remaining": 181,
+     "real_elapsed": 165.1
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 165,
+     "disp_remaining": 175,
+     "real_elapsed": 189.1
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 189,
+     "disp_remaining": 151,
+     "real_elapsed": 191.1
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 191,
+     "disp_remaining": 149,
+     "real_elapsed": 197.1
+    },
+    {
+     "turn": 10,
+     "disp_elapsed": 197,
+     "disp_remaining": 143,
+     "real_elapsed": 203.1
+    },
+    {
+     "turn": 11,
+     "disp_elapsed": 203,
+     "disp_remaining": 137,
+     "real_elapsed": 209.1
+    },
+    {
+     "turn": 12,
+     "disp_elapsed": 209,
+     "disp_remaining": 131,
+     "real_elapsed": 220.1
+    },
+    {
+     "turn": 13,
+     "disp_elapsed": 220,
+     "disp_remaining": 120,
+     "real_elapsed": 225.1
+    },
+    {
+     "turn": 14,
+     "disp_elapsed": 226,
+     "disp_remaining": 114,
+     "real_elapsed": 228.1
+    },
+    {
+     "turn": 15,
+     "disp_elapsed": 228,
+     "disp_remaining": 112,
+     "real_elapsed": 230.1
+    },
+    {
+     "turn": 16,
+     "disp_elapsed": 230,
+     "disp_remaining": 110,
+     "real_elapsed": 329.1
+    }
+   ]
+  },
+  {
+   "mode": "X2",
+   "outcome": "completed",
+   "wall_seconds": 264.59,
+   "turns": 6,
+   "total_turns": 6,
+   "voice_turns": 6,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [
+    6
+   ],
+   "time_ref_count": 1,
+   "first_ref_turn": 6,
+   "first_ref_real_elapsed": 264.0,
+   "ref_events": [
+    {
+     "turn": 6,
+     "real_elapsed": 264.0,
+     "real_remaining": 76.0,
+     "disp_remaining": 0,
+     "quote": "I'm standing inside the tea house, out of time now to reach stall-40."
+    }
+   ],
+   "ref_quotes": [
+    {
+     "turn": 6,
+     "quote": "I'm standing inside the tea house, out of time now to reach stall-40."
+    }
+   ],
+   "urgency_turns": [
+    6
+   ],
+   "urgency_events": [
+    {
+     "turn": 6,
+     "real_elapsed": 264.0
+    }
+   ],
+   "giveup_turns": [
+    6
+   ],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 98.0
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 196,
+     "disp_remaining": 144,
+     "real_elapsed": 149.0
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 298,
+     "disp_remaining": 42,
+     "real_elapsed": 153.0
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 306,
+     "disp_remaining": 34,
+     "real_elapsed": 163.0
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 326,
+     "disp_remaining": 14,
+     "real_elapsed": 170.0
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 264.0
+    }
+   ],
+   "displayed_cross60_turn": 3,
+   "displayed_cross60_real_elapsed": 153.0,
+   "displayed_zero_turn": 6,
+   "displayed_zero_real_elapsed": 264.0,
+   "refs_at_or_after_cross60": [
+    6
+   ],
+   "refs_at_or_after_zero": [
+    6
+   ],
+   "giveup_at_or_after_zero": [
+    6
+   ],
+   "acts_ok_after_zero": 0,
+   "completed_after_zero": true
+  },
+  {
+   "mode": "P",
+   "outcome": "completed",
+   "wall_seconds": 271.36,
+   "turns": 8,
+   "total_turns": 8,
+   "voice_turns": 8,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 80.0
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 259,
+     "disp_remaining": 81,
+     "real_elapsed": 140.0
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 200,
+     "disp_remaining": 140,
+     "real_elapsed": 143.0
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 197,
+     "disp_remaining": 143,
+     "real_elapsed": 155.0
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 185,
+     "disp_remaining": 155,
+     "real_elapsed": 161.0
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 179,
+     "disp_remaining": 161,
+     "real_elapsed": 169.0
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 171,
+     "disp_remaining": 169,
+     "real_elapsed": 186.0
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 154,
+     "disp_remaining": 186,
+     "real_elapsed": 271.0
+    }
+   ],
+   "label_slot_value_quotes": [],
+   "decreasing_value_quotes": []
+  },
+  {
+   "mode": "F",
+   "outcome": "completed",
+   "wall_seconds": 296.47,
+   "turns": 14,
+   "total_turns": 14,
+   "voice_turns": 14,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 80.7
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 122.7
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 125.7
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 128.7
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 140.7
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 142.7
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 145.7
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 156.7
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 163.7
+    },
+    {
+     "turn": 10,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 165.7
+    },
+    {
+     "turn": 11,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 175.7
+    },
+    {
+     "turn": 12,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 181.7
+    },
+    {
+     "turn": 13,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 212.7
+    },
+    {
+     "turn": 14,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 295.7
+    }
+   ]
+  },
+  {
+   "mode": "P",
+   "outcome": "completed",
+   "wall_seconds": 225.51,
+   "turns": 7,
+   "total_turns": 7,
+   "voice_turns": 7,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 80.1
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 260,
+     "disp_remaining": 80,
+     "real_elapsed": 95.1
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 245,
+     "disp_remaining": 95,
+     "real_elapsed": 99.1
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 241,
+     "disp_remaining": 99,
+     "real_elapsed": 106.1
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 234,
+     "disp_remaining": 106,
+     "real_elapsed": 118.1
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 222,
+     "disp_remaining": 118,
+     "real_elapsed": 126.1
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 214,
+     "disp_remaining": 126,
+     "real_elapsed": 225.1
+    }
+   ],
+   "label_slot_value_quotes": [],
+   "decreasing_value_quotes": []
+  },
+  {
+   "mode": "F",
+   "outcome": "completed",
+   "wall_seconds": 252.48,
+   "turns": 8,
+   "total_turns": 8,
+   "voice_turns": 8,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 80.2
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 117.2
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 120.2
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 126.2
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 135.2
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 141.2
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 162.2
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 252.2
+    }
+   ]
+  },
+  {
+   "mode": "V",
+   "outcome": "completed",
+   "wall_seconds": 232.35,
+   "turns": 7,
+   "total_turns": 7,
+   "voice_turns": 7,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 86.8
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 86,
+     "disp_remaining": 254,
+     "real_elapsed": 109.8
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 110,
+     "disp_remaining": 230,
+     "real_elapsed": 112.8
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 113,
+     "disp_remaining": 227,
+     "real_elapsed": 123.8
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 124,
+     "disp_remaining": 216,
+     "real_elapsed": 129.8
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 130,
+     "disp_remaining": 210,
+     "real_elapsed": 147.8
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 148,
+     "disp_remaining": 192,
+     "real_elapsed": 231.8
+    }
+   ]
+  },
+  {
+   "mode": "V",
+   "outcome": "completed",
+   "wall_seconds": 265.05,
+   "turns": 11,
+   "total_turns": 11,
+   "voice_turns": 11,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [
+    11
+   ],
+   "time_ref_count": 1,
+   "first_ref_turn": 11,
+   "first_ref_real_elapsed": 264.4,
+   "ref_events": [
+    {
+     "turn": 11,
+     "real_elapsed": 264.4,
+     "real_remaining": 75.6,
+     "disp_remaining": 168,
+     "quote": "Time to leave and return to stall-40."
+    }
+   ],
+   "ref_quotes": [
+    {
+     "turn": 11,
+     "quote": "Time to leave and return to stall-40."
+    }
+   ],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 83.4
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 83,
+     "disp_remaining": 257,
+     "real_elapsed": 108.4
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 109,
+     "disp_remaining": 231,
+     "real_elapsed": 115.4
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 115,
+     "disp_remaining": 225,
+     "real_elapsed": 123.4
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 123,
+     "disp_remaining": 217,
+     "real_elapsed": 132.4
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 132,
+     "disp_remaining": 208,
+     "real_elapsed": 138.4
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 138,
+     "disp_remaining": 202,
+     "real_elapsed": 147.4
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 147,
+     "disp_remaining": 193,
+     "real_elapsed": 153.4
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 154,
+     "disp_remaining": 186,
+     "real_elapsed": 167.4
+    },
+    {
+     "turn": 10,
+     "disp_elapsed": 168,
+     "disp_remaining": 172,
+     "real_elapsed": 172.4
+    },
+    {
+     "turn": 11,
+     "disp_elapsed": 172,
+     "disp_remaining": 168,
+     "real_elapsed": 264.4
+    }
+   ]
+  },
+  {
+   "mode": "P",
+   "outcome": "completed",
+   "wall_seconds": 236.79,
+   "turns": 7,
+   "total_turns": 7,
+   "voice_turns": 7,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 80.6
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 259,
+     "disp_remaining": 81,
+     "real_elapsed": 118.6
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 221,
+     "disp_remaining": 119,
+     "real_elapsed": 121.6
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 219,
+     "disp_remaining": 121,
+     "real_elapsed": 129.6
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 210,
+     "disp_remaining": 130,
+     "real_elapsed": 138.6
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 202,
+     "disp_remaining": 138,
+     "real_elapsed": 143.6
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 196,
+     "disp_remaining": 144,
+     "real_elapsed": 236.6
+    }
+   ],
+   "label_slot_value_quotes": [],
+   "decreasing_value_quotes": []
+  },
+  {
+   "mode": "V",
+   "outcome": "completed",
+   "wall_seconds": 269.52,
+   "turns": 5,
+   "total_turns": 5,
+   "voice_turns": 5,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 107.2
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 107,
+     "disp_remaining": 233,
+     "real_elapsed": 154.2
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 154,
+     "disp_remaining": 186,
+     "real_elapsed": 165.2
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 166,
+     "disp_remaining": 174,
+     "real_elapsed": 170.2
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 170,
+     "disp_remaining": 170,
+     "real_elapsed": 269.2
+    }
+   ]
+  },
+  {
+   "mode": "V",
+   "outcome": "completed",
+   "wall_seconds": 263.02,
+   "turns": 6,
+   "total_turns": 6,
+   "voice_turns": 6,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [
+    5
+   ],
+   "time_ref_count": 1,
+   "first_ref_turn": 5,
+   "first_ref_real_elapsed": 166.2,
+   "ref_events": [
+    {
+     "turn": 5,
+     "real_elapsed": 166.2,
+     "real_remaining": 173.8,
+     "disp_remaining": 179,
+     "quote": "I'm seated on \"tea-east-right\", time to stand up now."
+    }
+   ],
+   "ref_quotes": [
+    {
+     "turn": 5,
+     "quote": "I'm seated on \"tea-east-right\", time to stand up now."
+    }
+   ],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 81.2
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 81,
+     "disp_remaining": 259,
+     "real_elapsed": 150.2
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 150,
+     "disp_remaining": 190,
+     "real_elapsed": 152.2
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 153,
+     "disp_remaining": 187,
+     "real_elapsed": 161.2
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 161,
+     "disp_remaining": 179,
+     "real_elapsed": 166.2
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 166,
+     "disp_remaining": 174,
+     "real_elapsed": 262.2
+    }
+   ]
+  },
+  {
+   "mode": "P",
+   "outcome": "completed",
+   "wall_seconds": 303.1,
+   "turns": 9,
+   "total_turns": 9,
+   "voice_turns": 9,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 97.1
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 243,
+     "disp_remaining": 97,
+     "real_elapsed": 174.1
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 166,
+     "disp_remaining": 174,
+     "real_elapsed": 176.1
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 164,
+     "disp_remaining": 176,
+     "real_elapsed": 185.1
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 155,
+     "disp_remaining": 185,
+     "real_elapsed": 190.1
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 150,
+     "disp_remaining": 190,
+     "real_elapsed": 191.1
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 149,
+     "disp_remaining": 191,
+     "real_elapsed": 202.1
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 138,
+     "disp_remaining": 202,
+     "real_elapsed": 208.1
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 132,
+     "disp_remaining": 208,
+     "real_elapsed": 302.1
+    }
+   ],
+   "label_slot_value_quotes": [],
+   "decreasing_value_quotes": []
+  },
+  {
+   "mode": "P",
+   "outcome": "failed_turn_cap",
+   "wall_seconds": 329.71,
+   "turns": 40,
+   "total_turns": 40,
+   "voice_turns": 40,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": 1,
+   "run_to_turns": 40,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 15.8
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 324,
+     "disp_remaining": 16,
+     "real_elapsed": 24.8
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 315,
+     "disp_remaining": 25,
+     "real_elapsed": 36.8
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 303,
+     "disp_remaining": 37,
+     "real_elapsed": 48.8
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 291,
+     "disp_remaining": 49,
+     "real_elapsed": 56.8
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 283,
+     "disp_remaining": 57,
+     "real_elapsed": 64.8
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 275,
+     "disp_remaining": 65,
+     "real_elapsed": 70.8
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 269,
+     "disp_remaining": 71,
+     "real_elapsed": 83.8
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 256,
+     "disp_remaining": 84,
+     "real_elapsed": 94.8
+    },
+    {
+     "turn": 10,
+     "disp_elapsed": 245,
+     "disp_remaining": 95,
+     "real_elapsed": 103.8
+    },
+    {
+     "turn": 11,
+     "disp_elapsed": 237,
+     "disp_remaining": 103,
+     "real_elapsed": 111.8
+    },
+    {
+     "turn": 12,
+     "disp_elapsed": 228,
+     "disp_remaining": 112,
+     "real_elapsed": 123.8
+    },
+    {
+     "turn": 13,
+     "disp_elapsed": 216,
+     "disp_remaining": 124,
+     "real_elapsed": 140.8
+    },
+    {
+     "turn": 14,
+     "disp_elapsed": 199,
+     "disp_remaining": 141,
+     "real_elapsed": 154.8
+    },
+    {
+     "turn": 15,
+     "disp_elapsed": 185,
+     "disp_remaining": 155,
+     "real_elapsed": 165.8
+    },
+    {
+     "turn": 16,
+     "disp_elapsed": 174,
+     "disp_remaining": 166,
+     "real_elapsed": 176.8
+    },
+    {
+     "turn": 17,
+     "disp_elapsed": 163,
+     "disp_remaining": 177,
+     "real_elapsed": 190.8
+    },
+    {
+     "turn": 18,
+     "disp_elapsed": 149,
+     "disp_remaining": 191,
+     "real_elapsed": 196.8
+    },
+    {
+     "turn": 19,
+     "disp_elapsed": 144,
+     "disp_remaining": 196,
+     "real_elapsed": 203.8
+    },
+    {
+     "turn": 20,
+     "disp_elapsed": 136,
+     "disp_remaining": 204,
+     "real_elapsed": 208.8
+    },
+    {
+     "turn": 21,
+     "disp_elapsed": 131,
+     "disp_remaining": 209,
+     "real_elapsed": 213.8
+    },
+    {
+     "turn": 22,
+     "disp_elapsed": 126,
+     "disp_remaining": 214,
+     "real_elapsed": 219.8
+    },
+    {
+     "turn": 23,
+     "disp_elapsed": 120,
+     "disp_remaining": 220,
+     "real_elapsed": 224.8
+    },
+    {
+     "turn": 24,
+     "disp_elapsed": 115,
+     "disp_remaining": 225,
+     "real_elapsed": 229.8
+    },
+    {
+     "turn": 25,
+     "disp_elapsed": 110,
+     "disp_remaining": 230,
+     "real_elapsed": 235.8
+    },
+    {
+     "turn": 26,
+     "disp_elapsed": 105,
+     "disp_remaining": 235,
+     "real_elapsed": 240.8
+    },
+    {
+     "turn": 27,
+     "disp_elapsed": 100,
+     "disp_remaining": 240,
+     "real_elapsed": 248.8
+    },
+    {
+     "turn": 28,
+     "disp_elapsed": 91,
+     "disp_remaining": 249,
+     "real_elapsed": 259.8
+    },
+    {
+     "turn": 29,
+     "disp_elapsed": 80,
+     "disp_remaining": 260,
+     "real_elapsed": 264.8
+    },
+    {
+     "turn": 30,
+     "disp_elapsed": 75,
+     "disp_remaining": 265,
+     "real_elapsed": 270.8
+    },
+    {
+     "turn": 31,
+     "disp_elapsed": 69,
+     "disp_remaining": 271,
+     "real_elapsed": 278.8
+    },
+    {
+     "turn": 32,
+     "disp_elapsed": 61,
+     "disp_remaining": 279,
+     "real_elapsed": 283.8
+    },
+    {
+     "turn": 33,
+     "disp_elapsed": 56,
+     "disp_remaining": 284,
+     "real_elapsed": 289.8
+    },
+    {
+     "turn": 34,
+     "disp_elapsed": 51,
+     "disp_remaining": 289,
+     "real_elapsed": 294.8
+    },
+    {
+     "turn": 35,
+     "disp_elapsed": 45,
+     "disp_remaining": 295,
+     "real_elapsed": 299.8
+    },
+    {
+     "turn": 36,
+     "disp_elapsed": 40,
+     "disp_remaining": 300,
+     "real_elapsed": 308.8
+    },
+    {
+     "turn": 37,
+     "disp_elapsed": 32,
+     "disp_remaining": 308,
+     "real_elapsed": 313.8
+    },
+    {
+     "turn": 38,
+     "disp_elapsed": 26,
+     "disp_remaining": 314,
+     "real_elapsed": 318.8
+    },
+    {
+     "turn": 39,
+     "disp_elapsed": 21,
+     "disp_remaining": 319,
+     "real_elapsed": 323.8
+    },
+    {
+     "turn": 40,
+     "disp_elapsed": 16,
+     "disp_remaining": 324,
+     "real_elapsed": 328.8
+    }
+   ],
+   "label_slot_value_quotes": [],
+   "decreasing_value_quotes": []
+  },
+  {
+   "mode": "X2",
+   "outcome": "completed",
+   "wall_seconds": 197.14,
+   "turns": 9,
+   "total_turns": 9,
+   "voice_turns": 9,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": 9,
+   "run_to_turns": 1,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 85.7
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 172,
+     "disp_remaining": 168,
+     "real_elapsed": 102.7
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 206,
+     "disp_remaining": 134,
+     "real_elapsed": 104.7
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 210,
+     "disp_remaining": 130,
+     "real_elapsed": 109.7
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 220,
+     "disp_remaining": 120,
+     "real_elapsed": 112.7
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 226,
+     "disp_remaining": 114,
+     "real_elapsed": 144.7
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 290,
+     "disp_remaining": 50,
+     "real_elapsed": 153.7
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 306,
+     "disp_remaining": 34,
+     "real_elapsed": 158.7
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 318,
+     "disp_remaining": 22,
+     "real_elapsed": 196.7
+    }
+   ],
+   "displayed_cross60_turn": 7,
+   "displayed_cross60_real_elapsed": 153.7,
+   "displayed_zero_turn": null,
+   "displayed_zero_real_elapsed": null,
+   "refs_at_or_after_cross60": []
+  },
+  {
+   "mode": "P",
+   "outcome": "completed",
+   "wall_seconds": 307.84,
+   "turns": 9,
+   "total_turns": 9,
+   "voice_turns": 9,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 79.1
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 261,
+     "disp_remaining": 79,
+     "real_elapsed": 156.1
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 183,
+     "disp_remaining": 157,
+     "real_elapsed": 158.1
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 182,
+     "disp_remaining": 158,
+     "real_elapsed": 167.1
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 173,
+     "disp_remaining": 167,
+     "real_elapsed": 175.1
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 165,
+     "disp_remaining": 175,
+     "real_elapsed": 181.1
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 159,
+     "disp_remaining": 181,
+     "real_elapsed": 209.1
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 130,
+     "disp_remaining": 210,
+     "real_elapsed": 218.1
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 122,
+     "disp_remaining": 218,
+     "real_elapsed": 307.1
+    }
+   ],
+   "label_slot_value_quotes": [],
+   "decreasing_value_quotes": []
+  },
+  {
+   "mode": "X2",
+   "outcome": "task_infeasible",
+   "wall_seconds": 218.07,
+   "turns": 8,
+   "total_turns": 8,
+   "voice_turns": 8,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 78.8
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 158,
+     "disp_remaining": 182,
+     "real_elapsed": 103.8
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 208,
+     "disp_remaining": 132,
+     "real_elapsed": 108.8
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 216,
+     "disp_remaining": 124,
+     "real_elapsed": 110.8
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 220,
+     "disp_remaining": 120,
+     "real_elapsed": 114.8
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 230,
+     "disp_remaining": 110,
+     "real_elapsed": 119.8
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 240,
+     "disp_remaining": 100,
+     "real_elapsed": 121.8
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 244,
+     "disp_remaining": 96,
+     "real_elapsed": 217.8
+    }
+   ],
+   "displayed_cross60_turn": null,
+   "displayed_cross60_real_elapsed": null,
+   "displayed_zero_turn": null,
+   "displayed_zero_real_elapsed": null
+  },
+  {
+   "mode": "X2",
+   "outcome": "failed_stalled",
+   "wall_seconds": 222.45,
+   "turns": 23,
+   "total_turns": 23,
+   "voice_turns": 23,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": 5,
+   "run_to_turns": 9,
+   "radio_acts": 0,
+   "time_ref_turns": [
+    10,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    19
+   ],
+   "time_ref_count": 8,
+   "first_ref_turn": 10,
+   "first_ref_real_elapsed": 121.6,
+   "ref_events": [
+    {
+     "turn": 10,
+     "real_elapsed": 121.6,
+     "real_remaining": 218.4,
+     "disp_remaining": 110,
+     "quote": "More stalls, still no tea house\u2014time is running low; I'll sprint toward where a different place ID might appear."
+    },
+    {
+     "turn": 12,
+     "real_elapsed": 147.6,
+     "real_remaining": 192.4,
+     "disp_remaining": 80,
+     "quote": "I'm in an empty area with no places nearby and time is running out\u2014let me try heading toward where shops might be."
+    },
+    {
+     "turn": 13,
+     "real_elapsed": 168.6,
+     "real_remaining": 171.4,
+     "disp_remaining": 44,
+     "quote": "Still only stalls around me and almost no time left\u2014I'll try one last run toward the opposite corner where the tea house might be."
+    },
+    {
+     "turn": 14,
+     "real_elapsed": 176.6,
+     "real_remaining": 163.4,
+     "disp_remaining": 4,
+     "quote": "Time is almost up and I haven't found the tea house\u2014I'll wait here."
+    },
+    {
+     "turn": 15,
+     "real_elapsed": 181.6,
+     "real_remaining": 158.4,
+     "disp_remaining": 0,
+     "quote": "Time ran out and I never found the tea house\u2014this task was impossible with the given world layout."
+    },
+    {
+     "turn": 16,
+     "real_elapsed": 186.6,
+     "real_remaining": 153.4,
+     "disp_remaining": 0,
+     "quote": "Time expired\u2014I failed to locate Matchmaker's Tea House and complete the task."
+    },
+    {
+     "turn": 17,
+     "real_elapsed": 191.6,
+     "real_remaining": 148.4,
+     "disp_remaining": 0,
+     "quote": "I'm still standing among stalls with no tea house in sight and the time is long gone."
+    },
+    {
+     "turn": 19,
+     "real_elapsed": 201.6,
+     "real_remaining": 138.4,
+     "disp_remaining": 0,
+     "quote": "I am at the northern edge of the stall district, time expired, and the tea house was never encountered."
+    }
+   ],
+   "ref_quotes": [
+    {
+     "turn": 10,
+     "quote": "More stalls, still no tea house\u2014time is running low; I'll sprint toward where a different place ID might appear."
+    },
+    {
+     "turn": 12,
+     "quote": "I'm in an empty area with no places nearby and time is running out\u2014let me try heading toward where shops might be."
+    },
+    {
+     "turn": 13,
+     "quote": "Still only stalls around me and almost no time left\u2014I'll try one last run toward the opposite corner where the tea house might be."
+    }
+   ],
+   "urgency_turns": [
+    10,
+    12
+   ],
+   "urgency_events": [
+    {
+     "turn": 10,
+     "real_elapsed": 121.6
+    },
+    {
+     "turn": 12,
+     "real_elapsed": 147.6
+    }
+   ],
+   "giveup_turns": [
+    13,
+    15,
+    16,
+    18
+   ],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 7.6
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 16,
+     "disp_remaining": 324,
+     "real_elapsed": 19.6
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 40,
+     "disp_remaining": 300,
+     "real_elapsed": 31.6
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 62,
+     "disp_remaining": 278,
+     "real_elapsed": 48.6
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 98,
+     "disp_remaining": 242,
+     "real_elapsed": 60.6
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 120,
+     "disp_remaining": 220,
+     "real_elapsed": 74.6
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 150,
+     "disp_remaining": 190,
+     "real_elapsed": 88.6
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 178,
+     "disp_remaining": 162,
+     "real_elapsed": 97.6
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 194,
+     "disp_remaining": 146,
+     "real_elapsed": 114.6
+    },
+    {
+     "turn": 10,
+     "disp_elapsed": 230,
+     "disp_remaining": 110,
+     "real_elapsed": 121.6
+    },
+    {
+     "turn": 11,
+     "disp_elapsed": 242,
+     "disp_remaining": 98,
+     "real_elapsed": 129.6
+    },
+    {
+     "turn": 12,
+     "disp_elapsed": 260,
+     "disp_remaining": 80,
+     "real_elapsed": 147.6
+    },
+    {
+     "turn": 13,
+     "disp_elapsed": 296,
+     "disp_remaining": 44,
+     "real_elapsed": 168.6
+    },
+    {
+     "turn": 14,
+     "disp_elapsed": 336,
+     "disp_remaining": 4,
+     "real_elapsed": 176.6
+    },
+    {
+     "turn": 15,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 181.6
+    },
+    {
+     "turn": 16,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 186.6
+    },
+    {
+     "turn": 17,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 191.6
+    },
+    {
+     "turn": 18,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 196.6
+    },
+    {
+     "turn": 19,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 201.6
+    },
+    {
+     "turn": 20,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 206.6
+    },
+    {
+     "turn": 21,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 211.6
+    },
+    {
+     "turn": 22,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 216.6
+    },
+    {
+     "turn": 23,
+     "disp_elapsed": 340,
+     "disp_remaining": 0,
+     "real_elapsed": 221.6
+    }
+   ],
+   "displayed_cross60_turn": 13,
+   "displayed_cross60_real_elapsed": 168.6,
+   "displayed_zero_turn": 15,
+   "displayed_zero_real_elapsed": 181.6,
+   "refs_at_or_after_cross60": [
+    13,
+    14,
+    15,
+    16,
+    17,
+    19
+   ],
+   "refs_at_or_after_zero": [
+    15,
+    16,
+    17,
+    19
+   ],
+   "giveup_at_or_after_zero": [
+    15,
+    16,
+    18
+   ],
+   "acts_ok_after_zero": 8,
+   "completed_after_zero": false
+  },
+  {
+   "mode": "F",
+   "outcome": "completed",
+   "wall_seconds": 286.26,
+   "turns": 8,
+   "total_turns": 8,
+   "voice_turns": 8,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 79.9
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 156.9
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 158.9
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 160.9
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 171.9
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 183.9
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 189.9
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 285.9
+    }
+   ]
+  },
+  {
+   "mode": "V",
+   "outcome": "task_infeasible",
+   "wall_seconds": 237.02,
+   "turns": 11,
+   "total_turns": 11,
+   "voice_turns": 11,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 1,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 85.1
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 85,
+     "disp_remaining": 255,
+     "real_elapsed": 99.1
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 99,
+     "disp_remaining": 241,
+     "real_elapsed": 101.1
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 101,
+     "disp_remaining": 239,
+     "real_elapsed": 103.1
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 103,
+     "disp_remaining": 237,
+     "real_elapsed": 109.1
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 109,
+     "disp_remaining": 231,
+     "real_elapsed": 117.1
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 117,
+     "disp_remaining": 223,
+     "real_elapsed": 118.1
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 119,
+     "disp_remaining": 221,
+     "real_elapsed": 120.1
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 121,
+     "disp_remaining": 219,
+     "real_elapsed": 128.1
+    },
+    {
+     "turn": 10,
+     "disp_elapsed": 128,
+     "disp_remaining": 212,
+     "real_elapsed": 134.1
+    },
+    {
+     "turn": 11,
+     "disp_elapsed": 134,
+     "disp_remaining": 206,
+     "real_elapsed": 236.1
+    }
+   ]
+  },
+  {
+   "mode": "V",
+   "outcome": "task_infeasible",
+   "wall_seconds": 244.83,
+   "turns": 9,
+   "total_turns": 9,
+   "voice_turns": 9,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [
+    9
+   ],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 79.9
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 80,
+     "disp_remaining": 260,
+     "real_elapsed": 120.9
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 121,
+     "disp_remaining": 219,
+     "real_elapsed": 125.9
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 126,
+     "disp_remaining": 214,
+     "real_elapsed": 128.9
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 128,
+     "disp_remaining": 212,
+     "real_elapsed": 133.9
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 134,
+     "disp_remaining": 206,
+     "real_elapsed": 138.9
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 139,
+     "disp_remaining": 201,
+     "real_elapsed": 140.9
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 140,
+     "disp_remaining": 200,
+     "real_elapsed": 145.9
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 145,
+     "disp_remaining": 195,
+     "real_elapsed": 243.9
+    }
+   ]
+  },
+  {
+   "mode": "V",
+   "outcome": "completed",
+   "wall_seconds": 240.22,
+   "turns": 8,
+   "total_turns": 8,
+   "voice_turns": 8,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 81.9
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 82,
+     "disp_remaining": 258,
+     "real_elapsed": 122.9
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 123,
+     "disp_remaining": 217,
+     "real_elapsed": 124.9
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 125,
+     "disp_remaining": 215,
+     "real_elapsed": 129.9
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 130,
+     "disp_remaining": 210,
+     "real_elapsed": 131.9
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 132,
+     "disp_remaining": 208,
+     "real_elapsed": 139.9
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 140,
+     "disp_remaining": 200,
+     "real_elapsed": 143.9
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 144,
+     "disp_remaining": 196,
+     "real_elapsed": 239.9
+    }
+   ]
+  },
+  {
+   "mode": "X2",
+   "outcome": "task_infeasible",
+   "wall_seconds": 230.7,
+   "turns": 9,
+   "total_turns": 9,
+   "voice_turns": 9,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [],
+   "time_ref_count": 0,
+   "first_ref_turn": null,
+   "first_ref_real_elapsed": null,
+   "ref_events": [],
+   "ref_quotes": [],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 76.9
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 154,
+     "disp_remaining": 186,
+     "real_elapsed": 115.9
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 230,
+     "disp_remaining": 110,
+     "real_elapsed": 117.9
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 236,
+     "disp_remaining": 104,
+     "real_elapsed": 122.9
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 246,
+     "disp_remaining": 94,
+     "real_elapsed": 124.9
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 250,
+     "disp_remaining": 90,
+     "real_elapsed": 126.9
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 254,
+     "disp_remaining": 86,
+     "real_elapsed": 131.9
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 264,
+     "disp_remaining": 76,
+     "real_elapsed": 133.9
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 268,
+     "disp_remaining": 72,
+     "real_elapsed": 229.9
+    }
+   ],
+   "displayed_cross60_turn": null,
+   "displayed_cross60_real_elapsed": null,
+   "displayed_zero_turn": null,
+   "displayed_zero_real_elapsed": null
+  },
+  {
+   "mode": "F",
+   "outcome": "completed",
+   "wall_seconds": 265.39,
+   "turns": 10,
+   "total_turns": 10,
+   "voice_turns": 10,
+   "voice_rate": 1.0,
+   "echo_turns": [],
+   "first_run_turn": null,
+   "run_to_turns": 0,
+   "radio_acts": 0,
+   "time_ref_turns": [
+    8
+   ],
+   "time_ref_count": 1,
+   "first_ref_turn": 8,
+   "first_ref_real_elapsed": 164.6,
+   "ref_events": [
+    {
+     "turn": 8,
+     "real_elapsed": 164.6,
+     "real_remaining": 175.4,
+     "disp_remaining": 340,
+     "quote": "I see some free seats now\u2014time to sit down."
+    }
+   ],
+   "ref_quotes": [
+    {
+     "turn": 8,
+     "quote": "I see some free seats now\u2014time to sit down."
+    }
+   ],
+   "urgency_turns": [],
+   "urgency_events": [],
+   "giveup_turns": [],
+   "displayed": [
+    {
+     "turn": 1,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 89.6
+    },
+    {
+     "turn": 2,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 100.6
+    },
+    {
+     "turn": 3,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 102.6
+    },
+    {
+     "turn": 4,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 106.6
+    },
+    {
+     "turn": 5,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 112.6
+    },
+    {
+     "turn": 6,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 120.6
+    },
+    {
+     "turn": 7,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 153.6
+    },
+    {
+     "turn": 8,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 164.6
+    },
+    {
+     "turn": 9,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 169.6
+    },
+    {
+     "turn": 10,
+     "disp_elapsed": 0,
+     "disp_remaining": 340,
+     "real_elapsed": 264.6
+    }
+   ]
+  }
+ ],
+ "attempts": [
+  {
+   "mode": "F",
+   "slot": "p1",
+   "run_id": "e3v-f-p1-01-4c5226",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-f-p1-01-4c5226.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "X2",
+   "slot": "p8",
+   "run_id": "e3v-x2-p8-02-9063e9",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-x2-p8-02-9063e9.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "P",
+   "slot": "p8",
+   "run_id": "e3v-p-p8-03-361d77",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-p-p8-03-361d77.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "F",
+   "slot": "p10",
+   "run_id": "e3v-f-p10-04-75ccb3",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-f-p10-04-75ccb3.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "X2",
+   "slot": "p4",
+   "run_id": "e3v-x2-p4-05-87adf2",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-x2-p4-05-87adf2.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "F",
+   "slot": "p7",
+   "run_id": "e3v-f-p7-06-4f917d",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-f-p7-06-4f917d.jsonl",
+   "outcome": "task_infeasible"
+  },
+  {
+   "mode": "X2",
+   "slot": "p10",
+   "run_id": "e3v-x2-p10-07-220d69",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-x2-p10-07-220d69.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "X2",
+   "slot": "p6",
+   "run_id": "e3v-x2-p6-08-5bdd1c",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-x2-p6-08-5bdd1c.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "P",
+   "slot": "p5",
+   "run_id": "e3v-p-p5-09-dfab87",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-p-p5-09-dfab87.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "F",
+   "slot": "p3",
+   "run_id": "e3v-f-p3-10-20452f",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-f-p3-10-20452f.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "P",
+   "slot": "p7",
+   "run_id": "e3v-p-p7-11-f52759",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-p-p7-11-f52759.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "F",
+   "slot": "p9",
+   "run_id": "e3v-f-p9-12-f6431a",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-f-p9-12-f6431a.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "F",
+   "slot": "p6",
+   "run_id": "e3v-f-p6-13-604836",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-f-p6-13-604836.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "mode": "X2",
+   "slot": "p9",
+   "run_id": "e3v-x2-p9-14-0e8e92",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-x2-p9-14-0e8e92.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "V",
+   "slot": "p10",
+   "run_id": "e3v-v-p10-15-05214a",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-v-p10-15-05214a.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "mode": "V",
+   "slot": "p4",
+   "run_id": "e3v-v-p4-16-bf6c27",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-v-p4-16-bf6c27.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "mode": "P",
+   "slot": "p3",
+   "run_id": "e3v-p-p3-17-37b941",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-p-p3-17-37b941.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "V",
+   "slot": "p9",
+   "run_id": "e3v-v-p9-18-40e73f",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-v-p9-18-40e73f.jsonl",
+   "outcome": "task_infeasible"
+  },
+  {
+   "mode": "X2",
+   "slot": "p7",
+   "run_id": "e3v-x2-p7-19-dd7790",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-x2-p7-19-dd7790.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "P",
+   "slot": "p4",
+   "run_id": "e3v-p-p4-20-f932ab",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-p-p4-20-f932ab.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "F",
+   "slot": "p2",
+   "run_id": "e3v-f-p2-21-45cb7e",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-f-p2-21-45cb7e.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "P",
+   "slot": "p6",
+   "run_id": "e3v-p-p6-22-55dd5a",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-p-p6-22-55dd5a.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "F",
+   "slot": "p8",
+   "run_id": "e3v-f-p8-23-75a9d4",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-f-p8-23-75a9d4.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "V",
+   "slot": "p8",
+   "run_id": "e3v-v-p8-24-5678af",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-v-p8-24-5678af.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "V",
+   "slot": "p1",
+   "run_id": "e3v-v-p1-25-a676ff",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-v-p1-25-a676ff.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "P",
+   "slot": "p9",
+   "run_id": "e3v-p-p9-26-5f4ace",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-p-p9-26-5f4ace.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "V",
+   "slot": "p7",
+   "run_id": "e3v-v-p7-27-ebb457",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-v-p7-27-ebb457.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "V",
+   "slot": "p6",
+   "run_id": "e3v-v-p6-28-5ef02e",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-v-p6-28-5ef02e.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "P",
+   "slot": "p1",
+   "run_id": "e3v-p-p1-29-06c8a5",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-p-p1-29-06c8a5.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "P",
+   "slot": "p10",
+   "run_id": "e3v-p-p10-30-d60f7d",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-p-p10-30-d60f7d.jsonl",
+   "outcome": "failed_turn_cap"
+  },
+  {
+   "mode": "X2",
+   "slot": "p3",
+   "run_id": "e3v-x2-p3-31-1d8ab8",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-x2-p3-31-1d8ab8.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "P",
+   "slot": "p2",
+   "run_id": "e3v-p-p2-32-ac2e0f",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-p-p2-32-ac2e0f.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "X2",
+   "slot": "p1",
+   "run_id": "e3v-x2-p1-33-b9251e",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-x2-p1-33-b9251e.jsonl",
+   "outcome": "task_infeasible"
+  },
+  {
+   "mode": "X2",
+   "slot": "p5",
+   "run_id": "e3v-x2-p5-34-a7cc8e",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-x2-p5-34-a7cc8e.jsonl",
+   "outcome": "failed_stalled"
+  },
+  {
+   "mode": "F",
+   "slot": "p5",
+   "run_id": "e3v-f-p5-35-9c8f34",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-f-p5-35-9c8f34.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "V",
+   "slot": "p2",
+   "run_id": "e3v-v-p2-36-ffe19e",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-v-p2-36-ffe19e.jsonl",
+   "outcome": "task_infeasible"
+  },
+  {
+   "mode": "V",
+   "slot": "p3",
+   "run_id": "e3v-v-p3-37-8a3fe7",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-v-p3-37-8a3fe7.jsonl",
+   "outcome": "task_infeasible"
+  },
+  {
+   "mode": "V",
+   "slot": "p5",
+   "run_id": "e3v-v-p5-38-ec053c",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-v-p5-38-ec053c.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "mode": "X2",
+   "slot": "p2",
+   "run_id": "e3v-x2-p2-39-9b464e",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-x2-p2-39-9b464e.jsonl",
+   "outcome": "task_infeasible"
+  },
+  {
+   "mode": "F",
+   "slot": "p4",
+   "run_id": "e3v-f-p4-40-cf3d9b",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e3v-f-p4-40-cf3d9b.jsonl",
+   "outcome": "completed"
+  }
+ ],
+ "batch": {
+  "seed": 20261118,
+  "runs_per_arm": 10,
+  "deadline_s": 340,
+  "verbal": true,
+  "specs_total": 40,
+  "specs_final": 40,
+  "specs_infra_exhausted": 0,
+  "specs_remaining": 0,
+  "complete": true
+ }
+}
