@@ -1,0 +1,470 @@
+{
+ "experiment": "E1 full phase (plan \u00a73) \u2014 resumable batch",
+ "seed": 20261115,
+ "execution_order": [
+  "e1-a1-p2-01-8c0c3c",
+  "e1-a0-p8-02-0a8388",
+  "e1-a1-p7-03-072813",
+  "e1-a3-p8-04-0d131c",
+  "e1-a3-p2-05-8b04b0",
+  "e1-a3-p10-06-361fbe",
+  "e1-a0-p4-07-41a7e5",
+  "e1-a1-p10-08-95e710",
+  "e1-a2-p6-09-3d5a64",
+  "e1-a1-p9-10-f8b454",
+  "e1-a0-p9-11-5f17cc",
+  "e1-a2-p3-12-20c10a",
+  "e1-a0-p1-13-a94ad1",
+  "e1-a3-p1-14-af724b",
+  "e1-a2-p8-15-37e0b0",
+  "e1-a3-p11-16-c55e36",
+  "e1-a2-p4-17-583537",
+  "e1-a3-p12-18-499ff7",
+  "e1-a1-p3-19-252138",
+  "e1-a2-p9-20-f86ea6",
+  "e1-a0-p5-21-34ddd5",
+  "e1-a1-p12-22-093f5b",
+  "e1-a3-p6-23-97061b",
+  "e1-a2-p2-24-08f7a8",
+  "e1-a3-p5-25-48fba5",
+  "e1-a2-p1-26-0eb3c6",
+  "e1-a1-p5-27-c76047",
+  "e1-a0-p6-28-3b5ce5",
+  "e1-a2-p11-29-55f3ab",
+  "e1-a1-p6-30-b07ac5",
+  "e1-a2-p12-31-127529",
+  "e1-a0-p10-32-a1efe7",
+  "e1-a3-p4-33-137c5f",
+  "e1-a2-p10-34-4282de",
+  "e1-a1-p4-35-d5287c",
+  "e1-a0-p3-36-6401ec",
+  "e1-a0-p7-37-200187",
+  "e1-a1-p1-38-7dfd3c",
+  "e1-a2-p5-39-0e1848",
+  "e1-a0-p12-40-11e47e",
+  "e1-a1-p11-41-779077",
+  "e1-a0-p11-42-7194f1",
+  "e1-a3-p3-43-a0fd9c",
+  "e1-a3-p7-44-cc54e4",
+  "e1-a3-p9-45-35e6f8",
+  "e1-a2-p7-46-7d7e15",
+  "e1-a0-p2-47-d124bd",
+  "e1-a1-p8-48-21ce59"
+ ],
+ "arms": {
+  "A0": {
+   "runs": 12,
+   "completed": 9,
+   "completion_rate": 0.75,
+   "median_wall_seconds_completed": 249.19,
+   "median_turns_completed": 8,
+   "median_first_run_turn": 1.0,
+   "median_first_run_turn_fraction": 0.059,
+   "first_run_turn_runs": 2,
+   "infra_failed": 0,
+   "outcomes": {
+    "completed": 9,
+    "failed_deadline": 2,
+    "task_infeasible": 1
+   }
+  },
+  "A1": {
+   "runs": 12,
+   "completed": 9,
+   "completion_rate": 0.75,
+   "median_wall_seconds_completed": 258.45,
+   "median_turns_completed": 8,
+   "median_first_run_turn": null,
+   "median_first_run_turn_fraction": null,
+   "first_run_turn_runs": 0,
+   "infra_failed": 0,
+   "outcomes": {
+    "completed": 9,
+    "failed_deadline": 3
+   }
+  },
+  "A2": {
+   "runs": 12,
+   "completed": 9,
+   "completion_rate": 0.75,
+   "median_wall_seconds_completed": 273.52,
+   "median_turns_completed": 10,
+   "median_first_run_turn": 1,
+   "median_first_run_turn_fraction": 0.167,
+   "first_run_turn_runs": 1,
+   "infra_failed": 0,
+   "outcomes": {
+    "completed": 9,
+    "failed_stalled": 1,
+    "task_infeasible": 2
+   }
+  },
+  "A3": {
+   "runs": 12,
+   "completed": 11,
+   "completion_rate": 0.917,
+   "median_wall_seconds_completed": 261.55,
+   "median_turns_completed": 8,
+   "median_first_run_turn": null,
+   "median_first_run_turn_fraction": null,
+   "first_run_turn_runs": 0,
+   "infra_failed": 0,
+   "outcomes": {
+    "completed": 11,
+    "task_infeasible": 1
+   }
+  }
+ },
+ "total_accounted_spend_usd": 0.080394,
+ "ledger_entries": 1257,
+ "spend_cap_usd": 1.0,
+ "soft_stop_usd": 0.4,
+ "attempts": [
+  {
+   "arm": "A0",
+   "slot": "p8",
+   "run_id": "e1-a0-p8-02-0a8388",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a0-p8-02-0a8388.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A3",
+   "slot": "p8",
+   "run_id": "e1-a3-p8-04-0d131c",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a3-p8-04-0d131c.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A1",
+   "slot": "p7",
+   "run_id": "e1-a1-p7-03-072813",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a1-p7-03-072813.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A1",
+   "slot": "p2",
+   "run_id": "e1-a1-p2-01-8c0c3c",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a1-p2-01-8c0c3c.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A3",
+   "slot": "p10",
+   "run_id": "e1-a3-p10-06-361fbe",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a3-p10-06-361fbe.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A1",
+   "slot": "p10",
+   "run_id": "e1-a1-p10-08-95e710",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a1-p10-08-95e710.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A0",
+   "slot": "p4",
+   "run_id": "e1-a0-p4-07-41a7e5",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a0-p4-07-41a7e5.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A3",
+   "slot": "p2",
+   "run_id": "e1-a3-p2-05-8b04b0",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a3-p2-05-8b04b0.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A1",
+   "slot": "p9",
+   "run_id": "e1-a1-p9-10-f8b454",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a1-p9-10-f8b454.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A0",
+   "slot": "p9",
+   "run_id": "e1-a0-p9-11-5f17cc",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a0-p9-11-5f17cc.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A2",
+   "slot": "p3",
+   "run_id": "e1-a2-p3-12-20c10a",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a2-p3-12-20c10a.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A2",
+   "slot": "p6",
+   "run_id": "e1-a2-p6-09-3d5a64",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a2-p6-09-3d5a64.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A3",
+   "slot": "p1",
+   "run_id": "e1-a3-p1-14-af724b",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a3-p1-14-af724b.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A2",
+   "slot": "p8",
+   "run_id": "e1-a2-p8-15-37e0b0",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a2-p8-15-37e0b0.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A3",
+   "slot": "p11",
+   "run_id": "e1-a3-p11-16-c55e36",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a3-p11-16-c55e36.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A0",
+   "slot": "p1",
+   "run_id": "e1-a0-p1-13-a94ad1",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a0-p1-13-a94ad1.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "A2",
+   "slot": "p4",
+   "run_id": "e1-a2-p4-17-583537",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a2-p4-17-583537.jsonl",
+   "outcome": "failed_stalled"
+  },
+  {
+   "arm": "A3",
+   "slot": "p12",
+   "run_id": "e1-a3-p12-18-499ff7",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a3-p12-18-499ff7.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A2",
+   "slot": "p9",
+   "run_id": "e1-a2-p9-20-f86ea6",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a2-p9-20-f86ea6.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A1",
+   "slot": "p3",
+   "run_id": "e1-a1-p3-19-252138",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a1-p3-19-252138.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "A1",
+   "slot": "p12",
+   "run_id": "e1-a1-p12-22-093f5b",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a1-p12-22-093f5b.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A0",
+   "slot": "p5",
+   "run_id": "e1-a0-p5-21-34ddd5",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a0-p5-21-34ddd5.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A2",
+   "slot": "p2",
+   "run_id": "e1-a2-p2-24-08f7a8",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a2-p2-24-08f7a8.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A3",
+   "slot": "p6",
+   "run_id": "e1-a3-p6-23-97061b",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a3-p6-23-97061b.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A2",
+   "slot": "p1",
+   "run_id": "e1-a2-p1-26-0eb3c6",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a2-p1-26-0eb3c6.jsonl",
+   "outcome": "task_infeasible"
+  },
+  {
+   "arm": "A3",
+   "slot": "p5",
+   "run_id": "e1-a3-p5-25-48fba5",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a3-p5-25-48fba5.jsonl",
+   "outcome": "task_infeasible"
+  },
+  {
+   "arm": "A0",
+   "slot": "p6",
+   "run_id": "e1-a0-p6-28-3b5ce5",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a0-p6-28-3b5ce5.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A1",
+   "slot": "p5",
+   "run_id": "e1-a1-p5-27-c76047",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a1-p5-27-c76047.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "A1",
+   "slot": "p6",
+   "run_id": "e1-a1-p6-30-b07ac5",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a1-p6-30-b07ac5.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "A2",
+   "slot": "p11",
+   "run_id": "e1-a2-p11-29-55f3ab",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a2-p11-29-55f3ab.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A0",
+   "slot": "p10",
+   "run_id": "e1-a0-p10-32-a1efe7",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a0-p10-32-a1efe7.jsonl",
+   "outcome": "task_infeasible"
+  },
+  {
+   "arm": "A2",
+   "slot": "p10",
+   "run_id": "e1-a2-p10-34-4282de",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a2-p10-34-4282de.jsonl",
+   "outcome": "task_infeasible"
+  },
+  {
+   "arm": "A2",
+   "slot": "p12",
+   "run_id": "e1-a2-p12-31-127529",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a2-p12-31-127529.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A3",
+   "slot": "p4",
+   "run_id": "e1-a3-p4-33-137c5f",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a3-p4-33-137c5f.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A0",
+   "slot": "p3",
+   "run_id": "e1-a0-p3-36-6401ec",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a0-p3-36-6401ec.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A1",
+   "slot": "p1",
+   "run_id": "e1-a1-p1-38-7dfd3c",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a1-p1-38-7dfd3c.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A1",
+   "slot": "p4",
+   "run_id": "e1-a1-p4-35-d5287c",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a1-p4-35-d5287c.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A0",
+   "slot": "p7",
+   "run_id": "e1-a0-p7-37-200187",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a0-p7-37-200187.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A0",
+   "slot": "p12",
+   "run_id": "e1-a0-p12-40-11e47e",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a0-p12-40-11e47e.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A2",
+   "slot": "p5",
+   "run_id": "e1-a2-p5-39-0e1848",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a2-p5-39-0e1848.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A0",
+   "slot": "p11",
+   "run_id": "e1-a0-p11-42-7194f1",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a0-p11-42-7194f1.jsonl",
+   "outcome": "failed_deadline"
+  },
+  {
+   "arm": "A1",
+   "slot": "p11",
+   "run_id": "e1-a1-p11-41-779077",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a1-p11-41-779077.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A3",
+   "slot": "p7",
+   "run_id": "e1-a3-p7-44-cc54e4",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a3-p7-44-cc54e4.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A2",
+   "slot": "p7",
+   "run_id": "e1-a2-p7-46-7d7e15",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a2-p7-46-7d7e15.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A3",
+   "slot": "p9",
+   "run_id": "e1-a3-p9-45-35e6f8",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a3-p9-45-35e6f8.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A3",
+   "slot": "p3",
+   "run_id": "e1-a3-p3-43-a0fd9c",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a3-p3-43-a0fd9c.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A1",
+   "slot": "p8",
+   "run_id": "e1-a1-p8-48-21ce59",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a1-p8-48-21ce59.jsonl",
+   "outcome": "completed"
+  },
+  {
+   "arm": "A0",
+   "slot": "p2",
+   "run_id": "e1-a0-p2-47-d124bd",
+   "path": "/home/hatch/workspace/.build-tmp/agent-senses/runs/e1-a0-p2-47-d124bd.jsonl",
+   "outcome": "completed"
+  }
+ ],
+ "batch": {
+  "seed": 20261115,
+  "runs_per_arm": 12,
+  "deadline_s": 340,
+  "specs_total": 48,
+  "specs_final": 48,
+  "specs_infra_exhausted": 0,
+  "specs_remaining": 0,
+  "complete": true
+ }
+}
