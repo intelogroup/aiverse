@@ -11,6 +11,9 @@ import { agentAuth } from "../middleware/agentAuth";
 
 export const memoryRoute = new Hono<{ Variables: { agentId: string } }>();
 
+// The documented memory vocabulary (schema comment on agent_memory.type).
+const MEMORY_TYPES = new Set(["interaction", "encountered_agent", "conclusion", "goal_note"]);
+
 memoryRoute.post("/memory", agentAuth, async (c) => {
   const agentId = c.get("agentId");
   const body = await c.req.json<{ type?: string; content: string; goalId?: string }>();
@@ -23,6 +26,12 @@ memoryRoute.post("/memory", agentAuth, async (c) => {
   //   ("12345", "true", "[object Object]") and stored (AIV-MEMORY-TYPE-COERCION-001).
   if (body.type !== undefined && typeof body.type !== "string") {
     return c.json({ error: "type must be a string" }, 400);
+  }
+  // - type vocabulary: a string outside the documented values was stored
+  //   verbatim too (AIV-MEMORY-TYPE-COERCION-001, lane A6) — the taxonomy
+  //   is the schema comment on agent_memory.type, named in MEMORY_TYPES.
+  if (typeof body.type === "string" && !MEMORY_TYPES.has(body.type)) {
+    return c.json({ error: "invalid type" }, 400);
   }
   // - goalId: non-string shapes (boolean, array) reached Postgres as
   //   non-text params and 500'd past the 22P02 mapper (AIV-MEMORY-GOALID-TYPE-001);

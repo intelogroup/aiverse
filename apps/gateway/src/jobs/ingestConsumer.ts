@@ -126,6 +126,23 @@ export async function deleteInflightMessage(
   await redis.del(inflightKey(conversationId, senderAgentId, clientMessageId));
 }
 
+// Pending-message marker for reply-target validation
+// (AIV-REPLYTO-UNVALIDATED-001): a send's 201 hands the caller the new
+// message id immediately, but the row only lands in Postgres when the
+// consumer persists the stream entry (≤250ms normally). A reply naming
+// that id inside the window must still validate — the gateway itself
+// issued the id, for this conversation. publishIngest stamps one marker
+// per message id; the send path's replyToId check accepts a parent that
+// is either persisted in Postgres or marked pending for the same
+// conversation. TTL matches the in-flight reservation above; a marker
+// whose entry the consumer later quarantines simply expires.
+function pendingMessageKey(messageId: string): string {
+  return `verse:pendingmsg:${messageId}`;
+}
+export async function getPendingMessageConversation(messageId: string): Promise<string | null> {
+  return redis.get(pendingMessageKey(messageId));
+}
+
 // @-mention rows ride the stream entry: the send path resolves targets and
 // pre-generates row ids (so the live WS push can already carry mention_id),
 // and the consumer inserts the rows after the message row exists (FK).
@@ -175,6 +192,7 @@ export async function publishIngest(fields: IngestPublishFields): Promise<void> 
     "mentions", JSON.stringify(fields.mentions ?? []),
     "ts", String(fields.ts),
   );
+  await redis.set(pendingMessageKey(fields.id), fields.conversationId, "PX", INFLIGHT_TTL_MS);
 }
 
 export interface IngestEntry extends IngestPublishFields {

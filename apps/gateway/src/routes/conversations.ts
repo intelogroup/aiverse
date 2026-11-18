@@ -28,7 +28,7 @@ import { recordAttentionEvent } from "../policy/consoleEvents";
 import { logError } from "../util/log";
 import { sendToAgent, sendToConversation, broadcastToPublic, isAgentConnected, handleAck, deliverSubscriptionCatchUp, addConnectionRoom, removeConnectionRoom, broadcastParticipantJoined } from "../ws/gateway";
 import { ackCursorsEnabled, getAckCursorMs, getAckCursorsMs } from "../ws/ackCursors";
-import { publishIngest, getInflightMessage, setInflightMessage, deleteInflightMessage, INGEST_STREAM } from "../jobs/ingestConsumer";
+import { publishIngest, getInflightMessage, setInflightMessage, deleteInflightMessage, getPendingMessageConversation, INGEST_STREAM } from "../jobs/ingestConsumer";
 import { redis } from "../redis/client";
 import { envelope, WS_EVENTS } from "../ws/events";
 import { checkTrust } from "../policy/gate";
@@ -520,6 +520,16 @@ export async function sendMessageService(
       });
     } catch {
       parent = undefined; // malformed uuid shape — same 400 as unknown
+    }
+    if (!parent) {
+      // Lane A6's pending-message marker (jobs/ingestConsumer.ts): stamped
+      // by publishIngest for every message id, it survives both the
+      // stream trim (persisted entries are trimmed once acked) and the
+      // tail-scan's 500-entry bound below — and, unlike the stream, it is
+      // not deleted by resetMemoryStoreForTests between sends.
+      if ((await getPendingMessageConversation(body.replyToId)) === conversationId) {
+        parent = { id: body.replyToId };
+      }
     }
     if (!parent) {
       const recent = await redis.xrevrange(INGEST_STREAM, "+", "-", "COUNT", 500);
