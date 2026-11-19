@@ -2,7 +2,7 @@ import { bearingDeg } from "./scout";
 import { inTeaBuilding, TEA_FLOORS, teaFloorAt } from "./teaBuilding";
 import type { Vec3, World } from "./walker";
 
-const FLOOR_IDS = ["G", "L1", "L2", "L3"] as const;
+export const FLOOR_IDS = ["G", "L1", "L2", "L3"] as const;
 type FloorId = typeof FLOOR_IDS[number];
 type Kind = "stairs" | "elevator" | "restroom";
 type Landmark = {
@@ -41,7 +41,8 @@ export type WorldLandmark = {
   floorId: FloorId;
   distanceM: number;
   bearingDeg: number;
-  access: Landmark["access"];
+  access: Landmark["access"] | "usable";
+  actions?: { type: "ride_elevator"; target: string; floor: FloorId }[];
 };
 
 export type TeaWayfinding = {
@@ -54,6 +55,7 @@ export function teaLandmarks(
   eye: Vec3,
   world: World,
   viewHeading: number = body.body,
+  liftReady = false,
 ): TeaWayfinding {
   if (!inTeaBuilding(body.x, body.z)) return { landmarks: [] };
   const level = teaFloorAt(body.y);
@@ -72,10 +74,13 @@ export function teaLandmarks(
     const distanceM = Math.hypot(dx, dz);
     if (distanceM > 25 || Math.abs(bearingDeg(viewHeading, dx, dz)) > 65) continue;
     if (world.sightBlocked?.(eye, [x, floor.y + 1.5, z])) continue;
+    const id = `tea-${floorId}-${marker.id}`;
     landmarks.push({
-      id: `tea-${floorId}-${marker.id}`, name: marker.name, kind: marker.kind, floorId,
+      id, name: marker.name, kind: marker.kind, floorId,
       distanceM: Number(distanceM.toFixed(2)), bearingDeg: Number(bearingDeg(body.body, dx, dz).toFixed(1)),
-      access: marker.access,
+      access: marker.kind === "elevator" && liftReady ? "usable" : marker.access,
+      ...(marker.kind === "elevator" && liftReady
+        ? { actions: FLOOR_IDS.filter((floor) => floor !== floorId).map((floor) => ({ type: "ride_elevator", target: id, floor })) } : {}),
     });
   }
   landmarks.sort((a, b) => a.distanceM - b.distanceM);

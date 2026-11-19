@@ -9,7 +9,7 @@
 //  - planning cost: a route is planned in well under a tick (grid A* took 0.1-50 s on the tick thread), and an unreachable goal is
 //    refused at once.
 //  - the navmesh is baked from the collision GLB in the repo (a stale bake fails here).
-// Known gaps (kept visible, not hidden): no occlusion test in avoidance (agentBody.ts), no elevator controller (upper floors).
+// Avoidance does not yet test occlusion (agentBody.ts).
 // hall-0's stand used to sit on the hall's wall line (no route, "no safe route"); it now stands 2.5 m off on the walkable side, so all
 // 158 places are reachable by go_to. The hall itself is still a doorless solid box.
 import { createHash } from "node:crypto";
