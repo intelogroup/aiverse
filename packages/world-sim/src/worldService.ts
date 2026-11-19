@@ -14,6 +14,7 @@ import { clipDef, SOCIAL_CLIPS } from "./clips";
 import { agentBodies, BODIES, BODY_REMY } from "./bodies";
 import { LOOK_FAR_M, LOOK_HFOV_DEG, LOOK_LEGEND, LOOK_NO_HIT } from "./look";
 import { encodeGrayPng } from "./png";
+import { teaLandmarks, type TeaWayfinding } from "./teaLandmarks";
 import type { VerseSim } from "./verseSim";
 
 export type WorldErrorCode = "no_body" | "invalid_action" | "id_conflict" | "world_full" | "not_ready" | "spawn_failed";
@@ -56,7 +57,7 @@ export interface SayEvent { seq: number; n: number; text: string; t: number }
 /** Heard lines kept per body, and how long (simulation seconds). */
 const HEARD_KEEP = 20, HEARD_TTL_S = 60, SAY_STREAM_TTL_S = 6, TALK_S = 2;
 
-export interface Observation {
+export interface Observation extends TeaWayfinding {
   /** Simulation time, s. */
   t: number;
   /** The body's state, naming the figure it wears. */
@@ -301,7 +302,7 @@ export class WorldService {
       classPng: b64(encodeGrayPng(r.width, r.height, 8, r.classes)),
       legend: LOOK_LEGEND,
       camera: { gaze: { ...s.body.exec.gaze }, hfovDeg: LOOK_HFOV_DEG, vfovDeg: round(vfov, 1), farM: LOOK_FAR_M, noHit: LOOK_NO_HIT, note: "collision geometry, not visual: glass reads as wall; shop doors are marked as door (a 1.2 x 2.1 m rectangle in the wall); seats and props are small markers; bodies carry no handle (match them to observe.scene by bearing)" },
-      observation: this.observe(agentId),
+      observation: this.observe(agentId, 0, s.body.exec.gaze.yawDeg),
     };
   }
 
@@ -315,7 +316,7 @@ export class WorldService {
     return this.session(agentId).records.get(id);
   }
 
-  observe(agentId: string, heardSince = 0): Observation {
+  observe(agentId: string, heardSince = 0, yawDeg = 0): Observation {
     const s = this.session(agentId);
     s.heard = s.heard.filter((m) => this.sim.t - m.t <= HEARD_TTL_S);
     const st = s.body.state;
@@ -335,6 +336,7 @@ export class WorldService {
       body: { ...s.body.snapshot(), figure: s.figure },
       nearestPlace: np ? { id: np.place.id, name: np.place.name, kind: np.place.kind, dist: round(np.dist, 2) } : null,
       insideRoom: room?.name ?? null,
+      ...teaLandmarks(st, [st.x, st.y + 1.55, st.z], this.sim.world, st.body + yawDeg * Math.PI / 180),
       scene: [...oracleScene(this.sim.places, this.sim.rooms, { x: st.x, z: st.z, heading: st.body }, {}, interactables, seats), ...this.seenBodies(agentId, s)]
         .sort((a, b) => a.distance - b.distance),
       lastAct: s.last,

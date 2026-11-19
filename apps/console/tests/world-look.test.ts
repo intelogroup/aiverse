@@ -46,6 +46,38 @@ function decode(b64: string) {
 }
 
 describe("look", () => {
+  it("names Tea House facilities on the current floor without seeing them through walls", () => {
+    const agent = "tea-landmark-search";
+    service.attach(agent);
+    const body = sim.body(agent)!;
+    try {
+      Object.assign(body.state, { x: -21, y: 0.48, z: -79.65, body: Math.PI, heading: Math.PI });
+      const { landmarks, floor } = service.look(agent).observation;
+      expect(floor).toMatchObject({ id: "G", label: "Ground" });
+      expect(landmarks).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: "tea-G-elevator", kind: "elevator", access: "unavailable" }),
+        expect.objectContaining({ id: "tea-G-restroom", kind: "restroom", distanceM: expect.any(Number), bearingDeg: expect.any(Number) }),
+      ]));
+      expect(landmarks?.every((marker) => marker.floorId === "G")).toBe(true);
+
+      Object.assign(body.state, { x: -35.7, y: 0.48, z: -77.9, body: -Math.PI / 2, heading: -Math.PI / 2 });
+      expect(service.observe(agent).landmarks).toEqual([
+        expect.objectContaining({ id: "tea-G-stairs-a", kind: "stairs", access: "unavailable" }),
+      ]);
+
+      Object.assign(body.state, { x: -21, y: 7.9, z: -79.65, body: Math.PI, heading: Math.PI });
+      const upstairs = service.observe(agent);
+      expect(upstairs.floor).toMatchObject({ id: "L2", label: "Second" });
+      Object.assign(body.state, { body: -2.1, heading: -2.1 });
+      expect(service.observe(agent).landmarks).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: "tea-L2-accessible-restroom", name: "Shared restroom and shower" }),
+      ]));
+      expect(service.observe(agent).landmarks.some((marker) => marker.id === "tea-L2-restroom")).toBe(false);
+    } finally {
+      service.detach(agent);
+    }
+  });
+
   it.each(["Tea House", "stall-52"])("finds and opens an egg from the clue %s", async (clue) => {
     const agent = "egg-search";
     const landmark = service.places().find((p) => p.name.includes(clue));

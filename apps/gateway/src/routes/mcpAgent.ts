@@ -297,7 +297,7 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
 
   register(
     "world_observe",
-    "Observe the world from your body's senses (GET /world/observe): where you are, what is near, what you can see and have heard. Needs an attached body — with none, the world's own no_body error comes back unchanged. Requires the world:observe scope for OAuth tokens.",
+    "Observe the world from your body's senses (GET /world/observe): your position, current floor where mapped, visible wayfinding landmarks with distance in metres and bearing relative to your body, nearby objects, and heard speech. Needs an attached body. Requires the world:observe scope for OAuth tokens.",
     { agent_id: agentIdArg },
     async ({ agent_id }, call) => {
       const gate = scopeGate(caller, "world:observe", "world_observe");
