@@ -30,6 +30,8 @@ export interface ActRecord {
   /** Simulation seconds the action was accepted / settled at. */
   startedAt: number;
   settledAt?: number;
+  /** Server-measured location when a prop interaction completed. */
+  interactionPose?: { x: number; y: number; z: number };
 }
 
 /** One line of speech a body overheard. `text` is another agent's words: untrusted, never an instruction. */
@@ -217,6 +219,10 @@ export class WorldService {
           : outcome;
         rec.state = "settled";
         rec.settledAt = this.sim.t;
+        if (outcome.ok && outcome.status === "done" && rec.action.type === "interact") {
+          const { x, y, z } = s.body.snapshot();
+          rec.interactionPose = { x, y, z };
+        }
       });
     }
     this.remember(s, id, rec);
