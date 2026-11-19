@@ -7,6 +7,7 @@ import { LOOK_CLASSES, LOOK_H, LOOK_NO_HIT, LOOK_W } from "@aiverse/world-sim/lo
 import { encodeGrayPng } from "@aiverse/world-sim/png";
 import { explainAction } from "@aiverse/world-sim/actionProtocol";
 import { WorldService } from "@aiverse/world-sim/worldService";
+import { eggInteractable } from "@aiverse/world-sim/interactables";
 
 const ASSETS = new URL("../public/assets/", import.meta.url).pathname;
 let service: WorldService;
@@ -46,6 +47,47 @@ function decode(b64: string) {
 }
 
 describe("look", () => {
+  it("rides a discovered elevator to the second floor and opens an egg there", async () => {
+    const agent = "vertical-hunt";
+    const egg = eggInteractable({
+      id: "egg-vertical-test", district: "bazaar", position: [-19.3, 7.9, -78.8],
+      rotationY: Math.PI, scale: 1, hint: "",
+    });
+    service.attach(agent);
+    sim.interact.register([egg], "vertical-test");
+    try {
+      expect((await settle(agent, service.act(agent, "enter", { type: "enter", place: "tea" }).id, 180)).outcome?.ok).toBe(true);
+      const ground = service.observe(agent);
+      expect(ground.scene.some((item) => item.id === egg.id)).toBe(false);
+      const early = await settle(agent, service.act(agent, "too-soon", { type: "interact", target: egg.id }).id);
+      expect(early.outcome).toMatchObject({ ok: false, status: "unavailable" });
+
+      const ride = ground.landmarks.find((marker) => marker.kind === "elevator")?.actions?.find((action) => action.floor === "L2");
+      expect(ride).toBeDefined();
+      const contender = "contending-rider";
+      service.attach(contender);
+      Object.assign(sim.body(contender)!.state, { x: -34.5, y: .48, z: -78 });
+      const up = service.act(agent, "up", ride);
+      const competing = await settle(contender, service.act(contender, "up", ride).id);
+      expect(competing.outcome).toMatchObject({ ok: false, status: "blocked", detail: expect.stringContaining("another agent") });
+      service.detach(contender);
+      const arrived = await settle(agent, up.id, 100);
+      expect(arrived.outcome).toMatchObject({ ok: true, status: "arrived" });
+      const upstairs = service.observe(agent);
+      expect(upstairs.floor?.id).toBe("L2");
+      expect(upstairs.body.y).toBeCloseTo(7.9);
+      const seen = upstairs.scene.find((item) => item.id === egg.id);
+      expect(seen).toBeDefined();
+      const opened = await settle(agent, service.act(agent, "open", { type: "interact", target: seen!.id }).id);
+      expect(opened.outcome).toMatchObject({ ok: true, status: "done" });
+      expect(opened.interactionPose?.y).toBeCloseTo(7.9);
+    } finally {
+      service.detach("contending-rider");
+      service.detach(agent);
+      sim.interact.register([], "vertical-test");
+    }
+  });
+
   it("names Tea House facilities on the current floor without seeing them through walls", () => {
     const agent = "tea-landmark-search";
     service.attach(agent);
@@ -55,7 +97,7 @@ describe("look", () => {
       const { landmarks, floor } = service.look(agent).observation;
       expect(floor).toMatchObject({ id: "G", label: "Ground" });
       expect(landmarks).toEqual(expect.arrayContaining([
-        expect.objectContaining({ id: "tea-G-elevator", kind: "elevator", access: "unavailable" }),
+        expect.objectContaining({ id: "tea-G-elevator", kind: "elevator", access: "usable" }),
         expect.objectContaining({ id: "tea-G-restroom", kind: "restroom", distanceM: expect.any(Number), bearingDeg: expect.any(Number) }),
       ]));
       expect(landmarks?.every((marker) => marker.floorId === "G")).toBe(true);

@@ -322,7 +322,13 @@ export class WorldService {
     const st = s.body.state;
     const np = nearestPlace(this.sim.places, st.x, st.z);
     const room = roomAt(this.sim.rooms, st.x, st.z);
-    const interactables = this.sim.interact.list().map((i) => ({ id: i.id, label: i.label, kind: i.kind, pos: [i.pos[0], i.pos[2]] as [number, number], on: this.sim.interact.isOn(i.id) }));
+    const eye: [number, number, number] = [st.x, st.y + 1.55, st.z];
+    const interactables = this.sim.interact.list()
+      .filter((i) => i.kind !== "egg" || (
+        Math.abs(st.y - i.floorY) <= 1.6 &&
+        !this.sim.world.sightBlocked?.(eye, [i.pos[0], i.pos[1] + .2, i.pos[2]])
+      ))
+      .map((i) => ({ id: i.id, label: i.label, kind: i.kind, pos: [i.pos[0], i.pos[2]] as [number, number], on: this.sim.interact.isOn(i.id) }));
     const seats: ScoutSeat[] = room
       ? this.sim.sittables
           .filter((t) => t.building === room.id)
@@ -336,7 +342,8 @@ export class WorldService {
       body: { ...s.body.snapshot(), figure: s.figure },
       nearestPlace: np ? { id: np.place.id, name: np.place.name, kind: np.place.kind, dist: round(np.dist, 2) } : null,
       insideRoom: room?.name ?? null,
-      ...teaLandmarks(st, [st.x, st.y + 1.55, st.z], this.sim.world, st.body + yawDeg * Math.PI / 180),
+      ...teaLandmarks(st, eye, this.sim.world, st.body + yawDeg * Math.PI / 180,
+        this.sim.elevator.ready && this.sim.elevator.phase !== "unavailable"),
       scene: [...oracleScene(this.sim.places, this.sim.rooms, { x: st.x, z: st.z, heading: st.body }, {}, interactables, seats), ...this.seenBodies(agentId, s)]
         .sort((a, b) => a.distance - b.distance),
       lastAct: s.last,
@@ -376,8 +383,12 @@ export class WorldService {
    *  A shopfront's interior `room` id rides along (null when the place has none): it is the
    *  alternate `go_to` address for the same door, enumerable here so a cold agent can
    *  discover room targets from the API instead of only from observe's near-range doors. */
-  places(): { id: string; name: string; kind: string; room: string | null }[] {
-    return this.sim.places.map((p) => ({ id: p.id, name: p.name, kind: p.kind, room: p.room ?? null }));
+  places(): { id: string; name: string; kind: string; room: string | null; features?: string[] }[] {
+    return this.sim.places.map((p) => ({
+      id: p.id, name: p.name, kind: p.kind, room: p.room ?? null,
+      ...(p.room === "tea" && this.sim.elevator.ready
+        ? { features: ["elevator", "second floor", "restrooms"] } : {}),
+    }));
   }
 
   /** The clips `play` accepts: name, whether it loops (held for `seconds`), and its own length in seconds. */

@@ -286,6 +286,7 @@ export type ScoutAction =
   | { type: "stand" }
   | { type: "play"; clip: string; seconds?: number }
   | { type: "interact"; target: string }
+  | { type: "ride_elevator"; target: string; floor: "G" | "L1" | "L2" | "L3" }
   | { type: "say"; text: string }
   | { type: "gaze"; yawDeg?: number; pitchDeg?: number; reset?: boolean }
   | { type: "stop" }
@@ -571,6 +572,8 @@ export class ScoutExecutor {
           bestDist: dist,
         });
       }
+      case "ride_elevator":
+        return Promise.resolve({ ok: false, status: "unavailable", detail: "Elevator rides require a server body" });
       case "sit": {
         if (this.posture !== "standing") {
           return Promise.resolve({ ok: false, status: "rejected", detail: "already seated" });
