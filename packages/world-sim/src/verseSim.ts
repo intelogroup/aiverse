@@ -12,6 +12,8 @@ import { LOOK_CLASSES, renderLook, type LookOpts, type LookResult, type LookScen
 import { InteractController, type InteractableDef } from "./interactables";
 import { bearingDeg, type ScoutPlace, type ScoutRoomShape, type Sittable } from "./scout";
 import { TEA_BLOCKER_BOX, TeaDoorController, type TeaDoorChannel } from "./teaDoor";
+import { TeaElevatorController } from "./teaElevator";
+import { teaLiftCollision } from "./teaLiftCollision";
 import { WalkColliders } from "./walkColliders";
 import type { World } from "./walker";
 
@@ -35,6 +37,8 @@ export class VerseSim {
   readonly walk = new WalkColliders();
   readonly door: TeaDoorController;
   readonly interact = new InteractController();
+  readonly elevator = new TeaElevatorController();
+  private liftCollision?: ReturnType<typeof teaLiftCollision>;
   /** Simulation clock, s (advances by whole substeps). */
   t = 0;
   /** Optional baked navmesh handed to every new body as its route planner. */
@@ -67,6 +71,14 @@ export class VerseSim {
   /** The static collision world (no other actors): for spawn search, probes and tests. */
   get world(): World { return this.staticWorld; }
 
+  enableElevator(): void {
+    if (this.liftCollision) return;
+    this.elevator.ready = true;
+    this.liftCollision = teaLiftCollision(this.elevator);
+    this.liftCollision.update();
+    this.walk.set("elevator:dynamic", this.liftCollision.meshes);
+  }
+
   setData(data: VerseData, interactables: readonly InteractableDef[] = []): void {
     this.data = data;
     this.interact.register(interactables);
@@ -84,7 +96,11 @@ export class VerseSim {
     if (this.bodies.has(opts.id)) throw new Error(`body ${opts.id} already exists`);
     const body = new AgentBody({
       id: opts.id,
-      world: this.actors.wrapWorld(this.staticWorld, opts.id, BODY_HEIGHT_M),
+      world: this.actors.wrapWorld({
+        ...this.staticWorld,
+        prepareStep: (state) => this.elevator.prepare(state),
+        finishStep: (state) => this.elevator.observe(state),
+      }, opts.id, BODY_HEIGHT_M),
       planningWorld: this.planningWorld,
       nav: this.nav,
       actors: this.actors,
@@ -94,6 +110,7 @@ export class VerseSim {
       rooms: this.data.rooms,
       door: this.door,
       interact: this.interact,
+      elevator: this.elevator,
       hipsY: opts.hipsY ?? BODY_REMY.hipsY, // the browser scout's seated-drop body
       spawn: opts.spawn,
       clockMs: () => this.t * 1000,
@@ -193,7 +210,11 @@ export class VerseSim {
   bodyIds(): string[] { return [...this.bodies.keys()]; }
 
   removeBody(id: string): void {
-    this.bodies.get(id)?.dispose();
+    const body = this.bodies.get(id);
+    if (body) {
+      this.elevator.forget(body.state);
+      body.dispose();
+    }
     this.bodies.delete(id);
   }
 
@@ -201,6 +222,8 @@ export class VerseSim {
   tick(dt: number): void {
     while (dt > 1e-9) {
       const s = Math.min(dt, SUBSTEP_S);
+      this.elevator.tick(s);
+      this.liftCollision?.update();
       for (const b of this.bodies.values()) b.step(s);
       this.door.tick(s);
       this.interact.tick(s);

@@ -19,7 +19,7 @@ import type { SimClient } from "../world/simClient";
 // OAuth, conversations — is the real gateway on Postgres.
 
 const FAKE_PLACES = [
-  { id: "shop-102", name: "Matchmaker's Tea House", kind: "shop", room: "tea" },
+  { id: "shop-102", name: "Matchmaker's Tea House", kind: "shop", room: "tea", features: ["elevator", "second floor"] },
   { id: "plaza", name: "Central Plaza", kind: "plaza", room: null },
   { id: "stall-3", name: "Noodle Stall", kind: "stall", room: null },
 ];
@@ -351,6 +351,8 @@ describe("agent MCP with a classic agent token", () => {
     expect(out.roster.agents.every((a: any) => typeof a.id === "string" && typeof a.name === "string")).toBe(true);
     expect(out.world.placesCount).toBe(FAKE_PLACES.length);
     expect(out.world.places.some((p: any) => p.id === "shop-102" && p.room === "tea")).toBe(true);
+    const search = toolJson((await callTool(o.agentToken, "verse_discover", { place_query: "SECOND FLOOR" })).body);
+    expect(search.world).toMatchObject({ placesCount: FAKE_PLACES.length, matchedPlaces: 1, places: [FAKE_PLACES[0]] });
   });
 
   test("world_clips serves the playable clip list the world route serves", async () => {

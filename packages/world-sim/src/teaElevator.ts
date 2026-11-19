@@ -6,6 +6,7 @@ export type LiftDirection = -1|0|1;
 type Call = { floor:number; direction:LiftDirection; at:number };
 type Actor = { state:WalkerState; seen:number; supportY:number|null };
 export class TeaElevatorController {
+  private rider: WalkerState | null = null;
   panelOpen=false; ready=false; phase:LiftPhase='idle'; y:number=TEA_FLOORS[0].y; velocity=0; floor=0; target=0; door=0; direction:LiftDirection=0; now=0; dwell=0; held=false; fault='';
   private actors=new Map<WalkerState,Actor>(); private calls:Call[]=[];
   private trip:{start:number; distance:number; sign:number; time:number; accelTime:number; cruise:number; peak:number}|null=null;
@@ -38,6 +39,14 @@ export class TeaElevatorController {
   }
   prepare(s:WalkerState){const a=this.actors.get(s);if(a?.supportY!==null&&a?.supportY!==undefined){s.y+=this.y-a.supportY;s.vy=0;s.grounded=true;a.supportY=this.y;}this.observe(s);}
   forget(s:WalkerState){this.actors.delete(s);}
+  reserveRide(state: WalkerState): boolean {
+    if (this.rider) return false;
+    this.rider = state;
+    return true;
+  }
+  releaseRide(state: WalkerState): void {
+    if (this.rider === state) this.rider = null;
+  }
   overCapacity(){return [...this.actors.values()].filter(a=>a.supportY!==null).length>2;}
   obstructed(){return this.overCapacity()||[...this.actors.values()].some(({state:s})=>Math.abs(s.y-this.y)<1.8&&Math.abs(s.x-LIFT.x)<.95&&s.z>LIFT.front-.46&&s.z<LIFT.doorZ+.48);}
   private choose(){

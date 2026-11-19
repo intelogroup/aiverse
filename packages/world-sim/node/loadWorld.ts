@@ -56,8 +56,14 @@ export async function loadVerseSim(assetsDir: string, opts: { navBin?: string | 
     if (center) g.position.set(center[0], 0, center[1]);
     g.add(await glbScene(at(assetsDir, url)));
     g.updateMatrixWorld(true);
-    const meshes = bakeCollisionParts(g, `collision:${key}`);
+    const doorLevels = new Set<string>();
+    g.traverse((node) => {
+      if ((node as THREE.Mesh).isMesh && node.userData.elevatorDoor === true) doorLevels.add(node.name);
+    });
+    const movingLift = key === "resident" && doorLevels.size === 4;
+    const meshes = bakeCollisionParts(g, `collision:${key}`, (mesh) => !movingLift || mesh.userData.elevatorDoor !== true);
     if (meshes.length) sim.walk.set(key, meshes);
+    if (movingLift && meshes.length) sim.enableElevator();
     return meshes.length > 0;
   };
   const resident = manifest.districts.find((d) => d.resident);
