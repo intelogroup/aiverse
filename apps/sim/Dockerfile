@@ -17,6 +17,7 @@ COPY packages/world-sim packages/world-sim
 COPY apps/console/public/assets/districts.json apps/console/public/assets/city3-places.json apps/console/public/assets/city3-anchors.json apps/console/public/assets/
 COPY apps/console/public/assets/world-*-collision.glb apps/console/public/assets/
 COPY apps/console/public/assets/interiors apps/console/public/assets/interiors
+COPY apps/console/public/assets/collectibles/easter-eggs.json apps/console/public/assets/collectibles/
 ENV SIM_HOST=0.0.0.0 SIM_PORT=3020
 EXPOSE 3020
 CMD ["bun", "run", "--cwd", "apps/sim", "start"]

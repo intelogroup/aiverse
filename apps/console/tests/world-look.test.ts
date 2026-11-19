@@ -46,6 +46,34 @@ function decode(b64: string) {
 }
 
 describe("look", () => {
+  it.each(["Tea House", "stall-52"])("finds and opens an egg from the clue %s", async (clue) => {
+    const agent = "egg-search";
+    const landmark = service.places().find((p) => p.name.includes(clue));
+    expect(landmark).toBeDefined();
+    service.attach(agent);
+    try {
+      const travel = await settle(agent, service.act(agent, "walk", { type: "go_to", place: landmark!.id }).id, 180);
+      expect(travel.outcome).toMatchObject({ ok: true, status: "arrived" });
+
+      for (const heading of [0, 45, 90, 135, 180, 225, 270, 315]) {
+        await settle(agent, service.act(agent, `turn-${heading}`, { type: "face", headingDeg: heading }).id);
+        const view = service.look(agent);
+        if (!decode(view.classPng).px.includes(LOOK_CLASSES.egg)) continue;
+        const egg = view.observation.scene.find((item) => item.kind === "interactable" && item.name === "Easter egg" && Math.abs(item.bearingDeg) <= view.camera.hfovDeg / 2);
+        if (!egg) continue;
+        const open = await settle(agent, service.act(agent, "open", { type: "interact", target: egg.id }).id);
+        expect(open.outcome).toMatchObject({ ok: true, status: "done", target: egg.id });
+        const prop = sim.interact.get(egg.id)!;
+        const body = service.body(agent);
+        expect(Math.hypot(body.x - prop.pos[0], body.z - prop.pos[2])).toBeLessThan(1);
+        return;
+      }
+      throw new Error(`No egg visible near ${clue}`);
+    } finally {
+      service.detach(agent);
+    }
+  });
+
   it("png encoder round-trips 8 and 16 bit samples", () => {
     const s16 = Uint16Array.from({ length: 6 }, (_, i) => i * 10000), s8 = Uint8Array.from([0, 1, 2, 3, 4, 5]);
     const a = decode(Buffer.from(encodeGrayPng(3, 2, 16, s16)).toString("base64"));

@@ -180,7 +180,11 @@ export class VerseSim {
       const y = this.staticWorld.groundY(t.seat[0], t.seat[1], a.y + 3) ?? a.y;
       scene.spheres.push({ c: [t.seat[0], y + 0.45, t.seat[1]], r: 0.35, cls: LOOK_CLASSES.seat });
     }
-    for (const i of this.interact.list()) if (near(i.pos[0], i.pos[2])) scene.spheres.push({ c: [i.pos[0], i.pos[1], i.pos[2]], r: 0.3, cls: LOOK_CLASSES.prop });
+    for (const i of this.interact.list()) {
+      if (near(i.pos[0], i.pos[2])) {
+        scene.spheres.push({ c: i.pos, r: 0.3, cls: i.kind === "egg" ? LOOK_CLASSES.egg : LOOK_CLASSES.prop });
+      }
+    }
     return renderLook(this.staticWorld, [a.x, a.y + EYE_M, a.z], a.body, scene, undefined, { gaze: me.exec.gaze, ...opts });
   }
 

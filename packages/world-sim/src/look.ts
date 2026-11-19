@@ -13,7 +13,7 @@ export const LOOK_FAR_M = 40;
 export const LOOK_NO_HIT = 65535;
 
 /** Class codes in the class image (the legend sent with every look). Codes never move: new classes are appended. */
-export const LOOK_CLASSES = { sky: 0, floor: 1, wall: 2, seat: 3, prop: 4, body: 5, door: 6 } as const;
+export const LOOK_CLASSES = { sky: 0, floor: 1, wall: 2, seat: 3, prop: 4, body: 5, door: 6, egg: 7 } as const;
 /** A door reads as `door` when its rectangle is within this of the wall behind it (a closed leaf and the wall are coplanar). */
 const DOOR_SLACK_M = 0.08;
 export const LOOK_LEGEND: Record<number, string> = Object.fromEntries(Object.entries(LOOK_CLASSES).map(([k, v]) => [v, k]));

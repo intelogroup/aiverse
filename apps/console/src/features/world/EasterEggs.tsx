@@ -4,26 +4,7 @@ import { extendGltf } from "./gltfExtensions";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import type { InteractableDef, InteractController } from "./interactables";
-
-export type EggPlacement = {
-  id: string;
-  district: string;
-  position: [number, number, number];
-  rotationY: number;
-  scale: number;
-  hint: string;
-};
-
-/** Eggs are usable props: stand 0.7 m in front of the egg (along its heading), face it. Toggles like any interactable. */
-export function eggInteractable(e: EggPlacement): InteractableDef {
-  const [x, y, z] = e.position, h = e.rotationY;
-  return {
-    id: e.id, room: e.district, kind: "egg", asset: "scifi-easter-egg", label: "Easter egg",
-    pos: e.position, rotY: h,
-    stand: [x + Math.sin(h) * 0.7, z + Math.cos(h) * 0.7], heading: h + Math.PI, floorY: y,
-  };
-}
+import { eggInteractable, type EggPlacement, type InteractController } from "./interactables";
 
 export type HaloState = "none" | "ready" | "active" | "spent";
 /** What an egg's halo shows: payload taken (grey) beats activated (gold) beats usable-now (cyan pulse). */

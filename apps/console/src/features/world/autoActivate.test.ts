@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { InteractController, type InteractableDef } from "./interactables";
 import { autoActivateTarget, AUTO_ACTIVATE_REARM } from "./scout";
-import { eggInteractable, haloLevel, haloState } from "./EasterEggs";
+import { haloLevel, haloState } from "./EasterEggs";
+import { eggInteractable } from "./interactables";
 
 const egg = eggInteractable({ id: "egg-t", district: "bazaar", position: [10, 0.2, 5], rotationY: 0, scale: 1, hint: "" });
 
