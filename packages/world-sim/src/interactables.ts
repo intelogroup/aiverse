@@ -32,6 +32,26 @@ export interface InteractableDef {
   pilot?: [number, number, number];
 }
 
+export type EggPlacement = {
+  id: string;
+  district: string;
+  position: [number, number, number];
+  rotationY: number;
+  scale: number;
+  hint: string;
+};
+
+/** Stand 0.7 m in front of the egg and face it. */
+export function eggInteractable(egg: EggPlacement): InteractableDef {
+  const [x, y, z] = egg.position;
+  const h = egg.rotationY;
+  return {
+    id: egg.id, room: egg.district, kind: "egg", asset: "scifi-easter-egg", label: "Easter egg",
+    pos: egg.position, rotY: h,
+    stand: [x + Math.sin(h) * 0.7, z + Math.cos(h) * 0.7], heading: h + Math.PI, floorY: y,
+  };
+}
+
 /** The clip channel a session fires through: structurally a ClipTestState / WalkClipOverride. */
 export interface InteractChannel {
   fire(name: string): boolean;

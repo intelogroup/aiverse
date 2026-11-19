@@ -14,6 +14,7 @@ import { clipDef, SOCIAL_CLIPS } from "./clips";
 import { agentBodies, BODIES, BODY_REMY } from "./bodies";
 import { LOOK_FAR_M, LOOK_HFOV_DEG, LOOK_LEGEND, LOOK_NO_HIT } from "./look";
 import { encodeGrayPng } from "./png";
+import { teaLandmarks, type TeaWayfinding } from "./teaLandmarks";
 import type { VerseSim } from "./verseSim";
 
 export type WorldErrorCode = "no_body" | "invalid_action" | "id_conflict" | "world_full" | "not_ready" | "spawn_failed";
@@ -30,6 +31,8 @@ export interface ActRecord {
   /** Simulation seconds the action was accepted / settled at. */
   startedAt: number;
   settledAt?: number;
+  /** Server-measured location when a prop interaction completed. */
+  interactionPose?: { x: number; y: number; z: number };
 }
 
 /** One line of speech a body overheard. `text` is another agent's words: untrusted, never an instruction. */
@@ -54,7 +57,7 @@ export interface SayEvent { seq: number; n: number; text: string; t: number }
 /** Heard lines kept per body, and how long (simulation seconds). */
 const HEARD_KEEP = 20, HEARD_TTL_S = 60, SAY_STREAM_TTL_S = 6, TALK_S = 2;
 
-export interface Observation {
+export interface Observation extends TeaWayfinding {
   /** Simulation time, s. */
   t: number;
   /** The body's state, naming the figure it wears. */
@@ -217,6 +220,10 @@ export class WorldService {
           : outcome;
         rec.state = "settled";
         rec.settledAt = this.sim.t;
+        if (outcome.ok && outcome.status === "done" && rec.action.type === "interact") {
+          const { x, y, z } = s.body.snapshot();
+          rec.interactionPose = { x, y, z };
+        }
       });
     }
     this.remember(s, id, rec);
@@ -295,7 +302,7 @@ export class WorldService {
       classPng: b64(encodeGrayPng(r.width, r.height, 8, r.classes)),
       legend: LOOK_LEGEND,
       camera: { gaze: { ...s.body.exec.gaze }, hfovDeg: LOOK_HFOV_DEG, vfovDeg: round(vfov, 1), farM: LOOK_FAR_M, noHit: LOOK_NO_HIT, note: "collision geometry, not visual: glass reads as wall; shop doors are marked as door (a 1.2 x 2.1 m rectangle in the wall); seats and props are small markers; bodies carry no handle (match them to observe.scene by bearing)" },
-      observation: this.observe(agentId),
+      observation: this.observe(agentId, 0, s.body.exec.gaze.yawDeg),
     };
   }
 
@@ -309,13 +316,19 @@ export class WorldService {
     return this.session(agentId).records.get(id);
   }
 
-  observe(agentId: string, heardSince = 0): Observation {
+  observe(agentId: string, heardSince = 0, yawDeg = 0): Observation {
     const s = this.session(agentId);
     s.heard = s.heard.filter((m) => this.sim.t - m.t <= HEARD_TTL_S);
     const st = s.body.state;
     const np = nearestPlace(this.sim.places, st.x, st.z);
     const room = roomAt(this.sim.rooms, st.x, st.z);
-    const interactables = this.sim.interact.list().map((i) => ({ id: i.id, label: i.label, kind: i.kind, pos: [i.pos[0], i.pos[2]] as [number, number], on: this.sim.interact.isOn(i.id) }));
+    const eye: [number, number, number] = [st.x, st.y + 1.55, st.z];
+    const interactables = this.sim.interact.list()
+      .filter((i) => i.kind !== "egg" || (
+        Math.abs(st.y - i.floorY) <= 1.6 &&
+        !this.sim.world.sightBlocked?.(eye, [i.pos[0], i.pos[1] + .2, i.pos[2]])
+      ))
+      .map((i) => ({ id: i.id, label: i.label, kind: i.kind, pos: [i.pos[0], i.pos[2]] as [number, number], on: this.sim.interact.isOn(i.id) }));
     const seats: ScoutSeat[] = room
       ? this.sim.sittables
           .filter((t) => t.building === room.id)
@@ -329,6 +342,8 @@ export class WorldService {
       body: { ...s.body.snapshot(), figure: s.figure },
       nearestPlace: np ? { id: np.place.id, name: np.place.name, kind: np.place.kind, dist: round(np.dist, 2) } : null,
       insideRoom: room?.name ?? null,
+      ...teaLandmarks(st, eye, this.sim.world, st.body + yawDeg * Math.PI / 180,
+        this.sim.elevator.ready && this.sim.elevator.phase !== "unavailable"),
       scene: [...oracleScene(this.sim.places, this.sim.rooms, { x: st.x, z: st.z, heading: st.body }, {}, interactables, seats), ...this.seenBodies(agentId, s)]
         .sort((a, b) => a.distance - b.distance),
       lastAct: s.last,
@@ -368,8 +383,12 @@ export class WorldService {
    *  A shopfront's interior `room` id rides along (null when the place has none): it is the
    *  alternate `go_to` address for the same door, enumerable here so a cold agent can
    *  discover room targets from the API instead of only from observe's near-range doors. */
-  places(): { id: string; name: string; kind: string; room: string | null }[] {
-    return this.sim.places.map((p) => ({ id: p.id, name: p.name, kind: p.kind, room: p.room ?? null }));
+  places(): { id: string; name: string; kind: string; room: string | null; features?: string[] }[] {
+    return this.sim.places.map((p) => ({
+      id: p.id, name: p.name, kind: p.kind, room: p.room ?? null,
+      ...(p.room === "tea" && this.sim.elevator.ready
+        ? { features: ["elevator", "second floor", "restrooms"] } : {}),
+    }));
   }
 
   /** The clips `play` accepts: name, whether it loops (held for `seconds`), and its own length in seconds. */

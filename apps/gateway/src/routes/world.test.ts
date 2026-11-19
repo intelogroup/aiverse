@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
-import { agentVisits } from "@aiverse/shared/schema";
+import { agentVisits, eggHuntWins } from "@aiverse/shared/schema";
 import { loadVerseSim } from "@aiverse/world-sim/node/loadWorld";
 import { WorldService } from "@aiverse/world-sim/worldService";
 import { createSimServer } from "@aiverse/sim/server";
@@ -17,6 +17,10 @@ import { clearPresence } from "../presence";
 // real sim server -> real world (City 3 collision + navmesh). The sim is ticked by hand so the walk is fast and deterministic.
 const SECRET = "x".repeat(48);
 const ASSETS = new URL("../../../console/public/assets/", import.meta.url).pathname;
+const hunt = {
+  id: `test-tea-${crypto.randomUUID()}`, clue: "Look beside the Tea House.",
+  eggId: "egg-bazaar-02", payload: "The brass compass is yours.", credits: 10,
+};
 // The look service behind POST /world/see, faked at the client seam: records what the gateway asked for and answers a
 // canned frame (or a failure, when lookMode flips) — the real service is a Chromium process, not a test dependency.
 let lookMode: "ok" | "down" = "ok";
@@ -60,7 +64,14 @@ beforeAll(async () => {
   service = new WorldService({ sim, maxBodies: 5 });
   const simApp = createSimServer({ service, secret: SECRET, now: () => clock });
   simHttp = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: simApp.fetch });
-  app = createApp({ sim: httpSimClient(`http://127.0.0.1:${simHttp.port}`, SECRET), look: fakeLook });
+  const previousHunt = process.env.AIVERSE_EGG_HUNT;
+  process.env.AIVERSE_EGG_HUNT = JSON.stringify(hunt);
+  try {
+    app = createApp({ sim: httpSimClient(`http://127.0.0.1:${simHttp.port}`, SECRET), look: fakeLook });
+  } finally {
+    if (previousHunt === undefined) delete process.env.AIVERSE_EGG_HUNT;
+    else process.env.AIVERSE_EGG_HUNT = previousHunt;
+  }
   server = Bun.serve({ port: 0, fetch: app.fetch, websocket });
 }, 120_000);
 
@@ -96,6 +107,73 @@ async function settle(token: string, id: string, maxS = 240) {
 }
 
 describe("/world (agent body)", () => {
+  test("egg hunt pays one test-credit award after a verified interaction", async () => {
+    const a = await ownerWithAgent("HuntOne"), b = await ownerWithAgent("HuntTwo");
+    const agents = [a, b];
+    const prize = { payload: hunt.payload, credits: hunt.credits };
+    const claim = (token: string, actId: string) => w(token, "POST", "/hunt/claim", { contestId: hunt.id, actId });
+    const act = async (token: string, id: string, action: unknown) => {
+      expect((await w(token, "POST", "/act", { id, action })).status).toBe(202);
+      return (await settle(token, id)).outcome;
+    };
+    try {
+      expect((await w(a.agentToken, "GET", "/hunt")).status).toBe(403);
+      for (const agent of agents) await startVisit(agent.ownerToken, agent.agentId);
+      expect(await (await w(a.agentToken, "GET", "/hunt")).json()).toEqual({
+        id: hunt.id, clue: hunt.clue, credits: hunt.credits, status: "open",
+      });
+      expect((await w(a.agentToken, "POST", "/body")).status).toBe(201);
+      expect((await claim(a.agentToken, "fake-open")).status).toBe(403);
+      expect((await w(a.agentToken, "POST", "/hunt/claim", {
+        contestId: hunt.id, actId: "fake-open", x: -30.1, z: -70.5,
+      })).status).toBe(400);
+      service.detach(a.agentId);
+      service.attach(a.agentId, { x: -11.6, z: 1.7 });
+      expect(await act(a.agentToken, "decoy", { type: "interact", target: "egg-bazaar-01" })).toMatchObject({
+        ok: true, status: "done",
+      });
+      expect((await claim(a.agentToken, "decoy")).status).toBe(403);
+      expect(await db.query.eggHuntWins.findFirst({ where: eq(eggHuntWins.contestId, hunt.id) })).toBeUndefined();
+      service.detach(a.agentId);
+
+      // Stage the race near the landmark and leave the interaction stand clear for the second body.
+      service.attach(a.agentId, { x: -29.63, z: -71.016 });
+      expect(await act(a.agentToken, "open-one", { type: "interact", target: hunt.eggId })).toMatchObject({
+        ok: true, status: "done", target: hunt.eggId,
+      });
+      expect(await act(a.agentToken, "walk-away", { type: "go_to", point: [-34.0, -71.016] })).toMatchObject({
+        ok: true, status: "arrived",
+      });
+      expect(await (await claim(a.agentToken, "open-one")).json()).toEqual({ error: "return_to_the_egg" });
+      expect(await act(a.agentToken, "stand-clear", { type: "go_to", point: [-31.63, -71.016] })).toMatchObject({
+        ok: true, status: "arrived",
+      });
+      service.attach(b.agentId, { x: -29.63, z: -71.016 });
+      expect((await claim(b.agentToken, "open-one")).status).toBe(403);
+      expect(await act(b.agentToken, "open-two", { type: "interact", target: hunt.eggId })).toMatchObject({
+        ok: true, status: "done", target: hunt.eggId,
+      });
+
+      const attempts = ["open-one", "open-two"];
+      const results = await Promise.all(agents.map((agent, i) => claim(agent.agentToken, attempts[i]!)));
+      expect(results.map((res) => res.status).sort()).toEqual([201, 409]);
+      const winner = results.findIndex((res) => res.status === 201);
+      expect(await results[winner]!.json()).toEqual({ status: "won", reward: prize });
+      const retry = await claim(agents[winner]!.agentToken, attempts[winner]!);
+      expect(retry.status).toBe(200);
+      expect(await retry.json()).toEqual({ status: "won", reward: prize });
+      expect(await db.select().from(eggHuntWins).where(eq(eggHuntWins.contestId, hunt.id))).toMatchObject([
+        { agentId: agents[winner]!.agentId, ...prize },
+      ]);
+      const loser = agents[1 - winner]!;
+      expect(await (await w(loser.agentToken, "GET", "/hunt")).json()).toEqual({
+        id: hunt.id, clue: hunt.clue, credits: hunt.credits, status: "closed",
+      });
+    } finally {
+      for (const agent of agents) service.detach(agent.agentId);
+    }
+  }, 30_000);
+
   test("no token -> 401; token but no visit -> 403 no_visit", async () => {
     expect((await w("", "GET", "/observe")).status).toBe(401);
     const { agentToken } = await ownerWithAgent("WorldNoVisit");

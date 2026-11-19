@@ -13,7 +13,10 @@ import type { InteractController } from "./interactables";
 import { navigationSegment, planRoute } from "./navigation";
 import { ScoutExecutor, type Gaze, type Posture, type ScoutAction, type ScoutOutcome, type ScoutPlace, type ScoutRoomShape, type Sittable } from "./scout";
 import { clipChannel, type TeaDoorChannel, type TeaDoorController } from "./teaDoor";
-import { findSpawn, makeWalker, WALK_CONFIG, type Vec2, type WalkerState, type World } from "./walker";
+import { inTeaBuilding, TEA_FLOORS, teaFloorAt } from "./teaBuilding";
+import { LIFT, type TeaElevatorController } from "./teaElevator";
+import { FLOOR_IDS } from "./teaLandmarks";
+import { findSpawn, makeWalker, step, WALK_CONFIG, type Vec2, type WalkerState, type World } from "./walker";
 
 /** Substep ceiling: walker.step is tuned at 1/30 s (ScoutAgent's sim driver uses the same). */
 export const SUBSTEP_S = 1 / 30;
@@ -26,6 +29,10 @@ const AVOID_HALF_FOV = Math.PI / 4;
 /** A Detour corridor may stop this far (XZ, m) from the goal and still count as reached (inside every interaction radius). */
 const NAV_END_GAP_M = 1.0;
 const NAV = { halfExtent: 128, cellSize: 1, maxExpansions: 10000 };
+const ELEVATOR_APPROACH_Z = LIFT.doorZ + 1.29;
+const ELEVATOR_CLEAR_Z = LIFT.doorZ + .89;
+const ELEVATOR_BOARD_Z = LIFT.front - .68;
+const ELEVATOR_CABIN_Z = (LIFT.front + LIFT.back) / 2;
 /** Action types that move the body: their blocked outcomes carry proprioception evidence (blockedBy / blockedAfterMs). */
 const MOVEMENT_TYPES: ReadonlySet<ScoutAction["type"]> = new Set(["go_to", "run_to", "enter"]);
 /** blockedBy names a published place or seat only within this distance of the obstruction (m); farther, the field is omitted. */
@@ -46,6 +53,7 @@ export interface AgentBodyDeps {
   rooms?: ScoutRoomShape[];
   door?: TeaDoorController;
   interact?: InteractController;
+  elevator?: TeaElevatorController;
   /** Hips height for the seated drop (bodies.ts BODY_REMY.hipsY in the browser scout). */
   hipsY: number;
   /** Where to appear: free standing spot near (x, z) within maxR (default 3 m). Omitted: the plaza spawn search. */
@@ -94,6 +102,14 @@ export class AgentBody {
   readonly clips = new ClipTestState();
   private readonly deps: AgentBodyDeps;
   private readonly channel: TeaDoorChannel;
+  private ride?: {
+    action: Extract<ScoutAction, { type: "ride_elevator" }>;
+    from: number;
+    to: number;
+    phase: "approach" | "wait" | "board" | "travel" | "exit";
+    remaining: number;
+    resolve: (result: ScoutOutcome) => void;
+  };
 
   constructor(deps: AgentBodyDeps) {
     this.deps = deps;
@@ -163,16 +179,94 @@ export class AgentBody {
     });
   }
 
-  get busy(): boolean { return this.exec.busy; }
+  get busy(): boolean { return this.exec.busy || this.ride !== undefined; }
 
   /** Submit one action. Resolves when it settles (arrived / done / blocked / timeout / rejected ...). */
   act(action: ScoutAction): Promise<ScoutOutcome> {
+    if (action.type === "ride_elevator") return this.startRide(action);
+    if (this.ride) {
+      if (action.type !== "stop") return Promise.resolve({ ok: false, status: "rejected", detail: "busy" });
+      if (this.ride.phase !== "approach" && this.ride.phase !== "wait") {
+        return Promise.resolve({ ok: false, status: "rejected", detail: "Wait until you are clear of the elevator" });
+      }
+      this.finishRide({ ok: false, status: "blocked", detail: "Elevator ride canceled" });
+    }
+    if (action.type === "interact") {
+      const prop = this.deps.interact?.list().find((d) =>
+        d.id === action.target || d.kind === action.target || d.label.toLowerCase() === action.target.toLowerCase());
+      if (prop?.kind === "egg" && Math.abs(this.state.y - prop.floorY) > 1.6) {
+        return Promise.resolve({ ok: false, status: "unavailable", detail: "The egg is on a different floor", target: prop.id });
+      }
+    }
     const t0 = this.exec.t;
     return this.exec.submit(action, this.state).then((o) => {
       if (o.status !== "blocked") return o;
       const explained = this.explainBlocked(o);
       return MOVEMENT_TYPES.has(action.type) ? this.blockedEvidence(action, explained, t0) : explained;
     });
+  }
+
+  private startRide(action: Extract<ScoutAction, { type: "ride_elevator" }>): Promise<ScoutOutcome> {
+    const lift = this.deps.elevator;
+    const s = this.state;
+    const from = teaFloorAt(s.y);
+    const to = FLOOR_IDS.indexOf(action.floor);
+    if (this.busy) return Promise.resolve({ ok: false, status: "rejected", detail: "busy" });
+    if (!lift?.ready || !inTeaBuilding(s.x, s.z) || Math.abs(s.y - TEA_FLOORS[from]!.y) > .3 ||
+        action.target !== `tea-${FLOOR_IDS[from]}-elevator` || to === from || to < 0 || this.exec.posture !== "standing") {
+      return Promise.resolve({ ok: false, status: "unavailable", detail: "Use a visible elevator marker on your current floor and choose a different floor" });
+    }
+    if (!lift.reserveRide(s)) return Promise.resolve({ ok: false, status: "blocked", detail: "Elevator is serving another agent. Try again after it arrives." });
+    return new Promise((resolve) => {
+      this.ride = { action, from, to, phase: "approach", remaining: 90, resolve };
+      const ride = this.ride;
+      void this.exec.submit({ type: "go_to", point: [LIFT.x, ELEVATOR_APPROACH_Z] }, s).then((result) => {
+        if (this.ride !== ride) return;
+        if (!result.ok || lift.access(s) !== from || !lift.call(from)) {
+          this.finishRide({ ok: false, status: "blocked", detail: "Could not approach or call the elevator" });
+          return;
+        }
+        ride.phase = "wait";
+      });
+    });
+  }
+
+  private finishRide(result: ScoutOutcome): void {
+    const ride = this.ride!;
+    this.ride = undefined;
+    this.deps.elevator?.releaseRide(this.state);
+    ride.resolve({ ...result, target: ride.action.target });
+  }
+
+  private stepRide(dt: number): void {
+    const lift = this.deps.elevator!;
+    const ride = this.ride!;
+    const s = this.state;
+    const idle = { forward: 0, strafe: 0, turn: 0, run: false };
+    ride.remaining -= dt;
+    if (ride.remaining <= 0 || lift.phase === "unavailable") {
+      this.finishRide({ ok: false, status: "blocked", detail: "Elevator ride could not reach the requested landing" });
+      step(s, idle, dt, this.deps.world);
+      return;
+    }
+    if (ride.phase === "wait" && lift.canPass(ride.from)) ride.phase = "board";
+    if (ride.phase === "travel" && lift.canPass(ride.to)) ride.phase = "exit";
+    if (ride.phase === "board" && lift.access(s) === "cabin" && s.z <= ELEVATOR_BOARD_Z) {
+      ride.phase = "travel";
+      if (!lift.call(ride.to)) {
+        this.finishRide({ ok: false, status: "blocked", detail: "Elevator refused the destination" });
+      }
+    } else if (ride.phase === "exit" && s.z >= ELEVATOR_CLEAR_Z && Math.abs(s.y - TEA_FLOORS[ride.to]!.y) <= .2) {
+      this.finishRide({ ok: true, status: "arrived", detail: `Exited elevator on ${ride.action.floor}` });
+    }
+    const moving = this.ride && (ride.phase === "board" || ride.phase === "exit");
+    const targetZ = ride.phase === "board" ? ELEVATOR_CABIN_Z : ELEVATOR_APPROACH_Z;
+    const dx = LIFT.x - s.x;
+    // Center the capsule before crossing the narrow sill, then keep it centered.
+    const facing = Math.atan2(dx * 5, targetZ - s.z);
+    step(s, moving ? {
+      ...idle, forward: 0.55, faceHeading: facing,
+    } : idle, dt, this.deps.world);
   }
 
   /**
@@ -221,7 +315,8 @@ export class AgentBody {
 
   /** Advance ONE substep (dt <= SUBSTEP_S): the executor and walker, the mover registry, the one-shot clip clock. */
   step(dt: number): void {
-    this.exec.tick(dt, this.state, this.deps.world);
+    if (this.ride && this.ride.phase !== "approach") this.stepRide(dt);
+    else this.exec.tick(dt, this.state, this.deps.world);
     const a = this.exec.currentAction;
     this.deps.actors.publishWalker(this.id, this.state, WALK_CONFIG.radius, BODY_HEIGHT_M, true, a?.type === "play" && this.clips.current === a.clip ? a.clip : undefined);
     this.clips.tick(dt);
@@ -236,7 +331,7 @@ export class AgentBody {
       heading: s.body,
       speed: s.speed,
       posture: this.exec.posture,
-      action: this.exec.currentAction?.type ?? null,
+      action: this.ride?.action.type ?? this.exec.currentAction?.type ?? null,
       clip: this.clips.current,
       seatedOn: this.exec.seatedSittable?.id ?? null,
       gaze: { ...this.exec.gaze },
@@ -260,6 +355,7 @@ export class AgentBody {
 
   /** Forget this body's registry entry (agent left the world). */
   dispose(): void {
+    if (this.ride) this.finishRide({ ok: false, status: "blocked", detail: "Body left the world" });
     this.deps.actors.remove(this.id);
     this.deps.door?.cancel(this.id);
     this.deps.interact?.cancel(this.id);

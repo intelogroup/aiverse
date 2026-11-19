@@ -191,9 +191,9 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
 
   register(
     "verse_discover",
-    "Discover the Verse: the network agent card (bootstrap endpoints, world info), how many agents are here, and a compact world summary (places, when your visit and the world allow). Start here when you arrive cold.",
-    { agent_id: agentIdArg },
-    async ({ agent_id }, call) => {
+    "Discover the Verse and search its map by name, kind, or features. Use place_query with a feature such as 'second floor' or 'elevator' when you don't know the building's name. Requires an active visit for places.",
+    { agent_id: agentIdArg, place_query: z.string().trim().min(1).max(120).optional() },
+    async ({ agent_id, place_query }, call) => {
       const card = await call("/.well-known/agent-card.json");
       if (!card.ok) return fail(`agent card unavailable (error ${card.status})`);
       const roster = await call("/agents/discover");
@@ -206,10 +206,18 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
       if (!("error" in eff)) {
         const places = await call("/world/places", { agentId: caller.kind === "oauth" ? eff.agentId : undefined });
         if (places.ok && Array.isArray(places.data?.places)) {
-          const all = places.data.places as any[];
+          const all = places.data.places as { id: string; name: string; kind: string; room?: string; features?: string[] }[];
+          const query = place_query?.toLowerCase();
+          const results = query ? all.filter((p) =>
+            [p.id, p.name, p.kind, ...(p.features ?? [])].some((text) => text.toLowerCase().includes(query)),
+          ) : all;
           world = {
             placesCount: all.length,
-            places: all.slice(0, 10).map((p) => ({ id: p.id, name: p.name, kind: p.kind, room: p.room ?? null })),
+            ...(query ? { matchedPlaces: results.length } : {}),
+            places: results.slice(0, 10).map((p) => ({
+              id: p.id, name: p.name, kind: p.kind, room: p.room ?? null,
+              ...(p.features ? { features: p.features } : {}),
+            })),
           };
         } else {
           world = { places: null, note: `places unavailable (${places.status}): ${places.text}` };
@@ -297,7 +305,7 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
 
   register(
     "world_observe",
-    "Observe the world from your body's senses (GET /world/observe): where you are, what is near, what you can see and have heard. Needs an attached body — with none, the world's own no_body error comes back unchanged. Requires the world:observe scope for OAuth tokens.",
+    "Observe the world from your body's senses (GET /world/observe): your position, current floor where mapped, visible wayfinding landmarks with distance in metres and bearing relative to your body, nearby objects, and heard speech. Needs an attached body. Requires the world:observe scope for OAuth tokens.",
     { agent_id: agentIdArg },
     async ({ agent_id }, call) => {
       const gate = scopeGate(caller, "world:observe", "world_observe");
@@ -401,7 +409,7 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
     "world_act",
     "Act in the world (POST /world/act): one flat action object, passed through untouched — {type:\"go_to\"|\"run_to\"|\"enter\"|\"face\"|\"wait\"|\"sit\"|\"stand\"|\"play\"|\"interact\"|\"gaze\"|\"say\"|\"stop\", ...fields} (see the guide resource or GET /world/clips for the play vocabulary). Needs an attached body. The sim accepts or refuses in its own words, returned verbatim. An optional id makes the act idempotent (a retry with the same id and action replays the first record); one is generated when omitted. Requires the world:act scope for OAuth tokens.",
     {
-      action: z.any().describe("The flat action object, e.g. {\"type\":\"play\",\"clip\":\"Waving\"} or {\"type\":\"go_to\",\"place\":\"shop-102\"}. Passed to the world untouched."),
+      action: z.any().describe("A flat world action, for example {\"type\":\"go_to\",\"place\":\"shop-102\"}. For a usable elevator in world_observe.landmarks, use {\"type\":\"ride_elevator\",\"target\":\"<marker id>\",\"floor\":\"L2\"}. Poll world_observe for the result."),
       id: z
         .string()
         .min(1)

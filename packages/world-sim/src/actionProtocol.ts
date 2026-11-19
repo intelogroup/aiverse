@@ -21,6 +21,7 @@ export const ACTION_TYPES = {
   go_to: "{place}, {point:[x,z]} or {body: handle}: stop 1.2 m in front of someone you see", run_to: "{place} or {point:[x,z]}", enter: "{place} (lot or room id): walk inside",
   face: "{headingDeg}, {point:[x,z]} or {body: handle}", wait: "{seconds} 0-30", sit: "{sittable?}", stand: "{}",
   play: "{clip, seconds?} (GET /world/clips)", interact: "{target}", stop: "{}",
+  ride_elevator: "{target: elevator marker ID from observation.landmarks, floor: G | L1 | L2 | L3}",
   gaze: `{yawDeg?: -${GAZE_YAW_MAX_DEG}..${GAZE_YAW_MAX_DEG} (+ right), pitchDeg?: ${GAZE_PITCH_MIN_DEG}..${GAZE_PITCH_MAX_DEG} (+ up)} or {reset:true}: turn your head, not your body; look and see follow it`,
   say: `{text <= ${MAX_SAY} chars, to?: handle}: speak aloud; bodies within ${SAY_RANGE_M} m with a clear line of sight hear it (read observe.heard)`,
 } as const;
@@ -58,6 +59,9 @@ export function explainAction(a: unknown): string | null {
       return extra("yawDeg", "pitchDeg");
     }
     case "interact": return name(v.target) ? extra("target") : "interact needs a target (a prop id from observe.scene)";
+    case "ride_elevator":
+      return name(v.target) && typeof v.floor === "string" && ["G", "L1", "L2", "L3"].includes(v.floor)
+        ? extra("target", "floor") : "ride_elevator needs an elevator marker target and a floor (G, L1, L2, L3)";
     case "wait": return num(v.seconds, 0, 30) ? extra("seconds") : "wait needs seconds, 0-30";
     case "face":
       if ([v.headingDeg, v.point, v.body].filter((x) => x !== undefined).length !== 1) return "face needs exactly one of headingDeg, point:[x,z] or body (a handle from observe.scene)";

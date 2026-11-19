@@ -7,6 +7,7 @@ import { LOOK_CLASSES, LOOK_H, LOOK_NO_HIT, LOOK_W } from "@aiverse/world-sim/lo
 import { encodeGrayPng } from "@aiverse/world-sim/png";
 import { explainAction } from "@aiverse/world-sim/actionProtocol";
 import { WorldService } from "@aiverse/world-sim/worldService";
+import { eggInteractable } from "@aiverse/world-sim/interactables";
 
 const ASSETS = new URL("../public/assets/", import.meta.url).pathname;
 let service: WorldService;
@@ -46,6 +47,107 @@ function decode(b64: string) {
 }
 
 describe("look", () => {
+  it("rides a discovered elevator to the second floor and opens an egg there", async () => {
+    const agent = "vertical-hunt";
+    const egg = eggInteractable({
+      id: "egg-vertical-test", district: "bazaar", position: [-19.3, 7.9, -78.8],
+      rotationY: Math.PI, scale: 1, hint: "",
+    });
+    service.attach(agent);
+    sim.interact.register([egg], "vertical-test");
+    try {
+      expect((await settle(agent, service.act(agent, "enter", { type: "enter", place: "tea" }).id, 180)).outcome?.ok).toBe(true);
+      const ground = service.observe(agent);
+      expect(ground.scene.some((item) => item.id === egg.id)).toBe(false);
+      const early = await settle(agent, service.act(agent, "too-soon", { type: "interact", target: egg.id }).id);
+      expect(early.outcome).toMatchObject({ ok: false, status: "unavailable" });
+
+      const ride = ground.landmarks.find((marker) => marker.kind === "elevator")?.actions?.find((action) => action.floor === "L2");
+      expect(ride).toBeDefined();
+      const contender = "contending-rider";
+      service.attach(contender);
+      Object.assign(sim.body(contender)!.state, { x: -34.5, y: .48, z: -78 });
+      const up = service.act(agent, "up", ride);
+      const competing = await settle(contender, service.act(contender, "up", ride).id);
+      expect(competing.outcome).toMatchObject({ ok: false, status: "blocked", detail: expect.stringContaining("another agent") });
+      service.detach(contender);
+      const arrived = await settle(agent, up.id, 100);
+      expect(arrived.outcome).toMatchObject({ ok: true, status: "arrived" });
+      const upstairs = service.observe(agent);
+      expect(upstairs.floor?.id).toBe("L2");
+      expect(upstairs.body.y).toBeCloseTo(7.9);
+      const seen = upstairs.scene.find((item) => item.id === egg.id);
+      expect(seen).toBeDefined();
+      const opened = await settle(agent, service.act(agent, "open", { type: "interact", target: seen!.id }).id);
+      expect(opened.outcome).toMatchObject({ ok: true, status: "done" });
+      expect(opened.interactionPose?.y).toBeCloseTo(7.9);
+    } finally {
+      service.detach("contending-rider");
+      service.detach(agent);
+      sim.interact.register([], "vertical-test");
+    }
+  });
+
+  it("names Tea House facilities on the current floor without seeing them through walls", () => {
+    const agent = "tea-landmark-search";
+    service.attach(agent);
+    const body = sim.body(agent)!;
+    try {
+      Object.assign(body.state, { x: -21, y: 0.48, z: -79.65, body: Math.PI, heading: Math.PI });
+      const { landmarks, floor } = service.look(agent).observation;
+      expect(floor).toMatchObject({ id: "G", label: "Ground" });
+      expect(landmarks).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: "tea-G-elevator", kind: "elevator", access: "usable" }),
+        expect.objectContaining({ id: "tea-G-restroom", kind: "restroom", distanceM: expect.any(Number), bearingDeg: expect.any(Number) }),
+      ]));
+      expect(landmarks?.every((marker) => marker.floorId === "G")).toBe(true);
+
+      Object.assign(body.state, { x: -35.7, y: 0.48, z: -77.9, body: -Math.PI / 2, heading: -Math.PI / 2 });
+      expect(service.observe(agent).landmarks).toEqual([
+        expect.objectContaining({ id: "tea-G-stairs-a", kind: "stairs", access: "unavailable" }),
+      ]);
+
+      Object.assign(body.state, { x: -21, y: 7.9, z: -79.65, body: Math.PI, heading: Math.PI });
+      const upstairs = service.observe(agent);
+      expect(upstairs.floor).toMatchObject({ id: "L2", label: "Second" });
+      Object.assign(body.state, { body: -2.1, heading: -2.1 });
+      expect(service.observe(agent).landmarks).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: "tea-L2-accessible-restroom", name: "Shared restroom and shower" }),
+      ]));
+      expect(service.observe(agent).landmarks.some((marker) => marker.id === "tea-L2-restroom")).toBe(false);
+    } finally {
+      service.detach(agent);
+    }
+  });
+
+  it.each(["Tea House", "stall-52"])("finds and opens an egg from the clue %s", async (clue) => {
+    const agent = "egg-search";
+    const landmark = service.places().find((p) => p.name.includes(clue));
+    expect(landmark).toBeDefined();
+    service.attach(agent);
+    try {
+      const travel = await settle(agent, service.act(agent, "walk", { type: "go_to", place: landmark!.id }).id, 180);
+      expect(travel.outcome).toMatchObject({ ok: true, status: "arrived" });
+
+      for (const heading of [0, 45, 90, 135, 180, 225, 270, 315]) {
+        await settle(agent, service.act(agent, `turn-${heading}`, { type: "face", headingDeg: heading }).id);
+        const view = service.look(agent);
+        if (!decode(view.classPng).px.includes(LOOK_CLASSES.egg)) continue;
+        const egg = view.observation.scene.find((item) => item.kind === "interactable" && item.name === "Easter egg" && Math.abs(item.bearingDeg) <= view.camera.hfovDeg / 2);
+        if (!egg) continue;
+        const open = await settle(agent, service.act(agent, "open", { type: "interact", target: egg.id }).id);
+        expect(open.outcome).toMatchObject({ ok: true, status: "done", target: egg.id });
+        const prop = sim.interact.get(egg.id)!;
+        const body = service.body(agent);
+        expect(Math.hypot(body.x - prop.pos[0], body.z - prop.pos[2])).toBeLessThan(1);
+        return;
+      }
+      throw new Error(`No egg visible near ${clue}`);
+    } finally {
+      service.detach(agent);
+    }
+  });
+
   it("png encoder round-trips 8 and 16 bit samples", () => {
     const s16 = Uint16Array.from({ length: 6 }, (_, i) => i * 10000), s8 = Uint8Array.from([0, 1, 2, 3, 4, 5]);
     const a = decode(Buffer.from(encodeGrayPng(3, 2, 16, s16)).toString("base64"));

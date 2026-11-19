@@ -11,7 +11,7 @@ import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.j
 import { bakeCollisionParts, boxesMesh } from "../src/capsuleWorld";
 import { CityNav } from "../src/cityNav";
 import { colUrl, parseColBoxes } from "../src/colBoxes";
-import type { InteractableDef } from "../src/interactables";
+import { eggInteractable, type EggPlacement, type InteractableDef } from "../src/interactables";
 import type { ScoutPlace, ScoutRoomShape, Sittable } from "../src/scout";
 import { VerseSim } from "../src/verseSim";
 
@@ -56,8 +56,14 @@ export async function loadVerseSim(assetsDir: string, opts: { navBin?: string | 
     if (center) g.position.set(center[0], 0, center[1]);
     g.add(await glbScene(at(assetsDir, url)));
     g.updateMatrixWorld(true);
-    const meshes = bakeCollisionParts(g, `collision:${key}`);
+    const doorLevels = new Set<string>();
+    g.traverse((node) => {
+      if ((node as THREE.Mesh).isMesh && node.userData.elevatorDoor === true) doorLevels.add(node.name);
+    });
+    const movingLift = key === "resident" && doorLevels.size === 4;
+    const meshes = bakeCollisionParts(g, `collision:${key}`, (mesh) => !movingLift || mesh.userData.elevatorDoor !== true);
     if (meshes.length) sim.walk.set(key, meshes);
+    if (movingLift && meshes.length) sim.enableElevator();
     return meshes.length > 0;
   };
   const resident = manifest.districts.find((d) => d.resident);
@@ -82,6 +88,8 @@ export async function loadVerseSim(assetsDir: string, opts: { navBin?: string | 
   const sittables = await readJson<Sittable[]>(at(assetsDir, "/assets/city3-anchors.json"));
   const shapes: ScoutRoomShape[] = rooms.flatMap((r) => (r.door && r.rect && r.center ? [{ id: r.id, name: r.name ?? r.id, door: r.door, rect: r.rect, center: r.center }] : []));
   sim.setData({ places, sittables, rooms: shapes }, rooms.flatMap((r) => r.interactables ?? []));
+  const { eggs } = await readJson<{ eggs: EggPlacement[] }>(at(assetsDir, "/assets/collectibles/easter-eggs.json"));
+  sim.interact.register(eggs.map(eggInteractable), "eggs");
 
   const s = sim.walk.stats();
   return { sim, stats: { collisionSets: s.sets, interiorSets, triangles: s.triangles, ms: Math.round(performance.now() - t0) } };

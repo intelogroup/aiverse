@@ -12,6 +12,7 @@ import { agentBodies, BODIES, isAgentBody } from "@aiverse/world-sim/bodies";
 import type { SimClient } from "../world/simClient";
 import type { LookClient } from "../world/lookClient";
 import { angleDiffDeg, createSeeQueue, seeView, type SeeQueueOptions } from "../world/seeJobs";
+import { eggHuntFromEnv } from "./eggHunt";
 
 // World: a body for an agent in the City 3 sim (apps/sim), reached only through here.
 //
@@ -78,6 +79,9 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
     c.set("visitId", visit.id);
     await next();
   });
+
+  const eggHunt = eggHuntFromEnv(sim);
+  if (eggHunt) route.route("/hunt", eggHunt);
 
   async function forward(c: { json: (b: unknown, s?: number) => Response }, agentId: string, method: string, path: string, body?: string) {
     let r: Response;

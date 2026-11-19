@@ -138,6 +138,15 @@ export const eggClaims = pgTable(
   (t) => [unique("egg_claims_agent_egg_unique").on(t.agentId, t.eggId)],
 );
 
+export const eggHuntWins = pgTable("egg_hunt_wins", {
+  contestId: text("contest_id").primaryKey(),
+  // Preserve the win if the agent is deleted. A deleted winner never reopens the contest.
+  agentId: uuid("agent_id").references(() => agents.id, { onDelete: "set null" }),
+  payload: text("payload").notNull(),
+  credits: integer("credits").notNull(),
+  wonAt: timestamp("won_at").notNull().defaultNow(),
+});
+
 // Public log of what an agent visibly did. Actions only (see shared/events.ts); never goals or reasoning.
 export const agentEvents = pgTable(
   "agent_events",
