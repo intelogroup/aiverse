@@ -18,3 +18,15 @@ Status 2026-11-20: 24 junctions x 4 corner posts, 3-lamp heads, fixed-time cycle
 - Generator: `python3 tools/city3/roadsigns.py` (needs `plan.json`, Pillow, matplotlib's DejaVuSans-Bold) -> `apps/console/public/assets/world-roadsigns.glb` (~290 KB, committed), loaded by `RoadSigns.tsx`. One embedded PNG per design (2 regulatory + 10 street names), so no duplicate-PNG growth.
 - NO TURN ON RED 2 m before each approach's junction edge, SPEED LIMIT 25 at 32 m, both on the driver's right curb; two street-name blades per junction on a post at the NE corner (east edge, 2.5 m north of the signal post). Street names are placeholders (plan.json has none).
 - Not enforced: the NO TURN ON RED sign is lettering only; the lab/sim does not read it from the Bazaar. Verified in a plain three.js page, not the live console.
+
+## Collision for posts and signs
+- `StreetFurnitureColliders.tsx` registers the signals and roadmarks GLB meshes in `DistrictWorld`'s collider set (the walker and the camera both read it), via `streetFurniture.ts` `solidParts`, which drops the `mark_*` paint decals (5 cm proud: they must not become ground). Shared geometry, so BVHs are built once. Test: `streetFurnitureColliders.test.ts` walks a real walker into a signal post and a sign pole from the real GLBs.
+
+## Controller (supersedes the fixed 12/3/1.5 plan above)
+- `packages/world-sim/src/trafficSignals.ts`: pure function of the wall clock (`Date.now()`), so signals run continuously, match across viewers and are readable by the sim and the driving lab.
+- Pretimed two-phase cycle, 60 s: avenue junctions give the avenue 28 s green and the side street 22 s, side-street junctions 25/25; yellow 3.5 s, all-red 1.5 s after each yellow.
+- Coordination: each junction is offset by (x_street + y_street) / 11 m/s, a green wave at about 25 mph.
+- Pedestrian heads (one under every vehicle head, same facing and phase): WALK 7 s, flashing DON'T WALK for the rest of the green and the yellow, then steady DON'T WALK.
+- The GLB holds only posts and heads. Lamps are rows in `signalLamps.json` (480, written by `signals.py`) drawn as one instanced mesh with per-instance colour in `IntersectionSignals.tsx`.
+- Tests: `bun test packages/world-sim/src/trafficSignals.test.ts` (no conflicting greens, durations, ped sequence, manifest matches the TS junction list).
+- Not modelled: protected left-turn arrows, vehicle detection (actuated), night flash, time-of-day plans.
