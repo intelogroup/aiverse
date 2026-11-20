@@ -10,10 +10,13 @@ import {
   BODY_CIPHER,
   BODY_EVE,
   BODY_ELF,
+  BODY_BUSINESS,
   BODY_JIM,
   ELF_HIPS_Y,
+  BUSINESS_HIPS_Y,
   JIM_HIPS_Y,
   SCALE_ELF,
+  SCALE_BUSINESS,
   SCALE_JIM,
   EVE_HIPS_Y,
   SCALE_EVE,
@@ -75,6 +78,7 @@ describe("realistic heights (display scale)", () => {
       [BODY_EVE, SCALE_EVE, EVE_HIPS_Y],
       [BODY_ELF, SCALE_ELF, ELF_HIPS_Y],
       [BODY_JIM, SCALE_JIM, JIM_HIPS_Y],
+      [BODY_BUSINESS, SCALE_BUSINESS, BUSINESS_HIPS_Y],
     ];
     for (const [b, sc, hips] of cases) {
       expect(b.scale).toBe(sc);
@@ -95,6 +99,7 @@ describe("realistic heights (display scale)", () => {
       [1.3, SCALE_EVE, 1.65],
       [1.3, SCALE_ELF, 1.7],
       [1.3, SCALE_JIM, 1.7],
+      [1.3, SCALE_BUSINESS, 1.8],
     ];
     for (const [h, sc, target] of heights) expect(h * sc).toBeCloseTo(target, 2);
   });
@@ -210,6 +215,11 @@ describe("agentBodies — the agent-pickable set (Jim's ruling, 2026-11-11)", ()
   it("never offers Body Block to an agent: off the roster, cast-only", () => {
     expect(BODY_CAST.agentBody).toBe(false);
     expect(agentBodies().map((b) => b.id)).not.toContain("cast");
+  });
+
+  it("keeps the Business man cast-only", () => {
+    expect(BODY_BUSINESS.agentBody).toBe(false);
+    expect(agentBodies().map((b) => b.id)).not.toContain("business");
   });
 
   it("keeps every other registered body pickable", () => {

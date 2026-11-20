@@ -73,6 +73,7 @@ export const SCALE_CIPHER = 1.369; // 1.78 / 1.300
 export const SCALE_EVE = 1.269; // 1.65 / 1.300
 export const SCALE_ELF = 1.3077; // 1.70 / 1.300
 export const SCALE_JIM = 1.3077; // 1.70 / 1.300
+export const SCALE_BUSINESS = 1.3846; // 1.80 / 1.300
 export const SCALE_MAGE = 1.302; // 1.70 / 1.306
 export const SCALE_BARBARIAN = 1.315; // 1.70 / 1.293
 export const SCALE_KNIGHT = 1.315; // 1.70 / 1.293
@@ -342,6 +343,28 @@ export const BODY_JIM: BodyDef = bodyAtScale(SCALE_JIM, {
   clips: CATALOG,
 });
 
+// Business — a suited man (the "Humano 01 Business" scan, catalog/humano-business.glb, 1.85 m) rigged here with the same
+// 28-bone-template Mixamo names the Meshy bodies use (tools/city3/rig_humano.py: skeleton fitted to the mesh, distance
+// weights, stance straightened) and baked by tools/city3/bake_meshy.py with BAKE_FREEZE=Shoulder,Arm,Hand, so he walks with
+// his hands in his pockets (the arm chain follows the spine; the Arguing/Clapping/wave clips do nothing for his arms).
+// The scan's texture maps are not in the repo: colours are flat region materials (suit, shirt, tie, skin, hair, shoes).
+// Baked to 1.30 m with the full 53-clip catalog, shown at 1.80 m (SCALE_BUSINESS). Hips 0.6666 m at rest.
+// Walk/Run MEASURED 2026-11-20 on the shipped GLB with the Elf's FK stance sampling (hips-relative, lap-wrapped window):
+// Walk ankles 0.883 / 0.957 -> 0.920; Run ankles 2.240 / 2.630, toes 2.262 / 2.823 -> 2.49 (+/-15%, as the Elf);
+// Run stance toes sit 0.086 m above Walk's (L .071 / R .100); touchdowns Run-minus-Walk L -.052 / R -.088 -> -0.07.
+// Cast-only (never an agent body): ambient pedestrians and residents.
+export const BUSINESS_HIPS_Y = 0.6666; // m
+
+export const BODY_BUSINESS: BodyDef = bodyAtScale(SCALE_BUSINESS, {
+  id: "business",
+  url: "/assets/cast-business.glb",
+  hipsY: BUSINESS_HIPS_Y,
+  walkSpeed: 0.92,
+  run: { speed: 2.49, footLift: 0.086, phaseOffset: -0.07 },
+  clips: CATALOG,
+  agentBody: false,
+});
+
 export const BODIES: Record<string, BodyDef> = {
   [BODY_REMY.id]: BODY_REMY,
   [BODY_CAST.id]: BODY_CAST,
@@ -354,6 +377,7 @@ export const BODIES: Record<string, BodyDef> = {
   [BODY_EVE.id]: BODY_EVE,
   [BODY_ELF.id]: BODY_ELF,
   [BODY_JIM.id]: BODY_JIM,
+  [BODY_BUSINESS.id]: BODY_BUSINESS,
 };
 
 /**

@@ -165,6 +165,17 @@ describe("shipped body GLBs — clip inventory", () => {
     expect(g.tris).toBe(30796);
   });
 
+  // Business (the Humano suit scan, rigged by tools/city3/rig_humano.py with 22 Mixamo-named joints, baked with the arms frozen): same catalog.
+  it("cast-business.glb: full catalog, exact durations, 22 joints", () => {
+    const g = readGlb("../public/assets/cast-business.glb");
+    expect(Object.keys(g.anims).sort()).toEqual(Object.keys(EXPECTED_CLIPS).sort());
+    for (const [name, dur] of Object.entries(EXPECTED_CLIPS)) {
+      expect(g.anims[name], name).toBeCloseTo(dur, 2);
+    }
+    expect(g.joints).toBe(22);
+    expect(g.tris).toBe(30000);
+  });
+
   // Jim (Meshy-generated via fal.ai from Jim's photos, same template rig, 28 joints, 1.3 m): same bake as the Elf.
   it("cast-jim.glb: full catalog, exact durations, 28 joints, 31,092 tris", () => {
     const g = readGlb("../public/assets/cast-jim.glb");
