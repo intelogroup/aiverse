@@ -9,6 +9,7 @@ import { createHmac, randomBytes } from "node:crypto";
 import { AgentBody, type AgentSnapshot } from "./agentBody";
 import { explainAction, SAY_RANGE_M, validRequestId } from "./actionProtocol";
 import { encodePose, type PoseTuple } from "./streamProtocol";
+import type { AmbientWorld } from "./ambientWorld";
 import { nearestPlace, oracleScene, roomAt, type OracleObject, type ScoutAction, type ScoutOutcome, type ScoutSeat } from "./scout";
 import { clipDef, SOCIAL_CLIPS } from "./clips";
 import { agentBodies, BODIES, BODY_REMY } from "./bodies";
@@ -95,6 +96,8 @@ export interface WorldServiceOpts {
   leaseS?: number;
   /** Settled action records kept per body for polling. */
   keepRecords?: number;
+  /** Resident cars and pedestrians published to viewers beside the agent bodies (they are not agents: no session, no budget). */
+  ambient?: AmbientWorld;
 }
 
 interface Session {
@@ -117,6 +120,7 @@ export class WorldService {
   private readonly maxBodies: number;
   private readonly leaseS: number;
   private readonly keepRecords: number;
+  private readonly ambient: AmbientWorld | null;
   private nextN = 1;
   private rosterRev = 0;
   private sayN = 1;
@@ -129,6 +133,7 @@ export class WorldService {
     this.maxBodies = opts.maxBodies ?? 200;
     this.leaseS = opts.leaseS ?? 30;
     this.keepRecords = opts.keepRecords ?? 64;
+    this.ambient = opts.ambient ?? null;
   }
 
   get bodyCount(): number { return this.sessions.size; }
@@ -373,13 +378,14 @@ export class WorldService {
   frames(): { epoch: string; t: number; rosterRev: number; b: PoseTuple[]; say: SayEvent[] } {
     const b: PoseTuple[] = [];
     for (const s of this.sessions.values()) b.push(encodePose(s.n, s.body.pose()));
+    if (this.ambient) b.push(...this.ambient.poses());
     const say = this.says.filter((e) => this.sim.t - e.t <= SAY_STREAM_TTL_S).map((e) => ({ ...e, text: e.text.slice(0, 140) }));
     return { epoch: this.epoch, t: round(this.sim.t, 3), rosterRev: this.rosterRev, b, say };
   }
 
   /** Body number -> agent id (gateway-side only: it turns this into a display name) and the body model to draw. */
   roster(): { epoch: string; rev: number; bodies: { n: number; agentId: string; body: string }[] } {
-    return { epoch: this.epoch, rev: this.rosterRev, bodies: [...this.sessions].map(([agentId, s]) => ({ n: s.n, agentId, body: s.figure })) };
+    return { epoch: this.epoch, rev: this.rosterRev, bodies: [...[...this.sessions].map(([agentId, s]) => ({ n: s.n, agentId, body: s.figure })), ...(this.ambient?.roster() ?? [])] };
   }
 
   /** The named places an agent may `go_to`: ids and names only (positions are perceived through `observe`).
@@ -405,6 +411,7 @@ export class WorldService {
   /** Advance the world by `dt` simulation seconds and stop bodies whose agent went quiet. */
   tick(dt: number): void {
     this.sim.tick(dt);
+    this.ambient?.step(dt);
     for (const [id, s] of this.sessions) {
       if (this.sim.t - s.lastSeen > this.leaseS && s.body.busy) {
         void s.body.act({ type: "stop" });

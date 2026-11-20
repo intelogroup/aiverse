@@ -18,7 +18,7 @@ const specifiers = (src: string) => [...src.matchAll(/(?:from|import)\s*["']([^"
 
 // @recast-navigation/core is the Recast/Detour WASM (cityNav.ts): no DOM, runs in Node and Bun as in the browser.
 /** Package-only modules: the console never had them, so they have no shim. look/png are the agent's depth/class image (png.ts encodes with node:zlib). */
-const SERVER_ONLY = new Set(["agentBody", "verseSim", "actionProtocol", "worldService", "look", "png", "teaLandmarks", "teaLiftCollision"]);
+const SERVER_ONLY = new Set(["agentBody", "verseSim", "actionProtocol", "worldService", "look", "png", "teaLandmarks", "teaLiftCollision", "ambientTraffic", "ambientWorld"]);
 const ALLOWED_EXTERNAL = new Set(["three", "three-mesh-bvh", "@recast-navigation/core"]);
 const BROWSER_GLOBALS = /\b(window|document|navigator|localStorage|sessionStorage|AudioContext|HTMLElement|requestAnimationFrame|location|OffscreenCanvas)\b/;
 
