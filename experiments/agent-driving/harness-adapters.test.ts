@@ -37,7 +37,7 @@ test("opencode trace: driving calls via execute, images as data urls, any other 
     content: [{ type: "text", text: "x" }, ...Array.from({ length: images }, () => ({ type: "file", uri: "data:image/jpeg;base64,AAAA" }))],
   } } } });
   const lines = j(
-    exec(["driving.drive_enter", "driving.drive_look"], 1),
+    exec(["driving.drive_enter", "driving.drive_look", "opencode.list_mcp_resources"], 1),
     exec(["driving.drive_look"], 0),
     exec(["opencode.bash", "driving.drive_gas"], 0),
     { type: "tool_use", part: { type: "tool", tool: "bash", state: {} } },

@@ -98,6 +98,8 @@ async function act(action: DriveAction) {
     isError: !result.ok,
     content: asText({
       ok: result.ok,
+      // Harnesses that run tool calls inside generated code can discard drive_skill's result, so the first call delivers the guide itself.
+      ...(result.ok && action.command === "enter" && { drivingGuide: skill }),
       message: result.ok
         ? visionOnly && result.state.lesson?.benchmark && action.command === "wait"
           ? "Wait complete. Inspect the intersection again."

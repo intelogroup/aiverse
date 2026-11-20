@@ -28,6 +28,13 @@ const call = async (name: string, args: Record<string, unknown> = {}) => {
 };
 const reset = (mode: "exam" | "lesson") => fetch(`${lab}/api/reset?lesson=lane_change${mode === "exam" ? "&mode=exam" : ""}`, { method: "POST" });
 
+test("the first call (drive_enter) delivers the driving guide so code-mode harnesses cannot drop it", async () => {
+  await reset("lesson");
+  const entered = await call("drive_enter");
+  expect(entered.ok).toBe(true);
+  expect(String(entered.drivingGuide)).toContain("Massachusetts practice lessons");
+}, 90_000);
+
 test("exam mode: an unsafe lane change is not coached, hidden fields stay hidden, the infraction is scored", async () => {
   await reset("exam");
   await call("drive_enter");

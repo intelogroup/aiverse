@@ -46,6 +46,10 @@ export function observeClaude(lines: readonly string[]): Observation {
 
 // OpenCode 2.x gives the model one `execute` tool; the model writes code calling tools.driving.<tool>(). Each event lists the
 // calls it made and carries any returned images as data: URLs. A call outside the driving namespace is forbidden.
+// Read-only MCP discovery that OpenCode offers in its own namespace; everything else outside driving.* is forbidden
+// (session_*, worktree_* and any other namespace).
+const opencodeIntrospection = new Set(["opencode.list_mcp_resources", "opencode.read_mcp_resource", "opencode.models", "search"]);
+
 export function observeOpencode(lines: readonly string[]): Observation {
   const out: Observation = { visionFrames: 0, frameErrors: 0, otherTools: 0, driveCalls: 0 };
   for (const line of lines) {
@@ -59,6 +63,7 @@ export function observeOpencode(lines: readonly string[]): Observation {
     const images = (meta?.content ?? []).filter((item: { type?: string; uri?: string }) => item.type === "file" && String(item.uri).startsWith("data:image")).length;
     let looks = 0;
     for (const call of calls) {
+      if (call.tool && opencodeIntrospection.has(call.tool)) continue;
       if (!call.tool?.startsWith("driving.")) out.otherTools++;
       else { out.driveCalls++; if (call.tool === "driving.drive_look") looks++; }
     }

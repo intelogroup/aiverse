@@ -50,9 +50,11 @@ async function harnessEnv(): Promise<NodeJS.ProcessEnv> {
   // OpenCode: an empty XDG_CONFIG_HOME keeps the owner's global config, MCP servers, plugins and skills out; the provider key stays in the environment.
   if (name === "opencode") {
     if (arm === "owner") return {};
-    const xdg = join(root, "harness-home", "xdg");
-    await mkdir(xdg, { recursive: true });
-    return { XDG_CONFIG_HOME: xdg };
+    // OpenCode also loads skills from ~/.claude and ~/.agents, so HOME is emptied too (the provider key is an env var).
+    const base = join(root, "harness-home");
+    await mkdir(join(base, "xdg"), { recursive: true });
+    await mkdir(join(base, "home"), { recursive: true });
+    return { XDG_CONFIG_HOME: join(base, "xdg"), HOME: join(base, "home") };
   }
   if (arm === "owner") return {};
   const base = join(root, "harness-home");
@@ -141,6 +143,8 @@ async function runCase(id: BenchmarkId, port: number, session: string): Promise<
     "Use only the driving MCP tools and their driving skill. Inspect the actual driver-eye images. Briefly state the visible evidence for each decision at the intersection.",
     "If driving at night, use lights appropriate to visibility and nearby traffic.",
     "Report the result from the simulator. The destination is your only route instruction.",
+    // Harness onboarding, not task help: how OpenCode exposes MCP servers (its execute tool runs code against tools.<server>.<tool>()).
+    ...(name === "opencode" ? ["The driving tools are in the tools.driving namespace of your execute tool; the MCP server may need a moment to connect, so retry if the namespace is unknown."] : []),
   ].join(" ");
   const trace = join(root, id + ".jsonl");
   // Claude Code reads the server from a file; token values stay in the child's environment and are referenced as ${VAR}, never written to disk.
@@ -155,11 +159,11 @@ async function runCase(id: BenchmarkId, port: number, session: string): Promise<
       mcp: { driving: { type: "local", command: [process.execPath, join(dir, "mcp.ts")], enabled: true,
         environment: Object.fromEntries(exportVars.map((key) => [key, "{env:" + key + "}"])) } },
       tools: Object.fromEntries(["bash", "edit", "write", "read", "grep", "glob", "list", "patch", "webfetch", "websearch", "todowrite", "todoread", "task", "skill", "lsp"].map((tool) => [tool, false])),
-      permission: { bash: "deny", edit: "deny", webfetch: "deny" },
+      permission: { bash: "deny", edit: "deny", webfetch: "deny", skill: "deny" },
     }, null, 2));
   }
   const args = name === "opencode" ? [
-    harnessBin, "run", "--standalone", "--auto", "--format", "json", "-m", opencodeModel, prompt,
+    harnessBin, "run", "--standalone", "--auto", "--format", "json", ...(process.env.DRIVE_OPENCODE_DEBUG ? ["--print-logs", "--log-level", "debug"] : []), "-m", opencodeModel, prompt,
   ] : name === "claude" ? [
     harnessBin, "-p", prompt, "--output-format", "stream-json", "--verbose", "--no-session-persistence", "--model", claudeModel,
     "--strict-mcp-config", "--mcp-config", mcpFile, "--tools", "", "--allowedTools", "mcp__driving__*",
@@ -171,7 +175,8 @@ async function runCase(id: BenchmarkId, port: number, session: string): Promise<
     "-c", "mcp_servers.driving={" + toml + "}", "-c", 'shell_environment_policy.exclude=["DRIVE_AGENT_TOKEN"]',
     prompt,
   ];
-  const child = spawnLogged(args, trace, { ...process.env, ...isolation, DRIVE_LAB_PORT: String(port), DRIVE_VISION_ONLY: "1", DRIVE_REQUIRE_OWNER_OAUTH: "1" }, workspace);
+  // OpenCode takes its project directory from $PWD, not the process cwd, so the workspace (with its opencode.json) must be set there.
+  const child = spawnLogged(args, trace, { ...process.env, ...isolation, ...(name === "opencode" && { PWD: workspace }), DRIVE_LAB_PORT: String(port), DRIVE_VISION_ONLY: "1", DRIVE_REQUIRE_OWNER_OAUTH: "1" }, workspace);
   const timeout = setTimeout(() => child.kill(), 200_000);
   const harnessExit = await child.exited.finally(() => clearTimeout(timeout));
   const lines = (await Bun.file(trace).text()).split("\n").filter(Boolean);
