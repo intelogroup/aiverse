@@ -87,7 +87,7 @@ export function harnessFailure(lines: readonly string[]): "usage_limit" | "auth"
     const message = String(event.error?.message ?? event.message ?? (claudeFailure ? event.result : "") ?? "").toLowerCase();
     if (/usage limit|rate limit|quota|credit balance|credits|overloaded/.test(message)) return "usage_limit";
     // OpenRouter: the model has no endpoint that passes the account's data policy (ZDR) or provider allow-list.
-    if (/no allowed providers|endpoints? out of|zdr|provider returned error/.test(message)) return "provider_unavailable";
+    if (/no allowed providers|endpoints? out of|zdr|provider returned error|model unavailable|no-route/.test(message)) return "provider_unavailable";
     if (/unauthori[sz]ed|not logged in|invalid api key|authentication|login|401/.test(message)) return "auth";
     if (event.type === "turn.failed" || claudeFailure) return "turn_failed";
   }

@@ -54,7 +54,8 @@ async function harnessEnv(): Promise<NodeJS.ProcessEnv> {
     const base = join(root, "harness-home");
     await mkdir(join(base, "xdg"), { recursive: true });
     await mkdir(join(base, "home"), { recursive: true });
-    return { XDG_CONFIG_HOME: join(base, "xdg"), HOME: join(base, "home") };
+    // The model catalog cache stays real: newer OpenRouter models are only known to OpenCode from it ("Model unavailable" otherwise).
+    return { XDG_CONFIG_HOME: join(base, "xdg"), HOME: join(base, "home"), XDG_CACHE_HOME: process.env.XDG_CACHE_HOME ?? join(process.env.HOME ?? "", ".cache") };
   }
   if (arm === "owner") return {};
   const base = join(root, "harness-home");
@@ -64,6 +65,11 @@ async function harnessEnv(): Promise<NodeJS.ProcessEnv> {
   return { HOME: join(base, "home"), CODEX_HOME: join(base, "codex") };
 }
 const isolation = await harnessEnv();
+// Declares the chosen OpenRouter model so a clean OpenCode (no cached catalog newer than the model) still finds it.
+const opencodeProvider = () => ({ openrouter: { models: { [opencodeModel.replace(/^openrouter\//, "")]: {
+  name: opencodeModel, tool_call: true, attachment: true, modalities: { input: ["text", "image"], output: ["text"] },
+} } } });
+if (name === "opencode") await Bun.write(join(root, "opencode.json"), JSON.stringify({ $schema: "https://opencode.ai/config.json", provider: opencodeProvider() }));
 // One cheap call before any case: a dead harness (quota, auth, model) must not be scored as driving.
 {
   const probe = spawnLogged(name === "opencode"
@@ -71,7 +77,7 @@ const isolation = await harnessEnv();
     : name === "claude"
     ? [harnessBin, "-p", "Reply with the single word ready.", "--output-format", "stream-json", "--verbose", "--tools", "", "--strict-mcp-config", "--no-session-persistence", "--model", claudeModel]
     : [harnessBin, "-a", "never", "exec", "--ignore-user-config", "--ephemeral", "--json", "--skip-git-repo-check",
-      "--sandbox", "read-only", "-C", root, "Reply with the single word ready."], join(root, "preflight.jsonl"), { ...process.env, ...isolation }, root);
+      "--sandbox", "read-only", "-C", root, "Reply with the single word ready."], join(root, "preflight.jsonl"), { ...process.env, ...isolation, ...(name === "opencode" && { PWD: root }) }, root);
   const timer = setTimeout(() => probe.kill(), 60_000);
   const exit = await probe.exited.finally(() => clearTimeout(timer));
   const lines = (await Bun.file(join(root, "preflight.jsonl")).text()).split("\n").filter(Boolean);
@@ -156,6 +162,7 @@ async function runCase(id: BenchmarkId, port: number, session: string): Promise<
   if (name === "opencode") {
     await Bun.write(ocConfig, JSON.stringify({
       $schema: "https://opencode.ai/config.json",
+      provider: opencodeProvider(),
       mcp: { driving: { type: "local", command: [process.execPath, join(dir, "mcp.ts")], enabled: true,
         environment: Object.fromEntries(exportVars.map((key) => [key, "{env:" + key + "}"])) } },
       tools: Object.fromEntries(["bash", "edit", "write", "read", "grep", "glob", "list", "patch", "webfetch", "websearch", "todowrite", "todoread", "task", "skill", "lsp"].map((tool) => [tool, false])),

@@ -200,3 +200,7 @@ test("the runner refuses Codex: it is off limits for the driving lab", async () 
   expect(exit).not.toBe(0);
   expect(stderr).toContain("Codex is off limits");
 });
+
+test("OpenCode's model-unavailable error is a provider failure", () => {
+  expect(harnessFailure(JSON.stringify({ type: "error", error: { type: "provider.no-route", message: "Model unavailable: openrouter/x/y" } }).split("\n"))).toBe("provider_unavailable");
+});
