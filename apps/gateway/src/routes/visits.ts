@@ -1,8 +1,8 @@
 import { Hono } from "hono";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/client";
-import { agents, agentVisits, eggHuntWins } from "@aiverse/shared/schema";
+import { agents, agentVisits, eggCashBounties, eggHuntWins } from "@aiverse/shared/schema";
 import { ownerSessionOrReadKey } from "../middleware/ownerReadAuth";
 import { stopVisitRecord, extendVisitRecord, MIN_VISIT_MINUTES, MAX_VISIT_MINUTES, MIN_VISIT_ACTIONS, MAX_VISIT_ACTIONS } from "../policy/visits";
 import { notifyVisitExtended } from "../world/hooks";
@@ -10,6 +10,7 @@ import { ownerAuth } from "../middleware/ownerAuth";
 import { announceVisitEnded } from "../ws/gateway";
 import { audit } from "../util/audit";
 import { loadOwnedAgent } from "./ownersShared";
+import { ownerEmbodiedCashReceipt } from "../hunt";
 
 export const ownersVisitsRoute = new Hono<{ Variables: { ownerId: string } }>();
 
@@ -82,17 +83,24 @@ ownersVisitsRoute.get("/agents/:id/visits", ownerSessionOrReadKey, async (c) => 
 
 ownersVisitsRoute.get("/agents/:id/hunt-receipts", ownerAuth, async (c) => {
   const agentId = c.req.param("id");
-  if (!z.uuid().safeParse(agentId).success || !await loadOwnedAgent(c.get("ownerId"), agentId)) {
+  const ownerId = c.get("ownerId");
+  if (!z.uuid().safeParse(agentId).success || !await loadOwnedAgent(ownerId, agentId)) {
     return c.json({ error: "not found" }, 404);
   }
 
-  const receipts = await db.query.eggHuntWins.findMany({
-    where: eq(eggHuntWins.agentId, agentId),
-    orderBy: [desc(eggHuntWins.wonAt), desc(eggHuntWins.contestId)],
-    columns: { contestId: true, payload: true, credits: true, wonAt: true },
-  });
+  const receipts = await db.select({
+    contestId: eggHuntWins.contestId, payload: eggHuntWins.payload, credits: eggHuntWins.credits, wonAt: eggHuntWins.wonAt,
+    cash: { amountCents: eggCashBounties.amountCents, mode: eggCashBounties.mode },
+  }).from(eggHuntWins)
+    .leftJoin(eggCashBounties, eq(eggCashBounties.id, eggHuntWins.contestId))
+    .where(and(eq(eggHuntWins.agentId, agentId), or(isNull(eggHuntWins.ownerId), eq(eggHuntWins.ownerId, ownerId))))
+    .orderBy(desc(eggHuntWins.wonAt), desc(eggHuntWins.contestId));
   c.header("Cache-Control", "private, no-store");
-  return c.json({ receipts });
+  return c.json({ receipts: receipts.map(({ cash, ...receipt }) => {
+    if (!cash) return receipt;
+    const cashPayout = ownerEmbodiedCashReceipt(receipt.contestId, ownerId);
+    return { ...receipt, cashBounty: { ...cash, currency: "USD" }, ...(cashPayout ? { cashPayout } : {}) };
+  }) });
 });
 
 ownersVisitsRoute.post("/agents/:id/visits/:visitId/stop", ownerAuth, async (c) => {

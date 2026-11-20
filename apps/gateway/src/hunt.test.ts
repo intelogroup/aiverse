@@ -14,13 +14,15 @@ import { eq } from "drizzle-orm";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { owners } from "@aiverse/shared/schema";
+import { agents, eggCashBounties, eggHuntWins, owners } from "@aiverse/shared/schema";
+import { mockCashPaypal } from "./testUtils/cashPaypal";
 import { createApp } from "./app";
 import { signOwnerSession } from "./auth/session";
 import { db } from "./db/client";
 import { getHuntRuntime, resetHuntRuntimeForTests, scheduleHuntTicker } from "./hunt";
 
-const ENV_KEYS = ["AIVERSE_HUNT_MODE", "HUNT_DB_PATH", "HUNT_ADMIN_TOKEN"] as const;
+const ENV_KEYS = ["AIVERSE_HUNT_MODE", "HUNT_DB_PATH", "HUNT_ADMIN_TOKEN",
+  "PAYPAL_MODE", "PAYPAL_CLIENT_ID", "PAYPAL_CLIENT_SECRET", "PAYPAL_API_BASE"] as const;
 let savedEnv: Record<string, string | undefined> = {};
 let dir = "";
 let ownerIds: string[] = [];
@@ -61,6 +63,82 @@ afterEach(async () => {
 });
 
 describe("hunt embed (AIVERSE_HUNT_MODE)", () => {
+  test.each(["sandbox", "live"] as const)("an approved embodied bounty pays the verified owner once in %s mode with mocked PayPal", async (mode) => {
+    enableHunt();
+    const winner = await makeOwner(`cash-winner-${crypto.randomUUID()}@example.com`);
+    const outsider = await makeOwner(`cash-outsider-${crypto.randomUUID()}@example.com`);
+    const [agent] = await db.insert(agents).values({
+      ownerId: winner.owner.id, name: `CashPilot-${crypto.randomUUID()}`, apiKeyHash: "fixture-never-used",
+    }).returning();
+    const approval = { amountCents: 100, mode, ownerId: winner.owner.id };
+    process.env.PAYPAL_MODE = mode;
+    process.env.PAYPAL_CLIENT_ID = "fake-cash-client";
+    process.env.PAYPAL_CLIENT_SECRET = "fake-cash-secret";
+    delete process.env.PAYPAL_API_BASE;
+
+    let contestId: string | undefined;
+    let paypal: ReturnType<typeof mockCashPaypal> | undefined;
+
+    try {
+      const app = createApp({ paypalFetch: (url, request) => paypal!.transport(url, request) });
+      const admin = { authorization: "Bearer mount-test-admin-token", "content-type": "application/json" };
+      const publish = (body: unknown, authorization = admin.authorization) => app.request("/v1/admin/embodied-bounties", {
+        method: "POST", headers: { ...admin, authorization }, body: JSON.stringify(body),
+      });
+      const term = { eggId: "egg-bazaar-02", clue: "Look near the Tea House", payload: "Compass", amountCents: 100 };
+      expect((await publish(term, `Bearer ${winner.token}`)).status).toBe(401);
+      expect((await publish({ ...term, ownerId: winner.owner.id })).status).toBe(400);
+      const created = await publish(term);
+      expect(created.status).toBe(201);
+      const { bounty } = await created.json() as { bounty: { id: string } };
+      contestId = bounty.id;
+      paypal = mockCashPaypal(contestId, mode, winner.owner.email);
+      expect((await publish(term)).status).toBe(409);
+      const path = `/v1/admin/embodied-bounties/${contestId}/payout`;
+      const send = (body: unknown) => app.request(path, { method: "POST", headers: admin, body: JSON.stringify(body) });
+      expect((await send(approval)).status).toBe(404);
+      await db.insert(eggHuntWins).values({ contestId, agentId: agent.id, ownerId: winner.owner.id, payload: "Compass", credits: 0 });
+      expect((await send(approval)).status).toBe(404);
+      expect(paypal.batches).toBe(0);
+      await db.update(owners).set({ emailVerified: true }).where(eq(owners.id, winner.owner.id));
+
+      const preview = await app.request(path, { headers: admin });
+      expect(preview.status).toBe(200);
+      expect(await preview.json()).toMatchObject({ ...approval, currency: "USD", payout: null });
+      expect((await app.request(path, {
+        method: "POST", headers: { ...admin, authorization: `Bearer ${winner.token}` }, body: JSON.stringify(approval),
+      })).status).toBe(401);
+      expect((await send({ ...approval, amountCents: 200 })).status).toBe(422);
+      expect((await send({ ...approval, mode: mode === "live" ? "sandbox" : "live" })).status).toBe(422);
+      expect((await send({ ...approval, ownerId: outsider.owner.id })).status).toBe(422);
+      expect(paypal.batches).toBe(0);
+
+      const [submit, concurrent] = await Promise.all([send(approval), send(approval)]);
+      expect(submit.status).toBe(200);
+      const { payout } = await submit.json() as { payout: { id: string; status: string; transaction_id: string | null } };
+      expect(payout).toMatchObject({ status: "processing", transaction_id: null });
+      expect(await concurrent.json()).toMatchObject({ payout: { id: payout.id } });
+      expect(await (await send(approval)).json()).toMatchObject({ payout: { id: payout.id } });
+      expect(paypal.batches).toBe(1);
+
+      const settled = await app.request(`/v1/admin/payouts/${payout.id}`, { headers: admin });
+      expect(await settled.json()).toMatchObject({ payout: { status: "success", transaction_id: "TEST-TRANSACTION" } });
+      const ownerPath = `/owners/agents/${agent.id}/hunt-receipts`;
+      expect((await app.request(ownerPath, { headers: { authorization: `Bearer ${outsider.token}` } })).status).toBe(404);
+      const ownerReceipt = await app.request(ownerPath, { headers: { authorization: `Bearer ${winner.token}` } });
+      expect(await ownerReceipt.json()).toMatchObject({ receipts: [{
+        contestId, payload: "Compass",
+        cashPayout: { amountCents: 100, currency: "USD", mode, status: "success", transactionId: "TEST-TRANSACTION" },
+      }] });
+    } finally {
+      if (contestId) {
+        await db.delete(eggHuntWins).where(eq(eggHuntWins.contestId, contestId));
+        await db.delete(eggCashBounties).where(eq(eggCashBounties.id, contestId));
+      }
+      await db.delete(agents).where(eq(agents.id, agent.id));
+    }
+  });
+
   test("mode off: hunt routes are absent", async () => {
     // Explicitly off (afterEach restores the ambient value): this test
     // must hold even inside a suite run with the mode exported globally.

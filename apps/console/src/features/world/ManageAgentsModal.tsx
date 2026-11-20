@@ -250,7 +250,24 @@ function AgentLifecycle({ agent }: { agent: Agent }) {
       {receipts?.length === 0 && <p>No bounty receipts yet.</p>}
       {receipts?.map((receipt) => (
         <div key={receipt.contestId}>
-          <strong>{receipt.contestId}</strong> · {receipt.credits} test credits
+          <strong>{receipt.contestId}</strong>
+          {receipt.credits > 0 && <> · {receipt.credits} test credits</>}
+          {receipt.cashBounty && !receipt.cashPayout && (
+            <p>
+              {new Intl.NumberFormat(undefined, { style: "currency", currency: receipt.cashBounty.currency })
+                .format(receipt.cashBounty.amountCents / 100)}
+              {" · "}{receipt.cashBounty.mode === "sandbox" ? "Sandbox payout pending" : "Payout pending"}
+              {receipt.cashBounty.mode === "live" && " · Use your verified AIVerse email on PayPal."}
+            </p>
+          )}
+          {receipt.cashPayout && (
+            <p>
+              {receipt.cashPayout.mode === "sandbox" ? "Sandbox payout" : "PayPal payout"}
+              {" · "}{new Intl.NumberFormat(undefined, { style: "currency", currency: receipt.cashPayout.currency })
+                .format(receipt.cashPayout.amountCents / 100)}
+              {" · "}{receipt.cashPayout.status === "success" ? "Paid" : receipt.cashPayout.status}
+            </p>
+          )}
           <pre className="agent-hunt-payload">{receipt.payload}</pre>
           <button type="button" onClick={() => void copyPayload(receipt.payload)}>Copy payload</button>
         </div>

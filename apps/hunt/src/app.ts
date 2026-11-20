@@ -8,7 +8,7 @@ import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
 import type { Database } from "bun:sqlite";
 import type { HuntConfig } from "./config";
-import { DEFAULT_CLAIM_RADIUS_M } from "./config";
+import { DEFAULT_CLAIM_RADIUS_M, PAYPAL_LIVE_API_BASE, PAYPAL_SANDBOX_API_BASE } from "./config";
 import type { Mailer } from "./mailer";
 import {
   bearerToken,
@@ -48,12 +48,14 @@ import {
   PayoutError,
   cancelPayout,
   getPayoutById,
+  getPayoutByPrize,
   handlePayoutWebhook,
   initiatePayout,
   maskAddress,
   refreshPayout,
   type PayoutRow,
 } from "./payouts";
+import { EMBODIED_CASH_PRIZE_PREFIX, embodiedCashPrizeId, prepareEmbodiedCashPrize, type EmbodiedCashWin, type PublishEmbodiedCashBounty } from "./embodiedCash";
 
 export type { GatewayIdentity };
 
@@ -77,6 +79,9 @@ export interface AppDeps {
   limiter?: RateLimiter;
   /** Primary identity path when mounted inside the gateway. */
   verifyGatewayToken?: VerifyGatewayToken;
+  /** The gateway resolves the winning owner and amount from the world contest. */
+  resolveEmbodiedCashWin?: (contestId: string) => Promise<EmbodiedCashWin | null>;
+  publishEmbodiedCashBounty?: PublishEmbodiedCashBounty;
   /**
    * Mount option (GATEWAY-INTEGRATION §b.6): when false, the host's CORS
    * layer governs and the hunt app adds none of its own. Default true
@@ -662,7 +667,67 @@ export function buildApp(deps: AppDeps): Hono<{ Variables: Vars }> {
 
   // ---------- payouts (Phase 2; routes exist only when the rail is enabled) ----------
   if (paypal) {
+    const publishCashBounty = deps.publishEmbodiedCashBounty;
+    const paypalMode = cfg.paypal.mode;
+    const providerBase = paypalMode === "live" ? PAYPAL_LIVE_API_BASE : PAYPAL_SANDBOX_API_BASE;
+    if (publishCashBounty && paypalMode !== "off") {
+      app.post("/v1/admin/embodied-bounties", requireAdmin, async (c) => {
+        if (paypal.apiBase !== providerBase) return c.json(err("payout_mode_mismatch"), 422);
+        const result = await publishCashBounty(await c.req.json().catch(() => null), paypalMode);
+        if ("error" in result) {
+          return c.json(result, result.error === "cash_bounty_already_open" ? 409 : 400);
+        }
+        return c.json({ bounty: { ...result.bounty, currency: "USD" } }, 201);
+      });
+    }
+    const resolveCashWin = deps.resolveEmbodiedCashWin;
+    if (resolveCashWin) {
+      const pendingCashPayouts = new Map<string, Promise<PayoutRow>>();
+      app.get("/v1/admin/embodied-bounties/:id/payout", requireAdmin, async (c) => {
+        const win = await resolveCashWin(c.req.param("id"));
+        if (!win) return c.json(err("approved_cash_win_not_found"), 404);
+        const row = getPayoutByPrize(db, embodiedCashPrizeId(win.contestId));
+        c.header("Cache-Control", "private, no-store");
+        return c.json({
+          contestId: win.contestId, ownerId: win.owner.ownerId, amountCents: win.amountCents,
+          currency: "USD", mode: win.mode, recipient: maskAddress(win.owner.email),
+          payout: row ? payoutView(row) : null,
+        });
+      });
+
+      app.post("/v1/admin/embodied-bounties/:id/payout", requireAdmin, async (c) => {
+        const win = await resolveCashWin(c.req.param("id"));
+        if (!win) return c.json(err("approved_cash_win_not_found"), 404);
+        const approval = await c.req.json().catch(() => null);
+        if (approval?.amountCents !== win.amountCents || approval?.mode !== win.mode ||
+            approval?.ownerId !== win.owner.ownerId) {
+          return c.json(err("cash_approval_mismatch"), 422);
+        }
+        if (paypalMode !== win.mode || paypal.apiBase !== providerBase) {
+          return c.json(err("payout_mode_mismatch"), 422);
+        }
+        try {
+          const now = Date.now();
+          const prizeId = prepareEmbodiedCashPrize(db, codeKey, win, now);
+          let pending = pendingCashPayouts.get(prizeId);
+          if (!pending) {
+            pending = initiatePayout(db, paypal, win.mode, prizeId, now)
+              .finally(() => pendingCashPayouts.delete(prizeId));
+            pendingCashPayouts.set(prizeId, pending);
+          }
+          const row = await pending;
+          return c.json({ payout: payoutView(row) }, row.batch_id ? 200 : 202);
+        } catch (err) {
+          if (err instanceof PayoutError) return c.json({ error: err.code }, 422);
+          throw err;
+        }
+      });
+    }
+
     app.post("/v1/admin/prizes/:id/payout", requireAdmin, async (c) => {
+      if (c.req.param("id").startsWith(EMBODIED_CASH_PRIZE_PREFIX)) {
+        return c.json(err("prize_not_found"), 404);
+      }
       try {
         const row = await initiatePayout(db, paypal, cfg.paypal.mode, c.req.param("id"), Date.now());
         return c.json({ payout: payoutView(row) }, row.batch_id ? 200 : 202);
@@ -678,6 +743,7 @@ export function buildApp(deps: AppDeps): Hono<{ Variables: Vars }> {
     app.get("/v1/admin/payouts/:id", requireAdmin, async (c) => {
       const existing = getPayoutById(db, c.req.param("id"));
       if (!existing) return c.json(err("payout_not_found"), 404);
+      if (existing.mode !== cfg.paypal.mode) return c.json(err("payout_mode_mismatch"), 422);
       const row = await refreshPayout(db, paypal, existing.id, Date.now());
       return c.json({ payout: payoutView(row) });
     });
@@ -688,6 +754,7 @@ export function buildApp(deps: AppDeps): Hono<{ Variables: Vars }> {
     app.post("/v1/admin/payouts/:id/cancel", requireAdmin, async (c) => {
       const existing = getPayoutById(db, c.req.param("id"));
       if (!existing) return c.json(err("payout_not_found"), 404);
+      if (existing.mode !== cfg.paypal.mode) return c.json(err("payout_mode_mismatch"), 422);
       try {
         const row = await cancelPayout(db, paypal, existing.id, Date.now());
         return c.json({ payout: payoutView(row) });

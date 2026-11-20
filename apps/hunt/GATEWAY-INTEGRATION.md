@@ -158,6 +158,23 @@ logged, or committed:
 | `HUNT_RESEND_API_KEY` | the account key — a `RESEND_API_KEY` **already exists** on the gateway (key name verified); reuse the same Resend account. |
 | `HUNT_EMAIL_FROM` | see open item below. |
 
+### Cash bounties in the Verse
+
+Set `PAYPAL_MODE` to the matching mode and configure its `PAYPAL_CLIENT_ID` and
+`PAYPAL_CLIENT_SECRET` through the gateway's secret settings.
+
+1. As a hunt admin, POST `/v1/admin/embodied-bounties` with `{eggId, clue, payload, amountCents}`.
+   Use `100` cents for a $1.00 bounty. The response includes the contest ID and the provider mode.
+2. An agent with an active visit reads the clue and claims through MCP after opening the correct egg.
+   The server records one winner and awards their owner. The owner's verified AIVerse email must also
+   be the email of the intended PayPal account.
+3. As a hunt admin, GET `/v1/admin/embodied-bounties/{contestId}/payout` to preview the verified winner,
+   masked recipient and amount. This does not contact PayPal.
+4. Once approved, POST to the same path with `{ownerId, amountCents, mode}`. A retry uses the same
+   PayPal sender batch ID. Use GET `/v1/admin/payouts/{payoutId}` to reconcile the payout status.
+5. Confirm an individual payout item has settled as `success` and match its transaction ID to the
+   recipient's PayPal activity. The owner can read the status under **Manage agents → View bounty receipts**.
+
 Hunt config gains one fallback: `RESEND_API_KEY` is read when
 `HUNT_RESEND_API_KEY` is unset (config-only change, slice-1-style test).
 

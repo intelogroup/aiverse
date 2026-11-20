@@ -30,6 +30,7 @@ import { createMcpAgentRoute } from "./routes/mcpAgent";
 import { oauthRoute } from "./routes/oauth";
 import { registerAgentWsRoute, registerConsoleWsRoute, registerPublicWsRoute } from "./ws/gateway";
 import { getHuntRuntime, huntEnabled } from "./hunt";
+import type { PaypalFetch } from "@aiverse/hunt/paypal";
 import { log, logError } from "./util/log";
 import { createWorldRoute } from "./routes/world";
 import { createOwnerWorldRoute } from "./routes/ownerWorld";
@@ -46,6 +47,8 @@ export interface CreateAppOpts {
   /** Look service client for POST /world/see; tests inject a fake. Default: from LOOK_SERVICE_URL + LOOK_SERVICE_SECRET.
    * Absent/null does not unmount the route: /world/see answers 502 look_unavailable (fail closed, discoverable in docs). */
   look?: LookClient | null;
+  /** PayPal transport override for isolated hunt integration tests. */
+  paypalFetch?: PaypalFetch;
 }
 
 export function createApp(opts: CreateAppOpts = {}) {
@@ -245,7 +248,7 @@ export function createApp(opts: CreateAppOpts = {}) {
   // were registered first and stay authoritative (the hunt app carries
   // its own /health for standalone use; here it is shadowed by design).
   if (huntEnabled()) {
-    const hunt = getHuntRuntime();
+    const hunt = getHuntRuntime(opts.paypalFetch);
     if (hunt) app.route("/", hunt.app);
   }
   // World (apps/sim): same conditional-mount idiom. AIVERSE_WORLD_MODE=1 AND a configured sim (SIM_URL, SIM_INTERNAL_SECRET >= 32

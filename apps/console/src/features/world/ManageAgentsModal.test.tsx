@@ -105,6 +105,7 @@ describe("ManageAgentsModal lifecycle controls", () => {
     apiMock.listHuntReceipts.mockResolvedValue({
       receipts: [{
         contestId: "tea-hunt", payload, credits: 10, wonAt: "2026-11-19T12:00:00Z",
+        cashPayout: { amountCents: 100, currency: "USD", mode: "live", status: "success", transactionId: "TEST-TX" },
       }],
     });
     const writeText = vi.fn().mockResolvedValue(undefined);
@@ -116,6 +117,7 @@ describe("ManageAgentsModal lifecycle controls", () => {
       expect(apiMock.listHuntReceipts).not.toHaveBeenCalled();
       fireEvent.click(screen.getByRole("button", { name: "View bounty receipts" }));
       expect((await screen.findByText(payload)).textContent).toEqual(payload);
+      expect(screen.getByText(/PayPal payout .* Paid/)).toBeTruthy();
       expect(apiMock.listHuntReceipts).toHaveBeenCalledWith("agent-1");
       expect(screen.queryByRole("img")).toBeNull();
       expect(screen.queryByRole("link")).toBeNull();

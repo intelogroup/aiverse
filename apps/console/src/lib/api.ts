@@ -130,6 +130,14 @@ export interface HuntReceipt {
   payload: string;
   credits: number;
   wonAt: string;
+  cashBounty?: { amountCents: number; currency: "USD"; mode: "sandbox" | "live" };
+  cashPayout?: {
+    amountCents: number;
+    currency: "USD";
+    mode: "sandbox" | "live";
+    status: string;
+    transactionId: string | null;
+  };
 }
 
 export interface OnboardingQuestion {

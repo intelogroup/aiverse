@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { eq } from "drizzle-orm";
-import { agentVisits, eggHuntWins } from "@aiverse/shared/schema";
+import { eq, inArray } from "drizzle-orm";
+import { agentVisits, eggCashBounties, eggHuntWins, owners } from "@aiverse/shared/schema";
 import { loadVerseSim } from "@aiverse/world-sim/node/loadWorld";
 import { WorldService } from "@aiverse/world-sim/worldService";
 import { createSimServer } from "@aiverse/sim/server";
@@ -13,6 +13,8 @@ import { redis } from "../redis/client";
 import { sweepVisits } from "../jobs/visits";
 import { clearPresence } from "../presence";
 import { mintMcpOAuthToken } from "../testUtils/mcpOAuth";
+import { mockCashPaypal } from "../testUtils/cashPaypal";
+import { resetHuntRuntimeForTests } from "../hunt";
 
 // The M4 gate, end to end with no browser: real gateway app (real auth, owners, visits, Postgres) -> production HTTP sim client ->
 // real sim server -> real world (City 3 collision + navmesh). The sim is ticked by hand so the walk is fast and deterministic.
@@ -83,11 +85,11 @@ const json = (token?: string) => ({ "content-type": "application/json", ...(toke
 async function ownerWithAgent(name: string) {
   const email = `world-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
   const reg = await app.request("/owners/register", { method: "POST", headers: json(), body: JSON.stringify({ email, password: "password123" }) });
-  const { token: ownerToken } = (await reg.json()) as any;
+  const { token: ownerToken, owner } = (await reg.json()) as any;
   const created = await app.request("/owners/agents", { method: "POST", headers: json(ownerToken), body: JSON.stringify({ name: `${name}${Math.random().toString(36).slice(2, 7)}`, capabilities: [] }) });
   const { agent, agentToken } = (await created.json()) as any;
   await app.request(`/owners/agents/${agent.id}/wallet`, { method: "PATCH", headers: json(ownerToken), body: JSON.stringify({ autonomyMode: "autonomous" }) });
-  return { ownerToken: ownerToken as string, agentId: agent.id as string, agentToken: agentToken as string, email };
+  return { ownerToken: ownerToken as string, ownerId: owner.id as string, agentId: agent.id as string, agentToken: agentToken as string, email };
 }
 const startVisit = async (ownerToken: string, agentId: string, maxActions = 50) =>
   ((await (await app.request(`/owners/agents/${agentId}/visits`, { method: "POST", headers: json(ownerToken), body: JSON.stringify({ minutes: 30, maxActions }) })).json()) as any).visit;
@@ -224,6 +226,102 @@ describe("/world (agent body)", () => {
       });
     } finally {
       for (const agent of agents) service.detach(agent.agentId);
+    }
+  }, 30_000);
+
+  test("an admin opens a one-dollar bounty and the first verified MCP finder earns the owner's PayPal payout", async () => {
+    const entrants = await Promise.all([ownerWithAgent("CashFirst"), ownerWithAgent("CashSecond")]);
+    const env = {
+      AIVERSE_HUNT_MODE: "1",
+      HUNT_DB_PATH: ":memory:",
+      HUNT_ADMIN_TOKEN: "test-open-cash-admin",
+      PAYPAL_MODE: "sandbox",
+      PAYPAL_CLIENT_ID: "fake-open-cash-client",
+      PAYPAL_CLIENT_SECRET: "fake-open-cash-secret",
+      PAYPAL_API_BASE: "https://api-m.sandbox.paypal.com",
+    };
+    const previous = Object.fromEntries(Object.keys(env).map((key) => [key, process.env[key]]));
+    Object.assign(process.env, env);
+    resetHuntRuntimeForTests();
+    let contestId: string | undefined;
+    let paypal: ReturnType<typeof mockCashPaypal> | undefined;
+
+    try {
+      await db.update(owners).set({ emailVerified: true }).where(inArray(owners.id, entrants.map((a) => a.ownerId)));
+      const visits = await Promise.all(entrants.map((a) => startVisit(a.ownerToken, a.agentId)));
+      const delegates = await Promise.all(entrants.map((a) => mintMcpOAuthToken(app, a.ownerToken, [a.agentId], "world:observe world:act")));
+      const act = async (index: number, id: string, action: unknown) => {
+        expect((await callMcp(delegates[index]!.accessToken, "world_act", { id, action })).isError).toBe(false);
+        return (await settle(entrants[index]!.agentToken, id)).outcome;
+      };
+      service.attach(entrants[0]!.agentId, { x: -29.63, z: -71.016 });
+      const openEgg = { type: "interact", target: hunt.eggId };
+      expect(await act(0, "pre-open-egg", openEgg)).toMatchObject({ ok: true, status: "done" });
+
+      const cashApp = createApp({ paypalFetch: (url, request) => paypal!.transport(url, request) });
+      const admin = json(env.HUNT_ADMIN_TOKEN);
+      const terms = { eggId: hunt.eggId, clue: hunt.clue, payload: hunt.payload, amountCents: 100 };
+      await Bun.sleep(2); // The open timestamp must follow the earlier action at millisecond resolution.
+      const published = await cashApp.request("/v1/admin/embodied-bounties", {
+        method: "POST", headers: admin, body: JSON.stringify(terms),
+      });
+      expect(published.status).toBe(201);
+      const { bounty } = await published.json() as { bounty: { id: string } };
+      contestId = bounty.id;
+      const award = { amountCents: 100, currency: "USD", mode: "sandbox" };
+      expect(bounty).toEqual({ id: contestId, clue: hunt.clue, ...award });
+      const claim = (index: number, actId: string) => callMcp(delegates[index]!.accessToken, "world_hunt_claim", {
+        contest_id: contestId, act_id: actId,
+      });
+      expect((await callMcp(delegates[1]!.accessToken, "world_hunt_status")).data).toEqual({
+        id: contestId, clue: hunt.clue, credits: 0, status: "open", cashBounty: award,
+      });
+      expect(await claim(0, "pre-open-egg")).toEqual({ isError: true, data: { error: "open_an_egg_after_bounty_starts" } });
+      expect(await act(0, "cash-open-one", openEgg)).toMatchObject({ ok: true, status: "done" });
+      await act(0, "cash-stand-clear", { type: "go_to", point: [-31.63, -71.016] });
+      service.attach(entrants[1]!.agentId, { x: -29.63, z: -71.016 });
+      expect(await act(1, "cash-open-two", openEgg)).toMatchObject({ ok: true, status: "done" });
+
+      const results = await Promise.all([claim(0, "cash-open-one"), claim(1, "cash-open-two")]);
+      expect(results.filter((result) => !result.isError)).toHaveLength(1);
+      const winningIndex = results.findIndex((result) => !result.isError);
+      const winner = entrants[winningIndex]!;
+      expect(results[winningIndex]!.data).toEqual({ status: "won", receiptId: contestId, credits: 0, cashBounty: award });
+      expect(results[1 - winningIndex]!.data).toMatchObject({ error: "already_won" });
+      const stop = await app.request(`/owners/agents/${winner.agentId}/visits/${visits[winningIndex].id}/stop`, {
+        method: "POST", headers: json(winner.ownerToken),
+      });
+      expect(stop.status).toBe(200);
+      const ownerPath = `/owners/agents/${winner.agentId}/hunt-receipts`;
+      const ownerRead = () => app.request(ownerPath, { headers: json(winner.ownerToken) });
+      expect(await (await ownerRead()).json()).toMatchObject({ receipts: [{ contestId, cashBounty: award }] });
+      expect((await app.request(ownerPath, { headers: json(entrants[1 - winningIndex]!.ownerToken) })).status).toBe(404);
+
+      const payoutPath = `/v1/admin/embodied-bounties/${contestId}/payout`;
+      const approval = { ownerId: winner.ownerId, amountCents: award.amountCents, mode: award.mode };
+      expect(await (await cashApp.request(payoutPath, { headers: admin })).json()).toMatchObject({ ...approval, payout: null });
+      paypal = mockCashPaypal(contestId, "sandbox", winner.email);
+      const send = () => cashApp.request(payoutPath, { method: "POST", headers: admin, body: JSON.stringify(approval) });
+      const paid = await send();
+      expect(paid.status).toBe(200);
+      const { payout } = await paid.json() as { payout: { id: string } };
+      expect(await (await send()).json()).toMatchObject({ payout: { id: payout.id } });
+      expect(paypal.batches).toBe(1);
+      await cashApp.request(`/v1/admin/payouts/${payout.id}`, { headers: admin });
+      expect(await (await ownerRead()).json()).toMatchObject({ receipts: [{
+        contestId, cashPayout: { ...award, status: "success", transactionId: "TEST-TRANSACTION" },
+      }] });
+    } finally {
+      resetHuntRuntimeForTests();
+      for (const [key, value] of Object.entries(previous)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+      if (contestId) {
+        await db.delete(eggHuntWins).where(eq(eggHuntWins.contestId, contestId));
+        await db.delete(eggCashBounties).where(eq(eggCashBounties.id, contestId));
+      }
+      for (const entrant of entrants) service.detach(entrant.agentId);
     }
   }, 30_000);
 

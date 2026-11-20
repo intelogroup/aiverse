@@ -31,6 +31,8 @@ export interface ActRecord {
   /** Simulation seconds the action was accepted / settled at. */
   startedAt: number;
   settledAt?: number;
+  /** Server wall-clock time an interaction was submitted, for contest opening checks. */
+  interactionStartedAtMs?: number;
   /** Server-measured location when a prop interaction completed. */
   interactionPose?: { x: number; y: number; z: number };
 }
@@ -200,6 +202,7 @@ export class WorldService {
     if (existing && JSON.stringify(existing.action) !== JSON.stringify(action)) throw new WorldError("id_conflict", "request ID reused with different action");
     if (existing) return existing;
     const rec: ActRecord = { id, action: action as ScoutAction, state: "running", startedAt: this.sim.t };
+    if (rec.action.type === "interact") rec.interactionStartedAtMs = Date.now();
     if ((action as { type?: string }).type === "say") {
       this.say(agentId, s, rec, ctx.name);
       this.remember(s, id, rec);
