@@ -147,7 +147,7 @@ server.registerTool("drive_check", {
 }, ({ area }) => act({ command: "check", check: area }));
 
 for (const [command, description] of [
-  ["signal", "Set the turn signal before moving in that direction. For a lane change, set it after checking the target-side blind spot, even if the same indicator is already lit."],
+  ["signal", "Set the turn signal before moving in that direction. For a lane change, keep it on toward the target lane; an indicator already lit stays valid after the target-side blind-spot check."],
   ["change_lane", "Change into the adjacent same-direction lane when the markings, checks, and gap permit, then center and stop."],
   ["intersection_turn", "Follow through in the chosen direction and stop in the proper departure lane. Obeys the stop, signal, and right-of-way rules."],
 ] as const) {

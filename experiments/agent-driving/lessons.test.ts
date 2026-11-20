@@ -121,3 +121,25 @@ for (const lesson of ["right_turn", "left_turn", "no_turn_on_red", "crosswalk"] 
     expect(Math.abs(final.x)).toBeGreaterThan(LESSON_ROAD.curb + DRIVER.halfLength);
   });
 }
+
+test("lane change accepts signal-then-check and check-then-signal; a lane change with no check is refused", async () => {
+  const check = { command: "check", check: "mirrors_and_blind_spot" } as const;
+  const change = { command: "change_lane", direction: "left" } as const;
+  const ready = async (order: "signal-first" | "check-first") => {
+    const sim = new DrivingSimulation();
+    sim.reset(0, "lane_change");
+    await act(sim, { command: "enter" });
+    await act(sim, { command: "wait" });
+    if (order === "signal-first") { await act(sim, { command: "signal", direction: "left" }); await act(sim, check); }
+    else { await act(sim, check); await act(sim, { command: "signal", direction: "left" }); }
+    return sim;
+  };
+  expect(await act(await ready("signal-first"), change)).toMatchObject({ ok: true });
+  expect(await act(await ready("check-first"), change)).toMatchObject({ ok: true });
+  // No check yet (and the target lane is still occupied): refused. The stale-check path is covered by check_target_lane above.
+  const stale = new DrivingSimulation();
+  stale.reset(0, "lane_change");
+  await act(stale, { command: "enter" });
+  await act(stale, { command: "signal", direction: "left" });
+  expect(await act(stale, change)).toMatchObject({ ok: false });
+});

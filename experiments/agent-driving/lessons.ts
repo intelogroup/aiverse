@@ -121,7 +121,6 @@ function fixture(id: LessonId, hazard: Hazard | null, progress = 0): Actor | nul
 export class LessonRun {
   private readonly state: LessonState;
   private signalZ: number | undefined;
-  private laneSignalChecked = false;
   private active: ActiveLesson | undefined;
   private interrupted = false;
   private readonly course: ReturnType<typeof benchmarkCase> | undefined;
@@ -211,15 +210,11 @@ export class LessonRun {
     if (input.command === "check" && input.check) {
       if (input.check !== expectedCheck) return reject("wrong_check_area", "That view does not cover the current maneuver.", checkRecovery(expectedCheck));
       s.checked = input.check;
-      if (input.check === "mirrors_and_blind_spot" && s.indicator && !this.laneSignalChecked) {
-        return "Check complete. The current signal was set before this lane check. Signal again after the check for the lane change.";
-      }
       return "Check complete. Read the current road, traffic, and control observations.";
     }
     if (input.command === "signal" && input.direction) {
       if (s.indicator !== input.direction) this.signalZ = car.z;
       s.indicator = input.direction;
-      this.laneSignalChecked = s.checked === "mirrors_and_blind_spot";
       return `${input.direction === "left" ? "Left" : "Right"} turn signal on.`;
     }
     if (input.command === "wait") {
@@ -266,7 +261,7 @@ export class LessonRun {
       if (input.direction !== target) return reject("no_adjacent_lane", `The adjacent same-direction lane is on the ${target}.`);
       if (s.hazard === "blind_spot_vehicle") return reject("blind_spot_occupied", "A vehicle occupies the target lane gap. Wait and check again.", waitRecovery);
       if (s.checked !== expectedCheck) return reject("check_target_lane", "Check mirrors and the target-side blind spot first.", checkRecovery(expectedCheck));
-      if (s.indicator !== input.direction || !this.laneSignalChecked) return reject("signal_required", "Signal after checking mirrors and the blind spot.", signalRecovery(target));
+      if (s.indicator !== input.direction) return reject("signal_required", "Signal toward the target lane before moving.", signalRecovery(target));
       const radius = routeLane ? 10 : 13;
       const angle = (target === "left" ? 1 : -1) * Math.acos(1 - laneCenter / radius);
       return {
