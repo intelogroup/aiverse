@@ -1,7 +1,7 @@
 import { COURSE, DRIVER, type Check, type Direction, type DriveAction, type DriveState, type HeadlightMode, type LessonId } from "./protocol";
 import type { Recovery } from "./driver";
 import { benchmarkCase, type BenchmarkId } from "./benchmark";
-import { senseFeed, type SenseFeed } from "./senses";
+import { SENSOR, senseFeed, type SenseFeed } from "./senses";
 
 export const lessons = {
   lane_change: { title: "Change lanes left", goal: "Move into the adjacent left lane and stop centered in it." },
@@ -140,7 +140,7 @@ export class LessonRun {
   private turnsRed = false;
   private lateYellow = false;
   private clock = 0;
-  private signalPlan: { yellowAt: number; redAt: number } | undefined;
+  private signalPlan: { yellowAt: number; redAt: number; lineZ?: number } | undefined;
   private signalScheduled = false;
   private cruise = false;
   private watchLine = false;
@@ -300,7 +300,7 @@ export class LessonRun {
         // A seeded dilemma: yellow once half the expected arrival time has passed, red 3.5 s later (RMV: yellow means prepare to stop).
         const arrival = toLine / speed + speed / (2 * maxAcceleration);
         this.signalPlan = this.lateYellow
-          ? { yellowAt: this.clock + arrival * 0.9, redAt: this.clock + arrival + 30 }
+          ? { yellowAt: Infinity, redAt: Infinity, lineZ: stopLine + (course?.shift ?? 0) } // yellow fires in tick() when the car can no longer stop
           : { yellowAt: this.clock + arrival * 0.5, redAt: this.clock + arrival * 0.5 + 3.5 };
       }
       const rolling = s.realtime && input.stop === "none";
@@ -405,6 +405,11 @@ export class LessonRun {
     const active = this.active;
     if (!active) return;
     this.clock += dt;
+    const plan0 = this.signalPlan;
+    if (plan0?.lineZ !== undefined && plan0.yellowAt === Infinity && car.speed > 0.3
+      && car.speed * car.speed / (2 * SENSOR.maxBraking) > plan0.lineZ - (car.z + DRIVER.halfLength)) {
+      plan0.yellowAt = this.clock; plan0.redAt = this.clock + 30;   // the dilemma point: canStop just turned false
+    }
     if (this.signalPlan) {
       const light = this.clock >= this.signalPlan.redAt ? "red" : this.clock >= this.signalPlan.yellowAt ? "yellow" : "green";
       if (light !== this.state.signalHead) {

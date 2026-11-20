@@ -4,8 +4,10 @@ One post per corner of every road junction outside the plaza, carrying one 3-lam
 Plan coords (x east, y north) from plan.json; glTF is y-up with z = -y.  Right-hand traffic: the head for a driver
 sits on the far RIGHT corner, so   eastbound: SE corner faces west,  westbound: NW faces east,
 northbound: NE faces south,  southbound: SW faces north.
-Lamp meshes are one per (phase, colour) material so the console can switch a whole phase with six emissive values:
-  sig_ew_{red,yellow,green} (east-west traffic)   sig_ns_{red,yellow,green} (north-south traffic).
+Each post also carries a pedestrian head (WALK / DON'T WALK) under the vehicle head, facing the same way and following
+the same phase.  The GLB holds only the static metal (poles, heads); the lamps are listed per junction in
+apps/console/src/features/world/signalLamps.json and drawn by the console as one instanced mesh, so every junction can
+run its own phase offset (see packages/world-sim/src/trafficSignals.ts).
 Run:  python3 tools/city3/signals.py   (reads tools/city3/plan.json: run plan.py first)"""
 import json, math, os, struct, sys
 
@@ -16,7 +18,9 @@ Z = plan["walk_z"]
 px0, py0, px1, py1 = plan["plaza"]
 POST_OFFSET = 0.8       # post centre beyond the junction corner on both axes, on the sidewalk
 POST_H, HEAD_Y0, HEAD_H, HEAD_W, HEAD_D = 4.6, 3.7, 1.0, 0.36, 0.30
-LAMP, LAMP_GAP = 0.22, 0.04   # lamp panel size; 4 cm proud of the head face (>= 3 cm rule from the failures log)
+LAMP, LAMP_GAP = 0.22, 0.04
+PED_Y0, PED_H, PED_W, PED_D = 3.0, 0.62, 0.34, 0.25   # pedestrian head sits under the vehicle head (HEAD_Y0 - 0.7)
+LAMPS = []   # manifest rows for the console: one per lamp panel   # lamp panel size; 4 cm proud of the head face (>= 3 cm rule from the failures log)
 
 class Mesh:
     def __init__(self): self.pos, self.nor, self.idx = [], [], []
@@ -42,10 +46,6 @@ MATS = {  # name -> (base colour, emissive colour, metallic, roughness)
     "sig_pole": ((0.30, 0.31, 0.33), None, 0.6, 0.55),
     "sig_head": ((0.04, 0.04, 0.05), None, 0.1, 0.6),
 }
-for phase in ("ew", "ns"):
-    MATS[f"sig_{phase}_red"] = ((0.35, 0.02, 0.02), (1.0, 0.05, 0.05), 0.0, 0.4)
-    MATS[f"sig_{phase}_yellow"] = ((0.35, 0.25, 0.02), (1.0, 0.72, 0.05), 0.0, 0.4)
-    MATS[f"sig_{phase}_green"] = ((0.02, 0.30, 0.10), (0.1, 1.0, 0.35), 0.0, 0.4)
 meshes = {name: Mesh() for name in MATS}
 
 # (corner sign on x, sign on y) -> (phase, direction the head faces in plan coords)
@@ -59,6 +59,7 @@ def junctions():
             if not (r[0] >= px0 - .01 and r[1] >= py0 - .01 and r[2] <= px1 + .01 and r[3] <= py1 + .01): out.append(r)
     return out
 
+cur = 0
 def post(x, y, phase, face):
     cx, cz = x, -y                     # glTF position of the post
     fx, fz = face[0], -face[1]         # head facing in glTF xz
@@ -67,13 +68,19 @@ def post(x, y, phase, face):
     hy = Z + HEAD_Y0 + HEAD_H / 2
     meshes["sig_head"].box(cx, hy, cz, HEAD_W, HEAD_H, HEAD_D, yaw)
     # lamp panels on the face toward approaching traffic, red on top
+    ox, oz = fx * (HEAD_D / 2 + LAMP_GAP), fz * (HEAD_D / 2 + LAMP_GAP)
     for k, colour in enumerate(("red", "yellow", "green")):
         ly = Z + HEAD_Y0 + HEAD_H - 0.20 - k * 0.30
-        ox, oz = fx * (HEAD_D / 2 + LAMP_GAP), fz * (HEAD_D / 2 + LAMP_GAP)
-        meshes[f"sig_{phase}_{colour}"].box(cx + ox, ly, cz + oz, LAMP, LAMP, 0.02, yaw)
+        LAMPS.append({"j": cur, "phase": phase, "kind": colour, "p": [round(cx + ox, 3), round(ly, 3), round(cz + oz, 3)], "yaw": round(yaw, 4), "s": [LAMP, LAMP]})
+    # pedestrian head: WALK on top, DON'T WALK below
+    meshes["sig_head"].box(cx, Z + PED_Y0 + PED_H / 2, cz, PED_W, PED_H, PED_D, yaw)
+    pox, poz = fx * (PED_D / 2 + LAMP_GAP), fz * (PED_D / 2 + LAMP_GAP)
+    for kind, dy in (("walk", 0.45), ("dont", 0.17)):
+        LAMPS.append({"j": cur, "phase": phase, "kind": kind, "p": [round(cx + pox, 3), round(Z + PED_Y0 + dy, 3), round(cz + poz, 3)], "yaw": round(yaw, 4), "s": [0.24, 0.24]})
 
 count = 0
-for (x0, y0, x1, y1) in junctions():
+J = junctions()
+for cur, (x0, y0, x1, y1) in enumerate(J):
     for (sx, sy), (phase, face) in CORNERS.items():
         px = (x1 + POST_OFFSET) if sx > 0 else (x0 - POST_OFFSET)
         py = (y1 + POST_OFFSET) if sy > 0 else (y0 - POST_OFFSET)
@@ -112,4 +119,6 @@ blob.extend(b"\0" * (-len(blob) % 4))
 glb = struct.pack("<4sII", b"glTF", 2, 12 + 8 + len(js) + 8 + len(blob)) + struct.pack("<I4s", len(js), b"JSON") + js + struct.pack("<I4s", len(blob), b"BIN\0") + bytes(blob)
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 open(OUT, "wb").write(glb)
-print(f"junctions {len(junctions())} posts {count} -> {os.path.relpath(OUT)} {len(glb)} bytes")
+MANIFEST = os.path.join(HERE, "../../apps/console/src/features/world/signalLamps.json")
+json.dump({"generator": "tools/city3/signals.py", "junctions": [{"id": i, "rect": list(r)} for i, r in enumerate(J)], "lamps": LAMPS}, open(MANIFEST, "w"), separators=(",", ":"))
+print(f"lamps {len(LAMPS)} junctions {len(junctions())} posts {count} -> {os.path.relpath(OUT)} {len(glb)} bytes")
