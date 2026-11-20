@@ -5,11 +5,12 @@ import { assessAttempt, benchmarkIds, examScore, scoreBenchmark, type Attempt, t
 
 const simulation = new DrivingSimulation();
 const STEP = 1 / 60;
+const timeScale = Number(process.env.DRIVE_TIME_SCALE || "1") || 1;
 let previous = performance.now();
 let pending = 0;
 setInterval(() => {
   const now = performance.now();
-  pending += Math.min((now - previous) / 1000, 0.1);
+  pending += Math.min((now - previous) / 1000, 0.1) * timeScale;
   previous = now;
   while (pending >= STEP) {
     simulation.tick(STEP);
