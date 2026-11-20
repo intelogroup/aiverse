@@ -9,7 +9,8 @@ const server = new McpServer({ name: "aiverse-driving-lab", version: "0.2.0" });
 const lab = `http://127.0.0.1:${process.env.DRIVE_LAB_PORT || 5198}`;
 const simulationMutation = { readOnlyHint: false, destructiveHint: false, openWorldHint: false };
 const round = (value: number) => Math.round(value * 100) / 100;
-const skill = await Bun.file(new URL("./skills/drive-car/SKILL.md", import.meta.url)).text();
+// DRIVE_SKILL_FILE swaps the skill text for an experiment arm (no skill, previous version, refined); unset serves the shared skill.
+const skill = await Bun.file(process.env.DRIVE_SKILL_FILE || new URL("./skills/drive-car/SKILL.md", import.meta.url).pathname).text();
 const visionOnly = process.env.DRIVE_VISION_ONLY === "1";
 const verifyDrivingAgent = () => verifyVerseAgent(process.env.DRIVE_REQUIRE_OWNER_OAUTH === "1");
 await verifyDrivingAgent();
