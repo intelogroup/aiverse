@@ -69,7 +69,9 @@ server.registerTool("drive_look", {
   inputSchema: z.strictObject({ view: z.enum(cameraViews).optional().describe("ahead for context, road for lane arrows, signal_detail for a distant light, left or right for the junction sides, right_detail to resolve a pedestrian's feet relative to the right crosswalk. Defaults to ahead.") }),
 }, async ({ view = "ahead" }) => {
   await verifyDrivingAgent();
-  for (let attempt = 0; attempt < 20; attempt++) {
+  // The browser learns a new view from its next state poll and publishes a frame about every 620 ms; with several labs
+  // rendering at once that took more than the old 5 s. Wait 15 s, then tell the agent a retry is safe.
+  for (let attempt = 0; attempt < 60; attempt++) {
     const response = await fetch(`${lab}/api/cockpit?view=${view}`);
     if (response.ok) {
       const data = Buffer.from(await response.arrayBuffer()).toString("base64");
@@ -77,7 +79,7 @@ server.registerTool("drive_look", {
     }
     await Bun.sleep(250);
   }
-  return { isError: true, content: asText({ error: "No fresh driver-eye frame. The vision camera must be open and the driver seated." }) };
+  return { isError: true, content: asText({ error: "No fresh driver-eye frame yet. Call drive_look again; if it repeats, the driver must be seated (drive_enter) with the vision camera open." }) };
 });
 
 async function act(action: DriveAction) {
