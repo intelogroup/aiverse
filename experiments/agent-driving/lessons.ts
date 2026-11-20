@@ -1,6 +1,7 @@
 import { COURSE, DRIVER, type Check, type Direction, type DriveAction, type DriveState, type HeadlightMode, type LessonId } from "./protocol";
 import type { Recovery } from "./driver";
 import { benchmarkCase, type BenchmarkId } from "./benchmark";
+import { senseFeed, type SenseFeed } from "./senses";
 
 export const lessons = {
   lane_change: { title: "Change lanes left", goal: "Move into the adjacent left lane and stop centered in it." },
@@ -52,6 +53,7 @@ export type LessonState = {
   evidence: string[];
   passed: boolean;
   benchmark?: BenchmarkId;
+  senses?: SenseFeed;
   exam: boolean;
   infractions: Infraction[];
   laneChanged?: boolean;
@@ -149,8 +151,21 @@ export class LessonRun {
     this.state.actor = this.actorAt(0);
   }
 
-  snapshot(): LessonState {
-    return { ...this.state, evidence: [...this.state.evidence], infractions: [...this.state.infractions] };
+  snapshot(car?: Pick<DriveState, "x" | "z" | "heading" | "speed">): LessonState {
+    return { ...this.state, evidence: [...this.state.evidence], infractions: [...this.state.infractions], ...(car && { senses: this.senses(car) }) };
+  }
+
+  // Instrument feed for an agent that cannot read frames at speed (see senses.ts). Geometry is the lab's own, approximate.
+  private senses(car: Pick<DriveState, "x" | "z" | "heading" | "speed">): SenseFeed {
+    const s = this.state;
+    const shift = this.course?.shift ?? 0;
+    const actors = [s.actor, s.oncoming].filter((a): a is Actor => Boolean(a)).map((a) => ({ ...a, moving: Boolean(this.active) || a.kind === "vehicle" && s.hazard === "oncoming_vehicle" }));
+    return senseFeed({
+      car, frontOffset: DRIVER.halfLength,
+      stopLineZ: isIntersectionLesson(s.id) ? stopLine + shift : null,
+      crosswalkZ: s.crosswalk ? intersection + shift : null,
+      light: s.signalHead, sign: s.sign, actors,
+    });
   }
 
   // Lesson mode refuses an unsafe move and coaches. Exam mode lets it happen and records the infraction, like a road test.

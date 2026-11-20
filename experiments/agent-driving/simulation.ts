@@ -73,7 +73,7 @@ export class DrivingSimulation {
   private brakeHeld = false;
 
   snapshot(): DriveState {
-    return { ...this.state, events: [...this.state.events], lesson: this.lesson?.snapshot() };
+    return { ...this.state, events: [...this.state.events], lesson: this.lesson?.snapshot(this.state) };
   }
 
   reset(trafficOffset = 0, lessonId?: LessonId, benchmark?: BenchmarkId, exam = false) {

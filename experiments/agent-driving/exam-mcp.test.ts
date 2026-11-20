@@ -31,12 +31,16 @@ const reset = (mode: "exam" | "lesson") => fetch(`${lab}/api/reset?lesson=lane_c
 test("exam mode: an unsafe lane change is not coached, hidden fields stay hidden, the infraction is scored", async () => {
   await reset("exam");
   await call("drive_enter");
-  await call("drive_check", { area: "mirrors_and_blind_spot" });
+  const checked = await call("drive_check", { area: "mirrors_and_blind_spot" });
   const moved = await call("drive_change_lane", { direction: "left" });
   expect(moved).not.toHaveProperty("recovery");
   const lesson = moved.lesson as Record<string, unknown>;
   for (const field of hidden) expect(lesson).not.toHaveProperty(field);
   expect(lesson).not.toHaveProperty("detectedConflict");
+  // The sensor feed is the one place the agent may learn about traffic without a frame; it carries sensed kinds and sides, never scenario truth.
+  const senses = (checked.lesson as Record<string, unknown>).senses;
+  expect(senses).toMatchObject({ blindSpot: { left: true }, horizon: [] });
+  expect(JSON.stringify(senses)).not.toMatch(/hazard|blind_spot_vehicle|signalHead/);
   const state = await (await fetch(`${lab}/api/state`)).json() as { lesson: { infractions: { code: string }[] } };
   expect(state.lesson.infractions.map((item) => item.code)).toContain("blind_spot_occupied");
 }, 90_000);

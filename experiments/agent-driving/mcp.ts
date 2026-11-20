@@ -30,6 +30,8 @@ function observe(state: DriveState, identity: Awaited<ReturnType<typeof verifyVe
     ...(lesson ? { lesson: {
       ...(visionOnly ? {
         instructions: "Read the traffic light, signs, lane markings and actors from drive_look. Use driving checks for traffic outside the forward camera.",
+        // Sensor-limited instrument feed (senses.ts). DRIVE_SENSES=0 turns it off for the vision-only arm.
+        ...(process.env.DRIVE_SENSES !== "0" && lesson.senses && { senses: lesson.senses }),
         checked: lesson.checked, indicator: lesson.indicator, legs: lesson.legs, gear: lesson.gear,
         stoppedAtLine: lesson.stoppedAtLine, laneChanged: lesson.laneChanged, passed: lesson.passed,
         // A check names the conflict only in lesson mode. In exam mode the agent must see it in the camera frames.
