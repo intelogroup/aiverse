@@ -10,7 +10,6 @@ import { bakeCollisionParts } from "./capsuleWorld";
 import { FountainWater } from "./FountainWater";
 import { EasterEggs } from "./EasterEggs";
 import { BazaarCar } from "./BazaarCar";
-import { useState, useCallback } from "react";
 import type { InteractController } from "./interactables";
 import type { WalkColliders } from "./walkColliders";
 import { assetUrl, resolveManifestAssets } from "../../lib/assetUrl";
@@ -76,6 +75,30 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
   // Vehicle drivers: which agent body number is driving each car (null = parked).
   const [driver1, setDriver1] = useState<number | null>(null);
   const [driver2, setDriver2] = useState<number | null>(null);
+
+  // Poll vehicle state from gateway and map driver names to body numbers.
+  useEffect(() => {
+    if (!remoteBodies) return;
+    const poll = async () => {
+      try {
+        const res = await fetch("/api/world/vehicles");
+        if (!res.ok) return;
+        const data = await res.json();
+        const vehicles = data.vehicles ?? [];
+        const v1 = vehicles.find((v: { id: string }) => v.id === "car-east");
+        const v2 = vehicles.find((v: { id: string }) => v.id === "car-tea");
+        const bodies = remoteBodies.list();
+        const nameToBody = (name: string) => bodies.find((b) => b.name === name)?.n ?? null;
+        setDriver1(v1?.driverName ? nameToBody(v1.driverName) : null);
+        setDriver2(v2?.driverName ? nameToBody(v2.driverName) : null);
+      } catch {
+        // ignore
+      }
+    };
+    poll();
+    const interval = setInterval(poll, 2000);
+    return () => clearInterval(interval);
+  }, [remoteBodies]);
   // Camera-collision meshes per root (resident, links, each streamed district); flattened lazily for the collider.
   const colliderSets = useRef(new Map<string, THREE.Mesh[]>());
   const colliderFlat = useRef<THREE.Mesh[] | null>(null);

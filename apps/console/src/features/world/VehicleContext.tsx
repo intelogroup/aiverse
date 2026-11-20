@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from "react";
-import type * as THREE from "three";
 
 interface VehicleState {
   /** body number -> car id */
