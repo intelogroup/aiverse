@@ -14,6 +14,8 @@ Status 2026-11-20: 24 junctions x 4 corner posts, 3-lamp heads, fixed-time cycle
 - Signs on the driver's right per approach: pedestrian-crossing diamond at 4.2 m, signal-ahead diamond at 18 m. Symbols only: no text glyph pipeline, so no STOP/NO TURN ON RED lettering yet.
 - Verified in a plain three.js page (top view and driver view); not yet in the live console. Posts have no collision.
 
+## Collision for posts and signs
+- `StreetFurnitureColliders.tsx` registers the signals and roadmarks GLB meshes in `DistrictWorld`'s collider set (the walker and the camera both read it), via `streetFurniture.ts` `solidParts`, which drops the `mark_*` paint decals (5 cm proud: they must not become ground). Shared geometry, so BVHs are built once. Test: `streetFurnitureColliders.test.ts` walks a real walker into a signal post and a sign pole from the real GLBs.
 
 ## Controller (supersedes the fixed 12/3/1.5 plan above)
 - `packages/world-sim/src/trafficSignals.ts`: pure function of the wall clock (`Date.now()`), so signals run continuously, match across viewers and are readable by the sim and the driving lab.
