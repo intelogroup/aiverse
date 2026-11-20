@@ -1,5 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 const gateway = "http://127.0.0.1:4198";
+// The trial gateway is a separate process that can die between sessions; say so instead of a raw ConnectionRefused.
+await fetch(gateway + "/health").catch(() => { throw new Error(`Local trial gateway ${gateway} is not running. Start it against the local aiverse_driving_trial database first.`); });
 const post = (base: string, path: string, body: object, token?: string) => fetch(base + path, {
   method: "POST",
   headers: { "content-type": "application/json", accept: "application/json, text/event-stream", ...(token && { authorization: `Bearer ${token}` }) },
