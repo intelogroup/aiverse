@@ -7,8 +7,11 @@ import * as THREE from "three";
 import { RemoteBodies } from "./remoteFrames";
 
 const MODEL = assetUrl("/assets/car-concept.glb");
-// car-concept.glb's origin is at its centre; the wheels sit ~2.4 m below.
-const GROUND_OFFSET = 2.4;
+// car-concept.glb: wheel bottoms sit 0.159 m below the origin (measured on the loaded hierarchy,
+// root rotated -90 deg about x). An earlier 2.4 m guess left the car floating ~2.2 m up.
+const GROUND_OFFSET = 0.159;
+// The Bazaar walking surface is at y = 0.2 (plan.json walk_z), not 0.
+const BAZAAR_GROUND_Y = 0.2;
 
 /** A parked (or driven) red car on a bazaar street. */
 export function BazaarCar({
@@ -42,7 +45,7 @@ export function BazaarCar({
       }
     }
     // Parked: use initial position
-    ref.current.position.set(position[0], position[1] + GROUND_OFFSET, position[2]);
+    ref.current.position.set(position[0], position[1] + BAZAAR_GROUND_Y + GROUND_OFFSET * scale, position[2]);
     ref.current.rotation.y = rotationY;
     ref.current.scale.setScalar(scale);
   });
