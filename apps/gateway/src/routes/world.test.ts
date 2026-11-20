@@ -27,7 +27,7 @@ let lookMode: "ok" | "down" = "ok";
 // While set, a capture waits on it: lets a test hold a photo mid-render.
 let lookGate: Promise<void> | null = null;
 let openGate: () => void = () => {};
-const lookCalls: { agentId: string; position: [number, number]; headingDeg: number; gaze?: { yawDeg: number; pitchDeg: number } }[] = [];
+const lookCalls: { agentId: string; position: [number, number, number]; headingDeg: number; gaze?: { yawDeg: number; pitchDeg: number } }[] = [];
 const fakeLook: LookClient = {
   async look(agentId, position, headingDeg, gaze): Promise<LookOutcome> {
     lookCalls.push({ agentId, position, headingDeg, gaze });
@@ -41,7 +41,7 @@ const fakeLook: LookClient = {
         width: 512,
         height: 288,
         depthSummary: { units: "m", median: 3.5, centreMedian: 4.25 },
-        pose: { pos: [position[0], 0.2, position[1]] },
+        pose: { pos: position },
         renderMs: 1000,
         poseMs: 5,
         pitchSupported: false,
@@ -520,7 +520,7 @@ describe("/world (agent body)", () => {
     await startVisit(ownerToken, agentId);
     const attach = await w(agentToken, "POST", "/body");
     expect(attach.status).toBe(201);
-    const body = ((await attach.json()) as any).observation.body as { x: number; z: number; heading: number };
+    const body = ((await attach.json()) as any).observation.body as { x: number; y: number; z: number; heading: number };
     clock += 1000;
     lookCalls.length = 0;
     const r = await w(agentToken, "POST", "/see", {});
@@ -542,7 +542,8 @@ describe("/world (agent body)", () => {
     expect(lookCalls).toHaveLength(1);
     expect(lookCalls[0].agentId).toBe(agentId);
     expect(lookCalls[0].position[0]).toBeCloseTo(body.x, 3);
-    expect(lookCalls[0].position[1]).toBeCloseTo(body.z, 3);
+    expect(lookCalls[0].position[1]).toBeCloseTo(body.y, 3);
+    expect(lookCalls[0].position[2]).toBeCloseTo(body.z, 3);
     const wantDeg = (((body.heading * 180) / Math.PI) % 360 + 360) % 360;
     expect(Math.abs(lookCalls[0].headingDeg - wantDeg)).toBeLessThan(0.2);
     // Pacing: a second photograph inside the window is refused, not queued.
@@ -572,6 +573,28 @@ describe("/world (agent body)", () => {
     expect(r.status).toBe(202);
     await readSee(agentToken, ((await r.json()) as any).see.id);
     expect(lookCalls[0].gaze).toEqual({ yawDeg: -25, pitchDeg: 15 });
+    await w(agentToken, "DELETE", "/body");
+  });
+
+  test("world_see returns a native MCP image with pose metadata", async () => {
+    const { ownerToken, agentId, agentToken } = await ownerWithAgent("SeeMcp");
+    await startVisit(ownerToken, agentId);
+    expect((await w(agentToken, "POST", "/body")).status).toBe(201);
+    const call = async (args: Record<string, unknown>) => {
+      const response = await app.request("/mcp/agent", {
+        method: "POST",
+        headers: { authorization: `Bearer ${agentToken}`, "content-type": "application/json", accept: "application/json, text/event-stream" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "world_see", arguments: args } }),
+      });
+      expect(response.status).toBe(200);
+      return (await response.json() as any).result.content;
+    };
+    const pending = await call({});
+    const { see: { id, pose } } = JSON.parse(pending[0].text);
+    const result = await call({ see_id: id, wait_ms: 10_000 });
+    expect(JSON.parse(result[0].text).see).toMatchObject({ id, pose, state: "done" });
+    expect(JSON.parse(result[0].text).see.photoPng).toBeUndefined();
+    expect(result[1]).toEqual({ type: "image", mimeType: "image/png", data: "aGVsbG8td29ybGQ=" });
     await w(agentToken, "DELETE", "/body");
   });
 

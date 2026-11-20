@@ -66,12 +66,16 @@ export class ScoutVision {
 
   readonly width: number;
   readonly height: number;
-  constructor(width = 512, height = 288) {
+  private readonly depthWidth: number;
+  private readonly depthHeight: number;
+  constructor(width = 512, height = 288, depthWidth = width) {
     this.width = width; this.height = height;
+    this.depthWidth = depthWidth;
+    this.depthHeight = Math.round(height * depthWidth / width);
     this.camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 500);
     this.color = new THREE.WebGLRenderTarget(width, height);
     this.color.depthTexture = new THREE.DepthTexture(width, height, THREE.UnsignedIntType);
-    this.packed = new THREE.WebGLRenderTarget(width, height, { depthBuffer: false, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
+    this.packed = new THREE.WebGLRenderTarget(this.depthWidth, this.depthHeight, { depthBuffer: false, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
     this.copyMaterial = new THREE.ShaderMaterial({
       uniforms: { sourceDepth: { value: this.color.depthTexture } },
       vertexShader: "varying vec2 vUv; void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}",
@@ -81,7 +85,7 @@ export class ScoutVision {
     this.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.copyMaterial);
     this.copyScene.add(this.quad);
     this.rgba = new Uint8Array(width * height * 4);
-    this.depthBytes = new Uint8Array(width * height * 4);
+    this.depthBytes = new Uint8Array(this.depthWidth * this.depthHeight * 4);
   }
 
   /** `hidden`: objects left out of this capture only (the stand-in figure, the camera's own streamed body); visibility is restored after. */
@@ -99,7 +103,7 @@ export class ScoutVision {
       renderer.readRenderTargetPixels(this.color, 0, 0, this.width, this.height, this.rgba);
       renderer.setRenderTarget(this.packed);
       renderer.render(this.copyScene, this.copyCamera);
-      renderer.readRenderTargetPixels(this.packed, 0, 0, this.width, this.height, this.depthBytes);
+      renderer.readRenderTargetPixels(this.packed, 0, 0, this.depthWidth, this.depthHeight, this.depthBytes);
     } finally {
       renderer.setRenderTarget(priorTarget);
       renderer.autoClear = priorAutoClear;
@@ -113,8 +117,8 @@ export class ScoutVision {
     const stride = this.width * 4;
     for (let y = 0; y < this.height; y++) image.data.set(this.rgba.subarray((this.height - 1 - y) * stride, (this.height - y) * stride), y * stride);
     ctx.putImageData(image, 0, 0);
-    return { image: canvas.toDataURL("image/png"), depth: { width: this.width, height: this.height, units: "m", convention: "camera-z", invalid: 0,
-      values: decodeDepth(this.depthBytes, this.width, this.height, this.camera.near, this.camera.far) },
+    return { image: canvas.toDataURL("image/png"), depth: { width: this.depthWidth, height: this.depthHeight, units: "m", convention: "camera-z", invalid: 0,
+      values: decodeDepth(this.depthBytes, this.depthWidth, this.depthHeight, this.camera.near, this.camera.far) },
       camera: cameraCalibration(this.camera, this.width, this.height), simulationTime };
   }
 

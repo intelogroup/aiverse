@@ -1,3 +1,5 @@
+import { LOOK_EYE_M } from "@aiverse/world-sim/look";
+
 // How the gateway reaches the look service (experiments/look-service): the photorealistic head-cam behind POST /world/see.
 //
 // A separate process on purpose: it holds a warm headless Chromium open on the console world, and captures serialize on its
@@ -5,7 +7,7 @@
 // down service, a wedged capture — everything becomes { ok: false } and the route answers 502 look_unavailable. A frame is
 // never fabricated, cached or retried into existence.
 export interface LookFrame {
-  /** Base64 PNG, 512x288, from the body's head at the pose the gateway passed in. */
+  /** Base64 PNG from the body's head at the pose the gateway passed in. */
   photoPng: string;
   width: number;
   height: number;
@@ -32,7 +34,7 @@ export type LookOutcome =
 
 export interface LookClient {
   /** headingDeg is the BODY heading; `gaze` is the head direction relative to it (the camera faces heading + yaw, pitched). */
-  look(agentId: string, position: [number, number], headingDeg: number, gaze?: { yawDeg: number; pitchDeg: number }): Promise<LookOutcome>;
+  look(agentId: string, position: [number, number, number], headingDeg: number, gaze?: { yawDeg: number; pitchDeg: number }): Promise<LookOutcome>;
 }
 
 /**
@@ -53,6 +55,7 @@ interface ServiceLookBody {
   poseMs?: number;
   poseErrorM?: number | null;
   poseMismatch?: boolean;
+  camera?: { worldFromCamera?: number[] };
   pitchSupported?: boolean;
   utc?: string;
   error?: string;
@@ -63,12 +66,15 @@ export function httpLookClient(baseUrl: string, secret: string, timeoutMs = LOOK
   return {
     async look(agentId, position, headingDeg, gaze) {
       const t0 = Date.now();
+      const [x, y, z] = position;
+      const heading = ((headingDeg + (gaze?.yawDeg ?? 0)) % 360 + 360) % 360;
+      const pitch = gaze?.pitchDeg ?? 0;
       let r: Response;
       try {
         r = await fetch(`${base}/look`, {
           method: "POST",
           headers: { authorization: `Bearer ${secret}`, "content-type": "application/json" },
-          body: JSON.stringify({ agentId, position, headingDeg: Math.round((((headingDeg + (gaze?.yawDeg ?? 0)) % 360) + 360) % 360 * 10) / 10, pitchDeg: gaze?.pitchDeg ?? 0, gaze: gaze ?? { yawDeg: 0, pitchDeg: 0 } }),
+          body: JSON.stringify({ agentId, position: [x, z], position3d: position, headingDeg: heading, pitchDeg: pitch }),
           signal: AbortSignal.timeout(timeoutMs),
         });
       } catch (e) {
@@ -81,6 +87,14 @@ export function httpLookClient(baseUrl: string, secret: string, timeoutMs = LOOK
       if (r.status !== 200) return { ok: false, reason: "unavailable" };
       const body = (await r.json().catch(() => null)) as ServiceLookBody | null;
       if (!body || typeof body.png_b64 !== "string" || !body.png_b64) return { ok: false, reason: "bad_response" };
+      const matrix = body.camera?.worldFromCamera;
+      const rad = Math.PI / 180;
+      if (body.poseMismatch || !Array.isArray(matrix) || matrix.length !== 16 || !matrix.every(Number.isFinite)
+        || Math.hypot(matrix[12]! - x, matrix[13]! - y - LOOK_EYE_M, matrix[14]! - z) > .05
+        || Math.hypot(matrix[8]! + Math.sin(heading * rad) * Math.cos(pitch * rad), matrix[9]! + Math.sin(pitch * rad),
+          matrix[10]! + Math.cos(heading * rad) * Math.cos(pitch * rad)) > .02) {
+        return { ok: false, reason: "bad_response" };
+      }
       return {
         ok: true,
         serviceMs: Date.now() - t0,
@@ -93,7 +107,7 @@ export function httpLookClient(baseUrl: string, secret: string, timeoutMs = LOOK
           renderMs: typeof body.renderMs === "number" ? body.renderMs : null,
           poseMs: typeof body.poseMs === "number" ? body.poseMs : null,
           poseErrorM: typeof body.poseErrorM === "number" ? body.poseErrorM : null,
-          poseMismatch: body.poseMismatch === true,
+          poseMismatch: false,
           pitchSupported: body.pitchSupported === true,
           capturedAt: typeof body.utc === "string" ? body.utc : null,
         },

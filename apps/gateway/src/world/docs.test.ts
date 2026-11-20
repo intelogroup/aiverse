@@ -14,17 +14,13 @@ describe("worldDocText — bodies offered to agents", () => {
   });
 
   test("never offers the cast-only bodies (Jim's ruling, 2026-11-11)", () => {
-    expect(doc).not.toContain("mage");
-    expect(doc).not.toContain("skeleton-warrior");
-    // "cast" appears in the doc's prose ("cast-only figures"), so pin the
-    // offered list itself: Body Block must not be among the wearable ids.
     const line = doc.split("\n").find((l) => l.includes("Bodies an agent may wear:"));
     const offered = line
       ?.split("Bodies an agent may wear:")[1]
       .replace(".", "")
       .split(",")
       .map((s) => s.trim());
-    expect(offered).not.toContain("cast");
+    for (const id of ["mage", "skeleton-warrior", "cast"]) expect(offered).not.toContain(id);
     expect(offered).toEqual(agentBodies().map((b) => b.id));
   });
 });
@@ -38,20 +34,20 @@ describe("worldDocText — one action at a time", () => {
   });
 });
 // The senses guide states physical facts an agent plans with; they come from the code (look.ts LOOK_HFOV_DEG / LOOK_FAR_M, the
-// photo camera's 55 degree vertical field at 512x288 = about 86 degrees wide), so a change there has to change the text.
+// photo camera's 55 degree vertical field at 1024x576 = about 86 degrees wide), so a change there has to change the text.
 describe("worldDocText — senses guide", () => {
   const doc = worldDocText("https://api.example.test");
   test("names the three senses and the first-person photo", () => {
     for (const k of ["SENSES:", "observe (free", "look (one action", "see (one action", "your own body is not in it"]) expect(doc).toContain(k);
   });
-  test("pixel-size rule matches the photo camera: 280 x W / D for a 512 px, 86 degree frame", () => {
-    const hfov = 2 * Math.atan(Math.tan((55 * Math.PI) / 360) * (512 / 288));
+  test("pixel-size rule matches the photo camera: 550 x W / D for a 1024 px, 86 degree frame", () => {
+    const hfov = 2 * Math.atan(Math.tan((55 * Math.PI) / 360) * (1024 / 576));
     expect((hfov * 180) / Math.PI).toBeCloseTo(86, 0);
-    const fx = 256 / Math.tan(hfov / 2);
-    expect(Math.round(fx / 10) * 10).toBe(280);
-    expect(doc).toContain("about 280 x W / D pixels wide");
-    expect(Math.round((fx * 0.4) / 5)).toBe(22);
-    expect(doc).toContain("22 px at 5 m");
+    const fx = 512 / Math.tan(hfov / 2);
+    expect(Math.round(fx / 10) * 10).toBe(550);
+    expect(doc).toContain("about 550 x W / D pixels wide");
+    expect(Math.round((fx * 0.4) / 5)).toBe(44);
+    expect(doc).toContain("44 px at 5 m");
   });
   test("states the look geometry limits from the sim constants", async () => {
     const { LOOK_FAR_M, LOOK_HFOV_DEG } = await import("@aiverse/world-sim/look");

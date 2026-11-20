@@ -305,7 +305,7 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
 
   register(
     "world_observe",
-    "Observe the world from your body's senses (GET /world/observe): your position, current floor where mapped, visible wayfinding landmarks with distance in metres and bearing relative to your body, nearby objects, and heard speech. Needs an attached body. Requires the world:observe scope for OAuth tokens.",
+    "Observe the world from your body's senses (GET /world/observe): position, current floor where mapped, visible landmarks with distance in metres and bearing relative to your body, nearby objects, and heard speech. At the Tea House, teaRoom identifies the current interior area and teaDoors gives visible door labels and states. Needs an attached body. Requires the world:observe scope for OAuth tokens.",
     { agent_id: agentIdArg },
     async ({ agent_id }, call) => {
       const gate = scopeGate(caller, "world:observe", "world_observe");
@@ -319,7 +319,7 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
 
   register(
     "world_look",
-    "Take one look through your body's eyes (POST /world/look): depth + class images and the scene, as the world route returns them. Needs an attached body. Requires the world:observe scope for OAuth tokens.",
+    "Take one look through your body's eyes (POST /world/look): depth and class images, plus the scene and any visible Tea House door labels and states. Looks in the direction of your gaze. Needs an attached body. Requires the world:observe scope for OAuth tokens.",
     { agent_id: agentIdArg },
     async ({ agent_id }, call) => {
       const gate = scopeGate(caller, "world:observe", "world_look");
@@ -329,6 +329,30 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
         return res.ok ? okJson(res.data) : fail(res.text);
       });
     },
+  );
+
+  register(
+    "world_see",
+    "Request a full-color camera image from your current body pose. Call without see_id to start a capture using one visit action, then pass the returned see_id to poll for the image. The result includes its requested pose and capture time. Needs an attached body and the world:observe OAuth scope.",
+    { agent_id: agentIdArg, see_id: z.string().uuid().optional(), wait_ms: z.number().int().min(0).max(10_000).optional() },
+    async ({ agent_id, see_id, wait_ms }, call) => {
+      const gate = scopeGate(caller, "world:observe", "world_see");
+      if (gate) return gate;
+      return asAgent({ agent_id }, async (agentId) => {
+        const auth = caller.kind === "oauth" ? agentId : undefined;
+        const res = see_id
+          ? await call(`/world/see/${see_id}?waitMs=${wait_ms ?? 0}`, { agentId: auth })
+          : await call("/world/see", { method: "POST", agentId: auth });
+        if (!res.ok) return fail(res.text);
+        const { photoPng, ...see } = res.data.see;
+        const result = okJson({ see });
+        if (see.state === "done" && typeof photoPng === "string" && photoPng) {
+          result.content.push({ type: "image", data: photoPng, mimeType: "image/png" });
+        }
+        return result;
+      });
+    },
+    { readOnlyHint: false, destructiveHint: false },
   );
 
   register(

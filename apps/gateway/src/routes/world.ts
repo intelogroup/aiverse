@@ -170,7 +170,7 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
   route.post("/look", (c) => forward(c, c.get("agentId"), "POST", `/bodies/${c.get("agentId")}/look`, "{}"));
   // One photograph: the photorealistic head-cam (the look service's warm Chromium page), as opposed to /look's synthetic
   // depth+class glance. ASYNC: a capture takes tens of seconds to minutes, so this queues a job and answers 202 at once with
-  // {see:{id, state, requestedAt, pose}}; GET /world/see/:id[?waitMs=] reads it. The photo shows the world as of the REQUEST, so
+  // {see:{id, state, requestedAt, pose}}; GET /world/see/:id[?waitMs=] reads it. The photo uses the pose at the REQUEST, so
   // the finished job carries `ageMs` and `moved` (how far the body has walked and turned since) for the agent to judge freshness
   // against its live observe/look. The request costs one action (counted by agentAuth); a job that ends without a photo is refunded.
   // The pose comes from the sim, never from the request: an agent can only photograph from where its body stands, facing where it
@@ -185,8 +185,8 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
     }
     const poseRes = await forward(c, agentId, "GET", `/bodies/${agentId}`);
     if (poseRes.status !== 200) return poseRes;
-    const pose = ((await poseRes.json().catch(() => null)) as { body?: { x?: unknown; z?: unknown; heading?: unknown; gaze?: { yawDeg?: unknown; pitchDeg?: unknown } } } | null)?.body;
-    if (!pose || typeof pose.x !== "number" || typeof pose.z !== "number" || typeof pose.heading !== "number") {
+    const pose = ((await poseRes.json().catch(() => null)) as { body?: { x?: unknown; y?: unknown; z?: unknown; heading?: unknown; gaze?: { yawDeg?: unknown; pitchDeg?: unknown } } } | null)?.body;
+    if (!pose || typeof pose.x !== "number" || typeof pose.y !== "number" || typeof pose.z !== "number" || typeof pose.heading !== "number") {
       logError("world_see_bad_pose", new Error("sim body read carried no pose"), { agentId });
       return c.json({ error: "look_unavailable" }, 502);
     }
@@ -194,7 +194,7 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
     const toDeg = (rad: number) => Math.round(((((rad * 180) / Math.PI) % 360) + 360) % 360 * 10) / 10;
     const g = pose.gaze;
     const gaze = g && typeof g.yawDeg === "number" && typeof g.pitchDeg === "number" ? { yawDeg: g.yawDeg, pitchDeg: g.pitchDeg } : undefined;
-    const requested = { x: pose.x, z: pose.z, headingDeg: toDeg(pose.heading), ...(gaze ? { gaze } : {}) };
+    const requested = { x: pose.x, y: pose.y, z: pose.z, headingDeg: toDeg(pose.heading), ...(gaze ? { gaze } : {}) };
     const visitId = c.get("visitId");
     // Stamp BEFORE submitting: a capture that fails at once refunds (and un-stamps) from inside submit, which must not be overwritten after.
     const prevStamp = lastSeeAt.get(agentId);
@@ -203,9 +203,9 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
       // How far the body has walked / turned since the request: the agent's freshness signal for a photo that took a while.
       moved: async (job) => {
         const r = await sim.call("GET", `/bodies/${agentId}`).catch(() => null);
-        const b = r && r.ok ? ((await r.json().catch(() => null)) as { body?: { x?: unknown; z?: unknown; heading?: unknown } } | null)?.body : null;
-        if (!b || typeof b.x !== "number" || typeof b.z !== "number" || typeof b.heading !== "number") return undefined;
-        return { distanceM: Math.round(Math.hypot(b.x - job.pose.x, b.z - job.pose.z) * 100) / 100, turnedDeg: Math.round(angleDiffDeg(toDeg(b.heading), job.pose.headingDeg) * 10) / 10 };
+        const b = r && r.ok ? ((await r.json().catch(() => null)) as { body?: { x?: unknown; y?: unknown; z?: unknown; heading?: unknown } } | null)?.body : null;
+        if (!b || typeof b.x !== "number" || typeof b.y !== "number" || typeof b.z !== "number" || typeof b.heading !== "number") return undefined;
+        return { distanceM: Math.round(Math.hypot(b.x - job.pose.x, b.y - job.pose.y, b.z - job.pose.z) * 100) / 100, turnedDeg: Math.round(angleDiffDeg(toDeg(b.heading), job.pose.headingDeg) * 10) / 10 };
       },
       // Failed / dropped job: the request is not charged (the request already counted, since it answered 202).
       refund: async (job) => { lastSeeAt.delete(agentId); log("world_see_failed", { agentId, error: job.error }); await refundVisitAction(visitId); },

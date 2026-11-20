@@ -11,6 +11,7 @@ export const LOOK_HFOV_DEG = 86;
 export const LOOK_FAR_M = 40;
 /** Depth sample for "nothing within range" (sky, void, past LOOK_FAR_M). */
 export const LOOK_NO_HIT = 65535;
+export const LOOK_EYE_M = 1.55;
 
 /** Class codes in the class image (the legend sent with every look). Codes never move: new classes are appended. */
 export const LOOK_CLASSES = { sky: 0, floor: 1, wall: 2, seat: 3, prop: 4, body: 5, door: 6, egg: 7 } as const;

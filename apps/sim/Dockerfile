@@ -13,6 +13,7 @@ RUN bun install --frozen-lockfile
 COPY apps/sim apps/sim
 # data/ holds the baked navmesh (world-city3-navmesh.bin), tied by sha256 to world-city3-collision.glb.
 COPY packages/world-sim packages/world-sim
+COPY docs/procedural-city/tea-house/plan.json docs/procedural-city/tea-house/plan.json
 # Only what loadVerseSim reads (~20 MB); the render GLBs and cast models stay out of the image.
 COPY apps/console/public/assets/districts.json apps/console/public/assets/city3-places.json apps/console/public/assets/city3-anchors.json apps/console/public/assets/
 COPY apps/console/public/assets/world-*-collision.glb apps/console/public/assets/

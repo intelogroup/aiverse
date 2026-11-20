@@ -8,11 +8,12 @@ import { AgentBody, SUBSTEP_S, BODY_HEIGHT_M, type AgentBodyDeps } from "./agent
 import { BODY_REMY } from "./bodies";
 import type { CityNav } from "./cityNav";
 import { boxesMesh, createCapsuleWorld } from "./capsuleWorld";
-import { LOOK_CLASSES, renderLook, type LookOpts, type LookResult, type LookScene } from "./look";
+import { LOOK_CLASSES, LOOK_EYE_M, renderLook, type LookOpts, type LookResult, type LookScene } from "./look";
 import { InteractController, type InteractableDef } from "./interactables";
 import { bearingDeg, type ScoutPlace, type ScoutRoomShape, type Sittable } from "./scout";
 import { TEA_BLOCKER_BOX, TeaDoorController, type TeaDoorChannel } from "./teaDoor";
 import { TeaElevatorController } from "./teaElevator";
+import type { TeaFloorPlan } from "./teaLandmarks";
 import { teaLiftCollision } from "./teaLiftCollision";
 import { WalkColliders } from "./walkColliders";
 import type { World } from "./walker";
@@ -25,12 +26,13 @@ export interface VerseData {
   sittables: Sittable[];
   /** Room footprints and doors, for the scene a body senses (`oracleScene`). */
   rooms?: ScoutRoomShape[];
+  teaFloors?: readonly TeaFloorPlan[];
 }
 
 export type AddBodyOpts = Pick<AgentBodyDeps, "spawn"> & { id: string; hipsY?: number };
 
 /** Eye height above the feet, m (sight lines run eye to eye). */
-const EYE_M = 1.55;
+const EYE_M = LOOK_EYE_M;
 
 export class VerseSim {
   /** The walker's collision sets (resident Bazaar, districts, interior furniture boxes, the door blocker). */
@@ -87,6 +89,7 @@ export class VerseSim {
   get places(): ScoutPlace[] { return this.data.places; }
   get sittables(): Sittable[] { return this.data.sittables; }
   get rooms(): ScoutRoomShape[] { return this.data.rooms ?? []; }
+  get teaFloors(): readonly TeaFloorPlan[] { return this.data.teaFloors ?? []; }
 
   /** True once the resident collision is loaded (a body cannot find ground before that). */
   get ready(): boolean { return this.walk.status === "ready"; }

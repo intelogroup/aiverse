@@ -13,6 +13,7 @@ import { CityNav } from "../src/cityNav";
 import { colUrl, parseColBoxes } from "../src/colBoxes";
 import { eggInteractable, type EggPlacement, type InteractableDef } from "../src/interactables";
 import type { ScoutPlace, ScoutRoomShape, Sittable } from "../src/scout";
+import type { TeaFloorPlan } from "../src/teaLandmarks";
 import { VerseSim } from "../src/verseSim";
 
 interface DistrictRow { id: string; center: [number, number]; resident?: boolean; collisionUrl?: string }
@@ -28,7 +29,7 @@ export interface LoadStats {
 /** `/assets/foo.glb` (a manifest URL) -> a path under `assetsDir` (apps/console/public/assets). */
 const at = (assetsDir: string, url: string) => `${assetsDir.replace(/\/$/, "")}/${url.replace(/^\/?assets\//, "")}`;
 
-async function readJson<T>(path: string): Promise<T> {
+async function readJson<T>(path: string | URL): Promise<T> {
   return JSON.parse(await readFile(path, "utf8")) as T;
 }
 
@@ -87,7 +88,9 @@ export async function loadVerseSim(assetsDir: string, opts: { navBin?: string | 
   const places = await readJson<ScoutPlace[]>(at(assetsDir, "/assets/city3-places.json"));
   const sittables = await readJson<Sittable[]>(at(assetsDir, "/assets/city3-anchors.json"));
   const shapes: ScoutRoomShape[] = rooms.flatMap((r) => (r.door && r.rect && r.center ? [{ id: r.id, name: r.name ?? r.id, door: r.door, rect: r.rect, center: r.center }] : []));
-  sim.setData({ places, sittables, rooms: shapes }, rooms.flatMap((r) => r.interactables ?? []));
+  const teaPlan = new URL("../../../docs/procedural-city/tea-house/plan.json", import.meta.url);
+  const { levels: teaFloors } = await readJson<{ levels: TeaFloorPlan[] }>(teaPlan);
+  sim.setData({ places, sittables, rooms: shapes, teaFloors }, rooms.flatMap((r) => r.interactables ?? []));
   const { eggs } = await readJson<{ eggs: EggPlacement[] }>(at(assetsDir, "/assets/collectibles/easter-eggs.json"));
   sim.interact.register(eggs.map(eggInteractable), "eggs");
 
