@@ -17,9 +17,11 @@ export function BazaarCar({ position = [15, 0, 5], rotationY = 0, scale = 1 }: {
   const gltf = useGLTF(MODEL, true, true, extendGltf(gl));
   const ref = useRef<THREE.Group>(null);
 
+  // car-concept.glb's origin is at its centre; the wheels sit ~2.4 m below, so lift to keep it on the ground.
+  const GROUND_OFFSET = 2.4;
   useEffect(() => {
     if (!ref.current) return;
-    ref.current.position.set(...position);
+    ref.current.position.set(position[0], position[1] + GROUND_OFFSET, position[2]);
     ref.current.rotation.y = rotationY;
     ref.current.scale.setScalar(scale);
   }, [position, rotationY, scale]);
