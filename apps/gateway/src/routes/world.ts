@@ -42,35 +42,41 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
   const lastSeeAt = new Map<string, number>();
   const seeQueue = look ? createSeeQueue(look, { ...seeOptionsFromEnv(), ...seeOpts }) : null;
 
-  // Vehicle occupancy: vehicleId -> agentId (in-memory, per gateway process).
+  // Vehicle occupancy: vehicleId -> agent name (in-memory, per gateway process).
+  // Uses agent name (not ID) so the console can map to body numbers via the roster.
   const vehicleDrivers = new Map<string, string>();
 
-  // GET /world/vehicles — list vehicles and their current drivers.
-  route.get("/vehicles", (c) => {
-    const vehicles = [...vehicleDrivers.entries()].map(([id, agentId]) => ({ id, driver: agentId }));
+  // GET /world/vehicles — list vehicles and their current drivers (by name).
+  route.get("/vehicles", async (c) => {
+    const vehicles = [...vehicleDrivers.entries()].map(([id, name]) => ({ id, driverName: name }));
     return c.json({ vehicles });
   });
 
   // POST /world/vehicles/:id/enter — agent enters a vehicle.
-  route.post("/vehicles/:id/enter", (c) => {
+  route.post("/vehicles/:id/enter", async (c) => {
     const vehicleId = c.req.param("id");
     const agentId = c.get("agentId");
+    // Look up agent name
+    const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
+    const name = agent?.name ?? agentId;
     // If agent already driving another vehicle, exit first
-    for (const [vid, aid] of vehicleDrivers) {
-      if (aid === agentId) vehicleDrivers.delete(vid);
+    for (const [vid, n] of vehicleDrivers) {
+      if (n === name) vehicleDrivers.delete(vid);
     }
-    vehicleDrivers.set(vehicleId, agentId);
-    log("vehicle_enter", { agentId, vehicleId });
-    return c.json({ ok: true, vehicleId, driver: agentId });
+    vehicleDrivers.set(vehicleId, name);
+    log("vehicle_enter", { agentId, name, vehicleId });
+    return c.json({ ok: true, vehicleId, driver: name });
   });
 
   // POST /world/vehicles/:id/exit — agent exits a vehicle.
-  route.post("/vehicles/:id/exit", (c) => {
+  route.post("/vehicles/:id/exit", async (c) => {
     const vehicleId = c.req.param("id");
     const agentId = c.get("agentId");
-    if (vehicleDrivers.get(vehicleId) === agentId) {
+    const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
+    const name = agent?.name ?? agentId;
+    if (vehicleDrivers.get(vehicleId) === name) {
       vehicleDrivers.delete(vehicleId);
-      log("vehicle_exit", { agentId, vehicleId });
+      log("vehicle_exit", { agentId, name, vehicleId });
       return c.json({ ok: true, vehicleId });
     }
     return c.json({ error: "not_driver", hint: "you are not driving this vehicle" }, 403);
