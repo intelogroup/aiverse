@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AIVerse Driving Lab</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main class="lab">
+    <header class="header">
+      <div class="identity">
+        <div><p class="brand">AIVerse</p><h1>Driving Lab</h1></div>
+      </div>
+      <output id="connection" class="connection">Loading simulation</output>
+    </header>
+
+    <section class="stage" aria-label="Driving simulation">
+      <div id="viewport" class="viewport"></div>
+      <div id="loading" class="loading" role="status">Loading car and driver…</div>
+      <div class="stage-top">
+        <div class="camera-name"><span class="camera-dot"></span><span id="view-name">Exterior camera</span></div>
+        <div class="camera-switch" aria-label="Camera mode">
+          <button id="exterior" type="button" aria-pressed="true">Exterior</button>
+          <button id="cockpit" type="button" aria-pressed="false" disabled>Cockpit</button>
+        </div>
+      </div>
+      <div class="stage-bottom">
+        <div class="speed">
+          <span id="speed">00</span>
+          <span class="unit">KM/H</span>
+        </div>
+        <div class="status-list">
+          <span id="driver-status">Outside car</span>
+          <span id="crossing-status">Crossing clear</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="workbench">
+      <div class="control-panel">
+        <div class="panel-head">
+          <h2>Driver controls</h2>
+          <select id="lesson" aria-label="Driving lesson"><option value="">Free drive</option></select>
+          <button id="demo" class="primary" type="button">Run demo</button>
+        </div>
+        <div class="controls">
+          <button id="enter" data-command="enter" type="button" class="seat-button">Enter car</button>
+          <button data-command="turn_left" type="button"><span aria-hidden="true">↶</span> Left</button>
+          <button data-command="turn_right" type="button"><span aria-hidden="true">↷</span> Right</button>
+          <button data-command="gas" type="button">Gas</button>
+          <button data-command="brake" type="button">Brake</button>
+          <button data-command="yield" type="button">Yield</button>
+          <select id="headlights" aria-label="Headlight beams" disabled>
+            <option value="off">Lights off</option>
+            <option value="low">Low beams</option>
+            <option value="high">High beams</option>
+          </select>
+          <button id="reset" type="button" class="reset">Reset</button>
+        </div>
+        <p id="feedback" class="feedback" role="status">Open the door and get in to start driving.</p>
+      </div>
+      <div class="trace-panel">
+        <div class="panel-head"><h2>Command log</h2><span>MCP ready</span></div>
+        <ol id="trace" class="trace"><li>Waiting for a driver command</li></ol>
+      </div>
+    </section>
+    <footer><span><a href="https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/CarConcept">Car Concept</a> by Eric Chadwick and DGG, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a> · Adapted for driving · <a href="https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky">Sky by Poly Haven</a></span><span>Remy · AIVerse</span></footer>
+  </main>
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

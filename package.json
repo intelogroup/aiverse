@@ -3,9 +3,11 @@
   "private": true,
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "experiments/agent-driving"
   ],
   "scripts": {
+    "drive:lab": "bun run --cwd experiments/agent-driving start",
     "dev": "bun run --cwd apps/gateway dev",
     "typecheck": "bunx tsc --noEmit -p tsconfig.ci.json",
     "test": "bun test",
