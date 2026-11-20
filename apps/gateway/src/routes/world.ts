@@ -42,6 +42,40 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
   const lastSeeAt = new Map<string, number>();
   const seeQueue = look ? createSeeQueue(look, { ...seeOptionsFromEnv(), ...seeOpts }) : null;
 
+  // Vehicle occupancy: vehicleId -> agentId (in-memory, per gateway process).
+  const vehicleDrivers = new Map<string, string>();
+
+  // GET /world/vehicles — list vehicles and their current drivers.
+  route.get("/vehicles", (c) => {
+    const vehicles = [...vehicleDrivers.entries()].map(([id, agentId]) => ({ id, driver: agentId }));
+    return c.json({ vehicles });
+  });
+
+  // POST /world/vehicles/:id/enter — agent enters a vehicle.
+  route.post("/vehicles/:id/enter", (c) => {
+    const vehicleId = c.req.param("id");
+    const agentId = c.get("agentId");
+    // If agent already driving another vehicle, exit first
+    for (const [vid, aid] of vehicleDrivers) {
+      if (aid === agentId) vehicleDrivers.delete(vid);
+    }
+    vehicleDrivers.set(vehicleId, agentId);
+    log("vehicle_enter", { agentId, vehicleId });
+    return c.json({ ok: true, vehicleId, driver: agentId });
+  });
+
+  // POST /world/vehicles/:id/exit — agent exits a vehicle.
+  route.post("/vehicles/:id/exit", (c) => {
+    const vehicleId = c.req.param("id");
+    const agentId = c.get("agentId");
+    if (vehicleDrivers.get(vehicleId) === agentId) {
+      vehicleDrivers.delete(vehicleId);
+      log("vehicle_exit", { agentId, vehicleId });
+      return c.json({ ok: true, vehicleId });
+    }
+    return c.json({ error: "not_driver", hint: "you are not driving this vehicle" }, 403);
+  });
+
   // Any path that removes an agent (visit end, pause, kill, key rotation, delete) removes its body.
   onAgentGone((agentId, reason) => {
     seeQueue?.cancelAgent(agentId); // a photo still waiting for its turn is dropped with the body
