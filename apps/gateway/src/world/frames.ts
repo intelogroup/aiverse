@@ -68,8 +68,9 @@ export function createWorldStream(opts: WorldStreamOpts) {
     const res = await opts.sim.call("GET", "/roster");
     if (!res.ok) return;
     const r = (await res.json()) as SimRoster;
-    const names = await opts.names(r.bodies.map((b) => b.agentId)).catch(() => new Map<string, string>());
-    roster = { epoch, bodies: r.bodies.map((b) => ({ n: b.n, name: names.get(b.agentId) ?? "agent", body: b.body })) };
+    // Resident NPCs (cars, pedestrians) carry an "npc:" label that is not an agent id: never looked up, never named.
+    const names = await opts.names(r.bodies.filter((b) => !b.agentId.startsWith("npc:")).map((b) => b.agentId)).catch(() => new Map<string, string>());
+    roster = { epoch, bodies: r.bodies.map((b) => ({ n: b.n, name: b.agentId.startsWith("npc:") ? "" : names.get(b.agentId) ?? "agent", body: b.body })) };
     rosterRev = r.rev;
     broadcast(wire(WORLD_ROSTER, roster));
   }
