@@ -138,6 +138,8 @@ export class LessonRun {
   private turnsRed = false;
   private clock = 0;
   private signalPlan: { yellowAt: number; redAt: number } | undefined;
+  private signalScheduled = false;
+  private cruise = false;
   private watchLine = false;
   private crossedLine = false;
 
@@ -229,6 +231,7 @@ export class LessonRun {
       }
       this.state.gear = plan.segments[0].meters < 0 ? "reverse" : "drive";
     }
+    this.cruise = this.state.realtime && input.command === "approach_lesson";
     this.active = { plan, elapsed: 0, segment: 0, remaining: "segments" in plan ? Math.abs(plan.segments[0].meters) : 0 };
   }
 
@@ -253,14 +256,14 @@ export class LessonRun {
       return `${input.direction === "left" ? "Left" : "Right"} turn signal on.`;
     }
     if (input.command === "wait") {
-      const hazard = s.hazard ?? (s.oncoming ? "oncoming_vehicle" : course && s.signalHead === "red" ? "red_light" : null);
-      if (!hazard || (hasApproach && !s.stoppedAtLine)) return reject("nothing_to_yield_to", "Wait from a safe stopped position when a hazard is present.");
+      const hazard = s.hazard ?? (s.oncoming ? "oncoming_vehicle" : course && (s.signalHead === "red" || s.realtime && s.signalHead === "yellow") ? "red_light" : null);
+      if (!hazard || (hasApproach && !s.stoppedAtLine && !s.realtime)) return reject("nothing_to_yield_to", "Wait from a safe stopped position when a hazard is present.");
       if (s.oncoming && car.headlights === "high") { const r = this.violate("high_beam_conflict", "Dim the high beams for the approaching driver even while stopped."); if (r) return r; }
       return {
         seconds: hazard === "red_light" ? 2.5 : hazard === "pedestrian" ? 5.5 : 4,
         detail: hazard === "red_light" ? "Signal changed to green. Check the intersection again." : "The conflict cleared. Earlier checks are stale. Recheck before moving.",
         commit: () => {
-          if (hazard === "red_light") s.signalHead = "green";
+          if (hazard === "red_light") { s.signalHead = "green"; this.signalPlan = undefined; }
           this.record(hazard === "red_light" ? "held_on_red" : `yielded_to_${hazard}`);
           s.oncoming = undefined;
           if (hazard === "pedestrian") this.walkerPending = false;
@@ -288,7 +291,8 @@ export class LessonRun {
       }
       const speed = input.speed ?? 5;
       const toLine = stopZ + (course?.shift ?? 0) + (course?.stopOffset ?? 0) - car.z;
-      if (s.realtime && this.turnsRed) {
+      if (s.realtime && this.turnsRed && !this.signalScheduled) {
+        this.signalScheduled = true;
         // A seeded dilemma: yellow once half the expected arrival time has passed, red 3.5 s later (RMV: yellow means prepare to stop).
         const arrival = toLine / speed + speed / (2 * maxAcceleration);
         this.signalPlan = { yellowAt: this.clock + arrival * 0.5, redAt: this.clock + arrival * 0.5 + 3.5 };
@@ -296,10 +300,15 @@ export class LessonRun {
       this.watchLine = s.realtime && !s.reflex;
       this.crossedLine = false;
       return {
-        segments: [straight(s.realtime && !s.reflex ? toLine + 8 : toLine, speed)],
-        detail: s.realtime && !s.reflex ? "Rolled through the junction mouth." : "Stopped fully before the line.",
+        segments: [straight(s.realtime && !s.reflex ? stopLine + (course?.shift ?? 0) - DRIVER.halfLength - car.z + 0.2 : toLine, speed)],
+        detail: s.realtime && !s.reflex ? "Crossed the line and stopped at the junction." : "Stopped fully before the line.",
         commit: () => {
-          if (this.watchLine) { this.watchLine = false; this.state.checked = null; return; }
+          if (this.watchLine) {
+            // No stop is required on a green or yellow (RMV l.3582-3600: stop at red); the car is at the junction and the turn rules apply.
+            this.watchLine = false; this.state.checked = null; this.state.stoppedAtLine = true;
+            this.record(this.state.signalHead === "red" ? "ran_red_light" : "passed_line_on_" + this.state.signalHead);
+            return;
+          }
           s.stoppedAtLine = true;
           s.checked = null;
           this.record("full_stop_before_line");
@@ -418,7 +427,6 @@ export class LessonRun {
       if (this.watchLine && !this.crossedLine && car.z + DRIVER.halfLength >= stopLine + (this.course?.shift ?? 0)) {
         this.crossedLine = true;
         if (this.state.signalHead === "red") this.state.infractions.push({ code: "ran_red_light" });
-        if (car.speed > 0.3) this.state.infractions.push({ code: "stop_before_line" });
       }
       car.wheelRoll += distance * direction / DRIVER.wheelRadius;
       car.steering += (Math.atan(DRIVER.wheelbase * segment.curvature) - car.steering) * Math.min(1, dt * 12);
@@ -435,6 +443,7 @@ export class LessonRun {
       car.speed = 0;
     }
     this.active = undefined;
+    this.cruise = false;
     plan.commit();
     return plan.detail;
   }
@@ -450,10 +459,11 @@ export class LessonRun {
     return true;
   }
 
-  get cruising() { return Boolean(this.active && "segments" in this.active.plan && this.state.realtime); }
+  get cruising() { return this.cruise && Boolean(this.active); }
 
   cancel() {
     this.active = undefined;
+    this.cruise = false;
     this.state.checked = null;
     this.interrupted = true;
   }

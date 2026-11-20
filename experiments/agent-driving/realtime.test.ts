@@ -79,17 +79,17 @@ test("the light turns yellow then red on the clock while the car approaches", as
   expect(lights).toEqual(["green", "yellow", "red"]);
 });
 
-test("without the reflex a slow car that never brakes runs the red; a fast one clears the yellow but still rolls the line", async () => {
+test("without the reflex a slow car that never brakes runs the red; a fast one clears the yellow legally", async () => {
   const slow = await ready({ turnsRed: true, reflex: false });
   await approach(slow, 3);
-  const slowCodes = run(slow).state.lesson!.infractions.map((item) => item.code);
-  expect(slowCodes).toContain("ran_red_light");
-  expect(slowCodes).toContain("stop_before_line");
+  const slowRun = run(slow);
+  expect(slowRun.state.lesson!.infractions.map((item) => item.code)).toEqual(["ran_red_light"]);
+  expect(slowRun.state.lesson!.stoppedAtLine).toBe(true);
   const fast = await ready({ turnsRed: true, reflex: false });
   await approach(fast, 16);
-  const fastCodes = run(fast).state.lesson!.infractions.map((item) => item.code);
-  expect(fastCodes).not.toContain("ran_red_light");
-  expect(fastCodes).toContain("stop_before_line");
+  const fastRun = run(fast);
+  expect(fastRun.state.lesson!.infractions).toEqual([]);
+  expect(fastRun.state.lesson!.evidence).toContain("passed_line_on_yellow");
 });
 
 test("with the reflex on the car stops at the line whatever the light does", async () => {
@@ -110,4 +110,25 @@ test("the sense feed shows the yellow light near the line and the time left", as
   });
   expect(seen?.light).toBe("yellow");
   expect(seen?.etaS).toBeGreaterThan(0);
+});
+
+test("braking on the yellow, waiting for green, then proceeding completes the turn with no infraction", async () => {
+  const sim = await ready({ turnsRed: true, reflex: false });
+  await approach(sim, 5);
+  let braked = false;
+  run(sim, 30, () => {
+    if (!braked && sim.snapshot().lesson!.signalHead === "yellow") { braked = true; void sim.actAsDriver({ command: "brake" }); }
+  });
+  expect(braked).toBe(true);
+  expect(sim.snapshot().speed).toBe(0);
+  expect(sim.snapshot().lesson!.stoppedAtLine).toBe(false);
+  expect(await act(sim, { command: "wait" })).toMatchObject({ ok: true });
+  expect(sim.snapshot().lesson!.signalHead).toBe("green");
+  await approach(sim, 5);
+  expect(run(sim).state.lesson!.infractions).toEqual([]);
+  await act(sim, { command: "check", check: "intersection" });
+  expect(await act(sim, { command: "intersection_turn", direction: "right" })).toMatchObject({ ok: true });
+  const done = sim.snapshot().lesson!;
+  expect(done.passed).toBe(true);
+  expect(done.infractions).toEqual([]);
 });
