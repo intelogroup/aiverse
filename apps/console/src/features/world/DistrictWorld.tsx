@@ -380,6 +380,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
       {/* The egg model is a separate download; it must not hold the world back (own boundary). */}
       <Suspense fallback={null}><EasterEggs activeDistricts={["bazaar", ...groups.current.keys()]} interact={interact} /></Suspense>
       <Suspense fallback={null}><BazaarCar position={[15, 0, 5]} rotationY={1.2} /></Suspense>
+      <Suspense fallback={null}><BazaarCar position={[-28, 0, -62]} rotationY={3.0} /></Suspense>
       <CameraCollider getMeshes={getMeshes} enabled={collide && collideDebug.current} stats={stats.current} />
     </>
   );
