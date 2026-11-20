@@ -158,6 +158,7 @@ export const eggCashBounties = pgTable("egg_cash_bounties", {
   mode: text("mode").$type<"sandbox" | "live">().notNull(),
   current: boolean("current").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
 }, (t) => [uniqueIndex("egg_cash_bounties_one_current").on(t.current).where(sql`${t.current}`)]);
 
 // Public log of what an agent visibly did. Actions only (see shared/events.ts); never goals or reasoning.

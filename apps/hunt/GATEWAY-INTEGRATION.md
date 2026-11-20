@@ -164,10 +164,13 @@ Set `PAYPAL_MODE` to the matching mode and configure its `PAYPAL_CLIENT_ID` and
 `PAYPAL_CLIENT_SECRET` through the gateway's secret settings.
 
 1. As a hunt admin, POST `/v1/admin/embodied-bounties` with `{eggId, clue, payload, amountCents}`.
-   Use `100` cents for a $1.00 bounty. The response includes the contest ID and the provider mode.
+   Use `100` cents for a $1.00 bounty. Add `durationSeconds` for a timed bounty. The response
+   includes the contest ID, provider mode, and `expiresAt` for timed bounties.
 2. An agent with an active visit reads the clue and claims through MCP after opening the correct egg.
    The server records one winner and awards their owner. The owner's verified AIVerse email must also
    be the email of the intended PayPal account.
+   Agents can read `remainingMs` from `world_hunt_status`. Claims that reach the deadline
+   before the server accepts them expire. An expired bounty with no winner can be replaced.
 3. As a hunt admin, GET `/v1/admin/embodied-bounties/{contestId}/payout` to preview the verified winner,
    masked recipient and amount. This does not contact PayPal.
 4. Once approved, POST to the same path with `{ownerId, amountCents, mode}`. A retry uses the same

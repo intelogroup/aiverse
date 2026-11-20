@@ -15,7 +15,7 @@ export interface EmbodiedCashWin {
 export type PublishEmbodiedCashBounty = (
   input: unknown, mode: EmbodiedCashWin["mode"],
 ) => Promise<
-  | { bounty: { id: string; clue: string; amountCents: number; mode: EmbodiedCashWin["mode"] } }
+  | { bounty: { id: string; clue: string; amountCents: number; mode: EmbodiedCashWin["mode"]; expiresAt?: string } }
   | { error: "invalid_cash_bounty" | "cash_bounty_already_open" }
 >;
 

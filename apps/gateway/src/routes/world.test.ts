@@ -59,6 +59,7 @@ let clock = Date.now();
 let simHttp: ReturnType<typeof Bun.serve>;
 let app: ReturnType<typeof createApp>;
 let server: ReturnType<typeof Bun.serve>;
+let expiryProofGate: { started: () => void; released: Promise<void> } | undefined;
 
 beforeAll(async () => {
   // Owner registration is rate limited per IP in Redis (60/h); a test file that registers a few owners per run must not inherit earlier runs' count.
@@ -70,8 +71,18 @@ beforeAll(async () => {
   simHttp = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: simApp.fetch });
   const previousHunt = process.env.AIVERSE_EGG_HUNT;
   process.env.AIVERSE_EGG_HUNT = JSON.stringify(hunt);
-  try:
-    app = createApp({ sim: httpSimClient(`http://127.0.0.1:${simHttp.port}`, SECRET), look: fakeLook });
+  const simClient = httpSimClient(`http://127.0.0.1:${simHttp.port}`, SECRET);
+  try {
+    app = createApp({ sim: {
+      async call(method, path, body) {
+        const gate = expiryProofGate;
+        if (gate && method === "GET" && path.endsWith("/act/cash-expiry-proof")) {
+          gate.started();
+          await gate.released;
+        }
+        return simClient.call(method, path, body);
+      },
+    }, look: fakeLook });
   } finally {
     if (previousHunt === undefined) delete process.env.AIVERSE_EGG_HUNT;
     else process.env.AIVERSE_EGG_HUNT = previousHunt;
@@ -280,7 +291,7 @@ describe("/world (agent body)", () => {
     const previous = Object.fromEntries(Object.keys(env).map((key) => [key, process.env[key]]));
     Object.assign(process.env, env);
     resetHuntRuntimeForTests();
-    let contestId: string | undefined;
+    const contestIds: string[] = [];
     let paypal: ReturnType<typeof mockCashPaypal> | undefined;
 
     try {
@@ -297,21 +308,28 @@ describe("/world (agent body)", () => {
       const cashApp = createApp(sandbox ? {} : { paypalFetch: (url, request) => paypal!.transport(url, request) });
       const admin = json(env.HUNT_ADMIN_TOKEN);
       const terms = { eggId: hunt.eggId, clue: hunt.clue, payload: hunt.payload, amountCents: 100 };
-      await Bun.sleep(2); // The open timestamp must follow the earlier action at millisecond resolution.
-      const published = await cashApp.request("/v1/admin/embodied-bounties", {
-        method: "POST", headers: admin, body: JSON.stringify(terms),
+      const publish = (durationSeconds: number) => cashApp.request("/v1/admin/embodied-bounties", {
+        method: "POST", headers: admin, body: JSON.stringify({ ...terms, durationSeconds }),
       });
+      expect((await publish(0)).status).toBe(400);
+      await Bun.sleep(2); // The open timestamp must follow the earlier action at millisecond resolution.
+      const published = await publish(30);
       expect(published.status).toBe(201);
-      const { bounty } = await published.json() as { bounty: { id: string } };
-      contestId = bounty.id;
+      const { bounty } = await published.json() as { bounty: { id: string; expiresAt: string } };
+      const contestId = bounty.id;
+      contestIds.push(contestId);
       const award = { amountCents: 100, currency: "USD", mode: "sandbox" };
-      expect(bounty).toEqual({ id: contestId, clue: hunt.clue, ...award });
+      expect(bounty).toEqual({ id: contestId, clue: hunt.clue, expiresAt: expect.any(String), ...award });
       const claim = (index: number, actId: string) => callMcp(delegates[index]!.accessToken, "world_hunt_claim", {
         contest_id: contestId, act_id: actId,
       });
-      expect((await callMcp(delegates[1]!.accessToken, "world_hunt_status")).data).toEqual({
+      const advertised = (await callMcp(delegates[1]!.accessToken, "world_hunt_status")).data;
+      expect(advertised).toEqual({
         id: contestId, clue: hunt.clue, credits: 0, status: "open", cashBounty: award,
+        expiresAt: bounty.expiresAt, remainingMs: expect.any(Number),
       });
+      expect(advertised.remainingMs).toBeGreaterThan(0);
+      expect(advertised.remainingMs).toBeLessThanOrEqual(30_000);
       expect(await claim(0, "pre-open-egg")).toEqual({ isError: true, data: { error: "open_an_egg_after_bounty_starts" } });
       expect(await act(0, "cash-open-one", openEgg)).toMatchObject({ ok: true, status: "done" });
       await act(0, "cash-stand-clear", { type: "go_to", point: [-31.63, -71.016] });
@@ -374,15 +392,58 @@ describe("/world (agent body)", () => {
         }, paypal?.transport);
         console.log(`PayPal SDK verified the $1.00 owner receipt (${sandbox ? "PayPal Sandbox" : "local mock"})`);
       }
+
+      const loserIndex = 1 - winningIndex;
+      const loserToken = delegates[loserIndex]!.accessToken;
+      if (loserIndex === 0) {
+        expect(await act(loserIndex, "cash-return-to-egg", { type: "go_to", point: [-29.63, -71.016] }))
+          .toMatchObject({ ok: true, status: "arrived" });
+      }
+      const shortBounty = await publish(2);
+      expect(shortBounty.status).toBe(201);
+      const { bounty: expiring } = await shortBounty.json() as { bounty: { id: string; expiresAt: string } };
+      contestIds.push(expiring.id);
+      expect(await act(loserIndex, "cash-expiry-proof", openEgg)).toMatchObject({ ok: true, status: "done" });
+
+      const started = Promise.withResolvers<void>();
+      const released = Promise.withResolvers<void>();
+      expiryProofGate = { started: started.resolve, released: released.promise };
+      const inFlight = callMcp(loserToken, "world_hunt_claim", { contest_id: expiring.id, act_id: "cash-expiry-proof" });
+      let lateClaim: Awaited<typeof inFlight>;
+      try {
+        expect(await Promise.race([started.promise.then(() => true), inFlight.then(() => false)])).toBe(true);
+        const { data: ticking } = await callMcp(loserToken, "world_hunt_status");
+        expect(ticking.status).toBe("open");
+        expect(ticking.remainingMs).toBeGreaterThan(0);
+        await Bun.sleep(ticking.remainingMs + 25);
+        expect((await callMcp(loserToken, "world_hunt_status")).data).toMatchObject({
+          id: expiring.id, status: "expired", remainingMs: 0, expiresAt: expiring.expiresAt,
+        });
+      } finally {
+        expiryProofGate = undefined;
+        released.resolve();
+        lateClaim = await inFlight;
+      }
+      expect(lateClaim).toEqual({ isError: true, data: { error: "bounty_expired", expiresAt: expiring.expiresAt } });
+      expect(await db.query.eggHuntWins.findFirst({ where: eq(eggHuntWins.contestId, expiring.id) })).toBeUndefined();
+      expect((await cashApp.request(`/v1/admin/embodied-bounties/${expiring.id}/payout`, { headers: admin })).status).toBe(404);
+
+      const replacement = await publish(30);
+      expect(replacement.status).toBe(201);
+      const next = await replacement.json() as { bounty: { id: string } };
+      contestIds.push(next.bounty.id);
+      expect(await (await ownerRead()).json()).toMatchObject({ receipts: [{
+        contestId, cashPayout: { status: "success", transactionId: settled.transaction_id },
+      }] });
     } finally {
       resetHuntRuntimeForTests();
       for (const [key, value] of Object.entries(previous)) {
         if (value === undefined) delete process.env[key];
         else process.env[key] = value;
       }
-      if (contestId) {
-        await db.delete(eggHuntWins).where(eq(eggHuntWins.contestId, contestId));
-        await db.delete(eggCashBounties).where(eq(eggCashBounties.id, contestId));
+      for (const id of contestIds) {
+        await db.delete(eggHuntWins).where(eq(eggHuntWins.contestId, id));
+        await db.delete(eggCashBounties).where(eq(eggCashBounties.id, id));
       }
       for (const entrant of entrants) service.detach(entrant.agentId);
     }
