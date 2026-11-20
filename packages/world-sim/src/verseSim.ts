@@ -13,6 +13,7 @@ import { InteractController, type InteractableDef } from "./interactables";
 import { bearingDeg, type ScoutPlace, type ScoutRoomShape, type Sittable } from "./scout";
 import { TEA_BLOCKER_BOX, TeaDoorController, type TeaDoorChannel } from "./teaDoor";
 import { TeaElevatorController } from "./teaElevator";
+import type { TeaFloorPlan } from "./teaLandmarks";
 import { teaLiftCollision } from "./teaLiftCollision";
 import { WalkColliders } from "./walkColliders";
 import type { World } from "./walker";
@@ -25,6 +26,7 @@ export interface VerseData {
   sittables: Sittable[];
   /** Room footprints and doors, for the scene a body senses (`oracleScene`). */
   rooms?: ScoutRoomShape[];
+  teaFloors?: readonly TeaFloorPlan[];
 }
 
 export type AddBodyOpts = Pick<AgentBodyDeps, "spawn"> & { id: string; hipsY?: number };
@@ -87,6 +89,7 @@ export class VerseSim {
   get places(): ScoutPlace[] { return this.data.places; }
   get sittables(): Sittable[] { return this.data.sittables; }
   get rooms(): ScoutRoomShape[] { return this.data.rooms ?? []; }
+  get teaFloors(): readonly TeaFloorPlan[] { return this.data.teaFloors ?? []; }
 
   /** True once the resident collision is loaded (a body cannot find ground before that). */
   get ready(): boolean { return this.walk.status === "ready"; }

@@ -343,7 +343,7 @@ export class WorldService {
       nearestPlace: np ? { id: np.place.id, name: np.place.name, kind: np.place.kind, dist: round(np.dist, 2) } : null,
       insideRoom: room?.name ?? null,
       ...teaLandmarks(st, eye, this.sim.world, st.body + yawDeg * Math.PI / 180,
-        this.sim.elevator.ready && this.sim.elevator.phase !== "unavailable"),
+        this.sim.door.state, this.sim.elevator, this.sim.teaFloors),
       scene: [...oracleScene(this.sim.places, this.sim.rooms, { x: st.x, z: st.z, heading: st.body }, {}, interactables, seats), ...this.seenBodies(agentId, s)]
         .sort((a, b) => a.distance - b.distance),
       lastAct: s.last,

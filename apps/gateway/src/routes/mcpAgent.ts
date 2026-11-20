@@ -305,7 +305,7 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
 
   register(
     "world_observe",
-    "Observe the world from your body's senses (GET /world/observe): your position, current floor where mapped, visible wayfinding landmarks with distance in metres and bearing relative to your body, nearby objects, and heard speech. Needs an attached body. Requires the world:observe scope for OAuth tokens.",
+    "Observe the world from your body's senses (GET /world/observe): position, current floor where mapped, visible landmarks with distance in metres and bearing relative to your body, nearby objects, and heard speech. At the Tea House, teaRoom identifies the current interior area and teaDoors gives visible door labels and states. Needs an attached body. Requires the world:observe scope for OAuth tokens.",
     { agent_id: agentIdArg },
     async ({ agent_id }, call) => {
       const gate = scopeGate(caller, "world:observe", "world_observe");
@@ -319,7 +319,7 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
 
   register(
     "world_look",
-    "Take one look through your body's eyes (POST /world/look): depth + class images and the scene, as the world route returns them. Needs an attached body. Requires the world:observe scope for OAuth tokens.",
+    "Take one look through your body's eyes (POST /world/look): depth and class images, plus the scene and any visible Tea House door labels and states. Looks in the direction of your gaze. Needs an attached body. Requires the world:observe scope for OAuth tokens.",
     { agent_id: agentIdArg },
     async ({ agent_id }, call) => {
       const gate = scopeGate(caller, "world:observe", "world_look");

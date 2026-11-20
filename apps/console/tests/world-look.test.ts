@@ -59,6 +59,9 @@ describe("look", () => {
       expect((await settle(agent, service.act(agent, "enter", { type: "enter", place: "tea" }).id, 180)).outcome?.ok).toBe(true);
       const ground = service.observe(agent);
       expect(ground.scene.some((item) => item.id === egg.id)).toBe(false);
+      expect(ground.teaDoors).toEqual(expect.arrayContaining([
+        expect.objectContaining({ kind: "elevator", floorId: "G", state: "closed" }),
+      ]));
       const early = await settle(agent, service.act(agent, "too-soon", { type: "interact", target: egg.id }).id);
       expect(early.outcome).toMatchObject({ ok: false, status: "unavailable" });
 
@@ -85,6 +88,78 @@ describe("look", () => {
       service.detach("contending-rider");
       service.detach(agent);
       sim.interact.register([], "vertical-test");
+    }
+  });
+
+  it("reports the visible main entrance's live state while another agent walks in", async () => {
+    const observer = "tea-door-observer", visitor = "tea-door-visitor";
+    service.attach(observer);
+    service.attach(visitor);
+    Object.assign(sim.body(observer)!.state, { x: -22.92, y: .2, z: -69.4, body: Math.PI, heading: Math.PI });
+    try {
+      const entranceState = () => service.observe(observer).teaDoors?.find((door) => door.kind === "entrance")?.state;
+      expect(entranceState()).toBe("closed");
+      const states = new Set([entranceState()]);
+      const visit = service.act(visitor, "enter", { type: "enter", place: "tea" });
+      for (let tick = 0; tick < 1800 && service.actRecord(visitor, visit.id)?.state === "running"; tick++) {
+        service.tick(.1);
+        await Promise.resolve();
+        states.add(entranceState());
+      }
+      expect(visit.outcome?.status).toBe("arrived");
+      expect(states).toEqual(new Set(["closed", "opening", "open", "closing"]));
+    } finally {
+      service.detach(observer);
+      service.detach(visitor);
+    }
+  });
+
+  it("recognizes the current Tea House room and labels only doors in view on that floor", () => {
+    const agent = "tea-room-observer";
+    service.attach(agent);
+    const body = sim.body(agent)!;
+    try {
+      Object.assign(body.state, { x: -33.1, y: 4.4, z: -77.55, body: 0, heading: 0 });
+      const { teaRoom, teaDoors } = service.look(agent).observation;
+      expect(teaRoom).toMatchObject({ id: "tea-L1-room-corridor" });
+      expect(teaDoors).toEqual(expect.arrayContaining([
+        expect.objectContaining({ name: "TEA TASTING ROOM", floorId: "L1", state: "open" }),
+      ]));
+      expect(teaDoors.every((door) => door.floorId === "L1")).toBe(true);
+
+      Object.assign(body.state, { body: Math.PI, heading: Math.PI });
+      expect(service.observe(agent).teaDoors.some((door) => door.name === "TEA TASTING ROOM")).toBe(false);
+
+      // The tasting-room door is inside the view cone from the salon, but a wall blocks it.
+      Object.assign(body.state, { x: -23.5, z: -74.8, body: -Math.PI / 2, heading: -Math.PI / 2 });
+      expect(service.observe(agent).teaDoors.some((door) => door.name === "TEA TASTING ROOM")).toBe(false);
+
+      Object.assign(body.state, { x: -33.1, z: -75, body: 0, heading: 0 });
+      expect(service.observe(agent).teaRoom).toMatchObject({ id: "tea-L1-room-tasting", name: "TEA TASTING ROOM" });
+      Object.assign(body.state, { y: 7.9 });
+      expect(service.observe(agent).teaRoom).toMatchObject({ id: "tea-L2-room-201-living", name: "201 LIVING / SLEEP" });
+    } finally {
+      service.detach(agent);
+    }
+  });
+
+  it("keeps an egg out of labels and the class image behind a wall or on another floor", async () => {
+    const agent = "tea-egg-visibility";
+    service.attach(agent);
+    const body = sim.body(agent)!;
+    const egg = eggInteractable({ id: "egg-occlusion-test", district: "bazaar", position: [-32.5, 7.9, -74], rotationY: 0, scale: 1, hint: "" });
+    sim.interact.register([egg], agent);
+    try {
+      for (const [x, y, pitchDeg, visible] of [[-25, 7.9, -12, false], [-30.5, 7.9, -35, true], [-30.5, .48, 35, false]] as const) {
+        Object.assign(body.state, { x, y, z: -74, body: -Math.PI / 2, heading: -Math.PI / 2 });
+        await body.act({ type: "gaze", pitchDeg });
+        const frame = service.look(agent);
+        expect(frame.observation.scene.some((item) => item.id === egg.id)).toBe(visible);
+        expect(decode(frame.classPng).px.includes(LOOK_CLASSES.egg)).toBe(visible);
+      }
+    } finally {
+      sim.interact.register([], agent);
+      service.detach(agent);
     }
   });
 
