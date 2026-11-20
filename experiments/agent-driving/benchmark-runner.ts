@@ -38,6 +38,10 @@ const harnessBin = process.env.DRIVE_HARNESS_BIN ?? name;
 const root = process.env.DRIVE_BENCHMARK_OUT ?? await mkdtemp(join(tmpdir(), "aiverse-road-test-"));
 await mkdir(root, { recursive: true });
 const dir = new URL(".", import.meta.url).pathname;
+// Film mode: DRIVE_FILM=<out.webm> records the follow camera (walk to the car, enter, drive) while the agent runs lesson DRIVE_FILM_LESSON
+// in plain lesson mode (text observation, coaching on). A demo for people to watch, not a score: the trial is not valid by the vision rule.
+const film = process.env.DRIVE_FILM;
+const filmLesson = process.env.DRIVE_FILM_LESSON;
 const runTag = crypto.randomUUID().slice(0, 8);
 const authVars = ["DRIVE_AGENT_GATEWAY_PORT", "DRIVE_AGENT_TOKEN", "DRIVE_AGENT_ID"];
 process.env.DRIVE_SKILL_FILE ||= join(dir, "skills/drive-car/SKILL.md"); // arms: skill-arms/off.md, skill-arms/v1-current.md
@@ -126,11 +130,12 @@ function spawnLogged(args: string[], log: string, env: NodeJS.ProcessEnv, cwd?: 
 async function runCase(id: BenchmarkId, port: number, session: string): Promise<Trial> {
   const lab = `http://127.0.0.1:${port}`;
   const variant = benchmarkCase(id);
-  const reset = await fetch(lab + "/api/reset?benchmark=" + id + (process.env.DRIVE_RESET_EXTRA ?? ""), { method: "POST" });
+  const reset = await fetch(lab + "/api/reset?" + (film && filmLesson ? "lesson=" + filmLesson : "benchmark=" + id) + (process.env.DRIVE_RESET_EXTRA ?? ""), { method: "POST" });
   if (!reset.ok) throw new Error("Scenario reset failed.");
-  const page = lab + "/?camera=vision" + (variant.chapter === "night" ? "&lighting=night" : "");
+  const page = lab + (film ? "/?camera=follow" : "/?camera=vision") + (variant.chapter === "night" ? "&lighting=night" : "");
   await browserStep(session, "open", page);
   await browserStep(session, "set", "viewport", "1440", "900");
+  if (film) await browserStep(session, "record", "start", film, page);
   await Bun.write(join(root, id + "-console-before.txt"), await browserStep(session, "console", "--errors"));
   await browserStep(session, "screenshot", join(root, id + "-start.png"));
 
@@ -145,7 +150,10 @@ async function runCase(id: BenchmarkId, port: number, session: string): Promise<
     default_tools_approval_mode: "approve",
   };
   const toml = Object.entries(configuration).map(([key, value]) => key + "=" + JSON.stringify(value)).join(",");
-  const prompt = [
+  const prompt = film && filmLesson ? [
+    `Complete the ${filmLesson.replaceAll("_", " ")} lesson in the AIVerse driving simulator: get into the car, then drive it the Massachusetts RMV way. Use only the driving MCP tools and the drive-car skill; one tool call at a time. Report the result from the simulator.`,
+    ...(name === "opencode" ? ["The driving tools are in the tools.driving namespace of your execute tool."] : []),
+  ].join(" ") : [
     "Your destination is a stop in the correct departure lane after a right turn at the next intersection.",
     "Use only the driving MCP tools and their driving skill. Inspect the actual driver-eye images. Briefly state the visible evidence for each decision at the intersection.",
     "If driving at night, use lights appropriate to visibility and nearby traffic.",
@@ -184,13 +192,14 @@ async function runCase(id: BenchmarkId, port: number, session: string): Promise<
     prompt,
   ];
   // OpenCode takes its project directory from $PWD, not the process cwd, so the workspace (with its opencode.json) must be set there.
-  const child = spawnLogged(args, trace, { ...process.env, ...isolation, ...(name === "opencode" && { PWD: workspace }), DRIVE_LAB_PORT: String(port), DRIVE_VISION_ONLY: "1", DRIVE_REQUIRE_OWNER_OAUTH: "1" }, workspace);
+  const child = spawnLogged(args, trace, { ...process.env, ...isolation, ...(name === "opencode" && { PWD: workspace }), DRIVE_LAB_PORT: String(port), DRIVE_VISION_ONLY: film ? "0" : "1", DRIVE_REQUIRE_OWNER_OAUTH: "1" }, workspace);
   const timeout = setTimeout(() => child.kill(), 200_000);
   const harnessExit = await child.exited.finally(() => clearTimeout(timeout));
   const lines = (await Bun.file(trace).text()).split("\n").filter(Boolean);
   if (!lines.length) throw new Error(name + " supplied no event stream.");
   const { visionFrames, frameErrors, otherTools } = observe(name, lines);
 
+  if (film) await browserStep(session, "record", "stop");
   const response = await fetch(lab + "/api/assessment");
   if (!response.ok) throw new Error("Simulator assessment missing.");
   const score = await response.json() as Assessment;
