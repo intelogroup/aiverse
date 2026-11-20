@@ -10,6 +10,7 @@ import { bakeCollisionParts } from "./capsuleWorld";
 import { FountainWater } from "./FountainWater";
 import { EasterEggs } from "./EasterEggs";
 import { BazaarCar } from "./BazaarCar";
+import { IntersectionSignals } from "./IntersectionSignals";
 import type { InteractController } from "./interactables";
 import type { WalkColliders } from "./walkColliders";
 import { assetUrl, resolveManifestAssets } from "../../lib/assetUrl";
@@ -407,6 +408,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
       <FountainWater />
       {/* The egg model is a separate download; it must not hold the world back (own boundary). */}
       <Suspense fallback={null}><EasterEggs activeDistricts={["bazaar", ...groups.current.keys()]} interact={interact} /></Suspense>
+      <Suspense fallback={null}><IntersectionSignals /></Suspense>
       <Suspense fallback={null}><BazaarCar position={[15, 0, 5]} rotationY={1.2} remoteBodies={remoteBodies ?? null} driverBodyN={driver1} /></Suspense>
       <Suspense fallback={null}><BazaarCar position={[-28, 0, -62]} rotationY={3.0} remoteBodies={remoteBodies ?? null} driverBodyN={driver2} /></Suspense>
       <CameraCollider getMeshes={getMeshes} enabled={collide && collideDebug.current} stats={stats.current} />
