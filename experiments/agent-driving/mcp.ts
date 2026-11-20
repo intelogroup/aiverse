@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { inspectDriver } from "./driver";
 import { verifyVerseAgent } from "./agent-auth";
+import { watchChange, watchKey } from "./watch";
 import { cameraViews, checks, directions, driveMeters, headlightModes, turnDegrees, type ActionResult, type DriveAction, type DriveState } from "./protocol";
 
 const server = new McpServer({ name: "aiverse-driving-lab", version: "0.2.0" });
@@ -56,6 +57,26 @@ server.registerTool("drive_observe", {
   const identity = await verifyDrivingAgent();
   const state = await fetch(`${lab}/api/state`).then((res) => res.json() as Promise<DriveState>);
   return { content: asText(observe(state, identity)) };
+});
+
+server.registerTool("drive_watch", {
+  description: "Sleep until something changes, then return the observation. Wakes on a light change, when the stop line can no longer be reached (canStop false), when the current move ends, or when a pedestrian appears; otherwise after the timeout. Use it instead of polling drive_observe while the car is moving.",
+  annotations: { readOnlyHint: true, openWorldHint: false },
+  inputSchema: z.strictObject({ seconds: z.number().min(0.5).max(15).optional().describe("Longest wait in seconds. Default 5.") }),
+}, async ({ seconds = 5 }) => {
+  const identity = await verifyDrivingAgent();
+  const read = () => fetch(`${lab}/api/state`).then((res) => res.json() as Promise<DriveState>);
+  let state = await read();
+  const before = watchKey(state);
+  let reason: string | null = null;
+  const deadline = Date.now() + seconds * 1000;
+  while (Date.now() < deadline) {
+    await Bun.sleep(100);
+    state = await read();
+    reason = watchChange(before, watchKey(state));
+    if (reason) break;
+  }
+  return { content: asText({ wokeFor: reason ?? "timeout", ...observe(state, identity) }) };
 });
 
 server.registerPrompt("drive-car", {
