@@ -30,3 +30,9 @@ Status 2026-11-20: 24 junctions x 4 corner posts, 3-lamp heads, fixed-time cycle
 - The GLB holds only posts and heads. Lamps are rows in `signalLamps.json` (480, written by `signals.py`) drawn as one instanced mesh with per-instance colour in `IntersectionSignals.tsx`.
 - Tests: `bun test packages/world-sim/src/trafficSignals.test.ts` (no conflicting greens, durations, ped sequence, manifest matches the TS junction list).
 - Not modelled: protected left-turn arrows, vehicle detection (actuated), night flash, time-of-day plans.
+
+## Ambient traffic and pedestrians
+- `packages/world-sim/src/ambientTraffic.ts` (pure, tested): 4 lane-correct loops of the street grid (ring and outer CCW on the outer lane, wide and tall CW on the inner lane, so no two loops share a lane direction and loops meet only at signalled junctions). Cars stop 5.2 m before a junction on red, on yellow when they can stop at 3.2 m/s^2, follow the car ahead, and never enter the plaza.
+- Pedestrians (the Remy "business" body, `AmbientTraffic.tsx`) wait at the kerb of a zebra and step off only on WALK, then finish the crossing whatever the signal does.
+- Console only and not synchronised between viewers (each client runs its own sim off the shared wall-clock signals). Cars never turn off their loop, ignore the player and the parked cars, and a car past its stop line when the light turns red runs through.
+- Verified in a plain three.js page (cars queue at red, heading and lane correct); not yet in the live console. Parked car 2 moved from plan y=62 (a lane of the wide loop) to y=56.
