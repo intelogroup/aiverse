@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp } from "node:fs/promises";
+import { mkdir, mkdtemp, symlink } from "node:fs/promises";
 import { closeSync, openSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -26,14 +26,40 @@ const basePort = Number(process.env.DRIVE_BENCHMARK_PORT ?? "5240");
 if (!Number.isInteger(parallel) || parallel < 1 || parallel > 3 || !Number.isInteger(basePort) || basePort < 1024 || basePort > 65532) {
   throw new Error("Use one to three benchmark workers and a valid local base port.");
 }
-await verifyVerseAgent(true);
-const harness = { name: "codex", authorization: "owner_oauth" } as const;
+const arm = process.env.DRIVE_HARNESS_ARM === "owner" ? "owner" : "clean";
+const harness = { name: "codex", authorization: "owner_oauth", arm } as const;
+const codexBin = process.env.DRIVE_CODEX_BIN ?? "codex";
 const root = process.env.DRIVE_BENCHMARK_OUT ?? await mkdtemp(join(tmpdir(), "aiverse-road-test-"));
 await mkdir(root, { recursive: true });
 const dir = new URL(".", import.meta.url).pathname;
 const runTag = crypto.randomUUID().slice(0, 8);
 const authVars = ["DRIVE_AGENT_GATEWAY_PORT", "DRIVE_AGENT_TOKEN", "DRIVE_AGENT_ID"];
 const exportVars = ["DRIVE_LAB_PORT", "DRIVE_VISION_ONLY", "DRIVE_REQUIRE_OWNER_OAUTH", ...authVars];
+// clean arm: empty HOME + CODEX_HOME so the owner's installed skills and plugins cannot crowd out or break the driving tools.
+// Only the login is shared (symlink); owner arm keeps the real environment.
+async function harnessEnv(): Promise<NodeJS.ProcessEnv> {
+  if (arm === "owner") return {};
+  const base = join(root, "harness-home");
+  await mkdir(join(base, "home"), { recursive: true });
+  await mkdir(join(base, "codex"), { recursive: true });
+  await symlink(join(process.env.CODEX_HOME ?? join(process.env.HOME ?? "", ".codex"), "auth.json"), join(base, "codex", "auth.json")).catch(() => {});
+  return { HOME: join(base, "home"), CODEX_HOME: join(base, "codex") };
+}
+const isolation = await harnessEnv();
+// One cheap call before any case: a dead harness (quota, auth, model) must not be scored as driving.
+{
+  const probe = spawnLogged([codexBin, "-a", "never", "exec", "--ignore-user-config", "--ephemeral", "--json", "--skip-git-repo-check",
+    "--sandbox", "read-only", "-C", root, "Reply with the single word ready."], join(root, "preflight.jsonl"), { ...process.env, ...isolation });
+  const timer = setTimeout(() => probe.kill(), 60_000);
+  const exit = await probe.exited.finally(() => clearTimeout(timer));
+  const lines = (await Bun.file(join(root, "preflight.jsonl")).text()).split("\n").filter(Boolean);
+  const failure = harnessFailure(lines) ?? (exit === 0 ? null : "turn_failed");
+  if (failure) {
+    console.log(JSON.stringify({ preflight: "failed", harnessError: failure, harness }));
+    process.exit(2);
+  }
+}
+await verifyVerseAgent(true);
 const isMcpCall = (item: { type?: string; server?: string }) => item.type === "mcp_tool_call" && item.server === "driving";
 const forbidden = new Set(["command_execution", "web_search", "file_change", "collab_tool_call"]);
 
@@ -100,11 +126,11 @@ async function runCase(id: BenchmarkId, port: number, session: string): Promise<
   ].join(" ");
   const trace = join(root, id + ".jsonl");
   const child = spawnLogged([
-    "codex", "-a", "never", "exec", "--ignore-user-config", "--ephemeral", "--json", "--skip-git-repo-check",
+    codexBin, "-a", "never", "exec", "--ignore-user-config", "--ephemeral", "--json", "--skip-git-repo-check",
     "--sandbox", "read-only", "-C", workspace,
     "-c", "mcp_servers.driving={" + toml + "}", "-c", 'shell_environment_policy.exclude=["DRIVE_AGENT_TOKEN"]',
     prompt,
-  ], trace, { ...process.env, DRIVE_LAB_PORT: String(port), DRIVE_VISION_ONLY: "1", DRIVE_REQUIRE_OWNER_OAUTH: "1" });
+  ], trace, { ...process.env, ...isolation, DRIVE_LAB_PORT: String(port), DRIVE_VISION_ONLY: "1", DRIVE_REQUIRE_OWNER_OAUTH: "1" });
   const timeout = setTimeout(() => child.kill(), 200_000);
   const codexExit = await child.exited.finally(() => clearTimeout(timeout));
   const lines = (await Bun.file(trace).text()).split("\n").filter(Boolean);

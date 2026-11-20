@@ -133,3 +133,33 @@ test("a harness out of quota is classified as a harness failure, not a driving r
   expect(harnessFailure([JSON.stringify({ type: "item.completed", item: { type: "error", message: "Skill descriptions were shortened" } })])).toBeNull();
   expect(harnessFailure(["not json"])).toBeNull();
 });
+
+async function runRunner(fakeCodex: string) {
+  const { mkdtemp, writeFile, chmod } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const out = await mkdtemp(join(tmpdir(), "drive-preflight-"));
+  const bin = join(out, "fake-codex");
+  await writeFile(bin, "#!/bin/sh\n" + fakeCodex);
+  await chmod(bin, 0o755);
+  const env = { ...process.env, DRIVE_CODEX_BIN: bin, DRIVE_BENCHMARK_OUT: out } as Record<string, string | undefined>;
+  for (const key of ["DRIVE_AGENT_GATEWAY_PORT", "DRIVE_AGENT_TOKEN", "DRIVE_AGENT_ID"]) delete env[key];
+  const proc = Bun.spawn([process.execPath, new URL("./benchmark-runner.ts", import.meta.url).pathname, "B01"], { env, stdout: "pipe", stderr: "pipe" });
+  const [stdout, stderr, exit] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
+  return { stdout, stderr, exit };
+}
+
+test("runner preflight stops on a spent harness quota before any case starts", async () => {
+  const { stdout, exit } = await runRunner(`echo '{"type":"error","message":"You have hit your usage limit."}'\nexit 1\n`);
+  expect(exit).toBe(2);
+  expect(stdout).toContain('"preflight":"failed"');
+  expect(stdout).toContain("usage_limit");
+  expect(stdout).not.toContain("started");
+});
+
+test("runner preflight passes a healthy harness on to the identity check", async () => {
+  const { stdout, stderr, exit } = await runRunner(`echo '{"type":"turn.completed"}'\nexit 0\n`);
+  expect(stdout).not.toContain('"preflight":"failed"');
+  expect(exit).not.toBe(2);
+  expect(stderr).toContain("owner-authorized OAuth grant");
+});
