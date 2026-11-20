@@ -9,6 +9,7 @@ import { CameraCollider, buildColliders, type ColliderStats } from "./CameraColl
 import { bakeCollisionParts } from "./capsuleWorld";
 import { FountainWater } from "./FountainWater";
 import { EasterEggs } from "./EasterEggs";
+import { AmbientLife } from "./AmbientLife";
 import { BazaarCar } from "./BazaarCar";
 import { RoadMarks } from "./RoadMarks";
 import { RoadSigns } from "./RoadSigns";
@@ -414,9 +415,10 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
       <Suspense fallback={null}><IntersectionSignals /></Suspense>
       <Suspense fallback={null}><RoadMarks /></Suspense>
       <Suspense fallback={null}><RoadSigns /></Suspense>
+      <AmbientLife />
       <Suspense fallback={null}><StreetFurnitureColliders addColliders={addColliders} dropColliders={dropColliders} /></Suspense>
       <Suspense fallback={null}><BazaarCar position={[15, 0, 5]} rotationY={1.2} remoteBodies={remoteBodies ?? null} driverBodyN={driver1} /></Suspense>
-      <Suspense fallback={null}><BazaarCar position={[-28, 0, -62]} rotationY={3.0} remoteBodies={remoteBodies ?? null} driverBodyN={driver2} /></Suspense>
+      <Suspense fallback={null}><BazaarCar position={[-28, 0, -56]} rotationY={3.0} remoteBodies={remoteBodies ?? null} driverBodyN={driver2} /></Suspense>
       <CameraCollider getMeshes={getMeshes} enabled={collide && collideDebug.current} stats={stats.current} />
     </>
   );
