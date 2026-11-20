@@ -133,10 +133,10 @@ server.registerTool("drive_gas", {
 }, ({ meters }) => act({ command: "gas", motion: { meters: Number(meters ?? 3) } }));
 
 server.registerTool("drive_approach", {
-  description: "Approach an intersection and stop fully before the stop or yield line. Face forward first.",
+  description: "Approach an intersection and stop fully before the stop or yield line. Face forward first. In a real-time lesson the car keeps moving after this returns: read drive_observe (light, distance and time to the line) and use drive_brake to stop short; at higher speed there is less time to decide.",
   annotations: simulationMutation,
-  inputSchema: z.strictObject({}),
-}, () => act({ command: "gas", motion: { destination: "yield_line" } }));
+  inputSchema: z.strictObject({ speed: z.number().min(3).max(20).optional().describe("Cruise speed in metres per second. Default 5.") }),
+}, ({ speed }) => act({ command: "gas", motion: { destination: "yield_line" }, ...(speed !== undefined && { speed }) }));
 
 server.registerTool("drive_headlights", {
   description: "Switch the front lamps between off, low beam, and high beam. Low and high also keep the red tail lamps on. Braking brightens the rear stop lamps independently.",

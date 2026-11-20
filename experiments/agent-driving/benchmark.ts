@@ -101,6 +101,7 @@ export const INFRACTIONS: Record<string, { severity: "critical" | "minor"; coeff
   blind_spot_occupied: { severity: "critical", coefficient: 0.7 },
   yield_to_oncoming: { severity: "critical", coefficient: 0.7 },
   posted_no_turn_on_red: { severity: "critical", coefficient: 0.4 },
+  ran_red_light: { severity: "critical", coefficient: 0.4 },
   stop_before_line: { severity: "minor", coefficient: 0.25 },
   wrong_turn_lane: { severity: "minor", coefficient: 0.25 },
   signal_too_late: { severity: "minor", coefficient: 0.1 },

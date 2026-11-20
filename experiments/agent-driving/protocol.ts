@@ -38,6 +38,7 @@ export const actionSchema = z.strictObject({
   direction: z.enum(directions).optional(),
   check: z.enum(checks).optional(),
   beam: z.enum(headlightModes).optional(),
+  speed: z.number().min(3).max(20).optional().describe("Cruise speed in metres per second for an approach."),
 });
 export type DriveAction = z.infer<typeof actionSchema>;
 

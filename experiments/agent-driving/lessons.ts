@@ -40,7 +40,7 @@ export type LessonState = {
   id: LessonId;
   road: "one_way" | "two_way";
   laneDivider: "broken_white" | "unmarked" | "double_yellow";
-  signalHead: "red" | "green" | null;
+  signalHead: "red" | "yellow" | "green" | null;
   sign: "STOP" | "NO TURN ON RED" | null;
   crosswalk: boolean;
   hazard: Hazard | null;
@@ -55,6 +55,8 @@ export type LessonState = {
   benchmark?: BenchmarkId;
   senses?: SenseFeed;
   exam: boolean;
+  realtime: boolean;
+  reflex: boolean;
   infractions: Infraction[];
   laneChanged?: boolean;
   oncoming?: Actor;
@@ -62,6 +64,9 @@ export type LessonState = {
 
 const reject = (code: string, error: string, recovery?: Recovery): Rejection => ({ code, error, recovery });
 export type Infraction = { code: string };
+// realtime: the approach runs on the clock without blocking the caller. reflex: the car stops at the line by itself.
+// turnsRed: the light goes yellow then red while the car approaches.
+export type LessonOptions = { realtime?: boolean; reflex?: boolean; turnsRed?: boolean };
 const checkRecovery = (area: Check): Recovery => ({ tool: "drive_check", arguments: { area } });
 const signalRecovery = (direction: Direction): Recovery => ({ tool: "drive_signal", arguments: { direction } });
 const waitRecovery: Recovery = { tool: "drive_wait", arguments: {} };
@@ -130,8 +135,14 @@ export class LessonRun {
   private interrupted = false;
   private readonly course: ReturnType<typeof benchmarkCase> | undefined;
   private walkerPending = false;
+  private turnsRed = false;
+  private clock = 0;
+  private signalPlan: { yellowAt: number; redAt: number } | undefined;
+  private watchLine = false;
+  private crossedLine = false;
 
-  constructor(id: LessonId, benchmark?: BenchmarkId, exam = false) {
+  constructor(id: LessonId, benchmark?: BenchmarkId, exam = false, options: LessonOptions = {}) {
+    this.turnsRed = Boolean(options.turnsRed);
     const course = this.course = benchmark ? benchmarkCase(benchmark) : undefined;
     const sign = course ? course.posted ? "NO TURN ON RED" : null
       : id === "no_turn_on_red" || id === "crosswalk" ? "NO TURN ON RED" : isIntersectionLesson(id) ? "STOP" : null;
@@ -140,7 +151,7 @@ export class LessonRun {
     const hazard = course ? this.junctionHazard(course.signal, Boolean(course.posted))
       : laneChange ? "blind_spot_vehicle" : id === "left_turn" ? "oncoming_vehicle" : sign === "NO TURN ON RED" ? "red_light" : null;
     this.state = {
-      id, benchmark, exam, infractions: [], road: laneChange || course?.chapter === "route" ? "one_way" : "two_way",
+      id, benchmark, exam, realtime: Boolean(options.realtime), reflex: options.reflex !== false, infractions: [], road: laneChange || course?.chapter === "route" ? "one_way" : "two_way",
       laneDivider: laneChange || course?.chapter === "route" ? "broken_white" : id === "three_point" ? "unmarked" : "double_yellow",
       signalHead: course?.signal ?? (sign === "NO TURN ON RED" ? "red" : null),
       sign, crosswalk: Boolean(course) || id === "crosswalk", hazard, actor: null, checked: null,
@@ -275,10 +286,20 @@ export class LessonRun {
         if (r) return r;
         this.signalZ = car.z; // exam: no advance signal was given; the late-signal check below will judge the turn
       }
+      const speed = input.speed ?? 5;
+      const toLine = stopZ + (course?.shift ?? 0) + (course?.stopOffset ?? 0) - car.z;
+      if (s.realtime && this.turnsRed) {
+        // A seeded dilemma: yellow once half the expected arrival time has passed, red 3.5 s later (RMV: yellow means prepare to stop).
+        const arrival = toLine / speed + speed / (2 * maxAcceleration);
+        this.signalPlan = { yellowAt: this.clock + arrival * 0.5, redAt: this.clock + arrival * 0.5 + 3.5 };
+      }
+      this.watchLine = s.realtime && !s.reflex;
+      this.crossedLine = false;
       return {
-        segments: [straight(stopZ + (course?.shift ?? 0) + (course?.stopOffset ?? 0) - car.z)],
-        detail: "Stopped fully before the line.",
+        segments: [straight(s.realtime && !s.reflex ? toLine + 8 : toLine, speed)],
+        detail: s.realtime && !s.reflex ? "Rolled through the junction mouth." : "Stopped fully before the line.",
         commit: () => {
+          if (this.watchLine) { this.watchLine = false; this.state.checked = null; return; }
           s.stoppedAtLine = true;
           s.checked = null;
           this.record("full_stop_before_line");
@@ -367,6 +388,14 @@ export class LessonRun {
   tick(dt: number, car: DriveState): string | undefined {
     const active = this.active;
     if (!active) return;
+    this.clock += dt;
+    if (this.signalPlan) {
+      const light = this.clock >= this.signalPlan.redAt ? "red" : this.clock >= this.signalPlan.yellowAt ? "yellow" : "green";
+      if (light !== this.state.signalHead) {
+        this.state.signalHead = light;
+        this.state.hazard = this.junctionHazard(light === "yellow" ? "green" : light, Boolean(this.course?.posted));
+      }
+    }
     const { plan } = active;
     if ("seconds" in plan) {
       active.elapsed += dt;
@@ -386,6 +415,11 @@ export class LessonRun {
       const speed = car.speed + Math.max(-maxBraking * dt, Math.min(maxAcceleration * dt, target - car.speed));
       const distance = Math.min(active.remaining, (car.speed + speed) * dt / 2);
       Object.assign(car, advance(car, distance * direction, segment.curvature));
+      if (this.watchLine && !this.crossedLine && car.z + DRIVER.halfLength >= stopLine + (this.course?.shift ?? 0)) {
+        this.crossedLine = true;
+        if (this.state.signalHead === "red") this.state.infractions.push({ code: "ran_red_light" });
+        if (car.speed > 0.3) this.state.infractions.push({ code: "stop_before_line" });
+      }
       car.wheelRoll += distance * direction / DRIVER.wheelRadius;
       car.steering += (Math.atan(DRIVER.wheelbase * segment.curvature) - car.steering) * Math.min(1, dt * 12);
       car.throttle = speed > car.speed ? 0.55 : 0;
@@ -404,6 +438,19 @@ export class LessonRun {
     plan.commit();
     return plan.detail;
   }
+
+  // Realtime: stop short of where the car would otherwise go. The approach is not complete; the agent may approach again.
+  brakeNow(car: DriveState): boolean {
+    const active = this.active;
+    if (!active || "seconds" in active.plan) return false;
+    const stopIn = car.speed * car.speed / (2 * maxBraking) + 0.2;
+    active.remaining = Math.min(active.remaining, stopIn);
+    active.plan = { ...active.plan, detail: "Braked and stopped short of the line.", commit: () => { this.watchLine = false; this.state.checked = null; } };
+    active.segment = active.plan.segments.length - 1;
+    return true;
+  }
+
+  get cruising() { return Boolean(this.active && "segments" in this.active.plan && this.state.realtime); }
 
   cancel() {
     this.active = undefined;

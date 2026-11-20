@@ -106,7 +106,7 @@ const server = Bun.serve({
         cameraFrame = undefined;
         cameraView = "ahead";
         attempts = [];
-        simulation.reset(offset, benchmark ? "right_turn" : lesson ? lesson as LessonId : undefined, benchmark ?? undefined, params.get("mode") === "exam");
+        simulation.reset(offset, benchmark ? "right_turn" : lesson ? lesson as LessonId : undefined, benchmark ?? undefined, params.get("mode") === "exam", { realtime: params.get("realtime") === "1", reflex: params.get("reflex") !== "0", turnsRed: params.get("turnsRed") === "1" });
         return json(simulation.snapshot());
       },
     },

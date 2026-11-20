@@ -294,6 +294,7 @@ export function buildCourse() {
       signal.visible = Boolean(lesson?.signalHead);
       crosswalk.visible = lesson?.crosswalk === true;
       lamps[0].emissiveIntensity = lesson?.signalHead === "red" ? 2.6 : 0;
+      lamps[1].emissiveIntensity = lesson?.signalHead === "yellow" ? 2.6 : 0;
       lamps[2].emissiveIntensity = lesson?.signalHead === "green" ? 2.4 : 0;
     },
   };

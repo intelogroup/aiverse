@@ -1,5 +1,5 @@
 import { driverRefusal } from "./driver";
-import { LessonRun, lessonSpawn } from "./lessons";
+import { LessonRun, lessonSpawn, type LessonOptions } from "./lessons";
 import { benchmarkCase, type BenchmarkId } from "./benchmark";
 import { COURSE, DRIVER, lessonCommands, stopLineGap, type ActionResult, type Command, type DriveAction, type DriveState, type Event, type LessonId } from "./protocol";
 
@@ -76,12 +76,12 @@ export class DrivingSimulation {
     return { ...this.state, events: [...this.state.events], lesson: this.lesson?.snapshot(this.state) };
   }
 
-  reset(trafficOffset = 0, lessonId?: LessonId, benchmark?: BenchmarkId, exam = false) {
+  reset(trafficOffset = 0, lessonId?: LessonId, benchmark?: BenchmarkId, exam = false, options: LessonOptions = {}) {
     const old = this.active;
     this.active = null;
     this.state = initialState(trafficOffset);
     this.brakeHeld = false;
-    this.lesson = lessonId ? new LessonRun(lessonId, benchmark, exam) : undefined;
+    this.lesson = lessonId ? new LessonRun(lessonId, benchmark, exam, options) : undefined;
     if (lessonId) {
       Object.assign(this.state, lessonSpawn(lessonId, benchmark));
       if (benchmark && benchmarkCase(benchmark).preselectedHigh) this.state.headlights = "high";
@@ -115,6 +115,7 @@ export class DrivingSimulation {
     const reject = (error: string, code?: string): Promise<ActionResult> => Promise.resolve({ ok: false, error, code, state: this.snapshot() });
     if (direction !== undefined && !["signal", "change_lane", "intersection_turn"].includes(command)) return reject("Direction applies to lane changes, signals, and intersection turns.");
     if (check !== undefined && command !== "check") return reject("The view to check applies to a traffic check.");
+    if (input.speed !== undefined && command !== "approach_lesson") return reject("Speed applies to an approach.");
     if (command === "headlights") {
       if (!beam || motion || throttle !== undefined || seconds !== undefined || amount !== undefined) return reject("Choose an off, low, or high beam setting.");
       if (state.phase !== "driving") return reject("Take the driver's seat before using the headlights.", "driver_not_seated");
@@ -128,6 +129,11 @@ export class DrivingSimulation {
     const lessonAction = (lessonCommands as readonly Command[]).includes(command);
     if (lessonAction || (this.lesson && !["enter", "exit", "brake"].includes(command))) {
       return this.actInLesson(input, lessonAction);
+    }
+    if (this.lesson?.cruising && command === "brake") {
+      this.lesson.brakeNow(state);
+      const event = this.record(command, "done", "Braking. The car will stop short of the line.");
+      return Promise.resolve({ ok: true, event, state: this.snapshot() });
     }
     if (this.lesson && command === "brake" && this.active && this.state.phase === "driving") {
       this.lesson.cancel();
@@ -198,7 +204,9 @@ export class DrivingSimulation {
     if (!this.lesson) return reject("lesson_required", "Select an RMV driving lesson first.");
     if (!lessonAction) return reject("use_lesson_controls", "Use the lesson maneuver tools. They check road rules before moving.");
     if (state.phase !== "driving") return reject("driver_not_seated", "Take the driver seat first.");
-    if (this.active || state.speed !== 0) return reject("maneuver_in_progress", "Finish the current maneuver before calling a lesson tool.");
+    const passive = input.command === "check" || input.command === "signal";
+    if (this.lesson.cruising && !passive) return reject("maneuver_in_progress", "The car is moving. Brake to stop short, or wait for it to reach the line.");
+    if (!(this.lesson.cruising && passive) && (this.active || state.speed !== 0)) return reject("maneuver_in_progress", "Finish the current maneuver before calling a lesson tool.");
     if (input.motion || input.seconds !== undefined || input.amount !== undefined || input.throttle !== undefined) {
       return reject("unexpected_input", "Use the parameters defined for this lesson maneuver.");
     }
@@ -207,6 +215,14 @@ export class DrivingSimulation {
     this.record(input.command, "started", "");
     if (typeof result === "string") {
       const event = this.record(input.command, "done", result);
+      return Promise.resolve({ ok: true, event, state: this.snapshot() });
+    }
+    if (this.lesson.cruising) {
+      // Realtime approach: the car keeps moving on the clock; the caller is released now and reads progress from observations.
+      this.brakeHeld = false;
+      state.action = input.command;
+      this.active = { input, started: state.time, endAt: state.time, clearSince: null, motion: undefined, waitedForTraffic: false, resolve: () => {} };
+      const event = this.record(input.command, "started", "Cruising toward the line. Observe, then brake or let it arrive.");
       return Promise.resolve({ ok: true, event, state: this.snapshot() });
     }
     return new Promise((resolve) => {

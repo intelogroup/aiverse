@@ -104,7 +104,7 @@ function spawnLogged(args: string[], log: string, env: NodeJS.ProcessEnv, cwd?: 
 async function runCase(id: BenchmarkId, port: number, session: string): Promise<Trial> {
   const lab = `http://127.0.0.1:${port}`;
   const variant = benchmarkCase(id);
-  const reset = await fetch(lab + "/api/reset?benchmark=" + id, { method: "POST" });
+  const reset = await fetch(lab + "/api/reset?benchmark=" + id + (process.env.DRIVE_RESET_EXTRA ?? ""), { method: "POST" });
   if (!reset.ok) throw new Error("Scenario reset failed.");
   const page = lab + "/?camera=vision" + (variant.chapter === "night" ? "&lighting=night" : "");
   await browserStep(session, "open", page);

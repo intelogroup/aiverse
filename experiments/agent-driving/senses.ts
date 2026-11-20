@@ -2,7 +2,7 @@
 // list built like a sensor, not an oracle. Range and field of view are limited, a light is readable only
 // near, and a side shows a blind-spot flag, not the car's identity. Geometry is approximate (lab road units, metres).
 export type SenseEvent =
-  | { type: "stop_line"; distanceM: number; etaS: number | null; light: "red" | "green" | "unreadable"; canStop: boolean }
+  | { type: "stop_line"; distanceM: number; etaS: number | null; light: "red" | "yellow" | "green" | "unreadable"; canStop: boolean }
   | { type: "crosswalk"; distanceM: number; etaS: number | null; pedestrians: number }
   | { type: "sign"; text: string; distanceM: number };
 
@@ -23,7 +23,7 @@ export type SenseWorld = {
   frontOffset: number;
   stopLineZ: number | null;
   crosswalkZ: number | null;
-  light: "red" | "green" | null;
+  light: "red" | "yellow" | "green" | null;
   sign: string | null;
   actors: { kind: "vehicle" | "pedestrian"; x: number; z: number; heading: number; moving: boolean }[];
 };

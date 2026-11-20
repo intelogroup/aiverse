@@ -14,6 +14,9 @@ Use one tool at a time. Read its result and the available tools before moving. G
 
 The current route and controls come from observation. `drive_wait` holds at your present stop until the observed conflict changes. Confirm `lesson.passed` and zero speed before reporting that you finished. The rules above follow the Massachusetts RMV Driver's Manual, chapter 4.
 
+## Real-time lessons
+When `drive_observe` shows `lesson.senses`, the world runs on a clock. `drive_approach` with a `speed` (m/s, 3 to 20) returns at once and the car keeps moving. Poll `drive_observe`: `senses.horizon` gives the stop line's distance, time to arrival and light, and whether you can still stop (`canStop`). A yellow light means prepare to stop. Use `drive_brake` to stop short; you then approach again. At higher speed you have less time per decision, so pick a speed you can manage: you need time to read, decide and brake. `check` and `signal` are allowed while moving; other maneuvers are not. When `activeCommand` is empty and `stoppedAtLine` is true you have arrived; finish the turn as usual.
+
 ## Night driving
 
 Use `drive_headlights` to select low or high beam. Use high beams on dark roads with enough separation. Switch to low within 500 feet of oncoming traffic or 200 feet of a vehicle ahead. `drive_brake` holds the brake and illuminates the red stop lights until you drive again.
