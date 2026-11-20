@@ -10,6 +10,7 @@ import { bakeCollisionParts } from "./capsuleWorld";
 import { FountainWater } from "./FountainWater";
 import { EasterEggs } from "./EasterEggs";
 import { BazaarCar } from "./BazaarCar";
+import { useState, useCallback } from "react";
 import type { InteractController } from "./interactables";
 import type { WalkColliders } from "./walkColliders";
 import { assetUrl, resolveManifestAssets } from "../../lib/assetUrl";
@@ -35,7 +36,8 @@ export const DISTRICTS_URL = TILES ? "/assets/tiles/districts.json" : "/assets/d
  * places). `window.__districts` exposes counters + the load/unload event log for the memory test
  * (?districtDebug=1).
  */
-export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, walk, streamCap, interact }: { interact?: InteractController; residentUrl: string; light: React.RefObject<THREE.DirectionalLight | null>; collide?: boolean; meshesRef?: { current: (() => THREE.Mesh[]) | null }; walk?: WalkColliders; streamCap?: number }) {
+import type { RemoteBodies } from "./remoteFrames";
+export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, walk, streamCap, interact, remoteBodies }: { interact?: InteractController; residentUrl: string; light: React.RefObject<THREE.DirectionalLight | null>; collide?: boolean; meshesRef?: { current: (() => THREE.Mesh[]) | null }; walk?: WalkColliders; streamCap?: number; remoteBodies?: RemoteBodies | null }) {
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
   const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3 } | null;
@@ -71,6 +73,9 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     for (const [id, g] of shellGroups.current) g.visible = farGroupVisible("shell", isShellCovered(id, loaded, residentIdRef.current, residentReadyRef.current), lodUp);
     for (const [id, g] of lodGroups.current) g.visible = farGroupVisible("lod", isShellCovered(id, loaded, residentIdRef.current, residentReadyRef.current), lodUp);
   };
+  // Vehicle drivers: which agent body number is driving each car (null = parked).
+  const [driver1, setDriver1] = useState<number | null>(null);
+  const [driver2, setDriver2] = useState<number | null>(null);
   // Camera-collision meshes per root (resident, links, each streamed district); flattened lazily for the collider.
   const colliderSets = useRef(new Map<string, THREE.Mesh[]>());
   const colliderFlat = useRef<THREE.Mesh[] | null>(null);
@@ -379,8 +384,8 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
       <FountainWater />
       {/* The egg model is a separate download; it must not hold the world back (own boundary). */}
       <Suspense fallback={null}><EasterEggs activeDistricts={["bazaar", ...groups.current.keys()]} interact={interact} /></Suspense>
-      <Suspense fallback={null}><BazaarCar position={[15, 0, 5]} rotationY={1.2} /></Suspense>
-      <Suspense fallback={null}><BazaarCar position={[-28, 0, -62]} rotationY={3.0} /></Suspense>
+      <Suspense fallback={null}><BazaarCar position={[15, 0, 5]} rotationY={1.2} remoteBodies={remoteBodies ?? null} driverBodyN={driver1} /></Suspense>
+      <Suspense fallback={null}><BazaarCar position={[-28, 0, -62]} rotationY={3.0} remoteBodies={remoteBodies ?? null} driverBodyN={driver2} /></Suspense>
       <CameraCollider getMeshes={getMeshes} enabled={collide && collideDebug.current} stats={stats.current} />
     </>
   );
