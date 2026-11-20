@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>spark probe</title></head>
+<body>
+<canvas id="c" width="640" height="360"></canvas>
+<script type="importmap">
+{ "imports": {
+  "three": "/nm/three/build/three.module.js",
+  "@sparkjsdev/spark": "/nm/@sparkjsdev/spark/dist/spark.module.js"
+} }
+</script>
+<script type="module">
+const P = { t0: performance.now(), loadMs: null, numSplats: null, error: null, frames: [], infos: [] };
+window.__probe = P;
+try {
+  const THREE = await import("three");
+  const { SparkRenderer, SplatMesh } = await import("@sparkjsdev/spark");
+  const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById("c"), antialias: true });
+  renderer.setSize(640, 360);
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x101418);
+  const camera = new THREE.PerspectiveCamera(55, 640 / 360, 0.1, 100);
+  camera.position.set(0, 1.7, 8.5);
+  camera.lookAt(0, 1.1, 0);
+  const spark = new SparkRenderer({ renderer });
+  scene.add(spark);
+  const params = new URLSearchParams(location.search);
+  const file = params.get("f") || "bazaar-stall-262k.ply";
+  if (!params.has("empty")) {
+    const mesh = new SplatMesh({ url: "/files/" + file });
+    scene.add(mesh);
+    mesh.initialized.then(() => {
+      P.loadMs = Math.round(performance.now() - P.t0);
+      try { P.numSplats = mesh.packedSplats ? mesh.packedSplats.numSplats : null; } catch (e) { /* keep null */ }
+    }).catch((e) => { P.error = String(e).slice(0, 200); });
+  }
+  let last = performance.now();
+  const loop = () => {
+    requestAnimationFrame(loop);
+    const now = performance.now();
+    P.frames.push(Math.round(now - last));
+    if (P.frames.length > 400) P.frames.shift();
+    last = now;
+    renderer.render(scene, camera);
+    if (P.infos.length < 40) P.infos.push({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles });
+  };
+  requestAnimationFrame(loop);
+} catch (e) {
+  P.error = String(e).slice(0, 300);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,148 @@
+// film.mjs — orbit film pass for the splat trial.
+// Transplanted from the batching trial's film.mjs v2 with the same
+// hard-won rules:
+//   - At a static pose the renderer emits no frames; frames flow
+//     while state changes. So the camera orbits continuously,
+//     driven from INSIDE the page (a setInterval calling
+//     __districts.cam) — after installing it, this script issues
+//     almost no evaluates (a live screencast starves them).
+//   - The screencast starts immediately after goto, before load.
+// The film: load-in -> splat ready -> third-person orbit around the
+// stall at (14, 0, 33), radius 7 m, height 2.6 m, looking at
+// (14, 1.0, 33). Frame timestamps are the screencast metadata (real
+// per-frame times); the MP4 is VFR-concat encoded exactly like the
+// batching films, then ffprobe-counted.
+// Usage: node film.mjs <name> <splat-mode> <distDir> [port] [holdMs]
+import http from "node:http";
+import fs from "node:fs";
+import path from "node:path";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const { chromium } = createRequire(path.join(HERE, "package.json"))("playwright-core");
+const [name, splatMode, distArg, portArg, holdArg] = process.argv.slice(2);
+const DIST = path.resolve(distArg || path.join(HERE, "../dist"));
+const PORT = Number(portArg || 8912);
+const HOLD_MS = Number(holdArg || 180000);
+const outDir = path.join(HERE, "runs", name);
+fs.mkdirSync(path.join(outDir, "frames"), { recursive: true });
+for (const f of fs.readdirSync(path.join(outDir, "frames"))) fs.rmSync(path.join(outDir, "frames", f));
+
+const stagedDir = path.join(DIST, "splat-trial");
+fs.mkdirSync(stagedDir, { recursive: true });
+for (const f of ["bazaar-stall-262k.ply", "bazaar-stall-1m.ply"]) {
+  fs.copyFileSync(path.join(HERE, f), path.join(stagedDir, f));
+}
+
+const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".glb": "model/gltf-binary", ".wasm": "application/wasm", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".ktx2": "application/octet-stream", ".bin": "application/octet-stream", ".woff2": "font/woff2", ".ico": "image/x-icon", ".ply": "application/octet-stream" };
+const server = http.createServer((req, res) => {
+  const url = new URL(req.url, "http://x");
+  let p = path.join(DIST, decodeURIComponent(url.pathname));
+  if (!p.startsWith(DIST)) { res.writeHead(403); return res.end(); }
+  if (url.pathname === "/" || !fs.existsSync(p) || fs.statSync(p).isDirectory()) p = path.join(DIST, "index.html");
+  res.writeHead(200, { "Content-Type": MIME[path.extname(p)] || "application/octet-stream", "Cache-Control": "no-store", "Content-Length": fs.statSync(p).size });
+  fs.createReadStream(p).pipe(res);
+});
+await new Promise((r) => server.listen(PORT, "127.0.0.1", r));
+
+const browser = await chromium.launch({
+  executablePath: process.env.HOME + "/.cache/ms-playwright/chromium_headless_shell-1200/chrome-headless-shell-linux64/chrome-headless-shell",
+  headless: true,
+  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--no-sandbox",
+    "--disable-background-timer-throttling", "--disable-backgrounding-occluded-windows",
+    "--disable-renderer-backgrounding", "--enable-precise-memory-info"],
+});
+const ctx = await browser.newContext({ viewport: { width: 640, height: 360 }, serviceWorkers: "block" });
+const page = await ctx.newPage();
+const pageErrors = [];
+page.on("pageerror", (e) => pageErrors.push(String(e).slice(0, 200)));
+const timed = async (p, ms = 90000) => Promise.race([
+  p.then((v) => ({ ok: true, v })).catch((e) => ({ ok: false, err: String(e).slice(0, 120) })),
+  new Promise((res) => setTimeout(() => res({ ok: false, err: "race-timeout" }), ms)),
+]);
+
+await page.goto(`http://127.0.0.1:${PORT}/?tiles=0&streamDebug=1&districtDebug=1&splat=${splatMode === "262k" ? "1" : "1m"}`, { waitUntil: "load", timeout: 120000 });
+
+const cdp = await ctx.newCDPSession(page);
+const frames = [];
+cdp.on("Page.screencastFrame", async (e) => {
+  const file = path.join(outDir, "frames", `f${String(frames.length).padStart(5, "0")}.jpg`);
+  fs.writeFileSync(file, Buffer.from(e.data, "base64"));
+  frames.push({ file, ts: e.metadata.timestamp });
+  try { await cdp.send("Page.screencastFrameAck", { sessionId: e.sessionId }); } catch {}
+});
+const castStart = await timed(cdp.send("Page.startScreencast", { format: "jpeg", quality: 60, maxWidth: 640, maxHeight: 360, everyNthFrame: 1 }), 90000);
+console.log("screencast start (early):", castStart.ok ? "ok" : castStart.err, "frames so far:", frames.length);
+
+let presenting = null;
+for (let i = 0; i < 25 && !presenting; i++) {
+  const r = await timed(page.evaluate(() => window.__city3Stream ? window.__city3Stream.snapshot().render : null), 90000);
+  if (r.ok && r.v && r.v.triangles > 50000) presenting = r.v;
+  else await new Promise((s) => setTimeout(s, 2000));
+  if (i % 5 === 4) console.log(`presenting poll ${i}: frames so far ${frames.length}`);
+}
+console.log("presenting:", JSON.stringify(presenting), "frames so far:", frames.length);
+
+let splat = null;
+for (let i = 0; i < 8 && !splat; i++) {
+  const r = await timed(page.evaluate(() => window.__splatTrial ?? null), 90000);
+  if (r.ok && r.v && (r.v.state === "ready" || r.v.state === "error")) splat = r.v;
+  else await new Promise((s) => setTimeout(s, 3000));
+}
+console.log("splat:", JSON.stringify(splat), "frames so far:", frames.length);
+
+// Install the in-page orbit driver, then go quiet.
+const orbit = await timed(page.evaluate(() => {
+  const w = window;
+  if (!w.__districts) return "no-districts-handle";
+  const C = [14, 33], R = 7, H = 2.6, TGT = [14, 1.0, 33];
+  let a = Math.PI * 0.5; // start due +z of the stall, like the P1 view
+  w.__orbitTimer = setInterval(() => {
+    a += 0.02;
+    const x = C[0] + R * Math.sin(a), z = C[1] + R * Math.cos(a);
+    try { w.__districts.cam([x, H, z], TGT); } catch {}
+  }, 200);
+  return "orbit-ok";
+}), 90000);
+console.log("orbit driver:", JSON.stringify(orbit), "frames so far:", frames.length);
+
+await new Promise((s) => setTimeout(s, HOLD_MS));
+console.log("after hold: frames:", frames.length);
+await timed(page.evaluate(() => { clearInterval(window.__orbitTimer); return 1; }), 15000).catch(() => {});
+await timed(cdp.send("Page.stopScreencast"), 15000);
+
+frames.sort((a, b) => a.ts - b.ts);
+const duration = frames.length > 1 ? frames[frames.length - 1].ts - frames[0].ts : 0;
+const intervals = [];
+for (let i = 1; i < frames.length; i++) intervals.push(Math.round((frames[i].ts - frames[i - 1].ts) * 1000));
+const median = (xs) => (xs.length ? [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] : null);
+let probe = null;
+try {
+  if (frames.length) {
+    let concat = "";
+    for (let i = 0; i < frames.length; i++) {
+      const d = i + 1 < frames.length ? frames[i + 1].ts - frames[i].ts : (duration / Math.max(1, frames.length - 1)) || 0.1;
+      concat += `file '${frames[i].file}'\nduration ${Math.max(0.01, d).toFixed(4)}\n`;
+    }
+    concat += `file '${frames[frames.length - 1].file}'\n`;
+    fs.writeFileSync(path.join(outDir, "concat.txt"), concat);
+    execFileSync("ffmpeg", ["-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", path.join(outDir, "concat.txt"), "-vsync", "vfr", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", path.join(outDir, "film.mp4")], { stdio: "inherit", timeout: 180000 });
+    probe = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-count_frames", "-select_streams", "v:0", "-show_entries", "stream=codec_name,width,height,nb_read_frames,duration", "-of", "json", path.join(outDir, "film.mp4")], { encoding: "utf8" }));
+  }
+} catch (e) { console.error("encode failed", String(e).slice(0, 150)); }
+
+const film = {
+  run: name, splatMode, presenting, splat,
+  capturedFrames: frames.length,
+  durationS: +duration.toFixed(2),
+  capturedFps: duration > 0 ? +(frames.length / duration).toFixed(3) : 0,
+  medianFrameIntervalMs: median(intervals),
+  probe, pageErrors: pageErrors.slice(0, 5),
+};
+fs.writeFileSync(path.join(outDir, "film.json"), JSON.stringify(film, null, 1));
+console.log("FILM", JSON.stringify({ frames: frames.length, medianMs: film.medianFrameIntervalMs, durationS: film.durationS, fps: film.capturedFps }));
+await Promise.race([browser.close(), new Promise((s) => setTimeout(s, 10000))]);
+server.close();
+process.exit(0);

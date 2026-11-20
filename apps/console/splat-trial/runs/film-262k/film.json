@@ -1,0 +1,27 @@
+{
+ "run": "film-262k",
+ "splatMode": "262k",
+ "presenting": {
+  "calls": 18234,
+  "triangles": 7757846
+ },
+ "splat": null,
+ "capturedFrames": 361,
+ "durationS": 637.56,
+ "capturedFps": 0.566,
+ "medianFrameIntervalMs": 172,
+ "probe": {
+  "programs": [],
+  "stream_groups": [],
+  "streams": [
+   {
+    "codec_name": "h264",
+    "width": 640,
+    "height": 360,
+    "duration": "568.680000",
+    "nb_read_frames": "357"
+   }
+  ]
+ },
+ "pageErrors": []
+}

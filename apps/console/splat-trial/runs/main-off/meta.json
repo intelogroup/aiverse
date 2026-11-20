@@ -1,0 +1,65 @@
+{
+ "run": "main-off",
+ "splatMode": "none",
+ "viewport": {
+  "width": 640,
+  "height": 360
+ },
+ "webgpu": {
+  "present": true,
+  "adapter": null
+ },
+ "presenting": {
+  "calls": 18234,
+  "triangles": 7757846
+ },
+ "splat": null,
+ "orbit": {
+  "plateau": {
+   "calls": 18274,
+   "tris": 7779994,
+   "geometries": 4306,
+   "textures": 356,
+   "interiors": 0,
+   "built": []
+  },
+  "plateaued": false,
+  "reads": 3,
+  "frameMedianMs": 69397,
+  "frameSamples": 35,
+  "heap": {
+   "usedJSHeapSize": 539624486,
+   "totalJSHeapSize": 543796466
+  }
+ },
+ "p1": {
+  "plateau": null,
+  "plateaued": false,
+  "reads": 0,
+  "frameMedianMs": null,
+  "frameSamples": 0,
+  "heap": null
+ },
+ "in": {
+  "plateau": null,
+  "plateaued": false,
+  "reads": 0,
+  "frameMedianMs": null,
+  "frameSamples": 0,
+  "heap": null,
+  "shotBytes": null
+ },
+ "out": {
+  "plateau": null,
+  "plateaued": false,
+  "reads": 0,
+  "frameMedianMs": null,
+  "frameSamples": 0,
+  "heap": null
+ },
+ "plyServed": [],
+ "plyServedTotal": 0,
+ "pageErrors": [
+  "console: WebSocket connection to 'ws://127.0.0.1:8911/api/public/ws' failed: Error during WebSocket handshake: Unexpected response code: 200"
+ ]
+}
