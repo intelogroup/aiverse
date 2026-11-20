@@ -35,7 +35,7 @@ function Cars() {
       g.rotation.y = Math.atan2(p.dx, -p.dy);     // three heading: 0 faces +z (= plan -y)
     });
   });
-  return <>{cars.map((c, i) => <group key={i} ref={(g) => { groups.current[i] = g; }}><primitive object={models[i]} /></group>)}</>;
+  return <>{cars.map((_, i) => <group key={i} ref={(g) => { groups.current[i] = g; }}><primitive object={models[i]} /></group>)}</>;
 }
 
 function Pedestrians() {
@@ -64,6 +64,6 @@ function Pedestrians() {
   );
 }
 
-export function AmbientTraffic() {
+export function AmbientLife() {
   return <><Suspense fallback={null}><Cars /></Suspense><Pedestrians /></>;
 }
