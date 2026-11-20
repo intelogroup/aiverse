@@ -1,9 +1,11 @@
 import { Hono } from "hono";
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { EGGS, EGG_CLAIM_RANGE_M } from "@aiverse/shared/eggs";
 import { eggCashBounties, eggHuntWins } from "@aiverse/shared/schema";
 import { db } from "../db/client";
+import { withCapLock } from "../db/capLock";
+import { CASH_BOUNTY_LOCK, cashBountyHasTime } from "../huntCash";
 import type { SimClient } from "../world/simClient";
 
 const contest = z.object({
@@ -37,10 +39,16 @@ function legacyContest() {
 export function createEggHuntRoute(sim: SimClient) {
   const legacy = legacyContest();
   const getContest = async () => {
-    const cash = await db.query.eggCashBounties.findFirst({ where: eq(eggCashBounties.current, true) });
+    const cash = await db.query.eggCashBounties.findFirst({
+      where: eq(eggCashBounties.current, true),
+      extras: {
+        remainingMs: sql<number>`greatest(0, ceil(extract(epoch from (${eggCashBounties.expiresAt} - statement_timestamp())) * 1000))::float8`
+          .as("remaining_ms"),
+      },
+    });
     return cash
       ? { ...cash, credits: 0, cashBounty: { amountCents: cash.amountCents, currency: "USD", mode: cash.mode } }
-      : legacy && { ...legacy, createdAt: null, cashBounty: null };
+      : legacy && { ...legacy, createdAt: null, cashBounty: null, expiresAt: null, remainingMs: 0 };
   };
   const route = new Hono<{ Variables: { agentId: string; ownerId: string } }>();
   const getWin = (id: string) => db.query.eggHuntWins.findFirst({ where: eq(eggHuntWins.contestId, id) });
@@ -49,10 +57,12 @@ export function createEggHuntRoute(sim: SimClient) {
   route.get("/", async (c) => {
     const current = await getContest();
     if (!current) return c.json({ error: "no_active_hunt" }, 404);
-    const { id, clue, credits, cashBounty } = current;
+    const { id, clue, credits, cashBounty, expiresAt, remainingMs } = current;
     const win = await getWin(id);
-    return c.json({ id, clue, credits: win?.credits ?? credits, status: win ? "closed" : "open",
+    const status = win ? "closed" : expiresAt && remainingMs === 0 ? "expired" : "open";
+    return c.json({ id, clue, credits: win?.credits ?? credits, status,
       ...(cashBounty ? { cashBounty } : {}),
+      ...(expiresAt ? { expiresAt: expiresAt.toISOString(), remainingMs: status === "open" ? remainingMs : 0 } : {}),
       ...(win && win.agentId === c.get("agentId") ? { reward: receipt(win) } : {}) });
   });
 
@@ -61,7 +71,7 @@ export function createEggHuntRoute(sim: SimClient) {
     if (!submitted.success) return c.json({ error: "contestId_and_actId_required" }, 400);
     const current = await getContest();
     if (!current || submitted.data.contestId !== current.id) return c.json({ error: "unknown_contest" }, 404);
-    const { id, eggId, payload, credits, createdAt, cashBounty } = current;
+    const { id, eggId, payload, credits, createdAt, cashBounty, expiresAt, remainingMs } = current;
     const egg = EGGS[eggId];
     if (!egg) return c.json({ error: "egg_unavailable" }, 503);
     const [x, y, zPos] = egg.position;
@@ -73,6 +83,9 @@ export function createEggHuntRoute(sim: SimClient) {
     if (existing) return existing.agentId === agentId
       ? c.json(success(existing))
       : c.json({ error: "already_won" }, 409);
+    if (expiresAt && remainingMs === 0) {
+      return c.json({ error: "bounty_expired", expiresAt: expiresAt.toISOString() }, 410);
+    }
 
     const [actResponse, viewResponse] = await Promise.all([
       sim.call("GET", `/bodies/${agentId}/act/${submitted.data.actId}`),
@@ -96,11 +109,26 @@ export function createEggHuntRoute(sim: SimClient) {
       Math.abs(body.y - y) > 0.75) return c.json({ error: "return_to_the_egg" }, 403);
 
     // The immutable win records the owner at claim time and permits one winner per contest.
-    const [won] = await db.insert(eggHuntWins)
-      .values({ contestId: id, agentId, ownerId: c.get("ownerId"), payload, credits, wonAt: new Date() })
-      .onConflictDoNothing().returning();
+    const ownerId = c.get("ownerId");
+    // Serialize with publication and evaluate the deadline after the simulation proof, at the write.
+    const [won] = cashBounty
+      ? await withCapLock(CASH_BOUNTY_LOCK, (tx) => tx.insert(eggHuntWins).select(
+          tx.select({
+            contestId: eggCashBounties.id,
+            agentId: sql<string>`${agentId}::uuid`.as("agent_id"),
+            ownerId: sql<string>`${ownerId}::uuid`.as("owner_id"),
+            payload: eggCashBounties.payload,
+            credits: sql<number>`0`.as("credits"),
+            wonAt: sql<Date>`timezone('UTC', statement_timestamp())`.as("won_at"),
+          }).from(eggCashBounties)
+            .where(and(eq(eggCashBounties.id, id), eq(eggCashBounties.current, true), cashBountyHasTime)),
+        ).onConflictDoNothing().returning())
+      : await db.insert(eggHuntWins)
+        .values({ contestId: id, agentId, ownerId, payload, credits, wonAt: new Date() })
+        .onConflictDoNothing().returning();
     if (won) return c.json(success(won), 201);
     const winner = await getWin(id);
+    if (!winner && expiresAt) return c.json({ error: "bounty_expired", expiresAt: expiresAt.toISOString() }, 410);
     return winner?.agentId === agentId
       ? c.json(success(winner))
       : c.json({ error: "already_won" }, 409);

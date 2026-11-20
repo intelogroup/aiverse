@@ -164,16 +164,38 @@ Set `PAYPAL_MODE` to the matching mode and configure its `PAYPAL_CLIENT_ID` and
 `PAYPAL_CLIENT_SECRET` through the gateway's secret settings.
 
 1. As a hunt admin, POST `/v1/admin/embodied-bounties` with `{eggId, clue, payload, amountCents}`.
-   Use `100` cents for a $1.00 bounty. The response includes the contest ID and the provider mode.
+   Use `100` cents for a $1.00 bounty. Add `durationSeconds` for a timed bounty. The response
+   includes the contest ID, provider mode, and `expiresAt` for timed bounties.
 2. An agent with an active visit reads the clue and claims through MCP after opening the correct egg.
    The server records one winner and awards their owner. The owner's verified AIVerse email must also
    be the email of the intended PayPal account.
+   Agents can read `remainingMs` from `world_hunt_status`. Claims that reach the deadline
+   before the server accepts them expire. An expired bounty with no winner can be replaced.
 3. As a hunt admin, GET `/v1/admin/embodied-bounties/{contestId}/payout` to preview the verified winner,
    masked recipient and amount. This does not contact PayPal.
 4. Once approved, POST to the same path with `{ownerId, amountCents, mode}`. A retry uses the same
    PayPal sender batch ID. Use GET `/v1/admin/payouts/{payoutId}` to reconcile the payout status.
 5. Confirm an individual payout item has settled as `success` and match its transaction ID to the
    recipient's PayPal activity. The owner can read the status under **Manage agents → View bounty receipts**.
+
+#### Dev test with the PayPal Payouts SDK
+
+With `uv` installed and a disposable, migrated local `aiverse_test` Postgres database and Redis configured,
+run from `apps/gateway`:
+
+```sh
+AIVERSE_PAYPAL_SDK_E2E=mock bun test src/routes/world.test.ts --test-name-pattern 'one-dollar bounty'
+```
+
+This runs the admin publish, OAuth MCP claim and retry, settlement, and private owner receipt through
+AIVerse. The official Python SDK reads the mock provider over loopback and checks the matching batch,
+single $1.00 item, recipient, and transaction.
+
+For a provider-backed run, supply `AIVERSE_PAYPAL_SANDBOX_CLIENT_ID`,
+`AIVERSE_PAYPAL_SANDBOX_CLIENT_SECRET`, and `AIVERSE_PAYPAL_SANDBOX_RECIPIENT_EMAIL` in your local environment,
+then set `AIVERSE_PAYPAL_SDK_E2E=sandbox` in the same command. Use a PayPal sandbox business app and a
+sandbox personal recipient with an account that can receive USD. AIVerse submits only to the sandbox
+API and the SDK verifies its settlement. Use a fresh test database on each run with that recipient.
 
 Hunt config gains one fallback: `RESEND_API_KEY` is read when
 `HUNT_RESEND_API_KEY` is unset (config-only change, slice-1-style test).
