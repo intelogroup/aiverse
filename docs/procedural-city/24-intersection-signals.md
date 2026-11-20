@@ -13,3 +13,6 @@ Status 2026-11-20: 24 junctions x 4 corner posts, 3-lamp heads, fixed-time cycle
 - Paint at `walk_z + 0.05` like the zebra stripes: edge lines, double solid yellow + white lane dividers on the 20 m avenue, dashed yellow on 10 m streets, a stop line per approach 4.5-5.0 m before the junction (behind the zebra). Paint stops 4.4 m from a junction edge and at the plaza.
 - Signs on the driver's right per approach: pedestrian-crossing diamond at 4.2 m, signal-ahead diamond at 18 m. Symbols only: no text glyph pipeline, so no STOP/NO TURN ON RED lettering yet.
 - Verified in a plain three.js page (top view and driver view); not yet in the live console. Posts have no collision.
+
+## Collision for posts and signs
+- `StreetFurnitureColliders.tsx` registers the signals and roadmarks GLB meshes in `DistrictWorld`'s collider set (the walker and the camera both read it), via `streetFurniture.ts` `solidParts`, which drops the `mark_*` paint decals (5 cm proud: they must not become ground). Shared geometry, so BVHs are built once. Test: `streetFurnitureColliders.test.ts` walks a real walker into a signal post and a sign pole from the real GLBs.
