@@ -5,13 +5,13 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { buildColliders } from "./CameraCollider";
-import { solidParts } from "./streetFurniture";
-import { createBvhWorld } from "./bvhWorld";
-import { makeWalker, step, WALK_CONFIG } from "./walker";
+import { buildColliders } from "../src/features/world/CameraCollider";
+import { solidParts } from "../src/features/world/streetFurniture";
+import { createBvhWorld } from "../src/features/world/bvhWorld";
+import { makeWalker, step, WALK_CONFIG } from "../src/features/world/walker";
 
 function load(file: string): Promise<THREE.Object3D> {
-  const b = readFileSync(new URL(`../../../public/assets/${file}`, import.meta.url));
+  const b = readFileSync(new URL(`../public/assets/${file}`, import.meta.url));
   const ab = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
   return new Promise((ok, no) => new GLTFLoader().parse(ab as ArrayBuffer, "", (g) => ok(g.scene), no));
 }
