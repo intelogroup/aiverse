@@ -2,7 +2,7 @@ import { useGLTF } from "@react-three/drei";
 import { assetUrl } from "../../lib/assetUrl";
 import { extendGltf } from "./gltfExtensions";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import * as THREE from "three";
 import { RemoteBodies } from "./remoteFrames";
 
