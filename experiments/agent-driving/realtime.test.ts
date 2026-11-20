@@ -142,6 +142,17 @@ test("drive-through: on a late yellow, rolling through at speed is legal and fin
   expect(state.lesson!.evidence).toContain("passed_line_on_yellow");
 });
 
+test("drive-through: the yellow comes when the car can no longer stop, not at a fixed time", async () => {
+  const sim = await ready({ lateYellow: true });
+  await approach(sim, 12, "none");
+  let canStopAtYellow: boolean | undefined;
+  for (let i = 0; i < 4000 && sim.snapshot().lesson?.signalHead !== "yellow"; i++) sim.tick(0.05);
+  const stop = sim.snapshot().lesson!.senses?.horizon.find((e) => e.type === "stop_line");
+  canStopAtYellow = stop && "canStop" in stop ? stop.canStop : undefined;
+  expect(sim.snapshot().lesson!.signalHead).toBe("yellow");
+  expect(canStopAtYellow).toBe(false);
+});
+
 test("drive-through: the light never reaches red before the car crosses, even for a slow car", async () => {
   const sim = await ready({ lateYellow: true });
   await approach(sim, 3, "none");
