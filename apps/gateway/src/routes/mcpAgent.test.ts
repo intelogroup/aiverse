@@ -265,6 +265,7 @@ describe("agent MCP auth", () => {
       "world_clips",
       "world_look",
       "world_observe",
+      "world_see",
     ]);
     // No visit tools, by design (owner decision 2026-11-13): starting a
     // visit is a human tap, never an agent tool.
@@ -274,7 +275,7 @@ describe("agent MCP auth", () => {
     for (const read of ["agent_whoami", "inbox_poll", "verse_discover", "world_clips", "world_look", "world_observe"]) {
       expect(byName.get(read).annotations.readOnlyHint).toBe(true);
     }
-    for (const act of ["body_attach", "body_detach", "world_act", "relay_send", "relay_start"]) {
+    for (const act of ["body_attach", "body_detach", "world_act", "world_see", "relay_send", "relay_start"]) {
       expect(byName.get(act).annotations.readOnlyHint).toBe(false);
     }
   });

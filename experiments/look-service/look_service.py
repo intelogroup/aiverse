@@ -9,7 +9,9 @@ no cold page per look, ever — cold start is ~70 s and a first capture in a
 fresh area pays minutes of shader work, so a look is a decision-fired
 event, never a reflex.
 
-POST /look     {agentId, position:[x,z], headingDeg, pitchDeg?}
+POST /look     {agentId, position3d:[x,y,z], headingDeg, pitchDeg?}
+    Renders at the requested body pose without moving the stand-in.
+    Legacy callers may send position:[x,z] for the original walk-and-look path.
     Moves the agent's BODY to the requested pose (act go_to + face — the
     pose comes from the request, never from console session state), then
     captures from the body's head via __scout.look(): ScoutVision's
@@ -47,12 +49,12 @@ Pitch (head tilt, -60..45 degrees, + up) is applied to the head camera. headingD
 heading + head yaw, so the stand-in body faces where the head looks. pitchSupported=true means the console build honours pitchDeg;
 an older console build ignores it and shoots level.
 """
-import asyncio, base64, hashlib, hmac, json, os, sys, time, urllib.request, urllib.error
+import asyncio, base64, hashlib, hmac, json, math, os, sys, time, urllib.request, urllib.error
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 sys.path.insert(0, "/opt/muse/skills/custom-connector-setup/bin")
-from dynamic_credentials import add_surrogate_to_request  # noqa: E402
 from playwright.async_api import async_playwright  # noqa: E402
 
 HERE = Path(__file__).parent
@@ -117,10 +119,15 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 OPENER = urllib.request.build_opener(NoRedirect())
 
 
+def authorize_r2(req):
+    from dynamic_credentials import add_surrogate_to_request
+    add_surrogate_to_request(req, R2_CONN, allowed_hosts=["api.cloudflare.com"])
+
+
 def r2_put(key, data, content_type):
     req = urllib.request.Request(R2_BASE + "/" + key, data=data, method="PUT")
     req.add_header("Content-Type", content_type)
-    add_surrogate_to_request(req, R2_CONN, allowed_hosts=["api.cloudflare.com"])
+    authorize_r2(req)
     with OPENER.open(req, timeout=120) as r:
         payload = json.loads(r.read())
         return r.status, payload.get("result", {})
@@ -128,7 +135,7 @@ def r2_put(key, data, content_type):
 
 def r2_get_sha(key):
     req = urllib.request.Request(R2_BASE + "/" + key, method="GET")
-    add_surrogate_to_request(req, R2_CONN, allowed_hosts=["api.cloudflare.com"])
+    authorize_r2(req)
     h = hashlib.sha256(); n = 0
     with OPENER.open(req, timeout=120) as r:
         while True:
@@ -163,7 +170,10 @@ class LookService:
         self.page.on("pageerror", lambda e: print(f"[pageerror] {str(e)[:300]}", flush=True))
         self.page.on("console", lambda m: print(f"[console:{m.type}] {m.text[:200]}", flush=True)
                      if m.type in ("error",) else None)
-        await self.page.goto(PAGE_URL)
+        url = urlsplit(PAGE_URL)
+        query = dict(parse_qsl(url.query, keep_blank_values=True))
+        query["cameraWorker"] = "1"
+        await self.page.goto(urlunsplit(url._replace(query=urlencode(query))))
         await self.page.wait_for_function(
             "window.__scout && window.__scout.ready()", timeout=300000)
         self.cold_start_ms = round((time.time() - t0) * 1000)
@@ -271,6 +281,8 @@ class LookService:
         async with self.lock:
             if not self.ready:
                 return 503, {"ok": False, "error": "not-ready", "detail": self.last_error}
+            if "position3d" in req:
+                return await self.capture_at(agent, req["position3d"], heading, pitch)
             pose, pose_ms, outcomes = await self.apply_pose(position, heading, mode)
             # The stand-in must stand where the agent's body stands. A loaded page advances its sim slowly, so the move can time out or
             # stop short and the frame would be shot from the wrong place: retry once, then report the remaining error either way.
@@ -313,6 +325,31 @@ class LookService:
                 "simTime": res.get("simulationTime"),
                 "utc": iso(),
             }
+
+    async def capture_at(self, agent, position, heading, pitch):
+        if (not isinstance(position, list) or len(position) != 3
+                or not all(type(n) in (int, float) and math.isfinite(n) for n in position)
+                or type(heading) not in (int, float) or not math.isfinite(heading)):
+            return 400, {"ok": False, "error": "invalid-camera-pose"}
+        started = time.monotonic()
+        try:
+            frame = await asyncio.wait_for(self.page.evaluate(
+                "(pose) => window.__scout.captureAt?.(pose) ?? null",
+                {"position": position, "headingDeg": heading, "pitchDeg": pitch}), timeout=600)
+        except Exception as e:
+            self.last_error = f"capture_at: {type(e).__name__}: {e}"[:200]
+            return 500, {"ok": False, "error": "look-failed"}
+        image = frame and frame.get("image")
+        if not image or not image.startswith("data:image/png;base64,"):
+            return 503, {"ok": False, "error": "camera-scene-unavailable"}
+        self.looks_served += 1
+        camera = frame["camera"]
+        return 200, {"ok": True, "agentId": agent, "png_b64": image.split(",", 1)[1],
+                     "width": camera["width"], "height": camera["height"],
+                     "camera": camera, "depthSummary": self.depth_summary(frame.get("depth")),
+                     "pose": {"pos": position, "headingDeg": heading, "pitchDeg": pitch},
+                     "renderMs": round((time.monotonic() - started) * 1000),
+                     "pitchSupported": True, "utc": iso()}
 
     async def do_snapshot(self, req):
         status, body = await self.do_look(req)

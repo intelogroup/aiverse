@@ -5,7 +5,7 @@
 // agent keeps acting while the photo renders.
 //
 // Freshness is the hard part, so every job carries what the agent needs to judge it:
-//   - the pose and time it was REQUESTED at (the photo shows the world as of then, not as of delivery);
+//   - the pose and time it was requested at, plus the time the renderer captured the scene;
 //   - a queue-wait cap: a job that sat longer than maxQueueWaitMs is dropped without rendering (a late photo of a stale pose is
 //     worse than none; the agent re-requests from where it stands now);
 //   - when the render finishes, how far the body has moved and turned since the request (`moved`), read from the sim.
@@ -17,7 +17,7 @@ import type { LookClient, LookFrame } from "./lookClient";
 export type SeeState = "queued" | "running" | "done" | "failed";
 export type SeeFailure = "look_unavailable" | "timeout" | "stale_dropped" | "cancelled";
 
-export interface SeePose { x: number; z: number; headingDeg: number; gaze?: { yawDeg: number; pitchDeg: number } }
+export interface SeePose { x: number; y: number; z: number; headingDeg: number; gaze?: { yawDeg: number; pitchDeg: number } }
 export interface SeeMoved { distanceM: number; turnedDeg: number }
 
 export interface SeeJob {
@@ -94,7 +94,7 @@ export function createSeeQueue(look: LookClient, opts: SeeQueueOptions) {
     job.startedAt = now();
     let out: Awaited<ReturnType<LookClient["look"]>>;
     try {
-      out = await look.look(job.agentId, [job.pose.x, job.pose.z], job.pose.headingDeg, job.pose.gaze);
+      out = await look.look(job.agentId, [job.pose.x, job.pose.y, job.pose.z], job.pose.headingDeg, job.pose.gaze);
     } catch {
       out = { ok: false, reason: "unavailable" };
     }

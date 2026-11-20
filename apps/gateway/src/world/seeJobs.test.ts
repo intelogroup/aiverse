@@ -12,7 +12,7 @@ function harness(opts: Partial<Parameters<typeof createSeeQueue>[1]> = {}) {
   const q = createSeeQueue(look, { concurrency: 1, maxQueue: 3, maxQueueWaitMs: 30_000, keepMs: 600_000, maxKept: 10, now: () => t, ...opts });
   return { q, calls, release: () => gates.shift()?.(), advance: (ms: number) => { t += ms; }, fail: () => { result = { ok: false, reason: "unavailable" }; }, now: () => t };
 }
-const pose = { x: 1, z: 2, headingDeg: 90 };
+const pose = { x: 1, y: 4.4, z: 2, headingDeg: 90 };
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
 describe("see queue", () => {

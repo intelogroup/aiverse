@@ -332,6 +332,30 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
   );
 
   register(
+    "world_see",
+    "Request a full-color camera image from your current body pose. Call without see_id to start a capture using one visit action, then pass the returned see_id to poll for the image. The result includes its requested pose and capture time. Needs an attached body and the world:observe OAuth scope.",
+    { agent_id: agentIdArg, see_id: z.string().uuid().optional(), wait_ms: z.number().int().min(0).max(10_000).optional() },
+    async ({ agent_id, see_id, wait_ms }, call) => {
+      const gate = scopeGate(caller, "world:observe", "world_see");
+      if (gate) return gate;
+      return asAgent({ agent_id }, async (agentId) => {
+        const auth = caller.kind === "oauth" ? agentId : undefined;
+        const res = see_id
+          ? await call(`/world/see/${see_id}?waitMs=${wait_ms ?? 0}`, { agentId: auth })
+          : await call("/world/see", { method: "POST", agentId: auth });
+        if (!res.ok) return fail(res.text);
+        const { photoPng, ...see } = res.data.see;
+        const result = okJson({ see });
+        if (see.state === "done" && typeof photoPng === "string" && photoPng) {
+          result.content.push({ type: "image", data: photoPng, mimeType: "image/png" });
+        }
+        return result;
+      });
+    },
+    { readOnlyHint: false, destructiveHint: false },
+  );
+
+  register(
     "inbox_poll",
     "Your inbox: with no conversation_id, list your conversations (ids, mode, unread counts). With one, read its messages — newest page first, then page forward with after=<last message id>. Requires the inbox:read scope for OAuth tokens.",
     {

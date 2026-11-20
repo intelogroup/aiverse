@@ -78,6 +78,7 @@ import { AgentAura, AgentLabel, CHEER_GLYPH, CheerFloat, cleanSpeech, type Cheer
 import { emitMoment, fetchEvents, fetchPassport, getIdentity, reportEvent, setIdentityFromToken } from "./verseEvents";
 import { toyKindOf, toyPhrase } from "./toys";
 import { COSMETICS, isCosmetic } from "@aiverse/shared/events";
+import { LOOK_EYE_M } from "@aiverse/world-sim/look";
 
 const SCOUT_ACTOR = "scout";
 import { clipFor, findSpawn, makeWalker, WALK_CONFIG, type WalkerState } from "./walker";
@@ -115,6 +116,7 @@ export interface ScoutApi {
   interact: () => { session: { id: string; phase: string; t: number } | null; props: { id: string; on: boolean }[] } | null;
   snapshot: () => ScoutSnapshot | null;
   look: (opts?: { pitchDeg?: number }) => Promise<{ image: string | null; scene: OracleObject[]; depth: ScoutVisionFrame["depth"] | null; camera: ScoutVisionFrame["camera"] | null; simulationTime: number; snapshot: ScoutSnapshot | null; routeImage: string | null; route: ReturnType<typeof projectRoute> }>;
+  captureAt?: (pose: CapturePose) => Promise<ScoutVisionFrame | null>;
   act: (action: ScoutAction) => Promise<(ScoutOutcome & { snapshot: ScoutSnapshot | null }) | null>;
   map: () => (NavigationPatch & { simulationTime: number; session: string }) | null;
   places: () => ScoutPlace[];
@@ -124,6 +126,7 @@ export interface ScoutApi {
 }
 
 const deg = (r: number) => Math.round(((r * 180) / Math.PI) * 10) / 10;
+type CapturePose = { position: [number, number, number]; headingDeg: number; pitchDeg: number };
 
 export function ScoutAgent({
   getMeshes,
@@ -184,6 +187,7 @@ export function ScoutAgent({
   const exec = useRef<ScoutExecutor | null>(null);
   const state = useRef<WalkerState | null>(null);
   const renderedReady = useRef(false);
+  const captureFocus = useRef<CapturePose | null>(null);
   const frames = useRef<AgentFrame[]>([newWalkerFrame()]);
   const figure = useRef<THREE.Group>(null);
   const playingClip = useRef<string | null>(null);
@@ -191,7 +195,13 @@ export function ScoutAgent({
   const looksUsed = useRef(0);
   const camPos = useRef<THREE.Vector3 | null>(null);
   const lookRig = useRef<ScoutVision | null>(null);
-  useEffect(() => () => { lookRig.current?.dispose(); lookRig.current = null; }, []);
+  const photoRig = useRef<ScoutVision | null>(null);
+  useEffect(() => () => {
+    lookRig.current?.dispose();
+    photoRig.current?.dispose();
+    lookRig.current = null;
+    photoRig.current = null;
+  }, []);
 
   // Load the harness's world data (generated assets; see scout.ts header).
   useEffect(() => {
@@ -340,6 +350,37 @@ export function ScoutAgent({
       /** The interactables as Scout sees them (headless checks): its session + every prop's state. */
       interact: () => (interact ? { session: interact.sessionOf(actorId), props: interact.list().map((i) => ({ id: i.id, on: interact.isOn(i.id) })) } : null),
       snapshot: () => snapshot(),
+      ...(new URLSearchParams(window.location.search).get("cameraWorker") === "1" ? {
+        captureAt: async (pose: CapturePose) => {
+          if (!pose.position.every(Number.isFinite) || !Number.isFinite(pose.headingDeg) || !Number.isFinite(pose.pitchDeg) || captureFocus.current) return null;
+          const [x, y, z] = pose.position;
+          const room = roomAt(rooms, x, z);
+          const district = data.current && districtAt(data.current.districts, x, z);
+          captureFocus.current = pose;
+          try {
+            // The normal streamers follow the view camera. Give them time to load the target district/interior before capturing.
+            const started = performance.now();
+            let sceneReady = false;
+            while (!sceneReady && performance.now() - started < 45_000) {
+              invalidate();
+              await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+              const districtReady = !district || district.id === "bazaar" || !!scene.getObjectByName(`district:${district.id}`);
+              const roomReady = !room || !!scene.getObjectByName(`interior:${room.id}`);
+              sceneReady = performance.now() - started >= 500 && districtReady && roomReady;
+            }
+            if (!sceneReady) return null;
+            // Double the color detail for signs without doubling the resolution of the depth summary on each axis.
+            const rig = photoRig.current ??= new ScoutVision(1024, 576, 512);
+            const heading = THREE.MathUtils.degToRad(pose.headingDeg);
+            const pitch = THREE.MathUtils.degToRad(pose.pitchDeg);
+            rig.camera.position.set(x, y + LOOK_EYE_M, z);
+            rig.camera.lookAt(x + Math.sin(heading) * Math.cos(pitch), y + LOOK_EYE_M + Math.sin(pitch), z + Math.cos(heading) * Math.cos(pitch));
+            return rig.capture(gl, scene, exec.current?.t ?? 0, [figure.current, ...remoteFiguresNear(x, z)]);
+          } finally {
+            captureFocus.current = null;
+          }
+        },
+      } : {}),
       map: () => {
         const s = state.current;
         return s ? {...sampleNavigationPatch(staticWorld,[s.x,s.y,s.z],{halfExtent:12,cellSize:1,maxExpansions:700}),simulationTime:exec.current?.t ?? 0,session:session.current} : null;
@@ -502,6 +543,15 @@ export function ScoutAgent({
     labelPose.current = { x: fx, y: ov ? ov.y : s.y, z: fz };
 
     if (!primary) return;
+    const focus = captureFocus.current;
+    if (focus) {
+      const [x, y, z] = focus.position;
+      const heading = THREE.MathUtils.degToRad(focus.headingDeg);
+      controls?.target.set(x, y + LOOK_EYE_M, z);
+      camera.position.set(x, y + LOOK_EYE_M, z);
+      camera.lookAt(x + Math.sin(heading), y + LOOK_EYE_M, z + Math.cos(heading));
+      return;
+    }
     // Streaming + theme follow Scout; the follow camera keeps interiors
     // resident around it (InteriorStreamer plans off the camera).
     controls?.target.set(fx, (ov ? ov.y : s.y) + 1, fz);
