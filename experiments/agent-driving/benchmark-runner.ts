@@ -37,7 +37,8 @@ await mkdir(root, { recursive: true });
 const dir = new URL(".", import.meta.url).pathname;
 const runTag = crypto.randomUUID().slice(0, 8);
 const authVars = ["DRIVE_AGENT_GATEWAY_PORT", "DRIVE_AGENT_TOKEN", "DRIVE_AGENT_ID"];
-const exportVars = ["DRIVE_LAB_PORT", "DRIVE_VISION_ONLY", "DRIVE_REQUIRE_OWNER_OAUTH", ...authVars];
+process.env.DRIVE_SENSES ??= "1"; // sense-feed arm by default; DRIVE_SENSES=0 runs the vision-only arm
+const exportVars = ["DRIVE_LAB_PORT", "DRIVE_VISION_ONLY", "DRIVE_REQUIRE_OWNER_OAUTH", "DRIVE_SENSES", ...authVars];
 // clean arm: empty HOME + CODEX_HOME so the owner's installed skills and plugins cannot crowd out or break the driving tools.
 // Only the login is shared (symlink); owner arm keeps the real environment.
 async function harnessEnv(): Promise<NodeJS.ProcessEnv> {
