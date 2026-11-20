@@ -135,10 +135,13 @@ server.registerTool("drive_gas", {
 }, ({ meters }) => act({ command: "gas", motion: { meters: Number(meters ?? 3) } }));
 
 server.registerTool("drive_approach", {
-  description: "Approach an intersection and stop fully before the stop or yield line. Face forward first. In a real-time lesson the car keeps moving after this returns: read drive_observe (light, distance and time to the line) and use drive_brake to stop short; at higher speed there is less time to decide.",
+  description: "Approach an intersection. By default the car stops fully before the stop or yield line by itself. Face forward first. In a real-time lesson the car keeps moving after this returns: read drive_observe for the light and the time to the line, and use drive_brake to stop earlier. With stop=none the car does NOT stop at the line: it rolls past at your speed, which is legal only on green or yellow, so brake before the line if the light is red.",
   annotations: simulationMutation,
-  inputSchema: z.strictObject({ speed: z.number().min(3).max(20).optional().describe("Cruise speed in metres per second. Default 5.") }),
-}, ({ speed }) => act({ command: "gas", motion: { destination: "yield_line" }, ...(speed !== undefined && { speed }) }));
+  inputSchema: z.strictObject({
+    speed: z.number().min(3).max(20).optional().describe("Cruise speed in metres per second. Default 5."),
+    stop: z.enum(["at_line", "none"]).optional().describe("at_line (default) stops at the line by itself. none rolls through; brake before the line on yellow or red."),
+  }),
+}, ({ speed, stop }) => act({ command: "gas", motion: { destination: "yield_line" }, ...(speed !== undefined && { speed }), ...(stop !== undefined && { stop }) }));
 
 server.registerTool("drive_headlights", {
   description: "Switch the front lamps between off, low beam, and high beam. Low and high also keep the red tail lamps on. Braking brightens the rear stop lamps independently.",

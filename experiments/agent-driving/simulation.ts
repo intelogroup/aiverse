@@ -115,7 +115,7 @@ export class DrivingSimulation {
     const reject = (error: string, code?: string): Promise<ActionResult> => Promise.resolve({ ok: false, error, code, state: this.snapshot() });
     if (direction !== undefined && !["signal", "change_lane", "intersection_turn"].includes(command)) return reject("Direction applies to lane changes, signals, and intersection turns.");
     if (check !== undefined && command !== "check") return reject("The view to check applies to a traffic check.");
-    if (input.speed !== undefined && command !== "approach_lesson") return reject("Speed applies to an approach.");
+    if ((input.speed !== undefined || input.stop !== undefined) && command !== "approach_lesson") return reject("Speed and stop apply to an approach.");
     if (command === "headlights") {
       if (!beam || motion || throttle !== undefined || seconds !== undefined || amount !== undefined) return reject("Choose an off, low, or high beam setting.");
       if (state.phase !== "driving") return reject("Take the driver's seat before using the headlights.", "driver_not_seated");

@@ -39,6 +39,7 @@ export const actionSchema = z.strictObject({
   check: z.enum(checks).optional(),
   beam: z.enum(headlightModes).optional(),
   speed: z.number().min(3).max(20).optional().describe("Cruise speed in metres per second for an approach."),
+  stop: z.enum(["at_line", "none"]).optional().describe("at_line (default): the car stops before the line by itself. none: it keeps rolling past the line at your speed; only legal on green or yellow, brake before the line otherwise."),
 });
 export type DriveAction = z.infer<typeof actionSchema>;
 

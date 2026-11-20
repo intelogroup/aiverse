@@ -19,7 +19,7 @@ async function ready(options: LessonOptions, signal = true) {
   if (signal) await act(sim, { command: "signal", direction: "right" });
   return sim;
 }
-const approach = (sim: DrivingSimulation, speed: number) => act(sim, { command: "gas", motion: { destination: "yield_line" }, speed });
+const approach = (sim: DrivingSimulation, speed: number, stop?: "at_line" | "none") => act(sim, { command: "gas", motion: { destination: "yield_line" }, speed, ...(stop && { stop }) });
 // Runs the clock until the car is no longer moving under its own command; returns the seconds it took and the lights it saw.
 function run(sim: DrivingSimulation, maxSeconds = 40, each?: (t: number) => void) {
   const lights: string[] = [];
@@ -79,21 +79,21 @@ test("the light turns yellow then red on the clock while the car approaches", as
   expect(lights).toEqual(["green", "yellow", "red"]);
 });
 
-test("without the reflex a slow car that never brakes runs the red; a fast one clears the yellow legally", async () => {
-  const slow = await ready({ turnsRed: true, reflex: false });
-  await approach(slow, 3);
+test("rolling through (stop none): a slow car that never brakes runs the red; a fast one clears the yellow legally", async () => {
+  const slow = await ready({ turnsRed: true });
+  await approach(slow, 3, "none");
   const slowRun = run(slow);
   expect(slowRun.state.lesson!.infractions.map((item) => item.code)).toEqual(["ran_red_light"]);
   expect(slowRun.state.lesson!.stoppedAtLine).toBe(true);
-  const fast = await ready({ turnsRed: true, reflex: false });
-  await approach(fast, 16);
+  const fast = await ready({ turnsRed: true });
+  await approach(fast, 16, "none");
   const fastRun = run(fast);
   expect(fastRun.state.lesson!.infractions).toEqual([]);
   expect(fastRun.state.lesson!.evidence).toContain("passed_line_on_yellow");
 });
 
-test("with the reflex on the car stops at the line whatever the light does", async () => {
-  const sim = await ready({ turnsRed: true, reflex: true });
+test("by default the car stops at the line whatever the light does", async () => {
+  const sim = await ready({ turnsRed: true });
   await approach(sim, 3);
   const { state } = run(sim);
   expect(state.lesson!.stoppedAtLine).toBe(true);
@@ -113,8 +113,8 @@ test("the sense feed shows the yellow light near the line and the time left", as
 });
 
 test("braking on the yellow, waiting for green, then proceeding completes the turn with no infraction", async () => {
-  const sim = await ready({ turnsRed: true, reflex: false });
-  await approach(sim, 5);
+  const sim = await ready({ turnsRed: true });
+  await approach(sim, 5, "none");
   let braked = false;
   run(sim, 30, () => {
     if (!braked && sim.snapshot().lesson!.signalHead === "yellow") { braked = true; void sim.actAsDriver({ command: "brake" }); }
@@ -124,7 +124,7 @@ test("braking on the yellow, waiting for green, then proceeding completes the tu
   expect(sim.snapshot().lesson!.stoppedAtLine).toBe(false);
   expect(await act(sim, { command: "wait" })).toMatchObject({ ok: true });
   expect(sim.snapshot().lesson!.signalHead).toBe("green");
-  await approach(sim, 5);
+  await approach(sim, 5, "none");
   expect(run(sim).state.lesson!.infractions).toEqual([]);
   await act(sim, { command: "check", check: "intersection" });
   expect(await act(sim, { command: "intersection_turn", direction: "right" })).toMatchObject({ ok: true });

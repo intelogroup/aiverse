@@ -56,7 +56,6 @@ export type LessonState = {
   senses?: SenseFeed;
   exam: boolean;
   realtime: boolean;
-  reflex: boolean;
   infractions: Infraction[];
   laneChanged?: boolean;
   oncoming?: Actor;
@@ -64,9 +63,10 @@ export type LessonState = {
 
 const reject = (code: string, error: string, recovery?: Recovery): Rejection => ({ code, error, recovery });
 export type Infraction = { code: string };
-// realtime: the approach runs on the clock without blocking the caller. reflex: the car stops at the line by itself.
+// realtime: the approach runs on the clock without blocking the caller. The agent chooses per approach whether the car stops at the
+// line by itself (stop: "at_line", the default) or keeps rolling (stop: "none"), which is only legal on green or yellow.
 // turnsRed: the light goes yellow then red while the car approaches.
-export type LessonOptions = { realtime?: boolean; reflex?: boolean; turnsRed?: boolean };
+export type LessonOptions = { realtime?: boolean; turnsRed?: boolean };
 const checkRecovery = (area: Check): Recovery => ({ tool: "drive_check", arguments: { area } });
 const signalRecovery = (direction: Direction): Recovery => ({ tool: "drive_signal", arguments: { direction } });
 const waitRecovery: Recovery = { tool: "drive_wait", arguments: {} };
@@ -153,7 +153,7 @@ export class LessonRun {
     const hazard = course ? this.junctionHazard(course.signal, Boolean(course.posted))
       : laneChange ? "blind_spot_vehicle" : id === "left_turn" ? "oncoming_vehicle" : sign === "NO TURN ON RED" ? "red_light" : null;
     this.state = {
-      id, benchmark, exam, realtime: Boolean(options.realtime), reflex: options.reflex !== false, infractions: [], road: laneChange || course?.chapter === "route" ? "one_way" : "two_way",
+      id, benchmark, exam, realtime: Boolean(options.realtime), infractions: [], road: laneChange || course?.chapter === "route" ? "one_way" : "two_way",
       laneDivider: laneChange || course?.chapter === "route" ? "broken_white" : id === "three_point" ? "unmarked" : "double_yellow",
       signalHead: course?.signal ?? (sign === "NO TURN ON RED" ? "red" : null),
       sign, crosswalk: Boolean(course) || id === "crosswalk", hazard, actor: null, checked: null,
@@ -297,11 +297,12 @@ export class LessonRun {
         const arrival = toLine / speed + speed / (2 * maxAcceleration);
         this.signalPlan = { yellowAt: this.clock + arrival * 0.5, redAt: this.clock + arrival * 0.5 + 3.5 };
       }
-      this.watchLine = s.realtime && !s.reflex;
+      const rolling = s.realtime && input.stop === "none";
+      this.watchLine = rolling;
       this.crossedLine = false;
       return {
-        segments: [straight(s.realtime && !s.reflex ? stopLine + (course?.shift ?? 0) - DRIVER.halfLength - car.z + 0.2 : toLine, speed)],
-        detail: s.realtime && !s.reflex ? "Crossed the line and stopped at the junction." : "Stopped fully before the line.",
+        segments: [straight(rolling ? stopLine + (course?.shift ?? 0) - DRIVER.halfLength - car.z + 0.2 : toLine, speed)],
+        detail: rolling ? "Crossed the line and stopped at the junction." : "Stopped fully before the line.",
         commit: () => {
           if (this.watchLine) {
             // No stop is required on a green or yellow (RMV l.3582-3600: stop at red); the car is at the junction and the turn rules apply.
