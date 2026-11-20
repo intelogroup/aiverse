@@ -76,12 +76,12 @@ export class DrivingSimulation {
     return { ...this.state, events: [...this.state.events], lesson: this.lesson?.snapshot() };
   }
 
-  reset(trafficOffset = 0, lessonId?: LessonId, benchmark?: BenchmarkId) {
+  reset(trafficOffset = 0, lessonId?: LessonId, benchmark?: BenchmarkId, exam = false) {
     const old = this.active;
     this.active = null;
     this.state = initialState(trafficOffset);
     this.brakeHeld = false;
-    this.lesson = lessonId ? new LessonRun(lessonId, benchmark) : undefined;
+    this.lesson = lessonId ? new LessonRun(lessonId, benchmark, exam) : undefined;
     if (lessonId) {
       Object.assign(this.state, lessonSpawn(lessonId, benchmark));
       if (benchmark && benchmarkCase(benchmark).preselectedHigh) this.state.headlights = "high";

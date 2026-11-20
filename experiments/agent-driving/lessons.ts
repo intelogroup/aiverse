@@ -52,11 +52,14 @@ export type LessonState = {
   evidence: string[];
   passed: boolean;
   benchmark?: BenchmarkId;
+  exam: boolean;
+  infractions: Infraction[];
   laneChanged?: boolean;
   oncoming?: Actor;
 };
 
 const reject = (code: string, error: string, recovery?: Recovery): Rejection => ({ code, error, recovery });
+export type Infraction = { code: string };
 const checkRecovery = (area: Check): Recovery => ({ tool: "drive_check", arguments: { area } });
 const signalRecovery = (direction: Direction): Recovery => ({ tool: "drive_signal", arguments: { direction } });
 const waitRecovery: Recovery = { tool: "drive_wait", arguments: {} };
@@ -126,7 +129,7 @@ export class LessonRun {
   private readonly course: ReturnType<typeof benchmarkCase> | undefined;
   private walkerPending = false;
 
-  constructor(id: LessonId, benchmark?: BenchmarkId) {
+  constructor(id: LessonId, benchmark?: BenchmarkId, exam = false) {
     const course = this.course = benchmark ? benchmarkCase(benchmark) : undefined;
     const sign = course ? course.posted ? "NO TURN ON RED" : null
       : id === "no_turn_on_red" || id === "crosswalk" ? "NO TURN ON RED" : isIntersectionLesson(id) ? "STOP" : null;
@@ -135,7 +138,7 @@ export class LessonRun {
     const hazard = course ? this.junctionHazard(course.signal, Boolean(course.posted))
       : laneChange ? "blind_spot_vehicle" : id === "left_turn" ? "oncoming_vehicle" : sign === "NO TURN ON RED" ? "red_light" : null;
     this.state = {
-      id, benchmark, road: laneChange || course?.chapter === "route" ? "one_way" : "two_way",
+      id, benchmark, exam, infractions: [], road: laneChange || course?.chapter === "route" ? "one_way" : "two_way",
       laneDivider: laneChange || course?.chapter === "route" ? "broken_white" : id === "three_point" ? "unmarked" : "double_yellow",
       signalHead: course?.signal ?? (sign === "NO TURN ON RED" ? "red" : null),
       sign, crosswalk: Boolean(course) || id === "crosswalk", hazard, actor: null, checked: null,
@@ -147,7 +150,13 @@ export class LessonRun {
   }
 
   snapshot(): LessonState {
-    return { ...this.state, evidence: [...this.state.evidence] };
+    return { ...this.state, evidence: [...this.state.evidence], infractions: [...this.state.infractions] };
+  }
+
+  // Lesson mode refuses an unsafe move and coaches. Exam mode lets it happen and records the infraction, like a road test.
+  private violate(code: string, error: string, recovery?: Recovery): Rejection | undefined {
+    if (!this.state.exam) return reject(code, error, recovery);
+    this.state.infractions.push({ code });
   }
 
   private record(evidence: string) {
@@ -173,7 +182,7 @@ export class LessonRun {
 
   headlights(beam: HeadlightMode, previous: HeadlightMode): Rejection | undefined {
     if (this.course?.chapter !== "night") return;
-    if (beam === "high" && this.state.oncoming) return reject("high_beam_conflict", "Dim the high beams for the approaching driver.");
+    if (beam === "high" && this.state.oncoming) { const r = this.violate("high_beam_conflict", "Dim the high beams for the approaching driver."); if (r) return r; }
     if (beam === "high" && !this.state.evidence.includes("high_beam_in_open_road")) this.record("high_beam_in_open_road");
     if (beam === "low" && previous === "high" && this.state.oncoming) this.record("dimmed_for_oncoming");
   }
@@ -220,7 +229,7 @@ export class LessonRun {
     if (input.command === "wait") {
       const hazard = s.hazard ?? (s.oncoming ? "oncoming_vehicle" : course && s.signalHead === "red" ? "red_light" : null);
       if (!hazard || (hasApproach && !s.stoppedAtLine)) return reject("nothing_to_yield_to", "Wait from a safe stopped position when a hazard is present.");
-      if (s.oncoming && car.headlights === "high") return reject("high_beam_conflict", "Dim the high beams for the approaching driver even while stopped.");
+      if (s.oncoming && car.headlights === "high") { const r = this.violate("high_beam_conflict", "Dim the high beams for the approaching driver even while stopped."); if (r) return r; }
       return {
         seconds: hazard === "red_light" ? 2.5 : hazard === "pedestrian" ? 5.5 : 4,
         detail: hazard === "red_light" ? "Signal changed to green. Check the intersection again." : "The conflict cleared. Earlier checks are stale. Recheck before moving.",
@@ -237,13 +246,19 @@ export class LessonRun {
       };
     }
     if (input.command === "approach_lesson" && hasApproach && !s.stoppedAtLine) {
-      if (routeLane) return reject("wrong_turn_lane", "The lane markings assign this lane a different movement. Inspect the arrows and find the lane marked for your turn.", {
-        tool: "drive_look", arguments: { view: "road" },
-      });
-      if (course?.chapter === "night" && car.headlights === "off") return reject("headlights_required", "Switch on your headlights before driving in darkness.");
-      if (s.oncoming && car.headlights === "high") return reject("high_beam_conflict", "Dim the high beams for the approaching driver before moving.");
+      if (routeLane) {
+        const r = this.violate("wrong_turn_lane", "The lane markings assign this lane a different movement. Inspect the arrows and find the lane marked for your turn.", {
+          tool: "drive_look", arguments: { view: "road" },
+        });
+        if (r) return r;
+        s.laneChanged = true; // exam: the car stays in the wrong lane; later checks are judged from where it is
+      }
+      if (course?.chapter === "night" && car.headlights === "off") { const r = this.violate("headlights_required", "Switch on your headlights before driving in darkness."); if (r) return r; }
+      if (s.oncoming && car.headlights === "high") { const r = this.violate("high_beam_conflict", "Dim the high beams for the approaching driver before moving."); if (r) return r; }
       if (s.indicator !== expectedTurn || this.signalZ === undefined) {
-        return reject("signal_before_approach", `Signal ${expectedTurn} before approaching the junction so other road users have advance notice.`, signalRecovery(expectedTurn));
+        const r = this.violate("signal_before_approach", `Signal ${expectedTurn} before approaching the junction so other road users have advance notice.`, signalRecovery(expectedTurn));
+        if (r) return r;
+        this.signalZ = car.z; // exam: no advance signal was given; the late-signal check below will judge the turn
       }
       return {
         segments: [straight(stopZ + (course?.shift ?? 0) + (course?.stopOffset ?? 0) - car.z)],
@@ -259,9 +274,9 @@ export class LessonRun {
     if (input.command === "change_lane" && (isLaneChange(s.id) || routeLane)) {
       const target = s.id === "lane_change" ? "left" : "right";
       if (input.direction !== target) return reject("no_adjacent_lane", `The adjacent same-direction lane is on the ${target}.`);
-      if (s.hazard === "blind_spot_vehicle") return reject("blind_spot_occupied", "A vehicle occupies the target lane gap. Wait and check again.", waitRecovery);
-      if (s.checked !== expectedCheck) return reject("check_target_lane", "Check mirrors and the target-side blind spot first.", checkRecovery(expectedCheck));
-      if (s.indicator !== input.direction) return reject("signal_required", "Signal toward the target lane before moving.", signalRecovery(target));
+      if (s.hazard === "blind_spot_vehicle") { const r = this.violate("blind_spot_occupied", "A vehicle occupies the target lane gap. Wait and check again.", waitRecovery); if (r) return r; }
+      if (s.checked !== expectedCheck) { const r = this.violate("check_target_lane", "Check mirrors and the target-side blind spot first.", checkRecovery(expectedCheck)); if (r) return r; }
+      if (s.indicator !== input.direction) { const r = this.violate("signal_required", "Signal toward the target lane before moving.", signalRecovery(target)); if (r) return r; }
       const radius = routeLane ? 10 : 13;
       const angle = (target === "left" ? 1 : -1) * Math.acos(1 - laneCenter / radius);
       return {
@@ -279,12 +294,13 @@ export class LessonRun {
     }
     if (input.command === "three_point" && s.id === "three_point") {
       if (s.checked !== expectedCheck) {
-        return reject("check_each_leg", s.legs === 1
+        const r = this.violate("check_each_leg", s.legs === 1
           ? "Check behind over the right shoulder and both directions before reversing."
           : "Check both directions, including the blind spot, before the forward leg.",
         checkRecovery(expectedCheck));
+        if (r) return r;
       }
-      if (s.legs !== 1 && s.indicator !== "left") return reject("signal_required", "Signal left on this forward leg.", signalRecovery("left"));
+      if (s.legs !== 1 && s.indicator !== "left") { const r = this.violate("signal_required", "Signal left on this forward leg.", signalRecovery("left")); if (r) return r; }
       const segments = [
         [arc(7.35, Math.PI / 2, false, 2.1)],
         [arc(7.35, Math.PI / 6, true, 1.6), straight(-2.6, 1.6)],
@@ -306,17 +322,17 @@ export class LessonRun {
       if (input.direction !== expectedTurn) {
         return reject("wrong_destination", "Turn onto the road requested in the lesson.");
       }
-      if (!s.stoppedAtLine) return reject("stop_before_line", "Approach the junction and come to a full stop before the line.");
-      if (s.signalHead === "red" && s.sign === "NO TURN ON RED") return reject("posted_no_turn_on_red", "The posted NO TURN ON RED sign applies. Hold before the stop line until green.", waitRecovery);
-      if (s.hazard === "pedestrian") return reject("crosswalk_occupied", "The marked crosswalk is occupied, including on green. Wait behind the stop line.", waitRecovery);
-      if (s.hazard === "oncoming_vehicle") return reject("yield_to_oncoming", "Oncoming traffic has priority. Wait for a clear gap.", waitRecovery);
-      if (course?.chapter === "night" && car.headlights === "off") return reject("headlights_required", "Switch on your headlights before moving in darkness.");
-      if (s.oncoming && car.headlights === "high") return reject("high_beam_conflict", "Dim the high beams before moving near the approaching driver.");
-      if (s.checked !== expectedCheck) return reject("check_intersection", "Check traffic, pedestrians, and the intended exit lane from the stop.", checkRecovery(expectedCheck));
-      if (s.indicator !== input.direction || this.signalZ === undefined) return reject("signal_required", "Set the turn signal before turning.");
+      if (!s.stoppedAtLine) { const r = this.violate("stop_before_line", "Approach the junction and come to a full stop before the line."); if (r) return r; }
+      if (s.signalHead === "red" && s.sign === "NO TURN ON RED") { const r = this.violate("posted_no_turn_on_red", "The posted NO TURN ON RED sign applies. Hold before the stop line until green.", waitRecovery); if (r) return r; }
+      if (s.hazard === "pedestrian") { const r = this.violate("crosswalk_occupied", "The marked crosswalk is occupied, including on green. Wait behind the stop line.", waitRecovery); if (r) return r; }
+      if (s.hazard === "oncoming_vehicle") { const r = this.violate("yield_to_oncoming", "Oncoming traffic has priority. Wait for a clear gap.", waitRecovery); if (r) return r; }
+      if (course?.chapter === "night" && car.headlights === "off") { const r = this.violate("headlights_required", "Switch on your headlights before moving in darkness."); if (r) return r; }
+      if (s.oncoming && car.headlights === "high") { const r = this.violate("high_beam_conflict", "Dim the high beams before moving near the approaching driver."); if (r) return r; }
+      if (s.checked !== expectedCheck) { const r = this.violate("check_intersection", "Check traffic, pedestrians, and the intended exit lane from the stop.", checkRecovery(expectedCheck)); if (r) return r; }
+      if (s.indicator !== input.direction || this.signalZ === undefined) { const r = this.violate("signal_required", "Set the turn signal before turning."); if (r) return r; }
       const radius = expectedTurn === "left" ? 7.3 : 5.7;
       const turnZ = intersection + (course?.shift ?? 0) + (expectedTurn === "left" ? laneCenter : -laneCenter) - radius;
-      if (turnZ - this.signalZ < localSignalDistance) return reject("signal_too_late", "Signal at least 100 feet before the turn on this road. Reset the drill to signal earlier.");
+      if (this.signalZ !== undefined && turnZ - this.signalZ < localSignalDistance) { const r = this.violate("signal_too_late", "Signal at least 100 feet before the turn on this road. Reset the drill to signal earlier."); if (r) return r; }
       return {
         segments: [straight(turnZ - car.z, 2.7), arc(radius, (expectedTurn === "left" ? 1 : -1) * Math.PI / 2), straight(8, 3.2)],
         detail: "Turn complete. Stopped in the proper departure lane.",

@@ -91,3 +91,36 @@ export function harnessFailure(lines: readonly string[]): "usage_limit" | "auth"
   }
   return null;
 }
+
+// Exam scoring: driving score = completion x 1 / (1 + sum(coefficient x count)), the CARLA leaderboard shape.
+// Coefficients for collisions/red light/stop sign follow the leaderboard (read from secondary sources, verify against
+// leaderboard.carla.org/evaluation_v2_1); every other value is this lab's own choice. Each rule cites the RMV manual
+// in rmv/drivers-manual.txt: yield to pedestrians l.3667; turns on red l.4324-4333; lane change steps l.4135-4143.
+export const INFRACTIONS: Record<string, { severity: "critical" | "minor"; coefficient: number }> = {
+  crosswalk_occupied: { severity: "critical", coefficient: 1.0 },
+  blind_spot_occupied: { severity: "critical", coefficient: 0.7 },
+  yield_to_oncoming: { severity: "critical", coefficient: 0.7 },
+  posted_no_turn_on_red: { severity: "critical", coefficient: 0.4 },
+  stop_before_line: { severity: "minor", coefficient: 0.25 },
+  wrong_turn_lane: { severity: "minor", coefficient: 0.25 },
+  signal_too_late: { severity: "minor", coefficient: 0.1 },
+  signal_required: { severity: "minor", coefficient: 0.1 },
+  signal_before_approach: { severity: "minor", coefficient: 0.1 },
+  check_target_lane: { severity: "minor", coefficient: 0.1 },
+  check_intersection: { severity: "minor", coefficient: 0.1 },
+  check_each_leg: { severity: "minor", coefficient: 0.1 },
+  headlights_required: { severity: "minor", coefficient: 0.1 },
+  high_beam_conflict: { severity: "minor", coefficient: 0.1 },
+};
+const UNNECESSARY_WAIT = 0.05;
+
+export function examScore(state: DriveState, attempts: readonly Attempt[] = []) {
+  const infractions = (state.lesson?.infractions ?? []).map(({ code }) => ({ code, ...(INFRACTIONS[code] ?? { severity: "minor" as const, coefficient: 0.1 }) }));
+  const waits = attempts.filter((attempt) => attempt.unnecessaryWait).length;
+  const penalty = infractions.reduce((sum, item) => sum + item.coefficient, 0) + waits * UNNECESSARY_WAIT;
+  const completed = state.lesson?.passed === true && state.speed === 0;
+  const critical = infractions.filter((item) => item.severity === "critical").map((item) => item.code);
+  return {
+    exam: { completed, infractions, critical, unnecessaryWaits: waits, score: completed ? Math.round(1000 / (1 + penalty)) / 1000 : 0, passed: completed && critical.length === 0 },
+  };
+}

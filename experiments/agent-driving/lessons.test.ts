@@ -143,3 +143,18 @@ test("lane change accepts signal-then-check and check-then-signal; a lane change
   await act(stale, { command: "signal", direction: "left" });
   expect(await act(stale, change)).toMatchObject({ ok: false });
 });
+
+test("exam mode lets an unsafe lane change happen, records the infraction and gives no recovery", async () => {
+  const sim = new DrivingSimulation();
+  sim.reset(0, "lane_change", undefined, true);
+  await act(sim, { command: "enter" });
+  const result = await act(sim, { command: "change_lane", direction: "left" });
+  expect(result.ok).toBe(true);
+  const lesson = sim.snapshot().lesson!;
+  expect(lesson.infractions.map((item) => item.code)).toEqual(["blind_spot_occupied", "check_target_lane", "signal_required"]);
+  // Lesson mode refuses the same move and coaches with a recovery tool.
+  const coached = new DrivingSimulation();
+  coached.reset(0, "lane_change");
+  await act(coached, { command: "enter" });
+  expect(await act(coached, { command: "change_lane", direction: "left" })).toMatchObject({ ok: false, code: "blind_spot_occupied", recovery: { tool: "drive_wait" } });
+});

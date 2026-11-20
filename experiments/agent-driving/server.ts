@@ -1,7 +1,7 @@
 import page from "./index.html";
 import { actionSchema, cameraScene, cameraViews, COURSE, lessonIds, type CameraView, type LessonId } from "./protocol";
 import { DrivingSimulation } from "./simulation";
-import { assessAttempt, benchmarkIds, scoreBenchmark, type Attempt, type BenchmarkId } from "./benchmark";
+import { assessAttempt, benchmarkIds, examScore, scoreBenchmark, type Attempt, type BenchmarkId } from "./benchmark";
 
 const simulation = new DrivingSimulation();
 const STEP = 1 / 60;
@@ -65,7 +65,7 @@ const server = Bun.serve({
     "/api/assessment": { GET: () => {
       const state = simulation.snapshot();
       return state.lesson?.benchmark
-        ? json({ id: state.lesson.benchmark, ...scoreBenchmark(state, attempts), attempts })
+        ? json({ id: state.lesson.benchmark, ...scoreBenchmark(state, attempts), ...(state.lesson.exam && examScore(state, attempts)), attempts })
         : json({ error: "Select a benchmark scenario first." }, 409);
     } },
     "/api/cockpit": {
@@ -106,7 +106,7 @@ const server = Bun.serve({
         cameraFrame = undefined;
         cameraView = "ahead";
         attempts = [];
-        simulation.reset(offset, benchmark ? "right_turn" : lesson ? lesson as LessonId : undefined, benchmark ?? undefined);
+        simulation.reset(offset, benchmark ? "right_turn" : lesson ? lesson as LessonId : undefined, benchmark ?? undefined, params.get("mode") === "exam");
         return json(simulation.snapshot());
       },
     },

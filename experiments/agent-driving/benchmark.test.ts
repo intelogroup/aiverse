@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { assessAttempt, benchmarkCase, benchmarkIds, harnessFailure, scoreBenchmark, type Attempt } from "./benchmark";
+import { assessAttempt, benchmarkCase, benchmarkIds, examScore, harnessFailure, scoreBenchmark, type Attempt } from "./benchmark";
 import { DrivingSimulation } from "./simulation";
 import { type DriveAction } from "./protocol";
 
@@ -161,4 +161,33 @@ test("runner preflight passes a healthy harness on to the identity check", async
   expect(stdout).not.toContain('"preflight":"failed"');
   expect(exit).not.toBe(2);
   expect(stderr).toContain("owner-authorized OAuth grant");
+});
+
+test("exam score: clean pass is 1, each infraction lowers it, a critical one fails the exam, no completion scores 0", async () => {
+  const clean = new DrivingSimulation();
+  clean.reset(0, "right_turn", "B01", true);
+  const attempts: Attempt[] = [];
+  const drive = (input: DriveAction) => act(clean, attempts, input);
+  await drive({ command: "enter" });
+  await drive({ command: "signal", direction: "right" });
+  await drive({ command: "approach_lesson" });
+  await drive({ command: "check", check: "intersection" });
+  await drive({ command: "intersection_turn", direction: "right" });
+  expect(examScore(clean.snapshot(), attempts).exam).toMatchObject({ completed: true, score: 1, passed: true, critical: [] });
+
+  const reckless = new DrivingSimulation();
+  reckless.reset(0, "right_turn", "B04", true); // green light, pedestrian in the crosswalk
+  const bad: Attempt[] = [];
+  const go = (input: DriveAction) => act(reckless, bad, input);
+  await go({ command: "enter" });
+  await go({ command: "approach_lesson" });
+  await go({ command: "intersection_turn", direction: "right" });
+  const exam = examScore(reckless.snapshot(), bad).exam;
+  expect(exam.critical).toContain("crosswalk_occupied");
+  expect(exam.passed).toBe(false);
+  expect(exam.score).toBeLessThan(0.5);
+
+  const idle = new DrivingSimulation();
+  idle.reset(0, "right_turn", "B01", true);
+  expect(examScore(idle.snapshot()).exam).toMatchObject({ completed: false, score: 0, passed: false });
 });

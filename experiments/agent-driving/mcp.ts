@@ -32,7 +32,8 @@ function observe(state: DriveState, identity: Awaited<ReturnType<typeof verifyVe
         instructions: "Read the traffic light, signs, lane markings and actors from drive_look. Use driving checks for traffic outside the forward camera.",
         checked: lesson.checked, indicator: lesson.indicator, legs: lesson.legs, gear: lesson.gear,
         stoppedAtLine: lesson.stoppedAtLine, laneChanged: lesson.laneChanged, passed: lesson.passed,
-        ...(lesson.checked && lesson.hazard && !["red_light", "pedestrian"].includes(lesson.hazard) && { detectedConflict: lesson.hazard }),
+        // A check names the conflict only in lesson mode. In exam mode the agent must see it in the camera frames.
+        ...(!lesson.exam && lesson.checked && lesson.hazard && !["red_light", "pedestrian"].includes(lesson.hazard) && { detectedConflict: lesson.hazard }),
       } : lesson),
       frontBumperToLineM: round(view.gap),
     } } : { crossing: {
@@ -100,7 +101,8 @@ async function act(action: DriveAction) {
           ? "Wait complete. Inspect the intersection again."
           : result.event.detail
         : result.error,
-      ...(!result.ok && { code: result.code, recovery: result.recovery }),
+      // Exam mode gives no recovery tool call: an examiner does not say what to do next.
+      ...(!result.ok && { code: result.code, ...(!result.state.lesson?.exam && { recovery: result.recovery }) }),
       ...(result.ok && result.event.waitedForTraffic && { waitedForTraffic: true }),
       ...observe(result.state, identity),
     }),
