@@ -5,11 +5,12 @@ import { assessAttempt, benchmarkIds, examScore, scoreBenchmark, type Attempt, t
 
 const simulation = new DrivingSimulation();
 const STEP = 1 / 60;
+const timeScale = Number(process.env.DRIVE_TIME_SCALE || "1") || 1;
 let previous = performance.now();
 let pending = 0;
 setInterval(() => {
   const now = performance.now();
-  pending += Math.min((now - previous) / 1000, 0.1);
+  pending += Math.min((now - previous) / 1000, 0.1) * timeScale;
   previous = now;
   while (pending >= STEP) {
     simulation.tick(STEP);
@@ -106,7 +107,7 @@ const server = Bun.serve({
         cameraFrame = undefined;
         cameraView = "ahead";
         attempts = [];
-        simulation.reset(offset, benchmark ? "right_turn" : lesson ? lesson as LessonId : undefined, benchmark ?? undefined, params.get("mode") === "exam", { realtime: params.get("realtime") === "1", turnsRed: params.get("turnsRed") === "1" });
+        simulation.reset(offset, benchmark ? "right_turn" : lesson ? lesson as LessonId : undefined, benchmark ?? undefined, params.get("mode") === "exam", { realtime: params.get("realtime") === "1", turnsRed: params.get("turnsRed") === "1", lateYellow: params.get("lateYellow") === "1" });
         return json(simulation.snapshot());
       },
     },

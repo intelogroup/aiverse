@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { inspectDriver } from "./driver";
 import { verifyVerseAgent } from "./agent-auth";
+import { watchChange, watchKey } from "./watch";
 import { cameraViews, checks, directions, driveMeters, headlightModes, turnDegrees, type ActionResult, type DriveAction, type DriveState } from "./protocol";
 
 const server = new McpServer({ name: "aiverse-driving-lab", version: "0.2.0" });
@@ -58,6 +59,26 @@ server.registerTool("drive_observe", {
   return { content: asText(observe(state, identity)) };
 });
 
+server.registerTool("drive_watch", {
+  description: "Sleep until something changes, then return the observation. Wakes on a light change, when the stop line can no longer be reached (canStop false), when the current move ends, or when a pedestrian appears; otherwise after the timeout. Use it instead of polling drive_observe while the car is moving.",
+  annotations: { readOnlyHint: true, openWorldHint: false },
+  inputSchema: z.strictObject({ seconds: z.number().min(0.5).max(15).optional().describe("Longest wait in seconds. Default 5.") }),
+}, async ({ seconds = 5 }) => {
+  const identity = await verifyDrivingAgent();
+  const read = () => fetch(`${lab}/api/state`).then((res) => res.json() as Promise<DriveState>);
+  let state = await read();
+  const before = watchKey(state);
+  let reason: string | null = null;
+  const deadline = Date.now() + seconds * 1000;
+  while (Date.now() < deadline) {
+    await Bun.sleep(100);
+    state = await read();
+    reason = watchChange(before, watchKey(state));
+    if (reason) break;
+  }
+  return { content: asText({ wokeFor: reason ?? "timeout", ...observe(state, identity) }) };
+});
+
 server.registerPrompt("drive-car", {
   description: "Learn the controls for entering, driving, yielding, parking, and exiting a car in AIVerse.",
 }, () => ({ messages: [{ role: "user", content: { type: "text", text: skill } }] }));
@@ -68,22 +89,41 @@ server.registerTool("drive_skill", {
 }, () => ({ content: [{ type: "text", text: skill }] }));
 
 server.registerTool("drive_look", {
-  description: "See a live driver-eye image. Read signs and signals ahead, lane arrows from the road view, or traffic and pedestrians from a side glance.",
+  description: "Live driver-eye image: signs, signals, lane arrows, traffic, pedestrians.",
   annotations: { readOnlyHint: true, openWorldHint: false },
-  inputSchema: z.strictObject({ view: z.enum(cameraViews).optional().describe("ahead for context, road for lane arrows, signal_detail for a distant light, left or right for the junction sides, right_detail to resolve a pedestrian's feet relative to the right crosswalk. Defaults to ahead.") }),
-}, async ({ view = "ahead" }) => {
+  inputSchema: z.strictObject({
+    view: z.enum(cameraViews).optional().describe("Single view. ahead|road|signal_detail|left|right|right_detail. Default ahead."),
+    views: z.array(z.enum(cameraViews)).optional().describe("Multiple views in one call (e.g. [\"ahead\",\"road\",\"right\"]). Fetches each sequentially and returns all frames, saving round trips."),
+  }),
+}, async ({ view = "ahead", views }) => {
   await verifyDrivingAgent();
-  // The browser learns a new view from its next state poll and publishes a frame about every 620 ms; with several labs
-  // rendering at once that took more than the old 5 s. Wait 15 s, then tell the agent a retry is safe.
-  for (let attempt = 0; attempt < 60; attempt++) {
-    const response = await fetch(`${lab}/api/cockpit?view=${view}`);
-    if (response.ok) {
-      const data = Buffer.from(await response.arrayBuffer()).toString("base64");
-      return { content: [{ type: "image" as const, mimeType: "image/jpeg", data }] };
+  const requested = views && views.length ? views : [view];
+  const frames: { type: "image"; mimeType: "image/jpeg"; data: string }[] = [];
+  const missing: string[] = [];
+  for (const v of requested) {
+    let got = false;
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const response = await fetch(`${lab}/api/cockpit?view=${v}`);
+      if (response.ok) {
+        const data = Buffer.from(await response.arrayBuffer()).toString("base64");
+        frames.push({ type: "image" as const, mimeType: "image/jpeg", data });
+        got = true;
+        break;
+      }
+      await Bun.sleep(250);
     }
-    await Bun.sleep(250);
+    if (!got) missing.push(v);
   }
-  return { isError: true, content: asText({ error: "No fresh driver-eye frame yet. Call drive_look again; if it repeats, the driver must be seated (drive_enter) with the vision camera open." }) };
+  if (missing.length) {
+    return { isError: true, content: asText({ error: `No fresh frame for: ${missing.join(", ")}. Retry drive_look.` }) };
+  }
+  // Label each frame so the model knows which view it is (frames are in request order).
+  const content: ({ type: "text"; text: string } | { type: "image"; mimeType: "image/jpeg"; data: string })[] = [];
+  requested.forEach((v, i) => {
+    content.push({ type: "text" as const, text: `view: ${v}` });
+    content.push(frames[i]);
+  });
+  return { content };
 });
 
 async function act(action: DriveAction) {

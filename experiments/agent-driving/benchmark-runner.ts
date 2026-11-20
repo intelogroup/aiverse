@@ -9,12 +9,26 @@ import { observe, type HarnessName } from "./harness-adapters";
 type Assessment = ReturnType<typeof scoreBenchmark>;
 type Trial = Assessment & {
   id: BenchmarkId;
+  film?: false;
   valid: boolean;
   harnessError: ReturnType<typeof harnessFailure>;
   visionFrames: number;
   frameErrors: number;
   otherTools: number;
   harnessExit: number;
+};
+// Film mode is a demo: it resets with a lesson id, so there is no benchmark to score.
+// Asking /api/assessment there always 409s and used to abort the whole case.
+type FilmTrial = {
+  id: BenchmarkId;
+  film: true;
+  valid: false;
+  harnessError: ReturnType<typeof harnessFailure>;
+  visionFrames: number;
+  frameErrors: number;
+  otherTools: number;
+  harnessExit: number;
+  lessonPassed: boolean;
 };
 
 const wanted = process.argv.slice(2);
@@ -38,6 +52,10 @@ const harnessBin = process.env.DRIVE_HARNESS_BIN ?? name;
 const root = process.env.DRIVE_BENCHMARK_OUT ?? await mkdtemp(join(tmpdir(), "aiverse-road-test-"));
 await mkdir(root, { recursive: true });
 const dir = new URL(".", import.meta.url).pathname;
+// Film mode: DRIVE_FILM=<out.webm> records the follow camera (walk to the car, enter, drive) while the agent runs lesson DRIVE_FILM_LESSON
+// in plain lesson mode (text observation, coaching on). A demo for people to watch, not a score: the trial is not valid by the vision rule.
+const film = process.env.DRIVE_FILM;
+const filmLesson = process.env.DRIVE_FILM_LESSON;
 const runTag = crypto.randomUUID().slice(0, 8);
 const authVars = ["DRIVE_AGENT_GATEWAY_PORT", "DRIVE_AGENT_TOKEN", "DRIVE_AGENT_ID"];
 process.env.DRIVE_SKILL_FILE ||= join(dir, "skills/drive-car/SKILL.md"); // arms: skill-arms/off.md, skill-arms/v1-current.md
@@ -67,8 +85,10 @@ async function harnessEnv(): Promise<NodeJS.ProcessEnv> {
 }
 const isolation = await harnessEnv();
 // Declares the chosen OpenRouter model so a clean OpenCode (no cached catalog newer than the model) still finds it.
-const opencodeProvider = () => ({ openrouter: { models: { [opencodeModel.replace(/^openrouter\//, "")]: {
-  name: opencodeModel, tool_call: true, attachment: true, modalities: { input: ["text", "image"], output: ["text"] },
+// A "#none"/"#low" suffix is a reasoning variant, not part of the model id, so the declared key drops it.
+const opencodeModelId = opencodeModel.split("#")[0];
+const opencodeProvider = () => ({ openrouter: { models: { [opencodeModelId.replace(/^openrouter\//, "")]: {
+  name: opencodeModelId, tool_call: true, attachment: true, modalities: { input: ["text", "image"], output: ["text"] },
 } } } });
 if (name === "opencode") await Bun.write(join(root, "opencode.json"), JSON.stringify({ $schema: "https://opencode.ai/config.json", provider: opencodeProvider() }));
 // One cheap call before any case: a dead harness (quota, auth, model) must not be scored as driving.
@@ -123,14 +143,15 @@ function spawnLogged(args: string[], log: string, env: NodeJS.ProcessEnv, cwd?: 
   }
 }
 
-async function runCase(id: BenchmarkId, port: number, session: string): Promise<Trial> {
+async function runCase(id: BenchmarkId, port: number, session: string): Promise<Trial | FilmTrial> {
   const lab = `http://127.0.0.1:${port}`;
   const variant = benchmarkCase(id);
-  const reset = await fetch(lab + "/api/reset?benchmark=" + id + (process.env.DRIVE_RESET_EXTRA ?? ""), { method: "POST" });
+  const reset = await fetch(lab + "/api/reset?" + (film && filmLesson ? "lesson=" + filmLesson : "benchmark=" + id) + (process.env.DRIVE_RESET_EXTRA ?? ""), { method: "POST" });
   if (!reset.ok) throw new Error("Scenario reset failed.");
-  const page = lab + "/?camera=vision" + (variant.chapter === "night" ? "&lighting=night" : "");
+  const page = lab + (film ? "/?camera=follow" : "/?camera=vision") + (variant.chapter === "night" ? "&lighting=night" : "");
   await browserStep(session, "open", page);
   await browserStep(session, "set", "viewport", "1440", "900");
+  if (film) await browserStep(session, "record", "start", film, page);
   await Bun.write(join(root, id + "-console-before.txt"), await browserStep(session, "console", "--errors"));
   await browserStep(session, "screenshot", join(root, id + "-start.png"));
 
@@ -145,13 +166,16 @@ async function runCase(id: BenchmarkId, port: number, session: string): Promise<
     default_tools_approval_mode: "approve",
   };
   const toml = Object.entries(configuration).map(([key, value]) => key + "=" + JSON.stringify(value)).join(",");
-  const prompt = [
+  const prompt = film && filmLesson ? [
+    `Complete the ${filmLesson.replaceAll("_", " ")} lesson in the AIVerse driving simulator: get into the car, then drive it the Massachusetts RMV way. Use only the driving MCP tools and the drive-car skill; one tool call at a time. Report the result from the simulator.`,
+    ...(name === "opencode" ? ["The driving tools are in the tools.driving namespace of your execute tool (drive_enter, drive_exit, drive_gas, drive_brake, drive_signal, drive_check, drive_look, drive_observe, drive_approach, drive_intersection_turn, drive_change_lane, drive_wait). Do not introspect the MCP server (no search/list_mcp_resources); drive_enter returns the driving guide on first call. If the namespace is unknown, retry once."] : []),
+  ].join(" ") : [
     "Your destination is a stop in the correct departure lane after a right turn at the next intersection.",
-    "Use only the driving MCP tools and their driving skill. Inspect the actual driver-eye images. Briefly state the visible evidence for each decision at the intersection.",
+    "Use only the driving MCP tools and their driving skill. Inspect the actual driver-eye images (drive_look accepts views:[...] to capture several angles in one call). Briefly state the visible evidence for each decision at the intersection.",
     "If driving at night, use lights appropriate to visibility and nearby traffic.",
     "Report the result from the simulator. The destination is your only route instruction.",
     // Harness onboarding, not task help: how OpenCode exposes MCP servers (its execute tool runs code against tools.<server>.<tool>()).
-    ...(name === "opencode" ? ["The driving tools are in the tools.driving namespace of your execute tool; the MCP server may need a moment to connect, so retry if the namespace is unknown."] : []),
+    ...(name === "opencode" ? ["The driving tools are in the tools.driving namespace of your execute tool (drive_enter, drive_exit, drive_gas, drive_brake, drive_signal, drive_check, drive_look, drive_observe, drive_approach, drive_intersection_turn, drive_change_lane, drive_wait). Do not introspect the MCP server (no search/list_mcp_resources); drive_enter returns the driving guide on first call. If the namespace is unknown, retry once."] : []),
   ].join(" ");
   const trace = join(root, id + ".jsonl");
   // Claude Code reads the server from a file; token values stay in the child's environment and are referenced as ${VAR}, never written to disk.
@@ -168,6 +192,9 @@ async function runCase(id: BenchmarkId, port: number, session: string): Promise<
         environment: Object.fromEntries(exportVars.map((key) => [key, "{env:" + key + "}"])) } },
       tools: Object.fromEntries(["bash", "edit", "write", "read", "grep", "glob", "list", "patch", "webfetch", "websearch", "todowrite", "todoread", "task", "skill", "lsp"].map((tool) => [tool, false])),
       permission: { bash: "deny", edit: "deny", webfetch: "deny", skill: "deny" },
+      // DRIVE_MAX_STEPS caps agentic iterations (one LLM turn each) and forces a text-only answer after the cap.
+      // It overrides one field on the built-in build agent, so its system prompt and tools are untouched.
+      ...(process.env.DRIVE_MAX_STEPS && { agent: { build: { maxSteps: Number(process.env.DRIVE_MAX_STEPS) } } }),
     }, null, 2));
   }
   const args = name === "opencode" ? [
@@ -184,26 +211,35 @@ async function runCase(id: BenchmarkId, port: number, session: string): Promise<
     prompt,
   ];
   // OpenCode takes its project directory from $PWD, not the process cwd, so the workspace (with its opencode.json) must be set there.
-  const child = spawnLogged(args, trace, { ...process.env, ...isolation, ...(name === "opencode" && { PWD: workspace }), DRIVE_LAB_PORT: String(port), DRIVE_VISION_ONLY: "1", DRIVE_REQUIRE_OWNER_OAUTH: "1" }, workspace);
+  const child = spawnLogged(args, trace, { ...process.env, ...isolation, ...(name === "opencode" && { PWD: workspace }), DRIVE_LAB_PORT: String(port), DRIVE_VISION_ONLY: film ? "0" : "1", DRIVE_REQUIRE_OWNER_OAUTH: "1" }, workspace);
   const timeout = setTimeout(() => child.kill(), 200_000);
   const harnessExit = await child.exited.finally(() => clearTimeout(timeout));
   const lines = (await Bun.file(trace).text()).split("\n").filter(Boolean);
   if (!lines.length) throw new Error(name + " supplied no event stream.");
   const { visionFrames, frameErrors, otherTools } = observe(name, lines);
 
+  if (film) await browserStep(session, "record", "stop");
+  const harnessError = harnessFailure(lines);
+  // A film run is a demo, not a score: it resets with a lesson id, and /api/assessment only answers for
+  // benchmark scenarios, so asking would 409 ("Select a benchmark scenario first.") and kill the case.
+  if (film) {
+    const state = await fetch(lab + "/api/state").then((response) => response.json()).catch(() => null) as { lesson?: { passed?: boolean } } | null;
+    await Bun.write(join(root, id + "-console-after.txt"), await browserStep(session, "console", "--errors"));
+    await browserStep(session, "screenshot", join(root, id + "-finish.png"));
+    return { id, film: true, valid: false, harnessError, visionFrames, frameErrors, otherTools, harnessExit, lessonPassed: state?.lesson?.passed === true };
+  }
   const response = await fetch(lab + "/api/assessment");
   if (!response.ok) throw new Error("Simulator assessment missing.");
   const score = await response.json() as Assessment;
   await Bun.write(join(root, id + "-assessment.json"), JSON.stringify({ conditions: variant, ...score }, null, 2));
   const { completed, firstDecisionSafe, rejectedCalls, unsafeRequests, unnecessaryWaits, evidence } = score;
-  const harnessError = harnessFailure(lines);
   const valid = harnessExit === 0 && !harnessError && visionFrames > 0 && otherTools === 0;
   await Bun.write(join(root, id + "-console-after.txt"), await browserStep(session, "console", "--errors"));
   await browserStep(session, "screenshot", join(root, id + "-finish.png"));
   return { id, valid, harnessError, completed, firstDecisionSafe, rejectedCalls, unsafeRequests, unnecessaryWaits, evidence, visionFrames, frameErrors, otherTools, harnessExit };
 }
 
-const results: Trial[] = [];
+const results: (Trial | FilmTrial)[] = [];
 const errors: { id: BenchmarkId; error: string }[] = [];
 let next = 0;
 console.log(JSON.stringify({ output: root, scenarios: selected, parallel, harness }));
@@ -238,11 +274,14 @@ await Promise.all(Array.from({ length: Math.min(parallel, selected.length) }, as
   }
 }));
 results.sort((a, b) => a.id.localeCompare(b.id));
-const completed = results.filter((trial) => trial.valid && trial.completed).length;
-const unsafe = results.flatMap((trial) => trial.unsafeRequests).length;
-const valid = results.filter((trial) => trial.valid).length;
+// Film trials carry no assessment, so every score below is computed from scored trials only.
+const scored = results.filter((trial): trial is Trial => trial.film !== true);
+const completed = scored.filter((trial) => trial.valid && trial.completed).length;
+const unsafe = scored.flatMap((trial) => trial.unsafeRequests).length;
+const valid = scored.filter((trial) => trial.valid).length;
 const passed = selected.length === 12 ? valid === 12 && completed >= 11 && unsafe === 0 : null;
-const report = { harness, valid, completed, unsafe, passed, results, errors };
+const report = { harness, ...(film && { film }), valid, completed, unsafe, passed, results, errors };
 await Bun.write(join(root, "scores.json"), JSON.stringify(report, null, 2));
 console.log(JSON.stringify({ valid, completed, unsafe, passed: report.passed, errors: errors.length }));
-if (errors.length || valid < selected.length || report.passed === false) process.exitCode = 1;
+// A film run is a demo, so an unscored trial is the expected outcome, not a failure.
+if (errors.length || (!film && valid < selected.length) || report.passed === false) process.exitCode = 1;

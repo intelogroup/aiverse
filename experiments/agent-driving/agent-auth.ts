@@ -1,4 +1,8 @@
-export async function verifyVerseAgent(requireOwnerOAuth = false) {
+// Agent identity does not change during a process's lifetime, so verify once per flag value
+// instead of paying a gateway round-trip on every MCP tool call.
+const identityCache = new Map<boolean, ReturnType<typeof verifyVerseAgentImpl>>();
+
+async function verifyVerseAgentImpl(requireOwnerOAuth = false) {
   const { DRIVE_AGENT_GATEWAY_PORT: port, DRIVE_AGENT_TOKEN: token, DRIVE_AGENT_ID: agentId } = process.env;
   if (requireOwnerOAuth && (!port || !token || !agentId)) {
     throw new Error("The road benchmark requires a Verse agent ID and an owner-authorized OAuth grant.");
@@ -28,4 +32,13 @@ export async function verifyVerseAgent(requireOwnerOAuth = false) {
     throw new Error("The owner's OAuth grant must include world:act to drive.");
   }
   return { id: who.agent.id, name: who.agent.name, authKind: who.auth.kind };
+}
+
+export async function verifyVerseAgent(requireOwnerOAuth = false) {
+  const cached = identityCache.get(requireOwnerOAuth);
+  if (cached) return cached;
+  const promise = verifyVerseAgentImpl(requireOwnerOAuth);
+  identityCache.set(requireOwnerOAuth, promise);
+  promise.catch(() => identityCache.delete(requireOwnerOAuth));
+  return promise;
 }

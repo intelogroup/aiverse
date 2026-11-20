@@ -66,7 +66,9 @@ export type Infraction = { code: string };
 // realtime: the approach runs on the clock without blocking the caller. The agent chooses per approach whether the car stops at the
 // line by itself (stop: "at_line", the default) or keeps rolling (stop: "none"), which is only legal on green or yellow.
 // turnsRed: the light goes yellow then red while the car approaches.
-export type LessonOptions = { realtime?: boolean; turnsRed?: boolean };
+// lateYellow: the drive-through case. The light stays green until the car is about to reach the line, turns yellow, and never turns red
+// before the car crosses. Slowing for it is legal but wasteful; rolling through (stop none) is the correct drive.
+export type LessonOptions = { realtime?: boolean; turnsRed?: boolean; lateYellow?: boolean };
 const checkRecovery = (area: Check): Recovery => ({ tool: "drive_check", arguments: { area } });
 const signalRecovery = (direction: Direction): Recovery => ({ tool: "drive_signal", arguments: { direction } });
 const waitRecovery: Recovery = { tool: "drive_wait", arguments: {} };
@@ -136,6 +138,7 @@ export class LessonRun {
   private readonly course: ReturnType<typeof benchmarkCase> | undefined;
   private walkerPending = false;
   private turnsRed = false;
+  private lateYellow = false;
   private clock = 0;
   private signalPlan: { yellowAt: number; redAt: number } | undefined;
   private signalScheduled = false;
@@ -145,6 +148,7 @@ export class LessonRun {
 
   constructor(id: LessonId, benchmark?: BenchmarkId, exam = false, options: LessonOptions = {}) {
     this.turnsRed = Boolean(options.turnsRed);
+    this.lateYellow = Boolean(options.lateYellow);
     const course = this.course = benchmark ? benchmarkCase(benchmark) : undefined;
     const sign = course ? course.posted ? "NO TURN ON RED" : null
       : id === "no_turn_on_red" || id === "crosswalk" ? "NO TURN ON RED" : isIntersectionLesson(id) ? "STOP" : null;
@@ -291,11 +295,13 @@ export class LessonRun {
       }
       const speed = input.speed ?? 5;
       const toLine = stopZ + (course?.shift ?? 0) + (course?.stopOffset ?? 0) - car.z;
-      if (s.realtime && this.turnsRed && !this.signalScheduled) {
+      if (s.realtime && (this.turnsRed || this.lateYellow) && !this.signalScheduled) {
         this.signalScheduled = true;
         // A seeded dilemma: yellow once half the expected arrival time has passed, red 3.5 s later (RMV: yellow means prepare to stop).
         const arrival = toLine / speed + speed / (2 * maxAcceleration);
-        this.signalPlan = { yellowAt: this.clock + arrival * 0.5, redAt: this.clock + arrival * 0.5 + 3.5 };
+        this.signalPlan = this.lateYellow
+          ? { yellowAt: this.clock + arrival * 0.9, redAt: this.clock + arrival + 30 }
+          : { yellowAt: this.clock + arrival * 0.5, redAt: this.clock + arrival * 0.5 + 3.5 };
       }
       const rolling = s.realtime && input.stop === "none";
       this.watchLine = rolling;

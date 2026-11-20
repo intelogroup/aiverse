@@ -132,3 +132,20 @@ test("braking on the yellow, waiting for green, then proceeding completes the tu
   expect(done.passed).toBe(true);
   expect(done.infractions).toEqual([]);
 });
+
+test("drive-through: on a late yellow, rolling through at speed is legal and finishes with no infraction", async () => {
+  const sim = await ready({ lateYellow: true });
+  await approach(sim, 8, "none");
+  const { lights, state } = run(sim);
+  expect(lights).toEqual(["green", "yellow"]);
+  expect(state.lesson!.infractions).toEqual([]);
+  expect(state.lesson!.evidence).toContain("passed_line_on_yellow");
+});
+
+test("drive-through: the light never reaches red before the car crosses, even for a slow car", async () => {
+  const sim = await ready({ lateYellow: true });
+  await approach(sim, 3, "none");
+  const { lights, state } = run(sim);
+  expect(lights).not.toContain("red");
+  expect(state.lesson!.infractions).toEqual([]);
+});
