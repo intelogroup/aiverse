@@ -77,15 +77,17 @@ export function scoreBenchmark(state: DriveState, attempts: readonly Attempt[]) 
   };
 }
 // Classifies a harness event stream that ended without driving, so a dead harness is never scored as a driver failure.
+// Understands Codex (`error`/`turn.failed`) and Claude Code stream-json (`result` with is_error) events.
 export function harnessFailure(lines: readonly string[]): "usage_limit" | "auth" | "turn_failed" | null {
   for (const line of lines) {
-    let event: { type?: string; message?: string; error?: { message?: string } };
+    let event: { type?: string; message?: string; is_error?: boolean; result?: unknown; error?: { message?: string } };
     try { event = JSON.parse(line); } catch { continue; }
-    if (event.type !== "turn.failed" && event.type !== "error") continue;
-    const message = (event.error?.message ?? event.message ?? "").toLowerCase();
-    if (/usage limit|rate limit|quota|credits/.test(message)) return "usage_limit";
-    if (/unauthori[sz]ed|not logged in|login|401/.test(message)) return "auth";
-    if (event.type === "turn.failed") return "turn_failed";
+    const claudeFailure = event.type === "result" && event.is_error === true;
+    if (event.type !== "turn.failed" && event.type !== "error" && !claudeFailure) continue;
+    const message = String(event.error?.message ?? event.message ?? (claudeFailure ? event.result : "") ?? "").toLowerCase();
+    if (/usage limit|rate limit|quota|credit balance|credits|overloaded/.test(message)) return "usage_limit";
+    if (/unauthori[sz]ed|not logged in|invalid api key|authentication|login|401/.test(message)) return "auth";
+    if (event.type === "turn.failed" || claudeFailure) return "turn_failed";
   }
   return null;
 }

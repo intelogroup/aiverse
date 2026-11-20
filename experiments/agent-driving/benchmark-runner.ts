@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { benchmarkCase, benchmarkIds, harnessFailure, type BenchmarkId, type scoreBenchmark } from "./benchmark";
 import { verifyVerseAgent } from "./agent-auth";
+import { observe, type HarnessName } from "./harness-adapters";
 
 type Assessment = ReturnType<typeof scoreBenchmark>;
 type Trial = Assessment & {
@@ -13,7 +14,7 @@ type Trial = Assessment & {
   visionFrames: number;
   frameErrors: number;
   otherTools: number;
-  codexExit: number;
+  harnessExit: number;
 };
 
 const wanted = process.argv.slice(2);
@@ -27,8 +28,10 @@ if (!Number.isInteger(parallel) || parallel < 1 || parallel > 3 || !Number.isInt
   throw new Error("Use one to three benchmark workers and a valid local base port.");
 }
 const arm = process.env.DRIVE_HARNESS_ARM === "owner" ? "owner" : "clean";
-const harness = { name: "codex", authorization: "owner_oauth", arm } as const;
-const codexBin = process.env.DRIVE_CODEX_BIN ?? "codex";
+const name: HarnessName = process.env.DRIVE_HARNESS === "claude" ? "claude" : "codex";
+const claudeModel = process.env.DRIVE_CLAUDE_MODEL ?? "claude-sonnet-5-5";
+const harness = { name, authorization: "owner_oauth", arm, ...(name === "claude" && { model: claudeModel }) } as const;
+const harnessBin = process.env.DRIVE_HARNESS_BIN ?? process.env.DRIVE_CODEX_BIN ?? name;
 const root = process.env.DRIVE_BENCHMARK_OUT ?? await mkdtemp(join(tmpdir(), "aiverse-road-test-"));
 await mkdir(root, { recursive: true });
 const dir = new URL(".", import.meta.url).pathname;
@@ -38,6 +41,8 @@ const exportVars = ["DRIVE_LAB_PORT", "DRIVE_VISION_ONLY", "DRIVE_REQUIRE_OWNER_
 // clean arm: empty HOME + CODEX_HOME so the owner's installed skills and plugins cannot crowd out or break the driving tools.
 // Only the login is shared (symlink); owner arm keeps the real environment.
 async function harnessEnv(): Promise<NodeJS.ProcessEnv> {
+  // Claude Code: an inherited ANTHROPIC_API_KEY outranks the owner's login and bills a different account; drop it so the owner login is used.
+  if (name === "claude") return { ANTHROPIC_API_KEY: undefined };
   if (arm === "owner") return {};
   const base = join(root, "harness-home");
   await mkdir(join(base, "home"), { recursive: true });
@@ -48,8 +53,10 @@ async function harnessEnv(): Promise<NodeJS.ProcessEnv> {
 const isolation = await harnessEnv();
 // One cheap call before any case: a dead harness (quota, auth, model) must not be scored as driving.
 {
-  const probe = spawnLogged([codexBin, "-a", "never", "exec", "--ignore-user-config", "--ephemeral", "--json", "--skip-git-repo-check",
-    "--sandbox", "read-only", "-C", root, "Reply with the single word ready."], join(root, "preflight.jsonl"), { ...process.env, ...isolation });
+  const probe = spawnLogged(name === "claude"
+    ? [harnessBin, "-p", "Reply with the single word ready.", "--output-format", "stream-json", "--verbose", "--tools", "", "--strict-mcp-config", "--no-session-persistence", "--model", claudeModel]
+    : [harnessBin, "-a", "never", "exec", "--ignore-user-config", "--ephemeral", "--json", "--skip-git-repo-check",
+      "--sandbox", "read-only", "-C", root, "Reply with the single word ready."], join(root, "preflight.jsonl"), { ...process.env, ...isolation }, root);
   const timer = setTimeout(() => probe.kill(), 60_000);
   const exit = await probe.exited.finally(() => clearTimeout(timer));
   const lines = (await Bun.file(join(root, "preflight.jsonl")).text()).split("\n").filter(Boolean);
@@ -60,8 +67,6 @@ const isolation = await harnessEnv();
   }
 }
 await verifyVerseAgent(true);
-const isMcpCall = (item: { type?: string; server?: string }) => item.type === "mcp_tool_call" && item.server === "driving";
-const forbidden = new Set(["command_execution", "web_search", "file_change", "collab_tool_call"]);
 
 function browser(session: string, ...args: string[]) {
   return Bun.spawn(["agent-browser", "--session", session, ...args], { stdin: "ignore", stdout: "pipe", stderr: "pipe" });
@@ -87,7 +92,7 @@ function spawnLogged(args: string[], log: string, env: NodeJS.ProcessEnv, cwd?: 
   try {
     const stderr = openSync(log + ".stderr", "w");
     try {
-      return Bun.spawn(args, { cwd, env, stdin: "ignore", stdout, stderr });
+      return Bun.spawn(args, { cwd, env: Object.fromEntries(Object.entries(env).filter(([, value]) => value !== undefined)) as Record<string, string>, stdin: "ignore", stdout, stderr });
     } finally {
       closeSync(stderr);
     }
@@ -125,29 +130,28 @@ async function runCase(id: BenchmarkId, port: number, session: string): Promise<
     "Report the result from the simulator. The destination is your only route instruction.",
   ].join(" ");
   const trace = join(root, id + ".jsonl");
-  const child = spawnLogged([
-    codexBin, "-a", "never", "exec", "--ignore-user-config", "--ephemeral", "--json", "--skip-git-repo-check",
+  // Claude Code reads the server from a file; token values stay in the child's environment and are referenced as ${VAR}, never written to disk.
+  const mcpFile = join(root, id + "-mcp.json");
+  await Bun.write(mcpFile, JSON.stringify({ mcpServers: { driving: {
+    command: process.execPath, args: [join(dir, "mcp.ts")], env: Object.fromEntries(exportVars.map((key) => [key, "${" + key + "}"])),
+  } } }));
+  const args = name === "claude" ? [
+    harnessBin, "-p", prompt, "--output-format", "stream-json", "--verbose", "--no-session-persistence", "--model", claudeModel,
+    "--strict-mcp-config", "--mcp-config", mcpFile, "--tools", "", "--allowedTools", "mcp__driving__*",
+    "--max-budget-usd", process.env.DRIVE_CLAUDE_BUDGET_USD ?? "3",
+    ...(arm === "clean" ? ["--setting-sources", "", "--disable-slash-commands"] : []),
+  ] : [
+    harnessBin, "-a", "never", "exec", "--ignore-user-config", "--ephemeral", "--json", "--skip-git-repo-check",
     "--sandbox", "read-only", "-C", workspace,
     "-c", "mcp_servers.driving={" + toml + "}", "-c", 'shell_environment_policy.exclude=["DRIVE_AGENT_TOKEN"]',
     prompt,
-  ], trace, { ...process.env, ...isolation, DRIVE_LAB_PORT: String(port), DRIVE_VISION_ONLY: "1", DRIVE_REQUIRE_OWNER_OAUTH: "1" });
+  ];
+  const child = spawnLogged(args, trace, { ...process.env, ...isolation, DRIVE_LAB_PORT: String(port), DRIVE_VISION_ONLY: "1", DRIVE_REQUIRE_OWNER_OAUTH: "1" }, workspace);
   const timeout = setTimeout(() => child.kill(), 200_000);
-  const codexExit = await child.exited.finally(() => clearTimeout(timeout));
+  const harnessExit = await child.exited.finally(() => clearTimeout(timeout));
   const lines = (await Bun.file(trace).text()).split("\n").filter(Boolean);
-  if (!lines.length) throw new Error("Codex supplied no event stream.");
-  let visionFrames = 0;
-  let frameErrors = 0;
-  let otherTools = 0;
-  for (const line of lines) {
-    const event = JSON.parse(line);
-    if (event.type !== "item.completed") continue;
-    const item = event.item;
-    if (forbidden.has(item.type) || item.type === "mcp_tool_call" && !isMcpCall(item)) otherTools++;
-    if (isMcpCall(item) && item.tool === "drive_look") {
-      if (item.result?.content?.some((part: { type: string }) => part.type === "image")) visionFrames++;
-      else frameErrors++;
-    }
-  }
+  if (!lines.length) throw new Error(name + " supplied no event stream.");
+  const { visionFrames, frameErrors, otherTools } = observe(name, lines);
 
   const response = await fetch(lab + "/api/assessment");
   if (!response.ok) throw new Error("Simulator assessment missing.");
@@ -155,10 +159,10 @@ async function runCase(id: BenchmarkId, port: number, session: string): Promise<
   await Bun.write(join(root, id + "-assessment.json"), JSON.stringify({ conditions: variant, ...score }, null, 2));
   const { completed, firstDecisionSafe, rejectedCalls, unsafeRequests, unnecessaryWaits, evidence } = score;
   const harnessError = harnessFailure(lines);
-  const valid = codexExit === 0 && !harnessError && visionFrames > 0 && otherTools === 0;
+  const valid = harnessExit === 0 && !harnessError && visionFrames > 0 && otherTools === 0;
   await Bun.write(join(root, id + "-console-after.txt"), await browserStep(session, "console", "--errors"));
   await browserStep(session, "screenshot", join(root, id + "-finish.png"));
-  return { id, valid, harnessError, completed, firstDecisionSafe, rejectedCalls, unsafeRequests, unnecessaryWaits, evidence, visionFrames, frameErrors, otherTools, codexExit };
+  return { id, valid, harnessError, completed, firstDecisionSafe, rejectedCalls, unsafeRequests, unnecessaryWaits, evidence, visionFrames, frameErrors, otherTools, harnessExit };
 }
 
 const results: Trial[] = [];
