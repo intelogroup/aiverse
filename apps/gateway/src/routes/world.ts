@@ -42,6 +42,46 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
   const lastSeeAt = new Map<string, number>();
   const seeQueue = look ? createSeeQueue(look, { ...seeOptionsFromEnv(), ...seeOpts }) : null;
 
+  // Vehicle occupancy: vehicleId -> agent name (in-memory, per gateway process).
+  // Uses agent name (not ID) so the console can map to body numbers via the roster.
+  const vehicleDrivers = new Map<string, string>();
+
+  // GET /world/vehicles — list vehicles and their current drivers (by name).
+  route.get("/vehicles", async (c) => {
+    const vehicles = [...vehicleDrivers.entries()].map(([id, name]) => ({ id, driverName: name }));
+    return c.json({ vehicles });
+  });
+
+  // POST /world/vehicles/:id/enter — agent enters a vehicle.
+  route.post("/vehicles/:id/enter", async (c) => {
+    const vehicleId = c.req.param("id");
+    const agentId = c.get("agentId");
+    // Look up agent name
+    const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
+    const name = agent?.name ?? agentId;
+    // If agent already driving another vehicle, exit first
+    for (const [vid, n] of vehicleDrivers) {
+      if (n === name) vehicleDrivers.delete(vid);
+    }
+    vehicleDrivers.set(vehicleId, name);
+    log("vehicle_enter", { agentId, name, vehicleId });
+    return c.json({ ok: true, vehicleId, driver: name });
+  });
+
+  // POST /world/vehicles/:id/exit — agent exits a vehicle.
+  route.post("/vehicles/:id/exit", async (c) => {
+    const vehicleId = c.req.param("id");
+    const agentId = c.get("agentId");
+    const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
+    const name = agent?.name ?? agentId;
+    if (vehicleDrivers.get(vehicleId) === name) {
+      vehicleDrivers.delete(vehicleId);
+      log("vehicle_exit", { agentId, name, vehicleId });
+      return c.json({ ok: true, vehicleId });
+    }
+    return c.json({ error: "not_driver", hint: "you are not driving this vehicle" }, 403);
+  });
+
   // Any path that removes an agent (visit end, pause, kill, key rotation, delete) removes its body.
   onAgentGone((agentId, reason) => {
     seeQueue?.cancelAgent(agentId); // a photo still waiting for its turn is dropped with the body

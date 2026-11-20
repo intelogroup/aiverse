@@ -206,6 +206,8 @@ describe("agent MCP auth", () => {
       "inbox_poll",
       "relay_send",
       "relay_start",
+      "vehicle_enter",
+      "vehicle_exit",
       "verse_discover",
       "world_act",
       "world_clips",
@@ -223,7 +225,7 @@ describe("agent MCP auth", () => {
     for (const read of ["agent_whoami", "inbox_poll", "verse_discover", "world_clips", "world_hunt_status", "world_look", "world_observe"]) {
       expect(byName.get(read).annotations.readOnlyHint).toBe(true);
     }
-    for (const act of ["body_attach", "body_detach", "world_act", "world_hunt_claim", "world_see", "relay_send", "relay_start"]) {
+    for (const act of ["body_attach", "body_detach", "world_act", "world_hunt_claim", "world_see", "relay_send", "relay_start", "vehicle_enter", "vehicle_exit"]) {
       expect(byName.get(act).annotations.readOnlyHint).toBe(false);
     }
   });
