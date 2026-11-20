@@ -58,6 +58,18 @@ describe("world stream (gateway half)", () => {
     expect(stream.running).toBe(false);
   });
 
+  test("resident NPCs are named empty and never looked up as agents", async () => {
+    const sim = fakeSim();
+    sim.st.bodies.push({ n: 1_000_000, agentId: "npc:car-0", body: "car" });
+    const asked: string[][] = [];
+    stream = createWorldStream({ sim: sim.client, names: async (ids) => { asked.push(ids); return names(ids); }, intervalMs: 5 });
+    const a = fakeSocket();
+    stream.subscribe("a", a);
+    await wait(() => a.messages("world_roster").length > 0);
+    expect(a.messages("world_roster")[0].bodies).toEqual([{ n: 1, name: "Wanderer", body: "remy" }, { n: 1_000_000, name: "", body: "car" }]);
+    expect(asked.flat().some((id) => id.startsWith("npc:"))).toBe(false);
+  });
+
   test("two spectators both get the roster (display name + body, never the agent id) and the first key frame", async () => {
     const sim = fakeSim();
     stream = createWorldStream({ sim: sim.client, names, intervalMs: 5 });

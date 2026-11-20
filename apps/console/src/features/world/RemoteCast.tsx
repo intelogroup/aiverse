@@ -16,6 +16,7 @@ import { CastFigure } from "./CastFigure";
 import { ClipTestState } from "./clips";
 import { createDissolve, type Dissolve } from "./dissolve";
 import type { AgentFrame } from "./locomotion";
+import { RemoteCar } from "./RemoteCar";
 import { RemoteBodies, writeRemoteFrame } from "./remoteFrames";
 import { registerRemoteFigure, unregisterRemoteFigure } from "./remoteFigures";
 import { useWorldStream } from "./useWorldStream";
@@ -129,7 +130,7 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
         fig.lastClip = p.clip;
         if (p.clip) fig.clips.fire(p.clip); else fig.clips.clear();
       }
-      if (publish && walk) {
+      if (publish && walk && fig.body !== "car") {
         walk.actors.publishWalker(`remote-${b.n}`, { x: p.x, y: p.y, z: p.z, vx: Math.sin(p.heading) * p.speed, vz: Math.cos(p.heading) * p.speed }, BODY_RADIUS, BODY_HEIGHT, true);
       }
     }
@@ -147,7 +148,9 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
             else unregisterRemoteFigure(n);
           }}>
             <Suspense fallback={null}>
-              <CastFigure framesRef={frames} index={n} baseY={0} home={[0, 0, 0]} body={BODIES[body] ?? BODY_REMY} clipTester={fig.clips} dissolve={fig.dissolve} />
+              {body === "car"
+                ? <RemoteCar framesRef={frames} index={n} />
+                : <CastFigure framesRef={frames} index={n} baseY={0} home={[0, 0, 0]} body={BODIES[body] ?? BODY_REMY} clipTester={fig.clips} dissolve={fig.dissolve} />}
             </Suspense>
             <group ref={(g) => { fig.bubble = g; }}>
               {said[n] ? <Html center><span className="w-said" data-testid="remote-said">{said[n]}</span></Html> : null}

@@ -2,6 +2,7 @@
 //   SIM_INTERNAL_SECRET  required (>= 32 chars): the gateway presents it on every call
 //   SIM_PORT (3020), SIM_HOST (127.0.0.1), SIM_ASSETS_DIR (apps/console/public/assets), SIM_MAX_BODIES (200)
 import { loadVerseSim } from "@aiverse/world-sim/node/loadWorld";
+import { AmbientWorld } from "@aiverse/world-sim/ambientWorld";
 import { WorldService } from "@aiverse/world-sim/worldService";
 import { createSimServer } from "./server";
 
@@ -11,7 +12,8 @@ const assets = process.env.SIM_ASSETS_DIR ?? new URL("../../console/public/asset
 
 const { sim, stats } = await loadVerseSim(assets);
 console.log(JSON.stringify({ event: "sim_loaded", ...stats }));
-const service = new WorldService({ sim, maxBodies: Number(process.env.SIM_MAX_BODIES ?? 200) });
+// SIM_AMBIENT=0 turns the resident cars and pedestrians off.
+const service = new WorldService({ sim, maxBodies: Number(process.env.SIM_MAX_BODIES ?? 200), ambient: process.env.SIM_AMBIENT === "0" ? undefined : new AmbientWorld() });
 const app = createSimServer({ service, secret });
 
 const server = Bun.serve({ hostname: process.env.SIM_HOST ?? "127.0.0.1", port: Number(process.env.SIM_PORT ?? 3020), fetch: app.fetch });
