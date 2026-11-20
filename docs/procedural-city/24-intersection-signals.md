@@ -13,3 +13,13 @@ Status 2026-11-20: 24 junctions x 4 corner posts, 3-lamp heads, fixed-time cycle
 - Paint at `walk_z + 0.05` like the zebra stripes: edge lines, double solid yellow + white lane dividers on the 20 m avenue, dashed yellow on 10 m streets, a stop line per approach 4.5-5.0 m before the junction (behind the zebra). Paint stops 4.4 m from a junction edge and at the plaza.
 - Signs on the driver's right per approach: pedestrian-crossing diamond at 4.2 m, signal-ahead diamond at 18 m. Symbols only: no text glyph pipeline, so no STOP/NO TURN ON RED lettering yet.
 - Verified in a plain three.js page (top view and driver view); not yet in the live console. Posts have no collision.
+
+
+## Controller (supersedes the fixed 12/3/1.5 plan above)
+- `packages/world-sim/src/trafficSignals.ts`: pure function of the wall clock (`Date.now()`), so signals run continuously, match across viewers and are readable by the sim and the driving lab.
+- Pretimed two-phase cycle, 60 s: avenue junctions give the avenue 28 s green and the side street 22 s, side-street junctions 25/25; yellow 3.5 s, all-red 1.5 s after each yellow.
+- Coordination: each junction is offset by (x_street + y_street) / 11 m/s, a green wave at about 25 mph.
+- Pedestrian heads (one under every vehicle head, same facing and phase): WALK 7 s, flashing DON'T WALK for the rest of the green and the yellow, then steady DON'T WALK.
+- The GLB holds only posts and heads. Lamps are rows in `signalLamps.json` (480, written by `signals.py`) drawn as one instanced mesh with per-instance colour in `IntersectionSignals.tsx`.
+- Tests: `bun test packages/world-sim/src/trafficSignals.test.ts` (no conflicting greens, durations, ped sequence, manifest matches the TS junction list).
+- Not modelled: protected left-turn arrows, vehicle detection (actuated), night flash, time-of-day plans.
