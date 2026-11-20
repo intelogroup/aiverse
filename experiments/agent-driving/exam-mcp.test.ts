@@ -21,7 +21,7 @@ beforeAll(async () => {
 });
 afterAll(async () => { await client.close(); server.kill(); });
 
-const call = async (name: string, args: object = {}) => {
+const call = async (name: string, args: Record<string, unknown> = {}) => {
   const result = await client.callTool({ name, arguments: args });
   const text = (result.content as { type: string; text?: string }[]).find((part) => part.type === "text")?.text ?? "{}";
   return JSON.parse(text) as Record<string, any>;
