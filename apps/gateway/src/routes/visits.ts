@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { and, desc, eq, isNull } from "drizzle-orm";
+import { z } from "zod";
 import { db } from "../db/client";
-import { agents, agentVisits } from "@aiverse/shared/schema";
+import { agents, agentVisits, eggHuntWins } from "@aiverse/shared/schema";
 import { ownerSessionOrReadKey } from "../middleware/ownerReadAuth";
 import { stopVisitRecord, extendVisitRecord, MIN_VISIT_MINUTES, MAX_VISIT_MINUTES, MIN_VISIT_ACTIONS, MAX_VISIT_ACTIONS } from "../policy/visits";
 import { notifyVisitExtended } from "../world/hooks";
@@ -77,6 +78,21 @@ ownersVisitsRoute.get("/agents/:id/visits", ownerSessionOrReadKey, async (c) => 
     limit: 50,
   });
   return c.json({ visits });
+});
+
+ownersVisitsRoute.get("/agents/:id/hunt-receipts", ownerAuth, async (c) => {
+  const agentId = c.req.param("id");
+  if (!z.uuid().safeParse(agentId).success || !await loadOwnedAgent(c.get("ownerId"), agentId)) {
+    return c.json({ error: "not found" }, 404);
+  }
+
+  const receipts = await db.query.eggHuntWins.findMany({
+    where: eq(eggHuntWins.agentId, agentId),
+    orderBy: [desc(eggHuntWins.wonAt), desc(eggHuntWins.contestId)],
+    columns: { contestId: true, payload: true, credits: true, wonAt: true },
+  });
+  c.header("Cache-Control", "private, no-store");
+  return c.json({ receipts });
 });
 
 ownersVisitsRoute.post("/agents/:id/visits/:visitId/stop", ownerAuth, async (c) => {

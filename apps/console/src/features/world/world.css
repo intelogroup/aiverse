@@ -196,6 +196,10 @@
   font-size: 12px;
   padding: 4px 10px;
 }
+.agent-hunt-payload {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .agent-manage-row {
   display: flex;
   align-items: center;

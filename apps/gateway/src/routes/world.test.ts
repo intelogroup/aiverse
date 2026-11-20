@@ -12,6 +12,7 @@ import type { LookClient, LookOutcome } from "../world/lookClient";
 import { redis } from "../redis/client";
 import { sweepVisits } from "../jobs/visits";
 import { clearPresence } from "../presence";
+import { mintMcpOAuthToken } from "../testUtils/mcpOAuth";
 
 // The M4 gate, end to end with no browser: real gateway app (real auth, owners, visits, Postgres) -> production HTTP sim client ->
 // real sim server -> real world (City 3 collision + navmesh). The sim is ticked by hand so the walk is fast and deterministic.
@@ -94,6 +95,17 @@ const startVisit = async (ownerToken: string, agentId: string, maxActions = 50) 
 const w = (token: string, method: string, path: string, body?: unknown) =>
   app.request(`/world${path}`, { method, headers: json(token), body: body === undefined ? undefined : JSON.stringify(body) });
 
+async function callMcp(token: string, name: string, args: Record<string, unknown> = {}) {
+  const res = await app.request("/mcp/agent", {
+    method: "POST",
+    headers: { ...json(token), accept: "application/json, text/event-stream" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }),
+  });
+  expect(res.status).toBe(200);
+  const { result } = await res.json() as { result: { isError?: boolean; content: [{ text: string }] } };
+  return { isError: result.isError ?? false, data: JSON.parse(result.content[0].text) };
+}
+
 /** Walk the sim (0.5 s steps) and poll the act record through the gateway until it settles. */
 async function settle(token: string, id: string, maxS = 240) {
   for (let t = 0; t < maxS; t += 0.5) {
@@ -112,15 +124,23 @@ describe("/world (agent body)", () => {
     const agents = [a, b];
     const prize = { payload: hunt.payload, credits: hunt.credits };
     const claim = (token: string, actId: string) => w(token, "POST", "/hunt/claim", { contestId: hunt.id, actId });
-    const act = async (token: string, id: string, action: unknown) => {
-      expect((await w(token, "POST", "/act", { id, action })).status).toBe(202);
+    const mcp = callMcp;
+    const mcpClaim = (token: string, actId: string) =>
+      mcp(token, "world_hunt_claim", { contest_id: hunt.id, act_id: actId });
+    const act = async (token: string, id: string, action: unknown, delegate = token) => {
+      expect((await mcp(delegate, "world_act", { id, action })).isError).toBe(false);
       return (await settle(token, id)).outcome;
     };
     try {
       expect((await w(a.agentToken, "GET", "/hunt")).status).toBe(403);
-      for (const agent of agents) await startVisit(agent.ownerToken, agent.agentId);
-      expect(await (await w(a.agentToken, "GET", "/hunt")).json()).toEqual({
-        id: hunt.id, clue: hunt.clue, credits: hunt.credits, status: "open",
+      const visits = await Promise.all(agents.map((agent) => startVisit(agent.ownerToken, agent.agentId)));
+      const [first, second] = await Promise.all(agents.map((agent) =>
+        mintMcpOAuthToken(app, agent.ownerToken, [agent.agentId], "world:observe world:act"),
+      ));
+      const delegates = [first.accessToken, second.accessToken];
+      expect(await mcp(delegates[0]!, "world_hunt_status")).toEqual({
+        isError: false,
+        data: { id: hunt.id, clue: hunt.clue, credits: hunt.credits, status: "open" },
       });
       expect((await w(a.agentToken, "POST", "/body")).status).toBe(201);
       expect((await claim(a.agentToken, "fake-open")).status).toBe(403);
@@ -138,7 +158,7 @@ describe("/world (agent body)", () => {
 
       // Stage the race near the landmark and leave the interaction stand clear for the second body.
       service.attach(a.agentId, { x: -29.63, z: -71.016 });
-      expect(await act(a.agentToken, "open-one", { type: "interact", target: hunt.eggId })).toMatchObject({
+      expect(await act(a.agentToken, "open-one", { type: "interact", target: hunt.eggId }, delegates[0])).toMatchObject({
         ok: true, status: "done", target: hunt.eggId,
       });
       expect(await act(a.agentToken, "walk-away", { type: "go_to", point: [-34.0, -71.016] })).toMatchObject({
@@ -150,24 +170,57 @@ describe("/world (agent body)", () => {
       });
       service.attach(b.agentId, { x: -29.63, z: -71.016 });
       expect((await claim(b.agentToken, "open-one")).status).toBe(403);
-      expect(await act(b.agentToken, "open-two", { type: "interact", target: hunt.eggId })).toMatchObject({
+      expect(await act(b.agentToken, "open-two", { type: "interact", target: hunt.eggId }, delegates[1])).toMatchObject({
         ok: true, status: "done", target: hunt.eggId,
+      });
+      expect((await mcp(delegates[1]!, "world_observe")).data.observation.lastAct).toMatchObject({
+        id: "open-two", state: "settled",
       });
 
       const attempts = ["open-one", "open-two"];
-      const results = await Promise.all(agents.map((agent, i) => claim(agent.agentToken, attempts[i]!)));
-      expect(results.map((res) => res.status).sort()).toEqual([201, 409]);
-      const winner = results.findIndex((res) => res.status === 201);
-      expect(await results[winner]!.json()).toEqual({ status: "won", reward: prize });
-      const retry = await claim(agents[winner]!.agentToken, attempts[winner]!);
+      const results = await Promise.all(delegates.map((token, i) => mcpClaim(token, attempts[i]!)));
+      expect(results.filter((result) => !result.isError)).toHaveLength(1);
+      const winner = results.findIndex((result) => !result.isError);
+      const expectedMcpReceipt = { isError: false, data: { status: "won", receiptId: hunt.id, credits: hunt.credits } };
+      expect(results[winner]).toEqual(expectedMcpReceipt);
+      expect(results[1 - winner]).toEqual({ isError: true, data: { error: "already_won" } });
+      const winningAgent = agents[winner]!;
+      expect(await mcpClaim(delegates[winner]!, attempts[winner]!)).toEqual(expectedMcpReceipt);
+      expect(await mcp(delegates[winner]!, "world_hunt_status")).toEqual({
+        isError: false,
+        data: { id: hunt.id, clue: hunt.clue, credits: hunt.credits, status: "closed" },
+      });
+      const retry = await claim(winningAgent.agentToken, attempts[winner]!);
       expect(retry.status).toBe(200);
       expect(await retry.json()).toEqual({ status: "won", reward: prize });
       expect(await db.select().from(eggHuntWins).where(eq(eggHuntWins.contestId, hunt.id))).toMatchObject([
-        { agentId: agents[winner]!.agentId, ...prize },
+        { agentId: winningAgent.agentId, ...prize },
       ]);
       const loser = agents[1 - winner]!;
       expect(await (await w(loser.agentToken, "GET", "/hunt")).json()).toEqual({
         id: hunt.id, clue: hunt.clue, credits: hunt.credits, status: "closed",
+      });
+
+      const stop = await app.request(`/owners/agents/${winningAgent.agentId}/visits/${visits[winner].id}/stop`, {
+        method: "POST", headers: json(winningAgent.ownerToken),
+      });
+      expect(stop.status).toBe(200);
+      expect((await w(winningAgent.agentToken, "GET", "/hunt")).status).toBe(403);
+
+      const receiptsPath = (agentId: string) => `/owners/agents/${agentId}/hunt-receipts`;
+      const getReceipt = (token?: string) => app.request(receiptsPath(winningAgent.agentId), { headers: json(token) });
+      expect((await getReceipt()).status).toBe(401);
+      expect((await getReceipt(winningAgent.agentToken)).status).toBe(401);
+      expect((await getReceipt(delegates[winner])).status).toBe(401);
+      expect((await getReceipt(loser.ownerToken)).status).toBe(404);
+      const losingReceipts = await app.request(receiptsPath(loser.agentId), { headers: json(loser.ownerToken) });
+      expect(await losingReceipts.json()).toEqual({ receipts: [] });
+
+      const receipt = await getReceipt(winningAgent.ownerToken);
+      expect(receipt.status).toBe(200);
+      expect(receipt.headers.get("cache-control")).toBe("private, no-store");
+      expect(await receipt.json()).toEqual({
+        receipts: [{ contestId: hunt.id, wonAt: expect.any(String), ...prize }],
       });
     } finally {
       for (const agent of agents) service.detach(agent.agentId);

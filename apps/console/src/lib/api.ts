@@ -125,6 +125,13 @@ export interface Visit {
   endedReason: string | null;
 }
 
+export interface HuntReceipt {
+  contestId: string;
+  payload: string;
+  credits: number;
+  wonAt: string;
+}
+
 export interface OnboardingQuestion {
   id: string;
   agentId: string;
@@ -256,6 +263,8 @@ export const api = {
   // Visits — the agent lifecycle UI this file's comment below anticipated:
   // owner starts/stops the agent's time-and-actions window in the Verse.
   listVisits: (agentId: string) => request<{ visits: Visit[] }>(`/owners/agents/${agentId}/visits`),
+  listHuntReceipts: (agentId: string) =>
+    request<{ receipts: HuntReceipt[] }>(`/owners/agents/${agentId}/hunt-receipts`),
   startVisit: (agentId: string, minutes: number, maxActions: number) =>
     request<{ visit: Visit }>(`/owners/agents/${agentId}/visits`, {
       method: "POST",
