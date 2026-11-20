@@ -76,11 +76,19 @@ beforeAll(async () => {
     app = createApp({ sim: {
       async call(method, path, body) {
         const gate = expiryProofGate;
-        if (gate && method === "GET" && path.endsWith("/act/cash-expiry-proof")) {
+        const response = await simClient.call(method, path, body);
+        if (!gate || method !== "GET") return response;
+
+        // During the deadline test, drain both HTTP responses under the normal simulator timeout.
+        // The deliberate delay belongs to proof delivery, where an open response stream cannot expire.
+        const buffered = new Response(await response.arrayBuffer(), {
+          status: response.status, headers: response.headers,
+        });
+        if (path.endsWith("/act/cash-expiry-proof")) {
           gate.started();
           await gate.released;
         }
-        return simClient.call(method, path, body);
+        return buffered;
       },
     }, look: fakeLook });
   } finally {
