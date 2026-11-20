@@ -11,6 +11,7 @@ import { FountainWater } from "./FountainWater";
 import { EasterEggs } from "./EasterEggs";
 import { BazaarCar } from "./BazaarCar";
 import { RoadMarks } from "./RoadMarks";
+import { RoadSigns } from "./RoadSigns";
 import { IntersectionSignals } from "./IntersectionSignals";
 import type { InteractController } from "./interactables";
 import type { WalkColliders } from "./walkColliders";
@@ -411,6 +412,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
       <Suspense fallback={null}><EasterEggs activeDistricts={["bazaar", ...groups.current.keys()]} interact={interact} /></Suspense>
       <Suspense fallback={null}><IntersectionSignals /></Suspense>
       <Suspense fallback={null}><RoadMarks /></Suspense>
+      <Suspense fallback={null}><RoadSigns /></Suspense>
       <Suspense fallback={null}><BazaarCar position={[15, 0, 5]} rotationY={1.2} remoteBodies={remoteBodies ?? null} driverBodyN={driver1} /></Suspense>
       <Suspense fallback={null}><BazaarCar position={[-28, 0, -62]} rotationY={3.0} remoteBodies={remoteBodies ?? null} driverBodyN={driver2} /></Suspense>
       <CameraCollider getMeshes={getMeshes} enabled={collide && collideDebug.current} stats={stats.current} />
