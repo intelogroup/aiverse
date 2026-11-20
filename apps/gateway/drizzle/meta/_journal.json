@@ -351,6 +351,13 @@
       "when": 1795118400000,
       "tag": "0049_egg_hunt_wins",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1795118500000,
+      "tag": "0050_egg_cash_bounties",
+      "breakpoints": true
     }
   ]
 }

@@ -11,6 +11,7 @@ const apiMock = vi.hoisted(() => ({
   getWallet: vi.fn(),
   patchWallet: vi.fn(),
   listVisits: vi.fn(),
+  listHuntReceipts: vi.fn(),
   startVisit: vi.fn(),
   stopVisit: vi.fn(),
   rotateAgentToken: vi.fn(),
@@ -65,6 +66,7 @@ beforeEach(() => {
     wallet: { ...wallet, ...patch },
   }));
   apiMock.listVisits.mockResolvedValue({ visits: [] });
+  apiMock.listHuntReceipts.mockResolvedValue({ receipts: [] });
   apiMock.startVisit.mockResolvedValue({ visit: activeVisit });
   apiMock.stopVisit.mockResolvedValue({ ok: true });
   apiMock.setAgentBody.mockImplementation(async (id: string, body: string | null) => ({ agent: { id, body } }));
@@ -96,6 +98,36 @@ describe("ManageAgentsModal lifecycle controls", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Stop visit" }));
     await waitFor(() => expect(apiMock.stopVisit).toHaveBeenCalledWith("agent-1", "visit-1"));
+  });
+
+  it("shows a past bounty as plain text and copies it only on request", async () => {
+    const payload = '<img src=x onerror=alert(1)> [download](https://example.com)';
+    apiMock.listHuntReceipts.mockResolvedValue({
+      receipts: [{
+        contestId: "tea-hunt", payload, credits: 10, wonAt: "2026-11-19T12:00:00Z",
+        cashPayout: { amountCents: 100, currency: "USD", mode: "live", status: "success", transactionId: "TEST-TX" },
+      }],
+    });
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    const clipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    try {
+      render(<ManageAgentsModal agents={[agent]} onClose={() => {}} />);
+      expect(await screen.findByRole("button", { name: "Start visit" })).toBeTruthy();
+      expect(apiMock.listHuntReceipts).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole("button", { name: "View bounty receipts" }));
+      expect((await screen.findByText(payload)).textContent).toEqual(payload);
+      expect(screen.getByText(/PayPal payout .* Paid/)).toBeTruthy();
+      expect(apiMock.listHuntReceipts).toHaveBeenCalledWith("agent-1");
+      expect(screen.queryByRole("img")).toBeNull();
+      expect(screen.queryByRole("link")).toBeNull();
+      expect(writeText).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole("button", { name: "Copy payload" }));
+      expect(writeText).toHaveBeenCalledWith(payload);
+    } finally {
+      if (clipboard) Object.defineProperty(navigator, "clipboard", clipboard);
+      else Reflect.deleteProperty(navigator, "clipboard");
+    }
   });
 
   it("offers exactly the agent-eligible bodies, shows the saved one, and saves a change", async () => {

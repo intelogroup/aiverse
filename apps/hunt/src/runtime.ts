@@ -11,12 +11,15 @@ import { loadConfig, type HuntConfig } from "./config";
 import { createDbSlot, openDb } from "./db";
 import { LogMailer, ResendMailer, type Mailer } from "./mailer";
 import { randomCodeKey } from "./custody";
-import { buildApp, type VerifyGatewayToken } from "./app";
+import { buildApp, type AppDeps, type VerifyGatewayToken } from "./app";
 import { startTicker } from "./ticker";
 
 export interface HuntRuntimeOptions {
   /** Host-injected gateway session verifier (design §d). */
   verifyGatewayToken?: VerifyGatewayToken;
+  resolveEmbodiedCashWin?: AppDeps["resolveEmbodiedCashWin"];
+  publishEmbodiedCashBounty?: AppDeps["publishEmbodiedCashBounty"];
+  paypalFetch?: AppDeps["paypalFetch"];
   /** Embedded mounts run under the host's CORS layer (design §b.6). */
   cors?: boolean;
   /** Host-provided mailer; default mirrors the standalone entry. */
@@ -87,6 +90,9 @@ export function createHuntRuntime(
     mailer,
     codeKey,
     verifyGatewayToken: opts.verifyGatewayToken,
+    resolveEmbodiedCashWin: opts.resolveEmbodiedCashWin,
+    publishEmbodiedCashBounty: opts.publishEmbodiedCashBounty,
+    paypalFetch: opts.paypalFetch,
     cors: opts.cors,
   });
 

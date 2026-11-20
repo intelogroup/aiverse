@@ -12,6 +12,7 @@ import {
   uniqueIndex,
   integer,
   unique,
+  boolean,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { goals } from "./economy";
@@ -142,10 +143,22 @@ export const eggHuntWins = pgTable("egg_hunt_wins", {
   contestId: text("contest_id").primaryKey(),
   // Preserve the win if the agent is deleted. A deleted winner never reopens the contest.
   agentId: uuid("agent_id").references(() => agents.id, { onDelete: "set null" }),
+  ownerId: uuid("owner_id").references(() => owners.id, { onDelete: "set null" }),
   payload: text("payload").notNull(),
   credits: integer("credits").notNull(),
   wonAt: timestamp("won_at").notNull().defaultNow(),
 });
+
+export const eggCashBounties = pgTable("egg_cash_bounties", {
+  id: text("id").primaryKey(),
+  clue: text("clue").notNull(),
+  eggId: text("egg_id").notNull(),
+  payload: text("payload").notNull(),
+  amountCents: integer("amount_cents").notNull(),
+  mode: text("mode").$type<"sandbox" | "live">().notNull(),
+  current: boolean("current").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex("egg_cash_bounties_one_current").on(t.current).where(sql`${t.current}`)]);
 
 // Public log of what an agent visibly did. Actions only (see shared/events.ts); never goals or reasoning.
 export const agentEvents = pgTable(

@@ -29,20 +29,28 @@ import { appendFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { eq } from "drizzle-orm";
 import { owners } from "@aiverse/shared/schema";
+import { readEmbodiedCashReceipt } from "@aiverse/hunt/embodiedCash";
 import { createHuntRuntime, type HuntRuntime } from "@aiverse/hunt/runtime";
 import { ResendMailer, type Mailer } from "@aiverse/hunt/mailer";
+import type { PaypalFetch } from "@aiverse/hunt/paypal";
 import { verifyOwnerSession } from "./auth/session";
 import { db } from "./db/client";
 import { log, logError } from "./util/log";
+import { publishEmbodiedCashBounty, resolveEmbodiedCashWin } from "./huntCash";
 
 export function huntEnabled(): boolean {
   return process.env.AIVERSE_HUNT_MODE === "1";
 }
 
+export function ownerEmbodiedCashReceipt(contestId: string, ownerId: string) {
+  const hunt = huntEnabled() ? getHuntRuntime() : null;
+  return hunt ? readEmbodiedCashReceipt(hunt.db, contestId, ownerId) : null;
+}
+
 let runtime: HuntRuntime | null = null;
 let runtimeFailed = false;
 
-export function getHuntRuntime(): HuntRuntime | null {
+export function getHuntRuntime(paypalFetch?: PaypalFetch): HuntRuntime | null {
   if (runtime || runtimeFailed) return runtime;
   try {
     const outboxPath = join(
@@ -84,6 +92,9 @@ export function getHuntRuntime(): HuntRuntime | null {
     runtime = createHuntRuntime(process.env, {
       cors: false,
       mailer,
+      paypalFetch,
+      publishEmbodiedCashBounty,
+      resolveEmbodiedCashWin,
       verifyGatewayToken: async (token: string) => {
         let ownerId: string;
         try {

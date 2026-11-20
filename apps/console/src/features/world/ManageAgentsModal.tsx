@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, describeError, type Agent, type Visit, type Wallet } from "../../lib/api";
+import { api, describeError, type Agent, type HuntReceipt, type Visit, type Wallet } from "../../lib/api";
 import { pushToast } from "../../lib/toast";
 import { agentBodies, BODY_REMY } from "./bodies";
 
@@ -75,6 +75,7 @@ export function ManageAgentsModal({ agents, onClose }: { agents: Agent[]; onClos
 function AgentLifecycle({ agent }: { agent: Agent }) {
   const [autonomy, setAutonomy] = useState<Wallet["autonomyMode"] | null>(null);
   const [visits, setVisits] = useState<Visit[] | null>(null);
+  const [receipts, setReceipts] = useState<HuntReceipt[] | null>(null);
   const [minutes, setMinutes] = useState(30);
   const [maxActions, setMaxActions] = useState(200);
   const [busy, setBusy] = useState(false);
@@ -143,6 +144,27 @@ function AgentLifecycle({ agent }: { agent: Agent }) {
       pushToast(describeError(err).message, "error");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function loadReceipts() {
+    setBusy(true);
+    try {
+      const { receipts } = await api.listHuntReceipts(agent.id);
+      setReceipts(receipts);
+    } catch (err) {
+      pushToast(describeError(err).message, "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copyPayload(payload: string) {
+    try {
+      await navigator.clipboard.writeText(payload);
+      pushToast("Payload copied.", "success");
+    } catch {
+      pushToast("Clipboard unavailable. Select and copy the text.", "error");
     }
   }
 
@@ -219,6 +241,37 @@ function AgentLifecycle({ agent }: { agent: Agent }) {
             </button>
           </div>
         ))}
+
+      <div className="agent-visit-start">
+        <button type="button" disabled={busy} onClick={() => void loadReceipts()}>
+          {receipts === null ? "View bounty receipts" : "Refresh bounty receipts"}
+        </button>
+      </div>
+      {receipts?.length === 0 && <p>No bounty receipts yet.</p>}
+      {receipts?.map((receipt) => (
+        <div key={receipt.contestId}>
+          <strong>{receipt.contestId}</strong>
+          {receipt.credits > 0 && <> · {receipt.credits} test credits</>}
+          {receipt.cashBounty && !receipt.cashPayout && (
+            <p>
+              {new Intl.NumberFormat(undefined, { style: "currency", currency: receipt.cashBounty.currency })
+                .format(receipt.cashBounty.amountCents / 100)}
+              {" · "}{receipt.cashBounty.mode === "sandbox" ? "Sandbox payout pending" : "Payout pending"}
+              {receipt.cashBounty.mode === "live" && " · Use your verified AIVerse email on PayPal."}
+            </p>
+          )}
+          {receipt.cashPayout && (
+            <p>
+              {receipt.cashPayout.mode === "sandbox" ? "Sandbox payout" : "PayPal payout"}
+              {" · "}{new Intl.NumberFormat(undefined, { style: "currency", currency: receipt.cashPayout.currency })
+                .format(receipt.cashPayout.amountCents / 100)}
+              {" · "}{receipt.cashPayout.status === "success" ? "Paid" : receipt.cashPayout.status}
+            </p>
+          )}
+          <pre className="agent-hunt-payload">{receipt.payload}</pre>
+          <button type="button" onClick={() => void copyPayload(receipt.payload)}>Copy payload</button>
+        </div>
+      ))}
     </div>
   );
 }

@@ -12,7 +12,7 @@ import { agentBodies, BODIES, isAgentBody } from "@aiverse/world-sim/bodies";
 import type { SimClient } from "../world/simClient";
 import type { LookClient } from "../world/lookClient";
 import { angleDiffDeg, createSeeQueue, seeView, type SeeQueueOptions } from "../world/seeJobs";
-import { eggHuntFromEnv } from "./eggHunt";
+import { createEggHuntRoute } from "./eggHunt";
 
 // World: a body for an agent in the City 3 sim (apps/sim), reached only through here.
 //
@@ -28,7 +28,7 @@ const POLL_MS = 400;
  * see inside the window is refused (429), never queued behind the first. */
 const SEE_MIN_INTERVAL_MS = 5_000;
 
-type Env = { Variables: { agentId: string; visitEndsAt: number; visitId: string } };
+type Env = { Variables: { agentId: string; ownerId: string; visitEndsAt: number; visitId: string } };
 
 /** Render queue defaults for POST /world/see: one capture at a time (the service has one page), a short queue, and a hard cap on how
  * stale a queued request may get before it is dropped instead of rendered. Env-tunable for a GPU host with more capacity. */
@@ -77,11 +77,11 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
     if (!visit) return c.json({ error: "no_visit", hint: "the owner must start a visit (POST /owners/agents/:id/visits) before an agent can have a body" }, 403);
     c.set("visitEndsAt", visit.endsAt.getTime());
     c.set("visitId", visit.id);
+    c.set("ownerId", visit.ownerId);
     await next();
   });
 
-  const eggHunt = eggHuntFromEnv(sim);
-  if (eggHunt) route.route("/hunt", eggHunt);
+  route.route("/hunt", createEggHuntRoute(sim));
 
   async function forward(c: { json: (b: unknown, s?: number) => Response }, agentId: string, method: string, path: string, body?: string) {
     let r: Response;

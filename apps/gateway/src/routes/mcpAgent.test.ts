@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { randomBytes } from "node:crypto";
 import { sign } from "hono/jwt";
 import { env } from "@aiverse/shared/env";
 import { SOCIAL_CLIPS, clipDef } from "@aiverse/world-sim/clips";
 import { explainAction } from "@aiverse/world-sim/actionProtocol";
 import { createApp } from "../app";
-import { computeS256Challenge, oauthIssuer } from "../auth/oauthCore";
+import { oauthIssuer } from "../auth/oauthCore";
 import { resetMemoryStoreForTests } from "../policy/memoryStore";
 import { drainIngestStream } from "../jobs/ingestConsumer";
+import { mintMcpOAuthToken } from "../testUtils/mcpOAuth";
 import type { SimClient } from "../world/simClient";
 
 // Agent MCP (Phases 3–4) route tests. The app runs with a fake sim client
@@ -121,8 +121,6 @@ const fakeSim: SimClient = {
 
 const app = createApp({ sim: fakeSim });
 
-const LOOPBACK_REDIRECT = "http://localhost:53111/oauth-callback";
-
 function json(token?: string) {
   // Per-file source IP for the per-IP rate limiters (register: 60-token
   // bucket per IP, see routes/owners.ts). Without it every suite shares
@@ -153,60 +151,8 @@ async function secondAgent(session: string, name: string) {
 const startVisit = async (ownerToken: string, agentId: string, maxActions = 50) =>
   ((await (await app.request(`/owners/agents/${agentId}/visits`, { method: "POST", headers: json(ownerToken), body: JSON.stringify({ minutes: 30, maxActions }) })).json()) as any).visit;
 
-// --- OAuth minting, driven through the real Phase 1 flow ----------------
-
-async function registerClient() {
-  const res = await app.request("/oauth/register", {
-    method: "POST",
-    headers: { ...json(), "x-forwarded-for": `10.9.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}` },
-    body: JSON.stringify({ client_name: "test mcp client", redirect_uris: [LOOPBACK_REDIRECT] }),
-  });
-  expect(res.status).toBe(201);
-  return ((await res.json()) as any).client_id as string;
-}
-
-async function tokenRequest(params: Record<string, string>) {
-  const res = await app.request("/oauth/token", {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams(params).toString(),
-  });
-  return { status: res.status, body: (await res.json().catch(() => null)) as any };
-}
-
-async function mintOAuthToken(owner: { session: string }, agentIds: string[], scope?: string) {
-  const clientId = await registerClient();
-  const verifier = randomBytes(32).toString("base64url");
-  const q = new URLSearchParams({
-    client_id: clientId,
-    redirect_uri: LOOPBACK_REDIRECT,
-    response_type: "code",
-    code_challenge: computeS256Challenge(verifier),
-    code_challenge_method: "S256",
-    state: "state-123",
-    ...(scope ? { scope } : {}),
-  });
-  const authRes = await app.request(`/oauth/authorize?${q}`);
-  expect(authRes.status).toBe(302);
-  const requestId = new URL(authRes.headers.get("location")!).searchParams.get("request_id")!;
-  const decide = await app.request("/oauth/authorize/decision", {
-    method: "POST",
-    headers: json(owner.session),
-    body: JSON.stringify({ request_id: requestId, approve: true, agent_ids: agentIds }),
-  });
-  expect(decide.status).toBe(200);
-  const { redirect } = (await decide.json()) as any;
-  const code = new URL(redirect).searchParams.get("code")!;
-  const exchanged = await tokenRequest({
-    grant_type: "authorization_code",
-    client_id: clientId,
-    code,
-    redirect_uri: LOOPBACK_REDIRECT,
-    code_verifier: verifier,
-  });
-  expect(exchanged.status).toBe(200);
-  return { accessToken: exchanged.body.access_token as string, clientId };
-}
+const mintOAuthToken = (owner: { session: string }, agentIds: string[], scope?: string) =>
+  mintMcpOAuthToken(app, owner.session, agentIds, scope);
 
 // --- MCP client ----------------------------------------------------------
 
@@ -263,6 +209,8 @@ describe("agent MCP auth", () => {
       "verse_discover",
       "world_act",
       "world_clips",
+      "world_hunt_claim",
+      "world_hunt_status",
       "world_look",
       "world_observe",
       "world_see",
@@ -272,10 +220,10 @@ describe("agent MCP auth", () => {
     expect(names).not.toContain("visit_start");
     expect(names).not.toContain("visit_end");
     const byName = new Map(tools.map((t) => [t.name, t]));
-    for (const read of ["agent_whoami", "inbox_poll", "verse_discover", "world_clips", "world_look", "world_observe"]) {
+    for (const read of ["agent_whoami", "inbox_poll", "verse_discover", "world_clips", "world_hunt_status", "world_look", "world_observe"]) {
       expect(byName.get(read).annotations.readOnlyHint).toBe(true);
     }
-    for (const act of ["body_attach", "body_detach", "world_act", "world_see", "relay_send", "relay_start"]) {
+    for (const act of ["body_attach", "body_detach", "world_act", "world_hunt_claim", "world_see", "relay_send", "relay_start"]) {
       expect(byName.get(act).annotations.readOnlyHint).toBe(false);
     }
   });
@@ -682,6 +630,7 @@ describe("scope gates for actions (OAuth only)", () => {
       ["body_attach", { body: "summer" }, "world:act"],
       ["body_detach", {}, "world:act"],
       ["world_act", { action: { type: "wait", seconds: 1 } }, "world:act"],
+      ["world_hunt_claim", { contest_id: "tea-hunt", act_id: "open-egg" }, "world:act"],
       ["relay_send", { conversation_id: "whatever", content: "x" }, "relay:send"],
       ["relay_start", { participant_ids: [o.agentId] }, "relay:send"],
     ];
