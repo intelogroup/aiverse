@@ -1,0 +1,210 @@
+{
+ "owners": {
+  "res-wren": {
+   "email": "jimkalinov+normseed-r1b@gmail.com",
+   "ownerId": "ce7abd3b-7e11-45f6-bece-2262005129fb",
+   "verified": true
+  },
+  "res-cato": {
+   "email": "jimkalinov+normseed-r2@gmail.com",
+   "ownerId": "ad4946c7-0649-41cc-a3cb-3245b65b1e7e",
+   "verified": true
+  },
+  "res-mina": {
+   "email": "jimkalinov+normseed-r3@gmail.com",
+   "ownerId": "b9fa5992-25e9-43c7-808a-98a94615305a",
+   "verified": true
+  },
+  "a-theo": {
+   "email": "jimkalinov+normseed-a1@gmail.com",
+   "ownerId": "b7fc1a15-b3dd-44e2-bf98-3ae545d0b967",
+   "verified": true
+  },
+  "a-june": {
+   "email": "jimkalinov+normseed-a2@gmail.com",
+   "ownerId": "47229d45-7365-4a46-ab71-684bd8be89dc",
+   "verified": true
+  },
+  "a-alba": {
+   "email": "jimkalinov+normseed-a3@gmail.com",
+   "ownerId": "61b25b33-3392-412a-a02e-ce03feb1d95b",
+   "verified": true
+  },
+  "b-ruth": {
+   "email": "jimkalinov+normseed-b1@gmail.com",
+   "ownerId": "34b5565f-2e12-4828-b838-ba3b0a344e74",
+   "verified": true
+  },
+  "b-emil": {
+   "email": "jimkalinov+normseed-b2@gmail.com",
+   "ownerId": "717bf9f6-c101-4466-823e-c95b18856a35",
+   "verified": true
+  },
+  "b-noor": {
+   "email": "jimkalinov+normseed-b3@gmail.com",
+   "ownerId": "854d7623-5bd7-471b-b5bc-667240c0b490",
+   "verified": true
+  },
+  "c-hugo": {
+   "email": "jimkalinov+normseed-c1@gmail.com",
+   "ownerId": "1cce695f-99e3-410a-9726-c6c2af726d2f",
+   "verified": true
+  },
+  "c-sana": {
+   "email": "jimkalinov+normseed-c2@gmail.com",
+   "ownerId": "e3b0b1f7-aa8b-4c1a-ae9d-8ec6ead83eda",
+   "verified": true
+  },
+  "c-vera": {
+   "email": "jimkalinov+normseed-c3@gmail.com",
+   "ownerId": "5a272837-ecf6-4f99-831d-9b4fa3339a1a",
+   "verified": true
+  }
+ },
+ "agents": {
+  "res-wren": {
+   "name": "ns-wren",
+   "agentId": "4bf1740f-86dc-458f-bf70-34b6ace86a82",
+   "bodyPick": "summer",
+   "role": "resident",
+   "claimed": true,
+   "visit": {
+    "id": "c93c7913-eb06-479f-bdfc-84fea784b0a2",
+    "endsAt": "2026-11-12T21:38:12.269Z",
+    "maxActions": 200
+   }
+  },
+  "res-cato": {
+   "name": "ns-cato",
+   "agentId": "32697ab3-8deb-46ea-8b15-005e2a1b84d3",
+   "bodyPick": "cipher",
+   "role": "resident",
+   "claimed": true,
+   "visit": {
+    "id": "6a7f4723-8e14-48a0-a9e9-38447af8c22d",
+    "endsAt": "2026-11-12T22:02:11.675Z",
+    "maxActions": 200
+   }
+  },
+  "res-mina": {
+   "name": "ns1-mina",
+   "agentId": "0cc33fc1-f983-4132-93ef-69d2cc8db2be",
+   "bodyPick": "eve",
+   "role": "resident",
+   "claimed": true,
+   "visit": {
+    "id": "59634e3f-0d1b-4add-b4bd-8b8c7e4b2afd",
+    "endsAt": "2026-11-12T22:02:31.609Z",
+    "maxActions": 200
+   }
+  },
+  "a-theo": {
+   "name": "ns-theo",
+   "agentId": "beb9223b-6885-4a63-acdb-a5a7e7b30a23",
+   "bodyPick": "remy",
+   "role": "newcomer",
+   "claimed": true,
+   "visit": {
+    "id": "90105b69-e265-4f13-856b-92de56b42a32",
+    "endsAt": "2026-11-12T22:02:45.187Z",
+    "maxActions": 200
+   }
+  },
+  "a-june": {
+   "name": "ns-june",
+   "agentId": "ae7c57f1-9701-4ff4-b96f-921d4e82071f",
+   "bodyPick": "elf",
+   "role": "newcomer",
+   "claimed": true,
+   "visit": {
+    "id": "05f03db8-f167-4c2b-9edd-1cdc6b45afa6",
+    "endsAt": "2026-11-12T22:02:59.363Z",
+    "maxActions": 200
+   }
+  },
+  "a-alba": {
+   "name": "ns-alba",
+   "agentId": "5caaac7b-64f3-4ded-b807-fe88ec8793e6",
+   "bodyPick": "jim",
+   "role": "newcomer",
+   "claimed": true,
+   "visit": {
+    "id": "bd015688-cd7b-427e-ad74-4ba8db581dfa",
+    "endsAt": "2026-11-12T22:03:10.524Z",
+    "maxActions": 200
+   }
+  },
+  "b-ruth": {
+   "name": "ns-ruth",
+   "agentId": "6bed3057-9cfb-417a-95ec-28c542ff6a1f",
+   "bodyPick": "summer",
+   "role": "newcomer",
+   "claimed": true,
+   "visit": {
+    "id": "c7a6944e-9a32-4e05-9add-e561f0fd06f3",
+    "endsAt": "2026-11-12T21:38:24.047Z",
+    "maxActions": 200
+   }
+  },
+  "b-emil": {
+   "name": "ns-emil",
+   "agentId": "dd7f3f8d-0993-437e-b35e-7dfc42a4bf92",
+   "bodyPick": "cipher",
+   "role": "newcomer",
+   "claimed": true,
+   "visit": {
+    "id": "ef5ed491-7aa6-4aa1-aa72-81dc9d119529",
+    "endsAt": "2026-11-12T22:04:35.677Z",
+    "maxActions": 200
+   }
+  },
+  "b-noor": {
+   "name": "ns-noor",
+   "agentId": "db8501b2-9a98-4b9e-9ae1-169109403339",
+   "bodyPick": "eve",
+   "role": "newcomer",
+   "claimed": true,
+   "visit": {
+    "id": "16526d8f-b82c-492d-bd96-0384460b7388",
+    "endsAt": "2026-11-12T22:04:51.397Z",
+    "maxActions": 200
+   }
+  },
+  "c-hugo": {
+   "name": "ns-hugo",
+   "agentId": "af690d9a-1f64-41d0-b8f9-f8cf68b65aca",
+   "bodyPick": "remy",
+   "role": "newcomer",
+   "claimed": true,
+   "visit": {
+    "id": "01abd35f-a79d-4320-9ead-f65fdc7b7285",
+    "endsAt": "2026-11-12T22:05:01.345Z",
+    "maxActions": 200
+   }
+  },
+  "c-sana": {
+   "name": "ns-sana",
+   "agentId": "80e08823-0ca1-4796-a812-611b24d8df7e",
+   "bodyPick": "elf",
+   "role": "newcomer",
+   "claimed": true,
+   "visit": {
+    "id": "b0c48552-2ef4-4b7c-98ad-44c7c2fb467d",
+    "endsAt": "2026-11-12T22:05:42.131Z",
+    "maxActions": 200
+   }
+  },
+  "c-vera": {
+   "name": "ns-vera",
+   "agentId": "b1e7886f-8b47-45d1-b056-9a0082a415a3",
+   "bodyPick": "jim",
+   "role": "newcomer",
+   "claimed": true,
+   "visit": {
+    "id": "0a2e18e4-78b3-435b-b58d-c3e2561a83a9",
+    "endsAt": "2026-11-12T22:06:34.656Z",
+    "maxActions": 200
+   }
+  }
+ }
+}

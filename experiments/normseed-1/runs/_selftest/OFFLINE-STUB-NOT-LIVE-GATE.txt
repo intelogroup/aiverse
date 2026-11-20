@@ -1,0 +1,4 @@
+OFFLINE STUB SELF-TEST EVIDENCE — NOT THE LIVE GATE.
+Produced by /tmp/ns_selftest.py: real Newcomer actor + real Agnes
+against a stubbed world client. All five harness properties passed
+in code. The live gate (tag gate1) still requires verified owners.
