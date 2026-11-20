@@ -8,6 +8,9 @@ import bpy, sys, math, os
 from mathutils import Matrix, Vector, Quaternion
 
 SRC, OUT = sys.argv[sys.argv.index("--") + 1:][:2]
+# BAKE_FREEZE=Shoulder,Arm,Hand: bones whose name contains one of these keep their rest pose relative to their parent
+# (a character with its hands in its pockets walks with the arm chain following the spine; the Business body).
+FREEZE = [f for f in os.environ.get("BAKE_FREEZE", "").split(",") if f]
 A = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "apps", "console", "public", "assets") + os.sep
 TARGET_H = 1.30
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -85,7 +88,7 @@ for a in bbacts:
         posed = {}   # name -> world rotation (3x3) of target bone after retarget
         for pb in order:
             n = norm(pb.name)
-            if n in bb:
+            if n in bb and not any(f in n for f in FREEZE):
                 d = wrot(B, bb[n]) @ Brest[n].inverted()      # world-space rotation delta of the BB bone
                 Rw = d @ Rrest[n]
             else:
