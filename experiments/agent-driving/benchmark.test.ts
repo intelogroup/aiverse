@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { assessAttempt, benchmarkCase, benchmarkIds, scoreBenchmark, type Attempt } from "./benchmark";
+import { assessAttempt, benchmarkCase, benchmarkIds, harnessFailure, scoreBenchmark, type Attempt } from "./benchmark";
 import { DrivingSimulation } from "./simulation";
 import { type DriveAction } from "./protocol";
 
@@ -120,4 +120,16 @@ test("night rules block driving unlit and high beams near the approaching driver
   expect(scoreBenchmark(sim.snapshot(), attempts)).toMatchObject({
     completed: true, firstDecisionSafe: false, unsafeRequests: ["headlights_required", "high_beam_conflict", "high_beam_conflict"],
   });
+});
+
+test("a harness out of quota is classified as a harness failure, not a driving result", () => {
+  const quota = [
+    JSON.stringify({ type: "turn.started" }),
+    JSON.stringify({ type: "error", message: "You've hit your usage limit. Upgrade to Pro" }),
+    JSON.stringify({ type: "turn.failed", error: { message: "You've hit your usage limit." } }),
+  ];
+  expect(harnessFailure(quota)).toBe("usage_limit");
+  expect(harnessFailure([JSON.stringify({ type: "turn.failed", error: { message: "boom" } })])).toBe("turn_failed");
+  expect(harnessFailure([JSON.stringify({ type: "item.completed", item: { type: "error", message: "Skill descriptions were shortened" } })])).toBeNull();
+  expect(harnessFailure(["not json"])).toBeNull();
 });

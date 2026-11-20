@@ -2,13 +2,14 @@ import { mkdir, mkdtemp } from "node:fs/promises";
 import { closeSync, openSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { benchmarkCase, benchmarkIds, type BenchmarkId, type scoreBenchmark } from "./benchmark";
+import { benchmarkCase, benchmarkIds, harnessFailure, type BenchmarkId, type scoreBenchmark } from "./benchmark";
 import { verifyVerseAgent } from "./agent-auth";
 
 type Assessment = ReturnType<typeof scoreBenchmark>;
 type Trial = Assessment & {
   id: BenchmarkId;
   valid: boolean;
+  harnessError: ReturnType<typeof harnessFailure>;
   visionFrames: number;
   frameErrors: number;
   otherTools: number;
@@ -127,10 +128,11 @@ async function runCase(id: BenchmarkId, port: number, session: string): Promise<
   const score = await response.json() as Assessment;
   await Bun.write(join(root, id + "-assessment.json"), JSON.stringify({ conditions: variant, ...score }, null, 2));
   const { completed, firstDecisionSafe, rejectedCalls, unsafeRequests, unnecessaryWaits, evidence } = score;
-  const valid = codexExit === 0 && visionFrames > 0 && otherTools === 0;
+  const harnessError = harnessFailure(lines);
+  const valid = codexExit === 0 && !harnessError && visionFrames > 0 && otherTools === 0;
   await Bun.write(join(root, id + "-console-after.txt"), await browserStep(session, "console", "--errors"));
   await browserStep(session, "screenshot", join(root, id + "-finish.png"));
-  return { id, valid, completed, firstDecisionSafe, rejectedCalls, unsafeRequests, unnecessaryWaits, evidence, visionFrames, frameErrors, otherTools, codexExit };
+  return { id, valid, harnessError, completed, firstDecisionSafe, rejectedCalls, unsafeRequests, unnecessaryWaits, evidence, visionFrames, frameErrors, otherTools, codexExit };
 }
 
 const results: Trial[] = [];
@@ -152,6 +154,8 @@ await Promise.all(Array.from({ length: Math.min(parallel, selected.length) }, as
         results.push(result);
         await Bun.write(join(root, id + "-result.json"), JSON.stringify(result, null, 2));
         console.log(JSON.stringify(result));
+        // A spent quota fails every remaining case the same way; stop instead of burning them.
+        if (result.harnessError === "usage_limit") next = selected.length;
       } catch (error) {
         const failed = { id, error: error instanceof Error ? error.message : String(error) };
         errors.push(failed);
