@@ -141,7 +141,7 @@ async function runRunner(fakeCodex: string) {
   const bin = join(out, "fake-codex");
   await writeFile(bin, "#!/bin/sh\n" + fakeCodex);
   await chmod(bin, 0o755);
-  const env = { ...process.env, DRIVE_CODEX_BIN: bin, DRIVE_BENCHMARK_OUT: out } as Record<string, string | undefined>;
+  const env = { ...process.env, DRIVE_HARNESS: "opencode", DRIVE_HARNESS_BIN: bin, DRIVE_BENCHMARK_OUT: out } as Record<string, string | undefined>;
   for (const key of ["DRIVE_AGENT_GATEWAY_PORT", "DRIVE_AGENT_TOKEN", "DRIVE_AGENT_ID"]) delete env[key];
   const proc = Bun.spawn([process.execPath, new URL("./benchmark-runner.ts", import.meta.url).pathname, "B01"], { env, stdout: "pipe", stderr: "pipe" });
   const [stdout, stderr, exit] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
@@ -190,4 +190,13 @@ test("exam score: clean pass is 1, each infraction lowers it, a critical one fai
   const idle = new DrivingSimulation();
   idle.reset(0, "right_turn", "B01", true);
   expect(examScore(idle.snapshot()).exam).toMatchObject({ completed: false, score: 0, passed: false });
+});
+
+test("the runner refuses Codex: it is off limits for the driving lab", async () => {
+  const proc = Bun.spawn([process.execPath, new URL("./benchmark-runner.ts", import.meta.url).pathname, "B01"], {
+    env: { ...process.env, DRIVE_HARNESS: "codex" }, stdout: "pipe", stderr: "pipe",
+  });
+  const [stderr, exit] = await Promise.all([new Response(proc.stderr).text(), proc.exited]);
+  expect(exit).not.toBe(0);
+  expect(stderr).toContain("Codex is off limits");
 });

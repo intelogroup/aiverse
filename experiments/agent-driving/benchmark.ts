@@ -78,7 +78,7 @@ export function scoreBenchmark(state: DriveState, attempts: readonly Attempt[]) 
 }
 // Classifies a harness event stream that ended without driving, so a dead harness is never scored as a driver failure.
 // Understands Codex (`error`/`turn.failed`) and Claude Code stream-json (`result` with is_error) events.
-export function harnessFailure(lines: readonly string[]): "usage_limit" | "auth" | "turn_failed" | null {
+export function harnessFailure(lines: readonly string[]): "usage_limit" | "auth" | "provider_unavailable" | "turn_failed" | null {
   for (const line of lines) {
     let event: { type?: string; message?: string; is_error?: boolean; result?: unknown; error?: { message?: string } };
     try { event = JSON.parse(line); } catch { continue; }
@@ -86,6 +86,8 @@ export function harnessFailure(lines: readonly string[]): "usage_limit" | "auth"
     if (event.type !== "turn.failed" && event.type !== "error" && !claudeFailure) continue;
     const message = String(event.error?.message ?? event.message ?? (claudeFailure ? event.result : "") ?? "").toLowerCase();
     if (/usage limit|rate limit|quota|credit balance|credits|overloaded/.test(message)) return "usage_limit";
+    // OpenRouter: the model has no endpoint that passes the account's data policy (ZDR) or provider allow-list.
+    if (/no allowed providers|endpoints? out of|zdr|provider returned error/.test(message)) return "provider_unavailable";
     if (/unauthori[sz]ed|not logged in|invalid api key|authentication|login|401/.test(message)) return "auth";
     if (event.type === "turn.failed" || claudeFailure) return "turn_failed";
   }

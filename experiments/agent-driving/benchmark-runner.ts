@@ -28,10 +28,13 @@ if (!Number.isInteger(parallel) || parallel < 1 || parallel > 3 || !Number.isInt
   throw new Error("Use one to three benchmark workers and a valid local base port.");
 }
 const arm = process.env.DRIVE_HARNESS_ARM === "owner" ? "owner" : "clean";
-const name: HarnessName = process.env.DRIVE_HARNESS === "claude" ? "claude" : "codex";
+// Codex is off limits for the driving lab (OpenAI-only, out of credits); claude and opencode are the supported harnesses.
+if (process.env.DRIVE_HARNESS === "codex") throw new Error("Codex is off limits for the driving lab: it only works with OpenAI and the account is out of credits. Use DRIVE_HARNESS=claude or opencode.");
+const name: HarnessName = process.env.DRIVE_HARNESS === "opencode" ? "opencode" : "claude";
+const opencodeModel = process.env.DRIVE_OPENCODE_MODEL ?? "openrouter/google/gemma-4-31b-it";
 const claudeModel = process.env.DRIVE_CLAUDE_MODEL ?? "claude-sonnet-5-5";
-const harness = { name, authorization: "owner_oauth", arm, ...(name === "claude" && { model: claudeModel }) } as const;
-const harnessBin = process.env.DRIVE_HARNESS_BIN ?? process.env.DRIVE_CODEX_BIN ?? name;
+const harness = { name, authorization: "owner_oauth", arm, ...(name === "claude" && { model: claudeModel }), ...(name === "opencode" && { model: opencodeModel }) } as const;
+const harnessBin = process.env.DRIVE_HARNESS_BIN ?? name;
 const root = process.env.DRIVE_BENCHMARK_OUT ?? await mkdtemp(join(tmpdir(), "aiverse-road-test-"));
 await mkdir(root, { recursive: true });
 const dir = new URL(".", import.meta.url).pathname;
@@ -44,6 +47,13 @@ const exportVars = ["DRIVE_LAB_PORT", "DRIVE_VISION_ONLY", "DRIVE_REQUIRE_OWNER_
 async function harnessEnv(): Promise<NodeJS.ProcessEnv> {
   // Claude Code: an inherited ANTHROPIC_API_KEY outranks the owner's login and bills a different account; drop it so the owner login is used.
   if (name === "claude") return { ANTHROPIC_API_KEY: undefined };
+  // OpenCode: an empty XDG_CONFIG_HOME keeps the owner's global config, MCP servers, plugins and skills out; the provider key stays in the environment.
+  if (name === "opencode") {
+    if (arm === "owner") return {};
+    const xdg = join(root, "harness-home", "xdg");
+    await mkdir(xdg, { recursive: true });
+    return { XDG_CONFIG_HOME: xdg };
+  }
   if (arm === "owner") return {};
   const base = join(root, "harness-home");
   await mkdir(join(base, "home"), { recursive: true });
@@ -54,7 +64,9 @@ async function harnessEnv(): Promise<NodeJS.ProcessEnv> {
 const isolation = await harnessEnv();
 // One cheap call before any case: a dead harness (quota, auth, model) must not be scored as driving.
 {
-  const probe = spawnLogged(name === "claude"
+  const probe = spawnLogged(name === "opencode"
+    ? [harnessBin, "run", "--standalone", "--format", "json", "-m", opencodeModel, "Reply with the single word ready."]
+    : name === "claude"
     ? [harnessBin, "-p", "Reply with the single word ready.", "--output-format", "stream-json", "--verbose", "--tools", "", "--strict-mcp-config", "--no-session-persistence", "--model", claudeModel]
     : [harnessBin, "-a", "never", "exec", "--ignore-user-config", "--ephemeral", "--json", "--skip-git-repo-check",
       "--sandbox", "read-only", "-C", root, "Reply with the single word ready."], join(root, "preflight.jsonl"), { ...process.env, ...isolation }, root);
@@ -136,7 +148,19 @@ async function runCase(id: BenchmarkId, port: number, session: string): Promise<
   await Bun.write(mcpFile, JSON.stringify({ mcpServers: { driving: {
     command: process.execPath, args: [join(dir, "mcp.ts")], env: Object.fromEntries(exportVars.map((key) => [key, "${" + key + "}"])),
   } } }));
-  const args = name === "claude" ? [
+  const ocConfig = join(workspace, "opencode.json");
+  if (name === "opencode") {
+    await Bun.write(ocConfig, JSON.stringify({
+      $schema: "https://opencode.ai/config.json",
+      mcp: { driving: { type: "local", command: [process.execPath, join(dir, "mcp.ts")], enabled: true,
+        environment: Object.fromEntries(exportVars.map((key) => [key, "{env:" + key + "}"])) } },
+      tools: Object.fromEntries(["bash", "edit", "write", "read", "grep", "glob", "list", "patch", "webfetch", "websearch", "todowrite", "todoread", "task", "skill", "lsp"].map((tool) => [tool, false])),
+      permission: { bash: "deny", edit: "deny", webfetch: "deny" },
+    }, null, 2));
+  }
+  const args = name === "opencode" ? [
+    harnessBin, "run", "--standalone", "--auto", "--format", "json", "-m", opencodeModel, prompt,
+  ] : name === "claude" ? [
     harnessBin, "-p", prompt, "--output-format", "stream-json", "--verbose", "--no-session-persistence", "--model", claudeModel,
     "--strict-mcp-config", "--mcp-config", mcpFile, "--tools", "", "--allowedTools", "mcp__driving__*",
     "--max-budget-usd", process.env.DRIVE_CLAUDE_BUDGET_USD ?? "3",
