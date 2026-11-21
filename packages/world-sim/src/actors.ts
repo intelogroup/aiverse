@@ -101,8 +101,13 @@ export class ActorRegistry {
     return [...this.bodies.values()].map(b => ({ ...b, position: [...b.position], velocity: [...b.velocity] }));
   }
   nearby(selfId: string, position: Vec3, range: number, now = this.now()): ActorBody[] {
-    return this.list(now).filter(b => b.id !== selfId && Math.hypot(b.position[0] - position[0], b.position[1] - position[1], b.position[2] - position[2]) <= range)
-      .sort((a, b) => a.id.localeCompare(b.id));
+    // Called once per body per tick: test the live bodies in place and copy only the few in range (list() would copy all N each time).
+    const out: ActorBody[] = [];
+    for (const b of this.bodies.values()) {
+      if (b.id === selfId || now - b.updatedAtMs > this.ttlMs) continue;
+      if (Math.hypot(b.position[0] - position[0], b.position[1] - position[1], b.position[2] - position[2]) <= range) out.push({ ...b, position: [...b.position], velocity: [...b.velocity] });
+    }
+    return out.sort((a, b) => a.id.localeCompare(b.id));
   }
   /** `selfId` (one id, or several: a car skips its own discs and its driver) names the actors that do not block this mover. */
   wrapWorld<T extends World>(world: T, selfId: string | string[], height = 1.7): T {
