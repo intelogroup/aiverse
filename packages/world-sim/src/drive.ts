@@ -4,7 +4,7 @@
 import { FLEET_N0, encodePose, type PoseTuple } from "./streamProtocol";
 import { JUNCTIONS, junctionAt, signalState, type Lamp } from "./trafficSignals";
 import {
-  DISC_OFFSET, DISC_R, axisOfTravel, laneError, laneMiddle, laneOffset, makeVehicle, stepVehicle,
+  BRAKE, DISC_OFFSET, DISC_R, axisOfTravel, laneError, laneMiddle, laneOffset, makeVehicle, stepVehicle,
   type DriveInput, type Infraction, type TurnPlan, type VehicleState,
 } from "./vehicle";
 import type { World } from "./walker";
@@ -74,6 +74,52 @@ export function cornerPath(rect: readonly number[], base: number, target: number
   const back = left ? (wide ? 7 : 3) : 7, lat = left || !wide ? 0 : 0.8;
   const pts = [[X[0] - back * db[0] + lat * dt[0], X[1] - back * db[1] + lat * dt[1]], [X[0] + 9 * dt[0], X[1] + 9 * dt[1]], [X[0] + 15 * dt[0], X[1] + 15 * dt[1]]];
   return pts.filter((p) => (p[0] - carX) * db[0] + (p[1] + carZ) * db[1] > 0).map((p) => [p[0], -p[1]] as [number, number]);
+}
+
+/** The streets end at +-135 m (the outer streets run at +-130). */
+const GRID_EDGE_M = 135;
+
+/**
+ * Why `turn` cannot be done at the junction the car is in or heading for, or null. The outer streets have no road beyond them, so a turn out of the
+ * grid used to be accepted and drove the car into the edge of it (two cold-agent gate runs); say so up front instead. A car with no junction within
+ * sight is not judged: the turn stays armed for whatever junction comes first.
+ */
+export function turnRefusal(v: Pick<Vehicle["v"], "x" | "z" | "heading">, dir: "left" | "right"): string | null {
+  const base = Math.round(v.heading / (Math.PI / 2)) * (Math.PI / 2), dx = Math.sin(base), dy = -Math.cos(base);
+  let j = junctionAt(v.x, -v.z);
+  for (let d = 1; !j && d <= SIGNAL_SIGHT_M + 15; d += 1) j = junctionAt(v.x + dx * d, -v.z + dy * d);
+  if (!j) return null;
+  const r = JUNCTIONS[j.id].rect, cx = (r[0] + r[2]) / 2, cy = (r[1] + r[3]) / 2;
+  const target = base + (dir === "left" ? 1 : -1) * Math.PI / 2, tx = Math.round(Math.sin(target)), ty = -Math.round(Math.cos(target));
+  const open = (ux: number, uy: number) => Math.abs(cx + 20 * ux) <= GRID_EDGE_M && Math.abs(cy + 20 * uy) <= GRID_EDGE_M;
+  if (open(tx, ty)) return null;
+  const other = open(-tx, -ty) ? `turn ${dir === "left" ? "right" : "left"}` : "";
+  const straight = open(Math.round(dx), Math.round(dy)) ? "go straight on" : "";
+  return `there is no street to the ${dir} at that junction: the road network ends there. ${[straight, other].filter(Boolean).join(" or ") || "Reverse out"} instead.`;
+}
+
+/**
+ * Metres from the car to the edge of the street grid along the axis it is driving down, when that edge is close enough that the car has to brake
+ * now (the brake distance at its speed plus a margin that leaves >= 3 m between its stop and the edge), else null. Cold agents drove `drive {speed}`
+ * straight on past the last junction into the edge (3 of 8 gate runs); the harness halts the car instead of trusting the agent to read a warning.
+ * Forward travel only; a car well off the street axes (mid-turn, spun) is not judged. A reversing car is left to the collision world.
+ */
+export function endOfRoadAhead(v: Pick<Vehicle["v"], "x" | "z" | "heading" | "speed">): number | null {
+  if (v.speed <= 1) return null;
+  const a = v.heading / (Math.PI / 2), base = Math.round(a) * (Math.PI / 2);
+  if (Math.abs(a * (Math.PI / 2) - base) > 0.5) return null;
+  const dx = Math.round(Math.sin(base)), dz = Math.round(Math.cos(base));
+  const dist = dx !== 0 ? GRID_EDGE_M - dx * v.x : GRID_EDGE_M - dz * v.z;
+  return dist <= Math.max(12, v.speed * v.speed / (2 * IDLE_BRAKE * BRAKE) + 6) ? dist : null;
+}
+
+/** What the END OF ROAD note tells the driver: turn at the junction still ahead when a street leaves it, and reversing out. */
+export function endOfRoadAdvice(v: Pick<Vehicle["v"], "x" | "z" | "heading">): string {
+  const base = Math.round(v.heading / (Math.PI / 2)) * (Math.PI / 2), dx = Math.sin(base), dy = -Math.cos(base);
+  let j = junctionAt(v.x, -v.z);
+  for (let d = 1; !j && d <= GRID_EDGE_M; d += 1) j = junctionAt(v.x + dx * d, -v.z + dy * d);
+  const ways = j ? (["left", "right"] as const).filter((dir) => turnRefusal(v, dir) === null) : [];
+  return `${ways.length ? `turn ${ways.map((w) => `"${w}"`).join(" or ")} at the junction ahead (drive {speed: 5, turn: ${ways.map((w) => `"${w}"`).join(" or ")}}) or ` : ""}turn around (drive {reverse:true})`;
 }
 
 const noTally = (): Vehicle["tally"] => ({ red_light: 0, speeding: 0, wrong_lane: 0, collision: 0 });

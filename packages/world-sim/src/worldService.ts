@@ -17,7 +17,7 @@ import { LOOK_FAR_M, LOOK_HFOV_DEG, LOOK_LEGEND, LOOK_NO_HIT } from "./look";
 import { encodeGrayPng } from "./png";
 import { teaLandmarks, type TeaWayfinding } from "./teaLandmarks";
 import { DISC_OFFSET, DISC_R } from "./vehicle";
-import { ENTER_RANGE_M, Fleet, SEE_VEHICLE_M, VEHICLE_Y, type SignalAhead, type Vehicle } from "./drive";
+import { ENTER_RANGE_M, Fleet, SEE_VEHICLE_M, VEHICLE_Y, endOfRoadAdvice, endOfRoadAhead, turnRefusal, type SignalAhead, type Vehicle } from "./drive";
 import type { Infraction } from "./vehicle";
 import type { VerseSim } from "./verseSim";
 
@@ -339,6 +339,8 @@ export class WorldService {
       this.rosterRev++;
       return this.settle(rec, { ok: true, status: "done", detail: `you are on foot beside ${car.id}`, vehicle: { id: car.id, speed: 0, infractions: [] } });
     }
+    const turn = (a as { turn?: "left" | "right" }).turn, refusal = turn ? turnRefusal(car.v, turn) : null;
+    if (refusal) return this.settle(rec, { ok: false, status: "rejected", detail: refusal });
     this.startDrive(agentId, car, rec, a);
   }
 
@@ -347,6 +349,12 @@ export class WorldService {
     const run = this.drives.get(agentId) ?? { rec: null, endsAt: 0, broke: [], recent: [], bumped: false, blockedAt: -1e9, warned: "", passed: 0, wasIn: false, warnedAhead: 0, warnedJ: "" };
     if (run.rec) this.finishDrive(run, car, "replaced by a newer drive");
     car.input = { gas: c.gas ?? 0, brake: c.brake ?? 0, steer: c.steer ?? 0, reverse: c.reverse === true, holdSpeed: c.speed, holdHeading: c.heading === undefined ? undefined : (180 - c.heading) * Math.PI / 180 };
+    // A speed with no heading and no steer means "go straight on": hold the street axis the car is within 35 deg of, so the lane pursuit pulls it
+    // back onto its lane. Without it the car kept the heading a turn ended on (16 deg off) and drifted across the street into the kerb.
+    if (c.heading === undefined && c.speed !== undefined && c.steer === undefined && !c.reverse && !c.turn) {
+      const h = car.v.heading, axis = Math.round(h / (Math.PI / 2)) * (Math.PI / 2);
+      car.input.holdHeading = Math.abs(h - axis) < 0.6 ? axis : h;
+    }
     const base = Math.round(car.v.heading / (Math.PI / 2)) * (Math.PI / 2);
     car.turn = c.turn ? { dir: c.turn, base, target: base + (c.turn === "left" ? 1 : -1) * Math.PI / 2, phase: "approach", t0: 0, wp: [] } : null;
     if (car.turn && c.speed === undefined && c.gas === undefined) car.input.holdSpeed = 5;
@@ -630,6 +638,12 @@ export class WorldService {
       if (run?.rec && this.sim.t >= run.endsAt) this.finishDrive(run, c, "done");
       else if (run?.rec && run.bumped) { c.inputUntil = this.sim.t; this.finishDrive(run, c, "stopped"); }
       else if (run?.rec && c.v.speed > 1 && c.turn?.phase !== "inside" && this.obstacleAhead(c, run)) { /* the step ended inside obstacleAhead */ }
+      else if (run?.rec && !c.turn && endOfRoadAhead(c.v) !== null) {
+        // The streets end at +-135 m and there is nothing beyond: brake to a halt every time (not once), so pressing on cannot creep to the edge.
+        const m = Math.round(endOfRoadAhead(c.v)!);
+        c.inputUntil = this.sim.t;
+        this.finishDrive(run, c, `END OF ROAD ahead: the city ends about ${m} m ahead, the car is braking to a halt on its own and stopped before the edge. ${endOfRoadAdvice(c.v)}`);
+      }
       else if (run?.rec && c.v.speed > 1) {
         // A step also ends the moment a signal that is not green is close enough that stopping takes thought: the car brakes to a halt, the agent decides.
         const { signal } = Fleet.senses(c, now);
