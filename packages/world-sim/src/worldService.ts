@@ -142,7 +142,7 @@ export interface VehicleView {
 }
 
 /** One driver's open `drive` command and the rules it broke so far. */
-interface DriveRun { rec: ActRecord | null; endsAt: number; broke: Infraction[]; recent: string[]; bumped: boolean; /** Sim time of the last step the car was pushed against something. */ blockedAt: number }
+interface DriveRun { rec: ActRecord | null; endsAt: number; broke: Infraction[]; recent: string[]; bumped: boolean; /** Sim time of the last step the car was pushed against something. */ blockedAt: number; /** Signal the open drive already ended early for: one warning per signal phase, not a loop. */ warned: string }
 
 export class WorldService {
   readonly sim: VerseSim;
@@ -299,7 +299,7 @@ export class WorldService {
 
   /** enter_vehicle / exit_vehicle / drive. Getting in is always the agent's own explicit act: a car never takes anyone. */
   private vehicleAct(agentId: string, s: Session, rec: ActRecord): void {
-    const a = rec.action as unknown as { type: string; vehicle?: string; gas?: number; brake?: number; steer?: number; heading?: number; reverse?: boolean; seconds?: number };
+    const a = rec.action as unknown as { type: string; vehicle?: string; gas?: number; brake?: number; steer?: number; heading?: number; speed?: number; reverse?: boolean; seconds?: number };
     const st = s.body.state;
     const car = this.fleet.byDriver(agentId);
     if (a.type === "enter_vehicle") {
@@ -314,7 +314,7 @@ export class WorldService {
       target.input = { gas: 0, brake: 0, steer: 0 };
       target.inputUntil = 0;
       target.tally = { red_light: 0, speeding: 0, wrong_lane: 0, collision: 0 };
-      this.drives.set(agentId, { rec: null, endsAt: 0, broke: [], recent: [], bumped: false, blockedAt: -1e9 });
+      this.drives.set(agentId, { rec: null, endsAt: 0, broke: [], recent: [], bumped: false, blockedAt: -1e9, warned: "" });
       this.syncDriver(s, target);
       this.rosterRev++;
       return this.settle(rec, { ok: true, status: "done", detail: `you are in ${target.id}. drive {gas, brake, steer, seconds} to move; obey the signals, keep right, stay under 25 mph; exit_vehicle to get out`, vehicle: { id: target.id, speed: 0, infractions: [] } });
@@ -338,10 +338,10 @@ export class WorldService {
   }
 
   /** A new drive replaces the open one: the controls are simply the latest ones, held for `seconds`. */
-  private startDrive(agentId: string, car: Vehicle, rec: ActRecord, c: { gas?: number; brake?: number; steer?: number; heading?: number; reverse?: boolean; seconds?: number }): void {
-    const run = this.drives.get(agentId) ?? { rec: null, endsAt: 0, broke: [], recent: [], bumped: false, blockedAt: -1e9 };
+  private startDrive(agentId: string, car: Vehicle, rec: ActRecord, c: { gas?: number; brake?: number; steer?: number; heading?: number; speed?: number; reverse?: boolean; seconds?: number }): void {
+    const run = this.drives.get(agentId) ?? { rec: null, endsAt: 0, broke: [], recent: [], bumped: false, blockedAt: -1e9, warned: "" };
     if (run.rec) this.finishDrive(run, car, "replaced by a newer drive");
-    car.input = { gas: c.gas ?? 0, brake: c.brake ?? 0, steer: c.steer ?? 0, reverse: c.reverse === true, holdHeading: c.heading === undefined ? undefined : (180 - c.heading) * Math.PI / 180 };
+    car.input = { gas: c.gas ?? 0, brake: c.brake ?? 0, steer: c.steer ?? 0, reverse: c.reverse === true, holdSpeed: c.speed, holdHeading: c.heading === undefined ? undefined : (180 - c.heading) * Math.PI / 180 };
     car.inputUntil = this.sim.t + (c.seconds ?? 1);
     run.rec = rec; run.endsAt = car.inputUntil; run.broke = []; run.bumped = false;
     this.drives.set(agentId, run);
@@ -599,6 +599,18 @@ export class WorldService {
       const s = this.sessions.get(c.driver), run = this.drives.get(c.driver);
       if (s) this.syncDriver(s, c);
       if (run?.rec && this.sim.t >= run.endsAt) this.finishDrive(run, c, "done");
+      else if (run?.rec && run.bumped) { c.inputUntil = this.sim.t; this.finishDrive(run, c, "stopped"); }
+      else if (run?.rec && c.v.speed > 1) {
+        // A step also ends the moment a signal that is not green is close enough that stopping takes thought: the car coasts, the agent decides.
+        const { signal } = Fleet.senses(c, now);
+        const key = signal ? `${signal.lamp}@${Math.round((c.v.x + Math.sin(c.v.heading) * signal.distance) / 10)},${Math.round((c.v.z + Math.cos(c.v.heading) * signal.distance) / 10)}` : "";
+        if (!signal || signal.lamp === "green") run.warned = "";
+        else if (signal.distance <= Math.max(14, c.v.speed * c.v.speed / 3.5 + 6) && run.warned !== key) {
+          run.warned = key;
+          c.inputUntil = this.sim.t;
+          this.finishDrive(run, c, `STOP: the signal ahead is ${signal.lamp}, ${Math.round(signal.distance)} m away at ${c.v.speed.toFixed(1)} m/s. Brake to a halt before the junction (drive {brake:1}), then go when it is green; the car is coasting`);
+        }
+      }
     }
   }
 

@@ -26,7 +26,7 @@ export const ACTION_TYPES = {
   ride_elevator: "{target: elevator marker ID from observation.landmarks, floor: G | L1 | L2 | L3}",
   gaze: `{yawDeg?: -${GAZE_YAW_MAX_DEG}..${GAZE_YAW_MAX_DEG} (+ right), pitchDeg?: ${GAZE_PITCH_MIN_DEG}..${GAZE_PITCH_MAX_DEG} (+ up)} or {reset:true}: turn your head, not your body; look and see follow it`,
   enter_vehicle: "{vehicle?: car id from observe.scene (kind vehicle)}: get into a car within 3 m (nearest if no id). Walking past a car does nothing; you must choose this",
-  drive: `{gas?: 0..1, brake?: 0..1, steer?: -1..1 (+ left) OR heading?: 0..360 compass bearing to hold (0 north, 90 east, 180 south, 270 west; the car steers itself to it), reverse?: true, seconds?: >0..${MAX_DRIVE_S} (default 1)}: hold these controls for the time, then coast. reverse:true makes gas drive backwards (slowly): use it to back away from a kerb or wall you hit. Only while in a car`,
+  drive: `{gas?: 0..1, brake?: 0..1 OR speed?: 0..15 m/s to hold (the car works the pedals), steer?: -1..1 (+ left) OR heading?: 0..360 compass bearing to hold (0 north, 90 east, 180 south, 270 west; the car steers itself to it), reverse?: true, seconds?: >0..${MAX_DRIVE_S} (default 1)}: hold these controls for the time, then coast. reverse:true makes gas drive backwards (slowly): use it to back away from a kerb or wall you hit. Only while in a car`,
   exit_vehicle: "{}: get out (the car must be nearly stopped)",
   say: `{text <= ${MAX_SAY} chars, to?: handle}: speak aloud; bodies within ${SAY_RANGE_M} m with a clear line of sight hear it (read observe.heard)`,
 } as const;
@@ -71,7 +71,8 @@ export function explainAction(a: unknown): string | null {
       if (v.seconds !== undefined && !num(v.seconds, 0, MAX_DRIVE_S, true)) return `seconds must be > 0 and <= ${MAX_DRIVE_S}`;
       if (v.reverse !== undefined && typeof v.reverse !== "boolean") return "reverse must be true or false";
       if (v.heading !== undefined && (!num(v.heading, 0, 360) || v.steer !== undefined)) return "heading must be a compass bearing 0..360 (0 north, 90 east) and cannot be combined with steer";
-      return extra("gas", "brake", "steer", "seconds", "reverse", "heading");
+      if (v.speed !== undefined && (!num(v.speed, 0, 15) || v.gas !== undefined || v.brake !== undefined)) return "speed must be 0..15 m/s and cannot be combined with gas or brake";
+      return extra("gas", "brake", "steer", "seconds", "reverse", "heading", "speed");
     }
     case "interact": return name(v.target) ? extra("target") : "interact needs a target (a prop id from observe.scene)";
     case "ride_elevator":

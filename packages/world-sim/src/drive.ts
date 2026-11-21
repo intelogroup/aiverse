@@ -101,6 +101,10 @@ export class Fleet {
         const err = Math.atan2(Math.sin(input.holdHeading - c.v.heading), Math.cos(input.holdHeading - c.v.heading));
         input = { ...input, steer: Math.max(-1, Math.min(1, err * 2.5 * (input.reverse ? -1 : 1))) };
       }
+      if (input.holdSpeed !== undefined && !input.reverse) {
+        const e = input.holdSpeed - c.v.speed;
+        input = { ...input, gas: e > 0.05 ? Math.min(1, e / 1) : 0, brake: e < -0.4 ? Math.min(1, -e / 2) : 0 };
+      }
       const r = stepVehicle(c.v, input, dt, worldFor(c), now);
       for (const i of r.infractions) c.tally[i.kind]++;
       if (r.infractions.length || r.blocked) out.push({ car: c, infractions: r.infractions, blocked: r.blocked });

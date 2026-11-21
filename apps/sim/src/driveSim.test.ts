@@ -186,3 +186,31 @@ test("drive {heading} steers the car onto a compass bearing and holds it; headin
   void car;
   service.detach("drv");
 });
+
+test("drive {speed} holds the speed; gas or brake with speed is refused", () => {
+  const { j, t } = junctionAndClock("green");
+  const { service, car } = setup(t, j);
+  act(service, "drv", "e", { type: "enter_vehicle" });
+  expect(() => act(service, "drv", "bad", { type: "drive", speed: 5, gas: 1 })).toThrow(/cannot be combined with gas or brake/);
+  act(service, "drv", "d", { type: "drive", speed: 5, heading: 90, seconds: 5 });
+  run(service, 5.2);
+  expect(car.v.speed).toBeGreaterThan(4.5);
+  expect(car.v.speed).toBeLessThan(5.5);
+  service.detach("drv");
+});
+
+test("a step ends early with STOP when a red signal is near, and the car coasts; a new step is not cut short again for the same signal", () => {
+  const { j, t } = junctionAndClock("red");
+  const { service, car } = setup(t, j);
+  act(service, "drv", "e", { type: "enter_vehicle" });
+  act(service, "drv", "d1", { type: "drive", speed: 9, heading: 90, seconds: 5 });
+  run(service, 5.2);
+  const first = service.actRecord("drv", "d1")?.outcome?.detail ?? "";
+  expect(first).toMatch(/^STOP: the signal ahead is red/);
+  expect(car.v.x).toBeLessThan(j.rect[0]);                           // still short of the junction
+  act(service, "drv", "d2", { type: "drive", brake: 1, seconds: 3 });
+  run(service, 3.2);
+  expect(car.v.speed).toBe(0);
+  expect(car.tally.red_light).toBe(0);
+  service.detach("drv");
+});
