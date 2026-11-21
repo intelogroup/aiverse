@@ -350,7 +350,8 @@ export class WorldService {
     const base = Math.round(car.v.heading / (Math.PI / 2)) * (Math.PI / 2);
     car.turn = c.turn ? { dir: c.turn, base, target: base + (c.turn === "left" ? 1 : -1) * Math.PI / 2, phase: "approach", t0: 0 } : null;
     if (car.turn && c.speed === undefined && c.gas === undefined) car.input.holdSpeed = 5;
-    car.inputUntil = this.sim.t + (c.seconds ?? 1);
+    // the models leave seconds out half the time and a 1 s step is a wasted call: a hold mode runs a full step, and ends early on its own events
+    car.inputUntil = this.sim.t + (c.seconds ?? (c.turn || c.speed !== undefined || c.heading !== undefined ? MAX_DRIVE_S : 1));
     run.rec = rec; run.endsAt = car.inputUntil; run.broke = []; run.bumped = false;
     this.drives.set(agentId, run);
   }

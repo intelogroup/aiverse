@@ -307,8 +307,8 @@ test("drive {turn:left} keeps the heading to the junction, turns inside it onto 
   expect(detail).toContain("That is junction 1: to turn there send drive {speed: 6, turn:");   // and it says how to turn at the junction ahead
   expect(car.v.x).toBeLessThan(j.rect[0]);
   expect(Math.abs(car.v.z - 5)).toBeLessThan(2.5);
-  act(service, "drv", "d2", { type: "drive", speed: 6, turn: "left", seconds: 5 });
-  run(service, 6);
+  act(service, "drv", "d2", { type: "drive", speed: 6, turn: "left" });   // no seconds: a hold mode runs a full 5 s step
+  run(service, 8);
   detail = service.actRecord("drv", "d2")?.outcome?.detail ?? "";
   expect(detail).toMatch(/^TURNED left at junction 1: now heading 0/);
   expect(Math.abs(car.v.x - ((j.rect[0] + j.rect[2]) / 2 + 1.8))).toBeLessThan(1.5);   // the clear line of the northbound lane
