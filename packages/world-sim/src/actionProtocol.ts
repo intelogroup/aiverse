@@ -12,6 +12,8 @@ const MAX_NAME = 100;
 /** Longest spoken line, and how far it carries (needs a clear line of sight too). */
 export const MAX_SAY = 140;
 export const SAY_RANGE_M = 6;
+/** Longest single drive command (s): the controls are released after it, so a stalled agent leaves a car braking to a halt, not a runaway. */
+export const MAX_DRIVE_S = 5;
 
 /** A request id: 1-80 letters, digits or dashes. */
 export function validRequestId(id: unknown): id is string { return typeof id === "string" && ID_RE.test(id); }
@@ -23,6 +25,9 @@ export const ACTION_TYPES = {
   play: "{clip, seconds?} (GET /world/clips)", interact: "{target}", stop: "{}",
   ride_elevator: "{target: elevator marker ID from observation.landmarks, floor: G | L1 | L2 | L3}",
   gaze: `{yawDeg?: -${GAZE_YAW_MAX_DEG}..${GAZE_YAW_MAX_DEG} (+ right), pitchDeg?: ${GAZE_PITCH_MIN_DEG}..${GAZE_PITCH_MAX_DEG} (+ up)} or {reset:true}: turn your head, not your body; look and see follow it`,
+  enter_vehicle: "{vehicle?: car id from observe.scene (kind vehicle)}: get into a car within 3 m (nearest if no id). Walking past a car does nothing; you must choose this",
+  drive: `{gas?: 0..1, brake?: 0..1 OR speed?: 0..15 m/s to hold (the car works the pedals), steer?: -1..1 (+ left) OR heading?: 0..360 compass bearing to hold (0 north, 90 east, 180 south, 270 west; the car steers itself to it), reverse?: true, turn?: "left"|"right" (keep the heading to the next junction, turn there onto the new street's lane, the step ends when you are through), seconds?: >0..${MAX_DRIVE_S} (default ${MAX_DRIVE_S} with speed, heading or turn, else 1)}: hold these controls for the time, then coast. reverse:true makes gas drive backwards (slowly): use it to back away from a kerb or wall you hit. Only while in a car`,
+  exit_vehicle: "{}: get out (the car must be nearly stopped)",
   say: `{text <= ${MAX_SAY} chars, to?: handle}: speak aloud; bodies within ${SAY_RANGE_M} m with a clear line of sight hear it (read observe.heard)`,
 } as const;
 
@@ -57,6 +62,18 @@ export function explainAction(a: unknown): string | null {
       if (v.yawDeg !== undefined && !num(v.yawDeg, -GAZE_YAW_MAX_DEG, GAZE_YAW_MAX_DEG)) return `yawDeg must be within +-${GAZE_YAW_MAX_DEG} (positive is right)`;
       if (v.pitchDeg !== undefined && !num(v.pitchDeg, GAZE_PITCH_MIN_DEG, GAZE_PITCH_MAX_DEG)) return `pitchDeg must be between ${GAZE_PITCH_MIN_DEG} and ${GAZE_PITCH_MAX_DEG} (positive is up)`;
       return extra("yawDeg", "pitchDeg");
+    }
+    case "enter_vehicle": return v.vehicle !== undefined && !name(v.vehicle) ? "vehicle must be a car id from observe.scene (kind vehicle)" : extra("vehicle");
+    case "exit_vehicle": return extra();
+    case "drive": {
+      for (const k of ["gas", "brake"] as const) if (v[k] !== undefined && !num(v[k], 0, 1)) return `${k} must be within 0..1`;
+      if (v.steer !== undefined && !num(v.steer, -1, 1)) return "steer must be within -1..1 (positive is left)";
+      if (v.seconds !== undefined && !num(v.seconds, 0, MAX_DRIVE_S, true)) return `seconds must be > 0 and <= ${MAX_DRIVE_S}`;
+      if (v.reverse !== undefined && typeof v.reverse !== "boolean") return "reverse must be true or false";
+      if (v.heading !== undefined && (!num(v.heading, 0, 360) || v.steer !== undefined)) return "heading must be a compass bearing 0..360 (0 north, 90 east) and cannot be combined with steer";
+      if (v.turn !== undefined && ((v.turn !== "left" && v.turn !== "right") || v.heading !== undefined || v.steer !== undefined || v.reverse === true)) return "turn must be \"left\" or \"right\" and cannot be combined with heading, steer or reverse";
+      if (v.speed !== undefined && (!num(v.speed, 0, 15) || v.gas !== undefined || v.brake !== undefined)) return "speed must be 0..15 m/s and cannot be combined with gas or brake";
+      return extra("gas", "brake", "steer", "seconds", "reverse", "heading", "speed", "turn");
     }
     case "interact": return name(v.target) ? extra("target") : "interact needs a target (a prop id from observe.scene)";
     case "ride_elevator":

@@ -104,12 +104,14 @@ export class ActorRegistry {
     return this.list(now).filter(b => b.id !== selfId && Math.hypot(b.position[0] - position[0], b.position[1] - position[1], b.position[2] - position[2]) <= range)
       .sort((a, b) => a.id.localeCompare(b.id));
   }
-  wrapWorld<T extends World>(world: T, selfId: string, height = 1.7): T {
+  /** `selfId` (one id, or several: a car skips its own discs and its driver) names the actors that do not block this mover. */
+  wrapWorld<T extends World>(world: T, selfId: string | string[], height = 1.7): T {
+    const skip = new Set(Array.isArray(selfId) ? selfId : [selfId]);
     return Object.assign({}, world, { blocked: (from: Vec3, to: Vec3, radius: number): Hit | null => {
       const staticHit = world.blocked(from, to, radius);
       if (staticHit) return staticHit;
       for (const body of this.list()) {
-        if (body.id === selfId) continue;
+        if (skip.has(body.id)) continue;
         const hit = actorHit(from, to, radius, height, body);
         if (hit) return hit;
       }

@@ -16,7 +16,8 @@ import { TeaElevatorController } from "./teaElevator";
 import type { TeaFloorPlan } from "./teaLandmarks";
 import { teaLiftCollision } from "./teaLiftCollision";
 import { WalkColliders } from "./walkColliders";
-import type { World } from "./walker";
+import { WALK_CONFIG, type Hit, type Vec3, type World } from "./walker";
+const VEHICLE_HALF_WIDTH = 0.8;   // m, lateral probe offset (a car is about 1.9 m wide)
 
 /** The default door channel: nobody in particular (each body passes its own through `door.drive`). */
 const NO_CHANNEL: TeaDoorChannel = { fireDoor: () => false, doorPlaying: false };
@@ -97,6 +98,27 @@ export class VerseSim {
     this.actors.publishWalker(id, { x, y, z, vx, vz }, radius, height, true);
   }
 
+  /** The collision world of a car: static geometry plus every actor except `skip` (its own discs and its driver). */
+  vehicleWorld(skip: string[], height: number): World {
+    const sw = this.staticWorld;
+    const actorsOnly = this.actors.wrapWorld({ ...sw, blocked: (_f: Vec3, _t: Vec3, _r: number): Hit | null => null }, skip, height);
+    // Static geometry is probed at the WALKING radius, three points across the car's width: a capsule probe wider than the walker puts its
+    // lower sphere under the floor and hits the seams between road triangles (measured 2026-11-21: a diagonal "wall" across a flat street).
+    return {
+      ...sw,
+      blocked: (from, to, radius) => {
+        const dx = to[0] - from[0], dz = to[2] - from[2], len = Math.hypot(dx, dz);
+        if (len > 1e-6) {
+          const px = -dz / len * VEHICLE_HALF_WIDTH, pz = dx / len * VEHICLE_HALF_WIDTH;
+          for (const k of [0, 1, -1]) {
+            const hit = sw.blocked([from[0] + px * k, from[1], from[2] + pz * k], [to[0] + px * k, to[1], to[2] + pz * k], WALK_CONFIG.radius);
+            if (hit) return hit;
+          }
+        }
+        return actorsOnly.blocked(from, to, radius);
+      },
+    };
+  }
   get ready(): boolean { return this.walk.status === "ready"; }
 
   addBody(opts: AddBodyOpts): AgentBody {

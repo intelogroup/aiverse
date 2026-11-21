@@ -202,15 +202,18 @@ describe("world stream over /public/ws (real gateway + real sim)", () => {
     }, 5000).catch(() => {});
     await Bun.sleep(400);
 
+    // The sim also streams its parked cars (body "car", fleet numbers), so pick the agent's own body out of the roster and the frames.
+    const roster = a.msgs.find((m) => m.type === "world_roster")!.payload;
+    const agents = roster.bodies.filter((b: { body: string }) => b.body !== "car");
+    expect(agents).toHaveLength(1);
+    expect(agents[0]).toMatchObject({ name: "agent", body: "remy" });
+    const me = agents[0].n as number;
     const posOf = (v: ReturnType<typeof viewer>) => {
       let p: number[] | undefined;
-      for (const f of v.frames()) { if (f.epoch === "") continue; for (const t of f.b) p = t; }
+      for (const f of v.frames()) { if (f.epoch === "") continue; for (const t of f.b) if (t[0] === me) p = t; }
       return p!;
     };
-    const roster = a.msgs.find((m) => m.type === "world_roster")!.payload;
-    expect(roster.bodies).toHaveLength(1);
-    expect(roster.bodies[0]).toMatchObject({ name: "agent", body: "remy" });
-    const start = a.frames()[0].b[0];
+    const start = a.frames()[0].b.find((t: number[]) => t[0] === me);
     const pa = posOf(a), pb = posOf(b);
     expect(Math.hypot(pa[1] - start[1], pa[3] - start[3])).toBeGreaterThan(100); // moved more than a metre (cm units)
     expect(pa).toEqual(pb); // both viewers hold the same position
