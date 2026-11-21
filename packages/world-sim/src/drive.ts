@@ -76,6 +76,28 @@ export function cornerPath(rect: readonly number[], base: number, target: number
   return pts.filter((p) => (p[0] - carX) * db[0] + (p[1] + carZ) * db[1] > 0).map((p) => [p[0], -p[1]] as [number, number]);
 }
 
+/** The streets end at +-135 m (the outer streets run at +-130). */
+const GRID_EDGE_M = 135;
+
+/**
+ * Why `turn` cannot be done at the junction the car is in or heading for, or null. The outer streets have no road beyond them, so a turn out of the
+ * grid used to be accepted and drove the car into the edge of it (two cold-agent gate runs); say so up front instead. A car with no junction within
+ * sight is not judged: the turn stays armed for whatever junction comes first.
+ */
+export function turnRefusal(v: Pick<Vehicle["v"], "x" | "z" | "heading">, dir: "left" | "right"): string | null {
+  const base = Math.round(v.heading / (Math.PI / 2)) * (Math.PI / 2), dx = Math.sin(base), dy = -Math.cos(base);
+  let j = junctionAt(v.x, -v.z);
+  for (let d = 1; !j && d <= SIGNAL_SIGHT_M + 15; d += 1) j = junctionAt(v.x + dx * d, -v.z + dy * d);
+  if (!j) return null;
+  const r = JUNCTIONS[j.id].rect, cx = (r[0] + r[2]) / 2, cy = (r[1] + r[3]) / 2;
+  const target = base + (dir === "left" ? 1 : -1) * Math.PI / 2, tx = Math.round(Math.sin(target)), ty = -Math.round(Math.cos(target));
+  const open = (ux: number, uy: number) => Math.abs(cx + 20 * ux) <= GRID_EDGE_M && Math.abs(cy + 20 * uy) <= GRID_EDGE_M;
+  if (open(tx, ty)) return null;
+  const other = open(-tx, -ty) ? `turn ${dir === "left" ? "right" : "left"}` : "";
+  const straight = open(Math.round(dx), Math.round(dy)) ? "go straight on" : "";
+  return `there is no street to the ${dir} at that junction: the road network ends there. ${[straight, other].filter(Boolean).join(" or ") || "Reverse out"} instead.`;
+}
+
 const noTally = (): Vehicle["tally"] => ({ red_light: 0, speeding: 0, wrong_lane: 0, collision: 0 });
 
 export class Fleet {
