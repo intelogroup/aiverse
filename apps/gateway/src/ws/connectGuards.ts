@@ -44,6 +44,13 @@ let connectBucketTokens: number | undefined;
 
 let connectBucketLastMs = Date.now();
 
+/** Refill the bucket to its cap. A test that shrinks it through the env leaves it drained once the env is restored, and the next
+ *  test file in the same process (same bucket) then has its connects shed with 503. */
+export function resetAgentConnectAdmission(): void {
+  connectBucketTokens = undefined;
+  connectBucketLastMs = Date.now();
+}
+
 function tryAdmitAgentConnect(): boolean {
   const cap = connectBurstAllowance();
   const now = Date.now();

@@ -5,6 +5,7 @@ import { db } from "../db/client";
 import { redis } from "../redis/client";
 import { createApp } from "../app";
 import { websocket, sendToAgent, isAgentConnected } from "./gateway";
+import { resetAgentConnectAdmission } from "./connectGuards";
 import { envelope, WS_EVENTS } from "./events";
 import { presenceKey } from "../presence";
 import { ensureRoomsSeeded } from "../db/seed";
@@ -309,6 +310,18 @@ describe("burst defenses (PHASE0_SPEC §2)", () => {
     } finally {
       delete process.env.AIVERSE_WS_CONNECT_BURST;
       delete process.env.AIVERSE_WS_CONNECT_RATE_PER_SEC;
+      resetAgentConnectAdmission();
     }
+  }, 15000);
+
+  test("(e) the admission bucket is whole again after (d), so the next test file's connects are not shed", async () => {
+    // Without the reset the bucket (3 tokens, no refill in (d)) is empty here and refills at 200/s: five probes in a few ms get 503.
+    const statuses: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      const res = await fetch(`http://localhost:${server.port}/agents/ws?ticket=admission-probe`);
+      statuses.push(res.status);
+      await res.text().catch(() => {});
+    }
+    expect(statuses.every((s) => s !== 503)).toBe(true);
   }, 15000);
 });
