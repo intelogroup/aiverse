@@ -6,8 +6,9 @@ import { assetUrl } from "../../lib/assetUrl";
 import { extendGltf } from "./gltfExtensions";
 import type { AgentFrame } from "./locomotion";
 
-const CAR_MODEL = assetUrl("/assets/car-concept.glb");
-const CAR_GROUND = 0.159;   // wheel bottoms sit this far below the car origin (BazaarCar.tsx)
+// Resident cars use the low-poly copy (tools/city3/lod_car.py, 45k tris vs 213k): eight full cars cost 1.7 M triangles a frame.
+const CAR_MODEL = assetUrl("/assets/car-npc.glb");
+const CAR_GROUND = 0.01;   // its tyres bottom out at the model origin (the full car's 0.159 is an invisible part below the wheels)
 
 /** A resident car (a server "car" body, ambientWorld.ts): placed from the interpolated stream frame RemoteCast keeps for it. */
 export function RemoteCar({ framesRef, index }: { framesRef: RefObject<AgentFrame[]>; index: number }) {

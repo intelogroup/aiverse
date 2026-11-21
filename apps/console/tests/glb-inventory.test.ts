@@ -165,6 +165,13 @@ describe("shipped body GLBs — clip inventory", () => {
     expect(g.tris).toBe(30796);
   });
 
+  // Resident traffic car: eight of them are drawn every frame, so the budget is part of the contract (full car-concept.glb is 213,195 tris).
+  it("car-npc.glb stays a cheap resident: under 50k tris", () => {
+    const g = readGlb("../public/assets/car-npc.glb");
+    expect(g.tris).toBeGreaterThan(30000);
+    expect(g.tris).toBeLessThan(50000);
+  });
+
   // Business (the Humano suit scan, rigged by tools/city3/rig_humano.py with 22 Mixamo-named joints, baked with the arms frozen): same catalog.
   it("cast-business.glb: full catalog, exact durations, 22 joints", () => {
     const g = readGlb("../public/assets/cast-business.glb");
