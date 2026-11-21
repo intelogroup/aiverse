@@ -12,7 +12,7 @@ const MAX_NAME = 100;
 /** Longest spoken line, and how far it carries (needs a clear line of sight too). */
 export const MAX_SAY = 140;
 export const SAY_RANGE_M = 6;
-/** Longest single drive command (s): the controls are released after it, so a stalled agent leaves a coasting car, not a runaway. */
+/** Longest single drive command (s): the controls are released after it, so a stalled agent leaves a car braking to a halt, not a runaway. */
 export const MAX_DRIVE_S = 5;
 
 /** A request id: 1-80 letters, digits or dashes. */

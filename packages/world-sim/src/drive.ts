@@ -35,13 +35,16 @@ export interface Vehicle {
   /** Agent id of the driver, or null while parked. */
   driver: string | null;
   input: DriveInput;
-  /** Simulation time the held input runs out (it then coasts). */
+  /** Simulation time the held input runs out (the car then brakes to a halt: a model thinks for seconds, and a rolling car would not wait). */
   inputUntil: number;
   /** Infractions since the driver got in. */
   tally: Record<Infraction["kind"], number>;
 }
 
 export interface SignalAhead { distance: number; lamp: Lamp; changesIn: number }
+
+/** Brake applied while no drive command is open (0..1 of full braking). */
+export const IDLE_BRAKE = 0.6;
 
 const noTally = (): Vehicle["tally"] => ({ red_light: 0, speeding: 0, wrong_lane: 0, collision: 0 });
 
@@ -95,7 +98,7 @@ export class Fleet {
     const out: { car: Vehicle; infractions: Infraction[]; blocked: boolean }[] = [];
     for (const c of this.vehicles) {
       if (c.driver === null) continue;
-      let input = simT < c.inputUntil ? c.input : { gas: 0, brake: 0, steer: 0 };
+      let input = simT < c.inputUntil ? c.input : { gas: 0, brake: IDLE_BRAKE, steer: 0 };
       if (input.holdHeading !== undefined) {
         // proportional steering toward the held heading; reversing swaps the sign
         let aim = input.holdHeading;

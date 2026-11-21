@@ -610,21 +610,21 @@ export class WorldService {
       else if (run?.rec && run.bumped) { c.inputUntil = this.sim.t; this.finishDrive(run, c, "stopped"); }
       else if (run?.rec && c.v.speed > 1 && this.obstacleAhead(c, run)) { /* the step ended inside obstacleAhead */ }
       else if (run?.rec && c.v.speed > 1) {
-        // A step also ends the moment a signal that is not green is close enough that stopping takes thought: the car coasts, the agent decides.
+        // A step also ends the moment a signal that is not green is close enough that stopping takes thought: the car brakes to a halt, the agent decides.
         const { signal } = Fleet.senses(c, now);
         const key = signal ? `${signal.lamp}@${Math.round((c.v.x + Math.sin(c.v.heading) * signal.distance) / 10)},${Math.round((c.v.z + Math.cos(c.v.heading) * signal.distance) / 10)}` : "";
         if (!signal || signal.lamp === "green") run.warned = "";
         else if (signal.distance <= Math.max(14, c.v.speed * c.v.speed / 3.5 + 6) && run.warned !== key) {
           run.warned = key;
           c.inputUntil = this.sim.t;
-          this.finishDrive(run, c, `STOP: the signal ahead is ${signal.lamp}, ${Math.round(signal.distance)} m away at ${c.v.speed.toFixed(1)} m/s. Brake to a halt before the junction (drive {speed:0}); wait with drive {speed:0, seconds:5} until it is green (its lamp and "changes in" are in observe.vehicle.signal), then go; the car is coasting`);
+          this.finishDrive(run, c, `STOP: the signal ahead is ${signal.lamp}, ${Math.round(signal.distance)} m away at ${c.v.speed.toFixed(1)} m/s. Brake to a halt before the junction (drive {speed:0}); wait with drive {speed:0, seconds:5} until it is green (its lamp and "changes in" are in observe.vehicle.signal), then go; the car is braking to a halt on its own`);
         }
       }
     }
   }
 
   /**
-   * Something solid on the line ahead within stopping range ends the step like a near red signal does: the car coasts and the agent decides.
+   * Something solid on the line ahead within stopping range ends the step like a near red signal does: the car brakes to a halt and the agent decides.
    * Once per obstacle (by distance bucket) so a driver who chooses to creep on is not cut short every call.
    */
   private obstacleAhead(c: Vehicle, run: DriveRun): boolean {
@@ -637,7 +637,7 @@ export class WorldService {
       if (run.warnedAhead === d) return false;
       run.warnedAhead = d;
       c.inputUntil = this.sim.t;
-      this.finishDrive(run, c, `STOP: something solid is about ${d} m ahead at ${c.v.speed.toFixed(1)} m/s. Brake (drive {speed:0}) and steer or reverse clear before you go on; the car is coasting`);
+      this.finishDrive(run, c, `STOP: something solid is about ${d} m ahead at ${c.v.speed.toFixed(1)} m/s. Brake (drive {speed:0}) and steer or reverse clear before you go on; the car is braking to a halt on its own`);
       return true;
     }
     run.warnedAhead = 0;

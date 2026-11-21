@@ -200,13 +200,13 @@ test("drive {speed} holds the speed; gas or brake with speed is refused", () => 
   act(service, "drv", "e", { type: "enter_vehicle" });
   expect(() => act(service, "drv", "bad", { type: "drive", speed: 5, gas: 1 })).toThrow(/cannot be combined with gas or brake/);
   act(service, "drv", "d", { type: "drive", speed: 5, heading: 90, seconds: 5 });
-  run(service, 5.2);
+  run(service, 4.9);   // still inside the step
   expect(car.v.speed).toBeGreaterThan(4.5);
   expect(car.v.speed).toBeLessThan(5.5);
   service.detach("drv");
 });
 
-test("a step ends early with STOP when a red signal is near, and the car coasts; a new step is not cut short again for the same signal", () => {
+test("a step ends early with STOP when a red signal is near, and the car brakes to a halt on its own; a new step is not cut short again for the same signal", () => {
   const { j, t } = junctionAndClock("red");
   const { service, car } = setup(t, j);
   act(service, "drv", "e", { type: "enter_vehicle" });
@@ -252,5 +252,17 @@ test("junctionsPassed counts junction entries, and the step result reports it", 
   run(service, 3.2);
   expect(service.observe("drv").vehicle?.junctionsPassed).toBe(1);
   expect(service.actRecord("drv", "d")?.outcome?.detail).toContain("junctions passed so far 1");
+  service.detach("drv");
+});
+
+test("with no drive open the car brakes to a halt on its own", () => {
+  const { j, t } = junctionAndClock("green");
+  const { service, car } = setup(t, j);
+  act(service, "drv", "e", { type: "enter_vehicle" });
+  act(service, "drv", "d", { type: "drive", speed: 8, heading: 90, seconds: 3 });
+  run(service, 3.1);
+  expect(car.v.speed).toBeGreaterThan(5);
+  run(service, 6);
+  expect(car.v.speed).toBe(0);
   service.detach("drv");
 });
