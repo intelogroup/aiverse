@@ -1,0 +1,215 @@
+{
+ "agent": "ns1-c-hugo",
+ "run": "armC1",
+ "timelapse": "20x",
+ "chapters": [
+  {
+   "t": 0.0,
+   "title": "at stall-40"
+  },
+  {
+   "t": 0.0,
+   "title": "meets someone"
+  },
+  {
+   "t": 0.0,
+   "title": "meets someone"
+  },
+  {
+   "t": 0.0,
+   "title": "meets someone"
+  },
+  {
+   "t": 138.82,
+   "title": "at stall-60"
+  },
+  {
+   "t": 150.98,
+   "title": "at stall-64"
+  },
+  {
+   "t": 162.35,
+   "title": "at stall-66"
+  },
+  {
+   "t": 176.47,
+   "title": "at stall-71"
+  },
+  {
+   "t": 189.09,
+   "title": "at hall-0"
+  },
+  {
+   "t": 280.39,
+   "title": "at stall-71"
+  },
+  {
+   "t": 294.91,
+   "title": "at stall-70"
+  },
+  {
+   "t": 306.73,
+   "title": "at stall-69"
+  },
+  {
+   "t": 317.38,
+   "title": "at stall-68"
+  },
+  {
+   "t": 329.68,
+   "title": "at stall-48"
+  },
+  {
+   "t": 354.07,
+   "title": "at stall-49"
+  },
+  {
+   "t": 365.15,
+   "title": "at stall-57"
+  },
+  {
+   "t": 379.92,
+   "title": "at stall-59"
+  },
+  {
+   "t": 404.57,
+   "title": "at shop-127"
+  },
+  {
+   "t": 416.11,
+   "title": "at shop-129"
+  },
+  {
+   "t": 493.96,
+   "title": "at shop-127"
+  },
+  {
+   "t": 506.96,
+   "title": "at stall-55"
+  },
+  {
+   "t": 520.14,
+   "title": "at stall-50"
+  },
+  {
+   "t": 532.6,
+   "title": "at stall-41"
+  },
+  {
+   "t": 544.22,
+   "title": "at stall-40"
+  },
+  {
+   "t": 595.6,
+   "title": "at stall-45"
+  },
+  {
+   "t": 607.59,
+   "title": "at stall-49"
+  },
+  {
+   "t": 618.19,
+   "title": "at stall-58"
+  },
+  {
+   "t": 640.49,
+   "title": "at stall-59"
+  },
+  {
+   "t": 654.3,
+   "title": "at shop-127"
+  },
+  {
+   "t": 668.53,
+   "title": "at shop-129"
+  },
+  {
+   "t": 842.11,
+   "title": "at shop-127"
+  },
+  {
+   "t": 853.11,
+   "title": "at stall-59"
+  },
+  {
+   "t": 879.35,
+   "title": "at stall-53"
+  },
+  {
+   "t": 893.57,
+   "title": "at stall-48"
+  },
+  {
+   "t": 921.63,
+   "title": "at stall-68"
+  },
+  {
+   "t": 937.26,
+   "title": "at stall-70"
+  },
+  {
+   "t": 952.15,
+   "title": "at stall-71"
+  },
+  {
+   "t": 952.15,
+   "title": "meets someone"
+  },
+  {
+   "t": 966.44,
+   "title": "at hall-0"
+  },
+  {
+   "t": 1132.73,
+   "title": "meets someone"
+  },
+  {
+   "t": 1245.74,
+   "title": "hears ns-vera: Hello again, Sana! It seems we've both ended up "
+  },
+  {
+   "t": 1312.79,
+   "title": "hears ns-vera: Greetings, traveler! Your tune warms this hall. "
+  },
+  {
+   "t": 1363.95,
+   "title": "hears ns-vera: Hugo, friend of the hills, The Golden Scale hums"
+  },
+  {
+   "t": 1456.4,
+   "title": "hears ns-vera: The Golden Scale it is, Hugo! Its hearth glows l"
+  },
+  {
+   "t": 1505.76,
+   "title": "hears ns-vera: What a pleasant surprise, meeting a fellow wande"
+  },
+  {
+   "t": 1566.15,
+   "title": "hears ns-vera: Do you find the spirit of this place kindling yo"
+  },
+  {
+   "t": 1658.91,
+   "title": "at stall-40"
+  },
+  {
+   "t": 1658.91,
+   "title": "meets someone"
+  },
+  {
+   "t": 1658.91,
+   "title": "meets someone"
+  },
+  {
+   "t": 1693.17,
+   "title": "meets someone"
+  },
+  {
+   "t": 1865.69,
+   "title": "meets someone"
+  },
+  {
+   "t": 2389.89,
+   "title": "residents depart"
+  }
+ ]
+}

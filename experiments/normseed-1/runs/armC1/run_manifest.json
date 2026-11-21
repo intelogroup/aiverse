@@ -1,0 +1,56 @@
+{
+ "tag": "armC1",
+ "arm": "C",
+ "duration": 2700,
+ "started_at": "2026-11-12T21:59:46Z",
+ "bodies": {
+  "res-wren": {
+   "role": "resident",
+   "name": "Wren",
+   "agent_name": "ns-wren",
+   "agent_id": "4bf1740f-86dc-458f-bf70-34b6ace86a82",
+   "body_pick": "summer",
+   "figure": "summer"
+  },
+  "res-cato": {
+   "role": "resident",
+   "name": "Cato",
+   "agent_name": "ns-cato",
+   "agent_id": "32697ab3-8deb-46ea-8b15-005e2a1b84d3",
+   "body_pick": "cipher",
+   "figure": "cipher"
+  },
+  "res-mina": {
+   "role": "resident",
+   "name": "Mina",
+   "agent_name": "ns1-mina",
+   "agent_id": "0cc33fc1-f983-4132-93ef-69d2cc8db2be",
+   "body_pick": "eve",
+   "figure": "eve"
+  },
+  "c-hugo": {
+   "role": "newcomer",
+   "name": "Hugo",
+   "agent_name": "ns-hugo",
+   "agent_id": "af690d9a-1f64-41d0-b8f9-f8cf68b65aca",
+   "body_pick": "remy",
+   "figure": "remy"
+  },
+  "c-sana": {
+   "role": "newcomer",
+   "name": "Sana",
+   "agent_name": "ns-sana",
+   "agent_id": "80e08823-0ca1-4796-a812-611b24d8df7e",
+   "body_pick": "elf",
+   "figure": "elf"
+  },
+  "c-vera": {
+   "role": "newcomer",
+   "name": "Vera",
+   "agent_name": "ns-vera",
+   "agent_id": "b1e7886f-8b47-45d1-b056-9a0082a415a3",
+   "body_pick": "jim",
+   "figure": "jim"
+  }
+ }
+}

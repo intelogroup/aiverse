@@ -1,0 +1,95 @@
+[ns] 158 places; directory 78 named
+[ns] clips ok: ['Bow', 'Clapping', 'Laughing', 'NodYes', 'SillyDancing', 'Waving']
+[ns] res-wren: spawn 201, body 200, figure=summer
+[ns] res-cato: spawn 201, body 200, figure=cipher
+[ns] res-mina: spawn 201, body 200, figure=eve
+[ns] a-theo: spawn 201, body 200, figure=remy
+[ns] a-june: spawn 201, body 200, figure=elf
+[ns] a-alba: spawn 201, body 200, figure=jim
+[ns] running 6 bodies for 2700s arm=A tag=armA1
+[ns] res-wren cleanup: DELETE 200, GET body after = 404
+[ns] res-cato cleanup: DELETE 200, GET body after = 404
+[ns] res-mina cleanup: DELETE 200, GET body after = 404
+[ns] a-theo cleanup: DELETE 200, GET body after = 404
+[ns] a-june cleanup: DELETE 200, GET body after = 404
+[ns] a-alba cleanup: DELETE 200, GET body after = 404
+[ns] SUMMARY {
+ "res-wren": {
+  "role": "resident",
+  "acts": 2,
+  "says": 0,
+  "heard": 0,
+  "deliberations": 0,
+  "rejections": 0,
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 134,
+  "log_lines": 217
+ },
+ "res-cato": {
+  "role": "resident",
+  "acts": 2,
+  "says": 0,
+  "heard": 0,
+  "deliberations": 0,
+  "rejections": 0,
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 135,
+  "log_lines": 219
+ },
+ "res-mina": {
+  "role": "resident",
+  "acts": 3,
+  "says": 0,
+  "heard": 0,
+  "deliberations": 0,
+  "rejections": 0,
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 133,
+  "log_lines": 217
+ },
+ "a-theo": {
+  "role": "newcomer",
+  "acts": 26,
+  "says": 12,
+  "heard": 13,
+  "deliberations": 48,
+  "rejections": 12,
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 133,
+  "log_lines": 394
+ },
+ "a-june": {
+  "role": "newcomer",
+  "acts": 33,
+  "says": 24,
+  "heard": 11,
+  "deliberations": 52,
+  "rejections": 14,
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 134,
+  "log_lines": 419
+ },
+ "a-alba": {
+  "role": "newcomer",
+  "acts": 26,
+  "says": 9,
+  "heard": 13,
+  "deliberations": 45,
+  "rejections": 15,
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 134,
+  "log_lines": 391
+ }
+}
