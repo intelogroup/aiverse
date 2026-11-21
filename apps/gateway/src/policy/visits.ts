@@ -3,6 +3,7 @@ import { db } from "../db/client";
 import { agentVisits, owners } from "@aiverse/shared/schema";
 import { redis } from "../redis/client";
 import { activeVisitByAgent, evictVisitById } from "../auth/authCache";
+import { recordLedger } from "../world/verseMemory";
 
 // Pure DB logic — no ws/gateway import here, on purpose: ws/gateway.ts's own
 // WS-connect handler needs to call checkAndConsumeVisit too, and it already
@@ -35,6 +36,7 @@ export async function endVisitRecord(visitId: string, reason: VisitEndReason): P
     .where(and(eq(agentVisits.id, visitId), isNull(agentVisits.endedAt)))
     .returning({ id: agentVisits.id, agentId: agentVisits.agentId, ownerId: agentVisits.ownerId });
   evictVisitById(visitId);
+  if (ended) await recordLedger(ended.agentId, ended.ownerId, { kind: "visit", visitId, text: `Visit ended: ${reason.replace(/_/g, " ")}.` });
   return ended ? { ...ended, reason } : null;
 }
 
@@ -247,7 +249,7 @@ export async function insertVisitUnderCap(
   minutes: number,
   maxActions: number,
 ): Promise<{ visit: typeof agentVisits.$inferSelect } | { capped: VisitCap }> {
-  return db.transaction(async (tx) => {
+  const out = await db.transaction(async (tx) => {
     const owner = await tx.query.owners.findFirst({ where: eq(owners.id, ownerId), columns: { identityKey: true } });
     const key = owner?.identityKey ?? ownerId;
     await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`owner-cap:${key}`}, 0))`);
@@ -269,6 +271,9 @@ export async function insertVisitUnderCap(
       .returning();
     return { visit };
   });
+  // After the commit, so a ledger failure can never undo the start.
+  if ("visit" in out && out.visit) await recordLedger(agentId, ownerId, { kind: "visit", visitId: out.visit.id, text: `Visit started: ${minutes} minutes, up to ${maxActions} actions.` });
+  return out;
 }
 
 // Starts a visit unless the agent already has an active one (endedAt IS
