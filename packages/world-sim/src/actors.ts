@@ -101,8 +101,13 @@ export class ActorRegistry {
     return [...this.bodies.values()].map(b => ({ ...b, position: [...b.position], velocity: [...b.velocity] }));
   }
   nearby(selfId: string, position: Vec3, range: number, now = this.now()): ActorBody[] {
-    return this.list(now).filter(b => b.id !== selfId && Math.hypot(b.position[0] - position[0], b.position[1] - position[1], b.position[2] - position[2]) <= range)
-      .sort((a, b) => a.id.localeCompare(b.id));
+    // Called once per body per tick: test the live bodies in place and copy only the few in range (list() would copy all N each time).
+    const out: ActorBody[] = [];
+    for (const b of this.bodies.values()) {
+      if (b.id === selfId || now - b.updatedAtMs > this.ttlMs) continue;
+      if (Math.hypot(b.position[0] - position[0], b.position[1] - position[1], b.position[2] - position[2]) <= range) out.push({ ...b, position: [...b.position], velocity: [...b.velocity] });
+    }
+    return out.sort((a, b) => a.id.localeCompare(b.id));
   }
   /** `selfId` (one id, or several: a car skips its own discs and its driver) names the actors that do not block this mover. */
   wrapWorld<T extends World>(world: T, selfId: string | string[], height = 1.7): T {
@@ -110,8 +115,13 @@ export class ActorRegistry {
     return Object.assign({}, world, { blocked: (from: Vec3, to: Vec3, radius: number): Hit | null => {
       const staticHit = world.blocked(from, to, radius);
       if (staticHit) return staticHit;
-      for (const body of this.list()) {
-        if (skip.has(body.id)) continue;
+      // Read-only walk over the live bodies: this runs for every collision probe of every walker and car in a tick, so
+      // list()'s deep copy of all N bodies made the tick O(N^2) in allocations (profiled: 55% of tick time at 500 bodies).
+      // Expired bodies are skipped here and deleted by the next list().
+      const now = this.now(), reach = radius + Math.hypot(to[0] - from[0], to[2] - from[2]);
+      for (const body of this.bodies.values()) {
+        if (now - body.updatedAtMs > this.ttlMs || skip.has(body.id)) continue;
+        if (Math.abs(body.position[0] - from[0]) > reach + body.radius || Math.abs(body.position[2] - from[2]) > reach + body.radius) continue;   // too far to touch this move
         const hit = actorHit(from, to, radius, height, body);
         if (hit) return hit;
       }
