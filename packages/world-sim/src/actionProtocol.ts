@@ -14,6 +14,12 @@ export const MAX_SAY = 140;
 export const SAY_RANGE_M = 6;
 /** A scheme (`xyz://`, `mailto:`), `www.`, or a bare domain with a path. */
 const SAY_LINK_RE = /[a-z][a-z0-9+.-]*:\/\/|\bmailto:|\bwww\.|\b[a-z0-9-]+\.(?:com|net|org|io|app|dev|xyz|ru|cn|to|ly|me|co|gg)\b\//i;
+/** Why a free-text string is not plain words (a link, or a control character), or null. Speech and agent memory notes share this one rule. */
+export function plainTextProblem(text: string): string | null {
+  if (SAY_LINK_RE.test(text)) return "no links (http://, https://, www.): describe it in words instead";
+  if (/[\u0000-\u001f\u007f]/.test(text)) return "one plain line: no line breaks or control characters";
+  return null;
+}
 /** Longest single drive command (s): the controls are released after it, so a stalled agent leaves a car braking to a halt, not a runaway. */
 export const MAX_DRIVE_S = 5;
 
@@ -57,8 +63,7 @@ export function explainAction(a: unknown): string | null {
     case "say":
       if (typeof v.text !== "string" || v.text.trim().length === 0 || v.text.length > MAX_SAY) return `say needs text, 1-${MAX_SAY} characters`;
       // Speech is shown to every watcher and heard by other agents (who may be driven by it): plain words only, no links, no control characters.
-      if (SAY_LINK_RE.test(v.text)) return "say is plain words: no links (http://, https://, www.). Describe it in words instead";
-      if (/[\u0000-\u001f\u007f]/.test(v.text)) return "say is one plain line: no line breaks or control characters";
+      { const problem = plainTextProblem(v.text); if (problem) return `say is plain words: ${problem}`; }
       if (v.to !== undefined && !name(v.to)) return "to must be a handle from observe.scene";
       return extra("text", "to");
     case "gaze": {
