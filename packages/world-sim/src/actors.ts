@@ -110,8 +110,13 @@ export class ActorRegistry {
     return Object.assign({}, world, { blocked: (from: Vec3, to: Vec3, radius: number): Hit | null => {
       const staticHit = world.blocked(from, to, radius);
       if (staticHit) return staticHit;
-      for (const body of this.list()) {
-        if (skip.has(body.id)) continue;
+      // Read-only walk over the live bodies: this runs for every collision probe of every walker and car in a tick, so
+      // list()'s deep copy of all N bodies made the tick O(N^2) in allocations (profiled: 55% of tick time at 500 bodies).
+      // Expired bodies are skipped here and deleted by the next list().
+      const now = this.now(), reach = radius + Math.hypot(to[0] - from[0], to[2] - from[2]);
+      for (const body of this.bodies.values()) {
+        if (now - body.updatedAtMs > this.ttlMs || skip.has(body.id)) continue;
+        if (Math.abs(body.position[0] - from[0]) > reach + body.radius || Math.abs(body.position[2] - from[2]) > reach + body.radius) continue;   // too far to touch this move
         const hit = actorHit(from, to, radius, height, body);
         if (hit) return hit;
       }
