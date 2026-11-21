@@ -59,8 +59,8 @@ export function laneError(planX: number, planY: number, heading: number): number
 }
 
 /** laneError plus the street's width, so a lane keeper knows where the middle of the lane is (w/4 inside the centre line). */
-function laneInfo(planX: number, planY: number, heading: number): { err: number; w: number } | null {
-  if (junctionAt(planX, planY)) return null;
+function laneInfo(planX: number, planY: number, heading: number, inJunction = false): { err: number; w: number } | null {
+  if (!inJunction && junctionAt(planX, planY)) return null;
   const [dx, dy] = planDir(heading);
   if (Math.abs(dx) >= Math.abs(dy)) {            // along x: an east-west street at y = c
     const s = STREETS.find((q) => Math.abs(planY - q.c) <= q.w / 2);
@@ -76,10 +76,10 @@ function laneInfo(planX: number, planY: number, heading: number): { err: number;
 
 /**
  * Metres from the middle of the lane the car is in: positive when it sits toward the centre line (left of the lane middle), negative when
- * toward the kerb. null in a junction or off a street. Lets a heading-holder keep the lane without the driver steering.
+ * toward the kerb. null in a junction (unless `inJunction`: the lane of the street the heading runs along, across the crossing) or off a street. Lets a heading-holder keep the lane without the driver steering.
  */
-export function laneOffset(planX: number, planY: number, heading: number): number | null {
-  const i = laneInfo(planX, planY, heading);
+export function laneOffset(planX: number, planY: number, heading: number, inJunction = false): number | null {
+  const i = laneInfo(planX, planY, heading, inJunction);
   return i ? i.err + i.w / 4 : null;
 }
 

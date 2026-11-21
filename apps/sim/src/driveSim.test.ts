@@ -280,3 +280,20 @@ test("entering a junction ends the step with the headings for straight, left and
   expect(detail).toMatch(/INSIDE a junction, to go straight use heading 90, to turn left 0, right 180/);
   service.detach("drv");
 });
+
+test("a held left turn at a junction swings the car onto the new street's lane", () => {
+  const { j, t } = junctionAndClock("green");
+  const { service, car } = setup(t, j);
+  act(service, "drv", "e", { type: "enter_vehicle" });
+  // just inside the junction at its west edge, heading east in the east lane, then hold north
+  Object.assign(car.v, { x: j.rect[0] + 1, z: 5, heading: Math.PI / 2, speed: 3 });
+  const lane = (j.rect[0] + j.rect[2]) / 2 + 2.5;   // north-bound lane of the crossing street (east of its centre line)
+  act(service, "drv", "d0", { type: "drive", speed: 3, heading: 90, seconds: 0.5 });   // the JUNCTION step end the agent would have got
+  run(service, 0.6);
+  act(service, "drv", "d", { type: "drive", speed: 4, heading: 0, seconds: 5 });
+  run(service, 5.2);
+  expect(Math.round(((180 - car.v.heading * 180 / Math.PI) % 360 + 360) % 360)).toBeLessThan(20);   // may be cut short by a STOP for something solid ahead
+  expect(Math.abs(car.v.x - lane)).toBeLessThan(3);
+  expect(car.tally.collision).toBe(0);
+  service.detach("drv");
+});

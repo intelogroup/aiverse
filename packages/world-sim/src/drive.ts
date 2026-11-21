@@ -45,6 +45,8 @@ export interface SignalAhead { distance: number; lamp: Lamp; changesIn: number }
 
 /** Brake applied while no drive command is open (0..1 of full braking). */
 export const IDLE_BRAKE = 0.6;
+/** Look-ahead (m) of the lane-centring pursuit. */
+const LOOKAHEAD_M = 8;
 
 const noTally = (): Vehicle["tally"] => ({ red_light: 0, speeding: 0, wrong_lane: 0, collision: 0 });
 
@@ -102,9 +104,11 @@ export class Fleet {
       if (input.holdHeading !== undefined) {
         // proportional steering toward the held heading; reversing swaps the sign
         let aim = input.holdHeading;
-        const off = input.reverse ? null : laneOffset(c.v.x, -c.v.z, c.v.heading);
-        // on a street and roughly along it: lean the aim toward the middle of the lane (off > 0 is toward the centre line, so aim right)
-        if (off !== null && Math.abs(Math.atan2(Math.sin(aim - c.v.heading), Math.cos(aim - c.v.heading))) < 0.35) aim -= Math.max(-0.3, Math.min(0.3, off * 0.15));
+        // Pure pursuit onto the middle of the lane of the street the held heading runs along (off > 0 is toward the centre line, so aim right).
+        // It works inside a junction too, so a held left turn swings the car onto the new street's lane instead of wide of it.
+        const axisErr = Math.abs(Math.atan2(Math.sin(aim * 4), Math.cos(aim * 4))) / 4;   // distance of the held heading from the nearest street axis
+        const off = input.reverse || axisErr > 0.2 ? null : laneOffset(c.v.x, -c.v.z, aim, true);
+        if (off !== null) aim -= Math.max(-0.8, Math.min(0.8, Math.atan(off / LOOKAHEAD_M)));
         const err = Math.atan2(Math.sin(aim - c.v.heading), Math.cos(aim - c.v.heading));
         input = { ...input, steer: Math.max(-1, Math.min(1, err * 2.5 * (input.reverse ? -1 : 1))) };
       }
