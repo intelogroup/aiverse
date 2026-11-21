@@ -3,7 +3,7 @@
 // publishes poses and roster rows in the same wire format as agent bodies (streamProtocol.ts). NPC body numbers start at
 // NPC_N0, far above the agent numbers (which count up from 1), and the roster body ids are "car" and a cast body id.
 import type { AgentPose } from "./agentBody";
-import { PED_SPEED, sample, spawnCars, spawnWalkers, stepCars, stepWalkers, type Car, type Walker } from "./ambientTraffic";
+import { PED_SPEED, sample, type Obstacle, spawnCars, spawnWalkers, stepCars, stepWalkers, type Car, type Walker } from "./ambientTraffic";
 import { encodePose, type PoseTuple } from "./streamProtocol";
 
 export const NPC_N0 = 1_000_000;
@@ -21,9 +21,11 @@ export class AmbientWorld {
     stepWalkers(this.walkers, 0, this.nowS());   // place them before the first frame
   }
 
-  step(dt: number): void {
+  /** `bodies`: agent bodies in world x/z (z = -plan y); a car holds for one in its lane (ambientTraffic.gapToBody). */
+  step(dt: number, bodies: readonly { x: number; z: number }[] = []): void {
     const now = this.nowS();
-    stepCars(this.cars, dt, now);
+    const obstacles: Obstacle[] = bodies.map((b) => ({ x: b.x, y: -b.z, r: 0.4 }));
+    stepCars(this.cars, dt, now, obstacles);
     stepWalkers(this.walkers, dt, now);
   }
 
