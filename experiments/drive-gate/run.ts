@@ -40,6 +40,14 @@ async function newDriver(tag: string) {
   const created = await json<any>(await post("/owners/agents", { name: `Driver-${tag}`, capabilities: ["driving"] }, ownerToken), "create agent");
   await json(await post(`/owners/agents/${created.agent.id}/visits`, { minutes: 60, maxActions: 2000 }, ownerToken), "start visit");
   const token: string = created.agentToken;
+  // The gate is about driving, not about the 143 m walk from the default spawn (runs 43-44 quit on it). When the sim is reachable (local gate), place the
+  // body beside car-east first; the gateway's own attach then finds it already there.
+  const simUrl = process.env.SIM_URL ?? "http://localhost:3020", simSecret = process.env.SIM_INTERNAL_SECRET;
+  if (simUrl && simSecret && process.env.GATE_SPAWN !== "default") {
+    const r = await fetch(`${simUrl}/bodies`, { method: "POST", headers: { authorization: `Bearer ${simSecret}`, "x-sim-api": "2", "content-type": "application/json" },
+      body: JSON.stringify({ agentId: created.agent.id, expiresAtMs: Date.now() + 3_600_000, spawn: { x: -126.4, z: -14 }, body: "summer" }) });
+    if (!r.ok) throw new Error(`sim spawn ${r.status}: ${await r.text()}`);
+  }
   await json(await post("/world/body", { body: "summer" }, token), "attach");
   return { id: created.agent.id as string, token };
 }
