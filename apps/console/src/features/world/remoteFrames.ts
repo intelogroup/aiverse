@@ -90,6 +90,17 @@ export class RemoteBodies {
     return out.sort((a, b) => a.n - b.n);
   }
 
+  /** The body numbered `n0` or above that stands nearest (x, z) at server time `t`, or null. A hidden driver's camera looks for its car with this. */
+  nearestFrom(n0: number, x: number, z: number, t: number): number | null {
+    let best: number | null = null, bestD = Infinity;
+    for (const n of this.samples.keys()) {
+      if (n < n0) continue;
+      const p = this.sample(n, t);
+      if (p && Math.hypot(p.x - x, p.z - z) < bestD) { best = n; bestD = Math.hypot(p.x - x, p.z - z); }
+    }
+    return best;
+  }
+
   /** The pose at server time `t`: blended between the two samples that bracket it, held at the ends (never extrapolated). */
   sample(n: number, t: number): RemotePose | null {
     const list = this.samples.get(n);
