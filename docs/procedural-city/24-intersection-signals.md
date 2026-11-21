@@ -37,3 +37,5 @@ Status 2026-11-20: 24 junctions x 4 corner posts, 3-lamp heads, fixed-time cycle
 - Signals are the wall clock (`trafficSignals.ts`), so the cars and pedestrians stop for the same red the lamps show.
 - Limits: NPCs are not obstacles for agent bodies or the lab driver (the sim's capsule world does not know them); cars stay on their loops, ignore the player and parked cars, and a car past its stop line when the light turns red runs through. The first version ran client-side (PR #226, `AmbientLife.tsx`) and gave every viewer a different street; it was removed.
 - Parked car 2 moved from plan y=62 (a lane of the wide loop) to y=56.
+
+- Resident cars draw `car-npc.glb` (tools/city3/lod_car.py: one mesh per material, 45k tris, wheels kept at 85%), not the 213k-tri `car-concept.glb`. Measured on production with the stream on: 14 NPCs added ~650 draw calls and 1.4 M triangles per frame, almost all from the 8 full cars.
