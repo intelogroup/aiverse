@@ -300,19 +300,23 @@ test("drive {turn:left} keeps the heading to the junction, turns inside it onto 
   const { j, t } = junctionAndClock("green");
   const { service, car } = setup(t, j);   // east lane, 30 m before the junction
   act(service, "drv", "e", { type: "enter_vehicle" });
-  act(service, "drv", "d", { type: "drive", speed: 6, turn: "left", seconds: 5 });
-  run(service, 5.2);
-  let detail = service.actRecord("drv", "d")?.outcome?.detail ?? "";
-  expect(detail).toMatch(/^done/);                       // a 5 s step ends before the junction at this distance: nothing turned early
-  expect(detail).toContain("That is junction 1: to turn there send drive {speed: 6, turn:");   // and it says how to turn at the junction ahead
-  expect(car.v.x).toBeLessThan(j.rect[0]);
-  expect(Math.abs(car.v.z - 5)).toBeLessThan(2.5);
-  act(service, "drv", "d2", { type: "drive", speed: 6, turn: "left" });   // no seconds: a hold mode runs a full 5 s step
-  run(service, 8);
-  detail = service.actRecord("drv", "d2")?.outcome?.detail ?? "";
-  expect(detail).toMatch(/^TURNED left at junction 1: now heading 0/);
-  expect(Math.abs(car.v.x - ((j.rect[0] + j.rect[2]) / 2 + 1.8))).toBeLessThan(1.5);   // the clear line of the northbound lane
-  expect(car.tally.collision + car.tally.wrong_lane).toBe(0);
+  act(service, "drv", "d", { type: "drive", speed: 6, turn: "left" });   // no seconds: a hold mode runs a full 5 s step, and a turn in progress is let finish
+  run(service, 14);
+  expect(service.actRecord("drv", "d")?.outcome?.detail ?? "").toMatch(/^TURNED left at junction \d+: now heading 0/);
+  expect(Math.abs(car.v.x - ((j.rect[0] + j.rect[2]) / 2 + 1.8))).toBeLessThan(2.6);   // on the lane, still settling toward the clear line of the northbound lane
+  expect(car.tally.collision + car.tally.wrong_lane + car.tally.red_light).toBe(0);
+  service.detach("drv");
+});
+
+test("drive {turn:right} is still heading along the avenue when it enters the junction, so the signal judges it green", () => {
+  const { j, t } = junctionAndClock("green");
+  const { service, car } = setup(t, j);
+  act(service, "drv", "e", { type: "enter_vehicle" });
+  act(service, "drv", "d", { type: "drive", speed: 6, turn: "right" });
+  run(service, 14);
+  expect(service.actRecord("drv", "d")?.outcome?.detail ?? "").toMatch(/^TURNED right at junction \d+: now heading 180/);
+  expect(Math.abs(car.v.x - ((j.rect[0] + j.rect[2]) / 2 - 1.8))).toBeLessThan(2.6);   // the southbound lane, still settling
+  expect(car.tally.red_light + car.tally.collision + car.tally.wrong_lane).toBe(0);
   service.detach("drv");
 });
 

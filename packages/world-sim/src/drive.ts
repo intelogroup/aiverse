@@ -4,7 +4,7 @@
 import { encodePose, type PoseTuple } from "./streamProtocol";
 import { JUNCTIONS, junctionAt, signalState, type Lamp } from "./trafficSignals";
 import {
-  DISC_OFFSET, DISC_R, axisOfTravel, laneError, laneOffset, makeVehicle, stepVehicle,
+  DISC_OFFSET, DISC_R, axisOfTravel, laneError, laneMiddle, laneOffset, makeVehicle, stepVehicle,
   type DriveInput, type Infraction, type TurnPlan, type VehicleState,
 } from "./vehicle";
 import type { World } from "./walker";
@@ -50,7 +50,26 @@ export const IDLE_BRAKE = 0.6;
 /** Look-ahead (m) of the lane-centring pursuit. */
 const LOOKAHEAD_M = 8;
 /** How far before a junction an armed turn starts to steer (m). */
-const TURN_RUN_UP_M = 5;
+const TURN_LOOKAHEAD_M = 16;
+
+/**
+ * The waypoints of a corner in junction `rect` (plan x0, y0, x1, y1) from heading `base` to `target` (world radians, axis-aligned): P1 cuts the
+ * corner 4.8 m before the crossing of the two lane lines X and 1.5 m toward the turn, P2 is on the new lane 9 m past X. Measured on the avenue
+ * to the north street's left turn (127, 3.5) -> (131.8, -4), the line the loop probe drives without touching the junction's posts and kerb islands.
+ * Points the car has already passed are dropped.
+ */
+export function cornerPath(rect: readonly number[], base: number, target: number, carX: number, carZ: number): [number, number][] {
+  const [x0, y0, x1, y1] = rect, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  const db = [Math.round(Math.sin(base)), -Math.round(Math.cos(base))], dt = [Math.round(Math.sin(target)), -Math.round(Math.cos(target))];
+  const along = (d: number[]) => (d[0] !== 0 ? y1 - y0 : x1 - x0);   // width of the street that runs along d
+  const lb = laneMiddle(along(db)), lt = laneMiddle(along(dt));
+  const rb = [db[1], -db[0]], rt = [dt[1], -dt[0]], sb = rb[0] * dt[0] + rb[1] * dt[1], st = rt[0] * db[0] + rt[1] * db[1];
+  const X = [cx + sb * lb * dt[0] + st * lt * db[0], cy + sb * lb * dt[1] + st * lt * db[1]];
+  // a right turn is wider than a left one: it must still head along the old street when it enters the cell (else the signal judges it on the cross street)
+  const back = sb < 0 ? 4.8 : 7, lat = sb < 0 ? 1.5 : 0.8;
+  const pts = [[X[0] - back * db[0] + lat * dt[0], X[1] - back * db[1] + lat * dt[1]], [X[0] + 9 * dt[0], X[1] + 9 * dt[1]]];
+  return pts.filter((p) => (p[0] - carX) * db[0] + (-p[1] + carZ) * db[1] > 0).map((p) => [p[0], -p[1]] as [number, number]);
+}
 
 const noTally = (): Vehicle["tally"] => ({ red_light: 0, speeding: 0, wrong_lane: 0, collision: 0 });
 
@@ -106,15 +125,20 @@ export class Fleet {
       if (c.driver === null) continue;
       let input = simT < c.inputUntil ? c.input : { gas: 0, brake: IDLE_BRAKE, steer: 0 };
       if (c.turn && c.turn.phase !== "done") {
-        const t = c.turn, h = c.v.heading, here = junctionAt(c.v.x, -c.v.z) !== null;
-        // start the corner a few metres before the cell: the car needs the run-up to be round before it leaves it
-        const ahead = junctionAt(c.v.x + Math.sin(h) * TURN_RUN_UP_M, -c.v.z - Math.cos(h) * TURN_RUN_UP_M) !== null;
-        if (t.phase === "approach" && (here || ahead)) { t.phase = "inside"; t.t0 = simT; }
-        else if (t.phase === "inside" && !here && (Math.abs(Math.atan2(Math.sin(t.target - h), Math.cos(t.target - h))) < 0.3 || simT - t.t0 > 10)) t.phase = "done";
+        const t = c.turn, h = c.v.heading, here = junctionAt(c.v.x, -c.v.z);
+        if (t.phase === "approach") {
+          const j = here ?? junctionAt(c.v.x + Math.sin(h) * TURN_LOOKAHEAD_M, -c.v.z - Math.cos(h) * TURN_LOOKAHEAD_M);
+          if (j) { t.wp = cornerPath(JUNCTIONS[j.id].rect, t.base, t.target, c.v.x, c.v.z); t.phase = "inside"; t.t0 = simT; }
+        } else {
+          while (t.wp.length && Math.hypot(t.wp[0][0] - c.v.x, t.wp[0][1] - c.v.z) < 4) t.wp.shift();
+          if ((!t.wp.length && Math.abs(Math.atan2(Math.sin(t.target - h), Math.cos(t.target - h))) < 0.3) || simT - t.t0 > 12) t.phase = "done";
+        }
       }
       if (c.turn) {
         const t = c.turn;
-        input = { ...input, holdHeading: t.phase === "approach" ? t.base : t.target };
+        // steer through the corner's waypoints (the line the loop probe proved clear of City 3's junction furniture), then hold the new heading
+        const aim = t.phase === "inside" && t.wp.length ? Math.atan2(t.wp[0][0] - c.v.x, t.wp[0][1] - c.v.z) : t.phase === "approach" ? t.base : t.target;
+        input = { ...input, holdHeading: aim };
         // a car turns tighter slowly: take the corner at 4 m/s at most
         if (t.phase === "inside" && input.holdSpeed !== undefined) input = { ...input, holdSpeed: Math.min(input.holdSpeed, 4) };
       }
