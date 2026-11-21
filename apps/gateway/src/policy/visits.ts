@@ -4,6 +4,7 @@ import { agentVisits, owners } from "@aiverse/shared/schema";
 import { redis } from "../redis/client";
 import { activeVisitByAgent, evictVisitById } from "../auth/authCache";
 import { recordLedger } from "../world/verseMemory";
+import { summaryText, takeTally } from "../world/visitTally";
 
 // Pure DB logic — no ws/gateway import here, on purpose: ws/gateway.ts's own
 // WS-connect handler needs to call checkAndConsumeVisit too, and it already
@@ -30,14 +31,18 @@ export interface EndedVisit {
 // path and the sweep job, say) ends a visit exactly once — the loser's
 // UPDATE affects zero rows and this returns null for it.
 export async function endVisitRecord(visitId: string, reason: VisitEndReason): Promise<EndedVisit | null> {
-  const [ended] = await db
+  const endedAt = new Date();
+  const [row] = await db
     .update(agentVisits)
-    .set({ endedAt: new Date(), endedReason: reason })
+    .set({ endedAt, endedReason: reason })
     .where(and(eq(agentVisits.id, visitId), isNull(agentVisits.endedAt)))
-    .returning({ id: agentVisits.id, agentId: agentVisits.agentId, ownerId: agentVisits.ownerId });
+    .returning({ id: agentVisits.id, agentId: agentVisits.agentId, ownerId: agentVisits.ownerId, startedAt: agentVisits.startedAt, actionsUsed: agentVisits.actionsUsed, maxActions: agentVisits.maxActions });
   evictVisitById(visitId);
-  if (ended) await recordLedger(ended.agentId, ended.ownerId, { kind: "visit", visitId, text: `Visit ended: ${reason.replace(/_/g, " ")}.` });
-  return ended ? { ...ended, reason } : null;
+  const tally = takeTally(visitId);
+  if (!row) return null;
+  await recordLedger(row.agentId, row.ownerId, { kind: "visit", visitId, text: `Visit ended: ${reason.replace(/_/g, " ")}.` });
+  await recordLedger(row.agentId, row.ownerId, { kind: "visit_summary", visitId, text: summaryText(tally, row.startedAt, endedAt, row.actionsUsed, row.maxActions) });
+  return { id: row.id, agentId: row.agentId, ownerId: row.ownerId, reason };
 }
 
 export interface VisitCheckResult {
