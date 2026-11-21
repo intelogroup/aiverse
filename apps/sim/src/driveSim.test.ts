@@ -409,3 +409,51 @@ test("a speed-only drive after a right turn holds the street axis and stays in i
   expect(car.tally.collision).toBe(0);
   service.detach("drv");
 });
+
+/** The red car on the west back street at plan x -130, put at world z `z0` facing `heading`, a green clock for the whole street, its driver in. */
+function backStreetDrive(z0: number, heading: number) {
+  let clock = 0;
+  for (let t = 0; t < 400; t += 0.5) if (JUNCTIONS.every((q) => { const s = signalState(q, t); return s.ns === "green" && s.changesIn >= 60; })) { clock = t; break; }
+  const service = new WorldService({ sim, nowS: () => clock });
+  services.push(service);
+  const car = service.fleet.byId("car-east")!;
+  Object.assign(car.v, { z: z0, heading, speed: 0 });
+  service.attach("drv", { x: car.v.x + 1.8, z: car.v.z, maxR: 3 });
+  expect(act(service, "drv", "e", { type: "enter_vehicle" }).outcome?.ok).toBe(true);
+  let n = 0;
+  const step = (a: object) => {
+    const id = "s" + n++;
+    act(service, "drv", id, { type: "drive", ...a });
+    for (let i = 0; i < 400 && !service.actRecord("drv", id)?.outcome?.detail; i++) { run(service, 0.05); clock += 0.05; }
+    return service.actRecord("drv", id)?.outcome?.detail ?? "";
+  };
+  return { service, car, step };
+}
+
+test("driving straight on toward the end of the street grid stops the car short of the edge with END OF ROAD, and reversing gets it out", () => {
+  const { service, car, step } = backStreetDrive(-90, Math.PI);   // facing north, the last junction (world z -130) and then the edge (z -135) ahead
+  let detail = "";
+  for (let k = 0; k < 12 && !/END OF ROAD/.test(detail); k++) detail = step({ speed: 6 });
+  for (let k = 0; k < 4; k++) { step({ speed: 6 }); expect(car.v.z).toBeGreaterThan(-132); }   // pressing on never gets closer than 3 m of the edge
+  expect(car.v.z).toBeGreaterThan(-132);
+  expect(detail).toMatch(/END OF ROAD/);
+  expect(detail).toContain("reverse:true");
+  expect(car.tally.collision).toBe(0);
+  run(service, 4);   // the halt note comes while the car is still rolling; it brakes to a stop by itself
+  expect(car.v.speed).toBe(0);
+  const zEnd = car.v.z;
+  step({ gas: 1, reverse: true, seconds: 3 });
+  expect(car.v.z).toBeGreaterThan(zEnd + 2);   // backed away from the edge
+  expect(car.tally.collision).toBe(0);
+  service.detach("drv");
+});
+
+test("the end-of-road halt works toward the south edge too", () => {
+  const { service, car, step } = backStreetDrive(90, 0);   // facing south
+  let detail = "";
+  for (let k = 0; k < 12 && !/END OF ROAD/.test(detail); k++) detail = step({ speed: 6 });
+  for (let k = 0; k < 4; k++) { step({ speed: 6 }); expect(car.v.z).toBeLessThan(132); }
+  expect(detail).toMatch(/END OF ROAD/);
+  expect(car.tally.collision).toBe(0);
+  service.detach("drv");
+});
