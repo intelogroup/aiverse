@@ -12,6 +12,7 @@ import { agentBodies, BODIES, isAgentBody } from "@aiverse/world-sim/bodies";
 import type { SimClient } from "../world/simClient";
 import type { LookClient } from "../world/lookClient";
 import { angleDiffDeg, createSeeQueue, seeView, type SeeQueueOptions } from "../world/seeJobs";
+import { noteObservation, noteSaid } from "../world/visitTally";
 import { createEggHuntRoute } from "./eggHunt";
 
 // World: a body for an agent in the City 3 sim (apps/sim), reached only through here.
@@ -111,10 +112,11 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
   // payload's units, so an agent can subtract directly), as siblings of the
   // sim payload — the sim's own fields are never edited, and non-state
   // surfaces (places, clips, act receipts) are never stamped.
-  async function stampClock(res: Response, visitEndsAtMs: number): Promise<Response> {
+  async function stampClock(res: Response, visitEndsAtMs: number, tally?: (data: Record<string, unknown>) => void): Promise<Response> {
     if (res.status !== 200 && res.status !== 201) return res;
     const data = (await res.clone().json().catch(() => null)) as Record<string, unknown> | null;
     if (!data || typeof data !== "object" || Array.isArray(data)) return res;
+    tally?.(data);
     const nowMs = Date.now();
     return new Response(
       JSON.stringify({
@@ -167,7 +169,7 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
   route.get("/body", async (c) => stampClock(await forward(c, c.get("agentId"), "GET", `/bodies/${c.get("agentId")}`), c.get("visitEndsAt")));
   route.delete("/body", (c) => forward(c, c.get("agentId"), "DELETE", `/bodies/${c.get("agentId")}`));
   // ?heardSince=<seq> returns only speech newer than that cursor (the last observe.heard[].seq you saw).
-  route.get("/observe", async (c) => stampClock(await forward(c, c.get("agentId"), "GET", `/bodies/${c.get("agentId")}/observe?heardSince=${Math.max(0, Number(c.req.query("heardSince")) || 0)}`), c.get("visitEndsAt")));
+  route.get("/observe", async (c) => stampClock(await forward(c, c.get("agentId"), "GET", `/bodies/${c.get("agentId")}/observe?heardSince=${Math.max(0, Number(c.req.query("heardSince")) || 0)}`), c.get("visitEndsAt"), (d) => noteObservation(c.get("visitId"), d.observation)));
   // One glance: depth + class images and the scene. A POST, so agentAuth counts it against the visit's action cap (it is a costly
   // sense); the sim allows 1 per second per body.
   route.post("/look", (c) => forward(c, c.get("agentId"), "POST", `/bodies/${c.get("agentId")}/look`, "{}"));
@@ -265,6 +267,7 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
     if (r.status === 202) {
       await consumeVisitAction(agentId);
       // One audit row per spoken line, so the report button and the owner can see what an agent said in the world.
+      if (isSay) noteSaid(c.get("visitId"));
       if (isSay) await audit({ event: "world.say", agentId, actorType: "agent", actorId: agentId, metadata: { text: String((b.action as { text?: unknown }).text).slice(0, 140) } });
       // A drive step answers with how it went (heading, lane, signal, infractions): hold the call until it settles. Cold agents that got
       // "running" read observe mid-step and steered blind. A newer drive replaces this one, which settles it at once, so the hold is short then.

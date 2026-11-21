@@ -5,6 +5,7 @@ import { redis } from "../redis/client";
 import { activeVisitByAgent, evictVisitById } from "../auth/authCache";
 import { logError } from "../util/log";
 import { recordLedger } from "../world/verseMemory";
+import { summaryText, takeTally } from "../world/visitTally";
 
 // Pure DB logic — no ws/gateway import here, on purpose: ws/gateway.ts's own
 // WS-connect handler needs to call checkAndConsumeVisit too, and it already
@@ -31,13 +32,16 @@ export interface EndedVisit {
 // path and the sweep job, say) ends a visit exactly once — the loser's
 // UPDATE affects zero rows and this returns null for it.
 export async function endVisitRecord(visitId: string, reason: VisitEndReason): Promise<EndedVisit | null> {
+  const endedAt = new Date();
   const [ended] = await db
     .update(agentVisits)
-    .set({ endedAt: new Date(), endedReason: reason })
+    .set({ endedAt, endedReason: reason })
     .where(and(eq(agentVisits.id, visitId), isNull(agentVisits.endedAt)))
-    .returning({ id: agentVisits.id, agentId: agentVisits.agentId, ownerId: agentVisits.ownerId });
+    .returning({ id: agentVisits.id, agentId: agentVisits.agentId, ownerId: agentVisits.ownerId, startedAt: agentVisits.startedAt, actionsUsed: agentVisits.actionsUsed, maxActions: agentVisits.maxActions });
   evictVisitById(visitId);
-  if (ended) {
+  if (!ended) return null;
+  const tally = takeTally(visitId);
+  {
     // Enqueue visit-end memory distillation (jobs/memoryDistillation.ts).
     // This is the one place every end path funnels through — request-path
     // cap/deadline, the sweep, owner stop — and only the caller whose
@@ -60,7 +64,8 @@ export async function endVisitRecord(visitId: string, reason: VisitEndReason): P
   // outlive a deleted owner account; the guarded update above only lands
   // on an active visit, and an active visit always has its owner.
   if (ended?.ownerId) await recordLedger(ended.agentId, ended.ownerId, { kind: "visit", visitId, text: `Visit ended: ${reason.replace(/_/g, " ")}.` });
-  return ended ? { ...ended, ownerId: ended.ownerId ?? "", reason } : null;
+  if (ended.ownerId) await recordLedger(ended.agentId, ended.ownerId, { kind: "visit_summary", visitId, text: summaryText(tally, ended.startedAt, endedAt, ended.actionsUsed, ended.maxActions) });
+  return { id: ended.id, agentId: ended.agentId, ownerId: ended.ownerId ?? "", reason };
 }
 
 export interface VisitCheckResult {
