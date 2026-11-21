@@ -17,11 +17,11 @@ function junctionAndClock(lamp: "red" | "green") {
   throw new Error("no phase");
 }
 /** A fresh service with the red car parked 30 m before junction `j` in its lane, facing east, and an agent standing beside it. */
-function setup(clock: number, j: (typeof JUNCTIONS)[number], agent = "drv", z = 2.5) {
+function setup(clock: number, j: (typeof JUNCTIONS)[number], agent = "drv", z = 2.5, back = 30) {
   const service = new WorldService({ sim, nowS: () => clock });
   services.push(service);
   const car = service.fleet.byId("car-east")!;
-  Object.assign(car.v, { x: j.rect[0] - 30, y: 0.2, z, heading: EAST, speed: 0 });   // z 2.5 = plan y -2.5 = south side: the east lane
+  Object.assign(car.v, { x: j.rect[0] - back, y: 0.2, z, heading: EAST, speed: 0 });   // z 2.5 = plan y -2.5 = south side: the east lane
   service.attach(agent, { x: car.v.x, z: car.v.z + 1.8, maxR: 3 });
   return { service, car };
 }
@@ -99,7 +99,7 @@ test("running the red light and a wrong-way lane are reported to the driver", ()
 
 test("the wrong side of the street is reported as wrong_lane", () => {
   const { j, t } = junctionAndClock("green");
-  const { service, car } = setup(t, j, "drv", -4);   // north side while heading east
+  const { service, car } = setup(t, j, "drv", -4, 100);   // north side while heading east
   act(service, "drv", "e", { type: "enter_vehicle" });
   act(service, "drv", "d", { type: "drive", gas: 0.5, seconds: 5 });
   run(service, 5.1);
@@ -112,7 +112,7 @@ test("the wrong side of the street is reported as wrong_lane", () => {
 
 test("a car stops against a body in its lane and reports the collision", () => {
   const { j, t } = junctionAndClock("green");
-  const { service, car } = setup(t, j);
+  const { service, car } = setup(t, j, "drv", 2.5, 100);
   service.attach("blocker", { x: car.v.x + 14, z: car.v.z, maxR: 3 });
   act(service, "drv", "e", { type: "enter_vehicle" });
   for (let i = 0; i < 5; i++) { act(service, "drv", `d${i}`, { type: "drive", gas: 0.5, seconds: 2 }); run(service, 2.05); }
@@ -196,11 +196,12 @@ test("drive {heading} steers the car onto a compass bearing and holds it; headin
 
 test("drive {speed} holds the speed; gas or brake with speed is refused", () => {
   const { j, t } = junctionAndClock("green");
-  const { service, car } = setup(t, j);
+  const { service, car } = setup(t, j, "drv", 2.5, 100);
   act(service, "drv", "e", { type: "enter_vehicle" });
   expect(() => act(service, "drv", "bad", { type: "drive", speed: 5, gas: 1 })).toThrow(/cannot be combined with gas or brake/);
+  Object.assign(car.v, { x: 15, z: 5, speed: 3 });   // between junctions: nothing within the warning distance of a 3 s step
   act(service, "drv", "d", { type: "drive", speed: 5, heading: 90, seconds: 5 });
-  run(service, 4.9);   // still inside the step
+  run(service, 3);   // still inside the step
   expect(car.v.speed).toBeGreaterThan(4.5);
   expect(car.v.speed).toBeLessThan(5.5);
   service.detach("drv");
@@ -232,7 +233,7 @@ test("the enter reply teaches the drive fields an agent needs: speed, heading an
 
 test("holding a heading on a street also centres the car in its lane", () => {
   const { j, t } = junctionAndClock("green");
-  const { service, car } = setup(t, j, "drv", 6.9);   // 1.9 m toward the kerb from the lane middle (z 5), still in lane
+  const { service, car } = setup(t, j, "drv", 6.9, 100);   // 1.9 m toward the kerb from the lane middle (z 5), still in lane
   act(service, "drv", "e", { type: "enter_vehicle" });
   act(service, "drv", "d", { type: "drive", speed: 5, heading: 90, seconds: 5 });
   run(service, 5.2);
@@ -246,18 +247,15 @@ test("junctionsPassed counts junction entries, and the step result reports it", 
   const { service } = setup(t, j);
   act(service, "drv", "e", { type: "enter_vehicle" });
   expect(service.observe("drv").vehicle?.junctionsPassed).toBe(0);
-  act(service, "drv", "d0", { type: "drive", speed: 8, heading: 90, seconds: 5 });
-  run(service, 5.2);
-  act(service, "drv", "d", { type: "drive", speed: 8, heading: 90, seconds: 3 });
-  run(service, 3.2);
+  for (let i = 0; i < 4; i++) { act(service, "drv", `d${i}`, { type: "drive", speed: 8, heading: 90, seconds: 3 }); run(service, 3.2); }   // JUNCTION AHEAD cuts the first short
   expect(service.observe("drv").vehicle?.junctionsPassed).toBe(1);
-  expect(service.actRecord("drv", "d")?.outcome?.detail).toContain("junctions passed so far 1");
+  expect(["d0", "d1", "d2", "d3"].map((id) => service.actRecord("drv", id)?.outcome?.detail ?? "").join(" | ")).toContain("junctions passed so far 1");
   service.detach("drv");
 });
 
 test("with no drive open the car brakes to a halt on its own", () => {
   const { j, t } = junctionAndClock("green");
-  const { service, car } = setup(t, j);
+  const { service, car } = setup(t, j, "drv", 2.5, 100);
   act(service, "drv", "e", { type: "enter_vehicle" });
   act(service, "drv", "d", { type: "drive", speed: 8, heading: 90, seconds: 3 });
   run(service, 3.1);
@@ -325,5 +323,21 @@ test("turn is refused with heading, steer or reverse, and with anything but left
   for (const [i, bad] of [{ turn: "left", heading: 0 }, { turn: "left", steer: 1 }, { turn: "left", reverse: true }, { turn: "up" }].entries()) {
     expect(() => service.act("drv", `bad-${i}`, { type: "drive", ...bad } as never)).toThrow(/turn must be/);
   }
+  service.detach("drv");
+});
+
+test("a junction ahead on a green ends the step with JUNCTION AHEAD and the car brakes to a halt short of it; a turn drive is not cut short", () => {
+  const { j, t } = junctionAndClock("green");
+  const { service, car } = setup(t, j);
+  act(service, "drv", "e", { type: "enter_vehicle" });
+  act(service, "drv", "d", { type: "drive", speed: 8, heading: 90, seconds: 5 });
+  run(service, 5.2);
+  expect(service.actRecord("drv", "d")?.outcome?.detail).toMatch(/^JUNCTION AHEAD: junction 1 is \d+ m ahead, the signal is green\. To turn there send drive \{speed: 5, turn:/);
+  run(service, 4);
+  expect(car.v.speed).toBe(0);
+  expect(car.v.x).toBeLessThan(j.rect[0] - 8);
+  act(service, "drv", "d2", { type: "drive", speed: 5, heading: 90, seconds: 3 });   // the same junction is not announced twice
+  run(service, 3.2);
+  expect(service.actRecord("drv", "d2")?.outcome?.detail).not.toMatch(/JUNCTION AHEAD/);
   service.detach("drv");
 });

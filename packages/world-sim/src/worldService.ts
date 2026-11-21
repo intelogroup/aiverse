@@ -62,6 +62,8 @@ export interface SayEvent { seq: number; n: number; text: string; t: number }
 
 /** Heard lines kept per body, and how long (simulation seconds). */
 const HEARD_KEEP = 20, HEARD_TTL_S = 60, SAY_STREAM_TTL_S = 6, TALK_S = 2;
+/** A junction this close ahead on a green ends the step, so the driver can choose to turn (m). */
+const JUNCTION_WARN_M = 26;
 
 export interface Observation extends TeaWayfinding {
   /** Simulation time, s. */
@@ -145,7 +147,7 @@ export interface VehicleView {
 }
 
 /** One driver's open `drive` command and the rules it broke so far. */
-interface DriveRun { rec: ActRecord | null; endsAt: number; broke: Infraction[]; recent: string[]; bumped: boolean; /** Sim time of the last step the car was pushed against something. */ blockedAt: number; /** Signal the open drive already ended early for: one warning per signal phase, not a loop. */ warned: string; /** Junctions entered since the driver got in. */ passed: number; wasIn: boolean; /** Distance bucket of the obstacle already warned about. */ warnedAhead: number }
+interface DriveRun { /** The junction the driver was last warned about (cell key). */ warnedJ: string; rec: ActRecord | null; endsAt: number; broke: Infraction[]; recent: string[]; bumped: boolean; /** Sim time of the last step the car was pushed against something. */ blockedAt: number; /** Signal the open drive already ended early for: one warning per signal phase, not a loop. */ warned: string; /** Junctions entered since the driver got in. */ passed: number; wasIn: boolean; /** Distance bucket of the obstacle already warned about. */ warnedAhead: number }
 
 export class WorldService {
   readonly sim: VerseSim;
@@ -317,7 +319,7 @@ export class WorldService {
       target.input = { gas: 0, brake: 0, steer: 0 };
       target.inputUntil = 0;
       target.tally = { red_light: 0, speeding: 0, wrong_lane: 0, collision: 0 };
-      this.drives.set(agentId, { rec: null, endsAt: 0, broke: [], recent: [], bumped: false, blockedAt: -1e9, warned: "", passed: 0, wasIn: false, warnedAhead: 0 });
+      this.drives.set(agentId, { rec: null, endsAt: 0, broke: [], recent: [], bumped: false, blockedAt: -1e9, warned: "", passed: 0, wasIn: false, warnedAhead: 0, warnedJ: "" });
       this.syncDriver(s, target);
       this.rosterRev++;
       return this.settle(rec, { ok: true, status: "done", detail: `you are in ${target.id}. drive {speed: m/s (about 6 is a good cruise), heading: compass bearing 0..360 the car steers itself to (0 north, 90 east, 180 south, 270 west), seconds: 1-${MAX_DRIVE_S}} moves you and the call returns when the step ends. To turn at a junction, drive {speed: 6, turn: "left" or "right"}: the car keeps its heading to the next junction, turns inside it onto the new street's lane, and the call returns when you are through (a red lamp ahead ends it with STOP first: wait, then send the same drive again). To change direction elsewhere, set a heading. Manual controls: gas, brake, steer (+ left), reverse:true. Obey the signals, keep right, stay under 25 mph; exit_vehicle to get out`, vehicle: { id: target.id, speed: 0, infractions: [] } });
@@ -342,7 +344,7 @@ export class WorldService {
 
   /** A new drive replaces the open one: the controls are simply the latest ones, held for `seconds`. */
   private startDrive(agentId: string, car: Vehicle, rec: ActRecord, c: { gas?: number; brake?: number; steer?: number; heading?: number; speed?: number; reverse?: boolean; turn?: "left" | "right"; seconds?: number }): void {
-    const run = this.drives.get(agentId) ?? { rec: null, endsAt: 0, broke: [], recent: [], bumped: false, blockedAt: -1e9, warned: "", passed: 0, wasIn: false, warnedAhead: 0 };
+    const run = this.drives.get(agentId) ?? { rec: null, endsAt: 0, broke: [], recent: [], bumped: false, blockedAt: -1e9, warned: "", passed: 0, wasIn: false, warnedAhead: 0, warnedJ: "" };
     if (run.rec) this.finishDrive(run, car, "replaced by a newer drive");
     car.input = { gas: c.gas ?? 0, brake: c.brake ?? 0, steer: c.steer ?? 0, reverse: c.reverse === true, holdSpeed: c.speed, holdHeading: c.heading === undefined ? undefined : (180 - c.heading) * Math.PI / 180 };
     const base = Math.round(car.v.heading / (Math.PI / 2)) * (Math.PI / 2);
@@ -631,9 +633,16 @@ export class WorldService {
         // A step also ends the moment a signal that is not green is close enough that stopping takes thought: the car brakes to a halt, the agent decides.
         const { signal } = Fleet.senses(c, now);
         const key = signal ? `${signal.lamp}@${Math.round((c.v.x + Math.sin(c.v.heading) * signal.distance) / 10)},${Math.round((c.v.z + Math.cos(c.v.heading) * signal.distance) / 10)}` : "";
+        const jkey = signal ? `${Math.round((c.v.x + Math.sin(c.v.heading) * signal.distance) / 10)},${Math.round((c.v.z + Math.cos(c.v.heading) * signal.distance) / 10)}` : "";
+        if (signal && signal.lamp === "green" && !c.turn && signal.distance <= JUNCTION_WARN_M && run.warnedJ !== jkey) {
+          // A junction is the one place a heading drive is not enough: the model needs seconds to choose, so the car halts well short of it.
+          run.warnedJ = jkey;
+          c.inputUntil = this.sim.t;
+          this.finishDrive(run, c, `JUNCTION AHEAD: junction ${run.passed + 1} is ${Math.round(signal.distance)} m ahead, the signal is green. To turn there send drive {speed: 5, turn: "left" or "right"}; to go straight on send a heading drive. The car is braking to a halt on its own, so you have time to choose`);
+        }
         if (!signal || signal.lamp === "green") run.warned = "";
         else if (signal.distance <= Math.max(14, c.v.speed * c.v.speed / 3.5 + 6) && run.warned !== key) {
-          run.warned = key;
+          run.warned = key; run.warnedJ = jkey;
           c.inputUntil = this.sim.t;
           this.finishDrive(run, c, `STOP: the signal ahead is ${signal.lamp}, ${Math.round(signal.distance)} m away at ${c.v.speed.toFixed(1)} m/s. Brake to a halt before the junction (drive {speed:0}); wait with drive {speed:0, seconds:5} until it is green (its lamp and "changes in" are in observe.vehicle.signal), then go; the car is braking to a halt on its own`);
         }
