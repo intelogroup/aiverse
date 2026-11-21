@@ -7,7 +7,7 @@
 // range and in the view cone). No other agent's identity, no hidden state, no debug surface.
 import { createHmac, randomBytes } from "node:crypto";
 import { AgentBody, SUBSTEP_S, type AgentSnapshot } from "./agentBody";
-import { explainAction, SAY_RANGE_M, validRequestId } from "./actionProtocol";
+import { explainAction, MAX_DRIVE_S, SAY_RANGE_M, validRequestId } from "./actionProtocol";
 import { encodePose, type PoseTuple } from "./streamProtocol";
 import { NPC_GROUND_Y, type AmbientWorld } from "./ambientWorld";
 import { bearingDeg, nearestPlace, oracleScene, roomAt, type OracleObject, type ScoutAction, type ScoutOutcome, type ScoutSeat } from "./scout";
@@ -317,7 +317,7 @@ export class WorldService {
       this.drives.set(agentId, { rec: null, endsAt: 0, broke: [], recent: [], bumped: false, blockedAt: -1e9, warned: "" });
       this.syncDriver(s, target);
       this.rosterRev++;
-      return this.settle(rec, { ok: true, status: "done", detail: `you are in ${target.id}. drive {gas, brake, steer, seconds} to move; obey the signals, keep right, stay under 25 mph; exit_vehicle to get out`, vehicle: { id: target.id, speed: 0, infractions: [] } });
+      return this.settle(rec, { ok: true, status: "done", detail: `you are in ${target.id}. drive {speed: m/s (about 6 is a good cruise), heading: compass bearing 0..360 the car steers itself to (0 north, 90 east, 180 south, 270 west), seconds: 1-${MAX_DRIVE_S}} moves you and the call returns when the step ends. To turn left at a junction, set a heading 90 deg lower than now (east 90 -> north 0), a right turn 90 deg higher. Manual controls: gas, brake, steer (+ left), reverse:true. Obey the signals, keep right, stay under 25 mph; exit_vehicle to get out`, vehicle: { id: target.id, speed: 0, infractions: [] } });
     }
     if (!car) return this.settle(rec, { ok: false, status: "unavailable", detail: `${a.type} needs a car: you are on foot. enter_vehicle first (a car within ${ENTER_RANGE_M} m)` });
     if (a.type === "exit_vehicle") {

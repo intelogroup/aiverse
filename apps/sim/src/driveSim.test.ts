@@ -214,3 +214,11 @@ test("a step ends early with STOP when a red signal is near, and the car coasts;
   expect(car.tally.red_light).toBe(0);
   service.detach("drv");
 });
+
+test("the enter reply teaches the drive fields an agent needs: speed, heading and how to turn left", () => {
+  const { j, t } = junctionAndClock("green");
+  const { service } = setup(t, j);
+  const detail = act(service, "drv", "e", { type: "enter_vehicle" }).outcome?.detail ?? "";
+  for (const w of ["speed:", "heading:", "turn left", "reverse:true"]) expect(detail).toContain(w);
+  service.detach("drv");
+});
