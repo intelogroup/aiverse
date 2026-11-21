@@ -355,7 +355,7 @@ export class WorldService {
     const broke = run.broke.map((i) => `${i.kind}: ${i.detail}`);
     // The step's result carries where the car ended up, so a driver need not read observe to know how the step went.
     const end = car.driver ? this.vehicleView(car.driver) : null;
-    const where = end ? `; heading ${end.compassDeg} deg (${end.facing})${end.laneErrorM === null ? "" : `, ${end.laneErrorM > 0 ? "wrong side by" : "in lane, margin"} ${Math.abs(end.laneErrorM)} m`}${end ? `, junctions passed so far ${end.junctionsPassed}` : ""}${end.signal ? `, next signal ${end.signal.lamp} in ${Math.round(end.signal.distance)} m, it changes in ${Math.round(end.signal.changesIn)} s${end.signal.lamp === "green" ? "" : ": do not enter until it is green"}` : ""}` : "";
+    const where = end ? `; heading ${end.compassDeg} deg (${end.facing})${end.laneErrorM === null ? "" : `, ${end.laneErrorM > 0 ? "wrong side by" : "in lane, margin"} ${Math.abs(end.laneErrorM)} m`}${end ? `, junctions passed so far ${end.junctionsPassed}` : ""}${end?.atJunction ? `; INSIDE a junction, to go straight use heading ${Math.round(end.compassDeg / 90) % 4 * 90}, to turn left ${(Math.round(end.compassDeg / 90) + 3) % 4 * 90}, right ${(Math.round(end.compassDeg / 90) + 1) % 4 * 90}` : ""}${end.signal ? `, next signal ${end.signal.lamp} in ${Math.round(end.signal.distance)} m, it changes in ${Math.round(end.signal.changesIn)} s${end.signal.lamp === "green" ? "" : ": do not enter until it is green"}` : ""}` : "";
     this.settle(run.rec, {
       ok: true, status: "done",
       detail: `${note}; now ${car.v.speed.toFixed(1)} m/s${where}${run.bumped ? ". BLOCKED: something solid is in your way (a kerb, post, wall or body); reverse away (drive {gas:1, reverse:true}) or steer around it" : ""}${broke.length ? `. YOU BROKE THE RULES: ${broke.join("; ")}` : ""}`,
@@ -609,10 +609,8 @@ export class WorldService {
       }
       if (entered && run?.rec && c.v.speed > 1 && this.sim.t < run.endsAt) {
         // Entering a junction ends the step so the agent can turn there: a 5 s step at 6 m/s would cross a 10 m junction without the chance.
-        const deg = Math.round((180 - ((c.v.heading * 180 / Math.PI) % 360 + 360) % 360 + 360) % 360);
-        const left = (deg + 270) % 360, right = (deg + 90) % 360;
         c.inputUntil = Math.min(c.inputUntil, this.sim.t + 1.5);   // the car carries on a moment, then brakes inside the junction
-        this.finishDrive(run, c, `JUNCTION ${run.passed}: you are inside it. Straight on: heading ${deg}. Turn left: heading ${left}. Turn right: heading ${right}. Send the next drive now`);
+        this.finishDrive(run, c, `JUNCTION ${run.passed}: you are inside it, send the next drive now`);
         continue;
       }
       if (run?.rec && this.sim.t >= run.endsAt) this.finishDrive(run, c, "done");
