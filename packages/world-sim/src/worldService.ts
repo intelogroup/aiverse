@@ -347,6 +347,12 @@ export class WorldService {
     const run = this.drives.get(agentId) ?? { rec: null, endsAt: 0, broke: [], recent: [], bumped: false, blockedAt: -1e9, warned: "", passed: 0, wasIn: false, warnedAhead: 0, warnedJ: "" };
     if (run.rec) this.finishDrive(run, car, "replaced by a newer drive");
     car.input = { gas: c.gas ?? 0, brake: c.brake ?? 0, steer: c.steer ?? 0, reverse: c.reverse === true, holdSpeed: c.speed, holdHeading: c.heading === undefined ? undefined : (180 - c.heading) * Math.PI / 180 };
+    // A speed with no heading and no steer means "go straight on": hold the street axis the car is within 35 deg of, so the lane pursuit pulls it
+    // back onto its lane. Without it the car kept the heading a turn ended on (16 deg off) and drifted across the street into the kerb.
+    if (c.heading === undefined && c.speed !== undefined && c.steer === undefined && !c.reverse && !c.turn) {
+      const h = car.v.heading, axis = Math.round(h / (Math.PI / 2)) * (Math.PI / 2);
+      car.input.holdHeading = Math.abs(h - axis) < 0.6 ? axis : h;
+    }
     const base = Math.round(car.v.heading / (Math.PI / 2)) * (Math.PI / 2);
     car.turn = c.turn ? { dir: c.turn, base, target: base + (c.turn === "left" ? 1 : -1) * Math.PI / 2, phase: "approach", t0: 0, wp: [] } : null;
     if (car.turn && c.speed === undefined && c.gas === undefined) car.input.holdSpeed = 5;

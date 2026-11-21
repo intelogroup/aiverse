@@ -388,3 +388,24 @@ test("the red car is parked on the west back street, away from the tower, and dr
   expect(car.tally.collision + car.tally.red_light + car.tally.wrong_lane).toBe(0);
   service.detach("drv");
 });
+
+test("a speed-only drive after a right turn holds the street axis and stays in its lane to the next junction", () => {
+  const j = JUNCTIONS.find((q) => q.rect[0] === -135 && q.rect[1] === 60 && q.rect[3] === 70)!;
+  let clock = 0; for (let t = 0; t < 400; t += 0.5) { const s = signalState(j, t); if (s.ns === "green" && s.ew === "red" && s.changesIn >= 30) { clock = t; break; } }
+  const service = new WorldService({ sim, nowS: () => clock });
+  services.push(service);
+  const car = service.fleet.byId("car-east")!;
+  service.attach("drv", { x: car.v.x + 1.8, z: car.v.z, maxR: 3 });
+  expect(act(service, "drv", "e", { type: "enter_vehicle" }).outcome?.ok).toBe(true);
+  const step = (id: string, a: object) => {
+    act(service, "drv", id, { type: "drive", ...a });
+    for (let i = 0; i < 400 && !service.actRecord("drv", id)?.outcome?.detail; i++) { run(service, 0.05); clock += 0.05; }
+  };
+  for (let k = 0; k < 6 && car.v.z > -60; k++) step("n" + k, { speed: 6, heading: 0 });
+  step("t", { speed: 5, turn: "right" });
+  expect(car.v.x).toBeGreaterThan(-118);
+  for (let k = 0; k < 3; k++) step("s" + k, { speed: 5 });   // east on z -65 with no heading: the car must hold the axis by itself
+  expect(Math.abs(car.v.z + 63.2)).toBeLessThan(1.5);          // right-hand lane of the 10 m street, not 5 m south of it
+  expect(car.tally.collision).toBe(0);
+  service.detach("drv");
+});
