@@ -412,7 +412,7 @@ export class WorldService {
   tick(dt: number): void {
     this.sim.tick(dt);
     if (this.ambient) {
-      this.ambient.step(dt);
+      this.ambient.step(dt, [...this.sessions.values()].map((x) => x.body.state));
       for (const d of this.ambient.discs()) this.sim.publishDisc(d.id, d.x, NPC_GROUND_Y, d.z, d.r, d.h, d.vx, d.vz);
     }
     for (const [id, s] of this.sessions) {

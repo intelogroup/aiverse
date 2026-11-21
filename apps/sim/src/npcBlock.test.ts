@@ -1,6 +1,7 @@
 import { beforeAll, expect, test } from "bun:test";
 import { loadVerseSim } from "@aiverse/world-sim/node/loadWorld";
 import { AmbientWorld } from "@aiverse/world-sim/ambientWorld";
+import { sample } from "@aiverse/world-sim/ambientTraffic";
 import { WorldService } from "@aiverse/world-sim/worldService";
 
 const ASSETS = new URL("../../console/public/assets/", import.meta.url).pathname;
@@ -43,3 +44,23 @@ test("the service publishes every resident car and pedestrian as solid discs", (
   expect(new Set(d.map((x) => x.id)).size).toBe(d.length);
   expect(d.every((x) => x.id.startsWith("npc:") && Number.isFinite(x.x) && Number.isFinite(x.z))).toBe(true);
 });
+
+test("a resident car stops for an agent body standing in its lane instead of driving through", async () => {
+  let clock = 1_700_000_000;
+  const ambient = new AmbientWorld(() => clock, 1);
+  const service = new WorldService({ sim, ambient });
+  const car = ambient.cars[0];
+  const ahead = sample(car.loop, car.s + 40);
+  service.attach("npc-yield", { x: ahead.x, z: -ahead.y });
+  const me = service.observe("npc-yield").body;
+  let minDist = Infinity;
+  for (let t = 0; t < 25; t += 0.1) {
+    clock += 0.1;
+    service.tick(0.1);
+    const p = sample(car.loop, car.s);
+    minDist = Math.min(minDist, Math.hypot(p.x - me.x, -p.y - me.z));
+  }
+  service.detach("npc-yield");
+  expect(minDist).toBeGreaterThan(2.5);   // a car's centre never gets within half a car + the body
+  expect(car.v).toBeLessThan(0.5);
+}, 60_000);
