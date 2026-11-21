@@ -54,7 +54,8 @@ const TURN_LOOKAHEAD_M = 16;
 
 /**
  * The waypoints of a corner in junction `rect` (plan x0, y0, x1, y1) from heading `base` to `target` (world radians, axis-aligned): P1 is on the
- * old street's lane a few metres before X, the crossing of the two lane lines, nudged toward the turn; P2 is on the new lane 9 m past X.
+ * old street's lane a few metres before X, the crossing of the two lane lines, nudged toward the turn; P2 and P3 are on the new lane 9 m and
+ * 15 m past X, so the car is lined up on the new street when the turn ends (ending 15 deg off, it drifted into the post on the lane's edge).
  * Points the car has already passed are dropped.
  */
 export function cornerPath(rect: readonly number[], base: number, target: number, carX: number, carZ: number): [number, number][] {
@@ -70,7 +71,7 @@ export function cornerPath(rect: readonly number[], base: number, target: number
   // on the cross street): 7 m back, leaning 0.8 m only out of the avenue.
   const wide = along(db) >= 20, left = sb < 0;
   const back = left ? (wide ? 7 : 3) : 7, lat = left || !wide ? 0 : 0.8;
-  const pts = [[X[0] - back * db[0] + lat * dt[0], X[1] - back * db[1] + lat * dt[1]], [X[0] + 9 * dt[0], X[1] + 9 * dt[1]]];
+  const pts = [[X[0] - back * db[0] + lat * dt[0], X[1] - back * db[1] + lat * dt[1]], [X[0] + 9 * dt[0], X[1] + 9 * dt[1]], [X[0] + 15 * dt[0], X[1] + 15 * dt[1]]];
   return pts.filter((p) => (p[0] - carX) * db[0] + (p[1] + carZ) * db[1] > 0).map((p) => [p[0], -p[1]] as [number, number]);
 }
 

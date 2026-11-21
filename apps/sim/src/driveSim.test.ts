@@ -336,6 +336,7 @@ test("a left turn off a 10 m street clears the signal post on its centre line, a
     detail = service.actRecord("drv", "t" + k)?.outcome?.detail ?? "";
   }
   expect(detail).toMatch(/^TURNED left at junction \d+: now heading 270/);
+  expect(Math.abs(Math.atan2(Math.sin(car.v.heading + Math.PI / 2), Math.cos(car.v.heading + Math.PI / 2)))).toBeLessThan(0.15);   // lined up on the new street, not still swinging
   act(service, "drv", "w", { type: "drive", speed: 6, heading: 270, seconds: 5 });
   for (let i = 0; i < 400 && !service.actRecord("drv", "w")?.outcome?.detail; i++) { run(service, 0.05); clock += 0.05; }
   expect(car.tally.collision + car.tally.red_light).toBe(0);
