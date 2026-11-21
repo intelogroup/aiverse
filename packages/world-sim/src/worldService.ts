@@ -9,7 +9,7 @@ import { createHmac, randomBytes } from "node:crypto";
 import { AgentBody, type AgentSnapshot } from "./agentBody";
 import { explainAction, SAY_RANGE_M, validRequestId } from "./actionProtocol";
 import { encodePose, type PoseTuple } from "./streamProtocol";
-import type { AmbientWorld } from "./ambientWorld";
+import { NPC_GROUND_Y, type AmbientWorld } from "./ambientWorld";
 import { nearestPlace, oracleScene, roomAt, type OracleObject, type ScoutAction, type ScoutOutcome, type ScoutSeat } from "./scout";
 import { clipDef, SOCIAL_CLIPS } from "./clips";
 import { agentBodies, BODIES, BODY_REMY } from "./bodies";
@@ -411,7 +411,10 @@ export class WorldService {
   /** Advance the world by `dt` simulation seconds and stop bodies whose agent went quiet. */
   tick(dt: number): void {
     this.sim.tick(dt);
-    this.ambient?.step(dt);
+    if (this.ambient) {
+      this.ambient.step(dt);
+      for (const d of this.ambient.discs()) this.sim.publishDisc(d.id, d.x, NPC_GROUND_Y, d.z, d.r, d.h, d.vx, d.vz);
+    }
     for (const [id, s] of this.sessions) {
       if (this.sim.t - s.lastSeen > this.leaseS && s.body.busy) {
         void s.body.act({ type: "stop" });

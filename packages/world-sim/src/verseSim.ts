@@ -92,6 +92,11 @@ export class VerseSim {
   get teaFloors(): readonly TeaFloorPlan[] { return this.data.teaFloors ?? []; }
 
   /** True once the resident collision is loaded (a body cannot find ground before that). */
+  /** Resident NPCs (cars, pedestrians) are solid discs to every agent body: publish one each tick; the registry drops it after its TTL. */
+  publishDisc(id: string, x: number, y: number, z: number, radius: number, height: number, vx = 0, vz = 0): void {
+    this.actors.publishWalker(id, { x, y, z, vx, vz }, radius, height, true);
+  }
+
   get ready(): boolean { return this.walk.status === "ready"; }
 
   addBody(opts: AddBodyOpts): AgentBody {
