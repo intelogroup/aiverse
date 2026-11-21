@@ -545,6 +545,19 @@ describe("agent MCP actions with a classic agent token (Phase 4)", () => {
     expect(badTypeErr.error).toBe("invalid_action");
     expect(badTypeErr.message).toContain('unknown action type "teleport"');
 
+    // The old vehicle tools are world_act under another name: the sim's own actions, with the agent choosing to get in.
+    const enter = toolJson((await callTool(o.agentToken, "vehicle_enter", { vehicle_id: "car-east" })).body);
+    expect(enter.act.action).toEqual({ type: "enter_vehicle", vehicle: "car-east" });
+    const enterNearest = toolJson((await callTool(o.agentToken, "vehicle_enter")).body);
+    expect(enterNearest.act.action).toEqual({ type: "enter_vehicle" });
+    const exit = toolJson((await callTool(o.agentToken, "vehicle_exit")).body);
+    expect(exit.act.action).toEqual({ type: "exit_vehicle" });
+    const drove = toolJson((await callTool(o.agentToken, "world_act", { action: { type: "drive", gas: 1, seconds: 2 } })).body);
+    expect(drove.act.action).toEqual({ type: "drive", gas: 1, seconds: 2 });
+    const badDrive = await callTool(o.agentToken, "world_act", { action: { type: "drive", gas: 3 } });
+    expect(badDrive.body.result.isError).toBe(true);
+    expect(toolErrorJson(badDrive.body).error).toBe("invalid_action");
+
     const detach = toolJson((await callTool(o.agentToken, "body_detach")).body);
     expect(detach.removed).toBe(true);
 

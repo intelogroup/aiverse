@@ -431,7 +431,7 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
 
   register(
     "world_act",
-    "Act in the world (POST /world/act): one flat action object, passed through untouched — {type:\"go_to\"|\"run_to\"|\"enter\"|\"face\"|\"wait\"|\"sit\"|\"stand\"|\"play\"|\"interact\"|\"gaze\"|\"say\"|\"stop\", ...fields} (see the guide resource or GET /world/clips for the play vocabulary). Needs an attached body. The sim accepts or refuses in its own words, returned verbatim. An optional id makes the act idempotent (a retry with the same id and action replays the first record); one is generated when omitted. Requires the world:act scope for OAuth tokens.",
+    "Act in the world (POST /world/act): one flat action object, passed through untouched — {type:\"go_to\"|\"run_to\"|\"enter\"|\"face\"|\"wait\"|\"sit\"|\"stand\"|\"play\"|\"interact\"|\"gaze\"|\"say\"|\"stop\"|\"enter_vehicle\"|\"drive\"|\"exit_vehicle\", ...fields} (see the guide resource or GET /world/clips for the play vocabulary). Needs an attached body. The sim accepts or refuses in its own words, returned verbatim. An optional id makes the act idempotent (a retry with the same id and action replays the first record); one is generated when omitted. Requires the world:act scope for OAuth tokens.",
     {
       action: z.any().describe("A flat world action, for example {\"type\":\"go_to\",\"place\":\"shop-102\"}. For a usable elevator in world_observe.landmarks, use {\"type\":\"ride_elevator\",\"target\":\"<marker id>\",\"floor\":\"L2\"}. Poll world_observe for the result."),
       id: z
@@ -457,45 +457,38 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
     { readOnlyHint: false },
   );
 
-  register(
-    "vehicle_enter",
-    "Enter a vehicle in the world (POST /world/vehicles/:id/enter): step into a parked car/bike and drive it. The car becomes your body — your movement commands drive the vehicle instead of walking. Requires an attached body and an active visit. Requires the world:act scope for OAuth tokens.",
-    {
-      vehicle_id: z.string().min(1).describe("Vehicle id, e.g. \"car-east\" or \"car-tea\"."),
-      agent_id: agentIdArg,
-    },
-    async ({ vehicle_id, agent_id }, call) => {
-      const gate = scopeGate(caller, "world:act", "vehicle_enter");
+  // Driving lives in the sim (enter_vehicle / drive / exit_vehicle are ordinary world actions, so world_act carries them). These two tools
+  // are the same acts under their older names: one path, one set of rules, no gateway-side occupancy state to drift from the sim's.
+  const vehicleAct = (name: "vehicle_enter" | "vehicle_exit", action: (a: { vehicle_id?: string }) => Record<string, unknown>) =>
+    async (args: { vehicle_id?: string; agent_id?: string }, call: Call) => {
+      const gate = scopeGate(caller, "world:act", name);
       if (gate) return gate;
-      return asAgent({ agent_id }, async (agentId) => {
-        const res = await call(`/world/vehicles/${encodeURIComponent(vehicle_id)}/enter`, {
+      return asAgent({ agent_id: args.agent_id }, async (agentId) => {
+        const res = await call("/world/act", {
           method: "POST",
           agentId: caller.kind === "oauth" ? agentId : undefined,
+          body: { id: `mcp-${randomBytes(8).toString("hex")}`, action: action(args) },
         });
         return res.ok ? okJson(res.data) : fail(res.text);
       });
+    };
+
+  register(
+    "vehicle_enter",
+    "Get into a car (world_act {type:\"enter_vehicle\", vehicle?}): your own decision, never automatic; walking past a car does nothing. You must stand within 3 m (world_observe.scene lists cars as kind \"vehicle\"); omit vehicle_id for the nearest. Then drive with world_act {type:\"drive\", gas, brake, steer, seconds} and read observe.vehicle (speed, next signal, lane error, infractions). Requires an attached body and an active visit. Requires the world:act scope for OAuth tokens.",
+    {
+      vehicle_id: z.string().min(1).optional().describe("Car id from observe.scene, e.g. \"car-east\". Omit for the nearest within 3 m."),
+      agent_id: agentIdArg,
     },
+    vehicleAct("vehicle_enter", ({ vehicle_id }) => (vehicle_id ? { type: "enter_vehicle", vehicle: vehicle_id } : { type: "enter_vehicle" })),
     { readOnlyHint: false },
   );
 
   register(
     "vehicle_exit",
-    "Exit a vehicle (POST /world/vehicles/:id/exit): step out of a car you are driving and resume walking. Requires the world:act scope for OAuth tokens.",
-    {
-      vehicle_id: z.string().min(1).describe("Vehicle id you are driving."),
-      agent_id: agentIdArg,
-    },
-    async ({ vehicle_id, agent_id }, call) => {
-      const gate = scopeGate(caller, "world:act", "vehicle_exit");
-      if (gate) return gate;
-      return asAgent({ agent_id }, async (agentId) => {
-        const res = await call(`/world/vehicles/${encodeURIComponent(vehicle_id)}/exit`, {
-          method: "POST",
-          agentId: caller.kind === "oauth" ? agentId : undefined,
-        });
-        return res.ok ? okJson(res.data) : fail(res.text);
-      });
-    },
+    "Get out of the car you are driving (world_act {type:\"exit_vehicle\"}): the car must be nearly stopped with room beside it. Requires the world:act scope for OAuth tokens.",
+    { agent_id: agentIdArg },
+    vehicleAct("vehicle_exit", () => ({ type: "exit_vehicle" })),
     { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
   );
 
