@@ -26,7 +26,7 @@ export const ACTION_TYPES = {
   ride_elevator: "{target: elevator marker ID from observation.landmarks, floor: G | L1 | L2 | L3}",
   gaze: `{yawDeg?: -${GAZE_YAW_MAX_DEG}..${GAZE_YAW_MAX_DEG} (+ right), pitchDeg?: ${GAZE_PITCH_MIN_DEG}..${GAZE_PITCH_MAX_DEG} (+ up)} or {reset:true}: turn your head, not your body; look and see follow it`,
   enter_vehicle: "{vehicle?: car id from observe.scene (kind vehicle)}: get into a car within 3 m (nearest if no id). Walking past a car does nothing; you must choose this",
-  drive: `{gas?: 0..1, brake?: 0..1, steer?: -1..1 (+ left), seconds?: >0..${MAX_DRIVE_S} (default 1)}: hold these controls for the time, then coast. Only while in a car`,
+  drive: `{gas?: 0..1, brake?: 0..1, steer?: -1..1 (+ left), reverse?: true, seconds?: >0..${MAX_DRIVE_S} (default 1)}: hold these controls for the time, then coast. reverse:true makes gas drive backwards (slowly): use it to back away from a kerb or wall you hit. Only while in a car`,
   exit_vehicle: "{}: get out (the car must be nearly stopped)",
   say: `{text <= ${MAX_SAY} chars, to?: handle}: speak aloud; bodies within ${SAY_RANGE_M} m with a clear line of sight hear it (read observe.heard)`,
 } as const;
@@ -69,7 +69,8 @@ export function explainAction(a: unknown): string | null {
       for (const k of ["gas", "brake"] as const) if (v[k] !== undefined && !num(v[k], 0, 1)) return `${k} must be within 0..1`;
       if (v.steer !== undefined && !num(v.steer, -1, 1)) return "steer must be within -1..1 (positive is left)";
       if (v.seconds !== undefined && !num(v.seconds, 0, MAX_DRIVE_S, true)) return `seconds must be > 0 and <= ${MAX_DRIVE_S}`;
-      return extra("gas", "brake", "steer", "seconds");
+      if (v.reverse !== undefined && typeof v.reverse !== "boolean") return "reverse must be true or false";
+      return extra("gas", "brake", "steer", "seconds", "reverse");
     }
     case "interact": return name(v.target) ? extra("target") : "interact needs a target (a prop id from observe.scene)";
     case "ride_elevator":

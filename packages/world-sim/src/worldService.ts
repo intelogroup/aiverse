@@ -124,9 +124,14 @@ interface Session {
 export interface VehicleView {
   id: string;
   speedMps: number;
+  /** Radians in the world frame (0 faces south, pi/2 east); prefer compassDeg. */
   heading: number;
+  /** Compass bearing of the car's nose: 0 north, 90 east, 180 south, 270 west. A left turn (steer +) lowers it. */
+  compassDeg: number;
   facing: "north" | "east" | "south" | "west";
   steer: number;
+  /** True while something solid is stopping the car (it presses against it): reverse away or steer clear; gas alone does nothing. */
+  blocked: boolean;
   /** The next signal on your line of travel within ~45 m (null when none, or when you are inside the junction). */
   signal: (SignalAhead & { yourAxis: true }) | null;
   /** Metres you are on the wrong side of your street (positive) or inside your lane (negative); null in a junction or off a street. */
@@ -137,7 +142,7 @@ export interface VehicleView {
 }
 
 /** One driver's open `drive` command and the rules it broke so far. */
-interface DriveRun { rec: ActRecord | null; endsAt: number; broke: Infraction[]; recent: string[]; bumped: boolean }
+interface DriveRun { rec: ActRecord | null; endsAt: number; broke: Infraction[]; recent: string[]; bumped: boolean; /** Sim time of the last step the car was pushed against something. */ blockedAt: number }
 
 export class WorldService {
   readonly sim: VerseSim;
@@ -294,7 +299,7 @@ export class WorldService {
 
   /** enter_vehicle / exit_vehicle / drive. Getting in is always the agent's own explicit act: a car never takes anyone. */
   private vehicleAct(agentId: string, s: Session, rec: ActRecord): void {
-    const a = rec.action as unknown as { type: string; vehicle?: string; gas?: number; brake?: number; steer?: number; seconds?: number };
+    const a = rec.action as unknown as { type: string; vehicle?: string; gas?: number; brake?: number; steer?: number; reverse?: boolean; seconds?: number };
     const st = s.body.state;
     const car = this.fleet.byDriver(agentId);
     if (a.type === "enter_vehicle") {
@@ -309,7 +314,7 @@ export class WorldService {
       target.input = { gas: 0, brake: 0, steer: 0 };
       target.inputUntil = 0;
       target.tally = { red_light: 0, speeding: 0, wrong_lane: 0, collision: 0 };
-      this.drives.set(agentId, { rec: null, endsAt: 0, broke: [], recent: [], bumped: false });
+      this.drives.set(agentId, { rec: null, endsAt: 0, broke: [], recent: [], bumped: false, blockedAt: -1e9 });
       this.syncDriver(s, target);
       this.rosterRev++;
       return this.settle(rec, { ok: true, status: "done", detail: `you are in ${target.id}. drive {gas, brake, steer, seconds} to move; obey the signals, keep right, stay under 25 mph; exit_vehicle to get out`, vehicle: { id: target.id, speed: 0, infractions: [] } });
@@ -333,10 +338,10 @@ export class WorldService {
   }
 
   /** A new drive replaces the open one: the controls are simply the latest ones, held for `seconds`. */
-  private startDrive(agentId: string, car: Vehicle, rec: ActRecord, c: { gas?: number; brake?: number; steer?: number; seconds?: number }): void {
-    const run = this.drives.get(agentId) ?? { rec: null, endsAt: 0, broke: [], recent: [], bumped: false };
+  private startDrive(agentId: string, car: Vehicle, rec: ActRecord, c: { gas?: number; brake?: number; steer?: number; reverse?: boolean; seconds?: number }): void {
+    const run = this.drives.get(agentId) ?? { rec: null, endsAt: 0, broke: [], recent: [], bumped: false, blockedAt: -1e9 };
     if (run.rec) this.finishDrive(run, car, "replaced by a newer drive");
-    car.input = { gas: c.gas ?? 0, brake: c.brake ?? 0, steer: c.steer ?? 0 };
+    car.input = { gas: c.gas ?? 0, brake: c.brake ?? 0, steer: c.steer ?? 0, reverse: c.reverse === true };
     car.inputUntil = this.sim.t + (c.seconds ?? 1);
     run.rec = rec; run.endsAt = car.inputUntil; run.broke = []; run.bumped = false;
     this.drives.set(agentId, run);
@@ -347,7 +352,7 @@ export class WorldService {
     const broke = run.broke.map((i) => `${i.kind}: ${i.detail}`);
     this.settle(run.rec, {
       ok: true, status: "done",
-      detail: `${note}; now ${car.v.speed.toFixed(1)} m/s${run.bumped ? ". BLOCKED: something solid is in your way (a kerb, post, wall or body); steer around it or brake and try another line" : ""}${broke.length ? `. YOU BROKE THE RULES: ${broke.join("; ")}` : ""}`,
+      detail: `${note}; now ${car.v.speed.toFixed(1)} m/s${run.bumped ? ". BLOCKED: something solid is in your way (a kerb, post, wall or body); reverse away (drive {gas:1, reverse:true}) or steer around it" : ""}${broke.length ? `. YOU BROKE THE RULES: ${broke.join("; ")}` : ""}`,
       vehicle: { id: car.id, speed: Math.round(car.v.speed * 10) / 10, infractions: [...run.broke] },
     });
     run.rec = null;
@@ -373,7 +378,8 @@ export class WorldService {
     const facing = (["south", "east", "north", "west"] as const)[Math.round(deg / 90) % 4];
     const run = this.drives.get(agentId);
     return {
-      id: car.id, speedMps: round(car.v.speed, 1), heading: round(h, 3), facing, steer: round(car.v.steer, 2),
+      id: car.id, speedMps: round(car.v.speed, 1), heading: round(h, 3), compassDeg: Math.round((180 - deg + 360) % 360), facing, steer: round(car.v.steer, 2),
+      blocked: !!run && this.sim.t - run.blockedAt < 1.5,
       signal: signal ? { ...signal, yourAxis: true } : null,
       laneErrorM: laneErrorM === null ? null : round(laneErrorM, 1),
       atJunction: junction, infractions: { ...car.tally }, recent: run?.recent.slice(-5) ?? [],
@@ -574,7 +580,7 @@ export class WorldService {
       for (const { car, infractions, blocked } of this.fleet.step(h, this.sim.t, now, (c) => this.sim.vehicleWorld([...Fleet.discIds(c), c.driver!], 1.5))) {
         const run = this.drives.get(car.driver!);
         if (!run) continue;
-        if (blocked) run.bumped = true;
+        if (blocked) { run.bumped = true; run.blockedAt = this.sim.t; }
         for (const i of infractions) { run.broke.push(i); run.recent.push(`${i.kind}: ${i.detail}`); }
         run.recent = run.recent.slice(-10);
       }

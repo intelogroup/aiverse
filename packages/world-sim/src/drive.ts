@@ -23,7 +23,7 @@ export const SIGNAL_SIGHT_M = 45;
 export interface ParkedSpot { id: string; label: string; x: number; z: number; heading: number }
 /** Where the cars start (and the ids the console and the gateway already use). */
 export const PARKED: ParkedSpot[] = [
-  { id: "car-east", label: "red car", x: 15, z: 5, heading: 1.2 },
+  { id: "car-east", label: "red car", x: 15, z: 5, heading: Math.PI / 2 },
   { id: "car-tea", label: "red car", x: -28, z: -56, heading: 3.0 },
 ];
 

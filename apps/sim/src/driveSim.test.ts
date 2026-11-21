@@ -120,3 +120,30 @@ test("a car stops against a body in its lane and reports the collision", () => {
   expect(car.v.x).toBeLessThan(service.observe("blocker").body.x);
   service.detach("drv"); service.detach("blocker");
 });
+
+test("stuck against a kerb: observe says blocked, and reverse gets the car out", () => {
+  const { j, t } = junctionAndClock("green");
+  const { service, car } = setup(t, j, "drv", 8.4);   // z 8.4: the avenue's south kerb is 1.6 m ahead of the car's side when it turns right
+  act(service, "drv", "e", { type: "enter_vehicle" });
+  act(service, "drv", "d0", { type: "drive", gas: 1, steer: -1, seconds: 5 });   // hard right into the kerb
+  run(service, 5.1);
+  const stuck = service.observe("drv").vehicle!;
+  expect(car.tally.collision + (stuck.blocked ? 1 : 0)).toBeGreaterThan(0);
+  expect(stuck.compassDeg).toBeGreaterThanOrEqual(0);
+  expect(stuck.compassDeg).toBeLessThan(360);
+  const x0 = car.v.x, z0 = car.v.z;
+  act(service, "drv", "d1", { type: "drive", gas: 1, reverse: true, seconds: 3 });
+  run(service, 3.1);
+  expect(Math.hypot(car.v.x - x0, car.v.z - z0)).toBeGreaterThan(1);   // it moved: reverse is not stuck
+  expect(car.v.speed).toBeLessThanOrEqual(0);                         // it rolls backwards, not forwards, once the input ends
+  service.detach("drv");
+});
+
+test("compassDeg reads 90 for east and the drive command validates reverse", () => {
+  const { j, t } = junctionAndClock("green");
+  const { service } = setup(t, j);
+  act(service, "drv", "e", { type: "enter_vehicle" });
+  expect(service.observe("drv").vehicle?.compassDeg).toBe(90);
+  expect(() => act(service, "drv", "bad", { type: "drive", reverse: "yes" })).toThrow(/reverse must be/);
+  service.detach("drv");
+});
