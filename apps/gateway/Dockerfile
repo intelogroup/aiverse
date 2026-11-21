@@ -3,6 +3,12 @@ WORKDIR /app
 
 COPY package.json bun.lock* ./
 COPY apps/gateway/package.json apps/gateway/package.json
+# The gateway depends on these workspaces (hunt: mounted service; world-sim: action/body/stream protocol; sim: listed in its package.json).
+# bun install --frozen-lockfile fails with "workspace ... is listed in bun.lock but not on disk" when a workspace the gateway depends on
+# is missing, so every one of them needs its manifest here and its source below.
+COPY apps/hunt/package.json apps/hunt/package.json
+COPY apps/sim/package.json apps/sim/package.json
+COPY packages/world-sim/package.json packages/world-sim/package.json
 # The gateway depends on @aiverse/hunt (workspace) since the hunt mount
 # (GATEWAY-INTEGRATION) — a pruned checkout must keep every workspace its
 # remaining workspaces depend on, or the frozen install fails. Same for
@@ -22,6 +28,8 @@ COPY apps/hunt apps/hunt
 # (single source of truth — see experiments/bazaar/DESIGN.md). Copy just that
 # one file so the gateway can resolve it in the image.
 COPY experiments/bazaar/mechanics.ts experiments/bazaar/mechanics.ts
+COPY apps/hunt apps/hunt
+COPY packages/world-sim packages/world-sim
 COPY packages/shared packages/shared
 COPY packages/topics packages/topics
 COPY packages/agent-sdk packages/agent-sdk
