@@ -1,0 +1,122 @@
+// Fleet — the Bazaar's drivable cars as server bodies. A car is parked until an agent decides to get in (enter_vehicle); walking past one
+// does nothing. A driven car steps through vehicle.ts every tick and is judged by the shared signal controller. Cars are first-class
+// viewer bodies (a stable roster number, body "car"), so a parked and a driven car are drawn the same way as the resident traffic.
+import { encodePose, type PoseTuple } from "./streamProtocol";
+import { JUNCTIONS, junctionAt, signalState, type Lamp } from "./trafficSignals";
+import {
+  DISC_OFFSET, DISC_R, axisOfTravel, laneError, makeVehicle, stepVehicle,
+  type DriveInput, type Infraction, type VehicleState,
+} from "./vehicle";
+import type { World } from "./walker";
+export { MAX_DRIVE_S } from "./actionProtocol";
+
+/** Viewer-stream body numbers: agents count up from 1, resident NPCs start at 1_000_000, cars here. */
+export const VEH_N0 = 2_000_000;
+/** Bazaar walking surface: the same y the resident cars use. */
+export const VEHICLE_Y = 0.2;
+export const ENTER_RANGE_M = 3;
+export const SEE_VEHICLE_M = 60;
+export const CAR_HEIGHT_M = 1.5;
+/** How far ahead (m) the driver can read a signal. */
+export const SIGNAL_SIGHT_M = 45;
+
+export interface ParkedSpot { id: string; label: string; x: number; z: number; heading: number }
+/** Where the cars start (and the ids the console and the gateway already use). */
+export const PARKED: ParkedSpot[] = [
+  { id: "car-east", label: "red car", x: 15, z: 5, heading: 1.2 },
+  { id: "car-tea", label: "red car", x: -28, z: -56, heading: 3.0 },
+];
+
+export interface Vehicle {
+  n: number;
+  id: string;
+  label: string;
+  v: VehicleState;
+  /** Agent id of the driver, or null while parked. */
+  driver: string | null;
+  input: DriveInput;
+  /** Simulation time the held input runs out (it then coasts). */
+  inputUntil: number;
+  /** Infractions since the driver got in. */
+  tally: Record<Infraction["kind"], number>;
+}
+
+export interface SignalAhead { distance: number; lamp: Lamp; changesIn: number }
+
+const noTally = (): Vehicle["tally"] => ({ red_light: 0, speeding: 0, wrong_lane: 0, collision: 0 });
+
+export class Fleet {
+  readonly vehicles: Vehicle[];
+  constructor(spots: ParkedSpot[] = PARKED) {
+    this.vehicles = spots.map((p, i) => ({
+      n: VEH_N0 + i, id: p.id, label: p.label, v: makeVehicle(p.x, VEHICLE_Y, p.z, p.heading),
+      driver: null, input: { gas: 0, brake: 0, steer: 0 }, inputUntil: 0, tally: noTally(),
+    }));
+  }
+
+  byId(id: string): Vehicle | undefined { return this.vehicles.find((c) => c.id === id); }
+  byDriver(agentId: string): Vehicle | undefined { return this.vehicles.find((c) => c.driver === agentId); }
+
+  nearest(x: number, z: number): { car: Vehicle; distance: number } | null {
+    let best: { car: Vehicle; distance: number } | null = null;
+    for (const car of this.vehicles) {
+      const distance = Math.hypot(car.v.x - x, car.v.z - z);
+      if (!best || distance < best.distance) best = { car, distance };
+    }
+    return best;
+  }
+
+  /** Solid footprint, as the resident cars publish: two discs along the length. Ids are `veh:<id>:f|b`. */
+  static discIds(car: Pick<Vehicle, "id">): string[] { return [`veh:${car.id}:f`, `veh:${car.id}:b`]; }
+  discs(): { id: string; x: number; z: number; r: number; h: number; vx: number; vz: number }[] {
+    const out: ReturnType<Fleet["discs"]> = [];
+    for (const c of this.vehicles) {
+      const s = Math.sin(c.v.heading), k = Math.cos(c.v.heading);
+      [DISC_OFFSET, -DISC_OFFSET].forEach((off, i) => out.push({
+        id: Fleet.discIds(c)[i], x: c.v.x + s * off, z: c.v.z + k * off, r: DISC_R, h: CAR_HEIGHT_M, vx: s * c.v.speed, vz: k * c.v.speed,
+      }));
+    }
+    return out;
+  }
+
+  poses(): PoseTuple[] {
+    return this.vehicles.map((c) => encodePose(c.n, { x: c.v.x, z: c.v.z, y: c.v.y, heading: c.v.heading, speed: c.v.speed, posture: "standing", clip: null }));
+  }
+
+  roster(): { n: number; agentId: string; body: string }[] {
+    return this.vehicles.map((c) => ({ n: c.n, agentId: `npc:veh-${c.id}`, body: "car" }));
+  }
+
+  /**
+   * Advance every driven car by dt (<= one substep). `worldFor` gives the car's collision world (static geometry plus other actors, minus the
+   * car's own discs and its driver). Returns the infractions each driver earned this step.
+   */
+  step(dt: number, simT: number, now: number, worldFor: (car: Vehicle) => Pick<World, "blocked">): { car: Vehicle; infractions: Infraction[]; blocked: boolean }[] {
+    const out: { car: Vehicle; infractions: Infraction[]; blocked: boolean }[] = [];
+    for (const c of this.vehicles) {
+      if (c.driver === null) continue;
+      const input = simT < c.inputUntil ? c.input : { gas: 0, brake: 0, steer: 0 };
+      const r = stepVehicle(c.v, input, dt, worldFor(c), now);
+      for (const i of r.infractions) c.tally[i.kind]++;
+      if (r.infractions.length || r.blocked) out.push({ car: c, infractions: r.infractions, blocked: r.blocked });
+    }
+    return out;
+  }
+
+  /** What the driver can read off the road ahead: the next signal on the line of travel and the lateral lane error. */
+  static senses(car: Vehicle, now: number): { signal: SignalAhead | null; laneErrorM: number | null; junction: boolean } {
+    const v = car.v, px = v.x, py = -v.z, dx = Math.sin(v.heading), dy = -Math.cos(v.heading);
+    const inside = junctionAt(px, py);
+    let signal: SignalAhead | null = null;
+    if (!inside) {
+      for (let d = 1; d <= SIGNAL_SIGHT_M; d += 1) {
+        const j = junctionAt(px + dx * d, py + dy * d);
+        if (!j) continue;
+        const s = signalState(JUNCTIONS[j.id], now), axis = axisOfTravel(dx, dy);
+        signal = { distance: d, lamp: s[axis], changesIn: Math.round(s.changesIn * 10) / 10 };
+        break;
+      }
+    }
+    return { signal, laneErrorM: laneError(px, py, v.heading), junction: inside !== null };
+  }
+}

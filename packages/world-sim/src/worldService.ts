@@ -6,16 +6,18 @@
 // Senses are only what the sensorium charter allows: the body's own state and the projected scene (`oracleScene`: what is in
 // range and in the view cone). No other agent's identity, no hidden state, no debug surface.
 import { createHmac, randomBytes } from "node:crypto";
-import { AgentBody, type AgentSnapshot } from "./agentBody";
+import { AgentBody, SUBSTEP_S, type AgentSnapshot } from "./agentBody";
 import { explainAction, SAY_RANGE_M, validRequestId } from "./actionProtocol";
 import { encodePose, type PoseTuple } from "./streamProtocol";
 import { NPC_GROUND_Y, type AmbientWorld } from "./ambientWorld";
-import { nearestPlace, oracleScene, roomAt, type OracleObject, type ScoutAction, type ScoutOutcome, type ScoutSeat } from "./scout";
+import { bearingDeg, nearestPlace, oracleScene, roomAt, type OracleObject, type ScoutAction, type ScoutOutcome, type ScoutSeat } from "./scout";
 import { clipDef, SOCIAL_CLIPS } from "./clips";
 import { agentBodies, BODIES, BODY_REMY } from "./bodies";
 import { LOOK_FAR_M, LOOK_HFOV_DEG, LOOK_LEGEND, LOOK_NO_HIT } from "./look";
 import { encodeGrayPng } from "./png";
 import { teaLandmarks, type TeaWayfinding } from "./teaLandmarks";
+import { ENTER_RANGE_M, Fleet, SEE_VEHICLE_M, VEHICLE_Y, type SignalAhead, type Vehicle } from "./drive";
+import type { Infraction } from "./vehicle";
 import type { VerseSim } from "./verseSim";
 
 export type WorldErrorCode = "no_body" | "invalid_action" | "id_conflict" | "world_full" | "not_ready" | "spawn_failed";
@@ -68,6 +70,8 @@ export interface Observation extends TeaWayfinding {
   nearestPlace: { id: string; name: string; kind: string; dist: number } | null;
   insideRoom: string | null;
   scene: OracleObject[];
+  /** Your car's state while you drive (null on foot). */
+  vehicle: VehicleView | null;
   /** The latest action record (running or settled), so a poller needs one call. */
   lastAct: ActRecord | null;
   /** Speech overheard since `heardSince` (all of the last 60 s when absent). */
@@ -96,6 +100,8 @@ export interface WorldServiceOpts {
   leaseS?: number;
   /** Settled action records kept per body for polling. */
   keepRecords?: number;
+  /** Wall-clock seconds for the signal controller (tests inject one). */
+  nowS?: () => number;
   /** Resident cars and pedestrians published to viewers beside the agent bodies (they are not agents: no session, no budget). */
   ambient?: AmbientWorld;
 }
@@ -114,6 +120,25 @@ interface Session {
   heard: HeardMsg[];
 }
 
+/** What a driver senses of its car; null on foot. */
+export interface VehicleView {
+  id: string;
+  speedMps: number;
+  heading: number;
+  facing: "north" | "east" | "south" | "west";
+  steer: number;
+  /** The next signal on your line of travel within ~45 m (null when none, or when you are inside the junction). */
+  signal: (SignalAhead & { yourAxis: true }) | null;
+  /** Metres you are on the wrong side of your street (positive) or inside your lane (negative); null in a junction or off a street. */
+  laneErrorM: number | null;
+  atJunction: boolean;
+  infractions: Vehicle["tally"];
+  recent: string[];
+}
+
+/** One driver's open `drive` command and the rules it broke so far. */
+interface DriveRun { rec: ActRecord | null; endsAt: number; broke: Infraction[]; recent: string[]; bumped: boolean }
+
 export class WorldService {
   readonly sim: VerseSim;
   private readonly sessions = new Map<string, Session>();
@@ -121,6 +146,9 @@ export class WorldService {
   private readonly leaseS: number;
   private readonly keepRecords: number;
   private readonly ambient: AmbientWorld | null;
+  readonly fleet = new Fleet();
+  private readonly nowS: () => number;
+  private readonly drives = new Map<string, DriveRun>();
   private nextN = 1;
   private rosterRev = 0;
   private sayN = 1;
@@ -134,6 +162,7 @@ export class WorldService {
     this.leaseS = opts.leaseS ?? 30;
     this.keepRecords = opts.keepRecords ?? 64;
     this.ambient = opts.ambient ?? null;
+    this.nowS = opts.nowS ?? (() => Date.now() / 1000);
   }
 
   get bodyCount(): number { return this.sessions.size; }
@@ -181,6 +210,9 @@ export class WorldService {
     const s = this.sessions.get(agentId);
     if (!s) return false;
     void s.body.act({ type: "stop" });
+    const car = this.fleet.byDriver(agentId);
+    if (car) { car.driver = null; car.v.speed = 0; car.v.steer = 0; }
+    this.drives.delete(agentId);
     this.sim.removeBody(agentId);
     this.sessions.delete(agentId);
     this.rosterRev++;
@@ -213,6 +245,22 @@ export class WorldService {
       this.remember(s, id, rec);
       return rec;
     }
+    const type = (action as { type?: string }).type;
+    if (type === "enter_vehicle" || type === "exit_vehicle" || type === "drive") {
+      this.vehicleAct(agentId, s, rec);
+      this.remember(s, id, rec);
+      return rec;
+    }
+    const driving = this.fleet.byDriver(agentId);
+    if (driving && type !== "gaze") {
+      // `stop` is the brake; everything that walks waits until you get out
+      if (type === "stop") { this.startDrive(agentId, driving, rec, { brake: 1, seconds: 2 }); this.remember(s, id, rec); return rec; }
+      rec.state = "settled";
+      rec.settledAt = this.sim.t;
+      rec.outcome = { ok: false, status: "rejected", detail: `you are driving ${driving.id}: use drive, or exit_vehicle to get out and walk` };
+      this.remember(s, id, rec);
+      return rec;
+    }
     const resolved = this.resolveBody(agentId, s, rec.action);
     if (resolved === null) {
       rec.state = "settled";
@@ -236,6 +284,100 @@ export class WorldService {
     }
     this.remember(s, id, rec);
     return rec;
+  }
+
+  private settle(rec: ActRecord, outcome: ScoutOutcome): void {
+    rec.state = "settled";
+    rec.settledAt = this.sim.t;
+    rec.outcome = outcome;
+  }
+
+  /** enter_vehicle / exit_vehicle / drive. Getting in is always the agent's own explicit act: a car never takes anyone. */
+  private vehicleAct(agentId: string, s: Session, rec: ActRecord): void {
+    const a = rec.action as unknown as { type: string; vehicle?: string; gas?: number; brake?: number; steer?: number; seconds?: number };
+    const st = s.body.state;
+    const car = this.fleet.byDriver(agentId);
+    if (a.type === "enter_vehicle") {
+      if (car) return this.settle(rec, { ok: false, status: "rejected", detail: `you are already in ${car.id}` });
+      const target = a.vehicle !== undefined ? this.fleet.byId(a.vehicle) : this.fleet.nearest(st.x, st.z)?.car;
+      if (!target) return this.settle(rec, { ok: false, status: "unavailable", detail: `no such car; cars you can see are in observe.scene (kind vehicle): ${this.fleet.vehicles.map((c) => c.id).join(", ")}` });
+      const d = Math.hypot(target.v.x - st.x, target.v.z - st.z);
+      if (d > ENTER_RANGE_M) return this.settle(rec, { ok: false, status: "unavailable", detail: `${target.id} is ${d.toFixed(1)} m away; walk to within ${ENTER_RANGE_M} m of it first (go_to {point:[x,z]} from observe.scene), then enter_vehicle` });
+      if (target.driver !== null) return this.settle(rec, { ok: false, status: "unavailable", detail: `${target.id} already has a driver` });
+      if (s.body.busy || s.body.snapshot().posture !== "standing") return this.settle(rec, { ok: false, status: "rejected", detail: "finish or stop what you are doing, and stand up, before getting in" });
+      target.driver = agentId;
+      target.input = { gas: 0, brake: 0, steer: 0 };
+      target.inputUntil = 0;
+      target.tally = { red_light: 0, speeding: 0, wrong_lane: 0, collision: 0 };
+      this.drives.set(agentId, { rec: null, endsAt: 0, broke: [], recent: [], bumped: false });
+      this.syncDriver(s, target);
+      this.rosterRev++;
+      return this.settle(rec, { ok: true, status: "done", detail: `you are in ${target.id}. drive {gas, brake, steer, seconds} to move; obey the signals, keep right, stay under 25 mph; exit_vehicle to get out`, vehicle: { id: target.id, speed: 0, infractions: [] } });
+    }
+    if (!car) return this.settle(rec, { ok: false, status: "unavailable", detail: `${a.type} needs a car: you are on foot. enter_vehicle first (a car within ${ENTER_RANGE_M} m)` });
+    if (a.type === "exit_vehicle") {
+      if (car.v.speed > 1) return this.settle(rec, { ok: false, status: "rejected", detail: `still moving at ${car.v.speed.toFixed(1)} m/s: brake to a stop first (drive {brake:1, seconds:3})` });
+      const hd = car.v.heading, right: [number, number] = [-Math.cos(hd), Math.sin(hd)];
+      const spot = ([[1, 2.4], [-1, 2.4], [1, 3.4], [-1, 3.4]] as const)
+        .map(([side, m]) => [car.v.x + right[0] * side * m, car.v.z + right[1] * side * m] as const)
+        .find(([x, z]) => !this.sim.world.blocked([car.v.x, VEHICLE_Y, car.v.z], [x, VEHICLE_Y, z], 0.4));
+      if (!spot) return this.settle(rec, { ok: false, status: "blocked", detail: "no room to open the door here; drive somewhere clearer" });
+      this.endDrive(agentId, "you got out");
+      const b = s.body.state;
+      b.x = spot[0]; b.z = spot[1]; b.y = VEHICLE_Y; b.vx = b.vz = b.speed = 0;
+      car.driver = null; car.v.speed = 0; car.v.steer = 0;
+      this.rosterRev++;
+      return this.settle(rec, { ok: true, status: "done", detail: `you are on foot beside ${car.id}`, vehicle: { id: car.id, speed: 0, infractions: [] } });
+    }
+    this.startDrive(agentId, car, rec, a);
+  }
+
+  /** A new drive replaces the open one: the controls are simply the latest ones, held for `seconds`. */
+  private startDrive(agentId: string, car: Vehicle, rec: ActRecord, c: { gas?: number; brake?: number; steer?: number; seconds?: number }): void {
+    const run = this.drives.get(agentId) ?? { rec: null, endsAt: 0, broke: [], recent: [], bumped: false };
+    if (run.rec) this.finishDrive(run, car, "replaced by a newer drive");
+    car.input = { gas: c.gas ?? 0, brake: c.brake ?? 0, steer: c.steer ?? 0 };
+    car.inputUntil = this.sim.t + (c.seconds ?? 1);
+    run.rec = rec; run.endsAt = car.inputUntil; run.broke = []; run.bumped = false;
+    this.drives.set(agentId, run);
+  }
+
+  private finishDrive(run: DriveRun, car: Vehicle, note: string): void {
+    if (!run.rec) return;
+    const broke = run.broke.map((i) => `${i.kind}: ${i.detail}`);
+    this.settle(run.rec, {
+      ok: true, status: "done",
+      detail: `${note}; now ${car.v.speed.toFixed(1)} m/s${run.bumped ? ". BLOCKED: something solid is in your way (a kerb, post, wall or body); steer around it or brake and try another line" : ""}${broke.length ? `. YOU BROKE THE RULES: ${broke.join("; ")}` : ""}`,
+      vehicle: { id: car.id, speed: Math.round(car.v.speed * 10) / 10, infractions: [...run.broke] },
+    });
+    run.rec = null;
+  }
+
+  private endDrive(agentId: string, note: string): void {
+    const run = this.drives.get(agentId), car = this.fleet.byDriver(agentId);
+    if (run && car) this.finishDrive(run, car, note);
+    this.drives.delete(agentId);
+  }
+
+  /** The driver's body rides in the car: same place, same heading, standing still, not drawn (frames() leaves it out). */
+  private syncDriver(s: Session, car: Vehicle): void {
+    const b = s.body.state;
+    b.x = car.v.x; b.y = car.v.y; b.z = car.v.z; b.body = b.heading = car.v.heading; b.vx = b.vz = b.speed = 0;
+  }
+
+  private vehicleView(agentId: string): VehicleView | null {
+    const car = this.fleet.byDriver(agentId);
+    if (!car) return null;
+    const { signal, laneErrorM, junction } = Fleet.senses(car, this.nowS());
+    const h = car.v.heading, deg = ((h * 180 / Math.PI) % 360 + 360) % 360;   // 0 south, 90 east, 180 north, 270 west
+    const facing = (["south", "east", "north", "west"] as const)[Math.round(deg / 90) % 4];
+    const run = this.drives.get(agentId);
+    return {
+      id: car.id, speedMps: round(car.v.speed, 1), heading: round(h, 3), facing, steer: round(car.v.steer, 2),
+      signal: signal ? { ...signal, yourAxis: true } : null,
+      laneErrorM: laneErrorM === null ? null : round(laneErrorM, 1),
+      atJunction: junction, infractions: { ...car.tally }, recent: run?.recent.slice(-5) ?? [],
+    };
   }
 
   private remember(s: Session, id: string, rec: ActRecord): void {
@@ -352,11 +494,25 @@ export class WorldService {
       insideRoom: room?.name ?? null,
       ...teaLandmarks(st, eye, this.sim.world, st.body + yawDeg * Math.PI / 180,
         this.sim.door.state, this.sim.elevator, this.sim.teaFloors),
-      scene: [...oracleScene(this.sim.places, this.sim.rooms, { x: st.x, z: st.z, heading: st.body }, {}, interactables, seats), ...this.seenBodies(agentId, s)]
+      scene: [...oracleScene(this.sim.places, this.sim.rooms, { x: st.x, z: st.z, heading: st.body }, {}, interactables, seats), ...this.seenBodies(agentId, s), ...this.seenVehicles(agentId, st)]
         .sort((a, b) => a.distance - b.distance),
+      vehicle: this.vehicleView(agentId),
       lastAct: s.last,
       heard: s.heard.filter((m) => m.seq > heardSince),
     };
+  }
+
+  /** Cars within reach of the eye as scene objects: you can read where they are from afar, but you must walk up and choose to get in. */
+  private seenVehicles(agentId: string, st: { x: number; z: number; body: number }): OracleObject[] {
+    return this.fleet.vehicles.flatMap((c) => {
+      const distance = Math.hypot(c.v.x - st.x, c.v.z - st.z);
+      if (distance > SEE_VEHICLE_M) return [];
+      return [{
+        kind: "vehicle" as const, id: c.id, name: c.label, bearingDeg: round(bearingDeg(st.body, c.v.x - st.x, c.v.z - st.z), 1), distance: round(distance, 2),
+        state: c.driver === null ? "free" : c.driver === agentId ? "yours" : "occupied",
+        note: c.driver === null ? `enter_vehicle {vehicle:"${c.id}"} once within ${ENTER_RANGE_M} m; walking past does nothing` : undefined,
+      }];
+    });
   }
 
   /** Other bodies in sight as oracle objects. No agent id, no name, no coordinates: a handle, where, and what they are doing. */
@@ -377,7 +533,8 @@ export class WorldService {
   /** Every body's pose this instant, quantised for the viewer stream. Not agent-scoped: it is the public picture of the world. */
   frames(): { epoch: string; t: number; rosterRev: number; b: PoseTuple[]; say: SayEvent[] } {
     const b: PoseTuple[] = [];
-    for (const s of this.sessions.values()) b.push(encodePose(s.n, s.body.pose()));
+    for (const [id, s] of this.sessions) if (!this.fleet.byDriver(id)) b.push(encodePose(s.n, s.body.pose()));   // a driver is the car
+    b.push(...this.fleet.poses());
     if (this.ambient) b.push(...this.ambient.poses());
     const say = this.says.filter((e) => this.sim.t - e.t <= SAY_STREAM_TTL_S).map((e) => ({ ...e, text: e.text.slice(0, 140) }));
     return { epoch: this.epoch, t: round(this.sim.t, 3), rosterRev: this.rosterRev, b, say };
@@ -385,7 +542,7 @@ export class WorldService {
 
   /** Body number -> agent id (gateway-side only: it turns this into a display name) and the body model to draw. */
   roster(): { epoch: string; rev: number; bodies: { n: number; agentId: string; body: string }[] } {
-    return { epoch: this.epoch, rev: this.rosterRev, bodies: [...[...this.sessions].map(([agentId, s]) => ({ n: s.n, agentId, body: s.figure })), ...(this.ambient?.roster() ?? [])] };
+    return { epoch: this.epoch, rev: this.rosterRev, bodies: [...[...this.sessions].map(([agentId, s]) => ({ n: s.n, agentId, body: s.figure })), ...this.fleet.roster(), ...(this.ambient?.roster() ?? [])] };
   }
 
   /** The named places an agent may `go_to`: ids and names only (positions are perceived through `observe`).
@@ -408,9 +565,33 @@ export class WorldService {
     });
   }
 
+  /** Step the driven cars (in substeps like the bodies), carry each driver's body along, and settle drive commands whose time is up. */
+  private driveCars(dt: number): void {
+    if (!this.fleet.vehicles.some((c) => c.driver !== null)) return;
+    const now = this.nowS();
+    for (let left = dt; left > 1e-9; left -= SUBSTEP_S) {
+      const h = Math.min(left, SUBSTEP_S);
+      for (const { car, infractions, blocked } of this.fleet.step(h, this.sim.t, now, (c) => this.sim.vehicleWorld([...Fleet.discIds(c), c.driver!], 1.5))) {
+        const run = this.drives.get(car.driver!);
+        if (!run) continue;
+        if (blocked) run.bumped = true;
+        for (const i of infractions) { run.broke.push(i); run.recent.push(`${i.kind}: ${i.detail}`); }
+        run.recent = run.recent.slice(-10);
+      }
+    }
+    for (const c of this.fleet.vehicles) {
+      if (c.driver === null) continue;
+      const s = this.sessions.get(c.driver), run = this.drives.get(c.driver);
+      if (s) this.syncDriver(s, c);
+      if (run?.rec && this.sim.t >= run.endsAt) this.finishDrive(run, c, "done");
+    }
+  }
+
   /** Advance the world by `dt` simulation seconds and stop bodies whose agent went quiet. */
   tick(dt: number): void {
     this.sim.tick(dt);
+    this.driveCars(dt);
+    for (const d of this.fleet.discs()) this.sim.publishDisc(d.id, d.x, VEHICLE_Y, d.z, d.r, d.h, d.vx, d.vz);
     if (this.ambient) {
       this.ambient.step(dt);
       for (const d of this.ambient.discs()) this.sim.publishDisc(d.id, d.x, NPC_GROUND_Y, d.z, d.r, d.h, d.vx, d.vz);

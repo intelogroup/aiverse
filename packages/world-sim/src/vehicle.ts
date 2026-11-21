@@ -68,7 +68,7 @@ export function laneError(planX: number, planY: number, heading: number): number
   return dy > 0 ? s.c - planX : planX - s.c;
 }
 
-export interface StepResult { moved: number; infractions: Infraction[] }
+export interface StepResult { moved: number; infractions: Infraction[]; /** Pushed against something this step (even too slowly to count as a collision). */ blocked: boolean }
 
 /**
  * Advance one vehicle by dt (s). `world.blocked` (the wrapped world of the body, so other bodies and NPC discs count too) is asked about both
@@ -102,7 +102,7 @@ export function stepVehicle(v: VehicleState, input: DriveInput, dt: number, worl
   if (hit) {
     if (v.speed > 0.5) infractions.push({ kind: "collision", detail: `hit something at ${v.speed.toFixed(1)} m/s` });
     v.speed = 0;
-    return { moved: 0, infractions };
+    return { moved: 0, infractions, blocked: true };
   }
   const px0 = v.x, pz0 = v.z;
   v.x = nx; v.z = nz; v.heading = h2; v.speed = nextSpeed;
@@ -125,5 +125,5 @@ export function stepVehicle(v: VehicleState, input: DriveInput, dt: number, worl
   if (err !== null && err > WRONG_LANE_M) { v.wrongLaneS += dt; if (v.wrongLaneS >= WRONG_LANE_S && !v.reportedWrongLane) { v.reportedWrongLane = true; infractions.push({ kind: "wrong_lane", detail: `${err.toFixed(1)} m on the wrong side` }); } }
   else { v.wrongLaneS = 0; v.reportedWrongLane = false; }
 
-  return { moved: Math.hypot(v.x - px0, v.z - pz0), infractions };
+  return { moved: Math.hypot(v.x - px0, v.z - pz0), infractions, blocked: false };
 }
