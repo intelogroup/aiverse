@@ -49,6 +49,8 @@ export interface SignalAhead { distance: number; lamp: Lamp; changesIn: number }
 export const IDLE_BRAKE = 0.6;
 /** Look-ahead (m) of the lane-centring pursuit. */
 const LOOKAHEAD_M = 8;
+/** How far before a junction an armed turn starts to steer (m). */
+const TURN_RUN_UP_M = 5;
 
 const noTally = (): Vehicle["tally"] => ({ red_light: 0, speeding: 0, wrong_lane: 0, collision: 0 });
 
@@ -104,9 +106,11 @@ export class Fleet {
       if (c.driver === null) continue;
       let input = simT < c.inputUntil ? c.input : { gas: 0, brake: IDLE_BRAKE, steer: 0 };
       if (c.turn && c.turn.phase !== "done") {
-        const inside = junctionAt(c.v.x, -c.v.z) !== null;
-        if (inside) c.turn.phase = "inside";
-        else if (c.turn.phase === "inside") c.turn.phase = "done";
+        const t = c.turn, h = c.v.heading, here = junctionAt(c.v.x, -c.v.z) !== null;
+        // start the corner a few metres before the cell: the car needs the run-up to be round before it leaves it
+        const ahead = junctionAt(c.v.x + Math.sin(h) * TURN_RUN_UP_M, -c.v.z - Math.cos(h) * TURN_RUN_UP_M) !== null;
+        if (t.phase === "approach" && (here || ahead)) { t.phase = "inside"; t.t0 = simT; }
+        else if (t.phase === "inside" && !here && (Math.abs(Math.atan2(Math.sin(t.target - h), Math.cos(t.target - h))) < 0.3 || simT - t.t0 > 10)) t.phase = "done";
       }
       if (c.turn) {
         const t = c.turn;

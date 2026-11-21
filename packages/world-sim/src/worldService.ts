@@ -346,7 +346,7 @@ export class WorldService {
     if (run.rec) this.finishDrive(run, car, "replaced by a newer drive");
     car.input = { gas: c.gas ?? 0, brake: c.brake ?? 0, steer: c.steer ?? 0, reverse: c.reverse === true, holdSpeed: c.speed, holdHeading: c.heading === undefined ? undefined : (180 - c.heading) * Math.PI / 180 };
     const base = Math.round(car.v.heading / (Math.PI / 2)) * (Math.PI / 2);
-    car.turn = c.turn ? { dir: c.turn, base, target: base + (c.turn === "left" ? 1 : -1) * Math.PI / 2, phase: "approach" } : null;
+    car.turn = c.turn ? { dir: c.turn, base, target: base + (c.turn === "left" ? 1 : -1) * Math.PI / 2, phase: "approach", t0: 0 } : null;
     if (car.turn && c.speed === undefined && c.gas === undefined) car.input.holdSpeed = 5;
     car.inputUntil = this.sim.t + (c.seconds ?? 1);
     run.rec = rec; run.endsAt = car.inputUntil; run.broke = []; run.bumped = false;

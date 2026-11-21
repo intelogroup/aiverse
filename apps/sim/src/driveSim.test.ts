@@ -313,7 +313,7 @@ test("drive {turn:left} keeps the heading to the junction, turns inside it onto 
   run(service, 6);
   detail = service.actRecord("drv", "d2")?.outcome?.detail ?? "";
   expect(detail).toMatch(/^TURNED left at junction 1: now heading 0/);
-  expect(Math.abs(car.v.x - ((j.rect[0] + j.rect[2]) / 2 + 2.5))).toBeLessThan(2.5);
+  expect(Math.abs(car.v.x - ((j.rect[0] + j.rect[2]) / 2 + 1.8))).toBeLessThan(1.5);   // the clear line of the northbound lane
   expect(car.tally.collision + car.tally.wrong_lane).toBe(0);
   service.detach("drv");
 });

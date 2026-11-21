@@ -36,7 +36,7 @@ export interface VehicleState {
 export interface DriveInput { gas: number; brake: number; steer: number; /** Gas drives the car backwards (slowly) instead of forwards. */ reverse?: boolean; /** World heading (radians) to hold: the steering is computed each step and `steer` is ignored. */ holdHeading?: number; /** Speed (m/s) to hold: gas and brake are computed each step and ignored. */ holdSpeed?: number }
 
 /** A turn armed for the next junction: hold `base` until the car is inside one, hold `target` through it, then done. */
-export interface TurnPlan { dir: "left" | "right"; base: number; target: number; phase: "approach" | "inside" | "done" }
+export interface TurnPlan { dir: "left" | "right"; base: number; target: number; phase: "approach" | "inside" | "done"; /** Sim time the turn began. */ t0: number }
 
 export type InfractionKind = "red_light" | "speeding" | "wrong_lane" | "collision";
 export interface Infraction { kind: InfractionKind; detail: string }
@@ -61,6 +61,9 @@ export function laneError(planX: number, planY: number, heading: number): number
   return laneInfo(planX, planY, heading)?.err ?? null;
 }
 
+/** Distance (m) of the lane middle from the centre line. City 3 puts street furniture (kerb islands, posts) along the middle of the 10 m streets' lanes, so the clear line is 0.7 m nearer the centre. */
+function laneMiddle(w: number): number { return w <= 10 ? w / 4 - 0.7 : w / 4; }
+
 /** laneError plus the street's width, so a lane keeper knows where the middle of the lane is (w/4 inside the centre line). */
 function laneInfo(planX: number, planY: number, heading: number, inJunction = false): { err: number; w: number } | null {
   if (!inJunction && junctionAt(planX, planY)) return null;
@@ -83,7 +86,7 @@ function laneInfo(planX: number, planY: number, heading: number, inJunction = fa
  */
 export function laneOffset(planX: number, planY: number, heading: number, inJunction = false): number | null {
   const i = laneInfo(planX, planY, heading, inJunction);
-  return i ? i.err + i.w / 4 : null;
+  return i ? i.err + laneMiddle(i.w) : null;
 }
 
 export interface StepResult { moved: number; infractions: Infraction[]; /** Pushed against something this step (even too slowly to count as a collision). */ blocked: boolean }
