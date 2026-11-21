@@ -306,6 +306,7 @@ test("drive {turn:left} keeps the heading to the junction, turns inside it onto 
   run(service, 5.2);
   let detail = service.actRecord("drv", "d")?.outcome?.detail ?? "";
   expect(detail).toMatch(/^done/);                       // a 5 s step ends before the junction at this distance: nothing turned early
+  expect(detail).toContain("That is junction 1: to turn there send drive {speed: 6, turn:");   // and it says how to turn at the junction ahead
   expect(car.v.x).toBeLessThan(j.rect[0]);
   expect(Math.abs(car.v.z - 5)).toBeLessThan(2.5);
   act(service, "drv", "d2", { type: "drive", speed: 6, turn: "left", seconds: 5 });
