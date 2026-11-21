@@ -434,6 +434,12 @@ export class WorldService {
   /** An action naming a body by handle becomes a point action on where that body is NOW; null when it is not in sight. */
   private resolveBody(agentId: string, s: Session, action: ScoutAction): ScoutAction | null {
     if (!("body" in action) || action.body === undefined) return action;
+    const car = this.fleet.vehicles.find((c) => c.id === action.body);
+    if (car && (action.type === "go_to" || action.type === "run_to") && Math.hypot(car.v.x - s.body.state.x, car.v.z - s.body.state.z) <= SEE_VEHICLE_M) {
+      // a car is not a body: walk to a spot beside it, inside enter range, on the near side
+      const me = s.body.state, d = Math.max(Math.hypot(car.v.x - me.x, car.v.z - me.z), 1e-6), stand = Math.max(0, d - 2) / d;
+      return { type: action.type, point: [round(me.x + (car.v.x - me.x) * stand, 2), round(me.z + (car.v.z - me.z) * stand, 2)] };
+    }
     const seen = this.sim.visibleBodies(agentId).find((v) => this.handleFor(s, v.id) === action.body);
     if (!seen) return null;
     const me = s.body.state, t = seen.body.state;
@@ -516,7 +522,7 @@ export class WorldService {
       return [{
         kind: "vehicle" as const, id: c.id, name: c.label, bearingDeg: round(bearingDeg(st.body, c.v.x - st.x, c.v.z - st.z), 1), distance: round(distance, 2),
         state: c.driver === null ? "free" : c.driver === agentId ? "yours" : "occupied",
-        note: c.driver === null ? `enter_vehicle {vehicle:"${c.id}"} once within ${ENTER_RANGE_M} m; walking past does nothing` : undefined,
+        note: c.driver === null ? `walk to it with go_to {body:"${c.id}"}, then enter_vehicle {vehicle:"${c.id}"} once within ${ENTER_RANGE_M} m; walking past does nothing` : undefined,
       }];
     });
   }

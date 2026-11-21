@@ -147,3 +147,17 @@ test("compassDeg reads 90 for east and the drive command validates reverse", () 
   expect(() => act(service, "drv", "bad", { type: "drive", reverse: "yes" })).toThrow(/reverse must be/);
   service.detach("drv");
 });
+
+test("go_to {body: car id} walks the agent to within enter range, then enter_vehicle works", () => {
+  const { j, t } = junctionAndClock("green");
+  const { service, car } = setup(t, j);
+  service.detach("drv");
+  service.attach("drv", { x: car.v.x + 8, z: car.v.z + 6, maxR: 3 });   // 10 m away, in sight
+  act(service, "drv", "w", { type: "go_to", body: car.id });
+  run(service, 15);
+  const v = service.observe("drv").scene.find((o) => o.kind === "vehicle")!;
+  expect(v.distance).toBeLessThanOrEqual(3);
+  expect(v.note).toMatch(/go_to \{body:/);
+  expect(act(service, "drv", "e", { type: "enter_vehicle" }).outcome?.ok).toBe(true);
+  service.detach("drv");
+});
