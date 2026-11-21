@@ -173,3 +173,16 @@ test("a settled drive reports where the car ended up: heading, lane, speed", () 
   expect(detail).toMatch(/in lane, margin/);
   service.detach("drv");
 });
+
+test("drive {heading} steers the car onto a compass bearing and holds it; heading plus steer is refused", () => {
+  const { j, t } = junctionAndClock("green");
+  const { service, car } = setup(t, j);
+  act(service, "drv", "e", { type: "enter_vehicle" });
+  expect(() => act(service, "drv", "bad", { type: "drive", heading: 0, steer: 0.5 })).toThrow(/cannot be combined with steer/);
+  act(service, "drv", "d", { type: "drive", gas: 0.6, heading: 80, seconds: 4 });
+  run(service, 4.2);
+  const v = service.observe("drv").vehicle!;
+  expect(Math.abs(v.compassDeg - 80)).toBeLessThanOrEqual(4);
+  void car;
+  service.detach("drv");
+});

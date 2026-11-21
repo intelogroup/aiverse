@@ -299,7 +299,7 @@ export class WorldService {
 
   /** enter_vehicle / exit_vehicle / drive. Getting in is always the agent's own explicit act: a car never takes anyone. */
   private vehicleAct(agentId: string, s: Session, rec: ActRecord): void {
-    const a = rec.action as unknown as { type: string; vehicle?: string; gas?: number; brake?: number; steer?: number; reverse?: boolean; seconds?: number };
+    const a = rec.action as unknown as { type: string; vehicle?: string; gas?: number; brake?: number; steer?: number; heading?: number; reverse?: boolean; seconds?: number };
     const st = s.body.state;
     const car = this.fleet.byDriver(agentId);
     if (a.type === "enter_vehicle") {
@@ -338,10 +338,10 @@ export class WorldService {
   }
 
   /** A new drive replaces the open one: the controls are simply the latest ones, held for `seconds`. */
-  private startDrive(agentId: string, car: Vehicle, rec: ActRecord, c: { gas?: number; brake?: number; steer?: number; reverse?: boolean; seconds?: number }): void {
+  private startDrive(agentId: string, car: Vehicle, rec: ActRecord, c: { gas?: number; brake?: number; steer?: number; heading?: number; reverse?: boolean; seconds?: number }): void {
     const run = this.drives.get(agentId) ?? { rec: null, endsAt: 0, broke: [], recent: [], bumped: false, blockedAt: -1e9 };
     if (run.rec) this.finishDrive(run, car, "replaced by a newer drive");
-    car.input = { gas: c.gas ?? 0, brake: c.brake ?? 0, steer: c.steer ?? 0, reverse: c.reverse === true };
+    car.input = { gas: c.gas ?? 0, brake: c.brake ?? 0, steer: c.steer ?? 0, reverse: c.reverse === true, holdHeading: c.heading === undefined ? undefined : (180 - c.heading) * Math.PI / 180 };
     car.inputUntil = this.sim.t + (c.seconds ?? 1);
     run.rec = rec; run.endsAt = car.inputUntil; run.broke = []; run.bumped = false;
     this.drives.set(agentId, run);

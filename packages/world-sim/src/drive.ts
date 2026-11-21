@@ -95,7 +95,12 @@ export class Fleet {
     const out: { car: Vehicle; infractions: Infraction[]; blocked: boolean }[] = [];
     for (const c of this.vehicles) {
       if (c.driver === null) continue;
-      const input = simT < c.inputUntil ? c.input : { gas: 0, brake: 0, steer: 0 };
+      let input = simT < c.inputUntil ? c.input : { gas: 0, brake: 0, steer: 0 };
+      if (input.holdHeading !== undefined) {
+        // proportional steering toward the held heading; reversing swaps the sign
+        const err = Math.atan2(Math.sin(input.holdHeading - c.v.heading), Math.cos(input.holdHeading - c.v.heading));
+        input = { ...input, steer: Math.max(-1, Math.min(1, err * 2.5 * (input.reverse ? -1 : 1))) };
+      }
       const r = stepVehicle(c.v, input, dt, worldFor(c), now);
       for (const i of r.infractions) c.tally[i.kind]++;
       if (r.infractions.length || r.blocked) out.push({ car: c, infractions: r.infractions, blocked: r.blocked });

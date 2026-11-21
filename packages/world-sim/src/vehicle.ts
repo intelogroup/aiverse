@@ -33,7 +33,7 @@ export interface VehicleState {
 }
 
 /** What the driver is asking for right now. gas/brake 0..1, steer -1..1 (+ left). */
-export interface DriveInput { gas: number; brake: number; steer: number; /** Gas drives the car backwards (slowly) instead of forwards. */ reverse?: boolean }
+export interface DriveInput { gas: number; brake: number; steer: number; /** Gas drives the car backwards (slowly) instead of forwards. */ reverse?: boolean; /** World heading (radians) to hold: the steering is computed each step and `steer` is ignored. */ holdHeading?: number }
 
 export type InfractionKind = "red_light" | "speeding" | "wrong_lane" | "collision";
 export interface Infraction { kind: InfractionKind; detail: string }
