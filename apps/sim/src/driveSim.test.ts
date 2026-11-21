@@ -320,6 +320,29 @@ test("drive {turn:right} is still heading along the avenue when it enters the ju
   service.detach("drv");
 });
 
+test("a left turn off a 10 m street clears the signal post on its centre line, and the car drives on down the new street", () => {
+  const j = JUNCTIONS.find((q) => q.rect[0] === 125 && q.rect[1] === 60 && q.rect[3] === 70)!;   // plan (130, 65) = world z -65: north-south street meets east-west street
+  let clock = 0; for (let t = 0; t < 400; t += 0.5) { const s = signalState(j, t); if (s.ns === "green" && s.changesIn >= 22) { clock = t; break; } }
+  const service = new WorldService({ sim, nowS: () => clock });
+  services.push(service);
+  const car = service.fleet.byId("car-east")!;
+  Object.assign(car.v, { x: 131.8, y: 0.2, z: -39, heading: Math.PI, speed: 6 });   // northbound lane, 26 m before the cell
+  service.attach("drv", { x: 133, z: -37.5, maxR: 3 });
+  act(service, "drv", "e", { type: "enter_vehicle" });
+  let detail = "";
+  for (let k = 0; k < 4 && !detail.startsWith("TURNED"); k++) {
+    act(service, "drv", "t" + k, { type: "drive", speed: 6, turn: "left" });
+    for (let i = 0; i < 400 && !service.actRecord("drv", "t" + k)?.outcome?.detail; i++) { run(service, 0.05); clock += 0.05; }
+    detail = service.actRecord("drv", "t" + k)?.outcome?.detail ?? "";
+  }
+  expect(detail).toMatch(/^TURNED left at junction \d+: now heading 270/);
+  act(service, "drv", "w", { type: "drive", speed: 6, heading: 270, seconds: 5 });
+  for (let i = 0; i < 400 && !service.actRecord("drv", "w")?.outcome?.detail; i++) { run(service, 0.05); clock += 0.05; }
+  expect(car.tally.collision + car.tally.red_light).toBe(0);
+  expect(car.v.x).toBeLessThan(126);   // out of the cell, on its way west
+  service.detach("drv");
+});
+
 test("turn is refused with heading, steer or reverse, and with anything but left or right", () => {
   const { j, t } = junctionAndClock("green");
   const { service } = setup(t, j);

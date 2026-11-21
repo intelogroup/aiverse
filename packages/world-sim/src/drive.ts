@@ -53,9 +53,8 @@ const LOOKAHEAD_M = 8;
 const TURN_LOOKAHEAD_M = 16;
 
 /**
- * The waypoints of a corner in junction `rect` (plan x0, y0, x1, y1) from heading `base` to `target` (world radians, axis-aligned): P1 cuts the
- * corner 4.8 m before the crossing of the two lane lines X and 1.5 m toward the turn, P2 is on the new lane 9 m past X. Measured on the avenue
- * to the north street's left turn (127, 3.5) -> (131.8, -4), the line the loop probe drives without touching the junction's posts and kerb islands.
+ * The waypoints of a corner in junction `rect` (plan x0, y0, x1, y1) from heading `base` to `target` (world radians, axis-aligned): P1 is on the
+ * old street's lane a few metres before X, the crossing of the two lane lines, nudged toward the turn; P2 is on the new lane 9 m past X.
  * Points the car has already passed are dropped.
  */
 export function cornerPath(rect: readonly number[], base: number, target: number, carX: number, carZ: number): [number, number][] {
@@ -65,10 +64,14 @@ export function cornerPath(rect: readonly number[], base: number, target: number
   const lb = laneMiddle(along(db)), lt = laneMiddle(along(dt));
   const rb = [db[1], -db[0]], rt = [dt[1], -dt[0]], sb = rb[0] * dt[0] + rb[1] * dt[1], st = rt[0] * db[0] + rt[1] * db[1];
   const X = [cx + sb * lb * dt[0] + st * lt * db[0], cy + sb * lb * dt[1] + st * lt * db[1]];
-  // a right turn is wider than a left one: it must still head along the old street when it enters the cell (else the signal judges it on the cross street)
-  const back = sb < 0 ? 4.8 : 7, lat = sb < 0 ? 1.5 : 0.8;
+  // Where the corner starts and how far toward the turn it leans, found by driving every turn of every junction in the real City 3 collision.
+  // Signal posts stand on the centre line at both cell edges of a 10 m street, so a left turn out of one starts late and does not lean (3, 0);
+  // out of the 20 m avenue it starts 7 m back. A right turn still heads along the old street when it enters the cell (else the signal judges it
+  // on the cross street): 7 m back, leaning 0.8 m only out of the avenue.
+  const wide = along(db) >= 20, left = sb < 0;
+  const back = left ? (wide ? 7 : 3) : 7, lat = left || !wide ? 0 : 0.8;
   const pts = [[X[0] - back * db[0] + lat * dt[0], X[1] - back * db[1] + lat * dt[1]], [X[0] + 9 * dt[0], X[1] + 9 * dt[1]]];
-  return pts.filter((p) => (p[0] - carX) * db[0] + (-p[1] + carZ) * db[1] > 0).map((p) => [p[0], -p[1]] as [number, number]);
+  return pts.filter((p) => (p[0] - carX) * db[0] + (p[1] + carZ) * db[1] > 0).map((p) => [p[0], -p[1]] as [number, number]);
 }
 
 const noTally = (): Vehicle["tally"] => ({ red_light: 0, speeding: 0, wrong_lane: 0, collision: 0 });
