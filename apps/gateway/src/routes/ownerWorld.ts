@@ -5,7 +5,7 @@ import { isAgentBody } from "@aiverse/world-sim/bodies";
 import { db } from "../db/client";
 import { ownerAuth } from "../middleware/ownerAuth";
 import { takeToken } from "../policy/memoryStore";
-import { extendVisitRecord, startVisitIfNoneActive, stopVisitRecord } from "../policy/visits";
+import { extendVisitRecord, ownerCapRefusal, startVisitIfNoneActive, stopVisitRecord } from "../policy/visits";
 import { audit } from "../util/audit";
 import { log, logError } from "../util/log";
 import { announceVisitEnded } from "../ws/gateway";
@@ -63,6 +63,8 @@ export function createOwnerWorldRoute(sim: SimClient) {
     if (!visit) {
       const started = await startVisitIfNoneActive(agent.id, ownerId, PRESENCE_MINUTES, PRESENCE_ACTIONS);
       visit = started.visit;
+      // The person already has their allowance of agents in the world: nothing to stand in it until one of those visits ends.
+      if (!visit) return c.json({ agent: null, reason: "owner_cap", ...ownerCapRefusal(started.capped!) });
       if (started.created) await audit({ event: "visit.started", agentId: agent.id, ownerId, actorType: "owner", actorId: ownerId, metadata: { minutes: PRESENCE_MINUTES, maxActions: PRESENCE_ACTIONS, presence: true } });
     } else if (visit.endsAt.getTime() - Date.now() <= RENEW_BELOW_MS) {
       const extended = await extendVisitRecord(visit, PRESENCE_MINUTES);

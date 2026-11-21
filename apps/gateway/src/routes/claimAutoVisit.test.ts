@@ -120,16 +120,29 @@ describe("POST /owners/agents/claim auto-visit", () => {
 
     // Inject the failure at exactly the visit insert — every other
     // insert in the claim path (audit rows) must still succeed.
+    // The visit insert runs inside the owner-cap transaction (policy/visits.ts insertVisitUnderCap), so the
+    // failure goes on the transaction handle as well as on db itself.
     const originalInsert = db.insert.bind(db);
+    const originalTransaction = db.transaction.bind(db);
     (db as any).insert = (table: any) => {
       if (table === agentVisits) throw new Error("injected visit insert failure");
       return originalInsert(table);
     };
+    (db as any).transaction = (fn: (tx: any) => Promise<unknown>, config?: any) =>
+      originalTransaction((tx: any) => {
+        const txInsert = tx.insert.bind(tx);
+        tx.insert = (table: any) => {
+          if (table === agentVisits) throw new Error("injected visit insert failure");
+          return txInsert(table);
+        };
+        return fn(tx);
+      }, config);
     let res: Response;
     try {
       res = await claim(ownerToken, reg.claimCode);
     } finally {
       (db as any).insert = originalInsert;
+      (db as any).transaction = originalTransaction;
     }
 
     expect(res!.status).toBe(200);
