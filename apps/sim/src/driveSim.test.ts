@@ -161,3 +161,15 @@ test("go_to {body: car id} walks the agent to within enter range, then enter_veh
   expect(act(service, "drv", "e", { type: "enter_vehicle" }).outcome?.ok).toBe(true);
   service.detach("drv");
 });
+
+test("a settled drive reports where the car ended up: heading, lane, speed", () => {
+  const { j, t } = junctionAndClock("green");
+  const { service } = setup(t, j);
+  act(service, "drv", "e", { type: "enter_vehicle" });
+  act(service, "drv", "d", { type: "drive", gas: 0.5, seconds: 2 });
+  run(service, 2.2);
+  const detail = service.actRecord("drv", "d")?.outcome?.detail ?? "";
+  expect(detail).toMatch(/heading 9\d deg \(east\)/);
+  expect(detail).toMatch(/in lane, margin/);
+  service.detach("drv");
+});

@@ -350,9 +350,12 @@ export class WorldService {
   private finishDrive(run: DriveRun, car: Vehicle, note: string): void {
     if (!run.rec) return;
     const broke = run.broke.map((i) => `${i.kind}: ${i.detail}`);
+    // The step's result carries where the car ended up, so a driver need not read observe to know how the step went.
+    const end = car.driver ? this.vehicleView(car.driver) : null;
+    const where = end ? `; heading ${end.compassDeg} deg (${end.facing})${end.laneErrorM === null ? "" : `, ${end.laneErrorM > 0 ? "wrong side by" : "in lane, margin"} ${Math.abs(end.laneErrorM)} m`}${end.signal ? `, next signal ${end.signal.lamp} in ${Math.round(end.signal.distance)} m` : ""}` : "";
     this.settle(run.rec, {
       ok: true, status: "done",
-      detail: `${note}; now ${car.v.speed.toFixed(1)} m/s${run.bumped ? ". BLOCKED: something solid is in your way (a kerb, post, wall or body); reverse away (drive {gas:1, reverse:true}) or steer around it" : ""}${broke.length ? `. YOU BROKE THE RULES: ${broke.join("; ")}` : ""}`,
+      detail: `${note}; now ${car.v.speed.toFixed(1)} m/s${where}${run.bumped ? ". BLOCKED: something solid is in your way (a kerb, post, wall or body); reverse away (drive {gas:1, reverse:true}) or steer around it" : ""}${broke.length ? `. YOU BROKE THE RULES: ${broke.join("; ")}` : ""}`,
       vehicle: { id: car.id, speed: Math.round(car.v.speed * 10) / 10, infractions: [...run.broke] },
     });
     run.rec = null;
