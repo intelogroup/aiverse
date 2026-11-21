@@ -17,7 +17,7 @@ import { LOOK_FAR_M, LOOK_HFOV_DEG, LOOK_LEGEND, LOOK_NO_HIT } from "./look";
 import { encodeGrayPng } from "./png";
 import { teaLandmarks, type TeaWayfinding } from "./teaLandmarks";
 import { DISC_OFFSET, DISC_R } from "./vehicle";
-import { ENTER_RANGE_M, Fleet, SEE_VEHICLE_M, VEHICLE_Y, type SignalAhead, type Vehicle } from "./drive";
+import { ENTER_RANGE_M, Fleet, SEE_VEHICLE_M, VEHICLE_Y, turnRefusal, type SignalAhead, type Vehicle } from "./drive";
 import type { Infraction } from "./vehicle";
 import type { VerseSim } from "./verseSim";
 
@@ -339,6 +339,8 @@ export class WorldService {
       this.rosterRev++;
       return this.settle(rec, { ok: true, status: "done", detail: `you are on foot beside ${car.id}`, vehicle: { id: car.id, speed: 0, infractions: [] } });
     }
+    const turn = (a as { turn?: "left" | "right" }).turn, refusal = turn ? turnRefusal(car.v, turn) : null;
+    if (refusal) return this.settle(rec, { ok: false, status: "rejected", detail: refusal });
     this.startDrive(agentId, car, rec, a);
   }
 
