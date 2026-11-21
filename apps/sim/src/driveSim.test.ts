@@ -369,3 +369,22 @@ test("a junction ahead on a green ends the step with JUNCTION AHEAD and the car 
   expect(service.actRecord("drv", "d2")?.outcome?.detail).not.toMatch(/JUNCTION AHEAD/);
   service.detach("drv");
 });
+
+test("the red car is parked on the west back street, away from the tower, and drives north through the first junction clean", () => {
+  const j = JUNCTIONS.find((q) => q.rect[0] === -135 && q.rect[1] === 60 && q.rect[3] === 70)!;   // plan (-130, 65) = world z -65, on the car's street
+  let clock = 0; for (let t = 0; t < 400; t += 0.5) { const s = signalState(j, t); if (s.ns === "green" && s.changesIn >= 30) { clock = t; break; } }
+  const service = new WorldService({ sim, nowS: () => clock });
+  services.push(service);
+  const car = service.fleet.byId("car-east")!;   // untouched: this is where a visitor finds it
+  expect(Math.hypot(car.v.x, car.v.z)).toBeGreaterThan(100);   // the tower stands at the plaza's centre
+  expect(Math.abs(car.v.x + 130)).toBeLessThan(5);             // on the 10 m street at x -130
+  service.attach("drv", { x: car.v.x + 1.8, z: car.v.z, maxR: 3 });
+  expect(act(service, "drv", "e", { type: "enter_vehicle" }).outcome?.ok).toBe(true);
+  for (let k = 0; k < 8 && car.v.z > -80; k++) {
+    act(service, "drv", "d" + k, { type: "drive", speed: 6, heading: 0, seconds: 5 });
+    for (let i = 0; i < 400 && !service.actRecord("drv", "d" + k)?.outcome?.detail; i++) { run(service, 0.05); clock += 0.05; }
+  }
+  expect(car.v.z).toBeLessThan(-80);   // through the junction at z -65
+  expect(car.tally.collision + car.tally.red_light + car.tally.wrong_lane).toBe(0);
+  service.detach("drv");
+});
