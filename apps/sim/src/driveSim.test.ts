@@ -127,6 +127,11 @@ test("stuck against a kerb: observe says blocked, and reverse gets the car out",
   act(service, "drv", "e", { type: "enter_vehicle" });
   act(service, "drv", "d0", { type: "drive", gas: 1, steer: -1, seconds: 5 });   // hard right into the kerb
   run(service, 5.1);
+  expect(service.actRecord("drv", "d0")?.outcome?.detail).toMatch(/^STOP: something solid/);   // the step ended early, before the kerb
+  for (let i = 0; i < 8 && !car.tally.collision; i++) {   // a driver who carries on regardless hits it
+    act(service, "drv", `d0-${i}`, { type: "drive", gas: 1, steer: -1, seconds: 5 });
+    run(service, 5.1);
+  }
   const stuck = service.observe("drv").vehicle!;
   expect(car.tally.collision + (stuck.blocked ? 1 : 0)).toBeGreaterThan(0);
   expect(stuck.compassDeg).toBeGreaterThanOrEqual(0);
@@ -233,5 +238,19 @@ test("holding a heading on a street also centres the car in its lane", () => {
   run(service, 5.2);
   expect(Math.abs(car.v.z - 5)).toBeLessThan(0.8);
   expect(car.tally.wrong_lane + car.tally.collision).toBe(0);
+  service.detach("drv");
+});
+
+test("junctionsPassed counts junction entries, and the step result reports it", () => {
+  const { j, t } = junctionAndClock("green");
+  const { service } = setup(t, j);
+  act(service, "drv", "e", { type: "enter_vehicle" });
+  expect(service.observe("drv").vehicle?.junctionsPassed).toBe(0);
+  act(service, "drv", "d0", { type: "drive", speed: 8, heading: 90, seconds: 5 });
+  run(service, 5.2);
+  act(service, "drv", "d", { type: "drive", speed: 8, heading: 90, seconds: 3 });
+  run(service, 3.2);
+  expect(service.observe("drv").vehicle?.junctionsPassed).toBe(1);
+  expect(service.actRecord("drv", "d")?.outcome?.detail).toContain("junctions passed so far 1");
   service.detach("drv");
 });

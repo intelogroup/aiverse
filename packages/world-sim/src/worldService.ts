@@ -16,6 +16,7 @@ import { agentBodies, BODIES, BODY_REMY } from "./bodies";
 import { LOOK_FAR_M, LOOK_HFOV_DEG, LOOK_LEGEND, LOOK_NO_HIT } from "./look";
 import { encodeGrayPng } from "./png";
 import { teaLandmarks, type TeaWayfinding } from "./teaLandmarks";
+import { DISC_OFFSET, DISC_R } from "./vehicle";
 import { ENTER_RANGE_M, Fleet, SEE_VEHICLE_M, VEHICLE_Y, type SignalAhead, type Vehicle } from "./drive";
 import type { Infraction } from "./vehicle";
 import type { VerseSim } from "./verseSim";
@@ -137,12 +138,14 @@ export interface VehicleView {
   /** Metres you are on the wrong side of your street (positive) or inside your lane (negative); null in a junction or off a street. */
   laneErrorM: number | null;
   atJunction: boolean;
+  /** Junctions you have driven into since you got in (the count to navigate by: "turn left at the second junction"). */
+  junctionsPassed: number;
   infractions: Vehicle["tally"];
   recent: string[];
 }
 
 /** One driver's open `drive` command and the rules it broke so far. */
-interface DriveRun { rec: ActRecord | null; endsAt: number; broke: Infraction[]; recent: string[]; bumped: boolean; /** Sim time of the last step the car was pushed against something. */ blockedAt: number; /** Signal the open drive already ended early for: one warning per signal phase, not a loop. */ warned: string }
+interface DriveRun { rec: ActRecord | null; endsAt: number; broke: Infraction[]; recent: string[]; bumped: boolean; /** Sim time of the last step the car was pushed against something. */ blockedAt: number; /** Signal the open drive already ended early for: one warning per signal phase, not a loop. */ warned: string; /** Junctions entered since the driver got in. */ passed: number; wasIn: boolean; /** Distance bucket of the obstacle already warned about. */ warnedAhead: number }
 
 export class WorldService {
   readonly sim: VerseSim;
@@ -314,7 +317,7 @@ export class WorldService {
       target.input = { gas: 0, brake: 0, steer: 0 };
       target.inputUntil = 0;
       target.tally = { red_light: 0, speeding: 0, wrong_lane: 0, collision: 0 };
-      this.drives.set(agentId, { rec: null, endsAt: 0, broke: [], recent: [], bumped: false, blockedAt: -1e9, warned: "" });
+      this.drives.set(agentId, { rec: null, endsAt: 0, broke: [], recent: [], bumped: false, blockedAt: -1e9, warned: "", passed: 0, wasIn: false, warnedAhead: 0 });
       this.syncDriver(s, target);
       this.rosterRev++;
       return this.settle(rec, { ok: true, status: "done", detail: `you are in ${target.id}. drive {speed: m/s (about 6 is a good cruise), heading: compass bearing 0..360 the car steers itself to (0 north, 90 east, 180 south, 270 west), seconds: 1-${MAX_DRIVE_S}} moves you and the call returns when the step ends. To turn left at a junction, set a heading 90 deg lower than now (east 90 -> north 0), a right turn 90 deg higher. Manual controls: gas, brake, steer (+ left), reverse:true. Obey the signals, keep right, stay under 25 mph; exit_vehicle to get out`, vehicle: { id: target.id, speed: 0, infractions: [] } });
@@ -339,7 +342,7 @@ export class WorldService {
 
   /** A new drive replaces the open one: the controls are simply the latest ones, held for `seconds`. */
   private startDrive(agentId: string, car: Vehicle, rec: ActRecord, c: { gas?: number; brake?: number; steer?: number; heading?: number; speed?: number; reverse?: boolean; seconds?: number }): void {
-    const run = this.drives.get(agentId) ?? { rec: null, endsAt: 0, broke: [], recent: [], bumped: false, blockedAt: -1e9, warned: "" };
+    const run = this.drives.get(agentId) ?? { rec: null, endsAt: 0, broke: [], recent: [], bumped: false, blockedAt: -1e9, warned: "", passed: 0, wasIn: false, warnedAhead: 0 };
     if (run.rec) this.finishDrive(run, car, "replaced by a newer drive");
     car.input = { gas: c.gas ?? 0, brake: c.brake ?? 0, steer: c.steer ?? 0, reverse: c.reverse === true, holdSpeed: c.speed, holdHeading: c.heading === undefined ? undefined : (180 - c.heading) * Math.PI / 180 };
     car.inputUntil = this.sim.t + (c.seconds ?? 1);
@@ -352,7 +355,7 @@ export class WorldService {
     const broke = run.broke.map((i) => `${i.kind}: ${i.detail}`);
     // The step's result carries where the car ended up, so a driver need not read observe to know how the step went.
     const end = car.driver ? this.vehicleView(car.driver) : null;
-    const where = end ? `; heading ${end.compassDeg} deg (${end.facing})${end.laneErrorM === null ? "" : `, ${end.laneErrorM > 0 ? "wrong side by" : "in lane, margin"} ${Math.abs(end.laneErrorM)} m`}${end.signal ? `, next signal ${end.signal.lamp} in ${Math.round(end.signal.distance)} m, it changes in ${Math.round(end.signal.changesIn)} s${end.signal.lamp === "green" ? "" : ": do not enter until it is green"}` : ""}` : "";
+    const where = end ? `; heading ${end.compassDeg} deg (${end.facing})${end.laneErrorM === null ? "" : `, ${end.laneErrorM > 0 ? "wrong side by" : "in lane, margin"} ${Math.abs(end.laneErrorM)} m`}${end ? `, junctions passed so far ${end.junctionsPassed}` : ""}${end.signal ? `, next signal ${end.signal.lamp} in ${Math.round(end.signal.distance)} m, it changes in ${Math.round(end.signal.changesIn)} s${end.signal.lamp === "green" ? "" : ": do not enter until it is green"}` : ""}` : "";
     this.settle(run.rec, {
       ok: true, status: "done",
       detail: `${note}; now ${car.v.speed.toFixed(1)} m/s${where}${run.bumped ? ". BLOCKED: something solid is in your way (a kerb, post, wall or body); reverse away (drive {gas:1, reverse:true}) or steer around it" : ""}${broke.length ? `. YOU BROKE THE RULES: ${broke.join("; ")}` : ""}`,
@@ -385,7 +388,7 @@ export class WorldService {
       blocked: !!run && this.sim.t - run.blockedAt < 1.5,
       signal: signal ? { ...signal, yourAxis: true } : null,
       laneErrorM: laneErrorM === null ? null : round(laneErrorM, 1),
-      atJunction: junction, infractions: { ...car.tally }, recent: run?.recent.slice(-5) ?? [],
+      atJunction: junction, junctionsPassed: run?.passed ?? 0, infractions: { ...car.tally }, recent: run?.recent.slice(-5) ?? [],
     };
   }
 
@@ -598,8 +601,14 @@ export class WorldService {
       if (c.driver === null) continue;
       const s = this.sessions.get(c.driver), run = this.drives.get(c.driver);
       if (s) this.syncDriver(s, c);
+      if (run) {
+        const inside = Fleet.senses(c, now).junction;
+        if (inside && !run.wasIn) run.passed++;
+        run.wasIn = inside;
+      }
       if (run?.rec && this.sim.t >= run.endsAt) this.finishDrive(run, c, "done");
       else if (run?.rec && run.bumped) { c.inputUntil = this.sim.t; this.finishDrive(run, c, "stopped"); }
+      else if (run?.rec && c.v.speed > 1 && this.obstacleAhead(c, run)) { /* the step ended inside obstacleAhead */ }
       else if (run?.rec && c.v.speed > 1) {
         // A step also ends the moment a signal that is not green is close enough that stopping takes thought: the car coasts, the agent decides.
         const { signal } = Fleet.senses(c, now);
@@ -612,6 +621,27 @@ export class WorldService {
         }
       }
     }
+  }
+
+  /**
+   * Something solid on the line ahead within stopping range ends the step like a near red signal does: the car coasts and the agent decides.
+   * Once per obstacle (by distance bucket) so a driver who chooses to creep on is not cut short every call.
+   */
+  private obstacleAhead(c: Vehicle, run: DriveRun): boolean {
+    const h = c.v.heading, sx = Math.sin(h), sz = Math.cos(h), range = Math.max(9, c.v.speed * c.v.speed / 3 + 5);
+    const world = this.sim.vehicleWorld([...Fleet.discIds(c), c.driver!], 1.5);
+    const fx = c.v.x + sx * DISC_OFFSET, fz = c.v.z + sz * DISC_OFFSET;
+    for (const d of [4, 7, 11, 16, 22, 30]) {
+      if (d > range) break;
+      if (!world.blocked([fx, VEHICLE_Y, fz], [fx + sx * d, VEHICLE_Y, fz + sz * d], DISC_R)) continue;
+      if (run.warnedAhead === d) return false;
+      run.warnedAhead = d;
+      c.inputUntil = this.sim.t;
+      this.finishDrive(run, c, `STOP: something solid is about ${d} m ahead at ${c.v.speed.toFixed(1)} m/s. Brake (drive {speed:0}) and steer or reverse clear before you go on; the car is coasting`);
+      return true;
+    }
+    run.warnedAhead = 0;
+    return false;
   }
 
   /** Advance the world by `dt` simulation seconds and stop bodies whose agent went quiet. */
