@@ -6,7 +6,8 @@
   "scripts": {
     "start": "bun run src/index.ts",
     "dev": "bun run --watch src/index.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "bench": "bun run scripts/bench.ts"
   },
   "dependencies": {
     "@aiverse/world-sim": "workspace:*"
