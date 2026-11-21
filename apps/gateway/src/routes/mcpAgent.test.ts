@@ -94,6 +94,18 @@ const fakeSim: SimClient = {
         if (!mine) return simNoBody();
         return Response.json({ look: { width: 2, height: 2, observation: fakeObservation(agentId) } });
       }
+      if (method === "GET" && parts[2] === "act" && parts[3]) {
+        // The fake sim settles a drive the moment it is asked: enough to see the gateway hold a drive for its outcome.
+        const rec = mine?.records.get(parts[3]);
+        if (!rec) return Response.json({ error: "unknown_act" }, { status: 404 });
+        const act = (rec.record as { action: { type?: string; turn?: string } }).action;
+        const reads = ((rec as { reads?: number }).reads = ((rec as { reads?: number }).reads ?? 0) + 1);
+        // a turn takes a few seconds in the real sim: it settles on the 8th read (about 3 s of polling), past the old seconds-based hold
+        if (act.type === "drive" && (act.turn === undefined || reads >= 8)) {
+          rec.record = { ...rec.record, state: "settled", settledAt: 1, outcome: { ok: true, status: "done", detail: "done; now 0.0 m/s; heading 90 deg (east)" } } as never;
+        }
+        return Response.json({ act: rec.record });
+      }
       if (method === "POST" && parts[2] === "act") {
         if (!mine) return simNoBody();
         const b = JSON.parse(rawBody ?? "{}") as { id: string; action: unknown };
@@ -544,6 +556,26 @@ describe("agent MCP actions with a classic agent token (Phase 4)", () => {
     const badTypeErr = toolErrorJson(badType.body);
     expect(badTypeErr.error).toBe("invalid_action");
     expect(badTypeErr.message).toContain('unknown action type "teleport"');
+
+    // The old vehicle tools are world_act under another name: the sim's own actions, with the agent choosing to get in.
+    const enter = toolJson((await callTool(o.agentToken, "vehicle_enter", { vehicle_id: "car-east" })).body);
+    expect(enter.act.action).toEqual({ type: "enter_vehicle", vehicle: "car-east" });
+    const enterNearest = toolJson((await callTool(o.agentToken, "vehicle_enter")).body);
+    expect(enterNearest.act.action).toEqual({ type: "enter_vehicle" });
+    // A drive step holds the call until it settles and answers with how it went, not "running".
+    const step = toolJson((await callTool(o.agentToken, "world_act", { action: { type: "drive", gas: 0.5, seconds: 0.5 } })).body);
+    expect(step.act.state).toBe("settled");
+    expect(step.act.outcome.detail).toMatch(/heading \d+ deg/);
+    // A turn has no seconds and takes longer than 2.5 s: the hold still waits for it.
+    const turn = toolJson((await callTool(o.agentToken, "world_act", { action: { type: "drive", speed: 6, turn: "left" } })).body);
+    expect(turn.act.state).toBe("settled");
+    const exit = toolJson((await callTool(o.agentToken, "vehicle_exit")).body);
+    expect(exit.act.action).toEqual({ type: "exit_vehicle" });
+    const drove = toolJson((await callTool(o.agentToken, "world_act", { action: { type: "drive", gas: 1, seconds: 2 } })).body);
+    expect(drove.act.action).toEqual({ type: "drive", gas: 1, seconds: 2 });
+    const badDrive = await callTool(o.agentToken, "world_act", { action: { type: "drive", gas: 3 } });
+    expect(badDrive.body.result.isError).toBe(true);
+    expect(toolErrorJson(badDrive.body).error).toBe("invalid_action");
 
     const detach = toolJson((await callTool(o.agentToken, "body_detach")).body);
     expect(detach.removed).toBe(true);
