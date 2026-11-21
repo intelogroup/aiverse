@@ -23,6 +23,7 @@ import { createEggHuntRoute } from "./eggHunt";
 const ID_RE = /^[a-zA-Z0-9-]{1,80}$/;
 const MAX_BODY = 4096;
 const MAX_WAIT_MS = 10_000;
+const DRIVE_HOLD_MS = 12_000;
 const POLL_MS = 400;
 /** Pace for POST /world/see: captures serialize on the look service's single page and take minutes there, so a second
  * see inside the window is refused (429), never queued behind the first. */
@@ -41,46 +42,6 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
   const route = new Hono<Env>();
   const lastSeeAt = new Map<string, number>();
   const seeQueue = look ? createSeeQueue(look, { ...seeOptionsFromEnv(), ...seeOpts }) : null;
-
-  // Vehicle occupancy: vehicleId -> agent name (in-memory, per gateway process).
-  // Uses agent name (not ID) so the console can map to body numbers via the roster.
-  const vehicleDrivers = new Map<string, string>();
-
-  // GET /world/vehicles — list vehicles and their current drivers (by name).
-  route.get("/vehicles", async (c) => {
-    const vehicles = [...vehicleDrivers.entries()].map(([id, name]) => ({ id, driverName: name }));
-    return c.json({ vehicles });
-  });
-
-  // POST /world/vehicles/:id/enter — agent enters a vehicle.
-  route.post("/vehicles/:id/enter", async (c) => {
-    const vehicleId = c.req.param("id");
-    const agentId = c.get("agentId");
-    // Look up agent name
-    const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
-    const name = agent?.name ?? agentId;
-    // If agent already driving another vehicle, exit first
-    for (const [vid, n] of vehicleDrivers) {
-      if (n === name) vehicleDrivers.delete(vid);
-    }
-    vehicleDrivers.set(vehicleId, name);
-    log("vehicle_enter", { agentId, name, vehicleId });
-    return c.json({ ok: true, vehicleId, driver: name });
-  });
-
-  // POST /world/vehicles/:id/exit — agent exits a vehicle.
-  route.post("/vehicles/:id/exit", async (c) => {
-    const vehicleId = c.req.param("id");
-    const agentId = c.get("agentId");
-    const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
-    const name = agent?.name ?? agentId;
-    if (vehicleDrivers.get(vehicleId) === name) {
-      vehicleDrivers.delete(vehicleId);
-      log("vehicle_exit", { agentId, name, vehicleId });
-      return c.json({ ok: true, vehicleId });
-    }
-    return c.json({ error: "not_driver", hint: "you are not driving this vehicle" }, 403);
-  });
 
   // Any path that removes an agent (visit end, pause, kill, key rotation, delete) removes its body.
   onAgentGone((agentId, reason) => {
@@ -303,6 +264,24 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
       await consumeVisitAction(agentId);
       // One audit row per spoken line, so the report button and the owner can see what an agent said in the world.
       if (isSay) await audit({ event: "world.say", agentId, actorType: "agent", actorId: agentId, metadata: { text: String((b.action as { text?: unknown }).text).slice(0, 140) } });
+      // A drive step answers with how it went (heading, lane, signal, infractions): hold the call until it settles. Cold agents that got
+      // "running" read observe mid-step and steered blind. A newer drive replaces this one, which settles it at once, so the hold is short then.
+      const a = b.action as { type?: unknown; seconds?: unknown };
+      if (a?.type === "drive") {
+        // Long enough for the longest step: 5 s of controls, a corner taken after them (the car carries a turn on for up to ~4 s), and polling.
+        const deadline = Date.now() + DRIVE_HOLD_MS;
+        let last = r;
+        for (;;) {
+          await Bun.sleep(POLL_MS);
+          if (Date.now() >= deadline) break;
+          const s = await forward(c, agentId, "GET", `/bodies/${agentId}/act/${b.id}`);
+          if (s.status === 429) continue;   // the read bucket: keep holding, the next poll gets through
+          if (s.status !== 200) break;
+          last = s;
+          if (((await s.clone().json()) as { act?: { state?: string } }).act?.state !== "running" || Date.now() >= deadline) break;
+        }
+        return last;
+      }
     }
     return r;
   });
