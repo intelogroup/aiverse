@@ -16,7 +16,7 @@ const STATE = process.env.RESIDENT_STATE ?? join(process.cwd(), ".residents/stat
 const DAILY_USD = Number(process.env.RESIDENT_DAILY_USD ?? 3);
 const STEPS = Number(process.env.RESIDENT_STEPS ?? 40);
 const PAUSE_S = Number(process.env.RESIDENT_PAUSE_S ?? 20);
-const OPENCODE = process.env.OPENCODE_BIN ?? "opencode";
+const OPENCODE = process.env.OPENCODE_BIN ?? "opencode";   // the image pins opencode-ai 1.x; OPENCODE_STANDALONE=1 is for a 2.x build
 
 export interface Resident { name: string; figure: string; caps: string[]; persona: string }
 export const RESIDENTS: Resident[] = [
@@ -30,7 +30,7 @@ export function promptFor(r: Resident, steps = STEPS): string {
   return [
     r.persona,
     "You already have a body in the shared Bazaar world. Everything you do goes through the aiverse tools.",
-    "They are in the tools.aiverse namespace of your execute tool (world_observe, world_look, world_act, world_clips). If they seem missing, run search({ query: \"world\", namespace: \"aiverse\" }) once and use what it returns.",
+    "They are the aiverse tools world_observe, world_look, world_act and world_clips: called directly (as aiverse_world_observe, ...) or through the tools.aiverse namespace of your execute tool. If they seem missing, run search({ query: \"world\", namespace: \"aiverse\" }) once and use what it returns.",
     "Loop: world_observe to see where you are and who is near; world_look when you need to see; then ONE action with world_act (go_to a place or a person, say something, sit, wave).",
     "When another person or resident is within a few metres, face them and say something short and natural. Do not repeat yourself; do not say the same line twice.",
     "Never leave the loop to ask me anything. Keep your lines under 140 characters.",
@@ -65,12 +65,22 @@ async function ownerToken(s: State): Promise<string> {
   return (await json<any>(await post("/owners/login", fresh), "owner login")).token;
 }
 
-/** One agent per resident, created once (the token is only shown at creation; state keeps it), with an active visit. */
+/**
+ * One agent per resident. The token is only shown at creation, so a worker with no disk (Render) recovers it by looking the agent up
+ * by name under the owner and rotating its token; a state file just avoids rotating on every restart. Then an active visit.
+ */
 async function ensureResident(r: Resident, s: State, owner: string): Promise<{ id: string; token: string }> {
   let have = s.agents[r.name];
   if (!have) {
-    const c = await json<any>(await post("/owners/agents", { name: r.name, capabilities: r.caps }, owner), `create ${r.name}`);
-    have = s.agents[r.name] = { id: c.agent.id, token: c.agentToken };
+    const list = await json<{ agents: { id: string; name: string }[] }>(await fetch(GATEWAY + "/owners/agents", { headers: { authorization: `Bearer ${owner}` } }), "list agents");
+    const mine = list.agents.find((a) => a.name === r.name);
+    if (mine) {
+      const t = await json<any>(await post(`/owners/agents/${mine.id}/rotate-token`, {}, owner), `rotate ${r.name}`);
+      have = s.agents[r.name] = { id: mine.id, token: t.agentToken };
+    } else {
+      const c = await json<any>(await post("/owners/agents", { name: r.name, capabilities: r.caps }, owner), `create ${r.name}`);
+      have = s.agents[r.name] = { id: c.agent.id, token: c.agentToken };
+    }
     await saveState(s);
   }
   const v = await post(`/owners/agents/${have.id}/visits`, { minutes: 24 * 60, maxActions: 50_000 }, owner);
@@ -97,7 +107,7 @@ async function session(r: Resident, token: string, dir: string): Promise<{ usd: 
     permission: { bash: "deny", edit: "deny", webfetch: "deny" },
   }));
   await mcp(token, "body_attach", { body: r.figure });   // idempotent: an agent that already has its body keeps it
-  const proc = Bun.spawn([OPENCODE, "run", "--standalone", "--format", "json", "-m", MODEL, promptFor(r)], {
+  const proc = Bun.spawn([OPENCODE, "run", ...(process.env.OPENCODE_STANDALONE === "1" ? ["--standalone"] : []), "--format", "json", "-m", MODEL, promptFor(r)], {
     cwd: dir, stdin: "ignore", stdout: "pipe", stderr: "ignore",
     env: { ...process.env, XDG_CONFIG_HOME: join(dir, "xdg"), HOME: join(dir, "home"), XDG_CACHE_HOME: process.env.XDG_CACHE_HOME ?? join(process.env.HOME ?? "", ".cache") },
   });
