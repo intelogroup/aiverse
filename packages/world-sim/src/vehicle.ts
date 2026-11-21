@@ -55,18 +55,32 @@ export function axisOfTravel(dx: number, dy: number): Axis { return Math.abs(dx)
  * Returns the signed lateral error in metres (positive = on the wrong side) or null off any street / inside a junction.
  */
 export function laneError(planX: number, planY: number, heading: number): number | null {
+  return laneInfo(planX, planY, heading)?.err ?? null;
+}
+
+/** laneError plus the street's width, so a lane keeper knows where the middle of the lane is (w/4 inside the centre line). */
+function laneInfo(planX: number, planY: number, heading: number): { err: number; w: number } | null {
   if (junctionAt(planX, planY)) return null;
   const [dx, dy] = planDir(heading);
   if (Math.abs(dx) >= Math.abs(dy)) {            // along x: an east-west street at y = c
     const s = STREETS.find((q) => Math.abs(planY - q.c) <= q.w / 2);
     if (!s) return null;
     // east (+x) keeps to the south (y < c); west keeps north. error > 0 when on the other side.
-    return dx > 0 ? planY - s.c : s.c - planY;
+    return { err: dx > 0 ? planY - s.c : s.c - planY, w: s.w };
   }
   const s = STREETS.find((q) => Math.abs(planX - q.c) <= q.w / 2);   // along y: a north-south street at x = c
   if (!s) return null;
   // north (+y) keeps to the east (x > c); south keeps west.
-  return dy > 0 ? s.c - planX : planX - s.c;
+  return { err: dy > 0 ? s.c - planX : planX - s.c, w: s.w };
+}
+
+/**
+ * Metres from the middle of the lane the car is in: positive when it sits toward the centre line (left of the lane middle), negative when
+ * toward the kerb. null in a junction or off a street. Lets a heading-holder keep the lane without the driver steering.
+ */
+export function laneOffset(planX: number, planY: number, heading: number): number | null {
+  const i = laneInfo(planX, planY, heading);
+  return i ? i.err + i.w / 4 : null;
 }
 
 export interface StepResult { moved: number; infractions: Infraction[]; /** Pushed against something this step (even too slowly to count as a collision). */ blocked: boolean }

@@ -4,7 +4,7 @@
 import { encodePose, type PoseTuple } from "./streamProtocol";
 import { JUNCTIONS, junctionAt, signalState, type Lamp } from "./trafficSignals";
 import {
-  DISC_OFFSET, DISC_R, axisOfTravel, laneError, makeVehicle, stepVehicle,
+  DISC_OFFSET, DISC_R, axisOfTravel, laneError, laneOffset, makeVehicle, stepVehicle,
   type DriveInput, type Infraction, type VehicleState,
 } from "./vehicle";
 import type { World } from "./walker";
@@ -98,7 +98,11 @@ export class Fleet {
       let input = simT < c.inputUntil ? c.input : { gas: 0, brake: 0, steer: 0 };
       if (input.holdHeading !== undefined) {
         // proportional steering toward the held heading; reversing swaps the sign
-        const err = Math.atan2(Math.sin(input.holdHeading - c.v.heading), Math.cos(input.holdHeading - c.v.heading));
+        let aim = input.holdHeading;
+        const off = input.reverse ? null : laneOffset(c.v.x, -c.v.z, c.v.heading);
+        // on a street and roughly along it: lean the aim toward the middle of the lane (off > 0 is toward the centre line, so aim right)
+        if (off !== null && Math.abs(Math.atan2(Math.sin(aim - c.v.heading), Math.cos(aim - c.v.heading))) < 0.35) aim -= Math.max(-0.3, Math.min(0.3, off * 0.15));
+        const err = Math.atan2(Math.sin(aim - c.v.heading), Math.cos(aim - c.v.heading));
         input = { ...input, steer: Math.max(-1, Math.min(1, err * 2.5 * (input.reverse ? -1 : 1))) };
       }
       if (input.holdSpeed !== undefined && !input.reverse) {

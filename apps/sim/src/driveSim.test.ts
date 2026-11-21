@@ -178,11 +178,13 @@ test("drive {heading} steers the car onto a compass bearing and holds it; headin
   const { j, t } = junctionAndClock("green");
   const { service, car } = setup(t, j);
   act(service, "drv", "e", { type: "enter_vehicle" });
+  car.v.z = 5;   // lane middle: no lane-centring pull on the bearing
   expect(() => act(service, "drv", "bad", { type: "drive", heading: 0, steer: 0.5 })).toThrow(/cannot be combined with steer/);
   act(service, "drv", "d", { type: "drive", gas: 0.6, heading: 80, seconds: 4 });
   run(service, 4.2);
   const v = service.observe("drv").vehicle!;
-  expect(Math.abs(v.compassDeg - 80)).toBeLessThanOrEqual(4);
+  expect(v.compassDeg).toBeLessThan(88);      // it turned from 90 toward 80 ...
+  expect(v.compassDeg).toBeGreaterThan(70);   // ... and the lane keeper stopped it leaving the lane (it leans the aim back to the lane middle)
   void car;
   service.detach("drv");
 });
@@ -220,5 +222,16 @@ test("the enter reply teaches the drive fields an agent needs: speed, heading an
   const { service } = setup(t, j);
   const detail = act(service, "drv", "e", { type: "enter_vehicle" }).outcome?.detail ?? "";
   for (const w of ["speed:", "heading:", "turn left", "reverse:true"]) expect(detail).toContain(w);
+  service.detach("drv");
+});
+
+test("holding a heading on a street also centres the car in its lane", () => {
+  const { j, t } = junctionAndClock("green");
+  const { service, car } = setup(t, j, "drv", 6.9);   // 1.9 m toward the kerb from the lane middle (z 5), still in lane
+  act(service, "drv", "e", { type: "enter_vehicle" });
+  act(service, "drv", "d", { type: "drive", speed: 5, heading: 90, seconds: 5 });
+  run(service, 5.2);
+  expect(Math.abs(car.v.z - 5)).toBeLessThan(0.8);
+  expect(car.tally.wrong_lane + car.tally.collision).toBe(0);
   service.detach("drv");
 });

@@ -352,7 +352,7 @@ export class WorldService {
     const broke = run.broke.map((i) => `${i.kind}: ${i.detail}`);
     // The step's result carries where the car ended up, so a driver need not read observe to know how the step went.
     const end = car.driver ? this.vehicleView(car.driver) : null;
-    const where = end ? `; heading ${end.compassDeg} deg (${end.facing})${end.laneErrorM === null ? "" : `, ${end.laneErrorM > 0 ? "wrong side by" : "in lane, margin"} ${Math.abs(end.laneErrorM)} m`}${end.signal ? `, next signal ${end.signal.lamp} in ${Math.round(end.signal.distance)} m` : ""}` : "";
+    const where = end ? `; heading ${end.compassDeg} deg (${end.facing})${end.laneErrorM === null ? "" : `, ${end.laneErrorM > 0 ? "wrong side by" : "in lane, margin"} ${Math.abs(end.laneErrorM)} m`}${end.signal ? `, next signal ${end.signal.lamp} in ${Math.round(end.signal.distance)} m, it changes in ${Math.round(end.signal.changesIn)} s${end.signal.lamp === "green" ? "" : ": do not enter until it is green"}` : ""}` : "";
     this.settle(run.rec, {
       ok: true, status: "done",
       detail: `${note}; now ${car.v.speed.toFixed(1)} m/s${where}${run.bumped ? ". BLOCKED: something solid is in your way (a kerb, post, wall or body); reverse away (drive {gas:1, reverse:true}) or steer around it" : ""}${broke.length ? `. YOU BROKE THE RULES: ${broke.join("; ")}` : ""}`,
@@ -608,7 +608,7 @@ export class WorldService {
         else if (signal.distance <= Math.max(14, c.v.speed * c.v.speed / 3.5 + 6) && run.warned !== key) {
           run.warned = key;
           c.inputUntil = this.sim.t;
-          this.finishDrive(run, c, `STOP: the signal ahead is ${signal.lamp}, ${Math.round(signal.distance)} m away at ${c.v.speed.toFixed(1)} m/s. Brake to a halt before the junction (drive {brake:1}), then go when it is green; the car is coasting`);
+          this.finishDrive(run, c, `STOP: the signal ahead is ${signal.lamp}, ${Math.round(signal.distance)} m away at ${c.v.speed.toFixed(1)} m/s. Brake to a halt before the junction (drive {speed:0}); wait with drive {speed:0, seconds:5} until it is green (its lamp and "changes in" are in observe.vehicle.signal), then go; the car is coasting`);
         }
       }
     }
