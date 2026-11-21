@@ -272,7 +272,9 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
         let last = r;
         for (;;) {
           await Bun.sleep(POLL_MS);
+          if (Date.now() >= deadline) break;
           const s = await forward(c, agentId, "GET", `/bodies/${agentId}/act/${b.id}`);
+          if (s.status === 429) continue;   // the read bucket: keep holding, the next poll gets through
           if (s.status !== 200) break;
           last = s;
           if (((await s.clone().json()) as { act?: { state?: string } }).act?.state !== "running" || Date.now() >= deadline) break;
