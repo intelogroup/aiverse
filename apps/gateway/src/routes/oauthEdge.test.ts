@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { oauthAuthRequests, oauthCodes, oauthGrants } from "@aiverse/shared/schema";
 import { createApp } from "../app";
 import { db } from "../db/client";
+import { clearAuthCaches } from "../auth/authCache";
 import { computeS256Challenge, hashAuthorizationCode, oauthIssuer } from "../auth/oauthCore";
 
 // Adversarial edges for the OAuth 2.1 authorization server — the cases the
@@ -251,6 +252,7 @@ describe("refresh token client binding + grant lifetime", () => {
       .update(oauthGrants)
       .set({ expiresAt: new Date(Date.now() - 1000) })
       .where(eq(oauthGrants.id, grantId));
+    clearAuthCaches();   // a fixture rewrite bypasses the app's evictions; the cached grant would carry the old deadline for up to AUTH_CACHE_TTL_MS
 
     const refreshed = await tokenRequest({
       grant_type: "refresh_token",
