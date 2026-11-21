@@ -5,7 +5,7 @@ import { encodePose, type PoseTuple } from "./streamProtocol";
 import { JUNCTIONS, junctionAt, signalState, type Lamp } from "./trafficSignals";
 import {
   DISC_OFFSET, DISC_R, axisOfTravel, laneError, laneOffset, makeVehicle, stepVehicle,
-  type DriveInput, type Infraction, type VehicleState,
+  type DriveInput, type Infraction, type TurnPlan, type VehicleState,
 } from "./vehicle";
 import type { World } from "./walker";
 export { MAX_DRIVE_S } from "./actionProtocol";
@@ -37,6 +37,8 @@ export interface Vehicle {
   input: DriveInput;
   /** Simulation time the held input runs out (the car then brakes to a halt: a model thinks for seconds, and a rolling car would not wait). */
   inputUntil: number;
+  /** A turn armed with drive {turn}: null otherwise. */
+  turn: TurnPlan | null;
   /** Infractions since the driver got in. */
   tally: Record<Infraction["kind"], number>;
 }
@@ -55,7 +57,7 @@ export class Fleet {
   constructor(spots: ParkedSpot[] = PARKED) {
     this.vehicles = spots.map((p, i) => ({
       n: VEH_N0 + i, id: p.id, label: p.label, v: makeVehicle(p.x, VEHICLE_Y, p.z, p.heading),
-      driver: null, input: { gas: 0, brake: 0, steer: 0 }, inputUntil: 0, tally: noTally(),
+      driver: null, input: { gas: 0, brake: 0, steer: 0 }, inputUntil: 0, turn: null, tally: noTally(),
     }));
   }
 
@@ -101,6 +103,17 @@ export class Fleet {
     for (const c of this.vehicles) {
       if (c.driver === null) continue;
       let input = simT < c.inputUntil ? c.input : { gas: 0, brake: IDLE_BRAKE, steer: 0 };
+      if (c.turn && c.turn.phase !== "done") {
+        const inside = junctionAt(c.v.x, -c.v.z) !== null;
+        if (inside) c.turn.phase = "inside";
+        else if (c.turn.phase === "inside") c.turn.phase = "done";
+      }
+      if (c.turn) {
+        const t = c.turn;
+        input = { ...input, holdHeading: t.phase === "approach" ? t.base : t.target };
+        // a car turns tighter slowly: take the corner at 4 m/s at most
+        if (t.phase === "inside" && input.holdSpeed !== undefined) input = { ...input, holdSpeed: Math.min(input.holdSpeed, 4) };
+      }
       if (input.holdHeading !== undefined) {
         // proportional steering toward the held heading; reversing swaps the sign
         let aim = input.holdHeading;

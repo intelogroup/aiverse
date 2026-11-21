@@ -226,7 +226,7 @@ test("the enter reply teaches the drive fields an agent needs: speed, heading an
   const { j, t } = junctionAndClock("green");
   const { service } = setup(t, j);
   const detail = act(service, "drv", "e", { type: "enter_vehicle" }).outcome?.detail ?? "";
-  for (const w of ["speed:", "heading:", "turn left", "reverse:true"]) expect(detail).toContain(w);
+  for (const w of ["speed:", "heading:", 'turn: "left"', "reverse:true"]) expect(detail).toContain(w);
   service.detach("drv");
 });
 
@@ -295,5 +295,34 @@ test("a held left turn at a junction swings the car onto the new street's lane",
   expect(Math.round(((180 - car.v.heading * 180 / Math.PI) % 360 + 360) % 360)).toBeLessThan(20);   // may be cut short by a STOP for something solid ahead
   expect(Math.abs(car.v.x - lane)).toBeLessThan(3);
   expect(car.tally.collision).toBe(0);
+  service.detach("drv");
+});
+
+test("drive {turn:left} keeps the heading to the junction, turns inside it onto the new lane and ends the step", () => {
+  const { j, t } = junctionAndClock("green");
+  const { service, car } = setup(t, j);   // east lane, 30 m before the junction
+  act(service, "drv", "e", { type: "enter_vehicle" });
+  act(service, "drv", "d", { type: "drive", speed: 6, turn: "left", seconds: 5 });
+  run(service, 5.2);
+  let detail = service.actRecord("drv", "d")?.outcome?.detail ?? "";
+  expect(detail).toMatch(/^done/);                       // a 5 s step ends before the junction at this distance: nothing turned early
+  expect(car.v.x).toBeLessThan(j.rect[0]);
+  expect(Math.abs(car.v.z - 5)).toBeLessThan(2.5);
+  act(service, "drv", "d2", { type: "drive", speed: 6, turn: "left", seconds: 5 });
+  run(service, 6);
+  detail = service.actRecord("drv", "d2")?.outcome?.detail ?? "";
+  expect(detail).toMatch(/^TURNED left at junction 1: now heading 0/);
+  expect(Math.abs(car.v.x - ((j.rect[0] + j.rect[2]) / 2 + 2.5))).toBeLessThan(2.5);
+  expect(car.tally.collision + car.tally.wrong_lane).toBe(0);
+  service.detach("drv");
+});
+
+test("turn is refused with heading, steer or reverse, and with anything but left or right", () => {
+  const { j, t } = junctionAndClock("green");
+  const { service } = setup(t, j);
+  act(service, "drv", "e", { type: "enter_vehicle" });
+  for (const [i, bad] of [{ turn: "left", heading: 0 }, { turn: "left", steer: 1 }, { turn: "left", reverse: true }, { turn: "up" }].entries()) {
+    expect(() => service.act("drv", `bad-${i}`, { type: "drive", ...bad } as never)).toThrow(/turn must be/);
+  }
   service.detach("drv");
 });

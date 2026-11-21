@@ -320,7 +320,7 @@ export class WorldService {
       this.drives.set(agentId, { rec: null, endsAt: 0, broke: [], recent: [], bumped: false, blockedAt: -1e9, warned: "", passed: 0, wasIn: false, warnedAhead: 0 });
       this.syncDriver(s, target);
       this.rosterRev++;
-      return this.settle(rec, { ok: true, status: "done", detail: `you are in ${target.id}. drive {speed: m/s (about 6 is a good cruise), heading: compass bearing 0..360 the car steers itself to (0 north, 90 east, 180 south, 270 west), seconds: 1-${MAX_DRIVE_S}} moves you and the call returns when the step ends. To turn left at a junction, set a heading 90 deg lower than now (east 90 -> north 0), a right turn 90 deg higher. Manual controls: gas, brake, steer (+ left), reverse:true. Obey the signals, keep right, stay under 25 mph; exit_vehicle to get out`, vehicle: { id: target.id, speed: 0, infractions: [] } });
+      return this.settle(rec, { ok: true, status: "done", detail: `you are in ${target.id}. drive {speed: m/s (about 6 is a good cruise), heading: compass bearing 0..360 the car steers itself to (0 north, 90 east, 180 south, 270 west), seconds: 1-${MAX_DRIVE_S}} moves you and the call returns when the step ends. To turn at a junction, drive {speed: 6, turn: "left" or "right"}: the car keeps its heading to the next junction, turns inside it onto the new street's lane, and the call returns when you are through (a red lamp ahead ends it with STOP first: wait, then send the same drive again). To change direction elsewhere, set a heading. Manual controls: gas, brake, steer (+ left), reverse:true. Obey the signals, keep right, stay under 25 mph; exit_vehicle to get out`, vehicle: { id: target.id, speed: 0, infractions: [] } });
     }
     if (!car) return this.settle(rec, { ok: false, status: "unavailable", detail: `${a.type} needs a car: you are on foot. enter_vehicle first (a car within ${ENTER_RANGE_M} m)` });
     if (a.type === "exit_vehicle") {
@@ -341,10 +341,13 @@ export class WorldService {
   }
 
   /** A new drive replaces the open one: the controls are simply the latest ones, held for `seconds`. */
-  private startDrive(agentId: string, car: Vehicle, rec: ActRecord, c: { gas?: number; brake?: number; steer?: number; heading?: number; speed?: number; reverse?: boolean; seconds?: number }): void {
+  private startDrive(agentId: string, car: Vehicle, rec: ActRecord, c: { gas?: number; brake?: number; steer?: number; heading?: number; speed?: number; reverse?: boolean; turn?: "left" | "right"; seconds?: number }): void {
     const run = this.drives.get(agentId) ?? { rec: null, endsAt: 0, broke: [], recent: [], bumped: false, blockedAt: -1e9, warned: "", passed: 0, wasIn: false, warnedAhead: 0 };
     if (run.rec) this.finishDrive(run, car, "replaced by a newer drive");
     car.input = { gas: c.gas ?? 0, brake: c.brake ?? 0, steer: c.steer ?? 0, reverse: c.reverse === true, holdSpeed: c.speed, holdHeading: c.heading === undefined ? undefined : (180 - c.heading) * Math.PI / 180 };
+    const base = Math.round(car.v.heading / (Math.PI / 2)) * (Math.PI / 2);
+    car.turn = c.turn ? { dir: c.turn, base, target: base + (c.turn === "left" ? 1 : -1) * Math.PI / 2, phase: "approach" } : null;
+    if (car.turn && c.speed === undefined && c.gas === undefined) car.input.holdSpeed = 5;
     car.inputUntil = this.sim.t + (c.seconds ?? 1);
     run.rec = rec; run.endsAt = car.inputUntil; run.broke = []; run.bumped = false;
     this.drives.set(agentId, run);
@@ -607,7 +610,15 @@ export class WorldService {
         if (inside && !run.wasIn) { run.passed++; entered = true; }
         run.wasIn = inside;
       }
-      if (entered && run?.rec && c.v.speed > 1 && this.sim.t < run.endsAt) {
+      if (run?.rec && c.turn?.phase === "inside" && run.endsAt < this.sim.t + 4) { run.endsAt = c.inputUntil = this.sim.t + 4; }   // never time out half way round
+      if (run?.rec && c.turn?.phase === "done") {
+        const dir = c.turn.dir, deg = Math.round(((180 - c.turn.target * 180 / Math.PI) % 360 + 360) % 360);
+        c.turn = null;
+        c.inputUntil = Math.min(c.inputUntil, this.sim.t + 1);
+        this.finishDrive(run, c, `TURNED ${dir} at junction ${run.passed}: now heading ${deg}`);
+        continue;
+      }
+      if (entered && !c.turn && run?.rec && c.v.speed > 1 && this.sim.t < run.endsAt) {
         // Entering a junction ends the step so the agent can turn there: a 5 s step at 6 m/s would cross a 10 m junction without the chance.
         c.inputUntil = Math.min(c.inputUntil, this.sim.t + 1.5);   // the car carries on a moment, then brakes inside the junction
         this.finishDrive(run, c, `JUNCTION ${run.passed}: you are inside it, send the next drive now`);
@@ -615,7 +626,7 @@ export class WorldService {
       }
       if (run?.rec && this.sim.t >= run.endsAt) this.finishDrive(run, c, "done");
       else if (run?.rec && run.bumped) { c.inputUntil = this.sim.t; this.finishDrive(run, c, "stopped"); }
-      else if (run?.rec && c.v.speed > 1 && this.obstacleAhead(c, run)) { /* the step ended inside obstacleAhead */ }
+      else if (run?.rec && c.v.speed > 1 && c.turn?.phase !== "inside" && this.obstacleAhead(c, run)) { /* the step ended inside obstacleAhead */ }
       else if (run?.rec && c.v.speed > 1) {
         // A step also ends the moment a signal that is not green is close enough that stopping takes thought: the car brakes to a halt, the agent decides.
         const { signal } = Fleet.senses(c, now);
