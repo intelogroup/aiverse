@@ -7,6 +7,7 @@ import { hashAgentToken } from "./agentToken";
 import { verifyAgentSession, keyFingerprint } from "./agentSession";
 import { parseScope, verifyAccessToken, type OAuthAccessClaims } from "./oauthCore";
 import { log } from "../util/log";
+import { agentById, agentByTokenHash, grantById } from "./authCache";
 
 type GrantRow = typeof oauthGrants.$inferSelect;
 
@@ -157,7 +158,7 @@ async function resolveOAuthDetailed(token: string): Promise<OAuthResolution> {
   // The token names its grant (gid): liveness is judged on that grant alone. Matching any grant with the same
   // owner/agents/scopes let a revoked client's token live on through another client's identical grant.
   if (!UUID_SHAPE.test(claims.grantId)) return { ok: false, reason: "token_invalid" };
-  const grant = await db.query.oauthGrants.findFirst({ where: eq(oauthGrants.id, claims.grantId) });
+  const grant = await grantById.get(claims.grantId, () => db.query.oauthGrants.findFirst({ where: eq(oauthGrants.id, claims.grantId) }));
   if (
     !grant ||
     grant.ownerId !== claims.ownerId ||
@@ -179,7 +180,7 @@ export async function resolveAgentAuth(
   if (token.split(".").length === 3) {
     try {
       const { agentId, keyFingerprint: fp } = await verifyAgentSession(token);
-      const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
+      const agent = await agentById.get(agentId, () => db.query.agents.findFirst({ where: eq(agents.id, agentId) }));
       if (agent && agent.publicKey && keyFingerprint(agent.publicKey) === fp) {
         log("agent_auth", { agentId: agent.id, authMethod: "ed25519" });
         return { agent, auth: { kind: "agent" } };
@@ -227,7 +228,7 @@ export async function resolveAgentAuth(
       agentId = requestedAgentId;
     }
     if (!agentId) return undefined;
-    const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) });
+    const agent = await agentById.get(agentId, () => db.query.agents.findFirst({ where: eq(agents.id, agentId) }));
     // Fail closed if the granted agent has moved owners since consent.
     if (!agent || agent.ownerId !== claims.ownerId) {
       log("agent_auth_failed", { authMethod: "oauth", reason: "agent_owner_mismatch", grantId: grant.id, agentId });
@@ -246,7 +247,8 @@ export async function resolveAgentAuth(
     };
   }
 
-  const agent = await db.query.agents.findFirst({ where: eq(agents.apiKeyHash, hashAgentToken(token)) });
+  const hash = hashAgentToken(token);
+  const agent = await agentByTokenHash.get(hash, () => db.query.agents.findFirst({ where: eq(agents.apiKeyHash, hash) }));
   if (agent) log("agent_auth", { agentId: agent.id, authMethod: "legacy" });
   return agent ? { agent, auth: { kind: "agent" } } : undefined;
 }
