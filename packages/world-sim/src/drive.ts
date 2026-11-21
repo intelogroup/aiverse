@@ -1,7 +1,7 @@
 // Fleet — the Bazaar's drivable cars as server bodies. A car is parked until an agent decides to get in (enter_vehicle); walking past one
 // does nothing. A driven car steps through vehicle.ts every tick and is judged by the shared signal controller. Cars are first-class
 // viewer bodies (a stable roster number, body "car"), so a parked and a driven car are drawn the same way as the resident traffic.
-import { encodePose, type PoseTuple } from "./streamProtocol";
+import { FLEET_N0, encodePose, type PoseTuple } from "./streamProtocol";
 import { JUNCTIONS, junctionAt, signalState, type Lamp } from "./trafficSignals";
 import {
   DISC_OFFSET, DISC_R, axisOfTravel, laneError, laneOffset, makeVehicle, stepVehicle,
@@ -11,7 +11,7 @@ import type { World } from "./walker";
 export { MAX_DRIVE_S } from "./actionProtocol";
 
 /** Viewer-stream body numbers: agents count up from 1, resident NPCs start at 1_000_000, cars here. */
-export const VEH_N0 = 2_000_000;
+export const VEH_N0 = FLEET_N0;
 /** Bazaar walking surface: the same y the resident cars use. */
 export const VEHICLE_Y = 0.2;
 export const ENTER_RANGE_M = 3;

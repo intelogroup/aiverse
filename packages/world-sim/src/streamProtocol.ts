@@ -46,6 +46,9 @@ export function decodePose(t: PoseTuple): RemotePose {
 
 export const sameTuple = (a: PoseTuple, b: PoseTuple): boolean => a.length === b.length && a.every((v, i) => v === b[i]);
 
+/** Body numbers of the Bazaar fleet (drive.ts): agents count up from 1, resident NPCs start at 1_000_000, cars the owner can drive here. */
+export const FLEET_N0 = 2_000_000;
+
 /** What the gateway sends spectators for the poses. `key` frames carry every body; the others only what changed (+ `gone`). */
 export interface FramesMessage {
   epoch: string;
