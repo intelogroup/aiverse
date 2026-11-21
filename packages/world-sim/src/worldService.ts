@@ -601,10 +601,19 @@ export class WorldService {
       if (c.driver === null) continue;
       const s = this.sessions.get(c.driver), run = this.drives.get(c.driver);
       if (s) this.syncDriver(s, c);
+      let entered = false;
       if (run) {
         const inside = Fleet.senses(c, now).junction;
-        if (inside && !run.wasIn) run.passed++;
+        if (inside && !run.wasIn) { run.passed++; entered = true; }
         run.wasIn = inside;
+      }
+      if (entered && run?.rec && c.v.speed > 1 && this.sim.t < run.endsAt) {
+        // Entering a junction ends the step so the agent can turn there: a 5 s step at 6 m/s would cross a 10 m junction without the chance.
+        const deg = Math.round((180 - ((c.v.heading * 180 / Math.PI) % 360 + 360) % 360 + 360) % 360);
+        const left = (deg + 270) % 360, right = (deg + 90) % 360;
+        c.inputUntil = Math.min(c.inputUntil, this.sim.t + 1.5);   // the car carries on a moment, then brakes inside the junction
+        this.finishDrive(run, c, `JUNCTION ${run.passed}: you are inside it. Straight on: heading ${deg}. Turn left: heading ${left}. Turn right: heading ${right}. Send the next drive now`);
+        continue;
       }
       if (run?.rec && this.sim.t >= run.endsAt) this.finishDrive(run, c, "done");
       else if (run?.rec && run.bumped) { c.inputUntil = this.sim.t; this.finishDrive(run, c, "stopped"); }

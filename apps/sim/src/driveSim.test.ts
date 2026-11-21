@@ -266,3 +266,14 @@ test("with no drive open the car brakes to a halt on its own", () => {
   expect(car.v.speed).toBe(0);
   service.detach("drv");
 });
+
+test("entering a junction ends the step with the headings for straight, left and right", () => {
+  const { j, t } = junctionAndClock("green");
+  const { service } = setup(t, j);
+  act(service, "drv", "e", { type: "enter_vehicle" });
+  act(service, "drv", "d", { type: "drive", speed: 9, heading: 90, seconds: 5 });
+  run(service, 5.2);
+  const detail = service.actRecord("drv", "d")?.outcome?.detail ?? "";
+  expect(detail).toMatch(/^JUNCTION 1: you are inside it\. Straight on: heading 90\. Turn left: heading 0\. Turn right: heading 180\./);
+  service.detach("drv");
+});
