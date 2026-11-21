@@ -84,4 +84,23 @@ describe("writeRemoteFrame", () => {
     writeRemoteFrame(f, { n: 1, x: 3, y: 0, z: -4, heading: 0, speed: 0, posture: "seated", clip: null });
     expect(f.state).toBe("idle");
   });
+
+  it("finds the nearest body from a number up, so a hidden driver's camera picks its car and not a resident car or a walker", () => {
+    const r = new RemoteBodies();
+    r.applyRoster({ epoch: "e", bodies: [] });
+    r.applyFrames(msg(10, [tup(1, 0), tup(1_000_000, 4), tup(2_000_000, 20), tup(2_000_001, 60)], { key: true }), 100);
+    expect(r.nearestFrom(2_000_000, 1, 0, 10)).toBe(2_000_000);
+    expect(r.nearestFrom(2_000_000, 55, 0, 10)).toBe(2_000_001);
+    expect(r.nearestFrom(3_000_000, 0, 0, 10)).toBeNull();
+  });
+
+  it("drops a body the server stops sending (a driver's figure leaves with `gone`), so nothing draws it", () => {
+    const r = new RemoteBodies();
+    r.applyRoster(roster);
+    r.applyFrames(msg(10, [tup(1, 0)], { key: true }), 100);
+    expect(r.list().map((b) => b.n)).toEqual([1]);
+    r.applyFrames(msg(10.2, [], { gone: [1] }), 100.2);
+    expect(r.list()).toEqual([]);
+    expect(r.sample(1, 10.2)).toBeNull();
+  });
 });

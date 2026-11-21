@@ -8,6 +8,7 @@ import * as THREE from "three";
 import { DAMP_HEADING, DAMP_LOOK, DAMP_POS_FOLLOW, FOV_WIDE, damp, dampAngle } from "./cameraRig";
 import { ownFollowPose } from "./ownerFollow";
 import type { RemoteBodies } from "./remoteFrames";
+import { FLEET_N0 } from "@aiverse/world-sim/streamProtocol";
 
 /** Fly-in from the opening aerial is faster than the steady trail so the swoop takes about a second and a half. */
 const DAMP_POS_ARRIVE = 2.6;
@@ -24,12 +25,13 @@ interface OrbitLike {
 export function OwnerFollowCam({ bodies, n, onTakeOver }: { bodies: RemoteBodies; n: number; onTakeOver: () => void }) {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   const controls = useThree((s) => s.controls) as unknown as OrbitLike | null;
-  const st = useRef<{ look: THREE.Vector3; heading: number | null } | null>(null);
+  // last: where the owner's body was last drawn; car: the fleet car it got into (a driver's own pose leaves the stream, the car carries it).
+  const st = useRef<{ look: THREE.Vector3; heading: number | null; last: { x: number; z: number } | null; car: number | null } | null>(null);
 
   useEffect(() => {
     // Start the gaze from the orbit pivot (what the camera is looking at now) so the first frames ease rather than cut.
     const look = controls?.target ? controls.target.clone() : camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(50).add(camera.position);
-    st.current = { look, heading: null };
+    st.current = { look, heading: null, last: null, car: null };
     controls?.addEventListener("start", onTakeOver);
     return () => {
       controls?.removeEventListener("start", onTakeOver);
@@ -46,7 +48,12 @@ export function OwnerFollowCam({ bodies, n, onTakeOver }: { bodies: RemoteBodies
     const s = st.current;
     const t = bodies.renderTime(performance.now() / 1000);
     if (!s || t === null) return;
-    const p = bodies.sample(n, t);
+    let p = bodies.sample(n, t);
+    if (p) { s.last = { x: p.x, z: p.z }; s.car = null; }
+    else if (s.last) {
+      s.car ??= bodies.nearestFrom(FLEET_N0, s.last.x, s.last.z, t);
+      p = s.car === null ? null : bodies.sample(s.car, t);
+    }
     if (!p) return;
     const dt = Math.min(delta, 0.05);
     s.heading = s.heading === null ? p.heading : dampAngle(s.heading, p.heading, DAMP_HEADING, dt);
