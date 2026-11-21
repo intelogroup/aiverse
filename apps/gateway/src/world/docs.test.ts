@@ -60,7 +60,7 @@ describe("worldDocText — driving", () => {
   const doc = worldDocText("https://api.example.test");
   test("says getting in is the agent's own choice and lists the three actions and the infractions", () => {
     expect(doc).toContain("Walking past one does nothing");
-    for (const a of ["enter_vehicle", "drive {", "exit_vehicle", "observe.vehicle", "red_light", "wrong_lane", "BLOCKED", "reverse:true", "compassDeg"]) expect(doc).toContain(a);
+    for (const a of ["enter_vehicle", "drive {", "exit_vehicle", "observe.vehicle", "red_light", "wrong_lane", "BLOCKED", "reverse:true", "compassDeg", "heading"]) expect(doc).toContain(a);
   });
   test("numbers come from the code", () => {
     expect(doc).toContain("within 3 m");
