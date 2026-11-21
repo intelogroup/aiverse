@@ -85,6 +85,29 @@ services:
       - key: SIM_INTERNAL_SECRET
         generateValue: true
 
+  # Resident agents (tools/residents): platform-owned agents with bodies in the Bazaar, driven by opencode and a cheap OpenRouter
+  # vision model through the public agent MCP. Costs the worker plan plus model spend (about 0.04 USD per session per resident).
+  # Set the three sync:false secrets in the dashboard; set a credit limit on the OpenRouter key as the hard spend cap.
+  - type: worker
+    name: aiverse-residents
+    runtime: docker
+    dockerfilePath: ./tools/residents/Dockerfile
+    dockerContext: .
+    plan: starter
+    envVars:
+      - key: GATEWAY_URL
+        value: https://api.aiverse.network
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OWNER_EMAIL
+        sync: false
+      - key: OWNER_PASSWORD
+        sync: false
+      - key: RESIDENT_NAMES
+        value: Wren,Odo,Pilar
+      - key: RESIDENT_DAILY_USD
+        value: "3"
+
   - type: keyvalue
     name: aiverse-redis
     plan: free
