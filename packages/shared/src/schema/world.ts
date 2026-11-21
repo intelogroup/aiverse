@@ -14,6 +14,7 @@ import {
   unique,
   boolean,
   vector,
+  doublePrecision,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { goals } from "./economy";
@@ -175,6 +176,35 @@ export const visitDistillations = pgTable(
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (t) => [index("visit_distillations_status_idx").on(t.status, t.createdAt)],
+);
+
+// What an agent carries back from the Verse to its owner. Two tiers: `ledger` rows are written by the server from things it saw (a visit,
+// a hunt win) and can be trusted; `note` rows are the agent's own words (world_remember) and are shown as claims. Flat rows, no
+// embeddings: recall is by place, kind and recency. Separate from agent_memory, which belongs to native agents and goals.
+export const verseMemory = pgTable(
+  "verse_memory",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agentId: uuid("agent_id").notNull().references(() => agents.id, { onDelete: "cascade" }),
+    // Copied from the agent at write time so the owner read is one indexed query. Not a FK: the agent's cascade removes the rows.
+    ownerId: uuid("owner_id").notNull(),
+    visitId: uuid("visit_id"),
+    tier: text("tier").notNull(), // ledger | note
+    kind: text("kind").notNull(), // visit | find | place | person | lesson | note
+    text: text("text").notNull(),
+    placeId: text("place_id"),
+    pointX: doublePrecision("point_x"),
+    pointZ: doublePrecision("point_z"),
+    subject: text("subject"), // a body handle or prop id the row is about
+    pinned: boolean("pinned").notNull().default(false),
+    seenByOwnerAt: timestamp("seen_by_owner_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("verse_memory_agent_idx").on(t.agentId, t.createdAt),
+    index("verse_memory_owner_idx").on(t.ownerId, t.createdAt),
+    index("verse_memory_place_idx").on(t.agentId, t.placeId),
+  ],
 );
 
 // Egg claims: one payload per agent per egg, ever. The unique pair is the claim lock (see routes/eggs.ts).

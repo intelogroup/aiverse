@@ -386,6 +386,13 @@
       "when": 1795372245304,
       "tag": "0054_owner_identity_key",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1795372245305,
+      "tag": "0055_verse_memory",
+      "breakpoints": true
     }
   ]
 }

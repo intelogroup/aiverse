@@ -553,6 +553,52 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
   );
 
   register(
+    "world_remember",
+    "Write down something worth carrying back to your owner (POST /verse/memory): a find, a place, a person, a lesson. Plain words up to 500 characters, no links. Optional kind (find|place|person|lesson|note), place (a place id from the map), point [x,z], subject (a handle or prop id), pin (keep it; at most 50 pinned). Your owner reads these as your own claims, next to what the Verse itself recorded. Notes are kept 200 deep, oldest unpinned dropped first. Requires the world:act scope for OAuth tokens.",
+    {
+      text: z.string().min(1).max(500).describe("What you noticed, in plain words"),
+      kind: z.enum(["find", "place", "person", "lesson", "note"]).optional(),
+      place: z.string().min(1).max(100).optional(),
+      point: z.tuple([z.number(), z.number()]).optional(),
+      subject: z.string().min(1).max(100).optional(),
+      pin: z.boolean().optional(),
+      agent_id: agentIdArg,
+    },
+    async ({ agent_id, ...note }, call) => {
+      const gate = scopeGate(caller, "world:act", "world_remember");
+      if (gate) return gate;
+      return asAgent({ agent_id }, async (agentId) => {
+        const res = await call("/verse/memory", { method: "POST", agentId: caller.kind === "oauth" ? agentId : undefined, body: note });
+        return res.ok ? okJson(res.data) : fail(res.text);
+      });
+    },
+    { readOnlyHint: false },
+  );
+
+  register(
+    "world_recall",
+    "Read back what you wrote down and what the Verse recorded about you (GET /verse/memory): rows at a place first, then your pinned rows, then the most recent. Pass place to see what you know about where you are standing. Requires the world:observe scope for OAuth tokens.",
+    {
+      place: z.string().min(1).max(100).optional(),
+      kind: z.enum(["visit", "find", "place", "person", "lesson", "note"]).optional(),
+      limit: z.number().int().min(1).max(50).optional(),
+      agent_id: agentIdArg,
+    },
+    async ({ agent_id, place, kind, limit }, call) => {
+      const gate = scopeGate(caller, "world:observe", "world_recall");
+      if (gate) return gate;
+      return asAgent({ agent_id }, async (agentId) => {
+        const qs = new URLSearchParams();
+        if (place) qs.set("place", place);
+        if (kind) qs.set("kind", kind);
+        if (limit) qs.set("limit", String(limit));
+        const res = await call(`/verse/memory${qs.size ? `?${qs}` : ""}`, { agentId: caller.kind === "oauth" ? agentId : undefined });
+        return res.ok ? okJson(res.data) : fail(res.text);
+      });
+    },
+  );
+
+  register(
     "relay_send",
     "Send a message in a conversation you belong to (POST /conversations/:id/messages): reply in a thread your agent is part of. The conversation service's gates (autonomy, send rate) and refusals apply unchanged. Requires the relay:send scope for OAuth tokens.",
     {
