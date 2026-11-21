@@ -97,31 +97,40 @@ async function mcp(token: string, name: string, args: object) {
 }
 
 /** One bounded opencode session for a resident. Returns the cost in USD from opencode's own step records. */
-async function session(r: Resident, token: string, dir: string): Promise<{ usd: number; calls: number; said: string }> {
+async function session(r: Resident, token: string, dir: string): Promise<{ usd: number; calls: number; said: string; tools: Record<string, number>; errors: string[] }> {
   await mkdir(join(dir, "xdg"), { recursive: true }); await mkdir(join(dir, "home"), { recursive: true });
   const modelId = MODEL.replace(/^openrouter\//, "");
   await Bun.write(join(dir, "opencode.json"), JSON.stringify({
     $schema: "https://opencode.ai/config.json",
     provider: { openrouter: { models: { [modelId]: { name: modelId, tool_call: true, attachment: true, modalities: { input: ["text", "image"], output: ["text"] } } } } },
     mcp: { aiverse: { type: "remote", url: GATEWAY + "/mcp/agent", headers: { Authorization: `Bearer ${token}` }, enabled: true } },
-    permission: { bash: "deny", edit: "deny", webfetch: "deny" },
+    // OpenCode 2 permission rules. Only the aiverse MCP tools stay: a resident reads world text written by strangers, so it gets no
+    // file, shell, web or subagent access (a file read of the process environment would hand it the OpenRouter key). "execute" stays
+    // allowed (it is how 2.x calls MCP tools); the nested tools it runs still enforce these denies.
+    permissions: ["read", "edit", "glob", "grep", "shell", "subagent", "skill", "question", "webfetch", "websearch", "external_directory"]
+      .map((action) => ({ action, resource: "*", effect: "deny" })),
   }));
   await mcp(token, "body_attach", { body: r.figure });   // idempotent: an agent that already has its body keeps it
   const proc = Bun.spawn([OPENCODE, "run", ...(process.env.OPENCODE_STANDALONE === "1" ? ["--standalone"] : []), "--format", "json", "-m", MODEL, promptFor(r)], {
     cwd: dir, stdin: "ignore", stdout: "pipe", stderr: "ignore",
-    env: { ...process.env, XDG_CONFIG_HOME: join(dir, "xdg"), HOME: join(dir, "home"), XDG_CACHE_HOME: process.env.XDG_CACHE_HOME ?? join(process.env.HOME ?? "", ".cache") },
+    env: { ...process.env, OWNER_EMAIL: undefined, OWNER_PASSWORD: undefined, XDG_CONFIG_HOME: join(dir, "xdg"), HOME: join(dir, "home"), XDG_CACHE_HOME: process.env.XDG_CACHE_HOME ?? join(process.env.HOME ?? "", ".cache") },
   });
   const killer = setTimeout(() => proc.kill(), 5 * 60_000);
   const out = await new Response(proc.stdout).text();
   clearTimeout(killer);
   let usd = 0, calls = 0, said = "";
+  const tools: Record<string, number> = {}, errors: string[] = [];
   for (const line of out.split("\n")) {
     let e: any; try { e = JSON.parse(line); } catch { continue; }
     if (e.type === "step_finish") usd += e.part?.cost ?? 0;
-    if (e.type === "tool_use") calls++;
+    if (e.type === "tool_use") {
+      calls++;
+      const t = String(e.part?.tool ?? "?"); tools[t] = (tools[t] ?? 0) + 1;
+      if (e.part?.state?.status === "error" && errors.length < 3) errors.push(String(e.part.state.error ?? "").slice(0, 120));
+    }
     if (e.type === "text") said = String(e.part?.text ?? "").slice(0, 200);
   }
-  return { usd, calls, said };
+  return { usd, calls, said, tools, errors };
 }
 
 async function main() {
@@ -140,10 +149,11 @@ async function main() {
       try {
         const res = await session(r, me.token, join(process.cwd(), ".residents", r.name));
         const key = `${today()}:${r.name}`; s.spentUsd[key] = (s.spentUsd[key] ?? 0) + res.usd; await saveState(s);
-        console.log(JSON.stringify({ event: "resident_session", name: r.name, calls: res.calls, usd: +res.usd.toFixed(5), said: res.said }));
+        if (res.calls < 10) console.log(JSON.stringify({ event: "resident_tools_missing", name: r.name, calls: res.calls }));   // intermittent: opencode started before the MCP tools connected; the next session retries
+        console.log(JSON.stringify({ event: "resident_session", name: r.name, calls: res.calls, usd: +res.usd.toFixed(5), tools: res.tools, errors: res.errors, said: res.said }));
         await ensureResident(r, s, owner);   // renew the visit when it lapsed
       } catch (err) { console.log(JSON.stringify({ event: "resident_error", name: r.name, error: String(err).slice(0, 200) })); }
-      await Bun.sleep(PAUSE_S * 1000);   // a session whose tools never connected (calls < 3) just starts over after this pause
+      await Bun.sleep(PAUSE_S * 1000);
     }
   }));
 }
