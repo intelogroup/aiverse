@@ -96,7 +96,13 @@ export const LOOPS: readonly Loop[] = [
   rectLoop("tall", -65, 65, -130, 130, false),
 ];
 
-export interface Car { loop: Loop; s: number; v: number; hue: number }
+export interface Car { loop: Loop; s: number; v: number; hue: number; /** Seconds spent held by a body in its lane (see stepCars). */ yieldS?: number }
+/** A body (agent, player) a car must not run over, in plan coords (x east, y north). */
+export interface Obstacle { x: number; y: number; r: number }
+/** Look this far ahead for a body, and treat one this close to the lane centre as in the way. */
+export const YIELD_AHEAD = 16, YIELD_HALF_WIDTH = 1.4;
+/** A body that has held a car this long is ignored (the car drives on): a body parked in a lane must not freeze the loop for good. */
+export const YIELD_GIVE_UP_S = 30;
 
 /** `perLoop` cars on each loop, evenly spaced with a per-loop phase. */
 export function spawnCars(perLoop = 2): Car[] {
@@ -133,7 +139,22 @@ export function signalLimit(car: Car, now: number): number {
 }
 
 /** Advance all cars by dt seconds at wall-clock time `now` (seconds). Mutates `cars`. */
-export function stepCars(cars: Car[], dt: number, now: number): void {
+/** Metres of free road ahead of `c` before the nearest body in its lane (centre-to-body less half a car and the body's radius), or Infinity. */
+export function gapToBody(c: Car, obstacles: readonly Obstacle[]): number {
+  if (!obstacles.length) return Infinity;
+  const p = sample(c.loop, c.s);
+  let best = Infinity;
+  for (const o of obstacles) {
+    const rx = o.x - p.x, ry = o.y - p.y;
+    const along = rx * p.dx + ry * p.dy;
+    if (along <= 0 || along > YIELD_AHEAD + CAR_LEN / 2) continue;
+    if (Math.abs(rx * p.dy - ry * p.dx) > YIELD_HALF_WIDTH + o.r) continue;
+    best = Math.min(best, along - CAR_LEN / 2 - o.r);
+  }
+  return best;
+}
+
+export function stepCars(cars: Car[], dt: number, now: number, obstacles: readonly Obstacle[] = []): void {
   const byLoop = new Map<Loop, Car[]>();
   for (const c of cars) { const a = byLoop.get(c.loop) ?? []; a.push(c); byLoop.set(c.loop, a); }
   for (const [loop, list] of byLoop) {
@@ -146,6 +167,11 @@ export function stepCars(cars: Car[], dt: number, now: number): void {
         const gap = ((lead.s - c.s) % loop.length + loop.length) % loop.length - CAR_LEN;
         t = Math.min(t, Math.sqrt(2 * BRAKE * Math.max(gap - MIN_GAP, 0)) + (gap > MIN_GAP ? 0 : 0));
       }
+      const gb = gapToBody(c, obstacles);
+      if (gb < Infinity && (c.yieldS ?? 0) < YIELD_GIVE_UP_S) {
+        t = Math.min(t, Math.sqrt(2 * BRAKE * Math.max(gb - MIN_GAP, 0)));
+        if (c.v < 0.5) c.yieldS = (c.yieldS ?? 0) + dt;      // held, not just slowing
+      } else if (gb === Infinity) c.yieldS = 0;
       return t;
     });
     list.forEach((c, i) => {

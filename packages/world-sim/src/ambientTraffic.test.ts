@@ -87,3 +87,35 @@ describe("ambient pedestrians", () => {
     for (const w of ws) { expect(Number.isFinite(w.x)).toBe(true); expect(w.t).toBeGreaterThanOrEqual(0); expect(w.t).toBeLessThanOrEqual(1); }
   });
 });
+
+describe("cars yield to bodies", () => {
+  const ring = LOOPS.find((l) => l.id === "ring")!;
+  // a stretch of the ring far from any junction: find an s whose next 40 m stay clear of entries
+  const clearS = (() => { for (let s = 0; s < ring.length; s += 5) if (ring.entries.every((e) => { const d = (((e.s - s) % ring.length) + ring.length) % ring.length; return d > 60 && d < ring.length - 20; })) return s; return 0; })();
+  const run = (obstacle: (c: { x: number; y: number; dx: number; dy: number }) => { x: number; y: number; r: number } | null, seconds: number) => {
+    const car = { loop: ring, s: clearS, v: 9, hue: 0 };
+    const p = sample(ring, clearS + 25);
+    const o = obstacle(p);
+    let now = T0, minGap = Infinity;
+    for (let i = 0; i < seconds * 20; i++) {
+      stepCars([car], 0.05, now, o ? [o] : []);
+      now += 0.05;
+      if (o) { const a = sample(ring, car.s); minGap = Math.min(minGap, (o.x - a.x) * a.dx + (o.y - a.y) * a.dy - CAR_LEN / 2 - o.r); }
+    }
+    return { car, minGap };
+  };
+
+  test("a car stops short of a body standing in its lane, never touching it", () => {
+    const { car, minGap } = run((p) => ({ x: p.x, y: p.y, r: 0.4 }), 20);
+    expect(car.v).toBeLessThan(0.05);
+    expect(minGap).toBeGreaterThan(1);
+  });
+  test("a body beside the lane (3 m off) does not slow the car", () => {
+    const { car } = run((p) => ({ x: p.x - p.dy * 3, y: p.y + p.dx * 3, r: 0.4 }), 4);
+    expect(car.v).toBeGreaterThan(8);
+  });
+  test("a body that stays in the lane longer than the give-up time is no longer obeyed", () => {
+    const { car } = run((p) => ({ x: p.x, y: p.y, r: 0.4 }), 60);
+    expect(car.v).toBeGreaterThan(3);
+  });
+});
