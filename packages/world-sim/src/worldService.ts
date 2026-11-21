@@ -6,16 +6,19 @@
 // Senses are only what the sensorium charter allows: the body's own state and the projected scene (`oracleScene`: what is in
 // range and in the view cone). No other agent's identity, no hidden state, no debug surface.
 import { createHmac, randomBytes } from "node:crypto";
-import { AgentBody, type AgentSnapshot } from "./agentBody";
-import { explainAction, SAY_RANGE_M, validRequestId } from "./actionProtocol";
+import { AgentBody, SUBSTEP_S, type AgentSnapshot } from "./agentBody";
+import { explainAction, MAX_DRIVE_S, SAY_RANGE_M, validRequestId } from "./actionProtocol";
 import { encodePose, type PoseTuple } from "./streamProtocol";
 import { NPC_GROUND_Y, type AmbientWorld } from "./ambientWorld";
-import { nearestPlace, oracleScene, roomAt, type OracleObject, type ScoutAction, type ScoutOutcome, type ScoutSeat } from "./scout";
+import { bearingDeg, nearestPlace, oracleScene, roomAt, type OracleObject, type ScoutAction, type ScoutOutcome, type ScoutSeat } from "./scout";
 import { clipDef, SOCIAL_CLIPS } from "./clips";
 import { agentBodies, BODIES, BODY_REMY } from "./bodies";
 import { LOOK_FAR_M, LOOK_HFOV_DEG, LOOK_LEGEND, LOOK_NO_HIT } from "./look";
 import { encodeGrayPng } from "./png";
 import { teaLandmarks, type TeaWayfinding } from "./teaLandmarks";
+import { DISC_OFFSET, DISC_R } from "./vehicle";
+import { ENTER_RANGE_M, Fleet, SEE_VEHICLE_M, VEHICLE_Y, type SignalAhead, type Vehicle } from "./drive";
+import type { Infraction } from "./vehicle";
 import type { VerseSim } from "./verseSim";
 
 export type WorldErrorCode = "no_body" | "invalid_action" | "id_conflict" | "world_full" | "not_ready" | "spawn_failed";
@@ -59,6 +62,8 @@ export interface SayEvent { seq: number; n: number; text: string; t: number }
 
 /** Heard lines kept per body, and how long (simulation seconds). */
 const HEARD_KEEP = 20, HEARD_TTL_S = 60, SAY_STREAM_TTL_S = 6, TALK_S = 2;
+/** A junction this close ahead on a green ends the step, so the driver can choose to turn (m). */
+const JUNCTION_WARN_M = 26;
 
 export interface Observation extends TeaWayfinding {
   /** Simulation time, s. */
@@ -68,6 +73,8 @@ export interface Observation extends TeaWayfinding {
   nearestPlace: { id: string; name: string; kind: string; dist: number } | null;
   insideRoom: string | null;
   scene: OracleObject[];
+  /** Your car's state while you drive (null on foot). */
+  vehicle: VehicleView | null;
   /** The latest action record (running or settled), so a poller needs one call. */
   lastAct: ActRecord | null;
   /** Speech overheard since `heardSince` (all of the last 60 s when absent). */
@@ -96,6 +103,8 @@ export interface WorldServiceOpts {
   leaseS?: number;
   /** Settled action records kept per body for polling. */
   keepRecords?: number;
+  /** Wall-clock seconds for the signal controller (tests inject one). */
+  nowS?: () => number;
   /** Resident cars and pedestrians published to viewers beside the agent bodies (they are not agents: no session, no budget). */
   ambient?: AmbientWorld;
 }
@@ -114,6 +123,32 @@ interface Session {
   heard: HeardMsg[];
 }
 
+/** What a driver senses of its car; null on foot. */
+export interface VehicleView {
+  id: string;
+  speedMps: number;
+  /** Radians in the world frame (0 faces south, pi/2 east); prefer compassDeg. */
+  heading: number;
+  /** Compass bearing of the car's nose: 0 north, 90 east, 180 south, 270 west. A left turn (steer +) lowers it. */
+  compassDeg: number;
+  facing: "north" | "east" | "south" | "west";
+  steer: number;
+  /** True while something solid is stopping the car (it presses against it): reverse away or steer clear; gas alone does nothing. */
+  blocked: boolean;
+  /** The next signal on your line of travel within ~45 m (null when none, or when you are inside the junction). */
+  signal: (SignalAhead & { yourAxis: true }) | null;
+  /** Metres you are on the wrong side of your street (positive) or inside your lane (negative); null in a junction or off a street. */
+  laneErrorM: number | null;
+  atJunction: boolean;
+  /** Junctions you have driven into since you got in (the count to navigate by: "turn left at the second junction"). */
+  junctionsPassed: number;
+  infractions: Vehicle["tally"];
+  recent: string[];
+}
+
+/** One driver's open `drive` command and the rules it broke so far. */
+interface DriveRun { /** The junction the driver was last warned about (cell key). */ warnedJ: string; rec: ActRecord | null; endsAt: number; broke: Infraction[]; recent: string[]; bumped: boolean; /** Sim time of the last step the car was pushed against something. */ blockedAt: number; /** Signal the open drive already ended early for: one warning per signal phase, not a loop. */ warned: string; /** Junctions entered since the driver got in. */ passed: number; wasIn: boolean; /** Distance bucket of the obstacle already warned about. */ warnedAhead: number }
+
 export class WorldService {
   readonly sim: VerseSim;
   private readonly sessions = new Map<string, Session>();
@@ -121,6 +156,9 @@ export class WorldService {
   private readonly leaseS: number;
   private readonly keepRecords: number;
   private readonly ambient: AmbientWorld | null;
+  readonly fleet = new Fleet();
+  private readonly nowS: () => number;
+  private readonly drives = new Map<string, DriveRun>();
   private nextN = 1;
   private rosterRev = 0;
   private sayN = 1;
@@ -134,6 +172,7 @@ export class WorldService {
     this.leaseS = opts.leaseS ?? 30;
     this.keepRecords = opts.keepRecords ?? 64;
     this.ambient = opts.ambient ?? null;
+    this.nowS = opts.nowS ?? (() => Date.now() / 1000);
   }
 
   get bodyCount(): number { return this.sessions.size; }
@@ -181,6 +220,9 @@ export class WorldService {
     const s = this.sessions.get(agentId);
     if (!s) return false;
     void s.body.act({ type: "stop" });
+    const car = this.fleet.byDriver(agentId);
+    if (car) { car.driver = null; car.v.speed = 0; car.v.steer = 0; }
+    this.drives.delete(agentId);
     this.sim.removeBody(agentId);
     this.sessions.delete(agentId);
     this.rosterRev++;
@@ -213,6 +255,22 @@ export class WorldService {
       this.remember(s, id, rec);
       return rec;
     }
+    const type = (action as { type?: string }).type;
+    if (type === "enter_vehicle" || type === "exit_vehicle" || type === "drive") {
+      this.vehicleAct(agentId, s, rec);
+      this.remember(s, id, rec);
+      return rec;
+    }
+    const driving = this.fleet.byDriver(agentId);
+    if (driving && type !== "gaze") {
+      // `stop` is the brake; everything that walks waits until you get out
+      if (type === "stop") { this.startDrive(agentId, driving, rec, { brake: 1, seconds: 2 }); this.remember(s, id, rec); return rec; }
+      rec.state = "settled";
+      rec.settledAt = this.sim.t;
+      rec.outcome = { ok: false, status: "rejected", detail: `you are driving ${driving.id}: use drive, or exit_vehicle to get out and walk` };
+      this.remember(s, id, rec);
+      return rec;
+    }
     const resolved = this.resolveBody(agentId, s, rec.action);
     if (resolved === null) {
       rec.state = "settled";
@@ -236,6 +294,108 @@ export class WorldService {
     }
     this.remember(s, id, rec);
     return rec;
+  }
+
+  private settle(rec: ActRecord, outcome: ScoutOutcome): void {
+    rec.state = "settled";
+    rec.settledAt = this.sim.t;
+    rec.outcome = outcome;
+  }
+
+  /** enter_vehicle / exit_vehicle / drive. Getting in is always the agent's own explicit act: a car never takes anyone. */
+  private vehicleAct(agentId: string, s: Session, rec: ActRecord): void {
+    const a = rec.action as unknown as { type: string; vehicle?: string; gas?: number; brake?: number; steer?: number; heading?: number; speed?: number; reverse?: boolean; seconds?: number };
+    const st = s.body.state;
+    const car = this.fleet.byDriver(agentId);
+    if (a.type === "enter_vehicle") {
+      if (car) return this.settle(rec, { ok: false, status: "rejected", detail: `you are already in ${car.id}` });
+      const target = a.vehicle !== undefined ? this.fleet.byId(a.vehicle) : this.fleet.nearest(st.x, st.z)?.car;
+      if (!target) return this.settle(rec, { ok: false, status: "unavailable", detail: `no such car; cars you can see are in observe.scene (kind vehicle): ${this.fleet.vehicles.map((c) => c.id).join(", ")}` });
+      const d = Math.hypot(target.v.x - st.x, target.v.z - st.z);
+      if (d > ENTER_RANGE_M) return this.settle(rec, { ok: false, status: "unavailable", detail: `${target.id} is ${d.toFixed(1)} m away; walk to within ${ENTER_RANGE_M} m of it first (go_to {point:[x,z]} from observe.scene), then enter_vehicle` });
+      if (target.driver !== null) return this.settle(rec, { ok: false, status: "unavailable", detail: `${target.id} already has a driver` });
+      if (s.body.busy || s.body.snapshot().posture !== "standing") return this.settle(rec, { ok: false, status: "rejected", detail: "finish or stop what you are doing, and stand up, before getting in" });
+      target.driver = agentId;
+      target.input = { gas: 0, brake: 0, steer: 0 };
+      target.inputUntil = 0;
+      target.tally = { red_light: 0, speeding: 0, wrong_lane: 0, collision: 0 };
+      this.drives.set(agentId, { rec: null, endsAt: 0, broke: [], recent: [], bumped: false, blockedAt: -1e9, warned: "", passed: 0, wasIn: false, warnedAhead: 0, warnedJ: "" });
+      this.syncDriver(s, target);
+      this.rosterRev++;
+      return this.settle(rec, { ok: true, status: "done", detail: `you are in ${target.id}. drive {speed: m/s (about 6 is a good cruise), heading: compass bearing 0..360 the car steers itself to (0 north, 90 east, 180 south, 270 west), seconds: 1-${MAX_DRIVE_S}} moves you and the call returns when the step ends. To turn at a junction, drive {speed: 6, turn: "left" or "right"}: the car keeps its heading to the next junction, turns inside it onto the new street's lane, and the call returns when you are through (a red lamp ahead ends it with STOP first: wait, then send the same drive again). To change direction elsewhere, set a heading. Manual controls: gas, brake, steer (+ left), reverse:true. Obey the signals, keep right, stay under 25 mph; exit_vehicle to get out`, vehicle: { id: target.id, speed: 0, infractions: [] } });
+    }
+    if (!car) return this.settle(rec, { ok: false, status: "unavailable", detail: `${a.type} needs a car: you are on foot. enter_vehicle first (a car within ${ENTER_RANGE_M} m)` });
+    if (a.type === "exit_vehicle") {
+      if (car.v.speed > 1) return this.settle(rec, { ok: false, status: "rejected", detail: `still moving at ${car.v.speed.toFixed(1)} m/s: brake to a stop first (drive {brake:1, seconds:3})` });
+      const hd = car.v.heading, right: [number, number] = [-Math.cos(hd), Math.sin(hd)];
+      const spot = ([[1, 2.4], [-1, 2.4], [1, 3.4], [-1, 3.4]] as const)
+        .map(([side, m]) => [car.v.x + right[0] * side * m, car.v.z + right[1] * side * m] as const)
+        .find(([x, z]) => !this.sim.world.blocked([car.v.x, VEHICLE_Y, car.v.z], [x, VEHICLE_Y, z], 0.4));
+      if (!spot) return this.settle(rec, { ok: false, status: "blocked", detail: "no room to open the door here; drive somewhere clearer" });
+      this.endDrive(agentId, "you got out");
+      const b = s.body.state;
+      b.x = spot[0]; b.z = spot[1]; b.y = VEHICLE_Y; b.vx = b.vz = b.speed = 0;
+      car.driver = null; car.v.speed = 0; car.v.steer = 0;
+      this.rosterRev++;
+      return this.settle(rec, { ok: true, status: "done", detail: `you are on foot beside ${car.id}`, vehicle: { id: car.id, speed: 0, infractions: [] } });
+    }
+    this.startDrive(agentId, car, rec, a);
+  }
+
+  /** A new drive replaces the open one: the controls are simply the latest ones, held for `seconds`. */
+  private startDrive(agentId: string, car: Vehicle, rec: ActRecord, c: { gas?: number; brake?: number; steer?: number; heading?: number; speed?: number; reverse?: boolean; turn?: "left" | "right"; seconds?: number }): void {
+    const run = this.drives.get(agentId) ?? { rec: null, endsAt: 0, broke: [], recent: [], bumped: false, blockedAt: -1e9, warned: "", passed: 0, wasIn: false, warnedAhead: 0, warnedJ: "" };
+    if (run.rec) this.finishDrive(run, car, "replaced by a newer drive");
+    car.input = { gas: c.gas ?? 0, brake: c.brake ?? 0, steer: c.steer ?? 0, reverse: c.reverse === true, holdSpeed: c.speed, holdHeading: c.heading === undefined ? undefined : (180 - c.heading) * Math.PI / 180 };
+    const base = Math.round(car.v.heading / (Math.PI / 2)) * (Math.PI / 2);
+    car.turn = c.turn ? { dir: c.turn, base, target: base + (c.turn === "left" ? 1 : -1) * Math.PI / 2, phase: "approach", t0: 0, wp: [] } : null;
+    if (car.turn && c.speed === undefined && c.gas === undefined) car.input.holdSpeed = 5;
+    // the models leave seconds out half the time and a 1 s step is a wasted call: a hold mode runs a full step, and ends early on its own events
+    car.inputUntil = this.sim.t + (c.seconds ?? (c.turn || c.speed !== undefined || c.heading !== undefined ? MAX_DRIVE_S : 1));
+    run.rec = rec; run.endsAt = car.inputUntil; run.broke = []; run.bumped = false;
+    this.drives.set(agentId, run);
+  }
+
+  private finishDrive(run: DriveRun, car: Vehicle, note: string): void {
+    if (!run.rec) return;
+    const broke = run.broke.map((i) => `${i.kind}: ${i.detail}`);
+    // The step's result carries where the car ended up, so a driver need not read observe to know how the step went.
+    const end = car.driver ? this.vehicleView(car.driver) : null;
+    const where = end ? `; heading ${end.compassDeg} deg (${end.facing})${end.laneErrorM === null ? "" : `, ${end.laneErrorM > 0 ? "wrong side by" : "in lane, margin"} ${Math.abs(end.laneErrorM)} m`}${end ? `, junctions passed so far ${end.junctionsPassed}` : ""}${end?.atJunction ? `; INSIDE a junction, to go straight use heading ${Math.round(end.compassDeg / 90) % 4 * 90}, to turn left ${(Math.round(end.compassDeg / 90) + 3) % 4 * 90}, right ${(Math.round(end.compassDeg / 90) + 1) % 4 * 90}` : ""}${end.signal ? `, next signal ${end.signal.lamp} in ${Math.round(end.signal.distance)} m, it changes in ${Math.round(end.signal.changesIn)} s${end.signal.lamp === "green" ? "" : ": do not enter until it is green"}. That is junction ${end.junctionsPassed + 1}: to turn there send drive {speed: 6, turn: "left" or "right"} before you reach it, a heading drive goes straight on` : ""}` : "";
+    this.settle(run.rec, {
+      ok: true, status: "done",
+      detail: `${note}; now ${car.v.speed.toFixed(1)} m/s${where}${run.bumped ? ". BLOCKED: something solid is in your way (a kerb, post, wall or body); reverse away (drive {gas:1, reverse:true}) or steer around it" : ""}${broke.length ? `. YOU BROKE THE RULES: ${broke.join("; ")}` : ""}`,
+      vehicle: { id: car.id, speed: Math.round(car.v.speed * 10) / 10, infractions: [...run.broke] },
+    });
+    run.rec = null;
+  }
+
+  private endDrive(agentId: string, note: string): void {
+    const run = this.drives.get(agentId), car = this.fleet.byDriver(agentId);
+    if (run && car) this.finishDrive(run, car, note);
+    this.drives.delete(agentId);
+  }
+
+  /** The driver's body rides in the car: same place, same heading, standing still, not drawn (frames() leaves it out). */
+  private syncDriver(s: Session, car: Vehicle): void {
+    const b = s.body.state;
+    b.x = car.v.x; b.y = car.v.y; b.z = car.v.z; b.body = b.heading = car.v.heading; b.vx = b.vz = b.speed = 0;
+  }
+
+  private vehicleView(agentId: string): VehicleView | null {
+    const car = this.fleet.byDriver(agentId);
+    if (!car) return null;
+    const { signal, laneErrorM, junction } = Fleet.senses(car, this.nowS());
+    const h = car.v.heading, deg = ((h * 180 / Math.PI) % 360 + 360) % 360;   // 0 south, 90 east, 180 north, 270 west
+    const facing = (["south", "east", "north", "west"] as const)[Math.round(deg / 90) % 4];
+    const run = this.drives.get(agentId);
+    return {
+      id: car.id, speedMps: round(car.v.speed, 1), heading: round(h, 3), compassDeg: Math.round((180 - deg + 360) % 360), facing, steer: round(car.v.steer, 2),
+      blocked: !!run && this.sim.t - run.blockedAt < 1.5,
+      signal: signal ? { ...signal, yourAxis: true } : null,
+      laneErrorM: laneErrorM === null ? null : round(laneErrorM, 1),
+      atJunction: junction, junctionsPassed: run?.passed ?? 0, infractions: { ...car.tally }, recent: run?.recent.slice(-5) ?? [],
+    };
   }
 
   private remember(s: Session, id: string, rec: ActRecord): void {
@@ -286,6 +446,12 @@ export class WorldService {
   /** An action naming a body by handle becomes a point action on where that body is NOW; null when it is not in sight. */
   private resolveBody(agentId: string, s: Session, action: ScoutAction): ScoutAction | null {
     if (!("body" in action) || action.body === undefined) return action;
+    const car = this.fleet.vehicles.find((c) => c.id === action.body);
+    if (car && (action.type === "go_to" || action.type === "run_to") && Math.hypot(car.v.x - s.body.state.x, car.v.z - s.body.state.z) <= SEE_VEHICLE_M) {
+      // a car is not a body: walk to a spot beside it, inside enter range, on the near side
+      const me = s.body.state, d = Math.max(Math.hypot(car.v.x - me.x, car.v.z - me.z), 1e-6), stand = Math.max(0, d - 2) / d;
+      return { type: action.type, point: [round(me.x + (car.v.x - me.x) * stand, 2), round(me.z + (car.v.z - me.z) * stand, 2)] };
+    }
     const seen = this.sim.visibleBodies(agentId).find((v) => this.handleFor(s, v.id) === action.body);
     if (!seen) return null;
     const me = s.body.state, t = seen.body.state;
@@ -352,11 +518,25 @@ export class WorldService {
       insideRoom: room?.name ?? null,
       ...teaLandmarks(st, eye, this.sim.world, st.body + yawDeg * Math.PI / 180,
         this.sim.door.state, this.sim.elevator, this.sim.teaFloors),
-      scene: [...oracleScene(this.sim.places, this.sim.rooms, { x: st.x, z: st.z, heading: st.body }, {}, interactables, seats), ...this.seenBodies(agentId, s)]
+      scene: [...oracleScene(this.sim.places, this.sim.rooms, { x: st.x, z: st.z, heading: st.body }, {}, interactables, seats), ...this.seenBodies(agentId, s), ...this.seenVehicles(agentId, st)]
         .sort((a, b) => a.distance - b.distance),
+      vehicle: this.vehicleView(agentId),
       lastAct: s.last,
       heard: s.heard.filter((m) => m.seq > heardSince),
     };
+  }
+
+  /** Cars within reach of the eye as scene objects: you can read where they are from afar, but you must walk up and choose to get in. */
+  private seenVehicles(agentId: string, st: { x: number; z: number; body: number }): OracleObject[] {
+    return this.fleet.vehicles.flatMap((c) => {
+      const distance = Math.hypot(c.v.x - st.x, c.v.z - st.z);
+      if (distance > SEE_VEHICLE_M) return [];
+      return [{
+        kind: "vehicle" as const, id: c.id, name: c.label, bearingDeg: round(bearingDeg(st.body, c.v.x - st.x, c.v.z - st.z), 1), distance: round(distance, 2),
+        state: c.driver === null ? "free" : c.driver === agentId ? "yours" : "occupied",
+        note: c.driver === null ? `walk to it with go_to {body:"${c.id}"}, then enter_vehicle {vehicle:"${c.id}"} once within ${ENTER_RANGE_M} m; walking past does nothing` : undefined,
+      }];
+    });
   }
 
   /** Other bodies in sight as oracle objects. No agent id, no name, no coordinates: a handle, where, and what they are doing. */
@@ -377,7 +557,8 @@ export class WorldService {
   /** Every body's pose this instant, quantised for the viewer stream. Not agent-scoped: it is the public picture of the world. */
   frames(): { epoch: string; t: number; rosterRev: number; b: PoseTuple[]; say: SayEvent[] } {
     const b: PoseTuple[] = [];
-    for (const s of this.sessions.values()) b.push(encodePose(s.n, s.body.pose()));
+    for (const [id, s] of this.sessions) if (!this.fleet.byDriver(id)) b.push(encodePose(s.n, s.body.pose()));   // a driver is the car
+    b.push(...this.fleet.poses());
     if (this.ambient) b.push(...this.ambient.poses());
     const say = this.says.filter((e) => this.sim.t - e.t <= SAY_STREAM_TTL_S).map((e) => ({ ...e, text: e.text.slice(0, 140) }));
     return { epoch: this.epoch, t: round(this.sim.t, 3), rosterRev: this.rosterRev, b, say };
@@ -385,7 +566,7 @@ export class WorldService {
 
   /** Body number -> agent id (gateway-side only: it turns this into a display name) and the body model to draw. */
   roster(): { epoch: string; rev: number; bodies: { n: number; agentId: string; body: string }[] } {
-    return { epoch: this.epoch, rev: this.rosterRev, bodies: [...[...this.sessions].map(([agentId, s]) => ({ n: s.n, agentId, body: s.figure })), ...(this.ambient?.roster() ?? [])] };
+    return { epoch: this.epoch, rev: this.rosterRev, bodies: [...[...this.sessions].map(([agentId, s]) => ({ n: s.n, agentId, body: s.figure })), ...this.fleet.roster(), ...(this.ambient?.roster() ?? [])] };
   }
 
   /** The named places an agent may `go_to`: ids and names only (positions are perceived through `observe`).
@@ -408,9 +589,94 @@ export class WorldService {
     });
   }
 
+  /** Step the driven cars (in substeps like the bodies), carry each driver's body along, and settle drive commands whose time is up. */
+  private driveCars(dt: number): void {
+    if (!this.fleet.vehicles.some((c) => c.driver !== null)) return;
+    const now = this.nowS();
+    for (let left = dt; left > 1e-9; left -= SUBSTEP_S) {
+      const h = Math.min(left, SUBSTEP_S);
+      for (const { car, infractions, blocked } of this.fleet.step(h, this.sim.t, now, (c) => this.sim.vehicleWorld([...Fleet.discIds(c), c.driver!], 1.5))) {
+        const run = this.drives.get(car.driver!);
+        if (!run) continue;
+        if (blocked) { run.bumped = true; run.blockedAt = this.sim.t; }
+        for (const i of infractions) { run.broke.push(i); run.recent.push(`${i.kind}: ${i.detail}`); }
+        run.recent = run.recent.slice(-10);
+      }
+    }
+    for (const c of this.fleet.vehicles) {
+      if (c.driver === null) continue;
+      const s = this.sessions.get(c.driver), run = this.drives.get(c.driver);
+      if (s) this.syncDriver(s, c);
+      let entered = false;
+      if (run) {
+        const inside = Fleet.senses(c, now).junction;
+        if (inside && !run.wasIn) { run.passed++; entered = true; }
+        run.wasIn = inside;
+      }
+      if (run?.rec && c.turn?.phase === "inside" && run.endsAt < this.sim.t + 4) { run.endsAt = c.inputUntil = this.sim.t + 4; }   // never time out half way round
+      if (run?.rec && c.turn?.phase === "done") {
+        const dir = c.turn.dir, deg = Math.round(((180 - c.turn.target * 180 / Math.PI) % 360 + 360) % 360);
+        c.turn = null;
+        c.inputUntil = Math.min(c.inputUntil, this.sim.t + 1);
+        this.finishDrive(run, c, `TURNED ${dir} at junction ${run.passed}: now heading ${deg}`);
+        continue;
+      }
+      if (entered && !c.turn && run?.rec && c.v.speed > 1 && this.sim.t < run.endsAt) {
+        // Entering a junction ends the step so the agent can turn there: a 5 s step at 6 m/s would cross a 10 m junction without the chance.
+        c.inputUntil = Math.min(c.inputUntil, this.sim.t + 1.5);   // the car carries on a moment, then brakes inside the junction
+        this.finishDrive(run, c, `JUNCTION ${run.passed}: you are inside it, send the next drive now`);
+        continue;
+      }
+      if (run?.rec && this.sim.t >= run.endsAt) this.finishDrive(run, c, "done");
+      else if (run?.rec && run.bumped) { c.inputUntil = this.sim.t; this.finishDrive(run, c, "stopped"); }
+      else if (run?.rec && c.v.speed > 1 && c.turn?.phase !== "inside" && this.obstacleAhead(c, run)) { /* the step ended inside obstacleAhead */ }
+      else if (run?.rec && c.v.speed > 1) {
+        // A step also ends the moment a signal that is not green is close enough that stopping takes thought: the car brakes to a halt, the agent decides.
+        const { signal } = Fleet.senses(c, now);
+        const key = signal ? `${signal.lamp}@${Math.round((c.v.x + Math.sin(c.v.heading) * signal.distance) / 10)},${Math.round((c.v.z + Math.cos(c.v.heading) * signal.distance) / 10)}` : "";
+        const jkey = signal ? `${Math.round((c.v.x + Math.sin(c.v.heading) * signal.distance) / 10)},${Math.round((c.v.z + Math.cos(c.v.heading) * signal.distance) / 10)}` : "";
+        if (signal && signal.lamp === "green" && !c.turn && signal.distance <= JUNCTION_WARN_M && run.warnedJ !== jkey) {
+          // A junction is the one place a heading drive is not enough: the model needs seconds to choose, so the car halts well short of it.
+          run.warnedJ = jkey;
+          c.inputUntil = this.sim.t;
+          this.finishDrive(run, c, `JUNCTION AHEAD: junction ${run.passed + 1} is ${Math.round(signal.distance)} m ahead, the signal is green. To turn there send drive {speed: 5, turn: "left" or "right"}; to go straight on send a heading drive. The car is braking to a halt on its own, so you have time to choose`);
+        }
+        if (!signal || signal.lamp === "green") run.warned = "";
+        else if (signal.distance <= Math.max(14, c.v.speed * c.v.speed / 3.5 + 6) && run.warned !== key) {
+          run.warned = key; run.warnedJ = jkey;
+          c.inputUntil = this.sim.t;
+          this.finishDrive(run, c, `STOP: the signal ahead is ${signal.lamp}, ${Math.round(signal.distance)} m away at ${c.v.speed.toFixed(1)} m/s. Brake to a halt before the junction (drive {speed:0}); wait with drive {speed:0, seconds:5} until it is green (its lamp and "changes in" are in observe.vehicle.signal), then go; the car is braking to a halt on its own`);
+        }
+      }
+    }
+  }
+
+  /**
+   * Something solid on the line ahead within stopping range ends the step like a near red signal does: the car brakes to a halt and the agent decides.
+   * Once per obstacle (by distance bucket) so a driver who chooses to creep on is not cut short every call.
+   */
+  private obstacleAhead(c: Vehicle, run: DriveRun): boolean {
+    const h = c.v.heading, sx = Math.sin(h), sz = Math.cos(h), range = Math.max(9, c.v.speed * c.v.speed / 3 + 5);
+    const world = this.sim.vehicleWorld([...Fleet.discIds(c), c.driver!], 1.5);
+    const fx = c.v.x + sx * DISC_OFFSET, fz = c.v.z + sz * DISC_OFFSET;
+    for (const d of [4, 7, 11, 16, 22, 30]) {
+      if (d > range) break;
+      if (!world.blocked([fx, VEHICLE_Y, fz], [fx + sx * d, VEHICLE_Y, fz + sz * d], DISC_R)) continue;
+      if (run.warnedAhead === d) return false;
+      run.warnedAhead = d;
+      c.inputUntil = this.sim.t;
+      this.finishDrive(run, c, `STOP: something solid is about ${d} m ahead at ${c.v.speed.toFixed(1)} m/s. Brake (drive {speed:0}) and steer or reverse clear before you go on; the car is braking to a halt on its own`);
+      return true;
+    }
+    run.warnedAhead = 0;
+    return false;
+  }
+
   /** Advance the world by `dt` simulation seconds and stop bodies whose agent went quiet. */
   tick(dt: number): void {
     this.sim.tick(dt);
+    this.driveCars(dt);
+    for (const d of this.fleet.discs()) this.sim.publishDisc(d.id, d.x, VEHICLE_Y, d.z, d.r, d.h, d.vx, d.vz);
     if (this.ambient) {
       this.ambient.step(dt);
       for (const d of this.ambient.discs()) this.sim.publishDisc(d.id, d.x, NPC_GROUND_Y, d.z, d.r, d.h, d.vx, d.vz);

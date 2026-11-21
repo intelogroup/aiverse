@@ -10,6 +10,7 @@ export const WHEELBASE = 2.8;          // m (the lab's DRIVER.wheelbase)
 export const HALF_LENGTH = 2.45;
 export const DISC_R = 1.1, DISC_OFFSET = 1.2;   // the footprint is two discs, like the resident cars (ambientWorld.discs)
 export const V_MAX = 15;               // m/s, what the car can do
+export const V_REV = 3;                // m/s, the most it reverses at
 export const V_LIMIT = 11.5;           // m/s, about 25 mph (the signal progression speed): above this for SPEED_GRACE_S is a speeding event
 export const SPEED_GRACE_S = 1;
 export const ACCEL = 2.5, BRAKE = 6, COAST = 1.2;   // m/s^2 (gas at full, brake at full, engine drag with no input)
@@ -21,7 +22,7 @@ export const WRONG_LANE_M = 0.5;       // wrong side by at least this much
 export interface VehicleState {
   x: number; y: number; z: number;
   heading: number;
-  speed: number;     // m/s, >= 0 (no reverse in v1)
+  speed: number;     // m/s, negative while reversing
   steer: number;     // wheel angle, rad
   /** Seconds the car has been on the wrong side of the street / over the limit (for the one-event-per-excursion rules). */
   wrongLaneS: number; overLimitS: number;
@@ -32,7 +33,10 @@ export interface VehicleState {
 }
 
 /** What the driver is asking for right now. gas/brake 0..1, steer -1..1 (+ left). */
-export interface DriveInput { gas: number; brake: number; steer: number }
+export interface DriveInput { gas: number; brake: number; steer: number; /** Gas drives the car backwards (slowly) instead of forwards. */ reverse?: boolean; /** World heading (radians) to hold: the steering is computed each step and `steer` is ignored. */ holdHeading?: number; /** Speed (m/s) to hold: gas and brake are computed each step and ignored. */ holdSpeed?: number }
+
+/** A turn armed for the next junction: hold `base` until the car is inside one, hold `target` through it, then done. */
+export interface TurnPlan { dir: "left" | "right"; base: number; target: number; phase: "approach" | "inside" | "done"; /** Sim time the turn began. */ t0: number; /** World (x, z) points to steer through, in order, once the junction is near. */ wp: [number, number][] }
 
 export type InfractionKind = "red_light" | "speeding" | "wrong_lane" | "collision";
 export interface Infraction { kind: InfractionKind; detail: string }
@@ -54,21 +58,38 @@ export function axisOfTravel(dx: number, dy: number): Axis { return Math.abs(dx)
  * Returns the signed lateral error in metres (positive = on the wrong side) or null off any street / inside a junction.
  */
 export function laneError(planX: number, planY: number, heading: number): number | null {
-  if (junctionAt(planX, planY)) return null;
+  return laneInfo(planX, planY, heading)?.err ?? null;
+}
+
+/** Distance (m) of the lane middle from the centre line. City 3 puts street furniture (kerb islands, posts) along the middle of the 10 m streets' lanes, so the clear line is 0.7 m nearer the centre. */
+export function laneMiddle(w: number): number { return w <= 10 ? w / 4 - 0.7 : w / 4; }
+
+/** laneError plus the street's width, so a lane keeper knows where the middle of the lane is (w/4 inside the centre line). */
+function laneInfo(planX: number, planY: number, heading: number, inJunction = false): { err: number; w: number } | null {
+  if (!inJunction && junctionAt(planX, planY)) return null;
   const [dx, dy] = planDir(heading);
   if (Math.abs(dx) >= Math.abs(dy)) {            // along x: an east-west street at y = c
     const s = STREETS.find((q) => Math.abs(planY - q.c) <= q.w / 2);
     if (!s) return null;
     // east (+x) keeps to the south (y < c); west keeps north. error > 0 when on the other side.
-    return dx > 0 ? planY - s.c : s.c - planY;
+    return { err: dx > 0 ? planY - s.c : s.c - planY, w: s.w };
   }
   const s = STREETS.find((q) => Math.abs(planX - q.c) <= q.w / 2);   // along y: a north-south street at x = c
   if (!s) return null;
   // north (+y) keeps to the east (x > c); south keeps west.
-  return dy > 0 ? s.c - planX : planX - s.c;
+  return { err: dy > 0 ? s.c - planX : planX - s.c, w: s.w };
 }
 
-export interface StepResult { moved: number; infractions: Infraction[] }
+/**
+ * Metres from the middle of the lane the car is in: positive when it sits toward the centre line (left of the lane middle), negative when
+ * toward the kerb. null in a junction (unless `inJunction`: the lane of the street the heading runs along, across the crossing) or off a street. Lets a heading-holder keep the lane without the driver steering.
+ */
+export function laneOffset(planX: number, planY: number, heading: number, inJunction = false): number | null {
+  const i = laneInfo(planX, planY, heading, inJunction);
+  return i ? i.err + laneMiddle(i.w) : null;
+}
+
+export interface StepResult { moved: number; infractions: Infraction[]; /** Pushed against something this step (even too slowly to count as a collision). */ blocked: boolean }
 
 /**
  * Advance one vehicle by dt (s). `world.blocked` (the wrapped world of the body, so other bodies and NPC discs count too) is asked about both
@@ -81,8 +102,14 @@ export function stepVehicle(v: VehicleState, input: DriveInput, dt: number, worl
   const lock = MAX_STEER / (1 + (v.speed / 8) ** 2);
   const want = steerIn * lock;
   v.steer += clamp(want - v.steer, -STEER_RATE * dt, STEER_RATE * dt);
-  const accel = brake > 0 ? -BRAKE * brake : gas > 0 ? ACCEL * gas : -COAST;
-  const nextSpeed = clamp(v.speed + accel * dt, 0, V_MAX);
+  // Speed is signed. Brake and engine drag always pull it toward zero; gas pushes toward the chosen direction, braking first when the car
+  // still rolls the other way. Nothing crosses zero on its own: a car that brakes to a halt stays halted.
+  const sign = v.speed > 0 ? 1 : v.speed < 0 ? -1 : 0, dir = input.reverse ? -1 : 1;
+  let nextSpeed: number;
+  if (brake > 0) nextSpeed = v.speed - sign * Math.min(Math.abs(v.speed), BRAKE * brake * dt);
+  else if (gas > 0 && (sign === 0 || sign === dir)) nextSpeed = clamp(v.speed + dir * ACCEL * gas * dt, -V_REV, V_MAX);
+  else if (gas > 0) nextSpeed = v.speed - sign * Math.min(Math.abs(v.speed), BRAKE * dt);
+  else nextSpeed = v.speed - sign * Math.min(Math.abs(v.speed), COAST * dt);
   const dist = (v.speed + nextSpeed) / 2 * dt;
   const yaw = dist / WHEELBASE * Math.tan(v.steer);
   const h2 = v.heading + yaw;
@@ -91,18 +118,21 @@ export function stepVehicle(v: VehicleState, input: DriveInput, dt: number, worl
 
   // Footprint check: both discs at the new pose, each coming from where it was.
   let hit: Hit | null = null;
-  if (dist > 1e-6) {
+  if (Math.abs(dist) > 1e-6) {
     for (const off of [DISC_OFFSET, -DISC_OFFSET]) {
       const from: Vec3 = [v.x + Math.sin(v.heading) * off, v.y, v.z + Math.cos(v.heading) * off];
       const to: Vec3 = [nx + Math.sin(h2) * off, v.y, nz + Math.cos(h2) * off];
       hit = world.blocked(from, to, DISC_R);
+      // A car resting against a wall still overlaps it by a hair, so the probe reports a hit for any move. Only a move INTO the surface
+      // (against its outward normal) blocks; moving away, which is how a stuck car backs out, is free.
+      if (hit && hit.nx * (to[0] - from[0]) + hit.nz * (to[2] - from[2]) > -1e-6) hit = null;
       if (hit) break;
     }
   }
   if (hit) {
-    if (v.speed > 0.5) infractions.push({ kind: "collision", detail: `hit something at ${v.speed.toFixed(1)} m/s` });
+    if (Math.abs(v.speed) > 0.5) infractions.push({ kind: "collision", detail: `hit something at ${v.speed.toFixed(1)} m/s` });
     v.speed = 0;
-    return { moved: 0, infractions };
+    return { moved: 0, infractions, blocked: true };
   }
   const px0 = v.x, pz0 = v.z;
   v.x = nx; v.z = nz; v.heading = h2; v.speed = nextSpeed;
@@ -121,9 +151,9 @@ export function stepVehicle(v: VehicleState, input: DriveInput, dt: number, worl
   if (v.speed > V_LIMIT) { v.overLimitS += dt; if (v.overLimitS >= SPEED_GRACE_S && !v.reportedSpeeding) { v.reportedSpeeding = true; infractions.push({ kind: "speeding", detail: `${v.speed.toFixed(1)} m/s, limit ${V_LIMIT}` }); } }
   else { v.overLimitS = 0; v.reportedSpeeding = false; }
 
-  const err = v.speed > 0.5 ? laneError(planX, planY, v.heading) : null;
+  const err = Math.abs(v.speed) > 0.5 ? laneError(planX, planY, v.heading) : null;
   if (err !== null && err > WRONG_LANE_M) { v.wrongLaneS += dt; if (v.wrongLaneS >= WRONG_LANE_S && !v.reportedWrongLane) { v.reportedWrongLane = true; infractions.push({ kind: "wrong_lane", detail: `${err.toFixed(1)} m on the wrong side` }); } }
   else { v.wrongLaneS = 0; v.reportedWrongLane = false; }
 
-  return { moved: Math.hypot(v.x - px0, v.z - pz0), infractions };
+  return { moved: Math.hypot(v.x - px0, v.z - pz0), infractions, blocked: false };
 }

@@ -74,11 +74,11 @@ describe("WorldService.frames / roster", () => {
     s.attach("agent-aaaa-1111");
     s.attach("agent-bbbb-2222");
     const f = s.frames();
-    expect(f.b).toHaveLength(2);
+    expect(f.b).toHaveLength(2 + s.fleet.vehicles.length);   // the two agents and the parked cars (fleet bodies, agentId "npc:veh-...")
     expect(JSON.stringify(f)).not.toContain("agent-");
     const r = s.roster();
     expect(r.epoch).toBe(f.epoch);
-    expect(r.bodies.map((x) => x.agentId).sort()).toEqual(["agent-aaaa-1111", "agent-bbbb-2222"]);
+    expect(r.bodies.map((x) => x.agentId).filter((id) => !id.startsWith("npc:")).sort()).toEqual(["agent-aaaa-1111", "agent-bbbb-2222"]);
     const nA = r.bodies.find((x) => x.agentId === "agent-aaaa-1111")!.n;
     s.detach("agent-aaaa-1111");
     s.attach("agent-cccc-3333");

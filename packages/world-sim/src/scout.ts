@@ -176,7 +176,7 @@ export function autoActivateTarget(
 }
 
 export interface OracleObject {
-  kind: "place" | "door" | "room" | "interactable" | "seat" | "body";
+  kind: "place" | "door" | "room" | "interactable" | "seat" | "body" | "vehicle";
   id: string;
   name: string;
   bearingDeg: number;
@@ -330,6 +330,8 @@ export interface ScoutOutcome {
   stalledForMs?: number;
   /** A `busy` refusal only: what the agent should do next. Added by WorldService (it knows which action is still running), not the executor. */
   hint?: string;
+  /** drive / enter_vehicle / exit_vehicle: the car's state after the action and the rules broken during it. */
+  vehicle?: { id: string; speed: number; infractions: { kind: string; detail: string }[] };
 }
 
 export type Posture = "standing" | "sitting-down" | "seated" | "standing-up";

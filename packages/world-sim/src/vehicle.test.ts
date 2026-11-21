@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { JUNCTIONS, STREETS, signalState } from "./trafficSignals";
-import { DISC_R, V_LIMIT, WHEELBASE, laneError, makeVehicle, stepVehicle, type DriveInput, type Infraction, type VehicleState } from "./vehicle";
+import { DISC_R, V_LIMIT, V_REV, WHEELBASE, laneError, makeVehicle, stepVehicle, type DriveInput, type Infraction, type VehicleState } from "./vehicle";
 
 const OPEN = { blocked: () => null };
 const T0 = 1_700_000_000;
@@ -88,5 +88,33 @@ describe("rules of the road", () => {
     expect(laneError(-2.5, 80, 0)).toBeLessThan(0);
     expect(laneError(2.5, 80, Math.PI)).toBeLessThan(0);     // north keeps east
     expect(DISC_R).toBeGreaterThan(0);
+  });
+});
+
+describe("reverse", () => {
+  test("gas with reverse backs the car up slowly, no faster than V_REV, and brake stops it", () => {
+    const v = makeVehicle(0, 0.2, 0, EAST);
+    drive(v, { gas: 1, brake: 0, steer: 0, reverse: true }, 6);
+    expect(v.speed).toBeCloseTo(-V_REV, 5);
+    expect(v.x).toBeLessThan(-5);                                  // east-facing car moved west
+    drive(v, { gas: 0, brake: 1, steer: 0 }, 2);
+    expect(v.speed).toBe(0);                                       // braking ends at rest, it does not roll forward
+  });
+
+  test("a car rolling forward brakes before it reverses, and one in reverse stops before it goes forward", () => {
+    const v = makeVehicle(0, 0.2, 0, EAST);
+    drive(v, { gas: 1, brake: 0, steer: 0 }, 2);
+    expect(v.speed).toBeGreaterThan(3);
+    drive(v, { gas: 1, brake: 0, steer: 0, reverse: true }, 0.5);
+    expect(v.speed).toBeGreaterThanOrEqual(0);
+    expect(v.speed).toBeLessThan(3);                               // slowed, not yet flipped
+  });
+
+  test("backing into a wall is a blocked step and a collision only when it hits at speed", () => {
+    const wall = { blocked: (_f: unknown, to: readonly number[]) => (to[0] < -3 ? ({ point: [0, 0, 0], normal: [1, 0, 0], t: 0 } as never) : null) };
+    const v = makeVehicle(0, 0.2, 0, EAST);
+    const hits = drive(v, { gas: 1, brake: 0, steer: 0, reverse: true }, 6, wall as never);
+    expect(hits.filter((i) => i.kind === "collision").length).toBeLessThanOrEqual(1);
+    expect(v.speed).toBe(0);
   });
 });
