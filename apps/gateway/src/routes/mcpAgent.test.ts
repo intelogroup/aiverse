@@ -94,6 +94,15 @@ const fakeSim: SimClient = {
         if (!mine) return simNoBody();
         return Response.json({ look: { width: 2, height: 2, observation: fakeObservation(agentId) } });
       }
+      if (method === "GET" && parts[2] === "act" && parts[3]) {
+        // The fake sim settles a drive the moment it is asked: enough to see the gateway hold a drive for its outcome.
+        const rec = mine?.records.get(parts[3]);
+        if (!rec) return Response.json({ error: "unknown_act" }, { status: 404 });
+        if ((rec.record as { action: { type?: string } }).action.type === "drive") {
+          rec.record = { ...rec.record, state: "settled", settledAt: 1, outcome: { ok: true, status: "done", detail: "done; now 0.0 m/s; heading 90 deg (east)" } } as never;
+        }
+        return Response.json({ act: rec.record });
+      }
       if (method === "POST" && parts[2] === "act") {
         if (!mine) return simNoBody();
         const b = JSON.parse(rawBody ?? "{}") as { id: string; action: unknown };
@@ -550,6 +559,10 @@ describe("agent MCP actions with a classic agent token (Phase 4)", () => {
     expect(enter.act.action).toEqual({ type: "enter_vehicle", vehicle: "car-east" });
     const enterNearest = toolJson((await callTool(o.agentToken, "vehicle_enter")).body);
     expect(enterNearest.act.action).toEqual({ type: "enter_vehicle" });
+    // A drive step holds the call until it settles and answers with how it went, not "running".
+    const step = toolJson((await callTool(o.agentToken, "world_act", { action: { type: "drive", gas: 0.5, seconds: 0.5 } })).body);
+    expect(step.act.state).toBe("settled");
+    expect(step.act.outcome.detail).toMatch(/heading \d+ deg/);
     const exit = toolJson((await callTool(o.agentToken, "vehicle_exit")).body);
     expect(exit.act.action).toEqual({ type: "exit_vehicle" });
     const drove = toolJson((await callTool(o.agentToken, "world_act", { action: { type: "drive", gas: 1, seconds: 2 } })).body);

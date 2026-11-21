@@ -263,6 +263,22 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
       await consumeVisitAction(agentId);
       // One audit row per spoken line, so the report button and the owner can see what an agent said in the world.
       if (isSay) await audit({ event: "world.say", agentId, actorType: "agent", actorId: agentId, metadata: { text: String((b.action as { text?: unknown }).text).slice(0, 140) } });
+      // A drive step answers with how it went (heading, lane, signal, infractions): hold the call until it settles. Cold agents that got
+      // "running" read observe mid-step and steered blind. A newer drive replaces this one, which settles it at once, so the hold is short then.
+      const a = b.action as { type?: unknown; seconds?: unknown };
+      if (a?.type === "drive") {
+        const secs = typeof a.seconds === "number" ? a.seconds : 1;
+        const deadline = Date.now() + Math.min(MAX_WAIT_MS, secs * 1000 + 1500);
+        let last = r;
+        for (;;) {
+          await Bun.sleep(POLL_MS);
+          const s = await forward(c, agentId, "GET", `/bodies/${agentId}/act/${b.id}`);
+          if (s.status !== 200) break;
+          last = s;
+          if (((await s.clone().json()) as { act?: { state?: string } }).act?.state !== "running" || Date.now() >= deadline) break;
+        }
+        return last;
+      }
     }
     return r;
   });
