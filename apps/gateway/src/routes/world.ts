@@ -23,6 +23,7 @@ import { createEggHuntRoute } from "./eggHunt";
 const ID_RE = /^[a-zA-Z0-9-]{1,80}$/;
 const MAX_BODY = 4096;
 const MAX_WAIT_MS = 10_000;
+const DRIVE_HOLD_MS = 12_000;
 const POLL_MS = 400;
 /** Pace for POST /world/see: captures serialize on the look service's single page and take minutes there, so a second
  * see inside the window is refused (429), never queued behind the first. */
@@ -267,8 +268,8 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
       // "running" read observe mid-step and steered blind. A newer drive replaces this one, which settles it at once, so the hold is short then.
       const a = b.action as { type?: unknown; seconds?: unknown };
       if (a?.type === "drive") {
-        const secs = typeof a.seconds === "number" ? a.seconds : 1;
-        const deadline = Date.now() + Math.min(MAX_WAIT_MS, secs * 1000 + 1500);
+        // Long enough for the longest step: 5 s of controls, a corner taken after them (the car carries a turn on for up to ~4 s), and polling.
+        const deadline = Date.now() + DRIVE_HOLD_MS;
         let last = r;
         for (;;) {
           await Bun.sleep(POLL_MS);
