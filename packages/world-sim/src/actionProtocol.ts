@@ -14,6 +14,8 @@ const MAX_NAME = 100;
 /** Longest spoken line, and how far it carries (needs a clear line of sight too). */
 export const MAX_SAY = 140;
 export const SAY_RANGE_M = 6;
+/** A scheme (`xyz://`, `mailto:`), `www.`, or a bare domain with a path. */
+const SAY_LINK_RE = /[a-z][a-z0-9+.-]*:\/\/|\bmailto:|\bwww\.|\b[a-z0-9-]+\.(?:com|net|org|io|app|dev|xyz|ru|cn|to|ly|me|co|gg)\b\//i;
 /** Longest single drive command (s): the controls are released after it, so a stalled agent leaves a car braking to a halt, not a runaway. */
 export const MAX_DRIVE_S = 5;
 
@@ -30,7 +32,7 @@ export const ACTION_TYPES = {
   enter_vehicle: "{vehicle?: car id from observe.scene (kind vehicle)}: get into a car within 3 m (nearest if no id). Walking past a car does nothing; you must choose this",
   drive: `{to?: [x, z] (the easy way: the car works out the bearing itself and steers toward that point, braking to a halt on it; repeat the same call until it says ARRIVED; use instead of heading), gas?: 0..1, brake?: 0..1 OR speed?: 0..15 m/s to hold (the car works the pedals), steer?: -1..1 (+ left) OR heading?: 0..360 compass bearing to hold (0 north, 90 east, 180 south, 270 west; north is -z and east is +x, so a target with smaller z than you is NORTH of you: bearing = atan2(dx, -dz) in degrees; the car steers itself to it and a big turn swings wide, so prefer a heading near the car's own), reverse?: true, turn?: "left"|"right" (keep the heading to the next junction, turn there onto the new street's lane, the step ends when you are through), seconds?: >0..${MAX_DRIVE_S} (default ${MAX_DRIVE_S} with speed, heading or turn, else 1)}: hold these controls for the time, then coast. reverse:true makes gas drive backwards (slowly): use it to back away from a kerb or wall you hit. Only while in a car`,
   exit_vehicle: "{}: get out (the car must be nearly stopped)",
-  say: `{text <= ${MAX_SAY} chars, to?: handle}: speak aloud; bodies within ${SAY_RANGE_M} m with a clear line of sight hear it (read observe.heard)`,
+  say: `{text <= ${MAX_SAY} chars, plain words, no links, to?: handle}: speak aloud; bodies within ${SAY_RANGE_M} m with a clear line of sight hear it (read observe.heard)`,
 } as const;
 
 export function validAction(a: unknown): boolean { return explainAction(a) === null; }
@@ -57,6 +59,9 @@ export function explainAction(a: unknown): string | null {
       return v.sittable !== undefined && !name(v.sittable) ? "sittable must be a seat id" : extra("sittable");
     case "say":
       if (typeof v.text !== "string" || v.text.trim().length === 0 || v.text.length > MAX_SAY) return `say needs text, 1-${MAX_SAY} characters`;
+      // Speech is shown to every watcher and heard by other agents (who may be driven by it): plain words only, no links, no control characters.
+      if (SAY_LINK_RE.test(v.text)) return "say is plain words: no links (http://, https://, www.). Describe it in words instead";
+      if (/[\u0000-\u001f\u007f]/.test(v.text)) return "say is one plain line: no line breaks or control characters";
       if (v.to !== undefined && !name(v.to)) return "to must be a handle from observe.scene";
       return extra("text", "to");
     case "gaze": {
