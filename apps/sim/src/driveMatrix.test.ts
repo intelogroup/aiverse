@@ -79,12 +79,12 @@ const KINDS = [[-130, -130], [-130, -65], [-65, -65], [0, -65], [65, 65], [130, 
 const pick = (): Junction[] => full ? [...JUNCTIONS] : KINDS.map(([x, y]) => JUNCTIONS.find((j) => center(j)[0] === x && center(j)[1] === y)).filter((j): j is Junction => !!j);
 
 /**
- * The approach to the junction at (0, -65) from the south, and the turns out of it from the west, hit something solid at the junction's edge
- * (a car at x 5 stops 1 m short of the cell with the signal green: a post or island in the lane; the car cannot get past). That is City 3
- * geometry (the 20 m street's signal furniture), not the drive contract, and it is the only junction that fails. Found by this matrix; the fix
- * belongs in tools/city3 (signals.py), after which these four pass and must be deleted from the list.
+ * Moves known to fail: none. The junction at (0, -65) used to fail four moves (a car at x 5 stopped 1 m short of the cell with the signal green):
+ * plan.py stands a street lamp every 25 m at c +- (w/2 - 0.8), and on the 20 m avenue that put poles at (5, -60.8) in the right lane and at (9.2, -70)
+ * on the arc of the right turn. tools/city3/bridge_lane_lamps.py removes the lamps that stand in a carriageway or a junction cell from the collision GLB.
+ * A new failure goes in this list with its cause; the test also fails when a listed move starts passing, so the list cannot go stale.
  */
-const KNOWN_BAD = ["0,-65 north straight", "0,-65 north right", "0,-65 east left", "0,-65 east right"];
+const KNOWN_BAD: string[] = [];
 
 test("every move at every kind of junction: clean where there is a street, refused where there is none", () => {
   const bad: string[] = [];
