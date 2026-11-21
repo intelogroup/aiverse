@@ -42,6 +42,18 @@ export class AmbientWorld {
     return out;
   }
 
+  /** Solid footprint for agent bodies: a car is two discs along its length, a pedestrian one. Ids are stable per NPC. */
+  discs(): { id: string; x: number; z: number; r: number; h: number; vx: number; vz: number }[] {
+    const out: { id: string; x: number; z: number; r: number; h: number; vx: number; vz: number }[] = [];
+    this.cars.forEach((c, i) => {
+      const p = sample(c.loop, c.s);
+      const dx = p.dx, dz = -p.dy;
+      for (const [k, off] of [["f", 1.2], ["b", -1.2]] as const) out.push({ id: `npc:car-${i}${k}`, x: p.x + dx * off, z: -p.y + dz * off, r: 1.1, h: 1.5, vx: dx * c.v, vz: dz * c.v });
+    });
+    this.walkers.forEach((w, i) => out.push({ id: `npc:ped-${i}`, x: w.x, z: -w.y, r: 0.35, h: 1.8, vx: 0, vz: 0 }));
+    return out;
+  }
+
   /** `agentId` is a label the gateway never looks up: it starts with "npc:". */
   roster(): { n: number; agentId: string; body: string }[] {
     return [
