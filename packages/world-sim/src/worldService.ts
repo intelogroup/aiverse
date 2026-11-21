@@ -17,7 +17,7 @@ import { LOOK_FAR_M, LOOK_HFOV_DEG, LOOK_LEGEND, LOOK_NO_HIT } from "./look";
 import { encodeGrayPng } from "./png";
 import { teaLandmarks, type TeaWayfinding } from "./teaLandmarks";
 import { DISC_OFFSET, DISC_R } from "./vehicle";
-import { ENTER_RANGE_M, Fleet, SEE_VEHICLE_M, VEHICLE_Y, turnRefusal, type SignalAhead, type Vehicle } from "./drive";
+import { ENTER_RANGE_M, Fleet, SEE_VEHICLE_M, VEHICLE_Y, endOfRoadAdvice, endOfRoadAhead, turnRefusal, type SignalAhead, type Vehicle } from "./drive";
 import type { Infraction } from "./vehicle";
 import type { VerseSim } from "./verseSim";
 
@@ -638,6 +638,12 @@ export class WorldService {
       if (run?.rec && this.sim.t >= run.endsAt) this.finishDrive(run, c, "done");
       else if (run?.rec && run.bumped) { c.inputUntil = this.sim.t; this.finishDrive(run, c, "stopped"); }
       else if (run?.rec && c.v.speed > 1 && c.turn?.phase !== "inside" && this.obstacleAhead(c, run)) { /* the step ended inside obstacleAhead */ }
+      else if (run?.rec && !c.turn && endOfRoadAhead(c.v) !== null) {
+        // The streets end at +-135 m and there is nothing beyond: brake to a halt every time (not once), so pressing on cannot creep to the edge.
+        const m = Math.round(endOfRoadAhead(c.v)!);
+        c.inputUntil = this.sim.t;
+        this.finishDrive(run, c, `END OF ROAD ahead: the city ends about ${m} m ahead, the car is braking to a halt on its own and stopped before the edge. ${endOfRoadAdvice(c.v)}`);
+      }
       else if (run?.rec && c.v.speed > 1) {
         // A step also ends the moment a signal that is not green is close enough that stopping takes thought: the car brakes to a halt, the agent decides.
         const { signal } = Fleet.senses(c, now);
