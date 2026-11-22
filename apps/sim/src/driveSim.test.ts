@@ -430,6 +430,7 @@ test("a heading 18 deg off the street axis is taken as the axis (a cold agent sa
   expect(Math.abs(car.v.z + 63.2)).toBeLessThan(1.5);          // right-hand lane of the 10 m street
   expect(car.tally.collision).toBe(0);
   service.detach("drv");
+});
 
 test("a turn armed closer than the run-up to the junction is refused with advice to reverse, and from 12 m back it ends in the right lane", () => {
   const j = JUNCTIONS.find((q) => q.rect[0] === -135 && q.rect[1] === 60 && q.rect[3] === 70)!;
