@@ -290,7 +290,8 @@ test("a held left turn at a junction swings the car onto the new street's lane",
   run(service, 0.6);
   act(service, "drv", "d", { type: "drive", speed: 4, heading: 0, seconds: 5 });
   run(service, 5.2);
-  expect(Math.round(((180 - car.v.heading * 180 / Math.PI) % 360 + 360) % 360)).toBeLessThan(20);   // may be cut short by a STOP for something solid ahead
+  const off = Math.round(((180 - car.v.heading * 180 / Math.PI) % 360 + 360) % 360);   // degrees from north, 0..359
+  expect(Math.min(off, 360 - off)).toBeLessThan(20);   // either side of north: a car no longer cut short by a lamp may still be swinging
   expect(Math.abs(car.v.x - lane)).toBeLessThan(3);
   expect(car.tally.collision).toBe(0);
   service.detach("drv");
