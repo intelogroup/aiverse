@@ -52,6 +52,8 @@ export const IDLE_BRAKE = 0.6;
 const LOOKAHEAD_M = 8;
 /** How far before a junction an armed turn starts to steer (m). */
 const TURN_LOOKAHEAD_M = 16;
+/** A turn armed closer than this (m) to the junction edge is refused: the corner has no run-up. */
+export const TURN_MIN_RUNUP_M = 8;
 
 /**
  * The waypoints of a corner in junction `rect` (plan x0, y0, x1, y1) from heading `base` to `target` (world radians, axis-aligned): P1 is on the
@@ -86,13 +88,19 @@ const GRID_EDGE_M = 135;
  */
 export function turnRefusal(v: Pick<Vehicle["v"], "x" | "z" | "heading">, dir: "left" | "right"): string | null {
   const base = Math.round(v.heading / (Math.PI / 2)) * (Math.PI / 2), dx = Math.sin(base), dy = -Math.cos(base);
-  let j = junctionAt(v.x, -v.z);
-  for (let d = 1; !j && d <= SIGNAL_SIGHT_M + 15; d += 1) j = junctionAt(v.x + dx * d, -v.z + dy * d);
+  let j = junctionAt(v.x, -v.z), ahead = 0;
+  for (let d = 1; !j && d <= SIGNAL_SIGHT_M + 15; d += 1) { j = junctionAt(v.x + dx * d, -v.z + dy * d); ahead = d; }
   if (!j) return null;
   const r = JUNCTIONS[j.id].rect, cx = (r[0] + r[2]) / 2, cy = (r[1] + r[3]) / 2;
   const target = base + (dir === "left" ? 1 : -1) * Math.PI / 2, tx = Math.round(Math.sin(target)), ty = -Math.round(Math.cos(target));
   const open = (ux: number, uy: number) => Math.abs(cx + 20 * ux) <= GRID_EDGE_M && Math.abs(cy + 20 * uy) <= GRID_EDGE_M;
-  if (open(tx, ty)) return null;
+  if (open(tx, ty)) {
+    // The corner is set up from a point 7 m before the crossing and needs the run-up to line up: probed by turning a car at 5.5 m/s and from a halt,
+    // a right turn started 7 m or more from the junction ends in the right lane, at 6 m it sometimes stalls, at 5 m or less it ends across the centre line
+    // (gate census run 2: turn sent 2 m short, car stopped on the wrong side against the kerb).
+    if (ahead > 0 && ahead < TURN_MIN_RUNUP_M) return `too close to turn: the junction starts ${ahead} m ahead and a corner needs a run-up of about ${TURN_MIN_RUNUP_M + 2} m. Reverse (drive {gas:1, reverse:true}, then drive {speed:0}) until the junction is at least ${TURN_MIN_RUNUP_M + 2} m ahead, then send the turn again; or go straight on.`;
+    return null;
+  }
   const other = open(-tx, -ty) ? `turn ${dir === "left" ? "right" : "left"}` : "";
   const straight = open(Math.round(dx), Math.round(dy)) ? "go straight on" : "";
   return `there is no street to the ${dir} at that junction: the road network ends there. ${[straight, other].filter(Boolean).join(" or ") || "Reverse out"} instead.`;
