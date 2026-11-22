@@ -37,7 +37,8 @@ export function PerfProbe() {
       const gap = det.feed(t, hidden);
       if (gap !== null) {
         const l = perfStore.live;
-        note("gap", `${Math.round(gap)}ms pos ${l.x.toFixed(0)},${l.z.toFixed(0)} y${l.y.toFixed(1)} draws ${l.draws} tris ${(l.tris / 1000).toFixed(0)}k tex ${l.textures} geo ${l.geometries} ${l.tier}${loadsInWindow(perfStore.loads, t - gap - 250, t + 50)}`);
+        // loads first: the panel truncates each line, and "what finished loading" is the most useful part of a gap.
+        note("gap", `${Math.round(gap)}ms${loadsInWindow(perfStore.loads, t - gap - 250, t + 50)} | pos ${l.x.toFixed(0)},${l.z.toFixed(0)} y${l.y.toFixed(1)} draws ${l.draws} tris ${(l.tris / 1000).toFixed(0)}k tex ${l.textures} geo ${l.geometries} ${l.tier}`);
       }
       rafCount++;
       if (t - lastSec >= 1000) { perfStore.live.rafHz = Math.round((rafCount * 1000) / (t - lastSec)); rafCount = 0; lastSec = t; }
@@ -105,19 +106,21 @@ export function PerfOverlay() {
     try { await navigator.clipboard.writeText(r); note("note", "report copied"); setText(null); } catch { setText(r); }
   };
   const l = perfStore.live;
-  const recent = perfStore.ring.tail(7);
-  const box: React.CSSProperties = { position: "fixed", top: 6, left: 6, zIndex: 99999, maxWidth: "94vw", font: "10px/1.3 ui-monospace, Menlo, monospace", color: "#b6ffb6", background: "rgba(0,0,0,0.72)", padding: "4px 6px", borderRadius: 4 };
-  const btn: React.CSSProperties = { font: "inherit", color: "#fff", background: "#234", border: "1px solid #567", borderRadius: 3, padding: "2px 6px", marginRight: 4 };
+  const recent = perfStore.ring.tail(5);
+  // Below the app header (about 60 px + the notch), narrow enough to leave the right-hand Share / Full view column free, one line per event, and click-through except the buttons: the first live
+  // look (2026-11-22, 390 px phone) showed the old panel covering the header's Live / Search / Share / Full view controls.
+  const box: React.CSSProperties = { position: "fixed", top: "calc(env(safe-area-inset-top, 0px) + 68px)", left: 6, zIndex: 99999, width: "min(64vw, 300px)", font: "9px/1.25 ui-monospace, Menlo, monospace", color: "#b6ffb6", background: "rgba(0,0,0,0.68)", padding: "3px 5px", borderRadius: 4, pointerEvents: "none" };
+  const btn: React.CSSProperties = { pointerEvents: "auto", font: "inherit", color: "#fff", background: "#234", border: "1px solid #567", borderRadius: 3, padding: "2px 6px", marginRight: 4 };
   if (!open) return <div style={box}><button style={btn} onClick={() => setOpen(true)}>perf</button></div>;
   return (
     <div style={box}>
-      <div>raf {l.rafHz}Hz · render {l.renderFps}fps · draws {l.draws} · tris {(l.tris / 1000).toFixed(0)}k · tex {l.textures} · geo {l.geometries} · {l.tier}</div>
-      <pre style={{ margin: "2px 0", whiteSpace: "pre-wrap", pointerEvents: "none" }}>{recent.map((e) => `${(e.t / 1000).toFixed(1)}s ${e.kind} ${e.text}`.slice(0, 120)).join("\n")}</pre>
+      <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>raf {l.rafHz}Hz · render {l.renderFps}fps · draws {l.draws} · tris {(l.tris / 1000).toFixed(0)}k · tex {l.textures} · geo {l.geometries} · {l.tier}</div>
+      <div style={{ margin: "2px 0" }}>{recent.map((e, i) => <div key={i} style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{`${(e.t / 1000).toFixed(1)}s ${e.kind} ${e.text}`}</div>)}</div>
       <button style={btn} onClick={copy}>Copy log</button>
       <button style={btn} onClick={() => setText(perfReport())}>Show</button>
       <button style={btn} onClick={() => { perfStore.ring.clear(); setText(null); }}>Clear</button>
       <button style={btn} onClick={() => setOpen(false)}>Hide</button>
-      {text !== null ? <textarea readOnly value={text} style={{ display: "block", width: "88vw", height: "30vh", marginTop: 4, font: "inherit" }} onFocus={(e) => e.currentTarget.select()} /> : null}
+      {text !== null ? <textarea readOnly value={text} style={{ pointerEvents: "auto", display: "block", width: "88vw", height: "30vh", marginTop: 4, font: "inherit" }} onFocus={(e) => e.currentTarget.select()} /> : null}
     </div>
   );
 }
