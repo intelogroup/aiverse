@@ -66,9 +66,12 @@ export const agentVisits = pgTable(
     agentId: uuid("agent_id")
       .notNull()
       .references(() => agents.id),
-    ownerId: uuid("owner_id")
-      .notNull()
-      .references(() => owners.id),
+    // Nullable since owner account deletion (Phase 5): the visit history
+    // belongs to the agent's record, so deleting the owner ends any active
+    // visit and nulls this column on the history rows instead of deleting
+    // them. An ACTIVE visit always has a non-null owner — deletion ends
+    // visits before it nulls anything.
+    ownerId: uuid("owner_id").references(() => owners.id),
     startedAt: timestamp("started_at").notNull().defaultNow(),
     endsAt: timestamp("ends_at").notNull(),
     maxActions: integer("max_actions").notNull(),

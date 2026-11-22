@@ -974,7 +974,7 @@ describe("/world (agent body)", () => {
     await startVisit(ownerToken, agentId);
     await w(agentToken, "POST", "/body");
     expect(service.has(agentId)).toBe(true);
-    const r = await app.request("/owners/me", { method: "DELETE", headers: json(ownerToken), body: JSON.stringify({ confirmEmail: email }) });
+    const r = await app.request("/owners/me", { method: "DELETE", headers: json(ownerToken), body: JSON.stringify({ password: "password123" }) });
     expect(r.status).toBe(200);
     await waitFor(() => !service.has(agentId));
   }, 30_000);

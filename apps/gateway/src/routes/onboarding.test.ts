@@ -249,11 +249,10 @@ describe("onboarding questions vs. deletion", () => {
       headers: json(second.agentToken),
       body: JSON.stringify({ question: "What should I focus on?", allowFreeText: true }),
     });
-    const me = await (await app.request("/owners/me", { headers: json(second.ownerToken) })).json();
     const delOwner = await app.request("/owners/me", {
       method: "DELETE",
       headers: json(second.ownerToken),
-      body: JSON.stringify({ confirmEmail: me.owner?.email ?? me.email }),
+      body: JSON.stringify({ password: "password123" }),
     });
     expect(delOwner.status).toBe(200);
   });

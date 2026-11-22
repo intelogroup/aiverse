@@ -5,6 +5,7 @@ import { db } from "../db/client";
 import {
   owners,
   agents,
+  agentVisits,
   consoleEvents,
   conversationParticipants,
   conversations,
@@ -15,12 +16,14 @@ import { hashPassword, verifyPassword } from "../auth/password";
 import { revokeOwnerSessions, signOwnerSession } from "../auth/session";
 import { consumePasswordResetToken, sendPasswordResetEmail } from "../auth/passwordReset";
 import { ownerAuth } from "../middleware/ownerAuth";
-import { forceDisconnectAgent, getConnectedAgentIds } from "../ws/gateway";
+import { evictAgentAuth } from "../auth/authCache";
+import { announceVisitEnded, forceDisconnectAgent, getConnectedAgentIds } from "../ws/gateway";
 import { takeToken, refundToken } from "../policy/memoryStore";
+import { stopVisitRecord } from "../policy/visits";
 import { redis } from "../redis/client";
 import { audit } from "../util/audit";
 import { clientIp } from "../util/clientIp";
-import { deleteOwnerCascade } from "../util/deleteAgent";
+import { deleteAccountCascade } from "../util/deleteAgent";
 import { consumeVerificationToken, markVerificationTokenUsed, sendVerificationEmail, verificationTokenUsedBy } from "../auth/emailVerification";
 import { logError } from "../util/log";
 
@@ -69,25 +72,65 @@ ownersRoute.patch("/me", ownerAuth, async (c) => {
   return c.json({ error: "displayName required" }, 400);
 });
 
-// Deletes the owner and every agent they own (full cascade — see
-// util/deleteAgent.ts). Irreversible; requires re-typed email to confirm.
+// Deletes the owner's account. The owner's agents are KILLED with the
+// account — credentials invalidated, rows kept (see deleteAccountCascade in
+// util/deleteAgent.ts) — never hard-deleted, never released as claimable.
+// Irreversible; requires the account password as re-confirmation, so a
+// stolen session token alone can't do it. (This replaces the older
+// confirmEmail + hard-delete behaviour.)
 ownersRoute.delete("/me", ownerAuth, async (c) => {
   const ownerId = c.get("ownerId");
+  // Same bucket shape as password change: the password check below is only
+  // as strong as the guess rate this allows.
+  if (!(await takeToken(`account-delete:${ownerId}`, 5, 5 / 900))) {
+    return c.json({ error: "rate_limited" }, 429);
+  }
   const owner = await db.query.owners.findFirst({ where: eq(owners.id, ownerId) });
   if (!owner) return c.json({ error: "not found" }, 404);
 
-  const body = await c.req.json<{ confirmEmail?: string }>().catch(() => ({}) as { confirmEmail?: string });
-  if (normalizeEmail(body.confirmEmail) !== owner.email.toLowerCase()) {
-    return c.json({ error: "confirmEmail must match account email" }, 400);
+  const body = await c.req.json<{ password?: string }>().catch(() => ({}) as { password?: string });
+  if (typeof body.password !== "string" || !body.password) {
+    return c.json({ error: "password required" }, 400);
+  }
+  // Same refusal as POST /owners/password: wrong current password is a 401.
+  // Nothing has happened yet at this point — no partial effects.
+  if (!(await verifyPassword(body.password, owner.passwordHash))) {
+    return c.json({ error: "invalid credentials" }, 401);
   }
 
   const ownedAgents = await db.query.agents.findMany({ where: eq(agents.ownerId, ownerId) });
-  for (const a of ownedAgents) forceDisconnectAgent(a.id, 4006, "owner account deleted");
 
-  // audit before the cascade — security_events.owner_id FKs to owners.id,
-  // so it must be written while the row still exists.
-  await audit({ event: "owner.deleted", ownerId, actorType: "owner", actorId: ownerId, metadata: { email: owner.email, agentCount: ownedAgents.length } });
-  await db.transaction((tx) => deleteOwnerCascade(tx, ownerId));
+  // End active visits BEFORE the transaction: ending one carries runtime
+  // side effects (announceVisitEnded disconnects the agent, writes a
+  // console event, broadcasts) that can't run inside a DB transaction.
+  // The reason is owner_stopped — the same terminal state as the owner
+  // pressing stop on each visit, which is what this is.
+  for (const a of ownedAgents) {
+    const active = await db.query.agentVisits.findFirst({
+      where: and(eq(agentVisits.agentId, a.id), isNull(agentVisits.endedAt)),
+    });
+    if (active) {
+      const ended = await stopVisitRecord(active.id);
+      if (ended) await announceVisitEnded(ended);
+    }
+  }
+
+  // Audit before the cascade — security_events.owner_id FKs to owners.id,
+  // so the row must be written while the owner still exists. The cascade
+  // then nulls owner_id on it; the row itself survives (append-only).
+  await audit({ event: "owner.deleted", ownerId, actorType: "owner", actorId: ownerId, metadata: { email: owner.email, agentCount: ownedAgents.length, agentsKilled: true } });
+  const killedAgentIds = await db.transaction((tx) => deleteAccountCascade(tx, ownerId));
+
+  // After the commit, so a failed transaction never kicks agents whose
+  // account still exists. Code/reason match the single-agent kill route:
+  // forceDisconnectAgent fires the onAgentGone hook, so world bodies are
+  // removed and driven cars freed exactly as for a kill. The auth-cache
+  // eviction also belongs here (post-commit, like the kill route's): a
+  // killed agent must not keep authenticating from a cached entry.
+  for (const agentId of killedAgentIds) {
+    evictAgentAuth(agentId);
+    forceDisconnectAgent(agentId, 4004, "agent killed");
+  }
 
   return c.json({ ok: true });
 });
