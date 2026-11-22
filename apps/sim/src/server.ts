@@ -5,6 +5,7 @@
 // (the visit's deadline) so a missed "visit ended" call from the gateway cannot leave a body walking.
 import { createHash, timingSafeEqual } from "node:crypto";
 import { WorldError, WorldService, type WorldErrorCode } from "@aiverse/world-sim/worldService";
+import { RollingWindow, routeClass, WINDOW_S, type RouteClass } from "./metrics";
 
 export const MAX_BODY_BYTES = 4096;
 /** Wire version: the gateway sends it; a mismatch is refused so a half-deployed pair fails loudly instead of misreading actions. */
@@ -35,6 +36,9 @@ export interface SimServerOpts {
   /** Per-agent limits (requests per second): actions and reads. */
   actPerS?: number;
   readPerS?: number;
+  /** Reported by GET /stats: the body cap and the tick period (the tick budget). */
+  maxBodies?: number;
+  tickMs?: number;
 }
 
 const digest = (s: string) => createHash("sha256").update(s).digest();
@@ -50,6 +54,9 @@ export function createSimServer(opts: SimServerOpts) {
   const looks = new Map<string, Bucket>();
   const reads = new Map<string, Bucket>();
   const expiry = new Map<string, number>();
+  const startedAt = now();
+  const tickWin = new RollingWindow();
+  const reqWin: Record<RouteClass, RollingWindow> = { observe: new RollingWindow(), act: new RollingWindow(), other: new RollingWindow() };
   // One gateway pulls at <= ~10/s; allow a few gateways plus bursts.
   const streamBucket = new Bucket(40, 80, now());
 
@@ -89,6 +96,15 @@ export function createSimServer(opts: SimServerOpts) {
     const parts = url.pathname.split("/").filter(Boolean);
     try {
       if (req.method === "GET" && url.pathname === "/healthz") return json({ ready: service.sim.ready, bodies: service.bodyCount, t: service.sim.t });
+      if (req.method === "GET" && url.pathname === "/stats") {
+        const t = now(), tick = tickWin.summary(t), r = (cls: RouteClass) => reqWin[cls].summary(t);
+        return json({
+          windowS: WINDOW_S, uptimeS: Math.round((t - startedAt) / 1000), rssMb: Math.round(process.memoryUsage.rss() / 1048576),
+          bodies: service.bodyCount, maxBodies: opts.maxBodies ?? null,
+          tick: { budgetMs: opts.tickMs ?? null, n: tick.n, p50: tick.p50, p99: tick.p99, max: tick.max },
+          requests: { observe: r("observe"), act: r("act"), other: r("other") },
+        });
+      }
       if (req.method === "GET" && url.pathname === "/places") return json({ places: service.places() });
       if (req.method === "GET" && url.pathname === "/clips") return json({ clips: service.clips() });
       if (req.method === "GET" && url.pathname === "/bodies") return json({ agentIds: service.agentIds() });
@@ -151,7 +167,15 @@ export function createSimServer(opts: SimServerOpts) {
     }
   }
 
-  return { fetch: handle, expire, expiryCount: () => expiry.size };
+  // Latency is real elapsed time (performance.now); `now` only places the sample in the 60 s window, so tests can fake it.
+  async function timed(req: Request): Promise<Response> {
+    const t0 = performance.now();
+    const res = await handle(req);
+    reqWin[routeClass(req.method, new URL(req.url).pathname)].record(now(), performance.now() - t0, res.status);
+    return res;
+  }
+
+  return { fetch: timed, expire, expiryCount: () => expiry.size, recordTick: (ms: number) => tickWin.record(now(), ms) };
 }
 
 class HttpError extends Error { constructor(readonly status: number, message: string) { super(message); } }
