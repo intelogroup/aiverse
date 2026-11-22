@@ -434,6 +434,7 @@ test("a turn armed closer than the run-up to the junction is refused with advice
   expect(far.car.v.x).toBeGreaterThan(-122);                   // round the corner and on east
   expect(far.car.tally.collision + far.car.tally.wrong_lane).toBe(0);
   far.service.detach("drv");
+});
 
 test("a heading 18 deg off the street axis is taken as the axis (a cold agent says east with 108) and the car stays in its lane", () => {
   const j = JUNCTIONS.find((q) => q.rect[0] === -135 && q.rect[1] === 60 && q.rect[3] === 70)!;
