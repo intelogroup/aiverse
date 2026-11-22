@@ -349,6 +349,13 @@ export class WorldService {
     const run = this.drives.get(agentId) ?? { rec: null, endsAt: 0, broke: [], recent: [], bumped: false, blockedAt: -1e9, warned: "", passed: 0, wasIn: false, warnedAhead: 0, warnedJ: "" };
     if (run.rec) this.finishDrive(run, car, "replaced by a newer drive");
     car.input = { gas: c.gas ?? 0, brake: c.brake ?? 0, steer: c.steer ?? 0, reverse: c.reverse === true, holdSpeed: c.speed, holdHeading: c.heading === undefined ? undefined : (180 - c.heading) * Math.PI / 180 };
+    // An explicit heading within 20 deg of the street axis the car is already driving along IS that axis: a cold agent that says "east" with 108 (not 90)
+    // steered 18 deg off the lane and into the kerb 15 m on. A heading further off, or given by a car not on a street axis, stays as asked.
+    if (c.heading !== undefined && car.input.holdHeading !== undefined) {
+      const q = Math.PI / 2, ask = car.input.holdHeading, axis = Math.round(ask / q) * q;
+      const gap = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
+      if (gap(ask, axis) < 0.35 && gap(car.v.heading, axis) < 0.6) car.input.holdHeading = axis;
+    }
     // A speed with no heading and no steer means "go straight on": hold the street axis the car is within 35 deg of, so the lane pursuit pulls it
     // back onto its lane. Without it the car kept the heading a turn ended on (16 deg off) and drifted across the street into the kerb.
     if (c.heading === undefined && c.speed !== undefined && c.steer === undefined && !c.reverse && !c.turn) {
