@@ -32,6 +32,7 @@ import { GREETING_SCRIPT, createPlazaGreeting, type PlazaGreeting } from "./plaz
 import { type CameraMode } from "./cameraRig";
 import { attachWorldRenderer } from "../../lib/telemetry/index";
 import { FpsMeter } from "./fpsMeter";
+import { PerfOverlay, PerfProbe } from "./PerfProbe";
 import { TOUCH_DPR_MAX, capDpr, dprForTier, qualityStore } from "./quality";
 import { attachContextLossHandlers } from "./contextLoss";
 import { probeWebGLSupport } from "./contextCreate";
@@ -131,6 +132,8 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
     setCamMode("ride");
   };
   // Render-rate meter: FpsTracker (in-Canvas) writes, the panel reads.
+  // ?perf=1: the on-device freeze recorder (PerfProbe.tsx). Off for everyone else; no per-frame cost when off.
+  const perfOn = useMemo(() => new URLSearchParams(window.location.search).get("perf") === "1", []);
   const fpsMeterRef = useRef<FpsMeter | null>(null);
   if (fpsMeterRef.current === null) fpsMeterRef.current = new FpsMeter();
   // The stage's key light — DistrictWorld borrows it for its shadow
@@ -596,6 +599,7 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
           {fullView ? "Exit full view" : "Full view"}
         </button>
       </div>
+      {perfOn ? <PerfOverlay /> : null}
       <TeaElevatorHud controller={elevator} frame={walkFrameRef} walking={walking} walk={walkColliders} />
       {glSupported ? (
       <Canvas
@@ -724,6 +728,7 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
           minDistance={heroFocus?.id === "tea" && teaFloor === null ? 24 : 3}
           maxDistance={1100}
         />
+        {perfOn ? <PerfProbe /> : null}
       </Canvas>
       ) : null}
       {soundRef.current ? (
