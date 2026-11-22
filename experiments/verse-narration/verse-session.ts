@@ -55,5 +55,7 @@ export async function mcp(token: string, name: string, args: object = {}): Promi
 }
 
 export async function endSession(s: VerseSession) {
+  // Leave the world cleanly (the owner's agent steps out) before the grant is revoked; otherwise the body lingers in the sim.
+  await mcp(s.token, "body_detach", { agent_id: s.agentId }).catch(() => {});
   await post(`/oauth/grants/${s.grantId}/revoke`, {}, s.owner).catch(() => {});
 }
