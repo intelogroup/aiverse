@@ -8,6 +8,7 @@ import { CastFigure } from "./CastFigure";
 import { BODY_REMY } from "./bodies";
 import { boxesMesh } from "./capsuleWorld";
 import { ClipTestState } from "./clips";
+import { useProximityLatch } from "./proximityLoad";
 import { keeperGesture } from "./keeper";
 import type { AgentFrame } from "./locomotion";
 import { VOICE_BARTENDER } from "./phononTts";
@@ -97,6 +98,9 @@ export function TeaBartender({
     return () => { delete w.__bartender; };
   }, [greeter, clips]);
 
+  // The model (Remy, 9 MB) loads once the camera is near the bar (proximityLoad.ts); the greeter logic below runs regardless.
+  const near = useProximityLatch([BARTENDER_POS[0], BARTENDER_FLOOR_Y + BARTENDER_PLATFORM_H, BARTENDER_POS[1]]);
+
   useFrame((_, delta) => {
     walk?.actors.publishWalker("bartender", { x: BARTENDER_POS[0], y: BARTENDER_FLOOR_Y + BARTENDER_PLATFORM_H, z: BARTENDER_POS[1], vx: 0, vz: 0 }, 0.4, 1.7, false);
     const dt = Math.min(delta, 0.1);
@@ -122,14 +126,14 @@ export function TeaBartender({
       </mesh> : null}
       <group position={[0, BARTENDER_FLOOR_Y + BARTENDER_PLATFORM_H, 0]}>
       <Suspense fallback={null}>
-        <CastFigure
+        {near ? <CastFigure
           framesRef={frames}
           index={0}
           baseY={0}
           home={[BARTENDER_POS[0], 0, BARTENDER_POS[1]]}
           body={BODY_REMY}
           clipTester={clips}
-        />
+        /> : null}
       </Suspense>
       </group>
     </>

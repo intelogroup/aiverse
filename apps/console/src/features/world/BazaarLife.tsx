@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { CastFigure } from "./CastFigure";
 import { BODY_MAGE, BODY_REMY } from "./bodies";
 import { ClipTestState } from "./clips";
+import { useProximityLatch } from "./proximityLoad";
 import {
   KEEPER_HOME_HEADING,
   KEEPER_POS,
@@ -91,6 +92,9 @@ export function BazaarLife({
   const world = useMemo(() => walk?.actors.wrapWorld(staticWorld, "patrol") ?? staticWorld, [staticWorld, walk]);
   useEffect(() => () => { walk?.actors.remove("patrol"); walk?.actors.remove("keeper"); }, [walk]);
 
+  // Models load only once the camera comes near (proximityLoad.ts): both residents were 13.65 MB of a cold first visit.
+  const keeperNear = useProximityLatch([KEEPER_POS[0], 0, KEEPER_POS[1]]);
+  const patrolNear = useProximityLatch([PATROL_STOPS[0].pos[0], 0, PATROL_STOPS[0].pos[1]]);
   const keeperClips = useMemo(() => new ClipTestState(), []);
   const keeper = useRef<KeeperState | null>(null);
   if (keeper.current === null) keeper.current = createKeeper(KEEPER_HOME_HEADING);
@@ -204,14 +208,14 @@ export function BazaarLife({
     <>
       <group ref={keeperGroup} {...figureHandlers(() => ({ id: "keeper", name: "The Keeper", x: KEEPER_POS[0], z: KEEPER_POS[1] }))}>
         <Suspense fallback={null}>
-          <CastFigure
+          {keeperNear ? <CastFigure
             framesRef={keeperFrames}
             index={0}
             baseY={0}
             home={[KEEPER_POS[0], 0, KEEPER_POS[1]]}
             body={BODY_MAGE}
             clipTester={keeperClips}
-          />
+          /> : null}
         </Suspense>
       </group>
       <group
@@ -222,13 +226,13 @@ export function BazaarLife({
         })}
       >
         <Suspense fallback={null}>
-          <CastFigure
+          {patrolNear ? <CastFigure
             framesRef={patrolFrames}
             index={0}
             baseY={0}
             home={[PATROL_STOPS[0].pos[0], 0, PATROL_STOPS[0].pos[1]]}
             body={BODY_REMY}
-          />
+          /> : null}
         </Suspense>
       </group>
     </>
