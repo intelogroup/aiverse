@@ -699,7 +699,7 @@ export class WorldService {
     this.driveCars(dt);
     for (const d of this.fleet.discs()) this.sim.publishDisc(d.id, d.x, VEHICLE_Y, d.z, d.r, d.h, d.vx, d.vz);
     if (this.ambient) {
-      this.ambient.step(dt, [...this.sessions.values()].map((x) => x.body.state));
+      this.ambient.step(dt, [...this.sessions.values()].map((x) => x.body.state), this.fleet.parkedDiscs());
       for (const d of this.ambient.discs()) this.sim.publishDisc(d.id, d.x, NPC_GROUND_Y, d.z, d.r, d.h, d.vx, d.vz);
     }
     for (const [id, s] of this.sessions) {

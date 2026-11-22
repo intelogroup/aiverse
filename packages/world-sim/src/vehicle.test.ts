@@ -118,3 +118,19 @@ describe("reverse", () => {
     expect(v.speed).toBe(0);
   });
 });
+
+describe("the parked fleet spots", () => {
+  test("every PARKED spot is centred in a legal right-hand lane, and car-tea is clear of every ambient loop lane", async () => {
+    const { PARKED } = await import("./drive");
+    const { LOOPS, sample } = await import("./ambientTraffic");
+    const { laneOffset } = await import("./vehicle");
+    for (const spot of PARKED) {
+      // laneOffset works in plan coords (y = -z): 0 means centred in the lane its heading belongs to
+      expect(Math.abs(laneOffset(spot.x, -spot.z, spot.heading) ?? 99), spot.id).toBeLessThan(0.01);
+    }
+    const tea = PARKED.find((p) => p.id === "car-tea")!;
+    let clear = Infinity;
+    for (const l of LOOPS) for (let s = 0; s < l.length; s += 0.5) { const p = sample(l, s); clear = Math.min(clear, Math.hypot(p.x - tea.x, p.y + tea.z)); }
+    expect(clear).toBeGreaterThan(2.2);   // no resident car's lane comes near it (measured ~58 m: the avenue has no loop)
+  });
+});

@@ -4,9 +4,10 @@
 // Shortcuts (ambient dressing, not a traffic model): cars never leave their loop, so conflicts exist only where two loops
 // cross, and those happen at signalled junctions; a car that is past its stop line when the light turns runs through;
 // cars follow only the car ahead on their own loop; nothing reacts to the player.
-import { JUNCTIONS, signalState, type Axis, type Junction, type Lamp, type Ped } from "./trafficSignals";
+import { JUNCTIONS, STREETS, signalState, type Axis, type Junction, type Lamp, type Ped } from "./trafficSignals";
+import { laneMiddle } from "./vehicle";
 
-export const LANE = 2.5;            // lane centre from the street centre line (10 m streets)
+export const LANE = 2.5;            // lane centre from the street centre line on the 20 m avenue; side streets use laneMiddle (below)
 export const CAR_LEN = 4.6;
 export const MIN_GAP = 2.5;         // bumper gap a stopped car keeps
 export const STOP_BACK = 5.2;       // stop line distance before the junction edge (roadmarks.py: 4.5-5.0 m, zebra 1.5-4.0 m)
@@ -19,22 +20,31 @@ export type Pt = readonly [number, number];
 export interface Entry { s: number; sExit: number; j: Junction; axis: Axis }
 export interface Loop { id: string; pts: Pt[]; cum: number[]; length: number; entries: Entry[] }
 
-/** Rectangular loop through street centre lines xa..xb, ya..yb, right-hand lanes, corners filleted at radius LANE.
- *  ccw = outer lane of each street (bottom edge south of its line); clockwise = the inner lane of the same streets. */
+/** Width of the street whose centre line is at `c` (STREETS serves both axes); an unlisted centre is a side street. */
+const streetWidth = (c: number): number => STREETS.find((s) => s.c === c)?.w ?? 10;
+/** Lane centre offset for one street, on the fleet's convention (vehicle.laneMiddle): on 10 m streets the clear line is
+ *  1.8 m off centre (street furniture stands on the lane middle there), so a loop lane and a driven car share one line;
+ *  the 20 m avenue keeps LANE. */
+const laneFor = (c: number): number => { const w = streetWidth(c); return w <= 10 ? laneMiddle(w) : LANE; };
+
+/** Rectangular loop through street centre lines xa..xb, ya..yb, right-hand lanes, corners filleted at the corner's lane radius.
+ *  ccw = outer lane of each street (bottom edge south of its line); clockwise = the inner lane of the same streets.
+ *  Each side's offset comes from its own street's width (laneFor), so a side on a 10 m street runs on the 1.8 m clear line. */
 function rectLoop(id: string, xa: number, xb: number, ya: number, yb: number, ccw: boolean): Loop {
-  const corners: Pt[] = ccw
-    ? [[xb + LANE, ya - LANE], [xb + LANE, yb + LANE], [xa - LANE, yb + LANE], [xa - LANE, ya - LANE]]
-    : [[xa + LANE, yb - LANE], [xb - LANE, yb - LANE], [xb - LANE, ya + LANE], [xa + LANE, ya + LANE]];
+  const ow = laneFor(xa), oe = laneFor(xb), os = laneFor(ya), on = laneFor(yb);
+  const corners: { pt: Pt; r: number }[] = ccw
+    ? [{ pt: [xb + oe, ya - os], r: (oe + os) / 2 }, { pt: [xb + oe, yb + on], r: (oe + on) / 2 }, { pt: [xa - ow, yb + on], r: (ow + on) / 2 }, { pt: [xa - ow, ya - os], r: (ow + os) / 2 }]
+    : [{ pt: [xa + ow, yb - on], r: (ow + on) / 2 }, { pt: [xb - oe, yb - on], r: (oe + on) / 2 }, { pt: [xb - oe, ya + os], r: (oe + os) / 2 }, { pt: [xa + ow, ya + os], r: (ow + os) / 2 }];
   const pts: Pt[] = [];
   const n = corners.length;
   for (let k = 0; k < n; k++) {
-    const prev = corners[(k + n - 1) % n], P = corners[k], next = corners[(k + 1) % n];
+    const prev = corners[(k + n - 1) % n].pt, P = corners[k].pt, next = corners[(k + 1) % n].pt, r = corners[k].r;
     const d1 = unit(prev, P), d2 = unit(P, next);
-    const A: Pt = [P[0] - d1[0] * LANE, P[1] - d1[1] * LANE];
-    const C: Pt = [A[0] + d2[0] * LANE, A[1] + d2[1] * LANE];
+    const A: Pt = [P[0] - d1[0] * r, P[1] - d1[1] * r];
+    const C: Pt = [A[0] + d2[0] * r, A[1] + d2[1] * r];
     for (let q = 0; q <= 8; q++) {
       const th = (q / 8) * (Math.PI / 2);
-      pts.push([C[0] + (A[0] - C[0]) * Math.cos(th) + d1[0] * LANE * Math.sin(th), C[1] + (A[1] - C[1]) * Math.cos(th) + d1[1] * LANE * Math.sin(th)]);
+      pts.push([C[0] + (A[0] - C[0]) * Math.cos(th) + d1[0] * r * Math.sin(th), C[1] + (A[1] - C[1]) * Math.cos(th) + d1[1] * r * Math.sin(th)]);
     }
   }
   return finish(id, pts);
@@ -97,8 +107,11 @@ export const LOOPS: readonly Loop[] = [
 ];
 
 export interface Car { loop: Loop; s: number; v: number; hue: number; /** Seconds spent held by a body in its lane (see stepCars). */ yieldS?: number }
-/** A body (agent, player) a car must not run over, in plan coords (x east, y north). */
-export interface Obstacle { x: number; y: number; r: number }
+/** A body (agent, player) a car must not run over, in plan coords (x east, y north).
+ *  `hold`: a parked car — a solid vehicle standing in the road, not a body that wandered in. The give-up below exists so a
+ *  body standing in a lane cannot freeze a loop for good; a parked car is never given up on, or the loop would drive
+ *  through it half a minute later — the exact clip the parked-car obstacles exist to prevent. */
+export interface Obstacle { x: number; y: number; r: number; hold?: boolean }
 /** Look this far ahead for a body, and treat one this close to the lane centre as in the way. */
 export const YIELD_AHEAD = 16, YIELD_HALF_WIDTH = 1.4;
 /** A body that has held a car this long is ignored (the car drives on): a body parked in a lane must not freeze the loop for good. */
@@ -154,6 +167,21 @@ export function gapToBody(c: Car, obstacles: readonly Obstacle[]): number {
   return best;
 }
 
+/** True when the obstacle that binds `c` (the one gapToBody measures to) is a hold obstacle: the car waits for it indefinitely. */
+export function gapIsHold(c: Car, obstacles: readonly Obstacle[]): boolean {
+  const p = sample(c.loop, c.s);
+  let best = Infinity, hold = false;
+  for (const o of obstacles) {
+    const rx = o.x - p.x, ry = o.y - p.y;
+    const along = rx * p.dx + ry * p.dy;
+    if (along <= 0 || along > YIELD_AHEAD + CAR_LEN / 2) continue;
+    if (Math.abs(rx * p.dy - ry * p.dx) > YIELD_HALF_WIDTH + o.r) continue;
+    const g = along - CAR_LEN / 2 - o.r;
+    if (g < best) { best = g; hold = o.hold === true; }
+  }
+  return best < Infinity && hold;
+}
+
 export function stepCars(cars: Car[], dt: number, now: number, obstacles: readonly Obstacle[] = []): void {
   const byLoop = new Map<Loop, Car[]>();
   for (const c of cars) { const a = byLoop.get(c.loop) ?? []; a.push(c); byLoop.set(c.loop, a); }
@@ -168,7 +196,7 @@ export function stepCars(cars: Car[], dt: number, now: number, obstacles: readon
         t = Math.min(t, Math.sqrt(2 * BRAKE * Math.max(gap - MIN_GAP, 0)) + (gap > MIN_GAP ? 0 : 0));
       }
       const gb = gapToBody(c, obstacles);
-      if (gb < Infinity && (c.yieldS ?? 0) < YIELD_GIVE_UP_S) {
+      if (gb < Infinity && ((c.yieldS ?? 0) < YIELD_GIVE_UP_S || gapIsHold(c, obstacles))) {
         t = Math.min(t, Math.sqrt(2 * BRAKE * Math.max(gb - MIN_GAP, 0)));
         if (c.v < 0.5) c.yieldS = (c.yieldS ?? 0) + dt;      // held, not just slowing
       } else if (gb === Infinity) c.yieldS = 0;
