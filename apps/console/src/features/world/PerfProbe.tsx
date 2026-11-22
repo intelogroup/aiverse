@@ -1,7 +1,9 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useState } from "react";
+import { captureConsolePerf } from "../../lib/telemetry/sentry";
+import { deviceClass } from "../../lib/telemetry/context";
 import { qualityStore } from "./quality";
-import { EventRing, FrameGapDetector, loadsInWindow, reportText, type LoadRec } from "./perfLog";
+import { EventRing, FrameGapDetector, RUM_SAMPLE, loadsInWindow, reportText, shouldSendPerf, summarize, type GapRec, type LoadRec } from "./perfLog";
 
 // PerfProbe + PerfOverlay — the on-device freeze recorder, mounted only with ?perf=1 (see perfLog.ts for why). The probe lives inside the
 // Canvas (it reads gl.info and the camera); the overlay is plain DOM. They share this module-level store.
@@ -11,12 +13,54 @@ export const perfStore = {
   loads: [] as LoadRec[],
   live: { rafHz: 0, renderFps: 0, draws: 0, tris: 0, textures: 0, geometries: 0, x: 0, y: 0, z: 0, tier: "" },
   header: "",
+  // Field data (RUM): see flushRum. Only filled/used when the probe is mounted with rum.
+  rum: false,
+  sampled: Math.random() < RUM_SAMPLE,
+  sent: false,
+  gaps: [] as GapRec[],
+  tierChanges: 0,
+  ctxLost: 0,
+  drawsSamples: [] as number[],
+  visibleMs: 0,
+  segStart: 0,
 };
+const SENT_KEY = "aiverse.perf-sent";
+
+/** Whether this page load may report field data: never on the look service's page (?agent), automation, with Do Not Track, ?rum=0, or a build with VITE_PERF_RUM=0. */
+export function rumAllowed(agentOn: boolean): boolean {
+  if (agentOn) return false;
+  try {
+    if (new URLSearchParams(window.location.search).get("rum") === "0") return false;
+    if ((import.meta.env as Record<string, string | undefined>).VITE_PERF_RUM === "0") return false;
+    const nav = navigator as Navigator & { doNotTrack?: string };
+    if (navigator.webdriver || nav.doNotTrack === "1" || (window as unknown as { doNotTrack?: string }).doNotTrack === "1") return false;
+  } catch { return false; }
+  return true;
+}
+
+/** Report one summary for this visit (once). Called when the page is hidden or leaves; the SDK transport sends with keepalive. */
+function flushRum(): void {
+  if (!perfStore.rum || perfStore.sent) return;
+  const visibleS = (perfStore.visibleMs + (document.hidden ? 0 : now() - perfStore.segStart)) / 1000;
+  let last = 0;
+  try { last = Number(window.localStorage.getItem(SENT_KEY)) || 0; } catch { /* storage unavailable: no daily cap, still one per page load */ }
+  const wall = Date.now();
+  if (!shouldSendPerf({ visibleS, gaps: perfStore.gaps.length, sampled: perfStore.sampled, lastSentMs: last, nowMs: wall })) return;
+  const sum = summarize(perfStore.gaps, { visibleS, tierChanges: perfStore.tierChanges, ctxLost: perfStore.ctxLost, drawsSamples: perfStore.drawsSamples });
+  const ok = captureConsolePerf(
+    { perf_bucket: sum.bucket, perf_device: deviceClass(), perf_tier: perfStore.live.tier || "?", perf_gaps: Math.min(sum.gaps, 99) },
+    { ...sum, dpr: window.devicePixelRatio, viewport: `${window.innerWidth}x${window.innerHeight}`, sampled: perfStore.sampled },
+  );
+  if (ok) {
+    perfStore.sent = true;
+    try { window.localStorage.setItem(SENT_KEY, String(wall)); } catch { /* ignore */ }
+  }
+}
 const now = () => performance.now();
 const note = (kind: "gap" | "tier" | "load" | "ctx" | "vis" | "note", text: string) => perfStore.ring.push({ t: now(), kind, text });
 export const perfReport = (): string => reportText(perfStore.header, perfStore.ring.all());
 
-export function PerfProbe() {
+export function PerfProbe({ rum = false }: { rum?: boolean }) {
   const gl = useThree((s) => s.gl);
   const camera = useThree((s) => s.camera);
 
@@ -27,6 +71,8 @@ export function PerfProbe() {
       `dpr ${window.devicePixelRatio} viewport ${window.innerWidth}x${window.innerHeight} cores ${nav.hardwareConcurrency ?? "?"} mem ${nav.deviceMemory ?? "?"}GB`,
       `url ${location.pathname}${location.search}  started ${new Date().toISOString()}`,
     ].join("\n");
+    perfStore.rum = rum;
+    perfStore.segStart = now();
     note("note", `probe on, tier ${qualityStore.getSnapshot().tier}`);
 
     // Gaps on a plain rAF loop (independent of R3F's frame cap).
@@ -37,8 +83,11 @@ export function PerfProbe() {
       const gap = det.feed(t, hidden);
       if (gap !== null) {
         const l = perfStore.live;
+        const lw = loadsInWindow(perfStore.loads, t - gap - 250, t + 50);
+        perfStore.gaps.push({ t, ms: gap, x: l.x, z: l.z, draws: l.draws, tris: l.tris, tier: l.tier, loads: lw });
+        if (perfStore.gaps.length > 200) perfStore.gaps.shift();
         // loads first: the panel truncates each line, and "what finished loading" is the most useful part of a gap.
-        note("gap", `${Math.round(gap)}ms${loadsInWindow(perfStore.loads, t - gap - 250, t + 50)} | pos ${l.x.toFixed(0)},${l.z.toFixed(0)} y${l.y.toFixed(1)} draws ${l.draws} tris ${(l.tris / 1000).toFixed(0)}k tex ${l.textures} geo ${l.geometries} ${l.tier}`);
+        note("gap", `${Math.round(gap)}ms${lw} | pos ${l.x.toFixed(0)},${l.z.toFixed(0)} y${l.y.toFixed(1)} draws ${l.draws} tris ${(l.tris / 1000).toFixed(0)}k tex ${l.textures} geo ${l.geometries} ${l.tier}`);
       }
       rafCount++;
       if (t - lastSec >= 1000) { perfStore.live.rafHz = Math.round((rafCount * 1000) / (t - lastSec)); rafCount = 0; lastSec = t; }
@@ -46,14 +95,19 @@ export function PerfProbe() {
     };
     raf = requestAnimationFrame(loop);
 
-    const onVis = () => { note("vis", document.hidden ? "hidden" : "visible"); if (!document.hidden) { det.reset(); skipUntil = now() + 1500; } };
+    const onVis = () => {
+      note("vis", document.hidden ? "hidden" : "visible");
+      if (document.hidden) { perfStore.visibleMs += now() - perfStore.segStart; flushRum(); }
+      else { det.reset(); skipUntil = now() + 1500; perfStore.segStart = now(); }
+    };
     document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("pagehide", flushRum);
 
-    const unTier = qualityStore.subscribe(() => { const s = qualityStore.getSnapshot(); perfStore.live.tier = s.tier; note("tier", `${s.tier}: ${s.reason}`); });
+    const unTier = qualityStore.subscribe(() => { const s = qualityStore.getSnapshot(); perfStore.live.tier = s.tier; perfStore.tierChanges++; note("tier", `${s.tier}: ${s.reason}`); });
     perfStore.live.tier = qualityStore.getSnapshot().tier;
 
     const el = gl.domElement;
-    const onLost = () => note("ctx", "webgl context LOST");
+    const onLost = () => { perfStore.ctxLost++; note("ctx", "webgl context LOST"); };
     const onRestored = () => note("ctx", "webgl context restored");
     el.addEventListener("webglcontextlost", onLost);
     el.addEventListener("webglcontextrestored", onRestored);
@@ -75,6 +129,7 @@ export function PerfProbe() {
     return () => {
       cancelAnimationFrame(raf);
       document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("pagehide", flushRum);
       unTier();
       el.removeEventListener("webglcontextlost", onLost);
       el.removeEventListener("webglcontextrestored", onRestored);
@@ -89,6 +144,7 @@ export function PerfProbe() {
     l.draws = i.render.calls; l.tris = i.render.triangles; l.textures = i.memory.textures; l.geometries = i.memory.geometries;
     l.x = camera.position.x; l.y = camera.position.y; l.z = camera.position.z;
     frames++;
+    if (frames % 30 === 0) { perfStore.drawsSamples.push(l.draws); if (perfStore.drawsSamples.length > 120) perfStore.drawsSamples.shift(); }
     const t = now();
     if (t - since >= 1000) { l.renderFps = Math.round((frames * 1000) / (t - since)); frames = 0; since = t; }
   });
