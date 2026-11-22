@@ -66,7 +66,8 @@ export async function initConsoleSentry(buildSha: string): Promise<boolean> {
       // (the Phase 1 proof watched a scope-enriched duplicate lose to
       // the SDK's bare capture; this design has exactly one of each).
       beforeSend(event, hint) {
-        if (event.exception) {
+        // The perf summary is a message, not a failure: it must not inherit the error enrichment (tag overwrite, 300-event black-box attachment).
+        if (event.exception && event.tags?.telemetry_kind !== "perf_session") {
           const kind = lastErrorKind();
           event.tags = { ...event.tags, district: currentDistrict(), telemetry_kind: kind };
           event.extra = { ...event.extra, blackbox_tail: JSON.stringify(blackbox.tail(50)) };
@@ -143,5 +144,30 @@ export function captureConsoleMessage(message: string, kind: string, extra?: Rec
     });
   } catch {
     /* telemetry never throws into the app */
+  }
+}
+
+/**
+ * One field-performance summary per visit (PerfProbe.flushRum). Level "info" and one fixed fingerprint: it groups into a single
+ * "perf_session" issue whose event count is the number of reporting visits and whose tags (perf_bucket, perf_device, perf_tier) are the
+ * filters; the per-visit detail is in the `perf` extra. Never "error", so it cannot page anyone or bury real failures. Returns whether
+ * it was handed to the SDK (false while Sentry is off, i.e. no DSN).
+ */
+export function captureConsolePerf(tags: Record<string, string | number>, perf: Record<string, unknown>): boolean {
+  if (!enabled || !sentry) return false;
+  try {
+    const S = sentry;
+    S.withScope((scope) => {
+      scope.setLevel("info");
+      scope.setTag("telemetry_kind", "perf_session");
+      scope.setTag("district", currentDistrict());
+      for (const [k, v] of Object.entries(tags)) scope.setTag(k, String(v));
+      scope.setExtra("perf", JSON.stringify(perf));
+      scope.setFingerprint(["aiverse-console", "perf_session"]);
+      S.captureMessage("perf_session");
+    });
+    return true;
+  } catch {
+    return false;
   }
 }

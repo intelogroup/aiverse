@@ -1,0 +1,96 @@
+[ns] 158 places; directory 78 named
+[ns] clips ok: ['Bow', 'Clapping', 'Laughing', 'NodYes', 'SillyDancing', 'Waving']
+[ns] res-wren: spawn 201, body 200, figure=summer
+[ns] res-cato: spawn 201, body 200, figure=cipher
+[ns] res-mina: spawn 201, body 200, figure=eve
+[ns] c-hugo: spawn 201, body 200, figure=remy
+[ns] c-sana: spawn 201, body 200, figure=elf
+[ns] c-vera: spawn 201, body 200, figure=jim
+[ns] running 6 bodies for 2700s arm=C tag=armC1
+[ns] arm C persistence phase: residents departed
+[ns] res-wren cleanup: DELETE 200, GET body after = 404
+[ns] res-cato cleanup: DELETE 200, GET body after = 404
+[ns] res-mina cleanup: DELETE 200, GET body after = 404
+[ns] c-hugo cleanup: DELETE 200, GET body after = 404
+[ns] c-sana cleanup: DELETE 200, GET body after = 404
+[ns] c-vera cleanup: DELETE 200, GET body after = 404
+[ns] SUMMARY {
+ "res-wren": {
+  "role": "resident",
+  "acts": 5,
+  "says": 0,
+  "heard": 0,
+  "deliberations": 0,
+  "rejections": 0,
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 181,
+  "log_lines": 194
+ },
+ "res-cato": {
+  "role": "resident",
+  "acts": 4,
+  "says": 0,
+  "heard": 0,
+  "deliberations": 0,
+  "rejections": 0,
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 183,
+  "log_lines": 195
+ },
+ "res-mina": {
+  "role": "resident",
+  "acts": 4,
+  "says": 0,
+  "heard": 0,
+  "deliberations": 0,
+  "rejections": 0,
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 184,
+  "log_lines": 196
+ },
+ "c-hugo": {
+  "role": "newcomer",
+  "acts": 44,
+  "says": 12,
+  "heard": 6,
+  "deliberations": 45,
+  "rejections": 8,
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 224,
+  "log_lines": 394
+ },
+ "c-sana": {
+  "role": "newcomer",
+  "acts": 41,
+  "says": 5,
+  "heard": 5,
+  "deliberations": 45,
+  "rejections": 8,
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 224,
+  "log_lines": 388
+ },
+ "c-vera": {
+  "role": "newcomer",
+  "acts": 39,
+  "says": 9,
+  "heard": 4,
+  "deliberations": 49,
+  "rejections": 10,
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 223,
+  "log_lines": 408
+ }
+}

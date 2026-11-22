@@ -1,0 +1,24 @@
+{
+ "tag": "gate1",
+ "arm": "gate",
+ "duration": 420,
+ "started_at": "2026-11-12T19:39:10Z",
+ "bodies": {
+  "res-wren": {
+   "role": "resident",
+   "name": "Wren",
+   "agent_name": "ns-wren",
+   "agent_id": "4bf1740f-86dc-458f-bf70-34b6ace86a82",
+   "body_pick": "summer",
+   "figure": "summer"
+  },
+  "b-ruth": {
+   "role": "newcomer",
+   "name": "Ruth",
+   "agent_name": "ns-ruth",
+   "agent_id": "6bed3057-9cfb-417a-95ec-28c542ff6a1f",
+   "body_pick": "summer",
+   "figure": "summer"
+  }
+ }
+}

@@ -32,7 +32,8 @@ import { GREETING_SCRIPT, createPlazaGreeting, type PlazaGreeting } from "./plaz
 import { type CameraMode } from "./cameraRig";
 import { attachWorldRenderer } from "../../lib/telemetry/index";
 import { FpsMeter } from "./fpsMeter";
-import { TOUCH_DPR_MAX, capDpr, dprForTier, qualityStore } from "./quality";
+import { PerfOverlay, PerfProbe, rumAllowed } from "./PerfProbe";
+import { noLimitsActive, TOUCH_DPR_MAX, capDpr, dprForTier, qualityStore } from "./quality";
 import { attachContextLossHandlers } from "./contextLoss";
 import { probeWebGLSupport } from "./contextCreate";
 import { LONG_PRESS_MAX_MOVE_PX, LONG_PRESS_MS, coachSeen, comfortStore, hapticTick, markCoachSeen } from "./comfort";
@@ -131,6 +132,16 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
     setCamMode("ride");
   };
   // Render-rate meter: FpsTracker (in-Canvas) writes, the panel reads.
+  // ?perf=1: the on-device freeze recorder (PerfProbe.tsx). Off for everyone else; no per-frame cost when off.
+  // `?nolimits=1`: diagnostic mode. Touch devices run like desktop: no
+  // 30 fps cap, DPR up to 2, no quality governor (tier stays "full",
+  // 2048 shadows). To see what the hardware can really do; it can crash
+  // or overheat a weak phone, so it is never the default.
+  const noLimits = useMemo(() => noLimitsActive(), []);
+  useEffect(() => {
+    if (noLimits) qualityStore.pinFullForSession();
+  }, [noLimits]);
+  const perfOn = useMemo(() => new URLSearchParams(window.location.search).get("perf") === "1", []);
   const fpsMeterRef = useRef<FpsMeter | null>(null);
   if (fpsMeterRef.current === null) fpsMeterRef.current = new FpsMeter();
   // The stage's key light — DistrictWorld borrows it for its shadow
@@ -150,6 +161,8 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
   const agentMode = useMemo(() => new URLSearchParams(window.location.search).get("agent"), []);
   const agentPair = agentMode === "pair";
   const agentOn = agentMode === "1" || agentPair;
+  // Field performance report (PerfProbe.flushRum): once per visit, sampled, to Sentry. Never on the look service page or automation.
+  const rumOn = useMemo(() => rumAllowed(agentOn), [agentOn]);
   // Server-driven agents (apps/sim) streamed over the public feed. Off unless asked: VITE_WORLD_STREAM=1 for a build, ?stream=1 per visit
   //. The ambient VITE_WORLD_STREAM default never combines with the local Scout (a second copy of that figure); only an explicit ?stream=1 does.
   const streamParam = useMemo(() => new URLSearchParams(window.location.search).get("stream"), []);
@@ -596,12 +609,13 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
           {fullView ? "Exit full view" : "Full view"}
         </button>
       </div>
+      {perfOn ? <PerfOverlay /> : null}
       <TeaElevatorHud controller={elevator} frame={walkFrameRef} walking={walking} walk={walkColliders} />
       {glSupported ? (
       <Canvas
         key={`world-${loadNonce}`}
         camera={camera}
-        dpr={touchUi ? capDpr(dprForTier(quality.tier), TOUCH_DPR_MAX) : [1, 2]}
+        dpr={touchUi && !noLimits ? capDpr(dprForTier(quality.tier), TOUCH_DPR_MAX) : [1, 2]}
         frameloop={agentOn ? "demand" : "always"}
         shadows={agentOn ? false : "soft"}
         gl={{ antialias: true }}
@@ -627,8 +641,8 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
         <KeyLight lightRef={keyLightRef} />
         <ShadowTagger />
         {touchUi ? <FpsTracker meterRef={fpsMeterRef} /> : null}
-        {touchUi ? <QualityDriver meterRef={fpsMeterRef} /> : null}
-        {touchUi && !agentOn ? <TouchFpsCap /> : null}
+        {touchUi && !noLimits ? <QualityDriver meterRef={fpsMeterRef} /> : null}
+        {touchUi && !agentOn && !noLimits ? <TouchFpsCap /> : null}
         <Suspense fallback={null}>
           <PresentedSignal onPresented={markPresented} />
           <DistrictWorld residentUrl={CITY3_URL} light={keyLightRef} collide={camMode === "wide" && !following && !(heroFocus?.id === "tea" && teaFloor === null)} meshesRef={colliderMeshesRef} walk={walkColliders} streamCap={touchUi ? 2 : undefined} interact={interactRef.current ?? undefined} />
@@ -724,6 +738,7 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
           minDistance={heroFocus?.id === "tea" && teaFloor === null ? 24 : 3}
           maxDistance={1100}
         />
+        {perfOn || rumOn ? <PerfProbe rum={rumOn} /> : null}
       </Canvas>
       ) : null}
       {soundRef.current ? (

@@ -56,7 +56,8 @@ export function KeyLight({ lightRef }: { lightRef?: React.RefObject<THREE.Direct
       l.target.removeFromParent();
     };
   }, [scene]);
-  // Mobile Phase 3: the tier sizes (or kills) the shadow map. The
+  // Mobile Phase 3: the tier sizes the shadow map (never kills it: see
+  // shadowMapForTier). The
   // store only moves on the touch path, so desktop reads "full"
   // forever — 2048 and casting, exactly as before. The key remounts
   // the light when the map size changes (three will not realloc a
@@ -67,7 +68,7 @@ export function KeyLight({ lightRef }: { lightRef?: React.RefObject<THREE.Direct
     <directionalLight
       key={shadowMap}
       ref={light}
-      castShadow={shadowMap > 0}
+      castShadow
       position={[120, 220, 90]}
       intensity={2.6}
       shadow-mapSize-width={Math.max(shadowMap, 1)}

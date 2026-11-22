@@ -30,6 +30,17 @@ export function QualityDriver({ meterRef }: { meterRef: RefObject<FpsMeter | nul
   const governor = useRef<QualityGovernor | null>(null);
   if (governor.current === null) governor.current = new QualityGovernor("reduced");
   const acc = useRef(0);
+  // Big downloads finishing (Resource Timing works in Safari): their parse/upload hitch is not the device being slow.
+  useEffect(() => {
+    let po: PerformanceObserver | null = null;
+    try {
+      po = new PerformanceObserver((list) => {
+        for (const e of list.getEntries()) if (/\.(glb|ktx2|wasm)(\?|$)/.test(e.name)) governor.current?.noteLoad(performance.now());
+      });
+      po.observe({ type: "resource" });
+    } catch { /* unsupported: the warmup and hold times still apply */ }
+    return () => po?.disconnect();
+  }, []);
   useFrame((_, delta) => {
     acc.current += delta;
     if (acc.current < 1) return;

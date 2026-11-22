@@ -1,0 +1,28 @@
+{
+ "res-wren": {
+  "role": "resident",
+  "acts": 2,
+  "says": 0,
+  "heard": 0,
+  "deliberations": 0,
+  "rejections": 0,
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 59,
+  "log_lines": 65
+ },
+ "b-ruth": {
+  "role": "newcomer",
+  "acts": 2,
+  "says": 0,
+  "heard": 0,
+  "deliberations": 5,
+  "rejections": 2,
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "track_lines": 59,
+  "log_lines": 79
+ }
+}

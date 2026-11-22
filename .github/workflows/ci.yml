@@ -93,6 +93,15 @@ jobs:
       - name: Gateway tests
         run: bun run --cwd apps/gateway test
 
+      # The sim and the world-sim package carry the drive contract (signals, lanes, corner waypoints, the parked cars) against the real
+      # City 3 collision; neither needs a database. Without these steps a change to them merged with no test run at all.
+      - name: Sim tests
+        run: bun run --cwd apps/sim test
+
+      - name: World-sim tests
+        working-directory: packages/world-sim
+        run: bun test
+
       - name: Lint (console)
         run: bun run --cwd apps/console lint
 

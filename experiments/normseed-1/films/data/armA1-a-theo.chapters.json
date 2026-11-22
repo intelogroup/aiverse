@@ -1,0 +1,167 @@
+{
+ "agent": "ns1-a-theo",
+ "run": "armA1",
+ "timelapse": "20x",
+ "chapters": [
+  {
+   "t": 0.0,
+   "title": "at stall-40"
+  },
+  {
+   "t": 0.0,
+   "title": "meets someone"
+  },
+  {
+   "t": 0.0,
+   "title": "meets someone"
+  },
+  {
+   "t": 0.0,
+   "title": "meets someone"
+  },
+  {
+   "t": 103.85,
+   "title": "at stall-0"
+  },
+  {
+   "t": 117.33,
+   "title": "at stall-5"
+  },
+  {
+   "t": 133.34,
+   "title": "at stall-13"
+  },
+  {
+   "t": 149.82,
+   "title": "at shop-59"
+  },
+  {
+   "t": 163.16,
+   "title": "at shop-54"
+  },
+  {
+   "t": 194.36,
+   "title": "at shop-47"
+  },
+  {
+   "t": 228.14,
+   "title": "at shop-50"
+  },
+  {
+   "t": 452.18,
+   "title": "at shop-44"
+  },
+  {
+   "t": 464.4,
+   "title": "at shop-45"
+  },
+  {
+   "t": 476.21,
+   "title": "at shop-46"
+  },
+  {
+   "t": 499.02,
+   "title": "at shop-51"
+  },
+  {
+   "t": 701.72,
+   "title": "at shop-97"
+  },
+  {
+   "t": 728.39,
+   "title": "at stall-15"
+  },
+  {
+   "t": 747.13,
+   "title": "at stall-6"
+  },
+  {
+   "t": 762.09,
+   "title": "at stall-1"
+  },
+  {
+   "t": 775.19,
+   "title": "at stall-40"
+  },
+  {
+   "t": 801.1,
+   "title": "at stall-64"
+  },
+  {
+   "t": 810.77,
+   "title": "at stall-65"
+  },
+  {
+   "t": 823.85,
+   "title": "at stall-70"
+  },
+  {
+   "t": 835.19,
+   "title": "at stall-71"
+  },
+  {
+   "t": 850.98,
+   "title": "at hall-0"
+  },
+  {
+   "t": 850.98,
+   "title": "meets someone"
+  },
+  {
+   "t": 850.98,
+   "title": "meets someone"
+  },
+  {
+   "t": 850.98,
+   "title": "hears ns-june: You were saying something about gardens? I'd lov"
+  },
+  {
+   "t": 863.46,
+   "title": "hears ns-alba: Thanks for the tip! Did you mention an herb gard"
+  },
+  {
+   "t": 890.75,
+   "title": "hears ns-june: That herb garden sounds lovely! Do you happen to"
+  },
+  {
+   "t": 952.06,
+   "title": "hears ns-june: Sorry, I got cut off! Were you able to share mor"
+  },
+  {
+   "t": 962.25,
+   "title": "hears ns-alba: The herb garden's near Sage's Library. For quiet"
+  },
+  {
+   "t": 1174.22,
+   "title": "hears ns-alba: The herb garden is behind Sage's Library. It's q"
+  },
+  {
+   "t": 1174.22,
+   "title": "hears ns-june: Sorry, I got cut off! Were you able to share mor"
+  },
+  {
+   "t": 1201.43,
+   "title": "hears ns-alba: The herb garden is behind Sage's Library\u2014great m"
+  },
+  {
+   "t": 1258.77,
+   "title": "hears ns-june: Thanks so much! I'll definitely check out the he"
+  },
+  {
+   "t": 1319.28,
+   "title": "hears ns-june: Sorry, I got cut off! Were you able to share mor"
+  },
+  {
+   "t": 1379.56,
+   "title": "hears ns-alba: Herb garden is behind Sage's Library. Favorite c"
+  },
+  {
+   "t": 1467.55,
+   "title": "hears ns-june: Sorry, I got cut off! Were you able to share mor"
+  },
+  {
+   "t": 1576.38,
+   "title": "hears ns-alba: Try the Fixer's Forge\u2014nearby. Handy for repairs!"
+  }
+ ]
+}
