@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   FrameThrottle,
+  GOVERNOR_COLLAPSE_HOLD_MS,
   GOVERNOR_DWELL_MS,
+  GOVERNOR_LOAD_QUIET_MS,
+  GOVERNOR_LOW_HOLD_MS,
   GOVERNOR_WARMUP_MS,
   QualityGovernor,
   TOUCH_DPR_MAX,
@@ -37,14 +40,16 @@ describe("QualityGovernor", () => {
   it("steps down one tier on sustained low fps, with a reason", () => {
     const g = new QualityGovernor("full");
     g.sample(24, 0);
-    const v = g.sample(24, T);
+    expect(g.sample(24, T)).toBeNull(); // the dip has just started: not yet a verdict
+    const v = g.sample(24, T + GOVERNOR_LOW_HOLD_MS);
     expect(v?.tier).toBe("reduced");
     expect(v?.reason).toContain("24");
   });
   it("drops straight to lite on a collapse", () => {
     const g = new QualityGovernor("full");
     g.sample(12, 0);
-    expect(g.sample(12, T)?.tier).toBe("lite");
+    expect(g.sample(12, T)).toBeNull();
+    expect(g.sample(12, T + GOVERNOR_COLLAPSE_HOLD_MS)?.tier).toBe("lite");
   });
   it("steps up on sustained headroom, one tier at a time", () => {
     const g = new QualityGovernor("lite");
@@ -58,9 +63,34 @@ describe("QualityGovernor", () => {
     expect(g.sample(40, T)).toBeNull(); // 30..55 band: hold
     const g2 = new QualityGovernor("full");
     g2.sample(24, 0);
-    expect(g2.sample(24, T)?.tier).toBe("reduced");
-    expect(g2.sample(24, T + 1000)).toBeNull(); // dwell not elapsed
-    expect(g2.sample(24, T + GOVERNOR_DWELL_MS + 1)?.tier).toBe("lite");
+    g2.sample(24, T);
+    const t1 = T + GOVERNOR_LOW_HOLD_MS;
+    expect(g2.sample(24, t1)?.tier).toBe("reduced");
+    expect(g2.sample(24, t1 + 1000)).toBeNull(); // dwell not elapsed
+    const t2 = t1 + GOVERNOR_DWELL_MS + 1;
+    expect(g2.sample(24, t2)).toBeNull(); // dip starts again after the dwell
+    expect(g2.sample(24, t2 + GOVERNOR_LOW_HOLD_MS)?.tier).toBe("lite");
+  });
+  it("does not judge while a big asset has just finished loading (the 2026-11-22 iPhone case: 21 fps at 10.7 s of a first load)", () => {
+    const g = new QualityGovernor("reduced");
+    g.sample(21, 0);
+    g.noteLoad(T - 1000);
+    expect(g.sample(21, T)).toBeNull(); // inside the quiet window
+    expect(g.sample(21, T + GOVERNOR_LOAD_QUIET_MS)).toBeNull(); // quiet over: the dip starts counting only now
+    expect(g.sample(21, T + GOVERNOR_LOAD_QUIET_MS + GOVERNOR_LOW_HOLD_MS)?.tier).toBe("lite");
+  });
+  it("a new load, or one good sample, restarts the dip", () => {
+    const g = new QualityGovernor("reduced");
+    g.sample(21, 0);
+    g.sample(21, T); // dip starts
+    g.sample(40, T + 1500); // recovered: forgotten
+    expect(g.sample(21, T + 2000)).toBeNull();
+    expect(g.sample(21, T + 2000 + GOVERNOR_LOW_HOLD_MS - 1)).toBeNull();
+    g.noteLoad(T + 4000);
+    expect(g.sample(21, T + 2000 + GOVERNOR_LOW_HOLD_MS)).toBeNull(); // load restarted it
+  });
+  it("waits at least 15 s into the session before any verdict", () => {
+    expect(GOVERNOR_WARMUP_MS).toBeGreaterThanOrEqual(15000);
   });
   it("ignores a zero fps sample (no data)", () => {
     const g = new QualityGovernor("reduced");

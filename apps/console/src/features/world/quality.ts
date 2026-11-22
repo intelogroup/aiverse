@@ -28,8 +28,13 @@ export const FPS_STEP_DOWN = 30;
 export const FPS_COLLAPSE = 18;
 /** Step up only on sustained headroom at or above this. */
 export const FPS_STEP_UP = 55;
-/** Ignore samples during warmup (world still streaming in). */
-export const GOVERNOR_WARMUP_MS = 4000;
+/** Ignore samples during warmup (world still streaming in). Was 4 s: a real iPhone read 21 fps at 10.7 s of a first load and was dropped to lite for good. */
+export const GOVERNOR_WARMUP_MS = 15000;
+/** After a big asset (GLB / KTX2 / wasm) finishes downloading its parse and GPU upload follow: samples in this window are not judged. */
+export const GOVERNOR_LOAD_QUIET_MS = 5000;
+/** A step-down needs the fps to stay below the threshold this long (ms), a collapse this long: one slow second is not a verdict. */
+export const GOVERNOR_LOW_HOLD_MS = 3000;
+export const GOVERNOR_COLLAPSE_HOLD_MS = 1500;
 /** Minimum dwell between tier changes (hysteresis). */
 export const GOVERNOR_DWELL_MS = 8000;
 
@@ -132,6 +137,9 @@ export class QualityGovernor {
   private tier: QualityTier;
   private startedAt: number | null = null;
   private lastChangeAt = 0;
+  private lastLoadAt = -Infinity;
+  private lowSince: number | null = null;
+  private collapseSince: number | null = null;
 
   constructor(initial: QualityTier = "reduced") {
     this.tier = initial;
@@ -139,6 +147,11 @@ export class QualityGovernor {
 
   current(): QualityTier {
     return this.tier;
+  }
+
+  /** A big asset just finished downloading (caller: QualityDriver's resource observer). */
+  noteLoad(nowMs: number): void {
+    this.lastLoadAt = nowMs;
   }
 
   sample(fps: number, nowMs: number): GovernorVerdict | null {
@@ -150,19 +163,33 @@ export class QualityGovernor {
     if (nowMs - this.startedAt < GOVERNOR_WARMUP_MS) return null;
     if (nowMs - this.lastChangeAt < GOVERNOR_DWELL_MS) return null;
     if (fps <= 0) return null; // no data (tab hidden, demand loop): hold
-    if (fps < FPS_COLLAPSE && this.tier !== "lite") {
+    if (nowMs - this.lastLoadAt < GOVERNOR_LOAD_QUIET_MS) {
+      // Loading dips are not a verdict on the device: forget any dip in progress.
+      this.lowSince = null;
+      this.collapseSince = null;
+      return null;
+    }
+    this.lowSince = fps < FPS_STEP_DOWN && this.tier !== "lite" ? (this.lowSince ?? nowMs) : null;
+    this.collapseSince = fps < FPS_COLLAPSE && this.tier !== "lite" ? (this.collapseSince ?? nowMs) : null;
+    if (this.collapseSince !== null && nowMs - this.collapseSince >= GOVERNOR_COLLAPSE_HOLD_MS) {
       this.tier = "lite";
       this.lastChangeAt = nowMs;
+      this.lowSince = null; // the new tier is judged fresh, not by the dip that moved us
+      this.collapseSince = null;
       return { tier: this.tier, reason: `fps ${fps.toFixed(0)} — collapsed below ${FPS_COLLAPSE}` };
     }
-    if (fps < FPS_STEP_DOWN && this.tier !== "lite") {
+    if (this.lowSince !== null && nowMs - this.lowSince >= GOVERNOR_LOW_HOLD_MS) {
       this.tier = this.tier === "full" ? "reduced" : "lite";
       this.lastChangeAt = nowMs;
+      this.lowSince = null; // the new tier is judged fresh, not by the dip that moved us
+      this.collapseSince = null;
       return { tier: this.tier, reason: `fps ${fps.toFixed(0)} below ${FPS_STEP_DOWN}` };
     }
     if (fps >= FPS_STEP_UP && this.tier !== "full") {
       this.tier = this.tier === "lite" ? "reduced" : "full";
       this.lastChangeAt = nowMs;
+      this.lowSince = null; // the new tier is judged fresh, not by the dip that moved us
+      this.collapseSince = null;
       return { tier: this.tier, reason: `fps ${fps.toFixed(0)} sustained at ${FPS_STEP_UP}+` };
     }
     return null;
