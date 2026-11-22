@@ -505,3 +505,11 @@ test("the end-of-road halt works toward the south edge too", () => {
   expect(car.tally.collision).toBe(0);
   service.detach("drv");
 });
+
+test("steer sent together with speed is dropped and the car holds its street: a weak agent mixing them does not drift off the lane", () => {
+  const { car, step } = backStreetDrive(-90, Math.PI);   // facing north on the back street
+  const detail = step({ speed: 6, steer: 0.6, seconds: 4 });
+  expect(detail).toMatch(/steer.*ignored/i);
+  expect(Math.abs(Math.atan2(Math.sin(car.v.heading - Math.PI), Math.cos(car.v.heading - Math.PI)))).toBeLessThan(0.1);
+  expect(car.tally.collision).toBe(0);
+});
