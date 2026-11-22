@@ -147,7 +147,7 @@ export interface VehicleView {
 }
 
 /** One driver's open `drive` command and the rules it broke so far. */
-interface DriveRun { /** The junction the driver was last warned about (cell key). */ warnedJ: string; rec: ActRecord | null; endsAt: number; broke: Infraction[]; recent: string[]; bumped: boolean; /** Sim time of the last step the car was pushed against something. */ blockedAt: number; /** Signal the open drive already ended early for: one warning per signal phase, not a loop. */ warned: string; /** Junctions entered since the driver got in. */ passed: number; wasIn: boolean; /** Distance bucket of the obstacle already warned about. */ warnedAhead: number }
+interface DriveRun { /** steer arrived together with speed and was dropped: the step result says so */ steerDropped?: boolean; /** The junction the driver was last warned about (cell key). */ warnedJ: string; rec: ActRecord | null; endsAt: number; broke: Infraction[]; recent: string[]; bumped: boolean; /** Sim time of the last step the car was pushed against something. */ blockedAt: number; /** Signal the open drive already ended early for: one warning per signal phase, not a loop. */ warned: string; /** Junctions entered since the driver got in. */ passed: number; wasIn: boolean; /** Distance bucket of the obstacle already warned about. */ warnedAhead: number }
 
 export class WorldService {
   readonly sim: VerseSim;
@@ -348,6 +348,10 @@ export class WorldService {
   private startDrive(agentId: string, car: Vehicle, rec: ActRecord, c: { gas?: number; brake?: number; steer?: number; heading?: number; speed?: number; reverse?: boolean; turn?: "left" | "right"; seconds?: number }): void {
     const run = this.drives.get(agentId) ?? { rec: null, endsAt: 0, broke: [], recent: [], bumped: false, blockedAt: -1e9, warned: "", passed: 0, wasIn: false, warnedAhead: 0, warnedJ: "" };
     if (run.rec) this.finishDrive(run, car, "replaced by a newer drive");
+    // steer + speed with no heading is open loop: the steer is held for the whole step, the car swings off its lane and the speed hold never straightens it
+    // (a weak agent sent both and never recovered). The harness drops the steer, holds the street, and says so in the result.
+    run.steerDropped = c.steer !== undefined && c.speed !== undefined && c.heading === undefined && !c.reverse && !c.turn;
+    if (run.steerDropped) c = { ...c, steer: undefined };
     car.input = { gas: c.gas ?? 0, brake: c.brake ?? 0, steer: c.steer ?? 0, reverse: c.reverse === true, holdSpeed: c.speed, holdHeading: c.heading === undefined ? undefined : (180 - c.heading) * Math.PI / 180 };
     // An explicit heading within 20 deg of the street axis the car is already driving along IS that axis: a cold agent that says "east" with 108 (not 90)
     // steered 18 deg off the lane and into the kerb 15 m on. A heading further off, or given by a car not on a street axis, stays as asked.
@@ -379,7 +383,7 @@ export class WorldService {
     const where = end ? `; heading ${end.compassDeg} deg (${end.facing})${end.laneErrorM === null ? "" : `, ${end.laneErrorM > 0 ? "wrong side by" : "in lane, margin"} ${Math.abs(end.laneErrorM)} m`}${end ? `, junctions passed so far ${end.junctionsPassed}` : ""}${end?.atJunction ? `; INSIDE a junction, to go straight use heading ${Math.round(end.compassDeg / 90) % 4 * 90}, to turn left ${(Math.round(end.compassDeg / 90) + 3) % 4 * 90}, right ${(Math.round(end.compassDeg / 90) + 1) % 4 * 90}` : ""}${end.signal ? `, next signal ${end.signal.lamp} in ${Math.round(end.signal.distance)} m, it changes in ${Math.round(end.signal.changesIn)} s${end.signal.lamp === "green" ? "" : ": do not enter until it is green"}. That is junction ${end.junctionsPassed + 1}: to turn there send drive {speed: 6, turn: "left" or "right"} before you reach it, a heading drive goes straight on` : ""}` : "";
     this.settle(run.rec, {
       ok: true, status: "done",
-      detail: `${note}; now ${car.v.speed.toFixed(1)} m/s${where}${run.bumped ? ". BLOCKED: something solid is in your way (a kerb, post, wall or body); reverse away (drive {gas:1, reverse:true}) or steer around it" : ""}${broke.length ? `. YOU BROKE THE RULES: ${broke.join("; ")}` : ""}`,
+      detail: `${run.steerDropped ? "steer ignored when sent with speed (the car holds its street): to turn send drive {speed, turn: \"left\" or \"right\"}, to change street send a heading. " : ""}${note}; now ${car.v.speed.toFixed(1)} m/s${where}${run.bumped ? ". BLOCKED: something solid is in your way (a kerb, post, wall or body); reverse away (drive {gas:1, reverse:true}) or steer around it" : ""}${broke.length ? `. YOU BROKE THE RULES: ${broke.join("; ")}` : ""}`,
       vehicle: { id: car.id, speed: Math.round(car.v.speed * 10) / 10, infractions: [...run.broke] },
     });
     run.rec = null;
