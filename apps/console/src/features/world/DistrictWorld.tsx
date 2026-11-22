@@ -1,3 +1,4 @@
+import { noLimitsActive } from "./quality";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
@@ -62,7 +63,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
   // useGLTF — so shell coverage needs its id + a mounted flag beside the streamed set (isShellCovered).
   const residentIdRef = useRef<string | undefined>(undefined);
   const residentReadyRef = useRef(false);
-  const fullMode = useMemo(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("world") === "full", []);
+  const fullMode = useMemo(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("world") === "full" || noLimitsActive(), []);
   const pushEvent = (type: string, id?: string) => {
     const ev = stats.current.events;
     ev.push({ t: Math.round(performance.now()) / 1000, type, id });

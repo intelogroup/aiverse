@@ -325,3 +325,11 @@ export function readLoadSummary(): LoadSummary {
 export function formatMB(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+/** `?nolimits=1` diagnostic mode (see GlbWorld): pure so every caller agrees. */
+export function noLimitsFromSearch(search: string): boolean {
+  return new URLSearchParams(search).get("nolimits") === "1";
+}
+export function noLimitsActive(): boolean {
+  return typeof window !== "undefined" && noLimitsFromSearch(window.location.search);
+}

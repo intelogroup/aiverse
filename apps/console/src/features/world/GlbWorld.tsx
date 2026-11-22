@@ -33,7 +33,7 @@ import { type CameraMode } from "./cameraRig";
 import { attachWorldRenderer } from "../../lib/telemetry/index";
 import { FpsMeter } from "./fpsMeter";
 import { PerfOverlay, PerfProbe, rumAllowed } from "./PerfProbe";
-import { TOUCH_DPR_MAX, capDpr, dprForTier, qualityStore } from "./quality";
+import { noLimitsActive, TOUCH_DPR_MAX, capDpr, dprForTier, qualityStore } from "./quality";
 import { attachContextLossHandlers } from "./contextLoss";
 import { probeWebGLSupport } from "./contextCreate";
 import { LONG_PRESS_MAX_MOVE_PX, LONG_PRESS_MS, coachSeen, comfortStore, hapticTick, markCoachSeen } from "./comfort";
@@ -137,7 +137,7 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
   // 30 fps cap, DPR up to 2, no quality governor (tier stays "full",
   // 2048 shadows). To see what the hardware can really do; it can crash
   // or overheat a weak phone, so it is never the default.
-  const noLimits = useMemo(() => new URLSearchParams(window.location.search).get("nolimits") === "1", []);
+  const noLimits = useMemo(() => noLimitsActive(), []);
   useEffect(() => {
     if (noLimits) qualityStore.pinFullForSession();
   }, [noLimits]);

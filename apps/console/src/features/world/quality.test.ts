@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  noLimitsFromSearch,
   qualityStore,
   FrameThrottle,
   GOVERNOR_COLLAPSE_HOLD_MS,
@@ -154,5 +155,13 @@ describe("nolimits pin", () => {
     qualityStore.pinFullForSession();
     expect(qualityStore.getSnapshot().tier).toBe("full");
     expect(window.localStorage.getItem("aiverse.quality-override")).toBeNull();
+  });
+});
+
+describe("noLimitsFromSearch", () => {
+  it("is on only for nolimits=1", () => {
+    expect(noLimitsFromSearch("?nolimits=1&perf=1")).toBe(true);
+    expect(noLimitsFromSearch("?nolimits=0")).toBe(false);
+    expect(noLimitsFromSearch("")).toBe(false);
   });
 });
