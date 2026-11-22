@@ -2,7 +2,7 @@
 // does nothing. A driven car steps through vehicle.ts every tick and is judged by the shared signal controller. Cars are first-class
 // viewer bodies (a stable roster number, body "car"), so a parked and a driven car are drawn the same way as the resident traffic.
 import { FLEET_N0, encodePose, type PoseTuple } from "./streamProtocol";
-import { JUNCTIONS, junctionAt, signalState, type Lamp } from "./trafficSignals";
+import { JUNCTIONS, axisChangesIn, junctionAt, signalState, type Lamp } from "./trafficSignals";
 import {
   BRAKE, DISC_OFFSET, DISC_R, axisOfTravel, laneError, laneMiddle, laneOffset, makeVehicle, stepVehicle,
   type DriveInput, type Infraction, type TurnPlan, type VehicleState,
@@ -225,7 +225,7 @@ export class Fleet {
         const j = junctionAt(px + dx * d, py + dy * d);
         if (!j) continue;
         const s = signalState(JUNCTIONS[j.id], now), axis = axisOfTravel(dx, dy);
-        signal = { distance: d, lamp: s[axis], changesIn: Math.round(s.changesIn * 10) / 10 };
+        signal = { distance: d, lamp: s[axis], changesIn: Math.round(axisChangesIn(JUNCTIONS[j.id], now, axis) * 10) / 10 };
         break;
       }
     }

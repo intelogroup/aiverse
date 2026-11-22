@@ -89,6 +89,18 @@ export function signalState(j: Junction, now: number): SignalState {
   return { ns: ns.lamp, ew: ew.lamp, pedNs: ped(ns.lamp, ns.elapsed), pedEw: ped(ew.lamp, ew.elapsed), changesIn: next - t };
 }
 
+/**
+ * Seconds until the lamp of ONE axis changes (green to yellow, yellow to red, red to green). `signalState().changesIn` is the next boundary of
+ * the whole junction: a driver reading red with "changes in 0.6 s" took it for green, but 0.6 s was the end of the crossing street's yellow and
+ * its 1.5 s all-red still came before its own green (gate census, red light entering junction 12).
+ */
+export function axisChangesIn(j: Junction, now: number, axis: "ns" | "ew"): number {
+  const t = cyclePos(j, now), ewStart = j.green.ns + YELLOW + ALL_RED;
+  const start = axis === "ns" ? 0 : ewStart, g = j.green[axis];
+  const next = [start, start + g, start + g + YELLOW].map((b) => (b > t ? b : b + CYCLE)).reduce((a, b) => Math.min(a, b));
+  return next - t;
+}
+
 /** Flash phase of the DON'T WALK hand: on for the first half of each second. */
 export function flashOn(now: number): boolean {
   return Math.floor(now * 2) % 2 === 0;
