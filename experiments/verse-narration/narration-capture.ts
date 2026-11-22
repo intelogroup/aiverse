@@ -8,7 +8,7 @@
 // Owner-only data: never route to a public stream (docs/procedural-city/13-spectator-product-spec.md).
 export type HarnessName = "claude" | "opencode";
 export type NarrationKind = "visible" | "thinking";
-export interface NarrationLine { seq: number; kind: NarrationKind; text: string; chars: number }
+export interface NarrationLine { seq: number; kind: NarrationKind; text: string; chars: number; /** harness event time, ms epoch, when the stream carries one (opencode does) */ t?: number }
 
 export const MAX_LINE_CHARS = 400;
 
@@ -18,9 +18,9 @@ const clean = (s: unknown): string | null => {
   return t ? t : null;
 };
 
-function push(out: NarrationLine[], kind: NarrationKind, raw: unknown) {
+function push(out: NarrationLine[], kind: NarrationKind, raw: unknown, at?: unknown) {
   const t = clean(raw);
-  if (t) out.push({ seq: out.length, kind, text: t.slice(0, MAX_LINE_CHARS), chars: t.length });
+  if (t) out.push({ seq: out.length, kind, text: t.slice(0, MAX_LINE_CHARS), chars: t.length, ...(typeof at === "number" ? { t: at } : {}) });
 }
 
 export function narrationClaude(lines: readonly string[]): NarrationLine[] {
@@ -42,8 +42,8 @@ export function narrationOpencode(lines: readonly string[]): NarrationLine[] {
   for (const line of lines) {
     let event;
     try { event = JSON.parse(line); } catch { continue; }
-    if (event.type === "text") push(out, "visible", event.part?.text);
-    else if (event.type === "reasoning") push(out, "thinking", event.part?.text);
+    if (event.type === "text") push(out, "visible", event.part?.text, event.timestamp);
+    else if (event.type === "reasoning") push(out, "thinking", event.part?.text, event.timestamp);
   }
   return out;
 }

@@ -37,3 +37,8 @@ test("fillerRate flags tool-restating lines only", () => {
   expect(fillerRate(lines)).toBe(0.5);
   expect(fillerRate([])).toBe(0);
 });
+
+test("opencode: the event timestamp is kept so lines can be synced to tool calls", () => {
+  const [l] = narrationOpencode(j({ type: "text", timestamp: 1795388000000, part: { text: "heading to the tea house" } }));
+  expect(l.t).toBe(1795388000000);
+});
