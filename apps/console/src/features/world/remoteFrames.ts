@@ -33,9 +33,21 @@ export class RemoteBodies {
   /** Speech bubbles: body number -> the line and the local time (ms) it stops showing. */
   private said = new Map<number, { text: string; until: number }>();
 
+  private sayListeners = new Set<(e: { n: number; name: string; text: string }) => void>();
+
+  /** Subscribe to spoken lines (the bubble is only one consumer: agentSpeech.ts speaks them). Returns the unsubscribe. */
+  onSay(fn: (e: { n: number; name: string; text: string }) => void): () => void {
+    this.sayListeners.add(fn);
+    return () => this.sayListeners.delete(fn);
+  }
+
   /** A spoken line: it shows over the speaker for BUBBLE_MS. A newer line replaces an older one. */
   applySay(m: SayMessage, nowMs: number): void {
-    for (const e of m.say) this.said.set(e.n, { text: e.text.slice(0, 140), until: nowMs + BUBBLE_MS });
+    for (const e of m.say) {
+      this.said.set(e.n, { text: e.text.slice(0, 140), until: nowMs + BUBBLE_MS });
+      const name = this.info.get(e.n)?.name ?? "";
+      for (const fn of this.sayListeners) { try { fn({ n: e.n, name, text: e.text }); } catch { /* a listener must never break the stream */ } }
+    }
   }
 
   /** The bubble text for body `n` now, or null. */

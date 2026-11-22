@@ -34,6 +34,20 @@ export const VOICE_MAGE = "Master Aldric";
 /** The Tea House bartender (catalog voice "Hugh": soft, close, sincere, middle-aged British). */
 export const VOICE_BARTENDER = "Hugh";
 
+/**
+ * Catalog voices for agents speaking in the world (agentSpeech.ts): the 11 other en-us voices of gradium/phonon-voices
+ * (Apache-2.0 embeddings, 256 KB each, shipped in public/assets/tts/voices/). Zoey stays Summer's, and Aldric / Hugh stay the
+ * keeper's and bartender's, so a visitor's agent never borrows a scripted character's voice.
+ */
+export const AGENT_VOICE_POOL: readonly { voice: string; file: string; gender: "female" | "male" }[] = [
+  { voice: "Juniper", file: "juniper", gender: "female" }, { voice: "Everly", file: "everly", gender: "female" },
+  { voice: "Harper", file: "harper", gender: "female" }, { voice: "Hadley", file: "hadley", gender: "female" },
+  { voice: "Delia", file: "delia", gender: "female" },
+  { voice: "Easton", file: "easton", gender: "male" }, { voice: "Micah", file: "micah", gender: "male" },
+  { voice: "Trevor", file: "trevor", gender: "male" }, { voice: "Russell", file: "russell", gender: "male" },
+  { voice: "Preston", file: "preston", gender: "male" }, { voice: "Miles", file: "miles", gender: "male" },
+];
+
 /** Where the checkpoint is fetched from (see the header). */
 export const PHONON_MODEL_URL: string =
   (import.meta.env.VITE_PHONON_MODEL_URL as string | undefined) ||
@@ -101,10 +115,11 @@ export function loadPhonon(): Promise<PhononEngine> {
           [VOICE_SUMMER]: `${TTS_ASSETS}/voices/zoey.safetensors`,
           [VOICE_MAGE]: `${TTS_ASSETS}/voices/aldric.safetensors`,
           [VOICE_BARTENDER]: `${TTS_ASSETS}/voices/hugh.safetensors`,
+          ...Object.fromEntries(AGENT_VOICE_POOL.map((v) => [v.voice, `${TTS_ASSETS}/voices/${v.file}.safetensors`])),
         },
         defaultVoice: VOICE_SUMMER,
       },
-      voices: [VOICE_SUMMER, VOICE_MAGE, VOICE_BARTENDER],
+      voices: [VOICE_SUMMER, VOICE_MAGE, VOICE_BARTENDER, ...AGENT_VOICE_POOL.map((v) => v.voice)],
     });
     engineReady = true;
     return engine;
