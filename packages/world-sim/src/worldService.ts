@@ -250,6 +250,8 @@ export class WorldService {
     if (existing) return existing;
     const rec: ActRecord = { id, action: action as ScoutAction, state: "running", startedAt: this.sim.t };
     if (rec.action.type === "interact") rec.interactionStartedAtMs = Date.now();
+    // Speech is dispatched before the driving gate below on purpose: the guide promises a driver can still
+    // say (and gaze) without getting out — the line is heard from the car's position like any other say.
     if ((action as { type?: string }).type === "say") {
       this.say(agentId, s, rec, ctx.name);
       this.remember(s, id, rec);
@@ -326,7 +328,7 @@ export class WorldService {
     }
     if (!car) return this.settle(rec, { ok: false, status: "unavailable", detail: `${a.type} needs a car: you are on foot. enter_vehicle first (a car within ${ENTER_RANGE_M} m)` });
     if (a.type === "exit_vehicle") {
-      if (car.v.speed > 1) return this.settle(rec, { ok: false, status: "rejected", detail: `still moving at ${car.v.speed.toFixed(1)} m/s: brake to a stop first (drive {brake:1, seconds:3})` });
+      if (Math.abs(car.v.speed) > 1) return this.settle(rec, { ok: false, status: "rejected", detail: `still moving at ${car.v.speed.toFixed(1)} m/s: brake to a stop first (drive {brake:1, seconds:3})` });
       const hd = car.v.heading, right: [number, number] = [-Math.cos(hd), Math.sin(hd)];
       const spot = ([[1, 2.4], [-1, 2.4], [1, 3.4], [-1, 3.4]] as const)
         .map(([side, m]) => [car.v.x + right[0] * side * m, car.v.z + right[1] * side * m] as const)
