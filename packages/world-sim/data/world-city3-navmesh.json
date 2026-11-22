@@ -1,24 +1,24 @@
 {
  "version": 1,
  "artifact": "world-city3-navmesh.bin",
- "bytes": 8388048,
+ "bytes": 3481048,
  "source": {
   "glb": "world-city3-collision.glb",
-  "glbSha256": "9c845cda734974692760cc2d1152d5bf3dafea2858e8b64ab97eef6807b3f8a1",
-  "tris": 223902,
-  "sets": 63
+  "glbSha256": "a84fec593f7bd0326342a417ecbab4f9796cc119600f07793d5f2f23d3fde56e",
+  "tris": 171754,
+  "sets": 60
  },
  "params": {
-  "agentRadius": 0.4,
+  "agentRadius": 0.45,
   "agentHeight": 1.8,
   "maxClimb": 0.31,
   "maxSlopeDeg": 45,
-  "cellSize": 0.2,
+  "cellSize": 0.15,
   "cellHeight": 0.1,
   "tileSizeM": 51.2,
   "walkableHeightVoxels": 18,
   "walkableClimbVoxels": 3,
-  "walkableRadiusVoxels": 2
+  "walkableRadiusVoxels": 3
  },
  "generator": "recast-navigation 0.44.0 generateTiledNavMesh + exportNavMesh",
  "rebake": "bun run packages/world-sim/node/bakeNavmesh.ts"
