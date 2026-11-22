@@ -13,8 +13,10 @@ const assets = process.env.SIM_ASSETS_DIR ?? new URL("../../console/public/asset
 const { sim, stats } = await loadVerseSim(assets);
 console.log(JSON.stringify({ event: "sim_loaded", ...stats }));
 // SIM_AMBIENT=0 turns the resident cars and pedestrians off.
-const service = new WorldService({ sim, maxBodies: Number(process.env.SIM_MAX_BODIES ?? 200), ambient: process.env.SIM_AMBIENT === "0" ? undefined : new AmbientWorld() });
-const app = createSimServer({ service, secret });
+const maxBodies = Number(process.env.SIM_MAX_BODIES ?? 200);
+const TICK_MS = 50;
+const service = new WorldService({ sim, maxBodies, ambient: process.env.SIM_AMBIENT === "0" ? undefined : new AmbientWorld() });
+const app = createSimServer({ service, secret, maxBodies, tickMs: TICK_MS });
 
 const server = Bun.serve({ hostname: process.env.SIM_HOST ?? "127.0.0.1", port: Number(process.env.SIM_PORT ?? 3020), fetch: app.fetch });
 console.log(JSON.stringify({ event: "sim_listening", url: server.url.toString() }));
@@ -29,8 +31,9 @@ const loop = setInterval(() => {
   service.tick(dt);
   app.expire();
   const cost = performance.now() - t;
+  app.recordTick(cost);
   if (cost > 100 && ++slow % 20 === 1) console.warn(JSON.stringify({ event: "sim_slow_tick", ms: Math.round(cost), bodies: service.bodyCount }));
-}, 50);
+}, TICK_MS);
 
 const stop = () => { clearInterval(loop); server.stop(); process.exit(0); };
 process.on("SIGINT", stop);

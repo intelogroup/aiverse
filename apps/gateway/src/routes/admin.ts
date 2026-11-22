@@ -7,6 +7,7 @@ import { forceDisconnectAgent } from "../ws/gateway";
 import { audit } from "../util/audit";
 import { validateWalletPatch } from "../util/walletPatch";
 import { deleteAgentCascade, deleteOwnerCascade } from "../util/deleteAgent";
+import { evictAgentAuth } from "../auth/authCache";
 
 export const adminRoute = new Hono<{ Variables: { ownerId: string } }>();
 
@@ -29,6 +30,7 @@ adminRoute.post("/agents/:id/suspend", adminAuth, async (c) => {
   const pausedBy =
     agent.status === "paused" && agent.pausedBy ? agent.pausedBy : "admin";
   const [updated] = await db.update(agents).set({ status: "paused", pausedBy }).where(eq(agents.id, agentId)).returning();
+  evictAgentAuth(agentId);
 
   forceDisconnectAgent(agentId, 4003, "agent suspended by admin");
   await audit({
@@ -64,6 +66,7 @@ adminRoute.post("/agents/:id/resume", adminAuth, async (c) => {
   }
 
   const [updated] = await db.update(agents).set({ status: "offline", pausedBy: null }).where(eq(agents.id, agentId)).returning();
+  evictAgentAuth(agentId);
 
   await audit({
     event: "admin.agent_resumed",

@@ -2,6 +2,7 @@ import { and, eq, gt, isNull, lt, sql } from "drizzle-orm";
 import { db } from "../db/client";
 import { agentVisits } from "@aiverse/shared/schema";
 import { redis } from "../redis/client";
+import { activeVisitByAgent, evictVisitById } from "../auth/authCache";
 
 // Pure DB logic — no ws/gateway import here, on purpose: ws/gateway.ts's own
 // WS-connect handler needs to call checkAndConsumeVisit too, and it already
@@ -33,6 +34,7 @@ export async function endVisitRecord(visitId: string, reason: VisitEndReason): P
     .set({ endedAt: new Date(), endedReason: reason })
     .where(and(eq(agentVisits.id, visitId), isNull(agentVisits.endedAt)))
     .returning({ id: agentVisits.id, agentId: agentVisits.agentId, ownerId: agentVisits.ownerId });
+  evictVisitById(visitId);
   return ended ? { ...ended, reason } : null;
 }
 
@@ -80,7 +82,18 @@ export interface VisitCheckOptions {
   resultRead?: boolean;
 }
 
+/** The agent's active visit, cached for AUTH_CACHE_TTL_MS; every path that ends or extends a visit evicts it. */
+export function getActiveVisit(agentId: string): Promise<typeof agentVisits.$inferSelect | undefined> {
+  return activeVisitByAgent.get(agentId, () =>
+    db.query.agentVisits.findFirst({ where: and(eq(agentVisits.agentId, agentId), isNull(agentVisits.endedAt)) }));
+}
+
 export async function checkAndConsumeVisit(agentId: string, method: string, opts: VisitCheckOptions = {}): Promise<VisitCheckResult> {
+  // A read on a visit that is still open by the clock and under its cap needs no query: consuming (the cap authority) is POST-only.
+  if (method === "GET" || method === "HEAD") {
+    const hot = activeVisitByAgent.peek(agentId);
+    if (hot && hot.endsAt.getTime() > Date.now() && hot.actionsUsed < hot.maxActions) return { allowed: true };
+  }
   const visit = await db.query.agentVisits.findFirst({
     where: eq(agentVisits.agentId, agentId),
     orderBy: (v, { desc }) => [desc(v.startedAt)],
@@ -103,7 +116,7 @@ export async function checkAndConsumeVisit(agentId: string, method: string, opts
     return { allowed: false, ended: ended ?? undefined, reason: "time_expired" };
   }
 
-  if (method === "GET" || method === "HEAD") return { allowed: true };
+  if (method === "GET" || method === "HEAD") { activeVisitByAgent.set(agentId, visit); return { allowed: true }; }
 
   // Consume atomically: the cap predicate lives IN the increment, so a
   // concurrent burst cannot overshoot maxActions — the old read-compare-
@@ -121,8 +134,11 @@ export async function checkAndConsumeVisit(agentId: string, method: string, opts
         lt(agentVisits.actionsUsed, visit.maxActions),
       ),
     )
-    .returning({ id: agentVisits.id });
-  if (consumed) return { allowed: true, consumed: true, visitId: visit.id };
+    .returning({ id: agentVisits.id, actionsUsed: agentVisits.actionsUsed });
+  if (consumed) {
+    activeVisitByAgent.set(agentId, { ...visit, actionsUsed: consumed.actionsUsed });
+    return { allowed: true, consumed: true, visitId: visit.id };
+  }
 
   // Zero rows: either the visit ended concurrently (sweep, owner stop) or
   // a concurrent burst filled the cap after our read. Re-read to report
@@ -147,15 +163,19 @@ export async function refundVisitAction(visitId: string): Promise<void> {
     .update(agentVisits)
     .set({ actionsUsed: sql`${agentVisits.actionsUsed} - 1` })
     .where(and(eq(agentVisits.id, visitId), gt(agentVisits.actionsUsed, 0)));
+  evictVisitById(visitId);
 }
 
 // Counts one action on the agent's active visit, for routes that authenticate
 // with agentAuthUncounted and count only once the call really acted.
 export async function consumeVisitAction(agentId: string): Promise<void> {
-  await db
+  const [row] = await db
     .update(agentVisits)
     .set({ actionsUsed: sql`${agentVisits.actionsUsed} + 1` })
-    .where(and(eq(agentVisits.agentId, agentId), isNull(agentVisits.endedAt)));
+    .where(and(eq(agentVisits.agentId, agentId), isNull(agentVisits.endedAt)))
+    .returning({ actionsUsed: agentVisits.actionsUsed });
+  const hot = activeVisitByAgent.peek(agentId);
+  if (hot && row) activeVisitByAgent.set(agentId, { ...hot, actionsUsed: row.actionsUsed });
 }
 
 // Owner-triggered end (POST .../visits/:id/stop) — same terminal row state
@@ -200,6 +220,7 @@ export async function extendVisitRecord(
     .set({ endsAt })
     .where(and(eq(agentVisits.id, visit.id), isNull(agentVisits.endedAt), eq(agentVisits.endsAt, visit.endsAt)))
     .returning();
+  evictVisitById(visit.id);
   return updated ?? null;
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import lamps from "../../../apps/console/src/features/world/signalLamps.json";
-import { ALL_RED, CYCLE, JUNCTIONS, YELLOW, flashOn, junctionAt, signalState } from "./trafficSignals";
+import { ALL_RED, CYCLE, JUNCTIONS, YELLOW, axisChangesIn, flashOn, junctionAt, signalState } from "./trafficSignals";
 
 const times = (j: (typeof JUNCTIONS)[number]) => Array.from({ length: CYCLE * 10 }, (_, i) => i / 10 + 1234.56);
 
@@ -65,4 +65,21 @@ describe("trafficSignals", () => {
     expect(junctionAt(65, 65)?.rect).toEqual([60, 60, 70, 70]);
     expect(junctionAt(0, 0)).toBeNull();
   });
+});
+
+test("axisChangesIn is the time to that axis's own lamp change, not the junction's next boundary", () => {
+  const j = JUNCTIONS[0], ewStart = j.green.ns + YELLOW + ALL_RED;
+  for (let t = 0; t < CYCLE; t += 0.25) {
+    const now = j.offset + t, n = axisChangesIn(j, now, "ns"), e = axisChangesIn(j, now, "ew");
+    for (const [axis, dt] of [["ns", n], ["ew", e]] as const) {
+      const before = signalState(j, now)[axis], after = signalState(j, now + dt + 0.01)[axis];
+      expect(after, `${axis} at ${t}`).not.toBe(before);                        // the lamp really changes then ...
+      expect(signalState(j, now + dt - 0.01)[axis], `${axis} at ${t}`).toBe(before);   // ... and not a moment sooner
+    }
+  }
+  // the failure seen in the gate: red for the crossing street's yellow ending in 0.6 s, but its own green is 1.5 s of all-red later
+  const now = j.offset + ewStart - 0.6;
+  expect(signalState(j, now).changesIn).toBeCloseTo(0.6, 1);
+  expect(axisChangesIn(j, now, "ew")).toBeCloseTo(0.6, 1);   // ew turns green at ewStart: here the junction boundary IS its change ...
+  expect(axisChangesIn(j, j.offset + j.green.ns + YELLOW - 0.6, "ew")).toBeCloseTo(0.6 + ALL_RED, 1);   // ... and here it is 0.6 + 1.5 s, not 0.6
 });

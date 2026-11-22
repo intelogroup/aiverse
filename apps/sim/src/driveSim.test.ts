@@ -185,11 +185,11 @@ test("drive {heading} steers the car onto a compass bearing and holds it; headin
   act(service, "drv", "e", { type: "enter_vehicle" });
   car.v.z = 5;   // lane middle: no lane-centring pull on the bearing
   expect(() => act(service, "drv", "bad", { type: "drive", heading: 0, steer: 0.5 })).toThrow(/cannot be combined with steer/);
-  act(service, "drv", "d", { type: "drive", gas: 0.6, heading: 80, seconds: 4 });
+  act(service, "drv", "d", { type: "drive", gas: 0.6, heading: 60, seconds: 4 });   // 30 deg off the axis: a real turn (within 20 deg of an axis the heading snaps to it)
   run(service, 4.2);
   const v = service.observe("drv").vehicle!;
-  expect(v.compassDeg).toBeLessThan(88);      // it turned from 90 toward 80 ...
-  expect(v.compassDeg).toBeGreaterThan(70);   // ... and the lane keeper stopped it leaving the lane (it leans the aim back to the lane middle)
+  expect(v.compassDeg).toBeLessThan(88);      // it turned from 90 toward 60 ...
+  expect(v.compassDeg).toBeGreaterThan(55);   // ... and the lane keeper stopped it leaving the lane (it leans the aim back to the lane middle)
   void car;
   service.detach("drv");
 });
@@ -434,6 +434,26 @@ test("a turn armed closer than the run-up to the junction is refused with advice
   expect(far.car.v.x).toBeGreaterThan(-122);                   // round the corner and on east
   expect(far.car.tally.collision + far.car.tally.wrong_lane).toBe(0);
   far.service.detach("drv");
+
+test("a heading 18 deg off the street axis is taken as the axis (a cold agent says east with 108) and the car stays in its lane", () => {
+  const j = JUNCTIONS.find((q) => q.rect[0] === -135 && q.rect[1] === 60 && q.rect[3] === 70)!;
+  let clock = 0; for (let t = 0; t < 400; t += 0.5) { const s = signalState(j, t); if (s.ns === "green" && s.ew === "red" && s.changesIn >= 30) { clock = t; break; } }
+  const service = new WorldService({ sim, nowS: () => clock });
+  services.push(service);
+  const car = service.fleet.byId("car-east")!;
+  service.attach("drv", { x: car.v.x + 1.8, z: car.v.z, maxR: 3 });
+  expect(act(service, "drv", "e", { type: "enter_vehicle" }).outcome?.ok).toBe(true);
+  const step = (id: string, a: object) => {
+    act(service, "drv", id, { type: "drive", ...a });
+    for (let i = 0; i < 400 && !service.actRecord("drv", id)?.outcome?.detail; i++) { run(service, 0.05); clock += 0.05; }
+  };
+  for (let k = 0; k < 6 && car.v.z > -60; k++) step("n" + k, { speed: 6, heading: 0 });
+  step("t", { speed: 5, turn: "right" });
+  expect(car.v.x).toBeGreaterThan(-118);
+  for (let k = 0; k < 3; k++) step("s" + k, { speed: 5, heading: 108 });   // compass 108 is 18 deg south of east: held as given it drove into the shop plinth
+  expect(Math.abs(car.v.z + 63.2)).toBeLessThan(1.5);          // right-hand lane of the 10 m street
+  expect(car.tally.collision).toBe(0);
+  service.detach("drv");
 });
 
 /** The red car on the west back street at plan x -130, put at world z `z0` facing `heading`, a green clock for the whole street, its driver in. */

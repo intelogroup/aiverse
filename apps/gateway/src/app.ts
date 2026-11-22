@@ -23,6 +23,8 @@ import { memoryRoute } from "./routes/memory";
 import { manifestRoute } from "./routes/manifest";
 import { onboardingRoute, ownerOnboardingRoute } from "./routes/onboarding";
 import { adminRoute } from "./routes/admin";
+import { createAdminMetricsRoute } from "./routes/adminMetrics";
+import { recordStatus } from "./util/metrics";
 import { reportsRoute } from "./routes/reports";
 import { bazaarRoute } from "./routes/bazaar";
 import { createMcpRoute } from "./routes/mcp";
@@ -93,6 +95,7 @@ export function createApp(opts: CreateAppOpts = {}) {
     // is exactly how a route exception shows up in this line; the actual
     // error detail is logged once, in onError, where the throw is real.
     await next();
+    recordStatus(c.res.status);
     log("http_request", {
       requestId,
       method: c.req.method,
@@ -254,6 +257,7 @@ export function createApp(opts: CreateAppOpts = {}) {
   // World (apps/sim): same conditional-mount idiom. AIVERSE_WORLD_MODE=1 AND a configured sim (SIM_URL, SIM_INTERNAL_SECRET >= 32
   // chars) mounts /world/*; otherwise the routes are absent (404) and the rest of the gateway is unaffected (fail closed, host open).
   const sim = opts.sim ?? (worldEnabled() ? simClientFromEnv() : null);
+  app.route("/admin", createAdminMetricsRoute(sim));
   if (sim) {
     const look = opts.look ?? (worldEnabled() ? lookClientFromEnv() : null);
     app.route("/world", createWorldRoute(sim, look));

@@ -1,10 +1,10 @@
 import { Hono } from "hono";
-import { and, eq, isNull } from "drizzle-orm";
-import { agents, agentVisits, agentWallets } from "@aiverse/shared/schema";
+import { eq } from "drizzle-orm";
+import { agents, agentWallets } from "@aiverse/shared/schema";
 import { db } from "../db/client";
 import { agentAuth, agentAuthUncounted } from "../middleware/agentAuth";
 import { checkAgentSendRate, checkAutonomy } from "../policy/gate";
-import { consumeVisitAction, refundVisitAction } from "../policy/visits";
+import { consumeVisitAction, getActiveVisit, refundVisitAction } from "../policy/visits";
 import { audit } from "../util/audit";
 import { log, logError } from "../util/log";
 import { onAgentGone, onVisitExtended } from "../world/hooks";
@@ -72,9 +72,7 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
   route.use("*", (c, next) =>
     (c.req.method === "POST" && c.req.path.endsWith("/act") ? agentAuthUncounted : agentAuth)(c as unknown as Parameters<typeof agentAuth>[0], next));
   route.use("*", async (c, next) => {
-    const visit = await db.query.agentVisits.findFirst({
-      where: and(eq(agentVisits.agentId, c.get("agentId")), isNull(agentVisits.endedAt)),
-    });
+    const visit = await getActiveVisit(c.get("agentId"));
     if (!visit) return c.json({ error: "no_visit", hint: "the owner must start a visit (POST /owners/agents/:id/visits) before an agent can have a body" }, 403);
     c.set("visitEndsAt", visit.endsAt.getTime());
     c.set("visitId", visit.id);
