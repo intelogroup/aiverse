@@ -13,6 +13,7 @@ import { INTERNAL_CHANNEL_HEADER, resolveAgentAuth } from "../auth/resolveAgent"
 import { resetMemoryStoreForTests } from "../policy/memoryStore";
 import { drainIngestStream } from "../jobs/ingestConsumer";
 import type { SimClient } from "../world/simClient";
+import { clearAuthCaches } from "../auth/authCache";
 
 // Adversarial edges for the agent MCP + the resolver behind it — the cases
 // the happy-path suite (mcpAgent.test.ts) does not pin: forged/expired
@@ -344,6 +345,7 @@ describe("an agent transferred away from the grant's owner fails closed", () => 
     const newOwner = await db.query.owners.findFirst({ where: eq(owners.email, b.email) });
     expect(newOwner).toBeTruthy();
     await db.update(agents).set({ ownerId: newOwner!.id }).where(eq(agents.id, a.agentId));
+    clearAuthCaches();   // fixture write bypasses the app's evictions (no app path transfers an agent; claim evicts)
 
     // After: the resolver's fail-closed owner check bites at every layer.
     expect(await resolveAgentAuth(accessToken, a.agentId, { internalChannel: true })).toBeUndefined();

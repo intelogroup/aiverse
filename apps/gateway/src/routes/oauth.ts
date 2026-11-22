@@ -13,6 +13,7 @@ import { env } from "@aiverse/shared/env";
 import { ownerAuth } from "../middleware/ownerAuth";
 import { takeToken } from "../policy/memoryStore";
 import { clientIp } from "../util/clientIp";
+import { evictGrant } from "../auth/authCache";
 import { log, logError } from "../util/log";
 import {
   ACCESS_TOKEN_TTL_SECONDS,
@@ -541,6 +542,7 @@ async function revokeFamilyAndGrant(familyId: string, grantId: string): Promise<
     .update(oauthGrants)
     .set({ revokedAt: now })
     .where(and(eq(oauthGrants.id, grantId), isNull(oauthGrants.revokedAt)));
+  evictGrant(grantId);
 }
 
 /** Revoke a grant and every refresh token minted from it (all families). */
@@ -550,6 +552,7 @@ async function revokeGrantAndTokens(grantId: string): Promise<void> {
     .update(oauthGrants)
     .set({ revokedAt: now })
     .where(and(eq(oauthGrants.id, grantId), isNull(oauthGrants.revokedAt)));
+  evictGrant(grantId);
   await db
     .update(oauthRefreshTokens)
     .set({ revokedAt: now })

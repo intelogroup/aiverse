@@ -9,6 +9,7 @@ import { db } from "../db/client";
 import { websocket } from "../ws/gateway";
 import { httpSimClient } from "../world/simClient";
 import { redis } from "../redis/client";
+import { clearAuthCaches } from "../auth/authCache";
 
 // Edge cases for the UTC clock feed (PR #206 follow-up, 2026-11-17). Same
 // harness shape as worldClock.test.ts: real gateway app, real sim server,
@@ -82,6 +83,7 @@ describe("/world UTC clock feed — edge cases", () => {
     // nothing has ended it yet (endedAt still null, no sweeper in tests).
     const pastEndsAt = new Date(Date.now() - 60_000);
     await db.update(agentVisits).set({ endsAt: pastEndsAt }).where(eq(agentVisits.id, visit.id));
+    clearAuthCaches();
 
     // whoami reads the row directly. Owner ruling (2026-11-17): `active`
     // requires the deadline to be in the future, so this expired-but-open

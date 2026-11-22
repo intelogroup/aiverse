@@ -1,5 +1,6 @@
 import { eq, inArray, or } from "drizzle-orm";
 import type { db as dbType } from "../db/client";
+import { evictAgentAuth, evictVisit } from "../auth/authCache";
 import {
   owners,
   agents,
@@ -72,6 +73,9 @@ export async function deleteAgentCascade(tx: Pick<typeof dbType, "delete" | "upd
   await tx.delete(agentVisits).where(eq(agentVisits.agentId, agentId));
   await tx.delete(agentWallets).where(eq(agentWallets.agentId, agentId));
   await tx.delete(agents).where(eq(agents.id, agentId));
+  // Every delete path (owner, admin, owner cascade) ends here. Evicted before the commit, so a request racing the transaction can re-cache the row for at most AUTH_CACHE_TTL_MS.
+  evictAgentAuth(agentId);
+  evictVisit(agentId);
 }
 
 // Deletes an owner and everything they own. Agents are cascaded one at a

@@ -6,6 +6,7 @@ import { createApp } from "../app";
 import { websocket } from "../ws/gateway";
 import { sweepVisits } from "../jobs/visits";
 import { setPresence, clearPresence, isAgentOnline } from "../presence";
+import { clearAuthCaches } from "../auth/authCache";
 
 const app = createApp();
 const server = Bun.serve({ port: 0, fetch: app.fetch, websocket });
@@ -110,6 +111,7 @@ describe("visit enforcement: time window", () => {
 
     // Force the deadline into the past — no real test should sleep 30 minutes.
     await db.update(agentVisits).set({ endsAt: new Date(Date.now() - 1000) }).where(eq(agentVisits.id, visit.id));
+    clearAuthCaches();   // a direct DB edit stands in for the clock; the cache cannot see it
 
     const afterExpiry = await readCall(agentToken);
     expect(afterExpiry.status).toBe(403);
@@ -177,6 +179,7 @@ describe("sweepVisits", () => {
     const start = await startVisit(ownerToken, agentId, 30, 100);
     const { visit } = (await start.json()) as any;
     await db.update(agentVisits).set({ endsAt: new Date(Date.now() - 1000) }).where(eq(agentVisits.id, visit.id));
+    clearAuthCaches();   // a direct DB edit stands in for the clock; the cache cannot see it
 
     const result = await sweepVisits();
     expect(result.endedByDeadlineOrCap).toBeGreaterThanOrEqual(1);

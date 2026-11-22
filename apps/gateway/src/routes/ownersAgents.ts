@@ -27,6 +27,7 @@ import { deleteAgentCascade } from "../util/deleteAgent";
 import { logError } from "../util/log";
 import { agentNameLockKey, generateAgentName, isAgentNameTaken, isAgentNameTakenTx } from "../util/agentName";
 import { EMAIL_NOT_VERIFIED, liveEditRefusal, loadOwnedAgent, ownerNeedsEmailVerification } from "./ownersShared";
+import { evictAgentAuth } from "../auth/authCache";
 
 export const ownersAgentsRoute = new Hono<{ Variables: { ownerId: string } }>();
 
@@ -225,6 +226,7 @@ ownersAgentsRoute.post("/agents/claim", ownerAuth, async (c) => {
       ),
     )
     .returning();
+  evictAgentAuth(agent.id);
 
   if (!updated) {
     // Lost a race, or the code expired between the read and the write.
@@ -522,6 +524,7 @@ ownersAgentsRoute.post("/agents/:id/pause", ownerAuth, async (c) => {
     .set({ status: "paused", pausedBy })
     .where(eq(agents.id, agentId))
     .returning();
+  evictAgentAuth(agentId);
 
   forceDisconnectAgent(agentId, 4003, "agent paused");
   broadcastToOwnerConsole(
@@ -553,6 +556,7 @@ ownersAgentsRoute.post("/agents/:id/resume", ownerAuth, async (c) => {
     .set({ status: "offline", pausedBy: null })
     .where(eq(agents.id, agentId))
     .returning();
+  evictAgentAuth(agentId);
 
   return c.json({ agent: { id: updated.id, status: updated.status } });
 });
@@ -581,6 +585,7 @@ ownersAgentsRoute.post("/agents/:id/rotate-key", ownerAuth, async (c) => {
 
   try {
     const [updated] = await db.update(agents).set({ publicKey: body.publicKey }).where(eq(agents.id, agentId)).returning();
+    evictAgentAuth(agentId);
     forceDisconnectAgent(agentId, 4005, "key rotated");
     // audit as console event + immutable security stream
     await db.insert(consoleEvents).values({
@@ -621,6 +626,7 @@ ownersAgentsRoute.post("/agents/:id/rotate-token", ownerAuth, async (c) => {
 
   const { token, hash } = generateAgentToken();
   await db.update(agents).set({ apiKeyHash: hash }).where(eq(agents.id, agentId));
+  evictAgentAuth(agentId);
   forceDisconnectAgent(agentId, 4007, "token rotated");
   await audit({ event: "agent.token_rotated", agentId, ownerId, actorType: "owner", actorId: ownerId, metadata: { name: agent.name } });
   return c.json({ agentToken: token });
@@ -644,6 +650,7 @@ ownersAgentsRoute.post("/agents/:id/kill", ownerAuth, async (c) => {
   // (AIV-KILL-RESURRECTION-001) — status alone can't carry it, since a
   // killed agent's plain "offline" is indistinguishable from a live one.
   await db.update(agents).set({ status: "offline", pausedBy: null, apiKeyHash: hash, publicKey: null, killedAt: new Date() }).where(eq(agents.id, agentId));
+  evictAgentAuth(agentId);
   forceDisconnectAgent(agentId, 4004, "agent killed");
   broadcastToOwnerConsole(
     ownerId,
