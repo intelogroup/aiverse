@@ -51,3 +51,45 @@ describe("loadsInWindow", () => {
     expect(loadsInWindow(loads, 2000, 3000)).toBe("");
   });
 });
+
+import { RUM_DAY_MS, gapBucket, shouldSendPerf, summarize, type GapRec } from "./perfLog";
+
+const rec = (ms: number, x = 123, z = -87): GapRec => ({ t: 20000, ms, x, z, draws: 900, tris: 500000, tier: "reduced", loads: " loads:a.glb 9.4MB" });
+
+describe("summarize", () => {
+  it("counts, buckets and rounds positions to 10 m", () => {
+    const s = summarize([rec(120), rec(300), rec(700), rec(1500, 123, -87)], { visibleS: 61.4, tierChanges: 1, ctxLost: 0, drawsSamples: [800, 900, 1000] });
+    expect(s).toMatchObject({ visibleS: 61, gaps: 4, worst: 1500, over250: 3, over500: 2, bucket: ">=1000", tierChanges: 1, ctxLost: 0, medianDraws: 900 });
+    expect(s.top[0]).toMatchObject({ ms: 1500, x: 120, z: -90 });
+    expect(s.top).toHaveLength(4);
+  });
+  it("keeps only the five worst", () => {
+    const s = summarize(Array.from({ length: 12 }, (_, i) => rec(100 + i * 10)), { visibleS: 30, tierChanges: 0, ctxLost: 0, drawsSamples: [] });
+    expect(s.top.map((g) => g.ms)).toEqual([210, 200, 190, 180, 170]);
+    expect(s.medianDraws).toBe(0);
+  });
+  it("an empty visit is a clean visit", () => {
+    expect(summarize([], { visibleS: 40, tierChanges: 0, ctxLost: 0, drawsSamples: [500] })).toMatchObject({ gaps: 0, worst: 0, p95: 0, bucket: "none" });
+  });
+});
+
+describe("gapBucket", () => {
+  it("edges", () => {
+    expect([0, 99, 100, 249, 250, 499, 500, 999, 1000].map(gapBucket)).toEqual(["none", "none", "100-249", "100-249", "250-499", "250-499", "500-999", "500-999", ">=1000"]);
+  });
+});
+
+describe("shouldSendPerf", () => {
+  const base = { visibleS: 60, gaps: 0, sampled: false, lastSentMs: 0, nowMs: RUM_DAY_MS * 10 };
+  it("needs sampling or a stall cluster", () => {
+    expect(shouldSendPerf(base)).toBe(false);
+    expect(shouldSendPerf({ ...base, sampled: true })).toBe(true);
+    expect(shouldSendPerf({ ...base, gaps: 3 })).toBe(true);
+    expect(shouldSendPerf({ ...base, gaps: 2 })).toBe(false);
+  });
+  it("skips short visits and sends at most once a day", () => {
+    expect(shouldSendPerf({ ...base, sampled: true, visibleS: 10 })).toBe(false);
+    expect(shouldSendPerf({ ...base, sampled: true, lastSentMs: base.nowMs - 1000 })).toBe(false);
+    expect(shouldSendPerf({ ...base, sampled: true, lastSentMs: base.nowMs - RUM_DAY_MS })).toBe(true);
+  });
+});

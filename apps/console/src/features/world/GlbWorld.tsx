@@ -32,7 +32,7 @@ import { GREETING_SCRIPT, createPlazaGreeting, type PlazaGreeting } from "./plaz
 import { type CameraMode } from "./cameraRig";
 import { attachWorldRenderer } from "../../lib/telemetry/index";
 import { FpsMeter } from "./fpsMeter";
-import { PerfOverlay, PerfProbe } from "./PerfProbe";
+import { PerfOverlay, PerfProbe, rumAllowed } from "./PerfProbe";
 import { TOUCH_DPR_MAX, capDpr, dprForTier, qualityStore } from "./quality";
 import { attachContextLossHandlers } from "./contextLoss";
 import { probeWebGLSupport } from "./contextCreate";
@@ -153,6 +153,8 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
   const agentMode = useMemo(() => new URLSearchParams(window.location.search).get("agent"), []);
   const agentPair = agentMode === "pair";
   const agentOn = agentMode === "1" || agentPair;
+  // Field performance report (PerfProbe.flushRum): once per visit, sampled, to Sentry. Never on the look service page or automation.
+  const rumOn = useMemo(() => rumAllowed(agentOn), [agentOn]);
   // Server-driven agents (apps/sim) streamed over the public feed. Off unless asked: VITE_WORLD_STREAM=1 for a build, ?stream=1 per visit
   //. The ambient VITE_WORLD_STREAM default never combines with the local Scout (a second copy of that figure); only an explicit ?stream=1 does.
   const streamParam = useMemo(() => new URLSearchParams(window.location.search).get("stream"), []);
@@ -728,7 +730,7 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
           minDistance={heroFocus?.id === "tea" && teaFloor === null ? 24 : 3}
           maxDistance={1100}
         />
-        {perfOn ? <PerfProbe /> : null}
+        {perfOn || rumOn ? <PerfProbe rum={rumOn} /> : null}
       </Canvas>
       ) : null}
       {soundRef.current ? (

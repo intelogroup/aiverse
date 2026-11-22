@@ -70,3 +70,67 @@ export function reportText(header: string, events: readonly PerfEvent[]): string
   const sum = `gaps>${GAP_MS}ms: ${g.count}  worst ${g.worst}ms  >250ms: ${g.over250}  >500ms: ${g.over500}`;
   return [header, sum, ...events.map(formatEvent)].join("\n");
 }
+
+// ── Field data (RUM): the same stall records, summarised once per visit and reported to Sentry (see PerfProbe.flushRum) ──────────────
+
+export interface GapRec { t: number; ms: number; x: number; z: number; draws: number; tris: number; tier: string; loads: string }
+
+export interface PerfSummary {
+  visibleS: number;
+  gaps: number;
+  worst: number;
+  p95: number;
+  over250: number;
+  over500: number;
+  bucket: string;
+  tierChanges: number;
+  ctxLost: number;
+  medianDraws: number;
+  /** The five worst stalls. Positions are rounded to 10 m here (the one place), so no precise track of a person leaves the device. */
+  top: GapRec[];
+}
+
+export function gapBucket(worstMs: number): string {
+  if (worstMs >= 1000) return ">=1000";
+  if (worstMs >= 500) return "500-999";
+  if (worstMs >= 250) return "250-499";
+  if (worstMs >= GAP_MS) return "100-249";
+  return "none";
+}
+
+const median = (a: readonly number[]): number => {
+  if (!a.length) return 0;
+  const s = [...a].sort((x, y) => x - y);
+  return s[Math.floor((s.length - 1) / 2)];
+};
+
+export function summarize(gaps: readonly GapRec[], meta: { visibleS: number; tierChanges: number; ctxLost: number; drawsSamples: readonly number[] }): PerfSummary {
+  const ms = gaps.map((g) => g.ms).sort((a, b) => a - b);
+  const worst = ms.length ? ms[ms.length - 1] : 0;
+  const top = [...gaps].sort((a, b) => b.ms - a.ms).slice(0, 5).map((g) => ({ ...g, ms: Math.round(g.ms), t: Math.round(g.t / 100) / 10, x: Math.round(g.x / 10) * 10, z: Math.round(g.z / 10) * 10 }));
+  return {
+    visibleS: Math.round(meta.visibleS),
+    gaps: gaps.length,
+    worst: Math.round(worst),
+    p95: ms.length ? Math.round(ms[Math.floor(0.95 * (ms.length - 1))]) : 0,
+    over250: ms.filter((m) => m > 250).length,
+    over500: ms.filter((m) => m > 500).length,
+    bucket: gapBucket(worst),
+    tierChanges: meta.tierChanges,
+    ctxLost: meta.ctxLost,
+    medianDraws: Math.round(median(meta.drawsSamples)),
+    top,
+  };
+}
+
+/** Share of visits that report. Everyone with 3+ stalls reports too (the interesting tail), still at most once per device per day. */
+export const RUM_SAMPLE = 0.25;
+export const RUM_MIN_VISIBLE_S = 15;
+export const RUM_MIN_STALLS = 3;
+export const RUM_DAY_MS = 24 * 60 * 60 * 1000;
+
+export function shouldSendPerf(o: { visibleS: number; gaps: number; sampled: boolean; lastSentMs: number; nowMs: number }): boolean {
+  if (o.visibleS < RUM_MIN_VISIBLE_S) return false;
+  if (o.nowMs - o.lastSentMs < RUM_DAY_MS) return false;
+  return o.sampled || o.gaps >= RUM_MIN_STALLS;
+}
