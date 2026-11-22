@@ -83,7 +83,7 @@ test("the original lamp meshes, low cutoff, high beam and brake lamps respond in
 test("Remy holds both sides of the actual rim from full left to full right", async () => {
   const [model, remy] = await Promise.all([
     untextured("./assets/car-concept.glb"),
-    untextured("../../apps/console/public/assets/cast-remy-lite.glb"),
+    untextured("./assets/cast-remy-lite.glb"),
   ]);
   const car = new CarView(model.scene, true);
   const driver = new DriverView(remy, car);
