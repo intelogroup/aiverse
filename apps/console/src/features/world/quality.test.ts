@@ -26,7 +26,7 @@ describe("tier levers", () => {
     expect(dprForTier("lite")).toBe(1);
     expect(shadowMapForTier("full")).toBe(2048);
     expect(shadowMapForTier("reduced")).toBe(1024);
-    expect(shadowMapForTier("lite")).toBe(0);
+    expect(shadowMapForTier("lite")).toBe(512);
   });
 });
 
