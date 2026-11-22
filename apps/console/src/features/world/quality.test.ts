@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  qualityStore,
   FrameThrottle,
   GOVERNOR_COLLAPSE_HOLD_MS,
   GOVERNOR_DWELL_MS,
@@ -145,5 +146,13 @@ describe("summarizeLoad", () => {
   });
   it("formats megabytes", () => {
     expect(formatMB(25 * 1024 * 1024)).toBe("25.0 MB");
+  });
+});
+
+describe("nolimits pin", () => {
+  it("pins full for the session without touching storage", () => {
+    qualityStore.pinFullForSession();
+    expect(qualityStore.getSnapshot().tier).toBe("full");
+    expect(window.localStorage.getItem("aiverse.quality-override")).toBeNull();
   });
 });

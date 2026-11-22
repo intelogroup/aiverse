@@ -256,6 +256,11 @@ export const qualityStore = {
     if (snapshot.override !== "auto") return;
     emit({ ...snapshot, tier: verdict.tier, reason: verdict.reason });
   },
+  /** `?nolimits=1`: pin "full" for this page view only (no storage write). */
+  pinFullForSession(): void {
+    qualityStore.getSnapshot();
+    emit({ tier: "full", reason: "nolimits diagnostic mode", override: "full" });
+  },
   setOverride(override: QualityOverride): void {
     try {
       if (override === "auto") window.localStorage.removeItem(OVERRIDE_KEY);
