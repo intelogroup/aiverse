@@ -28,7 +28,8 @@ import { RemoteBodies } from "./remoteFrames";
 import { WalkClipOverride, type WalkFrameInfo } from "./walkOverride";
 import { SoundDirector } from "./soundDirector";
 import { VOICE_BARTENDER, benchPhonon, phononWarmth, synthLine, warmPhonon } from "./phononTts";
-import { GREETING_SCRIPT, createPlazaGreeting, type PlazaGreeting } from "./plazaTts";
+import { GREETING_SCRIPT, createPlazaGreeting, playLine, prepareLine, type PlazaGreeting } from "./plazaTts";
+import { AgentSpeech } from "./agentSpeech";
 import { type CameraMode } from "./cameraRig";
 import { attachWorldRenderer } from "../../lib/telemetry/index";
 import { FpsMeter } from "./fpsMeter";
@@ -276,6 +277,31 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
       },
     );
   }
+  // Agents' public speech (the viewer stream's `say`) spoken aloud, positional, one voice per agent (agentSpeech.ts). Bound to the
+  // director like the plaza greeting; the subscription below reads the ref at call time, so a rebuilt instance is picked up.
+  const agentSpeechRef = useRef<AgentSpeech | null>(null);
+  const agentSpeechDirectorRef = useRef<SoundDirector | null>(null);
+  if (agentSpeechRef.current === null || agentSpeechDirectorRef.current !== soundRef.current) {
+    agentSpeechDirectorRef.current = soundRef.current;
+    const director = soundRef.current;
+    agentSpeechRef.current = new AgentSpeech({
+      consent: () => director.consent === "granted",
+      listener: () => { const fr = walkFrameRef.current; return fr && fr.x !== undefined && fr.z !== undefined ? { x: fr.x, z: fr.z } : null; },
+      speakerPos: (n) => {
+        const t = remoteBodies.renderTime(performance.now() / 1000);
+        const p = t === null ? null : remoteBodies.sample(n, t);
+        return p ? { x: p.x, z: p.z } : null;
+      },
+      prepare: (text, voice) => prepareLine(director, text, voice, null),
+      play: (line, pos, speaker) => playLine(director, line, pos, speaker),
+      now: () => performance.now(),
+      sleep: (ms) => new Promise<void>((r) => setTimeout(r, ms)),
+    });
+  }
+  useEffect(() => {
+    if (!streamOn) return;
+    return remoteBodies.onSay((e) => agentSpeechRef.current?.hear(e));
+  }, [streamOn, remoteBodies]);
   // Keep speech warm, once the visitor has said yes to sound: the click on "Enable sound" starts the engine load (64.5 MB)
   // and the pre-synthesis of every scripted line in the background. Nobody who declines sound downloads the model; until it
   // is warm the pre-rendered clips speak every line at once (prepareLine), so greetings never wait either way.
@@ -473,6 +499,7 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
               : null;
           }),
         log: () => plazaRef.current?.log ?? [],
+        agentSpeech: () => ({ log: agentSpeechRef.current?.log ?? [], drops: agentSpeechRef.current?.drops ?? [] }),
         status: () => plazaRef.current?.status ?? "none",
         warmth: () => phononWarmth(),
         /** Synthesize one line (tools: render pre-recorded fallback clips with the same engine + voice). */
