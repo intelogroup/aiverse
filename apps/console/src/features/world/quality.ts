@@ -50,7 +50,13 @@ export function dprForTier(tier: QualityTier): [number, number] | number {
   }
 }
 
-/** Sun shadow map size per tier; 0 = shadows off. */
+/**
+ * Sun shadow map size per tier. Never 0: switching the sun between
+ * casting and not casting changes the shader programs of every
+ * receiving material, and three recompiles them all (a 1-6 s freeze on
+ * a real iPhone right after the "tier lite" line, 2026-11-22 logs). A
+ * small map keeps the program set identical and the switch cheap.
+ */
 export function shadowMapForTier(tier: QualityTier): number {
   switch (tier) {
     case "full":
@@ -58,7 +64,7 @@ export function shadowMapForTier(tier: QualityTier): number {
     case "reduced":
       return 1024;
     case "lite":
-      return 0;
+      return 512;
   }
 }
 
