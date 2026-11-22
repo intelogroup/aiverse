@@ -14,8 +14,11 @@ const OUT = new URL("../data/", import.meta.url).pathname;
 
 /** World values; Recast wants voxels, converted below. */
 export const BAKE_PARAMS = {
-  /** The walker's body radius (WALK_CONFIG.radius): the mesh is eroded by exactly the radius the walker collides with. */
-  agentRadius: 0.4,
+  /**
+   * The walker's body radius (WALK_CONFIG.radius, 0.4) plus 5 cm: a mesh eroded by exactly the radius ran routes along furniture with zero margin, so a
+   * 1 cm drift put the body on a chair box and it stalled (world-seats: enter shop-65 blocked 1.7 m short once lamp triangles left the collision).
+   */
+  agentRadius: 0.45,
   agentHeight: 1.8,
   /**
    * Below the walker's step-up (0.4): with 0.2 m cells Recast rounds a climb up, and a 0.5 m curb read as climbable while the walker
@@ -23,7 +26,7 @@ export const BAKE_PARAMS = {
    */
   maxClimb: 0.31,
   maxSlopeDeg: 45,
-  cellSize: 0.2,
+  cellSize: 0.15,
   cellHeight: 0.1,
   tileSizeM: 51.2,
 };
