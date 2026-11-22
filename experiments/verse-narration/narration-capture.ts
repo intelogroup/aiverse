@@ -6,7 +6,7 @@
 //   visible  assistant prose the harness shows the user ("I'll walk to the tea house.")
 //   thinking reasoning blocks, when the harness/provider returns them (often summarized or absent)
 // Owner-only data: never route to a public stream (docs/procedural-city/13-spectator-product-spec.md).
-export type HarnessName = "claude" | "opencode";
+export type HarnessName = "claude" | "opencode" | "pi";
 export type NarrationKind = "visible" | "thinking";
 export interface NarrationLine { seq: number; kind: NarrationKind; text: string; chars: number; /** harness event time, ms epoch, when the stream carries one (opencode does) */ t?: number }
 
@@ -48,8 +48,25 @@ export function narrationOpencode(lines: readonly string[]): NarrationLine[] {
   return out;
 }
 
+// pi --mode json (docs/json.md): message_end carries the authoritative completed message; assistant content is an
+// array of text / thinking / toolCall blocks. message.timestamp is ms epoch. Redacted thinking has empty text and is skipped.
+export function narrationPi(lines: readonly string[]): NarrationLine[] {
+  const out: NarrationLine[] = [];
+  for (const line of lines) {
+    let event;
+    try { event = JSON.parse(line); } catch { continue; }
+    const m = event.message;
+    if (event.type !== "message_end" || m?.role !== "assistant" || !Array.isArray(m.content)) continue;
+    for (const block of m.content) {
+      if (block.type === "text") push(out, "visible", block.text, m.timestamp);
+      else if (block.type === "thinking") push(out, "thinking", block.thinking, m.timestamp);
+    }
+  }
+  return out;
+}
+
 export const narration = (name: HarnessName, lines: readonly string[]) =>
-  (name === "claude" ? narrationClaude : narrationOpencode)(lines);
+  ({ claude: narrationClaude, opencode: narrationOpencode, pi: narrationPi })[name](lines);
 
 /** Share of visible lines that are plain restatements of a tool call ("I will call drive_look") — filler. */
 export function fillerRate(lines: readonly NarrationLine[]): number {

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { fillerRate, narrationClaude, narrationOpencode, MAX_LINE_CHARS } from "./narration-capture";
+import { fillerRate, narrationClaude, narrationOpencode, narrationPi, MAX_LINE_CHARS } from "./narration-capture";
 
 const j = (...e: unknown[]) => e.map((x) => JSON.stringify(x));
 
@@ -41,4 +41,15 @@ test("fillerRate flags tool-restating lines only", () => {
 test("opencode: the event timestamp is kept so lines can be synced to tool calls", () => {
   const [l] = narrationOpencode(j({ type: "text", timestamp: 1795388000000, part: { text: "heading to the tea house" } }));
   expect(l.t).toBe(1795388000000);
+});
+
+test("pi: completed assistant messages give text and thinking; deltas, user turns and tool calls are ignored", () => {
+  const out = narrationPi(j(
+    { type: "message_end", message: { role: "user", content: "walk to the tea house", timestamp: 1 } },
+    { type: "message_update", assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "Hel" } },
+    { type: "message_end", message: { role: "assistant", timestamp: 1795388000000, content: [
+      { type: "thinking", thinking: "Tea house is shop-102." }, { type: "thinking", thinking: "", thinkingSignature: "opaque" },
+      { type: "text", text: "Heading to shop-102." }, { type: "toolCall", name: "mcp__verse__world_act" } ] } },
+  ));
+  expect(out.map((l) => [l.kind, l.text, l.t])).toEqual([["thinking", "Tea house is shop-102.", 1795388000000], ["visible", "Heading to shop-102.", 1795388000000]]);
 });
