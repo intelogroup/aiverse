@@ -1,3 +1,4 @@
+import { noLimitsActive } from "./quality";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useRef, useState } from "react";
 
@@ -16,7 +17,8 @@ export function withinLoadRadius(cx: number, cy: number, cz: number, tx: number,
 }
 
 /** True (and stays true) once the camera has been within `radius` of `target`. Costs one distance check per frame until it trips. */
-export function useProximityLatch(target: readonly [number, number, number], radius = RESIDENT_LOAD_RADIUS): boolean {
+export function useProximityLatch(target: readonly [number, number, number], radiusArg = RESIDENT_LOAD_RADIUS): boolean {
+  const radius = noLimitsActive() ? Infinity : radiusArg;
   const camera = useThree((s) => s.camera);
   const tripped = useRef(false);
   const [on, setOn] = useState(false);

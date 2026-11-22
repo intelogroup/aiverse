@@ -33,7 +33,7 @@ import { type CameraMode } from "./cameraRig";
 import { attachWorldRenderer } from "../../lib/telemetry/index";
 import { FpsMeter } from "./fpsMeter";
 import { PerfOverlay, PerfProbe, rumAllowed } from "./PerfProbe";
-import { TOUCH_DPR_MAX, capDpr, dprForTier, qualityStore } from "./quality";
+import { noLimitsActive, TOUCH_DPR_MAX, capDpr, dprForTier, qualityStore } from "./quality";
 import { attachContextLossHandlers } from "./contextLoss";
 import { probeWebGLSupport } from "./contextCreate";
 import { LONG_PRESS_MAX_MOVE_PX, LONG_PRESS_MS, coachSeen, comfortStore, hapticTick, markCoachSeen } from "./comfort";
@@ -133,6 +133,14 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
   };
   // Render-rate meter: FpsTracker (in-Canvas) writes, the panel reads.
   // ?perf=1: the on-device freeze recorder (PerfProbe.tsx). Off for everyone else; no per-frame cost when off.
+  // `?nolimits=1`: diagnostic mode. Touch devices run like desktop: no
+  // 30 fps cap, DPR up to 2, no quality governor (tier stays "full",
+  // 2048 shadows). To see what the hardware can really do; it can crash
+  // or overheat a weak phone, so it is never the default.
+  const noLimits = useMemo(() => noLimitsActive(), []);
+  useEffect(() => {
+    if (noLimits) qualityStore.pinFullForSession();
+  }, [noLimits]);
   const perfOn = useMemo(() => new URLSearchParams(window.location.search).get("perf") === "1", []);
   const fpsMeterRef = useRef<FpsMeter | null>(null);
   if (fpsMeterRef.current === null) fpsMeterRef.current = new FpsMeter();
@@ -607,7 +615,7 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
       <Canvas
         key={`world-${loadNonce}`}
         camera={camera}
-        dpr={touchUi ? capDpr(dprForTier(quality.tier), TOUCH_DPR_MAX) : [1, 2]}
+        dpr={touchUi && !noLimits ? capDpr(dprForTier(quality.tier), TOUCH_DPR_MAX) : [1, 2]}
         frameloop={agentOn ? "demand" : "always"}
         shadows={agentOn ? false : "soft"}
         gl={{ antialias: true }}
@@ -633,8 +641,8 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
         <KeyLight lightRef={keyLightRef} />
         <ShadowTagger />
         {touchUi ? <FpsTracker meterRef={fpsMeterRef} /> : null}
-        {touchUi ? <QualityDriver meterRef={fpsMeterRef} /> : null}
-        {touchUi && !agentOn ? <TouchFpsCap /> : null}
+        {touchUi && !noLimits ? <QualityDriver meterRef={fpsMeterRef} /> : null}
+        {touchUi && !agentOn && !noLimits ? <TouchFpsCap /> : null}
         <Suspense fallback={null}>
           <PresentedSignal onPresented={markPresented} />
           <DistrictWorld residentUrl={CITY3_URL} light={keyLightRef} collide={camMode === "wide" && !following && !(heroFocus?.id === "tea" && teaFloor === null)} meshesRef={colliderMeshesRef} walk={walkColliders} streamCap={touchUi ? 2 : undefined} interact={interactRef.current ?? undefined} />

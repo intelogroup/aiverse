@@ -256,6 +256,11 @@ export const qualityStore = {
     if (snapshot.override !== "auto") return;
     emit({ ...snapshot, tier: verdict.tier, reason: verdict.reason });
   },
+  /** `?nolimits=1`: pin "full" for this page view only (no storage write). */
+  pinFullForSession(): void {
+    qualityStore.getSnapshot();
+    emit({ tier: "full", reason: "nolimits diagnostic mode", override: "full" });
+  },
   setOverride(override: QualityOverride): void {
     try {
       if (override === "auto") window.localStorage.removeItem(OVERRIDE_KEY);
@@ -319,4 +324,12 @@ export function readLoadSummary(): LoadSummary {
 
 export function formatMB(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** `?nolimits=1` diagnostic mode (see GlbWorld): pure so every caller agrees. */
+export function noLimitsFromSearch(search: string): boolean {
+  return new URLSearchParams(search).get("nolimits") === "1";
+}
+export function noLimitsActive(): boolean {
+  return typeof window !== "undefined" && noLimitsFromSearch(window.location.search);
 }
