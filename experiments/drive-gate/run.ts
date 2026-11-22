@@ -52,11 +52,11 @@ async function newDriver(tag: string) {
   return { id: created.agent.id as string, token };
 }
 
-interface Meter { samples: number; junctions: number[]; red: number; collision: number; speeding: number; wrongLane: number; maxSpeed: number; drove: boolean; ended: string; path: [number, number][] }
+interface Meter { samples: number; junctions: number[]; red: number; collision: number; speeding: number; wrongLane: number; maxSpeed: number; drove: boolean; ended: string; path: [number, number][]; hits: { x: number; z: number; speed: number; junctions: number }[] }
 
 /** Poll the agent's own observe; count distinct junction entries from the body position and read the sim's infraction tally. */
 function startMeter(token: string) {
-  const m: Meter = { samples: 0, junctions: [], red: 0, collision: 0, speeding: 0, wrongLane: 0, maxSpeed: 0, drove: false, ended: "", path: [] };
+  const m: Meter = { samples: 0, junctions: [], red: 0, collision: 0, speeding: 0, wrongLane: 0, maxSpeed: 0, drove: false, ended: "", path: [], hits: [] };
   let last = -1, stop = false;
   const loop = (async () => {
     while (!stop) {
@@ -70,6 +70,7 @@ function startMeter(token: string) {
           const v = o.vehicle;
           if (v) {
             m.drove = true; m.maxSpeed = Math.max(m.maxSpeed, v.speedMps);
+            if (v.infractions.collision > m.collision) m.hits.push({ x: +x.toFixed(1), z: +z.toFixed(1), speed: +v.speedMps.toFixed(1), junctions: m.junctions.length });   // where each collision happened, for the failure census
             m.red = Math.max(m.red, v.infractions.red_light); m.collision = Math.max(m.collision, v.infractions.collision);
             m.speeding = Math.max(m.speeding, v.infractions.speeding); m.wrongLane = Math.max(m.wrongLane, v.infractions.wrong_lane);
             const j = junctionAt(x, -z);
@@ -134,7 +135,7 @@ async function main() {
     let res: Awaited<ReturnType<typeof session>> | { error: string };
     try { res = await session(me.token, join(OUT, `run-${tag}`)); } catch (e) { res = { error: String(e).slice(0, 200) }; }
     const m = await meter.finish();
-    const row = { run: i, tag, pass: passes(m), junctions: m.junctions.length, red: m.red, collision: m.collision, speeding: m.speeding, wrongLane: m.wrongLane, maxSpeed: +m.maxSpeed.toFixed(1), drove: m.drove, ended: m.ended, ...res };
+    const row = { run: i, tag, pass: passes(m), junctions: m.junctions.length, red: m.red, collision: m.collision, speeding: m.speeding, wrongLane: m.wrongLane, maxSpeed: +m.maxSpeed.toFixed(1), drove: m.drove, ended: m.ended, hits: m.hits, ...res };
     results.push(row);
     await Bun.write(join(OUT, `run-${tag}.path.json`), JSON.stringify(m.path));
     console.log(JSON.stringify(row));
