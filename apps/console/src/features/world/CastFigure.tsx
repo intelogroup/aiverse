@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useSyncExternalStore, type RefObject } from "react";
+import { useEffect, useMemo, useRef, type RefObject } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import { assetUrl } from "../../lib/assetUrl";
@@ -8,7 +8,6 @@ import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.j
 import { verticalExcess, type AgentFrame } from "./locomotion";
 import type { FigureOverride, SitPhase } from "./embody";
 import { BODY_CAST, sitClipForPhase, type BodyDef } from "./bodies";
-import { qualityStore } from "./quality";
 import { CLIP_CATALOG, clipDef, clipTesterYield, type ClipTestState } from "./clips";
 import { approach, cycleRateFor, gaitTargets, runTimeForWalkPhase, type GaitSpec } from "./gait";
 import { clipMinClearance, contactPoints, groundingOffset, rootMotionDelta, soleClearance } from "./grounding";
@@ -164,11 +163,11 @@ export function CastFigure({
   /** Stand-here position until the first crowd frame arrives. */
   home: [number, number, number];
 }) {
-  // Mobile Phase 3: at the lite tier a body with a Lite variant
-  // (bodies.ts liteUrl — resampled/quantized) loads that instead.
-  const quality = useSyncExternalStore(qualityStore.subscribe, qualityStore.getSnapshot);
+  // One model per body, whatever the quality tier. Until 2026-11-22 the lite tier swapped Remy/Summer for "-lite" files; on a real iPhone
+  // (?perf=1 log) the tier drop at 10.7 s fetched both (12.9 + 12.2 MB, BIGGER than the 9.2 + 9.4 MB full files) and the page stalled
+  // 6.0 s + 1.9 s while the figures sat on an empty Suspense fallback. Tiers now move only resolution and shadows (quality.ts).
   const gl = useThree((s) => s.gl);
-  const gltf = useGLTF(assetUrl(quality.tier === "lite" && body.liteUrl ? body.liteUrl : body.url), true, true, extendGltf(gl));
+  const gltf = useGLTF(assetUrl(body.url), true, true, extendGltf(gl));
   const group = useRef<THREE.Group>(null);
 
   // Own skeleton + own scene graph per cast member, shown at the body's display scale (bodies.ts: realistic heights).
