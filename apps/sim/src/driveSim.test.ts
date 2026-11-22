@@ -429,6 +429,31 @@ test("a heading 18 deg off the street axis is taken as the axis (a cold agent sa
   expect(Math.abs(car.v.z + 63.2)).toBeLessThan(1.5);          // right-hand lane of the 10 m street
   expect(car.tally.collision).toBe(0);
   service.detach("drv");
+
+test("a turn armed closer than the run-up to the junction is refused with advice to reverse, and from 12 m back it ends in the right lane", () => {
+  const j = JUNCTIONS.find((q) => q.rect[0] === -135 && q.rect[1] === 60 && q.rect[3] === 70)!;
+  let clock = 0; for (let t = 0; t < 400; t += 0.5) { const s = signalState(j, t); if (s.ns === "green" && s.ew === "red" && s.changesIn >= 30) { clock = t; break; } }
+  const make = (dist: number) => {
+    const service = new WorldService({ sim, nowS: () => clock });
+    services.push(service);
+    const car = service.fleet.byId("car-east")!;
+    Object.assign(car.v, { x: -127.5, y: 0.2, z: -(j.rect[1] - dist), heading: Math.PI, speed: 0 });   // right lane of the north-going street, `dist` m short of the cell
+    service.attach("drv", { x: car.v.x - 1.2, z: car.v.z, maxR: 3 });
+    expect(act(service, "drv", "e", { type: "enter_vehicle" }).outcome?.ok).toBe(true);
+    return { service, car };
+  };
+  const near = make(4);   // gate census run 2: the turn was sent 2 m short and the car stopped across the centre line
+  const refused = near.service.act("drv", "t", { type: "drive", speed: 5, turn: "right" }).outcome;
+  expect(refused?.ok).toBe(false);
+  expect(refused?.detail).toMatch(/too close to turn.*Reverse/);
+  near.service.detach("drv");
+  const far = make(12);
+  const ok = far.service.act("drv", "t", { type: "drive", speed: 5, turn: "right" }).outcome;
+  expect(ok?.ok).not.toBe(false);
+  for (let i = 0; i < 800 && !far.service.actRecord("drv", "t")?.outcome?.detail; i++) run(far.service, 0.05);
+  expect(far.car.v.x).toBeGreaterThan(-122);                   // round the corner and on east
+  expect(far.car.tally.collision + far.car.tally.wrong_lane).toBe(0);
+  far.service.detach("drv");
 });
 
 /** The red car on the west back street at plan x -130, put at world z `z0` facing `heading`, a green clock for the whole street, its driver in. */
