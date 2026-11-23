@@ -326,10 +326,10 @@ describe("look", () => {
   });
 
   it("a wall is a wall: inside a shop facing the back wall, no sky and a near wall", async () => {
-    const lot = sim.places.find((p) => p.id === "shop-65")!;
+    const lot = sim.places.find((p) => p.id === "shop-57")!;
     service.attach("eve", { x: lot.stand[0], z: lot.stand[1] });
-    await settle("eve", service.act("eve", "e1", { type: "enter", place: "shop-65" }).id, 120);
-    const door = sim.rooms.find((r) => r.id === "shop-65")!.door;
+    await settle("eve", service.act("eve", "e1", { type: "enter", place: "shop-57" }).id, 120);
+    const door = sim.rooms.find((r) => r.id === "shop-57")!.door;
     const me = service.body("eve");
     await settle("eve", service.act("eve", "e2", { type: "face", point: [me.x + (me.x - door[0]) * 10, me.z + (me.z - door[1]) * 10] }).id);
     const v = service.look("eve"), c = decode(v.classPng);
@@ -339,7 +339,7 @@ describe("look", () => {
   }, 60_000);
 
   it("a shop door reads as door from outside and from inside, and the wall beside it stays wall", async () => {
-    const room = sim.rooms.find((r) => r.id === "shop-65")!;
+    const room = sim.rooms.find((r) => r.id === "shop-57")!;
     const [x0, z0, x1, z1] = room.rect, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
     const [dx, dz] = room.door;
     // outward = the way from the room centre to its door, snapped to the wall axis
