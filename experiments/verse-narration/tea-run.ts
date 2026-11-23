@@ -6,10 +6,14 @@ import { join } from "node:path";
 import { endSession, GATEWAY, mcp, startSession } from "./verse-session";
 import { fillerRate, narration, type HarnessName } from "./narration-capture";
 
-const KEY = process.env.OPENROUTER_API_KEY;
-if (!KEY) throw new Error("set OPENROUTER_API_KEY");
+// NARRATION_PROVIDER=openai talks to api.openai.com directly (OPENAI_API_KEY, pi only); the default is OpenRouter.
+const PROVIDER = process.env.NARRATION_PROVIDER ?? "openrouter";
+if (PROVIDER !== "openrouter" && PROVIDER !== "openai") throw new Error("NARRATION_PROVIDER must be openrouter or openai");
+const KEY = PROVIDER === "openai" ? process.env.OPENAI_API_KEY : process.env.OPENROUTER_API_KEY;
+if (!KEY) throw new Error(PROVIDER === "openai" ? "set OPENAI_API_KEY" : "set OPENROUTER_API_KEY");
 const HARNESS = (process.env.NARRATION_HARNESS ?? "opencode") as HarnessName;
 if (HARNESS !== "opencode" && HARNESS !== "pi") throw new Error("NARRATION_HARNESS must be opencode or pi");
+if (PROVIDER === "openai" && HARNESS !== "pi") throw new Error("NARRATION_PROVIDER=openai is wired for pi only");
 const MODEL = process.env.NARRATION_MODEL ?? "deepseek/deepseek-v4-flash";
 // pi hides MCP tools behind a `codemode` script tool by default; "direct" declares them to the model like opencode does. Recorded in the output.
 const PI_EXPOSURE = process.env.NARRATION_PI_EXPOSURE ?? "direct";
@@ -17,7 +21,7 @@ const OUT = process.env.NARRATION_OUT ?? `/tmp/verse-narration-run-${process.env
 const TIMEOUT_S = Number(process.env.NARRATION_TIMEOUT_S ?? 420);
 const BUDGET_USD = Number(process.env.NARRATION_BUDGET_USD ?? 0.3);
 
-const usage = async () => (await (await fetch("https://openrouter.ai/api/v1/auth/key", { headers: { authorization: `Bearer ${KEY}` } })).json()).data.usage as number;
+const usage = async () => PROVIDER === "openai" ? 0 : (await (await fetch("https://openrouter.ai/api/v1/auth/key", { headers: { authorization: `Bearer ${KEY}` } })).json()).data.usage as number;
 const spend0 = await usage();
 
 const s = await startSession("Wren-" + crypto.randomUUID().slice(0, 4));
@@ -64,7 +68,7 @@ const prompt = process.env.NARRATION_PROMPT
 
 const cmd = HARNESS === "opencode"
   ? ["opencode", "run", "--format", "json", "--auto", "-m", `openrouter/${MODEL}`, prompt]
-  : ["pi", "--mode", "json", "--no-session", "--provider", "openrouter", "--model", MODEL, "--tools", PI_EXPOSURE === "direct" ? "mcp__verse__*" : "codemode,mcp__verse__*", prompt];
+  : ["pi", "--mode", "json", "--no-session", "--provider", PROVIDER, "--model", MODEL, "--tools", PI_EXPOSURE === "direct" ? "mcp__verse__*" : "codemode,mcp__verse__*", prompt];
 // NARRATION_PUSH=1 plays the opt-in harness plugin: each narration line is pushed to the gateway the moment the harness emits it, and a
 // real owner console socket (/console/ws, ticket auth) records what the owner would hear. Without it the run is capture-only.
 const PUSH = process.env.NARRATION_PUSH === "1";
@@ -81,7 +85,7 @@ if (PUSH) {
 }
 const proc = Bun.spawn(cmd, {
   cwd: join(OUT, "ws"), stdout: "pipe", stderr: "pipe", stdin: "ignore",
-  env: { ...process.env, HOME: join(OUT, "home"), XDG_CONFIG_HOME: join(OUT, "xdg"), PWD: join(OUT, "ws"), OPENROUTER_API_KEY: KEY },
+  env: { ...process.env, HOME: join(OUT, "home"), XDG_CONFIG_HOME: join(OUT, "xdg"), PWD: join(OUT, "ws"), ...(PROVIDER === "openai" ? { OPENAI_API_KEY: KEY } : { OPENROUTER_API_KEY: KEY }) },
 });
 const timer = setTimeout(() => proc.kill(), TIMEOUT_S * 1000);
 // Read the harness stream line by line AS IT ARRIVES (so a push happens when the line is emitted, not after the run).
