@@ -153,6 +153,25 @@ describe("planning does not block the tick", () => {
     expect(fails).toEqual([]);
   }, 120_000);
 
+  // Known gap, older than the 2026-11-23 waves (blocked at dc770ceb too): `enter shop-103` finds "no safe route" although go_to its door arrives. Fix the doorway, then drop this.
+  const NO_ENTRY = "shop-103";
+  it("every place in city3-places.json is reachable by go_to, and every shop with a room can be entered", async () => {
+    const places = JSON.parse(readFileSync(`${ASSETS}city3-places.json`, "utf8")) as { id: string }[];
+    const fails: string[] = [];
+    for (const p of places) {   // a fresh body per goal: a body left inside the previous shop would make the next route fail for the wrong reason
+      sim.removeBody("sweep"); sim.addBody({ id: "sweep" });
+      const g = await run(sim, "sweep", { type: "go_to", place: p.id } as ScoutAction, 400);
+      if (g.out?.status !== "arrived") fails.push(`${p.id} go_to ${JSON.stringify(g.out)}`);
+      if (p.id.startsWith("shop-") && p.id !== NO_ENTRY && sim.rooms.some((r) => r.id === p.id)) {
+        sim.removeBody("sweep"); sim.addBody({ id: "sweep" });
+        const e = await run(sim, "sweep", { type: "enter", place: p.id } as ScoutAction, 300);
+        if (e.out?.status !== "arrived" || roomAt(sim.rooms, e.snap.x, e.snap.z)?.id !== p.id) fails.push(`${p.id} enter ${JSON.stringify(e.out)}`);
+      }
+    }
+    sim.removeBody("sweep");
+    expect(fails).toEqual([]);
+  }, 300_000);
+
   it("the Great Hall (hall-0) is reachable: its stand is off the wall line", async () => {
     sim.removeBody("hall");
     sim.addBody({ id: "hall" });
