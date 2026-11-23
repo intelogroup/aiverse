@@ -162,6 +162,19 @@ def place_lot(lot, assets, rng, used):
     depth = (Z1 - Z0) if along_x else (X1 - X0)
     pool = {k: (a["W"], a["H"], a["D"]) for k, a in assets.items()}
     seq = pack(L, pool, rng, used)
+    for k in seq:
+        used[k] = used.get(k, 0) + 1
+    return place_seq(lot, assets, seq)
+
+
+def place_seq(lot, assets, seq):
+    """items for the slugs `seq`, in order along the frontage, scaled to fill it"""
+    X0, Z0, X1, Z1 = lot["rect"]
+    f = lot["face"]
+    along_x = f in ("S", "N")
+    L = (X1 - X0) if along_x else (Z1 - Z0)
+    depth = (Z1 - Z0) if along_x else (X1 - X0)
+    pool = {k: (a["W"], a["H"], a["D"]) for k, a in assets.items()}
     s = L / sum(pool[k][0] for k in seq)
     items, u = [], 0.0
     for k in seq:
@@ -173,7 +186,6 @@ def place_lot(lot, assets, rng, used):
         elif f == "E": t = (X1, 0.0, Z1 - u)
         else:          t = (X0, 0.0, Z0 + u)
         items.append({"slug": k, "t": t, "yaw": YAW[f], "s": (s, s, sz), "w": w, "h": H * s, "d": D * sz})
-        used[k] = used.get(k, 0) + 1
         u += w
     return items
 
@@ -207,17 +219,10 @@ def box_mesh(x0, z0, x1, z1, h):
     return P, I
 
 
-def apply(world, col, plan, assets, dry, mark=MARK, prefix="Kit_shop", visual_extra=()):
-    import bridge_edge_landscape
-    from bridge_edge_landscape import cut
-    bridge_edge_landscape.VISUAL_NODES += tuple(v for v in visual_extra if v not in bridge_edge_landscape.VISUAL_NODES)
+def add_asset_meshes(world, assets, slugs):
+    """one mesh, material and texture per slug into the world GLB -> {slug: mesh index}"""
     from bridge_landscape_kit import add_accessor, add_view
-    rects = [p["lot"]["plan_rect"] for p in plan.values()]
-    rep = {"visual_cut": cut(world, rects, False, dry), "collision_cut": cut(col, rects, True, dry)}
-    if dry:
-        return rep
     g = world.gltf
-    scene = g["scenes"][g.get("scene", 0)]["nodes"]
 
     def acc(a, typ, mm=False):
         a = np.ascontiguousarray(a)
@@ -225,7 +230,7 @@ def apply(world, col, plan, assets, dry, mark=MARK, prefix="Kit_shop", visual_ex
         return add_accessor(world, add_view(world, a.tobytes(), 34962), ct, len(a), typ, a.min(0).tolist() if mm else None, a.max(0).tolist() if mm else None)
 
     meshes = {}
-    for slug in sorted({it["slug"] for p in plan.values() for it in p["items"]}):
+    for slug in slugs:
         a = assets[slug]
         v = add_view(world, open(a["tex"], "rb").read(), None)
         g["bufferViews"][v].pop("target", None)
@@ -240,6 +245,23 @@ def apply(world, col, plan, assets, dry, mark=MARK, prefix="Kit_shop", visual_ex
                 "indices": add_accessor(world, add_view(world, a["I"].tobytes(), 34963), 5125, len(a["I"]), "SCALAR"), "material": len(g["materials"]) - 1}
         g["meshes"].append({"name": "Townhouse_" + slug, "primitives": [prim]})
         meshes[slug] = len(g["meshes"]) - 1
+
+    return meshes
+
+
+def apply(world, col, plan, assets, dry, mark=MARK, prefix="Kit_shop", visual_extra=()):
+    import bridge_edge_landscape
+    from bridge_edge_landscape import cut
+    bridge_edge_landscape.VISUAL_NODES += tuple(v for v in visual_extra if v not in bridge_edge_landscape.VISUAL_NODES)
+    from bridge_landscape_kit import add_accessor, add_view
+    rects = [p["lot"]["plan_rect"] for p in plan.values()]
+    rep = {"visual_cut": cut(world, rects, False, dry), "collision_cut": cut(col, rects, True, dry)}
+    if dry:
+        return rep
+    g = world.gltf
+    scene = g["scenes"][g.get("scene", 0)]["nodes"]
+
+    meshes = add_asset_meshes(world, assets, sorted({it["slug"] for p in plan.values() for it in p["items"]}))
 
     cg = col.gltf
     cscene = cg["scenes"][cg.get("scene", 0)]["nodes"]
