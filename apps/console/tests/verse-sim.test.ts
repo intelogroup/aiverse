@@ -132,8 +132,11 @@ describe("planning does not block the tick", () => {
       const a = `sit-a-${i}`, b = `sit-b-${i}`;
       sim.removeBody(a); sim.removeBody(b);
       const lot = sim.places.find((p) => p.id === seat.building)!;
-      sim.addBody({ id: a, spawn: { x: lot.stand[0] + 3, z: lot.stand[1] + 3 } });
-      sim.addBody({ id: b, spawn: { x: lot.stand[0] + 15, z: lot.stand[1] + 15 } });
+      const room = sim.rooms.find((r) => r.id === seat.building)!, [rx0, rz0, rx1, rz1] = room.rect;   // customer side: from the room centre out through its door
+      const ex = room.door[0] - (rx0 + rx1) / 2, ez = room.door[1] - (rz0 + rz1) / 2;
+      const [ox, oz] = Math.abs(ex) > Math.abs(ez) ? [Math.sign(ex), 0] : [0, Math.sign(ez)];
+      sim.addBody({ id: a, spawn: { x: lot.stand[0] + ox * 3, z: lot.stand[1] + oz * 3 } });
+      sim.addBody({ id: b, spawn: { x: lot.stand[0] + ox * 8, z: lot.stand[1] + oz * 8 } });
       let sat: ScoutOutcome | null = null;
       void sim.body(a)!.act({ type: "sit", sittable: seat.id } as ScoutAction).then((o) => (sat = o));
       sim.tick(0.1); await Promise.resolve();
