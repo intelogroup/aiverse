@@ -54,6 +54,7 @@ describe("AgentSpeech", () => {
     expect(r.played).toHaveLength(1);
     expect(r.played[0].pos).toEqual({ x: 2, z: 0 });
     expect(r.prepared[0].voice).toBe(r.speech.voices.voiceFor("Wren"));
+    expect(r.speech.log[0]).toMatchObject({ queuedMs: 0, prepareMs: 0, shape: "live" });
   });
   it("synthesizes nothing before sound consent", async () => {
     const r = rig({ consent: () => false });

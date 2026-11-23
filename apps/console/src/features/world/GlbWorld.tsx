@@ -500,6 +500,7 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
           }),
         log: () => plazaRef.current?.log ?? [],
         agentSpeech: () => ({ log: agentSpeechRef.current?.log ?? [], drops: agentSpeechRef.current?.drops ?? [] }),
+        listener: () => { const fr = walkFrameRef.current; return fr && fr.x !== undefined && fr.z !== undefined ? { x: fr.x, z: fr.z } : null; },
         status: () => plazaRef.current?.status ?? "none",
         warmth: () => phononWarmth(),
         /** Synthesize one line (tools: render pre-recorded fallback clips with the same engine + voice). */
