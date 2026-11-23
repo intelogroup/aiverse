@@ -145,7 +145,12 @@ def render(scen, synth_path, out_mp4, footprint, places_path):
     # --- map
     places = {p["id"]: p for p in json.load(open(places_path))}
     tea = places.get("shop-102", {}).get("pos", [-25, -72.5])
-    pts = [(x, z) for n in (visitor, host) for (_, x, z, _) in tracks.get(n, [])]
+    # driving scenes: REPLAY_TARGET="x,z" marks the destination instead of the tea house, and the fleet car that moved is drawn
+    target = [float(v) for v in os.environ["REPLAY_TARGET"].split(",")] if os.environ.get("REPLAY_TARGET") else None
+    if target: tea = target
+    def _len(tr): return sum(math.hypot(tr[i][1] - tr[i - 1][1], tr[i][2] - tr[i - 1][2]) for i in range(1, len(tr)))
+    cars = {n: tr for n, tr in tracks.items() if n >= 2_000_000 and len(tr) > 1 and _len(tr) > 3}
+    pts = [(x, z) for n in (visitor, host, *cars) for (_, x, z, _) in tracks.get(n, [])]
     xs, zs = [p[0] for p in pts] + [tea[0]], [p[1] for p in pts] + [tea[1]]
     cx, cz = (min(xs) + max(xs)) / 2, (min(zs) + max(zs)) / 2
     size = max(max(xs) - min(xs), max(zs) - min(zs)) + 40
@@ -172,7 +177,7 @@ def render(scen, synth_path, out_mp4, footprint, places_path):
     d.rectangle([MAP, 0, W, H], fill=(14, 18, 25))   # the map layers can spill past the map: the panel is painted over them
     f = lambda s, b=False: ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans%s.ttf" % ("-Bold" if b else ""), s)
     X, Y = px(*tea); d.ellipse([X - 16, Y - 16, X + 16, Y + 16], outline=(255, 214, 102), width=2)
-    d.text((X + 20, Y - 8), "Matchmaker's Tea House", font=f(14, True), fill=(255, 214, 102))
+    d.text((X + 20, Y - 8), "target" if target else "Matchmaker's Tea House", font=f(14, True), fill=(255, 214, 102))
     cols = {visitor: (79, 209, 255), host: (255, 180, 84)}
     def wrap(txt, n=30):
         words, lines, cur = txt.split(), [], ""
@@ -191,6 +196,15 @@ def render(scen, synth_path, out_mp4, footprint, places_path):
         for n in (visitor, host):
             tr = [a for a in tracks.get(n, []) if t - 70 <= a[0] <= t]
             if len(tr) > 1: g.line([px(a[1], a[2]) for a in tr], fill=tuple(int(v * 0.55) for v in cols[n]), width=2)
+        for n, tr in cars.items():
+            past = [a for a in tr if t - 70 <= a[0] <= t]
+            if len(past) > 1: g.line([px(a[1], a[2]) for a in past], fill=(150, 70, 60), width=3)
+            cp = pos_at(tr, t)
+            if cp:
+                X, Y = px(*cp); hd = next((a[3] for a in reversed(tr) if a[0] <= t), tr[0][3])
+                fx, fy = math.sin(hd), math.cos(hd); rx, ry = -fy, fx   # world heading 0 faces +z; the map has +z down
+                L, Wd = 2.3 * sc, 1.0 * sc
+                g.polygon([(X + fx * L + rx * Wd, Y + fy * L + ry * Wd), (X + fx * L - rx * Wd, Y + fy * L - ry * Wd), (X - fx * L - rx * Wd, Y - fy * L - ry * Wd), (X - fx * L + rx * Wd, Y - fy * L + ry * Wd)], fill=(214, 64, 52), outline=(255, 255, 255))
         me = pos_at(tracks.get(visitor), t)
         if me:
             X, Y = px(*me); r = EMITTER_AUDIBLE_M * sc
