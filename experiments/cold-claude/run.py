@@ -52,9 +52,10 @@ def agent(i, res):
     d = OUT / f"{kind}-{i:02d}"; d.mkdir(parents=True, exist_ok=True)
     rec = res[i] = {"i": i, "kind": kind}
     email = f"cold-{secrets.token_hex(4)}-{i}@example.com"
-    s, o = call("POST", "/owners/register", body={"email": email, "password": secrets.token_hex(8)})
+    password = secrets.token_hex(8)
+    s, o = call("POST", "/owners/register", body={"email": email, "password": password})
     if s >= 300: rec["fail"] = ("register", s, o); return
-    rec["email"] = email
+    rec["email"] = email; rec["password"] = password
     ot = o["token"]; rec["ownerToken"] = ot
     s, o = call("POST", "/owners/agents", ot, {"name": f"cold{i}{secrets.token_hex(2)}", "capabilities": []})
     if s >= 300: rec["fail"] = ("agent", s, o); return
@@ -108,7 +109,7 @@ def main():
     # keep results, then delete owners (cascade) so no fake accounts linger
     for r in res.values():
         if "ownerToken" in r:
-            r["owner_deleted"] = call("DELETE", "/owners/me", r["ownerToken"], {"confirmEmail": r["email"]})[0]; r.pop("ownerToken")
+            r["owner_deleted"] = call("DELETE", "/owners/me", r["ownerToken"], {"password": r["password"]})[0]; r.pop("ownerToken")
     (OUT / "result.json").write_text(json.dumps(res, indent=1, default=str))
     print(json.dumps(res, indent=1, default=str)); print("out:", OUT)
 

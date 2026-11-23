@@ -136,7 +136,7 @@ describe("hard delete", () => {
     expect(delRes.status).toBe(404);
   });
 
-  test("DELETE /me requires confirmEmail to match, then removes owner and all their agents", async () => {
+  test("DELETE /me requires the account password, then kills (not deletes) the owner's agents", async () => {
     const { email, token } = await registerAndAuth();
     const createRes = await app.request("/owners/agents", {
       method: "POST",
@@ -144,18 +144,23 @@ describe("hard delete", () => {
       body: JSON.stringify({ name: "OwnedByDeletedOwner" }),
     });
     const { agent } = await createRes.json();
+    const before = await db.query.agents.findFirst({ where: eq(agents.id, agent.id) });
 
-    const wrongConfirm = await app.request("/owners/me", {
+    // wrong password: 401 and nothing changes
+    const wrongPassword = await app.request("/owners/me", {
       method: "DELETE",
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-      body: JSON.stringify({ confirmEmail: "wrong@example.com" }),
+      body: JSON.stringify({ password: "wrong-password" }),
     });
-    expect(wrongConfirm.status).toBe(400);
+    expect(wrongPassword.status).toBe(401);
+    const afterWrong = await db.query.agents.findFirst({ where: eq(agents.id, agent.id) });
+    expect(afterWrong?.killedAt).toBeNull();
+    expect(afterWrong?.ownerId).toBe(before?.ownerId);
 
     const delRes = await app.request("/owners/me", {
       method: "DELETE",
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-      body: JSON.stringify({ confirmEmail: email }),
+      body: JSON.stringify({ password: "password123" }),
     });
     expect(delRes.status).toBe(200);
 
@@ -171,10 +176,19 @@ describe("hard delete", () => {
     });
     expect(loginRes.status).toBe(401);
 
-    // their agent and its wallet are gone too (cascaded) — checked in the DB,
-    // since the deleted owner's token no longer authenticates at all
-    expect(await db.query.agents.findFirst({ where: eq(agents.id, agent.id) })).toBeUndefined();
-    expect(await db.query.agentWallets.findFirst({ where: eq(agentWallets.agentId, agent.id) })).toBeUndefined();
+    // The agent is NOT gone — it is killed (Jim's decision 2026-11-22):
+    // row kept, killedAt set, credential rotated away, Ed25519 key nulled,
+    // owner_id nulled because the owner row no longer exists. Its wallet
+    // (an agent record, not an owner record) survives with it. Checked in
+    // the DB, since the deleted owner's token no longer authenticates.
+    const killed = await db.query.agents.findFirst({ where: eq(agents.id, agent.id) });
+    expect(killed).toBeDefined();
+    expect(killed?.killedAt).not.toBeNull();
+    expect(killed?.status).toBe("offline");
+    expect(killed?.publicKey).toBeNull();
+    expect(killed?.apiKeyHash).not.toBe(before?.apiKeyHash);
+    expect(killed?.ownerId).toBeNull();
+    expect(await db.query.agentWallets.findFirst({ where: eq(agentWallets.agentId, agent.id) })).toBeDefined();
   });
 });
 

@@ -142,7 +142,7 @@ describe("owner session revocation", () => {
   test("deleting the account invalidates its token", async () => {
     await resetMemoryStoreForTests();
     const o = await registerOwner();
-    expect((await app.request("/owners/me", { method: "DELETE", headers: json(o.token), body: JSON.stringify({ confirmEmail: o.email }) })).status).toBe(200);
+    expect((await app.request("/owners/me", { method: "DELETE", headers: json(o.token), body: JSON.stringify({ password: PASSWORD }) })).status).toBe(200);
     expect((await me(o.token)).status).toBe(401);
   });
 

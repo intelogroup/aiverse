@@ -35,7 +35,10 @@ export async function endVisitRecord(visitId: string, reason: VisitEndReason): P
     .where(and(eq(agentVisits.id, visitId), isNull(agentVisits.endedAt)))
     .returning({ id: agentVisits.id, agentId: agentVisits.agentId, ownerId: agentVisits.ownerId });
   evictVisitById(visitId);
-  return ended ? { ...ended, reason } : null;
+  // ownerId is nullable in the schema only so ENDED history rows can
+  // outlive a deleted owner account; the guarded update above only lands
+  // on an active visit, and an active visit always has its owner.
+  return ended ? { ...ended, ownerId: ended.ownerId ?? "", reason } : null;
 }
 
 export interface VisitCheckResult {

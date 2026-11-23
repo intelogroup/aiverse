@@ -76,7 +76,11 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
     if (!visit) return c.json({ error: "no_visit", hint: "the owner must start a visit (POST /owners/agents/:id/visits) before an agent can have a body" }, 403);
     c.set("visitEndsAt", visit.endsAt.getTime());
     c.set("visitId", visit.id);
-    c.set("ownerId", visit.ownerId);
+    // ownerId is nullable in the schema only so ENDED visit history can
+    // outlive a deleted owner; this lookup matched an ACTIVE visit
+    // (endedAt IS NULL), and an active visit always has its owner —
+    // account deletion ends visits before it nulls anything.
+    c.set("ownerId", visit.ownerId as string);
     await next();
   });
 

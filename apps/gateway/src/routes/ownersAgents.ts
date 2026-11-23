@@ -23,7 +23,7 @@ import { redis } from "../redis/client";
 import { todayUTC } from "../policy/gate";
 import { audit } from "../util/audit";
 import { clientIp } from "../util/clientIp";
-import { deleteAgentCascade } from "../util/deleteAgent";
+import { deleteAgentCascade, killAgentRecord } from "../util/deleteAgent";
 import { logError } from "../util/log";
 import { agentNameLockKey, generateAgentName, isAgentNameTaken, isAgentNameTakenTx } from "../util/agentName";
 import { EMAIL_NOT_VERIFIED, liveEditRefusal, loadOwnedAgent, ownerNeedsEmailVerification } from "./ownersShared";
@@ -641,15 +641,14 @@ ownersAgentsRoute.post("/agents/:id/kill", ownerAuth, async (c) => {
   const agent = await loadOwnedAgent(ownerId, agentId);
   if (!agent) return c.json({ error: "not found" }, 404);
 
-  // Both credentials must go: rotating only the bearer hash left an Ed25519
-  // agent able to /auth/challenge + /auth/verify its way back in. Nulling
-  // publicKey also fails every outstanding session JWT (resolveAgent.ts
-  // rejects a session whose agent has no key).
-  const { hash } = generateAgentToken();
-  // killedAt is the durable terminal marker the rotations check
-  // (AIV-KILL-RESURRECTION-001) — status alone can't carry it, since a
-  // killed agent's plain "offline" is indistinguishable from a live one.
-  await db.update(agents).set({ status: "offline", pausedBy: null, apiKeyHash: hash, publicKey: null, killedAt: new Date() }).where(eq(agents.id, agentId));
+  // The DB mutation is killAgentRecord (util/deleteAgent.ts), shared with
+  // account deletion so both paths kill identically: both credentials die
+  // (rotating only the bearer hash left an Ed25519 agent able to
+  // /auth/challenge + /auth/verify its way back in; nulling publicKey also
+  // fails every outstanding session JWT) and killedAt is set — the durable
+  // terminal marker the rotations check (AIV-KILL-RESURRECTION-001), since
+  // a killed agent's plain "offline" is indistinguishable from a live one.
+  await killAgentRecord(db, agentId);
   evictAgentAuth(agentId);
   forceDisconnectAgent(agentId, 4004, "agent killed");
   broadcastToOwnerConsole(

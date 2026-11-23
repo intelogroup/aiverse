@@ -610,7 +610,7 @@ describe("owner delete clears OAuth delegations", () => {
   test("an owner with a connected client can still delete their account", async () => {
     const owner = await ownerWithAgent("ownerdel");
     await mintOAuthToken(owner, [owner.agentId], "world:observe");
-    const del = await app.request("/owners/me", { method: "DELETE", headers: json(owner.session), body: JSON.stringify({ confirmEmail: owner.email }) });
+    const del = await app.request("/owners/me", { method: "DELETE", headers: json(owner.session), body: JSON.stringify({ password: "password123" }) });
     expect(del.status).toBe(200);
   });
 });

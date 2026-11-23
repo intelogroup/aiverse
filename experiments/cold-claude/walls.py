@@ -34,7 +34,8 @@ def call(method, path, token=None, body=None):
 class Agent:
     def __init__(self, tag):
         self.email = f"wall-{secrets.token_hex(4)}-{tag}@example.com"
-        s, o = call("POST", "/owners/register", body={"email": self.email, "password": secrets.token_hex(8)}); assert s < 300, ("register", s, o)
+        self.password = secrets.token_hex(8)
+        s, o = call("POST", "/owners/register", body={"email": self.email, "password": self.password}); assert s < 300, ("register", s, o)
         self.owner = o["token"]
         s, o = call("POST", "/owners/agents", self.owner, {"name": f"wall{tag}{secrets.token_hex(2)}", "capabilities": []}); assert s < 300, ("agent", s, o)
         self.id, self.tok = o["agent"]["id"], o["agentToken"]
@@ -60,7 +61,7 @@ class Agent:
         return o.get("observation") if s == 200 else None
 
     def close(self):
-        call("DELETE", "/owners/me", self.owner, {"confirmEmail": self.email})
+        call("DELETE", "/owners/me", self.owner, {"password": self.password})
 
 
 def sample_pair(a, b):
