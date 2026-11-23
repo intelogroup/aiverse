@@ -148,10 +148,11 @@
   "texture": "diffuse.png",
   "alpha_cutoff": 0.4390146627797966,
   "far_color": [
-   0.052,
-   0.058,
-   0.05
+   0.4,
+   0.37,
+   0.33
   ],
-  "role": "hall"
+  "role": "hall",
+  "far_color_note": "hand-set: the texture's mean (0.05) is the dark glazing and renders as a black slab from far away; this is the grey iron frame and brick base, lifted because the sloppy-simplified normals shade it dark"
  }
 ]
