@@ -27,7 +27,9 @@ const child = (name, args, env) => {
 
 (async () => {
   const READY = path.join(OUT, "greeter.ready"), SESSION = path.join(OUT, "session.json"), GO = path.join(OUT, "go");
-  const greeter = child("greeter", ["experiments/verse-narration/greeter.ts"], { GREETER_READY_FILE: READY });
+  // REC_NO_GREETER=1: tasks without a host (e.g. driving). NARRATION_PROMPT / NARRATION_PROVIDER / the provider key pass through the environment.
+  const NO_GREETER = process.env.REC_NO_GREETER === "1";
+  const greeter = NO_GREETER ? null : child("greeter", ["experiments/verse-narration/greeter.ts"], { GREETER_READY_FILE: READY });
   const runner = child("tea-run", ["experiments/verse-narration/tea-run.ts"], {
     NARRATION_PUSH: "1", NARRATION_HARNESS: process.env.REC_HARNESS || "opencode", NARRATION_TIMEOUT_S: String(MAX_S - 40),
     NARRATION_SESSION_FILE: SESSION, NARRATION_GO_FILE: GO, NARRATION_OUT: path.join(OUT, "harness"),
@@ -70,7 +72,7 @@ const child = (name, args, env) => {
   await snd.waitFor({ timeout: 30000 });
   await snd.click(); // the consent gesture: creates the AudioContext inside the click
   console.log("following + sound enabled; waiting for the host to be at the tea house");
-  if (!(await waitFile(READY, 280000))) console.log("host never reported ready; continuing anyway");
+  if (!NO_GREETER && !(await waitFile(READY, 280000))) console.log("host never reported ready; continuing anyway");
   await sleep(1500);
   fs.writeFileSync(GO, "go"); // release the visitor's harness
 
@@ -98,7 +100,7 @@ const child = (name, args, env) => {
   const info = await page.evaluate(() => ({ log: window.__tts && window.__tts.agentSpeech ? window.__tts.agentSpeech() : null, audio: window.__audio, eng: window.__tts && window.__tts.engine ? window.__tts.engine() : null })).catch(() => null);
   fs.writeFileSync(path.join(OUT, "speech-log.json"), JSON.stringify(info && info.log, null, 1));
   await browser.close();
-  [runner, greeter].forEach((p) => { try { p.kill(); } catch {} });
+  [runner, greeter].forEach((p) => { try { p && p.kill(); } catch {} });
   console.log(`frames: ${frames.length} over ${((frames[frames.length - 1].t - frames[0].t) / 1000).toFixed(0)} s;`, "page errors:", errs.length, errs.slice(0, 2));
 
   // ---- assemble: variable-frame-rate video (each frame shown for the real time until the next), then the real audio
