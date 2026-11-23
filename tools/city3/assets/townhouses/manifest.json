@@ -138,5 +138,20 @@
    0.076,
    0.068
   ]
+ },
+ {
+  "slug": "troyes_market_hall",
+  "name": "Troyes Market Hall [France]",
+  "author": "Lost Gecko",
+  "source": "https://sketchfab.com/3d-models/704dee7fa5e54cbc88de174ea1272b60",
+  "license": "CC-BY-4.0",
+  "texture": "diffuse.png",
+  "alpha_cutoff": 0.4390146627797966,
+  "far_color": [
+   0.052,
+   0.058,
+   0.05
+  ],
+  "role": "hall"
  }
 ]

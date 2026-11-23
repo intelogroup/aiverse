@@ -1,0 +1,11 @@
+Model Information:
+* title:	Troyes Market Hall [France]
+* source:	https://sketchfab.com/3d-models/troyes-market-hall-france-704dee7fa5e54cbc88de174ea1272b60
+* author:	Lost Gecko (https://sketchfab.com/Lost_Gecko)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Troyes Market Hall [France]" (https://sketchfab.com/3d-models/troyes-market-hall-france-704dee7fa5e54cbc88de174ea1272b60) by Lost Gecko (https://sketchfab.com/Lost_Gecko) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
