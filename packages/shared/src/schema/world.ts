@@ -13,6 +13,7 @@ import {
   integer,
   unique,
   boolean,
+  vector,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { goals } from "./economy";
@@ -105,6 +106,17 @@ export const agentVisits = pgTable(
 // Native-agent memory v1 — deliberately flat, no embeddings/RAG. Whether
 // persistent recall changes behavior is the thing being tested; a richer
 // store is only worth building once that's confirmed.
+//
+// v2 (2026-11-22, visit-end distillation): three nullable additions, all
+// set only for rows the distillation job writes when a visit ends —
+// sourceVisitId (provenance: which visit produced this entry), entryHash
+// (sha-256 of the normalized content; with agentId+sourceVisitId it forms
+// the idempotency key that makes re-processing a visit a no-op), and
+// embedding (384-dim, same pgvector convention as messages.embedding;
+// populated through the gateway's embedder interface, null when no
+// embedding provider is configured). Agent-written rows (POST /memory)
+// leave all three null, and Postgres treats NULLs as distinct in the
+// unique index, so the v1 write path is unconstrained by it.
 export const agentMemory = pgTable(
   "agent_memory",
   {
@@ -113,6 +125,13 @@ export const agentMemory = pgTable(
     type: text("type").notNull(), // interaction | encountered_agent | conclusion | goal_note
     content: text("content").notNull(),
     sourceMessageId: uuid("source_message_id"),
+    // Which visit's end-of-visit distillation produced this entry, if any.
+    sourceVisitId: uuid("source_visit_id").references(() => agentVisits.id),
+    // sha-256 of the distilled entry's normalized text (distilled rows only).
+    entryHash: text("entry_hash"),
+    // 384-dim pgvector, same convention as messages.embedding; null until
+    // an embedder is configured and the row is processed.
+    embedding: vector("embedding", { dimensions: 384 }),
     // Which experiment run produced this memory row, if any. Authoritative for
     // experiment attribution; cross-checked in tests against
     // sourceMessageId → messages.runId (must agree) but NOT mandatory here,
@@ -125,7 +144,37 @@ export const agentMemory = pgTable(
     goalId: uuid("goal_id").references(() => goals.id),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => [index("agent_memory_agent_idx").on(t.agentId, t.createdAt), index("agent_memory_goal_idx").on(t.goalId)],
+  (t) => [
+    index("agent_memory_agent_idx").on(t.agentId, t.createdAt),
+    index("agent_memory_goal_idx").on(t.goalId),
+    // Distillation idempotency: one row per (agent, visit, entry). Only
+    // distilled rows carry all three values, so only they participate.
+    uniqueIndex("agent_memory_distilled_unique").on(t.agentId, t.sourceVisitId, t.entryHash),
+  ],
+);
+
+// Visit-end memory distillation queue. endVisitRecord (policy/visits.ts)
+// inserts one row per visit in the same breath as the guarded end UPDATE
+// lands — only the caller whose UPDATE won the race gets a row back from
+// its insert attempt, so exactly one row ever exists per visit
+// (visit_id UNIQUE is the backstop). The leader-only job
+// (jobs/memoryDistillation.ts) claims pending rows, distills the visit's
+// record into agent_memory entries, and settles the row done/failed;
+// a failure here never touches the visit itself.
+export const visitDistillations = pgTable(
+  "visit_distillations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    visitId: uuid("visit_id").notNull().unique().references(() => agentVisits.id),
+    agentId: uuid("agent_id").notNull().references(() => agents.id),
+    status: text("status").notNull().default("pending"), // pending | processing | done | failed
+    attempts: integer("attempts").notNull().default(0),
+    entriesWritten: integer("entries_written").notNull().default(0),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [index("visit_distillations_status_idx").on(t.status, t.createdAt)],
 );
 
 // Egg claims: one payload per agent per egg, ever. The unique pair is the claim lock (see routes/eggs.ts).

@@ -114,6 +114,14 @@ export const env = {
   // with a key set (behavioral testing without burning tokens). openrouter:
   // force real calls, fail loud if key missing.
   NATIVE_LLM_MODE: (process.env.NATIVE_LLM_MODE ?? "auto") as "auto" | "mock" | "openrouter" | "ollama" | "zai",
+  // Agent-memory embeddings (visit-end distillation + semantic recall,
+  // llm/embedder.ts). Optional — with MEMORY_EMBEDDING_URL unset, distilled
+  // memory entries are written with a NULL embedding and GET /memory/recall
+  // reports itself unconfigured rather than guessing. The endpoint must
+  // serve 384-dim vectors (the pgvector convention messages.embedding set).
+  MEMORY_EMBEDDING_URL: process.env.MEMORY_EMBEDDING_URL,
+  MEMORY_EMBEDDING_API_KEY: process.env.MEMORY_EMBEDDING_API_KEY,
+  MEMORY_EMBEDDING_MODEL: process.env.MEMORY_EMBEDDING_MODEL,
   // Direct-OpenAI native model override (default gpt-4.1-nano).
   NATIVE_OPENAI_MODEL: process.env.NATIVE_OPENAI_MODEL,
   // System-wide cap on tokens the gateway itself pays for per UTC day (native
