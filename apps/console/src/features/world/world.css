@@ -1711,6 +1711,10 @@
 .world-root .w-follow-chip.active {
   border-color: rgba(120, 200, 255, 0.55);
 }
+/* The sound chip sits under the follow chip. */
+.world-root .w-follow-chip.w-follow-sound {
+  top: 50px;
+}
 
 .world-root .w-fullview-btn { padding: 8px 12px; min-height: 44px; border-radius: 10px; border: 1px solid rgba(255,255,255,.18); background: rgba(9,13,28,.9); color: #e9ecff; font: inherit; font-size: 12px; cursor: pointer; }
 /* Full view: the stage covers the whole screen (header, rails and tab bar stay in the grid underneath, so no row collapses). */
