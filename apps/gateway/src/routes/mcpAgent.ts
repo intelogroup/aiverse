@@ -61,6 +61,17 @@ interface CallResult {
 
 type Call = (path: string, opts?: { method?: string; agentId?: string; body?: unknown }) => Promise<CallResult>;
 
+/** A string that holds a plain JSON object becomes that object; every other value is returned as it came. */
+export function unwrapJsonObject(v: unknown): unknown {
+  if (typeof v !== "string") return v;
+  try {
+    const parsed: unknown = JSON.parse(v);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : v;
+  } catch {
+    return v;
+  }
+}
+
 function ok(text: string): CallToolResult {
   return { content: [{ type: "text", text }] };
 }
@@ -452,7 +463,7 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
     "world_act",
     "Act in the world (POST /world/act): one flat action object, passed through untouched — {type:\"go_to\"|\"run_to\"|\"enter\"|\"face\"|\"wait\"|\"sit\"|\"stand\"|\"play\"|\"interact\"|\"gaze\"|\"say\"|\"stop\"|\"enter_vehicle\"|\"drive\"|\"exit_vehicle\", ...fields} (see the guide resource or GET /world/clips for the play vocabulary). Needs an attached body. The sim accepts or refuses in its own words, returned verbatim. An optional id makes the act idempotent (a retry with the same id and action replays the first record); one is generated when omitted. Requires the world:act scope for OAuth tokens.",
     {
-      action: z.any().describe("A flat world action, for example {\"type\":\"go_to\",\"place\":\"shop-102\"}. For a usable elevator in world_observe.landmarks, use {\"type\":\"ride_elevator\",\"target\":\"<marker id>\",\"floor\":\"L2\"}. Poll world_observe for the result."),
+      action: z.any().describe("A flat world action as an OBJECT (not a string of JSON), for example {\"type\":\"go_to\",\"place\":\"shop-102\"}. For a usable elevator in world_observe.landmarks, use {\"type\":\"ride_elevator\",\"target\":\"<marker id>\",\"floor\":\"L2\"}. Poll world_observe for the result."),
       id: z
         .string()
         .min(1)
@@ -461,9 +472,13 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
         .describe("Idempotency id for this act (1-80 letters, digits or dashes). Generated when omitted."),
       agent_id: agentIdArg,
     },
-    async ({ action, id, agent_id }, call) => {
+    async ({ action: rawAction, id, agent_id }, call) => {
       const gate = scopeGate(caller, "world:act", "world_act");
       if (gate) return gate;
+      // Weaker models send the action as JSON TEXT ("{\"type\":\"go_to\"...}") instead of an object, and repeat that after every refusal
+      // (seen live: a free 550B model retried it ~20 times and reported the tool as broken). The same decision in another envelope:
+      // unwrap it. Only a string holding a plain JSON object is unwrapped; anything else goes through untouched and the sim explains.
+      const action = unwrapJsonObject(rawAction);
       return asAgent({ agent_id }, async (agentId) => {
         const res = await call("/world/act", {
           method: "POST",

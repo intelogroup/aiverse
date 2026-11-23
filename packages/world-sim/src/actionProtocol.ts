@@ -35,6 +35,7 @@ export function validAction(a: unknown): boolean { return explainAction(a) === n
 
 /** Why an action is refused (null when it is valid). The message names the valid options, so a cold agent can correct itself. */
 export function explainAction(a: unknown): string | null {
+  if (typeof a === "string") return "action must be an object with a type, not a string: pass the object itself, e.g. {\"type\":\"go_to\",\"place\":\"shop-102\"}, not JSON text";
   if (!a || typeof a !== "object") return "action must be an object with a type";
   const v = a as Record<string, unknown>;
   const extra = (...keys: string[]) => {
