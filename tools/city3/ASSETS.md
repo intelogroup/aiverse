@@ -35,6 +35,24 @@ The central upload register is `assets/user_uploads.json`; `assets/external_cand
 | Vintage Oil Lamp | Monsta3D | CC0 | https://polyhaven.com/a/vintage_oil_lamp |
 | Potted Plant 02 | Rico Cilliers | CC0 | https://polyhaven.com/a/potted_plant_02 |
 
+## Townhouses (citadel block rebuild, world-city3.glb)
+
+Ten Lost Gecko street-front buildings on Sketchfab, CC-BY 4.0, vendored in `assets/townhouses/<slug>/` (geometry plus the diffuse texture only; the normal and
+specular maps are dropped, `manifest.json` lists them). They replace the eight hollow citadel boxes (shop-148..155).
+
+| Asset | Author | Licence | Source |
+|---|---|---|---|
+| Bordeaux Flat 1 corner [France] | Lost Gecko | CC-BY 4.0 | https://sketchfab.com/3d-models/cde0ef76b4ab482bad79d29fe5fb7a88 |
+| Nivelles House 9 [Belgium] | Lost Gecko | CC-BY 4.0 | https://sketchfab.com/3d-models/9a6bbcb6da704592b368e29b87cac11d |
+| Angers Shop 2 [France] | Lost Gecko | CC-BY 4.0 | https://sketchfab.com/3d-models/bbed1d3fdae3493b8f1872c9a9e7e8d4 |
+| Troyes Shop 7 [France] | Lost Gecko | CC-BY 4.0 | https://sketchfab.com/3d-models/8fb84880b9234a8a8cbc8b92b46e38a6 |
+| Cork Corner Shop 1 [Ireland] | Lost Gecko | CC-BY 4.0 | https://sketchfab.com/3d-models/21818eaa4c1c402a82baf9031ebaa93a |
+| Mons Shop 2 [Belgium] | Lost Gecko | CC-BY 4.0 | https://sketchfab.com/3d-models/7397096856d3452fa15ae074f460ad36 |
+| Nivelles House 1 [Belgium] | Lost Gecko | CC-BY 4.0 | https://sketchfab.com/3d-models/592cc5891ef34ab98abdeaa8b9b1fba8 |
+| Angers Shop 1 [France] | Lost Gecko | CC-BY 4.0 | https://sketchfab.com/3d-models/ec891e10fe26403aa072173bb89861bb |
+| Nivelles House 2 [Belgium] | Lost Gecko | CC-BY 4.0 | https://sketchfab.com/3d-models/65523e6f1e3c46d9930aa727a457cf0f |
+| Guingamp Shop 1 [France] | Lost Gecko | CC-BY 4.0 | https://sketchfab.com/3d-models/8bf9f75a6aeb4b77b195cbc55f21edb8 |
+
 ## Halo Lagoon (world-halo.glb)
 
 | Asset | Author | Licence | Source |
