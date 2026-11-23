@@ -53,6 +53,8 @@ specular maps are dropped, `manifest.json` lists them). They replace the eight h
 | Nivelles House 2 [Belgium] | Lost Gecko | CC-BY 4.0 | https://sketchfab.com/3d-models/65523e6f1e3c46d9930aa727a457cf0f |
 | Guingamp Shop 1 [France] | Lost Gecko | CC-BY 4.0 | https://sketchfab.com/3d-models/8bf9f75a6aeb4b77b195cbc55f21edb8 |
 | Troyes Market Hall [France] (the civic hall, `Kit_hall0`) | Lost Gecko | CC-BY 4.0 | https://sketchfab.com/3d-models/704dee7fa5e54cbc88de174ea1272b60 |
+| Gazebo (the garden block centre, `Kit_garden0`) | ZareShadows | CC-BY 4.0 | https://sketchfab.com/3d-models/ab95dfb3816e4160989f26972c4c7c39 |
+| Rose Arch (four garden entrances, `Kit_garden1-4`; titled CC0 on the page, its licence file says CC-BY 4.0, so credited) | plaggy | CC-BY 4.0 | https://sketchfab.com/3d-models/5578bdc83ed743feb5f7c775197f5fbe |
 
 ## Halo Lagoon (world-halo.glb)
 

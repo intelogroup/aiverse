@@ -1,0 +1,11 @@
+Model Information:
+* title:	Gazebo
+* source:	https://sketchfab.com/3d-models/gazebo-ab95dfb3816e4160989f26972c4c7c39
+* author:	ZareShadows (https://sketchfab.com/ZareShadows)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Gazebo" (https://sketchfab.com/3d-models/gazebo-ab95dfb3816e4160989f26972c4c7c39) by ZareShadows (https://sketchfab.com/ZareShadows) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

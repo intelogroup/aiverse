@@ -154,5 +154,36 @@
   ],
   "role": "hall",
   "far_color_note": "hand-set: the texture's mean (0.05) is the dark glazing and renders as a black slab from far away; this is the grey iron frame and brick base, lifted because the sloppy-simplified normals shade it dark"
+ },
+ {
+  "unit": 100.0,
+  "slug": "park_gazebo",
+  "name": "Gazebo",
+  "author": "ZareShadows",
+  "source": "https://sketchfab.com/3d-models/ab95dfb3816e4160989f26972c4c7c39",
+  "license": "CC-BY-4.0",
+  "texture": "diffuse.jpg",
+  "alpha_cutoff": null,
+  "far_color": [
+   0.206,
+   0.138,
+   0.087
+  ],
+  "role": "prop"
+ },
+ {
+  "slug": "rose_arch",
+  "name": "Rose Arch",
+  "author": "plaggy",
+  "source": "https://sketchfab.com/3d-models/5578bdc83ed743feb5f7c775197f5fbe",
+  "license": "CC-BY-4.0",
+  "texture": "diffuse.jpg",
+  "alpha_cutoff": null,
+  "far_color": [
+   0.009,
+   0.012,
+   0.011
+  ],
+  "role": "prop"
  }
 ]
