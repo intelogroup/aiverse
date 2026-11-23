@@ -72,6 +72,16 @@ const TREE = /^(ls_tree|Tree_)/, TREE_RATIO = Number(process.env.TREE_RATIO ?? 0
       // the market hall is trusswork that edge collapse stops short on (4618 -> 3741 tris at any ratio): from far away it only needs a silhouette, so the topology-blind simplifier does it
       const target = Math.max(36, Math.floor(ia.length * ratio / 3) * 3);
       const [ni] = /^Kit_hall/.test(n.getName()) ? MeshoptSimplifier.simplifySloppy(src, pos, 3, null, target, err) : MeshoptSimplifier.simplify(src, pos, 3, target, err);
+      if (/^Kit_hall/.test(n.getName()) && prim.getAttribute("NORMAL")) { // sloppy keeps each surviving vertex's original normal while its triangles now span other faces (blotchy): smooth the normals from the new triangles
+        const nm = new Float32Array(pos.length);
+        for (let t = 0; t < ni.length; t += 3) {
+          const [a, b, c] = [ni[t] * 3, ni[t + 1] * 3, ni[t + 2] * 3], e1 = [pos[b] - pos[a], pos[b + 1] - pos[a + 1], pos[b + 2] - pos[a + 2]], e2 = [pos[c] - pos[a], pos[c + 1] - pos[a + 1], pos[c + 2] - pos[a + 2]];
+          const f = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]]; // area-weighted
+          for (const v of [a, b, c]) for (let k = 0; k < 3; k++) nm[v + k] += f[k];
+        }
+        for (let v = 0; v < nm.length; v += 3) { const l = Math.hypot(nm[v], nm[v + 1], nm[v + 2]); if (l > 0) { nm[v] /= l; nm[v + 1] /= l; nm[v + 2] /= l; } else nm[v + 1] = 1; } // a vertex no triangle uses points up
+        prim.getAttribute("NORMAL").setNormalized(false).setArray(nm);
+      }
       prim.setIndices(doc.createAccessor().setArray(ia.length < 65536 || Math.max(...ni) < 65536 ? Uint16Array.from(ni) : ni).setType("SCALAR").setBuffer(buffer));
     }
   }
