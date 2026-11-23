@@ -65,8 +65,15 @@ const child = (name, args, env) => {
   page.on("pageerror", (e) => errs.push(String(e).slice(0, 200)));
   await page.goto(`${CONSOLE}/?stream=1&ttsDebug=1`, { waitUntil: "domcontentloaded" });
 
+  const cons = []; page.on("console", (m) => { if (["error", "warning"].includes(m.type())) cons.push(m.type() + ": " + m.text().slice(0, 200)); });
+  page.on("requestfailed", (r) => cons.push("requestfailed: " + r.url().slice(0, 150)));
   const chip = page.getByTestId("follow-chip");
-  await chip.waitFor({ timeout: 240000 });
+  try { await chip.waitFor({ timeout: 240000 }); } catch (e) {
+    // diagnose instead of just timing out: what the page shows and what it complained about
+    await page.screenshot({ path: path.join(OUT, "no-follow-chip.png"), timeout: 120000 }).catch(() => {});
+    fs.writeFileSync(path.join(OUT, "no-follow-chip.txt"), JSON.stringify({ errs, cons: cons.slice(0, 60), text: await page.evaluate(() => document.body.innerText.slice(0, 1500)).catch(() => null), testids: await page.evaluate(() => [...document.querySelectorAll("[data-testid]")].map((n) => n.dataset.testid)).catch(() => null) }, null, 1));
+    throw e;
+  }
   await chip.click();
   const snd = page.getByTestId("follow-sound");
   await snd.waitFor({ timeout: 30000 });
