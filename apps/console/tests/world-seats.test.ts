@@ -26,12 +26,12 @@ async function settle(agent: string, id: string, maxS = 200) {
 
 describe("seats in observe", () => {
   it("lists the room's seats, shows claims, refuses a second sitter, frees on stand", async () => {
-    const seat = sim.sittables.find((s) => s.building === "shop-65" && s.group)!;
-    const lot = sim.places.find((p) => p.id === "shop-65")!;
+    const seat = sim.sittables.find((s) => s.building === "shop-56" && s.group)!;
+    const lot = sim.places.find((p) => p.id === "shop-56")!;
     service.attach("alice", { x: lot.stand[0], z: lot.stand[1] });
     service.attach("bob", { x: lot.stand[0] + 15, z: lot.stand[1] + 15 });
 
-    const e = await settle("alice", service.act("alice", "a1", { type: "enter", place: "shop-65" }).id);
+    const e = await settle("alice", service.act("alice", "a1", { type: "enter", place: "shop-56" }).id);
     expect(JSON.stringify(e)).toContain("arrived");
     const seen = service.observe("alice").scene.filter((o) => o.kind === "seat");
     expect(seen.length, "seats of the room, within 25 m and the view cone or 2.5 m").toBeGreaterThan(0);

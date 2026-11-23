@@ -28,6 +28,13 @@ the background.
 `harness/tv4.html`: the controller's world-space foot positions vs the original clip's, best rigid yaw fit (should equal the clip's start offset, error in
 mm). `harness/turn_verify.html`: pelvis yaw vs heading. Measure clip properties in **three space** (Blender axes flip signs).
 
+## Plan vs GLB (2026-11-23)
+`plan.json` is generated and gitignored; bridge_* passes change the GLB without updating it, so the two drift (a first review counted 152 "facade-only" buildings
+because 143 were ring lots whose triangles the landscape pass had collapsed to points, not deleted). `python3 tools/city3/check_plan_vs_glb.py [glb]` reads
+plan.py fresh and classifies every building as real (Bones node on its footprint), landscape (ring or demolished, no live facade triangle) or shim (facade only).
+Today: 58 real, 162 landscape, 9 shims (block (4,1) plus the hall) in `KNOWN_SHIMS`; the list must reach empty. `--selftest` covers the classifier.
+Trap: removed triangles are degenerate, not deleted, so count live area (cross product > 0), never centroids alone.
+
 ## What NOT to trust
 - Handle/bookkeeping counters (use scene/renderer truth).
 - Height-threshold "foot contact" slide metrics (a stepping foot has fewer low frames, flattering the result). Use the rigid-fit test.

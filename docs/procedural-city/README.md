@@ -10,6 +10,11 @@ re-deriving it. Written 2026-11-06 at the end of a long build; update it, don't 
 > Terraces district deletion exist only on the unpublished branch `tmp/bazaar-teahouse-sweep`.
 > The sizes quoted in `01-state-and-commands.md` are the 2026-11-06 build session's figures.
 
+> **2026-11-23 update (branch `feat/city3-rebuild`, not on main):** the citadel (8 Kit_shop townhouses) and the civic hall (`Kit_hall0`) are prebuilt CC-BY kits;
+> lots 164-171 are a garden and 60-67 an orchard (`bridge_garden_block.py --block`), after the earlier lido, sports field and park. World GLB 95.3 MB, far LOD
+> 4.98 of 10 MB, every budget cap doubled. `check_plan_vs_glb.py`: 51 real, 178 landscape, 0 shims. After any demolition run `prune_places.py`, rebake the
+> navmesh and rebuild the tiles. Open: 51 Bones market buildings unpolished, ring district not started, Troyes Shop 7 on both W and E citadel lots.
+
 | File | What it holds |
 |---|---|
 | `01-state-and-commands.md` | What exists, where it lives, how to rebuild/test/verify, current numbers and budgets |

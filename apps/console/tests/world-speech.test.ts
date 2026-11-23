@@ -79,9 +79,9 @@ describe("say", () => {
     expect(nobody.outcome).toMatchObject({ ok: false, status: "unavailable" });
     expect(nobody.outcome?.detail).toContain("not_visible");
     service.detach("dan");
-    const lot = sim.places.find((p) => p.id === "shop-65")!;
+    const lot = sim.places.find((p) => p.id === "shop-56")!;
     service.attach("eve", { x: lot.stand[0], z: lot.stand[1] });
-    expect(JSON.stringify(await settle("eve", service.act("eve", "e1", { type: "enter", place: "shop-65" }).id, 120))).toContain("arrived");
+    expect(JSON.stringify(await settle("eve", service.act("eve", "e1", { type: "enter", place: "shop-56" }).id, 120))).toContain("arrived");
     const me = service.body("eve");
     service.attach("fay", { x: me.x + 4, z: -60.5 }); // outside the south wall, 4 m off the door axis
     await settle("fay", service.act("fay", "f1", { type: "say", text: "through the wall?" }, { name: "Fay" }).id, 5);

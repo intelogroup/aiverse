@@ -408,5 +408,70 @@
     "licence": "CC0",
     "url": "https://opengameart.org/content/low-poly-doors-asset",
     "use": "Bazaar shop entrance doors (bridge_bazaar_doors.py)"
+  },
+  {
+    "asset": "townhouse_bordeaux_flat_1_corner",
+    "source": "https://sketchfab.com/3d-models/cde0ef76b4ab482bad79d29fe5fb7a88",
+    "license": "CC-BY 4.0"
+  },
+  {
+    "asset": "townhouse_nivelles_house_9",
+    "source": "https://sketchfab.com/3d-models/9a6bbcb6da704592b368e29b87cac11d",
+    "license": "CC-BY 4.0"
+  },
+  {
+    "asset": "townhouse_angers_shop_2",
+    "source": "https://sketchfab.com/3d-models/bbed1d3fdae3493b8f1872c9a9e7e8d4",
+    "license": "CC-BY 4.0"
+  },
+  {
+    "asset": "townhouse_troyes_shop_7",
+    "source": "https://sketchfab.com/3d-models/8fb84880b9234a8a8cbc8b92b46e38a6",
+    "license": "CC-BY 4.0"
+  },
+  {
+    "asset": "townhouse_cork_corner_shop_1",
+    "source": "https://sketchfab.com/3d-models/21818eaa4c1c402a82baf9031ebaa93a",
+    "license": "CC-BY 4.0"
+  },
+  {
+    "asset": "townhouse_mons_shop_2",
+    "source": "https://sketchfab.com/3d-models/7397096856d3452fa15ae074f460ad36",
+    "license": "CC-BY 4.0"
+  },
+  {
+    "asset": "townhouse_nivelles_house_1",
+    "source": "https://sketchfab.com/3d-models/592cc5891ef34ab98abdeaa8b9b1fba8",
+    "license": "CC-BY 4.0"
+  },
+  {
+    "asset": "townhouse_angers_shop_1",
+    "source": "https://sketchfab.com/3d-models/ec891e10fe26403aa072173bb89861bb",
+    "license": "CC-BY 4.0"
+  },
+  {
+    "asset": "townhouse_nivelles_house_2",
+    "source": "https://sketchfab.com/3d-models/65523e6f1e3c46d9930aa727a457cf0f",
+    "license": "CC-BY 4.0"
+  },
+  {
+    "asset": "townhouse_guingamp_shop_1",
+    "source": "https://sketchfab.com/3d-models/8bf9f75a6aeb4b77b195cbc55f21edb8",
+    "license": "CC-BY 4.0"
+  },
+  {
+    "asset": "townhouse_troyes_market_hall",
+    "source": "https://sketchfab.com/3d-models/704dee7fa5e54cbc88de174ea1272b60",
+    "license": "CC-BY 4.0"
+  },
+  {
+    "asset": "townhouse_park_gazebo",
+    "source": "https://sketchfab.com/3d-models/ab95dfb3816e4160989f26972c4c7c39",
+    "license": "CC-BY 4.0"
+  },
+  {
+    "asset": "townhouse_rose_arch",
+    "source": "https://sketchfab.com/3d-models/5578bdc83ed743feb5f7c775197f5fbe",
+    "license": "CC-BY 4.0"
   }
 ]

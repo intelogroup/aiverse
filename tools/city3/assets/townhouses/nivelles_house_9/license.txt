@@ -1,0 +1,11 @@
+Model Information:
+* title:	Nivelles House 9 [Belgium]
+* source:	https://sketchfab.com/3d-models/nivelles-house-9-belgium-9a6bbcb6da704592b368e29b87cac11d
+* author:	Lost Gecko (https://sketchfab.com/Lost_Gecko)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Nivelles House 9 [Belgium]" (https://sketchfab.com/3d-models/nivelles-house-9-belgium-9a6bbcb6da704592b368e29b87cac11d) by Lost Gecko (https://sketchfab.com/Lost_Gecko) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

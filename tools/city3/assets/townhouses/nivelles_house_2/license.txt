@@ -1,0 +1,11 @@
+Model Information:
+* title:	Nivelles House 2 [Belgium]
+* source:	https://sketchfab.com/3d-models/nivelles-house-2-belgium-65523e6f1e3c46d9930aa727a457cf0f
+* author:	Lost Gecko (https://sketchfab.com/Lost_Gecko)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Nivelles House 2 [Belgium]" (https://sketchfab.com/3d-models/nivelles-house-2-belgium-65523e6f1e3c46d9930aa727a457cf0f) by Lost Gecko (https://sketchfab.com/Lost_Gecko) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

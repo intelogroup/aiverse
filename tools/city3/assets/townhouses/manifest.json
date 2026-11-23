@@ -1,0 +1,189 @@
+[
+ {
+  "slug": "bordeaux_flat_1_corner",
+  "name": "Bordeaux Flat 1 corner [France]",
+  "author": "Lost Gecko",
+  "source": "https://sketchfab.com/3d-models/cde0ef76b4ab482bad79d29fe5fb7a88",
+  "license": "CC-BY-4.0",
+  "texture": "diffuse.png",
+  "alpha_cutoff": 0.2580625057220459,
+  "far_color": [
+   0.087,
+   0.08,
+   0.074
+  ]
+ },
+ {
+  "slug": "nivelles_house_9",
+  "name": "Nivelles House 9 [Belgium]",
+  "author": "Lost Gecko",
+  "source": "https://sketchfab.com/3d-models/9a6bbcb6da704592b368e29b87cac11d",
+  "license": "CC-BY-4.0",
+  "texture": "diffuse.jpg",
+  "alpha_cutoff": null,
+  "far_color": [
+   0.086,
+   0.079,
+   0.077
+  ]
+ },
+ {
+  "slug": "angers_shop_2",
+  "name": "Angers Shop 2 [France]",
+  "author": "Lost Gecko",
+  "source": "https://sketchfab.com/3d-models/bbed1d3fdae3493b8f1872c9a9e7e8d4",
+  "license": "CC-BY-4.0",
+  "texture": "diffuse.jpg",
+  "alpha_cutoff": null,
+  "far_color": [
+   0.061,
+   0.06,
+   0.058
+  ]
+ },
+ {
+  "slug": "troyes_shop_7",
+  "name": "Troyes Shop 7 [France]",
+  "author": "Lost Gecko",
+  "source": "https://sketchfab.com/3d-models/8fb84880b9234a8a8cbc8b92b46e38a6",
+  "license": "CC-BY-4.0",
+  "texture": "diffuse.png",
+  "alpha_cutoff": 0.3143125057220459,
+  "far_color": [
+   0.052,
+   0.048,
+   0.044
+  ]
+ },
+ {
+  "slug": "cork_corner_shop_1",
+  "name": "Cork Corner Shop 1 [Ireland]",
+  "author": "Lost Gecko",
+  "source": "https://sketchfab.com/3d-models/21818eaa4c1c402a82baf9031ebaa93a",
+  "license": "CC-BY-4.0",
+  "texture": "diffuse.jpg",
+  "alpha_cutoff": null,
+  "far_color": [
+   0.077,
+   0.073,
+   0.072
+  ]
+ },
+ {
+  "slug": "mons_shop_2",
+  "name": "Mons Shop 2 [Belgium]",
+  "author": "Lost Gecko",
+  "source": "https://sketchfab.com/3d-models/7397096856d3452fa15ae074f460ad36",
+  "license": "CC-BY-4.0",
+  "texture": "diffuse.png",
+  "alpha_cutoff": 0.2893125057220459,
+  "far_color": [
+   0.047,
+   0.052,
+   0.054
+  ]
+ },
+ {
+  "slug": "nivelles_house_1",
+  "name": "Nivelles House 1 [Belgium]",
+  "author": "Lost Gecko",
+  "source": "https://sketchfab.com/3d-models/592cc5891ef34ab98abdeaa8b9b1fba8",
+  "license": "CC-BY-4.0",
+  "texture": "diffuse.jpg",
+  "alpha_cutoff": null,
+  "far_color": [
+   0.096,
+   0.083,
+   0.081
+  ]
+ },
+ {
+  "slug": "angers_shop_1",
+  "name": "Angers Shop 1 [France]",
+  "author": "Lost Gecko",
+  "source": "https://sketchfab.com/3d-models/ec891e10fe26403aa072173bb89861bb",
+  "license": "CC-BY-4.0",
+  "texture": "diffuse.jpg",
+  "alpha_cutoff": null,
+  "far_color": [
+   0.066,
+   0.061,
+   0.051
+  ]
+ },
+ {
+  "slug": "nivelles_house_2",
+  "name": "Nivelles House 2 [Belgium]",
+  "author": "Lost Gecko",
+  "source": "https://sketchfab.com/3d-models/65523e6f1e3c46d9930aa727a457cf0f",
+  "license": "CC-BY-4.0",
+  "texture": "diffuse.jpg",
+  "alpha_cutoff": null,
+  "far_color": [
+   0.083,
+   0.07,
+   0.065
+  ]
+ },
+ {
+  "slug": "guingamp_shop_1",
+  "name": "Guingamp Shop 1 [France]",
+  "author": "Lost Gecko",
+  "source": "https://sketchfab.com/3d-models/8bf9f75a6aeb4b77b195cbc55f21edb8",
+  "license": "CC-BY-4.0",
+  "texture": "diffuse.jpg",
+  "alpha_cutoff": null,
+  "far_color": [
+   0.085,
+   0.076,
+   0.068
+  ]
+ },
+ {
+  "slug": "troyes_market_hall",
+  "name": "Troyes Market Hall [France]",
+  "author": "Lost Gecko",
+  "source": "https://sketchfab.com/3d-models/704dee7fa5e54cbc88de174ea1272b60",
+  "license": "CC-BY-4.0",
+  "texture": "diffuse.png",
+  "alpha_cutoff": 0.4390146627797966,
+  "far_color": [
+   0.4,
+   0.37,
+   0.33
+  ],
+  "role": "hall",
+  "far_color_note": "hand-set: the texture's mean (0.05) is the dark glazing and renders as a black slab from far away; this is the grey iron frame and brick base, lifted because the sloppy-simplified normals shade it dark"
+ },
+ {
+  "unit": 100.0,
+  "slug": "park_gazebo",
+  "name": "Gazebo",
+  "author": "ZareShadows",
+  "source": "https://sketchfab.com/3d-models/ab95dfb3816e4160989f26972c4c7c39",
+  "license": "CC-BY-4.0",
+  "texture": "diffuse.jpg",
+  "alpha_cutoff": null,
+  "far_color": [
+   0.206,
+   0.138,
+   0.087
+  ],
+  "role": "prop"
+ },
+ {
+  "slug": "rose_arch",
+  "name": "Rose Arch",
+  "author": "plaggy",
+  "source": "https://sketchfab.com/3d-models/5578bdc83ed743feb5f7c775197f5fbe",
+  "license": "CC-BY-4.0",
+  "texture": "diffuse.jpg",
+  "alpha_cutoff": null,
+  "far_color": [
+   0.009,
+   0.012,
+   0.011
+  ],
+  "role": "prop"
+ }
+]

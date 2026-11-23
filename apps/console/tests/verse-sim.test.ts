@@ -11,7 +11,7 @@
 //  - the navmesh is baked from the collision GLB in the repo (a stale bake fails here).
 // Avoidance does not yet test occlusion (agentBody.ts).
 // hall-0's stand used to sit on the hall's wall line (no route, "no safe route"); it now stands 2.5 m off on the walkable side, so all
-// 158 places are reachable by go_to. The hall itself is still a doorless solid box.
+// every place in city3-places.json is reachable by go_to (prune_places.py drops the lots a demolition cleared). The hall itself is still a doorless solid box.
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -110,7 +110,7 @@ describe("planning does not block the tick", () => {
   });
 
   it("enter walks inside a shop (by lot id or room id); a stall has no room", async () => {
-    for (const [i, place, room] of [[0, "shop-47", "shop-47"], [1, "shop-102", "tea"]] as const) {
+    for (const [i, place, room] of [[0, "shop-52", "shop-52"], [1, "shop-102", "tea"]] as const) {
       const id = `enter-${i}`;
       sim.removeBody(id);
       const lot = sim.places.find((p) => p.id === place)!;
@@ -124,7 +124,7 @@ describe("planning does not block the tick", () => {
   });
 
   it("shop seats are sittable once, and free again after the sitter stands", async () => {
-    const seats = sim.sittables.filter((t) => t.building.startsWith("shop-") && t.kind !== "stool");
+    const seats = sim.sittables.filter((t) => t.building.startsWith("shop-") && t.kind !== "stool" && sim.rooms.some((r) => r.id === t.building));   // shop-98 has chairs but no interior room: nowhere to walk in
     const picks = seats.filter((_, i) => i % Math.ceil(seats.length / 12) === 0);
     const fails: string[] = [];
     for (const other of sim.bodyIds()) sim.removeBody(other); // a body parked in a shop would block the walk
@@ -132,8 +132,11 @@ describe("planning does not block the tick", () => {
       const a = `sit-a-${i}`, b = `sit-b-${i}`;
       sim.removeBody(a); sim.removeBody(b);
       const lot = sim.places.find((p) => p.id === seat.building)!;
-      sim.addBody({ id: a, spawn: { x: lot.stand[0] + 3, z: lot.stand[1] + 3 } });
-      sim.addBody({ id: b, spawn: { x: lot.stand[0] + 15, z: lot.stand[1] + 15 } });
+      const room = sim.rooms.find((r) => r.id === seat.building)!, [rx0, rz0, rx1, rz1] = room.rect;   // customer side: from the room centre out through its door
+      const ex = room.door[0] - (rx0 + rx1) / 2, ez = room.door[1] - (rz0 + rz1) / 2;
+      const [ox, oz] = Math.abs(ex) > Math.abs(ez) ? [Math.sign(ex), 0] : [0, Math.sign(ez)];
+      sim.addBody({ id: a, spawn: { x: lot.stand[0] + ox * 3, z: lot.stand[1] + oz * 3 } });
+      sim.addBody({ id: b, spawn: { x: lot.stand[0] + ox * 8, z: lot.stand[1] + oz * 8 } });
       let sat: ScoutOutcome | null = null;
       void sim.body(a)!.act({ type: "sit", sittable: seat.id } as ScoutAction).then((o) => (sat = o));
       sim.tick(0.1); await Promise.resolve();
@@ -149,6 +152,25 @@ describe("planning does not block the tick", () => {
     }
     expect(fails).toEqual([]);
   }, 120_000);
+
+  // Known gap, older than the 2026-11-23 waves (blocked at dc770ceb too): `enter shop-103` finds "no safe route" although go_to its door arrives. Fix the doorway, then drop this.
+  const NO_ENTRY = "shop-103";
+  it("every place in city3-places.json is reachable by go_to, and every shop with a room can be entered", async () => {
+    const places = JSON.parse(readFileSync(`${ASSETS}city3-places.json`, "utf8")) as { id: string }[];
+    const fails: string[] = [];
+    for (const p of places) {   // a fresh body per goal: a body left inside the previous shop would make the next route fail for the wrong reason
+      sim.removeBody("sweep"); sim.addBody({ id: "sweep" });
+      const g = await run(sim, "sweep", { type: "go_to", place: p.id } as ScoutAction, 400);
+      if (g.out?.status !== "arrived") fails.push(`${p.id} go_to ${JSON.stringify(g.out)}`);
+      if (p.id.startsWith("shop-") && p.id !== NO_ENTRY && sim.rooms.some((r) => r.id === p.id)) {
+        sim.removeBody("sweep"); sim.addBody({ id: "sweep" });
+        const e = await run(sim, "sweep", { type: "enter", place: p.id } as ScoutAction, 300);
+        if (e.out?.status !== "arrived" || roomAt(sim.rooms, e.snap.x, e.snap.z)?.id !== p.id) fails.push(`${p.id} enter ${JSON.stringify(e.out)}`);
+      }
+    }
+    sim.removeBody("sweep");
+    expect(fails).toEqual([]);
+  }, 300_000);
 
   it("the Great Hall (hall-0) is reachable: its stand is off the wall line", async () => {
     sim.removeBody("hall");

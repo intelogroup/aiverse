@@ -1,0 +1,11 @@
+Model Information:
+* title:	Mons Shop 2 [Belgium]
+* source:	https://sketchfab.com/3d-models/mons-shop-2-belgium-7397096856d3452fa15ae074f460ad36
+* author:	Lost Gecko (https://sketchfab.com/Lost_Gecko)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Mons Shop 2 [Belgium]" (https://sketchfab.com/3d-models/mons-shop-2-belgium-7397096856d3452fa15ae074f460ad36) by Lost Gecko (https://sketchfab.com/Lost_Gecko) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

@@ -37,6 +37,13 @@
 // the gate installs discipline from today's ground, it does not
 // retroactively bless or block a merge that already landed.
 //
+// DOUBLED 2026-11-23 (deliberate, by the owner): every cap below was raised
+// x2 (bazaar GLB 100.4 -> 200.8 MB, collision 10.0 -> 20.0 MB, triangles
+// 1.89 -> 3.79 M, districts total 160.9 -> 321.9 MB) so the City 3 rebuild
+// (real buildings from free kits, far more polygons) is not strangled by
+// numbers set when the world was boxes. `measured` is unchanged on purpose.
+// The far-view cap (MAX_BYTES in tools/city3/split_lod.mjs) went 5 -> 10 MB.
+//
 // GATED metrics are exact: file bytes and triangle counts (accessor
 // counts). Estimated texture VRAM is printed in the test's summary
 // table but is NOT gated — the estimate (KTX2 uncompressed level sizes;
@@ -53,14 +60,14 @@ export interface DistrictBudget {
 export const DISTRICT_BUDGETS: Record<string, DistrictBudget> = {
   bazaar: {
     measured: { glbBytes: 87_289_408, collisionBytes: 8_684_616, triangles: 1_578_712 },
-    budget: { glbBytes: 100_382_820, collisionBytes: 9_987_309, triangles: 1_894_455 },
+    budget: { glbBytes: 200_765_640, collisionBytes: 19_974_618, triangles: 3_788_910 },
   },
 };
 
-/** All districts' GLB + collision bytes combined, gated at ×1.20 of
+/** All districts' GLB + collision bytes combined, gated at ×2.40 of
  * the 134,108,292 measured on 2026-11-12 (after the PR #149 re-base
  * noted above; it was 84,048,576 before #149). */
 export const DISTRICT_TOTAL_BUDGET = {
   measuredBytes: 134_108_292,
-  budgetBytes: 160_929_951,
+  budgetBytes: 321_859_902,
 };

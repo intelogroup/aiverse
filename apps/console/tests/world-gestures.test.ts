@@ -53,8 +53,8 @@ describe("playing gestures", () => {
   }, 120_000);
 
   it("a standing gesture is refused while seated; a seated one plays", async () => {
-    const seat = sim.sittables.find((s) => s.building === "shop-65")!;
-    const lot = sim.places.find((p) => p.id === "shop-65")!;
+    const seat = sim.sittables.find((s) => s.building === "shop-56")!;
+    const lot = sim.places.find((p) => p.id === "shop-56")!;
     service.attach("g2", { x: lot.stand[0], z: lot.stand[1] });
     expect((await settle("g2", service.act("g2", "s1", { type: "sit", sittable: seat.id }).id, 200)).outcome?.status).toBe("seated");
     const bad = await settle("g2", service.act("g2", "s2", { type: "play", clip: "wave" }).id, 5);
