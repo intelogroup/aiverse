@@ -56,7 +56,7 @@ describe("AgentSpeech", () => {
     expect(r.played).toHaveLength(1);
     expect(r.played[0].pos).toEqual({ x: 2, z: 0 });
     expect(r.prepared[0].voice).toBe(r.speech.voices.voiceFor("Wren"));
-    expect(r.speech.log[0]).toMatchObject({ queuedMs: 0, prepareMs: 0, shape: "live" });
+    expect(r.speech.log[0]).toMatchObject({ queuedMs: 0, prepareMs: 0, shape: "live", playAt: 0 });
   });
   it("synthesizes nothing before sound consent", async () => {
     const r = rig({ consent: () => false });
@@ -128,6 +128,7 @@ describe("AgentSpeech", () => {
     r.speech.hear({ n: 1, name: "A", text: "hello there" });
     await r.settle();
     expect(r.speech.log[0].stream).toEqual({ firstChunkMs: 120, startMs: 200, rate: 2.5, buffered: false });
+    expect(r.speech.log[0].playAt).toBe(200); // started at 0, first sound 200 ms later
     expect(r.speech.log[0].seconds).toBe(3);
     // synthesis ended at 500 ms; audio ends 200 + 3000 after start: ~2700 ms still to wait, plus the gap
     expect(slept[0]).toBeGreaterThan(2500);

@@ -39,6 +39,21 @@ if (HARNESS === "opencode") {
     mcpServers: { verse: { url: GATEWAY + "/mcp/agent", headers: { Authorization: `Bearer ${s.token}` }, exposure: PI_EXPOSURE, description: "The Verse: a shared 3D world. Observe and act through your body." } },
   }));
 }
+// Replay data: the place list (names + coordinates) and a timestamped event log (harness tool calls, narration pushed, narration the owner received).
+const EVENTS = process.env.NARRATION_EVENTS_FILE;
+const evLog: object[] = [];
+const ev = (kind: string, data: object) => { evLog.push({ t: Date.now(), kind, ...data }); };
+if (process.env.NARRATION_PLACES_FILE) {
+  const r = await fetch(GATEWAY + "/world/places", { headers: { authorization: `Bearer ${s.agentToken}` } });
+  await writeFile(process.env.NARRATION_PLACES_FILE, JSON.stringify(await r.json().catch(() => null)));
+}
+// Recording hand-off: publish the owner session so a browser can sign in as this owner, then wait for the go signal (the browser is ready).
+if (process.env.NARRATION_SESSION_FILE) await writeFile(process.env.NARRATION_SESSION_FILE, JSON.stringify({ ownerToken: s.owner, agentId: s.agentId, agentName: s.agentName }));
+if (process.env.NARRATION_GO_FILE) {
+  const { existsSync } = await import("node:fs");
+  const deadline = Date.now() + 240_000;
+  while (!existsSync(process.env.NARRATION_GO_FILE) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 500));
+}
 const prompt = `You are ${s.agentName}, an agent visiting the Verse (a shared 3D world) on behalf of your owner. Your agent id is ${s.agentId}. ` +
   `You already have a body in the world. Use the verse tools (world_observe, world_act, ...) to act. ` +
   `Your owner would like you to walk to the Tea House and greet whoever is there. Stop when you have greeted someone or after about 25 actions.`;
@@ -56,7 +71,7 @@ if (PUSH) {
   const t = await (await fetch(GATEWAY + "/owners/ws-ticket", { method: "POST", headers: { authorization: `Bearer ${s.owner}` } })).json() as { ticket: string };
   ownerWs = new WebSocket(GATEWAY.replace(/^http/, "ws") + "/console/ws?ticket=" + t.ticket);
   ownerWs.onmessage = (e) => {
-    try { const m = JSON.parse(String(e.data)); if (m.type === "agent_narration") ownerFrames.push({ text: m.payload.text, kind: m.payload.kind, recvAt: Date.now(), lagMs: Date.now() - m.payload.at }); } catch { /* ignore */ }
+    try { const m = JSON.parse(String(e.data)); if (m.type === "agent_narration") { ev("owner_received", { narrationKind: m.payload.kind, text: m.payload.text, agentName: m.payload.agentName }); ownerFrames.push({ text: m.payload.text, kind: m.payload.kind, recvAt: Date.now(), lagMs: Date.now() - m.payload.at }); } } catch { /* ignore */ }
   };
   await new Promise((r) => { ownerWs!.onopen = () => r(null); setTimeout(r, 3000); });
 }
@@ -69,9 +84,11 @@ const timer = setTimeout(() => proc.kill(), TIMEOUT_S * 1000);
 const decoder = new TextDecoder();
 let buf = "", stdout = "";
 const pushLine = (line: string) => {
+  try { const e = JSON.parse(line); if (e.type === "tool_use" && e.part?.tool) ev("tool", { tool: e.part.tool, input: e.part.state?.input ?? null, harnessT: e.timestamp ?? null }); } catch { /* not JSON */ }
   if (!PUSH) return;
   for (const n of narration(HARNESS, [line])) {
     pushed++;
+    ev("narration_pushed", { narrationKind: n.kind, text: n.text.slice(0, 300) });
     mcp(s.token, "agent_narrate", { agent_id: s.agentId, text: n.text.slice(0, 300), kind: n.kind }) /* the gateway REJECTS over 300 chars (no truncation): a plugin must cap */.catch((e) => { pushErrors.push(String(e).slice(0, 120)); });
   }
 };
@@ -88,6 +105,7 @@ const [stderr] = await Promise.all([new Response(proc.stderr).text(), readOut]);
 const exit = await proc.exited; clearTimeout(timer);
 if (PUSH) await new Promise((r) => setTimeout(r, 1500)); // let the last frames land
 ownerWs?.close();
+if (EVENTS) await writeFile(EVENTS, evLog.map((e) => JSON.stringify(e)).join("\n"));
 await writeFile(join(OUT, "stream.jsonl"), stdout); await writeFile(join(OUT, "stderr.txt"), stderr);
 const lines = stdout.split("\n").filter(Boolean);
 

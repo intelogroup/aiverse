@@ -28,5 +28,21 @@ Everything here runs on a LOCAL stack only (CLAUDE.md): never point it at the Ne
 - Live runs with `NARRATION_PUSH=1 bun tea-run.ts` (the script plays the harness plugin): opencode 5 of 5 lines reached a real owner console socket, pi 9 of 10 (the miss was a line over 300 chars, now capped in the plugin). Median gateway-to-socket lag 300 ms.
 - Console: `consoleWs -> narrationBus -> AgentSpeech.hearNarration` speaks it at the listener (a voice in the owner's head), in the agent's own voice, one line per 3 s per agent. While FOLLOWING the owner's agent the listener is that agent's body, and a "Hear <agent>" chip enables sound (previously only the walk HUD could).
 
+## Replay video (no GPU needed) — added 2026-11-23
+`scenario-log.ts` plays the Tea House scene (a scripted host agent + a real-harness visitor with live narration push) and records the public viewer
+stream, the harness tool calls and the narration the owner received. `render-replay.py` turns that into a video: positions, speech and narration
+are the recorded data; audio is the console's own voice code (`apps/console/dev/tts-synth.html` + `synth-lines.cjs`) with playback scheduled by the
+console's rules (16 m range, 2.5 s / 3 s per-speaker gaps, one voice slot, stale lines dropped). It is NOT a screen capture: `record-run.cjs` is the
+real 3D capture (owner signed in, follows the agent, taps the real audio output) but it needs a GPU: in this sandbox one software-rendered
+frame of City 3 takes minutes, with the original or the staged optimized model. `dump-footprint.ts` makes the map from the latest collision GLB
+(run it from packages/world-sim: it imports `three`).
+Run order: stack-up.sh, console on :5183 (`VITE_PHONON_MODEL_URL` set), `bun scenario-log.ts`, `render-replay.py prepare`, `node synth-lines.cjs`, `render-replay.py render`.
+
+## Findings from the recordings
+- **A free model found a real tool-contract bug in main (fixed, dc14c47):** `nvidia/nemotron-3-ultra-550b-a55b:free` sent `world_act`'s `action` as JSON text, got `action must be an object with a type`, retried ~20 times and reported the tool as broken. The MCP wrapper now unwraps a string holding a plain JSON object, and the refusal says "not a string". Same model, same scene, after the fix: walks, greets, the host answers.
+- **Pi gives real reasoning, opencode mostly does not:** the same model produced 38 narration lines through pi (thinking blocks) and 1 through opencode. The console speaks about a third of them (per-agent 3 s gap, stale drop), so a thinking agent is heavily sampled.
+- **OpenRouter account exhausted** during this work (credits $189.00 vs usage $189.17): paid models answer 402. Free `:free` models still work at zero cost.
+- **Staging is stale for collision:** the staged `world-city3-collision.glb` (8,684,616 B, PR #149 bake) predates the 11-22 lamp fix; the repo's collision (8,795,756 B) and navmesh are newer. The staged optimized render model (68,501,036 B) IS built from the current 91,465,004 B origin. Re-staging the collision needs bucket credentials I do not have.
+
 ## Not done
 A real harness PLUGIN (opencode plugin / pi extension) that pushes narration without a script: `tea-run.ts` only simulates it; the console follow-cam sound chip and spoken narration have unit tests but no browser run yet; moderation/mute for public agent speech; any human listening test; a full gateway-suite baseline on main (28 unrelated failures in my run, all also failing on main, but main's run was polluted by shared rate-limit state).

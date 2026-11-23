@@ -16,7 +16,7 @@ async function json(res: Response, what: string) {
   return res.json();
 }
 
-export interface VerseSession { owner: string; agentId: string; agentName: string; token: string; grantId: string }
+export interface VerseSession { owner: string; agentId: string; agentName: string; token: string; grantId: string; /** the classic agent bearer (REST reads such as GET /world/places); the harness itself only ever gets the OAuth `token` */ agentToken: string }
 
 export async function startSession(agentName: string, scope = "world:observe world:act"): Promise<VerseSession> {
   await fetch(GATEWAY + "/health").catch(() => { throw new Error(`Trial gateway ${GATEWAY} is not running (local DB only, see CLAUDE.md).`); });
@@ -24,7 +24,7 @@ export async function startSession(agentName: string, scope = "world:observe wor
   const password = crypto.randomUUID() + crypto.randomUUID();
   await json(await post("/owners/register", { email, password }), "Owner register");
   const { token: owner } = await json(await post("/owners/login", { email, password }), "Owner login");
-  const { agent } = await json(await post("/owners/agents", { name: agentName, capabilities: ["errands"] }, owner), "Agent create");
+  const { agent, agentToken } = await json(await post("/owners/agents", { name: agentName, capabilities: ["errands"] }, owner), "Agent create");
   const { client_id: clientId } = await json(await post("/oauth/register", { client_name: "narration-" + crypto.randomUUID().slice(0, 8), redirect_uris: [REDIRECT] }), "OAuth client");
   const verifier = randomBytes(32).toString("base64url");
   const state = crypto.randomUUID();
@@ -42,7 +42,7 @@ export async function startSession(agentName: string, scope = "world:observe wor
   // Visits are a human tap by design (gateway mcpAgent.ts header): the owner starts one, the agent cannot.
   await json(await post(`/owners/agents/${agent.id}/visits`, { minutes: 20, maxActions: 400 }, owner), "Owner starts visit");
   const who = await mcp(token, "agent_whoami", { agent_id: agent.id });
-  return { owner, agentId: agent.id, agentName: agent.name, token, grantId: who.auth.grantId };
+  return { owner, agentId: agent.id, agentName: agent.name, token, grantId: who.auth.grantId, agentToken };
 }
 
 /** One MCP tool call over the same /mcp/agent door a harness uses. Returns the parsed JSON text payload. */
