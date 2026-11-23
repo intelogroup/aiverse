@@ -54,9 +54,13 @@ if (process.env.NARRATION_GO_FILE) {
   const deadline = Date.now() + 240_000;
   while (!existsSync(process.env.NARRATION_GO_FILE) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 500));
 }
-const prompt = `You are ${s.agentName}, an agent visiting the Verse (a shared 3D world) on behalf of your owner. Your agent id is ${s.agentId}. ` +
+const defaultPrompt = `You are ${s.agentName}, an agent visiting the Verse (a shared 3D world) on behalf of your owner. Your agent id is ${s.agentId}. ` +
   `You already have a body in the world. Use the verse tools (world_observe, world_act, ...) to act. ` +
   `Your owner would like you to walk to the Tea House and greet whoever is there. Stop when you have greeted someone or after about 25 actions.`;
+// NARRATION_PROMPT replaces the task ({agent} and {id} are filled in); the framing sentence about the world and tools stays.
+const prompt = process.env.NARRATION_PROMPT
+  ? `You are ${s.agentName}, an agent visiting the Verse (a shared 3D world) on behalf of your owner. Your agent id is ${s.agentId}. You already have a body in the world. Use the verse tools to act. ` + process.env.NARRATION_PROMPT.replaceAll("{agent}", s.agentName).replaceAll("{id}", s.agentId)
+  : defaultPrompt;
 
 const cmd = HARNESS === "opencode"
   ? ["opencode", "run", "--format", "json", "--auto", "-m", `openrouter/${MODEL}`, prompt]
@@ -84,7 +88,12 @@ const timer = setTimeout(() => proc.kill(), TIMEOUT_S * 1000);
 const decoder = new TextDecoder();
 let buf = "", stdout = "";
 const pushLine = (line: string) => {
-  try { const e = JSON.parse(line); if (e.type === "tool_use" && e.part?.tool) ev("tool", { tool: e.part.tool, input: e.part.state?.input ?? null, harnessT: e.timestamp ?? null }); } catch { /* not JSON */ }
+  try {
+    const e = JSON.parse(line);
+    if (e.type === "tool_use" && e.part?.tool) ev("tool", { tool: e.part.tool, input: e.part.state?.input ?? null, output: typeof e.part.state?.output === "string" ? e.part.state.output.slice(0, 1500) : null, status: e.part.state?.status ?? null, harnessT: e.timestamp ?? null });
+    else if (e.type === "tool_execution_end") ev("tool", { tool: e.toolName, input: null, output: String(e.result?.content?.[0]?.text ?? "").slice(0, 1500), status: e.isError ? "error" : "completed", harnessT: null });
+    else if (e.type === "tool_execution_start") ev("tool_start", { tool: e.toolName, input: e.args ?? null });
+  } catch { /* not JSON */ }
   if (!PUSH) return;
   for (const n of narration(HARNESS, [line])) {
     pushed++;

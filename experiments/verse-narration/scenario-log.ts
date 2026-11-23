@@ -32,13 +32,14 @@ ws.onmessage = (e) => {
 };
 
 const READY = join(OUT, "greeter.ready"), SESSION = join(OUT, "visitor.json"), GO = join(OUT, "go");
-const greeter = child("greeter", "experiments/verse-narration/greeter.ts", { GREETER_READY_FILE: READY });
+const NO_GREETER = process.env.SCEN_NO_GREETER === "1"; // tasks without a host (e.g. driving)
+const greeter = NO_GREETER ? null : child("greeter", "experiments/verse-narration/greeter.ts", { GREETER_READY_FILE: READY });
 const visitor = child("tea-run", "experiments/verse-narration/tea-run.ts", {
   NARRATION_PUSH: "1", NARRATION_HARNESS: process.env.SCEN_HARNESS ?? "opencode", NARRATION_TIMEOUT_S: String(MAX_S - 30),
   NARRATION_SESSION_FILE: SESSION, NARRATION_GO_FILE: GO, NARRATION_OUT: join(OUT, "harness"),
   NARRATION_EVENTS_FILE: join(OUT, "events.jsonl"), NARRATION_PLACES_FILE: join(OUT, "places.json"),
 });
-if (!(await waitFile(READY, 280_000))) console.log("host never reached the tea house; starting anyway");
+if (!NO_GREETER && !(await waitFile(READY, 280_000))) console.log("host never reached the tea house; starting anyway");
 await sleep(1500);
 const goAt = Date.now();
 writeFileSync(GO, String(goAt)); // release the visitor
@@ -50,6 +51,6 @@ await sleep(10_000); // the host's last lines
 ws.close();
 writeFileSync(join(OUT, "tap.jsonl"), tap.join("\n"));
 writeFileSync(join(OUT, "meta.json"), JSON.stringify({ goAt, endAt: Date.now(), harness: process.env.SCEN_HARNESS ?? "opencode", model: process.env.NARRATION_MODEL ?? "deepseek/deepseek-v4-flash", names: Object.fromEntries(names) }));
-for (const c of [visitor, greeter]) { try { c.p.kill(); } catch { /* done */ } }
+for (const c of [visitor, greeter]) { try { c?.p.kill(); } catch { /* done */ } }
 console.log(`recorded ${tap.length} stream records over ${((Date.now() - goAt) / 1000).toFixed(0)} s -> ${OUT}`);
 process.exit(0);
