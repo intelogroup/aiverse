@@ -52,16 +52,15 @@ describe("resolveManifestAssets", () => {
     const out = resolveManifestAssets(m);
     expect(out.links).toMatch(/assets\.aiverse\.network\/glbs\/[0-9a-f]{16}\/world-links\.glb$/);
     expect(out.districts[0].url).toMatch(/assets\.aiverse\.network\/glbs\/[0-9a-f]{16}\/world-city3-library\.glb$/);
-    expect(out.districts[0].collisionUrl).toMatch(/assets\.aiverse\.network\/glbs\/[0-9a-f]{16}\/world-city3-collision\.glb$/);
+    expect(out.districts[0].collisionUrl).toBe("/assets/world-city3-collision.glb");   // not staged: the R2 copy is the pre-rebuild world (re-add after a new compression pass)
     expect(out.districts[1].url).toBe("/assets/world-far.glb");
     expect(out.districts[1].collisionUrl).toBeUndefined();
     expect(out.themes).toBe(m.themes);
   });
 
-  it("serves the world GLB from the R2 custom domain (pre-compressed optimized object)", () => {
+  it("serves the world GLB from the origin until a new compression pass is staged in R2", () => {
+    // The R2 object (glbs/b14cb2dc1a3bfa8d) is the meshopt+KTX2 pass of the pre-2026-11-23 world; the rebuilt world and its collision GLB are not staged.
     const out = resolveManifestAssets({ districts: [{ id: "bazaar", url: "/assets/world-city3.glb" }] });
-    expect(out.districts[0].url).toBe(
-      "https://assets.aiverse.network/glbs/b14cb2dc1a3bfa8d/world-city3.glb",
-    );
+    expect(out.districts[0].url).toBe("/assets/world-city3.glb");
   });
 });
