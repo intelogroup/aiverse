@@ -36,7 +36,13 @@ export interface AgentSpeechDeps {
   sleep(ms: number): Promise<void>;
 }
 
-export interface SpokenRecord { n: number; name: string; voice: string; text: string; shape: PreparedLine["shape"]; seconds: number }
+export interface SpokenRecord {
+  n: number; name: string; voice: string; text: string; shape: PreparedLine["shape"]; seconds: number;
+  /** ms the line waited in the queue behind earlier speech, before its own synthesis started */
+  queuedMs: number;
+  /** ms the synthesis (or clip fetch) took */
+  prepareMs: number;
+}
 export type DropReason = "no_consent" | "no_listener" | "far" | "gap" | "queue_full" | "stale" | "empty" | "speaker_gone";
 
 /** FNV-1a: tiny, stable across sessions and platforms. */
@@ -115,11 +121,13 @@ export class AgentSpeech {
         const pos = this.deps.speakerPos(item.line.n);
         if (!pos) { this.drop("speaker_gone", item.line.n); continue; }
         const voice = this.voices.voiceFor(item.line.name || `body-${item.line.n}`);
+        const startedAt = this.deps.now();
         const prepared = await this.deps.prepare(item.text, voice).catch((): PreparedLine => ({ shape: "silent" }));
         // The speaker may have walked since the line was queued: speak from where it stands now.
+        const prepareMs = this.deps.now() - startedAt;
         const at = this.deps.speakerPos(item.line.n) ?? pos;
         const seconds = this.deps.play(prepared, at, item.line.name || String(item.line.n));
-        this.log.push({ n: item.line.n, name: item.line.name, voice, text: item.text, shape: prepared.shape, seconds });
+        this.log.push({ n: item.line.n, name: item.line.name, voice, text: item.text, shape: prepared.shape, seconds, queuedMs: Math.round(startedAt - item.at), prepareMs: Math.round(prepareMs) });
         if (this.log.length > 200) this.log.shift();
         await this.deps.sleep(Math.max(0, seconds * 1000) + LINE_GAP_MS);
       }
