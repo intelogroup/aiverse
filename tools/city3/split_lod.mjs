@@ -15,7 +15,7 @@ import { createHash } from "node:crypto";
 import { makeCellOf, leafOfCell, subset } from "./tile_grid.mjs";
 
 const [IN, DIR] = process.argv.slice(2);
-const MAX_BYTES = 5_000_000; // the agreed budget for the far view (5 MB) plus a little slack; the build fails above it
+const MAX_BYTES = 10_000_000; // the far-view budget: 10 MB (doubled from 5 MB on 2026-11-23 so the rebuilt buildings keep their detail from far away); the build fails above it
 const BIG_TRI = 40; // m: wider triangles ride in the core tile (same rule as split_world / split_shell: no holes where a tile is not loaded)
 const DROP_EXTRA = process.env.DROP_EXTRA ? "|" + process.env.DROP_EXTRA : "";
 const DROP = new RegExp("^(inst_goods|BzInt|bathroom|toilet|SK_|LIB|Fountain|Props|PartyCups|ls_(flower|bush|path|rock)|InteriorWalls|LampGlow|Door_shop|TeaProp|TeaFloor|TeaWay|Shutters|inst_door|BladeSigns" + DROP_EXTRA + ")");

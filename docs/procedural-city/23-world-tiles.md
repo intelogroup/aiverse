@@ -43,3 +43,5 @@ Before that: the first profile blamed shader link checks (`checkShaderErrors`) a
 - `tiles_manifest.mjs` writes `lod` into `districts.json` when the file exists. The runtime (`DistrictWorld.tsx`) loads it after the resident has mounted plus 1.5 s; once any LOD group exists the beige shell groups stay hidden (`farGroupVisible`); a failed load keeps the beige shell.
 - Cost: +4.9 MB once (immutable-cached, hashed name matches the vercel.json rule) and about 930 extra draw primitives in the far view. Not measured on a real phone.
 - Known: shop meshes are unwelded so they cannot be simplified without a weld step; the plaza is drawn by the core tile, not the LOD.
+
+- Budget caps doubled 2026-11-23 (owner's call, so realism and polygon count are not strangled): far LOD `MAX_BYTES` in `split_lod.mjs` 5 -> 10 MB; `apps/console/tests/asset-budgets.ts` bazaar GLB 200.8 MB, collision 20.0 MB, 3.79 M triangles, districts total 321.9 MB. Before the next kit pass the far LOD was at 4.99 MB with 5 KB of room; it now has about 5 MB.

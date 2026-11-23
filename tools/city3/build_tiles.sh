@@ -8,7 +8,7 @@ bun tools/city3/split_world.mjs $A/world-city3.glb $T --core-half=9 --hero="$TEA
 bun tools/city3/split_world.mjs $A/world-city3-collision.glb $T/col --layout=$T/tiles.json | grep -E '^textures|Error'
 rmdir $T/col/tex 2>/dev/null || true
 bun tools/city3/split_shell.mjs $A/world-shell.glb $T
-bun tools/city3/split_lod.mjs $A/world-city3.glb $T > /tmp/split_lod.log 2>&1 || { grep -E '^far|Error' /tmp/split_lod.log; exit 1; }   # textured far view (needs tiles.json); fails the build over its 5 MB budget
+bun tools/city3/split_lod.mjs $A/world-city3.glb $T > /tmp/split_lod.log 2>&1 || { grep -E '^far|Error' /tmp/split_lod.log; exit 1; }   # textured far view (needs tiles.json); fails the build over its 10 MB budget
 grep -E '^lod|^kept|^removed' /tmp/split_lod.log
 bun tools/city3/verify_tiles.mjs $A/world-city3.glb $T | tail -2
 bun tools/city3/verify_tiles.mjs $A/world-city3-collision.glb $T/col | tail -2
