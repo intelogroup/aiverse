@@ -212,6 +212,7 @@ describe("agent MCP auth", () => {
     const tools = body.result.tools as any[];
     const names = tools.map((t) => t.name).sort();
     expect(names).toEqual([
+      "agent_narrate",
       "agent_whoami",
       "body_attach",
       "body_detach",
@@ -237,7 +238,7 @@ describe("agent MCP auth", () => {
     for (const read of ["agent_whoami", "inbox_poll", "verse_discover", "world_clips", "world_hunt_status", "world_look", "world_observe"]) {
       expect(byName.get(read).annotations.readOnlyHint).toBe(true);
     }
-    for (const act of ["body_attach", "body_detach", "world_act", "world_hunt_claim", "world_see", "relay_send", "relay_start", "vehicle_enter", "vehicle_exit"]) {
+    for (const act of ["agent_narrate", "body_attach", "body_detach", "world_act", "world_hunt_claim", "world_see", "relay_send", "relay_start", "vehicle_enter", "vehicle_exit"]) {
       expect(byName.get(act).annotations.readOnlyHint).toBe(false);
     }
   });
@@ -663,6 +664,7 @@ describe("scope gates for actions (OAuth only)", () => {
     const gated: Array<[string, Record<string, unknown>, string]> = [
       ["body_attach", { body: "summer" }, "world:act"],
       ["body_detach", {}, "world:act"],
+      ["agent_narrate", { text: "thinking out loud" }, "world:act"],
       ["world_act", { action: { type: "wait", seconds: 1 } }, "world:act"],
       ["world_hunt_claim", { contest_id: "tea-hunt", act_id: "open-egg" }, "world:act"],
       ["relay_send", { conversation_id: "whatever", content: "x" }, "relay:send"],
