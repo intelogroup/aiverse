@@ -19,6 +19,10 @@ Bun monorepo. Workspaces: `apps/gateway` (Hono backend), `apps/console` (Vite/Re
 - `bun test` (Bun's built-in runner, no jest/vitest in `apps/gateway`).
 - Tests fail-closed against non-test DBs (the `CI=true` allow-list guard).
 
+## Filming agent runs
+
+Read `docs/filming.md` before recording any run. The short version: third-person follow-cam from an independent observer, ≥10 fps actual frames verified by count, H.264 MP4 faststart; capture via CDP screencast with timestamp-true ffmpeg assembly; **a GPU browser is required** — this sandbox VM's SwiftShader renders the city at 0.05–0.2 fps and cannot film (the proven surface is Jim's Mac). The doc also records the follow-cam/driving-agent bug in current main and its unmerged workaround.
+
 ## Verse Ecology Experiment (Sept-2026 program — `experiments/verse-ecology/`; no cohort live on production as of 2026-11-10)
 
 ### Infrastructure built through the program
