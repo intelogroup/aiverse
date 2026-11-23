@@ -180,7 +180,7 @@ def place_lot(lot, assets, rng, used):
 
 def build_plan(seed=148):
     lots = lots_from_plan()
-    assets = {e["slug"]: load_asset(e["slug"]) for e in json.load(open(os.path.join(ASSET, "manifest.json")))}
+    assets = {e["slug"]: load_asset(e["slug"]) for e in json.load(open(os.path.join(ASSET, "manifest.json"))) if e.get("role") != "hall"}
     rng, used, plan = random.Random(seed), {}, {}
     for lot in lots:
         plan[lot["id"]] = {"lot": lot, "items": place_lot(lot, assets, rng, used)}
@@ -207,8 +207,10 @@ def box_mesh(x0, z0, x1, z1, h):
     return P, I
 
 
-def apply(world, col, plan, assets, dry):
+def apply(world, col, plan, assets, dry, mark=MARK, prefix="Kit_shop", visual_extra=()):
+    import bridge_edge_landscape
     from bridge_edge_landscape import cut
+    bridge_edge_landscape.VISUAL_NODES += tuple(v for v in visual_extra if v not in bridge_edge_landscape.VISUAL_NODES)
     from bridge_landscape_kit import add_accessor, add_view
     rects = [p["lot"]["plan_rect"] for p in plan.values()]
     rep = {"visual_cut": cut(world, rects, False, dry), "collision_cut": cut(col, rects, True, dry)}
@@ -244,10 +246,10 @@ def apply(world, col, plan, assets, dry):
     for lid, p in sorted(plan.items()):
         kids, bx = [], []
         for it in p["items"]:
-            g["nodes"].append({"name": f"Kit_shop{lid}_{it['slug']}", "mesh": meshes[it["slug"]], "translation": list(it["t"]), "rotation": _quat_y(it["yaw"]), "scale": list(it["s"])})
+            g["nodes"].append({"name": f"{prefix}{lid}_{it['slug']}", "mesh": meshes[it["slug"]], "translation": list(it["t"]), "rotation": _quat_y(it["yaw"]), "scale": list(it["s"])})
             kids.append(len(g["nodes"]) - 1)
             bx.append((*footprint(it), it["h"]))
-        g["nodes"].append({"name": f"Kit_shop{lid}", "children": kids})
+        g["nodes"].append({"name": f"{prefix}{lid}", "children": kids})
         scene.append(len(g["nodes"]) - 1)
         Ps, Is, base = [], [], 0
         for x0, z0, x1, z1, h in bx:
@@ -256,11 +258,11 @@ def apply(world, col, plan, assets, dry):
         P, I = np.concatenate(Ps), np.concatenate(Is).astype("<u2")
         prim = {"attributes": {"POSITION": add_accessor(col, add_view(col, P.tobytes(), 34962), 5126, len(P), "VEC3", P.min(0).tolist(), P.max(0).tolist())},
                 "indices": add_accessor(col, add_view(col, I.tobytes(), 34963), 5123, len(I), "SCALAR"), "material": 0}
-        cg["meshes"].append({"name": f"col_kit_shop{lid}", "primitives": [prim]})
-        cg["nodes"].append({"name": f"col_kit_shop{lid}", "mesh": len(cg["meshes"]) - 1})
+        cg["meshes"].append({"name": f"col_{prefix.lower()}{lid}", "primitives": [prim]})
+        cg["nodes"].append({"name": f"col_{prefix.lower()}{lid}", "mesh": len(cg["meshes"]) - 1})
         cscene.append(len(cg["nodes"]) - 1)
     for gl in (g, cg):
-        gl.setdefault("extras", {})[MARK] = "v1"
+        gl.setdefault("extras", {})[mark] = "v1"
     return rep
 
 

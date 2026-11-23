@@ -4,7 +4,7 @@
 plan.json is a generated, gitignored file, and later bridge_* passes change the GLB without touching the plan, so the two drift. This reads the plan
 fresh (plan.py in a temp cwd, as bridge_edge_landscape.py does) and classifies each plan building against the GLB scene:
 
-  real       Bones_shop<n> (walls, floors, interiors) or Kit_shop<n> (a prebuilt kit building row, no interior) is in the scene and its box sits on the plan footprint.
+  real       Bones_shop<n> (walls, floors, interiors) or Kit_shop<n> or Kit_hall<n> (a prebuilt kit building row, no interior) is in the scene and its box sits on the plan footprint.
   landscape  an `edge` (ring) block building, or an id in bridge_bazaar_demolish.ALL; no facade triangle left inside the footprint.
   shim       no Bones_shop<n> in the scene, but merged facade triangles still stand there (a hollow facade-only box). The hall counts as one.
   FAIL       anything else: a landscape building that still stands, a real building off its footprint, a market building with nothing at all.
@@ -28,8 +28,8 @@ sys.path.insert(0, os.path.expanduser("~/tmp-pip/pylibs"))
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-# The civic hall is the last facade-only box. The citadel block (4,1) was rebuilt as Kit_shop148-155 (bridge_citadel_townhouses.py).
-KNOWN_SHIMS = {"hall-0"}
+# None left: the citadel block (4,1) is Kit_shop148-155 (bridge_citadel_townhouses.py) and the civic hall is Kit_hall0 (bridge_civic_hall.py).
+KNOWN_SHIMS = set()
 PAD = 0.3        # metres around a footprint, as bridge_bazaar_demolish.drop_tris
 Y_MIN = 0.3      # ignore the walk slab and sidewalks
 BOX_TOL = 2.0    # a real box may overhang its plan rect by this much (the Tea House porch sticks out 1.8 m); a node on the wrong lot is off by a building width
@@ -121,12 +121,12 @@ def scene_bones_boxes(g):
 
     for i, n in enumerate(j["nodes"]):
         nm = n.get("name", "")
-        if i in scene and (nm.startswith(("Bones_shop", "Kit_shop")) or nm in ALIAS):
+        if i in scene and (nm.startswith(("Bones_shop", "Kit_shop", "Kit_hall")) or nm in ALIAS):
             lo, hi = np.full(3, 1e9), np.full(3, -1e9)
             extent(i, np.eye(4), lo, hi)
             if lo[0] > hi[0]:
                 continue  # an empty group is not a building
-            key = ALIAS.get(nm) or "shop-" + nm[nm.index("shop") + 4:]
+            key = ALIAS.get(nm) or ("hall-" + nm[8:] if nm.startswith("Kit_hall") else "shop-" + nm[nm.index("shop") + 4:])
             ids.add(key)
             box[key] = [lo[0], lo[2], hi[0], hi[2]]
     return ids, box
