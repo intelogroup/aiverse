@@ -55,7 +55,7 @@ const server = Bun.serve({
     "/": page,
     "/assets/car-concept.glb": file("./assets/car-concept.glb"),
     "/assets/sky.hdr": file("./assets/sky.hdr"),
-    "/assets/remy.glb": file("../../apps/console/public/assets/cast-remy-lite.glb"),
+    "/assets/remy.glb": file("./assets/cast-remy-lite.glb"),
     "/basis/basis_transcoder.js": file("../../apps/console/public/basis/basis_transcoder.js"),
     "/basis/basis_transcoder.wasm": file("../../apps/console/public/basis/basis_transcoder.wasm"),
     "/api/state": {
