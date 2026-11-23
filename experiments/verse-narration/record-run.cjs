@@ -99,6 +99,8 @@ const child = (name, args, env) => {
       el.style.display = cur ? "block" : "none";
       if (cur) el.textContent = (cur.inner ? "\u{1F3A7} " + cur.name + " (to itself): " : "\u{1F4AC} " + cur.name + ": ") + cur.text;
     }).catch(() => {});
+    // keep the camera on the agent: something (auto-follow, a pointer event) can switch follow off; the chip then reads "Follow <name>" instead of "Following ..."
+    await page.evaluate(() => { const c = document.querySelector('[data-testid="follow-chip"]'); if (c && !/^Following/.test(c.textContent || "")) c.click(); }).catch(() => {});
     const buf = await page.screenshot({ type: "jpeg", quality: 72, timeout: 60000 }).catch(() => null);
     if (!buf) continue;
     const n = frames.length; const f = path.join(FRAMES, `f_${String(n).padStart(5, "0")}.jpg`);
