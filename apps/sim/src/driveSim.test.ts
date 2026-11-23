@@ -508,6 +508,40 @@ test("the end-of-road halt works toward the south edge too", () => {
   service.detach("drv");
 });
 
+test("a driver can say while driving, and a body beside the car hears it like any other line", () => {
+  const { j, t } = junctionAndClock("green");
+  const { service, car } = setup(t, j);
+  service.attach("ear", { x: car.v.x + 2, z: car.v.z + 1.8, maxR: 3 });   // standing by the car, well inside the 6 m earshot
+  expect(act(service, "drv", "e", { type: "enter_vehicle" }).outcome?.ok).toBe(true);
+  act(service, "drv", "d1", { type: "drive", gas: 0.6, seconds: 2 });
+  run(service, 0.5);   // rolling now, still driving
+  expect(car.driver).toBe("drv");
+  expect(car.v.speed).toBeGreaterThan(0);
+  const said = act(service, "drv", "s1", { type: "say", text: "mind the kerb" });
+  expect(said.outcome?.ok).toBe(true);
+  expect(said.outcome?.detail).toMatch(/1 heard you/);
+  const heard = service.observe("ear").heard;
+  expect(heard.map((h) => h.text)).toContain("mind the kerb");
+  expect(service.frames().say.map((e) => e.text)).toContain("mind the kerb");   // on the public stream, like any say
+  service.detach("drv"); service.detach("ear");
+});
+
+test("exit_vehicle is refused while reversing fast, and allowed while reversing slowly", () => {
+  const { j, t } = junctionAndClock("green");
+  const { service, car } = setup(t, j);
+  act(service, "drv", "e", { type: "enter_vehicle" });
+  Object.assign(car.v, { speed: -2 });   // rolling backwards at 2 m/s
+  const fast = act(service, "drv", "x1", { type: "exit_vehicle" });
+  expect(fast.outcome?.ok).toBe(false);
+  expect(fast.outcome?.status).toBe("rejected");
+  expect(fast.outcome?.detail).toMatch(/still moving/);
+  expect(car.driver).toBe("drv");   // still in the car
+  Object.assign(car.v, { speed: -0.5 });   // barely rolling backwards
+  const slow = act(service, "drv", "x2", { type: "exit_vehicle" });
+  expect(slow.outcome?.ok).toBe(true);
+  expect(car.driver).toBeNull();
+  service.detach("drv");
+});
 test("steer sent together with speed is dropped and the car holds its street: a weak agent mixing them does not drift off the lane", () => {
   const { car, step } = backStreetDrive(-90, Math.PI);   // facing north on the back street
   const detail = step({ speed: 6, steer: 0.6, seconds: 4 });
