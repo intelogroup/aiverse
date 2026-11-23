@@ -12,9 +12,9 @@ import numpy as np
 from bridge_landscape_kit import add_accessor, add_view
 from bridge_wave1 import Glb, save_glb
 
-DEMOLISH = {"lido": [124, 125, 126, 127, 128, 129], "sports": [156, 157, 158, 159, 160, 161, 162, 163], "park": [72, 73, 74, 75, 76], "garden": [164, 165, 166, 167, 168, 169, 170, 171], "orchard": [60, 61, 62, 63, 64, 65, 66, 67], "meadow": [68, 69, 70, 71]}   # garden: 2026-11-23, block (4,3), beside the sports field
+DEMOLISH = {"lido": [124, 125, 126, 127, 128, 129], "sports": [156, 157, 158, 159, 160, 161, 162, 163], "park": [72, 73, 74, 75, 76], "garden": [164, 165, 166, 167, 168, 169, 170, 171], "orchard": [60, 61, 62, 63, 64, 65, 66, 67], "meadow": [68, 69, 70, 71], "commons": [44, 45, 46, 47, 48, 49, 50, 51]}   # garden: 2026-11-23, block (4,3), beside the sports field
 ALL = sorted(i for v in DEMOLISH.values() for i in v)
-BLOCKS = {"lido": (12, 72, 58, 122), "sports": (72, 12, 122, 58), "park": (-122, -122, -72, -84), "garden": (72, -58, 122, -12), "orchard": (-122, -58, -72, -12), "meadow": (-122, -84, -72, -72)}  # whole block incl. courtyard: loose props (trees, stalls, benches) inside go too
+BLOCKS = {"lido": (12, 72, 58, 122), "sports": (72, 12, 122, 58), "park": (-122, -122, -72, -84), "garden": (72, -58, 122, -12), "orchard": (-122, -58, -72, -12), "meadow": (-122, -84, -72, -72), "commons": (-122, 72, -72, 122)}  # whole block incl. courtyard: loose props (trees, stalls, benches) inside go too
 CLEAR = ("Tree_", "SK_", "ls_tree", "ls_bush", "ls_flower", "ls_rock", "PartyCups")
 HEROES = os.path.join(HERE, "out", "heroes.json")
 

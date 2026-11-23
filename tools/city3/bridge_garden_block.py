@@ -26,7 +26,8 @@ from bridge_landscape_kit import add_accessor, add_view
 
 GARDENS = {"garden": dict(rect=(72.0, -58.0, 122.0, -12.0), plaza=9.0, orchard=False, seed=4311),    # lots 164-171, beside the sports field
            "orchard": dict(rect=(-122.0, -58.0, -72.0, -12.0), plaza=5.0, orchard=True, seed=6013),
-           "meadow": dict(rect=(-122.0, -84.0, -72.0, -72.0), plaza=3.4, orchard=False, strip=True, seed=7717)}  # lots 68-71: the 12 m strip that finishes the park block  # lots 60-67: fruit-tree grid round a small gazebo plaza
+           "meadow": dict(rect=(-122.0, -84.0, -72.0, -72.0), plaza=3.4, orchard=False, strip=True, seed=7717),
+           "commons": dict(rect=(-122.0, 72.0, -72.0, 122.0), plaza=7.0, orchard=False, seed=8123)}  # lots 44-51: a square with a plaza gazebo  # lots 68-71: the 12 m strip that finishes the park block  # lots 60-67: fruit-tree grid round a small gazebo plaza
 NAME = "garden"
 MARK = "garden_block_pass"
 X0, X1, Z0, Z1 = GARDENS[NAME]["rect"]
