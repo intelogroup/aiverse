@@ -557,6 +557,17 @@ describe("agent MCP actions with a classic agent token (Phase 4)", () => {
     expect(badTypeErr.error).toBe("invalid_action");
     expect(badTypeErr.message).toContain('unknown action type "teleport"');
 
+    // An action sent as JSON TEXT is unwrapped (weaker models do this and repeat it after every refusal): same decision, other envelope.
+    const asText = await callTool(o.agentToken, "world_act", { id: "p4-text-action", action: '{"type":"wait","seconds":1}' });
+    expect(asText.body.result.isError).toBeFalsy();
+    expect(toolJson(asText.body).act.action).toEqual({ type: "wait", seconds: 1 });
+    // Anything that is not a JSON object stays refused, and the refusal says what was wrong.
+    for (const bad of ["go to the tea house", "[1,2]", "42"]) {
+      const res = await callTool(o.agentToken, "world_act", { action: bad });
+      expect(res.body.result.isError).toBe(true);
+      expect(toolErrorJson(res.body).message).toContain("not a string");
+    }
+
     // The old vehicle tools are world_act under another name: the sim's own actions, with the agent choosing to get in.
     const enter = toolJson((await callTool(o.agentToken, "vehicle_enter", { vehicle_id: "car-east" })).body);
     expect(enter.act.action).toEqual({ type: "enter_vehicle", vehicle: "car-east" });
@@ -713,5 +724,16 @@ describe("multi-agent grants: actions", () => {
 
     const seen = toolJson((await callTool(accessToken, "world_observe", { agent_id: b })).body);
     expect(seen.observation.body.figure).toBe("remy");
+  });
+});
+
+import { unwrapJsonObject } from "./mcpAgent";
+describe("unwrapJsonObject", () => {
+  test("a string holding a plain JSON object becomes the object; everything else is returned as it came", () => {
+    expect(unwrapJsonObject('{"type":"go_to","place":"shop-102"}')).toEqual({ type: "go_to", place: "shop-102" });
+    expect(unwrapJsonObject(" {\"type\":\"stop\"} ")).toEqual({ type: "stop" });
+    const obj = { type: "wait" };
+    expect(unwrapJsonObject(obj)).toBe(obj);
+    for (const v of ["[1]", "null", "42", '"x"', "{bad json", "go there", "", undefined, null, 7]) expect(unwrapJsonObject(v)).toBe(v);
   });
 });
