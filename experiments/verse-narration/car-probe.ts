@@ -3,10 +3,11 @@
 // (go_to {body: <car id>} only works once the car is in view, so the probe walks to the parking spot from drive.ts PARKED first.)
 // For each car id: walk to it, get in, try a short forward step along its facing, then a reverse step; print the sim's own words.
 import { endSession, mcp, startSession } from "./verse-session";
+import { PARKED } from "../../packages/world-sim/src/drive";
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const cars = (process.env.PROBE_CARS ?? "car-east,car-tea").split(",");
 // Parking spots from packages/world-sim/src/drive.ts PARKED (x, z): the probe walks to a point 2 m beside each, then enters.
-const SPOT: Record<string, [number, number]> = { "car-east": [-128.2, -14], "car-tea": [-28, -56] };
+const SPOT: Record<string, [number, number]> = Object.fromEntries(PARKED.map((p) => [p.id, [p.x, p.z]]));
 for (const carId of cars) {
   const s = await startSession("Probe-" + crypto.randomUUID().slice(0, 4));
   const act = async (action: object) => (await mcp(s.token, "world_act", { agent_id: s.agentId, action })).act;
