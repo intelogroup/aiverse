@@ -46,13 +46,48 @@ const prompt = `You are ${s.agentName}, an agent visiting the Verse (a shared 3D
 const cmd = HARNESS === "opencode"
   ? ["opencode", "run", "--format", "json", "--auto", "-m", `openrouter/${MODEL}`, prompt]
   : ["pi", "--mode", "json", "--no-session", "--provider", "openrouter", "--model", MODEL, "--tools", PI_EXPOSURE === "direct" ? "mcp__verse__*" : "codemode,mcp__verse__*", prompt];
+// NARRATION_PUSH=1 plays the opt-in harness plugin: each narration line is pushed to the gateway the moment the harness emits it, and a
+// real owner console socket (/console/ws, ticket auth) records what the owner would hear. Without it the run is capture-only.
+const PUSH = process.env.NARRATION_PUSH === "1";
+const ownerFrames: { text: string; kind: string; recvAt: number; lagMs: number | null }[] = [];
+let pushed = 0, pushErrors: string[] = [];
+let ownerWs: WebSocket | null = null;
+if (PUSH) {
+  const t = await (await fetch(GATEWAY + "/owners/ws-ticket", { method: "POST", headers: { authorization: `Bearer ${s.owner}` } })).json() as { ticket: string };
+  ownerWs = new WebSocket(GATEWAY.replace(/^http/, "ws") + "/console/ws?ticket=" + t.ticket);
+  ownerWs.onmessage = (e) => {
+    try { const m = JSON.parse(String(e.data)); if (m.type === "agent_narration") ownerFrames.push({ text: m.payload.text, kind: m.payload.kind, recvAt: Date.now(), lagMs: Date.now() - m.payload.at }); } catch { /* ignore */ }
+  };
+  await new Promise((r) => { ownerWs!.onopen = () => r(null); setTimeout(r, 3000); });
+}
 const proc = Bun.spawn(cmd, {
   cwd: join(OUT, "ws"), stdout: "pipe", stderr: "pipe", stdin: "ignore",
   env: { ...process.env, HOME: join(OUT, "home"), XDG_CONFIG_HOME: join(OUT, "xdg"), PWD: join(OUT, "ws"), OPENROUTER_API_KEY: KEY },
 });
 const timer = setTimeout(() => proc.kill(), TIMEOUT_S * 1000);
-const [stdout, stderr] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
+// Read the harness stream line by line AS IT ARRIVES (so a push happens when the line is emitted, not after the run).
+const decoder = new TextDecoder();
+let buf = "", stdout = "";
+const pushLine = (line: string) => {
+  if (!PUSH) return;
+  for (const n of narration(HARNESS, [line])) {
+    pushed++;
+    mcp(s.token, "agent_narrate", { agent_id: s.agentId, text: n.text.slice(0, 300), kind: n.kind }) /* the gateway REJECTS over 300 chars (no truncation): a plugin must cap */.catch((e) => { pushErrors.push(String(e).slice(0, 120)); });
+  }
+};
+const readOut = (async () => {
+  for await (const chunk of proc.stdout as unknown as AsyncIterable<Uint8Array>) {
+    const text = decoder.decode(chunk, { stream: true });
+    stdout += text; buf += text;
+    let i;
+    while ((i = buf.indexOf("\n")) >= 0) { const line = buf.slice(0, i); buf = buf.slice(i + 1); if (line.trim()) pushLine(line); }
+  }
+  if (buf.trim()) pushLine(buf);
+})();
+const [stderr] = await Promise.all([new Response(proc.stderr).text(), readOut]);
 const exit = await proc.exited; clearTimeout(timer);
+if (PUSH) await new Promise((r) => setTimeout(r, 1500)); // let the last frames land
+ownerWs?.close();
 await writeFile(join(OUT, "stream.jsonl"), stdout); await writeFile(join(OUT, "stderr.txt"), stderr);
 const lines = stdout.split("\n").filter(Boolean);
 
@@ -65,7 +100,8 @@ const spent = (await usage()) - spend0;
 console.log(JSON.stringify({
   harness: HARNESS, ...(HARNESS === "pi" && { pi_exposure: PI_EXPOSURE }), model: MODEL, exit, event_types: types, narration_lines: narr.length,
   visible: narr.filter((n) => n.kind === "visible").length, thinking: narr.filter((n) => n.kind === "thinking").length,
-  filler_rate: fillerRate(narr), spent_usd: Number(spent.toFixed(4)), over_budget: spent > BUDGET_USD,
+  filler_rate: fillerRate(narr),
+  ...(PUSH && { push: { pushed, owner_received: ownerFrames.length, push_errors: pushErrors.length, error_sample: pushErrors.slice(0, 2), lag_ms_median: ownerFrames.length ? ownerFrames.map((f) => f.lagMs ?? 0).sort((a, b) => a - b)[Math.floor(ownerFrames.length / 2)] : null, owner_heard_first: ownerFrames.slice(0, 4).map((f) => `${f.kind}: ${f.text.slice(0, 90)}`) } }), spent_usd: Number(spent.toFixed(4)), over_budget: spent > BUDGET_USD,
   first_lines: narr.slice(0, 6), final_position: (finalObs as any)?.observation?.body ? { x: (finalObs as any).observation.body.x, z: (finalObs as any).observation.body.z, nearest: (finalObs as any).observation.nearestPlace } : String(finalObs).slice(0, 200),
   stderr_tail: stderr.slice(-300),
 }, null, 1));
