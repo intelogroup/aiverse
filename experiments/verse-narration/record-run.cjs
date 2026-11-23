@@ -74,10 +74,10 @@ const child = (name, args, env) => {
     fs.writeFileSync(path.join(OUT, "no-follow-chip.txt"), JSON.stringify({ errs, cons: cons.slice(0, 60), text: await page.evaluate(() => document.body.innerText.slice(0, 1500)).catch(() => null), testids: await page.evaluate(() => [...document.querySelectorAll("[data-testid]")].map((n) => n.dataset.testid)).catch(() => null) }, null, 1));
     throw e;
   }
-  await chip.click();
+  await chip.click({ force: true, timeout: 120000 });
   const snd = page.getByTestId("follow-sound");
   await snd.waitFor({ timeout: 30000 });
-  await snd.click(); // the consent gesture: creates the AudioContext inside the click
+  await snd.click({ force: true, timeout: 120000 }); // (force: software GL keeps the page re-rendering, so Playwright's stability wait never settles) the consent gesture: creates the AudioContext inside the click
   console.log("following + sound enabled; waiting for the host to be at the tea house");
   if (!NO_GREETER && !(await waitFile(READY, 280000))) console.log("host never reported ready; continuing anyway");
   await sleep(1500);
