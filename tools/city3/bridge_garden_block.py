@@ -24,11 +24,23 @@ import bridge_citadel_townhouses as c
 from bridge_bazaar_open_space import G, MATS, Builder, emit
 from bridge_landscape_kit import add_accessor, add_view
 
+GARDENS = {"garden": dict(rect=(72.0, -58.0, 122.0, -12.0), plaza=9.0, orchard=False, seed=4311),    # lots 164-171, beside the sports field
+           "orchard": dict(rect=(-122.0, -58.0, -72.0, -12.0), plaza=5.0, orchard=True, seed=6013)}  # lots 60-67: fruit-tree grid round a small gazebo plaza
+NAME = "garden"
 MARK = "garden_block_pass"
-X0, X1, Z0, Z1 = 72.0, 122.0, -58.0, -12.0
+X0, X1, Z0, Z1 = GARDENS[NAME]["rect"]
 CX, CZ = (X0 + X1) / 2, (Z0 + Z1) / 2
 PW = 2.4          # path width
 PLAZA = 9.0       # plaza half-size
+
+
+def use(name):
+    """point the module globals at one garden of GARDENS"""
+    global NAME, MARK, X0, X1, Z0, Z1, CX, CZ, PLAZA
+    NAME, g = name, GARDENS[name]
+    MARK = f"{name}_block_pass"
+    X0, Z0, X1, Z1 = g["rect"][0], g["rect"][1], g["rect"][2], g["rect"][3]
+    CX, CZ, PLAZA = (X0 + X1) / 2, (Z0 + Z1) / 2, g["plaza"]
 GAZEBO_S, ARCH_S = 1.6, 1.5
 
 
@@ -72,16 +84,18 @@ def scenery(rnd):
                            (CX - PW / 2, CX + PW / 2, Z0, Z1), (X0, X1, CZ - PW / 2, CZ + PW / 2)):
         b.box("gravel", x0, x1, z0, z1, G + .03, G + .06, uv=1.5)
     b.box("stone", CX - PLAZA, CX + PLAZA, CZ - PLAZA, CZ + PLAZA, G + .03, G + .1, uv=1.5)
-    for k in range(40 * 6):
-        if len(trees) >= 34:
+    cand = ([(X0 + 7.5 + 6.0 * i + rnd.uniform(-.5, .5), Z0 + 7.5 + 6.0 * k + rnd.uniform(-.5, .5)) for i in range(int((X1 - X0 - 15) / 6.0) + 1) for k in range(int((Z1 - Z0 - 15) / 6.0) + 1)]
+            if GARDENS[NAME]["orchard"] else [(rnd.uniform(X0 + 1, X1 - 1), rnd.uniform(Z0 + 1, Z1 - 1)) for _ in range(240)])
+    for x, z in cand:
+        if len(trees) >= (80 if GARDENS[NAME]["orchard"] else 34):
             break
-        x, z = rnd.uniform(X0 + 1, X1 - 1), rnd.uniform(Z0 + 1, Z1 - 1)
         if on_path(x, z, 1.2) or abs(x - CX) < PLAZA + 2.5 and abs(z - CZ) < PLAZA + 2.5:
             continue
         trees.append((x, z, rnd.choice(("Tree_packtree_a", "Tree_packtree_b", "Tree_packtree_c"))))
-    for dx in (-4.5, 4.5):
+    o = PLAZA / 2
+    for dx in (-o, o):
         benches += [(CX + dx, CZ - PLAZA + .8, 0.0), (CX + dx, CZ + PLAZA - .8, math.pi)]
-    for dz in (-4.5, 4.5):
+    for dz in (-o, o):
         benches += [(CX - PLAZA + .8, CZ + dz, math.pi / 2), (CX + PLAZA - .8, CZ + dz, -math.pi / 2)]
     return b, trees, benches
 
@@ -112,10 +126,15 @@ def selftest():
     assert len(plan) == 5 and plan[0]["items"][0]["boxes"] and plan[1]["items"][0]["boxes"] == []
     b, trees, benches = scenery(random.Random(1))
     assert len(trees) == 34 and len(benches) == 8 and all(not on_path(x, z, 1.0) for x, z, _ in trees)
+    use("orchard")
+    b, trees, benches = scenery(random.Random(1))
+    assert 20 <= len(trees) <= 80 and all(X0 < x < X1 and Z0 < z < Z1 and not on_path(x, z, 1.0) for x, z, _ in trees) and len(plan := kit_plan(assets)) == 5
+    use("garden")
     print("selftest ok")
 
 
-def run(world_path, col_path, dry):
+def run(world_path, col_path, dry, name="garden"):
+    use(name)
     from bridge_wave1 import Glb, save_glb
     world, col = Glb(world_path), Glb(col_path)
     j = world.gltf
@@ -123,10 +142,10 @@ def run(world_path, col_path, dry):
         print({"already_patched": True}); return
     assets = {s: c.load_asset(s) for s in ("park_gazebo", "rose_arch")}
     plan = kit_plan(assets)
-    rnd = random.Random(4311)
+    rnd = random.Random(GARDENS[NAME]["seed"])
     b, trees, benches = scenery(rnd)
     print(json.dumps({"quads": sum(len(d["P"]) // 4 for d in b.q.values()), "trees": len(trees), "benches": len(benches)}))
-    rep = c.apply(world, col, plan, assets, dry, mark=MARK, prefix="Kit_garden")
+    rep = c.apply(world, col, plan, assets, dry, mark=MARK, prefix="Kit_" + NAME)
     print(json.dumps(rep))
     if dry:
         return
@@ -135,26 +154,26 @@ def run(world_path, col_path, dry):
     def mats(k):
         if k not in cache:
             col_, r, mt, _ = MATS[k]
-            j["materials"].append({"name": "BzGarden_" + k, "pbrMetallicRoughness": {"baseColorFactor": [*col_[:3], 1], "metallicFactor": mt, "roughnessFactor": r}})
+            j["materials"].append({"name": f"Bz{NAME.title()}_" + k, "pbrMetallicRoughness": {"baseColorFactor": [*col_[:3], 1], "metallicFactor": mt, "roughnessFactor": r}})
             cache[k] = len(j["materials"]) - 1
         return cache[k]
 
-    emit(world, j, b, "BzGarden", mats)
+    emit(world, j, b, "Bz" + NAME.title(), mats)
     scene = j["scenes"][j.get("scene", 0)]["nodes"]
     tmpl = {n["name"]: n for n in j["nodes"] if n.get("name", "").startswith("Tree_packtree_")}
     bench = next(n for n in j["nodes"] if n.get("name", "").startswith("SK_med_bench"))
     boxes = []
     for i, (x, z, nm) in enumerate(trees):
         n = copy.deepcopy(tmpl.get(nm) or next(iter(tmpl.values())))
-        n["name"] = f"{nm}.garden{i}"; n["translation"] = [x, G, z]; n["rotation"] = [0, math.sin(i), 0, math.cos(i)]
+        n["name"] = f"{nm}.{NAME}{i}"; n["translation"] = [x, G, z]; n["rotation"] = [0, math.sin(i), 0, math.cos(i)]
         j["nodes"].append(n); scene.append(len(j["nodes"]) - 1)
         boxes.append((x - .25, x + .25, z - .25, z + .25, G, G + 3))
     for i, (x, z, yaw) in enumerate(benches):
         n = copy.deepcopy(bench)
-        n["name"] = f"SK_med_bench.garden{i}"; n["translation"] = [x, G, z]; n["rotation"] = [0, math.sin(yaw / 2), 0, math.cos(yaw / 2)]
+        n["name"] = f"SK_med_bench.{NAME}{i}"; n["translation"] = [x, G, z]; n["rotation"] = [0, math.sin(yaw / 2), 0, math.cos(yaw / 2)]
         j["nodes"].append(n); scene.append(len(j["nodes"]) - 1)
         boxes.append((x - .9, x + .9, z - .3, z + .3, G, G + .5))
-    col_mesh(col, boxes, "col_garden")
+    col_mesh(col, boxes, "col_" + NAME)
     print("wrote", world_path, save_glb(world_path, world.gltf, world.bin), "bytes")
     print("wrote", col_path, save_glb(col_path, col.gltf, col.bin), "bytes")
 
@@ -163,9 +182,10 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("world", nargs="?", default="apps/console/public/assets/world-city3.glb")
     ap.add_argument("collision", nargs="?", default="apps/console/public/assets/world-city3-collision.glb")
+    ap.add_argument("--block", default="garden", choices=sorted(GARDENS))
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--selftest", action="store_true")
     a = ap.parse_args()
     if a.selftest:
         selftest(); sys.exit(0)
-    run(a.world, a.collision, a.dry_run)
+    run(a.world, a.collision, a.dry_run, a.block)
