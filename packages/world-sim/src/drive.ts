@@ -25,7 +25,10 @@ export interface ParkedSpot { id: string; label: string; x: number; z: number; h
 export const PARKED: ParkedSpot[] = [
   // Parked on the west back street (x -130, a 10 m street behind the blocks), in its right-hand lane facing north: out of the plaza by the tower.
   { id: "car-east", label: "red car", x: -128.2, z: -14, heading: Math.PI },
-  { id: "car-tea", label: "red car", x: -28, z: -56, heading: 3.0 },
+  // On the Tea House approach street (z -65, 10 m wide), in the right-hand lane of the EAST-bound carriageway (z -62.5), facing east.
+  // It used to stand at (-28, -56) in the stall alley south of the street, boxed in by two stall boxes: a footprint disc touched a wall
+  // at each end, so every drive ended BLOCKED (and reversing hit the other wall). driveSim.test.ts now checks every spot is free to roll.
+  { id: "car-tea", label: "red car", x: -40, z: -62.5, heading: Math.PI / 2 },
 ];
 
 export interface Vehicle {
