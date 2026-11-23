@@ -9,10 +9,12 @@
 // The text is another agent's words: untrusted, only ever spoken, never interpreted. Pure + injected deps so vitest covers it headless.
 import { AGENT_VOICE_POOL } from "./phononTts";
 import type { PreparedLine } from "./plazaTts";
+import type { StreamResult } from "./agentStream";
+import { EMITTER_AUDIBLE_M } from "./soundLogic";
 
 export const MAX_SPOKEN_CHARS = 140;
-/** Beyond this the speaker is not worth synthesizing (the director's own distance law is gentler; this saves the engine). */
-export const AUDIBLE_M = 30;
+/** Beyond this the director's voice emitter is silent anyway (soundLogic emitterGain), so the line is not worth synthesizing. */
+export const AUDIBLE_M = EMITTER_AUDIBLE_M;
 /** Same speaker, minimum seconds between two spoken lines (a chatty agent gets bubbles, not a wall of speech). */
 export const SPEAKER_GAP_S = 2.5;
 export const MAX_QUEUE = 3;
@@ -30,6 +32,11 @@ export interface AgentSpeechDeps {
   /** Where speaker `n` stands now, or null if it left. */
   speakerPos(n: number): { x: number; z: number } | null;
   prepare(text: string, voice: string): Promise<PreparedLine>;
+  /**
+   * Optional streaming path: speak while synthesizing. Null = unavailable right now (engine not loaded), and the line falls back to
+   * prepare + play. Resolves when synthesis has finished; the audio may still be playing (the result says how long it runs).
+   */
+  speak?(text: string, voice: string, pos: { x: number; z: number }, speaker: string): Promise<StreamResult | null>;
   /** Play positionally; returns seconds (0 = nothing played). */
   play(line: PreparedLine, pos: { x: number; z: number }, speaker: string): number;
   now(): number; // ms
@@ -42,6 +49,8 @@ export interface SpokenRecord {
   queuedMs: number;
   /** ms the synthesis (or clip fetch) took */
   prepareMs: number;
+  /** Present when the line was spoken through the streaming path. */
+  stream?: { firstChunkMs: number | null; startMs: number | null; rate: number | null; buffered: boolean };
 }
 export type DropReason = "no_consent" | "no_listener" | "far" | "gap" | "queue_full" | "stale" | "empty" | "speaker_gone";
 
@@ -122,13 +131,37 @@ export class AgentSpeech {
         if (!pos) { this.drop("speaker_gone", item.line.n); continue; }
         const voice = this.voices.voiceFor(item.line.name || `body-${item.line.n}`);
         const startedAt = this.deps.now();
-        const prepared = await this.deps.prepare(item.text, voice).catch((): PreparedLine => ({ shape: "silent" }));
-        // The speaker may have walked since the line was queued: speak from where it stands now.
+        const speaker = item.line.name || String(item.line.n);
+        let streamed: StreamResult | null = null;
+        if (this.deps.speak) {
+          // The speaker's position is read now: a streamed line keeps one position for its whole utterance.
+          const at = this.deps.speakerPos(item.line.n) ?? pos;
+          streamed = await this.deps.speak(item.text, voice, at, speaker).catch(() => null);
+        }
+        let prepared: PreparedLine | null = null;
+        let seconds: number;
+        if (streamed) {
+          seconds = streamed.seconds;
+        } else {
+          prepared = await this.deps.prepare(item.text, voice).catch((): PreparedLine => ({ shape: "silent" }));
+          // The speaker may have walked since the line was queued: speak from where it stands now.
+          const at = this.deps.speakerPos(item.line.n) ?? pos;
+          seconds = this.deps.play(prepared, at, speaker);
+        }
         const prepareMs = this.deps.now() - startedAt;
-        const at = this.deps.speakerPos(item.line.n) ?? pos;
-        const seconds = this.deps.play(prepared, at, item.line.name || String(item.line.n));
-        this.log.push({ n: item.line.n, name: item.line.name, voice, text: item.text, shape: prepared.shape, seconds, queuedMs: Math.round(startedAt - item.at), prepareMs: Math.round(prepareMs) });
+        this.log.push({
+          n: item.line.n, name: item.line.name, voice, text: item.text,
+          shape: streamed ? streamed.shape : prepared!.shape, seconds,
+          queuedMs: Math.round(startedAt - item.at), prepareMs: Math.round(prepareMs),
+          ...(streamed ? { stream: { firstChunkMs: streamed.firstChunkMs, startMs: streamed.startMs, rate: streamed.rate, buffered: streamed.buffered } } : {}),
+        });
         if (this.log.length > 200) this.log.shift();
+        // Wait for the audio still playing: a streamed line began at startMs after startedAt and runs `seconds`.
+        if (streamed && streamed.startMs !== null) {
+          const playEnd = startedAt + streamed.startMs + seconds * 1000;
+          await this.deps.sleep(Math.max(0, playEnd - this.deps.now()) + LINE_GAP_MS);
+          continue;
+        }
         await this.deps.sleep(Math.max(0, seconds * 1000) + LINE_GAP_MS);
       }
     } finally {

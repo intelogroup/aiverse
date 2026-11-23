@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AGENT_VOICE_POOL } from "./phononTts";
 import type { PreparedLine } from "./plazaTts";
+import { EMITTER_AUDIBLE_M } from "./soundLogic";
 import { AgentSpeech, AUDIBLE_M, MAX_QUEUE, MAX_SPOKEN_CHARS, SPEAKER_GAP_S, STALE_S, VoiceAssigner, hashName, spokenText, type AgentSpeechDeps } from "./agentSpeech";
 
 function rig(over: Partial<AgentSpeechDeps> = {}) {
@@ -113,6 +114,33 @@ describe("AgentSpeech", () => {
     r3.speech.hear({ n: 1, name: "A", text: "a" }); r3.speech.hear({ n: 2, name: "B", text: "b" });
     await r3.settle();
     expect(r3.speech.drops.some((d) => d.reason === "stale")).toBe(true);
+  });
+  it("uses the streaming path when available and waits for the audio that is still playing", async () => {
+    let t = 0;
+    const slept: number[] = [];
+    const r = rig({
+      now: () => t,
+      sleep: async (ms) => { slept.push(ms); t += ms; },
+      speak: async () => { t += 500; return { shape: "live", seconds: 3, firstChunkMs: 120, startMs: 200, rate: 2.5, buffered: false }; },
+      prepare: async () => { throw new Error("must not be used when streaming works"); },
+    } as never);
+    r.speech.hear({ n: 1, name: "A", text: "hello there" });
+    await r.settle();
+    expect(r.speech.log[0].stream).toEqual({ firstChunkMs: 120, startMs: 200, rate: 2.5, buffered: false });
+    expect(r.speech.log[0].seconds).toBe(3);
+    // synthesis ended at 500 ms; audio ends 200 + 3000 after start: ~2700 ms still to wait, plus the gap
+    expect(slept[0]).toBeGreaterThan(2500);
+    expect(slept[0]).toBeLessThan(3300);
+  });
+  it("falls back to prepare + play when streaming is unavailable", async () => {
+    const r = rig({ speak: async () => null } as never);
+    r.speech.hear({ n: 1, name: "A", text: "hello" });
+    await r.settle();
+    expect(r.played).toHaveLength(1);
+    expect(r.speech.log[0].stream).toBeUndefined();
+  });
+  it("does not synthesize beyond the director's own audible range", () => {
+    expect(AUDIBLE_M).toBe(EMITTER_AUDIBLE_M);
   });
   it("speaks from where the speaker stands when its turn comes, not where it was", async () => {
     const r = rig();

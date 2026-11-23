@@ -58,6 +58,7 @@ type PhononEngine = Awaited<ReturnType<PhononModule["PhononTTS"]["load"]>>;
 
 let enginePromise: Promise<PhononEngine> | null = null;
 let engineReady = false;
+let engineRef: PhononEngine | null = null;
 /** Lines synthesized ahead of time (warmPhonon): voice + text -> PCM. */
 const pcmCache = new Map<string, { pcm: Float32Array; sampleRate: number }>();
 const cacheKey = (text: string, voice: string) => `${voice}\u0000${text}`;
@@ -122,12 +123,29 @@ export function loadPhonon(): Promise<PhononEngine> {
       voices: [VOICE_SUMMER, VOICE_MAGE, VOICE_BARTENDER, ...AGENT_VOICE_POOL.map((v) => v.voice)],
     });
     engineReady = true;
+    engineRef = engine;
     return engine;
   })().catch((e: unknown) => {
     enginePromise = null;
     throw e;
   });
   return enginePromise;
+}
+
+/**
+ * Open a streaming synthesis of one line (80 ms chunks on the CPU build), or null while the engine is still loading (callers then
+ * fall back to the clip / silence rather than waiting on the 64 MB model). The caller owns cancel() and must read or cancel it.
+ */
+export function openSpeechStream(text: string, voice: string): { chunks: AsyncIterable<Float32Array>; cancel(): void; done: Promise<unknown>; sampleRate: number } | null {
+  const tts = engineRef;
+  if (!tts) return null;
+  const stream = tts.stream(text, { voice });
+  return { chunks: stream, cancel: () => stream.cancel(), done: stream.done, sampleRate: tts.sampleRate };
+}
+
+/** Debug: how the loaded engine runs (threads need a cross-origin isolated page; see the phonon-tts README). */
+export function engineInfo(): { device: string; threads: number; threadsReason: string; crossOriginIsolated: boolean } | null {
+  return engineRef ? { device: engineRef.device, threads: engineRef.threads, threadsReason: engineRef.threadsReason, crossOriginIsolated: typeof crossOriginIsolated === "boolean" ? crossOriginIsolated : false } : null;
 }
 
 export interface SynthResult {
