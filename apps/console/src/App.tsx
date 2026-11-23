@@ -17,6 +17,7 @@ import {
   useLiveEventsQuery,
 } from "./lib/queries";
 import { useConsoleWs } from "./lib/consoleWs";
+import { publishNarration } from "./lib/narrationBus";
 import { pushToast } from "./lib/toast";
 import { ToastStack } from "./components/ToastStack";
 
@@ -98,6 +99,7 @@ export default function App() {
   useConsoleWs(authed ? token : null, {
     onConsoleEvent: (event) => prependLiveEvent(queryClient, event),
     onAgentStatusChanged: (payload) => patchAgentStatus(queryClient, payload),
+    onAgentNarration: publishNarration,
   });
 
   function goWorld() {

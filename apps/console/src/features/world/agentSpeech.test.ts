@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { AGENT_VOICE_POOL } from "./phononTts";
 import type { PreparedLine } from "./plazaTts";
 import { EMITTER_AUDIBLE_M } from "./soundLogic";
+import { MAX_NARRATION_CHARS, NARRATION_GAP_S, NARRATION_STALE_S, spokenNarration } from "./agentSpeech";
 import { AgentSpeech, AUDIBLE_M, MAX_QUEUE, MAX_SPOKEN_CHARS, SPEAKER_GAP_S, STALE_S, VoiceAssigner, hashName, spokenText, type AgentSpeechDeps } from "./agentSpeech";
 
 function rig(over: Partial<AgentSpeechDeps> = {}) {
@@ -148,5 +149,53 @@ describe("AgentSpeech", () => {
     r.bodies.set(1, { x: 7, z: 7 });
     await r.settle();
     expect(r.played[0].pos).toEqual({ x: 7, z: 7 });
+  });
+});
+
+describe("owner's agent talking to itself (hearNarration)", () => {
+  it("is spoken at the listener's position in the agent's own voice, however far the body is", async () => {
+    const r = rig();
+    r.bodies.set(1, { x: 500, z: 500 });
+    r.speech.hear({ n: 1, name: "Wren", text: "Hello out loud" }); // far: dropped as speech
+    r.speech.hearNarration({ agentName: "Wren", kind: "visible", text: "Heading to the tea house." });
+    await r.settle();
+    expect(r.speech.drops.map((d) => d.reason)).toEqual(["far"]);
+    expect(r.played).toHaveLength(1);
+    expect(r.played[0].pos).toEqual({ x: 0, z: 0 }); // the listener, not the body at 500,500
+    expect(r.speech.log[0]).toMatchObject({ inner: true, name: "Wren", voice: r.speech.voices.voiceFor("Wren") });
+  });
+  it("synthesizes nothing without consent or without a listener", async () => {
+    const r1 = rig({ consent: () => false });
+    r1.speech.hearNarration({ agentName: "W", kind: "visible", text: "private thought" });
+    expect(r1.prepared).toHaveLength(0);
+    expect(r1.speech.drops[0].reason).toBe("no_consent");
+    const r2 = rig({ listener: () => null });
+    r2.speech.hearNarration({ agentName: "W", kind: "visible", text: "private thought" });
+    expect(r2.speech.drops[0].reason).toBe("no_listener");
+  });
+  it("keeps a thinking agent to one line per NARRATION_GAP_S, and a stale thought is dropped", async () => {
+    const r = rig();
+    r.speech.hearNarration({ agentName: "W", kind: "thinking", text: "one" });
+    r.speech.hearNarration({ agentName: "W", kind: "thinking", text: "two" });
+    await r.settle();
+    expect(r.speech.drops.map((d) => d.reason)).toEqual(["gap"]);
+    r.advance(NARRATION_GAP_S * 1000 + 1);
+    r.speech.hearNarration({ agentName: "W", kind: "thinking", text: "three" });
+    await r.settle();
+    expect(r.played).toHaveLength(2);
+    const r3 = rig({ play: () => { r3.advance((NARRATION_STALE_S + 1) * 1000); return 1; } });
+    r3.bodies.set(5, { x: 1, z: 1 });
+    r3.speech.hear({ n: 5, name: "B", text: "speech first" });
+    r3.speech.hearNarration({ agentName: "W", kind: "visible", text: "waits behind" });
+    await r3.settle();
+    expect(r3.speech.drops.some((d) => d.reason === "stale")).toBe(true);
+  });
+  it("spokenNarration cuts a long thinking block at a sentence end, not mid-word", () => {
+    const long = "The tea house is north of here. " + "I should walk along the street and check the signs carefully before turning. ".repeat(6);
+    const out = spokenNarration(long);
+    expect(out.length).toBeLessThanOrEqual(MAX_NARRATION_CHARS);
+    expect(out.endsWith(".")).toBe(true);
+    expect(spokenNarration("Short thought.")).toBe("Short thought.");
+    expect(spokenNarration("x".repeat(400)).length).toBeLessThanOrEqual(MAX_NARRATION_CHARS);
   });
 });
