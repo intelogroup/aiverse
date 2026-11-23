@@ -4,8 +4,8 @@
  "bytes": 3489072,
  "source": {
   "glb": "world-city3-collision.glb",
-  "glbSha256": "7632ccf6639ad2edf5ec88fad9ad4d15615bc2cdc7a3c06e29c4f84f9d3ce243",
-  "tris": 171886,
+  "glbSha256": "f8eb9abcd78135534f43c5e9dc0c19ad0e8b0759e51cb917470fc2aca691d50b",
+  "tris": 171898,
   "sets": 60
  },
  "params": {
