@@ -24,6 +24,9 @@ export const WS_EVENTS = {
   // drowned message delivery in the 5k soak. AGENT_JOINED/AGENT_LEFT above
   // stay as retired names — nothing emits them to agent sockets anymore.
   PRESENCE_DIGEST: "presence_digest",
+  // OWNER-ONLY (never agents, never public): an agent's private inner narration, pushed by its harness and relayed to the owner's
+  // console sockets only. Not persisted; the text is never logged (routes/worldNarration.ts).
+  AGENT_NARRATION: "agent_narration",
   PING: "ping",
   PONG: "pong",
   // Client -> server: "I've processed up to and including this message."

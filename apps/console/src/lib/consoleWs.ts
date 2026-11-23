@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { ConsoleEvent } from "./api";
+import type { AgentNarration } from "./narrationBus";
 
 export interface AgentStatusChangedPayload {
   agent_id: string;
@@ -9,6 +10,8 @@ export interface AgentStatusChangedPayload {
 type Handler = {
   onConsoleEvent?: (event: ConsoleEvent) => void;
   onAgentStatusChanged?: (payload: AgentStatusChangedPayload) => void;
+  /** The owner's own agent's private inner narration (owner-only frame; never stored or shown to anyone else). */
+  onAgentNarration?: (payload: AgentNarration) => void;
 };
 
 export function useConsoleWs(token: string | null, handlers: Handler) {
@@ -41,6 +44,7 @@ export function useConsoleWs(token: string | null, handlers: Handler) {
         if (event.type === "console_event") handlersRef.current.onConsoleEvent?.(event.payload);
         if (event.type === "agent_status_changed")
           handlersRef.current.onAgentStatusChanged?.(event.payload);
+        if (event.type === "agent_narration") handlersRef.current.onAgentNarration?.(event.payload);
       };
     })();
 

@@ -1,0 +1,30 @@
+<!doctype html><meta charset="utf-8"><title>tts bench</title>
+<script type="module">
+import { loadPhonon, openSpeechStream, engineInfo, AGENT_VOICE_POOL } from "/src/features/world/phononTts.ts";
+const out = { lines: [] };
+window.__out = out;
+try {
+  const t0 = performance.now();
+  await loadPhonon();
+  out.loadMs = Math.round(performance.now() - t0);
+  out.engine = engineInfo();
+  const lines = [
+    ["Juniper", "Good evening. I just arrived in the Verse."],
+    ["Micah", "Welcome. The tea house is a good place to start."],
+    ["Harper", "Not far. Follow the street north and look for the lantern."],
+    ["Juniper", "Good evening. I just arrived in the Verse."],
+  ];
+  for (const [voice, text] of lines) {
+    const s0 = performance.now();
+    const st = openSpeechStream(text, voice);
+    let first = null, n = 0, samples = 0; const arrivals = [];
+    for await (const c of st.chunks) { const t = performance.now() - s0; if (first === null) first = t; n++; samples += c.length; arrivals.push(Math.round(t)); }
+    const total = performance.now() - s0;
+    const audioS = samples / st.sampleRate;
+    out.lines.push({ voice, chars: text.length, firstChunkMs: Math.round(first), totalMs: Math.round(total), audioS: +audioS.toFixed(2), chunks: n,
+      rtf: +((total / 1000) / audioS).toFixed(2), steadyRate: n > 2 ? +(((n - 1) * 0.08) / ((arrivals[n - 1] - arrivals[0]) / 1000)).toFixed(2) : null });
+  }
+  out.longtasks = window.__long?.length ?? 0;
+} catch (e) { out.error = String(e); }
+out.done = true;
+</script>

@@ -7,6 +7,8 @@ import { createSimServer } from "@aiverse/sim/server";
 import { createApp } from "../app";
 import { db } from "../db/client";
 import { websocket } from "../ws/gateway";
+import { consoleConnections } from "../ws/connections";
+import { NARRATION_BURST, NARRATION_MAX_CHARS } from "./worldNarration";
 import { httpSimClient } from "../world/simClient";
 import type { LookClient, LookOutcome } from "../world/lookClient";
 import { redis } from "../redis/client";
@@ -1054,3 +1056,126 @@ async function waitFor(pred: () => boolean, ms = 3000) {
   while (!pred() && Date.now() < end) await new Promise((r) => setTimeout(r, 20));
   expect(pred()).toBe(true);
 }
+
+
+// POST /world/narration + MCP agent_narrate: an agent's private inner narration, relayed to its OWNER's console sockets only.
+describe("owner-only narration relay", () => {
+  type Frame = { type: string; payload: { agentId: string; agentName: string; kind: string; text: string; at: number } };
+  /** A fake console socket registered the way /console/ws does it; collects frames. */
+  const listen = (ownerId: string) => {
+    const frames: Frame[] = [];
+    const ws = { send: (d: string) => frames.push(JSON.parse(d)) } as never;
+    const set = consoleConnections.get(ownerId) ?? new Set();
+    set.add(ws);
+    consoleConnections.set(ownerId, set);
+    return { frames, stop: () => { set.delete(ws); } };
+  };
+  const until = async (cond: () => boolean, ms = 3000) => { const t0 = Date.now(); while (!cond() && Date.now() - t0 < ms) await new Promise((r) => setTimeout(r, 25)); };
+  const settleQuiet = () => new Promise((r) => setTimeout(r, 250));
+  const narrate = (token: string, body: unknown) => w(token, "POST", "/narration", body);
+  const actionsUsed = async (visitId: string) => (await db.query.agentVisits.findFirst({ where: eq(agentVisits.id, visitId) }))!.actionsUsed;
+
+  test("needs agent auth and an active visit", async () => {
+    const a = await ownerWithAgent("narr-auth");
+    expect((await w("not-a-token", "POST", "/narration", { text: "hi" })).status).toBe(401);
+    const noVisit = await narrate(a.agentToken, { text: "hi" });
+    expect(noVisit.status).toBe(403);
+    expect(((await noVisit.json()) as any).error).toBe("no_visit");
+  });
+
+  test("delivers to the visit's owner only, not to another owner, and returns 202", async () => {
+    const a = await ownerWithAgent("narr-a");
+    const b = await ownerWithAgent("narr-b");
+    await startVisit(a.ownerToken, a.agentId);
+    const mine = listen(a.ownerId);
+    const other = listen(b.ownerId);
+    try {
+      const res = await narrate(a.agentToken, { text: "  Heading to the   tea house.\n", kind: "thinking" });
+      expect(res.status).toBe(202);
+      await until(() => mine.frames.length > 0);
+      await settleQuiet();
+      expect(mine.frames).toHaveLength(1);
+      expect(mine.frames[0].type).toBe("agent_narration");
+      expect(mine.frames[0].payload).toMatchObject({ agentId: a.agentId, kind: "thinking", text: "Heading to the tea house." });
+      expect(typeof mine.frames[0].payload.agentName).toBe("string");
+      expect(other.frames).toHaveLength(0);
+    } finally { mine.stop(); other.stop(); }
+  });
+
+  test("validates input: text required, capped, plain; kind from the enum", async () => {
+    const a = await ownerWithAgent("narr-val");
+    await startVisit(a.ownerToken, a.agentId);
+    expect((await narrate(a.agentToken, {})).status).toBe(400);
+    expect((await narrate(a.agentToken, { text: 5 })).status).toBe(400);
+    expect((await narrate(a.agentToken, { text: "   \u0000\u0007 " })).status).toBe(400);
+    expect((await narrate(a.agentToken, { text: "x".repeat(NARRATION_MAX_CHARS + 1) })).status).toBe(400);
+    expect((await narrate(a.agentToken, { text: "ok", kind: "shout" })).status).toBe(400);
+    expect((await narrate(a.agentToken, { text: "x".repeat(NARRATION_MAX_CHARS) })).status).toBe(202);
+  });
+
+  test("is rate limited per agent after a burst", async () => {
+    const a = await ownerWithAgent("narr-rate");
+    await startVisit(a.ownerToken, a.agentId);
+    const statuses: number[] = [];
+    for (let i = 0; i < NARRATION_BURST + 3; i++) statuses.push((await narrate(a.agentToken, { text: `line ${i}` })).status);
+    expect(statuses.slice(0, NARRATION_BURST).every((s) => s === 202)).toBe(true);
+    expect(statuses.slice(NARRATION_BURST)).toContain(429);
+    const limited = await narrate(a.agentToken, { text: "more" });
+    expect(limited.status).toBe(429);
+    expect(limited.headers.get("retry-after")).toBeTruthy();
+    // another agent is unaffected
+    const b = await ownerWithAgent("narr-rate-b");
+    await startVisit(b.ownerToken, b.agentId);
+    expect((await narrate(b.agentToken, { text: "mine" })).status).toBe(202);
+  });
+
+  test("is not a visit action: it does not spend the owner's action budget", async () => {
+    const a = await ownerWithAgent("narr-budget");
+    const visit = await startVisit(a.ownerToken, a.agentId, 5);
+    const before = await actionsUsed(visit.id);
+    for (let i = 0; i < 3; i++) expect((await narrate(a.agentToken, { text: `line ${i}` })).status).toBe(202);
+    expect(await actionsUsed(visit.id)).toBe(before);
+  });
+
+  test("the narration text never reaches the logs (only its length)", async () => {
+    const a = await ownerWithAgent("narr-log");
+    await startVisit(a.ownerToken, a.agentId);
+    const secret = "my-private-reasoning-" + crypto.randomUUID();
+    const captured: string[] = [];
+    const orig = console.log; const origErr = console.error; const origWrite = process.stdout.write.bind(process.stdout);
+    console.log = (...x: unknown[]) => { captured.push(x.map(String).join(" ")); };
+    console.error = (...x: unknown[]) => { captured.push(x.map(String).join(" ")); };
+    process.stdout.write = ((chunk: unknown) => { captured.push(String(chunk)); return true; }) as never;
+    try {
+      expect((await narrate(a.agentToken, { text: secret })).status).toBe(202);
+      await settleQuiet();
+    } finally { console.log = orig; console.error = origErr; process.stdout.write = origWrite as never; }
+    expect(captured.join("\n")).not.toContain(secret);
+    expect(captured.join("\n")).toContain("world_narration_relayed");
+  });
+
+  test("MCP agent_narrate relays to the owner; an OAuth grant without world:act is refused", async () => {
+    const a = await ownerWithAgent("narr-mcp");
+    await startVisit(a.ownerToken, a.agentId);
+    const full = await mintMcpOAuthToken(app, a.ownerToken, [a.agentId], "world:observe world:act");
+    const observeOnly = await mintMcpOAuthToken(app, a.ownerToken, [a.agentId], "world:observe");
+    const mine = listen(a.ownerId);
+    try {
+      const ok = await callMcp(full.accessToken, "agent_narrate", { text: "Walking north now.", kind: "visible" });
+      expect(ok.isError).toBe(false);
+      await until(() => mine.frames.length > 0);
+      expect(mine.frames[0].payload).toMatchObject({ agentId: a.agentId, text: "Walking north now." });
+      // The refusal is plain text, not JSON, so read the raw MCP answer instead of callMcp.
+      const raw = await app.request("/mcp/agent", {
+        method: "POST",
+        headers: { ...json(observeOnly.accessToken), accept: "application/json, text/event-stream" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "agent_narrate", arguments: { text: "should not pass" } } }),
+      });
+      const refused = ((await raw.json()) as { result: { isError?: boolean; content: [{ text: string }] } }).result;
+      expect(refused.isError).toBe(true);
+      expect(refused.content[0].text).toContain("insufficient_scope");
+      await settleQuiet();
+      expect(mine.frames).toHaveLength(1);
+    } finally { mine.stop(); }
+  });
+});

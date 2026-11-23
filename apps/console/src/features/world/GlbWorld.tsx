@@ -27,8 +27,11 @@ import { pickOwnBody, type RosterBody } from "./ownerFollow";
 import { RemoteBodies } from "./remoteFrames";
 import { WalkClipOverride, type WalkFrameInfo } from "./walkOverride";
 import { SoundDirector } from "./soundDirector";
-import { VOICE_BARTENDER, benchPhonon, phononWarmth, synthLine, warmPhonon } from "./phononTts";
-import { GREETING_SCRIPT, createPlazaGreeting, type PlazaGreeting } from "./plazaTts";
+import { VOICE_BARTENDER, benchPhonon, engineInfo, openSpeechStream, phononWarmth, synthLine, warmPhonon } from "./phononTts";
+import { GREETING_SCRIPT, createPlazaGreeting, playLine, prepareLine, type PlazaGreeting } from "./plazaTts";
+import { AgentSpeech } from "./agentSpeech";
+import { subscribeNarration } from "../../lib/narrationBus";
+import { streamSpeech } from "./agentStream";
 import { type CameraMode } from "./cameraRig";
 import { attachWorldRenderer } from "../../lib/telemetry/index";
 import { FpsMeter } from "./fpsMeter";
@@ -276,6 +279,60 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
       },
     );
   }
+  // Agents' public speech (the viewer stream's `say`) spoken aloud, positional, one voice per agent (agentSpeech.ts). Bound to the
+  // director like the plaza greeting; the subscription below reads the ref at call time, so a rebuilt instance is picked up.
+  // Where the listener stands: the walker while walking; while FOLLOWING the owner's own agent, that agent's body (the owner is
+  // "with" it). Null otherwise (nothing is spoken for nobody). A ref per input so the long-lived speech object never goes stale.
+  const ownBodyRef = useRef<RosterBody | null>(null);
+  ownBodyRef.current = ownBody;
+  const [, bumpFollowSound] = useState(0);
+  const followingRef = useRef(false);
+  followingRef.current = following;
+  const listenerNow = (): { x: number; z: number } | null => {
+    const fr = walkFrameRef.current;
+    if (fr && fr.x !== undefined && fr.z !== undefined) return { x: fr.x, z: fr.z };
+    const own = ownBodyRef.current;
+    if (followingRef.current && own) {
+      const t = remoteBodies.renderTime(performance.now() / 1000);
+      const p = t === null ? null : remoteBodies.sample(own.n, t);
+      if (p) return { x: p.x, z: p.z };
+    }
+    return null;
+  };
+  const agentSpeechRef = useRef<AgentSpeech | null>(null);
+  const agentSpeechDirectorRef = useRef<SoundDirector | null>(null);
+  if (agentSpeechRef.current === null || agentSpeechDirectorRef.current !== soundRef.current) {
+    agentSpeechDirectorRef.current = soundRef.current;
+    const director = soundRef.current;
+    agentSpeechRef.current = new AgentSpeech({
+      consent: () => director.consent === "granted",
+      listener: () => listenerNow(),
+      speakerPos: (n) => {
+        const t = remoteBodies.renderTime(performance.now() / 1000);
+        const p = t === null ? null : remoteBodies.sample(n, t);
+        return p ? { x: p.x, z: p.z } : null;
+      },
+      prepare: (text, voice) => prepareLine(director, text, voice, null),
+      play: (line, pos, speaker) => playLine(director, line, pos, speaker),
+      // Streaming first: the line starts sounding after its first chunks, not after the whole synthesis. Null (engine still
+      // loading, or the director cannot play) falls through to prepare + play above.
+      speak: (text, voice, pos, speaker) => {
+        return streamSpeech({
+          open: () => { const st = openSpeechStream(text, voice); return st && { chunks: st.chunks, cancel: st.cancel, sampleRate: st.sampleRate }; },
+          beginSink: () => director.beginVoiceStream(pos, speaker),
+          now: () => performance.now(),
+        }, text);
+      },
+      now: () => performance.now(),
+      sleep: (ms) => new Promise<void>((r) => setTimeout(r, ms)),
+    });
+  }
+  useEffect(() => {
+    if (!streamOn) return;
+    return remoteBodies.onSay((e) => agentSpeechRef.current?.hear(e));
+  }, [streamOn, remoteBodies]);
+  // The owner's OWN agent talking to itself (gateway: owner-console frame only). Spoken in the owner's head, not at a body.
+  useEffect(() => subscribeNarration((n) => agentSpeechRef.current?.hearNarration({ agentName: n.agentName, text: n.text, kind: n.kind })), []);
   // Keep speech warm, once the visitor has said yes to sound: the click on "Enable sound" starts the engine load (64.5 MB)
   // and the pre-synthesis of every scripted line in the background. Nobody who declines sound downloads the model; until it
   // is warm the pre-rendered clips speak every line at once (prepareLine), so greetings never wait either way.
@@ -424,7 +481,7 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
   // facts; entering walk mode starts a fresh session (the tea
   // announcement re-arms).
   useEffect(() => {
-    if (!walking) return;
+    if (!walking && !following) return;
     const sound = soundRef.current;
     if (!sound) return;
     sound.resetSession();
@@ -441,7 +498,7 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
       const tea = city3Rooms.find((r) => r.id === "tea");
       sound.tick({
         dt,
-        listener: fr && fr.x !== undefined && fr.z !== undefined ? { x: fr.x, z: fr.z } : null,
+        listener: listenerNow(),
         doorAngle: door?.angle ?? 0,
         doorState: door?.state ?? "closed",
         teaRect: tea?.rect ?? null,
@@ -473,6 +530,9 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
               : null;
           }),
         log: () => plazaRef.current?.log ?? [],
+        agentSpeech: () => ({ log: agentSpeechRef.current?.log ?? [], drops: agentSpeechRef.current?.drops ?? [] }),
+        engine: () => engineInfo(),
+        listener: () => listenerNow(),
         status: () => plazaRef.current?.status ?? "none",
         warmth: () => phononWarmth(),
         /** Synthesize one line (tools: render pre-recorded fallback clips with the same engine + voice). */
@@ -491,7 +551,7 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
       if (debug) delete (window as unknown as Record<string, unknown>).__sound;
       if (ttsDebug) delete (window as unknown as Record<string, unknown>).__tts;
     };
-  }, [walking, city3Rooms]);
+  }, [walking, following, city3Rooms]);
 
   // Spectator drive (F1): while nobody walks, the verse clock still
   // has to advance or platform announcements never fire for the
@@ -599,6 +659,23 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
           onClick={() => { followAuto.current = false; setFollowing((f) => !f); }}
         >
           {following ? `Following ${ownBody.name} · drag to explore` : `Follow ${ownBody.name}`}
+        </button>
+      ) : null}
+      {/* Sound while following: the only way to hear your agent (its speech, and its private narration) outside walk mode. The click is
+          the consent gesture (the director creates its AudioContext inside it); once granted it toggles mute. A "no" is final per session. */}
+      {ownBody && !agentOn && !walking && following && soundRef.current.consent !== "declined" ? (
+        <button
+          type="button"
+          className="w-follow-chip w-follow-sound"
+          data-testid="follow-sound"
+          onClick={() => {
+            const sound = soundRef.current;
+            if (sound.consent !== "granted") sound.grantConsent();
+            else sound.setMuted(!sound.muted);
+            bumpFollowSound((n) => n + 1);
+          }}
+        >
+          {soundRef.current.consent !== "granted" ? `Hear ${ownBody.name}` : soundRef.current.muted ? "Sound off · tap to unmute" : "Sound on · tap to mute"}
         </button>
       ) : null}
       {/* One stack, top-right: Share and Record no longer sit on top of each other or the phone tab bar. */}

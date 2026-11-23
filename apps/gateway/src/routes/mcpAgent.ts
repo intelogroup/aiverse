@@ -426,6 +426,25 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
   );
 
   register(
+    "agent_narrate",
+    "Share a line of your private inner narration with your OWNER only (POST /world/narration). The owner's console may speak it aloud while they watch you; no other agent and no spectator ever receives it, and it is not stored. At most 300 characters of plain text; kind is \"visible\" (what you would say to yourself) or \"thinking\". Rate limited (a few lines, then one every 2 s). Needs an active visit; not a visit action. Requires the world:act scope for OAuth tokens.",
+    {
+      text: z.string().min(1).max(300).describe("One short line, first person, plain text."),
+      kind: z.enum(["visible", "thinking"]).optional(),
+      agent_id: agentIdArg,
+    },
+    async ({ text, kind, agent_id }, call) => {
+      const gate = scopeGate(caller, "world:act", "agent_narrate");
+      if (gate) return gate;
+      return asAgent({ agent_id }, async (agentId) => {
+        const res = await call("/world/narration", { method: "POST", agentId: caller.kind === "oauth" ? agentId : undefined, body: { text, ...(kind ? { kind } : {}) } });
+        return res.ok ? okJson(res.data) : fail(res.text);
+      });
+    },
+    { readOnlyHint: false, idempotentHint: false },
+  );
+
+  register(
     "body_detach",
     "Detach your body (DELETE /world/body): leave the world; the visit stays open and you can attach again. Answers {removed} — false when there was no body. Requires the world:act scope for OAuth tokens.",
     { agent_id: agentIdArg },

@@ -34,6 +34,20 @@ export const VOICE_MAGE = "Master Aldric";
 /** The Tea House bartender (catalog voice "Hugh": soft, close, sincere, middle-aged British). */
 export const VOICE_BARTENDER = "Hugh";
 
+/**
+ * Catalog voices for agents speaking in the world (agentSpeech.ts): the 11 other en-us voices of gradium/phonon-voices
+ * (Apache-2.0 embeddings, 256 KB each, shipped in public/assets/tts/voices/). Zoey stays Summer's, and Aldric / Hugh stay the
+ * keeper's and bartender's, so a visitor's agent never borrows a scripted character's voice.
+ */
+export const AGENT_VOICE_POOL: readonly { voice: string; file: string; gender: "female" | "male" }[] = [
+  { voice: "Juniper", file: "juniper", gender: "female" }, { voice: "Everly", file: "everly", gender: "female" },
+  { voice: "Harper", file: "harper", gender: "female" }, { voice: "Hadley", file: "hadley", gender: "female" },
+  { voice: "Delia", file: "delia", gender: "female" },
+  { voice: "Easton", file: "easton", gender: "male" }, { voice: "Micah", file: "micah", gender: "male" },
+  { voice: "Trevor", file: "trevor", gender: "male" }, { voice: "Russell", file: "russell", gender: "male" },
+  { voice: "Preston", file: "preston", gender: "male" }, { voice: "Miles", file: "miles", gender: "male" },
+];
+
 /** Where the checkpoint is fetched from (see the header). */
 export const PHONON_MODEL_URL: string =
   (import.meta.env.VITE_PHONON_MODEL_URL as string | undefined) ||
@@ -44,6 +58,7 @@ type PhononEngine = Awaited<ReturnType<PhononModule["PhononTTS"]["load"]>>;
 
 let enginePromise: Promise<PhononEngine> | null = null;
 let engineReady = false;
+let engineRef: PhononEngine | null = null;
 /** Lines synthesized ahead of time (warmPhonon): voice + text -> PCM. */
 const pcmCache = new Map<string, { pcm: Float32Array; sampleRate: number }>();
 const cacheKey = (text: string, voice: string) => `${voice}\u0000${text}`;
@@ -101,18 +116,36 @@ export function loadPhonon(): Promise<PhononEngine> {
           [VOICE_SUMMER]: `${TTS_ASSETS}/voices/zoey.safetensors`,
           [VOICE_MAGE]: `${TTS_ASSETS}/voices/aldric.safetensors`,
           [VOICE_BARTENDER]: `${TTS_ASSETS}/voices/hugh.safetensors`,
+          ...Object.fromEntries(AGENT_VOICE_POOL.map((v) => [v.voice, `${TTS_ASSETS}/voices/${v.file}.safetensors`])),
         },
         defaultVoice: VOICE_SUMMER,
       },
-      voices: [VOICE_SUMMER, VOICE_MAGE, VOICE_BARTENDER],
+      voices: [VOICE_SUMMER, VOICE_MAGE, VOICE_BARTENDER, ...AGENT_VOICE_POOL.map((v) => v.voice)],
     });
     engineReady = true;
+    engineRef = engine;
     return engine;
   })().catch((e: unknown) => {
     enginePromise = null;
     throw e;
   });
   return enginePromise;
+}
+
+/**
+ * Open a streaming synthesis of one line (80 ms chunks on the CPU build), or null while the engine is still loading (callers then
+ * fall back to the clip / silence rather than waiting on the 64 MB model). The caller owns cancel() and must read or cancel it.
+ */
+export function openSpeechStream(text: string, voice: string): { chunks: AsyncIterable<Float32Array>; cancel(): void; done: Promise<unknown>; sampleRate: number } | null {
+  const tts = engineRef;
+  if (!tts) return null;
+  const stream = tts.stream(text, { voice });
+  return { chunks: stream, cancel: () => stream.cancel(), done: stream.done, sampleRate: tts.sampleRate };
+}
+
+/** Debug: how the loaded engine runs (threads need a cross-origin isolated page; see the phonon-tts README). */
+export function engineInfo(): { device: string; threads: number; threadsReason: string; crossOriginIsolated: boolean } | null {
+  return engineRef ? { device: engineRef.device, threads: engineRef.threads, threadsReason: engineRef.threadsReason, crossOriginIsolated: typeof crossOriginIsolated === "boolean" ? crossOriginIsolated : false } : null;
 }
 
 export interface SynthResult {

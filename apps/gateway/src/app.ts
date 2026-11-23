@@ -35,6 +35,7 @@ import { getHuntRuntime, huntEnabled } from "./hunt";
 import type { PaypalFetch } from "@aiverse/hunt/paypal";
 import { log, logError } from "./util/log";
 import { createWorldRoute } from "./routes/world";
+import type { NarrationDeps } from "./routes/worldNarration";
 import { createOwnerWorldRoute } from "./routes/ownerWorld";
 import { simClientFromEnv, worldEnabled, type SimClient } from "./world/simClient";
 import { lookClientFromEnv, type LookClient } from "./world/lookClient";
@@ -44,6 +45,8 @@ import { captureGatewayError, fingerprintError, initGatewaySentry } from "./tele
 import pkg from "../package.json";
 
 export interface CreateAppOpts {
+  /** Test seam for POST /world/narration (owner-only relay). Default: the real owner-console fanout. */
+  narration?: NarrationDeps;
   /** World sim client; tests inject an in-process one. Default: from SIM_URL + SIM_INTERNAL_SECRET when AIVERSE_WORLD_MODE=1. */
   sim?: SimClient;
   /** Look service client for POST /world/see; tests inject a fake. Default: from LOOK_SERVICE_URL + LOOK_SERVICE_SECRET.
@@ -260,7 +263,7 @@ export function createApp(opts: CreateAppOpts = {}) {
   app.route("/admin", createAdminMetricsRoute(sim));
   if (sim) {
     const look = opts.look ?? (worldEnabled() ? lookClientFromEnv() : null);
-    app.route("/world", createWorldRoute(sim, look));
+    app.route("/world", createWorldRoute(sim, look, undefined, opts.narration));
     app.route("/owners/world-presence", createOwnerWorldRoute(sim));
     // Spectators ask for the pose stream on /public/ws; the loop only runs while somebody is subscribed.
     setWorldStream(createWorldStream({
