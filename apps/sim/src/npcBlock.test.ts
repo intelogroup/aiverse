@@ -64,3 +64,31 @@ test("a resident car stops for an agent body standing in its lane instead of dri
   expect(minDist).toBeGreaterThan(2.5);   // a car's centre never gets within half a car + the body
   expect(car.v).toBeLessThan(0.5);
 }, 60_000);
+
+test("a resident car holds behind the parked red car in its lane, past the give-up a body gets, and drives on once it leaves", async () => {
+  let clock = 1_700_000_000;
+  const ambient = new AmbientWorld(() => clock, 1);
+  const service = new WorldService({ sim, ambient });
+  const wide = ambient.cars.find((c) => c.loop.id === "wide")!;
+  const parked = service.fleet.byId("car-east")!;   // plan (-128.2, 14), in the wide loop's northbound lane since the lane fix
+  // start the wide car 34 m south of the parked car on the same street, already rolling north
+  let s0 = 0, best = Infinity;
+  for (let s = 0; s < wide.loop.length; s += 0.25) { const p = sample(wide.loop, s); const d = Math.hypot(p.x - parked.v.x, p.y + parked.v.z + 34); if (d < best) { best = d; s0 = s; } }
+  wide.s = s0; wide.v = 8;
+  const dist = () => { const p = sample(wide.loop, wide.s); return Math.hypot(p.x - parked.v.x, p.y + parked.v.z); };
+  let minDist = Infinity, held = false;
+  for (let t = 0; t < 4000 && !held; t++) {
+    clock += 0.1; service.tick(0.1);
+    minDist = Math.min(minDist, dist());
+    if (wide.v < 0.05 && dist() < 12) held = true;   // stopped in the queue behind the parked car, not at the junction
+  }
+  expect(held).toBe(true);
+  expect(minDist).toBeGreaterThan(6);   // it stops a car's length short — the old geometry clipped the parked car's flank at 0.7 m
+  for (let t = 0; t < 400; t++) { clock += 0.1; service.tick(0.1); minDist = Math.min(minDist, dist()); }   // 40 s: a body would be given up on by now
+  expect(wide.v).toBeLessThan(0.05);
+  expect(minDist).toBeGreaterThan(6);
+  Object.assign(parked.v, { x: 120, z: 120 });   // the parked car leaves
+  let passed = false;
+  for (let t = 0; t < 2000 && !passed; t++) { clock += 0.1; service.tick(0.1); const p = sample(wide.loop, wide.s); if (Math.hypot(p.x + 128.2, p.y - 14) < 2) passed = true; }
+  expect(passed).toBe(true);   // ... and the resident car drives on through the spot where it stood
+}, 60_000);

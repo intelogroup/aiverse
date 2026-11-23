@@ -21,10 +21,14 @@ export class AmbientWorld {
     stepWalkers(this.walkers, 0, this.nowS());   // place them before the first frame
   }
 
-  /** `bodies`: agent bodies in world x/z (z = -plan y); a car holds for one in its lane (ambientTraffic.gapToBody). */
-  step(dt: number, bodies: readonly { x: number; z: number }[] = []): void {
+  /** `bodies`: agent bodies in world x/z (z = -plan y); a car holds for one in its lane (ambientTraffic.gapToBody).
+   *  `parked`: solid discs of parked (driverless) fleet cars in world x/z — hold obstacles: a car waits behind one for good. */
+  step(dt: number, bodies: readonly { x: number; z: number }[] = [], parked: readonly { x: number; z: number; r: number }[] = []): void {
     const now = this.nowS();
-    const obstacles: Obstacle[] = bodies.map((b) => ({ x: b.x, y: -b.z, r: 0.4 }));
+    const obstacles: Obstacle[] = [
+      ...bodies.map((b) => ({ x: b.x, y: -b.z, r: 0.4 })),
+      ...parked.map((p) => ({ x: p.x, y: -p.z, r: p.r, hold: true })),
+    ];
     stepCars(this.cars, dt, now, obstacles);
     stepWalkers(this.walkers, dt, now);
   }

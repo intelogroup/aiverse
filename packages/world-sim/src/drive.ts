@@ -25,10 +25,12 @@ export interface ParkedSpot { id: string; label: string; x: number; z: number; h
 export const PARKED: ParkedSpot[] = [
   // Parked on the west back street (x -130, a 10 m street behind the blocks), in its right-hand lane facing north: out of the plaza by the tower.
   { id: "car-east", label: "red car", x: -128.2, z: -14, heading: Math.PI },
-  // On the Tea House approach street (z -65, 10 m wide), in the right-hand lane of the EAST-bound carriageway (z -62.5), facing east.
-  // It used to stand at (-28, -56) in the stall alley south of the street, boxed in by two stall boxes: a footprint disc touched a wall
-  // at each end, so every drive ended BLOCKED (and reversing hit the other wall). driveSim.test.ts now checks every spot is free to roll.
-  { id: "car-tea", label: "red car", x: -40, z: -62.5, heading: Math.PI / 2 },
+  // Parked in the southbound lane of the avenue (x 0, a 20 m street) on the plaza's north side: the old spot (-28, -56) was
+  // plaza paving, on no street at all. The avenue carries no ambient loop, so nothing resident drives this lane; the nearest
+  // loop lane (the x -65 street's) is ~58 m away, and the spot is centred in its lane (laneOffset 0 at laneMiddle(20) = 5 m).
+  // (Supersedes #268's Tea House approach spot: same boxed-in fix, this PR's lane-convention placement. driveSim.test.ts
+  // checks every PARKED spot is free to roll.)
+  { id: "car-tea", label: "red car", x: -5, z: -56, heading: 0 },
 ];
 
 export interface Vehicle {
@@ -165,6 +167,18 @@ export class Fleet {
       [DISC_OFFSET, -DISC_OFFSET].forEach((off, i) => out.push({
         id: Fleet.discIds(c)[i], x: c.v.x + s * off, z: c.v.z + k * off, r: DISC_R, h: CAR_HEIGHT_M, vx: s * c.v.speed, vz: k * c.v.speed,
       }));
+    }
+    return out;
+  }
+
+  /** Footprint of the driverless cars only, as ambient-traffic obstacles (worldService.tick): resident cars brake for a
+   *  parked fleet car wherever it stands. A driven car is not here — its driver already stands in the obstacle list as a body. */
+  parkedDiscs(): { x: number; z: number; r: number }[] {
+    const out: { x: number; z: number; r: number }[] = [];
+    for (const c of this.vehicles) {
+      if (c.driver !== null) continue;
+      const s = Math.sin(c.v.heading), k = Math.cos(c.v.heading);
+      for (const off of [DISC_OFFSET, -DISC_OFFSET]) out.push({ x: c.v.x + s * off, z: c.v.z + k * off, r: DISC_R });
     }
     return out;
   }

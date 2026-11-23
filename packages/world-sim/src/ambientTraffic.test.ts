@@ -9,11 +9,23 @@ describe("ambient traffic loops", () => {
     // ring (ccw): heading east on the bottom edge, the lane is SOUTH of the street centre line y = -65
     const ring = LOOPS.find((l) => l.id === "ring")!;
     const east = ring.pts.find((p, i) => { const n = ring.pts[(i + 1) % ring.pts.length]; return n[0] - p[0] > 1 && Math.abs(n[1] - p[1]) < 1e-6 && Math.abs(p[1] + 65) < 4; })!;
-    expect(east[1]).toBeCloseTo(-67.5, 5);
+    expect(east[1]).toBeCloseTo(-66.8, 5);   // the fleet's clear line on a 10 m street: laneMiddle(10) = 1.8 m off centre
     // wide (cw): heading east on the top edge, the lane is SOUTH of y = 65
     const wide = LOOPS.find((l) => l.id === "wide")!;
     const top = wide.pts.find((p, i) => { const n = wide.pts[(i + 1) % wide.pts.length]; return n[0] - p[0] > 1 && Math.abs(n[1] - p[1]) < 1e-6 && Math.abs(p[1] - 65) < 4; })!;
-    expect(top[1]).toBeCloseTo(62.5, 5);
+    expect(top[1]).toBeCloseTo(63.2, 5);
+  });
+  test("loop lanes sit on the fleet's clear line, so a loop lane and a driven car's lane are the same line", () => {
+    const wide = LOOPS.find((l) => l.id === "wide")!;
+    const outer = LOOPS.find((l) => l.id === "outer")!;
+    // west street (x -130, 10 m): the wide loop's northbound (inner) lane and the outer loop's southbound lane
+    expect(Math.min(...wide.pts.map((p) => p[0]))).toBeCloseTo(-128.2, 5);
+    expect(Math.min(...outer.pts.map((p) => p[0]))).toBeCloseTo(-131.8, 5);
+    // the red car's spot (plan -128.2, 14) is IN the wide lane (it is a parking lane — resident cars yield to it as an
+    // obstacle) and clear of the outer lane by more than a car width
+    let outerClear = Infinity;
+    for (let s = 0; s < outer.length; s += 0.5) { const p = sample(outer, s); outerClear = Math.min(outerClear, Math.hypot(p.x + 128.2, p.y - 14)); }
+    expect(outerClear).toBeGreaterThan(2.2);
   });
   test("no loop enters the plaza", () => {
     for (const l of LOOPS) for (let s = 0; s < l.length; s += 1) { const p = sample(l, s); expect(Math.abs(p.x) < 60 && Math.abs(p.y) < 60).toBe(false); }
@@ -92,7 +104,7 @@ describe("cars yield to bodies", () => {
   const ring = LOOPS.find((l) => l.id === "ring")!;
   // a stretch of the ring far from any junction: find an s whose next 40 m stay clear of entries
   const clearS = (() => { for (let s = 0; s < ring.length; s += 5) if (ring.entries.every((e) => { const d = (((e.s - s) % ring.length) + ring.length) % ring.length; return d > 60 && d < ring.length - 20; })) return s; return 0; })();
-  const run = (obstacle: (c: { x: number; y: number; dx: number; dy: number }) => { x: number; y: number; r: number } | null, seconds: number) => {
+  const run = (obstacle: (c: { x: number; y: number; dx: number; dy: number }) => { x: number; y: number; r: number; hold?: boolean } | null, seconds: number) => {
     const car = { loop: ring, s: clearS, v: 9, hue: 0 };
     const p = sample(ring, clearS + 25);
     const o = obstacle(p);
@@ -117,5 +129,10 @@ describe("cars yield to bodies", () => {
   test("a body that stays in the lane longer than the give-up time is no longer obeyed", () => {
     const { car } = run((p) => ({ x: p.x, y: p.y, r: 0.4 }), 60);
     expect(car.v).toBeGreaterThan(3);
+  });
+  test("a parked car (hold obstacle) is still obeyed after the give-up time: the car waits, never touching it", () => {
+    const { car, minGap } = run((p) => ({ x: p.x, y: p.y, r: 1.1, hold: true }), 60);
+    expect(car.v).toBeLessThan(0.05);
+    expect(minGap).toBeGreaterThan(1);
   });
 });
