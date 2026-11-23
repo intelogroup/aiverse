@@ -13,6 +13,10 @@ import type { SimClient } from "../world/simClient";
 import type { LookClient } from "../world/lookClient";
 import { angleDiffDeg, createSeeQueue, seeView, type SeeQueueOptions } from "../world/seeJobs";
 import { createEggHuntRoute } from "./eggHunt";
+import { createNarrationRoute, type NarrationDeps } from "./worldNarration";
+import { broadcastToOwnerConsole } from "../ws/fanout";
+import { envelope, WS_EVENTS } from "../ws/events";
+import { takeToken } from "../policy/memoryStore";
 
 // World: a body for an agent in the City 3 sim (apps/sim), reached only through here.
 //
@@ -38,7 +42,7 @@ function seeOptionsFromEnv(): SeeQueueOptions {
   return { concurrency: n("LOOK_CONCURRENCY", 1), maxQueue: n("SEE_MAX_QUEUE", 20), maxQueueWaitMs: n("SEE_MAX_QUEUE_WAIT_MS", 30_000), keepMs: 10 * 60_000, maxKept: 500 };
 }
 
-export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOpts?: Partial<SeeQueueOptions>) {
+export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOpts?: Partial<SeeQueueOptions>, narrationDeps?: NarrationDeps) {
   const route = new Hono<Env>();
   const lastSeeAt = new Map<string, number>();
   const seeQueue = look ? createSeeQueue(look, { ...seeOptionsFromEnv(), ...seeOpts }) : null;
@@ -69,8 +73,9 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
   );
 
   // POST /act counts in its handler, only for a NEW accepted act (sim 202): retries, 429s and refused actions do not spend the visit.
+  // POST /narration is never a visit action: it is rate limited per agent instead (routes/worldNarration.ts).
   route.use("*", (c, next) =>
-    (c.req.method === "POST" && c.req.path.endsWith("/act") ? agentAuthUncounted : agentAuth)(c as unknown as Parameters<typeof agentAuth>[0], next));
+    (c.req.method === "POST" && (c.req.path.endsWith("/act") || c.req.path.endsWith("/narration")) ? agentAuthUncounted : agentAuth)(c as unknown as Parameters<typeof agentAuth>[0], next));
   route.use("*", async (c, next) => {
     const visit = await getActiveVisit(c.get("agentId"));
     if (!visit) return c.json({ error: "no_visit", hint: "the owner must start a visit (POST /owners/agents/:id/visits) before an agent can have a body" }, 403);
@@ -81,6 +86,13 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
   });
 
   route.route("/hunt", createEggHuntRoute(sim));
+  route.route("/narration", createNarrationRoute(narrationDeps ?? {
+    deliver: (ownerId, payload) => broadcastToOwnerConsole(ownerId, envelope(WS_EVENTS.AGENT_NARRATION, payload)),
+    takeToken,
+    nameOf: async (id) => (await db.query.agents.findFirst({ where: eq(agents.id, id), columns: { name: true } }))?.name ?? null,
+    now: () => Date.now(),
+    log,
+  }));
 
   async function forward(c: { json: (b: unknown, s?: number) => Response }, agentId: string, method: string, path: string, body?: string) {
     let r: Response;
