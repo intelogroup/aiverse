@@ -62,6 +62,8 @@ export interface SayEvent { seq: number; n: number; text: string; t: number }
 
 /** Heard lines kept per body, and how long (simulation seconds). */
 const HEARD_KEEP = 20, HEARD_TTL_S = 60, SAY_STREAM_TTL_S = 6, TALK_S = 2;
+/** drive {to}: within this many metres of the point counts as arrived (m). */
+const ARRIVE_M = 3;
 /** A junction this close ahead on a green ends the step, so the driver can choose to turn (m). */
 const JUNCTION_WARN_M = 26;
 
@@ -147,7 +149,7 @@ export interface VehicleView {
 }
 
 /** One driver's open `drive` command and the rules it broke so far. */
-interface DriveRun { /** steer arrived together with speed and was dropped: the step result says so */ steerDropped?: boolean; /** The junction the driver was last warned about (cell key). */ warnedJ: string; rec: ActRecord | null; endsAt: number; broke: Infraction[]; recent: string[]; bumped: boolean; /** Sim time of the last step the car was pushed against something. */ blockedAt: number; /** Signal the open drive already ended early for: one warning per signal phase, not a loop. */ warned: string; /** Junctions entered since the driver got in. */ passed: number; wasIn: boolean; /** Distance bucket of the obstacle already warned about. */ warnedAhead: number }
+interface DriveRun { /** steer arrived together with speed and was dropped: the step result says so */ steerDropped?: boolean; /** The junction the driver was last warned about (cell key). */ warnedJ: string; /** drive {to:[x,z]}: the point this step aims at (ends the step, braking, when the car gets there). */ to?: [number, number]; rec: ActRecord | null; endsAt: number; broke: Infraction[]; recent: string[]; bumped: boolean; /** Sim time of the last step the car was pushed against something. */ blockedAt: number; /** Signal the open drive already ended early for: one warning per signal phase, not a loop. */ warned: string; /** Junctions entered since the driver got in. */ passed: number; wasIn: boolean; /** Distance bucket of the obstacle already warned about. */ warnedAhead: number }
 
 export class WorldService {
   readonly sim: VerseSim;
@@ -341,13 +343,25 @@ export class WorldService {
     }
     const turn = (a as { turn?: "left" | "right" }).turn, refusal = turn ? turnRefusal(car.v, turn) : null;
     if (refusal) return this.settle(rec, { ok: false, status: "rejected", detail: refusal });
+    const to = (a as { to?: [number, number] }).to;
+    if (to) {
+      // The harness does the bearing arithmetic: weak models read "smaller z" as south and steered a U-turn into the city edge (2026-11-23 run).
+      const dx = to[0] - car.v.x, dz = to[1] - car.v.z, dist = Math.hypot(dx, dz);
+      if (dist <= ARRIVE_M) return this.settle(rec, { ok: true, status: "done", detail: `already at the target (${dist.toFixed(1)} m away): stop with drive {speed:0}`, vehicle: { id: car.id, speed: Math.round(car.v.speed * 10) / 10, infractions: [] } });
+      const want = Math.atan2(dx, dz), gap = Math.abs(Math.atan2(Math.sin(want - car.v.heading), Math.cos(want - car.v.heading)));
+      const compass = Math.round(((180 - want * 180 / Math.PI) % 360 + 360) % 360);
+      if (gap > 100 * Math.PI / 180) return this.settle(rec, { ok: false, status: "rejected", detail: `the target is ${Math.round(dist)} m away BEHIND you (bearing ${compass}, you face ${Math.round(((180 - car.v.heading * 180 / Math.PI) % 360 + 360) % 360)}): a U-turn from here swings wide into the kerb. Back toward it with drive {reverse:true, seconds:5}, or drive on and turn at the next junction (turn: "left"|"right")` });
+      this.startDrive(agentId, car, rec, { ...a, heading: compass, speed: a.speed ?? 6, to: [to[0], to[1]] });
+      return;
+    }
     this.startDrive(agentId, car, rec, a);
   }
 
   /** A new drive replaces the open one: the controls are simply the latest ones, held for `seconds`. */
-  private startDrive(agentId: string, car: Vehicle, rec: ActRecord, c: { gas?: number; brake?: number; steer?: number; heading?: number; speed?: number; reverse?: boolean; turn?: "left" | "right"; seconds?: number }): void {
+  private startDrive(agentId: string, car: Vehicle, rec: ActRecord, c: { gas?: number; brake?: number; steer?: number; heading?: number; speed?: number; reverse?: boolean; turn?: "left" | "right"; seconds?: number; to?: [number, number] }): void {
     const run = this.drives.get(agentId) ?? { rec: null, endsAt: 0, broke: [], recent: [], bumped: false, blockedAt: -1e9, warned: "", passed: 0, wasIn: false, warnedAhead: 0, warnedJ: "" };
     if (run.rec) this.finishDrive(run, car, "replaced by a newer drive");
+    run.to = c.to;
     // steer + speed with no heading is open loop: the steer is held for the whole step, the car swings off its lane and the speed hold never straightens it
     // (a weak agent sent both and never recovered). The harness drops the steer, holds the street, and says so in the result.
     run.steerDropped = c.steer !== undefined && c.speed !== undefined && c.heading === undefined && !c.reverse && !c.turn;
@@ -383,7 +397,7 @@ export class WorldService {
     const where = end ? `; heading ${end.compassDeg} deg (${end.facing})${end.laneErrorM === null ? "" : `, ${end.laneErrorM > 0 ? "wrong side by" : "in lane, margin"} ${Math.abs(end.laneErrorM)} m`}${end ? `, junctions passed so far ${end.junctionsPassed}` : ""}${end?.atJunction ? `; INSIDE a junction, to go straight use heading ${Math.round(end.compassDeg / 90) % 4 * 90}, to turn left ${(Math.round(end.compassDeg / 90) + 3) % 4 * 90}, right ${(Math.round(end.compassDeg / 90) + 1) % 4 * 90}` : ""}${end.signal ? `, next signal ${end.signal.lamp} in ${Math.round(end.signal.distance)} m, it changes in ${Math.round(end.signal.changesIn)} s${end.signal.lamp === "green" ? "" : ": do not enter until it is green"}. That is junction ${end.junctionsPassed + 1}: to turn there send drive {speed: 6, turn: "left" or "right"} before you reach it, a heading drive goes straight on` : ""}` : "";
     this.settle(run.rec, {
       ok: true, status: "done",
-      detail: `${run.steerDropped ? "steer ignored when sent with speed (the car holds its street): to turn send drive {speed, turn: \"left\" or \"right\"}, to change street send a heading. " : ""}${note}; now ${car.v.speed.toFixed(1)} m/s${where}${run.bumped ? ". BLOCKED: something solid is in your way (a kerb, post, wall or body); reverse away (drive {gas:1, reverse:true}) or steer around it" : ""}${broke.length ? `. YOU BROKE THE RULES: ${broke.join("; ")}` : ""}`,
+      detail: `${run.to ? `target ${Math.round(Math.hypot(run.to[0] - car.v.x, run.to[1] - car.v.z))} m away; ` : ""}${run.steerDropped ? "steer ignored when sent with speed (the car holds its street): to turn send drive {speed, turn: \"left\" or \"right\"}, to change street send a heading. " : ""}${note}; now ${car.v.speed.toFixed(1)} m/s${where}${run.bumped ? ". BLOCKED: something solid is in your way (a kerb, post, wall or body); reverse away (drive {gas:1, reverse:true}) or steer around it" : ""}${broke.length ? `. YOU BROKE THE RULES: ${broke.join("; ")}` : ""}`,
       vehicle: { id: car.id, speed: Math.round(car.v.speed * 10) / 10, infractions: [...run.broke] },
     });
     run.rec = null;
@@ -645,6 +659,15 @@ export class WorldService {
         c.inputUntil = Math.min(c.inputUntil, this.sim.t + 1.5);   // the car carries on a moment, then brakes inside the junction
         this.finishDrive(run, c, `JUNCTION ${run.passed}: you are inside it, send the next drive now`);
         continue;
+      }
+      if (run?.rec && run.to && !c.turn) {
+        const dist = Math.hypot(run.to[0] - c.v.x, run.to[1] - c.v.z);
+        if (dist <= Math.max(ARRIVE_M, c.v.speed * c.v.speed / 9 + 1)) {   // the car brakes at about 5.4 m/s2
+          c.input.holdSpeed = 0; c.input.holdHeading = c.v.heading; c.inputUntil = this.sim.t + 4;
+          this.finishDrive(run, c, `ARRIVED: the target is ${dist.toFixed(1)} m away, the car is braking to a halt on it`);
+          run.to = undefined;
+          continue;
+        }
       }
       if (run?.rec && this.sim.t >= run.endsAt) this.finishDrive(run, c, "done");
       else if (run?.rec && run.bumped) { c.inputUntil = this.sim.t; this.finishDrive(run, c, "stopped"); }
