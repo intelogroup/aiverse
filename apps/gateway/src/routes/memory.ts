@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../db/client";
 import { agentMemory, goals } from "@aiverse/shared/schema";
 import { agentAuth } from "../middleware/agentAuth";
+import { recallMemories } from "../policy/memoryRecall";
 
 // Agent-authed memory write, same shape as goals.ts's POST /goals. The
 // subject harness calls this once per acted tick (see subject-harness.ts)
@@ -65,4 +66,24 @@ memoryRoute.post("/memory", agentAuth, async (c) => {
     .returning();
 
   return c.json({ memory: row }, 201);
+});
+
+// Agent-authed semantic recall over the caller's OWN permanent memory —
+// the read side of visit-end distillation (jobs/memoryDistillation.ts).
+// There was no agent-facing memory read before this (only the owner's
+// goal-scoped reads in goals.ts), so recall lands here, on the same route
+// module and auth as the memory write. Ranking is by cosine similarity
+// over the caller's rows only (policy/memoryRecall.ts enforces the
+// agent_id predicate inside the ranking query). 503, not an empty list,
+// when no embedding provider is configured — an agent must be able to
+// tell "you remember nothing like this" from "recall is off".
+memoryRoute.get("/memory/recall", agentAuth, async (c) => {
+  const agentId = c.get("agentId");
+  const q = c.req.query("q");
+  if (typeof q !== "string" || !q.trim()) return c.json({ error: "q required" }, 400);
+  const kRaw = Number(c.req.query("k"));
+  const k = Number.isInteger(kRaw) && kRaw > 0 ? Math.min(kRaw, 25) : 8;
+  const memories = await recallMemories(agentId, q.trim(), k);
+  if (memories === null) return c.json({ error: "memory recall is not configured" }, 503);
+  return c.json({ memories });
 });

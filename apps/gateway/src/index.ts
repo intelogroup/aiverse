@@ -112,6 +112,13 @@ async function startSingletonJobs() {
   }
   const { scheduleVisitsSweep } = await import("./jobs/visits");
   scheduleVisitsSweep();
+  // Visit-end memory distillation: drains the queue endVisitRecord
+  // enqueues into. Singleton like the other jobs — two processes
+  // distilling the same visit would race the claim, and the queue's
+  // guarded claim keeps that a no-op rather than a duplicate write, but
+  // there is no reason to spend two LLM calls finding out.
+  const { scheduleMemoryDistillation } = await import("./jobs/memoryDistillation");
+  scheduleMemoryDistillation();
   startLeaderWatchdog();
 }
 

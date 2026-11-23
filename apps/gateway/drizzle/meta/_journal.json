@@ -365,6 +365,13 @@
       "when": 1795194000000,
       "tag": "0051_egg_cash_bounty_expiry",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1795280400000,
+      "tag": "0052_agent_memory_distillation",
+      "breakpoints": true
     }
   ]
 }

@@ -1,8 +1,9 @@
 import { and, eq, gt, isNull, lt, sql } from "drizzle-orm";
 import { db } from "../db/client";
-import { agentVisits } from "@aiverse/shared/schema";
+import { agentVisits, visitDistillations } from "@aiverse/shared/schema";
 import { redis } from "../redis/client";
 import { activeVisitByAgent, evictVisitById } from "../auth/authCache";
+import { logError } from "../util/log";
 
 // Pure DB logic — no ws/gateway import here, on purpose: ws/gateway.ts's own
 // WS-connect handler needs to call checkAndConsumeVisit too, and it already
@@ -35,6 +36,25 @@ export async function endVisitRecord(visitId: string, reason: VisitEndReason): P
     .where(and(eq(agentVisits.id, visitId), isNull(agentVisits.endedAt)))
     .returning({ id: agentVisits.id, agentId: agentVisits.agentId, ownerId: agentVisits.ownerId });
   evictVisitById(visitId);
+  if (ended) {
+    // Enqueue visit-end memory distillation (jobs/memoryDistillation.ts).
+    // This is the one place every end path funnels through — request-path
+    // cap/deadline, the sweep, owner stop — and only the caller whose
+    // guarded UPDATE landed reaches here, so the enqueue fires exactly
+    // once per visit (visit_distillations.visit_id UNIQUE + ON CONFLICT
+    // DO NOTHING is the backstop, not the mechanism). Failure-isolated by
+    // construction: a failed enqueue is logged and swallowed — it must
+    // never fail or delay the visit end itself, and the visit's record
+    // stays in the durable logs either way.
+    try {
+      await db
+        .insert(visitDistillations)
+        .values({ visitId, agentId: ended.agentId })
+        .onConflictDoNothing();
+    } catch (e) {
+      logError("memory_distillation_enqueue_failed", e as Error, { visitId });
+    }
+  }
   return ended ? { ...ended, reason } : null;
 }
 
