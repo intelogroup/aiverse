@@ -1,5 +1,6 @@
 """Low-poly resident-traffic copy of car-concept.glb: one mesh per material, decimated to ~TARGET triangles.
 The parked Bazaar car keeps the full model; resident cars (RemoteCar.tsx) use this one so eight of them do not cost 1.7 M triangles.
+The export leaves emissiveFactor (1,1,1) on non-light materials and full-metal paint (white wheels and roof in the app): run tools/city3/fix_car_materials.mjs on the result.
 Run: tools/city3/blender_lock.sh -b --python tools/city3/lod_car.py -- <in.glb> <out.glb> [target_tris]"""
 import bpy, sys, bmesh
 argv = sys.argv[sys.argv.index("--") + 1:]
