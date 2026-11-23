@@ -101,10 +101,10 @@ def load_asset(slug):
 
     for r in j["scenes"][j.get("scene", 0)]["nodes"]:
         walk(r, np.eye(4))
-    P = np.concatenate(Ps)
+    man = next(e for e in json.load(open(os.path.join(ASSET, "manifest.json"))) if e["slug"] == slug)
+    P = np.concatenate(Ps) * man.get("unit", 1.0)   # manifest `unit` fixes a model whose baked scale and real size disagree (the gazebo came out 4 cm)
     lo, hi = P.min(0), P.max(0)
     P = P - np.array([lo[0], lo[1], hi[2]])
-    man = next(e for e in json.load(open(os.path.join(ASSET, "manifest.json"))) if e["slug"] == slug)
     P, N, U, I = weld(P.astype("<f4"), np.concatenate(Ns).astype("<f4"), np.concatenate(Us), np.concatenate(Is).astype("<u4"))
     return {"slug": slug, "P": P, "N": N, "U": U, "I": I, "W": float(hi[0] - lo[0]), "H": float(hi[1] - lo[1]), "D": float(hi[2] - lo[2]),
             "tex": os.path.join(d, man["texture"]), "alpha_cutoff": man["alpha_cutoff"], "far_color": man["far_color"]}
@@ -180,7 +180,7 @@ def place_lot(lot, assets, rng, used):
 
 def build_plan(seed=148):
     lots = lots_from_plan()
-    assets = {e["slug"]: load_asset(e["slug"]) for e in json.load(open(os.path.join(ASSET, "manifest.json"))) if e.get("role") != "hall"}
+    assets = {e["slug"]: load_asset(e["slug"]) for e in json.load(open(os.path.join(ASSET, "manifest.json"))) if e.get("role") not in ("hall", "prop")}
     rng, used, plan = random.Random(seed), {}, {}
     for lot in lots:
         plan[lot["id"]] = {"lot": lot, "items": place_lot(lot, assets, rng, used)}
@@ -248,9 +248,11 @@ def apply(world, col, plan, assets, dry, mark=MARK, prefix="Kit_shop", visual_ex
         for it in p["items"]:
             g["nodes"].append({"name": f"{prefix}{lid}_{it['slug']}", "mesh": meshes[it["slug"]], "translation": list(it["t"]), "rotation": _quat_y(it["yaw"]), "scale": list(it["s"])})
             kids.append(len(g["nodes"]) - 1)
-            bx.append((*footprint(it), it["h"]))
+            bx += it["boxes"] if "boxes" in it else [(*footprint(it), it["h"])]   # `boxes`: (x0, z0, x1, z1, h) colliders that replace the footprint box (a gazebo is posts, an arch is nothing)
         g["nodes"].append({"name": f"{prefix}{lid}", "children": kids})
         scene.append(len(g["nodes"]) - 1)
+        if not bx:
+            continue
         Ps, Is, base = [], [], 0
         for x0, z0, x1, z1, h in bx:
             P, I = box_mesh(x0, z0, x1, z1, h)
