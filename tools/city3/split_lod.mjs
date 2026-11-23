@@ -35,6 +35,7 @@ const instExt = doc.createExtension(EXTMeshGPUInstancing);
 for (const m of root.listMaterials()) {
   m.setNormalTexture(null); m.setMetallicRoughnessTexture(null); m.setOcclusionTexture(null); m.setEmissiveTexture(null);
   if (NO_TEXTURE.test(m.getName())) m.setBaseColorTexture(null);
+  const far = m.getExtras()?.far_color; if (far) { m.setBaseColorTexture(null); m.setBaseColorFactor([...far, 1]); } // townhouse kit: mean colour from far away (their textures are ~3 MB)
   if (/^cobble/.test(m.getName())) { m.setBaseColorTexture(null); m.setBaseColorFactor([0.43, 0.38, 0.34, 1]); } // 1024 px paving: flat stone from far away (0.18 MB)
   if (/^roof_hall/.test(m.getName())) { m.setBaseColorTexture(null); m.setBaseColorFactor([0.42, 0.2, 0.14, 1]); } // one big barrel roof: a flat terracotta from far away saves 0.2 MB
 }
@@ -55,16 +56,20 @@ const INTERIOR = /^(ls_bones_(stair|partition|slab|landing)|TeaProp|PlazaFountai
   console.log(`removed ${gone} interior-only primitives`);
 }
 // Far away, a tree or a shopfront needs a fraction of its triangles. Simplify each kept source mesh once (shared meshes stay shared).
-const TREE = /^(ls_tree|Tree_)/, TREE_RATIO = Number(process.env.TREE_RATIO ?? 0.1), BLD_RATIO = Number(process.env.BLD_RATIO ?? 0.3);
+const TREE = /^(ls_tree|Tree_)/, TREE_RATIO = Number(process.env.TREE_RATIO ?? 0.1), BLD_RATIO = Number(process.env.BLD_RATIO ?? 0.3), KIT_RATIO = Number(process.env.KIT_RATIO ?? 0.15); // the townhouse rows are flat-coloured from far away, so they take fewer triangles
 {
   const done = new Set();
   for (const n of root.listNodes()) {
     const mesh = n.getMesh(); if (!mesh || done.has(mesh) || DROP.test(n.getName())) continue; done.add(mesh);
-    const ratio = TREE.test(n.getName()) ? TREE_RATIO : BLD_RATIO, err = TREE.test(n.getName()) ? Number(process.env.TREE_ERR ?? 1) : Number(process.env.BLD_ERR ?? 0.05);
+    const ratio = TREE.test(n.getName()) ? TREE_RATIO : /^Kit_shop/.test(n.getName()) ? KIT_RATIO : BLD_RATIO, err = TREE.test(n.getName()) ? Number(process.env.TREE_ERR ?? 1) : /^Kit_shop/.test(n.getName()) ? Number(process.env.KIT_ERR ?? 0.3) : Number(process.env.BLD_ERR ?? 0.05);
     for (const prim of mesh.listPrimitives()) {
       const idx = prim.getIndices(); if (!idx || prim.getMode() !== 4) continue; const ia = idx.getArray();
       if (ia.length < 90) continue; // tiny pieces (doors, lamps) are cheaper left alone
-      const [ni] = MeshoptSimplifier.simplify(Uint32Array.from(ia), prim.getAttribute("POSITION").getArray(), 3, Math.max(36, Math.floor(ia.length * ratio / 3) * 3), err);
+      const pos = prim.getAttribute("POSITION").getArray(); let src = Uint32Array.from(ia);
+      if (/^Kit_shop/.test(n.getName())) { // UV seams leave equal positions on separate vertices, which the simplifier treats as locked borders (stuck at 73%): collapse them onto one representative first
+        const rep = new Map(); src = src.map(i => { const k = `${pos[3 * i]},${pos[3 * i + 1]},${pos[3 * i + 2]}`; if (!rep.has(k)) rep.set(k, i); return rep.get(k); });
+      }
+      const [ni] = MeshoptSimplifier.simplify(src, pos, 3, Math.max(36, Math.floor(ia.length * ratio / 3) * 3), err);
       prim.setIndices(doc.createAccessor().setArray(ia.length < 65536 || Math.max(...ni) < 65536 ? Uint16Array.from(ni) : ni).setType("SCALAR").setBuffer(buffer));
     }
   }

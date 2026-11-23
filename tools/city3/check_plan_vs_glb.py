@@ -4,7 +4,7 @@
 plan.json is a generated, gitignored file, and later bridge_* passes change the GLB without touching the plan, so the two drift. This reads the plan
 fresh (plan.py in a temp cwd, as bridge_edge_landscape.py does) and classifies each plan building against the GLB scene:
 
-  real       Bones_shop<n> is in the scene and its box sits on the plan footprint (walls, floors, interiors).
+  real       Bones_shop<n> (walls, floors, interiors) or Kit_shop<n> (a prebuilt kit building row, no interior) is in the scene and its box sits on the plan footprint.
   landscape  an `edge` (ring) block building, or an id in bridge_bazaar_demolish.ALL; no facade triangle left inside the footprint.
   shim       no Bones_shop<n> in the scene, but merged facade triangles still stand there (a hollow facade-only box). The hall counts as one.
   FAIL       anything else: a landscape building that still stands, a real building off its footprint, a market building with nothing at all.
@@ -94,25 +94,39 @@ def scene_bones_boxes(g):
     scene = set(j["scenes"][j.get("scene", 0)]["nodes"])
     ids, box = set(), {}
 
-    def extent(i, off, lo, hi):  # the node's own mesh and every descendant's; translation only, which is all these nodes use
+    def local(n):
+        m = np.eye(4)
+        if "matrix" in n:
+            return np.array(n["matrix"], float).reshape(4, 4).T
+        x, y, z, w = n.get("rotation", [0, 0, 0, 1])
+        r = np.array([[1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+                      [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+                      [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]])
+        m[:3, :3] = r * np.array(n.get("scale", [1, 1, 1]))
+        m[:3, 3] = n.get("translation", [0, 0, 0])
+        return m
+
+    def extent(i, parent, lo, hi):  # the node's own mesh and every descendant's, accessor-box corners through the node chain
         n = j["nodes"][i]
-        t = np.array(n.get("translation", [0, 0, 0])) + off
+        m = parent @ local(n)
         if "mesh" in n:
             for p in j["meshes"][n["mesh"]]["primitives"]:
                 a = j["accessors"][p["attributes"]["POSITION"]]
-                lo[:] = np.minimum(lo, np.array(a["min"]) + t)
-                hi[:] = np.maximum(hi, np.array(a["max"]) + t)
+                for c in np.array(np.meshgrid(*zip(a["min"], a["max"]))).reshape(3, -1).T:
+                    q = m[:3, :3] @ c + m[:3, 3]
+                    lo[:] = np.minimum(lo, q)
+                    hi[:] = np.maximum(hi, q)
         for c in n.get("children", []):
-            extent(c, t, lo, hi)
+            extent(c, m, lo, hi)
 
     for i, n in enumerate(j["nodes"]):
         nm = n.get("name", "")
-        if i in scene and (nm.startswith("Bones_shop") or nm in ALIAS):
+        if i in scene and (nm.startswith(("Bones_shop", "Kit_shop")) or nm in ALIAS):
             lo, hi = np.full(3, 1e9), np.full(3, -1e9)
-            extent(i, np.zeros(3), lo, hi)
+            extent(i, np.eye(4), lo, hi)
             if lo[0] > hi[0]:
                 continue  # an empty group is not a building
-            key = ALIAS.get(nm) or "shop-" + nm[len("Bones_shop"):]
+            key = ALIAS.get(nm) or "shop-" + nm[nm.index("shop") + 4:]
             ids.add(key)
             box[key] = [lo[0], lo[2], hi[0], hi[2]]
     return ids, box

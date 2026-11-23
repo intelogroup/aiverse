@@ -6,7 +6,12 @@
   "source": "https://sketchfab.com/3d-models/cde0ef76b4ab482bad79d29fe5fb7a88",
   "license": "CC-BY-4.0",
   "texture": "diffuse.png",
-  "alpha_cutoff": 0.2580625057220459
+  "alpha_cutoff": 0.2580625057220459,
+  "far_color": [
+   0.087,
+   0.08,
+   0.074
+  ]
  },
  {
   "slug": "nivelles_house_9",
@@ -15,7 +20,12 @@
   "source": "https://sketchfab.com/3d-models/9a6bbcb6da704592b368e29b87cac11d",
   "license": "CC-BY-4.0",
   "texture": "diffuse.jpg",
-  "alpha_cutoff": null
+  "alpha_cutoff": null,
+  "far_color": [
+   0.086,
+   0.079,
+   0.077
+  ]
  },
  {
   "slug": "angers_shop_2",
@@ -24,7 +34,12 @@
   "source": "https://sketchfab.com/3d-models/bbed1d3fdae3493b8f1872c9a9e7e8d4",
   "license": "CC-BY-4.0",
   "texture": "diffuse.jpg",
-  "alpha_cutoff": null
+  "alpha_cutoff": null,
+  "far_color": [
+   0.061,
+   0.06,
+   0.058
+  ]
  },
  {
   "slug": "troyes_shop_7",
@@ -33,7 +48,12 @@
   "source": "https://sketchfab.com/3d-models/8fb84880b9234a8a8cbc8b92b46e38a6",
   "license": "CC-BY-4.0",
   "texture": "diffuse.png",
-  "alpha_cutoff": 0.3143125057220459
+  "alpha_cutoff": 0.3143125057220459,
+  "far_color": [
+   0.052,
+   0.048,
+   0.044
+  ]
  },
  {
   "slug": "cork_corner_shop_1",
@@ -42,7 +62,12 @@
   "source": "https://sketchfab.com/3d-models/21818eaa4c1c402a82baf9031ebaa93a",
   "license": "CC-BY-4.0",
   "texture": "diffuse.jpg",
-  "alpha_cutoff": null
+  "alpha_cutoff": null,
+  "far_color": [
+   0.077,
+   0.073,
+   0.072
+  ]
  },
  {
   "slug": "mons_shop_2",
@@ -51,7 +76,12 @@
   "source": "https://sketchfab.com/3d-models/7397096856d3452fa15ae074f460ad36",
   "license": "CC-BY-4.0",
   "texture": "diffuse.png",
-  "alpha_cutoff": 0.2893125057220459
+  "alpha_cutoff": 0.2893125057220459,
+  "far_color": [
+   0.047,
+   0.052,
+   0.054
+  ]
  },
  {
   "slug": "nivelles_house_1",
@@ -60,7 +90,12 @@
   "source": "https://sketchfab.com/3d-models/592cc5891ef34ab98abdeaa8b9b1fba8",
   "license": "CC-BY-4.0",
   "texture": "diffuse.jpg",
-  "alpha_cutoff": null
+  "alpha_cutoff": null,
+  "far_color": [
+   0.096,
+   0.083,
+   0.081
+  ]
  },
  {
   "slug": "angers_shop_1",
@@ -69,7 +104,12 @@
   "source": "https://sketchfab.com/3d-models/ec891e10fe26403aa072173bb89861bb",
   "license": "CC-BY-4.0",
   "texture": "diffuse.jpg",
-  "alpha_cutoff": null
+  "alpha_cutoff": null,
+  "far_color": [
+   0.066,
+   0.061,
+   0.051
+  ]
  },
  {
   "slug": "nivelles_house_2",
@@ -78,7 +118,12 @@
   "source": "https://sketchfab.com/3d-models/65523e6f1e3c46d9930aa727a457cf0f",
   "license": "CC-BY-4.0",
   "texture": "diffuse.jpg",
-  "alpha_cutoff": null
+  "alpha_cutoff": null,
+  "far_color": [
+   0.083,
+   0.07,
+   0.065
+  ]
  },
  {
   "slug": "guingamp_shop_1",
@@ -87,6 +132,11 @@
   "source": "https://sketchfab.com/3d-models/8bf9f75a6aeb4b77b195cbc55f21edb8",
   "license": "CC-BY-4.0",
   "texture": "diffuse.jpg",
-  "alpha_cutoff": null
+  "alpha_cutoff": null,
+  "far_color": [
+   0.085,
+   0.076,
+   0.068
+  ]
  }
 ]
