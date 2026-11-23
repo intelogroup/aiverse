@@ -513,3 +513,51 @@ test("steer sent together with speed is dropped and the car holds its street: a 
   expect(Math.abs(Math.atan2(Math.sin(car.v.heading - Math.PI), Math.cos(car.v.heading - Math.PI)))).toBeLessThan(0.1);
   expect(car.tally.collision).toBe(0);
 });
+
+// drive {to:[x,z]}: the harness does the compass arithmetic. A weak model read "smaller z" as south, sent heading 180 from a car facing north and
+// swung it into the city edge; with `to` it only names the point.
+function fromCarEast() {
+  const service = new WorldService({ sim, nowS: () => 0 });
+  services.push(service);
+  const car = service.fleet.byId("car-east")!;
+  service.attach("drv", { x: car.v.x + 6, z: car.v.z + 6, maxR: 6 });
+  act(service, "drv", "w", { type: "go_to", body: "car-east" });
+  run(service, 25);
+  expect(act(service, "drv", "e", { type: "enter_vehicle", vehicle: "car-east" }).outcome).toMatchObject({ ok: true });
+  return { service, car };
+}
+
+test("drive {to} takes car-east to a point 26 m ahead and brakes to a halt on it, with no collision", () => {
+  const { service, car } = fromCarEast();
+  const target: [number, number] = [-128, -40];
+  let detail = "";
+  for (let k = 0; k < 6 && !/ARRIVED|already at the target/.test(detail); k++) {
+    const rec = act(service, "drv", `d${k}`, { type: "drive", to: target });
+    run(service, 5.2);
+    detail = (rec.outcome as { detail?: string } | undefined)?.detail ?? "";
+    if (/BLOCKED|END OF ROAD|rejected/.test(detail)) break;
+  }
+  run(service, 3);
+  expect(detail).toMatch(/ARRIVED|already at the target/);
+  expect(Math.hypot(car.v.x - target[0], car.v.z - target[1])).toBeLessThan(6);
+  expect(Math.abs(car.v.speed)).toBeLessThan(0.5);
+  expect(car.tally.collision).toBe(0);
+  service.detach("drv");
+});
+
+test("drive {to} refuses a target behind the car instead of swinging a U-turn into the kerb", () => {
+  const { service, car } = fromCarEast();
+  const x0 = car.v.x, z0 = car.v.z;
+  const rec = act(service, "drv", "back", { type: "drive", to: [-128, 30] });   // car-east faces north (-z): +z is behind it
+  expect(rec.outcome).toMatchObject({ ok: false, status: "rejected" });
+  expect((rec.outcome as { detail: string }).detail).toMatch(/BEHIND/);
+  expect(Math.hypot(car.v.x - x0, car.v.z - z0)).toBeLessThan(0.1);
+  service.detach("drv");
+});
+
+test("drive {to} cannot be combined with heading and must be [x, z]", () => {
+  const { service } = fromCarEast();
+  expect(() => act(service, "drv", "a", { type: "drive", to: [-128, -40], heading: 0 })).toThrow(/cannot be combined/);
+  expect(() => act(service, "drv", "b", { type: "drive", to: [1] })).toThrow(/\[x, z\]/);
+  service.detach("drv");
+});
