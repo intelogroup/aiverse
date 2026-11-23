@@ -23,5 +23,10 @@ Everything here runs on a LOCAL stack only (CLAUDE.md): never point it at the Ne
 - **Audio reached the audio graph** (voice analyser level 0.038, gain 0.9) in the headless run; nobody has listened to it yet.
 - **Production runs Phonon on ONE thread**: the console sends no COOP/COEP headers (`apps/console/vercel.json`), and the engine reports "the page is not cross-origin isolated". Enabling `Cross-Origin-Embedder-Policy: require-corp` would allow ~3 threads but breaks any cross-origin resource without CORS/CORP (R2 assets, fonts, third-party scripts). Untested; not changed.
 
+## Owner-only narration (built, tested at the gateway and by live runs)
+- `POST /world/narration` and MCP `agent_narrate` (apps/gateway/src/routes/worldNarration.ts): an opted-in harness pushes the agent's private lines; they reach the visit's OWNER's console sockets only (never agents, never the public stream), are not stored, the text is never logged, rate limit burst 5 then 1 per 2 s, max 300 chars (rejected, not truncated, so a plugin must cap), not a visit action.
+- Live runs with `NARRATION_PUSH=1 bun tea-run.ts` (the script plays the harness plugin): opencode 5 of 5 lines reached a real owner console socket, pi 9 of 10 (the miss was a line over 300 chars, now capped in the plugin). Median gateway-to-socket lag 300 ms.
+- Console: `consoleWs -> narrationBus -> AgentSpeech.hearNarration` speaks it at the listener (a voice in the owner's head), in the agent's own voice, one line per 3 s per agent. While FOLLOWING the owner's agent the listener is that agent's body, and a "Hear <agent>" chip enables sound (previously only the walk HUD could).
+
 ## Not done
-Owner-only monologue channel (the harness's private narration is not sent anywhere yet), listening from follow-cam (no listener outside walk mode), moderation/mute for public agent speech, and a human listening test.
+A real harness PLUGIN (opencode plugin / pi extension) that pushes narration without a script: `tea-run.ts` only simulates it; the console follow-cam sound chip and spoken narration have unit tests but no browser run yet; moderation/mute for public agent speech; any human listening test; a full gateway-suite baseline on main (28 unrelated failures in my run, all also failing on main, but main's run was polluted by shared rate-limit state).
