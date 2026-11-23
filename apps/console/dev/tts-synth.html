@@ -1,0 +1,23 @@
+<!doctype html><meta charset="utf-8"><title>tts synth</title>
+<script type="module">
+// Synthesizes a list of lines with the console's REAL speech code (same voices, same text cleaning) for the replay video.
+import { loadPhonon, openSpeechStream } from "/src/features/world/phononTts.ts";
+import { VoiceAssigner, spokenNarration, spokenText } from "/src/features/world/agentSpeech.ts";
+window.__synth = async (items) => {
+  await loadPhonon();
+  const va = new VoiceAssigner(); const out = [];
+  for (const it of items) {
+    const text = it.inner ? spokenNarration(it.text) : spokenText(it.text);
+    const voice = va.voiceFor(it.name);
+    const st = openSpeechStream(text, voice);
+    const chunks = []; let n = 0;
+    for await (const c of st.chunks) { chunks.push(c); n += c.length; }
+    const pcm = new Float32Array(n); let o = 0; for (const c of chunks) { pcm.set(c, o); o += c.length; }
+    const i16 = new Int16Array(n); for (let i = 0; i < n; i++) i16[i] = Math.max(-32768, Math.min(32767, Math.round(pcm[i] * 32767)));
+    let bin = ""; const u8 = new Uint8Array(i16.buffer); for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+    out.push({ key: it.key, voice, text, sampleRate: st.sampleRate, b64: btoa(bin) });
+  }
+  return out;
+};
+window.__ready = true;
+</script>

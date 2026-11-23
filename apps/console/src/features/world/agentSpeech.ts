@@ -71,6 +71,8 @@ export interface SpokenRecord {
   /** Present when the line was spoken through the streaming path. */
   /** True for the owner's agent talking to itself (spoken at the listener, not at a body). */
   inner?: boolean;
+  /** deps.now() (page time) when the sound began: the stream's first scheduled chunk, or the end of synthesis for a whole-line play. */
+  playAt: number;
   stream?: { firstChunkMs: number | null; startMs: number | null; rate: number | null; buffered: boolean };
 }
 export type DropReason = "no_consent" | "no_listener" | "far" | "gap" | "queue_full" | "stale" | "empty" | "speaker_gone";
@@ -198,6 +200,7 @@ export class AgentSpeech {
           n: item.line.n, name: item.line.name, voice, text: item.text,
           shape: streamed ? streamed.shape : prepared!.shape, seconds,
           queuedMs: Math.round(startedAt - item.at), prepareMs: Math.round(prepareMs),
+          playAt: Math.round(streamed && streamed.startMs !== null ? startedAt + streamed.startMs : startedAt + prepareMs),
           ...(item.inner ? { inner: true } : {}),
           ...(streamed ? { stream: { firstChunkMs: streamed.firstChunkMs, startMs: streamed.startMs, rate: streamed.rate, buffered: streamed.buffered } } : {}),
         });
