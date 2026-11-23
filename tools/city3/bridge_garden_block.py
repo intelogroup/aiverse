@@ -25,7 +25,8 @@ from bridge_bazaar_open_space import G, MATS, Builder, emit
 from bridge_landscape_kit import add_accessor, add_view
 
 GARDENS = {"garden": dict(rect=(72.0, -58.0, 122.0, -12.0), plaza=9.0, orchard=False, seed=4311),    # lots 164-171, beside the sports field
-           "orchard": dict(rect=(-122.0, -58.0, -72.0, -12.0), plaza=5.0, orchard=True, seed=6013)}  # lots 60-67: fruit-tree grid round a small gazebo plaza
+           "orchard": dict(rect=(-122.0, -58.0, -72.0, -12.0), plaza=5.0, orchard=True, seed=6013),
+           "meadow": dict(rect=(-122.0, -84.0, -72.0, -72.0), plaza=3.4, orchard=False, strip=True, seed=7717)}  # lots 68-71: the 12 m strip that finishes the park block  # lots 60-67: fruit-tree grid round a small gazebo plaza
 NAME = "garden"
 MARK = "garden_block_pass"
 X0, X1, Z0, Z1 = GARDENS[NAME]["rect"]
@@ -61,6 +62,8 @@ def kit_plan(assets):
     g["boxes"] = [(x, z, x + p, z + p, g["h"] * 0.8) for x in (fx0, fx1 - p) for z in (fz0, fz1 - p)]
     plan = {0: {"lot": {"plan_rect": [fx0, -fz1, fx1, -fz0], "rect": [fx0, fz0, fx1, fz1], "face": "S"}, "items": [g]}}
     arches = [(CX, Z0 + 5.5, 0.0), (CX, Z1 - 5.5, math.pi), (X0 + 5.5, CZ, math.pi / 2), (X1 - 5.5, CZ, -math.pi / 2)]
+    if GARDENS[NAME].get("strip"):
+        arches = arches[2:]      # a 12 m strip: arches only where the path enters, not across the gazebo
     for n, (x, z, yaw) in enumerate(arches, 1):
         it = centred("rose_arch", assets, x, z, yaw, ARCH_S)
         it["boxes"] = []
@@ -76,7 +79,21 @@ def on_path(x, z, pad=0.0):
     return min(x - X0, X1 - x, z - Z0, Z1 - z) < 3.0 + 0.8 + pad and min(x - X0, X1 - x, z - Z0, Z1 - z) > 3.0 - 0.8 - pad
 
 
+def strip_scenery(rnd):
+    """a long thin lot (the 12 m row that finishes a block): one gravel path down the middle, the gazebo's stone pad, benches by the path, a tree row each side"""
+    b = Builder()
+    b.box("grass", X0, X1, Z0, Z1, G - .02, G + .03, uv=4.0)
+    b.box("gravel", X0, X1, CZ - PW / 2, CZ + PW / 2, G + .03, G + .06, uv=1.5)
+    b.box("stone", CX - PLAZA - 1.5, CX + PLAZA + 1.5, CZ - PLAZA, CZ + PLAZA, G + .03, G + .1, uv=1.5)
+    trees = [(x + rnd.uniform(-.8, .8), zz + rnd.uniform(-.5, .5), rnd.choice(("Tree_packtree_a", "Tree_packtree_b", "Tree_packtree_c")))
+             for zz in (Z0 + 2.5, Z1 - 2.5) for x in np.arange(X0 + 3.0, X1 - 2.0, 5.5) if abs(x - CX) > PLAZA + 4.5]
+    benches = [(x, CZ - PW / 2 - .8, 0.0) if k % 2 else (x, CZ + PW / 2 + .8, math.pi) for k, x in enumerate(np.arange(X0 + 8.0, X1 - 6.0, 9.0)) if abs(x - CX) > PLAZA + 4.5]
+    return b, trees, benches
+
+
 def scenery(rnd):
+    if GARDENS[NAME].get("strip"):
+        return strip_scenery(rnd)
     b = Builder()
     trees, benches = [], []
     b.box("grass", X0, X1, Z0, Z1, G - .02, G + .03, uv=4.0)
