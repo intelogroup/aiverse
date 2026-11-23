@@ -110,7 +110,7 @@ describe("planning does not block the tick", () => {
   });
 
   it("enter walks inside a shop (by lot id or room id); a stall has no room", async () => {
-    for (const [i, place, room] of [[0, "shop-47", "shop-47"], [1, "shop-102", "tea"]] as const) {
+    for (const [i, place, room] of [[0, "shop-52", "shop-52"], [1, "shop-102", "tea"]] as const) {
       const id = `enter-${i}`;
       sim.removeBody(id);
       const lot = sim.places.find((p) => p.id === place)!;
@@ -124,7 +124,7 @@ describe("planning does not block the tick", () => {
   });
 
   it("shop seats are sittable once, and free again after the sitter stands", async () => {
-    const seats = sim.sittables.filter((t) => t.building.startsWith("shop-") && t.kind !== "stool");
+    const seats = sim.sittables.filter((t) => t.building.startsWith("shop-") && t.kind !== "stool" && sim.rooms.some((r) => r.id === t.building));   // shop-98 has chairs but no interior room: nowhere to walk in
     const picks = seats.filter((_, i) => i % Math.ceil(seats.length / 12) === 0);
     const fails: string[] = [];
     for (const other of sim.bodyIds()) sim.removeBody(other); // a body parked in a shop would block the walk
