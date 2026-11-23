@@ -27,9 +27,10 @@ import { pickOwnBody, type RosterBody } from "./ownerFollow";
 import { RemoteBodies } from "./remoteFrames";
 import { WalkClipOverride, type WalkFrameInfo } from "./walkOverride";
 import { SoundDirector } from "./soundDirector";
-import { VOICE_BARTENDER, benchPhonon, phononWarmth, synthLine, warmPhonon } from "./phononTts";
+import { VOICE_BARTENDER, benchPhonon, engineInfo, openSpeechStream, phononWarmth, synthLine, warmPhonon } from "./phononTts";
 import { GREETING_SCRIPT, createPlazaGreeting, playLine, prepareLine, type PlazaGreeting } from "./plazaTts";
 import { AgentSpeech } from "./agentSpeech";
+import { streamSpeech } from "./agentStream";
 import { type CameraMode } from "./cameraRig";
 import { attachWorldRenderer } from "../../lib/telemetry/index";
 import { FpsMeter } from "./fpsMeter";
@@ -294,6 +295,15 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
       },
       prepare: (text, voice) => prepareLine(director, text, voice, null),
       play: (line, pos, speaker) => playLine(director, line, pos, speaker),
+      // Streaming first: the line starts sounding after its first chunks, not after the whole synthesis. Null (engine still
+      // loading, or the director cannot play) falls through to prepare + play above.
+      speak: (text, voice, pos, speaker) => {
+        return streamSpeech({
+          open: () => { const st = openSpeechStream(text, voice); return st && { chunks: st.chunks, cancel: st.cancel, sampleRate: st.sampleRate }; },
+          beginSink: () => director.beginVoiceStream(pos, speaker),
+          now: () => performance.now(),
+        }, text);
+      },
       now: () => performance.now(),
       sleep: (ms) => new Promise<void>((r) => setTimeout(r, ms)),
     });
@@ -500,6 +510,7 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
           }),
         log: () => plazaRef.current?.log ?? [],
         agentSpeech: () => ({ log: agentSpeechRef.current?.log ?? [], drops: agentSpeechRef.current?.drops ?? [] }),
+        engine: () => engineInfo(),
         listener: () => { const fr = walkFrameRef.current; return fr && fr.x !== undefined && fr.z !== undefined ? { x: fr.x, z: fr.z } : null; },
         status: () => plazaRef.current?.status ?? "none",
         warmth: () => phononWarmth(),

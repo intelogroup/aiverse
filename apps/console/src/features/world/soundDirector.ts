@@ -77,6 +77,17 @@ const CLIP_URLS: Record<string, string> = {
 };
 const STEP_KEYS = ["step-1", "step-2", "step-3", "step-4"] as const;
 
+/** A line being spoken while it is still being synthesized (SoundDirector.beginVoiceStream). */
+export interface VoiceStream {
+  push(pcm: Float32Array, sampleRate: number): void;
+  /** No more chunks: the voice slot frees once the scheduled audio has played. */
+  end(): void;
+  /** Stop now and free the slot. */
+  cancel(): void;
+  /** Seconds of audio scheduled so far. */
+  readonly seconds: number;
+}
+
 /** What the driver hands the director each tick. */
 export interface SoundFrame {
   /** Real seconds since the previous tick. */
@@ -655,6 +666,53 @@ export class SoundDirector {
     };
     src.start();
     return buf.duration;
+  }
+
+  /**
+   * Speak a line AS IT IS SYNTHESIZED: chunks are scheduled back to back on the voice emitter, so the first sound starts after the
+   * first chunk (tens of ms) instead of after the whole line. Same positional law as playVoiceBuffer (the position is fixed for the
+   * utterance). Null when it cannot play (no consent / context, poisoned position). The utterance keeps the voice slot while chunks
+   * are still scheduled; a stream that underruns simply has a gap. push() never steals the slot from a different utterance.
+   */
+  beginVoiceStream(pos: { x: number; z: number }, speaker: string): VoiceStream | null {
+    const ctx = this.ctx;
+    const gainNode = this.voiceGainNode;
+    if (!ctx || !gainNode) return null;
+    if (!Number.isFinite(pos.x) || !Number.isFinite(pos.z)) return null;
+    const utter = { pos: { x: pos.x, z: pos.z }, speaker, endsAt: ctx.currentTime };
+    this.voiceUtter = utter;
+    const sources = new Set<AudioBufferSourceNode>();
+    let next = 0;
+    let total = 0;
+    let ended = false;
+    let cancelled = false;
+    const release = () => { if (this.voiceUtter === utter) this.voiceUtter = null; };
+    return {
+      push: (pcm, sampleRate) => {
+        if (cancelled || pcm.length === 0) return;
+        const buf = ctx.createBuffer(1, pcm.length, sampleRate);
+        buf.getChannelData(0).set(pcm);
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.connect(gainNode);
+        const at = Math.max(ctx.currentTime + 0.03, next);
+        src.start(at);
+        next = at + buf.duration;
+        total += buf.duration;
+        utter.endsAt = next;
+        if (this.voiceUtter === null) this.voiceUtter = utter;
+        sources.add(src);
+        src.onended = () => { sources.delete(src); if (ended && sources.size === 0) release(); };
+      },
+      end: () => { ended = true; if (sources.size === 0) release(); },
+      cancel: () => {
+        cancelled = true;
+        for (const src of sources) { try { src.stop(); } catch { /* already stopped */ } }
+        sources.clear();
+        release();
+      },
+      get seconds() { return total; },
+    };
   }
 
   /** PCM convenience (live Phonon synthesis returns raw samples):
