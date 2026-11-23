@@ -61,15 +61,17 @@ const TREE = /^(ls_tree|Tree_)/, TREE_RATIO = Number(process.env.TREE_RATIO ?? 0
   const done = new Set();
   for (const n of root.listNodes()) {
     const mesh = n.getMesh(); if (!mesh || done.has(mesh) || DROP.test(n.getName())) continue; done.add(mesh);
-    const ratio = TREE.test(n.getName()) ? TREE_RATIO : /^Kit_shop/.test(n.getName()) ? KIT_RATIO : BLD_RATIO, err = TREE.test(n.getName()) ? Number(process.env.TREE_ERR ?? 1) : /^Kit_shop/.test(n.getName()) ? Number(process.env.KIT_ERR ?? 0.3) : Number(process.env.BLD_ERR ?? 0.05);
+    const ratio = TREE.test(n.getName()) ? TREE_RATIO : /^Kit_(shop|hall)/.test(n.getName()) ? KIT_RATIO : BLD_RATIO, err = TREE.test(n.getName()) ? Number(process.env.TREE_ERR ?? 1) : /^Kit_(shop|hall)/.test(n.getName()) ? Number(process.env.KIT_ERR ?? 0.3) : Number(process.env.BLD_ERR ?? 0.05);
     for (const prim of mesh.listPrimitives()) {
       const idx = prim.getIndices(); if (!idx || prim.getMode() !== 4) continue; const ia = idx.getArray();
       if (ia.length < 90) continue; // tiny pieces (doors, lamps) are cheaper left alone
       const pos = prim.getAttribute("POSITION").getArray(); let src = Uint32Array.from(ia);
-      if (/^Kit_shop/.test(n.getName())) { // UV seams leave equal positions on separate vertices, which the simplifier treats as locked borders (stuck at 73%): collapse them onto one representative first
+      if (/^Kit_(shop|hall)/.test(n.getName())) { // UV seams leave equal positions on separate vertices, which the simplifier treats as locked borders (stuck at 73%): collapse them onto one representative first
         const rep = new Map(); src = src.map(i => { const k = `${pos[3 * i]},${pos[3 * i + 1]},${pos[3 * i + 2]}`; if (!rep.has(k)) rep.set(k, i); return rep.get(k); });
       }
-      const [ni] = MeshoptSimplifier.simplify(src, pos, 3, Math.max(36, Math.floor(ia.length * ratio / 3) * 3), err);
+      // the market hall is trusswork that edge collapse stops short on (4618 -> 3741 tris at any ratio): from far away it only needs a silhouette, so the topology-blind simplifier does it
+      const target = Math.max(36, Math.floor(ia.length * ratio / 3) * 3);
+      const [ni] = /^Kit_hall/.test(n.getName()) ? MeshoptSimplifier.simplifySloppy(src, pos, 3, null, target, err) : MeshoptSimplifier.simplify(src, pos, 3, target, err);
       prim.setIndices(doc.createAccessor().setArray(ia.length < 65536 || Math.max(...ni) < 65536 ? Uint16Array.from(ni) : ni).setType("SCALAR").setBuffer(buffer));
     }
   }
