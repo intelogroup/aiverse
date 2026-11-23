@@ -28,8 +28,8 @@ sys.path.insert(0, os.path.expanduser("~/tmp-pip/pylibs"))
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-# Block (4,1), the `citadel` kind: 5-7 floor flat-roof boxes with no interior. Plus the civic hall.
-KNOWN_SHIMS = {f"shop-{i}" for i in range(148, 156)} | {"hall-0"}
+# The civic hall is the last facade-only box. The citadel block (4,1) was rebuilt as Kit_shop148-155 (bridge_citadel_townhouses.py).
+KNOWN_SHIMS = {"hall-0"}
 PAD = 0.3        # metres around a footprint, as bridge_bazaar_demolish.drop_tris
 Y_MIN = 0.3      # ignore the walk slab and sidewalks
 BOX_TOL = 2.0    # a real box may overhang its plan rect by this much (the Tea House porch sticks out 1.8 m); a node on the wrong lot is off by a building width

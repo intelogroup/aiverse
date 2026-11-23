@@ -1,11 +1,11 @@
 {
  "version": 1,
  "artifact": "world-city3-navmesh.bin",
- "bytes": 3481048,
+ "bytes": 3489072,
  "source": {
   "glb": "world-city3-collision.glb",
-  "glbSha256": "a84fec593f7bd0326342a417ecbab4f9796cc119600f07793d5f2f23d3fde56e",
-  "tris": 171754,
+  "glbSha256": "7632ccf6639ad2edf5ec88fad9ad4d15615bc2cdc7a3c06e29c4f84f9d3ce243",
+  "tris": 171886,
   "sets": 60
  },
  "params": {
