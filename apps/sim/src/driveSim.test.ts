@@ -2,6 +2,8 @@ import { afterEach, beforeAll, expect, test } from "bun:test";
 import { loadVerseSim } from "@aiverse/world-sim/node/loadWorld";
 import { WorldService } from "@aiverse/world-sim/worldService";
 import { JUNCTIONS, signalState } from "@aiverse/world-sim/trafficSignals";
+import { PARKED, VEHICLE_Y } from "@aiverse/world-sim/drive";
+import { DISC_OFFSET, DISC_R } from "@aiverse/world-sim/vehicle";
 
 const ASSETS = new URL("../../console/public/assets/", import.meta.url).pathname;
 let sim: Awaited<ReturnType<typeof loadVerseSim>>["sim"];
@@ -561,3 +563,45 @@ test("drive {to} cannot be combined with heading and must be [x, z]", () => {
   expect(() => act(service, "drv", "b", { type: "drive", to: [1] })).toThrow(/\[x, z\]/);
   service.detach("drv");
 });
+// Every other drive test teleports car-east to a test pose, so a car whose real parking spot is boxed in went unnoticed: car-tea sat between
+// two stall boxes with a footprint disc touching a wall at each end and could not move forward or back (an agent got in, then every drive
+// ended BLOCKED). These check each car from its UNTOUCHED spawn pose.
+for (const spot of PARKED) {
+  test(`${spot.id}: its footprint at the parking spot touches nothing and it can roll 0.4 m forward and back`, () => {
+    const world = sim.world;
+    const disc = (off: number, dist = 0): [number, number, number] => [spot.x + Math.sin(spot.heading) * (off + dist), VEHICLE_Y, spot.z + Math.cos(spot.heading) * (off + dist)];
+    const problems: string[] = [];
+    for (const [name, off] of [["front", DISC_OFFSET], ["rear", -DISC_OFFSET]] as const) {
+      const rest = world.blocked(disc(off), disc(off), DISC_R);
+      if (rest) problems.push(`${name} disc rests against a solid (normal ${rest.nx.toFixed(2)}, ${rest.nz.toFixed(2)})`);
+      for (const d of [0.4, -0.4]) {
+        const from = disc(off), to = disc(off, d), hit = world.blocked(from, to, DISC_R);
+        // same rule as stepVehicle: only a move INTO the surface blocks
+        if (hit && hit.nx * (to[0] - from[0]) + hit.nz * (to[2] - from[2]) <= -1e-6) problems.push(`${name} disc is blocked rolling ${d > 0 ? "forward" : "back"}`);
+      }
+    }
+    expect(problems).toEqual([]);
+  });
+
+  test(`${spot.id} can be reached, entered and driven forward and back from its parking spot, without a collision`, () => {
+    const service = new WorldService({ sim, nowS: () => 0 });
+    services.push(service);
+    const car = service.fleet.byId(spot.id)!;
+    expect([car.v.x, car.v.z, car.v.heading]).toEqual([spot.x, spot.z, spot.heading]);   // not moved by the test
+    service.attach("drv", { x: car.v.x + 6, z: car.v.z + 6, maxR: 6 });
+    act(service, "drv", "w", { type: "go_to", body: spot.id });
+    run(service, 25);
+    expect(act(service, "drv", "e", { type: "enter_vehicle", vehicle: spot.id }).outcome).toMatchObject({ ok: true });
+    const x0 = car.v.x, z0 = car.v.z;
+    act(service, "drv", "f", { type: "drive", speed: 3, seconds: 2 });
+    run(service, 2.1);
+    expect(service.observe("drv").vehicle?.blocked).toBe(false);
+    expect(Math.hypot(car.v.x - x0, car.v.z - z0)).toBeGreaterThan(2);      // 3 m/s for ~2 s: it really rolled
+    const x1 = car.v.x, z1 = car.v.z;
+    act(service, "drv", "b", { type: "drive", gas: 1, reverse: true, seconds: 2 });
+    run(service, 2.1);
+    expect(Math.hypot(car.v.x - x1, car.v.z - z1)).toBeGreaterThan(0.5);    // and it can back up
+    expect(car.tally.collision).toBe(0);
+    service.detach("drv");
+  });
+}
