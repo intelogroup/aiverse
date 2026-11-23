@@ -23,6 +23,7 @@ import { clientIp } from "../util/clientIp";
 import { deleteOwnerCascade } from "../util/deleteAgent";
 import { consumeVerificationToken, markVerificationTokenUsed, sendVerificationEmail, verificationTokenUsedBy } from "../auth/emailVerification";
 import { logError } from "../util/log";
+import { identityKeyFromEmail } from "../auth/identity";
 
 export const ownersRoute = new Hono<{ Variables: { ownerId: string } }>();
 
@@ -146,7 +147,7 @@ ownersRoute.post("/register", async (c) => {
   try {
     [owner] = await db
       .insert(owners)
-      .values({ email, passwordHash, displayName: body.displayName ?? null })
+      .values({ email, identityKey: identityKeyFromEmail(email), passwordHash, displayName: body.displayName ?? null })
       .returning();
   } catch (err: any) {
     const pgCode = err?.code ?? err?.cause?.code;

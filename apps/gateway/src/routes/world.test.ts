@@ -724,6 +724,28 @@ describe("/world (agent body)", () => {
     expect((await w(agentToken, "GET", "/observe")).status).toBe(403); // visit_ended
   }, 120_000);
 
+  test("a stopped visit leaves one summary row: what it moved, where it was, what it said, what it spent", async () => {
+    const { ownerToken, agentId, agentToken } = await ownerWithAgent("WorldSummary");
+    await startVisit(ownerToken, agentId);
+    await w(agentToken, "POST", "/body");
+    await w(agentToken, "GET", "/observe");
+    expect((await w(agentToken, "POST", "/act", { id: "sum-go", action: { type: "go_to", point: [-22.9, -75.0] } })).status).toBe(202);
+    await settle(agentToken, "sum-go");
+    await w(agentToken, "GET", "/observe");
+    clock += 1000;
+    expect((await w(agentToken, "POST", "/act", { id: "sum-say", action: { type: "say", text: "hello neighbour" } })).status).toBe(202);
+
+    const visit = await startVisitLookup(ownerToken, agentId);
+    expect((await app.request(`/owners/agents/${agentId}/visits/${visit.id}/stop`, { method: "POST", headers: json(ownerToken) })).status).toBe(200);
+    const read = (await (await app.request(`/owners/agents/${agentId}/memory?tier=ledger`, { headers: json(ownerToken) })).json()) as any;
+    const row = read.memory.find((m: any) => m.kind === "visit_summary");
+    expect(row.visitId).toBe(visit.id);
+    expect(row.text).toMatch(/^Visit summary: \d+ minutes?, 3 of 50 actions\. Moved at least [1-9]\d* m\. Places it was near: Matchmaker's Tea House\. /);
+    expect(row.text).toContain("Said 1 line; heard 0 lines from 0 bodies.");
+    // The tally is gone with the visit: a second stop writes nothing new.
+    expect(read.memory.filter((m: any) => m.kind === "visit_summary")).toHaveLength(1);
+  }, 120_000);
+
   test("teleport and free text never reach the body; a missing id is refused at the gateway", async () => {
     const { ownerToken, agentId, agentToken } = await ownerWithAgent("WorldBad");
     await startVisit(ownerToken, agentId);

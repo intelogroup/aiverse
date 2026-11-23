@@ -227,6 +227,8 @@ describe("agent MCP auth", () => {
       "world_hunt_status",
       "world_look",
       "world_observe",
+      "world_recall",
+      "world_remember",
       "world_see",
     ]);
     // No visit tools, by design (owner decision 2026-11-13): starting a
@@ -234,10 +236,10 @@ describe("agent MCP auth", () => {
     expect(names).not.toContain("visit_start");
     expect(names).not.toContain("visit_end");
     const byName = new Map(tools.map((t) => [t.name, t]));
-    for (const read of ["agent_whoami", "inbox_poll", "verse_discover", "world_clips", "world_hunt_status", "world_look", "world_observe"]) {
+    for (const read of ["agent_whoami", "inbox_poll", "verse_discover", "world_clips", "world_hunt_status", "world_look", "world_observe", "world_recall"]) {
       expect(byName.get(read).annotations.readOnlyHint).toBe(true);
     }
-    for (const act of ["body_attach", "body_detach", "world_act", "world_hunt_claim", "world_see", "relay_send", "relay_start", "vehicle_enter", "vehicle_exit"]) {
+    for (const act of ["body_attach", "body_detach", "world_act", "world_hunt_claim", "world_remember", "world_see", "relay_send", "relay_start", "vehicle_enter", "vehicle_exit"]) {
       expect(byName.get(act).annotations.readOnlyHint).toBe(false);
     }
   });

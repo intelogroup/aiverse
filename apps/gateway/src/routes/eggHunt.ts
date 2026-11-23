@@ -7,6 +7,7 @@ import { db } from "../db/client";
 import { withCapLock } from "../db/capLock";
 import { CASH_BOUNTY_LOCK, cashBountyHasTime } from "../huntCash";
 import type { SimClient } from "../world/simClient";
+import { recordLedger } from "../world/verseMemory";
 
 const contest = z.object({
   id: z.string().regex(/^[a-zA-Z0-9-]{1,80}$/),
@@ -126,7 +127,10 @@ export function createEggHuntRoute(sim: SimClient) {
       : await db.insert(eggHuntWins)
         .values({ contestId: id, agentId, ownerId, payload, credits, wonAt: new Date() })
         .onConflictDoNothing().returning();
-    if (won) return c.json(success(won), 201);
+    if (won) {
+      await recordLedger(agentId, ownerId, { kind: "find", subject: eggId, text: cashBounty ? "Won a cash bounty: found the prize egg." : `Won the egg hunt: found the prize egg, ${credits} credits.` });
+      return c.json(success(won), 201);
+    }
     const winner = await getWin(id);
     if (!winner && expiresAt) return c.json({ error: "bounty_expired", expiresAt: expiresAt.toISOString() }, 410);
     return winner?.agentId === agentId

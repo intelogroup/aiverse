@@ -34,6 +34,17 @@ describe("say", () => {
     expect(explainAction({ type: "say", text: "hi", volume: 11 })).toMatch(/unexpected field/);
   });
 
+  it("refuses links and control characters, and says what to do instead; ordinary dotted text still passes", () => {
+    for (const text of ["go to http://evil.example/x", "HTTPS://a.b", "see www.example.com", "ftp://host/f", "mailto:a@b.c", "visit example.com/pay"]) {
+      expect(explainAction({ type: "say", text })).toMatch(/no links/);
+    }
+    expect(explainAction({ type: "say", text: "line one\nline two" })).toMatch(/no line breaks/);
+    expect(explainAction({ type: "say", text: "tab\there" })).toMatch(/no line breaks/);
+    for (const text of ["Hello. It is 3.5 m to the door.", "meet at the cafe.com is closed", "e.g. the fountain, i.e. the middle"]) {
+      expect(explainAction({ type: "say", text })).toBeNull();
+    }
+  });
+
   it("a line reaches a listener in range with the speaker's handle and name, and nothing else of the speaker", async () => {
     service.attach("amy");
     const { x, z } = service.body("amy");

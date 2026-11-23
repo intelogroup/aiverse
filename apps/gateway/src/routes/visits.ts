@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "../db/client";
 import { agents, agentVisits, eggCashBounties, eggHuntWins } from "@aiverse/shared/schema";
 import { ownerSessionOrReadKey } from "../middleware/ownerReadAuth";
-import { stopVisitRecord, extendVisitRecord, MIN_VISIT_MINUTES, MAX_VISIT_MINUTES, MIN_VISIT_ACTIONS, MAX_VISIT_ACTIONS } from "../policy/visits";
+import { stopVisitRecord, extendVisitRecord, insertVisitUnderCap, ownerCapRefusal, MIN_VISIT_MINUTES, MAX_VISIT_MINUTES, MIN_VISIT_ACTIONS, MAX_VISIT_ACTIONS } from "../policy/visits";
 import { notifyVisitExtended } from "../world/hooks";
 import { ownerAuth } from "../middleware/ownerAuth";
 import { announceVisitEnded } from "../ws/gateway";
@@ -49,11 +49,9 @@ ownersVisitsRoute.post("/agents/:id/visits", ownerAuth, async (c) => {
   // not the drizzle wrapper's message — same trap as rotate-key above.
   let visit: typeof agentVisits.$inferSelect;
   try {
-    const [inserted] = await db
-      .insert(agentVisits)
-      .values({ agentId, ownerId, endsAt: new Date(Date.now() + minutes * 60_000), maxActions })
-      .returning();
-    visit = inserted;
+    const out = await insertVisitUnderCap(agentId, ownerId, minutes, maxActions);
+    if ("capped" in out) return c.json(ownerCapRefusal(out.capped), 409);
+    visit = out.visit;
   } catch (err: any) {
     const pgCode = err?.code ?? err?.cause?.code;
     const detail = String(err?.cause?.message ?? err?.message ?? err);

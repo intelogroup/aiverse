@@ -1,8 +1,10 @@
-import { and, eq, gt, isNull, lt, sql } from "drizzle-orm";
+import { and, eq, gt, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { db } from "../db/client";
-import { agentVisits } from "@aiverse/shared/schema";
+import { agentVisits, owners } from "@aiverse/shared/schema";
 import { redis } from "../redis/client";
 import { activeVisitByAgent, evictVisitById } from "../auth/authCache";
+import { recordLedger } from "../world/verseMemory";
+import { summaryText, takeTally } from "../world/visitTally";
 
 // Pure DB logic — no ws/gateway import here, on purpose: ws/gateway.ts's own
 // WS-connect handler needs to call checkAndConsumeVisit too, and it already
@@ -29,13 +31,18 @@ export interface EndedVisit {
 // path and the sweep job, say) ends a visit exactly once — the loser's
 // UPDATE affects zero rows and this returns null for it.
 export async function endVisitRecord(visitId: string, reason: VisitEndReason): Promise<EndedVisit | null> {
-  const [ended] = await db
+  const endedAt = new Date();
+  const [row] = await db
     .update(agentVisits)
-    .set({ endedAt: new Date(), endedReason: reason })
+    .set({ endedAt, endedReason: reason })
     .where(and(eq(agentVisits.id, visitId), isNull(agentVisits.endedAt)))
-    .returning({ id: agentVisits.id, agentId: agentVisits.agentId, ownerId: agentVisits.ownerId });
+    .returning({ id: agentVisits.id, agentId: agentVisits.agentId, ownerId: agentVisits.ownerId, startedAt: agentVisits.startedAt, actionsUsed: agentVisits.actionsUsed, maxActions: agentVisits.maxActions });
   evictVisitById(visitId);
-  return ended ? { ...ended, reason } : null;
+  const tally = takeTally(visitId);
+  if (!row) return null;
+  await recordLedger(row.agentId, row.ownerId, { kind: "visit", visitId, text: `Visit ended: ${reason.replace(/_/g, " ")}.` });
+  await recordLedger(row.agentId, row.ownerId, { kind: "visit_summary", visitId, text: summaryText(tally, row.startedAt, endedAt, row.actionsUsed, row.maxActions) });
+  return { id: row.id, agentId: row.agentId, ownerId: row.ownerId, reason };
 }
 
 export interface VisitCheckResult {
@@ -224,28 +231,79 @@ export async function extendVisitRecord(
   return updated ?? null;
 }
 
+/** How many agents one person may have in the world at once. "One person" is the identity key (auth/identity.ts), not the owner id. */
+export const OWNER_MAX_ACTIVE_AGENTS = Number(process.env.OWNER_MAX_ACTIVE_AGENTS ?? 2);
+export type VisitCap = { limit: number; agentIds: string[] };
+
+/** The 409 body every start path returns when the cap is full: says who holds the slots and what frees one. */
+export function ownerCapRefusal(cap: VisitCap) {
+  return {
+    error: "owner_cap",
+    limit: cap.limit,
+    activeAgentIds: cap.agentIds,
+    message: `At most ${cap.limit} of your agents can be in the world at once; ${cap.agentIds.join(", ")} ${cap.agentIds.length === 1 ? "is" : "are"} in. Stop one of those visits first.`,
+  };
+}
+
+/** The one place a visit row is inserted. Counts the person's other live visits under an advisory lock keyed on their identity key, so two
+ * starts at the same moment (even from two accounts that are one mailbox) cannot both get past the count. A unique violation on the
+ * agent's own active-visit index still surfaces as the thrown 23505 for the caller to map. */
+export async function insertVisitUnderCap(
+  agentId: string,
+  ownerId: string,
+  minutes: number,
+  maxActions: number,
+): Promise<{ visit: typeof agentVisits.$inferSelect } | { capped: VisitCap }> {
+  const out = await db.transaction(async (tx) => {
+    const owner = await tx.query.owners.findFirst({ where: eq(owners.id, ownerId), columns: { identityKey: true } });
+    const key = owner?.identityKey ?? ownerId;
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`owner-cap:${key}`}, 0))`);
+    const rows = await tx
+      .select({ agentId: agentVisits.agentId })
+      .from(agentVisits)
+      .innerJoin(owners, eq(owners.id, agentVisits.ownerId))
+      .where(and(
+        isNull(agentVisits.endedAt),
+        gt(agentVisits.endsAt, new Date()),     // a visit past its deadline that the sweep has not ended yet holds no slot
+        ne(agentVisits.agentId, agentId),
+        owner?.identityKey ? or(eq(owners.id, ownerId), eq(owners.identityKey, owner.identityKey)) : eq(owners.id, ownerId),
+      ));
+    const agentIds = [...new Set(rows.map((r) => r.agentId))];
+    if (agentIds.length >= OWNER_MAX_ACTIVE_AGENTS) return { capped: { limit: OWNER_MAX_ACTIVE_AGENTS, agentIds } };
+    const [visit] = await tx
+      .insert(agentVisits)
+      .values({ agentId, ownerId, endsAt: new Date(Date.now() + minutes * 60_000), maxActions })
+      .returning();
+    return { visit };
+  });
+  // After the commit, so a ledger failure can never undo the start.
+  if ("visit" in out && out.visit) await recordLedger(agentId, ownerId, { kind: "visit", visitId: out.visit.id, text: `Visit started: ${minutes} minutes, up to ${maxActions} actions.` });
+  return out;
+}
+
 // Starts a visit unless the agent already has an active one (endedAt IS
 // NULL — the same "active" test the start route and agentAuth use), in
 // which case it returns the existing row with created:false instead of
 // double-starting. The claim route's auto-start uses this; the owner
 // start route keeps its own check-then-insert so its 409 precedence
 // (active-visit before body validation) is unchanged.
+//
+// A person is allowed OWNER_MAX_ACTIVE_AGENTS agents in the world at once (decision 2026-11-21). When the cap is full this returns
+// visit:null with `capped` naming the agents that hold the slots.
 export async function startVisitIfNoneActive(
   agentId: string,
   ownerId: string,
   minutes: number,
   maxActions: number,
-): Promise<{ visit: typeof agentVisits.$inferSelect; created: boolean }> {
+): Promise<{ visit: typeof agentVisits.$inferSelect | null; created: boolean; capped?: VisitCap }> {
   const active = await db.query.agentVisits.findFirst({
     where: and(eq(agentVisits.agentId, agentId), isNull(agentVisits.endedAt)),
   });
   if (active) return { visit: active, created: false };
   try {
-    const [visit] = await db
-      .insert(agentVisits)
-      .values({ agentId, ownerId, endsAt: new Date(Date.now() + minutes * 60_000), maxActions })
-      .returning();
-    return { visit, created: true };
+    const out = await insertVisitUnderCap(agentId, ownerId, minutes, maxActions);
+    if ("capped" in out) return { visit: null, created: false, capped: out.capped };
+    return { visit: out.visit, created: true };
   } catch (err: any) {
     // A concurrent start (owner route or another claim) won the race
     // between the check above and this insert: the partial unique index
