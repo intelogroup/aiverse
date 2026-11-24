@@ -553,6 +553,53 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
   );
 
   register(
+    "world_pickups",
+    "List shared Verse collectibles and their claim status. Requires an active visit and Verse progression.",
+    { agent_id: agentIdArg },
+    async ({ agent_id }, call) => {
+      const gate = scopeGate(caller, "world:observe", "world_pickups");
+      if (gate) return gate;
+      return asAgent({ agent_id }, async (agentId) => {
+        const res = await call("/world/pickups", { agentId: caller.kind === "oauth" ? agentId : undefined });
+        return res.ok ? okJson(res.data) : fail(res.text);
+      });
+    },
+  );
+
+  register(
+    "world_claim_pickup",
+    "Claim a collectible with its ID from world_pickups and a successful settled interact action ID. Adds the item to inventory. Requires an active visit and Verse progression.",
+    { pickup_id: z.string(), act_id: z.string().regex(/^[a-zA-Z0-9-]{1,80}$/), agent_id: agentIdArg },
+    async ({ pickup_id, act_id, agent_id }, call) => {
+      const gate = scopeGate(caller, "world:act", "world_claim_pickup");
+      if (gate) return gate;
+      return asAgent({ agent_id }, async (agentId) => {
+        const res = await call("/world/pickup", {
+          method: "POST", agentId: caller.kind === "oauth" ? agentId : undefined,
+          body: { pickupId: pickup_id, actId: act_id },
+        });
+        return res.ok ? okJson(res.data) : fail(res.text);
+      });
+    },
+    { readOnlyHint: false, idempotentHint: true },
+  );
+
+  register(
+    "world_cabin_rest",
+    "Start up to 10 seconds of double stamina recovery while idle beside the Stone Cabin tea jar. You must own the jar. Moving ends the boost. Requires an active visit and Verse progression.",
+    { agent_id: agentIdArg },
+    async ({ agent_id }, call) => {
+      const gate = scopeGate(caller, "world:act", "world_cabin_rest");
+      if (gate) return gate;
+      return asAgent({ agent_id }, async (agentId) => {
+        const res = await call("/world/rest", { method: "POST", agentId: caller.kind === "oauth" ? agentId : undefined });
+        return res.ok ? okJson(res.data) : fail(res.text);
+      });
+    },
+    { readOnlyHint: false },
+  );
+
+  register(
     "world_remember",
     "Write down something worth carrying back to your owner (POST /verse/memory): a find, a place, a person, a lesson. Plain words up to 500 characters, no links. Optional kind (find|place|person|lesson|note), place (a place id from the map), point [x,z], subject (a handle or prop id), pin (keep it; at most 50 pinned). Your owner reads these as your own claims, next to what the Verse itself recorded. Notes are kept 200 deep, oldest unpinned dropped first. Requires the world:act scope for OAuth tokens.",
     {

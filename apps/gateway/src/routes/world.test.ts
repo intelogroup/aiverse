@@ -66,7 +66,7 @@ beforeAll(async () => {
   const keys = await redis.keys("register:*");
   if (keys.length) await redis.del(...keys);
   const { sim } = await loadVerseSim(ASSETS);
-  service = new WorldService({ sim, maxBodies: 5 });
+  service = new WorldService({ sim, maxBodies: 5, movementEnergy: true });
   const simApp = createSimServer({ service, secret: SECRET, now: () => clock });
   simHttp = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: simApp.fetch });
   const previousHunt = process.env.AIVERSE_EGG_HUNT;
@@ -194,6 +194,57 @@ describe("/world (agent body)", () => {
         service.detach(agent.agentId);
         await db.delete(versePickupClaims).where(eq(versePickupClaims.agentId, agent.agentId));
       }
+    }
+  });
+
+  test("Stone Cabin tea is awarded after a real interaction and doubles idle recovery", async () => {
+    const agent = await verifiedCashEntrant("CabinTea");
+    const id = agent.agentId;
+    const token = agent.agentToken;
+    const pickupId = "stone-cabin-tea-jar";
+    try {
+      await startVisit(agent.ownerToken, id);
+      service.attach(id, { x: -17.2, z: 91 });
+      expect((await w(token, "POST", "/rest")).status).toBe(403);
+      expect((await w(token, "POST", "/pickup", { actId: "invented", pickupId })).status).toBe(403);
+      const catalog = await callMcp(token, "world_pickups");
+      expect(catalog.isError).toBe(false);
+      expect(catalog.data.pickups).toContainEqual(expect.objectContaining({ id: pickupId, claimed: false }));
+
+      expect((await w(token, "POST", "/act", { id: "cabin-enter", action: { type: "enter", place: "house-cabin-1" } })).status).toBe(202);
+      expect((await settle(token, "cabin-enter")).outcome?.ok).toBe(true);
+      expect((await w(token, "POST", "/act", { id: "cabin-jar", action: { type: "interact", target: pickupId } })).status).toBe(202);
+      expect((await settle(token, "cabin-jar")).outcome).toMatchObject({ ok: true, target: pickupId });
+      const claim = await callMcp(token, "world_claim_pickup", { act_id: "cabin-jar", pickup_id: pickupId });
+      expect(claim.isError).toBe(false);
+      const { reward } = claim.data;
+      expect(reward).toMatchObject({ credits: 3, xp: 5 });
+      const bag = await (await app.request("/verse/inventory", { headers: json(token) })).json();
+      expect(bag.items).toContainEqual(expect.objectContaining({ id: reward.itemId, name: "Stone Cabin tea jar" }));
+
+      // Build enough fatigue to measure the difference without hitting the cap.
+      for (const [turn, point] of [[-25, 84.7], [-19, 84.7], [-25, 84.7], [-19, 84.7]].entries()) {
+        const run = `cabin-run-${turn}`;
+        expect((await w(token, "POST", "/act", { id: run, action: { type: "run_to", point } })).status).toBe(202);
+        expect((await settle(token, run)).outcome?.ok).toBe(true);
+        if (turn === 0) expect((await w(token, "POST", "/rest")).status).toBe(400);
+      }
+
+      const before = service.observe(id).energy!.current;
+      expect(before).toBeLessThan(97);
+      service.tick(0.5);
+      expect(service.observe(id).energy!.current - before).toBeCloseTo(0.5, 2);
+      const rest = await callMcp(token, "world_cabin_rest");
+      expect(rest.isError).toBe(false);
+      expect(rest.data).toMatchObject({ multiplier: 2, remainingSeconds: 10 });
+      const after = service.observe(id).energy!.current;
+      service.tick(0.5);
+      expect(service.observe(id).energy!.current - after).toBeCloseTo(1, 2);
+      const repeat = await callMcp(token, "world_cabin_rest");
+      expect(repeat.data.remainingSeconds).toBeCloseTo(9.5, 2);
+    } finally {
+      service.detach(id);
+      await db.delete(versePickupClaims).where(eq(versePickupClaims.agentId, id));
     }
   });
 

@@ -144,6 +144,9 @@ export function createSimServer(opts: SimServerOpts) {
           const rec = service.actRecord(id, actId);
           return rec ? json({ act: rec }) : json({ error: "unknown_act" }, 404);
         }
+        if (req.method === "POST" && sub === "rest" && !actId) {
+          return json(service.startCabinRest(id));
+        }
         if (req.method === "POST" && sub === "look" && !actId) {
           if (!lookBucket(id).take(now())) return json({ error: "rate_limited" }, 429, { "retry-after": "1" });
           return json({ look: service.look(id) });
