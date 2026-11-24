@@ -475,8 +475,20 @@ export class ScoutExecutor {
   submit(action: ScoutAction, state: WalkerState): Promise<ScoutOutcome> {
     if (action.type === "stop") {
       this.deps.cancel?.();
-      if (this.posture === "sitting-down") { this.posture = "standing"; this.seatedOn = null; this.sitBlend = 0; }
-      if (this.posture === "standing-up") { this.posture = "seated"; this.sitBlend = 1; }
+      if (this.pending?.action.type === "play") {
+        this.deps.clips.fire(this.posture === "seated" ? "SittingIdle" : "Idle");
+      }
+      if (this.posture === "sitting-down") {
+        this.posture = "standing";
+        this.seatedOn = null;
+        this.sitBlend = 0;
+        this.deps.clips.fire("Idle");
+      }
+      if (this.posture === "standing-up") {
+        this.posture = "seated";
+        this.sitBlend = 1;
+        this.deps.clips.fire("SittingIdle");
+      }
       this.settle({ ok: false, status: "rejected", detail: "cancelled" });
       state.vx = state.vz = state.speed = 0;
       return Promise.resolve({ ok: true, status: "done" });
@@ -544,6 +556,9 @@ export class ScoutExecutor {
         const def = resolveSocialClip(action.clip);
         if (!def) {
           return Promise.resolve({ ok: false, status: "unavailable", detail: `unknown clip ${JSON.stringify(action.clip)}; playable: ${SOCIAL_CLIPS.join(", ")}` });
+        }
+        if (def.seatedOnly && this.posture !== "seated") {
+          return Promise.resolve({ ok: false, status: "rejected", detail: `${def.name} requires sitting. Sit first, or use Talking while standing.` });
         }
         if (this.posture !== "standing" && !def.seatedOk) {
           const seatedClips = SOCIAL_CLIPS.filter((n) => clipDef(n)?.seatedOk).join(", ");
@@ -803,7 +818,10 @@ export class ScoutExecutor {
           return;
         }
         const target = p.target!;
-        const routed = !!this.deps.plan && (p.action.type === "go_to" || p.action.type === "run_to" || p.action.type === "enter" || p.action.type === "sit");
+        const arriveR = p.phase === "to-approach" || p.phase === "to-stand" ? 0.25 : 0.45;
+        const propApproach = p.action.type === "interact" && Math.hypot(target[0] - state.x, target[1] - state.z) > arriveR;
+        const routed = !!this.deps.plan && (p.action.type === "go_to" || p.action.type === "run_to" ||
+          p.action.type === "enter" || p.action.type === "sit" || propApproach);
         if (routed && !p.route) {
           const route = this.deps.plan!(state, target);
           if (!route?.length) {
@@ -824,7 +842,6 @@ export class ScoutExecutor {
           if (p.replans > 8) this.settle({ ok: false, status: "blocked", detail: "route repeatedly obstructed" });
           return;
         }
-        const arriveR = p.phase === "to-approach" || p.phase === "to-stand" ? 0.25 : 0.45;
         const { input: wanted, arrived: waypointArrived } = moveToIntent(state, waypoint, p.route && (p.routeIndex ?? 0) < p.route.length - 1 ? 0.2 : arriveR, !!p.run);
         const input = this.deps.avoid?.(state, wanted) ?? wanted;
         const arrived = waypointArrived && (!p.route || (p.routeIndex ?? 0) === p.route.length - 1);
