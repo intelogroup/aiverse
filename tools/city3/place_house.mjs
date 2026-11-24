@@ -1,11 +1,12 @@
 #!/usr/bin/env bun
 // Place one prebuilt house GLB in world coordinates and write its collision GLB, as a stand-alone streamed district (no splice into the 100 MB monolith).
-//   bun tools/city3/place_house.mjs SRC.glb ID X Z YAW_DEG [--door=front|back|none] [--doorx=0] [--doorhalf=0.85] [--body=x0,x1,z0,z1] [--floor=0.63] [--ceil=2.8] [--scale=1] [--mask] [--asset=NAME] [--lift=0] [--room="Display name"] [--out=dir] [--manifest=districts.json]
+//   bun tools/city3/place_house.mjs SRC.glb ID X Z YAW_DEG [--door=front|back|none] [--doorx=0] [--doorhalf=0.85] [--body=x0,x1,z0,z1] [--floor=0.63] [--ceil=2.8] [--scale=1] [--mask] [--asset=NAME] [--lift=0] [--simplify=RATIO] [--room="Display name"] [--out=dir] [--manifest=districts.json]
 // Frame: GLB x, z = -plan y, y up, walk slab y=0.2. The house footprint is centred on (X, Z); YAW_DEG must be a multiple of 90 so the collision
 // stays axis-aligned. The house front faces local +z before the yaw. Output: <out>/<ID>.glb, <out>/<ID>.col.glb, <out>/<ID>.json (the DistrictDef rect).
 import { NodeIO, Document, getBounds } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
-import { dedup, flatten, join, metalRough, prune } from "@gltf-transform/functions";
+import { dedup, flatten, join, metalRough, prune, simplify, weld } from "@gltf-transform/functions";
+import { MeshoptSimplifier } from "meshoptimizer";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 const [src, id, X, Z, YAW] = process.argv.slice(2, 7).map((v, i) => (i < 2 ? v : Number(v)));
@@ -23,6 +24,9 @@ const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
 const doc = await io.read(src);
 // three.js dropped KHR_materials_pbrSpecularGlossiness: such a model renders untextured white, so convert it to metal/rough first
 if (doc.getRoot().listExtensionsUsed().some((e) => e.extensionName === "KHR_materials_pbrSpecularGlossiness")) await doc.transform(metalRough());
+// --simplify: meshopt edge-collapse toward RATIO of the triangles at a 1 mm-scale error bound (keeps UV/normal seams, so the look holds);
+// for the scanned and furniture-heavy models that dominate frame time (cabin 1.27 M, clock tower 250 k)
+if (opt.simplify !== undefined) { await MeshoptSimplifier.ready; await doc.transform(weld(), simplify({ simplifier: MeshoptSimplifier, ratio: Number(opt.simplify), error: 0.001 })); }
 const scene = doc.getRoot().getDefaultScene() ?? doc.getRoot().listScenes()[0];
 const b = getBounds(scene); // world bbox through the node matrices
 const [cx, cz] = [(b.min[0] + b.max[0]) / 2, (b.min[2] + b.max[2]) / 2];

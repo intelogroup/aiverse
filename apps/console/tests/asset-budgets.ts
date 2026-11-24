@@ -73,16 +73,16 @@ export const DISTRICT_BUDGETS: Record<string, DistrictBudget> = {
     budget: { glbBytes: 11_520_550, collisionBytes: 2_000, triangles: 52_488 },
   },
   "/assets/houses/cabin-y0.glb": {
-    measured: { glbBytes: 62_174_596, collisionBytes: 7_104, triangles: 1_269_815 },
-    budget: { glbBytes: 77_718_245, collisionBytes: 9_946, triangles: 1_587_269 },
+    measured: { glbBytes: 49_023_100, collisionBytes: 7_104, triangles: 766_467 },
+    budget: { glbBytes: 61_278_875, collisionBytes: 9_946, triangles: 958_084 },
   },
   "/assets/houses/cabin-y90.glb": {
-    measured: { glbBytes: 62_174_808, collisionBytes: 7_120, triangles: 1_269_815 },
-    budget: { glbBytes: 77_718_510, collisionBytes: 9_968, triangles: 1_587_269 },
+    measured: { glbBytes: 49_023_308, collisionBytes: 7_120, triangles: 766_467 },
+    budget: { glbBytes: 61_279_135, collisionBytes: 9_968, triangles: 958_084 },
   },
   "/assets/houses/clock-tower-y0.glb": {
-    measured: { glbBytes: 8_511_844, collisionBytes: 1_040, triangles: 250_000 },
-    budget: { glbBytes: 10_639_805, collisionBytes: 2_000, triangles: 312_500 },
+    measured: { glbBytes: 3_677_496, collisionBytes: 1_040, triangles: 84_487 },
+    budget: { glbBytes: 4_596_870, collisionBytes: 2_000, triangles: 105_609 },
   },
   "/assets/houses/cozy-cottage-y0.glb": {
     measured: { glbBytes: 37_852_084, collisionBytes: 1_040, triangles: 818_648 },
