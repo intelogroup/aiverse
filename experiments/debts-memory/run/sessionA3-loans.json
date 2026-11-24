@@ -1,0 +1,103 @@
+{
+ "wallets": {
+  "mara": 1000,
+  "deshawn": 1000,
+  "ingrid": 700,
+  "tomas": 1000,
+  "priya": 1000,
+  "kenji": 1000,
+  "fatima": 1000,
+  "oleg": 1000,
+  "lucia": 1300,
+  "amara": 1000,
+  "henrik": 1000,
+  "yuki": 1000,
+  "rafael": 1000,
+  "ngozi": 1000,
+  "sam": 1000
+ },
+ "offers_open": [
+  {
+   "id": "of-2",
+   "seller": "yuki",
+   "item": "zen-bell",
+   "name": "Zen Bell",
+   "price": 250,
+   "t": 1584.98
+  },
+  {
+   "id": "of-3",
+   "seller": "sam",
+   "item": "stall-key",
+   "name": "Brass Key",
+   "price": 450,
+   "t": 1683.08
+  },
+  {
+   "id": "of-4",
+   "seller": "oleg",
+   "item": "cabin2-pearl",
+   "name": "Tide Pearl",
+   "price": 350,
+   "t": 1736.66
+  }
+ ],
+ "trades": [
+  {
+   "kind": "trade",
+   "agent": "ingrid",
+   "from": "lucia",
+   "item": "relic-ember",
+   "name": "Ember Relic",
+   "price": 300,
+   "offer": "of-1",
+   "set": true
+  }
+ ],
+ "debts": [],
+ "bags": {
+  "henrik": [
+   "egg-01",
+   "cabin1-wolf",
+   "stall-kettle"
+  ],
+  "kenji": [
+   "stall-dice",
+   "relic-moon",
+   "egg-02",
+   "stall-orb"
+  ],
+  "oleg": [
+   "relic-star",
+   "cabin2-pearl",
+   "cabin2-flute"
+  ],
+  "sam": [
+   "relic-sun",
+   "stall-key"
+  ],
+  "lucia": [],
+  "mara": [
+   "tea-teapot"
+  ],
+  "yuki": [
+   "relic-leaf",
+   "zen-bell"
+  ],
+  "priya": [
+   "egg-05"
+  ],
+  "ingrid": [
+   "stall-lantern",
+   "relic-ember"
+  ],
+  "fatima": [
+   "egg-04"
+  ],
+  "rafael": [
+   "egg-03"
+  ]
+ },
+ "credits_total": 15000,
+ "set_winner": null
+}
