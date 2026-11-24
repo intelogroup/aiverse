@@ -93,7 +93,8 @@ const def = { id: `house-${id}`, name: id, url: `/assets/houses/${FILE}.glb`, co
 // upsert into the committed base manifest; tiles_manifest.mjs carries every `house-*` entry into the tile manifest
 const mpath = opt.manifest ?? `${OUT}/../districts.json`;
 const man = JSON.parse(readFileSync(mpath, "utf8"));
-man.districts = [...man.districts.filter(d => d.id !== def.id), def];
+const at = man.districts.findIndex(d => d.id === def.id);   // replace in place: re-appending reordered the file on every re-placement
+if (at < 0) man.districts.push(def); else man.districts[at] = def;
 writeFileSync(mpath, JSON.stringify(man, null, 1));
 // --room: a walkable house (door != none) becomes an enterable room and a go_to place, like a hero shop: interiors/house-<id>.{json,col.json},
 // an interiors/index.json row and a city3-places.json shopfront whose stand is 0.9 m outside the door (past the stoop).
