@@ -2,7 +2,8 @@
 # Every placed prebuilt house, re-placeable in one go (place_house.mjs). Sources live outside the repo in $SRC (Sketchfab downloads, credits in
 # ASSETS.md); each is first run through slim_textures.py (textures <= 2048 px, JPEG where opaque) into <model>/slim.glb.
 # Shared assets (--asset) write one GLB pair per model and yaw; each line adds one house-<id> district at (X, Z).
-#   SRC=~/Developer/city3-downloads bash tools/city3/houses.sh        then: rerun the yard passes only on new blocks
+#   SRC=~/Developer/city3-downloads bash tools/city3/houses.sh   then: bun tools/city3/house_lods.mjs (far stand-ins + farUrl), bun tools/city3/house_budgets.mjs,
+#   python3 tools/city3/bridge_clear_footprints.py, and the yard passes only on new blocks
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 SRC=${SRC:-$HOME/Developer/city3-downloads}
