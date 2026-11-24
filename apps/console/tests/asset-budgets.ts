@@ -100,10 +100,6 @@ export const DISTRICT_BUDGETS: Record<string, DistrictBudget> = {
     measured: { glbBytes: 6_562_948, collisionBytes: 1_040, triangles: 67_933 },
     budget: { glbBytes: 8_203_685, collisionBytes: 2_000, triangles: 84_916 },
   },
-  "/assets/houses/mayflower-y90.glb": {
-    measured: { glbBytes: 4_748_568, collisionBytes: 1_036, triangles: 26_821 },
-    budget: { glbBytes: 5_935_710, collisionBytes: 2_000, triangles: 33_526 },
-  },
   "/assets/houses/medieval-rx-y180.glb": {
     measured: { glbBytes: 1_738_164, collisionBytes: 1_040, triangles: 8_084 },
     budget: { glbBytes: 2_172_705, collisionBytes: 2_000, triangles: 10_105 },

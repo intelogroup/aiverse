@@ -62,15 +62,15 @@
    "theme": "bazaar"
   },
   {
-   "id": "house-mayflower-1",
-   "name": "mayflower-1",
-   "url": "/assets/houses/mayflower-y90.glb",
-   "collisionUrl": "/assets/houses/mayflower-y90.col.glb",
+   "id": "house-citadel-east-1",
+   "name": "citadel-east-1",
+   "url": "/assets/houses/suburban-blue-y90.glb",
+   "collisionUrl": "/assets/houses/suburban-blue-y90.col.glb",
    "center": [
     113,
     97
    ],
-   "half": 14,
+   "half": 12,
    "origin": [
     113,
     97
