@@ -3,6 +3,8 @@
 # Output: apps/console/public/assets/tiles/ (content-hashed GLBs + tex/ + col/ + districts.json). The monolith stays the pipeline's source.
 set -e; cd "$(dirname "$0")/../.."
 A=apps/console/public/assets; T=$A/tiles
+# split_lod.mjs caps far-LOD textures with slim_textures.py (Pillow); the Vercel build image has python3 but no Pillow
+python3 -c "import PIL" 2>/dev/null || python3 -m pip install -q --user Pillow 2>/dev/null || python3 -m pip install -q --user --break-system-packages Pillow
 TEA="tea:-41,-88,-9,-69"   # interiors/index.json tea rect [-37.5,-84.5,-12.5,-72.5] + 3.5 m: door, lift and structure in one tile
 # repeated street props (trees, lanterns, stall crates) become GPU instances on a temp copy; split + verify read it, the far LOD reads the plain source
 INST=/tmp/world-city3-inst.glb; bun tools/city3/instance_world.mjs $A/world-city3.glb $INST
