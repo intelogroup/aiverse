@@ -110,7 +110,7 @@ describe("planning does not block the tick", () => {
   });
 
   it("enter walks inside a shop (by lot id or room id); a stall has no room", async () => {
-    for (const [i, place, room] of [[0, "shop-52", "shop-52"], [1, "shop-102", "tea"]] as const) {
+    for (const [i, place, room] of [[0, "house-cabin-1", "house-cabin-1"], [1, "shop-102", "tea"]] as const) {
       const id = `enter-${i}`;
       sim.removeBody(id);
       const lot = sim.places.find((p) => p.id === place)!;
