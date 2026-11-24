@@ -305,19 +305,19 @@
   {
    "id": "house-ring-05-0",
    "name": "ring-05-0",
-   "url": "/assets/houses/suburban-blue-y90.glb",
-   "collisionUrl": "/assets/houses/suburban-blue-y90.col.glb",
+   "url": "/assets/houses/log-cabin-y90.glb",
+   "collisionUrl": "/assets/houses/log-cabin-y90.col.glb",
    "center": [
-    -145.9,
+    -145,
     -167.5
    ],
-   "half": 12,
+   "half": 11,
    "origin": [
-    -145.9,
+    -145,
     -167.5
    ],
    "theme": "bazaar",
-   "farUrl": "/assets/houses/suburban-blue-y90.far.glb"
+   "farUrl": "/assets/houses/log-cabin-y90.far.glb"
   },
   {
    "id": "house-ring-05-1",
@@ -458,19 +458,19 @@
   {
    "id": "house-ring-25-1",
    "name": "ring-25-1",
-   "url": "/assets/houses/cozy-cottage-y0.glb",
-   "collisionUrl": "/assets/houses/cozy-cottage-y0.col.glb",
+   "url": "/assets/houses/finnish-cottage-y0.glb",
+   "collisionUrl": "/assets/houses/finnish-cottage-y0.col.glb",
    "center": [
     -23.8,
-    -151.6
+    -144.8
    ],
-   "half": 18,
+   "half": 11,
    "origin": [
     -23.8,
-    -151.6
+    -144.8
    ],
    "theme": "bazaar",
-   "farUrl": "/assets/houses/cozy-cottage-y0.far.glb"
+   "farUrl": "/assets/houses/finnish-cottage-y0.far.glb"
   },
   {
    "id": "house-ring-30-0",
@@ -509,19 +509,19 @@
   {
    "id": "house-ring-35-0",
    "name": "ring-35-0",
-   "url": "/assets/houses/suburban-blue-y0.glb",
-   "collisionUrl": "/assets/houses/suburban-blue-y0.col.glb",
+   "url": "/assets/houses/scandi-hawk-y0.glb",
+   "collisionUrl": "/assets/houses/scandi-hawk-y0.col.glb",
    "center": [
     23.8,
-    -145.9
+    -146.3
    ],
    "half": 12,
    "origin": [
     23.8,
-    -145.9
+    -146.3
    ],
    "theme": "bazaar",
-   "farUrl": "/assets/houses/suburban-blue-y0.far.glb"
+   "farUrl": "/assets/houses/scandi-hawk-y0.far.glb"
   },
   {
    "id": "house-ring-35-1",
@@ -594,19 +594,19 @@
   {
    "id": "house-ring-45-1",
    "name": "ring-45-1",
-   "url": "/assets/houses/suburban-blue-y0.glb",
-   "collisionUrl": "/assets/houses/suburban-blue-y0.col.glb",
+   "url": "/assets/houses/colonial-american-y0.glb",
+   "collisionUrl": "/assets/houses/colonial-american-y0.col.glb",
    "center": [
     110,
-    -145.9
+    -147
    ],
-   "half": 12,
+   "half": 17,
    "origin": [
     110,
-    -145.9
+    -147
    ],
    "theme": "bazaar",
-   "farUrl": "/assets/houses/suburban-blue-y0.far.glb"
+   "farUrl": "/assets/houses/colonial-american-y0.far.glb"
   },
   {
    "id": "house-ring-50-0",
