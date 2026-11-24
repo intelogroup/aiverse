@@ -32,7 +32,10 @@ def slim(src, dst, cap):
         if "bufferView" not in im:
             continue
         v = views[im["bufferView"]]; raw = bin_[v.get("byteOffset", 0):v.get("byteOffset", 0) + v["byteLength"]]
-        data, mime = slim_image(raw, cap)
+        try:
+            data, mime = slim_image(raw, cap)
+        except Exception:   # placeholder bytes (images blanked by bridge_strip_detached.py) are not images: leave them
+            continue
         if len(data) < len(raw):
             new[im["bufferView"]] = data; im["mimeType"] = mime
     out = bytearray()
