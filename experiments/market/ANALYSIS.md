@@ -68,11 +68,14 @@ public prices) and the wants fired: 21 buy attempts. Trade STILL
 cleared zero — because the hunt rig's settlement pattern (walk to
 the counterparty, transfer within ~3 m), which E3 inherited for
 buy, is a two-body rendezvous that free-wandering agents
-practically never complete by pursuit. The hunt's Phase 2 zero
-gives most likely suffered BOTH causes — no wants AND this
-rendezvous flaw (its give used the same walk-to pattern; it was
-never isolated). Wants are necessary; they are not sufficient.
-Settlement must not depend on catching a moving seller.
+practically never complete by pursuit. Precision note (added on
+review of the rig): the hunt's GIVE path walks too, but falls
+through to settlement after its legs — it has no hard distance
+gate — so the hunt's Phase 2 zero gives remains best explained by
+Jim's wants account alone. The hard gate was specific to E3's buy
+path (do_buy aborted when _walk_to_agent returned False). Wants
+are necessary; they are not sufficient. Settlement must not depend
+on catching a moving seller.
 
 ## Design consequence (applied from here on)
 
