@@ -52,12 +52,45 @@ scheduleHeapStats();
 // the bottom of this file); only the singleton jobs wait for the lock,
 // gated additionally on bootPrep so they still start strictly after
 // seeding/reconciliation, exactly as the old sequential boot ordered them.
-// What still gates serving is bootPrep alone — the same two steps, with
-// the same fail-loud semantics (a rejection here fails module evaluation
-// before anything is served, as the bare awaits did before).
+// What still gates serving is bootPrep alone — the same two steps, in the
+// same order. Their FAILURE semantics changed on 2026-11-24 (see
+// runBootStep below): a step that throws no longer fails module
+// evaluation — boot completes degraded and serving starts, where the old
+// bare awaits crashed the process before anything was served.
+
+// Boot-step DB tolerance (2026-11-24, Jim's word): the Neon quota outage
+// (PostgresError 53000 on every query) crash-looped every gateway deploy.
+// db:migrate had already been made non-fatal in the Dockerfile, but
+// bootPrep's first query (rooms seeding) then threw through the top-level
+// await and killed the process seconds into boot. During a DB outage the
+// gateway should still SERVE: /health reports the DB down, /version and
+// the other non-DB routes answer, and DB-backed routes fail per-request
+// (the request path is unchanged) instead of the whole process refusing
+// to exist. So each boot-prep step runs failure-tolerant: a throw is
+// logged loud (gateway_boot_step_failed, naming the step) and boot
+// continues with that step skipped — seeding / presence reconcile simply
+// happen on the next boot once the DB is back.
+//
+// Safety: this tolerance wraps ONLY the two bootPrep steps. The leader
+// election is deliberately NOT wrapped — tryBecomeGatewayLeader's own
+// throw is already caught by the election IIFE below and treated as "not
+// leader" (follower + retry), so singleton jobs can never start on a
+// process that doesn't provably hold the advisory lock; the tolerance
+// engages only when a boot-prep DB call itself fails, never as a way to
+// run leader work without the lock. With a healthy DB every step runs
+// exactly as before: same calls, same order, same awaits — only a thrown
+// step's outcome differs (skip vs crash).
+async function runBootStep(step: string, fn: () => Promise<void>): Promise<void> {
+  try {
+    await fn();
+  } catch (err) {
+    logError("gateway_boot_step_failed", err, { step, degraded: true });
+  }
+}
+
 const bootPrep = (async () => {
-  await ensureRoomsSeeded();
-  await reconcilePresenceOnBoot();
+  await runBootStep("ensure_rooms_seeded", ensureRoomsSeeded);
+  await runBootStep("reconcile_presence_on_boot", reconcilePresenceOnBoot);
 })();
 
 // Live failover (soak test 2026-09-22): with election only at boot, a dead
@@ -208,8 +241,11 @@ leadership.catch((err) => {
   process.exit(1);
 });
 
-// Serving still waits for boot prep (seed + presence reconcile) — it is
-// only the election that moved off the critical path.
+// Serving still waits for boot prep (seed + presence reconcile) to
+// COMPLETE — it is only the election that moved off the critical path.
+// Completion, not success: a failed step has already logged
+// gateway_boot_step_failed and been skipped (see runBootStep above), so
+// this await resolves and the export below is reached either way.
 await bootPrep;
 
 export default {
