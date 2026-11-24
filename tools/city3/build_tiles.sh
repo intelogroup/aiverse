@@ -4,12 +4,14 @@
 set -e; cd "$(dirname "$0")/../.."
 A=apps/console/public/assets; T=$A/tiles
 TEA="tea:-41,-88,-9,-69"   # interiors/index.json tea rect [-37.5,-84.5,-12.5,-72.5] + 3.5 m: door, lift and structure in one tile
-bun tools/city3/split_world.mjs $A/world-city3.glb $T --core-half=9 --hero="$TEA" | grep -vE '^prune|^  t'
+# repeated street props (trees, lanterns, stall crates) become GPU instances on a temp copy; split + verify read it, the far LOD reads the plain source
+INST=/tmp/world-city3-inst.glb; bun tools/city3/instance_world.mjs $A/world-city3.glb $INST
+bun tools/city3/split_world.mjs $INST $T --core-half=9 --hero="$TEA" | grep -vE '^prune|^  t'
 bun tools/city3/split_world.mjs $A/world-city3-collision.glb $T/col --layout=$T/tiles.json | grep -E '^textures|Error'
 rmdir $T/col/tex 2>/dev/null || true
 bun tools/city3/split_shell.mjs $A/world-shell.glb $T
 bun tools/city3/split_lod.mjs $A/world-city3.glb $T > /tmp/split_lod.log 2>&1 || { grep -E '^far|Error' /tmp/split_lod.log; exit 1; }   # textured far view (needs tiles.json); fails the build over its 10 MB budget
 grep -E '^lod|^kept|^removed' /tmp/split_lod.log
-bun tools/city3/verify_tiles.mjs $A/world-city3.glb $T | tail -2
+bun tools/city3/verify_tiles.mjs $INST $T | tail -2
 bun tools/city3/verify_tiles.mjs $A/world-city3-collision.glb $T/col | tail -2
 bun tools/city3/tiles_manifest.mjs $A
