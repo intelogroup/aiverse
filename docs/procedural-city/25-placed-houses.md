@@ -35,8 +35,8 @@ gone), `bridge_sweep_orphans.py` (floating facades, shutters, roofs, bunting and
 ## State at the end of the 2026-11-24 loop
 
 - 45 placed houses on 26 shared GLBs (Stone Cabin and Zen pavilion walkable rooms, Victorian clock tower in the plaza), 0 shims, 2 original
-  buildings left (Troyes hall, Tea House). World GLB 59 MB. PR chain #273 -> #279 (+ the streets branch), all green.
+  buildings left (Troyes hall, Tea House). World GLB 46 MB (plaza/sidewalk textures at 1k). PR chain #273 -> #279 (+ the streets branch), all green.
 - Textures: Poly Haven CC0 Leafy Grass (lawns), Cobblestone Floor 08 (plaza), Pavement 03 (sidewalks); midday sky with fbm clouds.
 - FPS on the M4 over CDP at 1280x720 matches main or better (plaza 30, ring 60, cabin 20; main 28 / 40 / 20).
-- Known: tile-mode aerial shows light-blue squares at road junctions (pre-existing: the same with a far LOD built by the old split_lod); the
-  Shirakawago, villas, ring houses are solid (no interiors); a few low grey slabs on sidewalks of unknown source.
+- Known: the Shirakawago, villas and ring houses are solid (no interiors); one short grey block on the plot sidewalk. Fixed later the same day:
+  the tile-mode aerial's light-blue junction squares (split_lod simplified flat road quads away), the sidewalk stoops (bridge_drop_stoops.py).

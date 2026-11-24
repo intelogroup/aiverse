@@ -179,3 +179,5 @@ The uploaded Sketchfab export splits one continuous colored surface into four ch
   - Lamp caps are separate pieces sitting on the lantern: a "floating piece" sweep needs a support test and a size floor (1.2 m) or it takes the caps.
   - Houses were invisible from the aerial (detail streams within ~60 m): far stand-ins (`farUrl`). They raced the core tile on cold start (+0.3-1 s): now gated on the world being walkable.
   - Draw calls, not triangles, set frame time: joining each house to one draw call per material lifted the ring from 42 to 60 fps; simplifying the cabin 1.27 M -> 766 k tris changed nothing.
+  - The tile-mode aerial showed light-blue squares at every junction: split_lod simplified flat road primitives, and on separate quads the simplifier deletes whole quads (the sea shows through). Street-surface materials now stay whole in the far LOD.
+  - 2k plaza/sidewalk textures doubled the far LOD (it embeds textures): 1k looks the same at a 2.5 m repeat.
