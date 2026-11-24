@@ -11,6 +11,7 @@ import { registerCameraObstacle } from "./cameraClearance";
 import { CITY3_INDEX_URL, CITY3_LIBRARY_URL, HIDE_WITHIN, INTERIOR_KEEP_WITHIN, INTERIOR_LOAD_WITHIN, MAX_LOADED_INTERIORS, SHOW_BEYOND, roomView, syntheticRooms, type City3Room } from "./city3";
 import { boxPlanes, inactivePlanes, pickCutRoom } from "./cutaway";
 import { buildInterior, indexLibrary, type InteriorHandle } from "./interiorBuild";
+import { TEA_HOUSE_RADIO_ASSET, teaHouseRadio } from "./teaHouseRadio";
 import { colUrl, parseColBoxes, planStreaming, type InteriorLayout } from "./interiors";
 import { boxesMesh } from "./capsuleWorld";
 import { WalkColliders } from "./walkColliders";
@@ -310,7 +311,11 @@ function StreamedRooms({
 }) {
   const gl = useThree((s) => s.gl);
   const library = useGLTF(CITY3_LIBRARY_URL, true, true, extendGltf(gl));
-  const assets = useMemo(() => indexLibrary(library.scene), [library]);
+  const assets = useMemo(() => {
+    const indexed = indexLibrary(library.scene);
+    indexed.set(TEA_HOUSE_RADIO_ASSET, teaHouseRadio());
+    return indexed;
+  }, [library]);
   // Pay the texture-upload cost once, here, instead of as a hitch the first time a room draws.
   useEffect(() => {
     const seen = new Set<THREE.Texture>();

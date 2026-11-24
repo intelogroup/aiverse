@@ -655,7 +655,9 @@ TEXPX={"wooden_bookshelf_worn":512,"drawer_cabinet":512,"vintage_grandfather_clo
        "book_encyclopedia_set_01":256,"desk_lamp_arm_01":256,"vintage_radio_transceiver":256,"WoodenTable_02":256,"vintage_oil_lamp":128,"wall_clock":256,"binder_notebook":256}
 QUAT={"ChairCushioned"}
 USED={p[1] for p in kit.PLACEMENTS} | {i["asset"] for i in kit.INTERACTABLES}
-for key in sorted(USED-set(press.PIECE_NAMES)-set(rooms.PIECES)-set(rooms.BOTTLE_KEYS)):
+# The console builds this interactive model at runtime (teaHouseRadio.ts).
+RUNTIME_ASSETS={"tea_house_radio"}
+for key in sorted(USED-set(press.PIECE_NAMES)-set(rooms.PIECES)-set(rooms.BOTTLE_KEYS)-RUNTIME_ASSETS):
     assets_kit.load(key,BUDGET.get(key,2000),source="quaternius" if key in QUAT else "polyhaven",tex=TEXPX.get(key,256))
 bpy.context.view_layer.layer_collection.children["AssetLibrary"].exclude=False
 for o in list(bpy.data.objects):

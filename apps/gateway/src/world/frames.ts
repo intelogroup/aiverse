@@ -29,7 +29,7 @@ export interface WorldStreamOpts {
   log?: (event: string, extra?: Record<string, unknown>) => void;
 }
 
-interface SimFrames { epoch: string; t: number; rosterRev: number; b: PoseTuple[]; say?: SayMessage["say"] }
+interface SimFrames { epoch: string; t: number; rosterRev: number; b: PoseTuple[]; say?: SayMessage["say"]; teaCupHolder?: number | null }
 interface SimRoster { epoch: string; rev: number; bodies: { n: number; agentId: string; body: string }[] }
 
 export function createWorldStream(opts: WorldStreamOpts) {
@@ -48,6 +48,7 @@ export function createWorldStream(opts: WorldStreamOpts) {
   let failures = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let running = false;
+  let teaCupHolder: number | null | undefined;
   const stats = { cycles: 0, framesSent: 0, bytesSent: 0, dropped: 0 };
 
   const wire = (type: string, payload: unknown) => JSON.stringify(envelope(type, payload));
@@ -83,7 +84,10 @@ export function createWorldStream(opts: WorldStreamOpts) {
     if (f.rosterRev !== rosterRev || roster?.epoch !== f.epoch) await refreshRoster(f.epoch);
     lastT = f.t;
     const msg = differ.next(f.epoch, f.t, f.b, now());
-    if (msg.b.length || msg.gone.length || msg.key) broadcast(wire(WORLD_FRAMES, msg));
+    const cupChanged = f.teaCupHolder !== teaCupHolder;
+    teaCupHolder = f.teaCupHolder;
+    msg.teaCupHolder = teaCupHolder;
+    if (msg.b.length || msg.gone.length || msg.key || cupChanged) broadcast(wire(WORLD_FRAMES, msg));
     // Speech rides its own message: it must reach spectators even when no pose changed. The sim keeps a line for a few seconds,
     // so each is sent once, the first cycle that shows a sequence number we have not sent.
     if (f.epoch !== saidEpoch) { saidEpoch = f.epoch; saidSeq = 0; }
@@ -109,6 +113,7 @@ export function createWorldStream(opts: WorldStreamOpts) {
         log("world_stream_sim_down", { error: e instanceof Error ? e.message : String(e) });
         differ.reset();
         roster = null;
+        teaCupHolder = undefined;
         rosterRev = -1;
         const cleared: FramesMessage = { epoch: "", t: lastT, key: true, b: [], gone: [] };
         broadcast(wire(WORLD_FRAMES, cleared));
@@ -131,7 +136,7 @@ export function createWorldStream(opts: WorldStreamOpts) {
       subs.set(key, sock);
       if (roster) push(sock, key, wire(WORLD_ROSTER, roster));
       const full = differ.full(lastT);
-      if (full) push(sock, key, wire(WORLD_FRAMES, full));
+      if (full) push(sock, key, wire(WORLD_FRAMES, { ...full, teaCupHolder }));
       start();
       return true;
     },

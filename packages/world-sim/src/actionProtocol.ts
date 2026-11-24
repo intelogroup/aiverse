@@ -7,6 +7,8 @@
 import { resolveSocialClip, SOCIAL_CLIPS } from "./clips";
 import { GAZE_PITCH_MAX_DEG, GAZE_PITCH_MIN_DEG, GAZE_YAW_MAX_DEG } from "./scout";
 
+import { CUP_ACTIONS, TEA_CUP } from "./teaCup";
+
 const ID_RE = /^[a-zA-Z0-9-]{1,80}$/;
 const MAX_NAME = 100;
 /** Longest spoken line, and how far it carries (needs a clear line of sight too). */
@@ -22,7 +24,7 @@ export function validRequestId(id: unknown): id is string { return typeof id ===
 export const ACTION_TYPES = {
   go_to: "{place}, {point:[x,z]} or {body: handle}: stop 1.2 m in front of someone you see", run_to: "{place} or {point:[x,z]}", enter: "{place} (lot or room id): walk inside",
   face: "{headingDeg}, {point:[x,z]} or {body: handle}", wait: "{seconds} 0-30", sit: "{sittable?}", stand: "{}",
-  play: "{clip, seconds?} (GET /world/clips)", interact: "{target}", stop: "{}",
+  play: "{clip, seconds?} (GET /world/clips)", interact: "{target, verb?}: tea-cup supports take, drink and put_down", stop: "{}",
   ride_elevator: "{target: elevator marker ID from observation.landmarks, floor: G | L1 | L2 | L3}",
   gaze: `{yawDeg?: -${GAZE_YAW_MAX_DEG}..${GAZE_YAW_MAX_DEG} (+ right), pitchDeg?: ${GAZE_PITCH_MIN_DEG}..${GAZE_PITCH_MAX_DEG} (+ up)} or {reset:true}: turn your head, not your body; look and see follow it`,
   enter_vehicle: "{vehicle?: car id from observe.scene (kind vehicle)}: get into a car within 3 m (nearest if no id). Walking past a car does nothing; you must choose this",
@@ -77,7 +79,11 @@ export function explainAction(a: unknown): string | null {
       if (v.speed !== undefined && (!num(v.speed, 0, 15) || v.gas !== undefined || v.brake !== undefined)) return "speed must be 0..15 m/s and cannot be combined with gas or brake";
       return extra("gas", "brake", "steer", "seconds", "reverse", "heading", "speed", "turn", "to");
     }
-    case "interact": return name(v.target) ? extra("target") : "interact needs a target (a prop id from observe.scene)";
+    case "interact":
+      if (v.target === TEA_CUP.id) {
+        return CUP_ACTIONS.some((verb) => verb === v.verb) ? extra("target", "verb") : "tea-cup needs verb: take, drink, or put_down";
+      }
+      return name(v.target) ? extra("target") : "interact needs a prop id from observe.scene";
     case "ride_elevator":
       return name(v.target) && typeof v.floor === "string" && ["G", "L1", "L2", "L3"].includes(v.floor)
         ? extra("target", "floor") : "ride_elevator needs an elevator marker target and a floor (G, L1, L2, L3)";

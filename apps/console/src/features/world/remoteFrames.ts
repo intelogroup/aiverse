@@ -30,6 +30,7 @@ export class RemoteBodies {
   private offset: number | null = null;
   /** Bumped whenever the set of bodies or names changes, so React re-renders only then. */
   rev = 0;
+  teaCupHolder: number | null | undefined;
   /** Speech bubbles: body number -> the line and the local time (ms) it stops showing. */
   private said = new Map<number, { text: string; until: number }>();
 
@@ -59,6 +60,7 @@ export class RemoteBodies {
 
   applyFrames(m: FramesMessage, localS: number): void {
     if (m.epoch !== this.epoch || (m.key && this.offset !== null && m.t < this.lastT())) { this.samples.clear(); this.offset = null; this.epoch = m.epoch; }
+    this.teaCupHolder = m.teaCupHolder;
     const est = m.t - localS;
     this.offset = this.offset === null ? est : lerp(this.offset, est, 0.1);
     if (m.key) {
@@ -75,7 +77,7 @@ export class RemoteBodies {
     }
   }
 
-  clear(): void { this.samples.clear(); this.info.clear(); this.said.clear(); this.offset = null; this.rev++; }
+  clear(): void { this.samples.clear(); this.info.clear(); this.said.clear(); this.teaCupHolder = undefined; this.offset = null; this.rev++; }
 
   private lastT(): number {
     let t = -Infinity;
@@ -105,9 +107,10 @@ export class RemoteBodies {
   sample(n: number, t: number): RemotePose | null {
     const list = this.samples.get(n);
     if (!list?.length) return null;
-    if (t <= list[0].t) return list[0].pose;
+    if (t < list[0].t) return { ...list[0].pose, speed: 0 };
     const last = list[list.length - 1];
-    if (t >= last.t) return last.pose;
+    // A held position has no visible motion, even if the last packet was mid-stride.
+    if (t >= last.t) return last.pose.speed === 0 ? last.pose : { ...last.pose, speed: 0 };
     for (let i = list.length - 1; i > 0; i--) {
       const a = list[i - 1], b = list[i];
       if (t >= a.t) {
@@ -115,7 +118,7 @@ export class RemoteBodies {
         return {
           n, x: lerp(a.pose.x, b.pose.x, k), y: lerp(a.pose.y, b.pose.y, k), z: lerp(a.pose.z, b.pose.z, k),
           heading: lerpAngle(a.pose.heading, b.pose.heading, k),
-          speed: lerp(a.pose.speed, b.pose.speed, k),
+          speed: a.pose.x === b.pose.x && a.pose.z === b.pose.z ? 0 : lerp(a.pose.speed, b.pose.speed, k),
           // Discrete state does not blend: take the earlier sample's until the later one is reached.
           posture: a.pose.posture, clip: a.pose.clip,
         };

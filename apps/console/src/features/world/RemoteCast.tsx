@@ -10,7 +10,8 @@
 import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { Suspense, useMemo, useRef, useState } from "react";
-import type * as THREE from "three";
+import * as THREE from "three";
+import { TEA_CUP } from "@aiverse/world-sim/teaCup";
 import { BODIES, BODY_REMY } from "./bodies";
 import { CastFigure } from "./CastFigure";
 import { ClipTestState } from "./clips";
@@ -53,6 +54,7 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
   /** What React renders: live bodies plus bodies still dissolving out. */
   const [cast, setCast] = useState<{ n: number; body: string }[]>([]);
   const publishAt = useRef(0);
+  const teaCup = useRef<THREE.Group>(null);
   /** Body number -> the line over its head (null when none). Changes only when a line starts or expires. */
   const [said, setSaid] = useState<Record<number, string>>({});
 
@@ -126,9 +128,11 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
       writeRemoteFrame((frames.current[b.n] ??= newWalkerFrame(p.x, p.z, p.heading)), p);
       if (fig.group) fig.group.position.y = p.y;
       fig.bubble?.position.set(p.x, 2.1, p.z); // the parent group already sits at p.y
-      if (p.clip !== fig.lastClip) {
-        fig.lastClip = p.clip;
-        if (p.clip) fig.clips.fire(p.clip); else fig.clips.clear();
+      // Remote locomotion comes from the rendered pose stream.
+      const clip = p.clip === "Walk" || p.clip === "Run" ? null : p.clip;
+      if (clip !== fig.lastClip) {
+        fig.lastClip = clip;
+        if (clip) fig.clips.fire(clip); else fig.clips.clear();
       }
       if (publish && walk && fig.body !== "car") {
         walk.actors.publishWalker(`remote-${b.n}`, { x: p.x, y: p.y, z: p.z, vx: Math.sin(p.heading) * p.speed, vz: Math.cos(p.heading) * p.speed }, BODY_RADIUS, BODY_HEIGHT, true);
@@ -136,8 +140,40 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
     }
   }, -1);
 
+  useFrame(() => {
+    const cup = teaCup.current;
+    if (!cup) return;
+    const holder = bodies.teaCupHolder;
+    cup.visible = holder === null;
+    if (holder === null) {
+      cup.position.set(...TEA_CUP.position);
+    } else if (holder !== undefined) {
+      const hand = figures.current.get(holder)?.group?.getObjectByProperty("isBone", true);
+      if (hand) {
+        const findHand = (bone: THREE.Object3D): boolean => /lefthand$/i.test(bone.name);
+        let grip: THREE.Object3D | undefined;
+        hand.traverse((bone) => { if (!grip && findHand(bone)) grip = bone; });
+        if (grip) {
+          grip.getWorldPosition(cup.position);
+          cup.position.y -= 0.035;
+          cup.visible = true;
+        }
+      }
+    }
+  }, 0);
+
   return (
     <>
+      <group ref={teaCup} visible={false}>
+        <mesh position={[0, 0.03, 0]} castShadow>
+          <cylinderGeometry args={[0.043, 0.029, 0.06, 24, 1, true]} />
+          <meshStandardMaterial color="#52796a" side={THREE.DoubleSide} roughness={0.45} />
+        </mesh>
+        <mesh position={[0, 0.004, 0]}>
+          <cylinderGeometry args={[0.030, 0.029, 0.008, 24]} />
+          <meshStandardMaterial color="#52796a" roughness={0.45} />
+        </mesh>
+      </group>
       {cast.map(({ n, body }) => {
         const fig = figures.current.get(n);
         if (!fig) return null;

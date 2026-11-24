@@ -6,9 +6,12 @@
 
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { Box3 } from "three";
 import { boxesMesh, createCapsuleWorld, meshFromArrays } from "../src/features/world/capsuleWorld";
 import { clipDef } from "../src/features/world/clips";
 import { INTERACT_CLIP, InteractController, type InteractableDef } from "../src/features/world/interactables";
+import { buildInteractableVisual } from "../src/features/world/interactableMesh";
+import { TEA_HOUSE_RADIO_ASSET, teaHouseRadio } from "../src/features/world/teaHouseRadio";
 import { makeWalker, step, type World } from "../src/features/world/walker";
 
 const dir = new URL("../public/assets/interiors/", import.meta.url);
@@ -32,8 +35,20 @@ describe("the Tea House radio as shipped", () => {
 
   it("is listed once, as the radio asset, with an authored pilot light", () => {
     expect(tea.interactables).toHaveLength(1);
-    expect(def).toMatchObject({ id: "tea-radio", kind: "radio", asset: "vintage_radio_transceiver" });
-    expect(def.pilot).toHaveLength(3);
+    expect(def).toMatchObject({ id: "tea-radio", kind: "radio", asset: TEA_HOUSE_RADIO_ASSET });
+    const model = teaHouseRadio();
+    const bounds = new Box3().setFromObject(model);
+    expect(bounds.min.y).toBeCloseTo(0);
+    expect(bounds.max.y).toBeCloseTo(0.27);
+    const visual = buildInteractableVisual(def, new Map([[TEA_HOUSE_RADIO_ASSET, model]]))!;
+    const bead = visual.group.getObjectByName("tea-radio:pilot")!;
+    expect(bead.position.toArray()).toEqual(def.pilot);
+    expect(bounds.containsPoint(bead.position)).toBe(true);
+    const halo = visual.group.getObjectByName("tea-radio:pilot-halo")!;
+    expect(halo.visible).toBe(false);
+    visual.setOn(true);
+    expect(halo.visible).toBe(true);
+    visual.dispose();
   });
 
   it("a 0.4 m walker reaches the stand pose through the real furniture from several sides, and the session completes", () => {

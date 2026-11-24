@@ -24,12 +24,12 @@ function fakeSocket(buffered = 0) {
 
 /** A scripted sim: `/frames` and `/roster` answer from mutable state, or fail on demand. */
 function fakeSim() {
-  const st = { epoch: "e1", t: 0, rev: 1, b: [[1, 100, 0, 200, 0, 0, 0]] as any[], bodies: [{ n: 1, agentId: "11111111-aaaa-bbbb-cccc-000000000001", body: "remy" }], fail: false, calls: 0 };
+  const st = { epoch: "e1", t: 0, rev: 1, b: [[1, 100, 0, 200, 0, 0, 0]] as any[], bodies: [{ n: 1, agentId: "11111111-aaaa-bbbb-cccc-000000000001", body: "remy" }], fail: false, calls: 0, teaCupHolder: undefined as number | null | undefined };
   const client: SimClient = {
     call: async (_m, path) => {
       st.calls++;
       if (st.fail) return new Response("{}", { status: 503 });
-      if (path === "/frames") return Response.json({ epoch: st.epoch, t: st.t, rosterRev: st.rev, b: st.b });
+      if (path === "/frames") return Response.json({ epoch: st.epoch, t: st.t, rosterRev: st.rev, b: st.b, teaCupHolder: st.teaCupHolder });
       if (path === "/roster") return Response.json({ epoch: st.epoch, rev: st.rev, bodies: st.bodies });
       return new Response("{}", { status: 404 });
     },
@@ -42,6 +42,22 @@ let stream: ReturnType<typeof createWorldStream> | undefined;
 afterEach(() => { stream?.stop(); stream = undefined; });
 
 describe("world stream (gateway half)", () => {
+  test("relays cup ownership changes without pose changes and includes it for new viewers", async () => {
+    const sim = fakeSim();
+    sim.st.teaCupHolder = null;
+    stream = createWorldStream({ sim: sim.client, names, intervalMs: 5 });
+    const a = fakeSocket();
+    stream.subscribe("a", a);
+    await wait(() => a.messages("world_frames").some((f) => f.teaCupHolder === null));
+    sim.st.teaCupHolder = 1;
+    await wait(() => a.messages("world_frames").some((f) => f.teaCupHolder === 1));
+    const b = fakeSocket();
+    stream.subscribe("b", b);
+    expect(b.messages("world_frames").at(-1)?.teaCupHolder).toBe(1);
+    sim.st.teaCupHolder = null;
+    await wait(() => b.messages("world_frames").at(-1)?.teaCupHolder === null);
+  });
+
   test("is lazy: no subscriber, no sim calls; the loop stops when the last one leaves", async () => {
     const sim = fakeSim();
     stream = createWorldStream({ sim: sim.client, names, intervalMs: 5 });

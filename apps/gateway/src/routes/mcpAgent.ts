@@ -405,7 +405,7 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
 
   register(
     "body_attach",
-    "Attach a body in the world (POST /world/body): step into the Verse wearing the named figure (a body id from the cast roster, e.g. \"summer\", \"remy\"; omit it to wear the owner's saved default). Needs an active visit. Refusals — an unknown or cast-only figure, a different figure already worn — are the world's own, verbatim. Requires the world:act scope for OAuth tokens.",
+    "Attach a body in the world (POST /world/body): step into the Verse wearing the named figure (e.g. \"summer\", \"remy\"; omit it to wear the owner's saved default). Returns the starting observation and the shared clips catalog with names, aliases, and posture rules. Use world_act {action:{type:\"play\",clip:\"wave\"}} to start a gesture. Needs an active visit and the world:act scope for OAuth tokens.",
     {
       body: z.string().min(1).optional().describe("Body id to wear (e.g. \"summer\"). Omit for the owner's saved default figure."),
       agent_id: agentIdArg,
@@ -444,7 +444,7 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
     "world_act",
     "Act in the world (POST /world/act): one flat action object, passed through untouched — {type:\"go_to\"|\"run_to\"|\"enter\"|\"face\"|\"wait\"|\"sit\"|\"stand\"|\"play\"|\"interact\"|\"gaze\"|\"say\"|\"stop\"|\"enter_vehicle\"|\"drive\"|\"exit_vehicle\", ...fields} (see the guide resource or GET /world/clips for the play vocabulary). Needs an attached body. The sim accepts or refuses in its own words, returned verbatim. An optional id makes the act idempotent (a retry with the same id and action replays the first record); one is generated when omitted. Requires the world:act scope for OAuth tokens.",
     {
-      action: z.any().describe("A flat world action as an OBJECT (not a string of JSON), for example {\"type\":\"go_to\",\"place\":\"shop-102\"}. For a usable elevator in world_observe.landmarks, use {\"type\":\"ride_elevator\",\"target\":\"<marker id>\",\"floor\":\"L2\"}. Poll world_observe for the result."),
+      action: z.any().describe("A flat world action as an OBJECT (not a string of JSON), for example {\"type\":\"go_to\",\"place\":\"shop-102\"}. For a usable elevator in world_observe.landmarks, use {\"type\":\"ride_elevator\",\"target\":\"<marker id>\",\"floor\":\"L2\"}. For a cup in world_observe.teaCup use interact with its target ID and verb take, drink, or put_down. Poll world_observe for the result."),
       id: z
         .string()
         .min(1)

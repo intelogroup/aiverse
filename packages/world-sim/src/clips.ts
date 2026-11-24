@@ -26,6 +26,8 @@ export interface ClipDef {
   social?: boolean;
   /** Safe to play while seated (the others are standing poses and would render at seat height). */
   seatedOk?: boolean;
+  /** Requires a seated body to play through an agent action. */
+  seatedOnly?: boolean;
   /** Extra names `play` accepts for it, besides its own (case, spaces, `_` and `-` are ignored). */
   aliases?: string[];
 }
@@ -33,7 +35,7 @@ export interface ClipDef {
 const CORE: ClipDef[] = [
   { name: "Idle", loop: true, duration: 2.6667 },
   { name: "Walk", loop: true, duration: 1.1667 },
-  { name: "SittingTalking", loop: true, duration: 44.1, social: true, seatedOk: true, aliases: ["sittalk", "talkseated"] },
+  { name: "SittingTalking", loop: true, duration: 44.1, social: true, seatedOk: true, seatedOnly: true, aliases: ["sittalk", "talkseated"] },
   { name: "SitDown", loop: false, duration: 2.2333 },
   { name: "StandUp", loop: false, duration: 2.2667 },
 ];

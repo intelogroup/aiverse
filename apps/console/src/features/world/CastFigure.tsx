@@ -586,8 +586,8 @@ export function CastFigure({
       const reverse = f.gait!.reverse;
       const g = gaitTargets(f.speed, gaitSpec);
       const moving = g.walk + g.run;
-      walkWeight.current = approach(walkWeight.current, moving, delta, FADE_S);
-      runMix.current = approach(runMix.current, reverse || moving === 0 ? 0 : g.run / moving, delta, FADE_S);
+      walkWeight.current = moving === 0 ? 0 : approach(walkWeight.current, moving, delta, FADE_S);
+      runMix.current = moving === 0 ? 0 : approach(runMix.current, reverse ? 0 : g.run / moving, delta, FADE_S);
       const weight = walkWeight.current;
       const rm = runMix.current;
       const common = (1 - seated) * (1 - yieldEff);
@@ -621,7 +621,9 @@ export function CastFigure({
       const useBody = ctrl !== null && !testerWalk;
       const target = testerWalk || walking ? 1 : 0;
       const w = walkWeight.current;
-      if (useBody) {
+      if (f?.gait && f.speed === 0 && !testerWalk) {
+        walkWeight.current = 0;
+      } else if (useBody) {
         walkWeight.current = ctrl.walkWeight; // the controller already smooths it by speed
       } else if (w !== target) {
         const step = delta / FADE_S;

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SoundDirector } from "./soundDirector";
+import { TEA_DOOR_ORIGIN } from "./teaDoor";
 
 // The consent gate (the director never touches audio before the user's
 // explicit yes) and the voice emitter's no-context behaviour. jsdom has
@@ -106,4 +107,26 @@ describe("SoundDirector voice emitter without a context", () => {
     expect(seconds).toBe(0);
     expect(d.voicePlaying).toBe(false);
   });
+});
+
+it("cues the Tea House latch once when the leaf starts moving and once when it closes", () => {
+  const director = new SoundDirector();
+  const tick = (doorState: "closed" | "opening" | "open" | "closing", doorAngle: number) =>
+    director.tick({ dt: 0.1, listener: TEA_DOOR_ORIGIN, teaRect: null, doorState, doorAngle });
+
+  tick("closed", 0);
+  for (let i = 0; i < 39; i++) tick("opening", 0);
+  expect(director.snapshot().latchCount).toBe(0);
+  expect(director.snapshot().gains.creak).toBe(0);
+
+  tick("opening", 8);
+  expect(director.snapshot().latchCount).toBe(1);
+  expect(director.snapshot().gains.creak).toBeGreaterThan(0);
+  tick("opening", 24);
+  tick("open", 95);
+  expect(director.snapshot().latchCount).toBe(1);
+
+  tick("closing", 10);
+  tick("closed", 0);
+  expect(director.snapshot().latchCount).toBe(2);
 });
