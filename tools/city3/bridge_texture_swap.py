@@ -30,7 +30,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(); ap.add_argument("material"); ap.add_argument("ph"); ap.add_argument("world", nargs="?", default="apps/console/public/assets/world-city3.glb")
     ap.add_argument("--res", default="2k"); ap.add_argument("--tint", default="1,1,1"); a = ap.parse_args()
     g = Glb(a.world); j = g.gltf; mark = j.setdefault("extras", {}).setdefault("texture_swaps", {})
-    if mark.get(a.material) == a.ph:
+    if mark.get(a.material) == f"{a.ph}@{a.res}" or (a.res == "2k" and mark.get(a.material) == a.ph):
         print({"already": True}); sys.exit(0)
     mats = [m for m in j["materials"] if m.get("name") == a.material]
     if not mats:
@@ -48,6 +48,6 @@ if __name__ == "__main__":
         pb["baseColorTexture"] = {"index": tex["diff"], **({"extensions": ext} if ext else {})}
         pb["baseColorFactor"] = tint; pb["metallicFactor"] = 0.0; pb["roughnessFactor"] = 0.9; pb.pop("metallicRoughnessTexture", None)
         m["normalTexture"] = {"index": tex["nor"], "scale": 1.0, **({"extensions": ext} if ext else {})}
-    mark[a.material] = a.ph
+    mark[a.material] = f"{a.ph}@{a.res}"
     print(json.dumps({"material": a.material, "texture": a.ph, "materials_changed": len(mats)}))
     print("wrote", a.world, save_glb(a.world, j, g.bin), "bytes")
