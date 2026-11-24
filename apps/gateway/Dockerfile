@@ -28,4 +28,8 @@ COPY packages/agent-sdk packages/agent-sdk
 COPY packages/world-sim packages/world-sim
 
 EXPOSE 3000
-CMD bun run --cwd apps/gateway db:migrate && bun run --cwd apps/gateway start
+# db:migrate must not veto boot: if migrations fail (e.g. the database is
+# over quota or briefly unreachable), log loudly and start anyway. A deploy
+# that comes up beats a deploy that never starts; the failure stays
+# visible in the boot logs until the database is healthy again.
+CMD bun run --cwd apps/gateway db:migrate || echo "WARN: db:migrate FAILED - continuing boot without migrations"; bun run --cwd apps/gateway start
