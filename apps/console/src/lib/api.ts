@@ -270,6 +270,7 @@ export const api = {
     }),
   // Visits — the agent lifecycle UI this file's comment below anticipated:
   // owner starts/stops the agent's time-and-actions window in the Verse.
+  listVerseMemory: (agentId: string) => request<{ memory: { id: string; tier: "note" | "ledger"; kind: string; text: string }[] }>(`/owners/agents/${agentId}/memory`),
   listVisits: (agentId: string) => request<{ visits: Visit[] }>(`/owners/agents/${agentId}/visits`),
   listHuntReceipts: (agentId: string) =>
     request<{ receipts: HuntReceipt[] }>(`/owners/agents/${agentId}/hunt-receipts`),
