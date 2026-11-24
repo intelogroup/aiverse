@@ -142,13 +142,17 @@ interface DistrictMeasure {
   estTextureVram: number;
 }
 
+// Placed houses (house-*) may share one GLB across many lots (place_house.mjs --asset): they are budgeted, and counted in the
+// total, once per asset URL, which is what a browser downloads; every other district is budgeted by its id.
+const budgetKey = (d: DistrictEntry) => (d.id.startsWith("house-") ? d.url : d.id);
+const byKey = new Map(manifest.districts.map((d) => [budgetKey(d), d]));
 const measured = new Map<string, DistrictMeasure>();
-for (const d of manifest.districts) {
+for (const d of byKey.values()) {
   const main = measureGlb(assetPath(d.url));
   const coll = d.collisionUrl
     ? measureGlb(assetPath(d.collisionUrl))
     : { bytes: 0, triangles: 0, estTextureVram: 0 };
-  measured.set(d.id, {
+  measured.set(budgetKey(d), {
     glbBytes: main.bytes,
     collisionBytes: coll.bytes,
     triangles: main.triangles,
@@ -181,10 +185,10 @@ describe("district asset budgets", () => {
       "",
       "district        glb MB   coll MB   triangles   est tex VRAM",
     ];
-    for (const d of manifest.districts) {
-      const m = measured.get(d.id)!;
+    for (const [key, d] of byKey) {
+      const m = measured.get(key)!;
       lines.push(
-        `${d.id.padEnd(14)} ${mb(m.glbBytes).padStart(8)} ${mb(m.collisionBytes).padStart(9)} ` +
+        `${key.padEnd(14)} ${mb(m.glbBytes).padStart(8)} ${mb(m.collisionBytes).padStart(9)} ` +
           `${fmt(m.triangles).padStart(10)} ${mb(m.estTextureVram).padStart(13)}${d.resident ? "  (spawn)" : ""}`,
       );
     }
@@ -202,26 +206,26 @@ describe("district asset budgets", () => {
   });
 
   it("every manifest district has a budget entry, and every budget entry names a live district", () => {
-    const manifestIds = manifest.districts.map((d) => d.id).sort();
+    const manifestIds = [...byKey.keys()].sort();
     expect(
       manifestIds,
       "a district without a budget entry would grow ungated — add it to tests/asset-budgets.ts deliberately",
     ).toEqual(Object.keys(DISTRICT_BUDGETS).sort());
   });
 
-  for (const d of manifest.districts) {
-    it(`${d.id}: GLB bytes, collision bytes and triangles stay within budget`, () => {
-      const m = measured.get(d.id)!;
-      const b = DISTRICT_BUDGETS[d.id];
-      expect(b, `no budget entry for district ${d.id}`).toBeDefined();
-      expect(m.glbBytes, gateMessage(d.id, "glbBytes", m.glbBytes, b.budget.glbBytes, b.measured.glbBytes)).toBeLessThanOrEqual(b.budget.glbBytes);
+  for (const key of byKey.keys()) {
+    it(`${key}: GLB bytes, collision bytes and triangles stay within budget`, () => {
+      const m = measured.get(key)!;
+      const b = DISTRICT_BUDGETS[key];
+      expect(b, `no budget entry for district ${key}`).toBeDefined();
+      expect(m.glbBytes, gateMessage(key, "glbBytes", m.glbBytes, b.budget.glbBytes, b.measured.glbBytes)).toBeLessThanOrEqual(b.budget.glbBytes);
       expect(
         m.collisionBytes,
-        gateMessage(d.id, "collisionBytes", m.collisionBytes, b.budget.collisionBytes, b.measured.collisionBytes),
+        gateMessage(key, "collisionBytes", m.collisionBytes, b.budget.collisionBytes, b.measured.collisionBytes),
       ).toBeLessThanOrEqual(b.budget.collisionBytes);
       expect(
         m.triangles,
-        gateMessage(d.id, "triangles", m.triangles, b.budget.triangles, b.measured.triangles),
+        gateMessage(key, "triangles", m.triangles, b.budget.triangles, b.measured.triangles),
       ).toBeLessThanOrEqual(b.budget.triangles);
     });
   }
