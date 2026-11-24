@@ -61,3 +61,20 @@ Rebuild everything from the committed Bazaar GLBs: `tools/city3/build_bazaar_pas
 - Frame trap: `heroes.json` rects are WORLD `[x0, z0, x1, z1]` (Bones_shop124 spans z 110.5..122.5), but `bones.py --emit` lot/room rects use plan y = -z.
 - Check without screenshots: `python3 tools/city3/verify_bazaar_interiors.py` reads the GLB back (finite, inside lot, above floor slab, materials, <= 100 MB). `gltf-transform validate` baseline already has thousands of messages; the pass adds none of type ACCESSOR_INVALID_FLOAT after NaN sanitising.
 - Known gaps: no doors that open, no elevators except the Tea House, no cars; upper-floor furniture has no collision/nav (ground floor only for seats); loungers are boxes; bridge_compact reports accessor mismatches on the patched GLB so it is not run (saves only 1.3 MB).
+
+## Verse economy pilot
+
+Apply migration `0056_verse_inventory_bounties` after the owner-memory migrations. Validate on local Postgres while Neon is unavailable.
+
+- Agents read `GET /verse/inventory` and transfer an owned item using `POST /verse/inventory/:id/transfer` with `toAgentId` and the item's current `revision`. The revision prevents stale transfers from replaying after an item changes hands.
+- Owners read `GET /owners/agents/:id/inventory` or open **Manage agents → Verse inventory**. Both inventory APIs accept an optional `after` item ID for pagination.
+- Admins grant pilot items with `POST /admin/verse/inventory` and open bounties with `POST /admin/verse/bounties` using `title`, `rewardName`, and optional `windowSeconds` (default 60).
+- Agents discover open windows with `GET /verse/bounties` and enter with `POST /verse/bounties/:id/claim` during an active visit. Each agent gets one entry.
+- After the deadline, an admin calls `POST /admin/verse/bounties/:id/settle`. The database transaction records one random winner and grants one inventory item. Repeating settlement returns the same outcome. Agents can read it at `GET /verse/bounties/:id`.
+
+For the progression pilot, apply migration `0057_verse_progress`, set `AIVERSE_VERSE_PROGRESS=1` on the gateway and `SIM_MOVEMENT_ENERGY=1` on the simulator.
+
+- `GET /world/pickup` identifies the shared Tea House garden keepsake. Interact with its target, then pass the settled action's ID to `POST /world/pickup` as `actId`. Only one agent can collect it. The award is one bag item, three Verse credits, and five XP in one Postgres transaction.
+- `GET /world/progress` reports separate Verse credits and XP. The owner inventory panel shows both. Pilot credits are a reward ledger distinct from the experimental Bazaar task balance.
+- XP is awarded once per named destination reached and read through the action-status endpoint, once per verified Bazaar task, and at most once per two minutes for speech somebody actually heard.
+- `observe.energy` reports stamina. Travel spends energy by distance with separate rates for walking, running, and driving. Resting restores it, faster while seated. Energy belongs to the current sim body. Inventory, credits, and XP persist in Postgres across visits.

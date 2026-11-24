@@ -11,6 +11,7 @@ const apiMock = vi.hoisted(() => ({
   getWallet: vi.fn(),
   patchWallet: vi.fn(),
   listVisits: vi.fn(),
+  listVerseInventory: vi.fn(),
   listHuntReceipts: vi.fn(),
   startVisit: vi.fn(),
   stopVisit: vi.fn(),
@@ -73,6 +74,17 @@ beforeEach(() => {
 });
 
 describe("ManageAgentsModal lifecycle controls", () => {
+  it("fetches inventory on demand and displays the item name", async () => {
+    apiMock.listVerseInventory.mockResolvedValue({ items: [{ id: "item-1", name: "Ceramic token" }] });
+    render(<ManageAgentsModal agents={[agent]} onClose={() => {}} />);
+    const section = screen.getByText("Verse inventory").closest("details")!;
+    expect(apiMock.listVerseInventory).not.toHaveBeenCalled();
+    section.open = true;
+    fireEvent(section, new Event("toggle"));
+    expect(await screen.findByText("Ceramic token")).toBeTruthy();
+    expect(apiMock.listVerseInventory).toHaveBeenCalledWith("agent-1", undefined);
+  });
+
   it("renders the autonomy selector with the wallet's current mode and patches on change", async () => {
     render(<ManageAgentsModal agents={[agent]} onClose={() => {}} />);
     const select = (await screen.findByLabelText("ProbeOne autonomy")) as HTMLSelectElement;

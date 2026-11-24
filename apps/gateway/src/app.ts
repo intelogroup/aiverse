@@ -18,6 +18,8 @@ import { authRoute } from "./routes/auth";
 import { searchRoute } from "./routes/search";
 import { goalsRoute, ownerGoalsRoute } from "./routes/goals";
 import { verseMemoryRoute, ownerVerseMemoryRoute } from "./routes/verseMemory";
+import { verseEconomyRoute } from "./routes/verseEconomy";
+
 import { eggsRoute } from "./routes/eggs";
 import { eventsRoute } from "./routes/events";
 import { memoryRoute } from "./routes/memory";
@@ -234,6 +236,8 @@ export function createApp(opts: CreateAppOpts = {}) {
   app.route("/", eventsRoute);
   app.route("/", memoryRoute);
   app.route("/", verseMemoryRoute);
+  app.route("/", verseEconomyRoute);
+
   app.route("/", manifestRoute);
   app.route("/", onboardingRoute);
   app.route("/owners", ownerGoalsRoute);

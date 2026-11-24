@@ -393,6 +393,20 @@
       "when": 1795372245305,
       "tag": "0055_verse_memory",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1795372245306,
+      "tag": "0056_verse_inventory_bounties",
+      "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1795372245307,
+      "tag": "0057_verse_progress",
+      "breakpoints": true
     }
   ]
 }
