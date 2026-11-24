@@ -170,6 +170,29 @@ describe("planning does not block the tick", () => {
     expect(fails).toEqual([]);
   }, 300_000);
 
+  it("walks across the Villa bridge at deck height", async () => {
+    const id = "villa-walker";
+    const start = sim.places.find(place => place.id === "stall-40")!.stand;
+    sim.addBody({ id, x: start[0], z: start[1] });
+    try {
+      const body = sim.body(id)!;
+      let outcome: ScoutOutcome | undefined;
+      void body.act({ type: "go_to", place: "villa" }).then(result => { outcome = result; });
+      const deckHeights: number[] = [];
+      for (let tick = 0; tick < 3600 && !outcome; tick++) {
+        sim.tick(0.1);
+        await Promise.resolve();
+        const { y, z } = body.snapshot();
+        if (z >= 180 && z < 215) deckHeights.push(y);
+      }
+      expect(outcome?.status).toBe("arrived");
+      expect(deckHeights.length).toBeGreaterThan(20);
+      expect(deckHeights.every(y => Math.abs(y - 0.2) < 0.03)).toBe(true);
+    } finally {
+      sim.removeBody(id);
+    }
+  });
+
   it("the Great Hall (hall-0) is reachable: its stand is off the wall line", async () => {
     sim.removeBody("hall");
     sim.addBody({ id: "hall" });
