@@ -107,7 +107,8 @@ export function ShadowTagger() {
       const mesh = o as THREE.Mesh;
       if (!mesh.isMesh || mesh.userData.__glbShadowTagged) return;
       const mat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
-      mesh.castShadow = !mat?.transparent;
+      // the Troyes hall's walls are opaque: with a sun strong enough to cast readable shadows its roof left the hall interior black
+      mesh.castShadow = !mat?.transparent && !/^Kit_hall/.test(mesh.name);
       mesh.receiveShadow = true;
       mesh.userData.__glbShadowTagged = true;
     });

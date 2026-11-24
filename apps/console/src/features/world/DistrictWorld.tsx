@@ -2,6 +2,7 @@ import { noLimitsActive } from "./quality";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { fitShadow } from "./shadowFit";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { useGLTF } from "@react-three/drei";
@@ -396,8 +397,8 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     hemi.intensity = t.ambient * 5;
     const l = light.current;
     if (l) {
-      const sd = new THREE.Vector3(...t.sunDir).normalize(); const tx = Math.round(controls.target.x / 40) * 40; const tz = Math.round(controls.target.z / 40) * 40;
-      l.target.position.set(tx, 0, tz); l.target.updateMatrixWorld(); l.position.set(tx + sd.x * 400, sd.y * 400, tz + sd.z * 400);
+      const sd = new THREE.Vector3(...t.sunDir).normalize();
+      fitShadow(l, sd, camera);
       l.color.setRGB(...t.sun); l.intensity = t.sunIntensity;
     }
     if (!prev || Math.abs(prev.night - t.night) > 0.02) { applyNight(resident.scene, t.night); groups.current.forEach((g) => applyNight(g, t.night)); }
