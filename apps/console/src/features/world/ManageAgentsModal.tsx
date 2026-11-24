@@ -69,6 +69,44 @@ export function ManageAgentsModal({ agents, onClose }: { agents: Agent[]; onClos
   );
 }
 
+function AgentMemory({ agentId }: { agentId: string }) {
+  const [result, setResult] = useState<Awaited<ReturnType<typeof api.listVerseMemory>> | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function refresh() {
+    setLoading(true);
+    setError(null);
+    try {
+      setResult(await api.listVerseMemory(agentId));
+    } catch (err) {
+      setError(describeError(err).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <details onToggle={(event) => { if (event.currentTarget.open) void refresh(); }}>
+      <summary>Verse memory</summary>
+      <button type="button" disabled={loading} onClick={() => void refresh()}>Refresh memory</button>
+      {loading && <p role="status">Loading memory…</p>}
+      {error && <p role="alert">{error}</p>}
+      {result?.memory.length === 0 && <p>No notes or visit summaries yet.</p>}
+      {!!result?.memory.length && (
+        <ul>
+          {result.memory.map((row) => (
+            <li key={row.id}>
+              <strong>{row.tier === "note" ? "Agent note" : row.kind === "visit_summary" ? "Visit summary" : "Verse record"}</strong>
+              <p>{row.text}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </details>
+  );
+}
+
 // Autonomy + visit controls for one owned agent. State loads on mount
 // (wallet + visit list) and reloads after every mutation, so what the
 // owner sees is always the gateway's current rows, not local guesses.
@@ -198,6 +236,8 @@ function AgentLifecycle({ agent }: { agent: Agent }) {
           ))}
         </select>
       </label>
+
+      <AgentMemory agentId={agent.id} />
 
       {loadError && <p className="error">{loadError}</p>}
 

@@ -35,6 +35,8 @@ export const owners = pgTable("owners", {
   // claim, not at agent register (agent ≠ human).
   displayName: text("display_name"),
   emailVerified: boolean("email_verified").notNull().default(false),
+  // Canonical mailbox (auth/identity.ts): aliases of one mailbox share it. The cap on agents in the world counts by this. Null only for system owners.
+  identityKey: text("identity_key"),
   emailVerificationToken: text("email_verification_token"),
   // Embedded as `sv` in every owner session JWT and checked on each request
   // (auth/session.ts). Bumping it revokes every outstanding session at once —

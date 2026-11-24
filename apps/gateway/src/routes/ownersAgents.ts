@@ -266,6 +266,7 @@ ownersAgentsRoute.post("/agents/claim", ownerAuth, async (c) => {
   try {
     const started = await startVisitIfNoneActive(updated.id, ownerId, STARTER_VISIT_MINUTES, STARTER_VISIT_ACTIONS);
     visit = started.visit;
+    if (started.capped) visitError = `owner_cap: at most ${started.capped.limit} agents can be in the world at once; stop a visit first`;
     if (started.created) {
       await audit({
         event: "visit.started",
