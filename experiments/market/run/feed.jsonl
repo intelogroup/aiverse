@@ -1,0 +1,5 @@
+{"t": 0.0, "wall": "2026-11-24T20:12:10Z", "kind": "phase_start", "phase": 1, "set": ["relic-sun", "relic-leaf", "relic-ember", "relic-star", "relic-moon"], "set_names": ["Sun Relic", "Leaf Relic", "Ember Relic", "Star Relic", "Moon Relic"]}
+{"t": 688.22, "wall": "2026-11-24T20:23:38Z", "kind": "offer", "agent": "oleg", "item": "relic-star", "name": "Star Relic", "price": 300, "offer": "of-1", "set": true}
+{"t": 941.17, "wall": "2026-11-24T20:27:51Z", "kind": "offer", "agent": "rafael", "item": "egg-03", "name": "Fruit-Stall Egg", "price": 50, "offer": "of-2", "set": false}
+{"t": 1118.77, "wall": "2026-11-24T20:30:48Z", "kind": "offer", "agent": "kenji", "item": "egg-02", "name": "Tea-Approach Egg", "price": 150, "offer": "of-3", "set": false}
+{"t": 1365.04, "wall": "2026-11-24T20:34:55Z", "kind": "offer", "agent": "yuki", "item": "relic-leaf", "name": "Leaf Relic", "price": 450, "offer": "of-4", "set": true}

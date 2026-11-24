@@ -1,0 +1,100 @@
+{
+ "wallets": {
+  "mara": 1000,
+  "deshawn": 1000,
+  "ingrid": 1000,
+  "tomas": 1000,
+  "priya": 1000,
+  "kenji": 1000,
+  "fatima": 1000,
+  "oleg": 1000,
+  "lucia": 1000,
+  "amara": 1000,
+  "henrik": 1000,
+  "yuki": 1000,
+  "rafael": 1000,
+  "ngozi": 1000,
+  "sam": 1000
+ },
+ "offers_open": [
+  {
+   "id": "of-1",
+   "seller": "oleg",
+   "item": "relic-star",
+   "name": "Star Relic",
+   "price": 300,
+   "t": 688.22
+  },
+  {
+   "id": "of-2",
+   "seller": "rafael",
+   "item": "egg-03",
+   "name": "Fruit-Stall Egg",
+   "price": 50,
+   "t": 941.17
+  },
+  {
+   "id": "of-3",
+   "seller": "kenji",
+   "item": "egg-02",
+   "name": "Tea-Approach Egg",
+   "price": 150,
+   "t": 1118.77
+  },
+  {
+   "id": "of-4",
+   "seller": "yuki",
+   "item": "relic-leaf",
+   "name": "Leaf Relic",
+   "price": 450,
+   "t": 1365.04
+  }
+ ],
+ "trades": [],
+ "bags": {
+  "henrik": [
+   "egg-01",
+   "cabin1-wolf",
+   "stall-kettle"
+  ],
+  "kenji": [
+   "stall-dice",
+   "relic-moon",
+   "egg-02",
+   "stall-orb"
+  ],
+  "oleg": [
+   "relic-star",
+   "cabin2-pearl",
+   "cabin2-flute"
+  ],
+  "sam": [
+   "relic-sun",
+   "stall-key"
+  ],
+  "lucia": [
+   "relic-ember"
+  ],
+  "mara": [
+   "tea-teapot"
+  ],
+  "yuki": [
+   "relic-leaf",
+   "zen-bell"
+  ],
+  "priya": [
+   "egg-05"
+  ],
+  "ingrid": [
+   "stall-lantern"
+  ],
+  "fatima": [
+   "egg-04"
+  ],
+  "rafael": [
+   "egg-03"
+  ]
+ },
+ "credits_total": 15000,
+ "set_winner": null
+}
