@@ -125,7 +125,7 @@ export function createSimServer(opts: SimServerOpts) {
         const had = service.has(b.agentId);
         const obs = service.attach(b.agentId, sp, b.body as string | undefined);
         expiry.set(b.agentId, exp);
-        return json({ observation: obs }, had ? 200 : 201);
+        return json({ observation: obs, clips: service.clips() }, had ? 200 : 201);
       }
 
       const [root, id, sub, actId] = parts;
