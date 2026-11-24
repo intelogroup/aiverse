@@ -28,7 +28,7 @@ const ASSETS = "../public/assets/";
 
 function assetPath(urlPath: string): URL {
   // Manifest URLs are site-absolute ("/assets/world-city3.glb").
-  return new URL(ASSETS + urlPath.split("/").pop(), import.meta.url);
+  return new URL(ASSETS + urlPath.replace(/^\/assets\//, ""), import.meta.url); // keeps subfolders (tiles/, houses/)
 }
 
 interface GlbDoc {

@@ -62,6 +62,11 @@ export const DISTRICT_BUDGETS: Record<string, DistrictBudget> = {
     measured: { glbBytes: 87_289_408, collisionBytes: 8_684_616, triangles: 1_578_712 },
     budget: { glbBytes: 200_765_640, collisionBytes: 19_974_618, triangles: 3_788_910 },
   },
+  // Placed prebuilt houses (tools/city3/place_house.mjs), streamed as their own districts, ×1.25 headroom. Heavy on purpose (2026-11-23, user: high-poly houses); textures not yet slimmed.
+  "house-american-1": {
+    measured: { glbBytes: 32_225_888, collisionBytes: 1_036, triangles: 41_990 },
+    budget: { glbBytes: 40_282_360, collisionBytes: 2_000, triangles: 52_500 },
+  },
 };
 
 /** All districts' GLB + collision bytes combined, gated at ×2.40 of
