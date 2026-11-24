@@ -78,7 +78,7 @@ describe("the resting clip is a standing clip", () => {
   }
 
   it("documents why: the catalog's plain Idle is a walk in place (thigh swings > 25 deg on the Mixamo bodies)", () => {
-    const keys = thighKeys("/assets/cast-summer.glb", "Idle");
+    const keys = thighKeys("/assets/cast-remy.glb", "Idle");
     expect(Math.max(...keys.map((q) => angle(q, keys[0])))).toBeGreaterThan(25);
   });
 });

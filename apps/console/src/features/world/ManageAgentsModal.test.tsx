@@ -135,8 +135,8 @@ describe("ManageAgentsModal lifecycle controls", () => {
     const select = (await screen.findByLabelText("ProbeOne body")) as HTMLSelectElement;
     expect(select.value).toBe("cipher");
     const offered = Array.from(select.options).map((o) => o.value);
-    expect(offered).toEqual(expect.arrayContaining(["remy", "cipher", "eve", "summer"]));
-    for (const castOnly of ["cast", "mage", "skeleton-warrior"]) expect(offered).not.toContain(castOnly);
+    expect(offered).toEqual(expect.arrayContaining(["remy", "cipher", "eve"]));
+    for (const castOnly of ["cast", "mage", "skeleton-warrior", "knight", "barbarian", "summer"]) expect(offered).not.toContain(castOnly);
 
     fireEvent.change(select, { target: { value: "eve" } });
     await waitFor(() => expect(apiMock.setAgentBody).toHaveBeenCalledWith("agent-1", "eve"));

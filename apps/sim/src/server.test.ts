@@ -60,22 +60,22 @@ describe("sim internal API", () => {
   test("a figure pick is honored and exposed; cast-only/unknown picks are loud 400s; the figure is fixed for the body's life", async () => {
     const B = "22222222-2222-4222-8222-222222222222";
     // Pick honored + exposed on attach response, GET body, observe and roster.
-    const r = await call("POST", "/bodies", { agentId: B, expiresAtMs: clock + 60_000, body: "summer" });
+    const r = await call("POST", "/bodies", { agentId: B, expiresAtMs: clock + 60_000, body: "cipher" });
     expect(r.status).toBe(201);
-    expect(((await r.json()) as any).observation.body.figure).toBe("summer");
+    expect(((await r.json()) as any).observation.body.figure).toBe("cipher");
     clock += 1000;
-    expect(((await (await call("GET", `/bodies/${B}`)).json()) as any).body.figure).toBe("summer");
+    expect(((await (await call("GET", `/bodies/${B}`)).json()) as any).body.figure).toBe("cipher");
     clock += 1000;
-    expect(((await (await call("GET", `/bodies/${B}/observe`)).json()) as any).observation.body.figure).toBe("summer");
+    expect(((await (await call("GET", `/bodies/${B}/observe`)).json()) as any).observation.body.figure).toBe("cipher");
     const roster = ((await (await call("GET", "/roster")).json()) as any).bodies as { agentId: string; body: string }[];
-    expect(roster.find((x) => x.agentId === B)?.body).toBe("summer");
+    expect(roster.find((x) => x.agentId === B)?.body).toBe("cipher");
     // Same figure again: idempotent 200. Non-string pick: 400.
-    expect((await call("POST", "/bodies", { agentId: B, expiresAtMs: clock + 60_000, body: "summer" })).status).toBe(200);
-    // A different figure on the live body: 409, and the body still wears summer.
+    expect((await call("POST", "/bodies", { agentId: B, expiresAtMs: clock + 60_000, body: "cipher" })).status).toBe(200);
+    // A different figure on the live body: 409, and the body still wears cipher.
     const conflict = await call("POST", "/bodies", { agentId: B, expiresAtMs: clock + 60_000, body: "eve" });
     expect(conflict.status).toBe(409);
     clock += 1000;
-    expect(((await (await call("GET", `/bodies/${B}`)).json()) as any).body.figure).toBe("summer");
+    expect(((await (await call("GET", `/bodies/${B}`)).json()) as any).body.figure).toBe("cipher");
     expect(((await (await call("DELETE", `/bodies/${B}`)).json()) as any).removed).toBe(true);
 
     // Cast-only and unknown picks: 400 naming the problem and the pickable set; nothing attaches.
@@ -85,7 +85,18 @@ describe("sim internal API", () => {
     const castBody = (await cast.json()) as any;
     expect(castBody.error).toBe("invalid_action");
     expect(castBody.message).toContain("cast-only");
-    expect(castBody.message).toContain("summer");
+    expect(castBody.message).toContain("remy, cipher, eve, elf, jim");
+    expect(castBody.message).not.toContain("summer");
+    // Knight: cast-only too — same loud refusal naming the pickable set.
+    const knight = await call("POST", "/bodies", { agentId: C, expiresAtMs: clock + 60_000, body: "knight" });
+    expect(knight.status).toBe(400);
+    expect(((await knight.json()) as any).message).toContain("cast-only");
+    // Summer: deleted from the catalog (2026-11-24) — an unknown body now.
+    const gone = await call("POST", "/bodies", { agentId: C, expiresAtMs: clock + 60_000, body: "summer" });
+    expect(gone.status).toBe(400);
+    const goneBody = (await gone.json()) as any;
+    expect(goneBody.message).toContain('unknown body "summer"');
+    expect(goneBody.message).toContain("remy, cipher, eve, elf, jim");
     const unknown = await call("POST", "/bodies", { agentId: C, expiresAtMs: clock + 60_000, body: "nope" });
     expect(unknown.status).toBe(400);
     expect(((await unknown.json()) as any).message).toContain("unknown body");

@@ -509,7 +509,7 @@ describe("agent MCP actions with a classic agent token (Phase 4)", () => {
     const who = toolJson((await callTool(o.agentToken, "agent_whoami")).body);
     expect(who.visit.active).toBe(false);
 
-    const attach = await callTool(o.agentToken, "body_attach", { body: "summer" });
+    const attach = await callTool(o.agentToken, "body_attach", { body: "cipher" });
     expect(attach.body.result.isError).toBe(true);
     const err = toolErrorJson(attach.body);
     expect(err.error).toBe("no_visit");
@@ -528,11 +528,11 @@ describe("agent MCP actions with a classic agent token (Phase 4)", () => {
     expect(before.body.result.isError).toBe(true);
     expect(toolText(before.body)).toContain('"error":"no_body"');
 
-    const attach = toolJson((await callTool(o.agentToken, "body_attach", { body: "summer" })).body);
-    expect(attach.observation.body.figure).toBe("summer");
+    const attach = toolJson((await callTool(o.agentToken, "body_attach", { body: "cipher" })).body);
+    expect(attach.observation.body.figure).toBe("cipher");
 
     const seen = toolJson((await callTool(o.agentToken, "world_observe")).body);
-    expect(seen.observation.body.figure).toBe("summer");
+    expect(seen.observation.body.figure).toBe("cipher");
 
     const played = toolJson((await callTool(o.agentToken, "world_act", { id: "p4-wave", action: { type: "play", clip: "Waving" } })).body);
     expect(played.act.id).toBe("p4-wave");
@@ -610,12 +610,12 @@ describe("agent MCP actions with a classic agent token (Phase 4)", () => {
     expect(unknown.body.result.isError).toBe(true);
     expect(toolErrorJson(unknown.body).message).toBe('unknown body "nope"');
 
-    await callTool(o.agentToken, "body_attach", { body: "summer" });
+    await callTool(o.agentToken, "body_attach", { body: "cipher" });
     const conflict = await callTool(o.agentToken, "body_attach", { body: "eve" });
     expect(conflict.body.result.isError).toBe(true);
     const conflictErr = toolErrorJson(conflict.body);
     expect(conflictErr.error).toBe("id_conflict");
-    expect(conflictErr.message).toContain("body already attached as summer; detach first");
+    expect(conflictErr.message).toContain("body already attached as cipher; detach first");
   });
 });
 
@@ -672,7 +672,7 @@ describe("scope gates for actions (OAuth only)", () => {
     const { accessToken } = await mintOAuthToken(o, [o.agentId], "discover world:observe inbox:read");
 
     const gated: Array<[string, Record<string, unknown>, string]> = [
-      ["body_attach", { body: "summer" }, "world:act"],
+      ["body_attach", { body: "cipher" }, "world:act"],
       ["body_detach", {}, "world:act"],
       ["world_act", { action: { type: "wait", seconds: 1 } }, "world:act"],
       ["world_hunt_claim", { contest_id: "tea-hunt", act_id: "open-egg" }, "world:act"],

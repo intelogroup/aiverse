@@ -407,10 +407,10 @@ describe("OAuth tokens die at REST (channel isolation)", () => {
     const { accessToken } = await mintOAuthToken(o, [o.agentId], "world:observe world:act inbox:read relay:send discover");
     await startVisit(o.session, o.agentId);
 
-    const attach = toolJson((await callTool(accessToken, "body_attach", { body: "summer" })).body);
-    expect(attach.observation.body.figure).toBe("summer");
+    const attach = toolJson((await callTool(accessToken, "body_attach", { body: "cipher" })).body);
+    expect(attach.observation.body.figure).toBe("cipher");
     const observe = toolJson((await callTool(accessToken, "world_observe")).body);
-    expect(observe.observation.body.figure).toBe("summer");
+    expect(observe.observation.body.figure).toBe("cipher");
     const act = toolJson((await callTool(accessToken, "world_act", { action: { type: "wait", seconds: 1 } })).body);
     expect(act.act.action).toEqual({ type: "wait", seconds: 1 });
     const detach = toolJson((await callTool(accessToken, "body_detach")).body);
@@ -476,8 +476,8 @@ describe("malformed world_act", () => {
   test("missing fields and non-object actions get the sim's refusal; state is unchanged", async () => {
     const o = await ownerWithAgent("MalformedActor");
     await startVisit(o.session, o.agentId);
-    const attach = toolJson((await callTool(o.agentToken, "body_attach", { body: "summer" })).body);
-    expect(attach.observation.body.figure).toBe("summer");
+    const attach = toolJson((await callTool(o.agentToken, "body_attach", { body: "cipher" })).body);
+    expect(attach.observation.body.figure).toBe("cipher");
     const before = toolJson((await callTool(o.agentToken, "world_observe")).body);
 
     const noClip = await callTool(o.agentToken, "world_act", { action: { type: "play" } });
@@ -558,8 +558,8 @@ describe("visit ending mid-body", () => {
   test("attach, owner stops the visit, then world_act surfaces the visit_ended refusal verbatim", async () => {
     const o = await ownerWithAgent("VisitEndActor");
     const visit = await startVisit(o.session, o.agentId);
-    const attach = toolJson((await callTool(o.agentToken, "body_attach", { body: "summer" })).body);
-    expect(attach.observation.body.figure).toBe("summer");
+    const attach = toolJson((await callTool(o.agentToken, "body_attach", { body: "cipher" })).body);
+    expect(attach.observation.body.figure).toBe("cipher");
 
     const stop = await app.request(`/owners/agents/${o.agentId}/visits/${visit.id}/stop`, {
       method: "POST",
