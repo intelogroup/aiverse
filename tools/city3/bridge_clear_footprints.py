@@ -28,11 +28,20 @@ def run(path, dry):
     g = Glb(path); j = g.gltf; scene = j["scenes"][j.get("scene", 0)]["nodes"]
     rem = [i for i in scene if j["nodes"][i].get("name", "").startswith(LOOSE) and "translation" in j["nodes"][i]
            and inside(j["nodes"][i]["translation"][0], j["nodes"][i]["translation"][2], rects)]
-    print(json.dumps({"houses": len(rects), "loose_nodes_removed": len(rem), "sample": [j["nodes"][i]["name"] for i in rem[:6]]}))
-    if dry or not rem:
+    # the edge-ring landscape keeps its trees and path stones as children of untransformed Landscape_edge_* groups (world positions)
+    kids = {}
+    for gi, grp in enumerate(j["nodes"]):
+        if grp.get("name", "").startswith("Landscape_edge") and not any(k in grp for k in ("translation", "rotation", "scale", "matrix")):
+            hit = [c for c in grp.get("children", []) if "translation" in j["nodes"][c] and inside(j["nodes"][c]["translation"][0], j["nodes"][c]["translation"][2], rects)]
+            if hit:
+                kids[gi] = hit
+    print(json.dumps({"houses": len(rects), "loose_nodes_removed": len(rem), "landscape_children_removed": sum(map(len, kids.values())), "sample": [j["nodes"][i]["name"] for i in rem[:6]]}))
+    if dry or not (rem or kids):
         return
     for i in rem:
         scene.remove(i)
+    for gi, hit in kids.items():
+        j["nodes"][gi]["children"] = [c for c in j["nodes"][gi]["children"] if c not in hit]
     print("wrote", path, save_glb(path, j, g.bin), "bytes")
 
 
