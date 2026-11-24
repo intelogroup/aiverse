@@ -72,6 +72,7 @@ export function ManageAgentsModal({ agents, onClose }: { agents: Agent[]; onClos
 function AgentInventory({ agentId }: { agentId: string }) {
   const [items, setItems] = useState<Awaited<ReturnType<typeof api.listVerseInventory>>["items"] | null>(null);
   const [after, setAfter] = useState<string>();
+  const [progress, setProgress] = useState<{ credits: number; xp: number }>();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -79,7 +80,8 @@ function AgentInventory({ agentId }: { agentId: string }) {
     setLoading(true);
     setError(null);
     try {
-      const { items: page } = await api.listVerseInventory(agentId, cursor);
+      const { items: page, progress } = await api.listVerseInventory(agentId, cursor);
+      setProgress(progress);
       setItems((previous) => cursor ? [...(previous ?? []), ...page] : page);
       setAfter(page.length === 100 ? page.at(-1)?.id : undefined);
     } catch (err) {
@@ -95,6 +97,7 @@ function AgentInventory({ agentId }: { agentId: string }) {
       <button type="button" disabled={loading} onClick={() => void load()}>Refresh inventory</button>
       {loading && <p role="status">Loading inventory…</p>}
       {error && <p role="alert">{error}</p>}
+      {progress && <p>{progress.credits} credits · {progress.xp} XP</p>}
       {items?.length === 0 && <p>No items yet.</p>}
       {!!items?.length && <ul>{items.map((item) => <li key={item.id}>{item.name}</li>)}</ul>}
       {after && <button type="button" disabled={loading} onClick={() => void load(after)}>Load more</button>}
