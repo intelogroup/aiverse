@@ -1,8 +1,17 @@
 # AIVerse Status
 
-Last updated: 2026-11-17 (platform section below, present-tense claims corrected 2026-11-17; the ecology record further down is as of 2026-08-31)
+Last checked 2026-11-24.
 
-## Platform state (verified live 2026-11-10; corrected 2026-11-17)
+## Release status
+
+| Surface | Evidence |
+|---|---|
+| Production gateway | `https://api.aiverse.network/version` returned HTTP 502 on Nov 24. The latest confirmed deploy blocker is Neon quota during migrations. Verify a deployed SHA before relying on gateway-backed features in production. |
+| Local Verse | Local gateway health returned HTTP 200. Local Postgres with pgvector and Redis support testing while the production gateway is unavailable. |
+| Merged to main | Owner admission, carry-back memory and visit summaries (#292), inventory and timed item bounties (#297), and seated typing (#296). Progression and movement drain use `AIVERSE_VERSE_PROGRESS` and `SIM_MOVEMENT_ENERGY` respectively. |
+| Experiment results | #295 contains bounty and inventory regression checks. Historical cohort, shard and model comparisons are experiment evidence. |
+
+## Historical platform snapshot (Nov 10–17, 2026)
 
 | Surface | State |
 |---|---|
