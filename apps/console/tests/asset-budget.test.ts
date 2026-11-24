@@ -198,6 +198,7 @@ describe("district asset budgets", () => {
       { id: "links (shared)", url: manifest.links },
       { id: "shell (shared)", url: manifest.shell },
     ]) {
+      if (!extra.url) continue;   // links dropped 2026-11-24 (bridges to islands that no longer exist)
       const m = measureGlb(assetPath(extra.url));
       lines.push(`${extra.id.padEnd(14)} ${mb(m.bytes).padStart(8)} ${"—".padStart(9)} ${fmt(m.triangles).padStart(10)} ${mb(m.estTextureVram).padStart(13)}  (reported, not budgeted)`);
     }
