@@ -115,9 +115,9 @@ _ap.add_argument("--shard-map", default="", help="JSON {key: shard_id}; empty = 
 _ap.add_argument("--bounty-at", type=int, default=0, help="seconds into run to announce the global bounty; 0 = off")
 _ap.add_argument("--bounty-code", default="AURORA-7")
 _ap.add_argument("--phase", type=int, default=1, choices=(1, 2))
-_ap.add_argument("--items", default=os.path.join(ROOT, "..", "items.json"))
+_ap.add_argument("--items", default=os.path.join(ROOT, "items.json"))
 _ap.add_argument("--model", default="agnes-3.0-flash")
-_ap.add_argument("--seed", default=os.path.join(ROOT, "..",
+_ap.add_argument("--seed", default=os.path.join(ROOT,
                                                 "hunt_end_state.json"))
 ARGS = _ap.parse_args()
 MODEL = ARGS.model
