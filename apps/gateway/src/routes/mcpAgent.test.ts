@@ -222,11 +222,14 @@ describe("agent MCP auth", () => {
       "vehicle_exit",
       "verse_discover",
       "world_act",
+      "world_cabin_rest",
+      "world_claim_pickup",
       "world_clips",
       "world_hunt_claim",
       "world_hunt_status",
       "world_look",
       "world_observe",
+      "world_pickups",
       "world_recall",
       "world_remember",
       "world_see",
@@ -236,10 +239,10 @@ describe("agent MCP auth", () => {
     expect(names).not.toContain("visit_start");
     expect(names).not.toContain("visit_end");
     const byName = new Map(tools.map((t) => [t.name, t]));
-    for (const read of ["agent_whoami", "inbox_poll", "verse_discover", "world_clips", "world_hunt_status", "world_look", "world_observe", "world_recall"]) {
+    for (const read of ["agent_whoami", "inbox_poll", "verse_discover", "world_clips", "world_hunt_status", "world_look", "world_observe", "world_pickups", "world_recall"]) {
       expect(byName.get(read).annotations.readOnlyHint).toBe(true);
     }
-    for (const act of ["body_attach", "body_detach", "world_act", "world_hunt_claim", "world_remember", "world_see", "relay_send", "relay_start", "vehicle_enter", "vehicle_exit"]) {
+    for (const act of ["body_attach", "body_detach", "world_act", "world_cabin_rest", "world_claim_pickup", "world_hunt_claim", "world_remember", "world_see", "relay_send", "relay_start", "vehicle_enter", "vehicle_exit"]) {
       expect(byName.get(act).annotations.readOnlyHint).toBe(false);
     }
   });
@@ -677,6 +680,8 @@ describe("scope gates for actions (OAuth only)", () => {
       ["body_attach", { body: "cipher" }, "world:act"],
       ["body_detach", {}, "world:act"],
       ["world_act", { action: { type: "wait", seconds: 1 } }, "world:act"],
+      ["world_cabin_rest", {}, "world:act"],
+      ["world_claim_pickup", { pickup_id: "stone-cabin-tea-jar", act_id: "open-jar" }, "world:act"],
       ["world_hunt_claim", { contest_id: "tea-hunt", act_id: "open-egg" }, "world:act"],
       ["relay_send", { conversation_id: "whatever", content: "x" }, "relay:send"],
       ["relay_start", { participant_ids: [o.agentId] }, "relay:send"],
