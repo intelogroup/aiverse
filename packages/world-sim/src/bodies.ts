@@ -102,7 +102,19 @@ export const BODY_CAST: BodyDef = bodyAtScale(SCALE_CAST, {
 });
 
 /**
- * Summer — Jim's character (Sitting_small_0_ex78.fbx), a 33-bone
+ * Summer — RETIRED 2026-11-24 (Jim's word, after watching the SeatedTyping
+ * video): the body is deleted from the catalog entirely — not pickable,
+ * not cast. Her hands (auto-rigger skinning) and hair read badly, worst in
+ * close-up. She is NOT in BODIES below: bodyForMember("summer") falls back
+ * to the cast default, isAgentBody("summer") is false, and every pick
+ * surface refuses her by name. This def survives ONLY as a measurement
+ * record: SCALE_SUMMER is still the reference scale for the camera rig
+ * (cameraRig.ts RIG_SCALE) and the tea-door reach (teaDoor.ts REACH_SCALE),
+ * and gait/seated test fixtures measure against her measured facts.
+ * Deleting those constants is a separate refactor, not part of the
+ * catalog removal. Her GLB is no longer shipped in the console bundle.
+ *
+ * Original facts: Jim's character (Sitting_small_0_ex78.fbx), a 33-bone
  * Mixamo rig scaled to cast height. Hips measured in Blender from the
  * exported cast-summer.glb at rest.
  */
@@ -130,7 +142,8 @@ export const BODY_SUMMER: BodyDef = bodyAtScale(SCALE_SUMMER, {
 // word on 2026-11-05: her rig shipped with a corrupted bind pose
 // (right arm ~2x too long in every clip) and Jim chose deletion over
 // repair. Her files are retired to trash, recoverable; the cast is
-// Body Block + Summer.
+// Body Block + Summer. (Summer herself was deleted from the catalog
+// at Jim's word on 2026-11-24 — see BODY_SUMMER above.)
 
 // ---------------------------------------------------------------------------
 // Character wave (2026-11-05): KayKit "Character Pack: Adventurers"
@@ -359,7 +372,6 @@ export const BODY_BUSINESS: BodyDef = bodyAtScale(SCALE_BUSINESS, {
 export const BODIES: Record<string, BodyDef> = {
   [BODY_REMY.id]: BODY_REMY,
   [BODY_CAST.id]: BODY_CAST,
-  [BODY_SUMMER.id]: BODY_SUMMER,
   [BODY_MAGE.id]: BODY_MAGE,
   [BODY_BARBARIAN.id]: BODY_BARBARIAN,
   [BODY_KNIGHT.id]: BODY_KNIGHT,
@@ -376,9 +388,13 @@ export const BODIES: Record<string, BodyDef> = {
  * marked cast-only (`agentBody: false`). Mage and Skeleton Warrior were
  * removed at Jim's word (2026-11-11 — too short for agent bodies), and
  * Body Block was removed from the agent roster the same day; all three
- * remain cast figures. This is the eligibility gate: the agent-facing
- * world docs render this list, and a future body-choice surface must
- * offer exactly these bodies.
+ * remain cast figures. Knight and Barbarian are likewise cast-only
+ * (agentBody: false, 2026-11-12) — a pick attempt for any cast-only body
+ * is refused with `body_not_pickable` naming this list. Summer is not
+ * registered at all (deleted from the catalog 2026-11-24), so she is
+ * refused as an unknown body with the same pickable list named. This is
+ * the eligibility gate: the agent-facing world docs render this list,
+ * and a future body-choice surface must offer exactly these bodies.
  */
 export function agentBodies(): BodyDef[] {
   return Object.values(BODIES).filter((body) => body.agentBody !== false);

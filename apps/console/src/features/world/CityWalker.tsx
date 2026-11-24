@@ -2,7 +2,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { CastFigure } from "./CastFigure";
-import { BODY_SUMMER } from "./bodies";
+import { BODY_REMY } from "./bodies";
 import type { WalkColliders } from "./walkColliders";
 import { newWalkerFrame, useWalkWorld, writeWalkerFrame } from "./walkerBody";
 import { followAvatarVisible, resolveDistance, stepDistance } from "./cameraCollision";
@@ -19,7 +19,8 @@ import type { InteractController } from "./interactables";
 
 // CityWalker — the user-driven bot in City 3 (?world=city3&walk=1). A thin adapter around walker.ts:
 //   keyboard/mouse -> abstract intent {forward, strafe, turn, run, look} -> walker.step(world = BVH raycasts)
-//   -> AgentFrame for the existing "summer" CastFigure (walk/idle clip from speed) -> ride/follow camera.
+//   -> AgentFrame for the existing "remy" CastFigure (walk/idle clip from speed) -> ride/follow camera.
+//   (The walk bot wore Summer until she was deleted from the catalog at Jim's word, 2026-11-24.)
 // An agent would feed the same `step` with its own intents instead of the keys read here.
 
 export type WalkMode = "ride" | "follow";
@@ -375,7 +376,7 @@ export function CityWalker({
           index={0}
           baseY={0}
           home={[s0?.x ?? 0, 0, s0?.z ?? 0]}
-          body={BODY_SUMMER}
+          body={BODY_REMY}
           hidden={mode === "ride"}
           clipTester={clipOverride}
         />

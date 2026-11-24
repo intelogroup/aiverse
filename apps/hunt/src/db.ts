@@ -151,7 +151,6 @@ CREATE TABLE IF NOT EXISTS body_constants (
 -- a Run cycle, else walk speed). Values verified 2026-11-08 against ac9b01b4.
 INSERT OR IGNORE INTO body_constants (body_id, max_speed_mps) VALUES
   ('remy', 3.6894),
-  ('summer', 3.8052),
   ('cast', 1.1422),
   ('mage', 0.3996),
   ('barbarian', 0.4564),

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
-import { agentVisits, eggCashBounties, eggHuntWins, owners } from "@aiverse/shared/schema";
+import { agentVisits, agents, eggCashBounties, eggHuntWins, owners } from "@aiverse/shared/schema";
 import { loadVerseSim } from "@aiverse/world-sim/node/loadWorld";
 import { WorldService } from "@aiverse/world-sim/worldService";
 import { createSimServer } from "@aiverse/sim/server";
@@ -527,15 +527,15 @@ describe("/world (agent body)", () => {
     const { ownerToken, agentId, agentToken } = await ownerWithAgent("WorldFigure");
     await startVisit(ownerToken, agentId);
 
-    const pick = await w(agentToken, "POST", "/body", { body: "summer" });
+    const pick = await w(agentToken, "POST", "/body", { body: "cipher" });
     expect(pick.status).toBe(201);
-    expect(((await pick.json()) as any).observation.body.figure).toBe("summer");
-    expect(((await (await w(agentToken, "GET", "/body")).json()) as any).body.figure).toBe("summer");
-    expect(((await (await w(agentToken, "GET", "/observe")).json()) as any).observation.body.figure).toBe("summer");
+    expect(((await pick.json()) as any).observation.body.figure).toBe("cipher");
+    expect(((await (await w(agentToken, "GET", "/body")).json()) as any).body.figure).toBe("cipher");
+    expect(((await (await w(agentToken, "GET", "/observe")).json()) as any).observation.body.figure).toBe("cipher");
 
-    expect((await w(agentToken, "POST", "/body", { body: "summer" })).status).toBe(200); // same figure: idempotent
+    expect((await w(agentToken, "POST", "/body", { body: "cipher" })).status).toBe(200); // same figure: idempotent
     expect((await w(agentToken, "POST", "/body", { body: "eve" })).status).toBe(409); // different figure on a live body
-    expect(((await (await w(agentToken, "GET", "/body")).json()) as any).body.figure).toBe("summer"); // unchanged
+    expect(((await (await w(agentToken, "GET", "/body")).json()) as any).body.figure).toBe("cipher"); // unchanged
 
     await w(agentToken, "DELETE", "/body"); // free the capped sim slot for later tests
   });
@@ -543,8 +543,8 @@ describe("/world (agent body)", () => {
   test("owner default body: used when the agent names none; the agent's own pick wins; cast-only and foreign agents are refused", async () => {
     const a = await ownerWithAgent("WorldOwnerBody");
     const patch = (tok: string, id: string, body: unknown) => app.request(`/owners/agents/${id}/body`, { method: "PATCH", headers: json(tok), body: JSON.stringify({ body }) });
-    // refused: cast-only (cast, mage, skeleton-warrior) and unknown, with the pickable set named
-    for (const bad of ["cast", "mage", "skeleton-warrior", "nope", 3]) {
+    // refused: cast-only (cast, mage, skeleton-warrior, knight, barbarian), deleted-from-catalog (summer) and unknown, with the pickable set named
+    for (const bad of ["cast", "mage", "skeleton-warrior", "knight", "barbarian", "summer", "nope", 3]) {
       const r = await patch(a.ownerToken, a.agentId, bad);
       expect(r.status).toBe(400);
       expect(((await r.json()) as any).pickable).toContain("cipher");
@@ -572,6 +572,18 @@ describe("/world (agent body)", () => {
     // clearing the default goes back to the platform default (remy)
     expect((await patch(a.ownerToken, a.agentId, null)).status).toBe(200);
     expect(((await (await w(a.agentToken, "POST", "/body")).json()) as any).observation.body.figure).toBe("remy");
+    await w(a.agentToken, "DELETE", "/body");
+  });
+
+  test("a saved default of summer (deleted from the catalog, 2026-11-24) falls back to remy at attach — the fully-removed-body substitution path", async () => {
+    const a = await ownerWithAgent("WorldStaleBody");
+    // Simulate pre-deletion data: the row still names summer, written
+    // directly because the PATCH surface now refuses her.
+    await db.update(agents).set({ body: "summer" }).where(eq(agents.id, a.agentId));
+    await startVisit(a.ownerToken, a.agentId);
+    const attach = await w(a.agentToken, "POST", "/body"); // names none -> saved default, re-checked
+    expect(attach.status).toBe(201);
+    expect(((await attach.json()) as any).observation.body.figure).toBe("remy");
     await w(a.agentToken, "DELETE", "/body");
   });
 
@@ -639,7 +651,26 @@ describe("/world (agent body)", () => {
     const castBody = (await cast.json()) as any;
     expect(castBody.error).toBe("body_not_pickable");
     expect(castBody.message).toContain("cast-only");
-    expect(castBody.pickable).toContain("summer");
+    expect(castBody.pickable).toEqual(["remy", "cipher", "eve", "elf", "jim"]);
+
+    // Knight and barbarian: cast-only, same named refusal (F3, Jim's ruling).
+    for (const short of ["knight", "barbarian"]) {
+      const r = await w(agentToken, "POST", "/body", { body: short });
+      expect(r.status).toBe(400);
+      const rb = (await r.json()) as any;
+      expect(rb.error).toBe("body_not_pickable");
+      expect(rb.message).toContain("cast-only");
+      expect(rb.pickable).toEqual(["remy", "cipher", "eve", "elf", "jim"]);
+    }
+
+    // Summer: deleted from the catalog entirely (2026-11-24) — refused as
+    // an unknown body, with the same pickable set named.
+    const gone = await w(agentToken, "POST", "/body", { body: "summer" });
+    expect(gone.status).toBe(400);
+    const goneBody = (await gone.json()) as any;
+    expect(goneBody.error).toBe("body_not_pickable");
+    expect(goneBody.message).toContain("unknown body");
+    expect(goneBody.pickable).toEqual(["remy", "cipher", "eve", "elf", "jim"]);
 
     const unknown = await w(agentToken, "POST", "/body", { body: "nope" });
     expect(unknown.status).toBe(400);

@@ -58,17 +58,8 @@ describe("shipped body GLBs — clip inventory", () => {
     expect(g.tris).toBe(72164);
   });
 
-  it("cast-summer.glb: full catalog, exact durations, 33 joints, dieted mesh", () => {
-    const g = readGlb("../public/assets/cast-summer.glb");
-    expect(Object.keys(g.anims).sort()).toEqual(Object.keys(EXPECTED_CLIPS).sort());
-    for (const [name, dur] of Object.entries(EXPECTED_CLIPS)) {
-      expect(g.anims[name], name).toBeCloseTo(dur, 2);
-    }
-    expect(g.joints).toBe(33);
-    // Diet ceiling raised 2026-11-06: the 200k-tri surface fix (bind-pivot
-    // rebuild) supersedes the old 95k crunch; still well under the 500k source.
-    expect(g.tris).toBeLessThanOrEqual(210000);
-    expect(g.tris).toBeGreaterThan(40000);
+  it("cast-summer.glb is ABSENT — Summer deleted from the catalog at Jim's word, 2026-11-24", () => {
+    expect(existsSync(new URL("../public/assets/cast-summer.glb", import.meta.url))).toBe(false);
   });
 
   it("cast-ninja.glb is ABSENT — Ninja deleted at Jim's word, 2026-11-05", () => {

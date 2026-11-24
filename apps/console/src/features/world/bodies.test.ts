@@ -115,11 +115,12 @@ describe("body registry", () => {
     expect(BODY_CAST.url).toBe("/assets/cast-bodyblock.glb");
   });
 
-  it("resolves the summer body and its measured hips", () => {
-    expect(bodyForMember({ body: "summer" })).toBe(BODY_SUMMER);
-    expect(BODY_SUMMER.url).toBe("/assets/cast-summer.glb");
-    expect(BODY_SUMMER.hipsY).toBeCloseTo(SUMMER_HIPS_Y * SCALE_SUMMER, 9);
-    expect(BODIES.summer).toBe(BODY_SUMMER);
+  it("summer is gone from the registry (deleted from the catalog at Jim's word, 2026-11-24)", () => {
+    expect(BODIES.summer).toBeUndefined();
+    expect(Object.values(BODIES)).not.toContain(BODY_SUMMER);
+    // A member still naming her falls back to the cast default — the
+    // registry-level substitution for a fully-removed body.
+    expect(bodyForMember({ body: "summer" })).toBe(BODY_CAST);
     expect(BODIES.cast).toBe(BODY_CAST);
   });
 
@@ -223,7 +224,11 @@ describe("agentBodies — the agent-pickable set (Jim's ruling, 2026-11-11)", ()
   });
 
   it("keeps every other registered body pickable", () => {
-    expect(agentBodies().map((b) => b.id).sort()).toEqual(["cipher", "elf", "eve", "jim", "remy", "summer"]);
+    expect(agentBodies().map((b) => b.id).sort()).toEqual(["cipher", "elf", "eve", "jim", "remy"]);
+  });
+
+  it("never offers summer: deleted from the catalog, not merely cast-only", () => {
+    expect(agentBodies().map((b) => b.id)).not.toContain("summer");
   });
 
   it("cast resolution ignores eligibility: members still wear every removed body", () => {
@@ -245,13 +250,13 @@ describe("excludeBody — retiring a body from a roster", () => {
       { id: "native-1", name: "Native One" },
       { id: "native-2", name: "Native Two", body: "cast" },
       { id: "native-3", name: "Native Three", body: "retired-name" },
-      { id: "summer-guest", name: "Summer (new)", body: "summer" },
+      { id: "remy-guest", name: "Remy (new)", body: "remy" },
       { id: "mage-guest", name: "Mage (new)", body: "mage" },
       { id: "barbarian-guest", name: "Barbarian (new)", body: "barbarian" },
       { id: "knight-guest", name: "Knight (new)", body: "knight" },
     ];
     expect(excludeBody(roster, BODY_CAST).map((m) => m.id)).toEqual([
-      "summer-guest",
+      "remy-guest",
       "mage-guest",
       "barbarian-guest",
       "knight-guest",
