@@ -360,7 +360,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     // theme
     const t = blendTheme(focus, manifest); const prev = themeRef.current; themeRef.current = t;
     const u = (sky.material as THREE.ShaderMaterial).uniforms;
-    u.top.value.setRGB(...t.skyTop); u.horizon.value.setRGB(...t.skyHorizon); u.sunDir.value.set(...t.sunDir).normalize(); u.sunCol.value.setRGB(...t.sun);
+    u.top.value.setRGB(...t.skyTop); u.horizon.value.setRGB(...t.skyHorizon); u.sunDir.value.set(...t.sunDir).normalize(); u.sunCol.value.setRGB(...t.sun); u.time.value = performance.now() / 1000;
     (scene.fog as THREE.FogExp2).color.setRGB(...t.fog); (scene.fog as THREE.FogExp2).density = t.fogDensity;
     (water.material as THREE.MeshStandardMaterial).color.setRGB(...t.water);
     gl.toneMappingExposure = t.exposure; scene.environmentIntensity = t.envIntensity;

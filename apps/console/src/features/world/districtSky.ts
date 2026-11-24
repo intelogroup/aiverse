@@ -7,15 +7,27 @@ import * as THREE from "three";
  * district theme each frame.
  */
 const SKY_VERT = `varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); gl_Position.z = gl_Position.w; }`;
-const SKY_FRAG = `varying vec3 vDir; uniform vec3 top; uniform vec3 horizon; uniform vec3 sunDir; uniform vec3 sunCol;
-void main(){ float h = clamp(vDir.y, -0.2, 1.0); vec3 c = mix(horizon, top, pow(max(h,0.0), 0.55));
-  c = mix(c, horizon * 0.8, smoothstep(0.0, -0.2, vDir.y));
-  float s = max(dot(normalize(vDir), normalize(sunDir)), 0.0); c += sunCol * (pow(s, 600.0) * 4.0 + pow(s, 8.0) * 0.28);
+const SKY_FRAG = `varying vec3 vDir; uniform vec3 top; uniform vec3 horizon; uniform vec3 sunDir; uniform vec3 sunCol; uniform float time;
+float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(h2(i), h2(i + vec2(1.0, 0.0)), f.x), mix(h2(i + vec2(0.0, 1.0)), h2(i + vec2(1.0, 1.0)), f.x), f.y); }
+float fbm(vec2 p){ float a = 0.5, s = 0.0; for (int k = 0; k < 5; k++) { s += a * vn(p); p = p * 2.03 + vec2(1.7, 9.2); a *= 0.5; } return s; }
+void main(){ vec3 d = normalize(vDir); float h = clamp(d.y, -0.2, 1.0); vec3 c = mix(horizon, top, pow(max(h,0.0), 0.55));
+  c = mix(c, horizon * 0.8, smoothstep(0.0, -0.2, d.y));
+  vec3 sd = normalize(sunDir); float s = max(dot(d, sd), 0.0); c += sunCol * (pow(s, 600.0) * 4.0 + pow(s, 8.0) * 0.28);
+  // clouds: fbm on a flat cloud deck (direction / height), drifting slowly; thin near the horizon, sun-lit tops, grey bellies
+  if (d.y > 0.02) {
+    vec2 p = d.xz / (d.y + 0.08) * 1.6 + vec2(time * 0.006, time * 0.002);
+    float n = fbm(p), cov = smoothstep(0.50, 0.78, n) * smoothstep(0.02, 0.22, d.y);
+    float lit = 0.80 + 0.20 * smoothstep(0.55, 0.9, fbm(p + sd.xz * 0.35));
+    vec3 cc = mix(vec3(0.72, 0.76, 0.84), vec3(1.0), lit) + sunCol * pow(s, 6.0) * 0.25;
+    c = mix(c, cc, cov * 0.92);
+  }
   gl_FragColor = vec4(c, 1.0); }`;
 
 export function createSkyDome() {
   const mat = new THREE.ShaderMaterial({ vertexShader: SKY_VERT, fragmentShader: SKY_FRAG, side: THREE.BackSide, depthWrite: false, fog: false,
-    uniforms: { top: { value: new THREE.Color() }, horizon: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3(0, 1, 0) }, sunCol: { value: new THREE.Color() } } });
+    uniforms: { top: { value: new THREE.Color() }, horizon: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3(0, 1, 0) }, sunCol: { value: new THREE.Color() }, time: { value: 0 } } });
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), mat); mesh.frustumCulled = false; mesh.renderOrder = -1000; mesh.scale.setScalar(2500);
   return mesh;
 }
