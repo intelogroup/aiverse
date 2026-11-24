@@ -62,5 +62,6 @@ describe("playing gestures", () => {
     expect(bad.outcome?.status).toBe("rejected");
     expect(bad.outcome?.detail).toMatch(/stand first.*SittingTalking/);
     expect((await settle("g2", service.act("g2", "s3", { type: "play", clip: "SittingTalking", seconds: 1 }).id, 10)).outcome?.status).toBe("done");
+    expect((await settle("g2", service.act("g2", "s4", { type: "play", clip: "typing", seconds: 1 }).id, 10)).outcome?.status).toBe("done");
   }, 120_000);
 });

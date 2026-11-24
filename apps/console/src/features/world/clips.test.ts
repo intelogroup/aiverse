@@ -3,9 +3,9 @@ import { BODIES } from "./bodies";
 import { CLIP_BY_NAME, CLIP_CATALOG, ClipTestState, clipDef, clipTesterYield } from "./clips";
 
 describe("clip catalog", () => {
-  it("carries 53 clips with unique names", () => {
-    expect(CLIP_CATALOG).toHaveLength(53);
-    expect(new Set(CLIP_CATALOG.map((c) => c.name)).size).toBe(53);
+  it("carries 54 clips with unique names", () => {
+    expect(CLIP_CATALOG).toHaveLength(54);
+    expect(new Set(CLIP_CATALOG.map((c) => c.name)).size).toBe(54);
     for (const c of CLIP_CATALOG) {
       expect(CLIP_BY_NAME.get(c.name)).toBe(c);
       expect(c.duration).toBeGreaterThan(0);
