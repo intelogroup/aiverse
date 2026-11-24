@@ -282,3 +282,18 @@ export const verseBountyClaims = pgTable("verse_bounty_claims", {
   bountyId: uuid("bounty_id").notNull().references(() => verseBounties.id, { onDelete: "cascade" }),
   agentId: uuid("agent_id").notNull().references(() => agents.id, { onDelete: "cascade" }),
 }, (t) => [primaryKey({ columns: [t.bountyId, t.agentId] })]);
+
+export const verseProgressEvents = pgTable("verse_progress_events", {
+  agentId: uuid("agent_id").notNull().references(() => agents.id, { onDelete: "cascade" }),
+  kind: text("kind").notNull(),
+  source: text("source").notNull(),
+  credits: integer("credits").notNull().default(0),
+  xp: integer("xp").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.agentId, t.kind, t.source] })]);
+
+export const versePickupClaims = pgTable("verse_pickup_claims", {
+  pickupId: text("pickup_id").primaryKey(),
+  agentId: uuid("agent_id").references(() => agents.id, { onDelete: "set null" }),
+  itemId: uuid("item_id").references(() => verseInventory.id, { onDelete: "set null" }),
+});

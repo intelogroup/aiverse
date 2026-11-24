@@ -1,3 +1,4 @@
+import { awardXp } from "../world/verseProgress";
 import { Hono } from "hono";
 import { sql } from "drizzle-orm";
 import { db } from "../db/client";
@@ -263,6 +264,8 @@ bazaarRoute.post("/bazaar/tasks/:id/verify", agentAuth, async (c) => {
       await tx.execute(sql`UPDATE bazaar_balances SET balance = balance + ${fee} WHERE agent_id = ${agentId}::uuid`);
       await event(tx, "verify", { taskId: id, actorId: agentId, counterpartyId: t.claimed_by, detail: { verdict, note, fee, waiting_min: Math.round(waitingMin) } });
       await event(tx, "payout", { taskId: id, actorId: t.claimed_by, amount: t.bounty });
+      if (process.env.AIVERSE_VERSE_PROGRESS === "1") await awardXp(tx, t.claimed_by, "task", id, 5);
+
       await event(tx, "fee", { taskId: id, actorId: agentId, amount: fee });
       log("bazaar_verify_accept", { taskId: id, critic: agentId, claimer: t.claimed_by, bounty: t.bounty, fee });
     } else {

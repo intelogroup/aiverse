@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
-import { agentVisits, agents, eggCashBounties, eggHuntWins, owners } from "@aiverse/shared/schema";
+import { agentVisits, agents, eggCashBounties, eggHuntWins, owners, versePickupClaims } from "@aiverse/shared/schema";
 import { loadVerseSim } from "@aiverse/world-sim/node/loadWorld";
 import { WorldService } from "@aiverse/world-sim/worldService";
 import { createSimServer } from "@aiverse/sim/server";
@@ -70,6 +70,8 @@ beforeAll(async () => {
   const simApp = createSimServer({ service, secret: SECRET, now: () => clock });
   simHttp = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: simApp.fetch });
   const previousHunt = process.env.AIVERSE_EGG_HUNT;
+  const previousProgress = process.env.AIVERSE_VERSE_PROGRESS;
+  process.env.AIVERSE_VERSE_PROGRESS = "1";
   process.env.AIVERSE_EGG_HUNT = JSON.stringify(hunt);
   const simClient = httpSimClient(`http://127.0.0.1:${simHttp.port}`, SECRET);
   try {
@@ -92,6 +94,8 @@ beforeAll(async () => {
       },
     }, look: fakeLook });
   } finally {
+    if (previousProgress === undefined) delete process.env.AIVERSE_VERSE_PROGRESS;
+    else process.env.AIVERSE_VERSE_PROGRESS = previousProgress;
     if (previousHunt === undefined) delete process.env.AIVERSE_EGG_HUNT;
     else process.env.AIVERSE_EGG_HUNT = previousHunt;
   }
@@ -152,6 +156,71 @@ async function settle(token: string, id: string, maxS = 240) {
 }
 
 describe("/world (agent body)", () => {
+  test("a physical pickup pays one bag item, one credit award, and one XP award", async () => {
+    const cohort = await Promise.all([verifiedCashEntrant("PickupOne"), verifiedCashEntrant("PickupTwo")]);
+    try {
+      for (const [index, agent] of cohort.entries()) {
+        await startVisit(agent.ownerToken, agent.agentId);
+        service.attach(agent.agentId, { x: -29.63, z: -71.016 });
+        expect((await w(agent.agentToken, "POST", "/pickup", { actId: "invented" })).status).toBe(403);
+        expect((await w(agent.agentToken, "POST", "/act", { id: "open", action: { type: "interact", target: "egg-bazaar-02" } })).status).toBe(202);
+        expect((await settle(agent.agentToken, "open")).outcome).toMatchObject({ ok: true, target: "egg-bazaar-02" });
+        if (index === 0) {
+          expect((await w(agent.agentToken, "POST", "/act", { id: "clear", action: { type: "go_to", point: [-31.63, -71.016] } })).status).toBe(202);
+          expect((await settle(agent.agentToken, "clear")).outcome?.ok).toBe(true);
+        }
+      }
+      const claim = (token: string) => w(token, "POST", "/pickup", { actId: "open" });
+      const results = await Promise.all(cohort.map((agent) => claim(agent.agentToken)));
+      expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
+      const winner = cohort[results[0].ok ? 0 : 1];
+      const { reward } = await results.find((r) => r.ok)!.json();
+      expect(reward).toMatchObject({ credits: 3, xp: 5 });
+      expect((await (await claim(winner.agentToken)).json()).reward).toEqual(reward);
+      expect(await (await w(winner.agentToken, "GET", "/progress")).json()).toEqual({ credits: 3, xp: 5 });
+      const bag = await (await app.request("/verse/inventory", { headers: json(winner.agentToken) })).json();
+      expect(bag.items).toEqual([expect.objectContaining({ id: reward.itemId })]);
+      const visit = await startVisitLookup(winner.ownerToken, winner.agentId);
+      expect((await app.request(`/owners/agents/${winner.agentId}/visits/${visit.id}/stop`, {
+        method: "POST", headers: json(winner.ownerToken),
+      })).status).toBe(200);
+      await startVisit(winner.ownerToken, winner.agentId);
+      expect(await (await w(winner.agentToken, "GET", "/progress")).json()).toEqual({ credits: 3, xp: 5 });
+      const after = await (await app.request("/verse/inventory", { headers: json(winner.agentToken) })).json();
+      expect(after).toEqual(bag);
+
+    } finally {
+      for (const agent of cohort) {
+        service.detach(agent.agentId);
+        await db.delete(versePickupClaims).where(eq(versePickupClaims.agentId, agent.agentId));
+      }
+    }
+  });
+
+  test("discovery XP uses the settled place once and heard speech has a cooldown", async () => {
+    const [speaker, listener] = await Promise.all([verifiedCashEntrant("ProgressSpeaker"), verifiedCashEntrant("ProgressListener")]);
+    try {
+      await Promise.all([speaker, listener].map((agent) => startVisit(agent.ownerToken, agent.agentId)));
+      service.attach(speaker.agentId, { x: -22.92, z: -68.5 });
+      service.attach(listener.agentId, { x: -21.2, z: -68.5 });
+      expect((await w(speaker.agentToken, "POST", "/act", { id: "discover", action: { type: "go_to", place: "shop-102" } })).status).toBe(202);
+      expect((await settle(speaker.agentToken, "discover")).outcome?.status).toBe("arrived");
+      expect((await w(speaker.agentToken, "GET", "/act/discover")).status).toBe(200);
+      expect(await (await w(speaker.agentToken, "GET", "/progress")).json()).toEqual({ credits: 0, xp: 2 });
+      for (const id of ["say-1", "say-2"]) {
+        if (id === "say-2") await Bun.sleep(1100);
+
+        clock += 3000;
+        const say = await w(speaker.agentToken, "POST", "/act", { id, action: { type: "say", text: "Hello neighbour" } });
+        expect(say.status).toBe(202);
+        expect((await say.json()).act.heardBy).toBeGreaterThan(0);
+      }
+      expect(await (await w(speaker.agentToken, "GET", "/progress")).json()).toEqual({ credits: 0, xp: 3 });
+    } finally {
+      for (const agent of [speaker, listener]) service.detach(agent.agentId);
+    }
+  });
+
   test("egg hunt pays one test-credit award after a verified interaction", async () => {
     const a = await ownerWithAgent("HuntOne"), b = await ownerWithAgent("HuntTwo");
     const agents = [a, b];

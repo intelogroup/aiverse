@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { agents, agentWallets } from "@aiverse/shared/schema";
 import { db } from "../db/client";
@@ -14,6 +15,7 @@ import type { LookClient } from "../world/lookClient";
 import { angleDiffDeg, createSeeQueue, seeView, type SeeQueueOptions } from "../world/seeJobs";
 import { noteObservation, noteSaid } from "../world/visitTally";
 import { createEggHuntRoute } from "./eggHunt";
+import { awardConversationXp, awardPickup, awardXp, pickupPosition, pickupReceipt, PILOT_PICKUP, progress } from "../world/verseProgress";
 
 // World: a body for an agent in the City 3 sim (apps/sim), reached only through here.
 //
@@ -86,6 +88,49 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
   });
 
   route.route("/hunt", createEggHuntRoute(sim));
+
+  const progressOn = process.env.AIVERSE_VERSE_PROGRESS === "1";
+  if (progressOn) {
+    route.get("/progress", async (c) => c.json(await progress(c.get("agentId"))));
+    route.get("/pickup", async (c) => c.json({ pickup: PILOT_PICKUP, claimed: await pickupReceipt(c.get("agentId")) !== null }));
+    route.post("/pickup", async (c) => {
+      const input = z.object({ actId: z.string().regex(ID_RE) }).strict().safeParse(await c.req.json().catch(() => null));
+      if (!input.success) return c.json({ error: "invalid_action" }, 400);
+      const agentId = c.get("agentId");
+      const existing = await pickupReceipt(agentId);
+      if (existing === false) return c.json({ error: "already_collected" }, 409);
+      if (existing) return c.json({ reward: existing });
+      const response = await sim.call("GET", `/bodies/${agentId}/act/${input.data.actId}`).catch(() => null);
+      if (!response || response.status >= 500) return c.json({ error: "world_unavailable" }, 503);
+      const proof = z.object({ act: z.object({
+        action: z.object({ type: z.literal("interact"), target: z.literal(PILOT_PICKUP.target) }),
+        state: z.literal("settled"),
+        outcome: z.object({ ok: z.literal(true), status: z.literal("done"), target: z.literal(PILOT_PICKUP.target) }),
+        interactionPose: z.object({ x: z.number(), y: z.number(), z: z.number() }),
+      }) }).safeParse(await response.json().catch(() => null));
+      if (!response.ok || !proof.success) return c.json({ error: "interact_with_pickup_first" }, 403);
+      const pose = proof.data.act.interactionPose;
+      const [x, y, zPos] = pickupPosition;
+      if (Math.hypot(pose.x - x, pose.z - zPos) > 1.2 || Math.abs(pose.y - y) > 0.75) {
+        return c.json({ error: "interact_with_pickup_first" }, 403);
+      }
+      const reward = await awardPickup(agentId);
+      return reward ? c.json({ reward }) : c.json({ error: "already_collected" }, 409);
+    });
+  }
+
+  async function awardDiscovery(agentId: string, response: Response) {
+    if (!progressOn || !response.ok) return;
+    const { act } = await response.clone().json() as { act?: {
+      action?: { type?: string; place?: string }; state?: string; outcome?: { ok?: boolean; status?: string; target?: string };
+    } };
+    const action = act?.action;
+    if (act?.state === "settled" && act.outcome?.ok && act.outcome.status === "arrived" &&
+        (action?.type === "go_to" || action?.type === "run_to") && action.place && act.outcome.target) {
+      await awardXp(db, agentId, "discovery", act.outcome.target, 2);
+    }
+  }
+
 
   async function forward(c: { json: (b: unknown, s?: number) => Response }, agentId: string, method: string, path: string, body?: string) {
     let r: Response;
@@ -268,6 +313,13 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
       await consumeVisitAction(agentId);
       // One audit row per spoken line, so the report button and the owner can see what an agent said in the world.
       if (isSay) noteSaid(c.get("visitId"));
+      if (isSay && progressOn) {
+        const { act } = await r.clone().json() as { act?: { heardBy?: number; outcome?: { ok?: boolean } } };
+        if (act?.outcome?.ok && (act.heardBy ?? 0) > 0) {
+          await awardConversationXp(agentId, `${c.get("visitId")}:${b.id}`);
+        }
+      }
+
       if (isSay) await audit({ event: "world.say", agentId, actorType: "agent", actorId: agentId, metadata: { text: String((b.action as { text?: unknown }).text).slice(0, 140) } });
       // A drive step answers with how it went (heading, lane, signal, infractions): hold the call until it settles. Cold agents that got
       // "running" read observe mid-step and steered blind. A newer drive replaces this one, which settles it at once, so the hold is short then.
@@ -300,6 +352,9 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
     const deadline = Date.now() + waitMs;
     for (;;) {
       const r = await forward(c, c.get("agentId"), "GET", `/bodies/${c.get("agentId")}/act/${id}`);
+      if (r.status === 200) {
+        await awardDiscovery(c.get("agentId"), r);
+      }
       if ((r.status !== 200 && r.status !== 429) || Date.now() >= deadline) return r;
       if (r.status === 200 && ((await r.clone().json()) as { act?: { state?: string } }).act?.state !== "running") return r;
       await Bun.sleep(Math.min(POLL_MS, Math.max(0, deadline - Date.now())));

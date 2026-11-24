@@ -7,6 +7,7 @@ import { db } from "../db/client";
 import { adminAuth } from "../middleware/adminAuth";
 import { agentAuth } from "../middleware/agentAuth";
 import { ownerAuth } from "../middleware/ownerAuth";
+import { progress } from "../world/verseProgress";
 import { loadOwnedAgent } from "./ownersShared";
 
 const uuid = z.string().uuid();
@@ -35,7 +36,9 @@ verseEconomyRoute.get("/owners/agents/:id/inventory", ownerAuth, async (c) => {
   if (!id.success || !after.success) return c.json({ error: "invalid_request" }, 400);
   const agent = await loadOwnedAgent(c.get("ownerId"), id.data);
   if (!agent) return c.json({ error: "not_found" }, 404);
-  return c.json({ items: await listInventory(agent.id, after.data) });
+  const [items, totals] = await Promise.all([listInventory(agent.id, after.data),
+    process.env.AIVERSE_VERSE_PROGRESS === "1" ? progress(agent.id) : null]);
+  return c.json({ items, ...(totals ? { progress: totals } : {}) });
 });
 
 verseEconomyRoute.post("/admin/verse/inventory", adminAuth, async (c) => {

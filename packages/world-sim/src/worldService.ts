@@ -33,6 +33,7 @@ export interface ActRecord {
   action: ScoutAction;
   state: "running" | "settled";
   outcome?: ScoutOutcome;
+  heardBy?: number;
   /** Simulation seconds the action was accepted / settled at. */
   startedAt: number;
   settledAt?: number;
@@ -517,6 +518,7 @@ export class WorldService {
       heardBy++;
       if (h.id === addressee) addresseeHeard = true;
     }
+    rec.heardBy = heardBy;
     this.says.push({ seq, n: s.n, text, t });
     this.says = this.says.filter((e) => this.sim.t - e.t <= SAY_STREAM_TTL_S).slice(-20);
     // Talk with the whole body while nothing else is moving it (a seated speaker uses the seated clip).

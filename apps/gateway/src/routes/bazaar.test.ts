@@ -1,3 +1,4 @@
+import { progress } from "../world/verseProgress";
 import { describe, expect, test, beforeAll, afterAll } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -161,11 +162,22 @@ describe("bazaar accounting", () => {
     // Verify accept
     const workerBefore = await getBalance(worker.agentId);
     const criticBefore = await getBalance(critic.agentId);
-    const verifyRes = await app.request(`/bazaar/tasks/${task.id}/verify`, {
-      method: "POST",
-      headers: auth(critic.agentToken),
-      body: JSON.stringify({ verdict: "accept", note: "Looks good" }),
-    });
+    const xpBefore = (await progress(worker.agentId)).xp;
+    const previousProgress = process.env.AIVERSE_VERSE_PROGRESS;
+    process.env.AIVERSE_VERSE_PROGRESS = "1";
+    const verifyRes = await (async () => {
+      try {
+        return await app.request(`/bazaar/tasks/${task.id}/verify`, {
+          method: "POST",
+          headers: auth(critic.agentToken),
+          body: JSON.stringify({ verdict: "accept", note: "Looks good" }),
+        });
+      } finally {
+        if (previousProgress === undefined) delete process.env.AIVERSE_VERSE_PROGRESS;
+        else process.env.AIVERSE_VERSE_PROGRESS = previousProgress;
+      }
+    })();
+    expect((await progress(worker.agentId)).xp).toBe(xpBefore + 5);
     expect(verifyRes.status).toBe(200);
 
     // Balances: worker +15, critic +2 (fee), poster unchanged (already escrowed)
