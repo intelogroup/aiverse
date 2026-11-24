@@ -4,8 +4,12 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
+import { assetUrl } from "../../lib/assetUrl";
 import { qualityStore, shadowMapForTier } from "./quality";
 import { CITY3_CENTER } from "./glbConstants";
+
+export const SKY_HDRI_URL = "/assets/env/sky_1k.hdr";
 
 /**
  * Environment for the stage. City 3 uses three's built-in
@@ -25,10 +29,19 @@ export function StageEnvironment() {
     // different curve than the one it was authored under.
     gl.toneMapping = THREE.AgXToneMapping;
     gl.toneMappingExposure = 1.1;
-    const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    // RoomEnvironment (an indoor studio) until the outdoor sky arrives: Poly Haven's CC0 "Kloofendal 48d Partly Cloudy (Pure Sky)",
+    // 1k. Facades, glass and foliage then take their fill and reflections from a sky, not from studio panels.
+    let envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     scene.environment = envMap;
     scene.environmentIntensity = 0.6;
+    let live = true;
+    new RGBELoader().load(assetUrl(SKY_HDRI_URL), (hdr) => {
+      if (!live) { hdr.dispose(); return; }
+      const sky = pmrem.fromEquirectangular(hdr).texture; hdr.dispose();
+      envMap.dispose(); envMap = sky; scene.environment = sky;
+    }, undefined, () => { /* keep the studio fallback */ });
     return () => {
+      live = false;
       scene.environment = null;
       envMap.dispose();
       pmrem.dispose();
