@@ -5,6 +5,7 @@
 // stays axis-aligned. The house front faces local +z before the yaw. Output: <out>/<ID>.glb, <out>/<ID>.col.glb, <out>/<ID>.json (the DistrictDef rect).
 import { NodeIO, Document, getBounds } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
+import { metalRough } from "@gltf-transform/functions";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 const [src, id, X, Z, YAW] = process.argv.slice(2, 7).map((v, i) => (i < 2 ? v : Number(v)));
@@ -20,6 +21,8 @@ const FILE = opt.asset ? `${opt.asset}-y${YAW}` : id, [PX, PZ] = opt.asset ? [0,
 
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
 const doc = await io.read(src);
+// three.js dropped KHR_materials_pbrSpecularGlossiness: such a model renders untextured white, so convert it to metal/rough first
+if (doc.getRoot().listExtensionsUsed().some((e) => e.extensionName === "KHR_materials_pbrSpecularGlossiness")) await doc.transform(metalRough());
 const scene = doc.getRoot().getDefaultScene() ?? doc.getRoot().listScenes()[0];
 const b = getBounds(scene); // world bbox through the node matrices
 const [cx, cz] = [(b.min[0] + b.max[0]) / 2, (b.min[2] + b.max[2]) / 2];
