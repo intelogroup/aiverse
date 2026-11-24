@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // Place one prebuilt house GLB in world coordinates and write its collision GLB, as a stand-alone streamed district (no splice into the 100 MB monolith).
-//   bun tools/city3/place_house.mjs SRC.glb ID X Z YAW_DEG [--door=front|back|none] [--doorx=0] [--doorhalf=0.85] [--body=x0,x1,z0,z1] [--floor=0.63] [--ceil=2.8] [--scale=1] [--mask] [--asset=NAME] [--room="Display name"] [--out=dir] [--manifest=districts.json]
+//   bun tools/city3/place_house.mjs SRC.glb ID X Z YAW_DEG [--door=front|back|none] [--doorx=0] [--doorhalf=0.85] [--body=x0,x1,z0,z1] [--floor=0.63] [--ceil=2.8] [--scale=1] [--mask] [--asset=NAME] [--lift=0] [--room="Display name"] [--out=dir] [--manifest=districts.json]
 // Frame: GLB x, z = -plan y, y up, walk slab y=0.2. The house footprint is centred on (X, Z); YAW_DEG must be a multiple of 90 so the collision
 // stays axis-aligned. The house front faces local +z before the yaw. Output: <out>/<ID>.glb, <out>/<ID>.col.glb, <out>/<ID>.json (the DistrictDef rect).
 import { NodeIO, Document, getBounds } from "@gltf-transform/core";
@@ -11,7 +11,8 @@ const [src, id, X, Z, YAW] = process.argv.slice(2, 7).map((v, i) => (i < 2 ? v :
 const opt = Object.fromEntries(process.argv.slice(7).filter(a => a.startsWith("--")).map(a => a.slice(2).split("=")));
 if (!src || !id || [X, Z, YAW].some(Number.isNaN)) throw new Error("usage: place_house.mjs SRC.glb ID X Z YAW_DEG [--door=front|none] [--scale=1] [--out=dir]");
 if (YAW % 90) throw new Error("YAW_DEG must be a multiple of 90");
-const S = Number(opt.scale ?? 1), OUT = opt.out ?? "apps/console/public/assets/houses", WALK_Y = 0.2, T = 0.3;
+// --lift raises house and collision together: on a landscaped block the grass quads stand 0.03-0.07 m over the walk slab
+const S = Number(opt.scale ?? 1), OUT = opt.out ?? "apps/console/public/assets/houses", WALK_Y = 0.2 + Number(opt.lift ?? 0), T = 0.3;
 mkdirSync(OUT, { recursive: true });
 // --asset=NAME: one shared GLB pair per model and yaw (NAME-y<YAW>.glb), authored at (0, 0); the district's `origin` puts it on the lot, so a model
 // placed on many lots is stored and downloaded once. Without it the file is <ID>.glb in world coordinates (origin [0, 0]).

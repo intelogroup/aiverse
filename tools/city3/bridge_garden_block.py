@@ -100,12 +100,17 @@ def strip_scenery(rnd):
 
 
 def house_rects():
-    """world-frame footprints [x0, z0, x1, z1] of the placed houses (districts.json `house-*`) whose centre lies in this block, from their GLB bounds"""
+    """world-frame footprints [x0, z0, x1, z1] of the placed houses whose centre lies in this block"""
+    return [r for (cx, cz), r in house_footprints().values() if X0 <= cx <= X1 and Z0 <= cz <= Z1]
+
+
+def house_footprints():
+    """{district id: ((centre x, z), world-frame footprint [x0, z0, x1, z1])} of every placed house (districts.json `house-*`), from its GLB bounds"""
     from bridge_wave1 import Glb
     A = os.path.join(HERE, "..", "..", "apps", "console", "public", "assets")
-    out = []
+    out = {}
     for d in json.load(open(os.path.join(A, "districts.json")))["districts"]:
-        if not d["id"].startswith("house-") or not (X0 <= d["center"][0] <= X1 and Z0 <= d["center"][1] <= Z1):
+        if not d["id"].startswith("house-"):
             continue
         j = Glb(os.path.join(A, d["url"][len("/assets/"):])).gltf
         lo, hi = np.full(3, 1e9), np.full(3, -1e9)
@@ -125,7 +130,7 @@ def house_rects():
         for r in j["scenes"][j.get("scene", 0)]["nodes"]:
             walk(r, np.eye(4))
         ox, oz = d.get("origin", [0, 0])   # shared house GLBs are authored at (0, 0) and moved by the district origin
-        out.append((float(lo[0]) + ox, float(lo[2]) + oz, float(hi[0]) + ox, float(hi[2]) + oz))
+        out[d["id"]] = (tuple(d["center"]), (float(lo[0]) + ox, float(lo[2]) + oz, float(hi[0]) + ox, float(hi[2]) + oz))
     return out
 
 
