@@ -26,6 +26,20 @@ describe("RemoteBodies", () => {
     expect(r.renderTime(6)).toBeCloseTo(51 - RENDER_DELAY_S, 5);
   });
 
+  it("turns off the gait when positions stop changing, including while holding the last frame", () => {
+    const r = new RemoteBodies();
+    r.applyFrames(msg(10, [tup(1, 0, 0, 0, 3)]), 10);
+    r.applyFrames(msg(10.2, [tup(1, 0.6, 0, 0, 3)]), 10.2);
+    r.applyFrames(msg(10.4, [tup(1, 0.6, 0, 1, 3)]), 10.4);
+    const frame = newWalkerFrame();
+    expect(writeRemoteFrame(frame, r.sample(1, 10.1)!).state).toBe("walk");
+    for (const t of [9.9, 10.2, 10.3, 10.5]) {
+      expect(writeRemoteFrame(frame, r.sample(1, t)!).state).toBe("idle");
+      expect(frame.speed).toBe(0);
+      expect(frame.velocity).toEqual([0, 0]);
+    }
+  });
+
   it("turns the short way round when the heading wraps", () => {
     const r = new RemoteBodies();
     r.applyFrames(msg(0, [tup(1, 0, 0, 6.0)], { key: true }), 0);

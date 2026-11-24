@@ -617,10 +617,10 @@ export class WorldService {
   }
 
   /** The clips `play` accepts: name, whether it loops (held for `seconds`), and its own length in seconds. */
-  clips(): { name: string; loop: boolean; seconds: number; seatedOk: boolean; aliases: string[] }[] {
+  clips(): { name: string; loop: boolean; seconds: number; seatedOk: boolean; seatedOnly?: boolean; aliases: string[] }[] {
     return SOCIAL_CLIPS.map((name) => {
       const d = clipDef(name);
-      return { name, loop: d?.loop ?? false, seconds: round(d?.duration ?? 0, 2), seatedOk: !!d?.seatedOk, aliases: d?.aliases ?? [] };
+      return { name, loop: d?.loop ?? false, seconds: round(d?.duration ?? 0, 2), seatedOk: !!d?.seatedOk, ...(d?.seatedOnly ? { seatedOnly: true } : {}), aliases: d?.aliases ?? [] };
     });
   }
 

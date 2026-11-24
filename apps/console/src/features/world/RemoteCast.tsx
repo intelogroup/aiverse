@@ -126,9 +126,11 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
       writeRemoteFrame((frames.current[b.n] ??= newWalkerFrame(p.x, p.z, p.heading)), p);
       if (fig.group) fig.group.position.y = p.y;
       fig.bubble?.position.set(p.x, 2.1, p.z); // the parent group already sits at p.y
-      if (p.clip !== fig.lastClip) {
-        fig.lastClip = p.clip;
-        if (p.clip) fig.clips.fire(p.clip); else fig.clips.clear();
+      // Remote locomotion comes from the rendered pose stream.
+      const clip = p.clip === "Walk" || p.clip === "Run" ? null : p.clip;
+      if (clip !== fig.lastClip) {
+        fig.lastClip = clip;
+        if (clip) fig.clips.fire(clip); else fig.clips.clear();
       }
       if (publish && walk && fig.body !== "car") {
         walk.actors.publishWalker(`remote-${b.n}`, { x: p.x, y: p.y, z: p.z, vx: Math.sin(p.heading) * p.speed, vz: Math.cos(p.heading) * p.speed }, BODY_RADIUS, BODY_HEIGHT, true);

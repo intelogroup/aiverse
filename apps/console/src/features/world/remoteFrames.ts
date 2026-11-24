@@ -105,9 +105,10 @@ export class RemoteBodies {
   sample(n: number, t: number): RemotePose | null {
     const list = this.samples.get(n);
     if (!list?.length) return null;
-    if (t <= list[0].t) return list[0].pose;
+    if (t < list[0].t) return { ...list[0].pose, speed: 0 };
     const last = list[list.length - 1];
-    if (t >= last.t) return last.pose;
+    // A held position has no visible motion, even if the last packet was mid-stride.
+    if (t >= last.t) return last.pose.speed === 0 ? last.pose : { ...last.pose, speed: 0 };
     for (let i = list.length - 1; i > 0; i--) {
       const a = list[i - 1], b = list[i];
       if (t >= a.t) {
@@ -115,7 +116,7 @@ export class RemoteBodies {
         return {
           n, x: lerp(a.pose.x, b.pose.x, k), y: lerp(a.pose.y, b.pose.y, k), z: lerp(a.pose.z, b.pose.z, k),
           heading: lerpAngle(a.pose.heading, b.pose.heading, k),
-          speed: lerp(a.pose.speed, b.pose.speed, k),
+          speed: a.pose.x === b.pose.x && a.pose.z === b.pose.z ? 0 : lerp(a.pose.speed, b.pose.speed, k),
           // Discrete state does not blend: take the earlier sample's until the later one is reached.
           posture: a.pose.posture, clip: a.pose.clip,
         };
