@@ -1,1 +1,1 @@
-{"name":"splat-trial-rig","private":true,"type":"module","dependencies":{"playwright-core":"^1.57.0","puppeteer-core":"^23.11.1"}}
+{"name":"splat-trial-rig","private":true,"type":"module","dependencies":{"playwright-core":"^1.57.0","puppeteer-core":"^25.18.1"}}
