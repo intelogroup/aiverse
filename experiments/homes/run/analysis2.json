@@ -1,0 +1,374 @@
+{
+ "owners": {
+  "house-cabin-1": "henrik",
+  "house-cabin-2": "sam",
+  "house-zen-pavilion-1": "tomas"
+ },
+ "claims": [
+  {
+   "agent": "tomas",
+   "ts": "2026-11-24T19:11:56Z",
+   "t": 1795547516.094,
+   "kind": "home_claim",
+   "cabin": "house-zen-pavilion-1",
+   "result": "claimed"
+  },
+  {
+   "agent": "lucia",
+   "ts": "2026-11-24T19:14:17Z",
+   "t": 1795547657.534,
+   "kind": "home_claim",
+   "cabin": "house-zen-pavilion-1",
+   "result": "taken_by_tomas"
+  },
+  {
+   "agent": "henrik",
+   "ts": "2026-11-24T19:07:34Z",
+   "t": 1795547254.009,
+   "kind": "home_claim",
+   "cabin": "house-cabin-1",
+   "result": "claimed"
+  },
+  {
+   "agent": "henrik",
+   "ts": "2026-11-24T19:18:47Z",
+   "t": 1795547927.74,
+   "kind": "home_claim",
+   "cabin": "house-cabin-1",
+   "result": "taken_by_henrik"
+  },
+  {
+   "agent": "sam",
+   "ts": "2026-11-24T19:10:48Z",
+   "t": 1795547448.668,
+   "kind": "home_claim",
+   "cabin": "house-cabin-2",
+   "result": "claimed"
+  }
+ ],
+ "cabins_claimed": 3,
+ "owner_seconds_inside_own": {
+  "house-cabin-1": 88.0,
+  "house-cabin-2": 40.0,
+  "house-zen-pavilion-1": 28.0
+ },
+ "guest_hosted_seconds": {
+  "house-cabin-1": 0,
+  "house-cabin-2": 0,
+  "house-zen-pavilion-1": 0
+ },
+ "guest_solo_seconds": {
+  "house-cabin-1": 0,
+  "house-cabin-2": 0,
+  "house-zen-pavilion-1": 0
+ },
+ "entries_per_agent": {
+  "tomas": {
+   "Stone Cabin": 0,
+   "Lakeside Cabin": 0,
+   "Zen Tea Pavilion": 2
+  },
+  "henrik": {
+   "Stone Cabin": 1,
+   "Lakeside Cabin": 0,
+   "Zen Tea Pavilion": 0
+  },
+  "sam": {
+   "Stone Cabin": 0,
+   "Lakeside Cabin": 3,
+   "Zen Tea Pavilion": 0
+  }
+ },
+ "inside_seconds_per_agent": {
+  "tomas": {
+   "Zen Tea Pavilion": 28
+  },
+  "henrik": {
+   "Stone Cabin": 88
+  },
+  "sam": {
+   "Lakeside Cabin": 40
+  }
+ },
+ "invitations": [
+  {
+   "agent": "deshawn",
+   "text": "Heard Ngozi called at the tea house, heading over to say hi!"
+  },
+  {
+   "agent": "tomas",
+   "text": "This is my home now - the Zen Tea Pavilion. Come visit!"
+  },
+  {
+   "agent": "lucia",
+   "text": "Welcome! I'm Lucia - I give the best tours here."
+  },
+  {
+   "agent": "lucia",
+   "text": "Welcome! I'm Lucia - I give the best tours here."
+  },
+  {
+   "agent": "lucia",
+   "text": "Welcome! I'm Lucia - I give the best tours here."
+  },
+  {
+   "agent": "lucia",
+   "text": "Ah, Amara! Welcome to Stall-20, the bustling heart of the market. Did you know it's been here for centuries?"
+  },
+  {
+   "agent": "lucia",
+   "text": "Ah, Amara! Welcome to Stall-20, the bustling heart of the market. Did you know it's been here for centuries?"
+  },
+  {
+   "agent": "lucia",
+   "text": "Ah, Amara! Welcome to Stall-20, the bustling heart of the market. Did you know it's been here for centuries?"
+  },
+  {
+   "agent": "lucia",
+   "text": "Welcome to stall-4! Step right up and behold the artisan goods."
+  },
+  {
+   "agent": "lucia",
+   "text": "Welcome to stall-4! Step right up and behold the artisan goods."
+  },
+  {
+   "agent": "lucia",
+   "text": "Welcome! I'm Lucia - I give the best tours here."
+  },
+  {
+   "agent": "amara",
+   "text": "Oh, Lucia! The tour sounds wonderful! I'm Amara - come, let's dance!"
+  },
+  {
+   "agent": "amara",
+   "text": "Oh, Lucia! The tour sounds wonderful! I'm Amara - come, let's dance!"
+  },
+  {
+   "agent": "amara",
+   "text": "HELLO! Amara here! Come dance with me at this stall!"
+  },
+  {
+   "agent": "amara",
+   "text": "HELLO! Amara here! Come dance with me at this stall!"
+  },
+  {
+   "agent": "amara",
+   "text": "HELLO! Amara here! Come dance with me at this stall!"
+  },
+  {
+   "agent": "amara",
+   "text": "HELLO! Amara here! Come dance with me at this stall!"
+  },
+  {
+   "agent": "amara",
+   "text": "HELLO! Amara here! Come dance with me at this stall!"
+  },
+  {
+   "agent": "amara",
+   "text": "Heya b-b903c2ff! Come on, let\u2019s dance the morning away together!"
+  },
+  {
+   "agent": "amara",
+   "text": "Heya b-b903c2ff! Come on, let\u2019s dance the morning away together!"
+  },
+  {
+   "agent": "amara",
+   "text": "Heya b-b903c2ff! Come on, let\u2019s dance the morning away together!"
+  },
+  {
+   "agent": "amara",
+   "text": "Heya b-b903c2ff! Come on, let\u2019s dance the morning away together!"
+  },
+  {
+   "agent": "amara",
+   "text": "Heya b-b903c2ff! Come on, let\u2019s dance the morning away together!"
+  },
+  {
+   "agent": "henrik",
+   "text": "This is my home now - the Stone Cabin. Come visit!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "We're gathering at the tea house - come along if you like!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Come with me to the Zen Tea Pavilion! Let's gather some friends for a cozy drink together. Who's in?"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Come with me to the Zen Tea Pavilion! Let's gather some friends for a cozy drink together. Who's in?"
+  },
+  {
+   "agent": "ngozi",
+   "text": "We're gathering at the tea house - come along if you like!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Come with me to the Zen Tea Pavilion! Let's gather some friends for a cozy drink together. Who's in?"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Come with me to the Zen Tea Pavilion! Let's gather some friends for a cozy drink together. Who's in?"
+  },
+  {
+   "agent": "ngozi",
+   "text": "We're gathering at the tea house - come along if you like!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Come with me to the Zen Tea Pavilion! Let's gather some friends for a cozy drink together. Who's in?"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Come with me to the Zen Tea Pavilion! Let's gather some friends for a cozy drink together. Who's in?"
+  },
+  {
+   "agent": "ngozi",
+   "text": "We're gathering at the tea house - come along if you like!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "We're gathering at the tea house - come along if you like!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "We're gathering at the tea house - come along if you like!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "We're gathering at the tea house - come along if you like!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "We're gathering at the tea house - come along if you like!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "We're gathering at the tea house - come along if you like!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "We're gathering at the tea house - come along if you like!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Welcome to the stall! Amara's energy is contagious. Let's march to that tea house!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Welcome to the stall! Amara's energy is contagious. Let's march to that tea house!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "We're gathering at the tea house - come along if you like!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Welcome to the stall! Amara's energy is contagious. Let's march to that tea house!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Welcome to the stall! Amara's energy is contagious. Let's march to that tea house!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Welcome to the stall! Amara's energy is contagious. Let's march to that tea house!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Welcome to the stall! Amara's energy is contagious. Let's march to that tea house!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Welcome to the stall! Amara's energy is contagious. Let's march to that tea house!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "We're gathering at the tea house - come along if you like!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Welcome to the stall! Amara's energy is contagious. Let's march to that tea house!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Welcome to the stall! Amara's energy is contagious. Let's march to that tea house!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Welcome to the stall! Amara's energy is contagious. Let's march to that tea house!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Welcome to the stall! Amara's energy is contagious. Let's march to that tea house!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Welcome to the stall! Amara's energy is contagious. Let's march to that tea house!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Heads up! Tea time at the Zen Pavilion. Come with me!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Heads up! Tea time at the Zen Pavilion. Come with me!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "We're gathering at the tea house - come along if you like!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Heads up! Tea time at the Zen Pavilion. Come with me!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Heads up! Tea time at the Zen Pavilion. Come with me!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Heads up! Tea time at the Zen Pavilion. Come with me!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Heads up! Tea time at the Zen Pavilion. Come with me!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "We're gathering at the tea house - come along if you like!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Heads up! Tea time at the Zen Pavilion. Come with me!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "Heads up! Tea time at the Zen Pavilion. Come with me!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "We're gathering at the tea house - come along if you like!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "We're gathering at the tea house - come along if you like!"
+  },
+  {
+   "agent": "ngozi",
+   "text": "We're gathering at the tea house - come along if you like!"
+  },
+  {
+   "agent": "sam",
+   "text": "This is my home now - the Lakeside Cabin. Come visit!"
+  }
+ ],
+ "heard_events_while_inside_cabins": 0,
+ "totals": {
+  "acts": 1368,
+  "says": 246,
+  "heard": 374,
+  "deliberations": 243
+ }
+}
