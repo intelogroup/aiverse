@@ -183,3 +183,15 @@ The uploaded Sketchfab export splits one continuous colored surface into four ch
   - 2k plaza/sidewalk textures doubled the far LOD (it embeds textures): 1k looks the same at a 2.5 m repeat.
   - The plaza's axis avenues (plan streets c 0, w 20) are driven by the sim's cars across the market square: plaza trees at 2 m off the kerb and a rim tree in the avenue mouth broke three apps/sim drive tests. Keep anything solid >= 3 m off those kerbs and out of the +-14 m entries.
   - Poly Haven's shrub models are wild species at true size (shrub_02 a bare sprig, shrub_04 22 cm ground cover): no use as garden bushes. Its glTF ships plant colour as JPEG with alpha in a separate map; merge them into one RGBA PNG.
+  - Render pass (2026-11-24, later): draw calls, not triangles, held desktop fps at 23-30. One transmissive glass material on screen (the
+    American house's KHR_materials_transmission windows) makes three re-render every opaque object into a transmission target each frame:
+    ~1,700 extra calls at the cabin. `plainGlass` (glbStage.tsx) turns transmission into plain alpha glass at load; plaza 2,967 -> 1,360
+    calls, cabin 4,877 -> 2,179, 60 fps. Check `renderBufferDirect` per object (not `info.render.calls`) before guessing where calls go.
+  - Instancing per tile helps less than expected: tiles are ~30 m, so a batch holds 1-4 trees. `instance_world.mjs` still folds 1,167 props
+    (fps up ~30 %), on a temp copy only: split_lod drops instanced nodes from the far view and the Python bridges skip them.
+  - `bash build_tiles.sh | head` kills the build on SIGPIPE half-way (no core.glb, no manifest; the page fails on core.glb as HTML). Log to a
+    file and grep it.
+  - SMAA after N8AO left thin lines (string-light cable, fountain rim) dashed; the composer's own `multisampling={4}` keeps them, at no
+    measurable cost. The stock ToneMapping effect tone-mapped the sky dome a second time (washed out): AgX now runs in a depth-masked effect.
+  - Not placed (2026-11-24): `scandi-pavilion` ships a 483 m ground disc and is 29.5 m wide without it (no ring slot fits); `tropical-modern`
+    scatters props over a 59 m site. Both need their ground and outliers stripped first.

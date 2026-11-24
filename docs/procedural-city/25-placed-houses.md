@@ -40,3 +40,6 @@ gone), `bridge_sweep_orphans.py` (floating facades, shutters, roofs, bunting and
 - FPS on the M4 over CDP at 1280x720 matches main or better (plaza 30, ring 60, cabin 20; main 28 / 40 / 20).
 - Known: the Shirakawago, villas and ring houses are solid (no interiors); one short grey block on the plot sidewalk. Fixed later the same day:
   the tile-mode aerial's light-blue junction squares (split_lod simplified flat road quads away), the sidewalk stoops (bridge_drop_stoops.py).
+- Later on 2026-11-24: four ring repeats swapped for new models (colonial, Hawk Lane Scandinavian, log cabin, Finnish cottage): still 45 placements, now
+  on 30 shared GLBs. Light pass: sun shadow box follows the walker, sky HDRI environment, N8AO on desktop, transmission glass as plain
+  glass, street props instanced at tile build. Desktop fps 60 at plaza, ring and cabin (was 30 / 60 / 20).
