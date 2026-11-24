@@ -125,6 +125,7 @@ interface Session {
   records: Map<string, ActRecord>;
   energy: number;
   exhausted: boolean;
+  cabinRestUntil?: number;
   last: ActRecord | null;
   lastSeen: number;
   /** Per-visit secret: other bodies' handles are HMAC(salt, id), so they mean nothing to anyone else or in a later visit. */
@@ -225,6 +226,21 @@ export class WorldService {
     this.sessions.set(agentId, { n: this.nextN++, figure: def.id, body, energy: 100, exhausted: false, records: new Map(), last: null, lastSeen: this.sim.t, salt: randomBytes(16), heard: [] });
     this.rosterRev++;
     return this.observe(agentId);
+  }
+
+  /** Called by the gateway after checking current inventory ownership. */
+  startCabinRest(agentId: string) {
+    const session = this.sessions.get(agentId);
+    if (!session) throw new WorldError("no_body", "attach a body first");
+    const { x, y, z } = session.body.state;
+    const jar = this.sim.interact.list().find(prop => prop.id === "stone-cabin-tea-jar");
+    if (!this.movementEnergy || !jar || Math.hypot(x - jar.pos[0], z - jar.pos[2]) > 2 ||
+        Math.abs(y - jar.floorY) > 0.5 || session.body.busy || this.fleet.byDriver(agentId)) {
+      throw new WorldError("invalid_action", "rest near the Stone Cabin tea jar while idle with stamina enabled");
+    }
+    const duration = 10;
+    if ((session.cabinRestUntil ?? 0) <= this.sim.t) session.cabinRestUntil = this.sim.t + duration;
+    return { remainingSeconds: session.cabinRestUntil! - this.sim.t, multiplier: 2 };
   }
 
   /** Remove the agent's body (visit ended, owner stop, pause, agent left). Safe when there is none. */
@@ -796,6 +812,7 @@ export class WorldService {
     for (const { id, s, x, z, driving, running } of before) {
       const distance = Math.hypot(s.body.state.x - x, s.body.state.z - z);
       if (distance > 0.0001) {
+        s.cabinRestUntil = undefined;
         s.energy = Math.max(0, s.energy - distance * (driving ? 0.18 : running ? 0.32 : 0.09));
         if (s.energy === 0) {
           const newlyExhausted = !s.exhausted;
@@ -810,7 +827,9 @@ export class WorldService {
           }
         }
       } else if (!driving && (!s.body.busy || s.body.snapshot().posture === "seated")) {
-        s.energy = Math.min(100, s.energy + dt * (s.body.snapshot().posture === "seated" ? 3 : 1));
+        const baseRate = s.body.snapshot().posture === "seated" ? 3 : 1;
+        const boostedTime = Math.min(dt, Math.max(0, (s.cabinRestUntil ?? 0) - (this.sim.t - dt)));
+        s.energy = Math.min(100, s.energy + (dt + boostedTime) * baseRate);
         if (s.energy >= 10) s.exhausted = false;
       }
     }

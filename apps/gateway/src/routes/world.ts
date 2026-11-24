@@ -15,7 +15,7 @@ import type { LookClient } from "../world/lookClient";
 import { angleDiffDeg, createSeeQueue, seeView, type SeeQueueOptions } from "../world/seeJobs";
 import { noteObservation, noteSaid } from "../world/visitTally";
 import { createEggHuntRoute } from "./eggHunt";
-import { awardConversationXp, awardPickup, awardXp, pickupPosition, pickupReceipt, PILOT_PICKUP, progress } from "../world/verseProgress";
+import { awardConversationXp, awardPickup, awardXp, CABIN_PICKUP, cabinPickupPosition, ownsCabinTea, pickupPosition, pickupReceipt, PILOT_PICKUP, progress } from "../world/verseProgress";
 
 // World: a body for an agent in the City 3 sim (apps/sim), reached only through here.
 //
@@ -93,28 +93,41 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
   if (progressOn) {
     route.get("/progress", async (c) => c.json(await progress(c.get("agentId"))));
     route.get("/pickup", async (c) => c.json({ pickup: PILOT_PICKUP, claimed: await pickupReceipt(c.get("agentId")) !== null }));
+    route.get("/pickups", async (c) => {
+      const agentId = c.get("agentId");
+      const pickups = await Promise.all([PILOT_PICKUP, CABIN_PICKUP].map(async (pickup) => ({
+        ...pickup, claimed: await pickupReceipt(agentId, pickup) !== null,
+      })));
+      return c.json({ pickups });
+    });
+    route.post("/rest", async (c) => {
+      const agentId = c.get("agentId");
+      if (!await ownsCabinTea(agentId)) return c.json({ error: "cabin_tea_required" }, 403);
+      return forward(c, agentId, "POST", `/bodies/${agentId}/rest`);
+    });
     route.post("/pickup", async (c) => {
-      const input = z.object({ actId: z.string().regex(ID_RE) }).strict().safeParse(await c.req.json().catch(() => null));
+      const input = z.object({ actId: z.string().regex(ID_RE), pickupId: z.enum([PILOT_PICKUP.id, CABIN_PICKUP.id]).optional() }).strict().safeParse(await c.req.json().catch(() => null));
       if (!input.success) return c.json({ error: "invalid_action" }, 400);
       const agentId = c.get("agentId");
-      const existing = await pickupReceipt(agentId);
+      const pickup = input.data.pickupId === CABIN_PICKUP.id ? CABIN_PICKUP : PILOT_PICKUP;
+      const existing = await pickupReceipt(agentId, pickup);
       if (existing === false) return c.json({ error: "already_collected" }, 409);
       if (existing) return c.json({ reward: existing });
       const response = await sim.call("GET", `/bodies/${agentId}/act/${input.data.actId}`).catch(() => null);
       if (!response || response.status >= 500) return c.json({ error: "world_unavailable" }, 503);
       const proof = z.object({ act: z.object({
-        action: z.object({ type: z.literal("interact"), target: z.literal(PILOT_PICKUP.target) }),
+        action: z.object({ type: z.literal("interact"), target: z.literal(pickup.target) }),
         state: z.literal("settled"),
-        outcome: z.object({ ok: z.literal(true), status: z.literal("done"), target: z.literal(PILOT_PICKUP.target) }),
+        outcome: z.object({ ok: z.literal(true), status: z.literal("done"), target: z.literal(pickup.target) }),
         interactionPose: z.object({ x: z.number(), y: z.number(), z: z.number() }),
       }) }).safeParse(await response.json().catch(() => null));
       if (!response.ok || !proof.success) return c.json({ error: "interact_with_pickup_first" }, 403);
       const pose = proof.data.act.interactionPose;
-      const [x, y, zPos] = pickupPosition;
+      const [x, y, zPos] = pickup === CABIN_PICKUP ? cabinPickupPosition : pickupPosition;
       if (Math.hypot(pose.x - x, pose.z - zPos) > 1.2 || Math.abs(pose.y - y) > 0.75) {
         return c.json({ error: "interact_with_pickup_first" }, 403);
       }
-      const reward = await awardPickup(agentId);
+      const reward = await awardPickup(agentId, pickup);
       return reward ? c.json({ reward }) : c.json({ error: "already_collected" }, 409);
     });
   }

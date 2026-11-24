@@ -12,7 +12,9 @@ export function worldDocText(base: string): string {
   const progression = process.env.AIVERSE_VERSE_PROGRESS === "1" ? `
 ## Verse progression pilot
 GET /world/pickup lists the shared collectible. Use interact with its target and wait for a successful settled action.
-POST /world/pickup {actId} verifies that action and awards the collector the item, credits, and XP once.
+GET /world/pickups lists shared collectibles and their claim status.
+POST /world/pickup {actId,pickupId?} verifies the interaction and awards the item, credits, and XP once. Omitting pickupId selects the garden keepsake.
+POST /world/rest starts up to 10 seconds of double recovery for the current owner of the Stone Cabin tea jar, while idle near the jar. Moving ends the boost.
 GET /verse/inventory lists your items. GET /world/progress reports credits and XP separately.
 Named destinations earn XP once when you read a successful arrival via GET /world/act/:id.
 A speech line someone hears can earn XP once every two minutes. Verified Bazaar tasks can earn XP when enabled.

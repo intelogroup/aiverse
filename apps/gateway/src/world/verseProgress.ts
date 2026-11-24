@@ -11,7 +11,24 @@ export const PILOT_PICKUP = {
   xp: 5,
 } as const;
 
+export const CABIN_PICKUP = {
+  id: "stone-cabin-tea-jar",
+  target: "stone-cabin-tea-jar",
+  name: "Stone Cabin tea jar",
+  credits: 3,
+  xp: 5,
+} as const;
+
 export const pickupPosition = EGGS[PILOT_PICKUP.target].position;
+export const cabinPickupPosition = [-19, 0.48, 84] as const;
+type Pickup = typeof PILOT_PICKUP | typeof CABIN_PICKUP;
+
+export async function ownsCabinTea(agentId: string) {
+  const [item] = await db.select({ id: verseInventory.id }).from(versePickupClaims)
+    .innerJoin(verseInventory, eq(verseInventory.id, versePickupClaims.itemId))
+    .where(and(eq(versePickupClaims.pickupId, CABIN_PICKUP.id), eq(verseInventory.agentId, agentId)));
+  return Boolean(item);
+}
 
 export async function progress(agentId: string) {
   const [totals] = await db.select({
@@ -36,27 +53,27 @@ export async function awardConversationXp(agentId: string, source: string) {
   });
 }
 
-export async function pickupReceipt(agentId: string) {
-  const [claim] = await db.select().from(versePickupClaims).where(eq(versePickupClaims.pickupId, PILOT_PICKUP.id));
+export async function pickupReceipt(agentId: string, pickup: Pickup = PILOT_PICKUP) {
+  const [claim] = await db.select().from(versePickupClaims).where(eq(versePickupClaims.pickupId, pickup.id));
   if (!claim) return null;
-  return claim.agentId === agentId ? { itemId: claim.itemId, credits: PILOT_PICKUP.credits, xp: PILOT_PICKUP.xp } : false;
+  return claim.agentId === agentId ? { itemId: claim.itemId, credits: pickup.credits, xp: pickup.xp } : false;
 }
 
-export async function awardPickup(agentId: string) {
+export async function awardPickup(agentId: string, pickup: Pickup = PILOT_PICKUP) {
   return db.transaction(async (tx) => {
-    const [entry] = await tx.insert(versePickupClaims).values({ pickupId: PILOT_PICKUP.id, agentId })
+    const [entry] = await tx.insert(versePickupClaims).values({ pickupId: pickup.id, agentId })
       .onConflictDoNothing().returning();
     if (!entry) {
-      const [existing] = await tx.select().from(versePickupClaims).where(eq(versePickupClaims.pickupId, PILOT_PICKUP.id));
+      const [existing] = await tx.select().from(versePickupClaims).where(eq(versePickupClaims.pickupId, pickup.id));
       return existing?.agentId === agentId
-        ? { itemId: existing.itemId, credits: PILOT_PICKUP.credits, xp: PILOT_PICKUP.xp }
+        ? { itemId: existing.itemId, credits: pickup.credits, xp: pickup.xp }
         : false;
     }
-    const [item] = await tx.insert(verseInventory).values({ agentId, name: PILOT_PICKUP.name }).returning();
+    const [item] = await tx.insert(verseInventory).values({ agentId, name: pickup.name }).returning();
     await tx.update(versePickupClaims).set({ itemId: item.id }).where(eq(versePickupClaims.pickupId, entry.pickupId));
     await tx.insert(verseProgressEvents).values({
-      agentId, kind: "pickup", source: entry.pickupId, credits: PILOT_PICKUP.credits, xp: PILOT_PICKUP.xp,
+      agentId, kind: "pickup", source: entry.pickupId, credits: pickup.credits, xp: pickup.xp,
     });
-    return { itemId: item.id, credits: PILOT_PICKUP.credits, xp: PILOT_PICKUP.xp };
+    return { itemId: item.id, credits: pickup.credits, xp: pickup.xp };
   });
 }
