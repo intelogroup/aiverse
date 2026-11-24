@@ -6,7 +6,7 @@
 //   bun tools/city3/house_lods.mjs
 import { NodeIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
-import { compactPrimitive, prune, weld } from "@gltf-transform/functions";
+import { compactPrimitive, dedup, flatten, join, prune, weld } from "@gltf-transform/functions";
 import { MeshoptSimplifier } from "meshoptimizer";
 import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
@@ -26,7 +26,8 @@ for (const f of readdirSync(H).filter((f) => f.endsWith(".glb") && !f.endsWith("
     idx.setArray(Uint32Array.from(ni));
     compactPrimitive(p);   // drop the vertices no triangle uses any more (prune keeps whole attribute arrays)
   }
-  await doc.transform(prune());
+  // one draw call per material, not per source object (the pool villa has 1345 objects; far houses are all up at once)
+  await doc.transform(prune(), dedup(), flatten(), join({ keepNamed: false }), prune());
   await io.write(out, doc);
   execFileSync("python3", ["tools/city3/slim_textures.py", out, out, "--max", "256"], { stdio: "ignore" });
   console.log(`${f}: ${(statSync(`${H}/${f}`).size / 1e6).toFixed(1)} MB -> far ${(statSync(out).size / 1e6).toFixed(2)} MB`);

@@ -5,7 +5,7 @@
 // stays axis-aligned. The house front faces local +z before the yaw. Output: <out>/<ID>.glb, <out>/<ID>.col.glb, <out>/<ID>.json (the DistrictDef rect).
 import { NodeIO, Document, getBounds } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
-import { metalRough } from "@gltf-transform/functions";
+import { dedup, flatten, join, metalRough, prune } from "@gltf-transform/functions";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 const [src, id, X, Z, YAW] = process.argv.slice(2, 7).map((v, i) => (i < 2 ? v : Number(v)));
@@ -35,6 +35,8 @@ for (const n of scene.listChildren()) { scene.removeChild(n); inner.addChild(n);
 // --mask: alpha-BLEND cards (thatch, foliage) become alpha-tested, which three.js draws without transparency sorting
 if (opt.mask !== undefined) for (const m of doc.getRoot().listMaterials()) if (m.getAlphaMode() === "BLEND") m.setAlphaMode("MASK").setAlphaCutoff(0.5);
 outer.addChild(inner); scene.addChild(outer);
+// one draw call per material instead of one per source object (the pool villa has 1345 objects): flatten bakes the placement transform
+await doc.transform(dedup(), flatten(), join({ keepNamed: false }), prune());
 await io.write(`${OUT}/${FILE}.glb`, doc);
 
 // collision: closed boxes, authored in a "door frame" where the door side faces +z, then turned by the door side's angle and the yaw (90-degree steps).
