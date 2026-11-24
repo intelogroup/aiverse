@@ -21,5 +21,6 @@ for seconds in (5, 15, 30, 60):
         "eligible_total": len(eligible),
         "winner_shard_counts_in_3000_seeded_draws": dict(winners),
     }
-assert report["60s_window"]["eligible_total"] == 15
+assert report["30s_window"]["eligible_total"] == 10
+assert report["60s_window"]["eligible_by_shard"] == {"1": 5, "2": 5, "3": 5}
 print(json.dumps(report, indent=2))

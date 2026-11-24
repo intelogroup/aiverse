@@ -44,6 +44,11 @@ jobs:
           bun-version: 1.4.0
       - run: bun install --frozen-lockfile
 
+      - name: Run Verse experiment regressions
+        run: |
+          python3 experiments/city3-interactions/pr-reruns/claim-window.py
+          python3 experiments/open-day/test_bag_persistence.py
+
       # Journal gate. Drizzle applies only what meta/_journal.json lists —
       # an unjournaled migration file is silently never applied anywhere,
       # and the migration step below cannot notice (it runs the journal,
