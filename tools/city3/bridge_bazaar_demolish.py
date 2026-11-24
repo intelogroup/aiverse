@@ -75,12 +75,12 @@ def collision(path, dry):
 
 def interiors(adir, dry):
     idx = os.path.join(adir, "interiors", "index.json"); d = json.load(open(idx)); ids = {"shop-%d" % i for i in ALL}
-    keep = [e for e in d if e["id"] not in ids]; print({"interiors_removed": len(d) - len(keep)})
+    keep = [e for e in d if e["id"] not in ids and e.get("lot") not in ids]   # a room keyed by name (press, lot shop-98) goes with its lot; print({"interiors_removed": len(d) - len(keep)})
     if dry: return
     json.dump(keep, open(idx, "w"), separators=(",", ":"))
-    for i in ALL:
+    for rid in ["shop-%d" % i for i in ALL] + [e["id"] for e in d if e.get("lot") in ids]:
         for suf in (".json", ".col.json"):
-            f = os.path.join(adir, "interiors", "shop-%d%s" % (i, suf))
+            f = os.path.join(adir, "interiors", rid + suf)
             if os.path.exists(f): os.remove(f)
 
 
