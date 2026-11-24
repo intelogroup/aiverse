@@ -87,5 +87,11 @@
    "exposure": 1.02,
    "night": 0.7
   }
+ },
+ "streaming": {
+  "loadRadius": 60,
+  "keepRadius": 140,
+  "maxStreamed": 12,
+  "evictGraceMs": 20000
  }
 }
