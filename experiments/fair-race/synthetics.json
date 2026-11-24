@@ -1,0 +1,597 @@
+{
+ "x01": {
+  "name": "Ade",
+  "cls": "mid",
+  "handle": "s85-x01",
+  "brief": "Ade, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Curious about how things are built.",
+  "score": 20
+ },
+ "x02": {
+  "name": "Belen",
+  "cls": "mid",
+  "handle": "s85-x02",
+  "brief": "Belen, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Prefers mornings and quiet corners.",
+  "score": 20
+ },
+ "x03": {
+  "name": "Casper",
+  "cls": "low",
+  "handle": "s85-x03",
+  "brief": "Casper, a quiet observer. Walks a lot, speaks rarely and briefly, prefers watching people to joining them. Likes asking people about food.",
+  "score": 3
+ },
+ "x04": {
+  "name": "Dalia",
+  "cls": "mid",
+  "handle": "s85-x04",
+  "brief": "Dalia, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Tells jokes when nervous.",
+  "score": 20
+ },
+ "x05": {
+  "name": "Emeka",
+  "cls": "mid",
+  "handle": "s85-x05",
+  "brief": "Emeka, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Always humming something.",
+  "score": 20
+ },
+ "x06": {
+  "name": "Farah",
+  "cls": "mid",
+  "handle": "s85-x06",
+  "brief": "Farah, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Always humming something.",
+  "score": 20
+ },
+ "x07": {
+  "name": "Goran",
+  "cls": "low",
+  "handle": "s85-x07",
+  "brief": "Goran, a quiet observer. Walks a lot, speaks rarely and briefly, prefers watching people to joining them. Tells jokes when nervous.",
+  "score": 3
+ },
+ "x08": {
+  "name": "Hana",
+  "cls": "mid",
+  "handle": "s85-x08",
+  "brief": "Hana, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Likes asking people about food.",
+  "score": 20
+ },
+ "x09": {
+  "name": "Ilya",
+  "cls": "mid",
+  "handle": "s85-x09",
+  "brief": "Ilya, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Loves sketching buildings.",
+  "score": 20
+ },
+ "x10": {
+  "name": "Jana",
+  "cls": "low",
+  "handle": "s85-x10",
+  "brief": "Jana, a quiet observer. Walks a lot, speaks rarely and briefly, prefers watching people to joining them. Enjoys long walks at the market.",
+  "score": 3
+ },
+ "x11": {
+  "name": "Kofi",
+  "cls": "high",
+  "handle": "s85-x11",
+  "brief": "Kofi, a warm, talkative regular of the verse. Loves starting conversations, greets everyone, gathers people into groups and keeps the talk going. Fascinated by rooftops and towers.",
+  "score": 50
+ },
+ "x12": {
+  "name": "Lena",
+  "cls": "mid",
+  "handle": "s85-x12",
+  "brief": "Lena, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Fascinated by rooftops and towers.",
+  "score": 20
+ },
+ "x13": {
+  "name": "Milo",
+  "cls": "mid",
+  "handle": "s85-x13",
+  "brief": "Milo, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Likes asking people about food.",
+  "score": 20
+ },
+ "x14": {
+  "name": "Nadia",
+  "cls": "mid",
+  "handle": "s85-x14",
+  "brief": "Nadia, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Prefers mornings and quiet corners.",
+  "score": 20
+ },
+ "x15": {
+  "name": "Omar",
+  "cls": "mid",
+  "handle": "s85-x15",
+  "brief": "Omar, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Likes asking people about food.",
+  "score": 20
+ },
+ "x16": {
+  "name": "Petra",
+  "cls": "mid",
+  "handle": "s85-x16",
+  "brief": "Petra, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Dreams of opening a bakery.",
+  "score": 20
+ },
+ "x17": {
+  "name": "Quinn",
+  "cls": "low",
+  "handle": "s85-x17",
+  "brief": "Quinn, a quiet observer. Walks a lot, speaks rarely and briefly, prefers watching people to joining them. Collects stories about the sea.",
+  "score": 3
+ },
+ "x18": {
+  "name": "Rosa",
+  "cls": "low",
+  "handle": "s85-x18",
+  "brief": "Rosa, a quiet observer. Walks a lot, speaks rarely and briefly, prefers watching people to joining them. Loves sketching buildings.",
+  "score": 3
+ },
+ "x19": {
+  "name": "Stefan",
+  "cls": "high",
+  "handle": "s85-x19",
+  "brief": "Stefan, a warm, talkative regular of the verse. Loves starting conversations, greets everyone, gathers people into groups and keeps the talk going. Collects stories about the sea.",
+  "score": 50
+ },
+ "x20": {
+  "name": "Tara",
+  "cls": "low",
+  "handle": "s85-x20",
+  "brief": "Tara, a quiet observer. Walks a lot, speaks rarely and briefly, prefers watching people to joining them. Always humming something.",
+  "score": 3
+ },
+ "x21": {
+  "name": "Umar",
+  "cls": "low",
+  "handle": "s85-x21",
+  "brief": "Umar, a quiet observer. Walks a lot, speaks rarely and briefly, prefers watching people to joining them. Prefers mornings and quiet corners.",
+  "score": 3
+ },
+ "x22": {
+  "name": "Vera",
+  "cls": "low",
+  "handle": "s85-x22",
+  "brief": "Vera, a quiet observer. Walks a lot, speaks rarely and briefly, prefers watching people to joining them. Enjoys long walks at the market.",
+  "score": 3
+ },
+ "x23": {
+  "name": "Wendell",
+  "cls": "mid",
+  "handle": "s85-x23",
+  "brief": "Wendell, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Curious about how things are built.",
+  "score": 20
+ },
+ "x24": {
+  "name": "Xiu",
+  "cls": "low",
+  "handle": "s85-x24",
+  "brief": "Xiu, a quiet observer. Walks a lot, speaks rarely and briefly, prefers watching people to joining them. Fascinated by rooftops and towers.",
+  "score": 3
+ },
+ "x25": {
+  "name": "Yusuf",
+  "cls": "high",
+  "handle": "s85-x25",
+  "brief": "Yusuf, a warm, talkative regular of the verse. Loves starting conversations, greets everyone, gathers people into groups and keeps the talk going. Prefers mornings and quiet corners.",
+  "score": 50
+ },
+ "x26": {
+  "name": "Zelda",
+  "cls": "high",
+  "handle": "s85-x26",
+  "brief": "Zelda, a warm, talkative regular of the verse. Loves starting conversations, greets everyone, gathers people into groups and keeps the talk going. Prefers mornings and quiet corners.",
+  "score": 50
+ },
+ "x27": {
+  "name": "Anders",
+  "cls": "low",
+  "handle": "s85-x27",
+  "brief": "Anders, a quiet observer. Walks a lot, speaks rarely and briefly, prefers watching people to joining them. Collects stories about the sea.",
+  "score": 3
+ },
+ "x28": {
+  "name": "Bianca",
+  "cls": "low",
+  "handle": "s85-x28",
+  "brief": "Bianca, a quiet observer. Walks a lot, speaks rarely and briefly, prefers watching people to joining them. Curious about how things are built.",
+  "score": 3
+ },
+ "x29": {
+  "name": "Cyril",
+  "cls": "mid",
+  "handle": "s85-x29",
+  "brief": "Cyril, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Loves sketching buildings.",
+  "score": 20
+ },
+ "x30": {
+  "name": "Dana",
+  "cls": "low",
+  "handle": "s85-x30",
+  "brief": "Dana, a quiet observer. Walks a lot, speaks rarely and briefly, prefers watching people to joining them. Tells jokes when nervous.",
+  "score": 3
+ },
+ "x31": {
+  "name": "Elif",
+  "cls": "high",
+  "handle": "s85-x31",
+  "brief": "Elif, a warm, talkative regular of the verse. Loves starting conversations, greets everyone, gathers people into groups and keeps the talk going. Loves sketching buildings.",
+  "score": 50
+ },
+ "x32": {
+  "name": "Felix",
+  "cls": "mid",
+  "handle": "s85-x32",
+  "brief": "Felix, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Loves sketching buildings.",
+  "score": 20
+ },
+ "x33": {
+  "name": "Greta",
+  "cls": "mid",
+  "handle": "s85-x33",
+  "brief": "Greta, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Likes asking people about food.",
+  "score": 20
+ },
+ "x34": {
+  "name": "Hassan",
+  "cls": "mid",
+  "handle": "s85-x34",
+  "brief": "Hassan, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Tells jokes when nervous.",
+  "score": 20
+ },
+ "x35": {
+  "name": "Ines",
+  "cls": "low",
+  "handle": "s85-x35",
+  "brief": "Ines, a quiet observer. Walks a lot, speaks rarely and briefly, prefers watching people to joining them. Enjoys long walks at the market.",
+  "score": 3
+ },
+ "x36": {
+  "name": "Jonas",
+  "cls": "low",
+  "handle": "s85-x36",
+  "brief": "Jonas, a quiet observer. Walks a lot, speaks rarely and briefly, prefers watching people to joining them. Tells jokes when nervous.",
+  "score": 3
+ },
+ "x37": {
+  "name": "Kira",
+  "cls": "mid",
+  "handle": "s85-x37",
+  "brief": "Kira, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Fascinated by rooftops and towers.",
+  "score": 20
+ },
+ "x38": {
+  "name": "Lars",
+  "cls": "low",
+  "handle": "s85-x38",
+  "brief": "Lars, a quiet observer. Walks a lot, speaks rarely and briefly, prefers watching people to joining them. Curious about how things are built.",
+  "score": 3
+ },
+ "x39": {
+  "name": "Mira",
+  "cls": "high",
+  "handle": "s85-x39",
+  "brief": "Mira, a warm, talkative regular of the verse. Loves starting conversations, greets everyone, gathers people into groups and keeps the talk going. Fascinated by rooftops and towers.",
+  "score": 50
+ },
+ "x40": {
+  "name": "Nils",
+  "cls": "mid",
+  "handle": "s85-x40",
+  "brief": "Nils, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Curious about how things are built.",
+  "score": 20
+ },
+ "x41": {
+  "name": "Olga",
+  "cls": "high",
+  "handle": "s85-x41",
+  "brief": "Olga, a warm, talkative regular of the verse. Loves starting conversations, greets everyone, gathers people into groups and keeps the talk going. Curious about how things are built.",
+  "score": 50
+ },
+ "x42": {
+  "name": "Pavel",
+  "cls": "mid",
+  "handle": "s85-x42",
+  "brief": "Pavel, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Tells jokes when nervous.",
+  "score": 20
+ },
+ "x43": {
+  "name": "Rania",
+  "cls": "low",
+  "handle": "s85-x43",
+  "brief": "Rania, a quiet observer. Walks a lot, speaks rarely and briefly, prefers watching people to joining them. Enjoys long walks at the market.",
+  "score": 3
+ },
+ "x44": {
+  "name": "Sven",
+  "cls": "high",
+  "handle": "s85-x44",
+  "brief": "Sven, a warm, talkative regular of the verse. Loves starting conversations, greets everyone, gathers people into groups and keeps the talk going. Curious about how things are built.",
+  "score": 50
+ },
+ "x45": {
+  "name": "Tilda",
+  "cls": "mid",
+  "handle": "s85-x45",
+  "brief": "Tilda, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Likes asking people about food.",
+  "score": 20
+ },
+ "x46": {
+  "name": "Ugo",
+  "cls": "mid",
+  "handle": "s85-x46",
+  "brief": "Ugo, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Likes asking people about food.",
+  "score": 20
+ },
+ "x47": {
+  "name": "Violeta",
+  "cls": "low",
+  "handle": "s85-x47",
+  "brief": "Violeta, a quiet observer. Walks a lot, speaks rarely and briefly, prefers watching people to joining them. Enjoys long walks at the market.",
+  "score": 3
+ },
+ "x48": {
+  "name": "Walid",
+  "cls": "mid",
+  "handle": "s85-x48",
+  "brief": "Walid, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Loves sketching buildings.",
+  "score": 20
+ },
+ "x49": {
+  "name": "Xenia",
+  "cls": "mid",
+  "handle": "s85-x49",
+  "brief": "Xenia, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Likes asking people about food.",
+  "score": 20
+ },
+ "x50": {
+  "name": "Yara",
+  "cls": "low",
+  "handle": "s85-x50",
+  "brief": "Yara, a quiet observer. Walks a lot, speaks rarely and briefly, prefers watching people to joining them. Loves sketching buildings.",
+  "score": 3
+ },
+ "x51": {
+  "name": "Zoran",
+  "cls": "low",
+  "handle": "s85-x51",
+  "brief": "Zoran, a quiet observer. Walks a lot, speaks rarely and briefly, prefers watching people to joining them. Tells jokes when nervous.",
+  "score": 3
+ },
+ "x52": {
+  "name": "Amara",
+  "cls": "mid",
+  "handle": "s85-x52",
+  "brief": "Amara, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Likes asking people about food.",
+  "score": 20
+ },
+ "x53": {
+  "name": "Boris",
+  "cls": "high",
+  "handle": "s85-x53",
+  "brief": "Boris, a warm, talkative regular of the verse. Loves starting conversations, greets everyone, gathers people into groups and keeps the talk going. Dreams of opening a bakery.",
+  "score": 50
+ },
+ "x54": {
+  "name": "Celine",
+  "cls": "low",
+  "handle": "s85-x54",
+  "brief": "Celine, a quiet observer. Walks a lot, speaks rarely and briefly, prefers watching people to joining them. Fascinated by rooftops and towers.",
+  "score": 3
+ },
+ "x55": {
+  "name": "Dmitri",
+  "cls": "mid",
+  "handle": "s85-x55",
+  "brief": "Dmitri, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Loves sketching buildings.",
+  "score": 20
+ },
+ "x56": {
+  "name": "Esme",
+  "cls": "mid",
+  "handle": "s85-x56",
+  "brief": "Esme, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Always humming something.",
+  "score": 20
+ },
+ "x57": {
+  "name": "Florian",
+  "cls": "mid",
+  "handle": "s85-x57",
+  "brief": "Florian, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Curious about how things are built.",
+  "score": 20
+ },
+ "x58": {
+  "name": "Gisela",
+  "cls": "high",
+  "handle": "s85-x58",
+  "brief": "Gisela, a warm, talkative regular of the verse. Loves starting conversations, greets everyone, gathers people into groups and keeps the talk going. Curious about how things are built.",
+  "score": 50
+ },
+ "x59": {
+  "name": "Hugo",
+  "cls": "mid",
+  "handle": "s85-x59",
+  "brief": "Hugo, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Curious about how things are built.",
+  "score": 20
+ },
+ "x60": {
+  "name": "Ingrid",
+  "cls": "mid",
+  "handle": "s85-x60",
+  "brief": "Ingrid, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Prefers mornings and quiet corners.",
+  "score": 20
+ },
+ "x61": {
+  "name": "Jasper",
+  "cls": "high",
+  "handle": "s85-x61",
+  "brief": "Jasper, a warm, talkative regular of the verse. Loves starting conversations, greets everyone, gathers people into groups and keeps the talk going. Fascinated by rooftops and towers.",
+  "score": 50
+ },
+ "x62": {
+  "name": "Katya",
+  "cls": "mid",
+  "handle": "s85-x62",
+  "brief": "Katya, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Always humming something.",
+  "score": 20
+ },
+ "x63": {
+  "name": "Leon",
+  "cls": "high",
+  "handle": "s85-x63",
+  "brief": "Leon, a warm, talkative regular of the verse. Loves starting conversations, greets everyone, gathers people into groups and keeps the talk going. Loves sketching buildings.",
+  "score": 50
+ },
+ "x64": {
+  "name": "Marta",
+  "cls": "low",
+  "handle": "s85-x64",
+  "brief": "Marta, a quiet observer. Walks a lot, speaks rarely and briefly, prefers watching people to joining them. Dreams of opening a bakery.",
+  "score": 3
+ },
+ "x65": {
+  "name": "Nikolai",
+  "cls": "mid",
+  "handle": "s85-x65",
+  "brief": "Nikolai, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Curious about how things are built.",
+  "score": 20
+ },
+ "x66": {
+  "name": "Oksana",
+  "cls": "mid",
+  "handle": "s85-x66",
+  "brief": "Oksana, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Loves sketching buildings.",
+  "score": 20
+ },
+ "x67": {
+  "name": "Piotr",
+  "cls": "high",
+  "handle": "s85-x67",
+  "brief": "Piotr, a warm, talkative regular of the verse. Loves starting conversations, greets everyone, gathers people into groups and keeps the talk going. Likes asking people about food.",
+  "score": 50
+ },
+ "x68": {
+  "name": "Renata",
+  "cls": "mid",
+  "handle": "s85-x68",
+  "brief": "Renata, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Loves sketching buildings.",
+  "score": 20
+ },
+ "x69": {
+  "name": "Silas",
+  "cls": "mid",
+  "handle": "s85-x69",
+  "brief": "Silas, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Fascinated by rooftops and towers.",
+  "score": 20
+ },
+ "x70": {
+  "name": "Tatiana",
+  "cls": "mid",
+  "handle": "s85-x70",
+  "brief": "Tatiana, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Tells jokes when nervous.",
+  "score": 20
+ },
+ "x71": {
+  "name": "Urban",
+  "cls": "high",
+  "handle": "s85-x71",
+  "brief": "Urban, a warm, talkative regular of the verse. Loves starting conversations, greets everyone, gathers people into groups and keeps the talk going. Likes asking people about food.",
+  "score": 50
+ },
+ "x72": {
+  "name": "Valentina",
+  "cls": "low",
+  "handle": "s85-x72",
+  "brief": "Valentina, a quiet observer. Walks a lot, speaks rarely and briefly, prefers watching people to joining them. Dreams of opening a bakery.",
+  "score": 3
+ },
+ "x73": {
+  "name": "Wojciech",
+  "cls": "high",
+  "handle": "s85-x73",
+  "brief": "Wojciech, a warm, talkative regular of the verse. Loves starting conversations, greets everyone, gathers people into groups and keeps the talk going. Enjoys long walks at the market.",
+  "score": 50
+ },
+ "x74": {
+  "name": "Xiomara",
+  "cls": "mid",
+  "handle": "s85-x74",
+  "brief": "Xiomara, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Curious about how things are built.",
+  "score": 20
+ },
+ "x75": {
+  "name": "Yevgeny",
+  "cls": "low",
+  "handle": "s85-x75",
+  "brief": "Yevgeny, a quiet observer. Walks a lot, speaks rarely and briefly, prefers watching people to joining them. Collects stories about the sea.",
+  "score": 3
+ },
+ "x76": {
+  "name": "Zofia",
+  "cls": "mid",
+  "handle": "s85-x76",
+  "brief": "Zofia, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Enjoys long walks at the market.",
+  "score": 20
+ },
+ "x77": {
+  "name": "Alina",
+  "cls": "mid",
+  "handle": "s85-x77",
+  "brief": "Alina, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Prefers mornings and quiet corners.",
+  "score": 20
+ },
+ "x78": {
+  "name": "Bruno",
+  "cls": "mid",
+  "handle": "s85-x78",
+  "brief": "Bruno, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Dreams of opening a bakery.",
+  "score": 20
+ },
+ "x79": {
+  "name": "Carmen",
+  "cls": "low",
+  "handle": "s85-x79",
+  "brief": "Carmen, a quiet observer. Walks a lot, speaks rarely and briefly, prefers watching people to joining them. Enjoys long walks at the market.",
+  "score": 3
+ },
+ "x80": {
+  "name": "Dario",
+  "cls": "mid",
+  "handle": "s85-x80",
+  "brief": "Dario, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Curious about how things are built.",
+  "score": 20
+ },
+ "x81": {
+  "name": "Eliska",
+  "cls": "low",
+  "handle": "s85-x81",
+  "brief": "Eliska, a quiet observer. Walks a lot, speaks rarely and briefly, prefers watching people to joining them. Collects stories about the sea.",
+  "score": 3
+ },
+ "x82": {
+  "name": "Frantisek",
+  "cls": "mid",
+  "handle": "s85-x82",
+  "brief": "Frantisek, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Dreams of opening a bakery.",
+  "score": 20
+ },
+ "x83": {
+  "name": "Galina",
+  "cls": "high",
+  "handle": "s85-x83",
+  "brief": "Galina, a warm, talkative regular of the verse. Loves starting conversations, greets everyone, gathers people into groups and keeps the talk going. Always humming something.",
+  "score": 50
+ },
+ "x84": {
+  "name": "Henrik",
+  "cls": "high",
+  "handle": "s85-x84",
+  "brief": "Henrik, a warm, talkative regular of the verse. Loves starting conversations, greets everyone, gathers people into groups and keeps the talk going. Likes asking people about food.",
+  "score": 50
+ },
+ "x85": {
+  "name": "Tomasz",
+  "cls": "mid",
+  "handle": "s85-x85",
+  "brief": "Tomasz, an easygoing visitor. Wanders, chats when approached, joins groups for a while, then drifts on. Always humming something.",
+  "score": 20
+ }
+}
