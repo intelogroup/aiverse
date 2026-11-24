@@ -181,3 +181,5 @@ The uploaded Sketchfab export splits one continuous colored surface into four ch
   - Draw calls, not triangles, set frame time: joining each house to one draw call per material lifted the ring from 42 to 60 fps; simplifying the cabin 1.27 M -> 766 k tris changed nothing.
   - The tile-mode aerial showed light-blue squares at every junction: split_lod simplified flat road primitives, and on separate quads the simplifier deletes whole quads (the sea shows through). Street-surface materials now stay whole in the far LOD.
   - 2k plaza/sidewalk textures doubled the far LOD (it embeds textures): 1k looks the same at a 2.5 m repeat.
+  - The plaza's axis avenues (plan streets c 0, w 20) are driven by the sim's cars across the market square: plaza trees at 2 m off the kerb and a rim tree in the avenue mouth broke three apps/sim drive tests. Keep anything solid >= 3 m off those kerbs and out of the +-14 m entries.
+  - Poly Haven's shrub models are wild species at true size (shrub_02 a bare sprig, shrub_04 22 cm ground cover): no use as garden bushes. Its glTF ships plant colour as JPEG with alpha in a separate map; merge them into one RGBA PNG.
