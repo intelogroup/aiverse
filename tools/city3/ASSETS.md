@@ -220,3 +220,4 @@ Stand-alone prebuilt houses placed by `place_house.mjs` as their own streamed di
 - Lawn texture: "Leafy Grass" by Poly Haven, CC0 (https://polyhaven.com/a/leafy_grass), 1k colour + normal, tinted green, on every Bz*_grass lawn (bridge_lawn_texture.py).
 - Plaza paving: "Cobblestone Floor 08" by Poly Haven, CC0 (https://polyhaven.com/a/cobblestone_floor_08), 2k colour + normal on cobble.001 (bridge_texture_swap.py).
 - Sidewalk and block paving: "Pavement 03" by Poly Haven, CC0 (https://polyhaven.com/a/pavement_03), 2k colour + normal on sidewalk.001 (bridge_texture_swap.py).
+- Ground palette (Poly Haven, CC0, 1k colour + normal, bridge_texture_swap.py): "Gravel Embedded Concrete" (garden and yard paths, Bz*_gravel), "Patterned Paving 02" (garden plazas, Bz*_stone), "Stone Tiles 02" (ring house walks, BzRing_stone), "Wood Planks" (lido deck, BzOpen_deck), "Patterned Brick Floor" (lido surround, BzOpen_stone). polyhaven.com/a/<id>.

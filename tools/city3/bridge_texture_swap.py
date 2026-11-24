@@ -35,11 +35,16 @@ if __name__ == "__main__":
     mats = [m for m in j["materials"] if m.get("name") == a.material]
     if not mats:
         raise SystemExit(f"no material named {a.material}")
-    j.setdefault("samplers", []).append({"magFilter": 9729, "minFilter": 9987, "wrapS": 10497, "wrapT": 10497}); smp = len(j["samplers"]) - 1
     tex = {}
-    for kind in ("diff", "nor"):
+    for kind in ("diff", "nor"):   # one embedded image per texture and resolution, shared by every material swapped to it
+        name = f"{a.ph}_{kind}@{a.res}"
+        have = next((ti for ti, t in enumerate(j.get("textures", [])) if "source" in t and j["images"][t["source"]].get("name") == name), None)
+        if have is not None:
+            tex[kind] = have; continue
+        if "smp" not in locals():
+            j.setdefault("samplers", []).append({"magFilter": 9729, "minFilter": 9987, "wrapS": 10497, "wrapT": 10497}); smp = len(j["samplers"]) - 1
         v = add_view(g, fetch(a.ph, kind, a.res), None); j["bufferViews"][v].pop("target")
-        j.setdefault("images", []).append({"name": f"{a.ph}_{kind}", "mimeType": "image/jpeg", "bufferView": v})
+        j.setdefault("images", []).append({"name": name, "mimeType": "image/jpeg", "bufferView": v})
         j.setdefault("textures", []).append({"sampler": smp, "source": len(j["images"]) - 1}); tex[kind] = len(j["textures"]) - 1
     tint = [float(x) for x in a.tint.split(",")] + [1.0]
     for m in mats:
