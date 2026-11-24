@@ -220,6 +220,8 @@ Stand-alone prebuilt houses placed by `place_house.mjs` as their own streamed di
 - `colonial-american`: "American Colonial house" by Blue3D, CC-BY 4.0 (Sketchfab uid 3e536217e25545448762004ec55f1786). Edge ring lot ring-45-1, solid collision.
 - `scandi-hawk`: "Hawk Lane Scandinavian Style House" by Azimuth Design, CC-BY 4.0 (Sketchfab uid 8d8a31fcca314f9cb334b04468f3d926). Edge ring lot ring-35-0, simplified to 50 %, solid collision.
 - `log-cabin`: "Scandinavian Log Cabin" by rivetech, CC-BY 4.0 (Sketchfab uid e89718f746484189902162a91ae0b504). Edge ring lot ring-05-0, solid collision.
+- Lido furniture (props-lido, tools/city3/props_lido.mjs), all CC-BY 4.0: "Sun lounger 3D" by rodestrela (Sketchfab uid 974e74f55bbd4dc9a85c4a48fc987a18),
+  "White outdoor Umbrella" by Ngo.Phuoc.Truong (uid d6c9705a4f8e421ea473196ab9910088), "Sunchair" by hotdoghans (uid c2c86c8f882d46abb01d06ddf9d1d7a8).
 - `finnish-cottage`: "Modern cottage, finnish style" by SlagPerch 3D, CC-BY 4.0 (Sketchfab uid f8d052ed3e634e46b6e83c3b2c006a0f). Edge ring lot ring-25-1, scaled 2.2x, solid collision.
 - Lawn texture: "Leafy Grass" by Poly Haven, CC0 (https://polyhaven.com/a/leafy_grass), 1k colour + normal, tinted green, on every Bz*_grass lawn (bridge_lawn_texture.py).
 - Plaza paving: "Cobblestone Floor 08" by Poly Haven, CC0 (https://polyhaven.com/a/cobblestone_floor_08), 2k colour + normal on cobble.001 (bridge_texture_swap.py).

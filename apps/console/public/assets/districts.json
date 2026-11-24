@@ -777,6 +777,22 @@
    ],
    "theme": "bazaar",
    "farUrl": "/assets/houses/victorian-green-y270.far.glb"
+  },
+  {
+   "id": "props-lido",
+   "name": "Lido furniture",
+   "url": "/assets/props/lido.glb",
+   "collisionUrl": "/assets/props/lido.col.glb",
+   "center": [
+    35,
+    97
+   ],
+   "half": 30,
+   "origin": [
+    0,
+    0
+   ],
+   "theme": "bazaar"
   }
  ],
  "shell": "/assets/world-shell.glb",
