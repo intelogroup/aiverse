@@ -1,0 +1,209 @@
+{
+ "phase_dir": "cohort/phaseB",
+ "totals": {
+  "acts": 502,
+  "says": 38,
+  "heard": 25,
+  "deliberations": 164,
+  "greets": 16
+ },
+ "per_agent": {
+  "mara": {
+   "acts": 56,
+   "says": 0,
+   "heard": 0,
+   "deliberations": 5,
+   "greets": 0,
+   "distance_m": 115.4,
+   "visit_dead": true,
+   "name_use_says": 0,
+   "shard": "2"
+  },
+  "deshawn": {
+   "acts": 29,
+   "says": 6,
+   "heard": 3,
+   "deliberations": 4,
+   "greets": 4,
+   "distance_m": 166.3,
+   "visit_dead": true,
+   "name_use_says": 0,
+   "shard": "1"
+  },
+  "ingrid": {
+   "acts": 31,
+   "says": 2,
+   "heard": 0,
+   "deliberations": 13,
+   "greets": 0,
+   "distance_m": 571.9,
+   "visit_dead": false,
+   "name_use_says": 0,
+   "shard": "3"
+  },
+  "tomas": {
+   "acts": 28,
+   "says": 0,
+   "heard": 0,
+   "deliberations": 12,
+   "greets": 0,
+   "distance_m": 651.1,
+   "visit_dead": false,
+   "name_use_says": 0,
+   "shard": "3"
+  },
+  "priya": {
+   "acts": 8,
+   "says": 3,
+   "heard": 2,
+   "deliberations": 15,
+   "greets": 1,
+   "distance_m": 0.0,
+   "visit_dead": false,
+   "name_use_says": 0,
+   "shard": "1"
+  },
+  "kenji": {
+   "acts": 40,
+   "says": 2,
+   "heard": 2,
+   "deliberations": 12,
+   "greets": 0,
+   "distance_m": 104.8,
+   "visit_dead": false,
+   "name_use_says": 0,
+   "shard": "1"
+  },
+  "fatima": {
+   "acts": 28,
+   "says": 0,
+   "heard": 0,
+   "deliberations": 11,
+   "greets": 0,
+   "distance_m": 829.5,
+   "visit_dead": false,
+   "name_use_says": 0,
+   "shard": "3"
+  },
+  "oleg": {
+   "acts": 32,
+   "says": 0,
+   "heard": 0,
+   "deliberations": 11,
+   "greets": 0,
+   "distance_m": 282.8,
+   "visit_dead": false,
+   "name_use_says": 0,
+   "shard": "2"
+  },
+  "lucia": {
+   "acts": 56,
+   "says": 11,
+   "heard": 4,
+   "deliberations": 12,
+   "greets": 5,
+   "distance_m": 738.1,
+   "visit_dead": false,
+   "name_use_says": 1,
+   "shard": "2"
+  },
+  "amara": {
+   "acts": 28,
+   "says": 6,
+   "heard": 6,
+   "deliberations": 3,
+   "greets": 3,
+   "distance_m": 97.8,
+   "visit_dead": true,
+   "name_use_says": 3,
+   "shard": "2"
+  },
+  "henrik": {
+   "acts": 29,
+   "says": 0,
+   "heard": 6,
+   "deliberations": 12,
+   "greets": 0,
+   "distance_m": 818.5,
+   "visit_dead": false,
+   "name_use_says": 0,
+   "shard": "2"
+  },
+  "yuki": {
+   "acts": 13,
+   "says": 0,
+   "heard": 0,
+   "deliberations": 16,
+   "greets": 0,
+   "distance_m": 40.2,
+   "visit_dead": false,
+   "name_use_says": 0,
+   "shard": "1"
+  },
+  "rafael": {
+   "acts": 29,
+   "says": 0,
+   "heard": 0,
+   "deliberations": 15,
+   "greets": 0,
+   "distance_m": 143.3,
+   "visit_dead": false,
+   "name_use_says": 0,
+   "shard": "3"
+  },
+  "ngozi": {
+   "acts": 56,
+   "says": 8,
+   "heard": 2,
+   "deliberations": 12,
+   "greets": 3,
+   "distance_m": 489.3,
+   "visit_dead": true,
+   "name_use_says": 1,
+   "shard": "1"
+  },
+  "sam": {
+   "acts": 39,
+   "says": 0,
+   "heard": 0,
+   "deliberations": 11,
+   "greets": 0,
+   "distance_m": 132.8,
+   "visit_dead": false,
+   "name_use_says": 0,
+   "shard": "3"
+  }
+ },
+ "top_pairs_seconds": [
+  {
+   "pair": "fatima|henrik",
+   "seconds": 196
+  },
+  {
+   "pair": "fatima|tomas",
+   "seconds": 136
+  },
+  {
+   "pair": "henrik|tomas",
+   "seconds": 120
+  },
+  {
+   "pair": "amara|ngozi",
+   "seconds": 88
+  },
+  {
+   "pair": "amara|lucia",
+   "seconds": 84
+  }
+ ],
+ "session1_pairs_seconds": {
+  "deshawn|mara": 16,
+  "amara|lucia": 84,
+  "deshawn|kenji": 0
+ },
+ "act_wall_ms_median": 8416,
+ "act_wall_ms_p90": 33631,
+ "observe_ms_median": 5,
+ "stall_watchdog_fires": 41,
+ "visit_dead_count": 4
+}

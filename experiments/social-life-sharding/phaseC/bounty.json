@@ -1,0 +1,97 @@
+{
+ "announced_at": 1795529824.577577,
+ "code": "AURORA-7",
+ "winner": "rafael",
+ "claims": [
+  {
+   "key": "rafael",
+   "shard": "3",
+   "t": 1795529825.281,
+   "won": true
+  },
+  {
+   "key": "yuki",
+   "shard": "1",
+   "t": 1795529825.582,
+   "won": false
+  },
+  {
+   "key": "mara",
+   "shard": "2",
+   "t": 1795529825.886,
+   "won": false
+  },
+  {
+   "key": "lucia",
+   "shard": "2",
+   "t": 1795529826.486,
+   "won": false
+  },
+  {
+   "key": "priya",
+   "shard": "1",
+   "t": 1795529829.1,
+   "won": false
+  },
+  {
+   "key": "deshawn",
+   "shard": "1",
+   "t": 1795529835.445,
+   "won": false
+  },
+  {
+   "key": "ngozi",
+   "shard": "1",
+   "t": 1795529835.746,
+   "won": false
+  },
+  {
+   "key": "fatima",
+   "shard": "3",
+   "t": 1795529848.874,
+   "won": false
+  },
+  {
+   "key": "tomas",
+   "shard": "3",
+   "t": 1795529851.322,
+   "won": false
+  },
+  {
+   "key": "oleg",
+   "shard": "2",
+   "t": 1795529853.307,
+   "won": false
+  },
+  {
+   "key": "henrik",
+   "shard": "2",
+   "t": 1795529856.543,
+   "won": false
+  },
+  {
+   "key": "ingrid",
+   "shard": "3",
+   "t": 1795529866.386,
+   "won": false
+  },
+  {
+   "key": "amara",
+   "shard": "2",
+   "t": 1795529868.161,
+   "won": false
+  },
+  {
+   "key": "kenji",
+   "shard": "1",
+   "t": 1795529875.428,
+   "won": false
+  },
+  {
+   "key": "sam",
+   "shard": "3",
+   "t": 1795529879.344,
+   "won": false
+  }
+ ]
+}
