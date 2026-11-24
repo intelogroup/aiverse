@@ -76,6 +76,10 @@ export const DISTRICT_BUDGETS: Record<string, DistrictBudget> = {
     measured: { glbBytes: 65_265_300, collisionBytes: 7_120, triangles: 1_269_815 },
     budget: { glbBytes: 81_581_625, collisionBytes: 9_968, triangles: 1_587_269 },
   },
+  "/assets/houses/clock-tower-y0.glb": {
+    measured: { glbBytes: 8_513_512, collisionBytes: 1_040, triangles: 250_000 },
+    budget: { glbBytes: 10_641_890, collisionBytes: 2_000, triangles: 312_500 },
+  },
   "/assets/houses/mayflower-y90.glb": {
     measured: { glbBytes: 4_748_568, collisionBytes: 1_036, triangles: 26_821 },
     budget: { glbBytes: 5_935_710, collisionBytes: 2_000, triangles: 33_526 },

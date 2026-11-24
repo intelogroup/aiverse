@@ -140,6 +140,22 @@
     30
    ],
    "theme": "bazaar"
+  },
+  {
+   "id": "house-clock-tower-1",
+   "name": "clock-tower-1",
+   "url": "/assets/houses/clock-tower-y0.glb",
+   "collisionUrl": "/assets/houses/clock-tower-y0.col.glb",
+   "center": [
+    0,
+    0
+   ],
+   "half": 10,
+   "origin": [
+    0,
+    0
+   ],
+   "theme": "bazaar"
   }
  ],
  "links": "/assets/world-links.glb",

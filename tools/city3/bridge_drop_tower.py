@@ -15,7 +15,8 @@ HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 from bridge_bazaar_demolish import drop_tris
 from bridge_wave1 import Glb, save_glb
 
-TOWERS = {"minaret": (93.5, 93.5, 101.5, 101.5)}   # GLB x0, z0, x1, z1 (plan rect [93.5,-101.5,101.5,-93.5], z = -plan y); stood in the citadel block
+TOWERS = {"minaret": (93.5, 93.5, 101.5, 101.5),   # GLB x0, z0, x1, z1 (plan rect [93.5,-101.5,101.5,-93.5], z = -plan y); stood in the citadel block
+          "clock": (-3.7, -3.7, 3.7, 3.7)}             # the 38 m box clock tower in the plaza centre (plan rect +-3.2, +0.5 m); replaced by a prebuilt one
 MARK = "dropped_towers"
 
 
@@ -23,7 +24,11 @@ def run(path, name, dry):
     g = Glb(path); j = g.gltf; marks = j.setdefault("extras", {}).setdefault(MARK, [])
     if name in marks: print({os.path.basename(path): "already"}); return
     R = {name: TOWERS[name]}; rep = {}
-    for n in j["nodes"]:
+    # world-space meshes only: a scene root with no transform and no GPU instancing. Instanced prototypes and children of moved
+    # parents (TeaHouseStructure) keep their geometry near local (0, 0) and would be cut wherever a rect covers the origin.
+    child = {c for nd in j["nodes"] for c in nd.get("children", [])}
+    for ni, n in enumerate(j["nodes"]):
+        if ni in child or "EXT_mesh_gpu_instancing" in n.get("extensions", {}): continue
         if "mesh" not in n or any(k in n for k in ("translation", "rotation", "scale", "matrix")): continue
         for p in j["meshes"][n["mesh"]]["primitives"]:
             if "indices" not in p: continue
