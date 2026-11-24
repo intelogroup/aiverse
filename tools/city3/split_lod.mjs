@@ -70,6 +70,11 @@ const TREE = /^(ls_tree|Tree_)/, TREE_RATIO = Number(process.env.TREE_RATIO ?? 0
       const idx = prim.getIndices(); if (!idx || prim.getMode() !== 4) continue; const ia = idx.getArray();
       if (ia.length < 90) continue; // tiny pieces (doors, lamps) are cheaper left alone
       const pos = prim.getAttribute("POSITION").getArray(); let src = Uint32Array.from(ia);
+      // the flat street surface (roads, junctions, sidewalks, plaza) is separate quads: the simplifier deletes whole quads, leaving holes onto the sea
+      // (the light-blue squares at every junction in the tile-mode aerial). It is cheap already, so it stays whole.
+      if (/^(road_|sidewalk|cobble)/.test(prim.getMaterial()?.getName() ?? "")) {   // the street surface: never simplified
+        let y0 = Infinity, y1 = -Infinity; for (const i of src) { const y = pos[3 * i + 1]; if (y < y0) y0 = y; if (y > y1) y1 = y; } if (y1 - y0 < 0.6) continue;
+      }
       if (/^Kit_(shop|hall|garden|orchard)/.test(n.getName())) { // UV seams leave equal positions on separate vertices, which the simplifier treats as locked borders (stuck at 73%): collapse them onto one representative first
         const rep = new Map(); src = src.map(i => { const k = `${pos[3 * i]},${pos[3 * i + 1]},${pos[3 * i + 2]}`; if (!rep.has(k)) rep.set(k, i); return rep.get(k); });
       }
