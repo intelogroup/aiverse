@@ -193,7 +193,10 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     let live = true; const originals: THREE.Object3D[] = [];
     const byUrl = new Map<string, DistrictDef[]>();
     for (const d of defs) byUrl.set(d.farUrl!, [...(byUrl.get(d.farUrl!) ?? []), d]);
-    for (const [url, ds] of byUrl) loader.load(url, (g) => {
+    // wait until the world is walkable (resident mounted or a first district in): the far set must not compete with the core's first paint
+    // (measured cold, tile mode: 2.1/2.1/2.9 s to walkable with it racing the core, 2.1/1.8/1.8 s without)
+    const ready = () => residentReadyRef.current || groups.current.size > 0;
+    const start = () => { if (!live) return; if (!ready()) { timer = setTimeout(start, 250); return; } for (const [url, ds] of byUrl) loader.load(url, (g) => {
       if (!live) { disposeTree(g.scene); return; }
       originals.push(g.scene);
       for (const d of ds) {
@@ -201,8 +204,9 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
         c.visible = !groups.current.has(d.id); scene.add(c); farGroups.current.set(d.id, c);
       }
       syncShell();
-    }, undefined, () => console.warn(`[districts] far house ${url} failed to load`));
-    return () => { live = false; for (const c of farGroups.current.values()) scene.remove(c); farGroups.current.clear(); originals.forEach(disposeTree); };
+    }, undefined, () => console.warn(`[districts] far house ${url} failed to load`)); };
+    let timer: ReturnType<typeof setTimeout> | undefined; start();
+    return () => { live = false; clearTimeout(timer); for (const c of farGroups.current.values()) scene.remove(c); farGroups.current.clear(); originals.forEach(disposeTree); };
   }, [manifest, loader, scene]);
 
   // Far shell: one small box-massing GLB for the whole city, always resident. Each `shell_<id>`
