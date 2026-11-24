@@ -32,8 +32,30 @@ export function createSkyDome() {
   return mesh;
 }
 
+/** Shared clock for the ocean ripples (seconds); DistrictWorld advances it each frame. */
+export const oceanTime = { value: 0 };
+
 export function createOcean() {
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), new THREE.MeshStandardMaterial({ color: "#1c6a84", roughness: 0.12, metalness: 0.0 }));
+  const mat = new THREE.MeshStandardMaterial({ color: "#1c6a84", roughness: 0.12, metalness: 0.0 });
+  // ripples without a texture: a few crossing sine swells perturb the normal (the plane stays flat, so nothing floats or clips), and the
+  // view angle brightens the water toward the horizon. The sea read as a flat teal sheet around the island.
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uTime = oceanTime;
+    sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vWorldPosO;")
+      .replace("#include <worldpos_vertex>", "#include <worldpos_vertex>\nvWorldPosO = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nuniform float uTime; varying vec3 vWorldPosO;")
+      .replace("#include <normal_fragment_maps>", `#include <normal_fragment_maps>
+        vec2 p = vWorldPosO.xz;
+        float dx = 0.0, dz = 0.0;
+        dx += cos(p.x * 0.21 + uTime * 0.9) * 0.05; dz += cos(p.y * 0.17 + uTime * 0.7) * 0.05;
+        dx += cos((p.x + p.y) * 0.53 + uTime * 1.7) * 0.025; dz += cos((p.x - p.y) * 0.61 + uTime * 1.3) * 0.025;
+        dx += cos(p.x * 1.9 - uTime * 2.6) * 0.008; dz += cos(p.y * 2.3 + uTime * 2.2) * 0.008;
+        normal = normalize(normal + (viewMatrix * vec4(dx, 0.0, dz, 0.0)).xyz);`)
+      .replace("#include <opaque_fragment>", `float fres = pow(1.0 - clamp(dot(normalize(vViewPosition), vec3(0.0, 0.0, 1.0)), 0.0, 1.0), 3.0);
+        outgoingLight = mix(outgoingLight, outgoingLight * 1.35 + vec3(0.05, 0.08, 0.1), fres);
+        #include <opaque_fragment>`);
+  };
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), mat);
   m.rotation.x = -Math.PI / 2; m.position.y = -1.25; m.receiveShadow = true; return m;
 }
 
