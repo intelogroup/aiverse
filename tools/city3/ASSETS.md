@@ -218,3 +218,4 @@ Stand-alone prebuilt houses placed by `place_house.mjs` as their own streamed di
 - `cozy-cottage`: "Cozy Cottage" by SINNIK, CC-BY 4.0 (Sketchfab uid 72c05612ebbc4f5f8eac26d047d5d69c). Edge ring (ring_houses.py), solid collision.
 - `suburban-blue`: "Suburban House" by mbuannoart, CC-BY 4.0 (Sketchfab uid b8375c5e5e6b40639fc06492fbd95fcb). Edge ring (ring_houses.py), solid collision.
 - Lawn texture: "Leafy Grass" by Poly Haven, CC0 (https://polyhaven.com/a/leafy_grass), 1k colour + normal, tinted green, on every Bz*_grass lawn (bridge_lawn_texture.py).
+- Plaza paving: "Cobblestone Floor 08" by Poly Haven, CC0 (https://polyhaven.com/a/cobblestone_floor_08), 2k colour + normal on cobble.001 (bridge_texture_swap.py).
