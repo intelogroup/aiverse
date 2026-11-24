@@ -59,6 +59,8 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
   const shellGroups = useRef(new Map<string, THREE.Object3D>());
   // Textured far view (manifest `lod`): same `shell_<id>` groups; once it has arrived the beige shell groups stay hidden.
   const lodGroups = useRef(new Map<string, THREE.Object3D>());
+  // Far stand-ins of placed houses (DistrictDef.farUrl): visible until the district's detail is in `groups`.
+  const farGroups = useRef(new Map<string, THREE.Object3D>());
   // The resident (manifest `resident` flag) never enters the streamed `groups` set — it loads via
   // useGLTF — so shell coverage needs its id + a mounted flag beside the streamed set (isShellCovered).
   const residentIdRef = useRef<string | undefined>(undefined);
@@ -74,6 +76,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     const lodUp = lodGroups.current.size > 0;
     for (const [id, g] of shellGroups.current) g.visible = farGroupVisible("shell", isShellCovered(id, loaded, residentIdRef.current, residentReadyRef.current), lodUp);
     for (const [id, g] of lodGroups.current) g.visible = farGroupVisible("lod", isShellCovered(id, loaded, residentIdRef.current, residentReadyRef.current), lodUp);
+    for (const [id, g] of farGroups.current) g.visible = !loaded.has(id);
   };
   // Camera-collision meshes per root (resident, links, each streamed district); flattened lazily for the collider.
   const colliderSets = useRef(new Map<string, THREE.Mesh[]>());
@@ -180,6 +183,26 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     let live = true; let root: THREE.Object3D | null = null;
     loader.load(manifest.links, (g) => { if (!live) { disposeTree(g.scene); return; } root = g.scene; scene.add(root); applyNight(root, themeRef.current?.night ?? 0); addColliders("links", root); });
     return () => { live = false; if (root) { scene.remove(root); dropColliders("links"); disposeTree(root); } };
+  }, [manifest, loader, scene]);
+
+  // Far houses: each placed house shows its light stand-in (farUrl) until its detailed GLB mounts, so the opening aerial sees the town.
+  // One load per URL, one clone per district at its origin; clones share geometry and materials, so only the loaded originals are disposed.
+  useEffect(() => {
+    const defs = manifest?.districts.filter((d) => d.farUrl) ?? [];
+    if (!defs.length) return;
+    let live = true; const originals: THREE.Object3D[] = [];
+    const byUrl = new Map<string, DistrictDef[]>();
+    for (const d of defs) byUrl.set(d.farUrl!, [...(byUrl.get(d.farUrl!) ?? []), d]);
+    for (const [url, ds] of byUrl) loader.load(url, (g) => {
+      if (!live) { disposeTree(g.scene); return; }
+      originals.push(g.scene);
+      for (const d of ds) {
+        const c = g.scene.clone(); const [ox, oz] = originOf(d); c.position.set(ox, 0, oz); c.name = `far:${d.id}`;
+        c.visible = !groups.current.has(d.id); scene.add(c); farGroups.current.set(d.id, c);
+      }
+      syncShell();
+    }, undefined, () => console.warn(`[districts] far house ${url} failed to load`));
+    return () => { live = false; for (const c of farGroups.current.values()) scene.remove(c); farGroups.current.clear(); originals.forEach(disposeTree); };
   }, [manifest, loader, scene]);
 
   // Far shell: one small box-massing GLB for the whole city, always resident. Each `shell_<id>`
