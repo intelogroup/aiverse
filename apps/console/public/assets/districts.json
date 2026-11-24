@@ -44,6 +44,38 @@
     0
    ],
    "theme": "bazaar"
+  },
+  {
+   "id": "house-villa-pool-1",
+   "name": "villa-pool-1",
+   "url": "/assets/houses/villa-pool-1.glb",
+   "collisionUrl": "/assets/houses/villa-pool-1.col.glb",
+   "center": [
+    86.5,
+    98
+   ],
+   "half": 24,
+   "origin": [
+    0,
+    0
+   ],
+   "theme": "bazaar"
+  },
+  {
+   "id": "house-mayflower-1",
+   "name": "mayflower-1",
+   "url": "/assets/houses/mayflower-1.glb",
+   "collisionUrl": "/assets/houses/mayflower-1.col.glb",
+   "center": [
+    113,
+    97
+   ],
+   "half": 14,
+   "origin": [
+    0,
+    0
+   ],
+   "theme": "bazaar"
   }
  ],
  "links": "/assets/world-links.glb",

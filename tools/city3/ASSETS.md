@@ -203,3 +203,5 @@ Stand-alone prebuilt houses placed by `place_house.mjs` as their own streamed di
 
 - `american-1`: "American House" by AleixoAlonso, CC-BY 4.0, https://sketchfab.com/3d-models/american-house-798ffaeadacf4e08a2665785422fb45d. Exterior only, solid collision box.
 - `cabin-1`: "House - Stone Cabin - Modern Log Cabin 03" by MarMel-Bali, CC-BY 4.0 (Sketchfab uid 9e9195dc0a6f44b2baea0def83602dc7). Furnished interior; placed at 0.02 scale, door gap on the +z facade.
+- `villa-pool-1`: "Modern luxury villa house building with pool" by zigurat architecture studio, CC-BY 4.0 (Sketchfab uid 0e858284939343cb994233d40a48a20a). Its own lot with pool and garden; solid collision over the house body.
+- `mayflower-1`: House "May-Flower" (Design 39) by AleixoAlonso, CC-BY 4.0 (Sketchfab uid 1ff9aaa72bc24037ac3e3e08c9a35e33). Exterior only, solid collision.

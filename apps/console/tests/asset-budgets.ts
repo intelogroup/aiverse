@@ -71,6 +71,14 @@ export const DISTRICT_BUDGETS: Record<string, DistrictBudget> = {
     measured: { glbBytes: 79_329_216, collisionBytes: 7_088, triangles: 1_269_815 },
     budget: { glbBytes: 99_161_520, collisionBytes: 10_000, triangles: 1_587_000 },
   },
+  "house-villa-pool-1": {
+    measured: { glbBytes: 6_436_880, collisionBytes: 1_028, triangles: 133_529 },
+    budget: { glbBytes: 8_046_100, collisionBytes: 2_000, triangles: 166_900 },
+  },
+  "house-mayflower-1": {
+    measured: { glbBytes: 22_921_556, collisionBytes: 1_036, triangles: 26_821 },
+    budget: { glbBytes: 28_651_950, collisionBytes: 2_000, triangles: 33_500 },
+  },
 };
 
 /** All districts' GLB + collision bytes combined, gated at ×2.40 of
