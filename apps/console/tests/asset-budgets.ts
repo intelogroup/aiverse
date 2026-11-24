@@ -68,6 +68,10 @@ export const DISTRICT_BUDGETS: Record<string, DistrictBudget> = {
     measured: { glbBytes: 9_607_572, collisionBytes: 1_032, triangles: 41_990 },
     budget: { glbBytes: 12_009_465, collisionBytes: 2_000, triangles: 52_488 },
   },
+  "/assets/houses/american-y270.glb": {
+    measured: { glbBytes: 9_607_632, collisionBytes: 1_036, triangles: 41_990 },
+    budget: { glbBytes: 12_009_540, collisionBytes: 2_000, triangles: 52_488 },
+  },
   "/assets/houses/cabin-y0.glb": {
     measured: { glbBytes: 65_265_244, collisionBytes: 7_104, triangles: 1_269_815 },
     budget: { glbBytes: 81_581_555, collisionBytes: 9_946, triangles: 1_587_269 },
@@ -80,13 +84,77 @@ export const DISTRICT_BUDGETS: Record<string, DistrictBudget> = {
     measured: { glbBytes: 8_513_512, collisionBytes: 1_040, triangles: 250_000 },
     budget: { glbBytes: 10_641_890, collisionBytes: 2_000, triangles: 312_500 },
   },
+  "/assets/houses/cozy-cottage-y0.glb": {
+    measured: { glbBytes: 42_632_520, collisionBytes: 1_040, triangles: 818_648 },
+    budget: { glbBytes: 53_290_650, collisionBytes: 2_000, triangles: 1_023_310 },
+  },
+  "/assets/houses/cozy-cottage-y270.glb": {
+    measured: { glbBytes: 42_632_580, collisionBytes: 1_040, triangles: 818_648 },
+    budget: { glbBytes: 53_290_725, collisionBytes: 2_000, triangles: 1_023_310 },
+  },
+  "/assets/houses/kruglov-house-y180.glb": {
+    measured: { glbBytes: 6_562_932, collisionBytes: 1_040, triangles: 67_933 },
+    budget: { glbBytes: 8_203_665, collisionBytes: 2_000, triangles: 84_916 },
+  },
+  "/assets/houses/kruglov-house-y90.glb": {
+    measured: { glbBytes: 6_562_948, collisionBytes: 1_040, triangles: 67_933 },
+    budget: { glbBytes: 8_203_685, collisionBytes: 2_000, triangles: 84_916 },
+  },
   "/assets/houses/mayflower-y90.glb": {
     measured: { glbBytes: 4_748_568, collisionBytes: 1_036, triangles: 26_821 },
     budget: { glbBytes: 5_935_710, collisionBytes: 2_000, triangles: 33_526 },
   },
+  "/assets/houses/medieval-rx-y180.glb": {
+    measured: { glbBytes: 1_738_164, collisionBytes: 1_040, triangles: 8_084 },
+    budget: { glbBytes: 2_172_705, collisionBytes: 2_000, triangles: 10_105 },
+  },
+  "/assets/houses/medieval-rx-y90.glb": {
+    measured: { glbBytes: 1_738_176, collisionBytes: 1_040, triangles: 8_084 },
+    budget: { glbBytes: 2_172_720, collisionBytes: 2_000, triangles: 10_105 },
+  },
+  "/assets/houses/residence-wsg-y180.glb": {
+    measured: { glbBytes: 9_537_984, collisionBytes: 1_040, triangles: 99_381 },
+    budget: { glbBytes: 11_922_480, collisionBytes: 2_000, triangles: 124_226 },
+  },
+  "/assets/houses/residence-wsg-y270.glb": {
+    measured: { glbBytes: 9_538_000, collisionBytes: 1_040, triangles: 99_381 },
+    budget: { glbBytes: 11_922_500, collisionBytes: 2_000, triangles: 124_226 },
+  },
   "/assets/houses/shirakawago-y0.glb": {
     measured: { glbBytes: 8_033_036, collisionBytes: 1_036, triangles: 31_838 },
     budget: { glbBytes: 10_041_295, collisionBytes: 2_000, triangles: 39_798 },
+  },
+  "/assets/houses/small-brick-y180.glb": {
+    measured: { glbBytes: 3_200_884, collisionBytes: 1_040, triangles: 10_239 },
+    budget: { glbBytes: 4_001_105, collisionBytes: 2_000, triangles: 12_798 },
+  },
+  "/assets/houses/small-brick-y90.glb": {
+    measured: { glbBytes: 3_200_896, collisionBytes: 1_036, triangles: 10_239 },
+    budget: { glbBytes: 4_001_120, collisionBytes: 2_000, triangles: 12_798 },
+  },
+  "/assets/houses/suburban-blue-y0.glb": {
+    measured: { glbBytes: 2_006_068, collisionBytes: 1_040, triangles: 8_568 },
+    budget: { glbBytes: 2_507_585, collisionBytes: 2_000, triangles: 10_710 },
+  },
+  "/assets/houses/suburban-blue-y90.glb": {
+    measured: { glbBytes: 2_006_124, collisionBytes: 1_040, triangles: 8_568 },
+    budget: { glbBytes: 2_507_655, collisionBytes: 2_000, triangles: 10_710 },
+  },
+  "/assets/houses/suburban-bogdan-y180.glb": {
+    measured: { glbBytes: 8_654_348, collisionBytes: 1_044, triangles: 146_269 },
+    budget: { glbBytes: 10_817_935, collisionBytes: 2_000, triangles: 182_836 },
+  },
+  "/assets/houses/suburban-bogdan-y270.glb": {
+    measured: { glbBytes: 8_654_364, collisionBytes: 1_044, triangles: 146_269 },
+    budget: { glbBytes: 10_817_955, collisionBytes: 2_000, triangles: 182_836 },
+  },
+  "/assets/houses/victorian-green-y270.glb": {
+    measured: { glbBytes: 16_122_024, collisionBytes: 1_032, triangles: 186_329 },
+    budget: { glbBytes: 20_152_530, collisionBytes: 2_000, triangles: 232_911 },
+  },
+  "/assets/houses/victorian-green-y90.glb": {
+    measured: { glbBytes: 16_122_020, collisionBytes: 1_028, triangles: 186_329 },
+    budget: { glbBytes: 20_152_525, collisionBytes: 2_000, triangles: 232_911 },
   },
   "/assets/houses/villa-c-y0.glb": {
     measured: { glbBytes: 3_155_588, collisionBytes: 1_004, triangles: 49_065 },
@@ -102,10 +170,10 @@ export const DISTRICT_BUDGETS: Record<string, DistrictBudget> = {
   },
 };
 
-/** All districts' GLB + collision bytes combined, gated at ×2.40 of
- * the 134,108,292 measured on 2026-11-12 (after the PR #149 re-base
- * noted above; it was 84,048,576 before #149). */
+/** All districts' GLB + collision bytes combined (unique URLs). Raised 2026-11-24 from 321,859,902 to x1.25 of 473,822,256 when 35 prebuilt
+ * houses were placed (user: high-poly houses; our own size caps do not matter for looks). Houses stream by distance, so a visitor downloads only
+ * those near them; the per-file GitHub limit (100 MiB) is the hard ceiling, not this number. */
 export const DISTRICT_TOTAL_BUDGET = {
-  measuredBytes: 134_108_292,
-  budgetBytes: 321_859_902,
+  measuredBytes: 473_822_256,
+  budgetBytes: 592_277_820,
 };

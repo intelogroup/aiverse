@@ -209,3 +209,11 @@ Stand-alone prebuilt houses placed by `place_house.mjs` as their own streamed di
 - `zen-pavilion-1`: "Zen Japanese Tea House with Go Board" by winters810, CC-BY 4.0 (Sketchfab uid a1e95e5efee349a693f30eda32401aef). Walkable: tatami floor sunk to 0.28 over the walk slab, 3.1 m gap in the open side, facing the Tea House.
 - `villa-c-1`: "Modern luxury villa house building" by zigurat architecture studio, CC-BY 4.0 (Sketchfab uid d8e6be2601474f7d8cb7d06f8566f01a). Solid collision over the house body. `cabin-2` reuses the Stone Cabin (above) as "Lakeside Cabin".
 - `clock-tower-1`: "Newmarket, Suffolk, UK - Jubilee Clock Tower" by epipolar, CC-BY 4.0 (Sketchfab uid 287e999f673846b38ab67ad366ef2aee), photogrammetry scan at 1.6x (24 m) in the plaza fountain, replacing the 38 m box tower.
+- `victorian-green`: "Victorian house" by massive-graphisme, CC-BY 4.0 (Sketchfab uid dbb02bf8f5ed4851b05dd97a1784a1fb). Edge ring (ring_houses.py), solid collision.
+- `residence-wsg`: "White Silver Green Residence" by Francesco Coldesina, CC-BY 4.0 (Sketchfab uid ec516ba32f03403f97954472c5d4b2cf). Edge ring (ring_houses.py), solid collision.
+- `medieval-rx`: "Medieval house | Generic Textures | Game ready" by by__Rx, CC-BY 4.0 (Sketchfab uid 3eb9e3b600264e2f99100fc43619497e). Edge ring (ring_houses.py), solid collision.
+- `kruglov-house`: "House of Kruglov" by D.U.H, CC-BY 4.0 (Sketchfab uid 8310706a996044e7bc3d8dc29594e841). Edge ring (ring_houses.py), solid collision.
+- `suburban-bogdan`: "Suburban House" by Bogdan Strielecki, CC-BY 4.0 (Sketchfab uid efcc220c62f641d29a1480e8b221c7b3). Edge ring (ring_houses.py), solid collision.
+- `small-brick`: "Small Brick House" by jimbogies, CC-BY 4.0 (Sketchfab uid c9ef0a360eff405682015c8813eee41d). Edge ring (ring_houses.py), solid collision.
+- `cozy-cottage`: "Cozy Cottage" by SINNIK, CC-BY 4.0 (Sketchfab uid 72c05612ebbc4f5f8eac26d047d5d69c). Edge ring (ring_houses.py), solid collision.
+- `suburban-blue`: "Suburban House" by mbuannoart, CC-BY 4.0 (Sketchfab uid b8375c5e5e6b40639fc06492fbd95fcb). Edge ring (ring_houses.py), solid collision.
