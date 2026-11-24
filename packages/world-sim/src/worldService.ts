@@ -81,6 +81,7 @@ export interface Observation extends TeaWayfinding {
   vehicle: VehicleView | null;
   /** The latest action record (running or settled), so a poller needs one call. */
   lastAct: ActRecord | null;
+  energy?: { current: number; max: number; exhausted: boolean };
   /** Speech overheard since `heardSince` (all of the last 60 s when absent). */
   heard: HeardMsg[];
 }
@@ -103,6 +104,7 @@ export interface WorldServiceOpts {
   sim: VerseSim;
   /** Bodies allowed at once (platform cost cap). */
   maxBodies?: number;
+  movementEnergy?: boolean;
   /** A body whose agent has not touched it for this many SIMULATION seconds is told to stop (the agent went away). */
   leaseS?: number;
   /** Settled action records kept per body for polling. */
@@ -120,6 +122,8 @@ interface Session {
   figure: string;
   body: AgentBody;
   records: Map<string, ActRecord>;
+  energy: number;
+  exhausted: boolean;
   last: ActRecord | null;
   lastSeen: number;
   /** Per-visit secret: other bodies' handles are HMAC(salt, id), so they mean nothing to anyone else or in a later visit. */
@@ -157,6 +161,7 @@ export class WorldService {
   readonly sim: VerseSim;
   private readonly sessions = new Map<string, Session>();
   private readonly maxBodies: number;
+  private readonly movementEnergy: boolean;
   private readonly leaseS: number;
   private readonly keepRecords: number;
   private readonly ambient: AmbientWorld | null;
@@ -174,6 +179,7 @@ export class WorldService {
   constructor(opts: WorldServiceOpts) {
     this.sim = opts.sim;
     this.maxBodies = opts.maxBodies ?? 200;
+    this.movementEnergy = opts.movementEnergy ?? false;
     this.leaseS = opts.leaseS ?? 30;
     this.keepRecords = opts.keepRecords ?? 64;
     this.ambient = opts.ambient ?? null;
@@ -215,7 +221,7 @@ export class WorldService {
     } catch (e) {
       throw new WorldError("spawn_failed", e instanceof Error ? e.message : String(e));
     }
-    this.sessions.set(agentId, { n: this.nextN++, figure: def.id, body, records: new Map(), last: null, lastSeen: this.sim.t, salt: randomBytes(16), heard: [] });
+    this.sessions.set(agentId, { n: this.nextN++, figure: def.id, body, energy: 100, exhausted: false, records: new Map(), last: null, lastSeen: this.sim.t, salt: randomBytes(16), heard: [] });
     this.rosterRev++;
     return this.observe(agentId);
   }
@@ -264,6 +270,12 @@ export class WorldService {
       return rec;
     }
     const type = (action as { type?: string }).type;
+    if (this.movementEnergy && s.exhausted && (type === "go_to" || type === "run_to" || type === "enter" || type === "drive")) {
+      this.settle(rec, { ok: false, status: "rejected", detail: "exhausted: rest in place or sit until energy recovers" });
+      this.remember(s, id, rec);
+      return rec;
+    }
+
     if (type === "enter_vehicle" || type === "exit_vehicle" || type === "drive") {
       this.vehicleAct(agentId, s, rec);
       this.remember(s, id, rec);
@@ -588,6 +600,7 @@ export class WorldService {
     return {
       t: round(this.sim.t, 2),
       body: { ...s.body.snapshot(), figure: s.figure },
+      ...(this.movementEnergy ? { energy: { current: round(s.energy, 2), max: 100, exhausted: s.exhausted } } : {}),
       nearestPlace: np ? { id: np.place.id, name: np.place.name, kind: np.place.kind, dist: round(np.dist, 2) } : null,
       insideRoom: room?.name ?? null,
       ...(this.cupHolder === agentId || (room?.id === "tea" && Math.abs(st.y - TEA_CUP.floorY) < 0.35) ? {
@@ -772,8 +785,33 @@ export class WorldService {
 
   /** Advance the world by `dt` simulation seconds and stop bodies whose agent went quiet. */
   tick(dt: number): void {
+    const before = this.movementEnergy ? [...this.sessions].map(([id, s]) => ({
+      id, s, x: s.body.state.x, z: s.body.state.z, driving: this.fleet.byDriver(id),
+      running: s.body.snapshot().clip === "Run" || s.last?.action.type === "run_to" && s.last.state === "running",
+    })) : [];
     this.sim.tick(dt);
     this.driveCars(dt);
+    for (const { id, s, x, z, driving, running } of before) {
+      const distance = Math.hypot(s.body.state.x - x, s.body.state.z - z);
+      if (distance > 0.0001) {
+        s.energy = Math.max(0, s.energy - distance * (driving ? 0.18 : running ? 0.32 : 0.09));
+        if (s.energy === 0) {
+          const newlyExhausted = !s.exhausted;
+          s.exhausted = true;
+          if (driving) {
+            driving.turn = null;
+            driving.inputUntil = this.sim.t;
+            const run = this.drives.get(id);
+            if (run?.rec) this.finishDrive(run, driving, "exhausted: rest to recover");
+          } else if (newlyExhausted && s.body.busy) {
+            void s.body.act({ type: "stop" });
+          }
+        }
+      } else if (!driving && (!s.body.busy || s.body.snapshot().posture === "seated")) {
+        s.energy = Math.min(100, s.energy + dt * (s.body.snapshot().posture === "seated" ? 3 : 1));
+        if (s.energy >= 10) s.exhausted = false;
+      }
+    }
     for (const d of this.fleet.discs()) this.sim.publishDisc(d.id, d.x, VEHICLE_Y, d.z, d.r, d.h, d.vx, d.vz);
     if (this.ambient) {
       this.ambient.step(dt, [...this.sessions.values()].map((x) => x.body.state), this.fleet.parkedDiscs());
