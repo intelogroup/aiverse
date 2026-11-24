@@ -246,3 +246,94 @@ describe("serving-first follower boot (PHASE1_SPEC WI-5)", () => {
     expect(childErr).not.toContain("gateway_boot_error");
   }, 60_000);
 });
+
+describe("boot with the database unreachable (DB-outage tolerance, 2026-11-24)", () => {
+  const DEAD_PORT = 4572;
+  const DEAD_BASE = `http://127.0.0.1:${DEAD_PORT}`;
+  // Connection-refused on a loopback port no Postgres listens on. The
+  // database NAME still matches the test allow-list in @aiverse/shared/env
+  // (the guard matches on the /aiverse_test path, not the host), so the
+  // child passes env validation and actually reaches the boot steps —
+  // what fails is the queries themselves, the same shape as the Neon
+  // quota outage (PostgresError 53000 on every query) this tolerance
+  // exists for: the 2026-11-24 prod deploy crash-looped when bootPrep's
+  // rooms-seeding query threw through the top-level await.
+  const DEAD_DB_URL = "postgres://postgres@127.0.0.1:1/aiverse_test";
+  let child: ReturnType<typeof Bun.spawn> | undefined;
+  let childOut = "";
+  let childErr = "";
+
+  afterAll(async () => {
+    if (child) {
+      child.kill();
+      const exited = await Promise.race([child.exited, sleep(3000).then(() => null)]);
+      if (exited === null) {
+        child.kill("SIGKILL");
+        await child.exited;
+      }
+      child = undefined;
+    }
+  });
+
+  test("child serves /health degraded + /version, logs both boot-step failures, starts no singleton job", async () => {
+    child = Bun.spawn([process.execPath, "src/index.ts"], {
+      cwd: GATEWAY_ROOT,
+      env: {
+        ...childEnv(),
+        DATABASE_URL: DEAD_DB_URL,
+        DATABASE_URL_DIRECT: DEAD_DB_URL,
+        PORT: String(DEAD_PORT),
+      },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const drain = async (stream: ReadableStream<Uint8Array>, push: (s: string) => void) => {
+      const reader = stream.getReader();
+      const dec = new TextDecoder();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        push(dec.decode(value, { stream: true }));
+      }
+    };
+    void drain(child.stdout as ReadableStream<Uint8Array>, (s) => { childOut += s; });
+    void drain(child.stderr as ReadableStream<Uint8Array>, (s) => { childErr += s; });
+
+    // /health answers even though every boot DB step failed: 503 with the
+    // degraded shape (db down, redis up). Before the fix the child exited
+    // inside ~a second and nothing ever answered.
+    const health = await waitFor(async () => {
+      try {
+        const r = await fetch(`${DEAD_BASE}/health`);
+        return r.status === 503 ? r : null;
+      } catch {
+        return null;
+      }
+    }, BOOT_BUDGET_MS, "child /health 503 (degraded)");
+    const healthBody = (await health.json()) as any;
+    expect(healthBody.status).toBe("degraded");
+    expect(healthBody.db).toBe("down");
+    expect(healthBody.redis).toBe("ok");
+
+    // Non-DB routes serve too.
+    const version = await fetch(`${DEAD_BASE}/version`);
+    expect(version.status).toBe(200);
+
+    // The process is alive, in degraded follower mode: both boot steps
+    // logged their failure by name, the election treated its own DB
+    // error as "not leader" (singleton jobs never start without the
+    // lock), and nothing escalated to the boot-fatal path.
+    await waitFor(
+      () => (childErr.includes("reconcile_presence_on_boot") ? true : null),
+      BOOT_BUDGET_MS,
+      "second boot-step failure logged",
+    );
+    expect(childErr).toContain("gateway_boot_step_failed");
+    expect(childErr).toContain("ensure_rooms_seeded");
+    expect(childErr).toContain("reconcile_presence_on_boot");
+    expect(childOut).toContain('"leader":false');
+    expect(childOut).not.toContain("ingest_consumer_started");
+    expect(childErr).not.toContain("gateway_boot_error");
+    expect(child.exitCode).toBeNull();
+  }, 45_000);
+});
