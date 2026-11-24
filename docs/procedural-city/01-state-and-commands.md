@@ -1,6 +1,9 @@
 # State and commands
 
-## Branch stack (all pushed to origin, no PRs opened)
+Current (2026-11-24): the City 3 design stack (PRs #273 -> #281) is on main. Placed houses, prop sets and run order: 25-placed-houses.md;
+tiles and the Vercel build: 23-world-tiles.md; what broke: 06-failures-log.md. The branch stack below is the 2026-11-06 history.
+
+## Branch stack (2026-11-06, historical)
 `feat/city3-view` → `feat/city3-detail` → `feat/city3-streaming` → `feat/city3-rooms` → `feat/body-controller` → `feat/city-districts`
 
 | Branch | What it added |

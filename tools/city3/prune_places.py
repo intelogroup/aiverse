@@ -18,10 +18,11 @@ from bridge_bazaar_demolish import ALL
 ASSETS = "apps/console/public/assets/"
 
 
-def prune(rows, cleared=ALL, key="id"):
-    """rows without the ones whose `key` is a cleared shop lot; second value: the rows dropped"""
+def prune(rows, cleared=ALL, key="id", rooms=None):
+    """rows without the ones whose `key` is a cleared shop lot, or (rooms given) a seat or place tied to a room that no longer exists; second value: the rows dropped"""
     gone = {f"shop-{i}" for i in cleared}
-    return [r for r in rows if r[key] not in gone], [r[key] for r in rows if r[key] in gone]
+    dead = lambda r: r[key] in gone or (rooms is not None and (r.get("building") or r.get("room")) not in (None, *rooms))
+    return [r for r in rows if not dead(r)], [r[key] for r in rows if dead(r)]
 
 
 if __name__ == "__main__":
@@ -34,10 +35,13 @@ if __name__ == "__main__":
         assert [p["id"] for p in keep] == ["shop-1", "stall-0"] and gone == ["shop-124"]
         keep, gone = prune([{"id": "c1", "building": "shop-124"}, {"id": "c2", "building": "tea"}], {124}, "building")
         assert [p["id"] for p in keep] == ["c2"] and gone == ["shop-124"]
+        keep, gone = prune([{"id": "c3", "building": "press"}, {"id": "c4", "building": "tea"}, {"id": "stall-1"}], set(), "id", rooms={"tea"})
+        assert [p["id"] for p in keep] == ["c4", "stall-1"] and gone == ["c3"], (keep, gone)
         print("selftest ok"); sys.exit(0)
+    rooms = {r["id"] for r in json.load(open(ASSETS + "interiors/index.json"))}
     for name, key, kw in (("city3-places.json", "id", {"indent": 1}), ("city3-anchors.json", "building", {"separators": (",", ":")})):
         rows = json.load(open(ASSETS + name))
-        keep, gone = prune(rows, key=key)
+        keep, gone = prune(rows, key=key, rooms=rooms)
         print(name, {"kept": len(keep), "dropped": len(gone)})
         if gone and not a.dry_run:
             with open(ASSETS + name, "w") as f:

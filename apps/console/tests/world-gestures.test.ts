@@ -42,19 +42,20 @@ describe("gesture names", () => {
 });
 
 describe("playing gestures", () => {
-  it("every listed clip plays to completion standing", async () => {
+  it("standing clips complete and seated-only clips are refused while standing", async () => {
     service.attach("g1");
     const fails: string[] = [];
     for (const [i, c] of service.clips().entries()) {
       const rec = await settle("g1", service.act("g1", `p${i}`, { type: "play", clip: c.name, seconds: 1 }).id, 40);
-      if (rec.outcome?.status !== "done") fails.push(`${c.name}: ${JSON.stringify(rec.outcome)}`);
+      const expected = clipDef(c.name)?.seatedOnly ? "rejected" : "done";
+      if (rec.outcome?.status !== expected) fails.push(`${c.name}: ${JSON.stringify(rec.outcome)}`);
     }
     expect(fails).toEqual([]);
   }, 120_000);
 
   it("a standing gesture is refused while seated; a seated one plays", async () => {
-    const seat = sim.sittables.find((s) => s.building === "shop-56")!;
-    const lot = sim.places.find((p) => p.id === "shop-56")!;
+    const seat = sim.sittables.find((s) => s.building === "tea")!;
+    const lot = sim.places.find((p) => p.id === "shop-102")!;
     service.attach("g2", { x: lot.stand[0], z: lot.stand[1] });
     expect((await settle("g2", service.act("g2", "s1", { type: "sit", sittable: seat.id }).id, 200)).outcome?.status).toBe("seated");
     const bad = await settle("g2", service.act("g2", "s2", { type: "play", clip: "wave" }).id, 5);

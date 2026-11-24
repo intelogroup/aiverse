@@ -16,6 +16,7 @@ import {
   type ScoutPlace,
   type ScoutRoomShape,
   type Sittable,
+  type ExecutorDeps,
 } from "./scout";
 import { WALK_CONFIG, makeWalker, type Hit, type World } from "./walker";
 
@@ -248,6 +249,30 @@ describe("executor: play / say / finish", () => {
     expect(clips.current).toBeNull();
   });
 
+  it("stop clears a looping gesture from the body", async () => {
+    const { exec, clips } = makeExec();
+    const state = makeWalker(0, 0.2, 0, 0);
+    const play = exec.submit({ type: "play", clip: "Clapping", seconds: 30 }, state);
+    expect(clips.current).toBe("Clapping");
+    expect(await exec.submit({ type: "stop" }, state)).toMatchObject({ ok: true });
+    expect(await play).toMatchObject({ ok: false, detail: "cancelled" });
+    expect(clips.current).toBeNull();
+  });
+
+  it("requires a seat for SittingTalking", async () => {
+    const { exec, clips } = makeExec();
+    const state = makeWalker(-30, 0.48, 74.5, 0);
+    const world = fakeWorld({ ground: 0.48 });
+    expect(await exec.submit({ type: "play", clip: "SittingTalking" }, state))
+      .toMatchObject({ ok: false, status: "rejected" });
+    await drive(exec, state, world, exec.submit({ type: "sit", sittable: SITTING.id }, state));
+    const play = exec.submit({ type: "play", clip: "SittingTalking", seconds: 30 }, state);
+    expect(clips.current).toBe("SittingTalking");
+    await exec.submit({ type: "stop" }, state);
+    expect(await play).toMatchObject({ ok: false, detail: "cancelled" });
+    expect(clips.current).toBe("SittingIdle");
+  });
+
   it("play rejects clips outside the social subset", async () => {
     const { exec } = makeExec();
     const s = makeWalker(0, 0.2, 0, 0);
@@ -265,6 +290,28 @@ describe("executor: play / say / finish", () => {
 });
 
 describe("executor: sitting", () => {
+  it("cancels seat transitions without leaving the wrong clip or seat ownership", async () => {
+    const { exec, clips } = makeExec();
+    const state = makeWalker(-30, 0.48, 74.5, 0);
+    const world = fakeWorld({ ground: 0.48 });
+    const sit = () => exec.submit({ type: "sit", sittable: SITTING.id }, state);
+    const interrupted = sit();
+    for (let i = 0; i < 600 && clips.current !== "SitDown"; i++) exec.tick(1 / 60, state, world);
+    expect(clips.current).toBe("SitDown");
+    await exec.submit({ type: "stop" }, state);
+    expect(await interrupted).toMatchObject({ ok: false, detail: "cancelled" });
+    expect(exec.claimedSeatId).toBeNull();
+    expect(clips.current).toBeNull();
+
+    expect(await drive(exec, state, world, sit())).toMatchObject({ status: "seated" });
+    const stand = exec.submit({ type: "stand" }, state);
+    expect(clips.current).toBe("StandUp");
+    await exec.submit({ type: "stop" }, state);
+    expect(await stand).toMatchObject({ ok: false, detail: "cancelled" });
+    expect(exec.claimedSeatId).toBe(SITTING.id);
+    expect(clips.current).toBe("SittingIdle");
+  });
+
   it("sit walks to the approach, turns, sits; stand reverses it", async () => {
     const { exec, clips } = makeExec();
     // Inside the press, on its floor.
@@ -354,7 +401,7 @@ describe("executor: interact", () => {
     id: "tea-radio", room: "tea", kind: "radio", asset: "vintage_radio_transceiver", label: "Radio",
     pos: [-17.44, 1.26, -78.5], rotY: 1.5708, stand: [-16.95, -78.5], heading: -1.5708, floorY: 0.48,
   };
-  function rig(withInteract = true) {
+  function rig(withInteract = true, plan?: ExecutorDeps["plan"]) {
     const clips = new ClipTestState();
     const ctl = new InteractController();
     ctl.register([RADIO]);
@@ -363,6 +410,7 @@ describe("executor: interact", () => {
       sittables: [SITTING],
       clips,
       hipsY: 0.718,
+      plan,
       interact: withInteract
         ? {
             defs: () => ctl.list(),
@@ -374,6 +422,18 @@ describe("executor: interact", () => {
     });
     return { exec, clips, ctl };
   }
+
+  it("routes prop approaches through the planner and uses a prop already within reach", async () => {
+    const plan = vi.fn<NonNullable<ExecutorDeps["plan"]>>((_state, target) => [[-20, -78.5], target]);
+    const { exec, ctl } = rig(true, plan);
+    const state = makeWalker(-21, 0.48, -76, 0);
+    const use = () => driveWithCtl(exec, ctl, state, fakeWorld({ ground: 0.48 }),
+      exec.submit({ type: "interact", target: "tea-radio" }, state));
+    expect(await use()).toMatchObject({ ok: true, detail: "on" });
+    expect(plan).toHaveBeenCalledTimes(1);
+    expect(await use()).toMatchObject({ ok: true, detail: "off" });
+    expect(plan).toHaveBeenCalledTimes(1);
+  });
 
   it("walks to the stand point, uses the radio, settles done (on); a second use settles done (off)", async () => {
     const { exec, clips, ctl } = rig();

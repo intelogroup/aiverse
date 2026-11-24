@@ -57,6 +57,7 @@ export interface FramesMessage {
   key: boolean;
   b: PoseTuple[];
   gone: number[];
+  teaCupHolder?: number | null;
 }
 
 /** Who the numbers are: display name and body model only. */

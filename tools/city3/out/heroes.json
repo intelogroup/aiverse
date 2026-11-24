@@ -1388,7 +1388,7 @@
     "id": "tea-radio",
     "room": "tea",
     "kind": "radio",
-    "asset": "vintage_radio_transceiver",
+    "asset": "tea_house_radio",
     "label": "Radio",
     "pos": [
      -17.44,
@@ -1403,9 +1403,9 @@
     "heading": -1.5708,
     "floorY": 0.48,
     "pilot": [
-     0.16,
-     0.152,
-     0.03
+     0.158,
+     0.099,
+     0.192
     ]
    }
   ],

@@ -1,3 +1,4 @@
+import { TEA_CUP, type CupAction } from "./teaCup";
 // worldService.ts — the agent-facing surface of the server sim: attach a body, send actions, read senses.
 //
 // Pure and IO-free (VerseSim in, plain JSON out). apps/sim wraps it in HTTP and a wall-clock tick; the gateway authenticates the
@@ -75,6 +76,7 @@ export interface Observation extends TeaWayfinding {
   nearestPlace: { id: string; name: string; kind: string; dist: number } | null;
   insideRoom: string | null;
   scene: OracleObject[];
+  teaCup?: { id: string; approach: [number, number]; position: [number, number, number]; state: "table" | "held" | "yours"; actions: CupAction[] };
   /** Your car's state while you drive (null on foot). */
   vehicle: VehicleView | null;
   /** The latest action record (running or settled), so a poller needs one call. */
@@ -161,6 +163,7 @@ export class WorldService {
   readonly fleet = new Fleet();
   private readonly nowS: () => number;
   private readonly drives = new Map<string, DriveRun>();
+  private cupHolder: string | null = null;
   private nextN = 1;
   private rosterRev = 0;
   private sayN = 1;
@@ -225,6 +228,7 @@ export class WorldService {
     const car = this.fleet.byDriver(agentId);
     if (car) { car.driver = null; car.v.speed = 0; car.v.steer = 0; }
     this.drives.delete(agentId);
+    if (this.cupHolder === agentId) this.cupHolder = null;
     this.sim.removeBody(agentId);
     this.sessions.delete(agentId);
     this.rosterRev++;
@@ -275,6 +279,11 @@ export class WorldService {
       this.remember(s, id, rec);
       return rec;
     }
+    if (rec.action.type === "interact" && rec.action.target === TEA_CUP.id) {
+      this.cupAct(agentId, s, rec, rec.action.verb!);
+      this.remember(s, id, rec);
+      return rec;
+    }
     const resolved = this.resolveBody(agentId, s, rec.action);
     if (resolved === null) {
       rec.state = "settled";
@@ -300,6 +309,35 @@ export class WorldService {
     return rec;
   }
 
+  private atCupTable(s: Session): boolean {
+    const { x, y, z } = s.body.state;
+    return roomAt(this.sim.rooms, x, z)?.id === "tea" &&
+      Math.abs(y - TEA_CUP.floorY) < 0.35 &&
+      Math.hypot(x - TEA_CUP.position[0], z - TEA_CUP.position[2]) <= TEA_CUP.reach;
+  }
+
+  private cupAct(agentId: string, s: Session, rec: ActRecord, verb: CupAction): void {
+    const refuse = (detail: string) => this.settle(rec, { ok: false, status: "rejected", detail });
+    if (s.body.busy) return refuse("finish or stop your current action first");
+    if (s.body.snapshot().posture !== "standing") return refuse("stand first to use the cup");
+    if (verb === "take") {
+      if (!this.atCupTable(s)) return refuse("move within reach of the Tea House lounge table");
+      if (this.cupHolder !== null) return refuse("the cup is already held");
+      this.cupHolder = agentId;
+    } else {
+      if (this.cupHolder !== agentId) return refuse("take the cup first");
+      if (verb === "drink") {
+        void s.body.act({ type: "play", clip: "Drinking" }).then((outcome) => {
+          this.settle(rec, { ...outcome, target: TEA_CUP.id });
+        });
+        return;
+      }
+      if (!this.atCupTable(s)) return refuse("return to the Tea House lounge table to put down the cup");
+      this.cupHolder = null;
+    }
+    this.settle(rec, { ok: true, status: "done", target: TEA_CUP.id, detail: verb });
+  }
+
   private settle(rec: ActRecord, outcome: ScoutOutcome): void {
     rec.state = "settled";
     rec.settledAt = this.sim.t;
@@ -312,6 +350,7 @@ export class WorldService {
     const st = s.body.state;
     const car = this.fleet.byDriver(agentId);
     if (a.type === "enter_vehicle") {
+      if (this.cupHolder === agentId) return this.settle(rec, { ok: false, status: "rejected", detail: "put the Tea House cup down before driving" });
       if (car) return this.settle(rec, { ok: false, status: "rejected", detail: `you are already in ${car.id}` });
       const target = a.vehicle !== undefined ? this.fleet.byId(a.vehicle) : this.fleet.nearest(st.x, st.z)?.car;
       if (!target) return this.settle(rec, { ok: false, status: "unavailable", detail: `no such car; cars you can see are in observe.scene (kind vehicle): ${this.fleet.vehicles.map((c) => c.id).join(", ")}` });
@@ -551,6 +590,15 @@ export class WorldService {
       body: { ...s.body.snapshot(), figure: s.figure },
       nearestPlace: np ? { id: np.place.id, name: np.place.name, kind: np.place.kind, dist: round(np.dist, 2) } : null,
       insideRoom: room?.name ?? null,
+      ...(this.cupHolder === agentId || (room?.id === "tea" && Math.abs(st.y - TEA_CUP.floorY) < 0.35) ? {
+        teaCup: {
+          id: TEA_CUP.id,
+          position: TEA_CUP.position,
+          approach: TEA_CUP.approach,
+          state: this.cupHolder === agentId ? "yours" : this.cupHolder === null ? "table" : "held",
+          actions: this.cupHolder === agentId ? ["drink", "put_down"] : this.cupHolder === null ? ["take"] : [],
+        },
+      } : {}),
       ...teaLandmarks(st, eye, this.sim.world, st.body + yawDeg * Math.PI / 180,
         this.sim.door.state, this.sim.elevator, this.sim.teaFloors),
       scene: [...oracleScene(this.sim.places, this.sim.rooms, { x: st.x, z: st.z, heading: st.body }, {}, interactables, seats), ...this.seenBodies(agentId, s), ...this.seenVehicles(agentId, st)]
@@ -590,13 +638,13 @@ export class WorldService {
   }
 
   /** Every body's pose this instant, quantised for the viewer stream. Not agent-scoped: it is the public picture of the world. */
-  frames(): { epoch: string; t: number; rosterRev: number; b: PoseTuple[]; say: SayEvent[] } {
+  frames(): { epoch: string; t: number; rosterRev: number; b: PoseTuple[]; say: SayEvent[]; teaCupHolder: number | null } {
     const b: PoseTuple[] = [];
     for (const [id, s] of this.sessions) if (!this.fleet.byDriver(id)) b.push(encodePose(s.n, s.body.pose()));   // a driver is the car
     b.push(...this.fleet.poses());
     if (this.ambient) b.push(...this.ambient.poses());
     const say = this.says.filter((e) => this.sim.t - e.t <= SAY_STREAM_TTL_S).map((e) => ({ ...e, text: e.text.slice(0, 140) }));
-    return { epoch: this.epoch, t: round(this.sim.t, 3), rosterRev: this.rosterRev, b, say };
+    return { epoch: this.epoch, t: round(this.sim.t, 3), rosterRev: this.rosterRev, b, say, teaCupHolder: this.cupHolder ? this.sessions.get(this.cupHolder)?.n ?? null : null };
   }
 
   /** Body number -> agent id (gateway-side only: it turns this into a display name) and the body model to draw. */
@@ -617,10 +665,10 @@ export class WorldService {
   }
 
   /** The clips `play` accepts: name, whether it loops (held for `seconds`), and its own length in seconds. */
-  clips(): { name: string; loop: boolean; seconds: number; seatedOk: boolean; aliases: string[] }[] {
+  clips(): { name: string; loop: boolean; seconds: number; seatedOk: boolean; seatedOnly?: boolean; aliases: string[] }[] {
     return SOCIAL_CLIPS.map((name) => {
       const d = clipDef(name);
-      return { name, loop: d?.loop ?? false, seconds: round(d?.duration ?? 0, 2), seatedOk: !!d?.seatedOk, aliases: d?.aliases ?? [] };
+      return { name, loop: d?.loop ?? false, seconds: round(d?.duration ?? 0, 2), seatedOk: !!d?.seatedOk, ...(d?.seatedOnly ? { seatedOnly: true } : {}), aliases: d?.aliases ?? [] };
     });
   }
 

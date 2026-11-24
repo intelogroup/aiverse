@@ -10,7 +10,7 @@ import type { EggPlacement } from "../src/features/world/EasterEggs";
 const assets = new URL("../public/", import.meta.url);
 const read = (path: string) => readFileSync(new URL(`.${path}`, assets));
 const manifest = JSON.parse(read("/assets/collectibles/easter-eggs.json").toString()) as { contestActive: boolean; model: string; eggs: EggPlacement[] };
-const districts = JSON.parse(read("/assets/districts.json").toString()).districts as { id: string; url: string; center: [number, number]; half: number }[];
+const districts = JSON.parse(read("/assets/districts.json").toString()).districts.filter((d: { id: string }) => !/^(house|props)-/.test(d.id)) as { id: string; url: string; center: [number, number]; half: number }[]; // placed houses (place_house.mjs) and prop sets (place_props.mjs) hold no eggs
 const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 // The tests need shipped geometry; skip image decoding so the real assets load in Node.
 loader.register(() => ({ name: "test-materials", loadMaterial: () => Promise.resolve(new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })) }));

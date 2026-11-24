@@ -45,7 +45,9 @@ export class CityNav {
 
   private constructor(navMesh: NavMesh) {
     this.navMesh = navMesh;
-    this.query = new NavMeshQuery(navMesh);
+    // Detour's default node pool (2048) runs out on a 165 m route across the Bazaar and returns a partial corridor that stops short of the goal
+    // (plaza -> inside shop-103: endGap 6.9, read as "no safe route"). 4096 already completes it; 8192 leaves headroom.
+    this.query = new NavMeshQuery(navMesh, { maxNodes: 8192 });
   }
 
   /** Build from the exported artifact bytes (world-city3-navmesh.bin). */

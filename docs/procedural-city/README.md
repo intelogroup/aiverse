@@ -13,7 +13,7 @@ re-deriving it. Written 2026-11-06 at the end of a long build; update it, don't 
 > **2026-11-23 update (branch `feat/city3-rebuild`, not on main):** the citadel (8 Kit_shop townhouses) and the civic hall (`Kit_hall0`) are prebuilt CC-BY kits;
 > lots 164-171 are a garden and 60-67 an orchard (`bridge_garden_block.py --block`), after the earlier lido, sports field and park. World GLB 95.3 MB, far LOD
 > 4.98 of 10 MB, every budget cap doubled. `check_plan_vs_glb.py`: 51 real, 178 landscape, 0 shims. After any demolition run `prune_places.py`, rebake the
-> navmesh and rebuild the tiles. Open: 51 Bones market buildings unpolished, ring district not started, Troyes Shop 7 on both W and E citadel lots.
+> navmesh and rebuild the tiles. Open: 51 Bones market buildings unpolished, ring district not started, citadel kits have no interior rooms.
 
 | File | What it holds |
 |---|---|
@@ -29,6 +29,7 @@ re-deriving it. Written 2026-11-06 at the end of a long build; update it, don't 
 | `21-tea-house-runtime.md` | Local City 3 integration, floor selection, production stair walking, collision categories and source-preserving asset patch |
 | `22-tea-house-elevator.md` | Proposed elevator mechanics, moving passenger support, dispatch, doors, lifecycle and acceptance gates |
 | `23-world-tiles.md` | Streaming the Bazaar from tiles (the default; `?tiles=0` for the one-file world): build, gates, traps, cold-start numbers, what is still open |
+| `25-placed-houses.md` | Prebuilt houses as streamed districts: houses.sh run order, far stand-ins, rooms, clearing passes, the 2026-11-24 state |
 | `19-easter-eggs.md` | Thirty licensed SciFi eggs across five districts; placement manifest and future hunt integration |
 | `16-mira-resident.md` | Uploaded static character Mira: preparation, placement and source status |
 | `17-drinking-glasses.md` | Uploaded glass replacements, physical rendering, and saved bottle/shader packs |

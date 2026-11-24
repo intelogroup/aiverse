@@ -2,6 +2,7 @@ import { noLimitsActive } from "./quality";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { fitShadow } from "./shadowFit";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { useGLTF } from "@react-three/drei";
@@ -22,8 +23,8 @@ import { TILES } from "./tilesMode";
 import { tileScenes } from "./tileScenes";
 import { applyBazaarBatch, type BazaarBatchHandle } from "./bazaarBatch";
 import { planBazaarInstance, type BazaarInstanceHandle } from "./bazaarInstance";
-import { applyNight, disposeTree, hideLegacyWater } from "./districtTree";
-import { createHemiFill, createOcean, createSkyDome } from "./districtSky";
+import { applyNight, sharpenTextures, disposeTree, hideLegacyWater } from "./districtTree";
+import { createHemiFill, createOcean, createSkyDome, oceanTime } from "./districtSky";
 
 export const DISTRICTS_URL = TILES ? "/assets/tiles/districts.json" : "/assets/districts.json";
 
@@ -59,6 +60,8 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
   const shellGroups = useRef(new Map<string, THREE.Object3D>());
   // Textured far view (manifest `lod`): same `shell_<id>` groups; once it has arrived the beige shell groups stay hidden.
   const lodGroups = useRef(new Map<string, THREE.Object3D>());
+  // Far stand-ins of placed houses (DistrictDef.farUrl): visible until the district's detail is in `groups`.
+  const farGroups = useRef(new Map<string, THREE.Object3D>());
   // The resident (manifest `resident` flag) never enters the streamed `groups` set — it loads via
   // useGLTF — so shell coverage needs its id + a mounted flag beside the streamed set (isShellCovered).
   const residentIdRef = useRef<string | undefined>(undefined);
@@ -74,6 +77,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     const lodUp = lodGroups.current.size > 0;
     for (const [id, g] of shellGroups.current) g.visible = farGroupVisible("shell", isShellCovered(id, loaded, residentIdRef.current, residentReadyRef.current), lodUp);
     for (const [id, g] of lodGroups.current) g.visible = farGroupVisible("lod", isShellCovered(id, loaded, residentIdRef.current, residentReadyRef.current), lodUp);
+    for (const [id, g] of farGroups.current) g.visible = !loaded.has(id);
   };
   // Camera-collision meshes per root (resident, links, each streamed district); flattened lazily for the collider.
   const colliderSets = useRef(new Map<string, THREE.Mesh[]>());
@@ -132,6 +136,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     gl.debug.checkShaderErrors = !import.meta.env.PROD;
     gl.toneMapping = THREE.AgXToneMapping;
     // useGLTF caches the resident, so its BVHs are built once and kept with it (buildColliders is idempotent).
+    sharpenTextures(resident.scene, Math.min(8, gl.capabilities.getMaxAnisotropy()));
     addColliders("resident", resident.scene);
     // Batching trial (tmp/batching-statics): with ?batch=census|merge|cells|both,
     // classify / merge / cell-split the resident's static geometry. Runs after
@@ -179,6 +184,30 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     let live = true; let root: THREE.Object3D | null = null;
     loader.load(manifest.links, (g) => { if (!live) { disposeTree(g.scene); return; } root = g.scene; scene.add(root); applyNight(root, themeRef.current?.night ?? 0); addColliders("links", root); });
     return () => { live = false; if (root) { scene.remove(root); dropColliders("links"); disposeTree(root); } };
+  }, [manifest, loader, scene]);
+
+  // Far houses: each placed house shows its light stand-in (farUrl) until its detailed GLB mounts, so the opening aerial sees the town.
+  // One load per URL, one clone per district at its origin; clones share geometry and materials, so only the loaded originals are disposed.
+  useEffect(() => {
+    const defs = manifest?.districts.filter((d) => d.farUrl) ?? [];
+    if (!defs.length) return;
+    let live = true; const originals: THREE.Object3D[] = [];
+    const byUrl = new Map<string, DistrictDef[]>();
+    for (const d of defs) byUrl.set(d.farUrl!, [...(byUrl.get(d.farUrl!) ?? []), d]);
+    // wait until the world is walkable (resident mounted or a first district in): the far set must not compete with the core's first paint
+    // (measured cold, tile mode: 2.1/2.1/2.9 s to walkable with it racing the core, 2.1/1.8/1.8 s without)
+    const ready = () => residentReadyRef.current || groups.current.size > 0;
+    const start = () => { if (!live) return; if (!ready()) { timer = setTimeout(start, 250); return; } for (const [url, ds] of byUrl) loader.load(url, (g) => {
+      if (!live) { disposeTree(g.scene); return; }
+      originals.push(g.scene);
+      for (const d of ds) {
+        const c = g.scene.clone(); const [ox, oz] = originOf(d); c.position.set(ox, 0, oz); c.name = `far:${d.id}`;
+        c.visible = !groups.current.has(d.id); scene.add(c); farGroups.current.set(d.id, c);
+      }
+      syncShell();
+    }, undefined, () => console.warn(`[districts] far house ${url} failed to load`)); };
+    let timer: ReturnType<typeof setTimeout> | undefined; start();
+    return () => { live = false; clearTimeout(timer); for (const c of farGroups.current.values()) scene.remove(c); farGroups.current.clear(); originals.forEach(disposeTree); };
   }, [manifest, loader, scene]);
 
   // Far shell: one small box-massing GLB for the whole city, always resident. Each `shell_<id>`
@@ -293,6 +322,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
   const mount = (d: DistrictDef, root: THREE.Object3D | null, t0: number) => {
     const g = new THREE.Group(); g.name = `district:${d.id}`; const [ox, oz] = originOf(d); g.position.set(ox, 0, oz); if (root) g.add(root);
     applyNight(g, themeRef.current?.night ?? 0);
+    sharpenTextures(g, Math.min(8, gl.capabilities.getMaxAnisotropy()));
     if (manifest?.tiles) hideLegacyWater(g);
     g.updateMatrixWorld(true); addColliders(d.id, g);
     for (const [key, url] of collisionJobs([d.id], defs)) loadCollision(key, url, originOf(d), () => groups.current.has(d.id));
@@ -360,15 +390,15 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     // theme
     const t = blendTheme(focus, manifest); const prev = themeRef.current; themeRef.current = t;
     const u = (sky.material as THREE.ShaderMaterial).uniforms;
-    u.top.value.setRGB(...t.skyTop); u.horizon.value.setRGB(...t.skyHorizon); u.sunDir.value.set(...t.sunDir).normalize(); u.sunCol.value.setRGB(...t.sun);
+    u.top.value.setRGB(...t.skyTop); u.horizon.value.setRGB(...t.skyHorizon); u.sunDir.value.set(...t.sunDir).normalize(); u.sunCol.value.setRGB(...t.sun); u.time.value = performance.now() / 1000; oceanTime.value = u.time.value;
     (scene.fog as THREE.FogExp2).color.setRGB(...t.fog); (scene.fog as THREE.FogExp2).density = t.fogDensity;
     (water.material as THREE.MeshStandardMaterial).color.setRGB(...t.water);
     gl.toneMappingExposure = t.exposure; scene.environmentIntensity = t.envIntensity;
     hemi.intensity = t.ambient * 5;
     const l = light.current;
     if (l) {
-      const sd = new THREE.Vector3(...t.sunDir).normalize(); const tx = Math.round(controls.target.x / 40) * 40; const tz = Math.round(controls.target.z / 40) * 40;
-      l.target.position.set(tx, 0, tz); l.target.updateMatrixWorld(); l.position.set(tx + sd.x * 400, sd.y * 400, tz + sd.z * 400);
+      const sd = new THREE.Vector3(...t.sunDir).normalize();
+      fitShadow(l, sd, camera);
       l.color.setRGB(...t.sun); l.intensity = t.sunIntensity;
     }
     if (!prev || Math.abs(prev.night - t.night) > 0.02) { applyNight(resident.scene, t.night); groups.current.forEach((g) => applyNight(g, t.night)); }

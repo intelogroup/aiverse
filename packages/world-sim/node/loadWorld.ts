@@ -16,7 +16,7 @@ import type { ScoutPlace, ScoutRoomShape, Sittable } from "../src/scout";
 import type { TeaFloorPlan } from "../src/teaLandmarks";
 import { VerseSim } from "../src/verseSim";
 
-interface DistrictRow { id: string; center: [number, number]; resident?: boolean; collisionUrl?: string }
+interface DistrictRow { id: string; center: [number, number]; origin?: [number, number]; resident?: boolean; collisionUrl?: string }
 interface RoomRow { id: string; name?: string; door?: [number, number]; rect?: [number, number, number, number]; center?: [number, number]; layout?: string; collision?: string; interactables?: InteractableDef[] }
 
 export interface LoadStats {
@@ -72,7 +72,7 @@ export async function loadVerseSim(assetsDir: string, opts: { navBin?: string | 
   sim.walk.status = residentOk ? "ready" : "failed";
   for (const d of manifest.districts) {
     if (d.resident || !d.collisionUrl) continue;
-    await loadCollision(d.id, d.collisionUrl, d.center).catch(() => false);
+    await loadCollision(d.id, d.collisionUrl, d.origin ?? d.center).catch(() => false); // same rule as the console (originOf): the GLB local origin sits at `origin`
   }
 
   const rooms = await readJson<RoomRow[]>(at(assetsDir, "/assets/interiors/index.json"));

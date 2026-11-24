@@ -732,7 +732,10 @@ export class SoundDirector {
         )
       : Infinity;
     const doorAud = Number.isFinite(doorDist) ? distanceGain(doorDist, DOOR_AUDIBLE_M) : 0;
-    if (frame.doorState === "opening" && this.prevDoorState === "closed") {
+    const angle = Number.isFinite(frame.doorAngle) ? frame.doorAngle : this.prevDoorAngle;
+    // The opening phase starts with the character's reach, while the leaf is still shut.
+    if (this.prevDoorAngle === 0 && angle > 0 &&
+      (frame.doorState === "opening" || (frame.doorState === "open" && this.prevDoorState === "opening"))) {
       this.playOnce("door-latch", this.sfxBus, 0.5 * doorAud, 1.15);
       this.latchCount++;
     }
@@ -740,7 +743,6 @@ export class SoundDirector {
       this.playOnce("door-latch", this.sfxBus, 0.65 * doorAud, 0.9);
       this.latchCount++;
     }
-    const angle = Number.isFinite(frame.doorAngle) ? frame.doorAngle : this.prevDoorAngle;
     const creak = creakFor(angle, this.prevDoorAngle, dt);
     this.creakLevel = creak.gain * doorAud;
     if (this.ctx && this.creakGain && this.creakSrc && Number.isFinite(this.creakLevel)) {

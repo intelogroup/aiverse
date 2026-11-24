@@ -113,12 +113,16 @@ describe("sim internal API", () => {
     const clips = ((await (await call("GET", "/clips")).json()) as any).clips;
     expect(clips.map((c: any) => c.name)).toContain("Waving");
     clock += 10_000;
-    await call("POST", "/bodies", { agentId: AID, expiresAtMs: clock + 60_000 });
+    const attached = await call("POST", "/bodies", { agentId: AID, expiresAtMs: clock + 60_000 });
+    expect((await attached.json() as { clips: unknown }).clips).toEqual(clips);
+    const reattached = await call("POST", "/bodies", { agentId: AID, expiresAtMs: clock + 60_000 });
+    expect((await reattached.json() as { clips: unknown }).clips).toEqual(clips);
     const wave = (await (await call("POST", `/bodies/${AID}/act`, { id: "w1", action: { type: "play", clip: "cartwheel" } })).json()) as any;
     expect(wave.error).toBe("invalid_action");
     expect(wave.message).toContain("Waving");
     clock += 1000;
     expect((await call("POST", `/bodies/${AID}/act`, { id: "w1b", action: { type: "play", clip: "Wave" } })).status).toBe(202); // alias, any case
+    expect(service.observe(AID).body.clip).toBe("Waving"); // Starts before the next sim tick.
     clock += 1000;
     const type = (await (await call("POST", `/bodies/${AID}/act`, { id: "w2", action: { type: "dance" } })).json()) as any;
     expect(type.message).toContain("go_to");

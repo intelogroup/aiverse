@@ -29,7 +29,8 @@ class Builder:
         face([(x0, y0, z0), (x0, y0, z1), (x0, y1, z1), (x0, y1, z0)], (-1, 0, 0)); face([(x1, y0, z1), (x1, y0, z0), (x1, y1, z0), (x1, y1, z1)], (1, 0, 0))
         if y1 - y0 < .05:  # flat plate: top only, planar uv in metres
             P, N = P[:4], N[:4]; U = [((p[0]) / uv, (p[2]) / uv) for p in P]
-        else: U = [((p[0] + p[2]) / uv, p[1] / uv) for p in P]
+        else:   # sides run (x+z, y); the top face gets planar (x, z) too (it used the side formula: v was constant, a lawn streaked along x+z)
+            U = [((p[0] + p[2]) / uv, p[1] / uv) for p in P]; U[:4] = [(p[0] / uv, p[2] / uv) for p in P[:4]]
         d = s.q.setdefault(mat, {"P": [], "N": [], "U": []}); d["P"] += P; d["N"] += N; d["U"] += U
         if col: s.col.append((x0, x1, z0, z1, y0, y1))
 
