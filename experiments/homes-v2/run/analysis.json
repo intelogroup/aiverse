@@ -1,0 +1,53 @@
+{
+ "tag": "homesv2",
+ "claim": {
+  "agent": "ngozi",
+  "cabin": "house-cabin-1",
+  "ts": "2026-11-24T23:20:07Z"
+ },
+ "key_copies": [],
+ "door_refusals": [],
+ "guest_entries": [],
+ "owner": "ngozi",
+ "says_total": {
+  "ngozi": 1,
+  "deshawn": 56,
+  "mara": 1,
+  "rafael": 0,
+  "yuki": 51
+ },
+ "invitation_says_by_owner": [
+  {
+   "ts": "2026-11-24T23:20:07Z",
+   "text": "This is my home now - the Stone Cabin. Come visit!"
+  }
+ ],
+ "seated": {
+  "ngozi": [],
+  "deshawn": [],
+  "rafael": [],
+  "yuki": [],
+  "mara": []
+ },
+ "both_seated_overlap_s": 0,
+ "facing": null,
+ "seated_talk": [],
+ "follow": {
+  "deshawn": {
+   "samples": 136,
+   "samples_within_5m_of_owner": 3
+  },
+  "rafael": {
+   "samples": 300,
+   "samples_within_5m_of_owner": 0
+  },
+  "yuki": {
+   "samples": 300,
+   "samples_within_5m_of_owner": 0
+  },
+  "mara": {
+   "samples": 300,
+   "samples_within_5m_of_owner": 2
+  }
+ }
+}
