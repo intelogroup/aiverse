@@ -812,21 +812,32 @@ class Agent:
             return False
         if iname == "sit":
             self.intent = None
-            seats = [x for x in self.bb_snap()["seats"]
-                     if x.get("state") in (None, "free")]
-            if seats:
-                taken_groups = {x.get("group") for x in
-                                self.bb_snap()["seats"]
+            for _try in range(2):
+                obs = parse_obs(self.c.observe())
+                fresh = scene_seats(obs) if obs else []
+                if fresh:
+                    with self.lock:
+                        self.bb["seats"] = fresh
+                seats = [x for x in fresh
+                         if x.get("state") in (None, "free")]
+                if not seats:
+                    return False
+                taken_groups = {x.get("group") for x in fresh
                                 if x.get("state") == "taken"}
                 seats.sort(key=lambda x: 0 if x.get("group")
                            in taken_groups else 1)
                 sid = seats[0].get("id")
-                if sid:
-                    self.act({"type": "sit", "sittable": sid},
-                             wait_s=45, tag="sit")
-                    log_event(self.key, {"kind": "sit_chosen",
-                                         "sittable": sid})
-                    return True
+                if not sid:
+                    return False
+                rec = self.act({"type": "sit", "sittable": sid},
+                               wait_s=45, tag="sit")
+                log_event(self.key, {"kind": "sit_chosen",
+                                     "sittable": sid,
+                                     "outcome": rec.get("outcome")})
+                if rec.get("outcome") in ("unavailable", "rejected"):
+                    time.sleep(2)
+                    continue  # seat state raced; re-observe, retry once
+                return True
             return False
         if iname == "stand":
             self.intent = None
@@ -880,8 +891,12 @@ class Agent:
                                          "cabin": ct, "via": "claim"})
                     self.say(f"This is my home now - the {CABINS[ct]}. "
                              f"Come visit!")
-                    self.act({"type": "enter", "place": ct},
-                             wait_s=60, tag="enter-home")
+                    rec = self.act({"type": "enter", "place": ct},
+                                   wait_s=60, tag="enter-home")
+                    if rec.get("outcome") in ("rejected", "unavailable"):
+                        time.sleep(4)
+                        self.act({"type": "enter", "place": ct},
+                                 wait_s=60, tag="enter-home-retry")
                 return True
             self.go_place(ct, tag="to-claim")
             return True
