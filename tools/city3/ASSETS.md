@@ -196,3 +196,9 @@ Applied in the Bazaar by `build_city.py:water_mat`: the fused `Water` mesh is sp
 `Female+Maid+Facesless.zip`, supplied by the user for City3 placement. No author or licence document was included; this asset is not declared CC0. The source OBJ has 500,000 triangles and four 4K PBR maps. The public derivative (`/assets/residents/mira-maid.glb`) has 30,000 triangles, 1K maps and a grounded 1.68 m stature. There is no rig or animation. Source/derivative hashes and placement are recorded in `assets/mira_maid.json`; see `docs/procedural-city/16-mira-resident.md`.
 
 Restore the original archive locally, then use `blender_lock.sh -b --python prepare_mira.py -- --source /path/to/extracted/archive --output /path/to/mira-maid.glb`. The script can create 1K textures directly from the original maps and optionally save an editable scene with `--blend-output`.
+
+## Placed houses (2026-11-23)
+
+Stand-alone prebuilt houses placed by `place_house.mjs` as their own streamed districts (`districts.json` `house-*`, files under `apps/console/public/assets/houses/`). Originals are kept outside the repo in `~/Developer/city3-downloads/`.
+
+- `american-1`: "American House" by AleixoAlonso, CC-BY 4.0, https://sketchfab.com/3d-models/american-house-798ffaeadacf4e08a2665785422fb45d. Exterior only, solid collision box.
