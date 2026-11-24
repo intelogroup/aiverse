@@ -47,6 +47,7 @@ import { TeaDoorLeaf, TeaDoorTicker } from "./TeaDoorLeaf";
 import { TEA_FLOORS } from "./teaBuilding";
 import { ClipCutaway, InteriorStreamer, useCity3Rooms } from "./glbInteriors";
 import { KeyLight, ShadowTagger, StageEnvironment } from "./glbStage";
+import { PostFx, postFxWanted } from "./postFx";
 import { FpsTracker, QualityDriver, TouchFpsCap } from "./glbPerf";
 import { PresentedSignal, ShellPaBanner, WalkHudPanel, WorldLoadOverlay, soundDebugSurface } from "./glbHud";
 import { FigureFlyRig } from "./glbCamera";
@@ -640,6 +641,7 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
         <StageEnvironment />
         <KeyLight lightRef={keyLightRef} />
         <ShadowTagger />
+        {!touchUi && !agentOn && postFxWanted(window.location.search) ? <PostFx /> : null}
         {touchUi ? <FpsTracker meterRef={fpsMeterRef} /> : null}
         {touchUi && !noLimits ? <QualityDriver meterRef={fpsMeterRef} /> : null}
         {touchUi && !agentOn && !noLimits ? <TouchFpsCap /> : null}

@@ -27,7 +27,14 @@ from bridge_landscape_kit import add_accessor, add_view
 GARDENS = {"garden": dict(rect=(72.0, -58.0, 122.0, -12.0), plaza=9.0, orchard=False, seed=4311),    # lots 164-171, beside the sports field
            "orchard": dict(rect=(-122.0, -58.0, -72.0, -12.0), plaza=5.0, orchard=True, seed=6013),
            "meadow": dict(rect=(-122.0, -84.0, -72.0, -72.0), plaza=3.4, orchard=False, strip=True, seed=7717),
-           "commons": dict(rect=(-122.0, 72.0, -72.0, 122.0), plaza=7.0, orchard=False, seed=8123)}  # lots 44-51: a square with a plaza gazebo  # lots 68-71: the 12 m strip that finishes the park block  # lots 60-67: fruit-tree grid round a small gazebo plaza
+           "commons": dict(rect=(-122.0, 72.0, -72.0, 122.0), plaza=7.0, orchard=False, seed=8123),
+           "grove": dict(rect=(72.0, -122.0, 122.0, -72.0), plaza=6.0, orchard=True, seed=9241),
+           # yards: lawn around placed houses (place_house.mjs), a walk from the street to each house, spaced trees; no gazebo, arches or plaza
+           "plot": dict(rect=(-58.0, 72.0, -12.0, 122.0), plaza=0.0, orchard=False, yard=True, seed=5151),
+           "citadel": dict(rect=(72.5, 72.5, 122.5, 122.5), plaza=0.0, orchard=False, yard=True, seed=5150),
+           "teablock": dict(rect=(-58.0, -122.0, -12.0, -89.0), plaza=0.0, orchard=False, yard=True, seed=5152),   # south of the Tea House (102)
+           "westblock": dict(rect=(-122.5, 12.5, -72.5, 57.5), plaza=0.0, orchard=False, yard=True, seed=5154),   # lots 52-59
+           "tea101": dict(rect=(-57.5, -84.5, -41.0, -72.5), plaza=0.0, orchard=False, yard=True, seed=5153)}     # lot 101, west of the Tea House  # lots 44-51: a square with a plaza gazebo  # lots 68-71: the 12 m strip that finishes the park block  # lots 60-67: fruit-tree grid round a small gazebo plaza
 NAME = "garden"
 MARK = "garden_block_pass"
 X0, X1, Z0, Z1 = GARDENS[NAME]["rect"]
@@ -92,7 +99,87 @@ def strip_scenery(rnd):
     return b, trees, benches
 
 
+def house_rects():
+    """world-frame footprints [x0, z0, x1, z1] of the placed houses whose centre lies in this block"""
+    return [r for (cx, cz), r in house_footprints().values() if X0 <= cx <= X1 and Z0 <= cz <= Z1]
+
+
+def house_footprints():
+    """{district id: ((centre x, z), world-frame footprint [x0, z0, x1, z1])} of every placed house (districts.json `house-*`), from its GLB bounds"""
+    from bridge_wave1 import Glb
+    A = os.path.join(HERE, "..", "..", "apps", "console", "public", "assets")
+    out = {}
+    for d in json.load(open(os.path.join(A, "districts.json")))["districts"]:
+        if not d["id"].startswith("house-"):
+            continue
+        j = Glb(os.path.join(A, d["url"][len("/assets/"):])).gltf
+        lo, hi = np.full(3, 1e9), np.full(3, -1e9)
+
+        def walk(i, M):
+            n = j["nodes"][i]
+            T = np.eye(4); T[:3, 3] = n.get("translation", [0, 0, 0])
+            x, y, z, w = n.get("rotation", [0, 0, 0, 1])
+            R = np.eye(4); R[:3, :3] = [[1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)], [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)], [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]]
+            M = M @ (np.array(n["matrix"]).reshape(4, 4).T if "matrix" in n else T @ R @ np.diag(n.get("scale", [1, 1, 1]) + [1]))
+            for p in j["meshes"][n["mesh"]]["primitives"] if "mesh" in n else ():
+                a = j["accessors"][p["attributes"]["POSITION"]]
+                for c in ([u, v, w_, 1] for u in (a["min"][0], a["max"][0]) for v in (a["min"][1], a["max"][1]) for w_ in (a["min"][2], a["max"][2])):
+                    q = (M @ c)[:3]; lo[:] = np.minimum(lo, q); hi[:] = np.maximum(hi, q)
+            for ch in n.get("children", []):
+                walk(ch, M)
+        for r in j["scenes"][j.get("scene", 0)]["nodes"]:
+            walk(r, np.eye(4))
+        ox, oz = d.get("origin", [0, 0])   # shared house GLBs are authored at (0, 0) and moved by the district origin
+        out[d["id"]] = (tuple(d["center"]), (float(lo[0]) + ox, float(lo[2]) + oz, float(hi[0]) + ox, float(hi[2]) + oz))
+    return out
+
+
+def minus(rect, holes):
+    """axis-aligned rect minus holes, as disjoint rects (x strips cut at every hole edge)"""
+    x0, z0, x1, z1 = rect
+    xs = sorted({x0, x1, *(min(max(h[i], x0), x1) for h in holes for i in (0, 2))})
+    out = []
+    for a, b in zip(xs, xs[1:]):
+        if b - a < 1e-6:
+            continue
+        cuts = sorted((h[1], h[3]) for h in holes if h[0] < b - 1e-6 and h[2] > a + 1e-6)
+        z = z0
+        for c0, c1 in cuts:
+            if c0 > z:
+                out.append((a, z, b, min(c0, z1)))
+            z = max(z, c1)
+        if z < z1:
+            out.append((a, z, b, z1))
+    return [r for r in out if r[2] - r[0] > 1e-3 and r[3] - r[1] > 1e-3]
+
+
+def yard_scenery(rnd, houses):
+    """lawn everywhere but under the houses, a 1.6 m gravel walk from the nearest block edge to each house, trees >= 3 m from houses and 4.5 m apart"""
+    b = Builder()
+    walks = []
+    for hx0, hz0, hx1, hz1 in houses:
+        cx, cz = (hx0 + hx1) / 2, (hz0 + hz1) / 2
+        d = {"W": hx0 - X0, "E": X1 - hx1, "N": hz0 - Z0, "S": Z1 - hz1}; side = min(d, key=d.get)
+        walks.append({"W": (X0, cz - .8, hx0, cz + .8), "E": (hx1, cz - .8, X1, cz + .8), "N": (cx - .8, Z0, cx + .8, hz0), "S": (cx - .8, hz1, cx + .8, Z1)}[side])
+    for r in minus((X0, Z0, X1, Z1), houses):
+        b.box("grass", r[0], r[2], r[1], r[3], G - .02, G + .03, uv=4.0)
+    for r in walks:
+        b.box("gravel", r[0], r[2], r[1], r[3], G + .03, G + .06, uv=1.5)
+    near = lambda x, z, rs, pad: any(r[0] - pad < x < r[2] + pad and r[1] - pad < z < r[3] + pad for r in rs)
+    trees = []
+    for _ in range(600):
+        x, z = rnd.uniform(X0 + 1.5, X1 - 1.5), rnd.uniform(Z0 + 1.5, Z1 - 1.5)
+        if len(trees) >= 18:
+            break
+        if near(x, z, houses, 3.0) or near(x, z, walks, 1.5) or any((x - t[0]) ** 2 + (z - t[1]) ** 2 < 4.5 ** 2 for t in trees):
+            continue
+        trees.append((x, z, rnd.choice(("Tree_packtree_a", "Tree_packtree_b", "Tree_packtree_c"))))
+    return b, trees, []
+
+
 def scenery(rnd):
+    if GARDENS[NAME].get("yard"):
+        return yard_scenery(rnd, house_rects())
     if GARDENS[NAME].get("strip"):
         return strip_scenery(rnd)
     b = Builder()
@@ -147,6 +234,9 @@ def selftest():
     use("orchard")
     b, trees, benches = scenery(random.Random(1))
     assert 20 <= len(trees) <= 80 and all(X0 < x < X1 and Z0 < z < Z1 and not on_path(x, z, 1.0) for x, z, _ in trees) and len(plan := kit_plan(assets)) == 5
+    r = minus((0, 0, 10, 10), [(2, 2, 4, 4), (6, 5, 8, 12)])
+    area = sum((q[2] - q[0]) * (q[3] - q[1]) for q in r)
+    assert abs(area - (100 - 4 - 10)) < 1e-6 and not any(q[0] < 3 < q[2] and q[1] < 3 < q[3] for q in r), r
     use("garden")
     print("selftest ok")
 
@@ -158,15 +248,16 @@ def run(world_path, col_path, dry, name="garden"):
     j = world.gltf
     if j.get("extras", {}).get(MARK):
         print({"already_patched": True}); return
-    assets = {s: c.load_asset(s) for s in ("park_gazebo", "rose_arch")}
-    plan = kit_plan(assets)
     rnd = random.Random(GARDENS[NAME]["seed"])
     b, trees, benches = scenery(rnd)
     print(json.dumps({"quads": sum(len(d["P"]) // 4 for d in b.q.values()), "trees": len(trees), "benches": len(benches)}))
-    rep = c.apply(world, col, plan, assets, dry, mark=MARK, prefix="Kit_" + NAME)
-    print(json.dumps(rep))
+    if not GARDENS[NAME].get("yard"):   # yards carry no gazebo or arches
+        assets = {s: c.load_asset(s) for s in ("park_gazebo", "rose_arch")}
+        rep = c.apply(world, col, kit_plan(assets), assets, dry, mark=MARK, prefix="Kit_" + NAME)
+        print(json.dumps(rep))
     if dry:
         return
+    j.setdefault("extras", {})[MARK] = True
     cache = {}
 
     def mats(k):

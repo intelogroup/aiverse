@@ -196,3 +196,37 @@ Applied in the Bazaar by `build_city.py:water_mat`: the fused `Water` mesh is sp
 `Female+Maid+Facesless.zip`, supplied by the user for City3 placement. No author or licence document was included; this asset is not declared CC0. The source OBJ has 500,000 triangles and four 4K PBR maps. The public derivative (`/assets/residents/mira-maid.glb`) has 30,000 triangles, 1K maps and a grounded 1.68 m stature. There is no rig or animation. Source/derivative hashes and placement are recorded in `assets/mira_maid.json`; see `docs/procedural-city/16-mira-resident.md`.
 
 Restore the original archive locally, then use `blender_lock.sh -b --python prepare_mira.py -- --source /path/to/extracted/archive --output /path/to/mira-maid.glb`. The script can create 1K textures directly from the original maps and optionally save an editable scene with `--blend-output`.
+
+## Placed houses (2026-11-23)
+
+Stand-alone prebuilt houses placed by `place_house.mjs` as their own streamed districts (`districts.json` `house-*`, files under `apps/console/public/assets/houses/`). Originals are kept outside the repo in `~/Developer/city3-downloads/`.
+
+- `american-1`: "American House" by AleixoAlonso, CC-BY 4.0, https://sketchfab.com/3d-models/american-house-798ffaeadacf4e08a2665785422fb45d. Exterior only, solid collision box.
+- `cabin-1`: "House - Stone Cabin - Modern Log Cabin 03" by MarMel-Bali, CC-BY 4.0 (Sketchfab uid 9e9195dc0a6f44b2baea0def83602dc7). Furnished interior; placed at 0.02 scale, door gap on the +z facade.
+- `villa-pool-1`: "Modern luxury villa house building with pool" by zigurat architecture studio, CC-BY 4.0 (Sketchfab uid 0e858284939343cb994233d40a48a20a). Its own lot with pool and garden; solid collision over the house body.
+- `mayflower-1`: House "May-Flower" (Design 39) by AleixoAlonso, CC-BY 4.0 (Sketchfab uid 1ff9aaa72bc24037ac3e3e08c9a35e33). Exterior only, solid collision.
+- `shirakawago-1`: "Shirakawago Village Set House 1" by Lokomotto, CC-BY 4.0 (Sketchfab uid f94da738aefc4674ab2062df5c01cd43). 0.01 scale; thatch cards switched from BLEND to MASK (`--mask`); solid collision.
+- `zen-pavilion-1`: "Zen Japanese Tea House with Go Board" by winters810, CC-BY 4.0 (Sketchfab uid a1e95e5efee349a693f30eda32401aef). Walkable: tatami floor sunk to 0.28 over the walk slab, 3.1 m gap in the open side, facing the Tea House.
+- `villa-c-1`: "Modern luxury villa house building" by zigurat architecture studio, CC-BY 4.0 (Sketchfab uid d8e6be2601474f7d8cb7d06f8566f01a). Solid collision over the house body. `cabin-2` reuses the Stone Cabin (above) as "Lakeside Cabin".
+- `clock-tower-1`: "Newmarket, Suffolk, UK - Jubilee Clock Tower" by epipolar, CC-BY 4.0 (Sketchfab uid 287e999f673846b38ab67ad366ef2aee), photogrammetry scan at 1.6x (24 m) in the plaza fountain, replacing the 38 m box tower.
+- `victorian-green`: "Victorian house" by massive-graphisme, CC-BY 4.0 (Sketchfab uid dbb02bf8f5ed4851b05dd97a1784a1fb). Edge ring (ring_houses.py), solid collision.
+- `residence-wsg`: "White Silver Green Residence" by Francesco Coldesina, CC-BY 4.0 (Sketchfab uid ec516ba32f03403f97954472c5d4b2cf). Edge ring (ring_houses.py), solid collision.
+- `medieval-rx`: "Medieval house | Generic Textures | Game ready" by by__Rx, CC-BY 4.0 (Sketchfab uid 3eb9e3b600264e2f99100fc43619497e). Edge ring (ring_houses.py), solid collision.
+- `kruglov-house`: "House of Kruglov" by D.U.H, CC-BY 4.0 (Sketchfab uid 8310706a996044e7bc3d8dc29594e841). Edge ring (ring_houses.py), solid collision.
+- `suburban-bogdan`: "Suburban House" by Bogdan Strielecki, CC-BY 4.0 (Sketchfab uid efcc220c62f641d29a1480e8b221c7b3). Edge ring (ring_houses.py), solid collision.
+- `small-brick`: "Small Brick House" by jimbogies, CC-BY 4.0 (Sketchfab uid c9ef0a360eff405682015c8813eee41d). Edge ring (ring_houses.py), solid collision.
+- `cozy-cottage`: "Cozy Cottage" by SINNIK, CC-BY 4.0 (Sketchfab uid 72c05612ebbc4f5f8eac26d047d5d69c). Edge ring (ring_houses.py), solid collision.
+- `suburban-blue`: "Suburban House" by mbuannoart, CC-BY 4.0 (Sketchfab uid b8375c5e5e6b40639fc06492fbd95fcb). Edge ring (ring_houses.py), solid collision.
+- `colonial-american`: "American Colonial house" by Blue3D, CC-BY 4.0 (Sketchfab uid 3e536217e25545448762004ec55f1786). Edge ring lot ring-45-1, solid collision.
+- `scandi-hawk`: "Hawk Lane Scandinavian Style House" by Azimuth Design, CC-BY 4.0 (Sketchfab uid 8d8a31fcca314f9cb334b04468f3d926). Edge ring lot ring-35-0, simplified to 50 %, solid collision.
+- `log-cabin`: "Scandinavian Log Cabin" by rivetech, CC-BY 4.0 (Sketchfab uid e89718f746484189902162a91ae0b504). Edge ring lot ring-05-0, solid collision.
+- Lido furniture (props-lido, tools/city3/props_lido.mjs), all CC-BY 4.0: "Sun lounger 3D" by rodestrela (Sketchfab uid 974e74f55bbd4dc9a85c4a48fc987a18),
+  "White outdoor Umbrella" by Ngo.Phuoc.Truong (uid d6c9705a4f8e421ea473196ab9910088), "Sunchair" by hotdoghans (uid c2c86c8f882d46abb01d06ddf9d1d7a8).
+- `finnish-cottage`: "Modern cottage, finnish style" by SlagPerch 3D, CC-BY 4.0 (Sketchfab uid f8d052ed3e634e46b6e83c3b2c006a0f). Edge ring lot ring-25-1, scaled 2.2x, solid collision.
+- Lawn texture: "Leafy Grass" by Poly Haven, CC0 (https://polyhaven.com/a/leafy_grass), 1k colour + normal, tinted green, on every Bz*_grass lawn (bridge_lawn_texture.py).
+- Plaza paving: "Cobblestone Floor 08" by Poly Haven, CC0 (https://polyhaven.com/a/cobblestone_floor_08), 2k colour + normal on cobble.001 (bridge_texture_swap.py).
+- Sidewalk and block paving: "Pavement 03" by Poly Haven, CC0 (https://polyhaven.com/a/pavement_03), 2k colour + normal on sidewalk.001 (bridge_texture_swap.py).
+- Ground palette (Poly Haven, CC0, 1k colour + normal, bridge_texture_swap.py): "Gravel Embedded Concrete" (garden and yard paths, Bz*_gravel), "Patterned Paving 02" (garden plazas, Bz*_stone), "Stone Tiles 02" (ring house walks, BzRing_stone), "Wood Planks" (lido deck, BzOpen_deck), "Patterned Brick Floor" (lido surround, BzOpen_stone). polyhaven.com/a/<id>.
+- Block floors (Poly Haven, CC0, 1k): "Forrest Ground 01" (orchard meadow, BzOrchard_grass, tinted green), "Forest Leaves 04" (grove leaf litter, BzGrove_grass), "Wooden Planks" (lido deck, BzOpen_deck).
+- House grounds (bridge_house_grounds.py): "Wood Chips" (bed mulch, BzGround_bed), "Herringbone Pavement" (back patios, BzGround_patio), Poly Haven CC0 textures; flower drifts are Poly Haven "Flower Gazania" (CC0, model, colour + alpha maps merged to one RGBA PNG). Boxwood balls are generated icospheres in the lawn's Leafy Grass maps.
+- Sky lighting (apps/console/public/assets/env/sky_1k.hdr): Poly Haven "Kloofendal 48d Partly Cloudy (Pure Sky)" by Greg Zaal, CC0, 1k HDR; scene.environment for City 3 (glbStage.tsx StageEnvironment).

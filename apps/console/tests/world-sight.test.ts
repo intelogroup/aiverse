@@ -58,21 +58,22 @@ describe("sight", () => {
   });
 
   it("a wall hides a body that is close; the door gap does not", async () => {
-    const lot = sim.places.find((p) => p.id === "shop-57")!;
+    const lot = sim.places.find((p) => p.id === "house-cabin-1")!;
     service.attach("eve", { x: lot.stand[0], z: lot.stand[1] });
-    expect(JSON.stringify(await settle("eve", service.act("eve", "e1", { type: "enter", place: "shop-57" }).id, 120))).toContain("arrived");
-    const me = service.body("eve");
-    // outside the south wall, off the door: wall between
-    const wallZ = lot.stand[1] - 3;   // outside the door wall (shop-57's door faces -z)
-    service.attach("fay", { x: me.x + 5, z: wallZ });
-    await settle("eve", service.act("eve", "e2", { type: "face", point: [me.x + 5, wallZ] }).id, 20);
+    expect(JSON.stringify(await settle("eve", service.act("eve", "e1", { type: "enter", place: "house-cabin-1" }).id, 120))).toContain("arrived");
+    const room = sim.rooms.find((r) => r.id === "house-cabin-1")!, door = room.door;
+    const [x0, z0, x1, z1] = room.rect, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+    const [ox, oz] = Math.abs(door[0] - cx) > Math.abs(door[1] - cz) ? [Math.sign(door[0] - cx), 0] : [0, Math.sign(door[1] - cz)];   // out through the door
+    // outside the door wall, 5 m along it from the door: the wall stands between
+    const fay = { x: door[0] - oz * 5 + ox * 3, z: door[1] - ox * 5 + oz * 3 };
+    service.attach("fay", fay);
+    await settle("eve", service.act("eve", "e2", { type: "face", point: [fay.x, fay.z] }).id, 20);
     expect(bodies("eve").length, "wall between").toBe(0);
     service.detach("fay");
     // straight through the door: eve on the door's axis inside, gus 3 m outside on the same axis
-    const door = sim.rooms.find((r) => r.id === "shop-57")!.door;
-    expect((await settle("eve", service.act("eve", "e3", { type: "go_to", point: [door[0], door[1] + 4] }).id, 60)).outcome?.status).toBe("arrived");
-    service.attach("gus", { x: door[0], z: door[1] - 3 });
-    await settle("eve", service.act("eve", "e4", { type: "face", point: [door[0], door[1] - 3] }).id, 20);
+    expect((await settle("eve", service.act("eve", "e3", { type: "go_to", point: [door[0] - ox * 2, door[1] - oz * 2] }).id, 60)).outcome?.status).toBe("arrived");
+    service.attach("gus", { x: door[0] + ox * 3, z: door[1] + oz * 3 });
+    await settle("eve", service.act("eve", "e4", { type: "face", point: [door[0] + ox * 3, door[1] + oz * 3] }).id, 20);
     expect(bodies("eve").length, "through the door").toBe(1);
     service.detach("gus"); service.detach("eve");
   }, 60_000);

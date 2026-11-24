@@ -12,6 +12,8 @@ import { prune, dedup, join, meshopt } from "@gltf-transform/functions";
 import { MeshoptDecoder, MeshoptEncoder, MeshoptSimplifier } from "meshoptimizer";
 import { readFileSync, writeFileSync, readdirSync, unlinkSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import { makeCellOf, leafOfCell, subset } from "./tile_grid.mjs";
 
 const [IN, DIR] = process.argv.slice(2);
@@ -28,6 +30,10 @@ const cellOf = makeCellOf(T.heroes), leaf = leafOfCell(T.layout, T.heroes);
 await MeshoptDecoder.ready; await MeshoptEncoder.ready; await MeshoptSimplifier.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ "meshopt.decoder": MeshoptDecoder, "meshopt.encoder": MeshoptEncoder });
 const doc = await io.read(IN); const root = doc.getRoot(); const scene = root.listScenes()[0];
+// Demolition passes take a building out of the scene but leave its nodes in the file: only what the scene reaches is the world.
+// (Iterating root.listNodes() below rebuilt every demolished building in the far view, seen live in tile mode 2026-11-24.)
+{ const live = new Set(); const walk = (n) => { live.add(n); n.listChildren().forEach(walk); }; scene.listChildren().forEach(walk);
+  for (const n of root.listNodes()) if (!live.has(n)) n.dispose(); }
 const buffer = root.listBuffers()[0];
 const instExt = doc.createExtension(EXTMeshGPUInstancing);
 
@@ -61,11 +67,15 @@ const TREE = /^(ls_tree|Tree_)/, TREE_RATIO = Number(process.env.TREE_RATIO ?? 0
   const done = new Set();
   for (const n of root.listNodes()) {
     const mesh = n.getMesh(); if (!mesh || done.has(mesh) || DROP.test(n.getName())) continue; done.add(mesh);
+    if (/^Kit_hall/.test(n.getName())) continue;   // the Troyes hall (4.6k tris) simplified to a blob that read as a white box from the opening aerial
     const ratio = TREE.test(n.getName()) ? TREE_RATIO : /^Kit_(shop|hall|garden|orchard)/.test(n.getName()) ? KIT_RATIO : BLD_RATIO, err = TREE.test(n.getName()) ? Number(process.env.TREE_ERR ?? 1) : /^Kit_(shop|hall|garden|orchard)/.test(n.getName()) ? Number(process.env.KIT_ERR ?? 0.3) : Number(process.env.BLD_ERR ?? 0.05);
     for (const prim of mesh.listPrimitives()) {
       const idx = prim.getIndices(); if (!idx || prim.getMode() !== 4) continue; const ia = idx.getArray();
       if (ia.length < 90) continue; // tiny pieces (doors, lamps) are cheaper left alone
       const pos = prim.getAttribute("POSITION").getArray(); let src = Uint32Array.from(ia);
+      // flat ground (roads, junctions, sidewalks, plaza, lawns, patios) is separate quads: the simplifier deletes whole quads, leaving holes onto the sea
+      // (the light-blue squares at every junction in the tile-mode aerial). It is cheap already, so it stays whole.
+      { let y0 = Infinity, y1 = -Infinity; for (const i of src) { const y = pos[3 * i + 1]; if (y < y0) y0 = y; if (y > y1) y1 = y; } if (y1 - y0 < 0.6) continue; }
       if (/^Kit_(shop|hall|garden|orchard)/.test(n.getName())) { // UV seams leave equal positions on separate vertices, which the simplifier treats as locked borders (stuck at 73%): collapse them onto one representative first
         const rep = new Map(); src = src.map(i => { const k = `${pos[3 * i]},${pos[3 * i + 1]},${pos[3 * i + 2]}`; if (!rep.has(k)) rep.set(k, i); return rep.get(k); });
       }
@@ -144,8 +154,15 @@ const draws = () => root.listMeshes().reduce((a, m) => a + m.listPrimitives().le
 const before = draws();
 await doc.transform(join({ keepMeshes: false, keepNamed: true }), prune({ keepLeaves: false, keepAttributes: false })); // fewer draw calls: one primitive per material per tile
 console.log(`kept ${kept} nodes, dropped ${dropped}; ${groups.size} tile groups, ${shared} shared-mesh placements; ${Math.round(trisIn)} tris in; draw calls ${before} -> ${draws()}`);
-await doc.transform(meshopt({ encoder: MeshoptEncoder, level: "high" })); // quantizes positions/normals/UVs, then compresses
-const out = Buffer.from(await io.writeBinary(doc));
+// far view: textures capped at 512 px (the 1k ground maps alone were ~6 MB of a 9 MB LOD; from 100+ m 512 px is plenty). slim_textures.py
+// rewrites buffer views, so it runs before meshopt (whose extension points into the buffer by offset)
+const tmp = `${tmpdir()}/split_lod_${process.pid}.glb`;
+for (const e of doc.getRoot().listExtensionsUsed()) if (e.extensionName === "EXT_meshopt_compression") e.dispose();   // plain views for the Python rewrite
+writeFileSync(tmp, Buffer.from(await io.writeBinary(doc)));
+execFileSync("python3", ["tools/city3/slim_textures.py", tmp, tmp, "--max", "512"], { stdio: ["ignore", "ignore", "inherit"] });
+const slim = await io.read(tmp); unlinkSync(tmp);
+await slim.transform(meshopt({ encoder: MeshoptEncoder, level: "high" })); // quantizes positions/normals/UVs, then compresses
+const out = Buffer.from(await io.writeBinary(slim));
 for (const f of readdirSync(DIR)) if (/^lod\.[0-9a-f]+\.glb$/.test(f)) unlinkSync(`${DIR}/${f}`);
 const name = `lod.${createHash("sha1").update(out).digest("hex").slice(0, 10)}.glb`;
 writeFileSync(`${DIR}/${name}`, out);

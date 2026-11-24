@@ -26,13 +26,14 @@ async function settle(agent: string, id: string, maxS = 200) {
 
 describe("seats in observe", () => {
   it("lists the room's seats, shows claims, refuses a second sitter, frees on stand", async () => {
-    const seat = sim.sittables.find((s) => s.building === "shop-56" && s.group)!;
-    const lot = sim.places.find((p) => p.id === "shop-56")!;
+    const seat = sim.sittables.find((s) => s.building === "tea" && s.group)!;
+    const lot = sim.places.find((p) => p.id === "shop-102")!;
     service.attach("alice", { x: lot.stand[0], z: lot.stand[1] });
     service.attach("bob", { x: lot.stand[0] + 15, z: lot.stand[1] + 15 });
 
-    const e = await settle("alice", service.act("alice", "a1", { type: "enter", place: "shop-56" }).id);
+    const e = await settle("alice", service.act("alice", "a1", { type: "enter", place: "shop-102" }).id);
     expect(JSON.stringify(e)).toContain("arrived");
+    await settle("alice", service.act("alice", "a0", { type: "face", point: [seat.seat[0], seat.seat[1]] }).id);   // the Tea House seats sit off the door axis
     const seen = service.observe("alice").scene.filter((o) => o.kind === "seat");
     expect(seen.length, "seats of the room, within 25 m and the view cone or 2.5 m").toBeGreaterThan(0);
     expect(seen.every((o) => o.state === "free" && typeof o.seatKind === "string")).toBe(true);

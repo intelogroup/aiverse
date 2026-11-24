@@ -24,6 +24,12 @@ async function settle(agent: string, id: string, maxS = 60) {
 }
 const handleOf = (agent: string) => service.observe(agent).scene.find((o) => o.kind === "body")!.id;
 
+/** the unit step from a room's centre out through its door, snapped to the wall axis */
+function outward(room: { rect: number[]; door: number[] }): [number, number] {
+  const [x0, z0, x1, z1] = room.rect, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, [dx, dz] = room.door;
+  return Math.abs(dx - cx) > Math.abs(dz - cz) ? [Math.sign(dx - cx), 0] : [0, Math.sign(dz - cz)];
+}
+
 describe("say", () => {
   it("validates text length, the to handle, and unknown fields", () => {
     expect(explainAction({ type: "say", text: "hi" })).toBeNull();
@@ -79,11 +85,12 @@ describe("say", () => {
     expect(nobody.outcome).toMatchObject({ ok: false, status: "unavailable" });
     expect(nobody.outcome?.detail).toContain("not_visible");
     service.detach("dan");
-    const lot = sim.places.find((p) => p.id === "shop-56")!;
+    const lot = sim.places.find((p) => p.id === "house-cabin-1")!;
     service.attach("eve", { x: lot.stand[0], z: lot.stand[1] });
-    expect(JSON.stringify(await settle("eve", service.act("eve", "e1", { type: "enter", place: "shop-56" }).id, 120))).toContain("arrived");
-    const me = service.body("eve");
-    service.attach("fay", { x: me.x + 4, z: -60.5 }); // outside the south wall, 4 m off the door axis
+    expect(JSON.stringify(await settle("eve", service.act("eve", "e1", { type: "enter", place: "house-cabin-1" }).id, 120))).toContain("arrived");
+    const room = sim.rooms.find((r) => r.id === "house-cabin-1")!, [ox, oz] = outward(room);
+    // outside the door wall, 5 m along it from the door: the facade stands between
+    service.attach("fay", { x: room.door[0] - oz * 5 + ox * 2, z: room.door[1] - ox * 5 + oz * 2 });
     await settle("fay", service.act("fay", "f1", { type: "say", text: "through the wall?" }, { name: "Fay" }).id, 5);
     expect(service.observe("eve").heard.filter((m) => m.text === "through the wall?"), "a wall blocks sound").toHaveLength(0);
     service.detach("fay"); service.detach("eve");

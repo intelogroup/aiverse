@@ -30,6 +30,8 @@ export type DistrictDef = {
   collisionUrl?: string;
   /** Where the GLB's local origin sits in the world. Defaults to `center` (the per-district GLBs are centred on themselves); world tiles are already in world coordinates and say [0, 0]. */
   origin?: [number, number];
+  /** A light stand-in (placed houses: house_lods.mjs) shown from the moment the manifest loads until this district's detail mounts. */
+  farUrl?: string;
   /** Empty `url` = collision-only square (tiles whose visual triangles all fell in neighbours). */
 };
 /** Streaming knobs a manifest can override; the constants below stay the defaults for the district world. */
