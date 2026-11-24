@@ -27,7 +27,8 @@
     -42,
     108
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/american-y0.far.glb"
   },
   {
    "id": "house-cabin-1",
@@ -43,7 +44,8 @@
     -20,
     84
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/cabin-y0.far.glb"
   },
   {
    "id": "house-villa-pool-1",
@@ -59,7 +61,8 @@
     86.5,
     98
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/villa-pool-y0.far.glb"
   },
   {
    "id": "house-citadel-east-1",
@@ -75,7 +78,8 @@
     113,
     97
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/suburban-blue-y90.far.glb"
   },
   {
    "id": "house-shirakawago-1",
@@ -91,7 +95,8 @@
     -45,
     -107
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/shirakawago-y0.far.glb"
   },
   {
    "id": "house-zen-pavilion-1",
@@ -107,7 +112,8 @@
     -24,
     -112
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/zen-pavilion-y270.far.glb"
   },
   {
    "id": "house-villa-c-1",
@@ -123,7 +129,8 @@
     -106,
     37
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/villa-c-y0.far.glb"
   },
   {
    "id": "house-cabin-2",
@@ -139,7 +146,8 @@
     -80,
     30
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/cabin-y90.far.glb"
   },
   {
    "id": "house-clock-tower-1",
@@ -155,7 +163,8 @@
     0,
     0
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/clock-tower-y0.far.glb"
   },
   {
    "id": "house-ring-01-0",
@@ -171,7 +180,8 @@
     -146.1,
     85
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/victorian-green-y90.far.glb"
   },
   {
    "id": "house-ring-01-1",
@@ -187,7 +197,8 @@
     -149.6,
     110
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/kruglov-house-y90.far.glb"
   },
   {
    "id": "house-ring-02-0",
@@ -203,7 +214,8 @@
     -148,
     23.8
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/small-brick-y90.far.glb"
   },
   {
    "id": "house-ring-02-1",
@@ -219,7 +231,8 @@
     -145.9,
     46.2
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/suburban-blue-y90.far.glb"
   },
   {
    "id": "house-ring-03-0",
@@ -235,7 +248,8 @@
     -145.9,
     -46.2
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/medieval-rx-y90.far.glb"
   },
   {
    "id": "house-ring-03-1",
@@ -251,7 +265,8 @@
     -146.1,
     -23.8
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/victorian-green-y90.far.glb"
   },
   {
    "id": "house-ring-04-0",
@@ -267,7 +282,8 @@
     -149.6,
     -110
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/kruglov-house-y90.far.glb"
   },
   {
    "id": "house-ring-04-1",
@@ -283,7 +299,8 @@
     -148,
     -85
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/small-brick-y90.far.glb"
   },
   {
    "id": "house-ring-05-0",
@@ -299,7 +316,8 @@
     -145.9,
     -167.5
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/suburban-blue-y90.far.glb"
   },
   {
    "id": "house-ring-05-1",
@@ -315,7 +333,8 @@
     -145.9,
     -147.5
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/medieval-rx-y90.far.glb"
   },
   {
    "id": "house-ring-10-0",
@@ -331,7 +350,8 @@
     -110,
     149.6
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/kruglov-house-y180.far.glb"
   },
   {
    "id": "house-ring-10-1",
@@ -347,7 +367,8 @@
     -85,
     148.3
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/suburban-bogdan-y180.far.glb"
   },
   {
    "id": "house-ring-15-0",
@@ -363,7 +384,8 @@
     -110,
     -151.6
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/cozy-cottage-y0.far.glb"
   },
   {
    "id": "house-ring-15-1",
@@ -379,7 +401,8 @@
     -85,
     -145.9
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/suburban-blue-y0.far.glb"
   },
   {
    "id": "house-ring-20-0",
@@ -395,7 +418,8 @@
     -46.2,
     145.9
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/medieval-rx-y180.far.glb"
   },
   {
    "id": "house-ring-20-1",
@@ -411,7 +435,8 @@
     -23.8,
     148
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/small-brick-y180.far.glb"
   },
   {
    "id": "house-ring-25-0",
@@ -427,7 +452,8 @@
     -46.2,
     -148.2
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/american-y0.far.glb"
   },
   {
    "id": "house-ring-25-1",
@@ -443,7 +469,8 @@
     -23.8,
     -151.6
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/cozy-cottage-y0.far.glb"
   },
   {
    "id": "house-ring-30-0",
@@ -459,7 +486,8 @@
     23.8,
     147.8
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/residence-wsg-y180.far.glb"
   },
   {
    "id": "house-ring-30-1",
@@ -475,7 +503,8 @@
     46.2,
     149.6
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/kruglov-house-y180.far.glb"
   },
   {
    "id": "house-ring-35-0",
@@ -491,7 +520,8 @@
     23.8,
     -145.9
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/suburban-blue-y0.far.glb"
   },
   {
    "id": "house-ring-35-1",
@@ -507,7 +537,8 @@
     46.2,
     -148.2
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/american-y0.far.glb"
   },
   {
    "id": "house-ring-40-0",
@@ -523,7 +554,8 @@
     85,
     148.3
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/suburban-bogdan-y180.far.glb"
   },
   {
    "id": "house-ring-40-1",
@@ -539,7 +571,8 @@
     110,
     145.9
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/medieval-rx-y180.far.glb"
   },
   {
    "id": "house-ring-45-0",
@@ -555,7 +588,8 @@
     85,
     -151.6
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/cozy-cottage-y0.far.glb"
   },
   {
    "id": "house-ring-45-1",
@@ -571,7 +605,8 @@
     110,
     -145.9
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/suburban-blue-y0.far.glb"
   },
   {
    "id": "house-ring-50-0",
@@ -587,7 +622,8 @@
     147.8,
     147.5
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/residence-wsg-y270.far.glb"
   },
   {
    "id": "house-ring-50-1",
@@ -603,7 +639,8 @@
     148.3,
     167.5
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/suburban-bogdan-y270.far.glb"
   },
   {
    "id": "house-ring-51-0",
@@ -619,7 +656,8 @@
     151.6,
     85
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/cozy-cottage-y270.far.glb"
   },
   {
    "id": "house-ring-51-1",
@@ -635,7 +673,8 @@
     148.2,
     110
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/american-y270.far.glb"
   },
   {
    "id": "house-ring-52-0",
@@ -651,7 +690,8 @@
     146.1,
     23.8
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/victorian-green-y270.far.glb"
   },
   {
    "id": "house-ring-52-1",
@@ -667,7 +707,8 @@
     147.8,
     46.2
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/residence-wsg-y270.far.glb"
   },
   {
    "id": "house-ring-53-0",
@@ -683,7 +724,8 @@
     148.3,
     -46.2
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/suburban-bogdan-y270.far.glb"
   },
   {
    "id": "house-ring-53-1",
@@ -699,7 +741,8 @@
     151.6,
     -23.8
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/cozy-cottage-y270.far.glb"
   },
   {
    "id": "house-ring-54-0",
@@ -715,7 +758,8 @@
     148.2,
     -110
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/american-y270.far.glb"
   },
   {
    "id": "house-ring-54-1",
@@ -731,7 +775,8 @@
     146.1,
     -85
    ],
-   "theme": "bazaar"
+   "theme": "bazaar",
+   "farUrl": "/assets/houses/victorian-green-y270.far.glb"
   }
  ],
  "links": "/assets/world-links.glb",
