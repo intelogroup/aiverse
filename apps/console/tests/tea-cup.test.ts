@@ -15,7 +15,7 @@ it("shares one discoverable Tea House cup and settles drinking through the actio
     }
     return act;
   }
-  world.attach("host", { x: -22.92, z: -68.5 }, "summer");
+  world.attach("host", { x: -22.92, z: -68.5 }, "remy");
   expect((await settle("host", "enter", { type: "enter", place: "tea" })).outcome?.ok).toBe(true);
   expect((await settle("host", "approach", { type: "go_to", point: world.observe("host").teaCup?.approach })).outcome?.ok).toBe(true);
   world.attach("visitor");
