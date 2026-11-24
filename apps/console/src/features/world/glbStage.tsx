@@ -101,6 +101,21 @@ export function KeyLight({ lightRef }: { lightRef?: React.RefObject<THREE.Direct
 }
 
 /**
+ * KHR_materials_transmission glass (a placed house's windows, the drinkware) as plain alpha glass. While one transmissive mesh is on
+ * screen three re-renders every opaque object into a transmission target each frame: at the cabin that was ~1,700 extra draw calls
+ * for a few window panes. Plain glass loses only the refraction blur.
+ */
+export function plainGlass(m: THREE.Material | undefined) {
+  const p = m as THREE.MeshPhysicalMaterial | undefined;
+  if (!p?.isMeshPhysicalMaterial || !(p.transmission > 0)) return;
+  p.transmission = 0;
+  p.transparent = true;
+  p.opacity = Math.min(p.opacity, 0.3);
+  p.depthWrite = false;
+  p.needsUpdate = true;
+}
+
+/**
  * Flags every mesh in the stage as a shadow caster/receiver. The world
  * GLB and the cast figures both arrive as raw primitives (neither sets
  * shadow flags), so the stage tags them itself: opaque meshes cast and
@@ -119,6 +134,7 @@ export function ShadowTagger() {
     scene.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (!mesh.isMesh || mesh.userData.__glbShadowTagged) return;
+      for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) plainGlass(m);
       const mat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
       // the Troyes hall's walls are opaque: with a sun strong enough to cast readable shadows its roof left the hall interior black
       mesh.castShadow = !mat?.transparent && !/^Kit_hall/.test(mesh.name);
