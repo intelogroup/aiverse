@@ -22,6 +22,7 @@ const districts = [...vis.tiles, ...orphan.map(t => ({ ...t, url: "" }))].map(t 
   ...(colById.has(t.id) ? { collisionUrl: t.core ? "/assets/tiles/core.col.glb" : `/assets/tiles/col/${colById.get(t.id).url}` } : {}),
   center: t.center, half: t.half, origin: [0, 0], theme, ...(t.core ? { resident: true } : {}), tris: t.tris,
 }));
+districts.push(...base.districts.filter(d => d.id.startsWith("house-"))); // stand-alone placed houses (place_house.mjs), streamed like tiles
 const shell = readdirSync(`${A}/tiles`).find(f => /^shell\.[0-9a-f]+\.glb$/.test(f)); // split_shell.mjs output: shell_bazaar cut into shell_<tileId> nodes
 if (!shell) throw new Error("no tiles/shell.*.glb: run split_shell.mjs first");
 const lod = readdirSync(`${A}/tiles`).find(f => /^lod\.[0-9a-f]+\.glb$/.test(f)); // split_lod.mjs output (optional): the textured far view that replaces the beige shell
