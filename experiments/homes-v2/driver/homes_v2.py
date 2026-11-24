@@ -166,14 +166,14 @@ HOMES = {cid: {"owner": None, "claimed_at": None} for cid in CABINS}
 _home_lock = threading.Lock()
 # ---- HOMES V2 KEYS: claim grants the owner the cabin's virtual key;
 # escort arrival (guest near door WITH owner) grants a real key copy.
-KEYS = {cid: {"copies": set()} for cid in CABINS}
+KEY_COPIES = {cid: {"copies": set()} for cid in CABINS}
 DOOR = (-17.2, 86.4)
 _refusal_note = {}
 
 
 def has_key(key, cid="house-cabin-1"):
     with _home_lock:
-        return HOMES[cid]["owner"] == key or key in KEYS[cid]["copies"]
+        return HOMES[cid]["owner"] == key or key in KEY_COPIES[cid]["copies"]
 
 
 def _escort_check(key):
@@ -183,7 +183,7 @@ def _escort_check(key):
     cid = "house-cabin-1"
     with _home_lock:
         owner = HOMES[cid]["owner"]
-        if not owner or owner == key or key in KEYS[cid]["copies"]:
+        if not owner or owner == key or key in KEY_COPIES[cid]["copies"]:
             return
     me = POSES.get(key)
     ow = POSES.get(owner)
@@ -193,7 +193,7 @@ def _escort_check(key):
     if _m.hypot(me[0] - DOOR[0], me[1] - DOOR[1]) <= 4.0 and \
             _m.hypot(ow[0] - DOOR[0], ow[1] - DOOR[1]) <= 6.0:
         with _home_lock:
-            KEYS[cid]["copies"].add(key)
+            KEY_COPIES[cid]["copies"].add(key)
         log_event(key, {"kind": "key_copy_granted", "cabin": cid,
                         "via": "escort_arrival", "owner": owner})
         log_event(owner, {"kind": "key_copy_given", "cabin": cid,
@@ -230,7 +230,7 @@ def homes_context(key):
     note = ""
     if mine:
         note = (f" You own {CABINS[mine]} and hold its key. Key copies "
-                f"held by: {sorted(KEYS[mine]['copies']) or 'nobody yet'}.")
+                f"held by: {sorted(KEY_COPIES[mine]['copies']) or 'nobody yet'}.")
     elif has_key(key):
         note = " You hold a KEY COPY for the Stone Cabin — you can enter."
     else:
