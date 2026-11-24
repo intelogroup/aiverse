@@ -7,7 +7,8 @@
 // so every body now carries the SAME clip catalog (45 then; seven more
 // baked 2026-11-09 — Defeated, SillyDancing, StandingUsingTouchscreenTablet,
 // HoldingTurnLeft, PullingLever, TenderPlacement, PuttingDown — 52 total;
-// one more baked 2026-11-10 — EnteringCode — 53 total) — skills and the
+// one more baked 2026-11-10 — EnteringCode — 53 total; one more baked
+// 2026-11-24 — SeatedTyping — 54 total) — skills and the
 // Embody panel's clip tester select by name, never per body.
 //
 // `loop` clips hold until another choice; one-shots play once and the
@@ -74,6 +75,7 @@ const BATCH: ClipDef[] = [
   { name: "PuttingDown", loop: false, duration: 10.3333 },
   { name: "Run", loop: true, duration: 0.7333 },
   { name: "Salute", loop: false, duration: 2.8333, social: true, aliases: ["salutes"] },
+  { name: "SeatedTyping", loop: true, duration: 4.81, social: true, seatedOk: true, seatedOnly: true, aliases: ["typing", "type", "computer"] },
   { name: "ShakeHeadNo", loop: false, duration: 1.8, social: true, aliases: ["no", "shake", "shakehead", "disagree"] },
   { name: "Shrug", loop: false, duration: 2.0, social: true, aliases: ["idk"] },
   { name: "SillyDancing", loop: true, duration: 3.8333, social: true, aliases: ["dance", "silly"] },
