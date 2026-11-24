@@ -195,3 +195,6 @@ The uploaded Sketchfab export splits one continuous colored surface into four ch
     measurable cost. The stock ToneMapping effect tone-mapped the sky dome a second time (washed out): AgX now runs in a depth-masked effect.
   - Not placed (2026-11-24): `scandi-pavilion` ships a 483 m ground disc and is 29.5 m wide without it (no ring slot fits); `tropical-modern`
     scatters props over a 59 m site. Both need their ground and outliers stripped first.
+  - Vercel build lost the tiles silently (2026-11-24): split_lod.mjs runs slim_textures.py (Pillow) and the Vercel image has python3 without
+    Pillow. `build:tiles` died with `ModuleNotFoundError: No module named 'PIL'`, the build stayed green and served the one-file world.
+    build_tiles.sh now installs Pillow when the import fails. After any deploy, read the build log for `PASS` x2 and `tiles (`, not just READY.

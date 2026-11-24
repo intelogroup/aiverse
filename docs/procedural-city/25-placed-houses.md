@@ -43,3 +43,7 @@ gone), `bridge_sweep_orphans.py` (floating facades, shutters, roofs, bunting and
 - Later on 2026-11-24: four ring repeats swapped for new models (colonial, Hawk Lane Scandinavian, log cabin, Finnish cottage): still 45 placements, now
   on 30 shared GLBs. Light pass: sun shadow box follows the walker, sky HDRI environment, N8AO on desktop, transmission glass as plain
   glass, street props instanced at tile build. Desktop fps 60 at plaza, ring and cabin (was 30 / 60 / 20).
+- Prop sets: `place_props.mjs` builds a `props-<id>` district (one GPU-instanced mesh per model, one collision box per placement); the layout
+  lives in a small script per site (`props_lido.mjs`: 24 loungers, 12 parasols, 8 deck chairs round the lido pool, CC-BY, credited). Not
+  `house-*`, because five tools read house-* as building footprints; tiles_manifest.mjs and the egg test treat props-* like houses. The old box
+  loungers were dropped from BzOpenSpace with `bridge_drop_prims.py`. Rerun after editing the layout: props_lido.mjs, bakeNavmesh, build_tiles.
