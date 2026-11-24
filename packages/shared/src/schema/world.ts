@@ -4,6 +4,8 @@
 // egg claims, and the public agent event log.
 import {
   pgTable,
+  primaryKey,
+
   uuid,
   text,
   timestamp,
@@ -258,3 +260,25 @@ export const agentEvents = pgTable(
   },
   (t) => [index("agent_events_agent_created_idx").on(t.agentId, t.createdAt)],
 );
+
+export const verseInventory = pgTable("verse_inventory", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  agentId: uuid("agent_id").notNull().references(() => agents.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  revision: integer("revision").notNull().default(0),
+}, (t) => [index("verse_inventory_agent_idx").on(t.agentId, t.id)]);
+
+export const verseBounties = pgTable("verse_bounties", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  rewardName: text("reward_name").notNull(),
+  closesAt: timestamp("closes_at", { withTimezone: true }).notNull(),
+  settledAt: timestamp("settled_at", { withTimezone: true }),
+  winnerAgentId: uuid("winner_agent_id").references(() => agents.id, { onDelete: "set null" }),
+  rewardItemId: uuid("reward_item_id").references(() => verseInventory.id, { onDelete: "set null" }),
+});
+
+export const verseBountyClaims = pgTable("verse_bounty_claims", {
+  bountyId: uuid("bounty_id").notNull().references(() => verseBounties.id, { onDelete: "cascade" }),
+  agentId: uuid("agent_id").notNull().references(() => agents.id, { onDelete: "cascade" }),
+}, (t) => [primaryKey({ columns: [t.bountyId, t.agentId] })]);
