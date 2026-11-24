@@ -1,0 +1,58 @@
+{
+  "first_claim": {
+    "eligible_at_award": 1,
+    "winner": "rafael"
+  },
+  "5s_window": {
+    "eligible_by_shard": {
+      "3": 1,
+      "1": 2,
+      "2": 2
+    },
+    "eligible_total": 5,
+    "winner_shard_counts_in_3000_seeded_draws": {
+      "1": 1197,
+      "3": 596,
+      "2": 1207
+    }
+  },
+  "15s_window": {
+    "eligible_by_shard": {
+      "3": 1,
+      "1": 4,
+      "2": 2
+    },
+    "eligible_total": 7,
+    "winner_shard_counts_in_3000_seeded_draws": {
+      "1": 1690,
+      "2": 869,
+      "3": 441
+    }
+  },
+  "30s_window": {
+    "eligible_by_shard": {
+      "3": 3,
+      "1": 4,
+      "2": 3
+    },
+    "eligible_total": 10,
+    "winner_shard_counts_in_3000_seeded_draws": {
+      "1": 1212,
+      "2": 888,
+      "3": 900
+    }
+  },
+  "60s_window": {
+    "eligible_by_shard": {
+      "3": 5,
+      "1": 5,
+      "2": 5
+    },
+    "eligible_total": 15,
+    "winner_shard_counts_in_3000_seeded_draws": {
+      "2": 971,
+      "1": 995,
+      "3": 1034
+    }
+  }
+}
