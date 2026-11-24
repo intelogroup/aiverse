@@ -28,6 +28,10 @@ const cellOf = makeCellOf(T.heroes), leaf = leafOfCell(T.layout, T.heroes);
 await MeshoptDecoder.ready; await MeshoptEncoder.ready; await MeshoptSimplifier.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ "meshopt.decoder": MeshoptDecoder, "meshopt.encoder": MeshoptEncoder });
 const doc = await io.read(IN); const root = doc.getRoot(); const scene = root.listScenes()[0];
+// Demolition passes take a building out of the scene but leave its nodes in the file: only what the scene reaches is the world.
+// (Iterating root.listNodes() below rebuilt every demolished building in the far view, seen live in tile mode 2026-11-24.)
+{ const live = new Set(); const walk = (n) => { live.add(n); n.listChildren().forEach(walk); }; scene.listChildren().forEach(walk);
+  for (const n of root.listNodes()) if (!live.has(n)) n.dispose(); }
 const buffer = root.listBuffers()[0];
 const instExt = doc.createExtension(EXTMeshGPUInstancing);
 
