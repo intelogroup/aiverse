@@ -11,7 +11,7 @@ import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { Suspense, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { TEA_CUP } from "@aiverse/world-sim/teaCup";
+import { TEA_CUP } from "./teaCup";
 import { BODIES, BODY_REMY } from "./bodies";
 import { CastFigure } from "./CastFigure";
 import { ClipTestState } from "./clips";
