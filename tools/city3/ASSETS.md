@@ -207,3 +207,4 @@ Stand-alone prebuilt houses placed by `place_house.mjs` as their own streamed di
 - `mayflower-1`: House "May-Flower" (Design 39) by AleixoAlonso, CC-BY 4.0 (Sketchfab uid 1ff9aaa72bc24037ac3e3e08c9a35e33). Exterior only, solid collision.
 - `shirakawago-1`: "Shirakawago Village Set House 1" by Lokomotto, CC-BY 4.0 (Sketchfab uid f94da738aefc4674ab2062df5c01cd43). 0.01 scale; thatch cards switched from BLEND to MASK (`--mask`); solid collision.
 - `zen-pavilion-1`: "Zen Japanese Tea House with Go Board" by winters810, CC-BY 4.0 (Sketchfab uid a1e95e5efee349a693f30eda32401aef). Walkable: tatami floor sunk to 0.28 over the walk slab, 3.1 m gap in the open side, facing the Tea House.
+- `villa-c-1`: "Modern luxury villa house building" by zigurat architecture studio, CC-BY 4.0 (Sketchfab uid d8e6be2601474f7d8cb7d06f8566f01a). Solid collision over the house body. `cabin-2` reuses the Stone Cabin (above) as "Lakeside Cabin".
