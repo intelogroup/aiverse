@@ -136,7 +136,7 @@
     0.52
    ],
    "sun": [
-    1.0,
+    1,
     0.96,
     0.88
    ],
@@ -148,8 +148,8 @@
    ],
    "ambient": 0.22,
    "envIntensity": 0.45,
-   "exposure": 1.0,
-   "night": 0.0
+   "exposure": 1,
+   "night": 0
   }
  },
  "streaming": {

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // Place one prebuilt house GLB in world coordinates and write its collision GLB, as a stand-alone streamed district (no splice into the 100 MB monolith).
-//   bun tools/city3/place_house.mjs SRC.glb ID X Z YAW_DEG [--door=front|back|none] [--doorx=0] [--doorhalf=0.85] [--body=x0,x1,z0,z1] [--floor=0.63] [--ceil=2.8] [--scale=1] [--mask] [--asset=NAME] [--out=dir] [--manifest=districts.json]
+//   bun tools/city3/place_house.mjs SRC.glb ID X Z YAW_DEG [--door=front|back|none] [--doorx=0] [--doorhalf=0.85] [--body=x0,x1,z0,z1] [--floor=0.63] [--ceil=2.8] [--scale=1] [--mask] [--asset=NAME] [--room="Display name"] [--out=dir] [--manifest=districts.json]
 // Frame: GLB x, z = -plan y, y up, walk slab y=0.2. The house footprint is centred on (X, Z); YAW_DEG must be a multiple of 90 so the collision
 // stays axis-aligned. The house front faces local +z before the yaw. Output: <out>/<ID>.glb, <out>/<ID>.col.glb, <out>/<ID>.json (the DistrictDef rect).
 import { NodeIO, Document, getBounds } from "@gltf-transform/core";
@@ -83,4 +83,24 @@ const mpath = opt.manifest ?? `${OUT}/../districts.json`;
 const man = JSON.parse(readFileSync(mpath, "utf8"));
 man.districts = [...man.districts.filter(d => d.id !== def.id), def];
 writeFileSync(mpath, JSON.stringify(man, null, 1));
+// --room: a walkable house (door != none) becomes an enterable room and a go_to place, like a hero shop: interiors/house-<id>.{json,col.json},
+// an interiors/index.json row and a city3-places.json shopfront whose stand is 0.9 m outside the door (past the stoop).
+if (opt.room !== undefined) {
+  if (door === "none") throw new Error("--room needs a door");
+  const A = `${OUT}/..`, rid = `house-${id}`, n = turn([0, 1]), dp = turn([dx, bz1]);
+  const doorW = [X + dp[0], Z + dp[1]].map((v) => +v.toFixed(3)), stand = [doorW[0] + n[0] * 0.9, doorW[1] + n[1] * 0.9].map((v) => +v.toFixed(3));
+  const cw = [[bx0, bz0], [bx1, bz0], [bx0, bz1], [bx1, bz1]].map(turn).map(([a, c]) => [X + a, Z + c]);
+  const rect = [Math.min(...cw.map((p) => p[0])), Math.min(...cw.map((p) => p[1])), Math.max(...cw.map((p) => p[0])), Math.max(...cw.map((p) => p[1]))].map((v) => +v.toFixed(3));
+  const front = n[0] > 0.5 ? "E" : n[0] < -0.5 ? "W" : n[1] > 0.5 ? "S" : "N";   // N = -z, as the hero shops
+  mkdirSync(`${A}/interiors`, { recursive: true });
+  writeFileSync(`${A}/interiors/${rid}.json`, JSON.stringify({ id: rid, library: "world-city3-library.glb", props: [] }));
+  writeFileSync(`${A}/interiors/${rid}.col.json`, JSON.stringify({ id: rid, units: "m, three.js space: [cx, cz, hx, hz, y0, y1, rotY]", floorY: +FLOOR_TOP.toFixed(3), boxes: [], seats: [] }));
+  const row = { id: rid, lot: rid, name: opt.room, template: "house", front, center: [(rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2], door: doorW, rect,
+    cut: { rect: [rect[0] - 0.1, rect[1] - 0.1, rect[2] + 0.1, rect[3] + 0.1], y: +top.toFixed(2) }, layout: `/assets/interiors/${rid}.json`, featured: false, collision: `/assets/interiors/${rid}.col.json` };
+  const ip = `${A}/interiors/index.json`, idx = JSON.parse(readFileSync(ip, "utf8"));
+  writeFileSync(ip, JSON.stringify([...idx.filter((r) => r.id !== rid), row]));
+  const pp = `${A}/city3-places.json`, places = JSON.parse(readFileSync(pp, "utf8"));
+  const place = { id: rid, kind: "shopfront", name: opt.room, pos: stand, heading: +Math.atan2(n[0], n[1]).toFixed(5), stand, room: rid, door: doorW };
+  writeFileSync(pp, JSON.stringify([...places.filter((p) => p.id !== rid), place], null, 1));
+}
 console.log(`${id}: ${w.toFixed(1)} x ${d.toFixed(1)} x ${ht.toFixed(1)} m at (${X}, ${Z}) yaw ${YAW}, ${boxes.length} collision boxes, half ${half}`);
