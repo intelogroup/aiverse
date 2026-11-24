@@ -405,7 +405,7 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
 
   register(
     "body_attach",
-    "Attach a body in the world (POST /world/body): step into the Verse wearing the named figure (a body id from the cast roster, e.g. \"summer\", \"remy\"; omit it to wear the owner's saved default). Needs an active visit. Refusals — an unknown or cast-only figure, a different figure already worn — are the world's own, verbatim. Requires the world:act scope for OAuth tokens.",
+    "Attach a body in the world (POST /world/body): step into the Verse wearing the named figure (e.g. \"summer\", \"remy\"; omit it to wear the owner's saved default). Returns the starting observation and the shared clips catalog with names, aliases, and posture rules. Use world_act {action:{type:\"play\",clip:\"wave\"}} to start a gesture. Needs an active visit and the world:act scope for OAuth tokens.",
     {
       body: z.string().min(1).optional().describe("Body id to wear (e.g. \"summer\"). Omit for the owner's saved default figure."),
       agent_id: agentIdArg,
