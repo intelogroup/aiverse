@@ -1272,25 +1272,6 @@
   ]
  },
  {
-  "id": "shop-101",
-  "kind": "shopfront",
-  "name": "Rekinder Lamps",
-  "pos": [
-   -41.86,
-   -72.5
-  ],
-  "heading": 0.0,
-  "stand": [
-   -41.86,
-   -72.1
-  ],
-  "room": "shop-101",
-  "door": [
-   -41.86,
-   -72.5
-  ]
- },
- {
   "id": "shop-102",
   "kind": "shopfront",
   "name": "Matchmaker's Tea House",
@@ -1307,82 +1288,6 @@
   "door": [
    -22.92,
    -72.5
-  ]
- },
- {
-  "id": "shop-103",
-  "kind": "shopfront",
-  "name": "Fixer's Forge",
-  "pos": [
-   -53.14,
-   -122.5
-  ],
-  "heading": 3.14159,
-  "stand": [
-   -53.14,
-   -122.9
-  ],
-  "room": "shop-103",
-  "door": [
-   -53.14,
-   -122.5
-  ]
- },
- {
-  "id": "shop-104",
-  "kind": "shopfront",
-  "name": "Ink & Quill",
-  "pos": [
-   -24.82,
-   -122.5
-  ],
-  "heading": 3.14159,
-  "stand": [
-   -24.82,
-   -122.5
-  ],
-  "room": "shop-104",
-  "door": [
-   -26.9,
-   -122.5
-  ]
- },
- {
-  "id": "shop-105",
-  "kind": "shopfront",
-  "name": "The Golden Scale",
-  "pos": [
-   -57.5,
-   -97.77
-  ],
-  "heading": -1.5708,
-  "stand": [
-   -57.5,
-   -97.77
-  ],
-  "room": "shop-105",
-  "door": [
-   -57.5,
-   -95.6
-  ]
- },
- {
-  "id": "shop-106",
-  "kind": "shopfront",
-  "name": "Kova's Spices",
-  "pos": [
-   -12.5,
-   -97.23
-  ],
-  "heading": 1.5708,
-  "stand": [
-   -12.5,
-   -97.23
-  ],
-  "room": "shop-106",
-  "door": [
-   -12.5,
-   -99.4
   ]
  },
  {

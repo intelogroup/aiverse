@@ -31,7 +31,9 @@ GARDENS = {"garden": dict(rect=(72.0, -58.0, 122.0, -12.0), plaza=9.0, orchard=F
            "grove": dict(rect=(72.0, -122.0, 122.0, -72.0), plaza=6.0, orchard=True, seed=9241),
            # yards: lawn around placed houses (place_house.mjs), a walk from the street to each house, spaced trees; no gazebo, arches or plaza
            "plot": dict(rect=(-58.0, 72.0, -12.0, 122.0), plaza=0.0, orchard=False, yard=True, seed=5151),
-           "citadel": dict(rect=(72.5, 72.5, 122.5, 122.5), plaza=0.0, orchard=False, yard=True, seed=5150)}  # lots 44-51: a square with a plaza gazebo  # lots 68-71: the 12 m strip that finishes the park block  # lots 60-67: fruit-tree grid round a small gazebo plaza
+           "citadel": dict(rect=(72.5, 72.5, 122.5, 122.5), plaza=0.0, orchard=False, yard=True, seed=5150),
+           "teablock": dict(rect=(-58.0, -122.0, -12.0, -89.0), plaza=0.0, orchard=False, yard=True, seed=5152),   # south of the Tea House (102)
+           "tea101": dict(rect=(-57.5, -84.5, -41.0, -72.5), plaza=0.0, orchard=False, yard=True, seed=5153)}     # lot 101, west of the Tea House  # lots 44-51: a square with a plaza gazebo  # lots 68-71: the 12 m strip that finishes the park block  # lots 60-67: fruit-tree grid round a small gazebo plaza
 NAME = "garden"
 MARK = "garden_block_pass"
 X0, X1, Z0, Z1 = GARDENS[NAME]["rect"]
