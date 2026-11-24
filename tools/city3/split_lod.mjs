@@ -67,6 +67,7 @@ const TREE = /^(ls_tree|Tree_)/, TREE_RATIO = Number(process.env.TREE_RATIO ?? 0
   const done = new Set();
   for (const n of root.listNodes()) {
     const mesh = n.getMesh(); if (!mesh || done.has(mesh) || DROP.test(n.getName())) continue; done.add(mesh);
+    if (/^Kit_hall/.test(n.getName())) continue;   // the Troyes hall (4.6k tris) simplified to a blob that read as a white box from the opening aerial
     const ratio = TREE.test(n.getName()) ? TREE_RATIO : /^Kit_(shop|hall|garden|orchard)/.test(n.getName()) ? KIT_RATIO : BLD_RATIO, err = TREE.test(n.getName()) ? Number(process.env.TREE_ERR ?? 1) : /^Kit_(shop|hall|garden|orchard)/.test(n.getName()) ? Number(process.env.KIT_ERR ?? 0.3) : Number(process.env.BLD_ERR ?? 0.05);
     for (const prim of mesh.listPrimitives()) {
       const idx = prim.getIndices(); if (!idx || prim.getMode() !== 4) continue; const ia = idx.getArray();
