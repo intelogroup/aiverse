@@ -28,6 +28,22 @@
     0
    ],
    "theme": "bazaar"
+  },
+  {
+   "id": "house-cabin-1",
+   "name": "cabin-1",
+   "url": "/assets/houses/cabin-1.glb",
+   "collisionUrl": "/assets/houses/cabin-1.col.glb",
+   "center": [
+    -20,
+    84
+   ],
+   "half": 15,
+   "origin": [
+    0,
+    0
+   ],
+   "theme": "bazaar"
   }
  ],
  "links": "/assets/world-links.glb",

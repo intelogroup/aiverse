@@ -202,3 +202,4 @@ Restore the original archive locally, then use `blender_lock.sh -b --python prep
 Stand-alone prebuilt houses placed by `place_house.mjs` as their own streamed districts (`districts.json` `house-*`, files under `apps/console/public/assets/houses/`). Originals are kept outside the repo in `~/Developer/city3-downloads/`.
 
 - `american-1`: "American House" by AleixoAlonso, CC-BY 4.0, https://sketchfab.com/3d-models/american-house-798ffaeadacf4e08a2665785422fb45d. Exterior only, solid collision box.
+- `cabin-1`: "House - Stone Cabin - Modern Log Cabin 03" by MarMel-Bali, CC-BY 4.0 (Sketchfab uid 9e9195dc0a6f44b2baea0def83602dc7). Furnished interior; placed at 0.02 scale, door gap on the +z facade.
