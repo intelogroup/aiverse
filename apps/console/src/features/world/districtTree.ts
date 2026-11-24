@@ -34,6 +34,21 @@ export function applyNight(root: THREE.Object3D, night: number) {
   });
 }
 
+const MAPS = ["map", "normalMap", "roughnessMap", "metalnessMap", "aoMap", "emissiveMap"] as const;
+/** Anisotropic filtering on every texture of a root: without it lawns, roads and paving smear into streaks at the grazing angles a walker sees. */
+export function sharpenTextures(root: THREE.Object3D, anisotropy: number) {
+  root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    for (const mat of Array.isArray(m.material) ? m.material : [m.material]) {
+      for (const k of MAPS) {
+        const t = (mat as unknown as Record<string, THREE.Texture | null>)[k];
+        if (t && t.anisotropy < anisotropy) { t.anisotropy = anisotropy; t.needsUpdate = true; }
+      }
+    }
+  });
+}
+
 // Water and sea surfaces are replaced by the ocean + FountainWater below, in every root (the resident does the same in its effect).
 export const hideLegacyWater = (root: THREE.Object3D) => root.traverse((o) => {
   const m = o as THREE.Mesh; if (!m.isMesh) return;

@@ -22,7 +22,7 @@ import { TILES } from "./tilesMode";
 import { tileScenes } from "./tileScenes";
 import { applyBazaarBatch, type BazaarBatchHandle } from "./bazaarBatch";
 import { planBazaarInstance, type BazaarInstanceHandle } from "./bazaarInstance";
-import { applyNight, disposeTree, hideLegacyWater } from "./districtTree";
+import { applyNight, sharpenTextures, disposeTree, hideLegacyWater } from "./districtTree";
 import { createHemiFill, createOcean, createSkyDome } from "./districtSky";
 
 export const DISTRICTS_URL = TILES ? "/assets/tiles/districts.json" : "/assets/districts.json";
@@ -132,6 +132,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     gl.debug.checkShaderErrors = !import.meta.env.PROD;
     gl.toneMapping = THREE.AgXToneMapping;
     // useGLTF caches the resident, so its BVHs are built once and kept with it (buildColliders is idempotent).
+    sharpenTextures(resident.scene, Math.min(8, gl.capabilities.getMaxAnisotropy()));
     addColliders("resident", resident.scene);
     // Batching trial (tmp/batching-statics): with ?batch=census|merge|cells|both,
     // classify / merge / cell-split the resident's static geometry. Runs after
@@ -293,6 +294,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
   const mount = (d: DistrictDef, root: THREE.Object3D | null, t0: number) => {
     const g = new THREE.Group(); g.name = `district:${d.id}`; const [ox, oz] = originOf(d); g.position.set(ox, 0, oz); if (root) g.add(root);
     applyNight(g, themeRef.current?.night ?? 0);
+    sharpenTextures(g, Math.min(8, gl.capabilities.getMaxAnisotropy()));
     if (manifest?.tiles) hideLegacyWater(g);
     g.updateMatrixWorld(true); addColliders(d.id, g);
     for (const [key, url] of collisionJobs([d.id], defs)) loadCollision(key, url, originOf(d), () => groups.current.has(d.id));
