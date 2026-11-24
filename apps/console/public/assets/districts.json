@@ -76,6 +76,38 @@
     0
    ],
    "theme": "bazaar"
+  },
+  {
+   "id": "house-shirakawago-1",
+   "name": "shirakawago-1",
+   "url": "/assets/houses/shirakawago-1.glb",
+   "collisionUrl": "/assets/houses/shirakawago-1.col.glb",
+   "center": [
+    -45,
+    -107
+   ],
+   "half": 13,
+   "origin": [
+    0,
+    0
+   ],
+   "theme": "bazaar"
+  },
+  {
+   "id": "house-zen-pavilion-1",
+   "name": "zen-pavilion-1",
+   "url": "/assets/houses/zen-pavilion-1.glb",
+   "collisionUrl": "/assets/houses/zen-pavilion-1.col.glb",
+   "center": [
+    -24,
+    -112
+   ],
+   "half": 12,
+   "origin": [
+    0,
+    0
+   ],
+   "theme": "bazaar"
   }
  ],
  "links": "/assets/world-links.glb",
