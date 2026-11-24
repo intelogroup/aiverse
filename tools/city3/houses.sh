@@ -19,7 +19,7 @@ P suburban-blue      citadel-east-1 113   97   90 --asset=suburban-blue --lift=0
 P shirakawago-house  shirakawago-1  -45 -107    0 --asset=shirakawago --scale=0.01 --mask --door=none
 P zen-tea-house      zen-pavilion-1 -24 -112  270 --asset=zen-pavilion --body=-6,0.74,-3.31,3.76 --floor=1.11 --door=right --doorx=-0.21 --doorhalf=1.55 --ceil=3.9 --room="Zen Tea Pavilion"
 # west block (lots 52-59)
-P zigurat-villa-c    villa-c-1     -106   37    0 --asset=villa-c --body=-6.5,6.5,-11.3,4.9 --door=none
+P zigurat-villa-c    villa-c-1     -106   37    0 --asset=villa-c --body=-6.5,6.5,-11.3,4.9 --door=none "--recolor=Material_4:0.5,0.48,0.44;Material_11:0.42,0.41,0.38"
 P stone-cabin        cabin-2        -80   30   90 --asset=cabin --simplify=0.35 --scale=0.02 --body=-7.16,7.16,-3.89,2.4 --floor=0.63 --door=front --doorx=2.8 --doorhalf=1.3 --room="Lakeside Cabin"
 # plaza centre: the clock tower (replaces the 38 m box, bridge_drop_tower.py clock)
 P jubilee-clock-tower clock-tower-1   0    0    0 --asset=clock-tower --simplify=0.3 --scale=1.6 --door=none

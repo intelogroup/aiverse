@@ -38,6 +38,8 @@ const h = (YAW * Math.PI) / 360; outer.setRotation([0, Math.sin(h), 0, Math.cos(
 for (const n of scene.listChildren()) { scene.removeChild(n); inner.addChild(n); }
 // --mask: alpha-BLEND cards (thatch, foliage) become alpha-tested, which three.js draws without transparency sorting
 if (opt.mask !== undefined) for (const m of doc.getRoot().listMaterials()) if (m.getAlphaMode() === "BLEND") m.setAlphaMode("MASK").setAlphaCutoff(0.5);
+// --recolor=MAT:r,g,b[;MAT:r,g,b]: a flat linear colour for named untextured materials (villa C's dark podium read as a car park from the air)
+if (opt.recolor) for (const spec of opt.recolor.split(";")) { const [name, rgb] = spec.split(":"); for (const m of doc.getRoot().listMaterials()) if (m.getName() === name) m.setBaseColorFactor([...rgb.split(",").map(Number), 1]); }
 outer.addChild(inner); scene.addChild(outer);
 // one draw call per material instead of one per source object (the pool villa has 1345 objects): flatten bakes the placement transform
 await doc.transform(dedup(), flatten(), join({ keepNamed: false }), prune());
