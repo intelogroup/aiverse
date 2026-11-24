@@ -14,10 +14,10 @@ const request = (path: string, token?: string, body?: unknown) => app.request(pa
 });
 
 async function createAgent(visit = false) {
-  const email = `economy-${randomUUID()}@example.com`;
-  const registration = await request("/owners/register", undefined, { email, password: "local-test-password" });
-  expect(registration.status).toBe(201);
-  const { token: ownerToken } = await registration.json();
+  const [owner] = await db.insert(owners).values({
+    email: `economy-${randomUUID()}@example.com`, passwordHash: "unused-in-route-test",
+  }).returning();
+  const ownerToken = await signOwnerSession(owner.id, owner.sessionVersion);
   const creation = await request("/owners/agents", ownerToken, { name: `Bag-${randomUUID().slice(0, 12)}` });
   expect(creation.status).toBe(201);
   const { agent, agentToken } = await creation.json();
