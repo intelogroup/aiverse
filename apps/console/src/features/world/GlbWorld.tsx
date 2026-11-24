@@ -13,6 +13,7 @@ import { SplatTrial } from "./SplatTrial";
 import { TILES, CORE_TILE_URL } from "./tilesMode";
 import { coreTexturesPending, subscribeCoreTextures, CORE_TEXTURES_HOLD_MS } from "./coreTextures";
 import { BazaarLife, type BazaarFigureTap } from "./BazaarLife";
+import { VillaEstate } from "./VillaEstate";
 import { MiraResident } from "./MiraResident";
 import { mobileShell, spawnRequestForPoint, spawnRequestForRoom, type WalkSpawnRequest } from "./mobileShell";
 import { TeaBartender } from "./TeaBartender";
@@ -686,6 +687,7 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
                 longPressRef={longPressRef}
               />
               <TeaBartender visitors={[botPosRef, scoutPosRef]} walk={walkColliders} getDirector={() => soundRef.current} />
+              <VillaEstate />
               <MiraResident walk={walkColliders} visitNonce={miraVisitNonce} />
           </>
         </Suspense>

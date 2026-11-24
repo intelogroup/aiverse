@@ -1,13 +1,21 @@
 # Go-live runbook
 
-Last updated: 2026-11-17. This is a deploy checklist, not a status report —
+Last updated: 2026-11-24. This is a deploy checklist, not a status report —
 see `docs/STATUS.md` for ecology/experiment findings and `AGENTS.md` for
 hard rules. Update this file when a blocker below is closed or a new one
 is found; don't let it go stale like the state it documents.
 
-## Current state (2026-11-10, updated 2026-11-17) — the relaunch below already happened
+## Current gateway check (2026-11-24)
 
-The gateway is **live**, not suspended: production runs on Render
+Production `/version` returned HTTP 502. Run Verse acceptance checks against
+local Postgres with pgvector and Redis during the Neon quota outage. After
+quota recovery, confirm Render completed migrations, compare the production
+`/version` SHA to the release commit, and smoke-test the gateway-backed features.
+Verify Vercel separately by checking its deployment SHA and tile build output.
+
+## Historical relaunch (2026-11-10, updated 2026-11-17)
+
+At the Nov 17 check, the gateway was live on Render
 (Oregon, `srv-da8ao1qjnfac73drf3og`), `/version` tracks `main`, and a
 second gateway in Virginia (`srv-dbpfvqh42hec73chli70`) is deployed
 with the hunt DB restored — region cutover is NOT done yet (`api`

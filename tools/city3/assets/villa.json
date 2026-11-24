@@ -1,0 +1,52 @@
+{
+ "author": null,
+ "category": "static building / estate landmark",
+ "derivative": {
+  "decimation": "none \u2014 full fidelity per owner's instruction (2026-11-23)",
+  "geometries": 286,
+  "path": "apps/console/public/assets/villa.glb",
+  "pipeline": "assimp (3DS import, triangulate) -> trimesh GLB export; material re-bake 2026-11-23 (~/workspace/villa-view/rebake_villa.py): per-vertex normals + one PBR material per 3DS material (baseColorFactor = COLOR_DIFFUSE, metallicFactor 0, roughnessFactor 0.85 / 0.3 glass-named), no vertex colours. The first export (sha256 cb98f025..., vertex colours, no materials, no normals) rendered near-black in the console: three.js GLTFLoader applies the glTF spec default material (metallicFactor 1) to material-less primitives. Geometry (positions + indices) is sha256-verified identical between the two exports, all 286 geometries. Texturing pass 2026-11-23 (~/workspace/villa-view/build_textured.py + dedupe_glb.py; note: ~/workspace/villa-view/texturing-note.md): same geometry walk, plus generated per-vertex box-projection UVs (the 3DS carries no TEXCOORDs) and procedural PBR texture maps keyed to the 55 named 3DS materials (authored diffuse kept as baseColorFactor; maps are grayscale multipliers + packed metallic-roughness). Geometry sha256-verified identical to the re-bake, all 286 geometries.",
+  "sha256": "e5cbddd66e12c391163e4d12e01a1368f2d392cc58f607683236011f69dece9b",
+  "size_bytes": 31024848,
+  "textures": "procedural PBR maps generated in-workspace 2026-11-23 (~/workspace/villa-view/gen_textures.py, numpy tileable fBm; no external fetch, no licence encumbrance): 19 unique images embedded (872,488 bytes; JPEG base-colour multipliers + PNG metallic-roughness), 53 materials \u2014 47 textured, 6 factor-only (5 glass + pool water). The 3DS itself references no texture images (0 of 162 source meshes carry UVs); UVs are generated box projections, geometry untouched.",
+  "triangles": 1265477
+ },
+ "file_name": "villa+3ds.3ds",
+ "inspection": {
+  "ground_datum": "plot slab top face at local y = 0; lowest model point -3.18 m (inside the slab)",
+  "source_units": "centimetres (numeric space carried through the conversion unscaled)",
+  "true_size_m": {
+   "x": 54.0,
+   "y_height": 13.38,
+   "z": 110.79
+  }
+ },
+ "license": "not supplied with the upload; owner requested project placement",
+ "name": "The Villa",
+ "origin": "user upload (owner)",
+ "placement": {
+  "collision": "dam pass 2026-11-23 (tools/city3/bridge_villa_dam.py): the south link bridge deck + forecourt are in world-city3-collision.glb and the rebaked navmesh; city3-places.json carries the villa as a landmark place (stand on the forecourt). The house itself is one collision solid \u2014 no interior.",
+  "footprint_world": {
+   "x": [
+    -25.59,
+    28.41
+   ],
+   "z": [
+    203.61,
+    314.4
+   ]
+  },
+  "mechanism": "console standalone GLB component (MiraResident pattern): apps/console/src/features/world/VillaEstate.tsx, mounted in GlbWorld.tsx",
+  "position": [
+   0,
+   0.2,
+   252
+  ],
+  "reason": "at true scale the plot (111 x 54 m) exceeds every street-free run in the bazaar grid (~55 m max); in-grid placement would cover a street or demolish buildings",
+  "rotation_y": 3.141592653589793,
+  "scale": 0.01
+ },
+ "sha256": "0718f2c3f2f33c287980fc95623e99609fba3ddae9da608a9306abffe374cf0d",
+ "size_bytes": 15978563,
+ "uploaded": "2026-11-23"
+}

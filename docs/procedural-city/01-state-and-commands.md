@@ -22,18 +22,18 @@ tiles and the Vercel build: 23-world-tiles.md; what broke: 06-failures-log.md. T
   `nav3.py`, `check_anchors.py`. Outputs in `tools/city3/out/` (GLBs are gitignored; copies live in `apps/console/public/assets/`).
 - `apps/console/src/features/world/` — runtime: `GlbWorld.tsx` (worlds, `ClipCutaway`, `InteriorStreamer`), `city3.ts` (rooms index types, radii),
   `cutaway.ts`, `interiors.ts` + `interiorBuild.ts`, `bodyController.ts`, `CastFigure.tsx`, `locomotion.ts` (Recast crowd).
-- `apps/console/public/assets/`: `world-city3.glb` (4.8 MB), `world-city3-library.glb` (2.4 MB), `interiors/*.json` (77 rooms + index). **(2026-11-10: those two sizes are this build session's; on current main the files are 44,653,948 B and 8,055,844 B, with five district GLBs + collision siblings alongside — see the dated note in this folder's README.)**
+- `apps/console/public/assets/` — the current monolith, collision, shared room library, and interior index. Inspect the manifests and files for the current inventory and sizes. `tools/city3/build_tiles.sh` derives and verifies the streamed tiles; `packages/world-sim/node/bakeNavmesh.ts` derives navigation from collision.
 
 ## Run order (generator)
 ```
 cd tools/city3
 python3 plan.py && python3 textures.py          # plan.json, tex/, atlas.json, palette.json
 assets/fetch.sh                                  # CC0 interior assets (Poly Haven + Quaternius)
-blender -b --python build_city.py                # out/world-city3.glb, out/world-city3-library.glb, out/interiors/*.json
+./blender_lock.sh -b --python build_city.py                # out/world-city3.glb, out/world-city3-library.glb, out/interiors/*.json
 python3 check_anchors.py && python3 nav3.py
 cp out/world-city3*.glb out/city3-fountain.json ../../apps/console/public/assets/ && cp out/interiors/*.json ../../apps/console/public/assets/interiors/
 ```
-Rebuild is deterministic: both GLBs reproduce byte-identically (verified with `cmp`).
+Use the placed-house run order above for the current City 3 composition. The generator commands here describe the historical base bake.
 
 ## Console checks
 ```
