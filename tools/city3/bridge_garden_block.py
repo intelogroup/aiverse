@@ -123,7 +123,8 @@ def house_rects():
                 walk(ch, M)
         for r in j["scenes"][j.get("scene", 0)]["nodes"]:
             walk(r, np.eye(4))
-        out.append((float(lo[0]), float(lo[2]), float(hi[0]), float(hi[2])))
+        ox, oz = d.get("origin", [0, 0])   # shared house GLBs are authored at (0, 0) and moved by the district origin
+        out.append((float(lo[0]) + ox, float(lo[2]) + oz, float(hi[0]) + ox, float(hi[2]) + oz))
     return out
 
 
