@@ -12,9 +12,9 @@ import numpy as np
 from bridge_landscape_kit import add_accessor, add_view
 from bridge_wave1 import Glb, save_glb
 
-DEMOLISH = {"lido": [124, 125, 126, 127, 128, 129], "sports": [156, 157, 158, 159, 160, 161, 162, 163], "park": [72, 73, 74, 75, 76], "garden": [164, 165, 166, 167, 168, 169, 170, 171], "orchard": [60, 61, 62, 63, 64, 65, 66, 67], "meadow": [68, 69, 70, 71], "commons": [44, 45, 46, 47, 48, 49, 50, 51], "grove": [172, 173, 174, 175, 176, 177, 178, 179, 180], "plot": [94, 95, 96, 97, 98, 99, 100]}   # garden: 2026-11-23, block (4,3), beside the sports field
+DEMOLISH = {"lido": [124, 125, 126, 127, 128, 129], "sports": [156, 157, 158, 159, 160, 161, 162, 163], "park": [72, 73, 74, 75, 76], "garden": [164, 165, 166, 167, 168, 169, 170, 171], "orchard": [60, 61, 62, 63, 64, 65, 66, 67], "meadow": [68, 69, 70, 71], "commons": [44, 45, 46, 47, 48, 49, 50, 51], "grove": [172, 173, 174, 175, 176, 177, 178, 179, 180], "plot": [94, 95, 96, 97, 98, 99, 100], "citadel": [148, 149, 150, 151, 152, 153, 154, 155]}   # garden: 2026-11-23, block (4,3), beside the sports field
 ALL = sorted(i for v in DEMOLISH.values() for i in v)
-BLOCKS = {"lido": (12, 72, 58, 122), "sports": (72, 12, 122, 58), "park": (-122, -122, -72, -84), "garden": (72, -58, 122, -12), "orchard": (-122, -58, -72, -12), "meadow": (-122, -84, -72, -72), "commons": (-122, 72, -72, 122), "grove": (72, -122, 122, -72), "plot": (-58, 72, -12, 122)}  # whole block incl. courtyard: loose props (trees, stalls, benches) inside go too
+BLOCKS = {"lido": (12, 72, 58, 122), "sports": (72, 12, 122, 58), "park": (-122, -122, -72, -84), "garden": (72, -58, 122, -12), "orchard": (-122, -58, -72, -12), "meadow": (-122, -84, -72, -72), "commons": (-122, 72, -72, 122), "grove": (72, -122, 122, -72), "plot": (-58, 72, -12, 122), "citadel": (72.5, 72.5, 122.5, 122.5)}  # whole block incl. courtyard: loose props (trees, stalls, benches) inside go too
 CLEAR = ("Tree_", "SK_", "ls_tree", "ls_bush", "ls_flower", "ls_rock", "PartyCups")
 HEROES = os.path.join(HERE, "out", "heroes.json")
 
@@ -26,6 +26,9 @@ def done_of(j):
 def rects(ids=ALL):
     h = {x["id"]: x["rect"] for x in json.load(open(HEROES))}
     h.setdefault("shop-98", [-37.5, 72.5, -12.5, 84.5])   # a facade-only lot with no room, so heroes.json has no entry
+    if any(148 <= i <= 155 for i in ids):   # citadel kit lots have no room either; their rects come from the townhouse pass's plan
+        import bridge_citadel_townhouses as T
+        for l in T.lots_from_plan(): h.setdefault("shop-%d" % l["id"], l["rect"])
     return {i: h["shop-%d" % i] for i in ids}
 
 
@@ -44,7 +47,7 @@ def visual(path, dry):
     g = Glb(path); j = g.gltf
     new = [i for i in ALL if i not in done_of(j)]; nb = {k: v for k, v in BLOCKS.items() if set(DEMOLISH[k]) & set(new)}   # only this run's lots and blocks: earlier waves' lawns and trees stay
     if not new: print({"visual": "already"}); return
-    R = rects(new); RB = {**R, **{"block_" + k: v for k, v in nb.items()}}; names = {f"{p}{i}" for i in new for p in ("Bones_shop", "Roof_shop", "Door_shop", "Sign_shop", "SK_lantern.")}; ints = tuple(f"BzInt_{i}_" for i in new)   # BzInt_<lot>_F<n>: the interior floors bridge_bazaar_interiors.py added later
+    R = rects(new); RB = {**R, **{"block_" + k: v for k, v in nb.items()}}; names = {f"{p}{i}" for i in new for p in ("Bones_shop", "Roof_shop", "Door_shop", "Sign_shop", "SK_lantern.", "Kit_shop")}; ints = tuple(f"BzInt_{i}_" for i in new)   # BzInt_<lot>_F<n>: the interior floors bridge_bazaar_interiors.py added later
     scene = j["scenes"][j.get("scene", 0)]["nodes"]; rem = [i for i, n in enumerate(j["nodes"]) if (n.get("name") in names or n.get("name", "").startswith(ints)) and i in scene]; tr = {"B_Facade": 0, "Props": 0, "Courtyards": 0, "Awnings": 0, "BladeSigns": 0, "BzDoors": 0}
     for n in j["nodes"]:
         nm = n.get("name", "")
@@ -63,7 +66,7 @@ def collision(path, dry):
     g = Glb(path); j = g.gltf
     new = [i for i in ALL if i not in done_of(j)]
     if not new: print({"collision": "already"}); return
-    names = {f"col_bones_shop{i}" for i in new}; scene = j["scenes"][j.get("scene", 0)]["nodes"]; rem = [i for i, n in enumerate(j["nodes"]) if n.get("name") in names and i in scene]
+    names = {f"{p}{i}" for i in new for p in ("col_bones_shop", "col_kit_shop")}; scene = j["scenes"][j.get("scene", 0)]["nodes"]; rem = [i for i, n in enumerate(j["nodes"]) if n.get("name") in names and i in scene]
     print({"collision_nodes_removed": len(rem)})
     if dry: return
     for i in rem: scene.remove(i)
