@@ -16,96 +16,96 @@
   {
    "id": "house-american-1",
    "name": "american-1",
-   "url": "/assets/houses/american-1.glb",
-   "collisionUrl": "/assets/houses/american-1.col.glb",
+   "url": "/assets/houses/american-y0.glb",
+   "collisionUrl": "/assets/houses/american-y0.col.glb",
    "center": [
     -42,
     108
    ],
    "half": 16,
    "origin": [
-    0,
-    0
+    -42,
+    108
    ],
    "theme": "bazaar"
   },
   {
    "id": "house-cabin-1",
    "name": "cabin-1",
-   "url": "/assets/houses/cabin-1.glb",
-   "collisionUrl": "/assets/houses/cabin-1.col.glb",
+   "url": "/assets/houses/cabin-y0.glb",
+   "collisionUrl": "/assets/houses/cabin-y0.col.glb",
    "center": [
     -20,
     84
    ],
    "half": 15,
    "origin": [
-    0,
-    0
+    -20,
+    84
    ],
    "theme": "bazaar"
   },
   {
    "id": "house-villa-pool-1",
    "name": "villa-pool-1",
-   "url": "/assets/houses/villa-pool-1.glb",
-   "collisionUrl": "/assets/houses/villa-pool-1.col.glb",
+   "url": "/assets/houses/villa-pool-y0.glb",
+   "collisionUrl": "/assets/houses/villa-pool-y0.col.glb",
    "center": [
     86.5,
     98
    ],
    "half": 24,
    "origin": [
-    0,
-    0
+    86.5,
+    98
    ],
    "theme": "bazaar"
   },
   {
    "id": "house-mayflower-1",
    "name": "mayflower-1",
-   "url": "/assets/houses/mayflower-1.glb",
-   "collisionUrl": "/assets/houses/mayflower-1.col.glb",
+   "url": "/assets/houses/mayflower-y90.glb",
+   "collisionUrl": "/assets/houses/mayflower-y90.col.glb",
    "center": [
     113,
     97
    ],
    "half": 14,
    "origin": [
-    0,
-    0
+    113,
+    97
    ],
    "theme": "bazaar"
   },
   {
    "id": "house-shirakawago-1",
    "name": "shirakawago-1",
-   "url": "/assets/houses/shirakawago-1.glb",
-   "collisionUrl": "/assets/houses/shirakawago-1.col.glb",
+   "url": "/assets/houses/shirakawago-y0.glb",
+   "collisionUrl": "/assets/houses/shirakawago-y0.col.glb",
    "center": [
     -45,
     -107
    ],
    "half": 13,
    "origin": [
-    0,
-    0
+    -45,
+    -107
    ],
    "theme": "bazaar"
   },
   {
    "id": "house-zen-pavilion-1",
    "name": "zen-pavilion-1",
-   "url": "/assets/houses/zen-pavilion-1.glb",
-   "collisionUrl": "/assets/houses/zen-pavilion-1.col.glb",
+   "url": "/assets/houses/zen-pavilion-y270.glb",
+   "collisionUrl": "/assets/houses/zen-pavilion-y270.col.glb",
    "center": [
     -24,
     -112
    ],
    "half": 12,
    "origin": [
-    0,
-    0
+    -24,
+    -112
    ],
    "theme": "bazaar"
   }

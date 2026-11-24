@@ -62,30 +62,31 @@ export const DISTRICT_BUDGETS: Record<string, DistrictBudget> = {
     measured: { glbBytes: 87_289_408, collisionBytes: 8_684_616, triangles: 1_578_712 },
     budget: { glbBytes: 200_765_640, collisionBytes: 19_974_618, triangles: 3_788_910 },
   },
-  // Placed prebuilt houses (tools/city3/place_house.mjs), streamed as their own districts, ×1.25 headroom. Heavy on purpose (2026-11-23, user: high-poly houses); textures not yet slimmed.
-  "/assets/houses/american-1.glb": {
-    measured: { glbBytes: 32_225_888, collisionBytes: 1_036, triangles: 41_990 },
-    budget: { glbBytes: 40_282_360, collisionBytes: 2_000, triangles: 52_500 },
+  // Placed prebuilt houses (tools/city3/houses.sh -> place_house.mjs --asset), one entry per shared GLB however many lots use it, x1.25 headroom.
+  // High-poly on purpose (user, 2026-11-23); textures capped at 2048 px by slim_textures.py.
+  "/assets/houses/american-y0.glb": {
+    measured: { glbBytes: 9_607_572, collisionBytes: 1_032, triangles: 41_990 },
+    budget: { glbBytes: 12_009_465, collisionBytes: 2_000, triangles: 52_487 },
   },
-  "/assets/houses/cabin-1.glb": {
-    measured: { glbBytes: 79_329_216, collisionBytes: 7_088, triangles: 1_269_815 },
-    budget: { glbBytes: 99_161_520, collisionBytes: 10_000, triangles: 1_587_000 },
+  "/assets/houses/cabin-y0.glb": {
+    measured: { glbBytes: 65_265_244, collisionBytes: 7_104, triangles: 1_269_815 },
+    budget: { glbBytes: 81_581_555, collisionBytes: 9_945, triangles: 1_587_268 },
   },
-  "/assets/houses/villa-pool-1.glb": {
-    measured: { glbBytes: 6_436_880, collisionBytes: 1_028, triangles: 133_529 },
-    budget: { glbBytes: 8_046_100, collisionBytes: 2_000, triangles: 166_900 },
+  "/assets/houses/villa-pool-y0.glb": {
+    measured: { glbBytes: 6_436_880, collisionBytes: 1_040, triangles: 133_529 },
+    budget: { glbBytes: 8_046_100, collisionBytes: 2_000, triangles: 166_911 },
   },
-  "/assets/houses/mayflower-1.glb": {
-    measured: { glbBytes: 22_921_556, collisionBytes: 1_036, triangles: 26_821 },
-    budget: { glbBytes: 28_651_950, collisionBytes: 2_000, triangles: 33_500 },
+  "/assets/houses/mayflower-y90.glb": {
+    measured: { glbBytes: 4_748_568, collisionBytes: 1_036, triangles: 26_821 },
+    budget: { glbBytes: 5_935_710, collisionBytes: 2_000, triangles: 33_526 },
   },
-  "/assets/houses/shirakawago-1.glb": {
-    measured: { glbBytes: 16_313_888, collisionBytes: 1_044, triangles: 31_838 },
-    budget: { glbBytes: 20_392_360, collisionBytes: 2_000, triangles: 39_800 },
+  "/assets/houses/shirakawago-y0.glb": {
+    measured: { glbBytes: 8_033_036, collisionBytes: 1_036, triangles: 31_838 },
+    budget: { glbBytes: 10_041_295, collisionBytes: 2_000, triangles: 39_797 },
   },
-  "/assets/houses/zen-pavilion-1.glb": {
-    measured: { glbBytes: 5_207_344, collisionBytes: 7_236, triangles: 20_763 },
-    budget: { glbBytes: 6_509_180, collisionBytes: 10_000, triangles: 26_000 },
+  "/assets/houses/zen-pavilion-y270.glb": {
+    measured: { glbBytes: 2_013_560, collisionBytes: 7_224, triangles: 20_763 },
+    budget: { glbBytes: 2_516_950, collisionBytes: 10_113, triangles: 25_953 },
   },
 };
 
