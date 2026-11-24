@@ -79,3 +79,43 @@ Scarcity works as a claim mechanic — fast, contested, persona-spread.
 Homes become social places only when being home (or visiting) serves
 a want: rest/energy, storage, the one terminal. That is a design
 input for the economy/open-day work, not a failure of the agents.
+
+## Addendum — E2b: the Terminal (2026-11-24, partial run)
+
+Per Jim's amendment, a second run (homes2) added the verse's ONE
+terminal inside the Zen Tea Pavilion: any agent inside could choose
+intent "terminal" with a query; the driver performed a REAL web
+fetch (Wikipedia opensearch + intro extract — machinery proven
+offline: "Marie Curie" returned a real snippet; nonsense returned
+no-results) and showed the result at the agent's next deliberation.
+The SeatedTyping clip exists (separate lane, tmp/seated-typing-clip)
+but is not in this stack's cast build, so per the amendment's own
+fallback the sitting used the catalog's
+StandingUsingTouchscreenTablet clip.
+
+**Infrastructure failure, stated plainly:** a runtime restart killed
+the driver AND the whole local stack at ~780 s of the 1,200 s run
+(65%). Logs and pose tracks survive; the end-of-run dumps do not.
+The stack was rebuilt from durable assets (fresh PG cluster, fresh
+Redis, same sim/gateway build; health re-verified identical) and the
+cohort re-onboarded. The terminal numbers below rest on those 780 s
+plus a clean 300 s smoke (also zero uses) — about 1,080 s of cohort
+exposure. A re-run was not attempted: the missing 420 s would test
+the same choice, and the queue (E3/E5/E6/E7) has Jim's priority.
+
+**Result: the terminal was never used.** Zero terminal intents
+executed in 166 deliberations (1,185 acts, 315 says — a normally
+lively session). The Pavilion was claimed (rafael, ~8 min in — all
+three cabins were claimed again by 19:39Z, replicating the core
+run's fast claim race) and its owner entered it once. Nobody else
+entered, nobody queued, nobody guarded, nobody fetched — so there
+was no information to spread, hoard, or lie about (spread events: 0
+by construction).
+
+Read together with the core run, the pattern is consistent: agents
+claim scarce things eagerly and then return to the crowd; a
+destination whose benefit is abstract (look something up) does not
+pull anyone away from conversation that is already working. The
+terminal, like the homes, is waiting for a want — a question an
+agent actually needs answered (a quest, a price, a name) — before
+it becomes a place.
