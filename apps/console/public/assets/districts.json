@@ -108,6 +108,38 @@
     -112
    ],
    "theme": "bazaar"
+  },
+  {
+   "id": "house-villa-c-1",
+   "name": "villa-c-1",
+   "url": "/assets/houses/villa-c-y0.glb",
+   "collisionUrl": "/assets/houses/villa-c-y0.col.glb",
+   "center": [
+    -106,
+    37
+   ],
+   "half": 22,
+   "origin": [
+    -106,
+    37
+   ],
+   "theme": "bazaar"
+  },
+  {
+   "id": "house-cabin-2",
+   "name": "cabin-2",
+   "url": "/assets/houses/cabin-y90.glb",
+   "collisionUrl": "/assets/houses/cabin-y90.col.glb",
+   "center": [
+    -80,
+    30
+   ],
+   "half": 15,
+   "origin": [
+    -80,
+    30
+   ],
+   "theme": "bazaar"
   }
  ],
  "links": "/assets/world-links.glb",

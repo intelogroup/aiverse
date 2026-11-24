@@ -1120,158 +1120,6 @@
   ]
  },
  {
-  "id": "shop-52",
-  "kind": "shopfront",
-  "name": "Fruit & Fig",
-  "pos": [
-   -111.86,
-   57.5
-  ],
-  "heading": 0,
-  "stand": [
-   -111.86,
-   57.5
-  ],
-  "room": "shop-52",
-  "door": [
-   -109.86,
-   57.5
-  ]
- },
- {
-  "id": "shop-53",
-  "kind": "shopfront",
-  "name": "Apothecary",
-  "pos": [
-   -95.86,
-   57.5
-  ],
-  "heading": 0,
-  "stand": [
-   -95.86,
-   57.5
-  ],
-  "room": "shop-53",
-  "door": [
-   -93.86,
-   57.5
-  ]
- },
- {
-  "id": "shop-54",
-  "kind": "shopfront",
-  "name": "Cloth & Dye",
-  "pos": [
-   -78.61,
-   57.5
-  ],
-  "heading": 0,
-  "stand": [
-   -78.61,
-   57.5
-  ],
-  "room": "shop-54",
-  "door": [
-   -76.36,
-   57.5
-  ]
- },
- {
-  "id": "shop-55",
-  "kind": "shopfront",
-  "name": "Cloth & Dye",
-  "pos": [
-   -117.14,
-   12.5
-  ],
-  "heading": 3.14159,
-  "stand": [
-   -117.14,
-   12.5
-  ],
-  "room": "shop-55",
-  "door": [
-   -119.14,
-   12.5
-  ]
- },
- {
-  "id": "shop-56",
-  "kind": "shopfront",
-  "name": "Fixer's Forge",
-  "pos": [
-   -97.8,
-   12.5
-  ],
-  "heading": 3.14159,
-  "stand": [
-   -97.8,
-   12.5
-  ],
-  "room": "shop-56",
-  "door": [
-   -99.8,
-   12.5
-  ]
- },
- {
-  "id": "shop-57",
-  "kind": "shopfront",
-  "name": "Fixer's Forge",
-  "pos": [
-   -85.23,
-   12.5
-  ],
-  "heading": 3.14159,
-  "stand": [
-   -85.23,
-   12.5
-  ],
-  "room": "shop-57",
-  "door": [
-   -87.4,
-   12.5
-  ]
- },
- {
-  "id": "shop-58",
-  "kind": "shopfront",
-  "name": "Bakery",
-  "pos": [
-   -122.5,
-   40.89
-  ],
-  "heading": -1.5708,
-  "stand": [
-   -122.9,
-   40.89
-  ],
-  "room": "shop-58",
-  "door": [
-   -122.5,
-   40.89
-  ]
- },
- {
-  "id": "shop-59",
-  "kind": "shopfront",
-  "name": "Salt Road Trading",
-  "pos": [
-   -72.5,
-   29.11
-  ],
-  "heading": 1.5708,
-  "stand": [
-   -72.1,
-   29.11
-  ],
-  "room": "shop-59",
-  "door": [
-   -72.5,
-   29.11
-  ]
- },
- {
   "id": "shop-102",
   "kind": "shopfront",
   "name": "Matchmaker's Tea House",
@@ -1340,6 +1188,25 @@
   "door": [
    -24.21,
    -111.26
+  ]
+ },
+ {
+  "id": "house-cabin-2",
+  "kind": "shopfront",
+  "name": "Lakeside Cabin",
+  "pos": [
+   -76.7,
+   27.2
+  ],
+  "heading": 1.5708,
+  "stand": [
+   -76.7,
+   27.2
+  ],
+  "room": "house-cabin-2",
+  "door": [
+   -77.6,
+   27.2
   ]
  }
 ]

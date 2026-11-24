@@ -17,3 +17,6 @@ P mayflower-house    mayflower-1    113   97   90 --asset=mayflower --door=none
 # Tea House block (lots 101, 103-106)
 P shirakawago-house  shirakawago-1  -45 -107    0 --asset=shirakawago --scale=0.01 --mask --door=none
 P zen-tea-house      zen-pavilion-1 -24 -112  270 --asset=zen-pavilion --body=-6,0.74,-3.31,3.76 --floor=1.11 --door=right --doorx=-0.21 --doorhalf=1.55 --ceil=3.9 --room="Zen Tea Pavilion"
+# west block (lots 52-59)
+P zigurat-villa-c    villa-c-1     -106   37    0 --asset=villa-c --body=-6.5,6.5,-11.3,4.9 --door=none
+P stone-cabin        cabin-2        -80   30   90 --asset=cabin --scale=0.02 --body=-7.16,7.16,-3.89,2.4 --floor=0.63 --door=front --doorx=2.8 --doorhalf=1.3 --room="Lakeside Cabin"

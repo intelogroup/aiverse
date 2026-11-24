@@ -33,6 +33,7 @@ GARDENS = {"garden": dict(rect=(72.0, -58.0, 122.0, -12.0), plaza=9.0, orchard=F
            "plot": dict(rect=(-58.0, 72.0, -12.0, 122.0), plaza=0.0, orchard=False, yard=True, seed=5151),
            "citadel": dict(rect=(72.5, 72.5, 122.5, 122.5), plaza=0.0, orchard=False, yard=True, seed=5150),
            "teablock": dict(rect=(-58.0, -122.0, -12.0, -89.0), plaza=0.0, orchard=False, yard=True, seed=5152),   # south of the Tea House (102)
+           "westblock": dict(rect=(-122.5, 12.5, -72.5, 57.5), plaza=0.0, orchard=False, yard=True, seed=5154),   # lots 52-59
            "tea101": dict(rect=(-57.5, -84.5, -41.0, -72.5), plaza=0.0, orchard=False, yard=True, seed=5153)}     # lot 101, west of the Tea House  # lots 44-51: a square with a plaza gazebo  # lots 68-71: the 12 m strip that finishes the park block  # lots 60-67: fruit-tree grid round a small gazebo plaza
 NAME = "garden"
 MARK = "garden_block_pass"

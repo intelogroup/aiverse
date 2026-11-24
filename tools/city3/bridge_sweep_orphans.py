@@ -21,7 +21,6 @@ from bridge_wave1 import Glb, save_glb
 
 KEEP = {   # GLB x0, z0, x1, z1 (+1 m margin where a facade sits on the rect edge)
     "plaza": (-60, -60, 60, 60),               # clock tower, fountain, stalls, string lights
-    "lots_52_59": (-123.5, 11.5, -71.5, 58.5),  # Bones block (1,2), still standing
     "tea_house": (-41, -88, -9, -69),           # Tea House 102 (interiors/index.json rect + 3.5 m)
     "troyes_hall": (15.5, -119.5, 54.5, -75.5),  # Kit_hall0, plan rect [16.5, 76.5, 53.5, 118.5]
 }
@@ -66,7 +65,7 @@ def run(path, dry):
 
 
 def selftest():
-    c = np.array([[0, 10, 0], [100, 10, 100], [-100, 10, 30]], float)
+    c = np.array([[0, 10, 0], [100, 10, 100], [-25, 10, -80]], float)
     assert keep_mask(c).tolist() == [True, False, True]
     assert floor_for("Props") == 6.0 and floor_for("B_Facade_sand") == 3.0 and floor_for("Tree_x") is None
     print("selftest ok")
