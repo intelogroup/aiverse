@@ -23,7 +23,7 @@ import { tileScenes } from "./tileScenes";
 import { applyBazaarBatch, type BazaarBatchHandle } from "./bazaarBatch";
 import { planBazaarInstance, type BazaarInstanceHandle } from "./bazaarInstance";
 import { applyNight, disposeTree, hideLegacyWater } from "./districtTree";
-import { createHemiFill, createOcean, createSkyDome } from "./districtSky";
+import { createCloudLayer, createHemiFill, createOcean, createSkyDome, disposeCloudLayer } from "./districtSky";
 
 export const DISTRICTS_URL = TILES ? "/assets/tiles/districts.json" : "/assets/districts.json";
 
@@ -109,10 +109,11 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     return l;
   }, [gl]);
   const sky = useMemo(createSkyDome, []);
+  const clouds = useMemo(createCloudLayer, []);
   const water = useMemo(createOcean, []);
   const hemi = useMemo(createHemiFill, []);
   useEffect(() => {
-    scene.add(sky); scene.add(water); scene.add(hemi);
+    scene.add(sky); scene.add(clouds); scene.add(water); scene.add(hemi);
     scene.fog = new THREE.FogExp2(0xb0b8c8, 0.0006);
     // Legacy GLBs combine sea, basin and nozzle caps in the Water mesh. Hide
     // that legacy surface and the newer separate Sea; the ocean below and
@@ -168,11 +169,11 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
       dropColliders("resident");
       if (residentIdRef.current) tileScenes.drop(residentIdRef.current);
       // StageEnvironment owns the reflection map; clearing it here loses glass/metal reflections on remount.
-      scene.remove(sky); scene.remove(water); scene.remove(hemi); scene.fog = null; scene.background = null;
+      scene.remove(sky); scene.remove(clouds); scene.remove(water); scene.remove(hemi); scene.fog = null; scene.background = null;
       for (const [id, g] of groups.current) { scene.remove(g); dropColliders(id); walk?.drop(id); disposeTree(g); }
-      groups.current.clear(); (sky.material as THREE.Material).dispose(); sky.geometry.dispose(); (water.material as THREE.Material).dispose(); water.geometry.dispose();
+      groups.current.clear(); (sky.material as THREE.Material).dispose(); sky.geometry.dispose(); disposeCloudLayer(clouds); (water.material as THREE.Material).dispose(); water.geometry.dispose();
     };
-  }, [scene, sky, water, hemi, gl, resident]);
+  }, [scene, sky, clouds, water, hemi, gl, resident]);
 
   useEffect(() => {
     if (!manifest?.links) return;
@@ -326,6 +327,8 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
 
   useFrame((_, dt) => {
     sky.position.copy(camera.position);
+    clouds.position.copy(camera.position);
+    clouds.rotation.y += dt * 0.0025; // slow drift, so the layer reads as weather, not wallpaper
     if (!manifest || !controls) return;
     clock.current += dt; if (clock.current < 0.25) return; clock.current = 0;
     const focus: [number, number] = [controls.target.x, controls.target.z];
