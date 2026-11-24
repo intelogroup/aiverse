@@ -1,0 +1,187 @@
+[
+ {
+  "id": "relic-sun",
+  "name": "Sun Relic",
+  "set": true,
+  "x": -20.0,
+  "z": 83.255,
+  "room": "Stone Cabin",
+  "place": "house-cabin-1",
+  "placeLabel": "Stone Cabin (inside)"
+ },
+ {
+  "id": "relic-leaf",
+  "name": "Leaf Relic",
+  "set": true,
+  "x": -24.225,
+  "z": -114.63,
+  "room": "Zen Tea Pavilion",
+  "place": "house-zen-pavilion-1",
+  "placeLabel": "Zen Tea Pavilion (inside)"
+ },
+ {
+  "id": "relic-ember",
+  "name": "Ember Relic",
+  "set": true,
+  "x": -25.0,
+  "z": -78.5,
+  "room": "Matchmaker's Tea House",
+  "place": "shop-102",
+  "placeLabel": "Tea House (inside)"
+ },
+ {
+  "id": "relic-star",
+  "name": "Star Relic",
+  "set": true,
+  "x": 35.0,
+  "z": -76.5,
+  "room": null,
+  "place": "hall-0",
+  "placeLabel": "Great Hall"
+ },
+ {
+  "id": "relic-moon",
+  "name": "Moon Relic",
+  "set": true,
+  "x": -100.0,
+  "z": -68.5,
+  "room": null,
+  "place": "egg-bazaar-06",
+  "placeLabel": "western market lane (egg 6)"
+ },
+ {
+  "id": "cabin1-wolf",
+  "name": "Carved Wolf",
+  "x": -24.5,
+  "z": 82.0,
+  "room": "Stone Cabin",
+  "place": "house-cabin-1",
+  "placeLabel": "Stone Cabin (inside)"
+ },
+ {
+  "id": "cabin2-pearl",
+  "name": "Tide Pearl",
+  "x": -80.745,
+  "z": 30.0,
+  "room": "Lakeside Cabin",
+  "place": "house-cabin-2",
+  "placeLabel": "Lakeside Cabin (inside)"
+ },
+ {
+  "id": "cabin2-flute",
+  "name": "Driftwood Flute",
+  "x": -79.5,
+  "z": 33.5,
+  "room": "Lakeside Cabin",
+  "place": "house-cabin-2",
+  "placeLabel": "Lakeside Cabin (inside)"
+ },
+ {
+  "id": "zen-bell",
+  "name": "Zen Bell",
+  "x": -22.5,
+  "z": -116.5,
+  "room": "Zen Tea Pavilion",
+  "place": "house-zen-pavilion-1",
+  "placeLabel": "Zen Tea Pavilion (inside)"
+ },
+ {
+  "id": "tea-teapot",
+  "name": "Jade Teapot",
+  "x": -31.0,
+  "z": -76.0,
+  "room": "Matchmaker's Tea House",
+  "place": "shop-102",
+  "placeLabel": "Tea House (inside)"
+ },
+ {
+  "id": "egg-01",
+  "name": "Fountain Egg",
+  "x": -12.6,
+  "z": 1.0,
+  "room": null,
+  "place": "egg-bazaar-01",
+  "placeLabel": "fountain ring"
+ },
+ {
+  "id": "egg-02",
+  "name": "Tea-Approach Egg",
+  "x": -30.1,
+  "z": -70.5,
+  "room": null,
+  "place": "egg-bazaar-02",
+  "placeLabel": "Tea House approach"
+ },
+ {
+  "id": "egg-03",
+  "name": "Fruit-Stall Egg",
+  "x": -27.2,
+  "z": -41.6,
+  "room": null,
+  "place": "egg-bazaar-03",
+  "placeLabel": "fruit-stall displays"
+ },
+ {
+  "id": "egg-04",
+  "name": "Press Egg",
+  "x": -30.2,
+  "z": 70.9,
+  "room": null,
+  "place": "egg-bazaar-04",
+  "placeLabel": "near Kronikler Press"
+ },
+ {
+  "id": "egg-05",
+  "name": "East-Plaza Egg",
+  "x": 42.0,
+  "z": 10.0,
+  "room": null,
+  "place": "egg-bazaar-05",
+  "placeLabel": "eastern plaza edge"
+ },
+ {
+  "id": "stall-kettle",
+  "name": "Copper Kettle",
+  "x": -26,
+  "z": -51.2,
+  "room": null,
+  "place": "stall-27",
+  "placeLabel": "stall-27"
+ },
+ {
+  "id": "stall-orb",
+  "name": "Glass Orb",
+  "x": 53,
+  "z": -51.2,
+  "room": null,
+  "place": "stall-79",
+  "placeLabel": "stall-79"
+ },
+ {
+  "id": "stall-key",
+  "name": "Brass Key",
+  "x": 44,
+  "z": 27.2,
+  "room": null,
+  "place": "stall-53",
+  "placeLabel": "stall-53"
+ },
+ {
+  "id": "stall-dice",
+  "name": "Ivory Dice",
+  "x": 17,
+  "z": 15.2,
+  "room": null,
+  "place": "stall-40",
+  "placeLabel": "stall-40"
+ },
+ {
+  "id": "stall-lantern",
+  "name": "Iron Lantern",
+  "x": -44,
+  "z": 27.2,
+  "room": null,
+  "place": "stall-13",
+  "placeLabel": "stall-13"
+ }
+]

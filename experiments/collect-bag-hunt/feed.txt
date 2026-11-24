@@ -1,0 +1,26 @@
+COLLECT + BAG HUNT — COLLECTION FEED (local run, 2026-11-24)
+
+--- PHASE 1 START — set announced: Sun Relic, Leaf Relic, Ember Relic, Star Relic, Moon Relic ---
+[00:25] henrik   COLLECTED Fountain Egg @ fountain ring
+[00:30] kenji    COLLECTED Ivory Dice @ stall-40
+[01:20] oleg     COLLECTED Star Relic @ Great Hall ★ SET RELIC
+[01:29] sam      COLLECTED Sun Relic @ Stone Cabin (inside) ★ SET RELIC
+[02:13] lucia    COLLECTED Ember Relic @ Tea House (inside) ★ SET RELIC
+[02:32] oleg     COLLECTED Tide Pearl @ Lakeside Cabin (inside)
+[02:50] henrik   COLLECTED Carved Wolf @ Stone Cabin (inside)
+[02:54] mara     COLLECTED Jade Teapot @ Tea House (inside)
+[03:32] yuki     COLLECTED Leaf Relic @ Zen Tea Pavilion (inside) ★ SET RELIC
+[03:56] priya    COLLECTED East-Plaza Egg @ eastern plaza edge
+[05:03] kenji    COLLECTED Moon Relic @ western market lane (egg 6) ★ SET RELIC
+[06:22] kenji    COLLECTED Tea-Approach Egg @ Tea House approach
+[07:24] henrik   COLLECTED Copper Kettle @ stall-27
+[07:30] sam      COLLECTED Brass Key @ stall-53
+[07:40] kenji    COLLECTED Glass Orb @ stall-79
+[08:08] ingrid   COLLECTED Iron Lantern @ stall-13
+[08:32] yuki     COLLECTED Zen Bell @ Zen Tea Pavilion (inside)
+[09:04] oleg     COLLECTED Driftwood Flute @ Lakeside Cabin (inside)
+[09:23] fatima   COLLECTED Press Egg @ near Kronikler Press
+[10:35] rafael   COLLECTED Fruit-Stall Egg @ fruit-stall displays
+--- PHASE 2 START — set announced: Sun Relic, Leaf Relic, Ember Relic, Star Relic, Moon Relic ---
+
+Phase 2 produced NO collect/give/drop events (confirmed zero).
