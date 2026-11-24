@@ -14,6 +14,7 @@ import { TILES, CORE_TILE_URL } from "./tilesMode";
 import { coreTexturesPending, subscribeCoreTextures, CORE_TEXTURES_HOLD_MS } from "./coreTextures";
 import { BazaarLife, type BazaarFigureTap } from "./BazaarLife";
 import { MiraResident } from "./MiraResident";
+import { VillaEstate } from "./VillaEstate";
 import { mobileShell, spawnRequestForPoint, spawnRequestForRoom, type WalkSpawnRequest } from "./mobileShell";
 import { TeaBartender } from "./TeaBartender";
 import { BARTENDER_LINES } from "./bartender";
@@ -685,6 +686,7 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
               />
               <TeaBartender visitors={[botPosRef, scoutPosRef]} walk={walkColliders} getDirector={() => soundRef.current} />
               <MiraResident walk={walkColliders} visitNonce={miraVisitNonce} />
+              <VillaEstate />
           </>
         </Suspense>
         <Suspense fallback={null}>

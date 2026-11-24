@@ -32,7 +32,7 @@ import {
 /** A named, go-to-able spot in the Bazaar (from city3-places.json). */
 export interface ScoutPlace {
   id: string;
-  kind: "stall" | "shopfront" | "hall";
+  kind: "stall" | "shopfront" | "hall" | "landmark";
   name: string;
   /** The place's own position (a stall's structure centre, a shopfront's
    *  door point): what the oracle projects and "nearest" measures. */
