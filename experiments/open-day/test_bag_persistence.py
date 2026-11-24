@@ -1,4 +1,7 @@
 """Regression check for the Open Day prototype's durable bags."""
+import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -18,6 +21,22 @@ class BagPersistenceTest(unittest.TestCase):
                 store.save_bags({"fatima": [egg], "sam": [key]})
             finally:
                 store.close()
+
+            reader = """
+import json
+import sys
+from store import Store
+
+store = Store(sys.argv[1])
+try:
+    print(json.dumps(store.load_bags()))
+finally:
+    store.close()
+"""
+            snapshot = subprocess.check_output(
+                [sys.executable, "-c", reader, path], cwd=Path(__file__).resolve().parent, text=True
+            )
+            self.assertEqual(json.loads(snapshot), {"fatima": [egg], "sam": [key]})
 
             store = Store(path)
             try:
