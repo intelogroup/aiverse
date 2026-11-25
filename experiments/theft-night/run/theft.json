@@ -1,0 +1,39 @@
+{
+ "thefts": [],
+ "homes": {
+  "house-cabin-1": {
+   "owner": "sam",
+   "locked": false
+  },
+  "house-cabin-2": {
+   "owner": "yuki",
+   "locked": true
+  },
+  "house-zen-pavilion-1": {
+   "owner": "kenji",
+   "locked": true
+  }
+ },
+ "public": [
+  "Kenji claimed the Zen Tea Pavilion.",
+  "Sam claimed the Stone Cabin.",
+  "Yuki claimed the Lakeside Cabin."
+ ],
+ "wallets_end": {
+  "mara": 1000,
+  "deshawn": 1000,
+  "ingrid": 940,
+  "tomas": 895,
+  "priya": 955,
+  "kenji": 1000,
+  "fatima": 955,
+  "oleg": 1000,
+  "lucia": 910,
+  "amara": 970,
+  "henrik": 1000,
+  "yuki": 970,
+  "rafael": 970,
+  "ngozi": 955,
+  "sam": 970
+ }
+}
