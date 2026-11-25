@@ -141,7 +141,7 @@ export function ShadowTagger() {
       }
       const mat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
       // the Troyes hall's walls are opaque: with a sun strong enough to cast readable shadows its roof left the hall interior black
-      mesh.castShadow = !mat?.transparent && !/^Kit_hall/.test(mesh.name);
+      mesh.castShadow = !mat?.transparent && !mat?.userData.city3BasinWater && !/^Kit_hall/.test(mesh.name);
       mesh.receiveShadow = true;
       mesh.userData.__glbShadowTagged = true;
     });

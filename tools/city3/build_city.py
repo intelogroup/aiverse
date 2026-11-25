@@ -325,7 +325,8 @@ f=P["fountain"]; N=32
 # Runtime water and jets share the generator's dimensions, independent of sea visibility.
 os.makedirs(f"{HERE}/out",exist_ok=True)
 json.dump(dict(innerRadius=f["r_in"]-.05,outerRadius=f["r_out"]+.05,waterY=Z+.6,
-               segments=N,jetCount=8,jetRadius=8,jetY=Z+1.55,jetAngleOffset=math.pi/8),
+               segments=N,jetCount=8,jetRadius=8,jetY=Z+1.67,jetAngleOffset=math.pi/8,
+               jetRange=1.25,jetFlightTime=.72),
           open(f"{HERE}/out/city3-fountain.json","w"),separators=(",",":"))
 def ring(ra,rb,z,name):
     for k in range(N):

@@ -182,3 +182,25 @@ the Troyes Hall atlas and gives its three panes alpha while keeping the
 original ironwork. The existing eave blocks the midday sun at this bay.
 The hall layout places a soft, sky-colored fill behind it to approximate
 diffuse daylight. The pilot does not require a new source asset.
+
+### Lido and plaza basin water
+
+`basinWater.ts` shades the existing Lido surface in both City 3 stream modes and
+the plaza fountain ring. The material uses animated normals, HDRI reflections,
+and an analytic ray to shade the basin lining, simulating depth and caustics in
+one draw per surface with no additional scene pass. The Lido's authored footprint
+is 20–50 m on x and 90–104 m on z, with water at y=0.39 m and coping at y=0.48 m.
+The fountain still gets its ring dimensions from `city3-fountain.json`. Water is
+visual only. Collision, deck access and fountain jets use their existing data.
+
+The plaza fountain has a separate masonry and bronze fixture GLB, generated from
+the same fountain dimensions as the water jets. Run
+`tools/city3/blender_lock.sh -b --factory-startup --python tools/city3/fountain_architecture.py -- apps/console/public/assets/fountain-architecture.glb`
+after changing the fixture dimensions. The masonry follows the existing collision
+ring. The outlet and surface splash use the same ballistic path, with a 1.25 m
+horizontal reach and 0.72 s flight time.
+
+A low, chamfered stone plinth anchors the clock tower. Its outline follows a
+Blender survey of the scan at y=1.10–1.36 m and leaves at least one metre of
+clearance to the island coping. Mosaic paving covers the lower scan skirt and
+sits 2.5 cm above the existing fountain collision height. The island is visual only.

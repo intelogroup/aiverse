@@ -267,3 +267,11 @@ The waterfront overlook uses [Oak Wood Planks](https://polyhaven.com/a/oak_wood_
 by Dimitrios Savva and [Metal Trash Can](https://polyhaven.com/a/metal_trash_can)
 by GurJas Studios, both CC0. The clean can and handles are retained, with
 the source lid fitted over the rim.
+
+### Plaza fountain rebuild
+
+- The coping and bronze nozzles are original procedural geometry from
+  `fountain_architecture.py`. The stone finish reuses Poly Haven’s
+  [White Plaster 02](https://polyhaven.com/a/white_plaster_02) CC0 color and normal
+  maps already vendored for the Bazaar facades.
+- Clock tower island paving uses Poly Haven’s [Marble Mosaic Tiles](https://polyhaven.com/a/marble_mosaic_tiles) CC0 color and normal maps from the existing floor library.
