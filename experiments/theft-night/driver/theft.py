@@ -1384,7 +1384,11 @@ class Agent:
                              "home": cid, "locked": lock_it})
 
     def claim_home_here(self):
-        obs = self.observe_cache or {}
+        try:
+            obs = parse_obs(self.c.observe())
+        except Exception:
+            obs = {}
+        self._claim_inside = bool(obs.get("insideRoom"))
         room = obs.get("insideRoom") or ""
         near = obs.get("nearestPlace") or {}
         for cid, disp in CABINS.items():
@@ -1409,7 +1413,7 @@ class Agent:
         if getattr(self, "claim_target", None):
             if self.claim_home_here():
                 self.claim_target = None
-                if not (self.observe_cache or {}).get("insideRoom"):
+                if not getattr(self, "_claim_inside", False):
                     self.act({"type": "enter",
                               "place": self.claimed_home}, tag="claim")
             else:
