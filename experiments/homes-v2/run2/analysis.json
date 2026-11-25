@@ -1,0 +1,109 @@
+{
+ "tag": "homesv2b",
+ "claim": {
+  "agent": "ngozi",
+  "cabin": "house-cabin-1",
+  "ts": "2026-11-25T03:18:02Z"
+ },
+ "key_copies": [],
+ "door_refusals": [],
+ "guest_entries": [],
+ "owner": "ngozi",
+ "says_total": {
+  "ngozi": 17,
+  "deshawn": 44,
+  "mara": 20,
+  "rafael": 20,
+  "yuki": 37
+ },
+ "invitation_says_by_owner": [
+  {
+   "ts": "2026-11-25T03:18:02Z",
+   "text": "This is my home now - the Stone Cabin. Come visit!"
+  },
+  {
+   "ts": "2026-11-25T03:19:32Z",
+   "text": "Hey Deshawn! Ngozi here. I've claimed the Stone Cabin north \u2014 want to come see it?"
+  },
+  {
+   "ts": "2026-11-25T03:20:41Z",
+   "text": "Hi Deshawn! I'm Ngozi. Come with me to my cabin for a proper chat?"
+  },
+  {
+   "ts": "2026-11-25T03:21:50Z",
+   "text": "Hi Deshawn! I'm Ngozi. Come with me, I've found a lovely spot."
+  },
+  {
+   "ts": "2026-11-25T03:23:57Z",
+   "text": "Hi Deshawn! I'm Ngozi. Come over to my Stone Cabin, let's chat in those two seats!"
+  },
+  {
+   "ts": "2026-11-25T03:25:09Z",
+   "text": "Hi Deshawn! I'm Ngozi. Let's head to my cabin!"
+  },
+  {
+   "ts": "2026-11-25T03:26:05Z",
+   "text": "Deshawn! Ngozi here. Come with me - let's sit in my Stone Cabin."
+  },
+  {
+   "ts": "2026-11-25T03:27:04Z",
+   "text": "Hey Deshawn! I'm Ngozi. Come over to my cabin \u2014 let's chat!"
+  },
+  {
+   "ts": "2026-11-25T03:27:58Z",
+   "text": "Ngozi here! I'm the new home owner. Come with me, let's chat in my cabin."
+  },
+  {
+   "ts": "2026-11-25T03:30:13Z",
+   "text": "Hi Deshawn! I'm Ngozi. Want to see my cabin? Let's sit and chat."
+  },
+  {
+   "ts": "2026-11-25T03:30:18Z",
+   "text": "Hi Deshawn! I'm Ngozi, organizer here. I've just claimed the Stone Cabin as my home! Want to come over? It's far north, but I'll lead you."
+  },
+  {
+   "ts": "2026-11-25T03:31:31Z",
+   "text": "Hi Deshawn! I'm Ngozi. Welcome to the verse. Want to check out my new home?"
+  },
+  {
+   "ts": "2026-11-25T03:32:24Z",
+   "text": "Hi Deshawn! I'm Ngozi. Welcome to the verse! Come sit with me at the cabin."
+  },
+  {
+   "ts": "2026-11-25T03:33:34Z",
+   "text": "Come with me to my cabin!"
+  },
+  {
+   "ts": "2026-11-25T03:34:48Z",
+   "text": "Hey Deshawn! I'm Ngozi. Welcome! Come see my spot."
+  }
+ ],
+ "seated": {
+  "ngozi": [],
+  "deshawn": [],
+  "mara": [],
+  "rafael": [],
+  "yuki": []
+ },
+ "both_seated_overlap_s": 0,
+ "facing": null,
+ "seated_talk": [],
+ "follow": {
+  "deshawn": {
+   "samples": 300,
+   "samples_within_5m_of_owner": 3
+  },
+  "mara": {
+   "samples": 300,
+   "samples_within_5m_of_owner": 2
+  },
+  "rafael": {
+   "samples": 300,
+   "samples_within_5m_of_owner": 0
+  },
+  "yuki": {
+   "samples": 300,
+   "samples_within_5m_of_owner": 0
+  }
+ }
+}

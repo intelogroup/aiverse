@@ -1,0 +1,181 @@
+{
+ "ngozi": {
+  "acts": 69,
+  "says": 17,
+  "heard": 1,
+  "deliberations": 18,
+  "greets": 0,
+  "greeted": [],
+  "names_known": {
+   "b-143b4573": "s15-deshawn"
+  },
+  "visited": [
+   "stall-40",
+   "stall-1",
+   "stall-2",
+   "stall-3",
+   "house-cabin-1",
+   "stall-3",
+   "stall-2",
+   "stall-1",
+   "stall-0",
+   "stall-1",
+   "stall-0",
+   "stall-1",
+   "stall-0",
+   "stall-1",
+   "stall-0",
+   "stall-1",
+   "stall-0",
+   "stall-1",
+   "stall-0",
+   "stall-1",
+   "stall-0",
+   "stall-1",
+   "stall-0",
+   "stall-1",
+   "stall-0",
+   "stall-1",
+   "stall-0",
+   "stall-1",
+   "stall-0",
+   "stall-1",
+   "stall-0",
+   "stall-1",
+   "stall-0",
+   "stall-1",
+   "stall-0",
+   "stall-1",
+   "stall-0",
+   "stall-1",
+   "stall-0",
+   "stall-1",
+   "stall-0",
+   "stall-1",
+   "stall-0",
+   "stall-1",
+   "stall-0",
+   "stall-1",
+   "stall-0",
+   "stall-1",
+   "stall-0",
+   "stall-1",
+   "stall-0",
+   "stall-1",
+   "stall-2",
+   "stall-3",
+   "house-cabin-1",
+   "stall-3",
+   "stall-2",
+   "stall-1",
+   "stall-0",
+   "stall-1"
+  ],
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "shard": null,
+  "track_lines": 300,
+  "log_lines": 429
+ },
+ "deshawn": {
+  "acts": 283,
+  "says": 44,
+  "heard": 37,
+  "deliberations": 21,
+  "greets": 5,
+  "greeted": [
+   "b-992a5e8d",
+   "b-cb6bae4b",
+   "b-ec6d0543"
+  ],
+  "names_known": {
+   "b-992a5e8d": "s15-yuki"
+  },
+  "visited": [
+   "stall-40"
+  ],
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "shard": null,
+  "track_lines": 300,
+  "log_lines": 721
+ },
+ "mara": {
+  "acts": 24,
+  "says": 20,
+  "heard": 3,
+  "deliberations": 20,
+  "greets": 0,
+  "greeted": [],
+  "names_known": {
+   "b-cb46ae90": "s15-deshawn",
+   "b-d29e1961": "s15-yuki"
+  },
+  "visited": [
+   "stall-40",
+   "stall-60",
+   "stall-61",
+   "stall-21",
+   "stall-22",
+   "stall-23",
+   "shop-102"
+  ],
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "shard": null,
+  "track_lines": 300,
+  "log_lines": 393
+ },
+ "rafael": {
+  "acts": 201,
+  "says": 20,
+  "heard": 1,
+  "deliberations": 20,
+  "greets": 0,
+  "greeted": [],
+  "names_known": {
+   "b-e7e5557d": "s15-deshawn"
+  },
+  "visited": [
+   "stall-40",
+   "stall-60",
+   "stall-64",
+   "stall-68",
+   "stall-69",
+   "stall-73",
+   "stall-74",
+   "stall-71",
+   "hall-0"
+  ],
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "shard": null,
+  "track_lines": 300,
+  "log_lines": 569
+ },
+ "yuki": {
+  "acts": 58,
+  "says": 37,
+  "heard": 43,
+  "deliberations": 20,
+  "greets": 0,
+  "greeted": [],
+  "names_known": {
+   "b-d5612a1d": "s15-deshawn"
+  },
+  "visited": [
+   "stall-60",
+   "stall-40"
+  ],
+  "visit_dead": false,
+  "delete_status": 200,
+  "body_after_delete": 404,
+  "shard": null,
+  "track_lines": 300,
+  "log_lines": 505
+ }
+}
