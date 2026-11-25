@@ -1,29 +1,43 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useFrame } from "@react-three/fiber";
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useGLTF } from "@react-three/drei";
+import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
+import { assetUrl } from "../../lib/assetUrl";
+import { createFountainBasinMaterial } from "./basinWater";
+import { oceanTime } from "./districtSky";
+import { extendGltf } from "./gltfExtensions";
+import { useTileEpoch } from "./tileScenes";
 
 interface FountainDef {
   innerRadius: number; outerRadius: number; waterY: number; segments: number;
   jetCount: number; jetRadius: number; jetY: number; jetAngleOffset: number;
+  jetRange: number; jetFlightTime: number;
 }
 
-/** Small, repeating normal field. No image downloads, displacement or reflection passes. */
-function rippleTexture() {
-  const size = 64, data = new Uint8Array(size * size * 4);
-  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-    const u = x / size * Math.PI * 2, v = y / size * Math.PI * 2;
-    const dx = .20 * Math.cos(3*u + 2*v) + .12 * Math.cos(5*u - 3*v);
-    const dy = .14 * Math.cos(3*u + 2*v) - .09 * Math.cos(5*u - 3*v);
-    const n = new THREE.Vector3(-dx, -dy, 1).normalize();
-    const i = (y*size+x)*4;
-    data[i] = (n.x*.5+.5)*255; data[i+1] = (n.y*.5+.5)*255;
-    data[i+2] = (n.z*.5+.5)*255; data[i+3] = 255;
-  }
-  const texture = new THREE.DataTexture(data, size, size);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.magFilter = texture.minFilter = THREE.LinearFilter;
-  texture.repeat.set(2, 2); texture.needsUpdate = true;
-  return texture;
+const architectureUrl = assetUrl("/assets/fountain-architecture.glb");
+
+function FountainArchitecture() {
+  const gl = useThree((state) => state.gl);
+  const { scene } = useGLTF(architectureUrl, true, true, extendGltf(gl));
+  const world = useThree((state) => state.scene);
+  const epoch = useTileEpoch();
+  // Hide only the previous decorative coping after the replacement is ready.
+  // The planters share its node tree, so hiding the parent would hide them too.
+  useLayoutEffect(() => {
+    const hidden: THREE.Material[] = [];
+    world.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      for (const material of materials) {
+        if (material.visible && /^PlazaFountainGarden_[01]$/.test(material.name)) {
+          hidden.push(material);
+          material.visible = false;
+        }
+      }
+    });
+    return () => { for (const material of hidden) material.visible = true; };
+  }, [world, epoch]);
+  return <primitive object={scene} />;
 }
 
 function Splash({ def, angle, offset }: { def: FountainDef; angle: number; offset: number }) {
@@ -31,20 +45,22 @@ function Splash({ def, angle, offset }: { def: FountainDef; angle: number; offse
   useFrame(({ clock }) => {
     if (!splash.current) return;
     const phase = (clock.elapsedTime*.65 + angle/Math.PI + offset) % 1;
-    splash.current.scale.setScalar(.25 + phase*2.6);
+    splash.current.scale.setScalar(.25 + phase*2.2);
     (splash.current.material as THREE.MeshBasicMaterial).opacity = .42*Math.pow(1-phase,1.5);
   });
-  return <mesh ref={splash} name="FountainWaterSplash" rotation={[-Math.PI/2,0,0]}
-    position={[(def.jetRadius+.9)*Math.cos(angle),def.waterY+.025,-(def.jetRadius+.9)*Math.sin(angle)]}>
+  const landing = useMemo(() => jetPoint(def, angle, 1, new THREE.Vector3()), [def, angle]);
+  return <mesh ref={splash} name="FountainWaterSplash" rotation={[-Math.PI/2,0,0]} position={landing}>
     <ringGeometry args={[.18,.21,32]} />
     <meshBasicMaterial color="#c6ece5" transparent opacity={.25} depthWrite={false} toneMapped={false} />
   </mesh>;
 }
 
 function jetPoint(def: FountainDef, angle: number, t: number, point: THREE.Vector3) {
-  const r = def.jetRadius + .9*t;
+  const r = def.jetRadius + def.jetRange * t;
+  // Constant horizontal velocity and gravity, with endpoint on the water.
+  const arc = 0.5 * 9.81 * def.jetFlightTime ** 2 * t * (1 - t);
   return point.set(r*Math.cos(angle),
-    THREE.MathUtils.lerp(def.jetY,def.waterY+.015,t) + .85*4*t*(1-t), -r*Math.sin(angle));
+    THREE.MathUtils.lerp(def.jetY, def.waterY + .015, t) + arc, -r*Math.sin(angle));
 }
 
 /** Bright beads travel down each arc, instead of leaving the streams looking like static wires. */
@@ -54,9 +70,9 @@ function FlowingDrops({ def }: { def: FountainDef }) {
   useFrame(({ clock }) => {
     if (!drops.current) return;
     for (let jet = 0; jet < def.jetCount; jet++) for (let bead = 0; bead < 4; bead++) {
-      const t = (clock.elapsedTime*.7 + bead/4 + jet*.13) % 1;
+      const t = (clock.elapsedTime / def.jetFlightTime + bead/4 + jet*.13) % 1;
       jetPoint(def,jet*Math.PI*2/def.jetCount+def.jetAngleOffset,t,scratch.point);
-      scratch.matrix.makeScale(.045,.065,.045).setPosition(scratch.point);
+      scratch.matrix.makeScale(.028,.038,.028).setPosition(scratch.point);
       drops.current.setMatrixAt(jet*4+bead,scratch.matrix);
     }
     drops.current.instanceMatrix.needsUpdate = true;
@@ -74,8 +90,8 @@ function Jet({ def, angle }: { def: FountainDef; angle: number }) {
   }, [def, angle]);
   return <>
     <mesh name="FountainWaterJet">
-      <tubeGeometry args={[curve, 24, .025, 5, false]} />
-      <meshStandardMaterial color="#b6e4df" roughness={.32} transparent opacity={.8} depthWrite={false} />
+      <tubeGeometry args={[curve, 24, .032, 6, false]} />
+      <meshStandardMaterial color="#b6e4df" roughness={.18} transparent opacity={.58} depthWrite={false} />
     </mesh>
     <Splash def={def} angle={angle} offset={0} />
     <Splash def={def} angle={angle} offset={.5} />
@@ -85,26 +101,23 @@ function Jet({ def, angle }: { def: FountainDef; angle: number }) {
 /** Fountain is independent of the district ocean and is never part of collision geometry. */
 export function FountainWater() {
   const [def, setDef] = useState<FountainDef | null>(null);
-  const [normal, setNormal] = useState<THREE.DataTexture | null>(null);
+  const material = useMemo(() => def
+    ? createFountainBasinMaterial(def.innerRadius, def.outerRadius, oceanTime)
+    : null, [def]);
+  useEffect(() => () => material?.dispose(), [material]);
   useEffect(() => {
     let live = true;
     fetch("/assets/city3-fountain.json").then(r => {
       if (!r.ok) throw new Error("Fountain metadata unavailable");
       return r.json();
     }).then((d: FountainDef) => { if (live) setDef(d); }).catch(console.error);
-    const texture = rippleTexture(); setNormal(texture);
-    return () => { live = false; texture.dispose(); };
+    return () => { live = false; };
   }, []);
-  useFrame(({ clock }) => {
-    if (normal) normal.offset.set(clock.elapsedTime*.04, clock.elapsedTime*.025);
-  });
-  if (!def || !normal) return null;
+  if (!def || !material) return null;
   return <group name="City3FountainWater">
-    <mesh name="FountainWaterSurface" rotation={[-Math.PI/2,0,0]} position={[0,def.waterY,0]}>
+    <Suspense fallback={null}><FountainArchitecture /></Suspense>
+    <mesh name="FountainWaterSurface" material={material} rotation={[-Math.PI/2,0,0]} position={[0,def.waterY,0]}>
       <ringGeometry args={[def.innerRadius,def.outerRadius,def.segments,1,0,Math.PI*2]} />
-      <meshPhysicalMaterial key={normal.uuid} color="#348d91" roughness={.48} metalness={0}
-        normalMap={normal} normalScale={[.8,.8]} envMapIntensity={.65}
-        ior={1.333} specularIntensity={.5} clearcoat={.2} clearcoatRoughness={.45} />
     </mesh>
     {Array.from({ length: def.jetCount }, (_, i) =>
       <Jet key={i} def={def} angle={i*Math.PI*2/def.jetCount+def.jetAngleOffset} />)}

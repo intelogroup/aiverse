@@ -10,6 +10,7 @@ import { configureGltfLoader, extendGltf } from "./gltfExtensions";
 import { CameraCollider, buildColliders, type ColliderStats } from "./CameraCollider";
 import { bakeCollisionParts } from "./capsuleWorld";
 import { FountainWater } from "./FountainWater";
+import { installLidoWater } from "./basinWater";
 import { EasterEggs } from "./EasterEggs";
 import { RoadMarks } from "./RoadMarks";
 import { RoadSigns } from "./RoadSigns";
@@ -130,6 +131,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
         hiddenWater.push({ mesh: m, visible: m.visible }); m.visible = false;
       }
     });
+    const restoreLido = installLidoWater(resident.scene, oceanTime);
     // three reads each program's link status (getProgramInfoLog) the moment it is created, which makes the main thread wait for the
     // driver's compile: ~7 s of a 16 s cold start on the emulated phone, spread over a few hundred programs. Off in production the
     // link stays asynchronous (KHR_parallel_shader_compile) and the wait moves to the GPU. Development keeps the error log.
@@ -169,6 +171,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
       residentReadyRef.current = false;
       instanceHandle?.dispose();
       batchHandle?.dispose();
+      restoreLido();
       hiddenWater.forEach(({ mesh, visible }) => { mesh.visible = visible; });
       dropColliders("resident");
       if (residentIdRef.current) tileScenes.drop(residentIdRef.current);
@@ -251,7 +254,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
         if (!live || !manifest.lod) return;
         loader.load(manifest.lod, (g) => {
           if (!live) { disposeTree(g.scene); return; }
-          root = g.scene; scene.add(root);
+          root = g.scene; installLidoWater(root, oceanTime); scene.add(root);
           root.traverse((o) => { const m = /^shell[_:](.+)$/.exec(o.name); if (m) lodGroups.current.set(m[1], o); });
           for (const id of staleShellIds(lodGroups.current.keys(), manifest.districts.map((d) => d.id))) {
             const gr = lodGroups.current.get(id); lodGroups.current.delete(id);
@@ -324,6 +327,7 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
     applyNight(g, themeRef.current?.night ?? 0);
     sharpenTextures(g, Math.min(8, gl.capabilities.getMaxAnisotropy()));
     if (manifest?.tiles) hideLegacyWater(g);
+    installLidoWater(g, oceanTime);
     g.updateMatrixWorld(true); addColliders(d.id, g);
     for (const [key, url] of collisionJobs([d.id], defs)) loadCollision(key, url, originOf(d), () => groups.current.has(d.id));
     groups.current.set(d.id, g); scene.add(g); tileScenes.set(d.id, g); stats.current.loads++; stats.current.loadMs.push(Math.round(performance.now() - t0)); pushEvent("load-ok", d.id); syncShell(); bump((n) => n + 1);
