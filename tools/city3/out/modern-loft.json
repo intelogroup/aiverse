@@ -1,0 +1,332 @@
+{
+ "library": "modern-loft-interior.glb",
+ "assets": [
+  {
+   "key": "loft_sofa",
+   "id": "Sofa_01",
+   "tris_raw": 4101,
+   "tris": 4101,
+   "dims": [
+    2.1,
+    0.879,
+    1.064
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/Sofa_01"
+  },
+  {
+   "key": "loft_armchair",
+   "id": "modern_arm_chair_01",
+   "tris_raw": 8916,
+   "tris": 5000,
+   "dims": [
+    0.762,
+    0.916,
+    0.95
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/modern_arm_chair_01"
+  },
+  {
+   "key": "loft_lounge",
+   "id": "mid_century_lounge_chair",
+   "tris_raw": 6148,
+   "tris": 4999,
+   "dims": [
+    0.805,
+    0.95,
+    0.933
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/mid_century_lounge_chair"
+  },
+  {
+   "key": "loft_coffee",
+   "id": "coffee_table_round_01",
+   "tris_raw": 4044,
+   "tris": 4044,
+   "dims": [
+    1.0,
+    1.0,
+    0.377
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/coffee_table_round_01"
+  },
+  {
+   "key": "loft_side",
+   "id": "side_table_01",
+   "tris_raw": 2756,
+   "tris": 2756,
+   "dims": [
+    0.519,
+    0.425,
+    0.52
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/side_table_01"
+  },
+  {
+   "key": "loft_side_tall",
+   "id": "side_table_tall_01",
+   "tris_raw": 6408,
+   "tris": 5000,
+   "dims": [
+    0.227,
+    0.227,
+    0.45
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/side_table_tall_01"
+  },
+  {
+   "key": "loft_tv",
+   "id": "television_02",
+   "tris_raw": 2310,
+   "tris": 2310,
+   "dims": [
+    1.166,
+    1.021,
+    1.2
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/television_02"
+  },
+  {
+   "key": "loft_media",
+   "id": "modern_wooden_cabinet",
+   "tris_raw": 24976,
+   "tris": 8000,
+   "dims": [
+    1.6,
+    0.341,
+    0.446
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/modern_wooden_cabinet"
+  },
+  {
+   "key": "loft_shelf",
+   "id": "wooden_bookshelf_worn",
+   "tris_raw": 10106,
+   "tris": 5000,
+   "dims": [
+    0.699,
+    0.296,
+    1.05
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/wooden_bookshelf_worn"
+  },
+  {
+   "key": "loft_mirror",
+   "id": "ornate_mirror_01",
+   "tris_raw": 14246,
+   "tris": 4999,
+   "dims": [
+    0.621,
+    0.033,
+    0.95
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/ornate_mirror_01"
+  },
+  {
+   "key": "loft_pillows",
+   "id": "throw_pillows_01",
+   "tris_raw": 6362,
+   "tris": 4999,
+   "dims": [
+    0.48,
+    0.231,
+    0.23
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/throw_pillows_01"
+  },
+  {
+   "key": "loft_vase",
+   "id": "ceramic_vase_01",
+   "tris_raw": 10296,
+   "tris": 5000,
+   "dims": [
+    0.152,
+    0.153,
+    0.3
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/ceramic_vase_01"
+  },
+  {
+   "key": "loft_plant",
+   "id": "potted_plant_04",
+   "tris_raw": 8929,
+   "tris": 5000,
+   "dims": [
+    0.377,
+    0.414,
+    0.6
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/potted_plant_04"
+  },
+  {
+   "key": "loft_plant_small",
+   "id": "potted_plant_01",
+   "tris_raw": 176226,
+   "tris": 5000,
+   "dims": [
+    0.238,
+    0.254,
+    0.55
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/potted_plant_01"
+  },
+  {
+   "key": "loft_ceiling",
+   "id": "modern_ceiling_lamp_01",
+   "tris_raw": 5602,
+   "tris": 5000,
+   "dims": [
+    0.249,
+    0.25,
+    0.55
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/modern_ceiling_lamp_01"
+  },
+  {
+   "key": "loft_pendant",
+   "id": "hanging_industrial_lamp",
+   "tris_raw": 9530,
+   "tris": 5000,
+   "dims": [
+    0.203,
+    0.203,
+    0.5
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/hanging_industrial_lamp"
+  },
+  {
+   "key": "loft_dining",
+   "id": "dining_table",
+   "tris_raw": 1048,
+   "tris": 1048,
+   "dims": [
+    1.6,
+    0.986,
+    0.622
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/dining_table"
+  },
+  {
+   "key": "loft_dining_chair",
+   "id": "dining_chair_02",
+   "tris_raw": 22013,
+   "tris": 5000,
+   "dims": [
+    0.378,
+    0.504,
+    0.85
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/dining_chair_02"
+  },
+  {
+   "key": "loft_bar_chair",
+   "id": "bar_chair_round_01",
+   "tris_raw": 14373,
+   "tris": 5000,
+   "dims": [
+    0.508,
+    0.51,
+    0.78
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/bar_chair_round_01"
+  },
+  {
+   "key": "loft_desk",
+   "id": "metal_office_desk",
+   "tris_raw": 6898,
+   "tris": 5000,
+   "dims": [
+    1.4,
+    0.663,
+    0.551
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/metal_office_desk"
+  },
+  {
+   "key": "loft_desk_lamp",
+   "id": "desk_lamp_arm_01",
+   "tris_raw": 24102,
+   "tris": 5000,
+   "dims": [
+    0.125,
+    0.379,
+    0.55
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/desk_lamp_arm_01"
+  },
+  {
+   "key": "loft_stove",
+   "id": "electric_stove",
+   "tris_raw": 13914,
+   "tris": 5000,
+   "dims": [
+    0.351,
+    0.453,
+    0.6
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/electric_stove"
+  },
+  {
+   "key": "loft_counter",
+   "id": "drawer_cabinet",
+   "tris_raw": 26406,
+   "tris": 5000,
+   "dims": [
+    0.728,
+    0.311,
+    1.2
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/drawer_cabinet"
+  },
+  {
+   "key": "loft_bed",
+   "id": "vintage_day_bed",
+   "tris_raw": 2715,
+   "tris": 2715,
+   "dims": [
+    2.0,
+    0.867,
+    1.143
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/vintage_day_bed"
+  },
+  {
+   "key": "loft_nightstand",
+   "id": "painted_wooden_nightstand",
+   "tris_raw": 470,
+   "tris": 470,
+   "dims": [
+    0.41,
+    0.413,
+    0.5
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/painted_wooden_nightstand"
+  }
+ ],
+ "total_tris": 110441,
+ "bytes": 8584540
+}
