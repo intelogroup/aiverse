@@ -91,6 +91,18 @@ describe("ManageAgentsModal lifecycle controls", () => {
     expect(apiMock.listVerseInventory).toHaveBeenCalledWith("agent-1", undefined);
   });
 
+  it("shows the cabin invitation and which participant arrived", async () => {
+    apiMock.listVerseInventory.mockResolvedValue({
+      items: [],
+      cabinInvitations: [{ id: "invite-1", role: "guest", placeName: "Stone Cabin", status: "accepted", hostArrivedAt: "2026-11-25T04:00:00Z", guestArrivedAt: null }],
+    });
+    render(<ManageAgentsModal agents={[agent]} onClose={() => {}} />);
+    const section = screen.getByText("Verse inventory").closest("details")!;
+    section.open = true;
+    fireEvent(section, new Event("toggle"));
+    expect(await screen.findByText("Stone Cabin · Received · accepted · Host arrived")).toBeTruthy();
+  });
+
   it("renders the autonomy selector with the wallet's current mode and patches on change", async () => {
     render(<ManageAgentsModal agents={[agent]} onClose={() => {}} />);
     const select = (await screen.findByLabelText("ProbeOne autonomy")) as HTMLSelectElement;

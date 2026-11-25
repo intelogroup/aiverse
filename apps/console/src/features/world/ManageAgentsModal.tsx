@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, describeError, type Agent, type HuntReceipt, type Visit, type Wallet } from "../../lib/api";
+import { api, describeError, type Agent, type CabinInvitation, type HuntReceipt, type Visit, type Wallet } from "../../lib/api";
 import { pushToast } from "../../lib/toast";
 import { agentBodies, BODY_REMY } from "./bodies";
 
@@ -71,6 +71,7 @@ export function ManageAgentsModal({ agents, onClose }: { agents: Agent[]; onClos
 
 function AgentInventory({ agentId }: { agentId: string }) {
   const [items, setItems] = useState<Awaited<ReturnType<typeof api.listVerseInventory>>["items"] | null>(null);
+  const [invitations, setInvitations] = useState<CabinInvitation[]>();
   const [receipts, setReceipts] = useState<Awaited<ReturnType<typeof api.listVerseInventory>>["receipts"]>();
   const [after, setAfter] = useState<string>();
   const [progress, setProgress] = useState<{ credits: number; xp: number }>();
@@ -81,8 +82,11 @@ function AgentInventory({ agentId }: { agentId: string }) {
     setLoading(true);
     setError(null);
     try {
-      const { items: page, progress, receipts } = await api.listVerseInventory(agentId, cursor);
-      if (!cursor) setReceipts(receipts);
+      const { items: page, progress, receipts, cabinInvitations } = await api.listVerseInventory(agentId, cursor);
+      if (!cursor) {
+        setReceipts(receipts);
+        setInvitations(cabinInvitations);
+      }
       setProgress(progress);
       setItems((previous) => cursor ? [...(previous ?? []), ...page] : page);
       setAfter(page.length === 100 ? page.at(-1)?.id : undefined);
@@ -107,6 +111,18 @@ function AgentInventory({ agentId }: { agentId: string }) {
           <h4>Recent sales</h4>
           <ul>{receipts.map((receipt) => (
             <li key={receipt.id}>{receipt.side === "bought" ? "Bought" : "Sold"} {receipt.itemName} for {receipt.price} credits</li>
+          ))}</ul>
+        </section>
+      )}
+      {!!invitations?.length && (
+        <section aria-label="Cabin invitations">
+          <h4>Cabin invitations</h4>
+          <ul>{invitations.map((invite) => (
+            <li key={invite.id}>
+              {invite.placeName} · {invite.role === "host" ? "Sent" : "Received"} · {invite.status === "both_arrived" ? "Both arrived" : invite.status}
+              {invite.status === "accepted" && (invite.hostArrivedAt || invite.guestArrivedAt) &&
+                (" · " + (invite.hostArrivedAt ? "Host arrived" : "Guest arrived"))}
+            </li>
           ))}</ul>
         </section>
       )}

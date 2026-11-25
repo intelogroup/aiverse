@@ -162,6 +162,8 @@ interface DriveRun { /** steer arrived together with speed and was dropped: the 
 export class WorldService {
   readonly sim: VerseSim;
   private readonly sessions = new Map<string, Session>();
+  // Keep the internal listener identity out of public action records and observations.
+  private readonly addressedSpeech = new WeakMap<ActRecord, { id: string; session: Session }>();
   private readonly maxBodies: number;
   private readonly movementEnergy: boolean;
   private readonly leaseS: number;
@@ -532,7 +534,10 @@ export class WorldService {
       l.heard.push({ seq, t, from: this.handleFor(l, agentId), name: name ?? "someone", text, toYou: h.id === addressee, untrusted: true });
       while (l.heard.length > HEARD_KEEP) l.heard.shift();
       heardBy++;
-      if (h.id === addressee) addresseeHeard = true;
+      if (h.id === addressee) {
+        addresseeHeard = true;
+        this.addressedSpeech.set(rec, { id: h.id, session: l });
+      }
     }
     rec.heardBy = heardBy;
     this.says.push({ seq, n: s.n, text, t });
@@ -588,6 +593,18 @@ export class WorldService {
   body(agentId: string): AgentSnapshot & { figure: string } {
     const s = this.session(agentId);
     return { ...s.body.snapshot(), figure: s.figure };
+  }
+
+  invitationRecipient(agentId: string, actId: string): string | undefined {
+    const record = this.actRecord(agentId, actId);
+    if (!record || record.settledAt === undefined || this.sim.t - record.settledAt >= HEARD_TTL_S) return undefined;
+    const proof = this.addressedSpeech.get(record);
+    return proof && this.sessions.get(proof.id) === proof.session ? proof.id : undefined;
+  }
+
+  inStoneCabin(agentId: string): boolean {
+    const { x, z } = this.body(agentId);
+    return roomAt(this.sim.rooms, x, z)?.id === "house-cabin-1";
   }
 
   actRecord(agentId: string, id: string): ActRecord | undefined {

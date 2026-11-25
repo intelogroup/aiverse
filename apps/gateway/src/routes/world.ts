@@ -14,6 +14,7 @@ import type { SimClient } from "../world/simClient";
 import type { LookClient } from "../world/lookClient";
 import { angleDiffDeg, createSeeQueue, seeView, type SeeQueueOptions } from "../world/seeJobs";
 import { noteObservation, noteSaid } from "../world/visitTally";
+import { cabinInvitationsEnabled, createCabinInvitationRoute } from "./cabinInvitations";
 import { createEggHuntRoute } from "./eggHunt";
 import { awardConversationXp, awardPickup, awardXp, ownsCabinTea, PICKUP_POSITIONS, PICKUPS, pickupReceipt, PILOT_PICKUP, progress } from "../world/verseProgress";
 
@@ -88,6 +89,7 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
   });
 
   route.route("/hunt", createEggHuntRoute(sim));
+  if (cabinInvitationsEnabled()) route.route("/invitations", createCabinInvitationRoute(sim));
 
   const progressOn = process.env.AIVERSE_VERSE_PROGRESS === "1";
   if (progressOn) {
