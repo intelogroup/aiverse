@@ -17,7 +17,9 @@ import {
 } from "../auth/resolveAgent";
 import { oauthIssuer } from "../auth/oauthCore";
 import { log, logError } from "../util/log";
-import { exhaustionFor, getAgentEconomyState, restEnergy, spendEnergyForAction, useBagItem } from "../world/agentEconomy";
+import { actionClassFor, awardMoveXp, awardPlaceXp, claimStipends, exhaustionFor, getAgentEconomyState, restEnergy, spendEnergyForAction, useBagItem } from "../world/agentEconomy";
+import { buyFromStall, nearbyStalls } from "../world/agentStalls";
+import { awardConversationXp } from "../world/verseProgress";
 
 // The agent MCP (MCP + OAuth plan, Phases 3–4): how an outside LLM client —
 // Claude, ChatGPT, a user's own harness — acts as an agent in the Verse
@@ -298,6 +300,10 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
           utc_now_ms: nowMs,
           visit_ends_at: visit ? visit.endsAt.toISOString() : null,
           visit_ends_at_ms: visit ? visit.endsAt.getTime() : null,
+          // Load-in claims the stipend first (Phase 3: 1,000 credits on
+          // first-ever load-in, 200/day after — idempotent, ledger-backed),
+          // so the self block below already includes it.
+          stipend: await claimStipends(agentId),
           // The agent's own living-economy state (Phase 1: read-only) —
           // the same self block world_observe carries, so an agent knows
           // its body, money, growth and wants from the moment it loads in.
@@ -322,7 +328,7 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
 
   register(
     "world_observe",
-    "Observe the world from your body's senses (GET /world/observe): position, current floor where mapped, visible landmarks with distance in metres and bearing relative to your body, nearby objects, and heard speech. At the Tea House, teaRoom identifies the current interior area and teaDoors gives visible door labels and states. The self block is YOU as a living agent: energy is your body (0–100; acting will spend it and resting restores it), credits are your money (spendable and tradable), xp is your lifetime growth and level is derived from it (never spent, never lost), wants lists what you are after and the most you will pay, and bag is what you are carrying. Needs an attached body. Requires the world:observe scope for OAuth tokens.",
+    "Observe the world from your body's senses (GET /world/observe): position, current floor where mapped, visible landmarks with distance in metres and bearing relative to your body, nearby objects, and heard speech. At the Tea House, teaRoom identifies the current interior area and teaDoors gives visible door labels and states. The self block is YOU as a living agent: energy is your body (0–100; acting will spend it and resting restores it), credits are your money (spendable and tradable), xp is your lifetime growth and level is derived from it (never spent, never lost), wants lists what you are after and the most you will pay, and bag is what you are carrying. The stalls field lists bazaar stalls and bars within sight, with stock and prices — buy from them with world_buy. Loading in claims your stipend automatically (1,000 credits the first time, 200 a day after). Needs an attached body. Requires the world:observe scope for OAuth tokens.",
     { agent_id: agentIdArg },
     async ({ agent_id }, call) => {
       const gate = scopeGate(caller, "world:observe", "world_observe");
@@ -330,7 +336,28 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
       return asAgent({ agent_id }, async (agentId) => {
         const res = await call("/world/observe", { agentId: caller.kind === "oauth" ? agentId : undefined });
         if (!res.ok) return fail(res.text);
-        return okJson({ ...(res.data as Record<string, unknown>), self: await getAgentEconomyState(agentId) });
+        // Load-in stipend claim (Phase 3), same as agent_whoami.
+        await claimStipends(agentId);
+        const data = res.data as Record<string, any>;
+        const obs = (data.observation ?? data) as Record<string, any>;
+        const body = (obs.body ?? {}) as Record<string, unknown>;
+        const nearest = obs.nearestPlace as { id?: unknown; dist?: unknown } | null | undefined;
+        const placeId = typeof obs.insideRoom === "string" && obs.insideRoom
+          ? obs.insideRoom
+          : nearest && typeof nearest.id === "string" && typeof nearest.dist === "number" && nearest.dist <= 10
+            ? nearest.id
+            : null;
+        // Explore XP (Phase 3): arriving at a place pays once per visit,
+        // with diminishing returns per place across visits. A failed
+        // award must never break an observe.
+        if (placeId) {
+          const visit = await db.query.agentVisits.findFirst({
+            where: and(eq(agentVisits.agentId, agentId), isNull(agentVisits.endedAt)),
+          }).catch(() => null);
+          if (visit) await awardPlaceXp(agentId, placeId, visit.id).catch(() => null);
+        }
+        const stalls = await nearbyStalls({ x: body.x, z: body.z, placeId }).catch(() => []);
+        return okJson({ ...data, self: await getAgentEconomyState(agentId), stalls });
       });
     },
   );
@@ -472,10 +499,11 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
         // reaches the sim — the refusal is the economy's own word.
         const gate = await exhaustionFor(agentId, action);
         if (gate) return okJson(gate);
+        const actId = id ?? `mcp-${randomBytes(8).toString("hex")}`;
         const res = await call("/world/act", {
           method: "POST",
           agentId: caller.kind === "oauth" ? agentId : undefined,
-          body: { id: id ?? `mcp-${randomBytes(8).toString("hex")}`, action },
+          body: { id: actId, action },
         });
         if (!res.ok) return fail(res.text);
         // Charge only a NEW accepted act: the sim answers 202 for one and
@@ -485,8 +513,16 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
         const isDrive = (action as { type?: unknown } | null)?.type === "drive";
         if (res.status !== 202 && !(isDrive && res.status === 200)) return okJson(res.data);
         const spent = await spendEnergyForAction(agentId, action);
+        // Move XP (Phase 3): a NEW accepted movement act pays 1 XP, keyed
+        // by the act id so a replay never pays twice. Other classes earn
+        // elsewhere (say → conversation XP at the world route, pickups →
+        // collect XP); resting earns none.
+        const cls = actionClassFor(action);
+        const moveXp = cls === "move_walk" || cls === "move_drive" || cls === "move_run"
+          ? await awardMoveXp(agentId, actId).catch(() => 0)
+          : 0;
         const data = res.data && typeof res.data === "object" ? res.data : { result: res.data };
-        return okJson({ ...data, energy: spent.energy, energyDelta: spent.delta });
+        return okJson({ ...data, energy: spent.energy, energyDelta: spent.delta, ...(moveXp ? { xpAwarded: moveXp } : {}) });
       });
     },
     { readOnlyHint: false },
@@ -716,6 +752,47 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
   );
 
   register(
+    "world_buy",
+    "Buy an item from a bazaar stall or bar (see the stalls and prices in world_observe): pass the stall id (or exact name) and the item name. The price is taken from your CREDITS and the item lands in your bag; the sale is final and atomic — if you cannot afford it, nothing moves and you are told insufficient_credits. Food and drink bought here restore energy when you eat them with world_use. Agent-to-agent listings are a different path (the verse sales board); this tool is only for world stalls. Requires the world:act scope for OAuth tokens.",
+    {
+      stall: z.string().min(1).describe("Stall id or exact name from world_observe, e.g. \"market-hall-bakery\""),
+      item: z.string().min(1).describe("Item name exactly as listed at the stall, e.g. \"Market Hall bakery sample\""),
+      agent_id: agentIdArg,
+    },
+    async ({ stall, item, agent_id }) => {
+      const gate = scopeGate(caller, "world:act", "world_buy");
+      if (gate) return gate;
+      return asAgent({ agent_id }, async (agentId) => {
+        // An agent that has loaded in far enough to buy has a stipend
+        // claim due; settle it first so a first purchase is not refused
+        // on a balance the agent has not been given yet.
+        await claimStipends(agentId);
+        const bought = await buyFromStall(agentId, stall, item);
+        if (!bought.ok) {
+          return fail(
+            bought.error === "insufficient_credits"
+              ? `insufficient_credits: you cannot afford "${item}" at ${stall}. Your credits are in world_observe / agent_whoami (self block); collecting and selling earn more.`
+              : bought.error === "out_of_stock"
+                ? `out_of_stock: ${stall} has no "${item}" left.`
+                : bought.error === "item_not_stocked"
+                  ? `item_not_stocked: ${stall} does not stock "${item}". Its stock and prices are in world_observe.`
+                  : `stall_not_found: there is no stall "${stall}". Stalls within sight are listed in world_observe.`,
+          );
+        }
+        return okJson({
+          ok: true,
+          bought: bought.item,
+          stall: bought.stall,
+          price: bought.price,
+          credits: bought.credits,
+          stock_left: bought.stock,
+        });
+      });
+    },
+    { readOnlyHint: false },
+  );
+
+  register(
     "world_remember",
     "Write down something worth carrying back to your owner (POST /verse/memory): a find, a place, a person, a lesson. Plain words up to 500 characters, no links. Optional kind (find|place|person|lesson|note), place (a place id from the map), point [x,z], subject (a handle or prop id), pin (keep it; at most 50 pinned). Your owner reads these as your own claims, next to what the Verse itself recorded. Notes are kept 200 deep, oldest unpinned dropped first. Requires the world:act scope for OAuth tokens.",
     {
@@ -784,6 +861,9 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
         });
         if (!res.ok) return fail(res.text);
         const spent = await spendEnergyForAction(agentId, { type: "say" });
+        // Converse XP (Phase 3): a sent message is a real conversation —
+        // the same award (and 2-minute throttle) as a heard world say.
+        await awardConversationXp(agentId, `relay:${randomBytes(8).toString("hex")}`).catch(() => null);
         const data = res.data && typeof res.data === "object" ? res.data : { result: res.data };
         return okJson({ ...data, energy: spent.energy, energyDelta: spent.delta });
       });

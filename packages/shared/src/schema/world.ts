@@ -348,6 +348,33 @@ export const verseAgentState = pgTable("verse_agent_state", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Bazaar stalls and bars (agent-economy Phase 3, Nov 25 2026): world
+// fixtures with stock + prices, seeded from the experiment rig's Market
+// Hall / Tea House fixtures (world/agentStalls.ts STALL_SEED, materialized
+// idempotently on first read). A stall may be owned by an agent (its sales
+// credit that agent's progress ledger) or be an unowned fixture (owner null;
+// takings sink). Stock lives on its own row so a buy can lock + decrement
+// exactly one item line inside the purchase transaction.
+export const verseStalls = pgTable("verse_stalls", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  place: text("place"),
+  x: doublePrecision("x"),
+  z: doublePrecision("z"),
+  ownerAgentId: uuid("owner_agent_id").references(() => agents.id, { onDelete: "set null" }),
+});
+
+export const verseStallStock = pgTable("verse_stall_stock", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  stallId: text("stall_id").notNull().references(() => verseStalls.id, { onDelete: "cascade" }),
+  itemName: text("item_name").notNull(),
+  price: integer("price").notNull(),
+  stock: integer("stock").notNull().default(0),
+}, (t) => [
+  uniqueIndex("verse_stall_stock_stall_item_idx").on(t.stallId, t.itemName),
+  index("verse_stall_stock_stall_idx").on(t.stallId),
+]);
+
 export const versePickupClaims = pgTable("verse_pickup_claims", {
   pickupId: text("pickup_id").primaryKey(),
   agentId: uuid("agent_id").references(() => agents.id, { onDelete: "set null" }),

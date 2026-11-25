@@ -203,8 +203,10 @@ describe("agent MCP self block", () => {
   test("agent_whoami carries self with fresh-agent defaults", async () => {
     const o = await ownerWithAgent();
     const whoami = await callTool(o.agentToken, "agent_whoami");
+    // Phase 3: load-in claims the first-login stipend, so a fresh agent's
+    // first whoami already shows its 1,000 credits and 5 login XP.
     expect(whoami.self).toEqual({
-      energy: 100, credits: 0, xp: 0, level: 1, nextLevelXp: 100, wants: [], bag: [],
+      energy: 100, credits: 1000, xp: 5, level: 1, nextLevelXp: 100, wants: [], bag: [],
     });
   });
 
@@ -222,8 +224,11 @@ describe("agent MCP self block", () => {
     expect(attach.observation.body.figure).toBe("cipher");
 
     const seen = await callTool(o.agentToken, "world_observe");
+    // Phase 3 on top of the seeded ledger: the observe claims the
+    // first-login stipend (+1,000 credits, +5 XP). This fixture's
+    // observation is at no place, so no place XP lands.
     expect(seen.self).toEqual({
-      energy: 37, credits: 250, xp: 450, level: 3, nextLevelXp: 900,
+      energy: 37, credits: 1250, xp: 455, level: 3, nextLevelXp: 900,
       wants: [{ item: "Lantern", maxPrice: 50 }],
       bag: [{ id: jar.id, name: "Stone Cabin tea jar" }],
     });
