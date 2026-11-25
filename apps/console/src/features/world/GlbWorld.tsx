@@ -92,6 +92,15 @@ function useCoreTexturesReady(mounted: boolean): boolean {
   return mounted && (!pending || expired);
 }
 
+/** ?spawn=x,z[,faceX,faceZ] — QA/debug drop point for the walker (screenshot one interior without walking there). */
+function spawnFromUrl(): WalkSpawnRequest | null {
+  const raw = new URLSearchParams(window.location.search).get("spawn");
+  if (!raw) return null;
+  const [x, z, fx, fz] = raw.split(",").map(Number);
+  if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
+  return { x, z, faceX: Number.isFinite(fx) ? fx : x, faceZ: Number.isFinite(fz) ? fz : z - 2 };
+}
+
 export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner's agents (empty for a visitor). With one in the world, the camera lands on it. */ ownerAgentNames?: readonly string[] } = {}) {
   // City 3 is the only world: the Agora was deleted 2026-11-08 (Jim's
   // order — a planned lobby will bring back world navigation later).
@@ -127,7 +136,10 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
       (window as unknown as Record<string, unknown>).__quality = qualityStore;
     }
   }, []);
-  const walkSpawnRef = useRef<WalkSpawnRequest | null>(null);
+  // QA hook: ?spawn=x,z[,faceX,faceZ] drops the walker at a point on its first spawn. Initialised in the ref's
+  // constructor, not an effect: CityWalker is a child, so its effects run BEFORE this component's and would consume
+  // an empty ref and spawn at the plaza.
+  const walkSpawnRef = useRef<WalkSpawnRequest | null>(spawnFromUrl());
   const figureFlyRef = useRef<{ x: number; z: number } | null>(null);
   const [figureCard, setFigureCard] = useState<BazaarFigureTap | null>(null);
   const walkToPoint = (x: number, z: number) => {
