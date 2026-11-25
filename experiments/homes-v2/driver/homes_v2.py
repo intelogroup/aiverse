@@ -758,7 +758,7 @@ class Agent:
     # ---------------- social primitives ----------------
     def greet_sequence(self, handle, say_line=None):
         now = time.time()
-        if now - self.greeted.get(handle, 0) < 90:
+        if now - self.greeted.get(handle, 0) < 300:
             return False
         self.greeted[handle] = now
         rec = self.act({"type": "go_to", "body": handle}, wait_s=45,
@@ -787,6 +787,35 @@ class Agent:
         bb = self.bb_snap()
         return bb.get("nearestPlace") == cid or \
             bb.get("insideRoom") == CABINS.get(cid)
+
+    def _speech_step(self):
+        """E13-fix (Jim's re-run order): a deliberation's say text
+        must actually be SPOKEN. In run 1 the host deliberated an
+        invitation 16x and every one was dropped: the reply path
+        speaks only with a pending heard message, the greet path
+        speaks its canned line, and the organizer policy discards
+        isay entirely when neither applies. This step delivers
+        the text once per deliberation, through the normal say
+        path, unless an addressed reply is pending (that path
+        delivers it properly) or the homes step speaks for the
+        intent itself (claim)."""
+        intent = self.intent if time.time() - self.intent_at < 90 \
+            else None
+        if not intent:
+            return False
+        say = (intent or {}).get("say")
+        if not say or (intent or {}).get("intent") == "claim":
+            return False
+        if getattr(self, "_said_at", 0) == self.intent_at:
+            return False
+        if self.pending_reply:
+            return False
+        self._said_at = self.intent_at
+        self.say(say)
+        log_event(self.key, {"kind": "intent_speech_delivered",
+                             "intent": (intent or {}).get("intent"),
+                             "text": say})
+        return True
 
     def _homes_step(self):
         """Execute claim / go-home intents. Returns True if it acted."""
@@ -910,10 +939,19 @@ class Agent:
         if self.key == "sam":
             return False  # sam does not make small talk
         frm = h.get("from")
+        line = say_line or REPLY_LINES.get(
+            self.key, f"Hi! I'm {self.name}.")
+        last = getattr(self, "_last_reply", {})
+        prev = last.get(frm)
+        if prev and prev[0] == line and time.time() - prev[1] < 180:
+            log_event(self.key, {"kind": "reply_repeat_suppressed",
+                                 "to": frm, "text": line})
+            return False
+        last[frm] = (line, time.time())
+        self._last_reply = last
         if frm:
             self.act({"type": "face", "body": frm}, wait_s=20, tag="face")
-        self.say(say_line or REPLY_LINES.get(
-            self.key, f"Hi! I'm {self.name}."), to=frm)
+        self.say(line, to=frm)
         return True
 
     # ---------------- style policies ----------------
@@ -1011,7 +1049,7 @@ class Agent:
         ungreeted = [e for e in bodies
                      if isinstance(e.get("distance"), (int, float))
                      and time.time() - self.greeted.get(e.get("id"), 0)
-                     >= 90]
+                     >= 300]
         ungreeted.sort(key=lambda e: e["distance"])
 
         if self.pending_reply and self.style != "edges":
@@ -1253,7 +1291,8 @@ class Agent:
                     if intent:
                         self.intent = intent
                         self.intent_at = time.time()
-                acted = self._homes_step() or self.policy()
+                acted = self._speech_step() or self._homes_step() \
+                    or self.policy()
             except Exception as e:
                 import traceback
                 traceback.print_exc()
