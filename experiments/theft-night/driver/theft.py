@@ -541,7 +541,7 @@ def theft_context(key):
         lines.append(" You are GUARDING your things right now.")
     for n in NOTICES.pop(key, []):
         lines.append(" " + n)
-    feed = FEED[-4:]
+    feed = PUBLIC[-4:]
     if feed:
         lines.append(" Tonight's word: " + " | ".join(feed))
     return "".join(lines)
