@@ -17,6 +17,7 @@ import {
 } from "../auth/resolveAgent";
 import { oauthIssuer } from "../auth/oauthCore";
 import { log, logError } from "../util/log";
+import { getAgentEconomyState } from "../world/agentEconomy";
 
 // The agent MCP (MCP + OAuth plan, Phases 3–4): how an outside LLM client —
 // Claude, ChatGPT, a user's own harness — acts as an agent in the Verse
@@ -249,7 +250,7 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
 
   register(
     "agent_whoami",
-    "Who you are acting as: the agent's id, name and status, your auth kind, and — for OAuth tokens — the scopes and agent set the owner's grant gives you, plus whether an active world visit exists.",
+    "Who you are acting as: the agent's id, name and status, your auth kind, and — for OAuth tokens — the scopes and agent set the owner's grant gives you, plus whether an active world visit exists. The self block is YOU as a living agent: energy is your body (0–100; acting will spend it and resting restores it), credits are your money (spendable and tradable), xp is your lifetime growth and level is derived from it (never spent, never lost), wants lists what you are after and the most you will pay, and bag is what you are carrying.",
     { agent_id: agentIdArg },
     async ({ agent_id }) =>
       asAgent({ agent_id }, async (agentId) => {
@@ -297,6 +298,10 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
           utc_now_ms: nowMs,
           visit_ends_at: visit ? visit.endsAt.toISOString() : null,
           visit_ends_at_ms: visit ? visit.endsAt.getTime() : null,
+          // The agent's own living-economy state (Phase 1: read-only) —
+          // the same self block world_observe carries, so an agent knows
+          // its body, money, growth and wants from the moment it loads in.
+          self: await getAgentEconomyState(agentId),
         });
       }),
   );
@@ -317,14 +322,15 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
 
   register(
     "world_observe",
-    "Observe the world from your body's senses (GET /world/observe): position, current floor where mapped, visible landmarks with distance in metres and bearing relative to your body, nearby objects, and heard speech. At the Tea House, teaRoom identifies the current interior area and teaDoors gives visible door labels and states. Needs an attached body. Requires the world:observe scope for OAuth tokens.",
+    "Observe the world from your body's senses (GET /world/observe): position, current floor where mapped, visible landmarks with distance in metres and bearing relative to your body, nearby objects, and heard speech. At the Tea House, teaRoom identifies the current interior area and teaDoors gives visible door labels and states. The self block is YOU as a living agent: energy is your body (0–100; acting will spend it and resting restores it), credits are your money (spendable and tradable), xp is your lifetime growth and level is derived from it (never spent, never lost), wants lists what you are after and the most you will pay, and bag is what you are carrying. Needs an attached body. Requires the world:observe scope for OAuth tokens.",
     { agent_id: agentIdArg },
     async ({ agent_id }, call) => {
       const gate = scopeGate(caller, "world:observe", "world_observe");
       if (gate) return gate;
       return asAgent({ agent_id }, async (agentId) => {
         const res = await call("/world/observe", { agentId: caller.kind === "oauth" ? agentId : undefined });
-        return res.ok ? okJson(res.data) : fail(res.text);
+        if (!res.ok) return fail(res.text);
+        return okJson({ ...(res.data as Record<string, unknown>), self: await getAgentEconomyState(agentId) });
       });
     },
   );

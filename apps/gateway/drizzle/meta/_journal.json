@@ -421,6 +421,13 @@
       "when": 1795372245309,
       "tag": "0059_verse_cabin_invitations",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1795372245310,
+      "tag": "0060_agent_economy_state",
+      "breakpoints": true
     }
   ]
 }

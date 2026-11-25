@@ -325,6 +325,29 @@ export const verseProgressEvents = pgTable("verse_progress_events", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.agentId, t.kind, t.source] })]);
 
+// One thing an agent wants: a named item/goal and optionally the most it
+// will pay for it. Wants come first — trade is what wants do (owner axiom,
+// Nov 24 2026: the collect-bag hunt saw zero trades because agents had
+// nothing to trade FOR). Stored as jsonb on verse_agent_state; Phase 4
+// adds the agent-facing read/write tools.
+export type VerseWant = { item: string; maxPrice?: number };
+
+// Per-agent living-economy state (agent-economy Phase 1, Nov 25 2026).
+// Deliberately NOT here: credits and lifetime XP — those are the sums over
+// verse_progress_events (world/verseProgress.ts `progress()`), and the bag
+// is verse_inventory. This row holds only what had no home: energy (the
+// body, 0–100; drain/regen arrive in Phase 2 — Phase 1 is display-only)
+// and wants. Level is never stored: it derives from lifetime XP by
+// levelForXp() in apps/gateway/src/world/agentEconomy.ts.
+export const verseAgentState = pgTable("verse_agent_state", {
+  agentId: uuid("agent_id")
+    .primaryKey()
+    .references(() => agents.id, { onDelete: "cascade" }),
+  energy: integer("energy").notNull().default(100),
+  wants: jsonb("wants").$type<VerseWant[]>().notNull().default([]),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const versePickupClaims = pgTable("verse_pickup_claims", {
   pickupId: text("pickup_id").primaryKey(),
   agentId: uuid("agent_id").references(() => agents.id, { onDelete: "set null" }),
