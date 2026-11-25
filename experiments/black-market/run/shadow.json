@@ -1,0 +1,34 @@
+{
+ "custody": [
+  {
+   "t": 1795564924.9,
+   "holder": "kenji",
+   "place": "Bazaar edge, behind a fruit stall"
+  }
+ ],
+ "searches": {
+  "oleg": 0,
+  "sam": 0
+ },
+ "public": [
+  "kenji has taken the Golden Egg from the bazaar edge!"
+ ],
+ "egg_end_holder": "kenji",
+ "wallets_end": {
+  "mara": 985,
+  "deshawn": 1000,
+  "ingrid": 970,
+  "tomas": 940,
+  "priya": 970,
+  "kenji": 1400,
+  "fatima": 955,
+  "oleg": 1000,
+  "lucia": 970,
+  "amara": 970,
+  "henrik": 940,
+  "yuki": 1000,
+  "rafael": 970,
+  "ngozi": 985,
+  "sam": 1000
+ }
+}

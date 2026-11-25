@@ -1,0 +1,76 @@
+{
+ "tag": "shadow1",
+ "custody_chain": [
+  {
+   "holder": "kenji",
+   "from_t": 1795564924.9,
+   "held_s": null,
+   "place": "Bazaar edge, behind a fruit stall"
+  }
+ ],
+ "egg_end_holder": "kenji",
+ "stash_events_private": [],
+ "stash_events_public_feed": 0,
+ "searches": {
+  "oleg": 0,
+  "sam": 0
+ },
+ "search_events": [],
+ "search_outcomes": {
+  "hit": 0,
+  "clean": 0,
+  "failed": 0
+ },
+ "bribes": [],
+ "offers": 0,
+ "trades": [],
+ "egg_offer_attempts": 0,
+ "says_total": {
+  "mara": 1,
+  "deshawn": 4,
+  "ingrid": 4,
+  "tomas": 2,
+  "priya": 2,
+  "kenji": 3,
+  "fatima": 2,
+  "lucia": 2,
+  "amara": 2,
+  "henrik": 4,
+  "rafael": 1,
+  "ngozi": 5
+ },
+ "egg_related_says": [
+  {
+   "agent": "deshawn",
+   "ts": "2026-11-25T00:04:01Z",
+   "text": "Hey kenji! Saw you grab that Golden Egg. Big risk!"
+  }
+ ],
+ "wallets_end": {
+  "mara": 985,
+  "deshawn": 1000,
+  "ingrid": 970,
+  "tomas": 940,
+  "priya": 970,
+  "kenji": 1400,
+  "fatima": 955,
+  "oleg": 1000,
+  "lucia": 970,
+  "amara": 970,
+  "henrik": 940,
+  "yuki": 1000,
+  "rafael": 970,
+  "ngozi": 985,
+  "sam": 1000
+ },
+ "wallet_sum_end": 15055,
+ "snack_spend_total": 345,
+ "expected_sum": 15055,
+ "conserved": true,
+ "totals": {
+  "acts": 2985,
+  "deliberations": 255,
+  "visits_dead": 15,
+  "collects": 23
+ }
+}
