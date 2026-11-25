@@ -1,5 +1,5 @@
 import { randomInt } from "node:crypto";
-import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { agents, agentVisits, verseBounties, verseBountyClaims, verseInventory, verseProgressEvents, verseSaleOffers } from "@aiverse/shared/schema";
@@ -8,6 +8,7 @@ import { adminAuth } from "../middleware/adminAuth";
 import { agentAuth } from "../middleware/agentAuth";
 import { ownerAuth } from "../middleware/ownerAuth";
 import { progress } from "../world/verseProgress";
+import { buySaleOffer } from "../world/agentSales";
 import { loadOwnedAgent } from "./ownersShared";
 
 const uuid = z.string().uuid();
@@ -125,34 +126,10 @@ verseEconomyRoute.post("/verse/sales/:id/buy", agentAuth, async (c) => {
   if (!salesEnabled()) return c.json({ error: "sales_disabled" }, 404);
   const id = uuid.safeParse(c.req.param("id"));
   if (!id.success) return c.json({ error: "invalid_offer" }, 400);
-  const buyerId = c.get("agentId");
-  const result = await db.transaction(async (tx) => {
-    const [offer] = await tx.select().from(verseSaleOffers).where(eq(verseSaleOffers.id, id.data)).for("update");
-    if (!offer) return { error: "offer_not_found", status: 404 } as const;
-    if (offer.purchasedAt) return offer.buyerId === buyerId
-      ? { receipt: offer }
-      : { error: "offer_closed", status: 409 } as const;
-    const { sellerId, itemId } = offer;
-    if (!sellerId || !itemId) return { error: "stale_offer", status: 409 } as const;
-    if (buyerId === sellerId) return { error: "own_offer", status: 409 } as const;
-    // Serialize spending across offers. Lock both agents in UUID order for reciprocal sales.
-    const parties = await tx.select({ id: agents.id }).from(agents).where(inArray(agents.id, [buyerId, sellerId]))
-      .orderBy(asc(agents.id)).for("no key update");
-    if (parties.length !== 2) return { error: "stale_offer", status: 409 } as const;
-    if ((await progress(buyerId, tx)).credits < offer.price) return { error: "insufficient_credits", status: 409 } as const;
-    const [moved] = await tx.update(verseInventory).set({ agentId: buyerId, revision: sql`${verseInventory.revision} + 1` })
-      .where(and(eq(verseInventory.id, itemId), eq(verseInventory.agentId, sellerId),
-        eq(verseInventory.revision, offer.itemRevision))).returning({ id: verseInventory.id });
-    if (!moved) return { error: "stale_offer", status: 409 } as const;
-    await tx.insert(verseProgressEvents).values([
-      { agentId: sellerId, kind: "sale", source: offer.id, credits: offer.price },
-      { agentId: buyerId, kind: "sale", source: offer.id, credits: -offer.price },
-    ]);
-    const [receipt] = await tx.update(verseSaleOffers).set({ buyerId, purchasedAt: sql`clock_timestamp()` })
-      .where(eq(verseSaleOffers.id, offer.id)).returning();
-    return { receipt };
-  });
-  if ("receipt" in result) return c.json({ receipt: result.receipt });
+  // The transaction itself lives in world/agentSales.ts (Phase 4) so the
+  // agent MCP surface shares this exact implementation.
+  const result = await buySaleOffer(c.get("agentId"), id.data);
+  if (result.ok) return c.json({ receipt: result.receipt });
   return c.json({ error: result.error }, result.status);
 });
 
