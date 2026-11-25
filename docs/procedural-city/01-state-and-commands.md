@@ -50,10 +50,13 @@ Root-level `bunx tsc --noEmit` (no `-p`) is the repo's real typecheck per CLAUDE
 - Body controller: 1000 bodies x 60 frames = 11.7 ms; reversal heading rate 1962–10800 → ≤217 deg/s.
 
 ## Numbers (City 3, 2026-11-25, measured)
-- City GLB **63.8 MB**, 361,147 unique triangles — **1,367,918 instanced** (x3.79 through `EXT_mesh_gpu_instancing`) —
+- City GLB **63.8 MB**, 332,391 unique triangles — **1,022,846 instanced** (x3.08 through `EXT_mesh_gpu_instancing`) —
   1,622 meshes, 731 materials, 429 images (41.4 MB of them KTX2, 23 at ≥2048 px).
   `prune_empty_nodes.py` dropped 2,659 inert childless nodes (5,229 → 2,570 nodes; JSON-chunk only,
-  so buffers and meshopt spans stay byte-identical).
+  so buffers and meshopt spans stay byte-identical), and `simplify_targets.mjs` + `apply_indices.py`
+  decimated the bathroom fixtures that were **26.2 % of all instanced triangles**
+  (`bathroom-sink_body` 13,116 → 404, `toilet_body` 7,980 → 318, mirror 2,752 → 200, seat 3,888 → 120,
+  lid 2,160 → 98). Only index buffers changed, so no vertex was re-quantised.
 - Placed houses: 29 near GLBs **160.6 MB** + 29 far 22.6 MB + 30 collision 0.1 MB = **175 MB**.
   `house_compress.mjs` meshopt'd the near LODs, which `place_house.mjs` had been writing raw
   (316.3 → 160.6 MB, every triangle count unchanged). All districts: 236.3 MB of the 564.8 MB gate.
