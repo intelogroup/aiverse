@@ -1,0 +1,148 @@
+{
+ "library": "interior-kit.glb",
+ "assets": [
+  {
+   "key": "sofa_settee",
+   "id": "Sofa_01",
+   "tris_raw": 4101,
+   "tris": 4101,
+   "dims": [
+    2.05,
+    0.858,
+    1.039
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/Sofa_01"
+  },
+  {
+   "key": "bar_chair",
+   "id": "bar_chair_round_01",
+   "tris_raw": 14373,
+   "tris": 14373,
+   "dims": [
+    0.502,
+    0.505,
+    0.78
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/bar_chair_round_01"
+  },
+  {
+   "key": "mirror",
+   "id": "ornate_mirror_01",
+   "tris_raw": 14246,
+   "tris": 14246,
+   "dims": [
+    0.621,
+    0.033,
+    0.95
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/ornate_mirror_01"
+  },
+  {
+   "key": "pillows",
+   "id": "throw_pillows_01",
+   "tris_raw": 6362,
+   "tris": 6362,
+   "dims": [
+    0.48,
+    0.231,
+    0.23
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/throw_pillows_01"
+  },
+  {
+   "key": "tv",
+   "id": "television_02",
+   "tris_raw": 2310,
+   "tris": 2310,
+   "dims": [
+    1.117,
+    0.979,
+    1.15
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/television_02"
+  },
+  {
+   "key": "coffee_table",
+   "id": "coffee_table_round_01",
+   "tris_raw": 4044,
+   "tris": 4044,
+   "dims": [
+    0.95,
+    0.95,
+    0.358
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/coffee_table_round_01"
+  },
+  {
+   "key": "side_table",
+   "id": "side_table_01",
+   "tris_raw": 2756,
+   "tris": 2756,
+   "dims": [
+    0.499,
+    0.409,
+    0.5
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/side_table_01"
+  },
+  {
+   "key": "cabinet_modern",
+   "id": "modern_wooden_cabinet",
+   "tris_raw": 24976,
+   "tris": 24000,
+   "dims": [
+    1.05,
+    0.224,
+    0.293
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/modern_wooden_cabinet"
+  },
+  {
+   "key": "vase_ceramic",
+   "id": "ceramic_vase_01",
+   "tris_raw": 10296,
+   "tris": 10296,
+   "dims": [
+    0.163,
+    0.163,
+    0.32
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/ceramic_vase_01"
+  },
+  {
+   "key": "plant_pot_1",
+   "id": "potted_plant_01",
+   "tris_raw": 176226,
+   "tris": 23999,
+   "dims": [
+    0.269,
+    0.291,
+    0.62
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/potted_plant_01"
+  },
+  {
+   "key": "plant_pot_4",
+   "id": "potted_plant_04",
+   "tris_raw": 8929,
+   "tris": 8929,
+   "dims": [
+    0.345,
+    0.38,
+    0.55
+   ],
+   "license": "CC0",
+   "source": "https://polyhaven.com/a/potted_plant_04"
+  }
+ ]
+}

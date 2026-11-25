@@ -35,6 +35,8 @@ export interface City3Room {
 export const CITY3_INDEX_URL = "/assets/interiors/index.json";
 /** One shared asset library for every streamed interior (loaded once, kept). */
 export const CITY3_LIBRARY_URL = assetUrl("/assets/world-city3-library.glb");
+/** The modern interiors kit (tools/city3/kit_interiors.py): its keys never collide with the library above. */
+export const INTERIOR_KIT_URL = assetUrl("/assets/interior-kit.glb");
 
 /** Open (cut away) the nearest room within HIDE_WITHIN m; close it again past SHOW_BEYOND m. */
 export const HIDE_WITHIN = 48;
