@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { assetUrl } from "../../lib/assetUrl";
 import { createFountainBasinMaterial } from "./basinWater";
 import { oceanTime } from "./districtSky";
+import { extendGltf } from "./gltfExtensions";
 import { useTileEpoch } from "./tileScenes";
 
 interface FountainDef {
@@ -16,7 +17,8 @@ interface FountainDef {
 const architectureUrl = assetUrl("/assets/fountain-architecture.glb");
 
 function FountainArchitecture() {
-  const { scene } = useGLTF(architectureUrl);
+  const gl = useThree((state) => state.gl);
+  const { scene } = useGLTF(architectureUrl, true, true, extendGltf(gl));
   const world = useThree((state) => state.scene);
   const epoch = useTileEpoch();
   // Hide only the previous decorative coping after the replacement is ready.
