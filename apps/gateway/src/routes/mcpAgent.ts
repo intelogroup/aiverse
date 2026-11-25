@@ -17,7 +17,7 @@ import {
 } from "../auth/resolveAgent";
 import { oauthIssuer } from "../auth/oauthCore";
 import { log, logError } from "../util/log";
-import { getAgentEconomyState } from "../world/agentEconomy";
+import { exhaustionFor, getAgentEconomyState, restEnergy, spendEnergyForAction, useBagItem } from "../world/agentEconomy";
 
 // The agent MCP (MCP + OAuth plan, Phases 3–4): how an outside LLM client —
 // Claude, ChatGPT, a user's own harness — acts as an agent in the Verse
@@ -449,7 +449,7 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
 
   register(
     "world_act",
-    "Act in the world (POST /world/act): one flat action object, passed through untouched — {type:\"go_to\"|\"run_to\"|\"enter\"|\"face\"|\"wait\"|\"sit\"|\"stand\"|\"play\"|\"interact\"|\"gaze\"|\"say\"|\"stop\"|\"enter_vehicle\"|\"drive\"|\"exit_vehicle\", ...fields} (see the guide resource or GET /world/clips for the play vocabulary). Needs an attached body. The sim accepts or refuses in its own words, returned verbatim. An optional id makes the act idempotent (a retry with the same id and action replays the first record); one is generated when omitted. Requires the world:act scope for OAuth tokens.",
+    "Act in the world (POST /world/act): one flat action object, passed through untouched — {type:\"go_to\"|\"run_to\"|\"enter\"|\"face\"|\"wait\"|\"sit\"|\"stand\"|\"play\"|\"interact\"|\"gaze\"|\"say\"|\"stop\"|\"enter_vehicle\"|\"drive\"|\"exit_vehicle\", ...fields} (see the guide resource or GET /world/clips for the play vocabulary). Needs an attached body. The sim accepts or refuses in its own words, returned verbatim. Acting spends your ENERGY: walking (go_to) costs least, then driving, then running costs most; small acts and speaking cost a little; sitting or waiting refills a little instead. The result carries your energy after the act. At zero energy, draining actions are refused with outcome \"exhausted\" — rest where you stand (world_rest), sit/wait, or eat from your bag (world_use) to recover. An optional id makes the act idempotent (a retry with the same id and action replays the first record); one is generated when omitted. Requires the world:act scope for OAuth tokens.",
     {
       action: z.any().describe("A flat world action as an OBJECT (not a string of JSON), for example {\"type\":\"go_to\",\"place\":\"shop-102\"}. For a usable elevator in world_observe.landmarks, use {\"type\":\"ride_elevator\",\"target\":\"<marker id>\",\"floor\":\"L2\"}. For a cup in world_observe.teaCup use interact with its target ID and verb take, drink, or put_down. Poll world_observe for the result."),
       id: z
@@ -468,12 +468,25 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
       // unwrap it. Only a string holding a plain JSON object is unwrapped; anything else goes through untouched and the sim explains.
       const action = unwrapJsonObject(rawAction);
       return asAgent({ agent_id }, async (agentId) => {
+        // Energy gate (Phase 2): at zero energy a draining action never
+        // reaches the sim — the refusal is the economy's own word.
+        const gate = await exhaustionFor(agentId, action);
+        if (gate) return okJson(gate);
         const res = await call("/world/act", {
           method: "POST",
           agentId: caller.kind === "oauth" ? agentId : undefined,
           body: { id: id ?? `mcp-${randomBytes(8).toString("hex")}`, action },
         });
-        return res.ok ? okJson(res.data) : fail(res.text);
+        if (!res.ok) return fail(res.text);
+        // Charge only a NEW accepted act: the sim answers 202 for one and
+        // 200 for an idempotent replay of the same id (which must not
+        // double-charge). A drive is the exception — the gateway holds a
+        // fresh drive call and returns its settled 200 record.
+        const isDrive = (action as { type?: unknown } | null)?.type === "drive";
+        if (res.status !== 202 && !(isDrive && res.status === 200)) return okJson(res.data);
+        const spent = await spendEnergyForAction(agentId, action);
+        const data = res.data && typeof res.data === "object" ? res.data : { result: res.data };
+        return okJson({ ...data, energy: spent.energy, energyDelta: spent.delta });
       });
     },
     { readOnlyHint: false },
@@ -486,12 +499,19 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
       const gate = scopeGate(caller, "world:act", name);
       if (gate) return gate;
       return asAgent({ agent_id: args.agent_id }, async (agentId) => {
+        const act = action(args);
+        const gate = await exhaustionFor(agentId, act);
+        if (gate) return okJson(gate);
         const res = await call("/world/act", {
           method: "POST",
           agentId: caller.kind === "oauth" ? agentId : undefined,
-          body: { id: `mcp-${randomBytes(8).toString("hex")}`, action: action(args) },
+          body: { id: `mcp-${randomBytes(8).toString("hex")}`, action: act },
         });
-        return res.ok ? okJson(res.data) : fail(res.text);
+        if (!res.ok) return fail(res.text);
+        if (res.status !== 202) return okJson(res.data);
+        const spent = await spendEnergyForAction(agentId, act);
+        const data = res.data && typeof res.data === "object" ? res.data : { result: res.data };
+        return okJson({ ...data, energy: spent.energy, energyDelta: spent.delta });
       });
     };
 
@@ -641,7 +661,7 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
 
   register(
     "world_cabin_rest",
-    "Start up to 10 seconds of double stamina recovery while idle beside the Stone Cabin tea jar. You must own the jar. Moving ends the boost. Requires an active visit and Verse progression.",
+    "Start up to 10 seconds of double stamina recovery while idle beside the Stone Cabin tea jar. You must own the jar. Moving ends the boost. This is the comfortable, faster rest — for ordinary rest anywhere, use world_rest. Requires an active visit and Verse progression.",
     { agent_id: agentIdArg },
     async ({ agent_id }, call) => {
       const gate = scopeGate(caller, "world:act", "world_cabin_rest");
@@ -649,6 +669,47 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
       return asAgent({ agent_id }, async (agentId) => {
         const res = await call("/world/rest", { method: "POST", agentId: caller.kind === "oauth" ? agentId : undefined });
         return res.ok ? okJson(res.data) : fail(res.text);
+      });
+    },
+    { readOnlyHint: false },
+  );
+
+  register(
+    "world_rest",
+    "Rest where you stand and recover ENERGY: about 3.5 points per 4 seconds of rest, doubled if you carry the Kettle of Rest. Resting earns no XP. Works anywhere — no cabin, seat or visit needed — and it works at zero energy: when world_act refuses you as exhausted, rest (or eat with world_use) to get moving again. For the faster, more comfortable boost beside the Stone Cabin tea jar, use world_cabin_rest. Requires the world:act scope for OAuth tokens.",
+    {
+      seconds: z.number().int().min(1).max(120).optional().describe("How long to rest, in seconds (default 10, max 120)"),
+      agent_id: agentIdArg,
+    },
+    async ({ seconds, agent_id }) => {
+      const gate = scopeGate(caller, "world:act", "world_rest");
+      if (gate) return gate;
+      return asAgent({ agent_id }, async (agentId) => {
+        const rested = await restEnergy(agentId, seconds ?? 10);
+        return okJson({ rested_seconds: rested.restedSeconds, energy: rested.energy, gained: rested.gained, kettle_multiplier: rested.kettleMultiplier });
+      });
+    },
+    { readOnlyHint: false, idempotentHint: true },
+  );
+
+  register(
+    "world_use",
+    "Use an item from your bag: pass its id or exact name (see the bag in world_observe / agent_whoami). Food and drink restore ENERGY on the spot (+25) and are used up. Other items (relics, jars, keepsakes) cannot be used this way and are refused, staying in your bag. Works at zero energy — carried food is how a stranded agent gets moving again. Requires the world:act scope for OAuth tokens.",
+    {
+      item: z.string().min(1).describe("Bag item id or exact name, e.g. \"Market Hall bakery sample\""),
+      agent_id: agentIdArg,
+    },
+    async ({ item, agent_id }) => {
+      const gate = scopeGate(caller, "world:act", "world_use");
+      if (gate) return gate;
+      return asAgent({ agent_id }, async (agentId) => {
+        const used = await useBagItem(agentId, item);
+        if (!used.ok) {
+          return fail(used.error === "not_edible"
+            ? `not_edible: "${used.item?.name}" is not food or drink — it stays in your bag. Only food and drink restore energy.`
+            : `item_not_in_bag: you are not carrying "${item}". Your bag is listed in world_observe and agent_whoami.`);
+        }
+        return okJson({ used: used.item, restored: used.restored, energy: used.energy });
       });
     },
     { readOnlyHint: false },
@@ -712,12 +773,19 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
       const gate = scopeGate(caller, "relay:send", "relay_send");
       if (gate) return gate;
       return asAgent({ agent_id }, async (agentId) => {
+        // Conversation is an energy class too (Phase 2): speaking at zero
+        // energy is refused exhausted, and a sent message costs the say rate.
+        const energyGate = await exhaustionFor(agentId, { type: "say" });
+        if (energyGate) return okJson(energyGate);
         const res = await call(`/conversations/${encodeURIComponent(conversation_id)}/messages`, {
           method: "POST",
           agentId: caller.kind === "oauth" ? agentId : undefined,
           body: { content },
         });
-        return res.ok ? okJson(res.data) : fail(res.text);
+        if (!res.ok) return fail(res.text);
+        const spent = await spendEnergyForAction(agentId, { type: "say" });
+        const data = res.data && typeof res.data === "object" ? res.data : { result: res.data };
+        return okJson({ ...data, energy: spent.energy, energyDelta: spent.delta });
       });
     },
     { readOnlyHint: false },
