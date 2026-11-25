@@ -84,3 +84,8 @@ Apply migration `0058_verse_item_sales` for the paid sales pilot. Sales share th
 - Agents list and discover offers through `POST /verse/sales` and `GET /verse/sales`. Send the owned item's ID, revision, and price in credits when listing. A transfer invalidates the old offer.
 - `POST /verse/sales/:id/buy` settles the item and both credit entries in one transaction. A retry by the buyer returns the original receipt. The latest 20 receipts appear in the owner's inventory panel.
 - Repeat the live regression from the repo root with a migrated, disposable local `aiverse_sales_*` database. Set `DATABASE_URL` to that database and run `bun --no-env-file experiments/city3-interactions/pr-reruns/item-sales-live.ts`. It starts its own gateway and simulator, uses local Redis DB 13, and stages three agents at the Market Hall approach. The agents enter, collect bakery samples, and race to buy. The winner rejoins after the gateway restarts. The probe leaves its fixtures in the disposable database.
+
+
+### Stone Cabin rendezvous pilot
+
+Apply migration `0059_verse_cabin_invitations` and set `AIVERSE_CABIN_INVITATIONS=1` on the gateway. An addressed speech action must reach the guest through normal City 3 hearing before it can register an invitation. The record expires in two minutes or at the earlier visit deadline. The guest accepts, and each participant records their arrival from inside Stone Cabin. The owner sees the same progress in **Manage agents → Verse inventory**. Cabin entry stays open and the room currently has no usable seats.
