@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
-import { owners, verseBounties, verseBountyClaims } from "@aiverse/shared/schema";
+import { owners, verseBounties, verseBountyClaims, verseProgressEvents } from "@aiverse/shared/schema";
 import { createApp } from "../app";
 import { signOwnerSession } from "../auth/session";
 import { db } from "../db/client";
@@ -79,4 +79,67 @@ test("a claim window deduplicates entrants and concurrent settlement grants one 
   const bags = await Promise.all([first, second, late].map(async (agent) =>
     (await (await request("/verse/inventory", agent.agentToken)).json()).items));
   expect(bags.flat()).toEqual([{ id: a.bounty.rewardItemId, agentId: a.bounty.winnerAgentId, name: "Ceramic token", revision: 0 }]);
+});
+
+test("paid sales settle once, preserve credits, reject stale offers, and expose private receipts", async () => {
+  const previous = process.env.AIVERSE_VERSE_PROGRESS;
+  process.env.AIVERSE_VERSE_PROGRESS = "1";
+  try {
+    const [seller, first, second, unfunded, admin] = await Promise.all([
+      createAgent(), createAgent(), createAgent(), createAgent(), adminToken(),
+    ]);
+    await db.insert(verseProgressEvents).values([first, second].map((buyer) => ({
+      agentId: buyer.id, kind: "pickup", source: "sale-test", credits: 5,
+    })));
+    const issue = async (name: string) => {
+      const response = await request("/admin/verse/inventory", admin, { agentId: seller.id, name });
+      expect(response.status).toBe(201);
+      return (await response.json()).item;
+    };
+    const listing = async (itemId: string) => {
+      const response = await request("/verse/sales", seller.agentToken, { itemId, revision: 0, price: 4 });
+      expect(response.status).toBe(200);
+      return (await response.json()).offer;
+    };
+    const buy = (agent: typeof seller, offerId: string) => request(`/verse/sales/${offerId}/buy`, agent.agentToken, {});
+    const inventory = async (agent: typeof seller) =>
+      (await request(`/owners/agents/${agent.id}/inventory`, agent.ownerToken)).json();
+    const item = await issue("Market bowl");
+    const offer = await listing(item.id);
+    expect(await listing(item.id)).toEqual(offer);
+    expect(await (await buy(seller, offer.id)).json()).toEqual({ error: "own_offer" });
+    expect(await (await buy(unfunded, offer.id)).json()).toEqual({ error: "insufficient_credits" });
+
+    const attempts = await Promise.all([buy(first, offer.id), buy(second, offer.id)]);
+    expect(attempts.map((r) => r.status).sort()).toEqual([200, 409]);
+    const winner = attempts[0].ok ? first : second;
+    const loser = attempts[0].ok ? second : first;
+    const accepted = await attempts.find((r) => r.ok)!.json();
+    expect(await (await buy(winner, offer.id)).json()).toEqual(accepted);
+
+    const bags = await Promise.all([inventory(seller), inventory(winner), inventory(loser)]);
+    expect(bags.map((bag) => bag.progress.credits)).toEqual([4, 1, 5]);
+    expect(bags.map((bag) => bag.items)).toEqual([[], [{ ...item, agentId: winner.id, revision: 1 }], []]);
+    expect(bags.map((bag) => bag.receipts.map((receipt: { side: string }) => receipt.side)))
+      .toEqual([["sold"], ["bought"], []]);
+    expect((await request(`/owners/agents/${winner.id}/inventory`, loser.ownerToken)).status).toBe(404);
+
+    const staleItem = await issue("Market cup");
+    const stale = await listing(staleItem.id);
+    expect((await request(`/verse/inventory/${staleItem.id}/transfer`, seller.agentToken, {
+      toAgentId: unfunded.id, revision: 0,
+    })).status).toBe(200);
+    expect(await (await buy(loser, stale.id)).json()).toEqual({ error: "stale_offer" });
+    const { offers } = await (await request("/verse/sales", loser.agentToken)).json();
+    expect(offers.some((row: { id: string }) => [offer.id, stale.id].includes(row.id))).toBe(false);
+
+    const competing = await Promise.all([issue("Pin"), issue("Badge")]);
+    const offersForOneBuyer = await Promise.all(competing.map((row) => listing(row.id)));
+    const spending = await Promise.all(offersForOneBuyer.map((row) => buy(loser, row.id)));
+    expect(spending.map((r) => r.status).sort()).toEqual([200, 409]);
+    expect((await inventory(loser)).progress.credits).toBe(1);
+  } finally {
+    if (previous === undefined) delete process.env.AIVERSE_VERSE_PROGRESS;
+    else process.env.AIVERSE_VERSE_PROGRESS = previous;
+  }
 });

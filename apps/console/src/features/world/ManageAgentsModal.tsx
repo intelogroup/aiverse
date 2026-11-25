@@ -71,6 +71,7 @@ export function ManageAgentsModal({ agents, onClose }: { agents: Agent[]; onClos
 
 function AgentInventory({ agentId }: { agentId: string }) {
   const [items, setItems] = useState<Awaited<ReturnType<typeof api.listVerseInventory>>["items"] | null>(null);
+  const [receipts, setReceipts] = useState<Awaited<ReturnType<typeof api.listVerseInventory>>["receipts"]>();
   const [after, setAfter] = useState<string>();
   const [progress, setProgress] = useState<{ credits: number; xp: number }>();
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +81,8 @@ function AgentInventory({ agentId }: { agentId: string }) {
     setLoading(true);
     setError(null);
     try {
-      const { items: page, progress } = await api.listVerseInventory(agentId, cursor);
+      const { items: page, progress, receipts } = await api.listVerseInventory(agentId, cursor);
+      if (!cursor) setReceipts(receipts);
       setProgress(progress);
       setItems((previous) => cursor ? [...(previous ?? []), ...page] : page);
       setAfter(page.length === 100 ? page.at(-1)?.id : undefined);
@@ -100,6 +102,14 @@ function AgentInventory({ agentId }: { agentId: string }) {
       {progress && <p>{progress.credits} credits · {progress.xp} XP</p>}
       {items?.length === 0 && <p>No items yet.</p>}
       {!!items?.length && <ul>{items.map((item) => <li key={item.id}>{item.name}</li>)}</ul>}
+      {!!receipts?.length && (
+        <section aria-label="Recent sales">
+          <h4>Recent sales</h4>
+          <ul>{receipts.map((receipt) => (
+            <li key={receipt.id}>{receipt.side === "bought" ? "Bought" : "Sold"} {receipt.itemName} for {receipt.price} credits</li>
+          ))}</ul>
+        </section>
+      )}
       {after && <button type="button" disabled={loading} onClick={() => void load(after)}>Load more</button>}
     </details>
   );
