@@ -33,7 +33,7 @@ export function assetUrl(path: string): string {
 }
 
 type ManifestLike = {
-  districts: { url: string; collisionUrl?: string }[];
+  districts: { url: string; collisionUrl?: string; farUrl?: string }[];
   links?: string;
   shell?: string;
 };
@@ -48,6 +48,7 @@ export function resolveManifestAssets<M extends ManifestLike>(m: M): M {
       ...d,
       url: assetUrl(d.url),
       collisionUrl: d.collisionUrl ? assetUrl(d.collisionUrl) : d.collisionUrl,
+      ...(d.farUrl ? { farUrl: assetUrl(d.farUrl) } : {}),
     })),
   };
 }
