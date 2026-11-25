@@ -12,6 +12,7 @@ tex_m/
 assets/ptex/
 out/*.blend*
 out/prev_*
+out/prevm_*
 glass_atlas.json
 msigns.json
 palette_m.json
@@ -37,3 +38,9 @@ assets/user_uploads/verres/
 
 # Mira uploaded authoring sources remain local.
 assets/user_uploads/mira_maid/
+
+# Preview render output (preview_multi.py / sheet.py / street.py sweeps).
+out/prevm_*/
+out/browser*/
+out/street/
+out/rotation/

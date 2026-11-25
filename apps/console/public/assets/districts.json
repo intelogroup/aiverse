@@ -16,7 +16,7 @@
   {
    "id": "house-american-1",
    "name": "american-1",
-   "url": "/assets/houses/american-y0.glb",
+   "url": "/assets/houses/american-y270.glb",
    "collisionUrl": "/assets/houses/american-y0.col.glb",
    "center": [
     -42,
@@ -28,12 +28,13 @@
     108
    ],
    "theme": "bazaar",
-   "farUrl": "/assets/houses/american-y0.far.glb"
+   "farUrl": "/assets/houses/american-y270.far.glb",
+   "rotationY": 90
   },
   {
    "id": "house-cabin-1",
    "name": "cabin-1",
-   "url": "/assets/houses/cabin-y0.glb",
+   "url": "/assets/houses/cabin-y90.glb",
    "collisionUrl": "/assets/houses/cabin-y0.col.glb",
    "center": [
     -20,
@@ -45,7 +46,8 @@
     84
    ],
    "theme": "bazaar",
-   "farUrl": "/assets/houses/cabin-y0.far.glb"
+   "farUrl": "/assets/houses/cabin-y90.far.glb",
+   "rotationY": 270
   },
   {
    "id": "house-villa-pool-1",
@@ -67,7 +69,7 @@
   {
    "id": "house-citadel-east-1",
    "name": "citadel-east-1",
-   "url": "/assets/houses/suburban-blue-y90.glb",
+   "url": "/assets/houses/suburban-blue-y0.glb",
    "collisionUrl": "/assets/houses/suburban-blue-y90.col.glb",
    "center": [
     113,
@@ -79,7 +81,8 @@
     97
    ],
    "theme": "bazaar",
-   "farUrl": "/assets/houses/suburban-blue-y90.far.glb"
+   "farUrl": "/assets/houses/suburban-blue-y0.far.glb",
+   "rotationY": 90
   },
   {
    "id": "house-shirakawago-1",
@@ -186,7 +189,7 @@
   {
    "id": "house-ring-01-1",
    "name": "ring-01-1",
-   "url": "/assets/houses/kruglov-house-y90.glb",
+   "url": "/assets/houses/kruglov-house-y180.glb",
    "collisionUrl": "/assets/houses/kruglov-house-y90.col.glb",
    "center": [
     -149.6,
@@ -198,12 +201,13 @@
     110
    ],
    "theme": "bazaar",
-   "farUrl": "/assets/houses/kruglov-house-y90.far.glb"
+   "farUrl": "/assets/houses/kruglov-house-y180.far.glb",
+   "rotationY": 270
   },
   {
    "id": "house-ring-02-0",
    "name": "ring-02-0",
-   "url": "/assets/houses/small-brick-y90.glb",
+   "url": "/assets/houses/small-brick-y180.glb",
    "collisionUrl": "/assets/houses/small-brick-y90.col.glb",
    "center": [
     -148,
@@ -215,12 +219,13 @@
     23.8
    ],
    "theme": "bazaar",
-   "farUrl": "/assets/houses/small-brick-y90.far.glb"
+   "farUrl": "/assets/houses/small-brick-y180.far.glb",
+   "rotationY": 270
   },
   {
    "id": "house-ring-02-1",
    "name": "ring-02-1",
-   "url": "/assets/houses/suburban-blue-y90.glb",
+   "url": "/assets/houses/suburban-blue-y0.glb",
    "collisionUrl": "/assets/houses/suburban-blue-y90.col.glb",
    "center": [
     -145.9,
@@ -232,12 +237,13 @@
     46.2
    ],
    "theme": "bazaar",
-   "farUrl": "/assets/houses/suburban-blue-y90.far.glb"
+   "farUrl": "/assets/houses/suburban-blue-y0.far.glb",
+   "rotationY": 90
   },
   {
    "id": "house-ring-03-0",
    "name": "ring-03-0",
-   "url": "/assets/houses/medieval-rx-y90.glb",
+   "url": "/assets/houses/medieval-rx-y180.glb",
    "collisionUrl": "/assets/houses/medieval-rx-y90.col.glb",
    "center": [
     -145.9,
@@ -249,7 +255,8 @@
     -46.2
    ],
    "theme": "bazaar",
-   "farUrl": "/assets/houses/medieval-rx-y90.far.glb"
+   "farUrl": "/assets/houses/medieval-rx-y180.far.glb",
+   "rotationY": 270
   },
   {
    "id": "house-ring-03-1",
@@ -271,7 +278,7 @@
   {
    "id": "house-ring-04-0",
    "name": "ring-04-0",
-   "url": "/assets/houses/kruglov-house-y90.glb",
+   "url": "/assets/houses/kruglov-house-y180.glb",
    "collisionUrl": "/assets/houses/kruglov-house-y90.col.glb",
    "center": [
     -149.6,
@@ -283,12 +290,13 @@
     -110
    ],
    "theme": "bazaar",
-   "farUrl": "/assets/houses/kruglov-house-y90.far.glb"
+   "farUrl": "/assets/houses/kruglov-house-y180.far.glb",
+   "rotationY": 270
   },
   {
    "id": "house-ring-04-1",
    "name": "ring-04-1",
-   "url": "/assets/houses/small-brick-y90.glb",
+   "url": "/assets/houses/small-brick-y180.glb",
    "collisionUrl": "/assets/houses/small-brick-y90.col.glb",
    "center": [
     -148,
@@ -300,7 +308,8 @@
     -85
    ],
    "theme": "bazaar",
-   "farUrl": "/assets/houses/small-brick-y90.far.glb"
+   "farUrl": "/assets/houses/small-brick-y180.far.glb",
+   "rotationY": 270
   },
   {
    "id": "house-ring-05-0",
@@ -322,7 +331,7 @@
   {
    "id": "house-ring-05-1",
    "name": "ring-05-1",
-   "url": "/assets/houses/medieval-rx-y90.glb",
+   "url": "/assets/houses/medieval-rx-y180.glb",
    "collisionUrl": "/assets/houses/medieval-rx-y90.col.glb",
    "center": [
     -145.9,
@@ -334,7 +343,8 @@
     -147.5
    ],
    "theme": "bazaar",
-   "farUrl": "/assets/houses/medieval-rx-y90.far.glb"
+   "farUrl": "/assets/houses/medieval-rx-y180.far.glb",
+   "rotationY": 270
   },
   {
    "id": "house-ring-10-0",
@@ -373,7 +383,7 @@
   {
    "id": "house-ring-15-0",
    "name": "ring-15-0",
-   "url": "/assets/houses/cozy-cottage-y0.glb",
+   "url": "/assets/houses/cozy-cottage-y270.glb",
    "collisionUrl": "/assets/houses/cozy-cottage-y0.col.glb",
    "center": [
     -110,
@@ -385,7 +395,8 @@
     -151.6
    ],
    "theme": "bazaar",
-   "farUrl": "/assets/houses/cozy-cottage-y0.far.glb"
+   "farUrl": "/assets/houses/cozy-cottage-y270.far.glb",
+   "rotationY": 90
   },
   {
    "id": "house-ring-15-1",
@@ -441,7 +452,7 @@
   {
    "id": "house-ring-25-0",
    "name": "ring-25-0",
-   "url": "/assets/houses/american-y0.glb",
+   "url": "/assets/houses/american-y270.glb",
    "collisionUrl": "/assets/houses/american-y0.col.glb",
    "center": [
     -46.2,
@@ -453,7 +464,8 @@
     -148.2
    ],
    "theme": "bazaar",
-   "farUrl": "/assets/houses/american-y0.far.glb"
+   "farUrl": "/assets/houses/american-y270.far.glb",
+   "rotationY": 90
   },
   {
    "id": "house-ring-25-1",
@@ -526,7 +538,7 @@
   {
    "id": "house-ring-35-1",
    "name": "ring-35-1",
-   "url": "/assets/houses/american-y0.glb",
+   "url": "/assets/houses/american-y270.glb",
    "collisionUrl": "/assets/houses/american-ring-35-1.col.glb",
    "center": [
     46.2,
@@ -538,7 +550,8 @@
     -148.2
    ],
    "theme": "bazaar",
-   "farUrl": "/assets/houses/american-y0.far.glb"
+   "farUrl": "/assets/houses/american-y270.far.glb",
+   "rotationY": 90
   },
   {
    "id": "house-ring-40-0",
@@ -577,7 +590,7 @@
   {
    "id": "house-ring-45-0",
    "name": "ring-45-0",
-   "url": "/assets/houses/cozy-cottage-y0.glb",
+   "url": "/assets/houses/cozy-cottage-y270.glb",
    "collisionUrl": "/assets/houses/cozy-cottage-y0.col.glb",
    "center": [
     85,
@@ -589,7 +602,8 @@
     -151.6
    ],
    "theme": "bazaar",
-   "farUrl": "/assets/houses/cozy-cottage-y0.far.glb"
+   "farUrl": "/assets/houses/cozy-cottage-y270.far.glb",
+   "rotationY": 90
   },
   {
    "id": "house-ring-45-1",
@@ -611,7 +625,7 @@
   {
    "id": "house-ring-50-0",
    "name": "ring-50-0",
-   "url": "/assets/houses/residence-wsg-y270.glb",
+   "url": "/assets/houses/residence-wsg-y180.glb",
    "collisionUrl": "/assets/houses/residence-wsg-y270.col.glb",
    "center": [
     147.8,
@@ -623,12 +637,13 @@
     147.5
    ],
    "theme": "bazaar",
-   "farUrl": "/assets/houses/residence-wsg-y270.far.glb"
+   "farUrl": "/assets/houses/residence-wsg-y180.far.glb",
+   "rotationY": 90
   },
   {
    "id": "house-ring-50-1",
    "name": "ring-50-1",
-   "url": "/assets/houses/suburban-bogdan-y270.glb",
+   "url": "/assets/houses/suburban-bogdan-y180.glb",
    "collisionUrl": "/assets/houses/suburban-bogdan-y270.col.glb",
    "center": [
     148.3,
@@ -640,7 +655,8 @@
     167.5
    ],
    "theme": "bazaar",
-   "farUrl": "/assets/houses/suburban-bogdan-y270.far.glb"
+   "farUrl": "/assets/houses/suburban-bogdan-y180.far.glb",
+   "rotationY": 90
   },
   {
    "id": "house-ring-51-0",
@@ -679,7 +695,7 @@
   {
    "id": "house-ring-52-0",
    "name": "ring-52-0",
-   "url": "/assets/houses/victorian-green-y270.glb",
+   "url": "/assets/houses/victorian-green-y90.glb",
    "collisionUrl": "/assets/houses/victorian-green-y270.col.glb",
    "center": [
     146.1,
@@ -691,12 +707,13 @@
     23.8
    ],
    "theme": "bazaar",
-   "farUrl": "/assets/houses/victorian-green-y270.far.glb"
+   "farUrl": "/assets/houses/victorian-green-y90.far.glb",
+   "rotationY": 180
   },
   {
    "id": "house-ring-52-1",
    "name": "ring-52-1",
-   "url": "/assets/houses/residence-wsg-y270.glb",
+   "url": "/assets/houses/residence-wsg-y180.glb",
    "collisionUrl": "/assets/houses/residence-wsg-y270.col.glb",
    "center": [
     147.8,
@@ -708,12 +725,13 @@
     46.2
    ],
    "theme": "bazaar",
-   "farUrl": "/assets/houses/residence-wsg-y270.far.glb"
+   "farUrl": "/assets/houses/residence-wsg-y180.far.glb",
+   "rotationY": 90
   },
   {
    "id": "house-ring-53-0",
    "name": "ring-53-0",
-   "url": "/assets/houses/suburban-bogdan-y270.glb",
+   "url": "/assets/houses/suburban-bogdan-y180.glb",
    "collisionUrl": "/assets/houses/suburban-bogdan-y270.col.glb",
    "center": [
     148.3,
@@ -725,7 +743,8 @@
     -46.2
    ],
    "theme": "bazaar",
-   "farUrl": "/assets/houses/suburban-bogdan-y270.far.glb"
+   "farUrl": "/assets/houses/suburban-bogdan-y180.far.glb",
+   "rotationY": 90
   },
   {
    "id": "house-ring-53-1",
@@ -764,7 +783,7 @@
   {
    "id": "house-ring-54-1",
    "name": "ring-54-1",
-   "url": "/assets/houses/victorian-green-y270.glb",
+   "url": "/assets/houses/victorian-green-y90.glb",
    "collisionUrl": "/assets/houses/victorian-green-y270.col.glb",
    "center": [
     146.1,
@@ -776,7 +795,8 @@
     -85
    ],
    "theme": "bazaar",
-   "farUrl": "/assets/houses/victorian-green-y270.far.glb"
+   "farUrl": "/assets/houses/victorian-green-y90.far.glb",
+   "rotationY": 180
   },
   {
    "id": "props-lido",

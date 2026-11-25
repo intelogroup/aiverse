@@ -5,8 +5,8 @@
 // stays axis-aligned. The house front faces local +z before the yaw. Output: <out>/<ID>.glb, <out>/<ID>.col.glb, <out>/<ID>.json (the DistrictDef rect).
 import { NodeIO, Document, getBounds } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
-import { dedup, flatten, join, metalRough, prune, simplify, weld } from "@gltf-transform/functions";
-import { MeshoptSimplifier } from "meshoptimizer";
+import { dedup, flatten, join, metalRough, meshopt, prune, simplify, weld } from "@gltf-transform/functions";
+import { MeshoptEncoder, MeshoptSimplifier } from "meshoptimizer";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 const [src, id, X, Z, YAW] = process.argv.slice(2, 7).map((v, i) => (i < 2 ? v : Number(v)));
@@ -18,9 +18,12 @@ const S = Number(opt.scale ?? 1), OUT = opt.out ?? "apps/console/public/assets/h
 mkdirSync(OUT, { recursive: true });
 // --asset=NAME: one shared GLB pair per model and yaw (NAME-y<YAW>.glb), authored at (0, 0); the district's `origin` puts it on the lot, so a model
 // placed on many lots is stored and downloaded once. Without it the file is <ID>.glb in world coordinates (origin [0, 0]).
-const FILE = opt.asset ? `${opt.asset}-y${YAW}` : id, [PX, PZ] = opt.asset ? [0, 0] : [X, Z];
+// One GLB per model, authored at yaw 0: the lot's angle is recorded as `rotationY` and
+// DistrictWorld applies it at load. Baking the yaw here (flatten) is what forced a full
+// duplicate GLB per angle -- 80.8 MB across ten models.
+const FILE = opt.asset ? opt.asset : id, [PX, PZ] = opt.asset ? [0, 0] : [X, Z];
 
-const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
+const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ "meshopt.encoder": MeshoptEncoder });
 const doc = await io.read(src);
 // three.js dropped KHR_materials_pbrSpecularGlossiness: such a model renders untextured white, so convert it to metal/rough first
 if (doc.getRoot().listExtensionsUsed().some((e) => e.extensionName === "KHR_materials_pbrSpecularGlossiness")) await doc.transform(metalRough());
@@ -34,7 +37,8 @@ const inner = doc.createNode("house_inner").setTranslation([-cx * S, -b.min[1] *
 // --floor = height of the visual floor top above the model's lowest point: the house sinks so that floor sits 0.28 m over the walk slab (hero-shop rule, the walker steps up 0.3)
 const FL = opt.floor !== undefined ? Number(opt.floor) * S : null, SINK = FL === null ? 0 : FL - 0.28;
 const outer = doc.createNode(`house_${FILE}`).setTranslation([PX, WALK_Y - SINK, PZ]);
-const h = (YAW * Math.PI) / 360; outer.setRotation([0, Math.sin(h), 0, Math.cos(h)]);
+// A shared model stays at yaw 0 (the lot's yaw lives in the manifest); a per-lot file bakes it.
+if (!opt.asset) { const h = (YAW * Math.PI) / 360; outer.setRotation([0, Math.sin(h), 0, Math.cos(h)]); }
 for (const n of scene.listChildren()) { scene.removeChild(n); inner.addChild(n); }
 // --mask: alpha-BLEND cards (thatch, foliage) become alpha-tested, which three.js draws without transparency sorting
 if (opt.mask !== undefined) for (const m of doc.getRoot().listMaterials()) if (m.getAlphaMode() === "BLEND") m.setAlphaMode("MASK").setAlphaCutoff(0.5);
@@ -43,6 +47,12 @@ if (opt.recolor) for (const spec of opt.recolor.split(";")) { const [name, rgb] 
 outer.addChild(inner); scene.addChild(outer);
 // one draw call per material instead of one per source object (the pool villa has 1345 objects): flatten bakes the placement transform
 await doc.transform(dedup(), flatten(), join({ keepNamed: false }), prune());
+// Compress the near GLB. Without this the placed houses shipped raw while house_lods.mjs
+// compressed every .far.glb at level "high": 29 near files weighed 316 MB (cabin-y90.glb
+// 49.0 MB for 766k tris) against 22.6 MB for the same 29 far files. Lossless for geometry,
+// and drei's useGLTF(url, true, true, ...) already runs the meshopt decoder.
+await MeshoptEncoder.ready;
+await doc.transform(meshopt({ encoder: MeshoptEncoder, level: "high" }));
 await io.write(`${OUT}/${FILE}.glb`, doc);
 
 // collision: closed boxes, authored in a "door frame" where the door side faces +z, then turned by the door side's angle and the yaw (90-degree steps).
@@ -87,10 +97,10 @@ for (const [name, bx, bz, ex, ez, by0, by1] of boxes) {
     .setIndices(col.createAccessor().setType("SCALAR").setArray(new Uint16Array(idx)).setBuffer(buf));
   sc.addChild(col.createNode(`col_house_${FILE}_${name}`).setMesh(col.createMesh(name).addPrimitive(prim)));
 }
-await new NodeIO().write(`${OUT}/${FILE}.col.glb`, col);
+await new NodeIO().write(`${OUT}/${FILE}-y${YAW}.col.glb`, col);   // collision IS yaw-dependent: keep the yaw in its name
 
 const half = Math.ceil(Math.max(hx, hz)) + 6;
-const def = { id: `house-${id}`, name: id, url: `/assets/houses/${FILE}.glb`, collisionUrl: `/assets/houses/${FILE}.col.glb`, center: [X, Z], half, origin: [X - PX, Z - PZ], theme: "bazaar" };
+const def = { id: `house-${id}`, name: id, url: `/assets/houses/${FILE}.glb`, collisionUrl: `/assets/houses/${FILE}-y${YAW}.col.glb`, center: [X, Z], half, origin: [X - PX, Z - PZ], theme: "bazaar", ...(opt.asset && YAW % 360 !== 0 ? { rotationY: YAW % 360 } : {}) };
 // upsert into the committed base manifest; tiles_manifest.mjs carries every `house-*` entry into the tile manifest
 const mpath = opt.manifest ?? `${OUT}/../districts.json`;
 const man = JSON.parse(readFileSync(mpath, "utf8"));

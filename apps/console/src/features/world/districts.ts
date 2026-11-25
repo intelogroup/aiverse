@@ -30,6 +30,15 @@ export type DistrictDef = {
   collisionUrl?: string;
   /** Where the GLB's local origin sits in the world. Defaults to `center` (the per-district GLBs are centred on themselves); world tiles are already in world coordinates and say [0, 0]. */
   origin?: [number, number];
+  /**
+   * Yaw applied to the loaded GLB, in degrees, about the district origin.
+   *
+   * Placed houses ship ONE orientation per model (place_house keeps the yaw out of the baked
+   * vertices and records it here instead), so lots that sit at different angles share a single
+   * GLB instead of duplicating it per yaw -- the duplication was 70.7 MB of detail and ~8 MB of
+   * far stand-ins for 10 models. Collision is NOT rotated: those files are already baked per lot.
+   */
+  rotationY?: number;
   /** A light stand-in (placed houses: house_lods.mjs) shown from the moment the manifest loads until this district's detail mounts. */
   farUrl?: string;
   /** Empty `url` = collision-only square (tiles whose visual triangles all fell in neighbours). */
