@@ -15,9 +15,21 @@ import staged from "./staged-assets.json";
 
 export const DEFAULT_ASSET_BASE = "https://assets.aiverse.network";
 
+/**
+ * Which base applies when `VITE_ASSET_BASE` is unset.
+ *
+ * Dev must stay local: the R2 bucket sends no CORS headers for `http://localhost:*`, so
+ * pointing a dev server at it produces a blank canvas with a console CORS error and no
+ * visible hint as to why. A developer running `vite` is also looking at the files in this
+ * checkout, so hashed CDN copies are the wrong default there. Set `VITE_ASSET_BASE`
+ * explicitly to exercise CDN delivery locally.
+ */
+export const defaultAssetBase = (dev: boolean): string => (dev ? "" : DEFAULT_ASSET_BASE);
+
 const rawBase = import.meta.env.VITE_ASSET_BASE as string | undefined;
-/** "" disables R2 delivery entirely; undefined falls back to the default bucket. */
-export const ASSET_BASE = rawBase === undefined ? DEFAULT_ASSET_BASE : rawBase;
+/** "" disables R2 delivery entirely; undefined falls back to local in dev, the bucket in prod. */
+export const ASSET_BASE =
+  rawBase !== undefined ? rawBase : defaultAssetBase(import.meta.env.DEV === true);
 
 const STAGED = staged as Record<string, string>;
 

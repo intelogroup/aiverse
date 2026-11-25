@@ -64,8 +64,10 @@ Root-level `bunx tsc --noEmit` (no `-p`) is the repo's real typecheck per CLAUDE
   **~7,500–9,000 draws and 7.6–8.9 M triangles per frame** on an M4 (ANGLE Metal), i.e. ~2 fps.
   `asset-budgets.ts` gates bytes and triangles only, and `bazaarBatch.ts` merges props at runtime,
   so no static GLB inspection predicts the real draw count.
-- Local dev needs `VITE_ASSET_BASE=""`: otherwise world GLBs resolve to
-  `https://assets.aiverse.network`, which CORS-blocks at localhost and leaves a blank canvas.
+- Local dev serves `/assets/` by default now (`defaultAssetBase(true)` in `src/lib/assetUrl.ts`);
+  before that, a plain `vite` resolved world GLBs to `https://assets.aiverse.network`, which
+  CORS-blocks at localhost and left a blank canvas with no visible cause. Set `VITE_ASSET_BASE`
+  explicitly to exercise CDN delivery locally, or `VITE_ASSET_BASE=""` to force it off in a build.
 
 ## Not done / next
 City 3 has no crowd or navmesh (footprints + lots + anchors exist in `out/city3-nav.json`, `out/hero-anchors.json`); no head look-at;
