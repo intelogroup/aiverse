@@ -204,7 +204,9 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
       if (!live) { disposeTree(g.scene); return; }
       originals.push(g.scene);
       for (const d of ds) {
-        const c = g.scene.clone(); const [ox, oz] = originOf(d); c.position.set(ox, 0, oz); c.name = `far:${d.id}`;
+        const c = g.scene.clone(); const [ox, oz] = originOf(d); c.position.set(ox, 0, oz);
+        c.rotation.y = THREE.MathUtils.degToRad(d.rotationY ?? 0);   // must match mount(), or the stand-in pops
+        c.name = `far:${d.id}`;
         c.visible = !groups.current.has(d.id); scene.add(c); farGroups.current.set(d.id, c);
       }
       syncShell();
@@ -323,7 +325,9 @@ export function DistrictWorld({ residentUrl, light, collide = true, meshesRef, w
   }, [w, gl, controls, camera]);
 
   const mount = (d: DistrictDef, root: THREE.Object3D | null, t0: number) => {
-    const g = new THREE.Group(); g.name = `district:${d.id}`; const [ox, oz] = originOf(d); g.position.set(ox, 0, oz); if (root) g.add(root);
+    const g = new THREE.Group(); g.name = `district:${d.id}`; const [ox, oz] = originOf(d); g.position.set(ox, 0, oz);
+    g.rotation.y = THREE.MathUtils.degToRad(d.rotationY ?? 0);   // shared GLB per model: the lot supplies the yaw
+    if (root) g.add(root);
     applyNight(g, themeRef.current?.night ?? 0);
     sharpenTextures(g, Math.min(8, gl.capabilities.getMaxAnisotropy()));
     if (manifest?.tiles) hideLegacyWater(g);
