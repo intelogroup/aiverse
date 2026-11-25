@@ -4,6 +4,7 @@ import { extendGltf } from "./gltfExtensions";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { cloneVillaScene } from "./villaMaterials";
 
 /**
  * The Villa — a user-supplied estate (source: a 3DS model uploaded by the
@@ -39,31 +40,7 @@ function VillaModel() {
   const gl = useThree((s) => s.gl);
   const bridge = useGLTF(assetUrl("/assets/villa-bridge.glb"), true, true, extendGltf(gl));
   const gltf = useGLTF(assetUrl("/assets/villa.glb"), true, true, extendGltf(gl));
-  const scene = useMemo(() => {
-    const clone = gltf.scene.clone(true);
-    clone.traverse(o => {
-      const mesh = o as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      mesh.castShadow = true; mesh.receiveShadow = true;
-      // F2 material lift (2026-11-23): the converted GLB's materials are
-      // honest (metalness 0, base colours from the 3DS), but the model is
-      // single-sided and its shaded faces starved under the console's
-      // direct-light rig — in Blender/Cycles the same faces read light.
-      // On the placed copy only (geometry bytes untouched): clone each
-      // material, render double-sided so inward-facing shells still shade,
-      // and raise env response so shade lifts toward the reference read.
-      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-      const lifted = mats.map(m => {
-        if (!(m instanceof THREE.MeshStandardMaterial)) return m;
-        const c = m.clone();
-        c.side = THREE.DoubleSide;
-        c.envMapIntensity = 1.5;
-        return c;
-      });
-      mesh.material = Array.isArray(mesh.material) ? lifted : lifted[0];
-    });
-    return clone;
-  }, [gltf.scene]);
+  const scene = useMemo(() => cloneVillaScene(gltf.scene), [gltf.scene]);
 
   return (
     <>
