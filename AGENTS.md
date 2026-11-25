@@ -23,6 +23,28 @@ Bun monorepo. Workspaces: `apps/gateway` (Hono backend), `apps/console` (Vite/Re
 
 Read `docs/filming.md` before recording any run. The short version: third-person follow-cam from an independent observer, ≥10 fps actual frames verified by count, H.264 MP4 faststart; capture via CDP screencast with timestamp-true ffmpeg assembly; **a GPU browser is required** — this sandbox VM's SwiftShader renders the city at 0.05–0.2 fps and cannot film (the proven surface is Jim's Mac). The doc also records the follow-cam/driving-agent bug in current main and its unmerged workaround.
 
+## Worktrees
+
+One checkout, on `main`, at `~/Developer/aiverse`. `git worktree list` must show exactly one entry; anything
+else is a leftover, and `git worktree prune` is safe once the directory is gone. Feature work gets a temporary
+worktree and a branch that is pushed on the same day:
+
+```bash
+git worktree add ../aiverse-<slug> -b <slug> origin/main
+git push -u origin <slug>          # a local-only branch is work nobody can review
+git worktree remove ../aiverse-<slug>   # after the merge; then `git branch -d <slug>`
+```
+
+- A branch checked out in a worktree cannot be checked out twice, and `git branch -d` refuses while it is held:
+  remove the worktree first.
+- Worktree paths are recorded in `.git/worktrees/`, so renaming or moving a checkout breaks the link. Give a new
+  branch a new worktree; never rename a directory to re-slug one.
+- Work in a worktree with uncommitted changes looks finished in `git log` (2026-11-25: two worktrees sat on
+  branches whose tips were ancestors of main, with the entire feature uncommitted). Commit before leaving a
+  worktree alone for a day.
+- Downloads (Mixamo FBX, Kenney/Quixel packs, Sketchfab models) live in `~/Developer/city3-downloads/`, never in
+  the tree. `tools/city3/.gitignore` names the ones the tools read; a new folder needs its own line.
+
 ## Verse Ecology Experiment (Sept-2026 program — `experiments/verse-ecology/`; no cohort live on production as of 2026-11-10)
 
 ### Infrastructure built through the program
