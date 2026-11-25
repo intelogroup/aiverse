@@ -230,3 +230,6 @@ The uploaded Sketchfab export splits one continuous colored surface into four ch
   when the material inherits the scene environment. The plaza and ring tree
   cards now use a small fill from their own diffuse map to keep detail in
   shadow, with the original alpha cutouts and cast shadows.
+  Tiles can arrive with a gray placeholder before their diffuse texture.
+  Wait for the real texture before binding the fill, or the canopy will
+  retain the gray placeholder even after the diffuse map loads.

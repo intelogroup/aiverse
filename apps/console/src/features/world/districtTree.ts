@@ -57,15 +57,17 @@ export const hideLegacyWater = (root: THREE.Object3D) => root.traverse((o) => {
 
 /**
  * Approximate daylight filtering through the tree pack's alpha-masked leaf
- * cards. Use the leaf texture for the fill so bark and holes stay unchanged.
+ * cards. Return false while the tile is still using a placeholder texture.
  */
 export function softenTreeFoliage(material: THREE.Material) {
   if (!(material instanceof THREE.MeshStandardMaterial) ||
       !/^Tree_Branches_0[12](?:\.\d+)?$/.test(material.name) ||
-      material.alphaTest <= 0 || !material.map || material.emissiveMap) return;
+      material.alphaTest <= 0 || !material.map || material.emissiveMap) return true;
+  if (material.map.userData.deferUrl) return false;
 
   material.emissive.setRGB(1, 1, 1);
   material.emissiveMap = material.map;
   material.emissiveIntensity = 0.42;
   material.needsUpdate = true;
+  return true;
 }

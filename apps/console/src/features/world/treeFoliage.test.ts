@@ -35,3 +35,19 @@ it("preserves trunk materials and authored emissive maps", () => {
   expect(trunk.emissiveMap).toBeNull();
   expect(leaves.emissiveMap).toBe(authored);
 });
+
+it("waits for a streamed leaf texture before binding the fill", () => {
+  const placeholder = new THREE.Texture();
+  placeholder.userData.deferUrl = "/tiles/tree.ktx2";
+  const leaves = new THREE.MeshStandardMaterial({
+    name: "Tree_Branches_02",
+    alphaTest: 0.5,
+    map: placeholder,
+  });
+
+  expect(softenTreeFoliage(leaves)).toBe(false);
+  expect(leaves.emissiveMap).toBeNull();
+  leaves.map = new THREE.Texture();
+  expect(softenTreeFoliage(leaves)).toBe(true);
+  expect(leaves.emissiveMap).toBe(leaves.map);
+});
