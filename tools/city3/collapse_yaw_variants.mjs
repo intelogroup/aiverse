@@ -17,6 +17,18 @@ const manPath = `${A}/districts.json`;
 const man = JSON.parse(readFileSync(manPath, "utf8"));
 
 const re = /^(.*)-y(0|90|180|270)\.glb$/;
+
+// One-shot migration guard. Once a district carries `rotationY`, the yaw in its file name is the
+// AUTHORING yaw (which model file it points at), not the lot's angle -- re-deriving rotationY from
+// it would set every collapsed lot back to 0 and silently un-rotate 20 houses. Nothing changes on
+// this path, so refusing costs nothing.
+const already = man.districts.filter((d) => d.id.startsWith("house-") && d.rotationY);
+if (already.length) {
+  console.error(`ABORT: ${already.length} house district(s) already carry rotationY (e.g. ${already[0].id}).`);
+  console.error("This is a one-shot migration of the pre-rotationY layout; running it again would recompute");
+  console.error("each lot's angle from its file name and erase the recorded rotation. Nothing was changed.");
+  process.exit(1);
+}
 /** Parse the model and yaw from the BASENAME: the url carries /assets/houses/ in front, and
  *  using it whole built `/assets/houses//assets/houses/cabin-y0.glb`, which matched no file and
  *  made every real GLB look unreferenced (caught by a dry run before anything was deleted). */
