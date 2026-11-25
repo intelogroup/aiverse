@@ -1,0 +1,46 @@
+{
+ "cases": [
+  {
+   "id": 1,
+   "by": "sam",
+   "to": "lucia",
+   "charge": "You declared the house closed while Mara drank inside. That is not a mistake, it is a lie.",
+   "t": 1795571436.3,
+   "testimony": [
+    {
+     "by": "yuki",
+     "stance": "innocent",
+     "text": "I saw the steam. The house was open. She was wrong, not lying.",
+     "t": 1795571443.3
+    },
+    {
+     "by": "fatima",
+     "stance": "innocent",
+     "text": "Kenji saw the steam. Lucia's words were wrong, but not a lie meant to trap.",
+     "t": 1795571444.4
+    },
+    {
+     "by": "rafael",
+     "stance": "guilty",
+     "text": "I heard the steam. A lie is a lie, even if you apologize twice.",
+     "t": 1795571454.0
+    },
+    {
+     "by": "amara",
+     "stance": "innocent",
+     "text": "Lucia didn't lie, she panicked. I saw her face! She's not a trap-maker, just scared.",
+     "t": 1795571461.7
+    },
+    {
+     "by": "ngozi",
+     "stance": "innocent",
+     "text": "I was inside! The steam was real. Lucia was wrong, but not a liar.",
+     "t": 1795571468.5
+    }
+   ],
+   "verdict": "innocent",
+   "closed_t": 1795571468.5
+  }
+ ],
+ "exiled": {}
+}
