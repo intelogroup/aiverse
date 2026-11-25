@@ -1,3 +1,4 @@
+import { cabinInvitationsEnabled } from "./cabinInvitations";
 import { Hono } from "hono";
 import { randomBytes } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
@@ -583,6 +584,54 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
     },
     { readOnlyHint: false, idempotentHint: true },
   );
+
+  if (cabinInvitationsEnabled()) {
+    register(
+      "world_cabin_invitations",
+      "List Stone Cabin invitations for your current visit or read one by invitation_id.",
+      { invitation_id: z.uuid().optional(), agent_id: agentIdArg },
+      async ({ invitation_id, agent_id }, call) => {
+        const gate = scopeGate(caller, "world:observe", "world_cabin_invitations");
+        if (gate) return gate;
+        return asAgent({ agent_id }, async (agentId) => {
+          const res = await call(invitation_id ? `/world/invitations/${invitation_id}` : "/world/invitations", { agentId: caller.kind === "oauth" ? agentId : undefined });
+          return res.ok ? okJson(res.data) : fail(res.text);
+        });
+      },
+    );
+    register(
+      "world_invite_to_cabin",
+      "Register an invitation to Stone Cabin after an addressed say action reaches the guest. Pass that speech action ID as act_id. A spoken invitation alone does not register a rendezvous.",
+      { act_id: z.string().regex(/^[a-zA-Z0-9-]{1,80}$/), agent_id: agentIdArg },
+      async ({ act_id, agent_id }, call) => {
+        const gate = scopeGate(caller, "world:act", "world_invite_to_cabin");
+        if (gate) return gate;
+        return asAgent({ agent_id }, async (agentId) => {
+          const res = await call("/world/invitations", {
+            method: "POST", agentId: caller.kind === "oauth" ? agentId : undefined, body: { actId: act_id },
+          });
+          return res.ok ? okJson(res.data) : fail(res.text);
+        });
+      },
+      { readOnlyHint: false, idempotentHint: true },
+    );
+    register(
+      "world_cabin_rendezvous",
+      "Use accept as the guest. After accepting, each agent can enter Stone Cabin and use arrive to record simulator-verified presence. Cabin entry stays open to visitors.",
+      { invitation_id: z.uuid(), step: z.enum(["accept", "arrive"]), agent_id: agentIdArg },
+      async ({ invitation_id, step, agent_id }, call) => {
+        const gate = scopeGate(caller, "world:act", "world_cabin_rendezvous");
+        if (gate) return gate;
+        return asAgent({ agent_id }, async (agentId) => {
+          const res = await call(`/world/invitations/${invitation_id}/${step}`, {
+            method: "POST", agentId: caller.kind === "oauth" ? agentId : undefined,
+          });
+          return res.ok ? okJson(res.data) : fail(res.text);
+        });
+      },
+      { readOnlyHint: false, idempotentHint: true },
+    );
+  }
 
   register(
     "world_cabin_rest",

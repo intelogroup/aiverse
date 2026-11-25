@@ -139,6 +139,12 @@ export function createSimServer(opts: SimServerOpts) {
           if (!bucket(reads, id, readRate).take(now())) return json({ error: "rate_limited" }, 429, { "retry-after": "1" });
           return json({ observation: service.observe(id, Math.max(0, Number(url.searchParams.get("heardSince")) || 0)) });
         }
+        if (req.method === "GET" && sub === "cabin-invitation-proof" && actId) {
+          return json({ recipient: service.invitationRecipient(id, actId) ?? null });
+        }
+        if (req.method === "GET" && sub === "cabin-arrival" && !actId) {
+          return json({ inside: service.inStoneCabin(id) });
+        }
         if (req.method === "GET" && sub === "act" && actId) {
           if (!bucket(reads, id, readRate).take(now())) return json({ error: "rate_limited" }, 429, { "retry-after": "1" });
           const rec = service.actRecord(id, actId);

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, describeError, type Agent, type HuntReceipt, type Visit, type Wallet } from "../../lib/api";
+import { api, describeError, type Agent, type CabinInvitation, type HuntReceipt, type Visit, type Wallet } from "../../lib/api";
 import { pushToast } from "../../lib/toast";
 import { agentBodies, BODY_REMY } from "./bodies";
 
@@ -111,6 +111,49 @@ function AgentInventory({ agentId }: { agentId: string }) {
         </section>
       )}
       {after && <button type="button" disabled={loading} onClick={() => void load(after)}>Load more</button>}
+    </details>
+  );
+}
+
+const invitationLabel: Record<CabinInvitation["status"], string> = {
+  delivered: "Delivered · awaiting guest",
+  accepted: "Accepted · awaiting arrival",
+  both_arrived: "Both arrived",
+  expired: "Expired",
+};
+
+function AgentCabinInvitations({ agentId }: { agentId: string }) {
+  const [result, setResult] = useState<Awaited<ReturnType<typeof api.listCabinInvitations>>>();
+  const [error, setError] = useState<string>();
+  const [loading, setLoading] = useState(false);
+
+  async function refresh() {
+    setLoading(true);
+    setError(undefined);
+    try {
+      setResult(await api.listCabinInvitations(agentId));
+    } catch (err) {
+      setError(describeError(err).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <details onToggle={(event) => { if (event.currentTarget.open) void refresh(); }}>
+      <summary>Cabin invitations</summary>
+      <button type="button" onClick={() => void refresh()} disabled={loading}>Refresh invitations</button>
+      {loading && <p role="status">Loading invitations…</p>}
+      {error && <p role="alert">{error}</p>}
+      {result && !result.enabled && <p>Cabin invitations are unavailable in this world.</p>}
+      {result?.enabled && !result.invitations.length && <p>No cabin invitations yet.</p>}
+      {!!result?.invitations.length && <ul>{result.invitations.map((invite) => (
+        <li key={invite.id}>
+          {invite.placeName} · {invite.role === "host" ? "Sent" : "Received"} · {invitationLabel[invite.status]}
+          {invite.status === "accepted" && (invite.hostArrivedAt || invite.guestArrivedAt) &&
+            (" · " + (invite.hostArrivedAt ? "Host arrived" : "Guest arrived"))}
+        </li>
+      ))}</ul>}
     </details>
   );
 }
@@ -284,6 +327,7 @@ function AgentLifecycle({ agent }: { agent: Agent }) {
       </label>
 
       <AgentInventory agentId={agent.id} />
+      <AgentCabinInvitations agentId={agent.id} />
       <AgentMemory agentId={agent.id} />
 
       {loadError && <p className="error">{loadError}</p>}

@@ -414,6 +414,13 @@
       "when": 1795372245308,
       "tag": "0058_verse_item_sales",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1795372245309,
+      "tag": "0059_verse_cabin_invitations",
+      "breakpoints": true
     }
   ]
 }

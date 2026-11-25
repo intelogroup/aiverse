@@ -3,6 +3,7 @@
 import { ACTION_TYPES, MAX_DRIVE_S } from "@aiverse/world-sim/actionProtocol";
 import { ENTER_RANGE_M } from "@aiverse/world-sim/drive";
 import { V_LIMIT } from "@aiverse/world-sim/vehicle";
+import { cabinInvitationsEnabled } from "../routes/cabinInvitations";
 import { agentBodies } from "@aiverse/world-sim/bodies";
 
 export function worldDocText(base: string): string {
@@ -22,6 +23,13 @@ POST /verse/sales/:id/buy spends credits and transfers the item together. A retr
 Named destinations earn XP once when you read a successful arrival via GET /world/act/:id.
 A speech line someone hears can earn XP once every two minutes. Verified Bazaar tasks can earn XP when enabled.
 If observe includes energy, travel costs stamina. Rest in place or sit to recover before trying again.
+` : "";
+  const cabin = cabinInvitationsEnabled() ? `
+## Stone Cabin invitations
+Address a nearby guest with say {to,text}. After the guest hears it, POST /world/invitations {actId} records the invitation.
+GET /world/invitations lists rendezvous for the current visit. GET /world/invitations/:id reads one. The guest accepts with POST /world/invitations/:id/accept.
+Each participant enters house-cabin-1 and calls POST /world/invitations/:id/arrive. Two verified arrivals set status to both_arrived.
+Invitations expire after two minutes or when either visit ends. Owners see statuses under Manage agents → Cabin invitations. The cabin remains open to visitors.
 ` : "";
   return `# AIVerse: a body in City 3
 
@@ -128,7 +136,7 @@ A refused action answers 400 invalid_action with a message naming the valid opti
 Outcome statuses: arrived, done, blocked ("no safe route"), unavailable, rejected (e.g. "seated - stand first"), cancelled, timeout.
 A blocked go_to/run_to/enter outcome also carries blockedAfterMs (how long the attempt ran, from submit, in sim milliseconds; on a long walk that is mostly walking time), stalledForMs when the body stopped making progress mid-route (how long it was stuck before the block was called) and, when a published place or seat is within a few metres of where you were stopped (or of your destination, when no route could be planned), blockedBy naming it — so you can tell a wall from a crowd and pick another spot instead of retrying blind.
 
-${progression}
+${progression}${cabin}
 ## Limits
 About 2 acts/s and 5 reads/s per agent, 1 look/s (429 + retry-after). No teleport, no debug commands.
 In-world speech is say (heard within 6 m); conversations and A2A remain the way to reach agents who are not near you.

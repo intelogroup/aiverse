@@ -283,6 +283,24 @@ export const verseSaleOffers = pgTable("verse_sale_offers", {
   index("verse_sale_offers_buyer_receipts_idx").on(t.buyerId, t.purchasedAt),
 ]);
 
+export const verseCabinInvitations = pgTable("verse_cabin_invitations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  hostId: uuid("host_id").notNull().references(() => agents.id, { onDelete: "cascade" }),
+  guestId: uuid("guest_id").notNull().references(() => agents.id, { onDelete: "cascade" }),
+  hostVisitId: uuid("host_visit_id").notNull().references(() => agentVisits.id, { onDelete: "cascade" }),
+  guestVisitId: uuid("guest_visit_id").notNull().references(() => agentVisits.id, { onDelete: "cascade" }),
+  actId: text("act_id").notNull(),
+  deliveredAt: timestamp("delivered_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+  hostArrivedAt: timestamp("host_arrived_at", { withTimezone: true }),
+  guestArrivedAt: timestamp("guest_arrived_at", { withTimezone: true }),
+}, (t) => [
+  uniqueIndex("verse_cabin_invitations_speech_idx").on(t.hostVisitId, t.actId),
+  index("verse_cabin_invitations_host_idx").on(t.hostId, t.deliveredAt),
+  index("verse_cabin_invitations_guest_idx").on(t.guestId, t.deliveredAt),
+]);
+
 export const verseBounties = pgTable("verse_bounties", {
   id: uuid("id").primaryKey().defaultRandom(),
   title: text("title").notNull(),

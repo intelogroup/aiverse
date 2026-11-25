@@ -198,6 +198,15 @@ export interface ConsoleEvent {
   resolvedAt: string | null;
 }
 
+export interface CabinInvitation {
+  id: string;
+  role: "host" | "guest";
+  placeName: string;
+  status: "delivered" | "accepted" | "both_arrived" | "expired";
+  hostArrivedAt: string | null;
+  guestArrivedAt: string | null;
+}
+
 export const api = {
   register: (email: string, password: string) =>
     request<{ token: string; owner: Owner }>("/owners/register", {
@@ -272,6 +281,8 @@ export const api = {
   // owner starts/stops the agent's time-and-actions window in the Verse.
   listVerseInventory: (agentId: string, after?: string) =>
     request<{ items: { id: string; name: string }[]; progress?: { credits: number; xp: number }; receipts?: { id: string; itemName: string; price: number; side: "bought" | "sold"; purchasedAt: string }[] }>(`/owners/agents/${agentId}/inventory${after ? `?after=${encodeURIComponent(after)}` : ""}`),
+  listCabinInvitations: (agentId: string) =>
+    request<{ enabled: boolean; invitations: CabinInvitation[] }>(`/owners/agents/${agentId}/invitations`),
   listVerseMemory: (agentId: string) => request<{ memory: { id: string; tier: "note" | "ledger"; kind: string; text: string }[] }>(`/owners/agents/${agentId}/memory`),
   listVisits: (agentId: string) => request<{ visits: Visit[] }>(`/owners/agents/${agentId}/visits`),
   listHuntReceipts: (agentId: string) =>

@@ -72,6 +72,8 @@ beforeAll(async () => {
   simHttp = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: simApp.fetch });
   const previousHunt = process.env.AIVERSE_EGG_HUNT;
   const previousProgress = process.env.AIVERSE_VERSE_PROGRESS;
+  const previousInvites = process.env.AIVERSE_CABIN_INVITATIONS;
+  process.env.AIVERSE_CABIN_INVITATIONS = "1";
   process.env.AIVERSE_VERSE_PROGRESS = "1";
   process.env.AIVERSE_EGG_HUNT = JSON.stringify(hunt);
   const simClient = httpSimClient(`http://127.0.0.1:${simHttp.port}`, SECRET);
@@ -95,6 +97,8 @@ beforeAll(async () => {
       },
     }, look: fakeLook });
   } finally {
+    if (previousInvites === undefined) delete process.env.AIVERSE_CABIN_INVITATIONS;
+    else process.env.AIVERSE_CABIN_INVITATIONS = previousInvites;
     if (previousProgress === undefined) delete process.env.AIVERSE_VERSE_PROGRESS;
     else process.env.AIVERSE_VERSE_PROGRESS = previousProgress;
     if (previousHunt === undefined) delete process.env.AIVERSE_EGG_HUNT;
@@ -975,6 +979,104 @@ describe("/world (agent body)", () => {
     expect([202, 429]).toContain(fast.status);
     await w(a.agentToken, "DELETE", "/body");
     await w(b.agentToken, "DELETE", "/body");
+  }, 60_000);
+
+  test("Stone Cabin rendezvous needs delivered speech, guest consent, and two verified arrivals", async () => {
+    const host = await verifiedCashEntrant("CabinHost"), guest = await verifiedCashEntrant("CabinGuest");
+    const outsider = await verifiedCashEntrant("CabinOutsider");
+    const old = process.env.AIVERSE_CABIN_INVITATIONS;
+    process.env.AIVERSE_CABIN_INVITATIONS = "1";
+    try {
+      for (const person of [host, guest, outsider]) await startVisit(person.ownerToken, person.agentId);
+      service.attach(host.agentId, { x: -17.2, z: 87.3 });
+      service.attach(guest.agentId, { x: -17.2, z: 99 });
+      const say = async (id: string, to?: string) => {
+        clock += 1000;
+        const sent = await w(host.agentToken, "POST", "/act", { id, action: { type: "say", text: "Meet me at Stone Cabin", ...(to ? { to } : {}) } });
+        expect(sent.status).toBe(202);
+        return (await sent.json()).act;
+      };
+      expect((await say("cabin-remote")).heardBy).toBe(0);
+      expect((await w(host.agentToken, "POST", "/invitations", { actId: "cabin-remote" })).status).toBe(409);
+      service.detach(guest.agentId);
+      service.attach(guest.agentId, { x: -17.2, z: 89 });
+      const guestHandle = service.observe(host.agentId).scene.find((row) => row.kind === "body")?.id;
+      expect(guestHandle).toBeDefined();
+      await Bun.sleep(1100); // Speech admission uses the gateway clock.
+      const said = await say("cabin-near", guestHandle!);
+      expect(said.heardBy).toBe(1);
+      expect(JSON.stringify(said)).not.toContain(guest.agentId);
+      const created = await callMcp(host.agentToken, "world_invite_to_cabin", { act_id: "cabin-near" });
+      expect(created.isError).toBe(false);
+      const { invitation } = created.data;
+      expect(invitation.status).toBe("delivered");
+      const replay = await w(host.agentToken, "POST", "/invitations", { actId: "cabin-near" });
+      expect((await replay.json()).invitation.id).toBe(invitation.id);
+
+      const path = `/invitations/${invitation.id}`;
+      const step = (token: string, action: "accept" | "arrive") => w(token, "POST", `${path}/${action}`);
+      expect((await step(outsider.agentToken, "accept")).status).toBe(404);
+      expect((await step(host.agentToken, "accept")).status).toBe(403);
+      expect((await (await step(guest.agentToken, "arrive")).json()).error).toBe("acceptance_required");
+      const inbox = await callMcp(guest.agentToken, "world_cabin_invitations");
+      expect(inbox.data.invitations).toEqual([expect.objectContaining({ id: invitation.id, role: "guest" })]);
+      expect((await (await step(guest.agentToken, "accept")).json()).invitation.status).toBe("accepted");
+      expect((await (await step(guest.agentToken, "arrive")).json()).error).toBe("cabin_arrival_required");
+
+      await Bun.sleep(1100);
+      await say("cabin-pending", guestHandle!);
+      const pending = await callMcp(host.agentToken, "world_invite_to_cabin", { act_id: "cabin-pending" });
+      expect(pending.data.invitation.status).toBe("delivered");
+      const pendingPath = `/invitations/${pending.data.invitation.id}`;
+      // The speech record settles immediately, while the talking clip still runs.
+      for (let tick = 0; tick < 50; tick++) {
+        service.tick(0.05);
+        await Promise.resolve();
+      }
+      for (const person of [host, guest]) {
+        const submitted = await w(person.agentToken, "POST", "/act", {
+          id: "cabin-enter", action: { type: "enter", place: "house-cabin-1" },
+        });
+        expect(submitted.status).toBe(202);
+        // Use the production simulator's 50 ms steps for the narrow doorway.
+        let outcome = service.actRecord(person.agentId, "cabin-enter")?.outcome;
+        for (let tick = 0; tick < 900 && !outcome; tick++) {
+          service.tick(0.05);
+          await Promise.resolve();
+          outcome = service.actRecord(person.agentId, "cabin-enter")?.outcome;
+        }
+        expect(outcome).toMatchObject({ ok: true, status: "arrived" });
+        expect(service.observe(person.agentId).insideRoom).toBe("Stone Cabin");
+        expect((await step(person.agentToken, "arrive")).status).toBe(200);
+      }
+      const { invitation: met } = await (await step(guest.agentToken, "arrive")).json();
+      expect(met.status).toBe("both_arrived");
+      expect(met.hostArrivedAt).toBeTruthy();
+      expect(met.guestArrivedAt).toBeTruthy();
+      const ownerPath = `/owners/agents/${guest.agentId}/invitations`;
+      expect((await app.request(ownerPath, { headers: json(outsider.ownerToken) })).status).toBe(404);
+      expect((await w(outsider.agentToken, "GET", path)).status).toBe(404);
+      const ownerList = async () => (await (await app.request(ownerPath, { headers: json(guest.ownerToken) })).json()).invitations;
+      expect(await ownerList()).toContainEqual(met);
+      // Closing either visit invalidates later rendezvous steps, even before the deadline.
+      const hostVisits = await app.request(`/owners/agents/${host.agentId}/visits`, { headers: json(host.ownerToken) });
+      const hostVisit = (await hostVisits.json()).visits.find((visit: { endedAt: string | null }) => !visit.endedAt);
+      const stopped = await app.request(`/owners/agents/${host.agentId}/visits/${hostVisit.id}/stop`, {
+        method: "POST", headers: json(host.ownerToken),
+      });
+      expect(stopped.status).toBe(200);
+      const lookup = await callMcp(guest.agentToken, "world_cabin_invitations", { invitation_id: pending.data.invitation.id });
+      expect(lookup.data.invitation.status).toBe("expired");
+      expect(await ownerList()).toEqual(expect.arrayContaining([met, lookup.data.invitation]));
+      const refused = await w(guest.agentToken, "POST", `${pendingPath}/accept`);
+      expect(refused.status).toBe(409);
+      expect(await refused.json()).toEqual({ error: "invitation_expired" });
+
+    } finally {
+      for (const person of [host, guest, outsider]) service.detach(person.agentId);
+      if (old === undefined) delete process.env.AIVERSE_CABIN_INVITATIONS;
+      else process.env.AIVERSE_CABIN_INVITATIONS = old;
+    }
   }, 60_000);
 
   test("look: gateway forwards it, it counts as an action, and a second one inside a second is limited", async () => {
