@@ -35,7 +35,7 @@ export async function bake(): Promise<{ bytes: Uint8Array; manifest: Record<stri
   const { sim } = await loadVerseSim(ASSETS, { navBin: false });
   // Everything the walker collides with except the Tea House door blocker (the door machine opens it on the way): the Bazaar, every
   // district, and the furniture boxes of the hero rooms. A mesh baked from the Bazaar alone sent bodies through booths and tables.
-  const keys = sim.walk.stats().sets.filter((k) => k !== "door:tea");
+  const keys = sim.walk.stats().sets.filter((k) => !k.startsWith("door:"));
   const meshes = keys.flatMap((k) => sim.walk.get(k) ?? []);
   if (!sim.walk.has("resident") || !meshes.length) throw new Error("no collision to bake from");
   const pos: number[] = [];

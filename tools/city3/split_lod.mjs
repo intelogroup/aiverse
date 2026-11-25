@@ -61,14 +61,17 @@ const INTERIOR = /^(ls_bones_(stair|partition|slab|landing)|TeaProp|PlazaFountai
   }
   console.log(`removed ${gone} interior-only primitives`);
 }
-// Far away, a tree or a shopfront needs a fraction of its triangles. Simplify each kept source mesh once (shared meshes stay shared).
-const TREE = /^(ls_tree|Tree_)/, TREE_RATIO = Number(process.env.TREE_RATIO ?? 0.1), BLD_RATIO = Number(process.env.BLD_RATIO ?? 0.3), KIT_RATIO = Number(process.env.KIT_RATIO ?? 0.15); // the townhouse rows are flat-coloured from far away, so they take fewer triangles
+// Keep the shared tree cards and their trunk geometry together. Collapsing
+// the cards can leave isolated-looking patches of canopy from the aerial view.
+const TREE = /^(ls_tree|Tree_)/, BLD_RATIO = Number(process.env.BLD_RATIO ?? 0.3), KIT_RATIO = Number(process.env.KIT_RATIO ?? 0.15);
 {
   const done = new Set();
   for (const n of root.listNodes()) {
     const mesh = n.getMesh(); if (!mesh || done.has(mesh) || DROP.test(n.getName())) continue; done.add(mesh);
-    if (/^Kit_hall/.test(n.getName())) continue;   // the Troyes hall (4.6k tris) simplified to a blob that read as a white box from the opening aerial
-    const ratio = TREE.test(n.getName()) ? TREE_RATIO : /^Kit_(shop|hall|garden|orchard)/.test(n.getName()) ? KIT_RATIO : BLD_RATIO, err = TREE.test(n.getName()) ? Number(process.env.TREE_ERR ?? 1) : /^Kit_(shop|hall|garden|orchard)/.test(n.getName()) ? Number(process.env.KIT_ERR ?? 0.3) : Number(process.env.BLD_ERR ?? 0.05);
+    if (TREE.test(n.getName()) || /^Kit_hall/.test(n.getName())) continue;
+    const kit = /^Kit_(shop|garden|orchard)/.test(n.getName());
+    const ratio = kit ? KIT_RATIO : BLD_RATIO;
+    const err = kit ? Number(process.env.KIT_ERR ?? 0.3) : Number(process.env.BLD_ERR ?? 0.05);
     for (const prim of mesh.listPrimitives()) {
       const idx = prim.getIndices(); if (!idx || prim.getMode() !== 4) continue; const ia = idx.getArray();
       if (ia.length < 90) continue; // tiny pieces (doors, lamps) are cheaper left alone

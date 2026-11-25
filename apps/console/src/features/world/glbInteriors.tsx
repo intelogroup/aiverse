@@ -1,3 +1,4 @@
+import { assetUrl } from "../../lib/assetUrl";
 // City 3 interiors: the room index, the cutaway, and the streamed
 // interior rooms (extracted from GlbWorld.tsx, cleanup L2).
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
@@ -65,7 +66,7 @@ export function ClipCutaway({
     [],
   );
   const open = useRef<string | null>(null);
-  const cutRooms = useMemo(() => rooms.filter(r => r.id !== "tea" || (focus?.id === "tea" && teaFloor !== null)).map((r) => ({ id: r.id, center: r.center, rect: r.rect, cut: r.cut })), [rooms, teaFloor, focus]);
+  const cutRooms = useMemo(() => rooms.filter(r => r.template !== "hall" && (r.id !== "tea" || (focus?.id === "tea" && teaFloor !== null))).map((r) => ({ id: r.id, center: r.center, rect: r.rect, cut: r.cut })), [rooms, teaFloor, focus]);
   const cutHeight = useRef<number | null>(null);
   useEffect(() => {
     open.current = null;
@@ -156,9 +157,8 @@ export function ClipCutaway({
 }
 
 /**
- * Streams City 3's interiors by camera distance. One shared asset library is
- * fetched the first time any room is near; each room is a small layout JSON
- * built into instanced meshes over that library. At most MAX_LOADED_INTERIORS
+ * Streams City 3's interiors by camera distance. Each room loads its layout
+ * and then the library that supplies its instanced meshes. At most MAX_LOADED_INTERIORS
  * stay resident: farther or surplus rooms are dropped and their instance
  * buffers disposed (geometry and materials stay with the library).
  *
@@ -194,7 +194,11 @@ export function InteriorStreamer({ rooms: realRooms, walk, interact }: { rooms: 
     acc.current = 0;
     const plan = planStreaming({
       cam: camera.position,
-      heroes: heroes.map((h) => ({ id: h.id, center: h.center })),
+      heroes: heroes.map((h) => h.template === "house"
+        ? { id: h.id, center: h.door, loadWithin: 12, keepWithin: 30 }
+        : h.template === "hall"
+          ? { id: h.id, center: h.door, loadWithin: 16, keepWithin: 55 }
+          : { id: h.id, center: h.center }),
       loaded: wantedRef.current,
       loadWithin: INTERIOR_LOAD_WITHIN,
       keepWithin: INTERIOR_KEEP_WITHIN,
@@ -272,73 +276,42 @@ export function InteriorStreamer({ rooms: realRooms, walk, interact }: { rooms: 
   }, [debug, gl, scene, camera, controls]);
 
   return (
-    <Suspense fallback={null}>
-      {wanted.length ? (
-        <StreamedRooms
-          ids={wanted}
-          heroes={heroes}
-          layouts={layouts.current}
-          ready={layoutsReady}
-          handles={handles.current}
-          stats={stats.current}
-          walk={walk}
-          interact={interact}
-        />
-      ) : null}
-    </Suspense>
+    <>
+      {wanted.map((id) => {
+        const hero = heroes.find((h) => h.id === id);
+        if (!hero || !layoutsReady.includes(hero.layout)) return null;
+        const layout = layouts.current.get(hero.layout);
+        if (!layout) return null;
+        return (
+          <Suspense key={id} fallback={null}>
+            <RoomLibrary hero={hero} layout={layout} handles={handles.current} stats={stats.current} walk={walk} interact={interact} />
+          </Suspense>
+        );
+      })}
+    </>
   );
 }
 
-/** Mounts one InteriorRoom per resident id once the shared library has loaded. */
-function StreamedRooms({
-  ids,
-  heroes,
-  layouts,
-  ready,
-  handles,
-  stats,
-  walk,
-  interact,
-}: {
-  ids: string[];
-  heroes: City3Room[];
-  layouts: Map<string, InteriorLayout>;
-  ready: string[];
+function RoomLibrary({ hero, layout, handles, stats, walk, interact }: {
+  hero: City3Room;
+  layout: InteriorLayout;
   handles: Map<string, InteriorHandle>;
   stats: { builds: number };
   walk?: WalkColliders;
   interact?: InteractController;
 }) {
   const gl = useThree((s) => s.gl);
-  const library = useGLTF(CITY3_LIBRARY_URL, true, true, extendGltf(gl));
+  const url = /^[a-z0-9-]+-interior\.glb$/.test(layout.library)
+    ? assetUrl(`/assets/interiors/${layout.library}`)
+    : CITY3_LIBRARY_URL;
+  const library = useGLTF(url, true, true, extendGltf(gl));
   const assets = useMemo(() => {
     const indexed = indexLibrary(library.scene);
-    indexed.set(TEA_HOUSE_RADIO_ASSET, teaHouseRadio());
+    if (url === CITY3_LIBRARY_URL) indexed.set(TEA_HOUSE_RADIO_ASSET, teaHouseRadio());
     return indexed;
-  }, [library]);
-  // Pay the texture-upload cost once, here, instead of as a hitch the first time a room draws.
-  useEffect(() => {
-    const seen = new Set<THREE.Texture>();
-    library.scene.traverse((o) => {
-      const mat = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
-      const tex = mat?.map;
-      if (tex && !seen.has(tex)) {
-        seen.add(tex);
-        gl.initTexture(tex);
-      }
-    });
-  }, [library, gl]);
+  }, [library, url]);
   return (
-    <>
-      {ids.map((id) => {
-        const hero = heroes.find((h) => h.id === id);
-        const layout = hero ? layouts.get(hero.layout) : undefined;
-        if (!hero || !layout || !ready.length) return null;
-        return (
-          <InteriorRoom key={id} id={id} layout={layout} layoutUrl={hero.layout} assets={assets} offset={hero.shift ?? ZERO_SHIFT} handles={handles} stats={stats} walk={walk} interactables={hero.interactables} interact={interact} />
-        );
-      })}
-    </>
+    <InteriorRoom id={hero.id} layout={layout} layoutUrl={hero.layout} assets={assets} offset={hero.shift ?? ZERO_SHIFT} handles={handles} stats={stats} walk={walk} interactables={hero.interactables} interact={interact} />
   );
 }
 
@@ -405,8 +378,11 @@ function InteriorRoom({
       .then((r) => (r.ok ? r.json() : []))
       .then((j) => {
         if (!live) return;
-        const m = boxesMesh(parseColBoxes(j), offset, key);
-        if (m) walk.set(key, [m]);
+        const meshes = [
+          boxesMesh(parseColBoxes(j), offset, key),
+          boxesMesh(parseColBoxes(j, "walkableBoxes"), offset, `${key}:floor`, false),
+        ].filter((mesh) => mesh !== null);
+        if (meshes.length) walk.set(key, meshes);
       })
       .catch(() => {});
     return () => { live = false; walk.drop(key); };

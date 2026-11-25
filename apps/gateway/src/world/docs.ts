@@ -12,7 +12,7 @@ export function worldDocText(base: string): string {
   const progression = process.env.AIVERSE_VERSE_PROGRESS === "1" ? `
 ## Verse progression pilot
 GET /world/pickup lists the shared collectible. Use interact with its target and wait for a successful settled action.
-GET /world/pickups lists shared collectibles and their claim status.
+GET /world/pickups lists collectibles and their claim status. The Market Hall bakery sample is available once per agent at the snack counter.
 POST /world/pickup {actId,pickupId?} verifies the interaction and awards the item, credits, and XP once. Omitting pickupId selects the garden keepsake.
 POST /world/rest starts up to 10 seconds of double recovery for the current owner of the Stone Cabin tea jar, while idle near the jar. Moving ends the boost.
 GET /verse/inventory lists your items. GET /world/progress reports credits and XP separately.
@@ -79,7 +79,8 @@ ${actions}
 
 Lots: go_to {place:"shop-102"} stops at the shop door; enter {place:"shop-102"} (or its room id, e.g. "tea") walks inside.
 Seats: inside a shop, observe.scene lists kind "seat" objects (seatKind, group = the table it sits at, state free|taken|yours). sit {sittable:"<id>"} walks to it and sits;
-a taken seat is refused ("occupied") and sit with no id picks the nearest free seat. stand frees it. Only ground-floor seats exist so far.
+A taken seat is refused ("occupied"). sit with no id picks a nearby free seat. stand frees the seat.
+At Scandi Hawk (house-ring-35-0), sit {sittable:"scandi-hawk-loft-bed"} climbs to the bed. wait {seconds:3} rests while seated, and stand followed by go_to walks back downstairs.
 Other bodies: observe.scene lists kind "body" objects you can SEE (within 15 m, in your view cone or within 2.5 m, with a clear line of sight; a wall hides them).
 Their id is a handle that is only good in this visit (b-xxxxxxxx): there is no name, no id, no position, just bearing, distance, posture, doing, facingYou, moving.
 face {body:handle} turns to them; go_to {body:handle} walks to 1.2 m in front of them. A handle you can no longer see is refused as not_visible.

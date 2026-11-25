@@ -142,22 +142,27 @@ interface DistrictMeasure {
   estTextureVram: number;
 }
 
-// Placed houses (house-*) may share one GLB across many lots (place_house.mjs --asset): they are budgeted, and counted in the
-// total, once per asset URL, which is what a browser downloads; every other district is budgeted by its id.
+// Placed houses may share a visual GLB across lots. Count that file once and
+// count each distinct collision GLB used by those lots. Other districts are keyed by id.
 const budgetKey = (d: DistrictEntry) => (d.id.startsWith("house-") ? d.url : d.id);
 const byKey = new Map(manifest.districts.map((d) => [budgetKey(d), d]));
+const collisionUrls = new Map<string, Set<string>>();
+for (const d of manifest.districts) {
+  const key = budgetKey(d);
+  const urls = collisionUrls.get(key) ?? new Set<string>();
+  if (d.collisionUrl) urls.add(d.collisionUrl);
+  collisionUrls.set(key, urls);
+}
 const measured = new Map<string, DistrictMeasure>();
-for (const d of byKey.values()) {
+for (const [key, d] of byKey) {
   const main = measureGlb(assetPath(d.url));
-  const coll = d.collisionUrl
-    ? measureGlb(assetPath(d.collisionUrl))
-    : { bytes: 0, triangles: 0, estTextureVram: 0 };
-  measured.set(budgetKey(d), {
+  const coll = [...(collisionUrls.get(key) ?? [])].map(url => measureGlb(assetPath(url)));
+  measured.set(key, {
     glbBytes: main.bytes,
-    collisionBytes: coll.bytes,
+    collisionBytes: coll.reduce((total, file) => total + file.bytes, 0),
     triangles: main.triangles,
-    collisionTriangles: coll.triangles,
-    estTextureVram: main.estTextureVram + coll.estTextureVram,
+    collisionTriangles: coll.reduce((total, file) => total + file.triangles, 0),
+    estTextureVram: coll.reduce((total, file) => total + file.estTextureVram, main.estTextureVram),
   });
 }
 

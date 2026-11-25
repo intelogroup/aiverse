@@ -15,7 +15,7 @@ import type { LookClient } from "../world/lookClient";
 import { angleDiffDeg, createSeeQueue, seeView, type SeeQueueOptions } from "../world/seeJobs";
 import { noteObservation, noteSaid } from "../world/visitTally";
 import { createEggHuntRoute } from "./eggHunt";
-import { awardConversationXp, awardPickup, awardXp, CABIN_PICKUP, cabinPickupPosition, ownsCabinTea, pickupPosition, pickupReceipt, PILOT_PICKUP, progress } from "../world/verseProgress";
+import { awardConversationXp, awardPickup, awardXp, ownsCabinTea, PICKUP_POSITIONS, PICKUPS, pickupReceipt, PILOT_PICKUP, progress } from "../world/verseProgress";
 
 // World: a body for an agent in the City 3 sim (apps/sim), reached only through here.
 //
@@ -95,7 +95,7 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
     route.get("/pickup", async (c) => c.json({ pickup: PILOT_PICKUP, claimed: await pickupReceipt(c.get("agentId")) !== null }));
     route.get("/pickups", async (c) => {
       const agentId = c.get("agentId");
-      const pickups = await Promise.all([PILOT_PICKUP, CABIN_PICKUP].map(async (pickup) => ({
+      const pickups = await Promise.all(PICKUPS.map(async (pickup) => ({
         ...pickup, claimed: await pickupReceipt(agentId, pickup) !== null,
       })));
       return c.json({ pickups });
@@ -106,10 +106,10 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
       return forward(c, agentId, "POST", `/bodies/${agentId}/rest`);
     });
     route.post("/pickup", async (c) => {
-      const input = z.object({ actId: z.string().regex(ID_RE), pickupId: z.enum([PILOT_PICKUP.id, CABIN_PICKUP.id]).optional() }).strict().safeParse(await c.req.json().catch(() => null));
+      const input = z.object({ actId: z.string().regex(ID_RE), pickupId: z.enum(PICKUPS.map(pickup => pickup.id)).optional() }).strict().safeParse(await c.req.json().catch(() => null));
       if (!input.success) return c.json({ error: "invalid_action" }, 400);
       const agentId = c.get("agentId");
-      const pickup = input.data.pickupId === CABIN_PICKUP.id ? CABIN_PICKUP : PILOT_PICKUP;
+      const pickup = PICKUPS.find(({ id }) => id === input.data.pickupId) ?? PILOT_PICKUP;
       const existing = await pickupReceipt(agentId, pickup);
       if (existing === false) return c.json({ error: "already_collected" }, 409);
       if (existing) return c.json({ reward: existing });
@@ -123,7 +123,7 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
       }) }).safeParse(await response.json().catch(() => null));
       if (!response.ok || !proof.success) return c.json({ error: "interact_with_pickup_first" }, 403);
       const pose = proof.data.act.interactionPose;
-      const [x, y, zPos] = pickup === CABIN_PICKUP ? cabinPickupPosition : pickupPosition;
+      const [x, y, zPos] = PICKUP_POSITIONS[pickup.id];
       if (Math.hypot(pose.x - x, pose.z - zPos) > 1.2 || Math.abs(pose.y - y) > 0.75) {
         return c.json({ error: "interact_with_pickup_first" }, 403);
       }

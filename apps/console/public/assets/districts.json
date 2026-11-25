@@ -527,7 +527,7 @@
    "id": "house-ring-35-1",
    "name": "ring-35-1",
    "url": "/assets/houses/american-y0.glb",
-   "collisionUrl": "/assets/houses/american-y0.col.glb",
+   "collisionUrl": "/assets/houses/american-ring-35-1.col.glb",
    "center": [
     46.2,
     -148.2
@@ -788,6 +788,70 @@
     97
    ],
    "half": 30,
+   "origin": [
+    0,
+    0
+   ],
+   "theme": "bazaar"
+  },
+  {
+   "id": "props-lido-terrace",
+   "name": "Lido terrace",
+   "url": "/assets/props/lido-terrace.glb",
+   "collisionUrl": "/assets/props/lido-terrace.col.glb",
+   "center": [
+    35,
+    115.1
+   ],
+   "half": 6,
+   "origin": [
+    0,
+    0
+   ],
+   "theme": "bazaar"
+  },
+  {
+   "id": "props-hawk-lane-commons",
+   "name": "Hawk Lane Commons",
+   "url": "/assets/props/hawk-lane-commons.glb",
+   "collisionUrl": "/assets/props/hawk-lane-commons.col.glb",
+   "center": [
+    35,
+    -145
+   ],
+   "half": 15,
+   "origin": [
+    0,
+    0
+   ],
+   "theme": "bazaar"
+  },
+  {
+   "id": "props-hawk-lane-finish",
+   "name": "Hawk Lane trail and waterfront",
+   "url": "/assets/props/hawk-lane-finish.glb",
+   "collisionUrl": "/assets/props/hawk-lane-finish.col.glb",
+   "center": [
+    26,
+    -166.7
+   ],
+   "half": 20,
+   "origin": [
+    0,
+    0
+   ],
+   "theme": "bazaar"
+  },
+  {
+   "id": "props-hawk-lane-overlook",
+   "name": "Hawk Lane Overlook",
+   "url": "/assets/props/hawk-lane-overlook.glb",
+   "collisionUrl": "/assets/props/hawk-lane-overlook.col.glb",
+   "center": [
+    37.85,
+    -178.9
+   ],
+   "half": 6,
    "origin": [
     0,
     0

@@ -10,8 +10,8 @@ export function colUrl(layoutUrl: string): string {
 export type ColBoxTuple = [number, number, number, number, number, number, number];
 
 /** Accepts `[[...], ...]` or `{boxes: [[...], ...]}`; drops malformed / degenerate entries. */
-export function parseColBoxes(json: unknown): ColBoxTuple[] {
-  const raw = Array.isArray(json) ? json : (json as { boxes?: unknown } | null)?.boxes;
+export function parseColBoxes(json: unknown, field: "boxes" | "walkableBoxes" = "boxes"): ColBoxTuple[] {
+  const raw = Array.isArray(json) ? json : (json as Partial<Record<typeof field, unknown>> | null)?.[field];
   if (!Array.isArray(raw)) return [];
   const out: ColBoxTuple[] = [];
   for (const b of raw) {

@@ -12,11 +12,14 @@ export interface InteriorLayout {
   id: string;
   library: string;
   props: Prop[];
+  lights?: [x: number, y: number, z: number, color: string, intensity: number, range?: number][];
 }
 
 export interface StreamHero {
   id: string;
   center: [number, number];
+  loadWithin?: number;
+  keepWithin?: number;
 }
 
 export interface StreamOptions {
@@ -48,8 +51,8 @@ const dist = (h: StreamHero, c: StreamOptions["cam"]): number =>
 export function planStreaming(o: StreamOptions): StreamPlan {
   const have = new Set(o.loaded);
   const scored = o.heroes
-    .map((h) => ({ id: h.id, d: dist(h, o.cam) }))
-    .filter((h) => (have.has(h.id) ? h.d <= o.keepWithin : h.d <= o.loadWithin))
+    .map((h) => ({ ...h, d: dist(h, o.cam) }))
+    .filter((h) => (have.has(h.id) ? h.d <= (h.keepWithin ?? o.keepWithin) : h.d <= (h.loadWithin ?? o.loadWithin)))
     .sort((a, b) => a.d - b.d || (a.id < b.id ? -1 : 1))
     .slice(0, Math.max(0, o.maxLoaded));
   const want = new Set(scored.map((h) => h.id));

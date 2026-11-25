@@ -1141,7 +1141,7 @@
  {
   "id": "hall-0",
   "kind": "hall",
-  "name": "Great Hall",
+  "name": "Market Hall",
   "pos": [
    35,
    -76.5
@@ -1150,6 +1150,11 @@
   "stand": [
    34.5,
    -74
+  ],
+  "room": "hall-0",
+  "door": [
+   35,
+   -76.9836
   ]
  },
  {
@@ -1214,13 +1219,200 @@
   "kind": "landmark",
   "name": "The Villa",
   "pos": [
-   5.0,
+   5,
    222.5
   ],
   "heading": 3.14159,
   "stand": [
-   5.0,
+   5,
    217.5
   ]
+ },
+ {
+  "id": "house-ring-35-0",
+  "kind": "shopfront",
+  "name": "Scandi Hawk",
+  "pos": [
+   22.925,
+   -141.186
+  ],
+  "heading": 0,
+  "stand": [
+   22.925,
+   -141.186
+  ],
+  "room": "house-ring-35-0",
+  "door": [
+   22.925,
+   -142.086
+  ]
+ },
+ {
+  "id": "market-hall-checkout",
+  "name": "Market Hall Checkout",
+  "kind": "stall",
+  "pos": [
+   42.8,
+   -83.4
+  ],
+  "stand": [
+   42.8,
+   -82.2
+  ],
+  "heading": 3.141592653589793
+ },
+ {
+  "id": "market-hall-snacks",
+  "name": "Market Hall Snack Counter",
+  "kind": "stall",
+  "pos": [
+   42.8,
+   -89.35
+  ],
+  "stand": [
+   42.8,
+   -90.65
+  ],
+  "heading": 0
+ },
+ {
+  "id": "market-hall-bakery",
+  "name": "Market Hall Bakery",
+  "kind": "stall",
+  "pos": [
+   24,
+   -88.7
+  ],
+  "stand": [
+   25.65,
+   -88.7
+  ],
+  "heading": -1.5707963267948966
+ },
+ {
+  "id": "market-hall-produce",
+  "name": "Market Hall Produce",
+  "kind": "stall",
+  "pos": [
+   30,
+   -86.6
+  ],
+  "stand": [
+   30,
+   -85.2
+  ],
+  "heading": 3.141592653589793
+ },
+ {
+  "id": "market-hall-water",
+  "name": "Market Hall Water Station",
+  "kind": "stall",
+  "pos": [
+   49.2,
+   -91.2
+  ],
+  "stand": [
+   48.15,
+   -91.2
+  ],
+  "heading": 1.5707963267948966
+ },
+ {
+  "id": "market-hall-cheese",
+  "name": "Market Hall Cheese Stand",
+  "kind": "stall",
+  "pos": [
+   22.1,
+   -95.2
+  ],
+  "stand": [
+   23.5,
+   -95.2
+  ],
+  "heading": -1.5707963267948966
+ },
+ {
+  "id": "market-hall-flowers",
+  "name": "Market Hall Flower Stand",
+  "kind": "stall",
+  "pos": [
+   50.3,
+   -100.1
+  ],
+  "stand": [
+   48.8,
+   -100.1
+  ],
+  "heading": 1.5707963267948966
+ },
+ {
+  "id": "market-hall-pantry-shelves",
+  "name": "Market Hall Pantry Shelves",
+  "kind": "stall",
+  "pos": [
+   38.2,
+   -88.1
+  ],
+  "stand": [
+   39.35,
+   -88.1
+  ],
+  "heading": -1.5707963267948966
+ },
+ {
+  "id": "lido-terrace",
+  "name": "Lido Terrace",
+  "kind": "landmark",
+  "pos": [
+   35,
+   115.1
+  ],
+  "stand": [
+   35,
+   113.9
+  ],
+  "heading": 0
+ },
+ {
+  "id": "hawk-lane-commons",
+  "name": "Hawk Lane Commons",
+  "kind": "landmark",
+  "pos": [
+   32.6,
+   -151.85
+  ],
+  "stand": [
+   32.6,
+   -150.56
+  ],
+  "heading": 3.141592653589793
+ },
+ {
+  "id": "hawk-lane-neighbor-porch",
+  "name": "Hawk Lane Porch",
+  "kind": "landmark",
+  "pos": [
+   41.74,
+   -143.95
+  ],
+  "stand": [
+   41.74,
+   -142.85
+  ],
+  "heading": 3.141592653589793
+ },
+ {
+  "id": "hawk-lane-overlook",
+  "name": "Hawk Lane Overlook",
+  "kind": "landmark",
+  "pos": [
+   37.85,
+   -178.48
+  ],
+  "stand": [
+   37.85,
+   -177.42
+  ],
+  "heading": 3.141592653589793
  }
 ]

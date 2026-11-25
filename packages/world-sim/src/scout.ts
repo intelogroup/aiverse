@@ -57,6 +57,8 @@ export interface ScoutRoomShape {
   door: Vec2;
   rect: [number, number, number, number];
   center: Vec2;
+  /** Authored walking points through the staircase, ordered from the lower floor to the upper floor. */
+  stairs?: { lowerY: number; upperY: number; points: Vec2[] };
 }
 
 export interface ScoutDistrict {
@@ -261,7 +263,12 @@ export function oracleScene(
   }
   for (const i of interactables) {
     const s = seen(i.pos[0], i.pos[1]);
-    if (s) out.push({ kind: "interactable", id: i.id, name: i.label, state: i.on ? "on" : "off", note: "use with interact", ...s });
+    if (s) out.push({
+      kind: "interactable", id: i.id, name: i.label, ...s,
+      ...(i.kind === "pickup"
+        ? { note: "interact, then claim through the pickup catalog" }
+        : { state: i.on ? "on" : "off", note: "use with interact" }),
+    });
   }
   for (const t of seats) {
     const s = seen(t.pos[0], t.pos[1]);
@@ -386,10 +393,13 @@ interface Pending {
   route?: Vec2[];
   routeIndex?: number;
   replans?: number;
+  stairs?: { points: Vec2[]; approach: boolean; landingY: number; ascending: boolean };
 }
 
 const SIT_DOWN_S = clipDef("SitDown")?.duration ?? 2.2333;
 const STAND_UP_S = clipDef("StandUp")?.duration ?? 2.2667;
+const STAIR_ARRIVE_M = 0.045; // Stay centred on the treads and landing turns.
+const FLOOR_TOLERANCE_M = 0.12;
 const ZERO_INPUT = { forward: 0, strafe: 0, turn: 0, run: false };
 
 export interface ExecutorDeps {
@@ -599,7 +609,10 @@ export class ScoutExecutor {
         const taken = this.deps.seatTaken ?? (() => false);
         const sittable = action.sittable
           ? sittableById(this.deps.sittables, action.sittable)
-          : nearestSittable(this.deps.sittables, state.x, state.z, SIT_ENGAGE_RANGE, (id) => !taken(id));
+          : nearestSittable(
+              this.deps.sittables.filter((s) => s.kind !== "bed" || Math.abs(state.y - s.floorY) <= FLOOR_TOLERANCE_M),
+              state.x, state.z, SIT_ENGAGE_RANGE, (id) => !taken(id),
+            );
         if (sittable && taken(sittable.id)) {
           return Promise.resolve({ ok: false, status: "unavailable", target: sittable.id, detail: "occupied: pick another seat" });
         }
@@ -658,6 +671,40 @@ export class ScoutExecutor {
     return null;
   }
 
+  private stairWalk(state: WalkerState, seat: Sittable | undefined): Pending["stairs"] {
+    const here = roomAt(this.deps.rooms ?? [], state.x, state.z);
+    const seatRoom = seat && this.deps.rooms?.find((candidate) => candidate.id === seat.building && candidate.stairs);
+    const room = seatRoom ?? here;
+    const stairs = room?.stairs;
+    if (!stairs || stairs.points.length < 2) return;
+    const { lowerY, upperY, points } = stairs;
+    const ascending = seat !== undefined && Math.abs(seat.floorY - upperY) <= FLOOR_TOLERANCE_M;
+    const onUpper = here === room && state.y >= upperY - FLOOR_TOLERANCE_M;
+    const onLower = here !== room || state.y <= lowerY + FLOOR_TOLERANCE_M;
+    if (onUpper && ascending) return { points: [], approach: false, landingY: upperY, ascending };
+    if (onLower && !ascending) return;
+
+    let path = ascending ? points.slice() : points.slice().reverse();
+    if (!onLower && !onUpper) {
+      // A stopped or interrupted body resumes the nearest segment in the requested direction.
+      let nearest = Infinity;
+      let next = 1;
+      for (let i = 1; i < path.length; i++) {
+        const [x, z] = path[i - 1];
+        const dx = path[i][0] - x, dz = path[i][1] - z;
+        const t = Math.max(0, Math.min(1, ((state.x - x) * dx + (state.z - z) * dz) / (dx * dx + dz * dz)));
+        const distance = Math.hypot(state.x - x - t * dx, state.z - z - t * dz);
+        if (distance < nearest) {
+          nearest = distance;
+          next = i;
+        }
+      }
+      path = path.slice(next);
+    }
+    const approach = onLower && Math.hypot(state.x - path[0][0], state.z - path[0][1]) > STAIR_ARRIVE_M;
+    return { points: path, approach, landingY: ascending ? upperY : lowerY, ascending };
+  }
+
   private begin(action: ScoutAction, state: WalkerState, extra: Partial<Pending> & { tLeft: number }): Promise<ScoutOutcome> {
     return new Promise<ScoutOutcome>((resolve) => {
       this.pending = {
@@ -668,6 +715,7 @@ export class ScoutExecutor {
         lastX: state.x,
         lastZ: state.z,
         ...extra,
+        stairs: extra.target ? this.stairWalk(state, extra.sittable) : undefined,
       };
     });
   }
@@ -818,10 +866,14 @@ export class ScoutExecutor {
           step(state, ZERO_INPUT, dt, world);
           return;
         }
-        const target = p.target!;
-        const arriveR = p.phase === "to-approach" || p.phase === "to-stand" ? 0.25 : 0.45;
+        const stairs = p.stairs;
+        const stairPoint = stairs?.points[0];
+        const target = stairPoint ?? p.target!;
+        const direct = stairs !== undefined && !stairs.approach;
+        const arriveR = stairPoint || (direct && stairs?.ascending) ? STAIR_ARRIVE_M
+          : p.phase === "to-approach" || p.phase === "to-stand" ? 0.25 : 0.45;
         const propApproach = p.action.type === "interact" && Math.hypot(target[0] - state.x, target[1] - state.z) > arriveR;
-        const routed = !!this.deps.plan && (p.action.type === "go_to" || p.action.type === "run_to" ||
+        const routed = !direct && !!this.deps.plan && (p.action.type === "go_to" || p.action.type === "run_to" ||
           p.action.type === "enter" || p.action.type === "sit" || propApproach);
         if (routed && !p.route) {
           const route = this.deps.plan!(state, target);
@@ -843,7 +895,8 @@ export class ScoutExecutor {
           if (p.replans > 8) this.settle({ ok: false, status: "blocked", detail: "route repeatedly obstructed" });
           return;
         }
-        const { input: wanted, arrived: waypointArrived } = moveToIntent(state, waypoint, p.route && (p.routeIndex ?? 0) < p.route.length - 1 ? 0.2 : arriveR, !!p.run);
+        const { input: wanted, arrived: waypointArrived } = moveToIntent(state, waypoint,
+          p.route && (p.routeIndex ?? 0) < p.route.length - 1 ? 0.2 : arriveR, !!p.run && !stairPoint);
         const input = this.deps.avoid?.(state, wanted) ?? wanted;
         const arrived = waypointArrived && (!p.route || (p.routeIndex ?? 0) === p.route.length - 1);
         const held = this.deps.door?.(state, input, dt) ?? null;
@@ -861,8 +914,30 @@ export class ScoutExecutor {
         } else {
           p.staleFor += dt;
         }
-        if (arrived || dist <= arriveR + 0.1) {
+        if (stairPoint && stairs && (arrived || dist <= arriveR)) {
+          if (stairs.approach) {
+            // Nav may project the bottom point. Finish the last centimetres at the authored point.
+            stairs.approach = false;
+          } else {
+            stairs.points.shift();
+            if (!stairs.points.length && Math.abs(state.y - stairs.landingY) > FLOOR_TOLERANCE_M) {
+              this.settle({ ok: false, status: "blocked", detail: "stair landing not reached", target: p.targetId });
+              return;
+            }
+            if (!stairs.points.length && !stairs.ascending) p.stairs = undefined;
+          }
+          p.route = undefined;
+          p.replans = 0;
+          p.bestDist = Infinity;
+          p.staleFor = 0;
+          return;
+        }
+        if (!stairPoint && (arrived || dist <= arriveR + (direct ? 0 : 0.1))) {
           if (p.action.type === "sit" && p.phase === "to-approach") {
+            if (p.sittable!.kind === "bed" && Math.abs(state.y - p.sittable!.floorY) > FLOOR_TOLERANCE_M) {
+              this.settle({ ok: false, status: "blocked", detail: "bedside floor not reached", target: p.targetId });
+              return;
+            }
             p.phase = "turn";
             return;
           }

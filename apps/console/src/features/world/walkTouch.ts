@@ -27,7 +27,7 @@ import {
   type TeaSessionPhase,
 } from "./teaDoor";
 import type { WalkDoorClip } from "./walkOverride";
-import type { InteractableDef } from "./interactables";
+import { interactPrompt, type InteractableDef } from "./interactables";
 
 /** A touch that moves less than this (px) may still be a tap. */
 export const TAP_MAX_MOVE_PX = 10;
@@ -221,5 +221,5 @@ export function doorChipClip(
 
 /** The interact chip's label, in human words (never a clip name). */
 export function interactChipText(def: InteractableDef, on: boolean): string {
-  return `Turn ${def.label.toLowerCase()} ${on ? "off" : "on"}`;
+  return interactPrompt(def, on);
 }

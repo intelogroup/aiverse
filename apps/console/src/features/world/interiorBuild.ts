@@ -43,6 +43,11 @@ export function buildInterior(
 ): InteriorHandle {
   const group = new THREE.Group();
   group.name = `interior:${layout.id}`;
+  for (const [x, y, z, color, intensity, range = 6] of layout.lights ?? []) {
+    const light = new THREE.PointLight(color, intensity, range);
+    light.position.set(x + offset[0], y, z + offset[1]);
+    group.add(light);
+  }
   if (layout.id === "tea") {
     for (const prop of layout.props.filter((p) => p[0] === "tea_lantern")) {
       const light = new THREE.PointLight("#ffcf91", 16, 7, 2);
