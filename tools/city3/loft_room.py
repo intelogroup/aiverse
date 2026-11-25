@@ -50,11 +50,17 @@ SEATS = {
     "loft_bar_chair": [((0, 0), math.pi / 2, "back")],
 }
 
-# key, id, kind, label, stand-side, facing offset, pilot position (prop-local metres)
+# key, id, kind, label, stand-side, facing offset, pilot position, and how it is used:
+#   clip  - catalog clip the figure plays (absent: the generic Interact reach)
+#   mode  - toggle (default) | momentary | once
+#   verb  - the prompt word ("Watch", "Listen to", "Read")
 USE = [
-    ("loft_tv", "loft-tv", "tv", "Television", 0.75, -math.pi / 2, (0.0, 1.02, -0.05)),
-    ("loft_media", "loft-stereo", "stereo", "Stereo", 0.55, -math.pi / 2, (0.0, 0.30, 0.0)),
-    ("loft_shelf", "loft-shelf", "bookshelf", "Bookshelf", 0.50, 0.0, (0.0, 1.06, 0.0)),
+    ("loft_tv", "loft-tv", "tv", "Television", 0.75, 0, (0.0, 1.02, -0.05),
+     {"verb": "Watch"}),
+    ("loft_media", "loft-stereo", "stereo", "Stereo", 0.55, 0, (0.0, 0.30, 0.0),
+     {"verb": "Listen to"}),
+    ("loft_shelf", "loft-shelf", "bookshelf", "Bookshelf", 0.50, 0.0, (0.0, 1.06, 0.0),
+     {"clip": "PickUp", "mode": "once", "verb": "Read"}),
 ]
 
 LIGHTS = [
@@ -109,7 +115,7 @@ def main():
                 "floorY": FLOOR,
             })
 
-    for key, ident, kind, label, stand_off, facing_off, pilot in USE:
+    for key, ident, kind, label, stand_off, facing_off, pilot, use in USE:
         placed = next((p for p in props if p[0] == key), None)
         if placed is None:
             sys.exit(f"{ident}: {key} is not placed")
@@ -120,7 +126,7 @@ def main():
             "pos": [round(px, 3), round(py, 3), round(pz, 3)], "rotY": yaw,
             "stand": [round(px + math.sin(f) * stand_off, 3), round(pz + math.cos(f) * stand_off, 3)],
             "heading": round(f + math.pi, 6), "floorY": FLOOR,
-            "pilot": list(pilot),
+            "pilot": list(pilot), **use,
         })
 
     layout = {"id": ROOM, "library": "modern-loft-interior.glb", "props": props,
