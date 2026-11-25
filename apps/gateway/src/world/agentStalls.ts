@@ -3,6 +3,7 @@ import { agents, verseInventory, verseProgressEvents, verseStallStock, verseStal
 import { MARKET_HALL_SAMPLE } from "@aiverse/shared/marketHall";
 import { db } from "../db/client";
 import { progress } from "./verseProgress";
+import { satisfyWant } from "./agentEconomy";
 
 // Agent-economy Phase 3 (Nov 25 2026): bazaar stalls and bars as world
 // fixtures with stock + prices, and the world_buy purchase path.
@@ -130,7 +131,7 @@ export type BuyFromStallResult =
  *  `itemRef` is an item name or a stock row id. */
 export async function buyFromStall(agentId: string, stallRef: string, itemRef: string): Promise<BuyFromStallResult> {
   await ensureStalls();
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const stalls = await tx.select().from(verseStalls);
     const stall = stalls.find((s) => s.id === stallRef) ?? stalls.find((s) => s.name === stallRef);
     if (!stall) return { ok: false, error: "stall_not_found" } as const;
@@ -170,4 +171,8 @@ export async function buyFromStall(agentId: string, stallRef: string, itemRef: s
       stock: decremented.stock,
     } as const;
   });
+  // Phase 4: buying a wanted item satisfies its want (same semantics as
+  // the listing path) — a filled want never drives a second purchase.
+  if (result.ok) await satisfyWant(agentId, result.item.name);
+  return result;
 }

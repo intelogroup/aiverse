@@ -388,3 +388,77 @@ export async function awardMoveXp(agentId: string, actId: string): Promise<numbe
   }).onConflictDoNothing().returning({ xp: verseProgressEvents.xp });
   return row ? 1 : 0;
 }
+
+// ── Phase 4: wants — the write path ─────────────────────────────────────
+// Wants had a home since Phase 1 (verse_agent_state.wants) and a read
+// surface (the self block); Phase 4 lets the agent write its own. Wants
+// come first — trade is what wants do (owner axiom, Nov 24 2026): the
+// want-driven trade path (world/agentSales.ts buyListingForWant) refuses
+// an agent with no matching want, and a completed purchase of a wanted
+// item SATISFIES the want — it is removed, so a filled want never drives
+// a second, unintended purchase.
+
+const wantNameEq = (a: string, b: string): boolean =>
+  a.trim().toLowerCase() === b.trim().toLowerCase();
+
+/** The want (if any) naming this item, regardless of price. */
+export function findWant(wants: VerseWant[], itemName: string): VerseWant | undefined {
+  return wants.find((w) => wantNameEq(w.item, itemName));
+}
+
+/** Does any want cover this item at this price? A want's maxPrice is the
+ *  most the agent will pay — a price above it is NOT a match. */
+export function wantMatches(wants: VerseWant[], itemName: string, price: number): boolean {
+  const want = findWant(wants, itemName);
+  return !!want && (want.maxPrice === undefined || price <= want.maxPrice);
+}
+
+export async function getWants(agentId: string, store: Store = db): Promise<VerseWant[]> {
+  return (await getAgentEconomyState(agentId, store)).wants;
+}
+
+async function writeWants(agentId: string, wants: VerseWant[], store: WriteStore): Promise<VerseWant[]> {
+  await store.insert(verseAgentState).values({ agentId }).onConflictDoNothing();
+  await store.update(verseAgentState).set({ wants, updatedAt: sql`now()` })
+    .where(eq(verseAgentState.agentId, agentId));
+  return wants;
+}
+
+export type SetWantsResult = { ok: true; wants: VerseWant[] } | { ok: false; error: "invalid_want" };
+
+/** Replace the agent's whole want list (world_wants set). Validated:
+ *  each want is {item: non-empty name ≤120 chars, maxPrice?: positive
+ *  integer}; duplicate items collapse to the first entry. An invalid
+ *  list changes nothing. */
+export async function setWants(agentId: string, raw: unknown, store: WriteStore = db): Promise<SetWantsResult> {
+  if (!Array.isArray(raw) || raw.length > 20) return { ok: false, error: "invalid_want" };
+  const wants: VerseWant[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") return { ok: false, error: "invalid_want" };
+    const { item, maxPrice } = entry as { item?: unknown; maxPrice?: unknown };
+    if (typeof item !== "string" || !item.trim() || item.trim().length > 120) {
+      return { ok: false, error: "invalid_want" };
+    }
+    if (maxPrice !== undefined && (!Number.isInteger(maxPrice) || (maxPrice as number) < 1 || (maxPrice as number) > 2_147_483_647)) {
+      return { ok: false, error: "invalid_want" };
+    }
+    if (wants.some((w) => wantNameEq(w.item, item))) continue;
+    wants.push(maxPrice === undefined ? { item: item.trim() } : { item: item.trim(), maxPrice: maxPrice as number });
+  }
+  return { ok: true, wants: await writeWants(agentId, wants, store) };
+}
+
+/** Clear one want by item name, or every want when no item is named. */
+export async function clearWants(agentId: string, item?: string, store: WriteStore = db): Promise<VerseWant[]> {
+  const current = await getWants(agentId, store);
+  const next = item === undefined ? [] : current.filter((w) => !wantNameEq(w.item, item));
+  return next.length === current.length && item !== undefined ? current : writeWants(agentId, next, store);
+}
+
+/** A purchase of this item landed: remove its want (satisfied). Returns
+ *  the wants that remain; a no-op when nothing matched. */
+export async function satisfyWant(agentId: string, itemName: string, store: WriteStore = db): Promise<VerseWant[]> {
+  const current = await getWants(agentId, store);
+  if (!findWant(current, itemName)) return current;
+  return writeWants(agentId, current.filter((w) => !wantNameEq(w.item, itemName)), store);
+}

@@ -17,8 +17,9 @@ import {
 } from "../auth/resolveAgent";
 import { oauthIssuer } from "../auth/oauthCore";
 import { log, logError } from "../util/log";
-import { actionClassFor, awardMoveXp, awardPlaceXp, claimStipends, exhaustionFor, getAgentEconomyState, restEnergy, spendEnergyForAction, useBagItem } from "../world/agentEconomy";
+import { actionClassFor, awardMoveXp, awardPlaceXp, claimStipends, clearWants, exhaustionFor, getAgentEconomyState, getWants, restEnergy, setWants, spendEnergyForAction, useBagItem, wantMatches } from "../world/agentEconomy";
 import { buyFromStall, nearbyStalls } from "../world/agentStalls";
+import { buyListingForWant, listOpenSaleOffers } from "../world/agentSales";
 import { awardConversationXp } from "../world/verseProgress";
 
 // The agent MCP (MCP + OAuth plan, Phases 3–4): how an outside LLM client —
@@ -356,8 +357,15 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
           }).catch(() => null);
           if (visit) await awardPlaceXp(agentId, placeId, visit.id).catch(() => null);
         }
-        const stalls = await nearbyStalls({ x: body.x, z: body.z, placeId }).catch(() => []);
-        return okJson({ ...data, self: await getAgentEconomyState(agentId), stalls });
+        const self = await getAgentEconomyState(agentId);
+        const stalls = (await nearbyStalls({ x: body.x, z: body.z, placeId }).catch(() => []))
+          // Phase 4: mark the stall items that match the agent's wants,
+          // so a want visibly points at its trade.
+          .map((stall) => ({
+            ...stall,
+            items: stall.items.map((item) => ({ ...item, matches_want: wantMatches(self.wants, item.name, item.price) })),
+          }));
+        return okJson({ ...data, self, stalls });
       });
     },
   );
@@ -753,13 +761,14 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
 
   register(
     "world_buy",
-    "Buy an item from a bazaar stall or bar (see the stalls and prices in world_observe): pass the stall id (or exact name) and the item name. The price is taken from your CREDITS and the item lands in your bag; the sale is final and atomic — if you cannot afford it, nothing moves and you are told insufficient_credits. Food and drink bought here restore energy when you eat them with world_use. Agent-to-agent listings are a different path (the verse sales board); this tool is only for world stalls. Requires the world:act scope for OAuth tokens.",
+    "Buy with your CREDITS — two targets. (1) A bazaar stall or bar (see the stalls and prices in world_observe): pass the stall id (or exact name) and the item name. (2) Another agent's sales listing (see world_listings): pass the listing id — this is the WANT-DRIVEN trade path: it completes only when one of your wants (world_wants) names the listed item and the price is within that want's maxPrice, because wants come first and trade is what wants do; an agent with no matching want is refused and nothing moves. Either way the price is taken from your credits and the item lands in your bag; the sale is final and atomic — if you cannot afford it, nothing moves and you are told insufficient_credits. Buying an item you want satisfies that want (it is cleared). Food and drink bought here restore energy when you eat them with world_use. Requires the world:act scope for OAuth tokens.",
     {
-      stall: z.string().min(1).describe("Stall id or exact name from world_observe, e.g. \"market-hall-bakery\""),
-      item: z.string().min(1).describe("Item name exactly as listed at the stall, e.g. \"Market Hall bakery sample\""),
+      stall: z.string().min(1).optional().describe("Stall id or exact name from world_observe, e.g. \"market-hall-bakery\" (stall target)"),
+      item: z.string().min(1).optional().describe("Item name exactly as listed at the stall, e.g. \"Market Hall bakery sample\" (stall target)"),
+      listing: z.string().min(1).optional().describe("Sales listing (offer) id from world_listings (agent-to-agent target; driven by your wants)"),
       agent_id: agentIdArg,
     },
-    async ({ stall, item, agent_id }) => {
+    async ({ stall, item, listing, agent_id }) => {
       const gate = scopeGate(caller, "world:act", "world_buy");
       if (gate) return gate;
       return asAgent({ agent_id }, async (agentId) => {
@@ -767,6 +776,37 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
         // claim due; settle it first so a first purchase is not refused
         // on a balance the agent has not been given yet.
         await claimStipends(agentId);
+        if (listing) {
+          if (process.env.AIVERSE_VERSE_PROGRESS !== "1") {
+            return fail("sales_disabled: agent-to-agent sales are not enabled in this verse right now.");
+          }
+          const bought = await buyListingForWant(agentId, listing);
+          if (!bought.ok) {
+            return fail(
+              bought.error === "no_matching_want"
+                ? `no_matching_want: none of your wants names this listing's item, so there is no trade to complete. Wants come first — set one with world_wants (item + the most you will pay) and the listing becomes buyable. Your current wants are in world_observe / agent_whoami.`
+                : bought.error === "above_max_price"
+                  ? `above_max_price: this listing costs more than the maxPrice on your want for the item. Raise the want's maxPrice with world_wants if you truly mean to pay it, or wait for a cheaper listing.`
+                  : bought.error === "insufficient_credits"
+                    ? `insufficient_credits: you cannot afford this listing. Your credits are in world_observe / agent_whoami (self block); collecting and selling earn more.`
+                    : bought.error === "own_offer"
+                      ? `own_offer: this is your own listing — you cannot buy from yourself.`
+                      : bought.error === "offer_not_found"
+                        ? `offer_not_found: there is no sales listing "${listing}". The open board is in world_listings.`
+                        : `${bought.error}: this listing is no longer buyable (sold, or the seller no longer holds the item at the listed revision). The open board is in world_listings.`,
+            );
+          }
+          return okJson({
+            ok: true,
+            bought: { id: bought.receipt.itemId, name: bought.receipt.itemName },
+            listing: bought.receipt.id,
+            price: bought.receipt.price,
+            credits: (await getAgentEconomyState(agentId)).credits,
+          });
+        }
+        if (!stall || !item) {
+          return fail("invalid_buy_target: pass either a stall + item (world_observe lists stalls) or a listing id (world_listings lists agent sales).");
+        }
         const bought = await buyFromStall(agentId, stall, item);
         if (!bought.ok) {
           return fail(
@@ -790,6 +830,55 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
       });
     },
     { readOnlyHint: false },
+  );
+
+  register(
+    "world_wants",
+    "Your WANTS: what you are after, and the most you will pay for each — wants come first, and trade is what wants do. action \"list\" shows your current wants; \"set\" REPLACES the whole list with the wants you pass ([{item, maxPrice?}] — maxPrice is optional; leave it off if any price is fine); \"clear\" removes one want (pass its item name) or all of them (no item). Wants drive trade: world_listings and world_observe mark what matches your wants, and world_buy with a listing id completes a purchase only for a wanted item within its maxPrice. Buying a wanted item satisfies and clears that want. Requires the world:act scope for OAuth tokens.",
+    {
+      action: z.enum(["list", "set", "clear"]).describe("list: read your wants. set: replace them with `wants`. clear: drop one want (`item`) or all wants (no item)."),
+      wants: z.array(z.object({
+        item: z.string().describe("The item or goal you want, by its world name, e.g. \"Brass Key\""),
+        maxPrice: z.number().int().optional().describe("The most credits you will pay for it (optional)"),
+      })).optional().describe("The full new want list (action \"set\" only)"),
+      item: z.string().optional().describe("The want to remove (action \"clear\" only; omit to clear all)"),
+      agent_id: agentIdArg,
+    },
+    async ({ action, wants, item, agent_id }) => {
+      const gate = scopeGate(caller, "world:act", "world_wants");
+      if (gate) return gate;
+      return asAgent({ agent_id }, async (agentId) => {
+        if (action === "list") return okJson({ wants: await getWants(agentId) });
+        if (action === "clear") return okJson({ wants: await clearWants(agentId, item) });
+        if (!wants) return fail("invalid_want: action \"set\" needs the wants list ([{item, maxPrice?}]).");
+        const set = await setWants(agentId, wants);
+        return set.ok
+          ? okJson({ wants: set.wants })
+          : fail("invalid_want: each want needs a non-empty item name (up to 120 characters) and, if given, a positive whole-number maxPrice. Your previous wants are unchanged.");
+      });
+    },
+    { readOnlyHint: false, idempotentHint: true },
+  );
+
+  register(
+    "world_listings",
+    "The agent-to-agent sales board: open listings from other agents (and your own), each with its item name and price in CREDITS. Every listing is marked matches_want against YOUR wants (world_wants): true means one of your wants names the item and the price is within its maxPrice — buy it with world_buy by passing the listing id. A listing that does not match any want cannot be bought through world_buy: wants come first. Requires the world:observe scope for OAuth tokens.",
+    { agent_id: agentIdArg },
+    async ({ agent_id }) => {
+      const gate = scopeGate(caller, "world:observe", "world_listings");
+      if (gate) return gate;
+      return asAgent({ agent_id }, async (agentId) => {
+        if (process.env.AIVERSE_VERSE_PROGRESS !== "1") {
+          return fail("sales_disabled: agent-to-agent sales are not enabled in this verse right now.");
+        }
+        const wants = await getWants(agentId);
+        const offers = await listOpenSaleOffers();
+        return okJson({
+          listings: offers.map((o) => ({ ...o, matches_want: wantMatches(wants, o.itemName, o.price) })),
+        });
+      });
+    },
+    { readOnlyHint: true, idempotentHint: true },
   );
 
   register(
