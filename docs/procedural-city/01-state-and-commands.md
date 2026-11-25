@@ -44,9 +44,25 @@ Root-level `bunx tsc --noEmit` (no `-p`) is the repo's real typecheck per CLAUDE
 
 ## Numbers (City 3, 2026-11-06)
 - City GLB 4.8 MB, ~198k tris, 29 meshes, ~30 draw calls (+~35 per resident room, cap 3 rooms => <=66 observed).
+  **Superseded — see the 2026-11-25 measurements below.**
 - Library 2.4 MB (45 assets), layouts avg 37 props / 1.7 KB, 77 rooms, 1064 anchors, all pass `check_anchors.py`.
 - Memory: 287 loads / 287 evictions over 100 random teleports, heap flat (29→30 MB), GPU geometries/textures flat (73/47).
 - Body controller: 1000 bodies x 60 frames = 11.7 ms; reversal heading rate 1962–10800 → ≤217 deg/s.
+
+## Numbers (City 3, 2026-11-25, measured)
+- City GLB **63.8 MB**, 361,147 unique triangles — **1,367,918 instanced** (x3.79 through `EXT_mesh_gpu_instancing`) —
+  1,622 meshes, 731 materials, 429 images (41.4 MB of them KTX2, 23 at ≥2048 px).
+  `prune_empty_nodes.py` dropped 2,659 inert childless nodes (5,229 → 2,570 nodes; JSON-chunk only,
+  so buffers and meshopt spans stay byte-identical).
+- Placed houses: 29 near GLBs **160.6 MB** + 29 far 22.6 MB + 30 collision 0.1 MB = **175 MB**.
+  `house_compress.mjs` meshopt'd the near LODs, which `place_house.mjs` had been writing raw
+  (316.3 → 160.6 MB, every triangle count unchanged). All districts: 236.3 MB of the 564.8 MB gate.
+- **Draw calls can only be measured in the browser**: `python3 tools/city3/drawcalls.py` reports
+  **~7,500–9,000 draws and 7.6–8.9 M triangles per frame** on an M4 (ANGLE Metal), i.e. ~2 fps.
+  `asset-budgets.ts` gates bytes and triangles only, and `bazaarBatch.ts` merges props at runtime,
+  so no static GLB inspection predicts the real draw count.
+- Local dev needs `VITE_ASSET_BASE=""`: otherwise world GLBs resolve to
+  `https://assets.aiverse.network`, which CORS-blocks at localhost and leaves a blank canvas.
 
 ## Not done / next
 City 3 has no crowd or navmesh (footprints + lots + anchors exist in `out/city3-nav.json`, `out/hero-anchors.json`); no head look-at;
