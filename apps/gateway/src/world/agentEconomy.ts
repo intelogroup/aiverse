@@ -1,5 +1,5 @@
-import { asc, eq, sql } from "drizzle-orm";
-import { verseAgentState, verseInventory } from "@aiverse/shared/schema";
+import { and, asc, eq, sql } from "drizzle-orm";
+import { verseAgentState, verseInventory, verseProgressEvents } from "@aiverse/shared/schema";
 import type { VerseWant } from "@aiverse/shared/schema";
 import { db } from "../db/client";
 import { progress } from "./verseProgress";
@@ -288,4 +288,103 @@ export async function useBagItem(
   await store.delete(verseInventory).where(eq(verseInventory.id, item.id));
   const energy = await applyEnergyDelta(agentId, energyRates().foodRestore, store);
   return { ok: true, item, restored: energyRates().foodRestore, energy };
+}
+
+// ── Phase 3: stipends + XP awards ───────────────────────────────────────
+// Everything here is a verse_progress_events ledger row: credits and XP
+// stay sums over the ledger (progress()), XP is never spent or lost, and
+// the ledger's (agent, kind, source) PK is the idempotency key.
+
+export interface StipendRates { firstCredits: number; firstXp: number; dailyCredits: number; dailyXp: number }
+
+export function stipendRates(): StipendRates {
+  return {
+    firstCredits: envRate("VERSE_STIPEND_FIRST_CREDITS", 1000),
+    firstXp: envRate("VERSE_STIPEND_FIRST_XP", 5),
+    dailyCredits: envRate("VERSE_STIPEND_DAILY_CREDITS", 200),
+    dailyXp: envRate("VERSE_STIPEND_DAILY_XP", 2),
+  };
+}
+
+export interface StipendClaim { granted: "first_login" | "daily" | null; credits: number; xp: number }
+
+/** Claim the load-in stipend: 1,000 credits (+5 XP) on the agent's
+ *  first-ever claim, 200 credits (+2 XP) once per UTC day after. Called
+ *  from the load-in surfaces (agent_whoami / world_observe) — there is no
+ *  separate login event on the agent interface, and whoami/observe ARE
+ *  load-in; a recurring job would sweep the whole roster under the
+ *  singleton-leader discipline to do what this claim does exactly once.
+ *  The first-login day does not also pay the daily grant. Idempotent:
+ *  the ledger PK refuses a second insert, and an advisory lock per agent
+ *  serializes concurrent claims so exactly one caller reports the grant. */
+export async function claimStipends(agentId: string, now: Date = new Date()): Promise<StipendClaim> {
+  const rates = stipendRates();
+  const day = now.toISOString().slice(0, 10);
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`verse-stipend:${agentId}`}, 0))`);
+    const [first] = await tx.select({ source: verseProgressEvents.source, createdAt: verseProgressEvents.createdAt }).from(verseProgressEvents)
+      .where(and(eq(verseProgressEvents.agentId, agentId), eq(verseProgressEvents.kind, "stipend"),
+        eq(verseProgressEvents.source, "first-login"))).limit(1);
+    if (!first) {
+      await tx.insert(verseProgressEvents).values({
+        agentId, kind: "stipend", source: "first-login", credits: rates.firstCredits, xp: rates.firstXp,
+      }).onConflictDoNothing();
+      return { granted: "first_login", credits: rates.firstCredits, xp: rates.firstXp } as StipendClaim;
+    }
+    // The first-login day pays no daily grant on top (its createdAt is the
+    // day the first grant landed).
+    if (first.createdAt.toISOString().slice(0, 10) === day) {
+      return { granted: null, credits: 0, xp: 0 } as StipendClaim;
+    }
+    const [daily] = await tx.insert(verseProgressEvents).values({
+      agentId, kind: "stipend", source: `daily:${day}`, credits: rates.dailyCredits, xp: rates.dailyXp,
+    }).onConflictDoNothing().returning({ source: verseProgressEvents.source });
+    return daily
+      ? { granted: "daily", credits: rates.dailyCredits, xp: rates.dailyXp } as StipendClaim
+      : { granted: null, credits: 0, xp: 0 } as StipendClaim;
+  });
+}
+
+/** Place XP diminishing curve, by prior visits to the SAME place:
+ *  5, 2, 1, then 0 — a place's lifetime place-XP is bounded at 8, so
+ *  first-place-visit farming (open day: Oleg's 71) cannot repeat. */
+export function placeXpForVisit(priorVisits: number): number {
+  return [5, 2, 1][priorVisits] ?? 0;
+}
+
+/** Award explore/place XP for arriving at a place, once per world VISIT
+ *  (visitKey = the visit id): agents poll world_observe constantly, so a
+ *  poll is not a visit — only the first observe of a place within a visit
+ *  counts, and the diminishing curve runs over distinct visits. One
+ *  ledger row per (place, visit), source place@visit, under an advisory
+ *  lock so concurrent observes cannot double-claim a visit. */
+export async function awardPlaceXp(agentId: string, placeId: string, visitKey: string): Promise<{ xp: number; visits: number }> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`verse-place:${agentId}:${placeId}`}, 0))`);
+    const rows = await tx.select({ source: verseProgressEvents.source }).from(verseProgressEvents)
+      .where(and(eq(verseProgressEvents.agentId, agentId), eq(verseProgressEvents.kind, "place"),
+        sql`${verseProgressEvents.source} like ${`${placeId}@%`}`));
+    if (rows.some((r) => r.source === `${placeId}@${visitKey}`)) {
+      return { xp: 0, visits: rows.length };
+    }
+    const visits = rows.length;
+    const xp = placeXpForVisit(visits);
+    if (xp > 0) {
+      await tx.insert(verseProgressEvents).values({
+        agentId, kind: "place", source: `${placeId}@${visitKey}`, xp,
+      }).onConflictDoNothing();
+    }
+    return { xp, visits: visits + 1 };
+  });
+}
+
+/** Move XP: 1 XP per NEW accepted movement act. The source is the act id,
+ *  so an idempotent replay of the same act (which the MCP layer answers
+ *  from the settled record, never re-charging energy) also never
+ *  re-awards. Returns the XP actually granted (0 on replay). */
+export async function awardMoveXp(agentId: string, actId: string): Promise<number> {
+  const [row] = await db.insert(verseProgressEvents).values({
+    agentId, kind: "move", source: `act:${actId}`, xp: 1,
+  }).onConflictDoNothing().returning({ xp: verseProgressEvents.xp });
+  return row ? 1 : 0;
 }
