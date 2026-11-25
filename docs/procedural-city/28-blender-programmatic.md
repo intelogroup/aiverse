@@ -90,14 +90,15 @@ They are manageable from Python too: `bpy.ops.extensions.package_install`,
 `wm.save_as_mainfile` → `wm.open_mainfile` works headless: a 3-object scene round-trips in 6 ms
 (60 KB), so a `.blend` can be the working format between probe runs and exports.
 
-## Texture inpainting - not available out of the box
+## Texture inpainting: repair vs generation
 
-- No ComfyUI is listening (`127.0.0.1:8188` refused) and no diffusion checkpoint is cached
-  (`~/.cache/huggingface/hub` holds bge, Phonon TTS, whisper - no SD/Flux/inpaint model).
-- `diffusers` and `torch` **are** installed, so `StableDiffusionInpaintPipeline` / Flux Fill would run
-  after a model download. That is a network + VRAM decision, not a Blender one.
-- Blender-side alternatives that need no model: `attribute_baker` / `texture_pipeline_studio` bakes,
-  and the texture-paint clone stamp (`bpy.ops.paint.*`) for touch-ups.
+- **Repair works today** with LaMa on CPU (measured below): 1.6 s per 5122 map via
+  `tools/city3/inpaint_texture.py` - holes, seams, watermarks, tiling artefacts.
+- **Generation** needs a diffusion checkpoint: `diffusers` and `torch` are installed but no SD/Flux/inpaint
+  model is cached (`~/.cache/huggingface/hub` holds bge, Phonon TTS, whisper) and no ComfyUI listens on
+  `:8188`. A download + VRAM decision, not a Blender one.
+- Blender-side, model-free: `attribute_baker`/`texture_pipeline_studio` bakes, and the texture-paint clone
+  stamp (`bpy.ops.paint.*`).
 
 ## Deep pass: world → edits → .blend → back out (measured)
 
@@ -120,8 +121,76 @@ so checkpointing between experiments is cheap. Note the subset export fell back 
 meshes because no object name starts with `shell_bazaar` in this build - filter by the names the
 importer actually produced (`Props`, `Awnings`, `ATTIC_*`, ...), not by the old generator prefixes.
 
-## Practical limits worth knowing
+## Unwrap, retopo, rigging (measured)
 
+`tools/city3/probe_model_ops.py`, one run, all six sections green:
+
+| Op | Call | Result |
+|---|---|---|
+| Smart UV + seam unwrap | `uv.smart_project` → `uv.seams_from_islands` → `uv.unwrap(method="ANGLE_BASED")` → `uv.pack_islands` | sofa: **1 194 seams**, UV bbox **0.011–0.989** (packed across the sheet), 12 303 loops, **617 ms** |
+| Quad retopo | `object.quadriflow_remesh(target_faces=400)` | bed 2 715 tris → **327 faces, 327 quads (100 %)**, **294 ms** |
+| Voxel remesh | `data.remesh_voxel_size` + `object.voxel_remesh()` | vase 5 000 → **22 888 tris** at voxel 0.005 — density goes *up* unless the voxel size tracks object scale; 209 ms |
+| Shrinkwrap retopo | 24×24 grid + `SHRINKWRAP` (PROJECT, Z) + apply | 576-face projection onto the counter, **161 ms** |
+| Auto-weighted rig | `armature_add` → bones → `parent_set(type="ARMATURE_AUTO")` | 2 bones, groups `root`/`spine`, **2 712 of 2 715 vertices weighted**, ARMATURE modifier, **175 ms** |
+| Rig add-ons | `addon_utils.enable(...)` | **rigify** exposes `fk2ik`, `ik2fk`, `transfer_fk_to_ik/ik_to_fk`, `rotation_pole`, `clear_animation`; `retarget` and `cloudrig` enable but register **no operators** headless |
+
+## AO: vertex colour, not a texture multiply
+
+The first attempt baked AO with Cycles and multiplied it into the base maps. Measured result: **−48 luma,
+71 % of pixels darkened**, and per-asset mean AO of 0.03–0.13 — because most of each AO image is
+*unbaked black*: several materials share a `palette` atlas, so a per-object UV bake does not line up
+with the pixels it is multiplied into. Wrong shape for this library.
+
+The correct pass is `paint.vertex_color_dirt()` (Dirty Vertex Colours) → glTF **COLOR_0**:
+
+```
+tools/city3/blender_lock.sh -b --factory-startup --python tools/city3/bake_ao.py
+# AO_VCOL 25/25 assets, 32/32 primitives carry COLOR_0, 8.58 -> 9.98 MB in 1.3 s
+```
+
+No second UV channel, no extra texture memory, and three.js applies COLOR_0 as soon as the primitive has
+it. Costs **+1.4 MB** for the colour attribute and is per-vertex, so it wants the 3.5–8k tris the kit
+already carries. Whether to ship it is a look call, not a technical one.
+
+## Textures: KTX2 vs WebP, measured on the same 512² grass map
+
+| Encoding | Bytes | vs PNG | Bits/texel | Notes |
+|---|---|---|---|---|
+| PNG | 589 654 | 1.0× | 24 | lossless, what the exporter writes by default |
+| **WebP q82** | **123 814** | **4.8× smaller** | — | three.js native, `gltf-transform webp`, **no new tool** |
+| **KTX2 ETC1S** | **44 093** | **13.4× smaller** | 1.35 | GPU-compressed; transcode at runtime |
+| KTX2 UASTC | 256 065 | 2.3× smaller | 7.78 | higher quality, still GPU-compressed |
+
+Which tool to install (verified):
+
+- **`brew install basis_universal`** — what is now installed here (`basisu` 2.50, bottle, no sudo). `basisu -ktx2 file.png` (ETC1S) or `basisu -ktx2 -uastc file.png`, ~0.1 s per 512² map. It writes `.ktx2` but does **not** wire it into a GLB.
+- **KTX-Software** (`ktx create/transcode/info`) — the reference toolchain, and the binary `gltf-transform etc1s|uastc` shells out to. There is **no Homebrew formula or cask**; the macOS arm64 release is a `.pkg` (needs sudo).
+- Nothing at all for WebP: `gltf-transform webp` is already installed and three.js reads WebP natively.
+
+**Recommendation:** WebP for every texture today (4.8×, zero tooling, works in the current loader).
+Add KTX2/ETC1S only where GPU memory or texture-binding count actually bites (large atlases, many
+materials), by installing KTX-Software and running `gltf-transform etc1s`; keep `basisu` as the
+no-sudo encoder when you only need the `.ktx2` file. The console already preloads a KTX2 transcoder
+for the tile pipeline, so the runtime side is in place.
+
+## Inpainting: LaMa on CPU (measured)
+
+```
+pip3 install simple-lama-inpainting          # 196 MB checkpoint into ~/.cache/torch
+python3 tools/city3/inpaint_texture.py --image TEX.png --mask MASK.png --out FIXED.png
+```
+
+- **1.62 s** for a 512² repair (model load 0.2 s, cached) on CPU.
+- Quality, measured against the untouched original inside the mask: LaMa fill sits **18.6/255** away, the
+  defect it replaced sat **73.0/255** away; fill mean RGB `[148,131,86]` vs the surrounding grass
+  `[151,131,90]`. It reconstructs the material, it does not invent one.
+- Two traps: this torch is CPU-only, and `simple-lama` calls `torch.jit.load` without a `map_location`, so
+  the checkpoint's CUDA tensors fail — `inpaint_texture.py` patches it. `--device mps` is untested for
+  TorchScript.
+- For *creative* inpainting (new content, not repair) `diffusers` + a checkpoint download is the path;
+  none is cached here.
+
+## Practical limits worth knowing
 
 - One Blender at a time: `tools/city3/blender_lock.sh` exists because concurrent headless runs
   starve each other on this box.
