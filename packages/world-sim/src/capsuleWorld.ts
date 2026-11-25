@@ -80,7 +80,7 @@ export function createCapsuleWorld(getMeshes: () => THREE.Mesh[], opts: CapsuleO
     for (let iter = 0; iter < 4; iter++) {
       let moved = false;
       for (const m of meshes) {
-        if (m.userData.collisionDisabled) continue;
+        if (m.userData.collisionDisabled || m.userData.groundOnly) continue;
         const bvh = bvhOf(m);
         if (!bvh) continue;
         const offset = m.userData.collisionOffset as THREE.Vector3 | undefined;
@@ -344,8 +344,8 @@ const BOX_FACES = [
   [1, 5, 7, 1, 7, 3], // x+
 ].flat();
 
-/** Closed boxes (12 triangles each) -> ONE merged collider mesh with a BVH. Walls only (`noGround`). */
-export function boxesMesh(boxes: readonly ColBox[], offset: [number, number] = [0, 0], name = "interior-boxes"): THREE.Mesh | null {
+/** Closed boxes (12 triangles each) -> ONE merged collider mesh with a BVH. Walkable tops are opt-in. */
+export function boxesMesh(boxes: readonly ColBox[], offset: [number, number] = [0, 0], name = "interior-boxes", noGround = true): THREE.Mesh | null {
   if (!boxes.length) return null;
   const pos = new Float32Array(boxes.length * 8 * 3);
   const index = new Uint32Array(boxes.length * 36);
@@ -363,6 +363,8 @@ export function boxesMesh(boxes: readonly ColBox[], offset: [number, number] = [
     for (let i = 0; i < 36; i++) index[b * 36 + i] = b * 8 + BOX_FACES[i];
   });
   const m = meshFromArrays(pos, index, name);
-  m.userData[NO_GROUND] = true;
+  m.userData[NO_GROUND] = noGround;
+  // Treads supply height. Separate rails and walls supply lateral collision.
+  if (!noGround) m.userData.groundOnly = true;
   return m;
 }

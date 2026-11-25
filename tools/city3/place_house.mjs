@@ -69,7 +69,8 @@ else {
   if (r1 > r0) boxes.push(["facade_r", (r0 + r1) / 2, fz, (r1 - r0) / 2, T / 2, yb, top]);
   boxes.push(["lintel", dx, fz, gh, T / 2, WALK_Y + 2.9, top], ["threshold", dx, fz, gh, T / 2, yb, FLOOR_TOP]);
   boxes.push(["stoop", dx, fz + 0.425 + T / 2, gh + 0.45, 0.425, yb, FLOOR_TOP]);
-  boxes.push(["floor", mx, mz, ex - T, ez - T, yb, FLOOR_TOP], ["ceiling", mx, mz, ex, ez, ceil, top]);
+  boxes.push(["floor", mx, mz, ex - T, ez - T, yb, FLOOR_TOP]);
+  if (opt.ceil !== "none") boxes.push(["ceiling", mx, mz, ex, ez, ceil, top]);
 }
 const turn = (p) => toWorld(toLocal(p)), swap = ((SIDE[door] + YAW) / 90) % 2 !== 0;
 

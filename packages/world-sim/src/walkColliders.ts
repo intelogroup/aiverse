@@ -66,7 +66,7 @@ export class WalkColliders {
 
   /** Stable between mutations (the capsule world calls this every probe). */
   /** Planning may traverse the operable door link; physics retains the actual blocker. */
-  listWithout = (key: string): THREE.Mesh[] => [...this.sets.entries()].filter(([k]) => k !== key).flatMap(([, meshes]) => meshes);
+  listWithout = (...keys: string[]): THREE.Mesh[] => [...this.sets.entries()].filter(([k]) => !keys.includes(k)).flatMap(([, meshes]) => meshes);
 
   list = (): THREE.Mesh[] => (this.flat ??= [...this.sets.values()].flat());
 

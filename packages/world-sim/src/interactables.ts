@@ -85,6 +85,12 @@ interface Session {
 
 const ZERO_INPUT: WalkInput = { forward: 0, strafe: 0, turn: 0, run: false };
 
+/** Human prompt shared by desktop and touch controls. */
+export function interactPrompt(def: InteractableDef, on: boolean): string {
+  const label = def.label.toLowerCase();
+  return def.kind === "pickup" ? `Inspect ${label}` : `Turn ${label} ${on ? "off" : "on"}`;
+}
+
 /** Stand pose of a prop (the align target). */
 export function interactPose(def: InteractableDef): StandPose {
   return { x: def.stand[0], z: def.stand[1], heading: def.heading };
@@ -310,7 +316,7 @@ export class InteractController {
     if (this.lastRefusal && this.now - this.lastRefusal.at < 4) return `${this.lastRefusal.id} · ${this.lastRefusal.reason}`;
     const p = at ?? this.seen.get(actor);
     const near = p ? this.nearest(p.x, p.z) : null;
-    if (near) return `E · turn ${near.label.toLowerCase()} ${this.isOn(near.id) ? "off" : "on"}`;
+    if (near) return `E · ${interactPrompt(near, this.isOn(near.id)).toLowerCase()}`;
     return null;
   }
 }

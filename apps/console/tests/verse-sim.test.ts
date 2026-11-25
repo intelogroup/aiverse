@@ -1,3 +1,5 @@
+import { MARKET_HALL_SAMPLE } from "@aiverse/shared/marketHall";
+import { makeWalker, moveToIntent, step } from "@aiverse/world-sim/walker";
 // @vitest-environment node
 // The server-side agent sim (packages/world-sim: VerseSim + AgentBody on the baked navmesh) against the real City 3 data, no browser.
 //
@@ -10,13 +12,13 @@
 //    refused at once.
 //  - the navmesh is baked from the collision GLB in the repo (a stale bake fails here).
 // Avoidance does not yet test occlusion (agentBody.ts).
-// hall-0's stand used to sit on the hall's wall line (no route, "no safe route"); it now stands 2.5 m off on the walkable side, so all
-// every place in city3-places.json is reachable by go_to (prune_places.py drops the lots a demolition cleared). The hall itself is still a doorless solid box.
+// Every place in city3-places.json is reachable by go_to. The Market Hall has a separate south entry and room.
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
 import { loadVerseSim, NAVMESH_BIN } from "@aiverse/world-sim/node/loadWorld";
 import type { VerseSim } from "@aiverse/world-sim/verseSim";
+import { WorldService } from "@aiverse/world-sim/worldService";
 import { roomAt, type ScoutAction, type ScoutOutcome } from "@aiverse/world-sim/scout";
 
 const ASSETS = new URL("../public/assets/", import.meta.url).pathname;
@@ -170,6 +172,119 @@ describe("planning does not block the tick", () => {
     expect(fails).toEqual([]);
   }, 300_000);
 
+  it("opens Scandi Hawk's blocked door for an agent entering and exiting", async () => {
+    const id = "hawk-walker";
+    const roomId = "house-ring-35-0";
+    sim.addBody({ id, spawn: { x: 22.925, z: -138.7 } });
+    try {
+      expect(sim.walk.has("door:scandi-hawk")).toBe(true);
+      const entry = await run(sim, id, { type: "enter", place: roomId }, 550);
+      expect(entry.out?.status).toBe("arrived");
+      expect(roomAt(sim.rooms, entry.snap.x, entry.snap.z)?.id).toBe(roomId);
+      const sit = await run(sim, id, { type: "sit", sittable: "scandi-hawk-sofa" }, 550);
+      expect(sit.out?.status).toBe("seated");
+      const stand = await run(sim, id, { type: "stand" }, 30);
+      expect(stand.out?.status).toBe("stood");
+      const exit = await run(sim, id, { type: "go_to", point: [22.925, -138.7] }, 550);
+      expect(exit.out?.status).toBe("arrived");
+      expect(roomAt(sim.rooms, exit.snap.x, exit.snap.z)).toBeNull();
+      sim.tick(3);
+      expect(sim.walk.has("door:scandi-hawk")).toBe(true);
+    } finally {
+      sim.removeBody(id);
+    }
+  });
+
+  it("lets an agent walk to Scandi Hawk's loft bed, recover energy, and walk back outside", async () => {
+    const service = new WorldService({ sim, movementEnergy: true });
+    const id = "hawk-loft-walker";
+    const roomId = "house-ring-35-0";
+    const bedId = "scandi-hawk-loft-bed";
+    const outside = [22.925, -138.7] as [number, number];
+    service.attach(id, { x: outside[0], z: outside[1] });
+    const body = sim.body(id)!;
+    async function act(actionId: string, action: ScoutAction, status: ScoutOutcome["status"]) {
+      const record = service.act(id, actionId, action);
+      const started = sim.t;
+      const heights: number[] = [];
+      let previous = body.pose();
+      let largestStride = 0, largestRise = 0, largestFloorChange = 0;
+      while (record.state === "running" && sim.t - started < 45) {
+        const priorFloor = body.state.y;
+        service.tick(1 / 60);
+        const pose = body.pose();
+        largestStride = Math.max(largestStride, Math.hypot(pose.x - previous.x, pose.z - previous.z));
+        largestRise = Math.max(largestRise, Math.abs(pose.y - previous.y));
+        largestFloorChange = Math.max(largestFloorChange, Math.abs(body.state.y - priorFloor));
+        heights.push(body.state.y);
+        previous = pose;
+        await Promise.resolve();
+      }
+      expect(record.outcome, JSON.stringify(body.snapshot())).toMatchObject({ ok: true, status });
+      expect(largestStride).toBeLessThan(0.12);
+      expect(largestRise).toBeLessThan(0.42);
+      expect(largestFloorChange).toBeLessThan(0.42);
+      return heights;
+    }
+
+    try {
+      await act("enter", { type: "enter", place: roomId }, "arrived");
+      const entry = service.observe(id);
+      expect(entry.body.y).toBeCloseTo(0.53, 2);
+      await act("face-bed", { type: "face", point: [21.89, -143.7] }, "done");
+      expect(service.observe(id).scene).toContainEqual(expect.objectContaining({
+        id: bedId, kind: "seat", seatKind: "bed", state: "free",
+      }));
+
+      const ascent = await act("sit", { type: "sit", sittable: bedId }, "seated");
+      expect(ascent.some((y) => y > 1.2 && y < 2.0)).toBe(true);
+      expect(ascent.some((y) => y > 2.3 && y < 3.2)).toBe(true);
+      const seated = service.observe(id);
+      expect(seated.body.seatedOn).toBe(bedId);
+      expect(seated.body.y).toBeCloseTo(3.36, 2);
+      expect(seated.energy!.current).toBeLessThan(entry.energy!.current);
+
+      await act("rest", { type: "wait", seconds: 3 }, "done");
+      const rested = service.observe(id);
+      expect(rested.energy!.current).toBeGreaterThan(seated.energy!.current);
+      expect(rested.body.seatedOn).toBe(bedId);
+
+      await act("stand", { type: "stand" }, "stood");
+      expect(body.state.x).toBeCloseTo(23.37, 2);
+      expect(body.state.z).toBeCloseTo(-143.60, 2);
+      expect(body.state.y).toBeCloseTo(3.36, 2);
+      const descent = await act("exit", { type: "go_to", point: outside }, "arrived");
+      expect(descent.some((y) => y > 1.2 && y < 2.0)).toBe(true);
+      expect(descent.some((y) => y > 2.3 && y < 3.2)).toBe(true);
+      expect(body.state.y).toBeCloseTo(0.2, 2);
+      expect(roomAt(sim.rooms, body.state.x, body.state.z)).toBeNull();
+      expect(Math.hypot(body.state.x - outside[0], body.state.z - outside[1])).toBeLessThan(0.6);
+    } finally {
+      service.detach(id);
+    }
+  });
+
+  it("walks up Scandi Hawk's treads to the loft and back downstairs", () => {
+    const body = makeWalker(26.2, 0.53, -145.47, Math.PI);
+    const walkTo = (goal: [number, number]) => {
+      for (let i = 0; i < 240; i++) {
+        const intent = moveToIntent(body, goal, 0.045);
+        if (intent.arrived) return;
+        step(body, intent.input, 1 / 60, sim.world);
+      }
+      throw new Error(`Walker did not reach ${goal} from ${body.x}, ${body.y}, ${body.z}`);
+    };
+    walkTo([26.2, -146.48]);
+    walkTo([23.1, -146.45]);
+    expect(body.y).toBeCloseTo(3.36, 2);
+    walkTo([23.37, -143.60]);
+    expect(body.y).toBeCloseTo(3.36, 2);
+    walkTo([23.1, -146.45]);
+    walkTo([26.2, -146.48]);
+    walkTo([26.2, -145.47]);
+    expect(body.y).toBeCloseTo(0.53, 2);
+  });
+
   it("walks across the Villa bridge at deck height", async () => {
     const id = "villa-walker";
     const start = sim.places.find(place => place.id === "stall-40")!.stand;
@@ -193,11 +308,117 @@ describe("planning does not block the tick", () => {
     }
   });
 
-  it("the Great Hall (hall-0) is reachable: its stand is off the wall line", async () => {
-    sim.removeBody("hall");
-    sim.addBody({ id: "hall" });
-    const r = await run(sim, "hall", { type: "go_to", place: "hall-0" } as ScoutAction, 300);
-    expect(r.out?.status).toBe("arrived");
+  it("walks from Hawk Lane to both entrances and uses the commons bench", async () => {
+    const id = "hawk-commons-visitor";
+    sim.addBody({ id, spawn: { x: 24, z: -136.4 } });
+    try {
+      const hawk = await run(sim, id, { type: "enter", place: "house-ring-35-0" }, 75);
+      expect(hawk.out?.status).toBe("arrived");
+      expect(roomAt(sim.rooms, hawk.snap.x, hawk.snap.z)?.id).toBe("house-ring-35-0");
+      const porch = await run(sim, id, { type: "go_to", place: "hawk-lane-neighbor-porch" }, 75);
+      expect(porch.out?.status).toBe("arrived");
+      expect(porch.snap.y).toBeCloseTo(0.894, 2);
+      expect(sim.world.blocked([41.74, 0.894, -143], [41.74, 0.894, -144.3], 0.4)).not.toBeNull();
+      const commons = await run(sim, id, { type: "go_to", place: "hawk-lane-commons" }, 75);
+      expect(commons.out?.status).toBe("arrived");
+      const sit = await run(sim, id, { type: "sit", sittable: "hawk-lane-bench" }, 20);
+      expect(sit.out?.status).toBe("seated");
+      expect((await run(sim, id, { type: "stand" }, 10)).out?.status).toBe("stood");
+      const street = await run(sim, id, { type: "go_to", point: [24, -136.4] }, 75);
+      expect(street.out?.status).toBe("arrived");
+    } finally {
+      sim.removeBody(id);
+    }
+  });
+
+  it("keeps Hawk Lane's stepping trail and waterfront sidewalk passable", () => {
+    expect(sim.world.blocked([13, 0.2, -157.5], [39, 0.2, -157.5], 0.4)).toBeNull();
+    expect(sim.world.blocked([26, 0.2, -177.8], [31, 0.2, -177.8], 0.4)).toBeNull();
+    expect(sim.world.blocked([28.8, 0.2, -177.8], [28.8, 0.2, -178.8], 0.4)).not.toBeNull();
+  });
+
+  it("visits the Hawk Lane overlook and keeps the waterfront through route open", async () => {
+    const id = "hawk-overlook-visitor";
+    sim.addBody({ id, spawn: { x: 33.4, z: -177.3 } });
+    try {
+      const visit = await run(sim, id, { type: "go_to", place: "hawk-lane-overlook" }, 35);
+      expect(visit.out?.status).toBe("arrived");
+      const sit = await run(sim, id, { type: "sit", sittable: "hawk-lane-overlook-bench" }, 35);
+      expect(sit.out?.status).toBe("seated");
+      expect((await run(sim, id, { type: "stand" }, 10)).out?.status).toBe("stood");
+      const exit = await run(sim, id, { type: "go_to", point: [43.5, -177.3] }, 35);
+      expect(exit.out?.status).toBe("arrived");
+      for (const z of [-177.15, -177.7]) {
+        expect(sim.world.blocked([31, 0.2, z], [44, 0.2, z], 0.4)).toBeNull();
+      }
+      expect(sim.world.blocked([34, 0.2, -179.1], [34, 0.2, -179.74], 0.4)).not.toBeNull();
+    } finally {
+      sim.removeBody(id);
+    }
+  });
+
+  it("crosses the reclaimed northwest lawn while the Lido pool stays blocked", () => {
+    expect(sim.world.blocked([-93.5, 0.2, -109], [-78.5, 0.2, -109], 0.4)).toBeNull();
+    expect(sim.world.groundY(-86, -109, 2)).toBeCloseTo(0.2, 2);
+    expect(sim.world.blocked([35, 0.2, 89], [35, 0.2, 92], 0.4)).not.toBeNull();
+  });
+
+  it("reaches both Lido terrace benches and keeps the poolside route clear", async () => {
+    const id = "lido-visitor";
+    sim.addBody({ id, spawn: { x: 32, z: 110.5 } });
+    try {
+      const terrace = await run(sim, id, { type: "go_to", place: "lido-terrace" }, 30);
+      expect(terrace.out?.status).toBe("arrived");
+      for (const sittable of ["lido-bench-west", "lido-bench-east"]) {
+        const sit = await run(sim, id, { type: "sit", sittable }, 30);
+        expect(sit.out).toMatchObject({ status: "seated", target: sittable });
+        expect((await run(sim, id, { type: "stand" }, 10)).out?.status).toBe("stood");
+      }
+      for (const z of [109.5, 110.5, 111.5]) {
+        expect(sim.world.blocked([29, 0.2, z], [41, 0.2, z], 0.4)).toBeNull();
+      }
+      expect(sim.world.blocked([31.35, 0.2, 112], [31.35, 0.2, 114], 0.4)).not.toBeNull();
+    } finally {
+      sim.removeBody(id);
+    }
+  });
+
+  it("enters Market Hall from the south, visits checkout and snacks, sits, and exits", async () => {
+    const id = "hall-market-visitor";
+    sim.addBody({ id, spawn: { x: 34.5, z: -74 } });
+    try {
+      const entry = await run(sim, id, { type: "enter", place: "hall-0" }, 100);
+      expect(entry.out?.status).toBe("arrived");
+      expect(roomAt(sim.rooms, entry.snap.x, entry.snap.z)?.id).toBe("hall-0");
+      expect(entry.snap.y).toBeCloseTo(0.2, 2);
+
+      for (const place of [
+        "market-hall-bakery", "market-hall-produce", "market-hall-cheese",
+        "market-hall-flowers", "market-hall-pantry-shelves", "market-hall-water",
+        "market-hall-checkout", "market-hall-snacks",
+      ]) {
+        const visit = await run(sim, id, { type: "go_to", place }, 100);
+        expect(visit.out).toMatchObject({ ok: true, status: "arrived", target: place });
+      }
+      const sample = await run(sim, id, { type: "interact", target: MARKET_HALL_SAMPLE.id }, 100);
+      expect(sample.out).toMatchObject({ ok: true, status: "done", target: MARKET_HALL_SAMPLE.id });
+      const seat = await run(sim, id, { type: "sit", sittable: "market-hall-bench-north" }, 100);
+      expect(seat.out?.status).toBe("seated");
+      expect((await run(sim, id, { type: "stand" }, 30)).out?.status).toBe("stood");
+      const exit = await run(sim, id, { type: "go_to", place: "hall-0" }, 100);
+      expect(exit.out?.status).toBe("arrived");
+      expect(roomAt(sim.rooms, exit.snap.x, exit.snap.z)).toBeNull();
+
+      for (const x of [33.5, 35, 36.5]) {
+        expect(sim.world.blocked([x, 0.2, -79], [x, 0.2, -113], 0.28)).toBeNull();
+      }
+      expect(sim.world.blocked([18, 0.2, -95], [15.5, 0.2, -95], 0.28)).not.toBeNull();
+      expect(sim.world.blocked([52, 0.2, -95], [54.5, 0.2, -95], 0.28)).not.toBeNull();
+      expect(sim.world.blocked([35, 0.2, -117], [35, 0.2, -120], 0.28)).not.toBeNull();
+      expect(sim.world.blocked([28, 0.2, -78], [28, 0.2, -76], 0.28)).not.toBeNull();
+    } finally {
+      sim.removeBody(id);
+    }
   });
 
   it("20 agents sent to far places in the same tick keep every tick short", async () => {

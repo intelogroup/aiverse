@@ -29,11 +29,11 @@ describe("refusals explain themselves", () => {
     expect(explainAction({ type: "dance" })).toMatch(/unknown action type "dance"/);
   });
 
-  it("enter on a hall or stall says it has no interior", async () => {
+  it("enter on an outdoor stall says it has no interior", async () => {
     service.attach("e1");
-    const r = await settle("e1", service.act("e1", "x1", { type: "enter", place: "hall-0" }).id, 5);
+    const r = await settle("e1", service.act("e1", "x1", { type: "enter", place: "stall-0" }).id, 5);
     expect(r.outcome?.status).toBe("unavailable");
-    expect(r.outcome?.detail).toMatch(/hall-0 has no interior: use go_to/);
+    expect(r.outcome?.detail).toMatch(/stall-0 has no interior: use go_to/);
   });
 
   it("a blocked walk with a body at arm's length says a body is in the way; alone it does not", () => {

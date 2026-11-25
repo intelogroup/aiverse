@@ -67,17 +67,15 @@ def plan(rnd):
         b.box("post", gx - .06 * d - .06, gx - .06 * d + .06, cz - 3.72, cz + 3.72, G + 2.38, G + 2.5, uv=1.0)
     for x in (84, 92, 102, 110): benches.append((x, 54.5, math.pi)); benches.append((x, 15.5, 0))
     for x, z in ((74, 57), (121, 57), (74, 13), (121, 13), (97, 58), (97, 11)): trees.append((x, z, "Tree_packtree_b"))
-    # ---- park: the whole NW block (ring lots + courtyard) becomes lawn with a ring path, a cross path and a pond
+    # ---- park: the whole NW block (ring lots + courtyard) becomes lawn with a ring path and a cross path
     b.box("grass", -122, -72, -122, -84, G - .02, G + .03, uv=4.0)
     for x0, x1, z0, z1 in ((-120, -74, -120, -119), (-120, -74, -87, -86), (-120, -119, -120, -86), (-75, -74, -120, -86), (-98, -96, -120, -86), (-120, -74, -103, -101)): b.box("gravel", x0, x1, z0, z1, G + .03, G + .06, uv=1.5)
-    qx0, qx1, qz0, qz1 = -92, -80, -112, -106
-    b.box("stone", qx0 - .4, qx1 + .4, qz0 - .4, qz0, G + .03, G + .3, uv=1.0); b.box("stone", qx0 - .4, qx1 + .4, qz1, qz1 + .4, G + .03, G + .3, uv=1.0)
-    b.box("stone", qx0 - .4, qx0, qz0, qz1, G + .03, G + .3, uv=1.0); b.box("stone", qx1, qx1 + .4, qz0, qz1, G + .03, G + .3, uv=1.0); b.box("water", qx0, qx1, qz0, qz1, G + .16, G + .17, uv=3.0)
-    b.col.append((qx0 - .4, qx1 + .4, qz0 - .4, qz1 + .4, G, G + .9))
+    # Keep the southeast lawn open for gatherings.
+    lawn_x0, lawn_x1, lawn_z0, lawn_z1 = -94, -78, -114, -104
     for _ in range(26):
         for _try in range(40):
             x, z = rnd.uniform(-119, -75), rnd.uniform(-119, -87)
-            if abs(x + 97) < 1.8 or abs(z + 102) < 1.8 or abs(z + 119.5) < 1.2 or abs(z + 86.5) < 1.2 or abs(x + 119.5) < 1.2 or abs(x + 74.5) < 1.2 or (qx0 - 2 < x < qx1 + 2 and qz0 - 2 < z < qz1 + 2): continue
+            if abs(x + 97) < 1.8 or abs(z + 102) < 1.8 or abs(z + 119.5) < 1.2 or abs(z + 86.5) < 1.2 or abs(x + 119.5) < 1.2 or abs(x + 74.5) < 1.2 or (lawn_x0 < x < lawn_x1 and lawn_z0 < z < lawn_z1): continue
             trees.append((x, z, rnd.choice(("Tree_packtree_a", "Tree_packtree_b", "Tree_packtree_c")))); break
     for x, z, y in ((-108, -102.8, 0), (-86, -102.8, math.pi), (-97.8, -112, math.pi / 2), (-96.2, -94, -math.pi / 2), (-108, -119, math.pi), (-86, -87.2, 0)): benches.append((x, z, y))
     return b, trees, benches

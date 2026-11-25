@@ -198,3 +198,26 @@ The uploaded Sketchfab export splits one continuous colored surface into four ch
   - Vercel build lost the tiles silently (2026-11-24): split_lod.mjs runs slim_textures.py (Pillow) and the Vercel image has python3 without
     Pillow. `build:tiles` died with `ModuleNotFoundError: No module named 'PIL'`, the build stayed green and served the one-file world.
     build_tiles.sh now installs Pillow when the import fails. After any deploy, read the build log for `PASS` x2 and `tiles (`, not just READY.
+
+- Market Hall entry: the world compactor verified the edited visual GLB with
+  zero accessor mismatches. A trial compaction of the collision GLB reported
+  accessor mismatches, so the shipped collision input uses the source-preserving
+  bridge output. Tile collision parity verifies that output.
+- Market Hall roof: point samples at bay centers missed short recessed surfaces.
+  The final truss height is governed by mesh-wide clearance against the existing
+  shell rather than by the peak height at each bay center.
+
+- **2026-11-24, Hawk Lane floating triangles.** The fragments above the
+  hedge were stretched faces in the merged `Shutters` and `Props` meshes.
+  Browser ray hits identified the two source regions. The bounded
+  `bridge_hawk_lane_debris.py` pass checks its face counts before cutting
+  anything. The old high-orphan sweep missed these because they sit low
+  above the sidewalk.
+
+- **2026-11-24, outer ring distant geometry.** The old house simplifier
+  produced stretched far roofs and six GLBs with empty accessors. The
+  house bake now preserves folds and weights UVs and normals, skips
+  empty reductions, and compresses the resulting geometry. The main
+  far scene retains the shared tree meshes intact. A separate bounded
+  sweep removed the same stretched shutter face under 130 old
+  storefront windows around the ring.

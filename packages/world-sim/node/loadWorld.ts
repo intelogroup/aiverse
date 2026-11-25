@@ -17,7 +17,7 @@ import type { TeaFloorPlan } from "../src/teaLandmarks";
 import { VerseSim } from "../src/verseSim";
 
 interface DistrictRow { id: string; center: [number, number]; origin?: [number, number]; resident?: boolean; collisionUrl?: string }
-interface RoomRow { id: string; name?: string; door?: [number, number]; rect?: [number, number, number, number]; center?: [number, number]; layout?: string; collision?: string; interactables?: InteractableDef[] }
+interface RoomRow { id: string; name?: string; door?: [number, number]; rect?: [number, number, number, number]; center?: [number, number]; layout?: string; collision?: string; interactables?: InteractableDef[]; stairs?: ScoutRoomShape["stairs"] }
 
 export interface LoadStats {
   collisionSets: string[];
@@ -81,13 +81,17 @@ export async function loadVerseSim(assetsDir: string, opts: { navBin?: string | 
     const url = r.collision ?? (r.layout ? colUrl(r.layout) : null);
     if (!url) continue;
     const json = await readJson<unknown>(at(assetsDir, url)).catch(() => null);
-    const m = json ? boxesMesh(parseColBoxes(json), [0, 0], `interior:${r.id}`) : null;
-    if (m) { sim.walk.set(`interior:${r.id}`, [m]); interiorSets++; }
+    const key = `interior:${r.id}`;
+    const meshes = [
+      boxesMesh(parseColBoxes(json), [0, 0], key),
+      boxesMesh(parseColBoxes(json, "walkableBoxes"), [0, 0], `${key}:floor`, false),
+    ].filter((mesh) => mesh !== null);
+    if (meshes.length) { sim.walk.set(key, meshes); interiorSets++; }
   }
 
   const places = await readJson<ScoutPlace[]>(at(assetsDir, "/assets/city3-places.json"));
   const sittables = await readJson<Sittable[]>(at(assetsDir, "/assets/city3-anchors.json"));
-  const shapes: ScoutRoomShape[] = rooms.flatMap((r) => (r.door && r.rect && r.center ? [{ id: r.id, name: r.name ?? r.id, door: r.door, rect: r.rect, center: r.center }] : []));
+  const shapes: ScoutRoomShape[] = rooms.flatMap((r) => (r.door && r.rect && r.center ? [{ id: r.id, name: r.name ?? r.id, door: r.door, rect: r.rect, center: r.center, stairs: r.stairs }] : []));
   const teaPlan = new URL("../../../docs/procedural-city/tea-house/plan.json", import.meta.url);
   const { levels: teaFloors } = await readJson<{ levels: TeaFloorPlan[] }>(teaPlan);
   sim.setData({ places, sittables, rooms: shapes, teaFloors }, rooms.flatMap((r) => r.interactables ?? []));

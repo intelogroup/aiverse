@@ -11,6 +11,20 @@
 Bugs only a render exposed: backwards hip-roof faces (holes), z-fighting signs (2 mm gap), shadow-acne rings, dithered neighbour wall at a clip plane,
 empty "built" interiors, stretched sign texture, floating balconies (slab at the wrong height), turn clip twisting the body by 62°.
 
+### Streamed asset checks
+
+- Include the existing site props and terrain in the Blender fit check. Use closeups to measure floor and mount
+  contact. Compare the assembled scene at walking height and from an opposing angle in the console. The Hawk Lane
+  overlook's old bin intersected the bench because the Blender excerpt omitted the merged `Props` mesh.
+- Finish `build_tiles.sh` before opening the browser or starting the console suite. Check both parity results and
+  confirm the served `/assets/tiles/districts.json` and `core.glb` have the expected content types. When the generated
+  manifest is missing, the browser may fail to mount and the Tea tile test can skip.
+- With `districtDebug=1`, check `window.__districts.stats().loaded` for a streamed exterior district. With
+  `streamDebug=1`, check `window.__city3Stream.snapshot().built` for a room. Both checks establish readiness for the
+  screenshot. Use a bounded wait and read the actual frame. Orbit collision can pull the camera into a close-up.
+  For a fixed comparison pose, disable it through `window.__districts.collide(false)`, then verify normal walk
+  mode separately when testing movement.
+
 ## Numbers/logic (vitest, headless)
 - Pure modules (`cutaway.ts`, `interiors.ts`, `bodyController.ts`, `city3.ts`) are three-free where possible so they test without WebGL.
 - Real Recast crowd headless: `// @vitest-environment node`, `createPlatformCrowd(9.7, n, {seed, keepOutRadius: 2.2})`. See `bodyCrowd.test.ts`.

@@ -20,6 +20,19 @@ describe("placed houses", () => {
     const missing = houses.filter((d) => !d.farUrl || !existsSync(ASSETS + d.farUrl.replace(/^\/assets\//, "")));
     expect(missing.map((d) => d.id)).toEqual([]);
   });
+  it("far stand-ins have finite bounds and no empty geometry streams", () => {
+    const urls = new Set(houses.flatMap(d => d.farUrl ? [d.farUrl] : []));
+    for (const url of urls) {
+      const glb = readFileSync(ASSETS + url.replace(/^\/assets\//, ""));
+      const json = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString("utf8")) as {
+        accessors: { count: number; min?: number[]; max?: number[] }[];
+      };
+      const invalid = json.accessors.filter(accessor =>
+        accessor.count <= 0 || [...(accessor.min ?? []), ...(accessor.max ?? [])].some(n => !Number.isFinite(n)),
+      );
+      expect(invalid, url).toEqual([]);
+    }
+  });
   for (const d of houses) {
     it(`${d.id}: collision sits on its lot (around the district origin)`, () => {
       const meshes = sim.walk.get(d.id) ?? [];

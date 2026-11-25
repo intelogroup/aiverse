@@ -15,6 +15,14 @@ const cam = (x: number) => ({ x, y: 10, z: 0 });
 const base = { heroes, loadWithin: 70, keepWithin: 120, maxLoaded: 2 };
 
 describe("planStreaming", () => {
+  it("applies a house's doorway thresholds independently of shop thresholds", () => {
+    const options = { ...base, heroes: [{ id: "house", center: [0, 0] as [number, number], loadWithin: 12, keepWithin: 30 }] };
+    const at = (x: number, loaded: string[] = []) => planStreaming({ ...options, loaded, cam: { x, y: 0, z: 0 } });
+    expect(at(13).load).toEqual([]);
+    expect(at(12).load).toEqual(["house"]);
+    expect(at(30, ["house"]).evict).toEqual([]);
+    expect(at(31, ["house"]).evict).toEqual(["house"]);
+  });
   it("loads nearest-first and respects the cap", () => {
     const p = planStreaming({ ...base, cam: cam(50), loaded: [] });
     // camera at x=50: d is 10 m away; a and b are both ~51 m away, so the tie breaks on id

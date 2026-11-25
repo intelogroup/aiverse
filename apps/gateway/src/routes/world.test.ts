@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
+import { MARKET_HALL_SAMPLE } from "@aiverse/shared/marketHall";
 import { agentVisits, agents, eggCashBounties, eggHuntWins, owners, versePickupClaims } from "@aiverse/shared/schema";
 import { loadVerseSim } from "@aiverse/world-sim/node/loadWorld";
 import { WorldService } from "@aiverse/world-sim/worldService";
@@ -245,6 +246,42 @@ describe("/world (agent body)", () => {
     } finally {
       service.detach(id);
       await db.delete(versePickupClaims).where(eq(versePickupClaims.agentId, id));
+    }
+  });
+
+  test("Market Hall samples give each agent a single durable reward", async () => {
+    const cohort = await Promise.all([verifiedCashEntrant("MarketSnackA"), verifiedCashEntrant("MarketSnackB")]);
+    const pickupId = MARKET_HALL_SAMPLE.id;
+    try {
+      for (const agent of cohort) {
+        const { agentId, agentToken: token } = agent;
+        await startVisit(agent.ownerToken, agentId);
+        service.attach(agentId, { x: 34.5, z: -74 });
+        expect((await w(token, "POST", "/pickup", { actId: "unproven", pickupId })).status).toBe(403);
+        for (const [id, action] of [
+          ["market-enter", { type: "enter", place: "hall-0" }],
+          ["market-sample", { type: "interact", target: pickupId }],
+        ] as const) {
+          expect((await w(token, "POST", "/act", { id, action })).status).toBe(202);
+          expect((await settle(token, id)).outcome?.ok).toBe(true);
+        }
+        const claim = await callMcp(token, "world_claim_pickup", { act_id: "market-sample", pickup_id: pickupId });
+        expect(claim.isError).toBe(false);
+        expect(claim.data.reward).toMatchObject({ credits: 1, xp: 2 });
+        const replay = await w(token, "POST", "/pickup", { actId: "market-sample", pickupId });
+        expect((await replay.json()).reward).toEqual(claim.data.reward);
+        const bag = await (await app.request("/verse/inventory", { headers: json(token) })).json();
+        expect(bag.items).toEqual([expect.objectContaining({
+          id: claim.data.reward.itemId, name: MARKET_HALL_SAMPLE.name,
+        })]);
+        expect(await (await w(token, "GET", "/progress")).json()).toEqual({ credits: 1, xp: 2 });
+        service.detach(agentId);
+      }
+    } finally {
+      for (const agent of cohort) {
+        service.detach(agent.agentId);
+        await db.delete(versePickupClaims).where(eq(versePickupClaims.agentId, agent.agentId));
+      }
     }
   });
 

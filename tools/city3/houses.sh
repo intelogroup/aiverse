@@ -44,7 +44,8 @@ P american-house     ring-25-0        -46.2  -148.2    0 --asset=american --scal
 P finnish-cottage    ring-25-1        -23.8  -144.8    0 --asset=finnish-cottage --scale=2.2 --lift=0.05 --door=none
 P residence-wsg      ring-30-0         23.8   147.8  180 --asset=residence-wsg --scale=0.01 --lift=0.05 --door=none
 P kruglov-house      ring-30-1         46.2   149.6  180 --asset=kruglov-house --scale=0.014 --lift=0.05 --door=none
-P scandi-hawk        ring-35-0         23.8  -146.3    0 --asset=scandi-hawk --scale=0.01 --simplify=0.5 --lift=0.05 --door=none
+# The split shell keeps the dedicated interior library off the street streaming path.
+bun tools/city3/place_house.mjs "$SRC/scandi-hawk/split/shell.glb" ring-35-0 23.8 -146.3 0 --asset=scandi-hawk --scale=0.01 --lift=0.05 --door=front --doorx=-0.875 --doorhalf=0.8 --body=-5.025,3.125,-5.286,4.214 --floor=40.5 --ceil=none '--room=Scandi Hawk'
 P american-house     ring-35-1         46.2  -148.2    0 --asset=american --scale=1 --lift=0.05 --door=none
 P suburban-bogdan    ring-40-0         85.0   148.3  180 --asset=suburban-bogdan --scale=1 --lift=0.05 --door=none
 P medieval-rx        ring-40-1        110.0   145.9  180 --asset=medieval-rx --scale=1 --lift=0.05 --door=none

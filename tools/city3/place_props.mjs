@@ -2,7 +2,7 @@
 // prop model, one collision GLB with a box per instance, and a `props-<id>` entry in districts.json (tiles_manifest.mjs carries it).
 // Not `house-*`: five tools read every house-* district as a building footprint (clear_footprints, grounds, ring frontage, ...).
 //   import { placeProps } from "./place_props.mjs"; await placeProps({ id, name, center: [x, z], half, y, props: [...] })
-//   props: { name, src, scale, col: [hx, hz, h] | null, at: [[x, z, yawDeg], ...] }   (yaw a multiple of 90 when col is set)
+//   props: { name, src, scale, y?, col: [hx, hz, h] | null, at: [[x, z, yawDeg], ...] }   (yaw a multiple of 90 when col is set)
 // Each model is normalised: footprint centred on its local origin, lowest point at y 0, local +z kept as its front.
 import { Document, NodeIO, getBounds } from "@gltf-transform/core";
 import { ALL_EXTENSIONS, EXTMeshGPUInstancing } from "@gltf-transform/extensions";
@@ -41,11 +41,12 @@ export async function placeProps(L) {
   const idx = [0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 3, 7, 6, 3, 6, 2, 0, 4, 7, 0, 7, 3, 1, 2, 6, 1, 6, 5];
   let boxes = 0;
   for (const p of L.props) {
+    const y = p.y ?? L.y;
     const { doc, mesh, size } = await propMesh(p.src, p.scale ?? 1);
     const map = mergeDocuments(out, doc);
     const m = map.get(mesh);
     const n = p.at.length, T = new Float32Array(n * 3), R = new Float32Array(n * 4);
-    p.at.forEach(([x, z, yaw], i) => { T.set([x, L.y, z], i * 3); R.set(yawQ(yaw), i * 4); });
+    p.at.forEach(([x, z, yaw], i) => { T.set([x, y, z], i * 3); R.set(yawQ(yaw), i * 4); });
     const acc = (arr, type) => out.createAccessor().setType(type).setArray(arr).setBuffer(buf);
     scene.addChild(out.createNode(`props_${p.name}`).setMesh(m).setExtension("EXT_mesh_gpu_instancing",
       inst.createInstancedMesh().setAttribute("TRANSLATION", acc(T, "VEC3")).setAttribute("ROTATION", acc(R, "VEC4"))));
@@ -54,7 +55,7 @@ export async function placeProps(L) {
     const [hx, hz, h] = p.col;
     for (const [x, z, yaw] of p.at) {
       if (yaw % 90) throw new Error(`${p.name}: collision needs a yaw in 90-degree steps`);
-      const [ex, ez] = (yaw / 90) % 2 ? [hz, hx] : [hx, hz], c = [x, L.y + h / 2, z], e = [ex, h / 2, ez];
+      const [ex, ez] = (yaw / 90) % 2 ? [hz, hx] : [hx, hz], c = [x, y + h / 2, z], e = [ex, h / 2, ez];
       const pos = new Float32Array(cube.flatMap((v) => [c[0] + v[0] * e[0], c[1] + v[1] * e[1], c[2] + v[2] * e[2]]));
       const prim = col.createPrimitive().setMaterial(cmat)
         .setAttribute("POSITION", col.createAccessor().setType("VEC3").setArray(pos).setBuffer(cbuf))
