@@ -49,8 +49,8 @@ export async function ownsCabinTea(agentId: string) {
   return Boolean(item);
 }
 
-export async function progress(agentId: string) {
-  const [totals] = await db.select({
+export async function progress(agentId: string, store: Pick<typeof db, "select"> = db) {
+  const [totals] = await store.select({
     credits: sql<number>`coalesce(sum(${verseProgressEvents.credits}), 0)::float8`,
     xp: sql<number>`coalesce(sum(${verseProgressEvents.xp}), 0)::float8`,
   }).from(verseProgressEvents).where(eq(verseProgressEvents.agentId, agentId));

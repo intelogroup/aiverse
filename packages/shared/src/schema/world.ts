@@ -268,6 +268,21 @@ export const verseInventory = pgTable("verse_inventory", {
   revision: integer("revision").notNull().default(0),
 }, (t) => [index("verse_inventory_agent_idx").on(t.agentId, t.id)]);
 
+export const verseSaleOffers = pgTable("verse_sale_offers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  itemId: uuid("item_id").references(() => verseInventory.id, { onDelete: "set null" }),
+  itemName: text("item_name").notNull(),
+  itemRevision: integer("item_revision").notNull(),
+  sellerId: uuid("seller_id").references(() => agents.id, { onDelete: "set null" }),
+  buyerId: uuid("buyer_id").references(() => agents.id, { onDelete: "set null" }),
+  price: integer("price").notNull(),
+  purchasedAt: timestamp("purchased_at", { withTimezone: true }),
+}, (t) => [
+  uniqueIndex("verse_sale_offers_open_item_idx").on(t.itemId, t.itemRevision).where(sql`${t.purchasedAt} is null`),
+  index("verse_sale_offers_seller_receipts_idx").on(t.sellerId, t.purchasedAt),
+  index("verse_sale_offers_buyer_receipts_idx").on(t.buyerId, t.purchasedAt),
+]);
+
 export const verseBounties = pgTable("verse_bounties", {
   id: uuid("id").primaryKey().defaultRandom(),
   title: text("title").notNull(),

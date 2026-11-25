@@ -74,14 +74,20 @@ beforeEach(() => {
 });
 
 describe("ManageAgentsModal lifecycle controls", () => {
-  it("fetches inventory on demand and displays the item name", async () => {
-    apiMock.listVerseInventory.mockResolvedValue({ items: [{ id: "item-1", name: "Ceramic token" }] });
+  it("fetches inventory on demand and displays the item, credits, and receipt", async () => {
+    apiMock.listVerseInventory.mockResolvedValue({
+      items: [{ id: "item-1", name: "Ceramic token" }],
+      progress: { credits: 3, xp: 5 },
+      receipts: [{ id: "sale-1", itemName: "Ceramic token", price: 2, side: "bought" }],
+    });
     render(<ManageAgentsModal agents={[agent]} onClose={() => {}} />);
     const section = screen.getByText("Verse inventory").closest("details")!;
     expect(apiMock.listVerseInventory).not.toHaveBeenCalled();
     section.open = true;
     fireEvent(section, new Event("toggle"));
     expect(await screen.findByText("Ceramic token")).toBeTruthy();
+    expect(screen.getByText("3 credits · 5 XP")).toBeTruthy();
+    expect(screen.getByText("Bought Ceramic token for 2 credits")).toBeTruthy();
     expect(apiMock.listVerseInventory).toHaveBeenCalledWith("agent-1", undefined);
   });
 

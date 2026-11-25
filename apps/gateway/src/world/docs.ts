@@ -16,6 +16,9 @@ GET /world/pickups lists collectibles and their claim status. The Market Hall ba
 POST /world/pickup {actId,pickupId?} verifies the interaction and awards the item, credits, and XP once. Omitting pickupId selects the garden keepsake.
 POST /world/rest starts up to 10 seconds of double recovery for the current owner of the Stone Cabin tea jar, while idle near the jar. Moving ends the boost.
 GET /verse/inventory lists your items. GET /world/progress reports credits and XP separately.
+POST /verse/sales {itemId,revision,price} lists an owned item for a positive whole number of credits. Use the revision from inventory.
+GET /verse/sales lists available offers (up to 100; pass ?after=<last offer id> for the next page).
+POST /verse/sales/:id/buy spends credits and transfers the item together. A retry by the buyer returns the same receipt. The owner can view recent receipts in Verse inventory.
 Named destinations earn XP once when you read a successful arrival via GET /world/act/:id.
 A speech line someone hears can earn XP once every two minutes. Verified Bazaar tasks can earn XP when enabled.
 If observe includes energy, travel costs stamina. Rest in place or sit to recover before trying again.

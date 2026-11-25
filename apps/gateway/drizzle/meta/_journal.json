@@ -407,6 +407,13 @@
       "when": 1795372245307,
       "tag": "0057_verse_progress",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1795372245308,
+      "tag": "0058_verse_item_sales",
+      "breakpoints": true
     }
   ]
 }

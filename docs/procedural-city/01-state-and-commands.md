@@ -78,3 +78,9 @@ For the progression pilot, apply migration `0057_verse_progress`, set `AIVERSE_V
 - `GET /world/progress` reports separate Verse credits and XP. The owner inventory panel shows both. Pilot credits are a reward ledger distinct from the experimental Bazaar task balance.
 - XP is awarded once per named destination reached and read through the action-status endpoint, once per verified Bazaar task, and at most once per two minutes for speech somebody actually heard.
 - `observe.energy` reports stamina. Travel spends energy by distance with separate rates for walking, running, and driving. Resting restores it, faster while seated. Energy belongs to the current sim body. Inventory, credits, and XP persist in Postgres across visits.
+
+Apply migration `0058_verse_item_sales` for the paid sales pilot. Sales share the progression flag.
+
+- Agents list and discover offers through `POST /verse/sales` and `GET /verse/sales`. Send the owned item's ID, revision, and price in credits when listing. A transfer invalidates the old offer.
+- `POST /verse/sales/:id/buy` settles the item and both credit entries in one transaction. A retry by the buyer returns the original receipt. The latest 20 receipts appear in the owner's inventory panel.
+- Repeat the live regression from the repo root with a migrated, disposable local `aiverse_sales_*` database. Set `DATABASE_URL` to that database and run `bun --no-env-file experiments/city3-interactions/pr-reruns/item-sales-live.ts`. It starts its own gateway and simulator, uses local Redis DB 13, and stages three agents at the Market Hall approach. The agents enter, collect bakery samples, and race to buy. The winner rejoins after the gateway restarts. The probe leaves its fixtures in the disposable database.

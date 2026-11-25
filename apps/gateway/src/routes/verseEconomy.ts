@@ -1,8 +1,8 @@
 import { randomInt } from "node:crypto";
-import { and, asc, eq, gt, isNull, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
-import { agents, agentVisits, verseBounties, verseBountyClaims, verseInventory } from "@aiverse/shared/schema";
+import { agents, agentVisits, verseBounties, verseBountyClaims, verseInventory, verseProgressEvents, verseSaleOffers } from "@aiverse/shared/schema";
 import { db } from "../db/client";
 import { adminAuth } from "../middleware/adminAuth";
 import { agentAuth } from "../middleware/agentAuth";
@@ -16,12 +16,25 @@ const transfer = z.object({ toAgentId: uuid, revision: z.number().int().min(0).m
 const createBounty = z.object({ title: name, rewardName: name, windowSeconds: z.number().int().min(1).max(3600).default(60) }).strict();
 const grant = z.object({ agentId: uuid, name }).strict();
 
+const saleOffer = z.object({ itemId: uuid, revision: transfer.shape.revision, price: z.number().int().min(1).max(2_147_483_647) }).strict();
+const salesEnabled = () => process.env.AIVERSE_VERSE_PROGRESS === "1";
+
 export const verseEconomyRoute = new Hono<{ Variables: { agentId: string; ownerId: string } }>();
 
 function listInventory(agentId: string, after?: string) {
   return db.select().from(verseInventory)
     .where(and(eq(verseInventory.agentId, agentId), after ? gt(verseInventory.id, after) : undefined))
     .orderBy(asc(verseInventory.id)).limit(100);
+}
+
+async function listReceipts(agentId: string) {
+  const rows = await db.select({
+    id: verseSaleOffers.id, itemName: verseSaleOffers.itemName, price: verseSaleOffers.price,
+    buyerId: verseSaleOffers.buyerId, purchasedAt: verseSaleOffers.purchasedAt,
+  }).from(verseSaleOffers).where(and(isNotNull(verseSaleOffers.purchasedAt),
+    or(eq(verseSaleOffers.buyerId, agentId), eq(verseSaleOffers.sellerId, agentId))))
+    .orderBy(desc(verseSaleOffers.purchasedAt), desc(verseSaleOffers.id)).limit(20);
+  return rows.map(({ buyerId, ...receipt }) => ({ ...receipt, side: buyerId === agentId ? "bought" : "sold" }));
 }
 
 verseEconomyRoute.get("/verse/inventory", agentAuth, async (c) => {
@@ -36,9 +49,10 @@ verseEconomyRoute.get("/owners/agents/:id/inventory", ownerAuth, async (c) => {
   if (!id.success || !after.success) return c.json({ error: "invalid_request" }, 400);
   const agent = await loadOwnedAgent(c.get("ownerId"), id.data);
   if (!agent) return c.json({ error: "not_found" }, 404);
-  const [items, totals] = await Promise.all([listInventory(agent.id, after.data),
-    process.env.AIVERSE_VERSE_PROGRESS === "1" ? progress(agent.id) : null]);
-  return c.json({ items, ...(totals ? { progress: totals } : {}) });
+  const enabled = salesEnabled();
+  const [items, totals, receipts] = await Promise.all([listInventory(agent.id, after.data),
+    enabled ? progress(agent.id) : null, enabled && !after.data ? listReceipts(agent.id) : null]);
+  return c.json({ items, ...(totals ? { progress: totals } : {}), ...(receipts ? { receipts } : {}) });
 });
 
 verseEconomyRoute.post("/admin/verse/inventory", adminAuth, async (c) => {
@@ -68,6 +82,78 @@ verseEconomyRoute.post("/verse/inventory/:id/transfer", agentAuth, async (c) => 
   });
   if ("item" in result) return c.json(result);
   return c.json(result, result.error === "agent_not_found" ? 404 : 409);
+});
+
+verseEconomyRoute.get("/verse/sales", agentAuth, async (c) => {
+  if (!salesEnabled()) return c.json({ error: "sales_disabled" }, 404);
+  const after = uuid.optional().safeParse(c.req.query("after"));
+  if (!after.success) return c.json({ error: "invalid_cursor" }, 400);
+  const offers = await db.select({
+    id: verseSaleOffers.id, itemName: verseSaleOffers.itemName, price: verseSaleOffers.price,
+  }).from(verseSaleOffers).innerJoin(verseInventory, and(
+    eq(verseInventory.id, verseSaleOffers.itemId),
+    eq(verseInventory.agentId, verseSaleOffers.sellerId),
+    eq(verseInventory.revision, verseSaleOffers.itemRevision),
+  )).where(and(isNull(verseSaleOffers.purchasedAt), after.data ? gt(verseSaleOffers.id, after.data) : undefined))
+    .orderBy(asc(verseSaleOffers.id)).limit(100);
+  return c.json({ offers });
+});
+
+verseEconomyRoute.post("/verse/sales", agentAuth, async (c) => {
+  if (!salesEnabled()) return c.json({ error: "sales_disabled" }, 404);
+  const body = saleOffer.safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "invalid_offer" }, 400);
+  const { itemId, revision, price } = body.data;
+  const sellerId = c.get("agentId");
+  const offer = await db.transaction(async (tx) => {
+    const [item] = await tx.select().from(verseInventory).where(and(
+      eq(verseInventory.id, itemId), eq(verseInventory.agentId, sellerId), eq(verseInventory.revision, revision),
+    )).for("no key update");
+    if (!item) return null;
+    const [open] = await tx.select().from(verseSaleOffers).where(and(
+      eq(verseSaleOffers.itemId, itemId), eq(verseSaleOffers.itemRevision, revision), isNull(verseSaleOffers.purchasedAt),
+    ));
+    if (open) return open.price === price ? open : null;
+    const [created] = await tx.insert(verseSaleOffers)
+      .values({ itemId, itemName: item.name, itemRevision: revision, sellerId, price }).returning();
+    return created;
+  });
+  return offer ? c.json({ offer }, 200) : c.json({ error: "stale_item_or_open_offer" }, 409);
+});
+
+verseEconomyRoute.post("/verse/sales/:id/buy", agentAuth, async (c) => {
+  if (!salesEnabled()) return c.json({ error: "sales_disabled" }, 404);
+  const id = uuid.safeParse(c.req.param("id"));
+  if (!id.success) return c.json({ error: "invalid_offer" }, 400);
+  const buyerId = c.get("agentId");
+  const result = await db.transaction(async (tx) => {
+    const [offer] = await tx.select().from(verseSaleOffers).where(eq(verseSaleOffers.id, id.data)).for("update");
+    if (!offer) return { error: "offer_not_found", status: 404 } as const;
+    if (offer.purchasedAt) return offer.buyerId === buyerId
+      ? { receipt: offer }
+      : { error: "offer_closed", status: 409 } as const;
+    const { sellerId, itemId } = offer;
+    if (!sellerId || !itemId) return { error: "stale_offer", status: 409 } as const;
+    if (buyerId === sellerId) return { error: "own_offer", status: 409 } as const;
+    // Serialize spending across offers. Lock both agents in UUID order for reciprocal sales.
+    const parties = await tx.select({ id: agents.id }).from(agents).where(inArray(agents.id, [buyerId, sellerId]))
+      .orderBy(asc(agents.id)).for("no key update");
+    if (parties.length !== 2) return { error: "stale_offer", status: 409 } as const;
+    if ((await progress(buyerId, tx)).credits < offer.price) return { error: "insufficient_credits", status: 409 } as const;
+    const [moved] = await tx.update(verseInventory).set({ agentId: buyerId, revision: sql`${verseInventory.revision} + 1` })
+      .where(and(eq(verseInventory.id, itemId), eq(verseInventory.agentId, sellerId),
+        eq(verseInventory.revision, offer.itemRevision))).returning({ id: verseInventory.id });
+    if (!moved) return { error: "stale_offer", status: 409 } as const;
+    await tx.insert(verseProgressEvents).values([
+      { agentId: sellerId, kind: "sale", source: offer.id, credits: offer.price },
+      { agentId: buyerId, kind: "sale", source: offer.id, credits: -offer.price },
+    ]);
+    const [receipt] = await tx.update(verseSaleOffers).set({ buyerId, purchasedAt: sql`clock_timestamp()` })
+      .where(eq(verseSaleOffers.id, offer.id)).returning();
+    return { receipt };
+  });
+  if ("receipt" in result) return c.json({ receipt: result.receipt });
+  return c.json({ error: result.error }, result.status);
 });
 
 verseEconomyRoute.get("/verse/bounties", agentAuth, async (c) => {
