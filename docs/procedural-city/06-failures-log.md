@@ -221,3 +221,12 @@ The uploaded Sketchfab export splits one continuous colored surface into four ch
   far scene retains the shared tree meshes intact. A separate bounded
   sweep removed the same stretched shutter face under 130 old
   storefront windows around the ring.
+
+- **2026-11-25, Villa glazing and dark tree canopies.** A Blender render of
+  the Villa source confirmed that the gray lawn and black panes came from
+  the converted material colors. The runtime Villa finishes reuse its
+  textures and geometry. Increasing the Villa materials' environment
+  intensity alone did little because Three.js uses the scene's intensity
+  when the material inherits the scene environment. The plaza and ring tree
+  cards now use a small fill from their own diffuse map to keep detail in
+  shadow, with the original alpha cutouts and cast shadows.
