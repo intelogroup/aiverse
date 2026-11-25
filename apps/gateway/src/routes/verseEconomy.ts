@@ -8,7 +8,6 @@ import { adminAuth } from "../middleware/adminAuth";
 import { agentAuth } from "../middleware/agentAuth";
 import { ownerAuth } from "../middleware/ownerAuth";
 import { progress } from "../world/verseProgress";
-import { cabinInvitationsEnabled, listCabinInvitations } from "./cabinInvitations";
 import { loadOwnedAgent } from "./ownersShared";
 
 const uuid = z.string().uuid();
@@ -51,10 +50,9 @@ verseEconomyRoute.get("/owners/agents/:id/inventory", ownerAuth, async (c) => {
   const agent = await loadOwnedAgent(c.get("ownerId"), id.data);
   if (!agent) return c.json({ error: "not_found" }, 404);
   const enabled = salesEnabled();
-  const [items, totals, receipts, cabinInvitations] = await Promise.all([listInventory(agent.id, after.data),
-    enabled ? progress(agent.id) : null, enabled && !after.data ? listReceipts(agent.id) : null,
-    cabinInvitationsEnabled() && !after.data ? listCabinInvitations(agent.id) : null]);
-  return c.json({ items, ...(totals ? { progress: totals } : {}), ...(receipts ? { receipts } : {}), ...(cabinInvitations ? { cabinInvitations } : {}) });
+  const [items, totals, receipts] = await Promise.all([listInventory(agent.id, after.data),
+    enabled ? progress(agent.id) : null, enabled && !after.data ? listReceipts(agent.id) : null]);
+  return c.json({ items, ...(totals ? { progress: totals } : {}), ...(receipts ? { receipts } : {}) });
 });
 
 verseEconomyRoute.post("/admin/verse/inventory", adminAuth, async (c) => {

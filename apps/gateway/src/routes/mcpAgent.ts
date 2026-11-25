@@ -588,13 +588,13 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
   if (cabinInvitationsEnabled()) {
     register(
       "world_cabin_invitations",
-      "List Stone Cabin invitations for your current visit. Each invitation shows whether it was delivered, accepted, or both agents arrived.",
-      { agent_id: agentIdArg },
-      async ({ agent_id }, call) => {
+      "List Stone Cabin invitations for your current visit or read one by invitation_id.",
+      { invitation_id: z.uuid().optional(), agent_id: agentIdArg },
+      async ({ invitation_id, agent_id }, call) => {
         const gate = scopeGate(caller, "world:observe", "world_cabin_invitations");
         if (gate) return gate;
         return asAgent({ agent_id }, async (agentId) => {
-          const res = await call("/world/invitations", { agentId: caller.kind === "oauth" ? agentId : undefined });
+          const res = await call(invitation_id ? `/world/invitations/${invitation_id}` : "/world/invitations", { agentId: caller.kind === "oauth" ? agentId : undefined });
           return res.ok ? okJson(res.data) : fail(res.text);
         });
       },

@@ -1,8 +1,10 @@
-import { and, desc, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
-import { verseCabinInvitations as invites } from "@aiverse/shared/schema";
+import { agentVisits, verseCabinInvitations as invites } from "@aiverse/shared/schema";
 import { db } from "../db/client";
+import { ownerAuth } from "../middleware/ownerAuth";
+import { loadOwnedAgent } from "./ownersShared";
 import { getActiveVisit } from "../policy/visits";
 import type { SimClient } from "../world/simClient";
 
@@ -10,10 +12,24 @@ export const cabinInvitationsEnabled = () => process.env.AIVERSE_CABIN_INVITATIO
 const speechInput = z.object({ actId: z.string().regex(/^[a-zA-Z0-9-]{1,80}$/) }).strict();
 type Invitation = typeof invites.$inferSelect;
 
-function view(invitation: Invitation, agentId: string) {
+// Use the same database predicate for status reads and state changes.
+const invitationOpen = sql<boolean>`${invites.expiresAt} > clock_timestamp() and (
+  select count(*) from ${agentVisits}
+  where ${agentVisits.id} in (${invites.hostVisitId}, ${invites.guestVisitId})
+    and ${agentVisits.endedAt} is null and ${agentVisits.endsAt} > clock_timestamp()
+) = 2`;
+const fields = { invitation: invites, open: invitationOpen };
+type InvitationState = { invitation: Invitation; open: boolean };
+
+async function readInvitation(where: SQL | undefined) {
+  const [row] = await db.select(fields).from(invites).where(where).limit(1);
+  return row;
+}
+
+function view({ invitation, open }: InvitationState, agentId: string) {
   const { id, deliveredAt, acceptedAt, expiresAt, hostArrivedAt, guestArrivedAt } = invitation;
   const role = invitation.hostId === agentId ? "host" : "guest";
-  const status = hostArrivedAt && guestArrivedAt ? "both_arrived" : expiresAt.getTime() <= Date.now() ? "expired" :
+  const status = hostArrivedAt && guestArrivedAt ? "both_arrived" : !open ? "expired" :
     acceptedAt ? "accepted" : "delivered";
   return { id, role, place: "house-cabin-1", placeName: "Stone Cabin", status, deliveredAt, acceptedAt, expiresAt, hostArrivedAt, guestArrivedAt };
 }
@@ -25,15 +41,33 @@ function party(agentId: string, visitId?: string) {
   );
 }
 
-export async function listCabinInvitations(agentId: string, visitId?: string) {
-  const rows = await db.select().from(invites).where(party(agentId, visitId))
+async function listCabinInvitations(agentId: string, visitId?: string) {
+  const rows = await db.select(fields).from(invites).where(party(agentId, visitId))
     .orderBy(desc(invites.deliveredAt), desc(invites.id)).limit(20);
   return rows.map((row) => view(row, agentId));
 }
 
+export const ownerCabinInvitationsRoute = new Hono<{ Variables: { ownerId: string } }>();
+ownerCabinInvitationsRoute.get("/owners/agents/:id/invitations", ownerAuth, async (c) => {
+  const id = z.uuid().safeParse(c.req.param("id"));
+  if (!id.success) return c.json({ error: "invalid_agent" }, 400);
+  const agent = await loadOwnedAgent(c.get("ownerId"), id.data);
+  if (!agent) return c.json({ error: "not_found" }, 404);
+  const enabled = cabinInvitationsEnabled();
+  return c.json({ enabled, invitations: enabled ? await listCabinInvitations(agent.id) : [] });
+});
+
 export function createCabinInvitationRoute(sim: SimClient) {
   const route = new Hono<{ Variables: { agentId: string; visitId: string; visitEndsAt: number } }>();
   route.get("/", async (c) => c.json({ invitations: await listCabinInvitations(c.get("agentId"), c.get("visitId")) }));
+
+  route.get("/:id", async (c) => {
+    const id = z.uuid().safeParse(c.req.param("id"));
+    if (!id.success) return c.json({ error: "invalid_invitation" }, 400);
+    const agentId = c.get("agentId");
+    const current = await readInvitation(and(eq(invites.id, id.data), party(agentId, c.get("visitId"))));
+    return current ? c.json({ invitation: view(current, agentId) }) : c.json({ error: "invitation_not_found" }, 404);
+  });
 
   route.post("/", async (c) => {
     const parsed = speechInput.safeParse(await c.req.json().catch(() => null));
@@ -41,7 +75,7 @@ export function createCabinInvitationRoute(sim: SimClient) {
     const { actId } = parsed.data;
     const hostId = c.get("agentId"), hostVisitId = c.get("visitId");
     const speech = and(eq(invites.hostVisitId, hostVisitId), eq(invites.actId, actId));
-    const [existing] = await db.select().from(invites).where(speech);
+    const existing = await readInvitation(speech);
     if (existing) return c.json({ invitation: view(existing, hostId) });
     const proof = await sim.call("GET", `/bodies/${hostId}/cabin-invitation-proof/${actId}`).catch(() => null);
     if (!proof?.ok) return c.json({ error: "speech_proof_unavailable" }, 503);
@@ -58,10 +92,10 @@ export function createCabinInvitationRoute(sim: SimClient) {
     if (expiresAt.getTime() <= now) return c.json({ error: "invitation_expired" }, 409);
     const [created] = await db.insert(invites).values({
       hostId, guestId, hostVisitId, guestVisitId: guest.id, actId, expiresAt,
-    }).onConflictDoNothing({ target: [invites.hostVisitId, invites.actId] }).returning();
-    if (created) return c.json({ invitation: view(created, hostId) }, 201);
-    const [retry] = await db.select().from(invites).where(speech);
-    return retry ? c.json({ invitation: view(retry, hostId) }) : c.json({ error: "invitation_unavailable" }, 409);
+    }).onConflictDoNothing({ target: [invites.hostVisitId, invites.actId] }).returning({ id: invites.id });
+    const registered = await readInvitation(speech);
+    return registered ? c.json({ invitation: view(registered, hostId) }, created ? 201 : 200)
+      : c.json({ error: "invitation_unavailable" }, 409);
   });
 
   route.post("/:id/:step", async (c) => {
@@ -70,18 +104,19 @@ export function createCabinInvitationRoute(sim: SimClient) {
     if (!id.success || !step.success) return c.json({ error: "invalid_invitation" }, 400);
     const agentId = c.get("agentId"), visitId = c.get("visitId");
     const own = and(eq(invites.id, id.data), party(agentId, visitId));
-    const [invitation] = await db.select().from(invites).where(own);
-    if (!invitation) return c.json({ error: "invitation_not_found" }, 404);
+    const state = await readInvitation(own);
+    if (!state) return c.json({ error: "invitation_not_found" }, 404);
+    const { invitation, open } = state;
     const host = invitation.hostId === agentId;
-    const current = view(invitation, agentId);
-    const open = sql`${invites.expiresAt} > clock_timestamp()`;
+    const current = view(state, agentId);
     const timestamp = sql`clock_timestamp()`;
     if (step.data === "accept") {
       if (host) return c.json({ error: "guest_required" }, 403);
       if (invitation.acceptedAt) return c.json({ invitation: current });
-      const [accepted] = await db.update(invites).set({ acceptedAt: timestamp }).where(and(own, open, isNull(invites.acceptedAt))).returning();
-      const latest = accepted ?? (await db.select().from(invites).where(own))[0];
-      return latest?.acceptedAt ? c.json({ invitation: view(latest, agentId) }) : c.json({ error: "invitation_expired" }, 409);
+      if (!open) return c.json({ error: "invitation_expired" }, 409);
+      await db.update(invites).set({ acceptedAt: timestamp }).where(and(own, invitationOpen, isNull(invites.acceptedAt)));
+      const latest = await readInvitation(own);
+      return latest?.invitation.acceptedAt ? c.json({ invitation: view(latest, agentId) }) : c.json({ error: "invitation_expired" }, 409);
     }
     if (host ? invitation.hostArrivedAt : invitation.guestArrivedAt) return c.json({ invitation: current });
     if (current.status === "expired") return c.json({ error: "invitation_expired" }, 409);
@@ -92,10 +127,10 @@ export function createCabinInvitationRoute(sim: SimClient) {
     const location = z.object({ inside: z.boolean() }).safeParse(await proof.json().catch(() => null));
     if (!location.success) return c.json({ error: "cabin_proof_unavailable" }, 503);
     if (!location.data.inside) return c.json({ error: "cabin_arrival_required" }, 409);
-    const [arrived] = await db.update(invites).set(host ? { hostArrivedAt: timestamp } : { guestArrivedAt: timestamp })
-      .where(and(own, open, isNotNull(invites.acceptedAt), isNull(host ? invites.hostArrivedAt : invites.guestArrivedAt))).returning();
-    const latest = arrived ?? (await db.select().from(invites).where(own))[0];
-    if (!latest || !(host ? latest.hostArrivedAt : latest.guestArrivedAt)) return c.json({ error: "invitation_expired" }, 409);
+    await db.update(invites).set(host ? { hostArrivedAt: timestamp } : { guestArrivedAt: timestamp })
+      .where(and(own, invitationOpen, isNotNull(invites.acceptedAt), isNull(host ? invites.hostArrivedAt : invites.guestArrivedAt)));
+    const latest = await readInvitation(own);
+    if (!latest || !(host ? latest.invitation.hostArrivedAt : latest.invitation.guestArrivedAt)) return c.json({ error: "invitation_expired" }, 409);
     return c.json({ invitation: view(latest, agentId) });
   });
   return route;

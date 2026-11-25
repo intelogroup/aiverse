@@ -12,6 +12,7 @@ const apiMock = vi.hoisted(() => ({
   patchWallet: vi.fn(),
   listVisits: vi.fn(),
   listVerseInventory: vi.fn(),
+  listCabinInvitations: vi.fn(),
   listHuntReceipts: vi.fn(),
   startVisit: vi.fn(),
   stopVisit: vi.fn(),
@@ -91,16 +92,23 @@ describe("ManageAgentsModal lifecycle controls", () => {
     expect(apiMock.listVerseInventory).toHaveBeenCalledWith("agent-1", undefined);
   });
 
-  it("shows the cabin invitation and which participant arrived", async () => {
-    apiMock.listVerseInventory.mockResolvedValue({
-      items: [],
-      cabinInvitations: [{ id: "invite-1", role: "guest", placeName: "Stone Cabin", status: "accepted", hostArrivedAt: "2026-11-25T04:00:00Z", guestArrivedAt: null }],
-    });
+  it("loads cabin invitations separately and reflects expiry on refresh", async () => {
+    const invitation = {
+      id: "invite-1", role: "guest", placeName: "Stone Cabin", status: "accepted",
+      hostArrivedAt: "2026-11-25T04:00:00Z", guestArrivedAt: null,
+    };
+    apiMock.listCabinInvitations
+      .mockResolvedValueOnce({ enabled: true, invitations: [invitation] })
+      .mockResolvedValueOnce({ enabled: true, invitations: [{ ...invitation, status: "expired" }] });
     render(<ManageAgentsModal agents={[agent]} onClose={() => {}} />);
-    const section = screen.getByText("Verse inventory").closest("details")!;
+    const section = screen.getByText("Cabin invitations").closest("details")!;
+    expect(apiMock.listCabinInvitations).not.toHaveBeenCalled();
     section.open = true;
     fireEvent(section, new Event("toggle"));
-    expect(await screen.findByText("Stone Cabin · Received · accepted · Host arrived")).toBeTruthy();
+    expect(await screen.findByText("Stone Cabin · Received · Accepted · awaiting arrival · Host arrived")).toBeTruthy();
+    expect(apiMock.listVerseInventory).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Refresh invitations" }));
+    expect(await screen.findByText("Stone Cabin · Received · Expired")).toBeTruthy();
   });
 
   it("renders the autonomy selector with the wallet's current mode and patches on change", async () => {

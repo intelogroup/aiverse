@@ -71,7 +71,6 @@ export function ManageAgentsModal({ agents, onClose }: { agents: Agent[]; onClos
 
 function AgentInventory({ agentId }: { agentId: string }) {
   const [items, setItems] = useState<Awaited<ReturnType<typeof api.listVerseInventory>>["items"] | null>(null);
-  const [invitations, setInvitations] = useState<CabinInvitation[]>();
   const [receipts, setReceipts] = useState<Awaited<ReturnType<typeof api.listVerseInventory>>["receipts"]>();
   const [after, setAfter] = useState<string>();
   const [progress, setProgress] = useState<{ credits: number; xp: number }>();
@@ -82,11 +81,8 @@ function AgentInventory({ agentId }: { agentId: string }) {
     setLoading(true);
     setError(null);
     try {
-      const { items: page, progress, receipts, cabinInvitations } = await api.listVerseInventory(agentId, cursor);
-      if (!cursor) {
-        setReceipts(receipts);
-        setInvitations(cabinInvitations);
-      }
+      const { items: page, progress, receipts } = await api.listVerseInventory(agentId, cursor);
+      if (!cursor) setReceipts(receipts);
       setProgress(progress);
       setItems((previous) => cursor ? [...(previous ?? []), ...page] : page);
       setAfter(page.length === 100 ? page.at(-1)?.id : undefined);
@@ -114,19 +110,50 @@ function AgentInventory({ agentId }: { agentId: string }) {
           ))}</ul>
         </section>
       )}
-      {!!invitations?.length && (
-        <section aria-label="Cabin invitations">
-          <h4>Cabin invitations</h4>
-          <ul>{invitations.map((invite) => (
-            <li key={invite.id}>
-              {invite.placeName} · {invite.role === "host" ? "Sent" : "Received"} · {invite.status === "both_arrived" ? "Both arrived" : invite.status}
-              {invite.status === "accepted" && (invite.hostArrivedAt || invite.guestArrivedAt) &&
-                (" · " + (invite.hostArrivedAt ? "Host arrived" : "Guest arrived"))}
-            </li>
-          ))}</ul>
-        </section>
-      )}
       {after && <button type="button" disabled={loading} onClick={() => void load(after)}>Load more</button>}
+    </details>
+  );
+}
+
+const invitationLabel: Record<CabinInvitation["status"], string> = {
+  delivered: "Delivered · awaiting guest",
+  accepted: "Accepted · awaiting arrival",
+  both_arrived: "Both arrived",
+  expired: "Expired",
+};
+
+function AgentCabinInvitations({ agentId }: { agentId: string }) {
+  const [result, setResult] = useState<Awaited<ReturnType<typeof api.listCabinInvitations>>>();
+  const [error, setError] = useState<string>();
+  const [loading, setLoading] = useState(false);
+
+  async function refresh() {
+    setLoading(true);
+    setError(undefined);
+    try {
+      setResult(await api.listCabinInvitations(agentId));
+    } catch (err) {
+      setError(describeError(err).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <details onToggle={(event) => { if (event.currentTarget.open) void refresh(); }}>
+      <summary>Cabin invitations</summary>
+      <button type="button" onClick={() => void refresh()} disabled={loading}>Refresh invitations</button>
+      {loading && <p role="status">Loading invitations…</p>}
+      {error && <p role="alert">{error}</p>}
+      {result && !result.enabled && <p>Cabin invitations are unavailable in this world.</p>}
+      {result?.enabled && !result.invitations.length && <p>No cabin invitations yet.</p>}
+      {!!result?.invitations.length && <ul>{result.invitations.map((invite) => (
+        <li key={invite.id}>
+          {invite.placeName} · {invite.role === "host" ? "Sent" : "Received"} · {invitationLabel[invite.status]}
+          {invite.status === "accepted" && (invite.hostArrivedAt || invite.guestArrivedAt) &&
+            (" · " + (invite.hostArrivedAt ? "Host arrived" : "Guest arrived"))}
+        </li>
+      ))}</ul>}
     </details>
   );
 }
@@ -300,6 +327,7 @@ function AgentLifecycle({ agent }: { agent: Agent }) {
       </label>
 
       <AgentInventory agentId={agent.id} />
+      <AgentCabinInvitations agentId={agent.id} />
       <AgentMemory agentId={agent.id} />
 
       {loadError && <p className="error">{loadError}</p>}

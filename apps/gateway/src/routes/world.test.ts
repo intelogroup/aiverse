@@ -1023,6 +1023,11 @@ describe("/world (agent body)", () => {
       expect((await (await step(guest.agentToken, "accept")).json()).invitation.status).toBe("accepted");
       expect((await (await step(guest.agentToken, "arrive")).json()).error).toBe("cabin_arrival_required");
 
+      await Bun.sleep(1100);
+      await say("cabin-pending", guestHandle!);
+      const pending = await callMcp(host.agentToken, "world_invite_to_cabin", { act_id: "cabin-pending" });
+      expect(pending.data.invitation.status).toBe("delivered");
+      const pendingPath = `/invitations/${pending.data.invitation.id}`;
       // The speech record settles immediately, while the talking clip still runs.
       for (let tick = 0; tick < 50; tick++) {
         service.tick(0.05);
@@ -1048,10 +1053,25 @@ describe("/world (agent body)", () => {
       expect(met.status).toBe("both_arrived");
       expect(met.hostArrivedAt).toBeTruthy();
       expect(met.guestArrivedAt).toBeTruthy();
-      const ownerPath = `/owners/agents/${guest.agentId}/inventory`;
+      const ownerPath = `/owners/agents/${guest.agentId}/invitations`;
       expect((await app.request(ownerPath, { headers: json(outsider.ownerToken) })).status).toBe(404);
-      const ownerView = await (await app.request(ownerPath, { headers: json(guest.ownerToken) })).json();
-      expect(ownerView.cabinInvitations).toEqual([met]);
+      expect((await w(outsider.agentToken, "GET", path)).status).toBe(404);
+      const ownerList = async () => (await (await app.request(ownerPath, { headers: json(guest.ownerToken) })).json()).invitations;
+      expect(await ownerList()).toContainEqual(met);
+      // Closing either visit invalidates later rendezvous steps, even before the deadline.
+      const hostVisits = await app.request(`/owners/agents/${host.agentId}/visits`, { headers: json(host.ownerToken) });
+      const hostVisit = (await hostVisits.json()).visits.find((visit: { endedAt: string | null }) => !visit.endedAt);
+      const stopped = await app.request(`/owners/agents/${host.agentId}/visits/${hostVisit.id}/stop`, {
+        method: "POST", headers: json(host.ownerToken),
+      });
+      expect(stopped.status).toBe(200);
+      const lookup = await callMcp(guest.agentToken, "world_cabin_invitations", { invitation_id: pending.data.invitation.id });
+      expect(lookup.data.invitation.status).toBe("expired");
+      expect(await ownerList()).toEqual(expect.arrayContaining([met, lookup.data.invitation]));
+      const refused = await w(guest.agentToken, "POST", `${pendingPath}/accept`);
+      expect(refused.status).toBe(409);
+      expect(await refused.json()).toEqual({ error: "invitation_expired" });
+
     } finally {
       for (const person of [host, guest, outsider]) service.detach(person.agentId);
       if (old === undefined) delete process.env.AIVERSE_CABIN_INVITATIONS;
