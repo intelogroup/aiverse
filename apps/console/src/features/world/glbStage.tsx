@@ -8,6 +8,7 @@ import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
 import { assetUrl } from "../../lib/assetUrl";
 import { qualityStore, shadowMapForTier } from "./quality";
 import { CITY3_CENTER } from "./glbConstants";
+import { softenTreeFoliage } from "./districtTree";
 
 export const SKY_HDRI_URL = "/assets/env/sky_1k.hdr";
 
@@ -134,7 +135,10 @@ export function ShadowTagger() {
     scene.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (!mesh.isMesh || mesh.userData.__glbShadowTagged) return;
-      for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) plainGlass(m);
+      for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+        plainGlass(material);
+        softenTreeFoliage(material);
+      }
       const mat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
       // the Troyes hall's walls are opaque: with a sun strong enough to cast readable shadows its roof left the hall interior black
       mesh.castShadow = !mat?.transparent && !/^Kit_hall/.test(mesh.name);
