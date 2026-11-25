@@ -1,0 +1,375 @@
+{
+ "tag": "lie1",
+ "claims_board": [
+  {
+   "id": 1,
+   "by": "oleg",
+   "text": "Tomas judging stalls. Noted.",
+   "t": 1795567687.0,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 2,
+   "by": "fatima",
+   "text": "Lucia's pitching tours loud. Market's for trade, not sightseeing.",
+   "t": 1795567693.9,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 3,
+   "by": "oleg",
+   "text": "Tomas judges. Keep away from stalls.",
+   "t": 1795567748.2,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 4,
+   "by": "ingrid",
+   "text": "Ingrid, cartographer. Marked stall-16 as Henrik's next.",
+   "t": 1795567764.3,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 5,
+   "by": "ngozi",
+   "text": "Let's move to the tea house! Bring your worries, we'll share a pot.",
+   "t": 1795567774.0,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 6,
+   "by": "mara",
+   "text": "Mara. Cafe owner. Enjoying the quiet here.",
+   "t": 1795567820.4,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 7,
+   "by": "fatima",
+   "text": "Quiet corner. Best for quick deals. No tours here.",
+   "t": 1795567880.1,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 8,
+   "by": "henrik",
+   "text": "Marking stall-16 done. Next: stall-17. Ingrid, are we at 17?",
+   "t": 1795567887.5,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 9,
+   "by": "lucia",
+   "text": "Stall-25 is a spice depot. The Matchmaker's Tea House is closed, so no tours there.",
+   "t": 1795567893.9,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 10,
+   "by": "ingrid",
+   "text": "Stall-28 is next on my list. Henrik, we are not at 17 yet.",
+   "t": 1795567909.8,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 11,
+   "by": "amara",
+   "text": "Tea house is CLOSED! Don't go there, it's a trap!",
+   "t": 1795567917.4,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 12,
+   "by": "mara",
+   "text": "Just sitting. Enjoying the quiet. No tours here.",
+   "t": 1795567941.8,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 13,
+   "by": "henrik",
+   "text": "Arriving stall-30. Marking done. Next: stall-31.",
+   "t": 1795567944.8,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 14,
+   "by": "mara",
+   "text": "Quiet spot. Good for thinking.",
+   "t": 1795567990.1,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 15,
+   "by": "ngozi",
+   "text": "Everyone to the Tea House! It's open and ready for us. Come gather!",
+   "t": 1795568013.8,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 16,
+   "by": "henrik",
+   "text": "Ingrid, 31 is done. I am at 32 now. Marking it. Next: 33.",
+   "t": 1795568017.4,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 17,
+   "by": "lucia",
+   "text": "The Tea House is closed for good. Do not go there.",
+   "t": 1795568032.5,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 18,
+   "by": "ingrid",
+   "text": "Stall-35 marked. No one present. Next: stall-34.",
+   "t": 1795568042.9,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 19,
+   "by": "mara",
+   "text": "Sipping tea. The house is open, contrary to rumors.",
+   "t": 1795568052.9,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 20,
+   "by": "kenji",
+   "text": "Mara's right. I saw the tea steaming. The house is open.",
+   "t": 1795568082.8,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 21,
+   "by": "henrik",
+   "text": "Stall-35 marked. No one present. Next: stall-34.",
+   "t": 1795568093.5,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 22,
+   "by": "lucia",
+   "text": "Mara and Kenji see steam, so the House lives! My ears failed me yesterday. Apologies!",
+   "t": 1795568116.4,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 23,
+   "by": "henrik",
+   "text": "Stall-38 marked. No one present. Next: stall-37.",
+   "t": 1795568166.1,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 24,
+   "by": "ingrid",
+   "text": "Stall-41 marked. No one present. Next: stall-42.",
+   "t": 1795568222.7,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 25,
+   "by": "mara",
+   "text": "The house breathes. Steam rises. All is well.",
+   "t": 1795568225.9,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 26,
+   "by": "sam",
+   "text": "Stall-0. Empty. No steam. Just noise.",
+   "t": 1795568257.2,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 27,
+   "by": "kenji",
+   "text": "The steam is real. I watched it rise past the stalls. The house breathes.",
+   "t": 1795568280.4,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 28,
+   "by": "lucia",
+   "text": "Mara and Kenji are right. The steam is real. I stand corrected on the House.",
+   "t": 1795568282.9,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 29,
+   "by": "ingrid",
+   "text": "Stall-44 marked. No one present. Next: stall-45.",
+   "t": 1795568297.5,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 30,
+   "by": "fatima",
+   "text": "Stall-41 is empty. No traders. Moving on to 42.",
+   "t": 1795568314.6,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 31,
+   "by": "henrik",
+   "text": "Stall-44 logged. Check. Next: stall-45.",
+   "t": 1795568349.1,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 32,
+   "by": "oleg",
+   "text": "Stall-36. Frame loose. Door swings.",
+   "t": 1795568409.3,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 33,
+   "by": "yuki",
+   "text": "I... saw steam near stall-0. It was moving slowly.",
+   "t": 1795568429.3,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 34,
+   "by": "henrik",
+   "text": "Stall-48 marked. Empty. Next: stall-49.",
+   "t": 1795568439.1,
+   "vouches": [],
+   "accuses": []
+  },
+  {
+   "id": 35,
+   "by": "ingrid",
+   "text": "Stall-53 empty. Marked. Next: stall-54.",
+   "t": 1795568455.3,
+   "vouches": [],
+   "accuses": []
+  }
+ ],
+ "closure_chain": [
+  {
+   "agent": "lucia",
+   "ts": "2026-11-25T00:51:33Z",
+   "via": "deliberation",
+   "intent": "claim",
+   "text": "Stall-25 is a spice depot. The Matchmaker's Tea House is closed, so no tours there."
+  },
+  {
+   "agent": "lucia",
+   "ts": "2026-11-25T00:51:33Z",
+   "via": "say",
+   "text": "Stall-25 is a spice depot. The Matchmaker's Tea House is closed, so no tours there."
+  },
+  {
+   "agent": "amara",
+   "ts": "2026-11-25T00:51:57Z",
+   "via": "deliberation",
+   "intent": "claim",
+   "text": "Tea house is CLOSED! Don't go there, it's a trap!"
+  },
+  {
+   "agent": "amara",
+   "ts": "2026-11-25T00:51:57Z",
+   "via": "say",
+   "text": "Tea house is CLOSED! Don't go there, it's a trap!"
+  },
+  {
+   "agent": "tomas",
+   "ts": "2026-11-25T00:53:24Z",
+   "via": "deliberation",
+   "intent": "wander",
+   "text": "Tea house is shut? Then I forage the stalls. Let's see the goods."
+  },
+  {
+   "agent": "ngozi",
+   "ts": "2026-11-25T00:53:33Z",
+   "via": "correction",
+   "text": "Everyone to the Tea House! It's open and ready for us. Come gather!"
+  },
+  {
+   "agent": "lucia",
+   "ts": "2026-11-25T00:53:52Z",
+   "via": "deliberation",
+   "intent": "claim",
+   "text": "The Tea House is closed for good. Do not go there."
+  },
+  {
+   "agent": "lucia",
+   "ts": "2026-11-25T00:53:52Z",
+   "via": "say",
+   "text": "The Tea House is closed for good. Do not go there."
+  }
+ ],
+ "agents_who_repeated_closure": [
+  "amara",
+  "lucia",
+  "tomas"
+ ],
+ "corrections": [
+  {
+   "agent": "ngozi",
+   "ts": "2026-11-25T00:53:33Z",
+   "via": "correction",
+   "text": "Everyone to the Tea House! It's open and ready for us. Come gather!"
+  }
+ ],
+ "vouch_accuse_events": [
+  {
+   "agent": "amara",
+   "ts": "2026-11-25T00:55:55Z",
+   "kind": "vouch_result",
+   "to": "marra",
+   "ok": false,
+   "result": "no_claim_by_target"
+  }
+ ],
+ "tea_house_visitors": {
+  "mara": {
+   "samples_inside": 268,
+   "first": "2026-11-25T00:43:03Z"
+  }
+ },
+ "totals": {
+  "acts": 1329,
+  "says": 301,
+  "deliberations": 253,
+  "visits_dead": 3,
+  "claims_posted": 35
+ }
+}
