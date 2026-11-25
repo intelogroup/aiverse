@@ -11,8 +11,10 @@ type Position = { x?: number; y?: number; z?: number };
 export class HawkDoor {
   openness = 0;
   private hold = 0;
+  private readonly setBlocked: (blocked: boolean) => void;
 
-  constructor(private readonly setBlocked: (blocked: boolean) => void) {
+  constructor(setBlocked: (blocked: boolean) => void) {
+    this.setBlocked = setBlocked;
     setBlocked(true);
   }
 
