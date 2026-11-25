@@ -134,23 +134,58 @@ importer actually produced (`Props`, `Awnings`, `ATTIC_*`, ...), not by the old 
 | Auto-weighted rig | `armature_add` → bones → `parent_set(type="ARMATURE_AUTO")` | 2 bones, groups `root`/`spine`, **2 712 of 2 715 vertices weighted**, ARMATURE modifier, **175 ms** |
 | Rig add-ons | `addon_utils.enable(...)` | **rigify** exposes `fk2ik`, `ik2fk`, `transfer_fk_to_ik/ik_to_fk`, `rotation_pole`, `clear_animation`; `retarget` and `cloudrig` enable but register **no operators** headless |
 
-## AO: vertex colour, not a texture multiply
+## AO: three attempts, none of them shipped
 
-The first attempt baked AO with Cycles and multiplied it into the base maps. Measured result: **−48 luma,
-71 % of pixels darkened**, and per-asset mean AO of 0.03–0.13 — because most of each AO image is
-*unbaked black*: several materials share a `palette` atlas, so a per-object UV bake does not line up
-with the pixels it is multiplied into. Wrong shape for this library.
+| Attempt | What it did | Measured |
+|---|---|---|
+| Cycles bake → multiply into base colour | a per-object UV bake folded into the albedo maps | **−48 luma, 71 % of pixels darkened**; per-asset mean 0.03–0.13, because the library shares a `palette` atlas and most of each AO image is unbaked black |
+| `paint.vertex_color_dirt` → COLOR_0 | glTF vertex-colour cavity pass | attribute exported, but all **32 primitives carried pure-white COLOR_0** - two bugs, below |
+| fixed bake → COLOR_0 | the same, exported with `export_vertex_color="ACTIVE"` | real data reaches the shader, and the effect is **0.03–0.07 / 255 mean** - invisible |
 
-The correct pass is `paint.vertex_color_dirt()` (Dirty Vertex Colours) → glTF **COLOR_0**:
+Two export traps, each of which reports success:
 
-```
-tools/city3/blender_lock.sh -b --factory-startup --python tools/city3/bake_ao.py
-# AO_VCOL 25/25 assets, 32/32 primitives carry COLOR_0, 8.58 -> 9.98 MB in 1.3 s
-```
+1. `paint.vertex_color_dirt` writes into a layer it owns. On a mesh that already carries one it **appends
+a second attribute** and the export ships the old, untouched (white) layer.
+2. `export_scene.gltf` defaults to `export_vertex_color="MATERIAL"` with `export_all_vertex_colors=True`,
+which emits **two** colour sets: COLOR_0 white, COLOR_1 the real bake. three.js reads COLOR_0.
+Fix: `export_vertex_color="ACTIVE", export_all_vertex_colors=False`.
 
-No second UV channel, no extra texture memory, and three.js applies COLOR_0 as soon as the primitive has
-it. Costs **+1.4 MB** for the colour attribute and is per-vertex, so it wants the 3.5–8k tris the kit
-already carries. Whether to ship it is a look call, not a technical one.
+Runtime is not the problem. Probed through the app's own loader (three-stdlib 2.36.1, throwaway vite page
+loading the same URL), all 32 meshes arrive with `geometry.attributes.color` and `material.vertexColors =
+true`.
+
+Why it stays unshipped - the parameter space has no useful middle:
+
+| `vertex_color_dirt` settings | darkest | mean |
+|---|---|---|
+| `dirt_only=True, normalize=False` | 0.784 | **0.9961** (a no-op on screen) |
+| `dirt_only=False, normalize=False` | 0.392 | **0.533** (halves everything) |
+| `dirt_only=False, normalize=True` | 0.000 | 0.4829 |
+
+The kit's props are convex-ish and low-poly, so per-vertex cavity shading has almost nothing to bite on:
+1 % mean at best, and the place the eye wants AO - where a prop meets the floor - has no vertices to hold
+it. That wants a second UV channel and a baked map, or SSAO in the renderer, not vertex colour.
+`tools/city3/bake_ao.py` stays as the working tool (it bakes, measures, and aborts when a result is
+white); the shipped assets do not carry AO.
+
+## WebP adopted (verified in the browser)
+
+`tools/city3/optimize_textures.sh` runs `gltf-transform webp --quality 82` over each interior and skips
+anything already WebP (re-encoding would cost a generation of quality for a rounding-level gain):
+
+| asset | before | after | |
+|---|---|---|---|
+| `modern-loft-interior.glb` | 8.58 MB | **5.46 MB** | −36 % |
+| `market-hall-interior.glb` | 3.62 MB | 3.27 MB | −10 % |
+| `scandi-hawk-interior.glb` | 14.37 MB | 12.38 MB | −14 % |
+
+Verified by re-rendering the loft at three fixed spawns before and after (`?walk=1&spawn=…`, 1280×800):
+mean |Δ| **0.09 / 0.06 / 0.08** per 255, **<0.01 %** of pixels differing by more than 24, the same 110
+interior draw calls, the same resident set, zero console errors. Structure is untouched: 25 nodes, 25
+meshes, 32 primitives and 32 materials before and after, only `image/png|jpeg` → `image/webp` (31 → 28
+textures, the converter dedupes identical images).
+
+`@gltf-transform/cli` is now a root devDependency - it carries the `sharp` encoder the libraries alone lack.
 
 ## Textures: KTX2 vs WebP, measured on the same 512² grass map
 
@@ -167,11 +202,11 @@ Which tool to install (verified):
 - **KTX-Software** (`ktx create/transcode/info`) — the reference toolchain, and the binary `gltf-transform etc1s|uastc` shells out to. There is **no Homebrew formula or cask**; the macOS arm64 release is a `.pkg` (needs sudo).
 - Nothing at all for WebP: `gltf-transform webp` is already installed and three.js reads WebP natively.
 
-**Recommendation:** WebP for every texture today (4.8×, zero tooling, works in the current loader).
-Add KTX2/ETC1S only where GPU memory or texture-binding count actually bites (large atlases, many
-materials), by installing KTX-Software and running `gltf-transform etc1s`; keep `basisu` as the
-no-sudo encoder when you only need the `.ktx2` file. The console already preloads a KTX2 transcoder
-for the tile pipeline, so the runtime side is in place.
+**Adopted:** WebP for every interior texture — 4.8× on the test map, 10–36 % on the real assets, and no
+new tooling (see "WebP adopted" above). KTX2/ETC1S is the next step only where GPU memory or
+texture-binding count actually bites (large atlases, many materials): install KTX-Software and run
+`gltf-transform etc1s`, keeping `basisu` as the no-sudo encoder when you only need the `.ktx2` file. The
+console already preloads a KTX2 transcoder for the tile pipeline, so the runtime side is in place.
 
 ## Inpainting: LaMa on CPU (measured)
 
