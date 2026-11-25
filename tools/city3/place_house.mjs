@@ -5,8 +5,8 @@
 // stays axis-aligned. The house front faces local +z before the yaw. Output: <out>/<ID>.glb, <out>/<ID>.col.glb, <out>/<ID>.json (the DistrictDef rect).
 import { NodeIO, Document, getBounds } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
-import { dedup, flatten, join, metalRough, prune, simplify, weld } from "@gltf-transform/functions";
-import { MeshoptSimplifier } from "meshoptimizer";
+import { dedup, flatten, join, metalRough, meshopt, prune, simplify, weld } from "@gltf-transform/functions";
+import { MeshoptEncoder, MeshoptSimplifier } from "meshoptimizer";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 const [src, id, X, Z, YAW] = process.argv.slice(2, 7).map((v, i) => (i < 2 ? v : Number(v)));
@@ -20,7 +20,7 @@ mkdirSync(OUT, { recursive: true });
 // placed on many lots is stored and downloaded once. Without it the file is <ID>.glb in world coordinates (origin [0, 0]).
 const FILE = opt.asset ? `${opt.asset}-y${YAW}` : id, [PX, PZ] = opt.asset ? [0, 0] : [X, Z];
 
-const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
+const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ "meshopt.encoder": MeshoptEncoder });
 const doc = await io.read(src);
 // three.js dropped KHR_materials_pbrSpecularGlossiness: such a model renders untextured white, so convert it to metal/rough first
 if (doc.getRoot().listExtensionsUsed().some((e) => e.extensionName === "KHR_materials_pbrSpecularGlossiness")) await doc.transform(metalRough());
@@ -43,6 +43,12 @@ if (opt.recolor) for (const spec of opt.recolor.split(";")) { const [name, rgb] 
 outer.addChild(inner); scene.addChild(outer);
 // one draw call per material instead of one per source object (the pool villa has 1345 objects): flatten bakes the placement transform
 await doc.transform(dedup(), flatten(), join({ keepNamed: false }), prune());
+// Compress the near GLB. Without this the placed houses shipped raw while house_lods.mjs
+// compressed every .far.glb at level "high": 29 near files weighed 316 MB (cabin-y90.glb
+// 49.0 MB for 766k tris) against 22.6 MB for the same 29 far files. Lossless for geometry,
+// and drei's useGLTF(url, true, true, ...) already runs the meshopt decoder.
+await MeshoptEncoder.ready;
+await doc.transform(meshopt({ encoder: MeshoptEncoder, level: "high" }));
 await io.write(`${OUT}/${FILE}.glb`, doc);
 
 // collision: closed boxes, authored in a "door frame" where the door side faces +z, then turned by the door side's angle and the yaw (90-degree steps).
