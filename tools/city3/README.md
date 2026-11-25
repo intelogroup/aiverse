@@ -10,6 +10,8 @@ Procedural pipeline for `apps/console/public/assets/world-city3.glb` (headless B
     cp out/city3-fountain.json ../../apps/console/public/assets/  # runtime water surface and jet dimensions
     python3 check_anchors.py                # seat/stand anchors: on open floor, none shared, facing consistent
     python3 nav3.py                         # out/city3-nav.json: footprints, 158 room lots, hero buildings
+    blender -b --python preview_multi.py -- out/world-city3.glb   # measured 4-side + 3/4 + closeup + structural -> out/prevm_<stem>/
+    python3 sheet.py out/prevm_world-city3                        # one labelled contact sheet; --against <dir> for an RMS diff
 
 Notes
 - Units are metres. Blender Y is negated into three.js Z by the glTF export; every walkable surface sits at y = 0.2.
@@ -30,3 +32,13 @@ Notes
 - Materials are single-sided except glass; anything seen from both sides is emitted twice.
 - The GLB uses EXT_meshopt_compression (drei's `useGLTF` decodes it by default). Glass is alpha-blended.
 - Needs `libegl1` on a headless Linux box for Blender to start rendering previews (`preview.py`).
+- `preview_multi.py` frames by measurement, not by `bound_box`: it renders each ortho view with
+  `film_transparent`, reads the alpha silhouette, and solves `ortho_scale` / camera height in closed form
+  until the subject fills `FILL` (0.90) and is centred — two passes per axis. Scene bounds are not
+  trustworthy on rigged GLBs (detached IK/control geometry inflates them: `cast-skeleton-warrior.glb`
+  reports 2.57 m of bbox height for a ~2.2 m silhouette). Each axis is calibrated separately, since a
+  26 m wide, 12 m tall building is width-bound at ~58% vertical fill and cannot reach 0.90 on height.
+  For a landscape frame Blender's ORTHO `ortho_scale` is the HORIZONTAL coverage. Views stay RGBA and
+  `preview.json` carries the measured fill/centring/clipping per view; `sheet.py` flattens them onto the
+  sky and prints the same numbers, so a crop or an empty render is caught rather than eyeballed.
+  Exit 1 if a view renders empty or a non-closeup view clips.

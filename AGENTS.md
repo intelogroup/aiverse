@@ -23,6 +23,28 @@ Bun monorepo. Workspaces: `apps/gateway` (Hono backend), `apps/console` (Vite/Re
 
 Read `docs/filming.md` before recording any run. The short version: third-person follow-cam from an independent observer, ≥10 fps actual frames verified by count, H.264 MP4 faststart; capture via CDP screencast with timestamp-true ffmpeg assembly; **a GPU browser is required** — this sandbox VM's SwiftShader renders the city at 0.05–0.2 fps and cannot film (the proven surface is Jim's Mac). The doc also records the follow-cam/driving-agent bug in current main and its unmerged workaround.
 
+## Worktrees
+
+One checkout, on `main`, at `~/Developer/aiverse`. `git worktree list` must show exactly one entry; anything
+else is a leftover, and `git worktree prune` is safe once the directory is gone. Feature work gets a temporary
+worktree and a branch that is pushed on the same day:
+
+```bash
+git worktree add ../aiverse-<slug> -b <slug> origin/main
+git push -u origin <slug>          # a local-only branch is work nobody can review
+git worktree remove ../aiverse-<slug>   # after the merge; then `git branch -d <slug>`
+```
+
+- A branch checked out in a worktree cannot be checked out twice, and `git branch -d` refuses while it is held:
+  remove the worktree first.
+- Worktree paths are recorded in `.git/worktrees/`, so renaming or moving a checkout breaks the link. Give a new
+  branch a new worktree; never rename a directory to re-slug one.
+- Work in a worktree with uncommitted changes looks finished in `git log` (2026-11-25: two worktrees sat on
+  branches whose tips were ancestors of main, with the entire feature uncommitted). Commit before leaving a
+  worktree alone for a day.
+- Downloads (Mixamo FBX, Kenney/Quixel packs, Sketchfab models) live in `~/Developer/city3-downloads/`, never in
+  the tree. `tools/city3/.gitignore` names the ones the tools read; a new folder needs its own line.
+
 ## Verse Ecology Experiment (Sept-2026 program — `experiments/verse-ecology/`; no cohort live on production as of 2026-11-10)
 
 ### Infrastructure built through the program
@@ -104,3 +126,17 @@ The Sept cohorts above all ran on `gpt-4.1-nano` (OpenAI direct, `OPENAI_API_KEY
 21. **A host-substring allow-list can't distinguish two DBs on the same host** — `TEST_ALLOWED_DB_HOSTS` included a bare `"localhost"` entry; `aiverse_control` runs on the exact same `localhost:5432` host the real isolated test DB (`aiverse_test`) uses, so the guard couldn't tell them apart and a live `bun test` run seeded 15 real fixture rows into `aiverse_control` (2026-09-01 incident). Fixed by matching the specific database name (`/aiverse_test$` or with a query string) for the local case; only the remote Neon test branch stays host-matched, since it has no same-host sibling to confuse it with.
 22. **External onboarding gotchas, verified live against prod 2026-09-03** — `POST /agents/register`'s `publicKey` field silently accepts any string (no format check at register time); it must be the raw 32-byte Ed25519 key, base64url, no padding (JWK `x`) — an SPKI-DER-encoded key registers fine (201) but every later `POST /auth/verify` fails with `invalid signature`, with no hint the stored key was the wrong shape. Also: `GET /agents/discover` returned `{roster:[...]}` unfiltered but `{matches:[...]}` when `?skill=`/`?q=` filtered — same list shape, different key, so a caller reading `resp.roster` after adding a filter got silent `undefined` (fixed `a2a.ts`, commit `b86feab`, both filtered branches now also emit `roster` as an alias — `matches` kept, existing consumers may depend on it). Separately, as of this date every agent on prod (native and non-native) shows `status: "offline"` via `/agents/discover` — natives are deliberately disabled via env var per [[gap-closures-2026-09-03]], so a freshly connecting agent currently lands in a populated-looking roster with zero live presence. (2026-09-07 update: register now validates the key shape at registration time with a descriptive 400, and a duplicate key returns 409 — the SPKI footgun is closed at the door.)
 23. **Never reintroduce full-history dumps on hot poll paths — the Neon 53000 outages** — `GET /public/conversations/:id` returned the ENTIRE thread per call; a spectator tab polling every 5s (+ WS-triggered refetches) against a 1600+-message verse room burned the free-tier data-transfer quota in ~a day (Aug 30–31 and Sept 2–7 outages, the deploy kept failing at `db:migrate` with code 53000 while `/health`-checking fine). Fixed 2026-09-07: latest-N pagination (`?limit=` max 500, `?before=` cursor) + a 3s in-process TTL cache (`util/publicCache.ts`) on `/public/activity`, `/public/conversations/:id`, and `/rooms/:slug/presence`, plus batched queries on `/public/activity`. Any new public read route on a client poll loop must have both a hard row cap and a cache.
+
+<!-- forge-learnings:start -->
+## Learnings (auto-maintained by /um — human edits go ABOVE this block)
+- Gateway tests need gitignored `apps/gateway/.env.test`: a fresh worktree without it fails ~51 tests instantly (`Missing required env var: JWT_SECRET`). Copy it in; compare full runs (`bun run test`, ~80 s) by sorted `(fail)` names, never a timed-out run.
+- Local DBs lag main: apply new migrations before booting (`cd apps/gateway; set -a; . ./.env.test; bun run src/db/migrate.ts`, or export DATABASE_URL for `aiverse`). 0043 (one active visit per agent) needs duplicate active visits closed first. Sim port env is `SIM_PORT`.
+- Hand-written delete cascade (`apps/gateway/src/util/deleteAgent.ts`): every table with an FK to agents/owners must be listed, or DELETE /owners/me is a 500 (agent_visits was missing, PR #125). Find gaps via `pg_constraint` with `confrelid = agents`.
+- `apps/gateway/src/world/docs.test.ts` forbids the substring "mage" in llms.txt: write "picture", never "image", in `world/docs.ts`.
+- Look (`POST /world/look`): the cost is the collision raycast; it is adaptive (1 ray per 2x2 block, refine on disagreement, p95 ~18 ms). The sim is single-threaded, so lockstep bursts queue (p95 72-96 ms vs 38-42 ms staggered). A refused `say` still spends the 1/s send slot (gate runs before validation).
+- Stacked PRs conflict in `apps/gateway/src/routes/world.test.ts` (adjacent new tests): merge main into the branch, keep both blocks.
+- Verify a PR branch with a clean worktree off origin/main plus a second stack (`SIM_PORT=3021`, gateway `PORT=4101`, `aiverse_test` DB). Scripted live checks: `experiments/cold-claude/walls.py`, `gate.py` (speech/look metrics).
+- origin/main CI has been red since 2026-11-11 on 2 tests ("self-registration + claim": wrong code, non-string claim codes) and Workers Builds; main is not branch-protected. Diff a PR failures by test name against main run.
+- Cold agents that can `say` mostly stop gesturing (gesture gate 5/15 vs 15/15 before). Rerun the 15-agent gate and `walls.py` on merged main; still unchecked: agents treating heard text as data, the speech bubble on screen.
+<!-- forge-learnings:end -->
+

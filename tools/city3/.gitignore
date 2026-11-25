@@ -44,3 +44,6 @@ out/prevm_*/
 out/browser*/
 out/street/
 out/rotation/
+
+out/bones_all.json
+assets/kenney/
