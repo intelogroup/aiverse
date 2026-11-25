@@ -24,11 +24,15 @@ for (const d of man.districts) {
 }
 if (!CASES.length) { console.error("no rotationY districts found"); process.exit(1); }
 
+// The per-yaw bakes this compares against were deleted by the collapse, so they only exist in
+// history now -- and "origin/main" is a bad baseline because after the merge it no longer contains
+// them, which made this script exit 1 on merged main. Pin the commit instead: 4257bb0e is main
+// immediately before the yaw collapse (PR #320). Override with ROTATION_BASELINE.
+const BASELINE = process.env.ROTATION_BASELINE ?? "4257bb0e4070630d1c0e7642efbd8983d89915dd";
+
 const fromGit = async (name) => {
-  // Baseline is origin/main, not HEAD: HEAD already contains the collapse commit, so the
-  // per-yaw bakes this compares against no longer exist there.
   const p = `/tmp/_orig_${name}`;
-  writeFileSync(p, execFileSync("git", ["show", `origin/main:${A}/${name}`], { maxBuffer: 1 << 28 }));
+  writeFileSync(p, execFileSync("git", ["show", `${BASELINE}:${A}/${name}`], { maxBuffer: 1 << 28 }));
   const d = await io.read(p); unlinkSync(p); return d;
 };
 
