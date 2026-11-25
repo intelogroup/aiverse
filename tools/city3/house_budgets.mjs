@@ -8,6 +8,11 @@ import { MeshoptDecoder } from "meshoptimizer";
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 
 const H = "apps/console/public/assets/houses", F = "apps/console/tests/asset-budgets.ts";
+// Absolute ceilings. The generated budget is measured x1.25, which only detects *regression*:
+// it re-bases onto whatever was just built, so a runaway house can never fail its own gate
+// (cabin-y90.glb ships 766,467 triangles for one log cabin and passes by construction). These
+// are the ceiling that makes the row mean something; move them only in a deliberate PR.
+const CEILING = { glbBytes: 26_000_000, collisionBytes: 20_000, triangles: 900_000 };
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ "meshopt.decoder": MeshoptDecoder });
 await MeshoptDecoder.ready;   // placed houses ship EXT_meshopt_compression; without the decoder io.read throws
 const n = (v) => Math.round(v).toLocaleString("en-US").replace(/,/g, "_");
@@ -36,7 +41,11 @@ for (const f of readdirSync(H).filter((f) => f.endsWith(".glb") && !f.endsWith("
   const cols = [...(colByUrl.get(`/assets/houses/${f}`) ?? [])];
   let c = cols.reduce((sum, u) => sum + sizeOfUrl(u), 0);
   if (!cols.length) { try { c = statSync(`${H}/${f.replace(/\.glb$/, ".col.glb")}`).size; } catch { c = 0; } }
-  out += `  "/assets/houses/${f}": {\n    measured: { glbBytes: ${n(g)}, collisionBytes: ${n(c)}, triangles: ${n(tris)} },\n    budget: { glbBytes: ${n(g * 1.25)}, collisionBytes: ${n(Math.max(2000, c * 1.4))}, triangles: ${n(tris * 1.25)} },\n  },\n`;
+  const cap = (v, ceil) => Math.round(Math.min(v, ceil));
+  if (g > CEILING.glbBytes || tris > CEILING.triangles || c > CEILING.collisionBytes) {
+    console.warn(`  OVER CEILING: ${f} (${(g / 1e6).toFixed(1)} MB, ${Math.round(tris)} tris) — the row will fail the gate until it is slimmed or the ceiling is raised deliberately`);
+  }
+  out += `  "/assets/houses/${f}": {\n    measured: { glbBytes: ${n(g)}, collisionBytes: ${n(c)}, triangles: ${n(tris)} },\n    budget: { glbBytes: ${n(cap(g * 1.25, CEILING.glbBytes))}, collisionBytes: ${n(cap(Math.max(2000, c * 1.4), CEILING.collisionBytes))}, triangles: ${n(cap(tris * 1.25, CEILING.triangles))} },\n  },\n`;
 }
 const s = readFileSync(F, "utf8"), a = s.indexOf("  // Placed prebuilt houses"), b = s.indexOf("};\n\n/** All districts");
 if (a < 0 || b < 0) throw new Error("house section markers not found in " + F);
