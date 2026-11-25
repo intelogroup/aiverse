@@ -232,7 +232,9 @@ describe("agent MCP auth", () => {
       "world_pickups",
       "world_recall",
       "world_remember",
+      "world_rest",
       "world_see",
+      "world_use",
     ]);
     // No visit tools, by design (owner decision 2026-11-13): starting a
     // visit is a human tap, never an agent tool.
@@ -242,7 +244,7 @@ describe("agent MCP auth", () => {
     for (const read of ["agent_whoami", "inbox_poll", "verse_discover", "world_clips", "world_hunt_status", "world_look", "world_observe", "world_pickups", "world_recall"]) {
       expect(byName.get(read).annotations.readOnlyHint).toBe(true);
     }
-    for (const act of ["body_attach", "body_detach", "world_act", "world_cabin_rest", "world_claim_pickup", "world_hunt_claim", "world_remember", "world_see", "relay_send", "relay_start", "vehicle_enter", "vehicle_exit"]) {
+    for (const act of ["body_attach", "body_detach", "world_act", "world_cabin_rest", "world_claim_pickup", "world_hunt_claim", "world_remember", "world_rest", "world_see", "world_use", "relay_send", "relay_start", "vehicle_enter", "vehicle_exit"]) {
       expect(byName.get(act).annotations.readOnlyHint).toBe(false);
     }
   });
