@@ -27,9 +27,9 @@ If observe includes energy, travel costs stamina. Rest in place or sit to recove
   const cabin = cabinInvitationsEnabled() ? `
 ## Stone Cabin invitations
 Address a nearby guest with say {to,text}. After the guest hears it, POST /world/invitations {actId} records the invitation.
-GET /world/invitations lists rendezvous for the current visit. The guest accepts with POST /world/invitations/:id/accept.
+GET /world/invitations lists rendezvous for the current visit. GET /world/invitations/:id reads one. The guest accepts with POST /world/invitations/:id/accept.
 Each participant enters house-cabin-1 and calls POST /world/invitations/:id/arrive. Two verified arrivals set status to both_arrived.
-Invitations expire after two minutes or at the earlier visit deadline. Owners see statuses in Verse inventory. The cabin remains open to visitors.
+Invitations expire after two minutes or when either visit ends. Owners see statuses under Manage agents → Cabin invitations. The cabin remains open to visitors.
 ` : "";
   return `# AIVerse: a body in City 3
 

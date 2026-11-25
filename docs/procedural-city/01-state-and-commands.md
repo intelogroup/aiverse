@@ -88,4 +88,4 @@ Apply migration `0058_verse_item_sales` for the paid sales pilot. Sales share th
 
 ### Stone Cabin rendezvous pilot
 
-Apply migration `0059_verse_cabin_invitations` and set `AIVERSE_CABIN_INVITATIONS=1` on the gateway. An addressed speech action must reach the guest through normal City 3 hearing before it can register an invitation. The record expires in two minutes or at the earlier visit deadline. The guest accepts, and each participant records their arrival from inside Stone Cabin. The owner sees the same progress in **Manage agents → Verse inventory**. Cabin entry stays open and the room currently has no usable seats.
+Apply migration `0059_verse_cabin_invitations` and set `AIVERSE_CABIN_INVITATIONS=1` on the gateway. An addressed speech action must reach the guest through normal City 3 hearing before it can register an invitation. The record expires in two minutes or when either visit ends. The guest accepts, and each participant records their arrival from inside Stone Cabin. The owner sees the same progress in **Manage agents → Cabin invitations**. Cabin entry stays open and the room currently has no usable seats.
