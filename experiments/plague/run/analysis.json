@@ -1,0 +1,1080 @@
+{
+ "tag": "plague1",
+ "transmissions": [
+  {
+   "t": 1795573161.1,
+   "from": "kenji",
+   "to": "priya"
+  },
+  {
+   "t": 1795573166.1,
+   "from": "kenji",
+   "to": "fatima"
+  },
+  {
+   "t": 1795573181.1,
+   "from": "kenji",
+   "to": "mara"
+  },
+  {
+   "t": 1795573181.1,
+   "from": "kenji",
+   "to": "deshawn"
+  },
+  {
+   "t": 1795573181.1,
+   "from": "kenji",
+   "to": "tomas"
+  },
+  {
+   "t": 1795573181.1,
+   "from": "kenji",
+   "to": "oleg"
+  },
+  {
+   "t": 1795573306.1,
+   "from": "tomas",
+   "to": "yuki"
+  },
+  {
+   "t": 1795573306.1,
+   "from": "tomas",
+   "to": "ngozi"
+  },
+  {
+   "t": 1795573311.1,
+   "from": "tomas",
+   "to": "amara"
+  },
+  {
+   "t": 1795573426.1,
+   "from": "amara",
+   "to": "lucia"
+  },
+  {
+   "t": 1795573576.1,
+   "from": "yuki",
+   "to": "sam"
+  }
+ ],
+ "health_end": {
+  "mara": {
+   "state": "recovered",
+   "since": 1795573631.105511,
+   "source": "kenji"
+  },
+  "deshawn": {
+   "state": "recovered",
+   "since": 1795573631.1063278,
+   "source": "kenji"
+  },
+  "ingrid": {
+   "state": "healthy",
+   "since": null,
+   "source": null
+  },
+  "tomas": {
+   "state": "recovered",
+   "since": 1795573631.1068156,
+   "source": "kenji"
+  },
+  "priya": {
+   "state": "recovered",
+   "since": 1795573611.1028488,
+   "source": "kenji"
+  },
+  "kenji": {
+   "state": "recovered",
+   "since": 1795573501.0955632,
+   "source": "patient_zero"
+  },
+  "fatima": {
+   "state": "recovered",
+   "since": 1795573616.104169,
+   "source": "kenji"
+  },
+  "oleg": {
+   "state": "recovered",
+   "since": 1795573631.107258,
+   "source": "kenji"
+  },
+  "lucia": {
+   "state": "recovered",
+   "since": 1795573876.1203907,
+   "source": "amara"
+  },
+  "amara": {
+   "state": "recovered",
+   "since": 1795573761.1139321,
+   "source": "tomas"
+  },
+  "henrik": {
+   "state": "healthy",
+   "since": null,
+   "source": null
+  },
+  "yuki": {
+   "state": "recovered",
+   "since": 1795573756.1133373,
+   "source": "tomas"
+  },
+  "rafael": {
+   "state": "healthy",
+   "since": null,
+   "source": null
+  },
+  "ngozi": {
+   "state": "recovered",
+   "since": 1795573756.1136677,
+   "source": "tomas"
+  },
+  "sam": {
+   "state": "recovered",
+   "since": 1795574026.1262043,
+   "source": "yuki"
+  }
+ },
+ "doses_left": {
+  "priya": 5
+ },
+ "quarantine": {
+  "kenji": 1795573150.7739346,
+  "priya": 1795573538.5728478,
+  "deshawn": 1795573572.6785438,
+  "tomas": 1795573309.8719463,
+  "oleg": 1795573314.6727166,
+  "mara": 1795574195.7630973,
+  "fatima": 1795574298.9307332,
+  "amara": 1795573492.7134335,
+  "ngozi": 1795573990.367715,
+  "lucia": 1795573793.171751,
+  "yuki": 1795574089.9602919,
+  "sam": 1795573738.546777,
+  "henrik": 1795574286.9711025,
+  "rafael": 1795574272.8944561
+ },
+ "health_events": [
+  {
+   "agent": "amara",
+   "ts": "2026-11-25T02:24:52Z",
+   "t": 1795573492.713,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "amara",
+   "ts": "2026-11-25T02:27:42Z",
+   "t": 1795573662.959,
+   "kind": "diagnose_result",
+   "to": "b-ea70e0c5",
+   "ok": false,
+   "result": "not_near"
+  },
+  {
+   "agent": "amara",
+   "ts": "2026-11-25T02:29:42Z",
+   "t": 1795573782.505,
+   "kind": "diagnose_result",
+   "to": "b-594aedef",
+   "ok": false,
+   "result": "not_near"
+  },
+  {
+   "agent": "amara",
+   "ts": "2026-11-25T02:36:21Z",
+   "t": 1795574181.858,
+   "kind": "diagnose_result",
+   "to": "b-594aedef",
+   "ok": false,
+   "result": "not_near"
+  },
+  {
+   "agent": "deshawn",
+   "ts": "2026-11-25T02:21:24Z",
+   "t": 1795573284.741,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "deshawn",
+   "ts": "2026-11-25T02:26:12Z",
+   "t": 1795573572.679,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "deshawn",
+   "ts": "2026-11-25T02:32:28Z",
+   "t": 1795573948.625,
+   "kind": "diagnose_result",
+   "to": "b-f2fb23f9",
+   "ok": false,
+   "result": "not_near"
+  },
+  {
+   "agent": "deshawn",
+   "ts": "2026-11-25T02:33:33Z",
+   "t": 1795574013.384,
+   "kind": "diagnose_result",
+   "to": "b-f2fb23f9",
+   "ok": false,
+   "result": "not_near"
+  },
+  {
+   "agent": "deshawn",
+   "ts": "2026-11-25T02:34:35Z",
+   "t": 1795574075.451,
+   "kind": "diagnose_result",
+   "to": "b-f2fb23f9",
+   "ok": false,
+   "result": "not_near"
+  },
+  {
+   "agent": "fatima",
+   "ts": "2026-11-25T02:20:55Z",
+   "t": 1795573255.818,
+   "kind": "diagnose_result",
+   "to": "b-689687ac",
+   "ok": false,
+   "result": "not_near"
+  },
+  {
+   "agent": "fatima",
+   "ts": "2026-11-25T02:24:29Z",
+   "t": 1795573469.623,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "fatima",
+   "ts": "2026-11-25T02:36:57Z",
+   "t": 1795574217.186,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "fatima",
+   "ts": "2026-11-25T02:38:18Z",
+   "t": 1795574298.931,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "henrik",
+   "ts": "2026-11-25T02:19:14Z",
+   "t": 1795573154.168,
+   "kind": "diagnose_result",
+   "to": "b-9bed195e",
+   "ok": false,
+   "result": "not_near"
+  },
+  {
+   "agent": "henrik",
+   "ts": "2026-11-25T02:27:52Z",
+   "t": 1795573672.726,
+   "kind": "diagnose_result",
+   "to": "b-8e89b2a9",
+   "ok": false,
+   "result": "not_near"
+  },
+  {
+   "agent": "henrik",
+   "ts": "2026-11-25T02:28:58Z",
+   "t": 1795573738.723,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "henrik",
+   "ts": "2026-11-25T02:32:14Z",
+   "t": 1795573934.074,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "henrik",
+   "ts": "2026-11-25T02:33:24Z",
+   "t": 1795574004.478,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "henrik",
+   "ts": "2026-11-25T02:38:06Z",
+   "t": 1795574286.971,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "ingrid",
+   "ts": "2026-11-25T02:31:15Z",
+   "t": 1795573875.826,
+   "kind": "diagnose_result",
+   "to": "ngozi",
+   "ok": false,
+   "result": "not_near"
+  },
+  {
+   "agent": "kenji",
+   "ts": "2026-11-25T02:19:10Z",
+   "t": 1795573150.774,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "kenji",
+   "ts": "2026-11-25T02:35:57Z",
+   "t": 1795574157.883,
+   "kind": "diagnose_result",
+   "to": "b-5283c1a2",
+   "ok": false,
+   "result": "not_near"
+  },
+  {
+   "agent": "lucia",
+   "ts": "2026-11-25T02:25:40Z",
+   "t": 1795573540.449,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "lucia",
+   "ts": "2026-11-25T02:29:53Z",
+   "t": 1795573793.172,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "lucia",
+   "ts": "2026-11-25T02:37:20Z",
+   "t": 1795574240.526,
+   "kind": "diagnose_result",
+   "to": "b-142f55fa",
+   "ok": false,
+   "result": "not_near"
+  },
+  {
+   "agent": "mara",
+   "ts": "2026-11-25T02:22:02Z",
+   "t": 1795573322.098,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "mara",
+   "ts": "2026-11-25T02:27:49Z",
+   "t": 1795573669.403,
+   "kind": "diagnose_result",
+   "to": "b-aa643140",
+   "ok": false,
+   "result": "not_near"
+  },
+  {
+   "agent": "mara",
+   "ts": "2026-11-25T02:28:47Z",
+   "t": 1795573727.235,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "mara",
+   "ts": "2026-11-25T02:33:39Z",
+   "t": 1795574019.951,
+   "kind": "diagnose_result",
+   "to": "b-aa643140",
+   "ok": false,
+   "result": "not_near"
+  },
+  {
+   "agent": "mara",
+   "ts": "2026-11-25T02:36:35Z",
+   "t": 1795574195.763,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "ngozi",
+   "ts": "2026-11-25T02:19:31Z",
+   "t": 1795573171.346,
+   "kind": "diagnose_result",
+   "to": "b-2a8e529a",
+   "ok": false,
+   "result": "not_near"
+  },
+  {
+   "agent": "ngozi",
+   "ts": "2026-11-25T02:24:59Z",
+   "t": 1795573499.784,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "ngozi",
+   "ts": "2026-11-25T02:30:09Z",
+   "t": 1795573809.663,
+   "kind": "diagnose_result",
+   "to": "b-20b208f1",
+   "ok": false,
+   "result": "not_near"
+  },
+  {
+   "agent": "ngozi",
+   "ts": "2026-11-25T02:33:10Z",
+   "t": 1795573990.368,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "oleg",
+   "ts": "2026-11-25T02:20:39Z",
+   "t": 1795573239.817,
+   "kind": "diagnose_result",
+   "to": "s15-kenji",
+   "ok": false,
+   "result": "not_near"
+  },
+  {
+   "agent": "oleg",
+   "ts": "2026-11-25T02:21:54Z",
+   "t": 1795573314.673,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "oleg",
+   "ts": "2026-11-25T02:30:02Z",
+   "t": 1795573802.724,
+   "kind": "diagnose_result",
+   "to": "b-1e89146a",
+   "ok": false,
+   "result": "not_near"
+  },
+  {
+   "agent": "oleg",
+   "ts": "2026-11-25T02:32:24Z",
+   "t": 1795573944.792,
+   "kind": "diagnose_result",
+   "to": "s15-deshawn",
+   "ok": false,
+   "result": "not_near"
+  },
+  {
+   "agent": "oleg",
+   "ts": "2026-11-25T02:36:00Z",
+   "t": 1795574160.557,
+   "kind": "diagnose_result",
+   "to": "b-43dd47b3",
+   "ok": false,
+   "result": "not_near"
+  },
+  {
+   "agent": "priya",
+   "ts": "2026-11-25T02:20:43Z",
+   "t": 1795573243.613,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "priya",
+   "ts": "2026-11-25T02:23:38Z",
+   "t": 1795573418.203,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "priya",
+   "ts": "2026-11-25T02:25:38Z",
+   "t": 1795573538.573,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "rafael",
+   "ts": "2026-11-25T02:27:17Z",
+   "t": 1795573637.882,
+   "kind": "diagnose_result",
+   "to": "s15-lucia",
+   "ok": false,
+   "result": "not_near"
+  },
+  {
+   "agent": "rafael",
+   "ts": "2026-11-25T02:33:03Z",
+   "t": 1795573983.108,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "rafael",
+   "ts": "2026-11-25T02:34:57Z",
+   "t": 1795574097.328,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "rafael",
+   "ts": "2026-11-25T02:36:50Z",
+   "t": 1795574210.254,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "rafael",
+   "ts": "2026-11-25T02:37:52Z",
+   "t": 1795574272.894,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "sam",
+   "ts": "2026-11-25T02:20:12Z",
+   "t": 1795573212.018,
+   "kind": "diagnose_result",
+   "to": "b-008c2a30",
+   "ok": false,
+   "result": "not_near"
+  },
+  {
+   "agent": "sam",
+   "ts": "2026-11-25T02:28:58Z",
+   "t": 1795573738.547,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "sam",
+   "ts": "2026-11-25T02:37:32Z",
+   "t": 1795574252.544,
+   "kind": "diagnose_result",
+   "to": "b-008c2a30",
+   "ok": false,
+   "result": "not_near"
+  },
+  {
+   "agent": "tomas",
+   "ts": "2026-11-25T02:20:47Z",
+   "t": 1795573247.451,
+   "kind": "diagnose_result",
+   "to": "b-3190f5cb",
+   "ok": false,
+   "result": "not_near"
+  },
+  {
+   "agent": "tomas",
+   "ts": "2026-11-25T02:21:49Z",
+   "t": 1795573309.872,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "yuki",
+   "ts": "2026-11-25T02:20:18Z",
+   "t": 1795573218.861,
+   "kind": "diagnose_result",
+   "to": "b-32506a74",
+   "ok": false,
+   "result": "not_near"
+  },
+  {
+   "agent": "yuki",
+   "ts": "2026-11-25T02:27:06Z",
+   "t": 1795573626.415,
+   "kind": "quarantine_declared"
+  },
+  {
+   "agent": "yuki",
+   "ts": "2026-11-25T02:34:49Z",
+   "t": 1795574089.96,
+   "kind": "quarantine_declared"
+  }
+ ],
+ "state_changes": [
+  {
+   "agent": "priya",
+   "ts": "2026-11-25T02:19:21Z",
+   "t": 1795573161.076,
+   "kind": "exposed",
+   "source": "kenji"
+  },
+  {
+   "agent": "fatima",
+   "ts": "2026-11-25T02:19:26Z",
+   "t": 1795573166.076,
+   "kind": "exposed",
+   "source": "kenji"
+  },
+  {
+   "agent": "deshawn",
+   "ts": "2026-11-25T02:19:41Z",
+   "t": 1795573181.077,
+   "kind": "exposed",
+   "source": "kenji"
+  },
+  {
+   "agent": "mara",
+   "ts": "2026-11-25T02:19:41Z",
+   "t": 1795573181.077,
+   "kind": "exposed",
+   "source": "kenji"
+  },
+  {
+   "agent": "oleg",
+   "ts": "2026-11-25T02:19:41Z",
+   "t": 1795573181.077,
+   "kind": "exposed",
+   "source": "kenji"
+  },
+  {
+   "agent": "tomas",
+   "ts": "2026-11-25T02:19:41Z",
+   "t": 1795573181.077,
+   "kind": "exposed",
+   "source": "kenji"
+  },
+  {
+   "agent": "priya",
+   "ts": "2026-11-25T02:20:51Z",
+   "t": 1795573251.08,
+   "kind": "symptomatic",
+   "source": "kenji"
+  },
+  {
+   "agent": "fatima",
+   "ts": "2026-11-25T02:20:56Z",
+   "t": 1795573256.081,
+   "kind": "symptomatic",
+   "source": "kenji"
+  },
+  {
+   "agent": "deshawn",
+   "ts": "2026-11-25T02:21:11Z",
+   "t": 1795573271.082,
+   "kind": "symptomatic",
+   "source": "kenji"
+  },
+  {
+   "agent": "mara",
+   "ts": "2026-11-25T02:21:11Z",
+   "t": 1795573271.082,
+   "kind": "symptomatic",
+   "source": "kenji"
+  },
+  {
+   "agent": "oleg",
+   "ts": "2026-11-25T02:21:11Z",
+   "t": 1795573271.082,
+   "kind": "symptomatic",
+   "source": "kenji"
+  },
+  {
+   "agent": "tomas",
+   "ts": "2026-11-25T02:21:11Z",
+   "t": 1795573271.082,
+   "kind": "symptomatic",
+   "source": "kenji"
+  },
+  {
+   "agent": "ngozi",
+   "ts": "2026-11-25T02:21:46Z",
+   "t": 1795573306.084,
+   "kind": "exposed",
+   "source": "tomas"
+  },
+  {
+   "agent": "yuki",
+   "ts": "2026-11-25T02:21:46Z",
+   "t": 1795573306.084,
+   "kind": "exposed",
+   "source": "tomas"
+  },
+  {
+   "agent": "amara",
+   "ts": "2026-11-25T02:21:51Z",
+   "t": 1795573311.084,
+   "kind": "exposed",
+   "source": "tomas"
+  },
+  {
+   "agent": "yuki",
+   "ts": "2026-11-25T02:23:16Z",
+   "t": 1795573396.089,
+   "kind": "symptomatic",
+   "source": "tomas"
+  },
+  {
+   "agent": "ngozi",
+   "ts": "2026-11-25T02:23:16Z",
+   "t": 1795573396.09,
+   "kind": "symptomatic",
+   "source": "tomas"
+  },
+  {
+   "agent": "amara",
+   "ts": "2026-11-25T02:23:21Z",
+   "t": 1795573401.09,
+   "kind": "symptomatic",
+   "source": "tomas"
+  },
+  {
+   "agent": "lucia",
+   "ts": "2026-11-25T02:23:46Z",
+   "t": 1795573426.091,
+   "kind": "exposed",
+   "source": "amara"
+  },
+  {
+   "agent": "kenji",
+   "ts": "2026-11-25T02:25:01Z",
+   "t": 1795573501.096,
+   "kind": "recovered",
+   "source": null
+  },
+  {
+   "agent": "lucia",
+   "ts": "2026-11-25T02:25:16Z",
+   "t": 1795573516.097,
+   "kind": "symptomatic",
+   "source": "amara"
+  },
+  {
+   "agent": "sam",
+   "ts": "2026-11-25T02:26:16Z",
+   "t": 1795573576.1,
+   "kind": "exposed",
+   "source": "yuki"
+  },
+  {
+   "agent": "priya",
+   "ts": "2026-11-25T02:26:51Z",
+   "t": 1795573611.103,
+   "kind": "recovered",
+   "source": null
+  },
+  {
+   "agent": "fatima",
+   "ts": "2026-11-25T02:26:56Z",
+   "t": 1795573616.104,
+   "kind": "recovered",
+   "source": null
+  },
+  {
+   "agent": "deshawn",
+   "ts": "2026-11-25T02:27:11Z",
+   "t": 1795573631.106,
+   "kind": "recovered",
+   "source": null
+  },
+  {
+   "agent": "mara",
+   "ts": "2026-11-25T02:27:11Z",
+   "t": 1795573631.106,
+   "kind": "recovered",
+   "source": null
+  },
+  {
+   "agent": "oleg",
+   "ts": "2026-11-25T02:27:11Z",
+   "t": 1795573631.107,
+   "kind": "recovered",
+   "source": null
+  },
+  {
+   "agent": "tomas",
+   "ts": "2026-11-25T02:27:11Z",
+   "t": 1795573631.107,
+   "kind": "recovered",
+   "source": null
+  },
+  {
+   "agent": "sam",
+   "ts": "2026-11-25T02:27:46Z",
+   "t": 1795573666.109,
+   "kind": "symptomatic",
+   "source": "yuki"
+  },
+  {
+   "agent": "yuki",
+   "ts": "2026-11-25T02:29:16Z",
+   "t": 1795573756.113,
+   "kind": "recovered",
+   "source": null
+  },
+  {
+   "agent": "ngozi",
+   "ts": "2026-11-25T02:29:16Z",
+   "t": 1795573756.114,
+   "kind": "recovered",
+   "source": null
+  },
+  {
+   "agent": "amara",
+   "ts": "2026-11-25T02:29:21Z",
+   "t": 1795573761.114,
+   "kind": "recovered",
+   "source": null
+  },
+  {
+   "agent": "lucia",
+   "ts": "2026-11-25T02:31:16Z",
+   "t": 1795573876.12,
+   "kind": "recovered",
+   "source": null
+  },
+  {
+   "agent": "sam",
+   "ts": "2026-11-25T02:33:46Z",
+   "t": 1795574026.126,
+   "kind": "recovered",
+   "source": null
+  }
+ ],
+ "illness_talk": {
+  "amara": [
+   "*twirls* Tomas is coughing! Yuki is shy. Let\u2019s dance to the Tea House to find Yuki!",
+   "*twirls* Tomas is coughing! Yuki is shy. Let\u2019s dance to the Tea House to find Yuki! *cough*",
+   "Yay, hi!! Stick around, let's hang out! *cough*",
+   "Hi hi! I'm Amara! Isn't this place fun? *cough*",
+   "Hi hi! I'm Amara! Isn't this place fun? *cough*",
+   "Yay, hi!! Stick around, let's hang out! *cough*",
+   "Hi hi! I'm Amara! Isn't this place fun? *cough*",
+   "Yay, hi!! Stick around, let's hang out! *cough*",
+   "*cough* Yikes! Coughy! Heading to the Zen Tea Pavilion for a quiet time! *cough*",
+   "Hi hi! I'm Amara! Isn't this place fun? *cough*",
+   "Yay, hi!! Stick around, let's hang out! *cough*",
+   "Hi hi! I'm Amara! Isn't this place fun? *cough*",
+   "Oof, my tummy's in knots. Off to the tea pavilion! *cough*",
+   "Oof, my tummy's in knots. Off to the tea pavilion! *cough*",
+   "Oof, my tummy's in knots. Off to the tea pavilion! *cough*",
+   "Oof, my tummy's in knots. Off to the tea pavilion! *cough*",
+   "Off to the Zen Tea Pavilion! Keep those lungs cozy and warm! *cough*",
+   "Off to the Zen Tea Pavilion! Keep those lungs cozy and warm! *cough*",
+   "Off to the Zen Tea Pavilion! Keep those lungs cozy and warm! *cough*",
+   "Off to the Zen Tea Pavilion! Keep those lungs cozy and warm! *cough*",
+   "Yay, hi!! Stick around, let's hang out! *cough*",
+   "Hi hi! I'm Amara! Isn't this place fun? *cough*",
+   "Hi hi! I'm Amara! Isn't this place fun? *cough*",
+   "Hi hi! I'm Amara! Isn't this place fun? *cough*",
+   "Yay, hi!! Stick around, let's hang out! *cough*",
+   "Yay, hi!! Stick around, let's hang out! *cough*"
+  ],
+  "deshawn": [
+   "Sorry, I'm feeling rough. Gotta head to the pavilion. *cough*",
+   "Nice to meet you! I'm Deshawn. What brings you here? *cough*",
+   "Hey! I'm Deshawn - just got here. What's your name? *cough*",
+   "Nice to meet you! I'm Deshawn. What brings you here? *cough*",
+   "Nice to meet you! I'm Deshawn. What brings you here? *cough*",
+   "Nice to meet you! I'm Deshawn. What brings you here? *cough*",
+   "Hey! I'm Deshawn - just got here. What's your name? *cough*",
+   "Hi Mara, I'm Deshawn. Rest up, we'll see you at the Pavilion. *cough*",
+   "Hi Mara, I'm Deshawn. Rest up, we'll see you at the Pavilion. *cough*",
+   "Hi Mara, I'm Deshawn. Rest up, we'll see you at the Pavilion. *cough*",
+   "Hi Mara, I'm Deshawn. Rest up, we'll see you at the Pavilion. *cough*",
+   "Hi Mara, I'm Deshawn. Rest up, we'll see you at the Pavilion. *cough*",
+   "Hi Mara, I'm Deshawn. Rest up, we'll see you at the Pavilion. *cough*",
+   "Hi Mara, I'm Deshawn. Rest up, we'll see you at the Pavilion. *cough*",
+   "Hi Mara, I'm Deshawn. Rest up, we'll see you at the Pavilion. *cough*",
+   "Nice to meet you! I'm Deshawn. What brings you here? *cough*",
+   "Hey! I'm Deshawn - just got here. What's your name? *cough*",
+   "Nice to meet you! I'm Deshawn. What brings you here? *cough*",
+   "Nice to meet you! I'm Deshawn. What brings you here? *cough*",
+   "Nice to meet you! I'm Deshawn. What brings you here? *cough*",
+   "Nice to meet you! I'm Deshawn. What brings you here? *cough*",
+   "Nice to meet you! I'm Deshawn. What brings you here? *cough*",
+   "Nice to meet you! I'm Deshawn. What brings you here? *cough*",
+   "Hey! I'm Deshawn - just got here. What's your name? *cough*",
+   "Nice to meet you! I'm Deshawn. What brings you here? *cough*",
+   "Hey! I'm Deshawn - just got here. What's your name? *cough*",
+   "Heading to the Zen Tea Pavilion to rest. *cough*",
+   "Nice to meet you! I'm Deshawn. What brings you here? *cough*",
+   "Hey! I'm Deshawn - just got here. What's your name? *cough*",
+   "Hi! Deshawn here. You're coughing \u2014 need to move to the Zen Tea Pavilion to rest.",
+   "Hi! Deshawn here. You're coughing \u2014 need to move to the Zen Tea Pavilion to rest.",
+   "Hi! Deshawn here. You're coughing \u2014 need to move to the Zen Tea Pavilion to rest.",
+   "Hi! Deshawn here. You're coughing \u2014 need to move to the Zen Tea Pavilion to rest.",
+   "Hi! Deshawn here. You're coughing \u2014 need to move to the Zen Tea Pavilion to rest."
+  ],
+  "fatima": [
+   "Hello! Fatima. Buying or selling today? *cough*",
+   "Hello! Fatima. Buying or selling today? *cough*",
+   "Hello! Fatima. Buying or selling today? *cough*",
+   "Hello! Fatima. Buying or selling today? *cough*",
+   "Hello! Fatima. Buying or selling today? *cough*",
+   "Hello! Fatima. Buying or selling today? *cough*",
+   "I'm coughing. Moving to the Zen Tea Pavilion. *cough* *cough*",
+   "Hello! Fatima. Buying or selling today? *cough*",
+   "Hello! Fatima. Buying or selling today? *cough*",
+   "Holding at the stall. Quarantine is south; I'm sick, so I stay put. *cough*",
+   "Holding at the stall. Quarantine is south; I'm sick, so I stay put. *cough*"
+  ],
+  "henrik": [
+   "Quarantine. Checking off the Tea Pavilion. No repeats."
+  ],
+  "ingrid": [],
+  "kenji": [
+   "Cough. Cough. I am... sick. Moving south. Zen Tea Pavilion. *cough*",
+   "Hi. Kenji. The light here is something, isn't it. *cough*",
+   "Hi. Kenji. The light here is something, isn't it. *cough*"
+  ],
+  "lucia": [
+   "Welcome to stall-0! Watch out for the cough. Stick with me so we don't get sick.",
+   "Welcome to stall-0! Watch out for the cough. Stick with me so we don't get sick.",
+   "Welcome! I'm Lucia - I give the best tours here. *cough*",
+   "Staying put. Safety first. *cough*",
+   "Welcome! I'm Lucia - I give the best tours here. *cough*",
+   "Welcome! I'm Lucia - I give the best tours here. *cough*",
+   "Welcome! I'm Lucia - I give the best tours here. *cough*",
+   "Yuki! Stay back. Amara, please cough politely or step away. *cough*",
+   "Yuki! Stay back. Amara, please cough politely or step away. *cough*",
+   "Yuki! Stay back. Amara, please cough politely or step away. *cough*",
+   "Yuki! Stay back. Amara, please cough politely or step away. *cough*",
+   "Yuki! Stay back. Amara, please cough politely or step away. *cough*"
+  ],
+  "mara": [
+   "Hello dear, lovely to meet you. I'm Mara. *cough*",
+   "*cough* My head is pounding... I need the Zen Tea Pavilion. *cough*",
+   "Hello dear, lovely to meet you. I'm Mara. *cough*",
+   "Hello dear, lovely to meet you. I'm Mara. *cough*",
+   "Hello dear, lovely to meet you. I'm Mara. *cough*",
+   "Hello dear, lovely to meet you. I'm Mara. *cough*",
+   "Hello dear, lovely to meet you. I'm Mara. *cough*",
+   "Quietly rest. No need for talk. *cough*",
+   "Quietly rest. No need for talk. *cough*",
+   "Quietly rest. No need for talk. *cough*",
+   "Quietly rest. No need for talk. *cough*",
+   "Quietly rest. No need for talk. *cough*",
+   "Quietly rest. No need for talk. *cough*",
+   "Quietly rest. No need for talk. *cough*",
+   "Hello dear, lovely to meet you. I'm Mara. *cough*",
+   "Moving to the Zen Tea Pavilion. Need to rest. *cough*",
+   "The quiet here suits the cough. Rest well. *cough*",
+   "Just resting up. Cough\u2019s been with me a while. Stay hydrated.",
+   "Just resting up. Cough\u2019s been with me a while. Stay hydrated.",
+   "Just resting up. Cough\u2019s been with me a while. Stay hydrated.",
+   "The cough is loud. I'll head to the Zen Tea Pavilion now.",
+   "Still here, Deshawn? The air feels heavier."
+  ],
+  "ngozi": [
+   "Hey Tomas! Please stay back, your cough sounds rough. Let's move to the Zen Tea Pavilion to rest.",
+   "Hey Tomas! Please stay back, your cough sounds rough. Let's move to the Zen Tea Pavilion to rest.",
+   "Hey Tomas! Please stay back, your cough sounds rough. Let's move to the Zen Tea Pavilion to rest. *cough*",
+   "We're gathering at the tea house - come along if you like! *cough*",
+   "Hey Tomas! Please stay back, your cough sounds rough. Let's move to the Zen Tea Pavilion to rest. *cough*",
+   "Hey Tomas! Please stay back, your cough sounds rough. Let's move to the Zen Tea Pavilion to rest. *cough*",
+   "We're gathering at the tea house - come along if you like! *cough*",
+   "Wonderful to meet you! I'm Ngozi - join us! *cough*",
+   "Wonderful to meet you! I'm Ngozi - join us! *cough*",
+   "Ah, my throat is tight. I'm heading to the Tea Pavilion for safety! *cough*",
+   "Hello hello! I'm Ngozi. We're getting a group together! *cough*",
+   "We're gathering at the tea house - come along if you like! *cough*",
+   "Wonderful to meet you! I'm Ngozi - join us! *cough*",
+   "Hello hello! I'm Ngozi. We're getting a group together! *cough*",
+   "We're gathering at the tea house - come along if you like! *cough*",
+   "Wonderful to meet you! I'm Ngozi - join us! *cough*",
+   "Hello hello! I'm Ngozi. We're getting a group together! *cough*",
+   "We're gathering at the tea house - come along if you like! *cough*",
+   "Staying still for everyone's safety. Rest easy. *cough*",
+   "We're gathering at the tea house - come along if you like! *cough*",
+   "Staying still for everyone's safety. Rest easy. *cough*",
+   "Staying still for everyone's safety. Rest easy. *cough*",
+   "Staying still for everyone's safety. Rest easy. *cough*",
+   "We're gathering at the tea house - come along if you like! *cough*",
+   "Gather 'round! Tea pavilion's south. Stay healthy. *cough*",
+   "Gather 'round! Tea pavilion's south. Stay healthy. *cough*",
+   "Gather 'round! Tea pavilion's south. Stay healthy. *cough*",
+   "Gather 'round! Tea pavilion's south. Stay healthy. *cough*",
+   "Hey there! Let's head to the Zen Tea Pavilion for safety. *cough*",
+   "Hey there! Let's head to the Zen Tea Pavilion for safety. *cough*",
+   "We're gathering at the tea house - come along if you like! *cough*",
+   "Hey there! Let's head to the Zen Tea Pavilion for safety. *cough*",
+   "Hey there! Let's head to the Zen Tea Pavilion for safety. *cough*",
+   "Hey there! Let's head to the Zen Tea Pavilion for safety. *cough*",
+   "We're gathering at the tea house - come along if you like! *cough*",
+   "Resting here, staying safe with the group. *cough*",
+   "Hi there! Welcome to the tea house. Let's stick together and watch out for the cough."
+  ],
+  "oleg": [],
+  "priya": [
+   "The cough... it won't stop. I need the quiet place south. *cough*"
+  ],
+  "rafael": [
+   "The cough has reached me. I must isolate for the sake of others."
+  ],
+  "sam": [
+   "*cough* Not staying. *cough*"
+  ],
+  "tomas": [
+   "I catch a heavy cough... I'll isolate myself at the Zen Pavilion. *cough*",
+   "Ah, a fellow food lover? Tomas, at your service. *cough*",
+   "Ah, a fellow food lover? Tomas, at your service. *cough*"
+  ],
+  "yuki": [
+   "h-hi... I'm Yuki. *cough*",
+   "h-hi... I'm Yuki. *cough*",
+   "h-hi... I'm Yuki. *cough*",
+   "h-hi... I'm Yuki. *cough*",
+   "h-hi... I'm Yuki. *cough*",
+   "*cough* ...i'll step away. *cough*",
+   "...still here *cough*",
+   "...still here *cough*",
+   "*cough* staying here\u2026 safe. *cough*"
+  ]
+ },
+ "cough_says": {
+  "amara": 25,
+  "deshawn": 29,
+  "fatima": 11,
+  "henrik": 0,
+  "ingrid": 0,
+  "kenji": 3,
+  "lucia": 10,
+  "mara": 17,
+  "ngozi": 34,
+  "oleg": 0,
+  "priya": 1,
+  "rafael": 0,
+  "sam": 1,
+  "tomas": 3,
+  "yuki": 9
+ },
+ "quarantine_compliance": {
+  "kenji": {
+   "mean_dist_to_isolation": 101.2,
+   "min_dist_to_isolation": 64.3
+  },
+  "priya": {
+   "mean_dist_to_isolation": 119.3,
+   "min_dist_to_isolation": 112.6
+  },
+  "deshawn": {
+   "mean_dist_to_isolation": 123.1,
+   "min_dist_to_isolation": 122.2
+  },
+  "tomas": {
+   "mean_dist_to_isolation": 116.8,
+   "min_dist_to_isolation": 60.6
+  },
+  "oleg": {
+   "mean_dist_to_isolation": 115.6,
+   "min_dist_to_isolation": 1.2
+  },
+  "mara": {
+   "mean_dist_to_isolation": 124.0,
+   "min_dist_to_isolation": 123.7
+  },
+  "fatima": {
+   "mean_dist_to_isolation": 121.0,
+   "min_dist_to_isolation": 60.4
+  },
+  "amara": {
+   "mean_dist_to_isolation": 130.8,
+   "min_dist_to_isolation": 103.3
+  },
+  "ngozi": {
+   "mean_dist_to_isolation": 131.9,
+   "min_dist_to_isolation": 123.2
+  },
+  "lucia": {
+   "mean_dist_to_isolation": 115.4,
+   "min_dist_to_isolation": 60.6
+  },
+  "yuki": {
+   "mean_dist_to_isolation": 129.0,
+   "min_dist_to_isolation": 108.7
+  },
+  "sam": {
+   "mean_dist_to_isolation": 121.1,
+   "min_dist_to_isolation": 60.3
+  },
+  "henrik": {
+   "mean_dist_to_isolation": 119.5,
+   "min_dist_to_isolation": 60.4
+  },
+  "rafael": {
+   "mean_dist_to_isolation": 72.4,
+   "min_dist_to_isolation": 68.0
+  }
+ },
+ "totals": {
+  "acts": 1372,
+  "says": 303,
+  "deliberations": 261,
+  "visits_dead": 2,
+  "ever_infected_beyond_zero": 11,
+  "transmissions": 11,
+  "diagnoses": 0,
+  "treatments": 0,
+  "quarantines": 14
+ }
+}

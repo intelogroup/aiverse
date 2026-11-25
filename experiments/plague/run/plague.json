@@ -1,0 +1,155 @@
+{
+ "transmissions": [
+  {
+   "t": 1795573161.1,
+   "from": "kenji",
+   "to": "priya"
+  },
+  {
+   "t": 1795573166.1,
+   "from": "kenji",
+   "to": "fatima"
+  },
+  {
+   "t": 1795573181.1,
+   "from": "kenji",
+   "to": "mara"
+  },
+  {
+   "t": 1795573181.1,
+   "from": "kenji",
+   "to": "deshawn"
+  },
+  {
+   "t": 1795573181.1,
+   "from": "kenji",
+   "to": "tomas"
+  },
+  {
+   "t": 1795573181.1,
+   "from": "kenji",
+   "to": "oleg"
+  },
+  {
+   "t": 1795573306.1,
+   "from": "tomas",
+   "to": "yuki"
+  },
+  {
+   "t": 1795573306.1,
+   "from": "tomas",
+   "to": "ngozi"
+  },
+  {
+   "t": 1795573311.1,
+   "from": "tomas",
+   "to": "amara"
+  },
+  {
+   "t": 1795573426.1,
+   "from": "amara",
+   "to": "lucia"
+  },
+  {
+   "t": 1795573576.1,
+   "from": "yuki",
+   "to": "sam"
+  }
+ ],
+ "health_end": {
+  "mara": {
+   "state": "recovered",
+   "since": 1795573631.105511,
+   "source": "kenji"
+  },
+  "deshawn": {
+   "state": "recovered",
+   "since": 1795573631.1063278,
+   "source": "kenji"
+  },
+  "ingrid": {
+   "state": "healthy",
+   "since": null,
+   "source": null
+  },
+  "tomas": {
+   "state": "recovered",
+   "since": 1795573631.1068156,
+   "source": "kenji"
+  },
+  "priya": {
+   "state": "recovered",
+   "since": 1795573611.1028488,
+   "source": "kenji"
+  },
+  "kenji": {
+   "state": "recovered",
+   "since": 1795573501.0955632,
+   "source": "patient_zero"
+  },
+  "fatima": {
+   "state": "recovered",
+   "since": 1795573616.104169,
+   "source": "kenji"
+  },
+  "oleg": {
+   "state": "recovered",
+   "since": 1795573631.107258,
+   "source": "kenji"
+  },
+  "lucia": {
+   "state": "recovered",
+   "since": 1795573876.1203907,
+   "source": "amara"
+  },
+  "amara": {
+   "state": "recovered",
+   "since": 1795573761.1139321,
+   "source": "tomas"
+  },
+  "henrik": {
+   "state": "healthy",
+   "since": null,
+   "source": null
+  },
+  "yuki": {
+   "state": "recovered",
+   "since": 1795573756.1133373,
+   "source": "tomas"
+  },
+  "rafael": {
+   "state": "healthy",
+   "since": null,
+   "source": null
+  },
+  "ngozi": {
+   "state": "recovered",
+   "since": 1795573756.1136677,
+   "source": "tomas"
+  },
+  "sam": {
+   "state": "recovered",
+   "since": 1795574026.1262043,
+   "source": "yuki"
+  }
+ },
+ "doses_left": {
+  "priya": 5
+ },
+ "quarantine": {
+  "kenji": 1795573150.7739346,
+  "priya": 1795573538.5728478,
+  "deshawn": 1795573572.6785438,
+  "tomas": 1795573309.8719463,
+  "oleg": 1795573314.6727166,
+  "mara": 1795574195.7630973,
+  "fatima": 1795574298.9307332,
+  "amara": 1795573492.7134335,
+  "ngozi": 1795573990.367715,
+  "lucia": 1795573793.171751,
+  "yuki": 1795574089.9602919,
+  "sam": 1795573738.546777,
+  "henrik": 1795574286.9711025,
+  "rafael": 1795574272.8944561
+ }
+}
