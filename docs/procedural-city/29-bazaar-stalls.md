@@ -237,9 +237,18 @@ Four things that cost time and are worth keeping:
 - **SwiftShader is slow**: roughly 2–5 minutes per screenshot at 960×600, and two
   browser runs at once will stall each other. Run one at a time and background it.
 
-The captures land at `/tmp/bazaar_browser/final/{canopy,counter,wide,corner}.png`. They
-are the first images in this whole effort that show the stalls with their textures
-decoded, i.e. the check that Blender and `city.html` structurally could not do.
+The captures land at `/tmp/bazaar_browser/heads/` (four headings) or `/tmp/stalls`
+(stations) depending on which script you ran.
+
+![Bazaar stall in the real console](previews/29-stalls-browser.png)
+
+*Real console, walker dropped at (17, 49.4) facing the stall at (17, 54), heading π. This
+is the first capture in this effort with the world's KTX2 textures decoded — the check
+Blender and `city.html` structurally cannot do. Measured on the PNG: 3.04% of pixels are
+canopy red, against 0.84% at heading 0 and 0.93% at heading π/2, which is the same measure
+that identified the heading. The run also reports `200 world-city3.glb`,
+`200 world-city3-collision.glb` and no console errors, so it doubles as proof that the
+collision GLB still parses after the bench-collider edit.*
 
 ## Left open
 
