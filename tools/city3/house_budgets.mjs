@@ -13,8 +13,8 @@ const H = "apps/console/public/assets/houses", F = "apps/console/tests/asset-bud
 // (cabin-y90.glb ships 766,467 triangles for one log cabin and passes by construction). These
 // are the ceiling that makes the row mean something; move them only in a deliberate PR.
 // collisionBytes was 20 KB for closed shells; a walk-in house (place_house.mjs --colboxes) carries its measured walls, furniture and
-// floor as ~470 boxes in one mesh, 80 KB for american.glb
-const CEILING = { glbBytes: 26_000_000, collisionBytes: 120_000, triangles: 900_000 };
+// floor as ~470 boxes in one mesh, 80 KB per yaw, and the row sums every yaw's file (american.glb: y0 + y270 = 160 KB)
+const CEILING = { glbBytes: 26_000_000, collisionBytes: 200_000, triangles: 900_000 };
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ "meshopt.decoder": MeshoptDecoder });
 await MeshoptDecoder.ready;   // placed houses ship EXT_meshopt_compression; without the decoder io.read throws
 const n = (v) => Math.round(v).toLocaleString("en-US").replace(/,/g, "_");
