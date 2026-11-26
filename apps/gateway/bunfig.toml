@@ -1,0 +1,3 @@
+[test]
+# Empty aiverse_test once per run so local runs match CI's fresh database.
+preload = ["./src/testUtils/resetDb.ts"]
