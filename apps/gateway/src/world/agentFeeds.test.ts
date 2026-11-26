@@ -112,6 +112,19 @@ describe("radio subscriptions", () => {
     const b = await drainFeeds("agent-b", s);
     expect(b.radio).toBeNull();
   });
+
+  test("a radio line is capped at 280 chars, like news summaries", async () => {
+    const s = new FakeStore();
+    await radioOn("agent-a", "bbc-world-service", s);
+    const long = "x".repeat(500);
+    await pushRadioLine(
+      { kind: "radio", station: "bbc-world-service", text: long, at: Date.now() },
+      s,
+    );
+    const a = await drainFeeds("agent-a", s);
+    expect(a.radio?.heard[0].length).toBe(280);
+    expect(a.radio?.heard[0]).toBe(long.slice(0, 280));
+  });
 });
 
 describe("news", () => {

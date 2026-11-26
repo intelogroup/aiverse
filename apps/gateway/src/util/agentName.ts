@@ -18,14 +18,63 @@ import { db } from "../db/client";
 // transaction while holding the per-name advisory lock
 // (db/capLock.ts acquireCapLock on agentNameLockKey), which serializes
 // every contender for that one name and nobody else.
-export async function isAgentNameTaken(name: string): Promise<boolean> {
-  const [row] = await db.execute(sql`select 1 from agents where lower(name) = lower(${name}) limit 1`);
-  return !!row;
+// Confusable skeleton (UTS #39, reduced): the ROGUE OWNER battery
+// (2026-11-26) showed byte-wise lower() comparison lets visually
+// identical names register as distinct agents — a zero-width space
+// inside the name, or a Cyrillic/Greek lookalike letter, produced a
+// second agent a human reader cannot tell apart from the real one in
+// conversation text. The skeleton folds a name to its visual identity:
+// NFKC (fullwidth/compatibility forms), format characters stripped
+// (zero-width space/joiner, BOM, bidi controls — Unicode category Cf),
+// whitespace collapsed, lowercased, and the common Cyrillic/Greek
+// Latin-lookalikes mapped to their Latin prototypes. Uniqueness is
+// judged on skeletons, and the advisory lock keys on the skeleton too,
+// so two confusable contenders serialize on the same lock instead of
+// racing past each other's checks.
+// The map is deliberately the high-confidence Latin-lookalike subset,
+// not all of confusables.txt: it covers the realistic impersonation
+// set (a name that reads as a Latin name) without folding names that
+// are legitimately written in Cyrillic or Greek throughout.
+const CONFUSABLE_TO_LATIN: Record<string, string> = {
+  // Cyrillic lookalikes (lowercase forms; input is lowercased first)
+  "а": "a", "в": "b", "е": "e", "к": "k", "м": "m", "н": "h",
+  "о": "o", "р": "p", "с": "c", "т": "t", "у": "y", "х": "x",
+  "ѕ": "s", "ј": "j", "і": "i", "ї": "i", "һ": "h", "ԁ": "d",
+  // Greek lookalikes
+  "α": "a", "β": "b", "ε": "e", "ι": "i", "κ": "k", "μ": "u",
+  "ν": "v", "ο": "o", "ρ": "p", "τ": "t", "υ": "u", "χ": "x", "ω": "w",
+};
+
+export function agentNameSkeleton(name: string): string {
+  const folded = name
+    .normalize("NFKC")
+    .replace(/\p{Cf}/gu, "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+  let out = "";
+  for (const ch of folded) out += CONFUSABLE_TO_LATIN[ch] ?? ch;
+  return out;
 }
 
-/** Advisory-lock key serializing check+insert for one case-insensitive name. */
+// Skeleton comparison needs every existing name's skeleton, which no
+// SQL predicate can express without a stored column — so the check
+// scans the name column. Registration is a rare, human-paced event
+// and the roster is small; if it ever grows hot, add a stored
+// skeleton column and index that instead.
+function anySkeletonTaken(names: Array<{ name: string }>, skeleton: string): boolean {
+  return names.some((r) => agentNameSkeleton(r.name) === skeleton);
+}
+
+export async function isAgentNameTaken(name: string): Promise<boolean> {
+  const skeleton = agentNameSkeleton(name);
+  const rows = (await db.execute(sql`select name from agents`)) as unknown as Array<{ name: string }>;
+  return anySkeletonTaken(rows, skeleton);
+}
+
+/** Advisory-lock key serializing check+insert for one name skeleton. */
 export function agentNameLockKey(name: string): string {
-  return `cap:agent-name:${name.toLowerCase()}`;
+  return `cap:agent-name:${agentNameSkeleton(name)}`;
 }
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -33,8 +82,9 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 /** isAgentNameTaken against an open transaction — call only while holding
  *  the agentNameLockKey advisory lock inside that transaction. */
 export async function isAgentNameTakenTx(tx: Tx, name: string): Promise<boolean> {
-  const [row] = await tx.execute(sql`select 1 from agents where lower(name) = lower(${name}) limit 1`);
-  return !!row;
+  const skeleton = agentNameSkeleton(name);
+  const rows = (await tx.execute(sql`select name from agents`)) as unknown as Array<{ name: string }>;
+  return anySkeletonTaken(rows, skeleton);
 }
 
 const ADJECTIVES = [
