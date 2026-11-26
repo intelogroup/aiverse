@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { INTERIOR_ENGAGE_MARGIN, interiorLook, interiorSunDir, insideRoom, type InteriorLook } from "./interiorStage";
+import { interiorLook, interiorSunDir, insideRoom, type InteriorLook } from "./interiorStage";
 import type { City3Room } from "./city3";
 
 const room = (over: Partial<City3Room> = {}): City3Room => ({
