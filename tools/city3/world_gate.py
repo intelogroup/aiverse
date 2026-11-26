@@ -69,6 +69,8 @@ def main(argv):
                    f"--baseline={HERE}/out/clips-baseline.json"], None),
         ("stalls", [py, f"{HERE}/stall_audit.py", "--check",
                     f"--baseline={HERE}/out/stall-baseline.json"], None),
+        ("degenerate", [py, f"{HERE}/bridge_drop_degenerate.py",
+                        f"{ASSETS}/world-city3.glb", "-", "--check"], None),
     ]
     if "--fast" not in argv:
         gates.append(("images", [py, f"{HERE}/unpack_sheet.py",

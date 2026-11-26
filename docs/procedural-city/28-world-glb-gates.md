@@ -22,6 +22,15 @@ python3 tools/city3/world_gate.py            # + --uv, --render, --fast
 | clips | `clip_audit.py` | Animation structure + 594 pinned clip names/durations | 0.39 s, 11 bodies | duplicate name, zero-length clip, orphan channel |
 | images | `unpack_sheet.py` | Embedded images, KTX2 honesty, duplicate payload | 1.65 s, 429 images | KTX2 reported undecodable, never guessed |
 | uv | `uv_stats.py` (Blender) | Per-triangle UV-area / world-area, unmapped faces, pinned density | 1.26 s, 115,284 tris | 4x UV stretch, collapsed UV, uniform 1.5x rescale |
+| degenerate | `bridge_drop_degenerate.py --check` | No live primitive (indexed or not) carries a triangle of area <= 1e-9 m^2 | 2.2 s, 264,601 tris, 0 degenerate | pre-2026-11-26 world: 70,873 of 335,474 (exit 1) |
+
+Degenerate triangles (2026-11-26): demolition passes collapse "killed" triangles in place, so 21% of the
+world's accessor triangles drew nothing (60,284 in `palette`; 37 primitives, e.g. every `BzFacade_shop_*`,
+were 100% dead). Blender's importer silently drops zero-area faces, so a Blender census shows ~266 and hides
+this; count in the raw GLB. Fix: `bridge_drop_degenerate.py IN OUT` then `bridge_compact.py OUT OUT2 --drop-dead`
+(60.0 -> 58.9 MB). It writes a new index accessor per primitive and keeps the old component type
+(`tea-furniture.test.ts` pins uint32 on Tea props). Workbench before/after at 8 cameras: 0-4 isolated
+pixels per 518k (depth ties), tiles `verify_tiles` PASS x2.
 
 `world_gate.py --uv` runs all five in **5.5 s** and writes `out/world-gate.json`.
 Shared reader: `tools/city3/glb.py` (pure python + numpy: header, node world matrices,
