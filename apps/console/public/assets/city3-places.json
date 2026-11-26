@@ -1471,5 +1471,138 @@
    41.735,
    -144
   ]
+ },
+ {
+  "id": "house-ring-51-1",
+  "kind": "shopfront",
+  "name": "Elm House",
+  "pos": [
+   143.1,
+   105.535
+  ],
+  "heading": -1.5708,
+  "stand": [
+   143.1,
+   105.535
+  ],
+  "room": "house-ring-51-1",
+  "door": [
+   144,
+   105.535
+  ]
+ },
+ {
+  "id": "house-ring-54-0",
+  "kind": "shopfront",
+  "name": "Oak House",
+  "pos": [
+   143.1,
+   -114.465
+  ],
+  "heading": -1.5708,
+  "stand": [
+   143.1,
+   -114.465
+  ],
+  "room": "house-ring-54-0",
+  "door": [
+   144,
+   -114.465
+  ]
+ },
+ {
+  "id": "house-ring-10-1",
+  "kind": "shopfront",
+  "name": "Willow House",
+  "pos": [
+   -88.54,
+   146.15
+  ],
+  "heading": 3.14159,
+  "stand": [
+   -88.54,
+   146.15
+  ],
+  "room": "house-ring-10-1",
+  "door": [
+   -88.54,
+   147.05
+  ]
+ },
+ {
+  "id": "house-ring-30-0",
+  "kind": "shopfront",
+  "name": "Linden House",
+  "pos": [
+   20.925,
+   142.86
+  ],
+  "heading": 3.14159,
+  "stand": [
+   20.925,
+   142.86
+  ],
+  "room": "house-ring-30-0",
+  "door": [
+   20.925,
+   143.76
+  ]
+ },
+ {
+  "id": "house-ring-40-0",
+  "kind": "shopfront",
+  "name": "Aspen House",
+  "pos": [
+   81.46,
+   146.15
+  ],
+  "heading": 3.14159,
+  "stand": [
+   81.46,
+   146.15
+  ],
+  "room": "house-ring-40-0",
+  "door": [
+   81.46,
+   147.05
+  ]
+ },
+ {
+  "id": "house-ring-50-0",
+  "kind": "shopfront",
+  "name": "Hazel House",
+  "pos": [
+   142.86,
+   150.375
+  ],
+  "heading": -1.5708,
+  "stand": [
+   142.86,
+   150.375
+  ],
+  "room": "house-ring-50-0",
+  "door": [
+   143.76,
+   150.375
+  ]
+ },
+ {
+  "id": "house-ring-52-1",
+  "kind": "shopfront",
+  "name": "Rowan House",
+  "pos": [
+   142.86,
+   49.075
+  ],
+  "heading": -1.5708,
+  "stand": [
+   142.86,
+   49.075
+  ],
+  "room": "house-ring-52-1",
+  "door": [
+   143.76,
+   49.075
+  ]
  }
 ]
