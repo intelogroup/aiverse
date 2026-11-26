@@ -58,6 +58,8 @@ for (const f of only ? [only] : files) {
   }
   // one draw call per material, not per source object (the pool villa has 1345 objects; far houses are all up at once)
   await doc.transform(prune(), dedup(), flatten(), join({ keepNamed: false }), prune());
+  // place_house.mjs now ships meshopt-compressed GLBs: write this intermediate plain, slim_textures.py rewrites buffer views it cannot decode
+  doc.getRoot().listExtensionsUsed().find((e) => e.extensionName === "EXT_meshopt_compression")?.dispose();
   await io.write(out, doc);
   execFileSync("python3", ["tools/city3/slim_textures.py", out, out, "--max", "256"], { stdio: "ignore" });
   const slim = await io.read(out);

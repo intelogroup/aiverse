@@ -162,10 +162,14 @@ describe("planning does not block the tick", () => {
       sim.removeBody("sweep"); sim.addBody({ id: "sweep" });
       const g = await run(sim, "sweep", { type: "go_to", place: p.id } as ScoutAction, 400);
       if (g.out?.status !== "arrived") fails.push(`${p.id} go_to ${JSON.stringify(g.out)}`);
-      if (p.id.startsWith("shop-") && sim.rooms.some((r) => r.id === p.id)) {
+      const room = sim.rooms.find((r) => r.id === p.id);
+      if ((p.id.startsWith("shop-") || p.id.startsWith("house-")) && room) {
         sim.removeBody("sweep"); sim.addBody({ id: "sweep" });
         const e = await run(sim, "sweep", { type: "enter", place: p.id } as ScoutAction, 300);
-        if (e.out?.status !== "arrived" || roomAt(sim.rooms, e.snap.x, e.snap.z)?.id !== p.id) fails.push(`${p.id} enter ${JSON.stringify(e.out)}`);
+        // past the door line, not only inside the rect: an L-shaped house's rect also covers its porch
+        const [ix, iz] = [room.center[0] - room.door[0], room.center[1] - room.door[1]];
+        const past = ((e.snap.x - room.door[0]) * ix + (e.snap.z - room.door[1]) * iz) / (Math.hypot(ix, iz) || 1);
+        if (e.out?.status !== "arrived" || roomAt(sim.rooms, e.snap.x, e.snap.z)?.id !== p.id || past < 0.1) fails.push(`${p.id} enter ${JSON.stringify(e.out)} past ${past.toFixed(2)}`);
       }
     }
     sim.removeBody("sweep");
@@ -317,8 +321,9 @@ describe("planning does not block the tick", () => {
       expect(roomAt(sim.rooms, hawk.snap.x, hawk.snap.z)?.id).toBe("house-ring-35-0");
       const porch = await run(sim, id, { type: "go_to", place: "hawk-lane-neighbor-porch" }, 75);
       expect(porch.out?.status).toBe("arrived");
-      expect(porch.snap.y).toBeCloseTo(0.894, 2);
-      expect(sim.world.blocked([41.74, 0.894, -143], [41.74, 0.894, -144.3], 0.4)).not.toBeNull();
+      // the American house next door is walk-in (Cedar House): sunk to the hero-shop floor (slab + lift + 0.28) and its doorway open
+      expect(porch.snap.y).toBeCloseTo(0.53, 2);
+      expect(sim.world.blocked([41.74, 0.53, -143], [41.74, 0.53, -144.6], 0.4)).toBeNull();
       const commons = await run(sim, id, { type: "go_to", place: "hawk-lane-commons" }, 75);
       expect(commons.out?.status).toBe("arrived");
       const sit = await run(sim, id, { type: "sit", sittable: "hawk-lane-bench" }, 20);
