@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // Place one prebuilt house GLB in world coordinates and write its collision GLB, as a stand-alone streamed district (no splice into the 100 MB monolith).
-//   bun tools/city3/place_house.mjs SRC.glb ID X Z YAW_DEG [--door=front|back|none] [--doorx=0] [--doorhalf=0.85] [--body=x0,x1,z0,z1] [--floor=0.63] [--ceil=2.8] [--scale=1] [--mask] [--asset=NAME] [--lift=0] [--simplify=RATIO] [--room="Display name"] [--out=dir] [--manifest=districts.json]
+//   bun tools/city3/place_house.mjs SRC.glb ID X Z YAW_DEG [--door=front|back|none] [--doorx=0] [--doorhalf=0.85] [--body=x0,x1,z0,z1] [--floor=0.63] [--ceil=2.8] [--scale=1] [--mask] [--asset=NAME] [--lift=0] [--simplify=RATIO] [--room="Display name"] [--colboxes=col_local.json] [--doorz=m] [--out=dir] [--manifest=districts.json]
 // Frame: GLB x, z = -plan y, y up, walk slab y=0.2. The house footprint is centred on (X, Z); YAW_DEG must be a multiple of 90 so the collision
 // stays axis-aligned. The house front faces local +z before the yaw. Output: <out>/<ID>.glb, <out>/<ID>.col.glb, <out>/<ID>.json (the DistrictDef rect).
 import { NodeIO, Document, getBounds } from "@gltf-transform/core";
@@ -35,7 +35,11 @@ const b = getBounds(scene); // world bbox through the node matrices
 const [cx, cz] = [(b.min[0] + b.max[0]) / 2, (b.min[2] + b.max[2]) / 2];
 const inner = doc.createNode("house_inner").setTranslation([-cx * S, -b.min[1] * S, -cz * S]).setScale([S, S, S]);
 // --floor = height of the visual floor top above the model's lowest point: the house sinks so that floor sits 0.28 m over the walk slab (hero-shop rule, the walker steps up 0.3)
-const FL = opt.floor !== undefined ? Number(opt.floor) * S : null, SINK = FL === null ? 0 : FL - 0.28;
+// --colboxes=col_local.json (open_house.py): the house was opened (door leaf cut) and its walls, furniture and floor were measured from the mesh;
+// those boxes replace the closed shell, and its floor height is the one they were measured against
+const CB = opt.colboxes ? JSON.parse(readFileSync(opt.colboxes, "utf8")) : null;
+if (CB && (S !== 1 || (opt.door ?? "none") !== "front")) throw new Error("--colboxes needs --scale=1 (open_house.py bakes the scale) and --door=front");
+const FL = CB ? CB.floor : opt.floor !== undefined ? Number(opt.floor) * S : null, SINK = FL === null ? 0 : FL - 0.28;
 const outer = doc.createNode(`house_${FILE}`).setTranslation([PX, WALK_Y - SINK, PZ]);
 // A shared model stays at yaw 0 (the lot's yaw lives in the manifest); a per-lot file bakes it.
 if (!opt.asset) { const h = (YAW * Math.PI) / 360; outer.setRotation([0, Math.sin(h), 0, Math.cos(h)]); }
@@ -70,7 +74,13 @@ const cs = [[lx0, lz0], [lx1, lz0], [lx0, lz1], [lx1, lz1]].map(toDoor);
 const [bx0, bx1, bz0, bz1] = [Math.min(...cs.map(p => p[0])), Math.max(...cs.map(p => p[0])), Math.min(...cs.map(p => p[1])), Math.max(...cs.map(p => p[1]))];
 const yb = WALK_Y - 0.3, FLOOR_TOP = WALK_Y + 0.28, ceil = WALK_Y + Number(opt.ceil ?? 2.8);
 const mx = (bx0 + bx1) / 2, mz = (bz0 + bz1) / 2, ex = (bx1 - bx0) / 2, ez = (bz1 - bz0) / 2;
-if (door === "none") boxes.push(["solid", mx, mz, ex, ez, yb, top]);
+if (CB) {
+  // same frame as open_house.py only if the bounds agree: a cut that moved the bbox would shift every box
+  if (Math.abs(w - CB.size[0]) > 0.02 || Math.abs(d - CB.size[2]) > 0.02) throw new Error(`--colboxes frame mismatch: GLB ${w.toFixed(2)} x ${d.toFixed(2)} vs ${CB.size}`);
+  // walls start at the slab like the shell's, so nothing passes under an outer wall; rasterised on a grid, so each is up to one cell fat
+  CB.floor_boxes.forEach(([cx, cz, ex, ez], i) => boxes.push([`floor${i}`, cx, cz, ex, ez, yb, FLOOR_TOP]));
+  CB.boxes.forEach(([cx, cz, ex, ez], i) => boxes.push([`wall${i}`, cx, cz, ex, ez, yb, FLOOR_TOP + CB.top]));
+} else if (door === "none") boxes.push(["solid", mx, mz, ex, ez, yb, top]);
 else {
   const fz = bz1 - T / 2;
   boxes.push(["wall_l", bx0 + T / 2, mz, T / 2, ez, yb, top], ["wall_r", bx1 - T / 2, mz, T / 2, ez, yb, top], ["wall_back", mx, bz0 + T / 2, ex, T / 2, yb, top]);
@@ -88,15 +98,20 @@ const col = new Document(); const buf = col.createBuffer(); const sc = col.creat
 const mat = col.createMaterial("col").setBaseColorFactor([0.5, 0.5, 0.5, 1]);
 const cube = [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]];
 const idx = [0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 3, 7, 6, 3, 6, 2, 0, 4, 7, 0, 7, 3, 1, 2, 6, 1, 6, 5];
-for (const [name, bx, bz, ex, ez, by0, by1] of boxes) {
-  const [rx, rz] = turn([bx, bz]), swapE = swap ? [ez, ex] : [ex, ez];
-  const c = [PX + rx, (by0 + by1) / 2, PZ + rz], e = [swapE[0], (by1 - by0) / 2, swapE[1]];
-  const pos = new Float32Array(cube.flatMap(v => [c[0] + v[0] * e[0], c[1] + v[1] * e[1], c[2] + v[2] * e[2]]));
+const boxMesh = (list, name) => {
+  const pos = new Float32Array(list.flatMap(([, bx, bz, ex, ez, by0, by1]) => {
+    const [rx, rz] = turn([bx, bz]), swapE = swap ? [ez, ex] : [ex, ez];
+    const c = [PX + rx, (by0 + by1) / 2, PZ + rz], e = [swapE[0], (by1 - by0) / 2, swapE[1]];
+    return cube.flatMap(v => [c[0] + v[0] * e[0], c[1] + v[1] * e[1], c[2] + v[2] * e[2]]);
+  }));
+  const ix = list.flatMap((_, k) => idx.map(i => i + k * 8)), I = pos.length / 3 > 65535 ? Uint32Array : Uint16Array;
   const prim = col.createPrimitive().setMaterial(mat)
     .setAttribute("POSITION", col.createAccessor().setType("VEC3").setArray(pos).setBuffer(buf))
-    .setIndices(col.createAccessor().setType("SCALAR").setArray(new Uint16Array(idx)).setBuffer(buf));
+    .setIndices(col.createAccessor().setType("SCALAR").setArray(new I(ix)).setBuffer(buf));
   sc.addChild(col.createNode(`col_house_${FILE}_${name}`).setMesh(col.createMesh(name).addPrimitive(prim)));
-}
+};
+// an opened house has hundreds of measured boxes: one mesh (one node per box was 329 KB of glTF JSON); the shell keeps one named node per part
+if (CB) boxMesh(boxes, "open"); else for (const b of boxes) boxMesh([b], b[0]);
 await new NodeIO().write(`${OUT}/${FILE}-y${YAW}.col.glb`, col);   // collision IS yaw-dependent: keep the yaw in its name
 
 const half = Math.ceil(Math.max(hx, hz)) + 6;
@@ -111,7 +126,8 @@ writeFileSync(mpath, JSON.stringify(man, null, 1));
 // an interiors/index.json row and a city3-places.json shopfront whose stand is 0.9 m outside the door (past the stoop).
 if (opt.room !== undefined) {
   if (door === "none") throw new Error("--room needs a door");
-  const A = `${OUT}/..`, rid = `house-${id}`, n = turn([0, 1]), dp = turn([dx, bz1]);
+  // --doorz: the real door line when it is set back from the bbox front (a porch or an L-shaped plan), so `enter` aims through it
+  const A = `${OUT}/..`, rid = `house-${id}`, n = turn([0, 1]), dp = turn([dx, opt.doorz !== undefined ? Number(opt.doorz) : bz1]);
   const doorW = [X + dp[0], Z + dp[1]].map((v) => +v.toFixed(3)), stand = [doorW[0] + n[0] * 0.9, doorW[1] + n[1] * 0.9].map((v) => +v.toFixed(3));
   const cw = [[bx0, bz0], [bx1, bz0], [bx0, bz1], [bx1, bz1]].map(turn).map(([a, c]) => [X + a, Z + c]);
   const rect = [Math.min(...cw.map((p) => p[0])), Math.min(...cw.map((p) => p[1])), Math.max(...cw.map((p) => p[0])), Math.max(...cw.map((p) => p[1]))].map((v) => +v.toFixed(3));
