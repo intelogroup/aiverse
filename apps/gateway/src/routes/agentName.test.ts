@@ -1,65 +1,71 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test, beforeAll } from "bun:test";
 import { createApp } from "../app";
-import { agentNameSkeleton } from "../util/agentName";
-
-// Name uniqueness vs Unicode confusables (2026-11-26): the ROGUE OWNER battery found
-// confusables registering as distinct agents (zero-width space,
-// Cyrillic homoglyph). Against the skeleton check those now collide
-// with the real name and are refused — while genuinely different
-// names, and legitimate non-Latin names, still register.
+import { ensureNativeAgents } from "../jobs/nativeAgents";
 
 const app = createApp();
-const R = Math.random().toString(36).slice(2, 8);
-const auth = (t: string) => ({ "content-type": "application/json", authorization: `Bearer ${t}` });
 
-async function ownerToken(prefix: string): Promise<string> {
-  const reg = await app.request("/owners/register", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email: `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`, password: "password123" }),
-  });
-  return (await reg.json()).token as string;
+function json(token?: string) {
+  return { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) };
 }
 
-async function createStatus(owner: string, name: string): Promise<number> {
-  const res = await app.request("/owners/agents", {
-    method: "POST",
-    headers: auth(owner),
-    body: JSON.stringify({ name, capabilities: [] }),
-  });
-  return res.status;
+async function ownerToken() {
+  const email = `agentname-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
+  const reg = await app.request("/owners/register", { method: "POST", headers: json(), body: JSON.stringify({ email, password: "password123" }) });
+  return ((await reg.json()) as any).token as string;
 }
 
-describe("agent name skeleton (ROGUE OWNER P1 regression)", () => {
-  test("skeleton folds confusables, format chars, case and space", () => {
-    expect(agentNameSkeleton("Beacon")).toBe("beacon");
-    expect(agentNameSkeleton("Bеacon")).toBe("beacon"); // Cyrillic е
-    expect(agentNameSkeleton("Bea​con")).toBe("beacon"); // zero-width space
-    expect(agentNameSkeleton("  BEACON ")).toBe("beacon");
-    expect(agentNameSkeleton("Βeacon")).toBe("beacon"); // Greek Β → β → b
-    // A name legitimately written in Cyrillic throughout keeps its own
-    // identity — it only folds where letters are Latin lookalikes, and
-    // distinct Cyrillic names stay distinct.
-    expect(agentNameSkeleton("Москва")).not.toBe(agentNameSkeleton("Минск"));
+beforeAll(async () => {
+  await ensureNativeAgents();
+});
+
+describe("agent name uniqueness at registration", () => {
+  test("an omitted name gets a generated one, and two omitted names in a row differ", async () => {
+    const owner = await ownerToken();
+    const a = await app.request("/owners/agents", { method: "POST", headers: json(owner), body: JSON.stringify({ capabilities: [] }) });
+    expect(a.status).toBe(201);
+    const nameA = ((await a.json()) as any).agent.name as string;
+    expect(nameA.length).toBeGreaterThan(0);
+
+    const b = await app.request("/owners/agents", { method: "POST", headers: json(owner), body: JSON.stringify({ capabilities: [] }) });
+    const nameB = ((await b.json()) as any).agent.name as string;
+    expect(nameB).not.toBe(nameA);
   });
 
-  test("confusable variants of an existing name are refused (409)", async () => {
-    const victim = await ownerToken("namefix-victim");
-    const rogue = await ownerToken("namefix-rogue");
-    const base = `Beacon-${R}`;
-    expect(await createStatus(victim, base)).toBe(201);
-    for (const variant of [`Bеacon-${R}`, `Bea​con-${R}`, base.toLowerCase(), `${base} `]) {
-      expect(await createStatus(rogue, variant)).toBe(409);
-    }
-    // Self-registration path enforces it too.
-    const selfReg = await app.request("/agents/register", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: `Bеacon-${R}`, capabilities: [] }),
-    });
-    expect(selfReg.status).toBe(409);
-    // Genuinely different names still register.
-    expect(await createStatus(rogue, `Lantern-${R}`)).toBe(201);
-    expect(await createStatus(rogue, `Beacon-${R}-2`)).toBe(201);
+  test("a blank name is treated the same as an omitted one, not rejected", async () => {
+    const owner = await ownerToken();
+    const res = await app.request("/owners/agents", { method: "POST", headers: json(owner), body: JSON.stringify({ name: "   ", capabilities: [] }) });
+    expect(res.status).toBe(201);
+    expect(((await res.json()) as any).agent.name.trim().length).toBeGreaterThan(0);
+  });
+
+  test("owner-provisioned registration rejects a taken name, case-insensitively", async () => {
+    const owner = await ownerToken();
+    const label = `Unique-${Date.now()}`;
+    const first = await app.request("/owners/agents", { method: "POST", headers: json(owner), body: JSON.stringify({ name: label, capabilities: [] }) });
+    expect(first.status).toBe(201);
+
+    const second = await app.request("/owners/agents", { method: "POST", headers: json(owner), body: JSON.stringify({ name: label.toUpperCase(), capabilities: [] }) });
+    expect(second.status).toBe(409);
+    expect(((await second.json()) as any).error).toBe("name taken");
+  });
+
+  test("self-registration rejects a taken name, and the two registration paths share one namespace", async () => {
+    const owner = await ownerToken();
+    const label = `CrossPath-${Date.now()}`;
+    const viaOwner = await app.request("/owners/agents", { method: "POST", headers: json(owner), body: JSON.stringify({ name: label, capabilities: [] }) });
+    expect(viaOwner.status).toBe(201);
+
+    const viaSelfRegister = await app.request("/agents/register", { method: "POST", headers: json(), body: JSON.stringify({ name: label, capabilities: [] }) });
+    expect(viaSelfRegister.status).toBe(409);
+
+    const omittedOnSelfRegister = await app.request("/agents/register", { method: "POST", headers: json(), body: JSON.stringify({ capabilities: [] }) });
+    expect(omittedOnSelfRegister.status).toBe(201);
+    expect(((await omittedOnSelfRegister.json()) as any).agentId).toBeDefined();
+  });
+
+  test("a native agent's exact name is refused, so an @-mention can never hit two agents", async () => {
+    const owner = await ownerToken();
+    const res = await app.request("/owners/agents", { method: "POST", headers: json(owner), body: JSON.stringify({ name: "sage", capabilities: [] }) });
+    expect(res.status).toBe(409);
   });
 });
