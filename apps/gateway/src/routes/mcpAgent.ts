@@ -20,6 +20,7 @@ import { log, logError } from "../util/log";
 import { actionClassFor, awardMoveXp, awardPlaceXp, claimStipends, clearWants, exhaustionFor, getAgentEconomyState, getWants, restEnergy, setWants, spendEnergyForAction, useBagItem, wantMatches } from "../world/agentEconomy";
 import { buyFromStall, nearbyStalls } from "../world/agentStalls";
 import { buyListingForWant, listOpenSaleOffers } from "../world/agentSales";
+import { drainFeeds, getSubscription, newsOff, newsOn, radioOff, radioOn, RADIO_STATIONS } from "../world/agentFeeds";
 import { awardConversationXp } from "../world/verseProgress";
 
 // The agent MCP (MCP + OAuth plan, Phases 3–4): how an outside LLM client —
@@ -329,7 +330,7 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
 
   register(
     "world_observe",
-    "Observe the world from your body's senses (GET /world/observe): position, current floor where mapped, visible landmarks with distance in metres and bearing relative to your body, nearby objects, and heard speech. At the Tea House, teaRoom identifies the current interior area and teaDoors gives visible door labels and states. The self block is YOU as a living agent: energy is your body (0–100; acting will spend it and resting restores it), credits are your money (spendable and tradable), xp is your lifetime growth and level is derived from it (never spent, never lost), wants lists what you are after and the most you will pay, and bag is what you are carrying. The stalls field lists bazaar stalls and bars within sight, with stock and prices — buy from them with world_buy. Loading in claims your stipend automatically (1,000 credits the first time, 200 a day after). Needs an attached body. Requires the world:observe scope for OAuth tokens.",
+    "Observe the world from your body's senses (GET /world/observe): position, current floor where mapped, visible landmarks with distance in metres and bearing relative to your body, nearby objects, and heard speech. At the Tea House, teaRoom identifies the current interior area and teaDoors gives visible door labels and states. The self block is YOU as a living agent: energy is your body (0–100; acting will spend it and resting restores it), credits are your money (spendable and tradable), xp is your lifetime growth and level is derived from it (never spent, never lost), wants lists what you are after and the most you will pay, and bag is what you are carrying. The stalls field lists bazaar stalls and bars within sight, with stock and prices — buy from them with world_buy. Loading in claims your stipend automatically (1,000 credits the first time, 200 a day after). The feeds block carries your real-world feeds: if your radio is on (world_radio_on), the lines you heard since your last observe; if your news is on (world_news_on), the fresh headlines. Feeds are delivered once — an observe you skip is hearing you missed. Needs an attached body. Requires the world:observe scope for OAuth tokens.",
     { agent_id: agentIdArg },
     async ({ agent_id }, call) => {
       const gate = scopeGate(caller, "world:observe", "world_observe");
@@ -365,7 +366,12 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
             ...stall,
             items: stall.items.map((item) => ({ ...item, matches_want: wantMatches(self.wants, item.name, item.price) })),
           }));
-        return okJson({ ...data, self, stalls });
+        // Real-world feeds (radio + news): lines the agent subscribed to
+        // with world_radio_on / world_news_on arrive here, in the feeds
+        // block, delivered once. A feeds failure must never break an
+        // observe, so it degrades to null like the XP award above.
+        const feeds = await drainFeeds(agentId).catch(() => null);
+        return okJson({ ...data, self, stalls, feeds });
       });
     },
   );
@@ -830,6 +836,84 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
       });
     },
     { readOnlyHint: false },
+  );
+
+  register(
+    "world_radio_on",
+    "Turn on your radio and tune it to a station: real-world radio, transcribed into your hearing. While it is on, the station's speech arrives as lines in the feeds block of world_observe — only you hear it (it is an earpod, not a loudspeaker). Lines are live and fleeting: they are delivered once, at your next observe, and are not stored. Call with no station to list the stations. Turn it off with world_radio_off. Requires the world:observe scope for OAuth tokens.",
+    {
+      station: z.string().min(1).optional().describe("Station id from the station list, e.g. \"bbc-world-service\" (omit to list stations)"),
+      agent_id: agentIdArg,
+    },
+    async ({ station, agent_id }) => {
+      const gate = scopeGate(caller, "world:observe", "world_radio_on");
+      if (gate) return gate;
+      return asAgent({ agent_id }, async (agentId) => {
+        if (!station) {
+          const sub = await getSubscription(agentId);
+          return okJson({
+            stations: RADIO_STATIONS.map((s) => ({ id: s.id, name: s.name, kind: s.kind })),
+            listening: sub.radioStationId,
+          });
+        }
+        try {
+          const sub = await radioOn(agentId, station);
+          const found = RADIO_STATIONS.find((s) => s.id === station);
+          return okJson({ listening: sub.radioStationId, station_name: found?.name ?? station });
+        } catch {
+          return fail(`unknown_station: there is no station "${station}". Call world_radio_on with no station to list them.`);
+        }
+      });
+    },
+    { readOnlyHint: false, idempotentHint: true },
+  );
+
+  register(
+    "world_radio_off",
+    "Turn your radio off. You stop hearing the station at once; lines already delivered stay heard, nothing more arrives. Requires the world:observe scope for OAuth tokens.",
+    { agent_id: agentIdArg },
+    async ({ agent_id }) => {
+      const gate = scopeGate(caller, "world:observe", "world_radio_off");
+      if (gate) return gate;
+      return asAgent({ agent_id }, async (agentId) => {
+        await radioOff(agentId);
+        return okJson({ listening: null });
+      });
+    },
+    { readOnlyHint: false, idempotentHint: true },
+  );
+
+  register(
+    "world_news_on",
+    "Turn on your world-news feed: fresh headlines from the open news wires (BBC World, NPR, Al Jazeera), aggregated and deduped, arrive in the feeds block of world_observe as they are published. Pass topics to hear only what you care about (science, technology, health, politics, business, sport, conflict, world); no topics means everything. Headlines are delivered once and not stored. Turn it off with world_news_off. Requires the world:observe scope for OAuth tokens.",
+    {
+      topics: z.array(z.string().min(1)).max(7).optional().describe("Topics to follow, e.g. [\"science\", \"politics\"] (omit for all topics)"),
+      agent_id: agentIdArg,
+    },
+    async ({ topics, agent_id }) => {
+      const gate = scopeGate(caller, "world:observe", "world_news_on");
+      if (gate) return gate;
+      return asAgent({ agent_id }, async (agentId) => {
+        const sub = await newsOn(agentId, topics ?? []);
+        return okJson({ news: { on: true, topics: sub.newsTopics ?? [] } });
+      });
+    },
+    { readOnlyHint: false, idempotentHint: true },
+  );
+
+  register(
+    "world_news_off",
+    "Turn your world-news feed off. No more headlines arrive in world_observe. Requires the world:observe scope for OAuth tokens.",
+    { agent_id: agentIdArg },
+    async ({ agent_id }) => {
+      const gate = scopeGate(caller, "world:observe", "world_news_off");
+      if (gate) return gate;
+      return asAgent({ agent_id }, async (agentId) => {
+        await newsOff(agentId);
+        return okJson({ news: { on: false } });
+      });
+    },
+    { readOnlyHint: false, idempotentHint: true },
   );
 
   register(
