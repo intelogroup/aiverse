@@ -70,8 +70,8 @@ describe("sight", () => {
     await settle("eve", service.act("eve", "e2", { type: "face", point: [fay.x, fay.z] }).id, 20);
     expect(bodies("eve").length, "wall between").toBe(0);
     service.detach("fay");
-    // straight through the door: eve on the door's axis inside, gus 3 m outside on the same axis
-    expect((await settle("eve", service.act("eve", "e3", { type: "go_to", point: [door[0] - ox * 2, door[1] - oz * 2] }).id, 60)).outcome?.status).toBe("arrived");
+    // straight through the door: eve on the door's axis 1 m inside (in the doorLeaf zone, so the door swings open), gus 3 m outside
+    expect((await settle("eve", service.act("eve", "e3", { type: "go_to", point: [door[0] - ox, door[1] - oz] }).id, 60)).outcome?.status).toBe("arrived");
     service.attach("gus", { x: door[0] + ox * 3, z: door[1] + oz * 3 });
     await settle("eve", service.act("eve", "e4", { type: "face", point: [door[0] + ox * 3, door[1] + oz * 3] }).id, 20);
     expect(bodies("eve").length, "through the door").toBe(1);
