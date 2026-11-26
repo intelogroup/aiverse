@@ -118,6 +118,44 @@ deletes triangles should use it instead of calling `rewrite_indices` directly.
 - roof/lantern clearance 0.10 m (A) and 0.04 m (B), measured, not assumed
 - 59.33 → 60.01 MB; 80 nodes repointed, none added or dropped
 
+## Looking at them: camera placement
+
+`bazaar_views.py` holds the cameras, and `--probe` prints what each one actually frames
+so a view can be judged without trusting a thumbnail:
+
+```bash
+blender -b --python tools/city3/bazaar_views.py -- /tmp/shots hero close
+blender -b --python tools/city3/bazaar_views.py -- --probe          # hit census
+```
+
+![Bazaar stall views](previews/29-stall-views.png)
+
+| view | camera (glTF m) | lens | what the ray census says |
+|---|---|---|---|
+| `hero` | (13.9, 1.65, 57.4) → (17.3, 1.15, 53.9) | 32 mm | stall fills 56 of 209 cells at 3.5–5.8 m, no tree inside 4 m |
+| `close` | (15.4, 1.55, 57.2) → (17.3, 1.0, 53.8) | 30 mm | stall fills 68 cells at 2.6–4.8 m: counter and goods |
+| `aisle` | (13.4, 1.65, 50.0) → (20.0, 1.35, 22.0) | 24 mm | one stall at 8–9.5 m down the row; 61 cells of tree canopy |
+| `top` | (26, 46, 42) straight down | 50 mm | three stalls at 45.8–46.4 m, seen past the canopies |
+| `lanterns` | (17, 1.3, 55.4) → (17, 2.7, 53.4) | 22 mm | stall fills 129 cells at 1.3–2.6 m: canopy underside |
+
+Two things the search for these cameras settled, both measured rather than assumed:
+
+- **No ground-level wide shot of the bazaar is possible.** The plaza is treed on the
+  same 9 m grid as the stalls; every camera further than ~6 m from a stall ends up
+  mostly tree canopy (the `wide` and `pair` candidates at 2.4–3.2 m eye height came back
+  with 40–97 tree cells and one or two stall cells). This is composition, not a defect:
+  **0 stalls have a tree trunk inside 2.5 m** — the nearest is 3.0 m, so only canopies
+  overlap. The stalls read from close up and from directly above.
+- **Overhead cameras pass over the roofs.** A camera 34 m up and 14 m away looks *past*
+  a 2.9 m stall: the ray is still 14 m high when it crosses the stall's footprint, which
+  is why the first `quad` probe came back with 184 cobble cells and no stall at all. To
+  see stalls from above, the depth/height ratio has to be checked, not eyeballed —
+  `--probe` is what caught it.
+
+Only the two new stalls carry decodable textures under EEVEE; the other 106 images in
+the world are KTX2 and render grey. That is expected and is the reason the browser
+preview remains the final texture check.
+
 ## Left open
 
 - **The 8 bench overlaps.** Half a bench sits inside the counter at eight positions
