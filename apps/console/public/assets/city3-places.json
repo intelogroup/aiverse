@@ -1414,5 +1414,62 @@
    -177.42
   ],
   "heading": 3.141592653589793
+ },
+ {
+  "id": "house-american-1",
+  "kind": "shopfront",
+  "name": "Maple House",
+  "pos": [
+   -46.465,
+   113.1
+  ],
+  "heading": 0,
+  "stand": [
+   -46.465,
+   113.1
+  ],
+  "room": "house-american-1",
+  "door": [
+   -46.465,
+   112.2
+  ]
+ },
+ {
+  "id": "house-ring-25-0",
+  "kind": "shopfront",
+  "name": "Birch House",
+  "pos": [
+   -50.665,
+   -143.1
+  ],
+  "heading": 0,
+  "stand": [
+   -50.665,
+   -143.1
+  ],
+  "room": "house-ring-25-0",
+  "door": [
+   -50.665,
+   -144
+  ]
+ },
+ {
+  "id": "house-ring-35-1",
+  "kind": "shopfront",
+  "name": "Cedar House",
+  "pos": [
+   41.735,
+   -143.1
+  ],
+  "heading": 0,
+  "stand": [
+   41.735,
+   -143.1
+  ],
+  "room": "house-ring-35-1",
+  "door": [
+   41.735,
+   -144
+  ]
  }
 ]

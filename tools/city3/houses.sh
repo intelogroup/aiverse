@@ -8,9 +8,16 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 SRC=${SRC:-$HOME/Developer/city3-downloads}
 P() { local model=$1; shift; [ -f "$SRC/$model/slim.glb" ] || python3 tools/city3/slim_textures.py "$SRC/$model/model.glb" "$SRC/$model/slim.glb"; bun tools/city3/place_house.mjs "$SRC/$model/slim.glb" "$@"; }
+# O: an opened, walk-in house (open_house.py cuts the front door leaf and measures walls, furniture and floor from the mesh into
+# $SRC/<model>/open/). Args: MODEL "OPEN_HOUSE ARGS" then place_house args; every placement of one model and yaw shares its GLB and collision.
+O() { local model=$1 oargs=$2; shift 2; local o="$SRC/$model/open"; [ -f "$o/open.glb" ] || { tools/city3/blender_lock.sh -b --python tools/city3/open_house.py -- "$SRC/$model/slim.glb" "$o" $oargs >/dev/null &&
+  python3 tools/city3/slim_textures.py "$o/open.glb" "$o/slim.glb" && mv "$o/slim.glb" "$o/open.glb"; }   # Blender repacks metal/rough maps as PNG
+  bun tools/city3/place_house.mjs "$o/open.glb" "$@" --colboxes="$o/col_local.json"; }
+AMERICAN_OPEN="--scale=1 --res=0.05 --cut=-5.0,-3.95,0.6,3.15,4.0,4.4 --clear=-5.115,-3.815,3.9,4.55"
+AMERICAN_DOOR="--scale=1 --lift=0.05 --door=front --doorx=-4.465 --doorz=4.2"
 
 # plot block (lots 94-100)
-P american-house     american-1     -42  108    0 --asset=american --door=none
+O american-house "$AMERICAN_OPEN" american-1 -42 108 0 --asset=american $AMERICAN_DOOR --room="Maple House"
 P stone-cabin        cabin-1        -20   84    0 --asset=cabin --simplify=0.35 --scale=0.02 --body=-7.16,7.16,-3.89,2.4 --floor=0.63 --door=front --doorx=2.8 --doorhalf=1.3 --room="Stone Cabin"
 # citadel block (lots 148-155)
 P zigurat-villa-pool villa-pool-1  86.5   98    0 --asset=villa-pool --body=-5.2,10.6,-15.9,-1.85 --floor=1.45 --door=none
@@ -40,13 +47,13 @@ P cozy-cottage       ring-15-0       -110.0  -151.6    0 --asset=cozy-cottage --
 P suburban-blue      ring-15-1        -85.0  -145.9    0 --asset=suburban-blue --scale=1 --lift=0.05 --door=none
 P medieval-rx        ring-20-0        -46.2   145.9  180 --asset=medieval-rx --scale=1 --lift=0.05 --door=none
 P small-brick        ring-20-1        -23.8   148.0  180 --asset=small-brick --scale=0.03 --lift=0.05 --door=none
-P american-house     ring-25-0        -46.2  -148.2    0 --asset=american --scale=1 --lift=0.05 --door=none
+O american-house "$AMERICAN_OPEN" ring-25-0 -46.2 -148.2 0 --asset=american $AMERICAN_DOOR --room="Birch House"
 P finnish-cottage    ring-25-1        -23.8  -144.8    0 --asset=finnish-cottage --scale=2.2 --lift=0.05 --door=none
 P residence-wsg      ring-30-0         23.8   147.8  180 --asset=residence-wsg --scale=0.01 --lift=0.05 --door=none
 P kruglov-house      ring-30-1         46.2   149.6  180 --asset=kruglov-house --scale=0.014 --lift=0.05 --door=none
 # The split shell keeps the dedicated interior library off the street streaming path.
 bun tools/city3/place_house.mjs "$SRC/scandi-hawk/split/shell.glb" ring-35-0 23.8 -146.3 0 --asset=scandi-hawk --scale=0.01 --lift=0.05 --door=front --doorx=-0.875 --doorhalf=0.8 --body=-5.025,3.125,-5.286,4.214 --floor=40.5 --ceil=none '--room=Scandi Hawk'
-P american-house     ring-35-1         46.2  -148.2    0 --asset=american --scale=1 --lift=0.05 --door=none
+O american-house "$AMERICAN_OPEN" ring-35-1 46.2 -148.2 0 --asset=american $AMERICAN_DOOR --room="Cedar House"
 P suburban-bogdan    ring-40-0         85.0   148.3  180 --asset=suburban-bogdan --scale=1 --lift=0.05 --door=none
 P medieval-rx        ring-40-1        110.0   145.9  180 --asset=medieval-rx --scale=1 --lift=0.05 --door=none
 P cozy-cottage       ring-45-0         85.0  -151.6    0 --asset=cozy-cottage --scale=1 --lift=0.05 --door=none
