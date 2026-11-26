@@ -6,6 +6,7 @@
 // of placements into the shared asset library; only the nearest few are ever resident.
 import type { CutBox } from "./cutaway";
 import type { InteractableDef } from "./interactables";
+import type { DoorLeafSpec } from "./houseDoor";
 import { assetUrl } from "../../lib/assetUrl";
 
 export type Side = "S" | "N" | "E" | "W";
@@ -30,6 +31,8 @@ export interface City3Room {
   shift?: [number, number];
   /** Usable props (the Tea House radio): static data from tools/city3, known before the room streams in. */
   interactables?: InteractableDef[];
+  /** The swinging front door, when the room has one (tools/city3/house_doors.mjs; HouseDoorLeaf.tsx). */
+  doorLeaf?: DoorLeafSpec;
 }
 
 export const CITY3_INDEX_URL = "/assets/interiors/index.json";

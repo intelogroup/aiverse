@@ -3,7 +3,7 @@
 // What GlbWorld.tsx assembles per mounted page (WalkColliders, the Tea House door machine, the InteractController) and what
 // ScoutAgent's interval does per tick, with no React and no browser. Pure and IO-free: the host (packages/world-sim/node/loadWorld.ts,
 // later apps/sim) fills the collision sets and the world data; this class only simulates.
-import { HAWK_ROOM, HAWK_DOOR_BOX, HAWK_DOOR_KEY, HawkDoor } from "./hawkDoor";
+import { DOOR_KEY_PREFIX, doorBox, doorKey, HouseDoor } from "./houseDoor";
 import { ActorRegistry } from "./actors";
 import { AgentBody, SUBSTEP_S, BODY_HEIGHT_M, type AgentBodyDeps } from "./agentBody";
 import { BODY_REMY } from "./bodies";
@@ -42,7 +42,8 @@ export class VerseSim {
   readonly door: TeaDoorController;
   readonly interact = new InteractController();
   readonly elevator = new TeaElevatorController();
-  private hawkDoor?: HawkDoor;
+  /** House front doors by room id (rooms with a `doorLeaf` spec). */
+  readonly houseDoors = new Map<string, HouseDoor>();
   private liftCollision?: ReturnType<typeof teaLiftCollision>;
   /** Simulation clock, s (advances by whole substeps). */
   t = 0;
@@ -70,7 +71,7 @@ export class VerseSim {
       },
     });
     this.staticWorld = createCapsuleWorld(this.walk.list);
-    this.planningWorld = createCapsuleWorld(() => this.walk.listWithout("door:tea", HAWK_DOOR_KEY));
+    this.planningWorld = createCapsuleWorld(() => this.walk.listWithoutPrefix(DOOR_KEY_PREFIX));
   }
 
   /** The static collision world (no other actors): for spawn search, probes and tests. */
@@ -87,15 +88,14 @@ export class VerseSim {
   setData(data: VerseData, interactables: readonly InteractableDef[] = []): void {
     this.data = data;
     this.interact.register(interactables);
-    if (data.rooms?.some((room) => room.id === HAWK_ROOM) && !this.hawkDoor) {
-      this.hawkDoor = new HawkDoor((blocked) => {
-        if (!blocked) {
-          this.walk.drop(HAWK_DOOR_KEY);
-          return;
-        }
-        const mesh = boxesMesh([HAWK_DOOR_BOX], [0, 0], HAWK_DOOR_KEY);
-        if (mesh) this.walk.set(HAWK_DOOR_KEY, [mesh]);
-      });
+    for (const room of data.rooms ?? []) {
+      if (!room.doorLeaf || this.houseDoors.has(room.id)) continue;
+      const key = doorKey(room.id), box = doorBox(room.doorLeaf);
+      this.houseDoors.set(room.id, new HouseDoor(room.doorLeaf, (blocked) => {
+        if (!blocked) return this.walk.drop(key);
+        const mesh = boxesMesh([box], [0, 0], key);
+        if (mesh) this.walk.set(key, [mesh]);
+      }));
     }
   }
 
@@ -270,7 +270,7 @@ export class VerseSim {
       const s = Math.min(dt, SUBSTEP_S);
       this.elevator.tick(s);
       this.liftCollision?.update();
-      this.hawkDoor?.tick(s, this.bodyPositions());
+      for (const d of this.houseDoors.values()) d.tick(s, this.bodyPositions());
       for (const b of this.bodies.values()) b.step(s);
       this.door.tick(s);
       this.interact.tick(s);

@@ -181,7 +181,7 @@ describe("planning does not block the tick", () => {
     const roomId = "house-ring-35-0";
     sim.addBody({ id, spawn: { x: 22.925, z: -138.7 } });
     try {
-      expect(sim.walk.has("door:scandi-hawk")).toBe(true);
+      expect(sim.walk.has("door:house-ring-35-0")).toBe(true);
       const entry = await run(sim, id, { type: "enter", place: roomId }, 550);
       expect(entry.out?.status).toBe("arrived");
       expect(roomAt(sim.rooms, entry.snap.x, entry.snap.z)?.id).toBe(roomId);
@@ -193,7 +193,7 @@ describe("planning does not block the tick", () => {
       expect(exit.out?.status).toBe("arrived");
       expect(roomAt(sim.rooms, exit.snap.x, exit.snap.z)).toBeNull();
       sim.tick(3);
-      expect(sim.walk.has("door:scandi-hawk")).toBe(true);
+      expect(sim.walk.has("door:house-ring-35-0")).toBe(true);
     } finally {
       sim.removeBody(id);
     }
