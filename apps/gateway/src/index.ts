@@ -145,6 +145,15 @@ async function startSingletonJobs() {
   }
   const { scheduleVisitsSweep } = await import("./jobs/visits");
   scheduleVisitsSweep();
+  // Real-world feeds (radio transcription + news aggregation): leader-only
+  // like the other singleton jobs — two processes transcribing the same
+  // station would double-deliver every line. Only scheduled when the
+  // feature is turned on; the tools exist either way but hear nothing
+  // while no job runs.
+  if (process.env.AIVERSE_FEEDS_MODE === "1") {
+    const { scheduleFeeds } = await import("./jobs/feedJobs");
+    scheduleFeeds();
+  }
   // Visit-end memory distillation: drains the queue endVisitRecord
   // enqueues into. Singleton like the other jobs — two processes
   // distilling the same visit would race the claim, and the queue's
