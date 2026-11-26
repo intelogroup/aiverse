@@ -39,6 +39,7 @@ Use the placed-house run order above for the current City 3 composition. The gen
 ```
 cd apps/console && bunx tsc -b && bunx vitest run          # 142 tests at last count
 bunx vite --port 5183                                       # then ?world=city3 (+ &streamDebug=1&fake=14, ?embody=1&bodyDebug=1, ?body=legacy)
+python3 tools/city3/world_gate.py --uv                     # asset gates: dims, placement, clips, images, UV (5.5 s)
 ```
 Root-level `bunx tsc --noEmit` (no `-p`) is the repo's real typecheck per CLAUDE.md; the console's own is `bunx tsc -b`.
 
