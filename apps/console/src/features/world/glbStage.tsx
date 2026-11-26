@@ -9,6 +9,8 @@ import { assetUrl } from "../../lib/assetUrl";
 import { qualityStore, shadowMapForTier } from "./quality";
 import { CITY3_CENTER } from "./glbConstants";
 import { softenTreeFoliage } from "./districtTree";
+import { interiorLook, insideRoom } from "./interiorStage";
+import type { City3Room } from "./city3";
 
 export const SKY_HDRI_URL = "/assets/env/sky_1k.hdr";
 
@@ -146,6 +148,67 @@ export function ShadowTagger() {
       mesh.receiveShadow = true;
       mesh.userData.__glbShadowTagged = ready;
     });
+  });
+  return null;
+}
+
+/**
+ * The interior light rig: inside a streamed interior the noon-outdoor stage (AgX exposure 1.1,
+ * env 0.6, key at [120, 220, 90] over a +-220 m shadow box) leaves rooms nearly black — measured
+ * loft entry p50 18 against the Cycles reference 147-166. While the camera stands inside a room
+ * rect this applies the interior profile (sun from the room's street-facing side at the 22 deg
+ * authoring elevation, a room-fitted static shadow box, exposure/env calibrated to bring the
+ * interior into the Cycles p50 band) and restores the stage base on exit. The profile applies
+ * once per transition (ref-guarded), so it costs nothing while held.
+ * `?interiorlook=0` disables it (A/B against the outdoor stage).
+ */
+export function interiorLookWanted(search: string): boolean {
+  return new URLSearchParams(search).get("interiorlook") !== "0";
+}
+
+export function InteriorLightRig({
+  lightRef,
+  rooms,
+  enabled,
+  posRef,
+}: {
+  lightRef: React.RefObject<THREE.DirectionalLight | null>;
+  rooms: City3Room[];
+  enabled: boolean;
+  /** The walker's live ground position (botPosRef). In walk mode the camera trails ~2 m behind the
+   *  player, so keying the engage test on the camera missed the room at the entry spawn (measured
+   *  2026-11-25: rig never engaged, A/B p50 18.4 -> 18.2). Walker first, camera when not walking. */
+  posRef?: React.RefObject<{ x: number; z: number } | null>;
+}) {
+  // Runs AFTER DistrictWorld's theme tick (this component mounts later in the Canvas), so the
+  // interior profile wins over the outdoor theme while the player stands inside a room. Outside
+  // it writes nothing - the theme owns the stage. (Measured 2026-11-25: a one-shot rig with an
+  // exit-restore lost every value to DistrictWorld's 0.25 s theme write; the A/B was bit-identical.)
+  useFrame(({ camera, gl, scene }) => {
+    const l = lightRef.current;
+    if (!l || !enabled) return;
+    const p = posRef?.current ?? camera.position;
+    const room = insideRoom(rooms, p.x, p.z);
+    if (!room) return;
+    const look = interiorLook(room);
+    gl.toneMappingExposure = look.exposure;
+    scene.environmentIntensity = look.envIntensity;
+    const sd = new THREE.Vector3(...look.sunDir);
+    l.color.setRGB(1, 0.97, 0.92); // warm-white key, like the interior practicals
+    l.intensity = look.sunIntensity;
+    l.target.position.set(...look.shadowCenter);
+    l.target.updateMatrixWorld();
+    l.position.copy(l.target.position).addScaledVector(sd, 40);
+    const sc = l.shadow.camera;
+    if (sc.right !== look.shadowHalf) {
+      sc.left = -look.shadowHalf;
+      sc.right = look.shadowHalf;
+      sc.top = look.shadowHalf;
+      sc.bottom = -look.shadowHalf;
+      sc.updateProjectionMatrix();
+    }
+    l.shadow.normalBias = ((2 * look.shadowHalf) / (l.shadow.mapSize.width || 2048)) * 1.5; // same texel rule as shadowFit
+    l.shadow.bias = -0.0005;
   });
   return null;
 }

@@ -101,3 +101,44 @@ eyeballs tie-break), `taste_lab.py -- --measure` (placed furniture extents witho
    a bbox (`--measure`), never with location.
 4. The Sketchfab sofa is uniformly 4x oversized (10.53 x 11.34 x 2.75 m raw is a 2.63 x 2.83 x 0.69 m
    sectional); the per-axis fit with the height cap lands it at 2.40 x 2.23 x 0.58 m, floor-anchored.
+
+## Round 3 executed: the interior light port in the console (2026-11-25, `feat/modern-loft`)
+
+The console stage is authored for noon outdoors (KeyLight [120, 220, 90] over a +-220 m shadow box,
+room env 0.6, AgX exposure 1.1). Inside a room the roof eats the key and raster has no GI bounce, so
+interiors were unevenly dark: the three fixed loft spawns measured p50 **76 / 108 / 80**.
+
+`InteriorLightRig` (`apps/console/src/features/world/interiorStage.ts` + `glbStage.tsx`) applies an
+interior profile while the player stands inside a room rect: AgX exposure 2.4, env 1.5 (the
+"env-map intensity that matches the Cycles exposure"), the sun re-aimed through the room's
+street-facing side at the authoring 22 deg elevation (30 deg off the front normal), and the shadow
+box fitted to the room (<= 14 m half, ~1.4 cm/texel at 2048, vs the +-60 m walking box) so contact
+shadows read. `?interiorlook=0` A/Bs it off.
+
+Verified with `docs/procedural-city/harness/loftshots.cjs` (playwright + system Chrome, SwiftShader,
+960x540, four fixed spawns, 9 s settle):
+
+| spawn | before p50 | after p50 |
+|---|---|---|
+| entry | 76.1 | 109.4 |
+| living | 108.1 | 109.0 |
+| dining | 80.1 | 112.9 |
+| street (control) | 114.3 | 113.1 (day-cycle drift only) |
+
+Interiors land in a tight 109-113 band (was 76-108); the outdoor control is untouched.
+
+Lessons (all measured; each cost a full harness pass):
+
+1. **DistrictWorld owns the light, tiles or not.** `/assets/districts.json` exists in the one-file
+   world and controls are mounted in every camera mode, so the 0.25 s theme tick rewrites
+   exposure/env/key continuously. A one-shot rig with exit-restore lost every value to it (A/B
+   bit-identical). The rig runs as a later `useFrame` (mounted after DistrictWorld in the Canvas)
+   and overrides per frame while inside; outdoors it writes nothing.
+2. **Key the engage test on the walker, not the camera.** In walk mode the camera trails ~2.2 m
+   behind the player and sat outside the room rect at the entry spawn - the rig never fired.
+3. **The engage margin is 0.4 m, not 1.0.** The entry spawn sits 1.04 m inside the rect; a 1.0
+   margin left 4 cm to spare and jitter dropped engagement. Walls are solid, so the lip only
+   guards doorways (the street control is 2.5 m out).
+4. **An absolute profile normalizes views.** A spawn that was already at p50 108 barely moves -
+   that is the goal (consistent interior exposure), not a failure. Screenshot A/Bs must wait for
+   the walker to mount before capture (`?walkDebug=1` exposes `window.__walk`).
