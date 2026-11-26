@@ -23,6 +23,7 @@ python3 tools/city3/world_gate.py            # + --uv, --render, --fast
 | images | `unpack_sheet.py` | Embedded images, KTX2 honesty, duplicate payload | 1.65 s, 429 images | KTX2 reported undecodable, never guessed |
 | uv | `uv_stats.py` (Blender) | Per-triangle UV-area / world-area, unmapped faces, pinned density | 1.26 s, 115,284 tris | 4x UV stretch, collapsed UV, uniform 1.5x rescale |
 | degenerate | `bridge_drop_degenerate.py --check` | No live primitive (indexed or not) carries a triangle of area <= 1e-9 m^2 | 2.2 s, 264,601 tris, 0 degenerate | pre-2026-11-26 world: 70,873 of 335,474 (exit 1) |
+| eaves | `bridge_eaves.py --check` | Single-sheet roof materials (`roof_tile_v4`) are `doubleSided`, so eaves show from the street | 0.1 s | pre-2026-11-26 world: roof invisible from below (exit 1) |
 
 Degenerate triangles (2026-11-26): demolition passes collapse "killed" triangles in place, so 21% of the
 world's accessor triangles drew nothing (60,284 in `palette`; 37 primitives, e.g. every `BzFacade_shop_*`,

@@ -71,6 +71,8 @@ def main(argv):
                     f"--baseline={HERE}/out/stall-baseline.json"], None),
         ("degenerate", [py, f"{HERE}/bridge_drop_degenerate.py",
                         f"{ASSETS}/world-city3.glb", "-", "--check"], None),
+        ("eaves", [py, f"{HERE}/bridge_eaves.py",
+                   f"{ASSETS}/world-city3.glb", "-", "--check"], None),
     ]
     if "--fast" not in argv:
         gates.append(("images", [py, f"{HERE}/unpack_sheet.py",
