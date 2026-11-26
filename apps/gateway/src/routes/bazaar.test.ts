@@ -180,8 +180,9 @@ describe("bazaar accounting", () => {
     expect((await progress(worker.agentId)).xp).toBe(xpBefore + 5);
     expect(verifyRes.status).toBe(200);
 
-    // Balances: worker +15, critic +2 (fee), poster unchanged (already escrowed)
-    expect(await getBalance(worker.agentId)).toBe(workerBefore + 15);
+    // Balances: the bounty splits — worker +13, critic +2 (fee paid from
+    // the bounty, 2026-11-26), poster unchanged (already escrowed)
+    expect(await getBalance(worker.agentId)).toBe(workerBefore + 13);
     expect(await getBalance(critic.agentId)).toBe(criticBefore + 2);
     expect(await getBalance(poster.agentId)).toBe(posterBefore);
   });
@@ -221,14 +222,16 @@ describe("bazaar accounting", () => {
     expect(tasks.some((t: any) => t.id === task.id)).toBe(true);
 
     // The refund happens exactly once, at the terminal close: the poster
-    // cancels the reopened task and gets the 12 back — and only the 12.
+    // cancels the reopened task and gets back what remains of the escrow —
+    // 12 minus the 2cr critic fee the reject drew from it (fee paid from
+    // the bounty, 2026-11-26) — and only that.
     const cancelRes = await app.request(`/bazaar/tasks/${task.id}/cancel`, {
       method: "POST",
       headers: auth(poster.agentToken),
     });
     expect(cancelRes.status).toBe(200);
-    expect((await cancelRes.json()).refunded).toBe(12);
-    expect(await getBalance(poster.agentId)).toBe(posterBefore + 12);
+    expect((await cancelRes.json()).refunded).toBe(10);
+    expect(await getBalance(poster.agentId)).toBe(posterBefore + 10);
   });
 
   test("re-accept after reject pays the second worker from the still-held escrow", async () => {
@@ -239,6 +242,7 @@ describe("bazaar accounting", () => {
     const worker2 = await registerAgent("bazaar-worker2");
     await setupBazaar(worker2.agentId, "artisan", 100);
     const posterStart = await getBalance(poster.agentId);
+    const criticStart = await getBalance(critic.agentId);
 
     const postRes = await app.request("/bazaar/tasks", {
       method: "POST",
@@ -259,15 +263,25 @@ describe("bazaar accounting", () => {
     expect((await app.request(`/bazaar/tasks/${task.id}/complete`, { method: "POST", headers: auth(worker2.agentToken), body: JSON.stringify({ evidence: "Second attempt evidence, complete and correct" }) })).status).toBe(200);
     expect((await app.request(`/bazaar/tasks/${task.id}/verify`, { method: "POST", headers: auth(critic.agentToken), body: JSON.stringify({ verdict: "accept" }) })).status).toBe(200);
 
-    expect(await getBalance(worker2.agentId)).toBe(120);
+    // Fee-from-bounty (2026-11-26): the reject drew 2 from the escrow
+    // (bounty 20 → 18), the accept drew 2 more — worker2 is paid 16, the
+    // critic holds both fees, the poster is out exactly the bounty.
+    expect(await getBalance(worker2.agentId)).toBe(116);
     expect(await getBalance(poster.agentId)).toBe(posterStart - 20);
-    // Conservation: poster + worker2 together hold exactly their starts.
-    expect((await getBalance(poster.agentId)) + (await getBalance(worker2.agentId))).toBe(posterStart + 100);
+    expect(await getBalance(critic.agentId)).toBe(criticStart + 4);
+    // Conservation across all three parties: exactly their starts.
+    expect(
+      (await getBalance(poster.agentId)) +
+        (await getBalance(worker2.agentId)) +
+        (await getBalance(critic.agentId)),
+    ).toBe(posterStart + 100 + criticStart);
   });
 
   test("two rejects in a row still refund exactly once, at cancel", async () => {
     // AIV-REJECT-REOPEN-ESCROW-001 regression: repeated reject/reopen
-    // cycles never touch the escrow; the single refund is the cancel.
+    // cycles never refund; the single refund is the cancel. Fee-from-bounty
+    // (2026-11-26): each reject draws its 2cr fee from the escrow, so the
+    // one refund is what remains — 10 − 2 − 2 = 6.
     const posterStart = await getBalance(poster.agentId);
     const postRes = await app.request("/bazaar/tasks", {
       method: "POST",
@@ -290,8 +304,8 @@ describe("bazaar accounting", () => {
       headers: auth(poster.agentToken),
     });
     expect(cancelRes.status).toBe(200);
-    expect((await cancelRes.json()).refunded).toBe(10);
-    expect(await getBalance(poster.agentId)).toBe(posterStart);
+    expect((await cancelRes.json()).refunded).toBe(6);
+    expect(await getBalance(poster.agentId)).toBe(posterStart - 4);
   });
 
   test("concurrent verify: exactly one payout", async () => {
@@ -333,8 +347,9 @@ describe("bazaar accounting", () => {
     const statuses = [r1.status, r2.status].sort();
     expect(statuses).toEqual([200, 409]);
 
-    // Worker paid exactly once
-    expect(await getBalance(worker.agentId)).toBe(workerBefore + 20);
+    // Worker paid exactly once: bounty 20 minus the 2cr fee the verdict
+    // drew from it (fee paid from the bounty, 2026-11-26)
+    expect(await getBalance(worker.agentId)).toBe(workerBefore + 18);
   });
 
   test("cancel refunds escrow", async () => {
@@ -1077,6 +1092,7 @@ describe("bazaar text-field types (AIV-BAZAAR-TYPE-001 regression)", () => {
       body: JSON.stringify({ verdict: "accept", note: "Looks good" }),
     });
     expect(ok.status).toBe(200);
-    expect(await getBalance(worker.agentId)).toBe(115);
+    // Bounty 15 minus the 2cr verdict fee drawn from it (2026-11-26).
+    expect(await getBalance(worker.agentId)).toBe(113);
   });
 });
