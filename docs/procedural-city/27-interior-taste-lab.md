@@ -67,3 +67,78 @@ Known defects, in priority order:
    occlusion, and an env-map intensity that matches the Cycles exposure.
 4. Place the winning furniture in Stone Cabin (currently `props: 0`), with seats, and verify in the running console.
 5. Budget pass: 2k textures for hero pieces, 1k for the rest, kit GLB under ~20 MB, draw calls under budget.
+
+## Round 1 executed (2026-11-25, `feat/modern-loft`)
+
+All six defects fixed in `taste_lab.py` and re-rendered from three cameras — `out/taste/r1-hero.png`,
+`r1-windowview.png`, `r1-detail.png` (1280x720, 64 samples, Cycles CPU through `blender_lock.sh`, ~70 s each):
+
+| Defect | Fix | Measured evidence |
+|---|---|---|
+| 1 sofa proportions | per-axis fit: right tipped imports, scale the longest horizontal axis to target (2.4 m), cap seat+back at 1.05 m and the full bbox at 2.4 m, place analytically | `MEASURE sofa: 2.400 x 2.228 x 0.582 m, floor_z 0.000`, bbox centre exactly on the requested anchor; the raw source is a uniform 4x-oversized 10.53 x 11.34 x 2.75 m |
+| 2 rug camouflage | flat ground colour; the wool_boucle weave demoted to normal+roughness only | rug tiles read at floor-level edge density in the tile grid instead of camouflage busyness |
+| 3 washed glazing | 18 massing blocks (9-34 m tall) in haze at 28-130 m + a ground plane beyond the glass | window-band edge density 3.3-9 % where the pre-fix sky read 0.0-0.6 % (flat gradient) |
+| 4 palette clash | walls flat warm off-white (0.80, 0.78, 0.74); herringbone parquet desaturated (sat 0.55, val 0.86) | global warmth +11..+17 R-B across all three views, no pure-white/orange clash tiles |
+| 5 no warm bounce | shade emissive (1.0, 0.78, 0.55 at strength 14) + 110 W warm point at the lamp | the warmest-1 % pixel cluster sits on the practical in every view (mean R-B 44-112) |
+| 6 blank art | authored abstract print (PIL, muted to the room palette) at `~/Developer/city3-downloads/art/abstract_loft_01.png` | art-region edge density 15-20 % (was a blank beige slab); zero flat tiles in any view |
+
+New tooling: `tools/city3/taste_report.py` (numeric render read: exposure percentiles, an 8x5 tile
+luma/edge grid, the warm-pixel cluster, a blank-tile detector — renders get judged by measurement,
+eyeballs tie-break), `taste_lab.py -- --measure` (placed furniture extents without a render), and the
+`--detail` camera (sofa-group close-up, the second judging angle of the pair).
+
+### What the sofa taught about glTF imports (all measured, 2026-11-25)
+
+1. **Read the raw bbox once, place analytically.** `matrix_world` reads lag the depsgraph for freshly
+   imported and re-parented nodes: world-read placement, a two-pass nudge and a fixed-point loop all
+   converged to the same stale endpoint because every correction was computed from a lagging read. The
+   fix transforms the 8 raw corners by R.S once and assigns location once — no post-transform reads.
+2. **`o.parent = root` in Python does not keep the world transform** (`matrix_parent_inverse` stays
+   identity): bake `matrix_basis = matrix_world` around the re-parent or the placed piece silently
+   switches to local-space semantics.
+3. **The placed empty's origin is not the furniture's centre.** The sofa's origin sits at the L's inner
+   corner (raw bbox spans x -1.91..8.61 m), so `root.location` is never the placed centre — verify with
+   a bbox (`--measure`), never with location.
+4. The Sketchfab sofa is uniformly 4x oversized (10.53 x 11.34 x 2.75 m raw is a 2.63 x 2.83 x 0.69 m
+   sectional); the per-axis fit with the height cap lands it at 2.40 x 2.23 x 0.58 m, floor-anchored.
+
+## Round 3 executed: the interior light port in the console (2026-11-25, `feat/modern-loft`)
+
+The console stage is authored for noon outdoors (KeyLight [120, 220, 90] over a +-220 m shadow box,
+room env 0.6, AgX exposure 1.1). Inside a room the roof eats the key and raster has no GI bounce, so
+interiors were unevenly dark: the three fixed loft spawns measured p50 **76 / 108 / 80**.
+
+`InteriorLightRig` (`apps/console/src/features/world/interiorStage.ts` + `glbStage.tsx`) applies an
+interior profile while the player stands inside a room rect: AgX exposure 2.4, env 1.5 (the
+"env-map intensity that matches the Cycles exposure"), the sun re-aimed through the room's
+street-facing side at the authoring 22 deg elevation (30 deg off the front normal), and the shadow
+box fitted to the room (<= 14 m half, ~1.4 cm/texel at 2048, vs the +-60 m walking box) so contact
+shadows read. `?interiorlook=0` A/Bs it off.
+
+Verified with `docs/procedural-city/harness/loftshots.cjs` (playwright + system Chrome, SwiftShader,
+960x540, four fixed spawns, 9 s settle):
+
+| spawn | before p50 | after p50 |
+|---|---|---|
+| entry | 76.1 | 109.4 |
+| living | 108.1 | 109.0 |
+| dining | 80.1 | 112.9 |
+| street (control) | 114.3 | 113.1 (day-cycle drift only) |
+
+Interiors land in a tight 109-113 band (was 76-108); the outdoor control is untouched.
+
+Lessons (all measured; each cost a full harness pass):
+
+1. **DistrictWorld owns the light, tiles or not.** `/assets/districts.json` exists in the one-file
+   world and controls are mounted in every camera mode, so the 0.25 s theme tick rewrites
+   exposure/env/key continuously. A one-shot rig with exit-restore lost every value to it (A/B
+   bit-identical). The rig runs as a later `useFrame` (mounted after DistrictWorld in the Canvas)
+   and overrides per frame while inside; outdoors it writes nothing.
+2. **Key the engage test on the walker, not the camera.** In walk mode the camera trails ~2.2 m
+   behind the player and sat outside the room rect at the entry spawn - the rig never fired.
+3. **The engage margin is 0.4 m, not 1.0.** The entry spawn sits 1.04 m inside the rect; a 1.0
+   margin left 4 cm to spare and jitter dropped engagement. Walls are solid, so the lip only
+   guards doorways (the street control is 2.5 m out).
+4. **An absolute profile normalizes views.** A spawn that was already at p50 108 barely moves -
+   that is the goal (consistent interior exposure), not a failure. Screenshot A/Bs must wait for
+   the walker to mount before capture (`?walkDebug=1` exposes `window.__walk`).

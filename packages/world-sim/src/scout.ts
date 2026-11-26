@@ -431,7 +431,7 @@ export interface ExecutorDeps {
   /** Egg payload claim (server-validated, once per agent per egg). Resolves the payload text, or null when already taken. */
   claim?: (eggId: string, at: { x: number; z: number }) => Promise<{ text: string } | null>;
   interact?: {
-    defs: () => { id: string; label: string; kind: string; stand: Vec2 }[];
+    defs: () => { id: string; label: string; kind: string; stand: Vec2; seatedOk?: boolean }[];
     isOn: (id: string) => boolean;
     /** Start a session for this actor at `at`; "started" or a refusal reason. */
     request: (id: string, at: { x: number; z: number }) => string;
@@ -580,12 +580,14 @@ export class ScoutExecutor {
         return this.begin(action, state, { tLeft: hold });
       }
       case "interact": {
-        if (this.posture !== "standing") {
-          return Promise.resolve({ ok: false, status: "rejected", detail: "seated — stand first" });
-        }
         const ia = this.deps.interact;
         if (!ia) return Promise.resolve({ ok: false, status: "unavailable", detail: "nothing here can be used" });
         const def = ia.defs().find((d) => d.id === action.target || d.kind === action.target || d.label.toLowerCase() === action.target.toLowerCase());
+        // A seated body may use a prop that says it is usable from a seat (a desk, a bedside lamp); everything
+        // else is a standing pose and would render at seat height.
+        if (this.posture !== "standing" && !def?.seatedOk) {
+          return Promise.resolve({ ok: false, status: "rejected", detail: "seated — stand first" });
+        }
         if (!def) {
           const known = ia.defs().map((d) => d.id).join(", ");
           return Promise.resolve({ ok: false, status: "unavailable", detail: `unknown prop: ${action.target}; usable props: ${known || "none"} (doors and shops are entered with enter, not interact)` });

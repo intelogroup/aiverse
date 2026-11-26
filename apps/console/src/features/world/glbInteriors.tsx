@@ -9,7 +9,7 @@ import * as THREE from "three";
 import { useTileEpoch } from "./tileScenes";
 import { buildColliders } from "./CameraCollider";
 import { registerCameraObstacle } from "./cameraClearance";
-import { CITY3_INDEX_URL, CITY3_LIBRARY_URL, INTERIOR_KIT_URL, HIDE_WITHIN, INTERIOR_KEEP_WITHIN, INTERIOR_LOAD_WITHIN, MAX_LOADED_INTERIORS, SHOW_BEYOND, roomView, syntheticRooms, type City3Room } from "./city3";
+import { CITY3_INDEX_URL, CITY3_LIBRARY_URL, CITY3_HQ_URL, INTERIOR_KIT_URL, HIDE_WITHIN, INTERIOR_KEEP_WITHIN, INTERIOR_LOAD_WITHIN, MAX_LOADED_INTERIORS, SHOW_BEYOND, roomView, syntheticRooms, type City3Room } from "./city3";
 import { boxPlanes, inactivePlanes, pickCutRoom } from "./cutaway";
 import { buildInterior, indexLibrary, type InteriorHandle } from "./interiorBuild";
 import { TEA_HOUSE_RADIO_ASSET, teaHouseRadio } from "./teaHouseRadio";
@@ -310,19 +310,26 @@ function RoomLibrary({ hero, layout, handles, stats, walk, interact }: {
   // 8.9 MB fetch happens once per visit however many rooms are resident.
   const sharesLibrary = url === CITY3_LIBRARY_URL;
   const kit = useGLTF(INTERIOR_KIT_URL, true, true, extendGltf(gl));
+  // High-poly overrides. Indexed ahead of the base library below, because indexLibrary
+  // keeps the FIRST node per key: a shadowing key here replaces the box prop without
+  // touching the 8 MB library or a single layout JSON.
+  const hq = useGLTF(CITY3_HQ_URL, true, true, extendGltf(gl));
   const assets = useMemo(() => {
-    const indexed = indexLibrary(library.scene);
+    const indexed = sharesLibrary
+      ? indexLibrary(hq.scene)
+      : new Map<string, THREE.Object3D>();
+    for (const [key, obj] of indexLibrary(library.scene)) if (!indexed.has(key)) indexed.set(key, obj);
     if (sharesLibrary) {
       // kit keys are new by construction (kit_interiors.py lists only assets absent from the library), first writer wins
       for (const [key, obj] of indexLibrary(kit.scene)) if (!indexed.has(key)) indexed.set(key, obj);
       indexed.set(TEA_HOUSE_RADIO_ASSET, teaHouseRadio());
     }
     return indexed;
-  }, [library, kit, sharesLibrary]);
+  }, [library, kit, hq, sharesLibrary]);
   // Pay the texture-upload cost once, here, instead of as a hitch the first time a room draws.
   useEffect(() => {
     const seen = new Set<THREE.Texture>();
-    for (const scene of sharesLibrary ? [library.scene, kit.scene] : [library.scene]) scene.traverse((o) => {
+    for (const scene of sharesLibrary ? [hq.scene, library.scene, kit.scene] : [library.scene]) scene.traverse((o) => {
       const mat = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
       const tex = mat?.map;
       if (tex && !seen.has(tex)) {
@@ -330,7 +337,7 @@ function RoomLibrary({ hero, layout, handles, stats, walk, interact }: {
         gl.initTexture(tex);
       }
     });
-  }, [library, kit, sharesLibrary, gl]);
+  }, [library, kit, hq, sharesLibrary, gl]);
   return (
     <InteriorRoom id={hero.id} layout={layout} layoutUrl={hero.layout} assets={assets} offset={hero.shift ?? ZERO_SHIFT} handles={handles} stats={stats} walk={walk} interactables={hero.interactables} interact={interact} />
   );

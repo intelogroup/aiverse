@@ -30,6 +30,25 @@ export interface InteractableDef {
   floorY: number;
   /** Where the on/off pilot light sits, [x, y, z] in the prop's own frame (m). Absent: the top-front of its largest part. */
   pilot?: [number, number, number];
+  /**
+   * Catalog clip the session plays. Absent: the generic `Interact` reach. A prop that is used, not
+   * switched, names its own clip (`PickUp`, `Drinking`, `SeatedTyping`, `OpenDoorInwards`, ...), so the
+   * figure reads as doing the thing instead of waving at it.
+   */
+  clip?: string;
+  /** Seconds into the clip when the state flips. Absent: INTERACT_CONTACT_S for `Interact`, else 45% of the clip. */
+  contactS?: number;
+  /**
+   * toggle (default): on/off, every use. momentary: on at the contact moment, off when the clip ends
+   * (a stove, a tap). once: no state at all - the clip IS the effect (picking a book up).
+   */
+  mode?: "toggle" | "momentary" | "once";
+  /** A looping clip ends here (s). Absent: the clip's own duration. Ignored for one-shots. */
+  holdS?: number;
+  /** Usable while seated (a desk, a bedside lamp). Standing-only props stay refused for a seated body. */
+  seatedOk?: boolean;
+  /** Prompt verb: "Watch", "Listen to", "Read". Absent: "Turn". */
+  verb?: string;
 }
 
 export type EggPlacement = {
@@ -81,6 +100,11 @@ interface Session {
   /** Seconds in the current phase. */
   t: number;
   flipped: boolean;
+  /** The clip this session plays, and its timeline (read from the prop's definition when the session opened). */
+  clip: string;
+  contactS: number;
+  durationS: number;
+  mode: "toggle" | "momentary" | "once";
 }
 
 const ZERO_INPUT: WalkInput = { forward: 0, strafe: 0, turn: 0, run: false };
@@ -88,8 +112,23 @@ const ZERO_INPUT: WalkInput = { forward: 0, strafe: 0, turn: 0, run: false };
 /** Human prompt shared by desktop and touch controls. */
 export function interactPrompt(def: InteractableDef, on: boolean): string {
   const label = def.label.toLowerCase();
-  return def.kind === "pickup" ? `Inspect ${label}` : `Turn ${label} ${on ? "off" : "on"}`;
+  if (def.mode === "once" || def.kind === "pickup") return `Inspect ${label}`;
+  return `${def.verb ?? "Turn"} ${label} ${on ? "off" : "on"}`;
 }
+
+/** The clip a prop plays: its own, or the generic reach. Unknown names fall back to the reach (a JSON typo must not brick a room). */
+export function interactClip(def: InteractableDef): string {
+  return def.clip && clipDef(def.clip) ? def.clip : INTERACT_CLIP;
+}
+
+/** When the state flips inside that clip, and how long the session lasts. Exported for the tests. */
+export function interactTiming(def: InteractableDef): { clip: string; contactS: number; durationS: number } {
+  const clip = interactClip(def);
+  const durationS = def.holdS ?? clipDef(clip)?.duration ?? 3.2333;
+  const contactS = def.contactS ?? (clip === INTERACT_CLIP ? INTERACT_CONTACT_S : Math.min(durationS * 0.45, Math.max(0.1, durationS - 0.2)));
+  return { clip, contactS, durationS };
+}
+
 
 /** Stand pose of a prop (the align target). */
 export function interactPose(def: InteractableDef): StandPose {
@@ -112,16 +151,12 @@ export class InteractController {
   private readonly sessions = new Map<string, Session>();
   private readonly seen = new Map<string, { x: number; z: number; at: number }>();
   private readonly listeners = new Set<(id: string, on: boolean) => void>();
-  private readonly contactS: number;
-  private readonly durationS: number;
   private now = 0;
   /** Last refusal, for the HUD status line. */
   lastRefusal: { id: string; reason: string; at: number } | null = null;
 
-  constructor(opts: { contactS?: number } = {}) {
-    this.contactS = opts.contactS ?? INTERACT_CONTACT_S;
-    this.durationS = clipDef(INTERACT_CLIP)?.duration ?? 3.2333;
-  }
+  // Timing lives on the session now (per prop: its clip, contact moment and length); a controller-wide
+  // override was only ever the tests' knob and they set it on the definition instead.
 
   /** Replace the known interactables (the room index loaded). State survives for ids that stay. */
   register(defs: readonly InteractableDef[], source = "rooms"): void {
@@ -233,7 +268,9 @@ export class InteractController {
     // The actor is live from the moment it asks (an agent only drive()s once its session holds the body; without this the
     // expiry in tick() would drop the session before the first drive()).
     this.seen.set(actor, { x: pos.x, z: pos.z, at: this.now });
-    this.sessions.set(id, { id, actor, channel, phase: "align", t: 0, flipped: false });
+    const { clip, contactS, durationS } = interactTiming(def);
+    this.sessions.set(id, { id, actor, channel, phase: "align", t: 0, flipped: false,
+      clip, contactS, durationS, mode: def.mode ?? "toggle" });
     this.lastRefusal = null;
     return "started";
   }
@@ -263,7 +300,7 @@ export class InteractController {
     if (sess.phase === "align") {
       const pose = interactPose(def);
       if (atPose(s, pose)) {
-        if (sess.channel.fire(INTERACT_CLIP)) {
+        if (sess.channel.fire(sess.clip)) {
           sess.phase = "perform";
           sess.t = 0;
         } else {
@@ -280,7 +317,7 @@ export class InteractController {
     }
     // perform: stand still; flip at the contact moment; finish when the clip ends
     const cur = sess.channel.current;
-    const playing = cur === INTERACT_CLIP;
+    const playing = cur === sess.clip;
     if (!playing && cur !== null && !sess.flipped) {
       // Another clip took the stage before the hand met the prop: abort, nothing flips.
       this.sessions.delete(sess.id);
@@ -288,12 +325,17 @@ export class InteractController {
     }
     // The figure runs the clip on its own frame clock; this machine's dt is clamped per frame. On slow frames the clip can
     // finish first: then the contact moment HAS passed (the door machine skips ahead the same way).
-    if (!playing && sess.t > 0.25 && !sess.flipped) sess.t = Math.max(sess.t, this.contactS);
-    if (!sess.flipped && sess.t >= this.contactS) {
+    if (!playing && sess.t > 0.25 && !sess.flipped) sess.t = Math.max(sess.t, sess.contactS);
+    if (!sess.flipped && sess.t >= sess.contactS) {
       sess.flipped = true;
-      this.setOn(sess.id, !this.isOn(sess.id));
+      if (sess.mode === "toggle") this.setOn(sess.id, !this.isOn(sess.id));
+      else if (sess.mode === "momentary") this.setOn(sess.id, true);
+      // "once": the clip is the whole effect, no state to flip
     }
-    if (sess.t >= this.durationS || (!playing && sess.t > 0.25)) this.sessions.delete(sess.id);
+    if (sess.t >= sess.durationS || (!playing && sess.t > 0.25)) {
+      if (sess.mode === "momentary") this.setOn(sess.id, false);
+      this.sessions.delete(sess.id);
+    }
     return ZERO_INPUT;
   }
 

@@ -6,6 +6,9 @@ palette.json
 out/*.glb
 out/*.blend
 out/*.png
+out/gate_render/
+out/world-gate.json
+out/hq-src/
 assets/polyhaven/
 assets/quaternius/
 tex_m/
@@ -47,3 +50,5 @@ out/rotation/
 
 out/bones_all.json
 assets/kenney/
+out/stall-src/
+out/stall-bridge.json

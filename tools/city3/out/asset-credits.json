@@ -1,5 +1,367 @@
 [
  {
+  "asset": "ArmChair_01",
+  "source": "https://polyhaven.com/a/ArmChair_01",
+  "license": "CC0"
+ },
+ {
+  "asset": "CashRegister_01",
+  "source": "https://polyhaven.com/a/CashRegister_01",
+  "license": "CC0"
+ },
+ {
+  "asset": "ChairCushioned",
+  "source": "https://opengameart.org/content/furniture-low-poly",
+  "license": "CC0"
+ },
+ {
+  "asset": "Kenney Furniture Kit",
+  "licence": "CC0",
+  "url": "https://kenney.nl/assets/furniture-kit",
+  "use": "Bazaar interiors"
+ },
+ {
+  "asset": "Low Poly Doors (17 doors with frames), loafbrr",
+  "licence": "CC0",
+  "url": "https://opengameart.org/content/low-poly-doors-asset",
+  "use": "Bazaar shop entrance doors (bridge_bazaar_doors.py)"
+ },
+ {
+  "asset": "Poly Haven stucco, plaster, sandstone, brick textures",
+  "licence": "CC0",
+  "url": "https://polyhaven.com",
+  "use": "Bazaar facades"
+ },
+ {
+  "asset": "Quaternius Fantasy Props MegaKit",
+  "licence": "CC0",
+  "url": "https://quaternius.com/packs/fantasypropsmegakit.html",
+  "use": "Bazaar interiors"
+ },
+ {
+  "asset": "Quaternius Furniture Pack",
+  "licence": "CC0",
+  "url": "https://opengameart.org/content/furniture-low-poly",
+  "use": "Bazaar interiors"
+ },
+ {
+  "asset": "WoodenTable_02",
+  "source": "https://polyhaven.com/a/WoodenTable_02",
+  "license": "CC0"
+ },
+ {
+  "asset": "barrel",
+  "source": "https://polyhaven.com/a/barrel_03",
+  "license": "CC0 (Foundry Wharf)"
+ },
+ {
+  "asset": "binder_notebook",
+  "source": "https://polyhaven.com/a/binder_notebook",
+  "license": "CC0"
+ },
+ {
+  "asset": "book_encyclopedia_set_01",
+  "source": "https://polyhaven.com/a/book_encyclopedia_set_01",
+  "license": "CC0"
+ },
+ {
+  "asset": "bottle_0_amber",
+  "source": "https://blendswap.com/blend/33793",
+  "license": "CC0 (uploader-declared), coldpengu"
+ },
+ {
+  "asset": "bottle_0_clear",
+  "source": "https://blendswap.com/blend/33793",
+  "license": "CC0 (uploader-declared), coldpengu"
+ },
+ {
+  "asset": "bottle_0_cobalt",
+  "source": "https://blendswap.com/blend/33793",
+  "license": "CC0 (uploader-declared), coldpengu"
+ },
+ {
+  "asset": "bottle_0_green",
+  "source": "https://blendswap.com/blend/33793",
+  "license": "CC0 (uploader-declared), coldpengu"
+ },
+ {
+  "asset": "bottle_0_wine",
+  "source": "https://blendswap.com/blend/33793",
+  "license": "CC0 (uploader-declared), coldpengu"
+ },
+ {
+  "asset": "bottle_1_amber",
+  "source": "https://blendswap.com/blend/33793",
+  "license": "CC0 (uploader-declared), coldpengu"
+ },
+ {
+  "asset": "bottle_1_clear",
+  "source": "https://blendswap.com/blend/33793",
+  "license": "CC0 (uploader-declared), coldpengu"
+ },
+ {
+  "asset": "bottle_1_cobalt",
+  "source": "https://blendswap.com/blend/33793",
+  "license": "CC0 (uploader-declared), coldpengu"
+ },
+ {
+  "asset": "bottle_1_green",
+  "source": "https://blendswap.com/blend/33793",
+  "license": "CC0 (uploader-declared), coldpengu"
+ },
+ {
+  "asset": "bottle_1_wine",
+  "source": "https://blendswap.com/blend/33793",
+  "license": "CC0 (uploader-declared), coldpengu"
+ },
+ {
+  "asset": "bottle_2_amber",
+  "source": "https://blendswap.com/blend/33793",
+  "license": "CC0 (uploader-declared), coldpengu"
+ },
+ {
+  "asset": "bottle_2_clear",
+  "source": "https://blendswap.com/blend/33793",
+  "license": "CC0 (uploader-declared), coldpengu"
+ },
+ {
+  "asset": "bottle_2_cobalt",
+  "source": "https://blendswap.com/blend/33793",
+  "license": "CC0 (uploader-declared), coldpengu"
+ },
+ {
+  "asset": "bottle_2_green",
+  "source": "https://blendswap.com/blend/33793",
+  "license": "CC0 (uploader-declared), coldpengu"
+ },
+ {
+  "asset": "bottle_2_wine",
+  "source": "https://blendswap.com/blend/33793",
+  "license": "CC0 (uploader-declared), coldpengu"
+ },
+ {
+  "asset": "bottle_3_amber",
+  "source": "https://blendswap.com/blend/33793",
+  "license": "CC0 (uploader-declared), coldpengu"
+ },
+ {
+  "asset": "bottle_3_clear",
+  "source": "https://blendswap.com/blend/33793",
+  "license": "CC0 (uploader-declared), coldpengu"
+ },
+ {
+  "asset": "bottle_3_cobalt",
+  "source": "https://blendswap.com/blend/33793",
+  "license": "CC0 (uploader-declared), coldpengu"
+ },
+ {
+  "asset": "bottle_3_green",
+  "source": "https://blendswap.com/blend/33793",
+  "license": "CC0 (uploader-declared), coldpengu"
+ },
+ {
+  "asset": "bottle_3_wine",
+  "source": "https://blendswap.com/blend/33793",
+  "license": "CC0 (uploader-declared), coldpengu"
+ },
+ {
+  "asset": "brass_goblets",
+  "source": "https://polyhaven.com/a/brass_goblets",
+  "license": "CC0"
+ },
+ {
+  "asset": "ceramic_pot",
+  "source": "https://polyhaven.com/a/ceramic_pot",
+  "license": "CC0"
+ },
+ {
+  "asset": "clock_tower_jubilee",
+  "title": "Newmarket, Suffolk, UK - Jubilee Clock Tower",
+  "author": "epipolar",
+  "source": "https://sketchfab.com/3d-models/newmarket-suffolk-uk-jubilee-clock-tower-287e999f673846b38ab67ad366ef2aee",
+  "license": "CC-BY 4.0"
+ },
+ {
+  "asset": "crate",
+  "source": "https://polyhaven.com/a/wooden_crate_01",
+  "license": "CC0 (Foundry Wharf)"
+ },
+ {
+  "asset": "desk_lamp_arm_01",
+  "source": "https://polyhaven.com/a/desk_lamp_arm_01",
+  "license": "CC0"
+ },
+ {
+  "asset": "drawer_cabinet",
+  "source": "https://polyhaven.com/a/drawer_cabinet",
+  "license": "CC0"
+ },
+ {
+  "asset": "forklift",
+  "source": "https://sketchfab.com/3d-models/low-poly-forklift-truck-81b895de490646de8c6fb1ba03099e08",
+  "license": "CC-BY 4.0, Kolos Studios (Foundry Wharf)"
+ },
+ {
+  "asset": "goods_g_barrel",
+  "source": "https://sketchfab.com/3d-models/barrel-low-poly-medieval-cc0-72b757582d034946bf5cb44226b471a5",
+  "license": "CC0"
+ },
+ {
+  "asset": "goods_g_basket",
+  "source": "https://sketchfab.com/3d-models/basket-low-poly-medieval-cc0-aef0f7e9add24013acd7c7d9867d800d",
+  "license": "CC0"
+ },
+ {
+  "asset": "goods_g_cheese",
+  "source": "https://sketchfab.com/3d-models/cheese-wheel-low-poly-medieval-cc0-c66175e51d044dfda9e6edff21d4d38a",
+  "license": "CC0"
+ },
+ {
+  "asset": "goods_g_grainsack",
+  "source": "https://sketchfab.com/3d-models/grain-sack-low-poly-medieval-cc0-7db2a14529fd4e1f9391c68337f71eac",
+  "license": "CC0"
+ },
+ {
+  "asset": "goods_g_roll",
+  "source": "https://sketchfab.com/3d-models/roll-low-poly-medieval-cc0-9cd0c6d36336456e86c2a79e968e47b6",
+  "license": "CC0"
+ },
+ {
+  "asset": "goods_g_sack",
+  "source": "https://sketchfab.com/3d-models/sack-low-poly-medieval-cc0-3deb43fe85ea43248cae8ed12837ea4e",
+  "license": "CC0"
+ },
+ {
+  "asset": "goods_lantern",
+  "source": "https://sketchfab.com/3d-models/lantern-low-poly-medieval-cc0-8a3dc887ea9d48c19ad48469ba11e753",
+  "license": "CC0"
+ },
+ {
+  "asset": "goods_metal_jug",
+  "source": "https://polyhaven.com/a/metal_jug",
+  "license": "CC0"
+ },
+ {
+  "asset": "goods_pot",
+  "source": "https://sketchfab.com/3d-models/pot-low-poly-medieval-cc0-6f619f25f5454455b9d86873160937aa",
+  "license": "CC0"
+ },
+ {
+  "asset": "goods_wooden_bucket_01",
+  "source": "https://polyhaven.com/a/wooden_bucket_01",
+  "license": "CC0"
+ },
+ {
+  "asset": "house_american_1",
+  "title": "American House",
+  "author": "AleixoAlonso",
+  "source": "https://sketchfab.com/3d-models/american-house-798ffaeadacf4e08a2665785422fb45d",
+  "license": "CC-BY 4.0"
+ },
+ {
+  "asset": "house_cozy_cottage",
+  "title": "Cozy Cottage",
+  "author": "SINNIK",
+  "source": "https://sketchfab.com/3d-models/cozy-cottage-72c05612ebbc4f5f8eac26d047d5d69c",
+  "license": "CC-BY 4.0"
+ },
+ {
+  "asset": "house_kruglov_house",
+  "title": "House of Kruglov",
+  "author": "D.U.H",
+  "source": "https://sketchfab.com/3d-models/house-of-kruglov-8310706a996044e7bc3d8dc29594e841",
+  "license": "CC-BY 4.0"
+ },
+ {
+  "asset": "house_mayflower_house",
+  "title": "House: \"May-Flower\" (Design 39)",
+  "author": "AleixoAlonso",
+  "source": "https://sketchfab.com/3d-models/house-may-flower-design-39-1ff9aaa72bc24037ac3e3e08c9a35e33",
+  "license": "CC-BY 4.0"
+ },
+ {
+  "asset": "house_medieval_rx",
+  "title": "Medieval house | Generic Textures | Game ready",
+  "author": "by__Rx",
+  "source": "https://sketchfab.com/3d-models/medieval-house-generic-textures-game-ready-3eb9e3b600264e2f99100fc43619497e",
+  "license": "CC-BY 4.0"
+ },
+ {
+  "asset": "house_residence_wsg",
+  "title": "White Silver Green Residence",
+  "author": "Francesco Coldesina",
+  "source": "https://sketchfab.com/3d-models/white-silver-green-residence-ec516ba32f03403f97954472c5d4b2cf",
+  "license": "CC-BY 4.0"
+ },
+ {
+  "asset": "house_shirakawago_house",
+  "title": "Shirakawago Village Set House 1",
+  "author": "Lokomotto",
+  "source": "https://sketchfab.com/3d-models/shirakawago-village-set-house-1-f94da738aefc4674ab2062df5c01cd43",
+  "license": "CC-BY 4.0"
+ },
+ {
+  "asset": "house_small_brick",
+  "title": "Small Brick House",
+  "author": "jimbogies",
+  "source": "https://sketchfab.com/3d-models/small-brick-house-c9ef0a360eff405682015c8813eee41d",
+  "license": "CC-BY 4.0"
+ },
+ {
+  "asset": "house_stone_cabin_1",
+  "title": "House - Stone Cabin - Modern Log Cabin 03",
+  "author": "MarMel-Bali",
+  "source": "https://sketchfab.com/3d-models/house-stone-cabin-modern-log-cabin-03-9e9195dc0a6f44b2baea0def83602dc7",
+  "license": "CC-BY 4.0"
+ },
+ {
+  "asset": "house_suburban_blue",
+  "title": "Suburban House",
+  "author": "mbuannoart",
+  "source": "https://sketchfab.com/3d-models/suburban-house-b8375c5e5e6b40639fc06492fbd95fcb",
+  "license": "CC-BY 4.0"
+ },
+ {
+  "asset": "house_suburban_bogdan",
+  "title": "Suburban House",
+  "author": "Bogdan Strielecki",
+  "source": "https://sketchfab.com/3d-models/suburban-house-efcc220c62f641d29a1480e8b221c7b3",
+  "license": "CC-BY 4.0"
+ },
+ {
+  "asset": "house_victorian_green",
+  "title": "Victorian house",
+  "author": "massive-graphisme",
+  "source": "https://sketchfab.com/3d-models/victorian-house-dbb02bf8f5ed4851b05dd97a1784a1fb",
+  "license": "CC-BY 4.0"
+ },
+ {
+  "asset": "house_zen_tea_house",
+  "title": "Zen Japanese Tea House with Go Board",
+  "author": "winters810",
+  "source": "https://sketchfab.com/3d-models/zen-japanese-tea-house-with-go-board-a1e95e5efee349a693f30eda32401aef",
+  "license": "CC-BY 4.0"
+ },
+ {
+  "asset": "house_zigurat_villa_c",
+  "title": "Modern luxury villa house building",
+  "author": "zigurat architecture studio",
+  "source": "https://sketchfab.com/3d-models/modern-luxury-villa-house-building-d8e6be2601474f7d8cb7d06f8566f01a",
+  "license": "CC-BY 4.0"
+ },
+ {
+  "asset": "house_zigurat_villa_pool",
+  "title": "Modern luxury villa house building with pool",
+  "author": "zigurat architecture studio",
+  "source": "https://sketchfab.com/3d-models/modern-luxury-villa-house-building-with-pool-0e858284939343cb994233d40a48a20a",
+  "license": "CC-BY 4.0"
+ },
+ {
+  "asset": "metal_jug",
+  "source": "https://polyhaven.com/a/metal_jug",
+  "license": "CC0"
+ },
+ {
   "asset": "packtree_a",
   "source": "https://sketchfab.com/3d-models/low-poly-forest-tree-pack-5ff5a51e74324845a4e4905f182dfb2b",
   "license": "CC-BY 4.0"
@@ -15,18 +377,93 @@
   "license": "CC-BY 4.0"
  },
  {
+  "asset": "pc_partyCupBlue_full",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupBlue_stack",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupBlue_used",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupGreen_full",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupGreen_shortStack",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupGreen_stack",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupGreen_used",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupPink_full",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupPink_used",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupRed_full",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupRed_shortStack",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupRed_used",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupYellow_full",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupYellow_shortStack",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_partyCupYellow_used",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "pc_table",
+  "source": "user-supplied upload (partycups_usdz.zip)",
+  "license": "not stated"
+ },
+ {
+  "asset": "potted_plant_02",
+  "source": "https://polyhaven.com/a/potted_plant_02",
+  "license": "CC0"
+ },
+ {
   "asset": "sk_lantern",
   "source": "https://sketchfab.com/3d-models/lantern-low-poly-medieval-cc0-8a3dc887ea9d48c19ad48469ba11e753",
-  "license": "CC0"
- },
- {
-  "asset": "sk_pot",
-  "source": "https://sketchfab.com/3d-models/pot-low-poly-medieval-cc0-6f619f25f5454455b9d86873160937aa",
-  "license": "CC0"
- },
- {
-  "asset": "sk_producecrate",
-  "source": "https://sketchfab.com/3d-models/produce-crate-low-poly-medieval-cc0-bcf35bfc9d584d65a0bc886f52a656c2",
   "license": "CC0"
  },
  {
@@ -45,114 +482,89 @@
   "license": "CC0"
  },
  {
-  "asset": "goods_g_basket",
-  "source": "https://sketchfab.com/3d-models/basket-low-poly-medieval-cc0-aef0f7e9add24013acd7c7d9867d800d",
-  "license": "CC0"
- },
- {
-  "asset": "goods_g_grainsack",
-  "source": "https://sketchfab.com/3d-models/grain-sack-low-poly-medieval-cc0-7db2a14529fd4e1f9391c68337f71eac",
-  "license": "CC0"
- },
- {
-  "asset": "goods_g_sack",
-  "source": "https://sketchfab.com/3d-models/sack-low-poly-medieval-cc0-3deb43fe85ea43248cae8ed12837ea4e",
-  "license": "CC0"
- },
- {
-  "asset": "goods_g_roll",
-  "source": "https://sketchfab.com/3d-models/roll-low-poly-medieval-cc0-9cd0c6d36336456e86c2a79e968e47b6",
-  "license": "CC0"
- },
- {
-  "asset": "goods_g_cheese",
-  "source": "https://sketchfab.com/3d-models/cheese-wheel-low-poly-medieval-cc0-c66175e51d044dfda9e6edff21d4d38a",
-  "license": "CC0"
- },
- {
-  "asset": "goods_g_barrel",
-  "source": "https://sketchfab.com/3d-models/barrel-low-poly-medieval-cc0-72b757582d034946bf5cb44226b471a5",
-  "license": "CC0"
- },
- {
-  "asset": "goods_pot",
+  "asset": "sk_pot",
   "source": "https://sketchfab.com/3d-models/pot-low-poly-medieval-cc0-6f619f25f5454455b9d86873160937aa",
   "license": "CC0"
  },
  {
-  "asset": "goods_lantern",
-  "source": "https://sketchfab.com/3d-models/lantern-low-poly-medieval-cc0-8a3dc887ea9d48c19ad48469ba11e753",
+  "asset": "sk_producecrate",
+  "source": "https://sketchfab.com/3d-models/produce-crate-low-poly-medieval-cc0-bcf35bfc9d584d65a0bc886f52a656c2",
   "license": "CC0"
  },
  {
-  "asset": "goods_wooden_bucket_01",
-  "source": "https://polyhaven.com/a/wooden_bucket_01",
-  "license": "CC0"
+  "asset": "stall_a",
+  "source": "https://sketchfab.com/3d-models/ee541c999b8a419ebc540d9461b2f693",
+  "license": "CC-BY 4.0"
  },
  {
-  "asset": "goods_metal_jug",
-  "source": "https://polyhaven.com/a/metal_jug",
-  "license": "CC0"
+  "asset": "stall_b",
+  "source": "https://sketchfab.com/3d-models/cb20f7fb78f84347a1bb3b72403c9944",
+  "license": "CC-BY 4.0"
  },
  {
-  "asset": "ArmChair_01",
-  "source": "https://polyhaven.com/a/ArmChair_01",
-  "license": "CC0"
+  "asset": "townhouse_angers_shop_1",
+  "source": "https://sketchfab.com/3d-models/ec891e10fe26403aa072173bb89861bb",
+  "license": "CC-BY 4.0"
  },
  {
-  "asset": "CashRegister_01",
-  "source": "https://polyhaven.com/a/CashRegister_01",
-  "license": "CC0"
+  "asset": "townhouse_angers_shop_2",
+  "source": "https://sketchfab.com/3d-models/bbed1d3fdae3493b8f1872c9a9e7e8d4",
+  "license": "CC-BY 4.0"
  },
  {
-  "asset": "ChairCushioned",
-  "source": "https://opengameart.org/content/furniture-low-poly",
-  "license": "CC0"
+  "asset": "townhouse_bordeaux_flat_1_corner",
+  "source": "https://sketchfab.com/3d-models/cde0ef76b4ab482bad79d29fe5fb7a88",
+  "license": "CC-BY 4.0"
  },
  {
-  "asset": "WoodenTable_02",
-  "source": "https://polyhaven.com/a/WoodenTable_02",
-  "license": "CC0"
+  "asset": "townhouse_cork_corner_shop_1",
+  "source": "https://sketchfab.com/3d-models/21818eaa4c1c402a82baf9031ebaa93a",
+  "license": "CC-BY 4.0"
  },
  {
-  "asset": "binder_notebook",
-  "source": "https://polyhaven.com/a/binder_notebook",
-  "license": "CC0"
+  "asset": "townhouse_guingamp_shop_1",
+  "source": "https://sketchfab.com/3d-models/8bf9f75a6aeb4b77b195cbc55f21edb8",
+  "license": "CC-BY 4.0"
  },
  {
-  "asset": "book_encyclopedia_set_01",
-  "source": "https://polyhaven.com/a/book_encyclopedia_set_01",
-  "license": "CC0"
+  "asset": "townhouse_mons_shop_2",
+  "source": "https://sketchfab.com/3d-models/7397096856d3452fa15ae074f460ad36",
+  "license": "CC-BY 4.0"
  },
  {
-  "asset": "brass_goblets",
-  "source": "https://polyhaven.com/a/brass_goblets",
-  "license": "CC0"
+  "asset": "townhouse_nivelles_house_1",
+  "source": "https://sketchfab.com/3d-models/592cc5891ef34ab98abdeaa8b9b1fba8",
+  "license": "CC-BY 4.0"
  },
  {
-  "asset": "ceramic_pot",
-  "source": "https://polyhaven.com/a/ceramic_pot",
-  "license": "CC0"
+  "asset": "townhouse_nivelles_house_2",
+  "source": "https://sketchfab.com/3d-models/65523e6f1e3c46d9930aa727a457cf0f",
+  "license": "CC-BY 4.0"
  },
  {
-  "asset": "desk_lamp_arm_01",
-  "source": "https://polyhaven.com/a/desk_lamp_arm_01",
-  "license": "CC0"
+  "asset": "townhouse_nivelles_house_9",
+  "source": "https://sketchfab.com/3d-models/9a6bbcb6da704592b368e29b87cac11d",
+  "license": "CC-BY 4.0"
  },
  {
-  "asset": "drawer_cabinet",
-  "source": "https://polyhaven.com/a/drawer_cabinet",
-  "license": "CC0"
+  "asset": "townhouse_park_gazebo",
+  "source": "https://sketchfab.com/3d-models/ab95dfb3816e4160989f26972c4c7c39",
+  "license": "CC-BY 4.0"
  },
  {
-  "asset": "metal_jug",
-  "source": "https://polyhaven.com/a/metal_jug",
-  "license": "CC0"
+  "asset": "townhouse_rose_arch",
+  "source": "https://sketchfab.com/3d-models/5578bdc83ed743feb5f7c775197f5fbe",
+  "license": "CC-BY 4.0"
  },
  {
-  "asset": "potted_plant_02",
-  "source": "https://polyhaven.com/a/potted_plant_02",
-  "license": "CC0"
+  "asset": "townhouse_troyes_market_hall",
+  "source": "https://sketchfab.com/3d-models/704dee7fa5e54cbc88de174ea1272b60",
+  "license": "CC-BY 4.0"
+ },
+ {
+  "asset": "townhouse_troyes_shop_7",
+  "source": "https://sketchfab.com/3d-models/8fb84880b9234a8a8cbc8b92b46e38a6",
+  "license": "CC-BY 4.0"
  },
  {
   "asset": "vintage_grandfather_clock_01",
@@ -183,407 +595,5 @@
   "asset": "wooden_crate_01",
   "source": "https://polyhaven.com/a/wooden_crate_01",
   "license": "CC0"
- },
- {
-  "asset": "bottle_0_green",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_0_amber",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_0_clear",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_0_cobalt",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_0_wine",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_1_green",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_1_amber",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_1_clear",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_1_cobalt",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_1_wine",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_2_green",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_2_amber",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_2_clear",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_2_cobalt",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_2_wine",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_3_green",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_3_amber",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_3_clear",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_3_cobalt",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "bottle_3_wine",
-  "source": "https://blendswap.com/blend/33793",
-  "license": "CC0 (uploader-declared), coldpengu"
- },
- {
-  "asset": "pc_table",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupRed_full",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupBlue_full",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupBlue_stack",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupYellow_shortStack",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupRed_used",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupBlue_used",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupYellow_used",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupPink_full",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupGreen_full",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupGreen_shortStack",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupGreen_stack",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupGreen_used",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupPink_used",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupYellow_full",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "pc_partyCupRed_shortStack",
-  "source": "user-supplied upload (partycups_usdz.zip)",
-  "license": "not stated"
- },
- {
-  "asset": "forklift",
-  "source": "https://sketchfab.com/3d-models/low-poly-forklift-truck-81b895de490646de8c6fb1ba03099e08",
-  "license": "CC-BY 4.0, Kolos Studios (Foundry Wharf)"
- },
- {
-  "asset": "barrel",
-  "source": "https://polyhaven.com/a/barrel_03",
-  "license": "CC0 (Foundry Wharf)"
- },
- {
-  "asset": "crate",
-  "source": "https://polyhaven.com/a/wooden_crate_01",
-  "license": "CC0 (Foundry Wharf)"
- },
- {
-  "asset": "Kenney Furniture Kit",
-  "licence": "CC0",
-  "url": "https://kenney.nl/assets/furniture-kit",
-  "use": "Bazaar interiors"
- },
- {
-  "asset": "Quaternius Furniture Pack",
-  "licence": "CC0",
-  "url": "https://opengameart.org/content/furniture-low-poly",
-  "use": "Bazaar interiors"
- },
- {
-  "asset": "Quaternius Fantasy Props MegaKit",
-  "licence": "CC0",
-  "url": "https://quaternius.com/packs/fantasypropsmegakit.html",
-  "use": "Bazaar interiors"
- },
- {
-  "asset": "Poly Haven stucco, plaster, sandstone, brick textures",
-  "licence": "CC0",
-  "url": "https://polyhaven.com",
-  "use": "Bazaar facades"
- },
- {
-  "asset": "Low Poly Doors (17 doors with frames), loafbrr",
-  "licence": "CC0",
-  "url": "https://opengameart.org/content/low-poly-doors-asset",
-  "use": "Bazaar shop entrance doors (bridge_bazaar_doors.py)"
- },
- {
-  "asset": "townhouse_bordeaux_flat_1_corner",
-  "source": "https://sketchfab.com/3d-models/cde0ef76b4ab482bad79d29fe5fb7a88",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "townhouse_nivelles_house_9",
-  "source": "https://sketchfab.com/3d-models/9a6bbcb6da704592b368e29b87cac11d",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "townhouse_angers_shop_2",
-  "source": "https://sketchfab.com/3d-models/bbed1d3fdae3493b8f1872c9a9e7e8d4",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "townhouse_troyes_shop_7",
-  "source": "https://sketchfab.com/3d-models/8fb84880b9234a8a8cbc8b92b46e38a6",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "townhouse_cork_corner_shop_1",
-  "source": "https://sketchfab.com/3d-models/21818eaa4c1c402a82baf9031ebaa93a",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "townhouse_mons_shop_2",
-  "source": "https://sketchfab.com/3d-models/7397096856d3452fa15ae074f460ad36",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "townhouse_nivelles_house_1",
-  "source": "https://sketchfab.com/3d-models/592cc5891ef34ab98abdeaa8b9b1fba8",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "townhouse_angers_shop_1",
-  "source": "https://sketchfab.com/3d-models/ec891e10fe26403aa072173bb89861bb",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "townhouse_nivelles_house_2",
-  "source": "https://sketchfab.com/3d-models/65523e6f1e3c46d9930aa727a457cf0f",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "townhouse_guingamp_shop_1",
-  "source": "https://sketchfab.com/3d-models/8bf9f75a6aeb4b77b195cbc55f21edb8",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "townhouse_troyes_market_hall",
-  "source": "https://sketchfab.com/3d-models/704dee7fa5e54cbc88de174ea1272b60",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "townhouse_park_gazebo",
-  "source": "https://sketchfab.com/3d-models/ab95dfb3816e4160989f26972c4c7c39",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "townhouse_rose_arch",
-  "source": "https://sketchfab.com/3d-models/5578bdc83ed743feb5f7c775197f5fbe",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "house_american_1",
-  "title": "American House",
-  "author": "AleixoAlonso",
-  "source": "https://sketchfab.com/3d-models/american-house-798ffaeadacf4e08a2665785422fb45d",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "house_stone_cabin_1",
-  "title": "House - Stone Cabin - Modern Log Cabin 03",
-  "author": "MarMel-Bali",
-  "source": "https://sketchfab.com/3d-models/house-stone-cabin-modern-log-cabin-03-9e9195dc0a6f44b2baea0def83602dc7",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "house_zigurat_villa_pool",
-  "title": "Modern luxury villa house building with pool",
-  "author": "zigurat architecture studio",
-  "source": "https://sketchfab.com/3d-models/modern-luxury-villa-house-building-with-pool-0e858284939343cb994233d40a48a20a",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "house_mayflower_house",
-  "title": "House: \"May-Flower\" (Design 39)",
-  "author": "AleixoAlonso",
-  "source": "https://sketchfab.com/3d-models/house-may-flower-design-39-1ff9aaa72bc24037ac3e3e08c9a35e33",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "house_shirakawago_house",
-  "title": "Shirakawago Village Set House 1",
-  "author": "Lokomotto",
-  "source": "https://sketchfab.com/3d-models/shirakawago-village-set-house-1-f94da738aefc4674ab2062df5c01cd43",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "house_zen_tea_house",
-  "title": "Zen Japanese Tea House with Go Board",
-  "author": "winters810",
-  "source": "https://sketchfab.com/3d-models/zen-japanese-tea-house-with-go-board-a1e95e5efee349a693f30eda32401aef",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "house_zigurat_villa_c",
-  "title": "Modern luxury villa house building",
-  "author": "zigurat architecture studio",
-  "source": "https://sketchfab.com/3d-models/modern-luxury-villa-house-building-d8e6be2601474f7d8cb7d06f8566f01a",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "clock_tower_jubilee",
-  "title": "Newmarket, Suffolk, UK - Jubilee Clock Tower",
-  "author": "epipolar",
-  "source": "https://sketchfab.com/3d-models/newmarket-suffolk-uk-jubilee-clock-tower-287e999f673846b38ab67ad366ef2aee",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "house_victorian_green",
-  "title": "Victorian house",
-  "author": "massive-graphisme",
-  "source": "https://sketchfab.com/3d-models/victorian-house-dbb02bf8f5ed4851b05dd97a1784a1fb",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "house_residence_wsg",
-  "title": "White Silver Green Residence",
-  "author": "Francesco Coldesina",
-  "source": "https://sketchfab.com/3d-models/white-silver-green-residence-ec516ba32f03403f97954472c5d4b2cf",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "house_medieval_rx",
-  "title": "Medieval house | Generic Textures | Game ready",
-  "author": "by__Rx",
-  "source": "https://sketchfab.com/3d-models/medieval-house-generic-textures-game-ready-3eb9e3b600264e2f99100fc43619497e",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "house_kruglov_house",
-  "title": "House of Kruglov",
-  "author": "D.U.H",
-  "source": "https://sketchfab.com/3d-models/house-of-kruglov-8310706a996044e7bc3d8dc29594e841",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "house_suburban_bogdan",
-  "title": "Suburban House",
-  "author": "Bogdan Strielecki",
-  "source": "https://sketchfab.com/3d-models/suburban-house-efcc220c62f641d29a1480e8b221c7b3",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "house_small_brick",
-  "title": "Small Brick House",
-  "author": "jimbogies",
-  "source": "https://sketchfab.com/3d-models/small-brick-house-c9ef0a360eff405682015c8813eee41d",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "house_cozy_cottage",
-  "title": "Cozy Cottage",
-  "author": "SINNIK",
-  "source": "https://sketchfab.com/3d-models/cozy-cottage-72c05612ebbc4f5f8eac26d047d5d69c",
-  "license": "CC-BY 4.0"
- },
- {
-  "asset": "house_suburban_blue",
-  "title": "Suburban House",
-  "author": "mbuannoart",
-  "source": "https://sketchfab.com/3d-models/suburban-house-b8375c5e5e6b40639fc06492fbd95fcb",
-  "license": "CC-BY 4.0"
  }
 ]

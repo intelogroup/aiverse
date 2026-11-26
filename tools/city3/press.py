@@ -74,7 +74,8 @@ def interior(bd,fr,W,D,GH,rnd,f,db,bw):
     add_anchor(fr,press_u-2.0,-4.6,0.55,-0.45,0.0,"stand",f); add_anchor(fr,press_u+0.4,-4.4,0,-1,0.0,"stand",f)
     for (du,dd) in ((-2.3,0.6),(-2.3,-0.4),(2.6,1.0)): put("ink_barrel",fr,press_u+du,-(6.2+dd),f,0,1)
     for (u,d) in ((press_u-2.6,8.8),(press_u-1.7,9.1),(press_u+2.4,8.6)): put("wooden_crate_01",fr,u,-d,f,0,1)
-    for (u,d) in ((press_u+3.2,4.2),(press_u+3.7,4.6)): put("paper_stack",fr,u,-d,f,0,1)
+    # Two stacks 0.5 m apart overlapped: paper_stack is 0.64 x 0.54 m. 0.9 / 0.7 m apart clears it.
+    for (u,d) in ((press_u+3.2,4.2),(press_u+4.1,4.9)): put("paper_stack",fr,u,-d,f,0,1)
     mid=(W*0.48+W-0.6)/2
     for d in (3.4,4.3): put("newspaper_line",fr,mid,-d,f+2.85,0,1)
     for i,(u,d) in enumerate(((2.6,3.6),(5.4,3.6),(2.6,6.6),(5.4,6.6))):

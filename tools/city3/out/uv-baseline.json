@@ -1,0 +1,17 @@
+{
+ "density": {
+  "LIB_bar_chair": 0.29644080857463273,
+  "LIB_cabinet_modern": 0.2284608939369738,
+  "LIB_coffee_table": 0.42572509364045424,
+  "LIB_mirror": 0.5807330680419321,
+  "LIB_pillows": 2.633044394627848,
+  "LIB_plant_pot_1": 16.89581963220384,
+  "LIB_plant_pot_4": 0.6460815583775121,
+  "LIB_side_table": 0.3517684080120118,
+  "LIB_sofa_settee": 0.124112130723805,
+  "LIB_tv": 0.1136551703905807,
+  "LIB_vase_ceramic": 3.4507998324589746
+ },
+ "note": "per-object texel density; re-pin after an intended change",
+ "source": "interior-kit.glb"
+}

@@ -302,14 +302,19 @@ describe("collusion: bazaar task sides", () => {
     // locked behind the reopened task (AIV-REJECT-REOPEN-ESCROW-001), so
     // the poster sits at 80 until it terminally closes the task. The poster
     // cancels the reopened task: that is the ONLY money movement the ring's
-    // task may ever cause, and it restores the poster exactly.
+    // task may ever cause. Fee-from-bounty (2026-11-26): the reject drew
+    // the independent critic's 2cr fee from the escrow, so the refund is
+    // 18 and the poster ends at 98 — down exactly the honest critic's fee,
+    // which is a legitimate payment to an outsider, not a ring mint.
     expect((await verify(hCritic, task.id, "reject")).status).toBe(200);
     expect(await getBalance(p.agentId)).toBe(80);
     const cancel = await app.request(`/bazaar/tasks/${task.id}/cancel`, { method: "POST", headers: auth(p.agentToken) });
     expect(cancel.status).toBe(200);
 
-    // Ring balances: exactly where they started (100 each). No payout, no fee.
-    expect(await getBalance(p.agentId)).toBe(100);
+    // Ring balances: worker and critic exactly where they started; the
+    // poster is down only the 2cr paid to the independent critic. No ring
+    // member received any payout or fee.
+    expect(await getBalance(p.agentId)).toBe(98);
     expect(await getBalance(w.agentId)).toBe(100);
     expect(await getBalance(c.agentId)).toBe(100);
     // No fee or payout events were recorded for any ring member on this task.
@@ -340,7 +345,9 @@ describe("collusion: bazaar task sides", () => {
     expect((await claim(hWorker, task1.id)).status).toBe(200);
     expect((await complete(hWorker, task1.id)).status).toBe(200);
     expect((await verify(hCritic, task1.id, "accept")).status).toBe(200);
-    expect(await getBalance(hWorker.agentId)).toBe(workerBefore + 15);
+    // Bounty 15 splits: 13 to the worker, 2 fee to the critic — the fee is
+    // paid from the bounty (2026-11-26), not minted.
+    expect(await getBalance(hWorker.agentId)).toBe(workerBefore + 13);
     expect(await getBalance(hCritic.agentId)).toBe(criticBefore + 2); // base fee, immediate verdict
 
     // Reject path: escrow stays locked + reopen; the refund is the cancel.
@@ -353,9 +360,10 @@ describe("collusion: bazaar task sides", () => {
     expect(await getBalance(hPoster.agentId)).toBe(posterBefore);
     expect((await taskRow(task2.id)).status).toBe("open");
     // Leave it canceled so it doesn't sit open for other tests' board reads.
+    // The refund is 12 − 2: the reject's fee was drawn from the escrow.
     const cancel = await app.request(`/bazaar/tasks/${task2.id}/cancel`, { method: "POST", headers: auth(hPoster.agentToken) });
     expect(cancel.status).toBe(200);
-    expect(await getBalance(hPoster.agentId)).toBe(posterBefore + 12);
+    expect(await getBalance(hPoster.agentId)).toBe(posterBefore + 10);
   });
 });
 

@@ -11,7 +11,7 @@ import { Document, NodeIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS, EXTMeshGPUInstancing, EXTMeshoptCompression } from "@gltf-transform/extensions";
 import { MeshoptDecoder, MeshoptEncoder } from "meshoptimizer";
 
-const ALLOW = /^(Tree_packtree|ls_tree|ls_path|SK_lantern|SK_med_)/;
+const ALLOW = /^(Tree_packtree|Tree_real_|ls_tree|ls_path|SK_lantern|SK_med_)/;
 const TEA = [-41, -88, -9, -69]; // same rect as build_tiles.sh --hero
 const MIN = 4;
 

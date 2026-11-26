@@ -49,7 +49,7 @@ import { HAWK_ROOM } from "@aiverse/world-sim/hawkDoor";
 import { TeaDoorLeaf, TeaDoorTicker } from "./TeaDoorLeaf";
 import { TEA_FLOORS } from "./teaBuilding";
 import { ClipCutaway, InteriorStreamer, useCity3Rooms } from "./glbInteriors";
-import { KeyLight, ShadowTagger, StageEnvironment } from "./glbStage";
+import { KeyLight, ShadowTagger, StageEnvironment, InteriorLightRig, interiorLookWanted } from "./glbStage";
 import { PostFx, postFxWanted } from "./postFx";
 import { FpsTracker, QualityDriver, TouchFpsCap } from "./glbPerf";
 import { PresentedSignal, ShellPaBanner, WalkHudPanel, WorldLoadOverlay, soundDebugSurface } from "./glbHud";
@@ -758,6 +758,9 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
           maxDistance={1100}
         />
         {perfOn || rumOn ? <PerfProbe rum={rumOn} /> : null}
+        {/* After DistrictWorld (above) so its useFrame runs after the 0.25 s theme tick and the
+            interior profile wins while the player is inside a room. Writes nothing outdoors. */}
+        <InteriorLightRig lightRef={keyLightRef} rooms={city3Rooms} enabled={interiorLookWanted(window.location.search)} posRef={botPosRef} />
       </Canvas>
       ) : null}
       {soundRef.current ? (

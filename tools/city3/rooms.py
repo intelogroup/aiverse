@@ -98,7 +98,14 @@ def build_pieces():
     piece("chair_wood",lambda fr:hero.chair(fr,0,0,0,"+d"))
     def stool(fr): cyl(0,0,0,0.62,0.04,6,"iron",top=False); cyl(0,0,0.62,0.68,0.21,8,"wood_dark")
     piece("stool_wood",stool)
-    def counter(fr): fbox(fr,-1.0,1.0,-0.45,0.45,0,1.05,"wood_dark"); fbox(fr,-1.05,1.05,-0.57,0.57,1.05,1.12,"wood")
+    def counter(fr):
+        # Body 1.96 m, top lip 1.998 m: counters sit on a 2.0 m pitch (see cafe()/shop()),
+        # so a 2.1 m lip made every adjacent pair overlap 0.10 m with COINCIDENT top faces
+        # at z=1.12 (measured: 4 coplanar face pairs, 0.456 m2 per joint -> z-fighting).
+        # The lip still overhangs the carcass by 1.9 cm per side, and neighbours leave a
+        # 2 mm seam instead of an overlap.
+        fbox(fr,-0.98,0.98,-0.45,0.45,0,1.05,"wood_dark")
+        fbox(fr,-0.999,0.999,-0.57,0.57,1.05,1.12,"wood")
     piece("counter_2m",counter)
     def shelf_b(seed):
         def f(fr):
@@ -193,7 +200,9 @@ def cafe(bd,fr,W,D,GH,rnd,f,db,bw,lounge=False):
         put("fireplace",fr,W-1.6,-cd,f,-1,0); put("floor_lamp",fr,W-1.0,-(D-1.2),f); put("table_round",fr,cu-0.4,-cd,f)
         add_interactable(fr,"radio","tea_house_radio","Radio",cu+0.06,-cd,f+0.78,1,0,cu+0.55,-cd,f,pilot=(0.158,0.099,0.192))   # at the lounge table's near edge, panel ~6 cm past it: the walker body is 0.4 m, so the stand point is >= 0.45 m off the table box, and the Interact clip's hand reaches only ~0.27 m past the hips
     put("menu_board",fr,0.32,-4.1,f,1,0); put("frames_wall",fr,0.32,-7.4,f,1,0)
-    plants(fr,W,D,f,((0.9,1.0),(W-0.9,D-1.0))); lanterns(fr,W,D,GH,max(2,int(W//6)),(3.0,7.0))
+    plants(fr,W,D,f,((W-0.9,D-1.0),)); lanterns(fr,W,D,GH,max(2,int(W//6)),(3.0,7.0))
+    # The near corner (0.9, 1.0) sat inside window booth 0 (booths run at d=1.4 from u=0), so the
+    # plant and the booth bench interpenetrated 0.25 m in every cafe. One dressed corner is enough.
 def shop(bd,fr,W,D,GH,rnd,f,db,bw):
     build_pieces(); press.build_pieces(rnd); c=_lane(db,bw); a=("shelf_goods_a","shelf_goods_b")
     for i in range(int((W-2.0)//2.0)): put(a[i%2],fr,2.0+2.0*i,-(D-0.42),f,0,1)

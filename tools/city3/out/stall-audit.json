@@ -1,0 +1,13 @@
+{
+ "glb": "../../apps/console/public/assets/world-city3.glb",
+ "stalls": 80,
+ "model_nodes": 80,
+ "procedural_positions": 0,
+ "distinct_stall_meshes": 2,
+ "mesh_instances": {
+  "STALL_A": 36,
+  "STALL_B": 44
+ },
+ "findings": [],
+ "counts": {}
+}

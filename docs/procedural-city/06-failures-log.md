@@ -233,3 +233,4 @@ The uploaded Sketchfab export splits one continuous colored surface into four ch
   Tiles can arrive with a gray placeholder before their diffuse texture.
   Wait for the real texture before binding the fill, or the canopy will
   retain the gray placeholder even after the diffuse map loads.
+- `Glb.acc_raw` returns float64. Writing its array straight into a 5126 (float32) accessor scrambled 9615 tree triangles (degenerate gate caught it). Cast with `np.ascontiguousarray(arr, "<f4")` and round-trip assert after `add_accessor` (bridge_real_trees.py `append_kit`).

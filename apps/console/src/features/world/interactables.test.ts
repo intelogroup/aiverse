@@ -9,6 +9,8 @@ import {
   INTERACT_CONTACT_S,
   INTERACT_PROMPT_RANGE,
   InteractController,
+  interactPrompt,
+  interactTiming,
   interactPose,
   type InteractChannel,
   type InteractableDef,
@@ -238,5 +240,79 @@ describe("InteractController session", () => {
     r.run();
     r.ctl.register([RADIO]);
     expect(r.ctl.isOn("tea-radio")).toBe(true);
+  });
+});
+
+describe("per-prop clips and modes", () => {
+  /** A prop whose stand pose the walker already occupies: the session performs on the first frame. */
+  const atStand = (patch: Partial<InteractableDef>) => {
+    const def: InteractableDef = { ...RADIO, id: "loft-tv", ...patch };
+    const ctl = new InteractController();
+    ctl.register([def]);
+    const ch = fakeChannel(() => 0);
+    const s = makeWalker(def.stand[0], def.floorY, def.stand[1], def.heading);
+    const flips: boolean[] = [];
+    ctl.subscribe((_id, on) => flips.push(on));
+    const frames = (max = 60 * 20) => {
+      let n = 0;
+      ctl.request(def.id, "player", ch, { x: def.stand[0], z: def.stand[1] });
+      while (ctl.sessionOf("player") && n < max) {
+        ctl.drive(s, DT, "player");
+        ctl.tick(DT);
+        n++;
+      }
+      return n;
+    };
+    return { ctl, ch, flips, frames, def };
+  };
+
+  it("falls back to Interact at 1.5 s when the prop names no clip", () => {
+    expect(interactTiming({ ...RADIO })).toEqual({ clip: INTERACT_CLIP, contactS: INTERACT_CONTACT_S, durationS: clipDef(INTERACT_CLIP)!.duration });
+  });
+
+  it("uses the prop's own clip and its 45% contact point; holdS shortens a loop", () => {
+    const t = interactTiming({ ...RADIO, clip: "Drinking" });
+    expect(t.clip).toBe("Drinking");
+    expect(t.contactS).toBeCloseTo(t.durationS * 0.45, 5);
+    expect(interactTiming({ ...RADIO, clip: "Drinking", holdS: 2 }).durationS).toBe(2);
+    // A typo must not brick a room: unknown names fall back to the generic reach.
+    expect(interactTiming({ ...RADIO, clip: "NotAClip" }).clip).toBe(INTERACT_CLIP);
+  });
+
+  it("plays the named clip and flips nothing in 'once' mode", () => {
+    const r = atStand({ clip: "PickUp", mode: "once" });
+    r.frames();
+    expect(r.ch.fired[0]).toBe("PickUp");
+    expect(r.flips).toEqual([]);
+    expect(r.ctl.isOn(r.def.id)).toBe(false);
+  });
+
+  it("a momentary prop is on at the contact moment and off when the clip ends", () => {
+    const r = atStand({ clip: "Drinking", mode: "momentary", contactS: 0.3, holdS: 1 });
+    const n = r.frames();
+    expect(n).toBeLessThan(60 * 2);
+    expect(r.flips).toEqual([true, false]);
+    expect(r.ctl.isOn(r.def.id)).toBe(false);
+  });
+
+  it("honours an authored contact moment for a toggle", () => {
+    const r = atStand({ contactS: 0.2 });
+    let at = -1;
+    let frame = 0;
+    r.ctl.request(r.def.id, "player", r.ch, { x: r.def.stand[0], z: r.def.stand[1] });
+    while (r.ctl.sessionOf("player") && frame < 600) {
+      r.ctl.drive(makeWalker(r.def.stand[0], r.def.floorY, r.def.stand[1], r.def.heading), DT, "player");
+      r.ctl.tick(DT);
+      frame++;
+      if (at < 0 && r.flips.length) at = frame * DT;
+    }
+    expect(at).toBeGreaterThanOrEqual(0.2);
+    expect(at).toBeLessThan(0.4);
+    expect(r.ctl.isOn(r.def.id)).toBe(true);
+  });
+
+  it("the prompt says what the prop is for", () => {
+    expect(interactPrompt({ ...RADIO, verb: "Watch" }, false)).toBe("Watch radio on");
+    expect(interactPrompt({ ...RADIO, mode: "once" }, false)).toBe("Inspect radio");
   });
 });

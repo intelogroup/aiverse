@@ -8,9 +8,20 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 SRC=${SRC:-$HOME/Developer/city3-downloads}
 P() { local model=$1; shift; [ -f "$SRC/$model/slim.glb" ] || python3 tools/city3/slim_textures.py "$SRC/$model/model.glb" "$SRC/$model/slim.glb"; bun tools/city3/place_house.mjs "$SRC/$model/slim.glb" "$@"; }
+# O: an opened, walk-in house (open_house.py cuts the front door leaf and measures walls, furniture and floor from the mesh into
+# $SRC/<model>/open/). Args: MODEL "OPEN_HOUSE ARGS" then place_house args; every placement of one model and yaw shares its GLB and collision.
+O() { local model=$1 oargs=$2; shift 2; local o="$SRC/$model/open"; [ -f "$o/open.glb" ] || { tools/city3/blender_lock.sh -b --python tools/city3/open_house.py -- "$SRC/$model/slim.glb" "$o" $oargs >/dev/null &&
+  python3 tools/city3/slim_textures.py "$o/open.glb" "$o/slim.glb" && mv "$o/slim.glb" "$o/open.glb"; }   # Blender repacks metal/rough maps as PNG
+  bun tools/city3/place_house.mjs "$o/open.glb" "$@" --colboxes="$o/col_local.json"; }
+AMERICAN_OPEN="--scale=1 --res=0.05 --cut=-5.0,-3.95,0.6,3.15,4.0,4.4 --clear=-5.115,-3.815,3.9,4.55"
+AMERICAN_DOOR="--scale=1 --lift=0.05 --door=front --doorx=-4.465 --doorz=4.2"
+BOGDAN_OPEN="--scale=1 --res=0.05 --cut=2.95,4.13,0.40,2.99,1.15,1.35 --clear=2.89,4.19,0.85,1.6"
+BOGDAN_DOOR="--scale=1 --lift=0.05 --door=front --doorx=3.54 --doorz=1.25"
+RESIDENCE_OPEN="--scale=0.01 --res=0.05 --cut=2.29,3.46,1.36,3.90,3.89,4.14 --clear=2.22,3.52,3.8,4.45"
+RESIDENCE_DOOR="--scale=1 --lift=0.05 --door=front --doorx=2.875 --doorz=4.04"
 
 # plot block (lots 94-100)
-P american-house     american-1     -42  108    0 --asset=american --door=none
+O american-house "$AMERICAN_OPEN" american-1 -42 108 0 --asset=american $AMERICAN_DOOR --room="Maple House"
 P stone-cabin        cabin-1        -20   84    0 --asset=cabin --simplify=0.35 --scale=0.02 --body=-7.16,7.16,-3.89,2.4 --floor=0.63 --door=front --doorx=2.8 --doorhalf=1.3 --room="Stone Cabin"
 # citadel block (lots 148-155)
 P zigurat-villa-pool villa-pool-1  86.5   98    0 --asset=villa-pool --body=-5.2,10.6,-15.9,-1.85 --floor=1.45 --door=none
@@ -35,29 +46,29 @@ P small-brick        ring-04-1       -148.0   -85.0   90 --asset=small-brick --s
 P log-cabin          ring-05-0       -145.0  -167.5   90 --asset=log-cabin --scale=1 --lift=0.05 --door=none
 P medieval-rx        ring-05-1       -145.9  -147.5   90 --asset=medieval-rx --scale=1 --lift=0.05 --door=none
 P kruglov-house      ring-10-0       -110.0   149.6  180 --asset=kruglov-house --scale=0.014 --lift=0.05 --door=none
-P suburban-bogdan    ring-10-1        -85.0   148.3  180 --asset=suburban-bogdan --scale=1 --lift=0.05 --door=none
+O suburban-bogdan "$BOGDAN_OPEN" ring-10-1 -85.0 148.3 180 --asset=suburban-bogdan $BOGDAN_DOOR --room="Willow House"
 P cozy-cottage       ring-15-0       -110.0  -151.6    0 --asset=cozy-cottage --scale=1 --lift=0.05 --door=none
 P suburban-blue      ring-15-1        -85.0  -145.9    0 --asset=suburban-blue --scale=1 --lift=0.05 --door=none
 P medieval-rx        ring-20-0        -46.2   145.9  180 --asset=medieval-rx --scale=1 --lift=0.05 --door=none
 P small-brick        ring-20-1        -23.8   148.0  180 --asset=small-brick --scale=0.03 --lift=0.05 --door=none
-P american-house     ring-25-0        -46.2  -148.2    0 --asset=american --scale=1 --lift=0.05 --door=none
+O american-house "$AMERICAN_OPEN" ring-25-0 -46.2 -148.2 0 --asset=american $AMERICAN_DOOR --room="Birch House"
 P finnish-cottage    ring-25-1        -23.8  -144.8    0 --asset=finnish-cottage --scale=2.2 --lift=0.05 --door=none
-P residence-wsg      ring-30-0         23.8   147.8  180 --asset=residence-wsg --scale=0.01 --lift=0.05 --door=none
+O residence-wsg "$RESIDENCE_OPEN" ring-30-0 23.8 147.8 180 --asset=residence-wsg $RESIDENCE_DOOR --room="Linden House"
 P kruglov-house      ring-30-1         46.2   149.6  180 --asset=kruglov-house --scale=0.014 --lift=0.05 --door=none
 # The split shell keeps the dedicated interior library off the street streaming path.
 bun tools/city3/place_house.mjs "$SRC/scandi-hawk/split/shell.glb" ring-35-0 23.8 -146.3 0 --asset=scandi-hawk --scale=0.01 --lift=0.05 --door=front --doorx=-0.875 --doorhalf=0.8 --body=-5.025,3.125,-5.286,4.214 --floor=40.5 --ceil=none '--room=Scandi Hawk'
-P american-house     ring-35-1         46.2  -148.2    0 --asset=american --scale=1 --lift=0.05 --door=none
-P suburban-bogdan    ring-40-0         85.0   148.3  180 --asset=suburban-bogdan --scale=1 --lift=0.05 --door=none
+O american-house "$AMERICAN_OPEN" ring-35-1 46.2 -148.2 0 --asset=american $AMERICAN_DOOR --room="Cedar House"
+O suburban-bogdan "$BOGDAN_OPEN" ring-40-0 85.0 148.3 180 --asset=suburban-bogdan $BOGDAN_DOOR --room="Aspen House"
 P medieval-rx        ring-40-1        110.0   145.9  180 --asset=medieval-rx --scale=1 --lift=0.05 --door=none
 P cozy-cottage       ring-45-0         85.0  -151.6    0 --asset=cozy-cottage --scale=1 --lift=0.05 --door=none
 P colonial-american  ring-45-1        110.0  -147.0    0 --asset=colonial-american --scale=1 --lift=0.05 --door=none
-P residence-wsg      ring-50-0        147.8   147.5  270 --asset=residence-wsg --scale=0.01 --lift=0.05 --door=none
+O residence-wsg "$RESIDENCE_OPEN" ring-50-0 147.8 147.5 270 --asset=residence-wsg $RESIDENCE_DOOR --room="Hazel House"
 P suburban-bogdan    ring-50-1        148.3   167.5  270 --asset=suburban-bogdan --scale=1 --lift=0.05 --door=none
 P cozy-cottage       ring-51-0        151.6    85.0  270 --asset=cozy-cottage --scale=1 --lift=0.05 --door=none
-P american-house     ring-51-1        148.2   110.0  270 --asset=american --scale=1 --lift=0.05 --door=none
+O american-house "$AMERICAN_OPEN" ring-51-1 148.2 110.0 270 --asset=american $AMERICAN_DOOR --room="Elm House"
 P victorian-green    ring-52-0        146.1    23.8  270 --asset=victorian-green --scale=7 --lift=0.05 --door=none
-P residence-wsg      ring-52-1        147.8    46.2  270 --asset=residence-wsg --scale=0.01 --lift=0.05 --door=none
+O residence-wsg "$RESIDENCE_OPEN" ring-52-1 147.8 46.2 270 --asset=residence-wsg $RESIDENCE_DOOR --room="Rowan House"
 P suburban-bogdan    ring-53-0        148.3   -46.2  270 --asset=suburban-bogdan --scale=1 --lift=0.05 --door=none
 P cozy-cottage       ring-53-1        151.6   -23.8  270 --asset=cozy-cottage --scale=1 --lift=0.05 --door=none
-P american-house     ring-54-0        148.2  -110.0  270 --asset=american --scale=1 --lift=0.05 --door=none
+O american-house "$AMERICAN_OPEN" ring-54-0 148.2 -110.0 270 --asset=american $AMERICAN_DOOR --room="Oak House"
 P victorian-green    ring-54-1        146.1   -85.0  270 --asset=victorian-green --scale=7 --lift=0.05 --door=none

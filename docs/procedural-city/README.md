@@ -30,6 +30,8 @@ re-deriving it. Written 2026-11-06 at the end of a long build; update it, don't 
 | `22-tea-house-elevator.md` | Proposed elevator mechanics, moving passenger support, dispatch, doors, lifecycle and acceptance gates |
 | `23-world-tiles.md` | Streaming the Bazaar from tiles (the default; `?tiles=0` for the one-file world): build, gates, traps, cold-start numbers, what is still open |
 | `25-placed-houses.md` | Prebuilt houses as streamed districts: houses.sh run order, far stand-ins, rooms, clearing passes, the 2026-11-24 state |
+| `28-world-glb-gates.md` | Local GLB gates (dims, placement, clips, images, UV) in one command: measured parity with the cloud gates, new traps, pinned findings |
+| `29-bazaar-stalls.md` | Replacing the bazaar's single 80-instance stall mesh with two downloaded CC-BY variants: the degenerate-triangle trap, the lantern/roof regression, the meshopt index trap, and where assets may be sourced |
 | `19-easter-eggs.md` | Thirty licensed SciFi eggs across five districts; placement manifest and future hunt integration |
 | `16-mira-resident.md` | Uploaded static character Mira: preparation, placement and source status |
 | `17-drinking-glasses.md` | Uploaded glass replacements, physical rendering, and saved bottle/shader packs |
