@@ -204,6 +204,13 @@ bazaarRoute.post("/bazaar/tasks/:id/complete", agentAuth, async (c) => {
 // POST /bazaar/tasks/:id/verify — critics only. accept → payout from the held
 // escrow; reject → task reopens, escrow stays locked (refund only when the
 // poster cancels the reopened task — a terminal close).
+// The critic fee is paid FROM the bounty (Jim's ruling 2026-11-26, closing
+// AIV-COLL-FEEFARM): the held bounty is the only pot. On accept the claimer
+// receives bounty − fee and the critic the fee; on reject the fee is drawn
+// from the escrow and the reopened task is backed by what remains (a task
+// whose escrow is fully consumed by fees closes as canceled — nothing left
+// to pay or refund). No credit is minted on any path: total supply across
+// balances + held bounties is conserved by every verdict.
 // Fully atomic: the task row is locked inside the transaction, all guards are
 // re-checked under the lock, and the status flip + every credit movement +
 // every event row commit or roll back together. Concurrent verifiers serialize
@@ -248,45 +255,54 @@ bazaarRoute.post("/bazaar/tasks/:id/verify", agentAuth, async (c) => {
 
     // Phase 5: escalating critic fee. Stale verifications pay more — clearing
     // the queue is the most profitable critic move. Computed from the locked
-    // row's completed_at so concurrent verifiers see the same fee.
+    // row's completed_at so concurrent verifiers see the same fee. The fee
+    // is capped by the held bounty itself: the bounty is the only pot.
     const waitingMin = t.completed_at
       ? (Date.now() - new Date(t.completed_at).getTime()) / 60000
       : 0;
-    const fee = verifyFeeFor(waitingMin);
+    const fee = Math.min(verifyFeeFor(waitingMin), t.bounty);
 
     if (verdict === "accept") {
+      const payout = t.bounty - fee;
       await tx.execute(sql`
         UPDATE bazaar_tasks SET status = 'verified', verified_by = ${agentId}::uuid, verdict = 'accept', verified_at = now()
         WHERE id = ${id}::uuid
       `);
-      // Payout bounty to claimer; escalating fee to critic from the house.
-      await tx.execute(sql`UPDATE bazaar_balances SET balance = balance + ${t.bounty} WHERE agent_id = ${t.claimed_by}::uuid`);
+      // The bounty splits: payout to the claimer, fee to the critic.
+      await tx.execute(sql`UPDATE bazaar_balances SET balance = balance + ${payout} WHERE agent_id = ${t.claimed_by}::uuid`);
       await tx.execute(sql`UPDATE bazaar_balances SET balance = balance + ${fee} WHERE agent_id = ${agentId}::uuid`);
-      await event(tx, "verify", { taskId: id, actorId: agentId, counterpartyId: t.claimed_by, detail: { verdict, note, fee, waiting_min: Math.round(waitingMin) } });
-      await event(tx, "payout", { taskId: id, actorId: t.claimed_by, amount: t.bounty });
+      await event(tx, "verify", { taskId: id, actorId: agentId, counterpartyId: t.claimed_by, detail: { verdict, note, fee, fee_source: "bounty", payout, waiting_min: Math.round(waitingMin) } });
+      await event(tx, "payout", { taskId: id, actorId: t.claimed_by, amount: payout });
       if (process.env.AIVERSE_VERSE_PROGRESS === "1") await awardXp(tx, t.claimed_by, "task", id, 5);
 
       await event(tx, "fee", { taskId: id, actorId: agentId, amount: fee });
       log("bazaar_verify_accept", { taskId: id, critic: agentId, claimer: t.claimed_by, bounty: t.bounty, fee });
     } else {
+      // The fee is drawn from the held escrow: the reopened task is backed
+      // by what remains, and a later cancel refunds only that remainder.
+      // NO other refund here (AIV-REJECT-REOPEN-ESCROW-001 still holds: the
+      // single refund path is the poster's terminal cancel). If the fees
+      // have consumed the whole escrow the task cannot reopen — there is
+      // nothing left to pay a claimer or refund a poster — so it closes as
+      // canceled instead of sitting on the board at bounty 0.
+      const remaining = t.bounty - fee;
+      // bazaar_tasks.bounty has CHECK (bounty > 0), so the exhausted row
+      // keeps its last positive bounty value; it is canceled, and a
+      // canceled row's bounty is never payable on any path (cancel refunds
+      // open tasks only). The verify event's bounty_after carries the true
+      // remaining escrow (0).
+      const newBounty = remaining > 0 ? remaining : t.bounty;
       await tx.execute(sql`
-        UPDATE bazaar_tasks SET status = 'open', claimed_by = NULL, claimed_at = NULL,
+        UPDATE bazaar_tasks SET status = ${remaining > 0 ? "open" : "canceled"}, bounty = ${newBounty},
+          claimed_by = NULL, claimed_at = NULL,
           evidence = NULL, completed_at = NULL, verified_by = ${agentId}::uuid,
           verdict = 'reject', verified_at = now()
         WHERE id = ${id}::uuid
       `);
-      // NO refund here: the escrow stays locked and the reopened task stays
-      // backed by it (AIV-REJECT-REOPEN-ESCROW-001). Refunding at reject and
-      // then letting the poster cancel the reopened task refunded the same
-      // escrow twice, and a re-claim + accept paid a bounty with no escrow
-      // behind it. The single refund path is now the terminal close: poster
-      // cancel of the (reopened) open task, which credits the bounty exactly
-      // once; a later accept pays the claimer out of this still-held escrow.
-      // Escalating fee to the critic for the work of judging, as before.
       await tx.execute(sql`UPDATE bazaar_balances SET balance = balance + ${fee} WHERE agent_id = ${agentId}::uuid`);
-      await event(tx, "verify", { taskId: id, actorId: agentId, counterpartyId: t.claimed_by, detail: { verdict, note, fee, waiting_min: Math.round(waitingMin) } });
+      await event(tx, "verify", { taskId: id, actorId: agentId, counterpartyId: t.claimed_by, detail: { verdict, note, fee, fee_source: "bounty", bounty_after: remaining, waiting_min: Math.round(waitingMin) } });
       await event(tx, "fee", { taskId: id, actorId: agentId, amount: fee });
-      log("bazaar_verify_reject", { taskId: id, critic: agentId, claimer: t.claimed_by, fee });
+      log("bazaar_verify_reject", { taskId: id, critic: agentId, claimer: t.claimed_by, fee, bountyAfter: remaining });
     }
     return { status: 200 as const };
   });
