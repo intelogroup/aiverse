@@ -67,6 +67,22 @@ else:
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.ops.import_scene.gltf(filepath=SRC)
 s = bpy.context.scene
+# NODE=LIB_sofa_settee isolates one asset: a library GLB stacks every LIB_ node at
+# the origin, so previewing the file as a whole renders a composite (a TV inside a
+# sofa). Keeping ancestors preserves the node's world transform.
+NODE = os.environ.get("NODE")
+if NODE:
+    root = bpy.data.objects.get(NODE)
+    if root is None:
+        print("FAIL NODE not found:", NODE); sys.exit(1)
+    keep = {root} | set(root.children_recursive)
+    p = root.parent
+    while p is not None:
+        keep.add(p)
+        p = p.parent
+    for o in list(bpy.data.objects):
+        if o not in keep:
+            bpy.data.objects.remove(o, do_unlink=True)
 # Workbench is the right engine for KTX2-textured worlds: Blender cannot decode KTX2, so
 # EEVEE would pay ~1 min/render compiling shaders for maps that never load.
 ENGINE = os.environ.get("ENGINE", "BLENDER_EEVEE").upper()

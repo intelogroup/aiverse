@@ -6,6 +6,8 @@ palette.json
 out/*.glb
 out/*.blend
 out/*.png
+out/gate_render/
+out/world-gate.json
 assets/polyhaven/
 assets/quaternius/
 tex_m/
