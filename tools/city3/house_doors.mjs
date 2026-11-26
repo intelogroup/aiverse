@@ -14,6 +14,16 @@ const MODELS = {
   "/assets/houses/suburban-bogdan.glb": { dir: "suburban-bogdan", doorx: 3.54, doorz: 1.25, hinge: "left" },
   "/assets/houses/residence-wsg.glb": { dir: "residence-wsg", doorx: 2.875, doorz: 4.04, hinge: "right" },
 };
+// Sliding pairs, keyed by lot GLB url. The leaf comes from door_leaf.mjs on the placed house GLB itself (so it is already in the lot
+// frame), into $SRC/<dir>/slide/, then the same gltf-transform optimize. door = the room door point and open = the opening's centre,
+// both in the GLB frame; width = the opening; track moves the pair along the door's +z off the leaf's own plane (the Loft's leaf is a
+// copy of a fixed shoji, so its pair runs 15 cm inside the fixed ones).
+//   cabin: door_leaf.mjs assets/houses/cabin-y90.glb 2.28,2.40,1.05,3.4,-4.06,-2.42 +x 0.48 $SRC/stone-cabin/slide --remove
+//   Loft:  door_leaf.mjs assets/houses/zen-pavilion-y270.glb 1.36,2.99,0.47,3.46,0.48,0.74 +z 0.48 $SRC/zen-tea-house/slide
+const SLIDES = {
+  "/assets/houses/cabin-y90.glb": { dir: "stone-cabin", door: [2.4, -2.8], open: [2.35, -2.8], width: 2.4, track: 0 },
+  "/assets/houses/zen-pavilion-y270.glb": { dir: "zen-tea-house", door: [-0.21, 0.74], open: [-0.205, 0.6], width: 3.1, track: -0.15 },
+};
 // Hand-surveyed doors (no leaf GLB: the console draws a slab). Scandi Hawk's is the old HawkDoor's inner jamb and threshold.
 const SURVEYED = {
   "house-ring-35-0": { x: 22.925, y: 0.53, z: -142.086, width: 1.6, height: 2.04, yaw: 0, hinge: "left" },
@@ -28,7 +38,21 @@ const shipped = new Set();
 let n = 0;
 for (const room of rooms) {
   if (SURVEYED[room.id]) { room.doorLeaf = SURVEYED[room.id]; n++; continue; }
-  const lot = districts.get(room.lot), m = lot && MODELS[lot.url];
+  const lot = districts.get(room.lot), m = lot && MODELS[lot.url], sl = lot && SLIDES[lot.url];
+  if (sl) {
+    const leaf = JSON.parse(readFileSync(`${SRC}/${sl.dir}/slide/leaf.json`, "utf8"));
+    const yaw = lot.rotationY ?? 0, [ox, oz] = lot.origin, dp = turn(sl.door, yaw);
+    if (Math.hypot(ox + dp[0] - room.door[0], oz + dp[1] - room.door[1]) > 0.02) throw new Error(`${room.id}: door frame mismatch`);
+    // the opening's centre, moved onto the leaf's plane (+ track) along the door's +z (leaf.yaw is the door frame in the GLB)
+    const t = (leaf.yaw * Math.PI) / 180, F = [Math.sin(t), Math.cos(t)];
+    const off = (F[0] * (leaf.centre[0] - sl.open[0]) + F[1] * (leaf.centre[1] - sl.open[1])) + sl.track;
+    const c = turn([sl.open[0] + F[0] * off, sl.open[1] + F[1] * off], yaw);
+    const url = `/assets/doors/${sl.dir}.glb`;
+    if (!shipped.has(url)) { copyFileSync(`${SRC}/${sl.dir}/slide/leaf.opt.glb`, `${A}/doors/${sl.dir}.glb`); shipped.add(url); }
+    room.doorLeaf = { x: r3(ox + c[0]), y: leaf.baseY, z: r3(oz + c[1]), width: sl.width, height: leaf.height, thick: leaf.thick, yaw: (leaf.yaw + yaw) % 360, leaf: url, slide: true, leafWidth: leaf.width };
+    n++;
+    continue;
+  }
   if (!m) continue;
   const leaf = JSON.parse(readFileSync(`${SRC}/${m.dir}/leaf/leaf.json`, "utf8"));
   const { floor } = JSON.parse(readFileSync(`${SRC}/${m.dir}/open/col_local.json`, "utf8"));

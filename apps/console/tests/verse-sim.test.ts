@@ -181,7 +181,7 @@ describe("planning does not block the tick", () => {
   it("every walk-in house has a shut front door blocking its doorway (the enter sweep above walks through each)", () => {
     const doors = sim.rooms.filter((r) => r.doorLeaf);
     sim.tick(3);   // let a door the sweep just used swing shut
-    expect(doors.length).toBeGreaterThanOrEqual(11);
+    expect(doors.length).toBeGreaterThanOrEqual(14);
     for (const r of doors) expect(sim.houseDoors.get(r.id)?.openness === 0 && sim.walk.has(`door:${r.id}`), r.id).toBe(true);
   });
 
