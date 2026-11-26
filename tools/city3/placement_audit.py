@@ -48,14 +48,21 @@ DEFAULT_BASELINE = f"{HERE}/out/placement-baseline.json"
 
 
 def library_dims(path):
-    """key -> (width_x, height_y, depth_z) in glTF axes, from world-space bounds."""
-    g = G.load(path)
-    world = G.world_matrices(g.doc)
+    """key -> (width_x, height_y, depth_z). `path` may be a comma-separated list.
+
+    FIRST library wins per key, matching the runtime's indexLibrary, so an override
+    library can be passed ahead of the base one and the audit judges what ships.
+    """
     out = {}
-    for name in g.names("LIB_"):
-        b = G.subtree_bounds(g.doc, world, g.node_index(name))
-        if b:
-            out[name[4:]] = tuple(float(v) for v in (b[1] - b[0]))
+    for p in path.split(","):
+        g = G.load(p)
+        world = G.world_matrices(g.doc)
+        for name in g.names("LIB_"):
+            if name[4:] in out:
+                continue
+            b = G.subtree_bounds(g.doc, world, g.node_index(name))
+            if b:
+                out[name[4:]] = tuple(float(v) for v in (b[1] - b[0]))
     return out
 
 
@@ -249,6 +256,9 @@ def main(argv):
             lib = a[6:]
         elif a.startswith("--baseline="):
             baseline_path = a[11:]
+    for j, a in enumerate(argv):
+        if a == "--lib" and j + 1 < len(argv):
+            lib = argv[j + 1]
     if update and baseline_path is None:
         baseline_path = DEFAULT_BASELINE
 

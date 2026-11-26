@@ -174,10 +174,28 @@ collision boxes and seat anchors depend on them. Verified batches:
 | `armchair_blue` | 21 | 32 tris (notched cube) | 1,200 tris (back, arms, legs) | clearly better |
 | `floor_lamp` | 11 | 36 tris | 4,000 tris | **800 tris shredded the pole** — raised until it read as a lamp |
 | `chair_wood` | 382 | 40 tris (slab back) | 256 tris, yaw −90 | proper chair in the room render |
+| `counter_2m` | 63 | 16 tris | 564 tris: plinth, carcass, panelled front, bevelled top, kick rail | clearly better; **1.998 m wide** |
+| `booth_2m` | 57 | 16 tris | 552 tris: plinth, seat + back cushions, two arms | clearly better |
+| `lantern_hang` | 440 | 28 tris | 318 tris: cord, cap, 8-sided drum, finial | clearly better |
 
-`world-city3-hq.glb` is now 4 props / 604 KB / 6,055 tris (the world is 2.65M, so the override
-adds 0.2%). Room checks against the base library: `shop-44` RMS 2.28, `shop-70` (20 chairs)
-RMS 4.16, bbox identical in both, noise floor 0.00 — the change is local to the swapped props.
+`world-city3-hq.glb` is 7 props / 649 KB / 7,489 tris. Room checks: `shop-44` bbox identical to the
+base (11.179 × 11.34 × 3.92 m), `shop-70` identical, noise floor 0.00. `placement_audit --lib
+hq,base` drops from **110 to 63 findings**: the 47 counter pairs disappear because the override is
+1.998 m on a 2.0 m pitch (the 63 that remain are the booth/plant, shelf/bookcase and barrel
+classes, which are layout fixes not yet built).
+
+The three procedural ones come from `hq_props.py` (authored at the pinned dims, front −Y), because
+every scanned candidate for them is a whole scene. Detail, not tessellation: a counter reads
+better with a plinth and panel run than with 5,000 triangles of flat box.
+
+**Trap: dims are translation-invariant, so the pin cannot see an origin.** Two of the three are
+anchored differently from a free-standing chair — the lantern hangs from its origin (height range
+−1.25..0) and the booth is wall-mounted (z −1.05..0). Forcing bottom-centre made the lantern hang
+upward (the room grew from 3.92 m to 5.17 m tall) and centring the booth left it 0.5 m off the
+wall. `fit()` now takes `anchor=bottom|top|back|front`, and the check that catches it is the
+**composed-room bbox against the base**, which is exact (0 objects differing >5 cm) rather than
+approximate. A future pin should record the min corner too, not just the size.
+
 
 **Rejected after rendering, not before:**
 
@@ -185,9 +203,8 @@ RMS 4.16, bbox identical in both, noise floor 0.00 — the change is local to th
   bookcase is empty. That is a downgrade, so it stayed out of the map.
 - Every raw scan tried for the remaining keys is a **whole scene**, not a prop:
   `int-pendant-bell` is 9 × 9 × 33 m, `int-kitchen-island` 11.6 × 8.9 m, `int-dining-scandi`
-  4.7 × 3.7 × 8.1 m. Scaling one of those into a 0.4 m lantern or a 2.1 m counter produces
-  nonsense, which is why `lantern_hang` (440), `counter_2m` (63) and `booth_2m` (57) are still
-  the box versions — they need a *single-prop* source or a generator remodel, not a rescale.
+  4.7 × 3.7 × 8.1 m. Scaling one of those into a 0.4 m lantern or a 2.1 m counter is nonsense, so
+  those three were **authored procedurally** in `hq_props.py` instead of rescaled.
 
 **Trap re-confirmed: the yaw must be baked into the mesh.** The chair came out side-on, and the
 first fix (`rotation_euler = 90°`) was a no-op because a glTF import is in QUATERNION mode — the

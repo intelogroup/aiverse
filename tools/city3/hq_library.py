@@ -123,12 +123,15 @@ def box(ob):
             Vector((max(p[i] for p in pts) for i in range(3))))
 
 
-def fit(ob, target_dims, yaw):
-    """Yaw, scale per axis to the pinned dims, then move origin to bottom centre.
+def fit(ob, target_dims, yaw, anchor="bottom"):
+    """Yaw, scale per axis to the pinned dims, then place the origin.
+
+    `anchor="top"` is for hanging props: the library's lantern origin is its ceiling
+    attachment and its height range is [-1.25, 0], so forcing min-z to 0 (the default
+    bottom-centre rule) makes it hang upward and lifts the room's bbox by 1.25 m.
 
     The yaw is baked with `mesh.transform`, not `rotation_euler`: a glTF import comes
-    in QUATERNION mode, where assigning rotation_euler writes a field nobody reads
-    (measured again here — a 90 deg chair yaw was a no-op until this changed).
+    in QUATERNION mode, where assigning rotation_euler writes a field nobody reads.
     """
     if yaw:
         ob.data.transform(Matrix.Rotation(yaw * 3.141592653589793 / 180.0, 4, "Z"))
@@ -140,7 +143,15 @@ def fit(ob, target_dims, yaw):
     bpy.context.view_layer.objects.active = ob
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
     lo, hi = box(ob)
-    ob.location = (-(lo.x + hi.x) / 2, -(lo.y + hi.y) / 2, -lo.z)
+    x = -(lo.x + hi.x) / 2
+    if anchor == "top":            # ceiling attachment: max z at 0, footprint centred
+        ob.location = (x, -(lo.y + hi.y) / 2, -hi.z)
+    elif anchor == "back":         # wall/bench: back face at y=0, base at z=0
+        ob.location = (x, -hi.y, -lo.z)
+    elif anchor == "front":        # same wall mount, authored toward -Y: min y at 0
+        ob.location = (x, -lo.y, -lo.z)
+    else:                          # free-standing: footprint centred, base at z=0
+        ob.location = (x, -(lo.y + hi.y) / 2, -lo.z)
     bpy.ops.object.transform_apply(location=True, rotation=False, scale=False)
     lo, hi = box(ob)
     return [round(float(v), 3) for v in (hi - lo)]
@@ -159,14 +170,17 @@ def main():
         if node not in pins:
             print(f"  SKIP {key}: not in {os.path.basename(PINS)}")
             continue
-        want = pins[node]
+        want = cfg.get("dims") or pins[node]
+        if cfg.get("dims"):
+            print(f"  note {key}: using explicit dims {want} (pin {pins[node]}) — "
+                  f"an intentional difference, e.g. the counter's overlap fix")
         if DRY:
             print(f"  DRY  {key:18s} {os.path.basename(cfg['src']):28s} "
                   f"budget {cfg.get('budget')}  pin {want}")
             continue
         ob = import_join(cfg["src"], cfg.get("node"))
         before, after = decimate_to(ob, cfg.get("budget"))
-        got = fit(ob, want, cfg.get("yaw", 0))
+        got = fit(ob, want, cfg.get("yaw", 0), cfg.get("anchor", "bottom"))
         slim_images(int(arg("tex", 256)))
         off = max(abs(got[i] - want[i]) / max(want[i], 1e-6) for i in range(3))
         if off > 0.005:

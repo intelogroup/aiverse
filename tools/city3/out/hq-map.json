@@ -1,25 +1,50 @@
 {
  "_note": "key: {src, budget (tris AFTER decimation), yaw (deg to face +Z)}. Budgets are sized from instance counts across the 77 layouts, not from the scan: stool_wood x126, armchair_blue x21, floor_lamp x11. Sources are local download extractions, not committed.",
- "stool_wood": {
-  "src": "/Users/kalinovdameus/Developer/city3-downloads/int-bar-stool/model.glb",
-  "budget": 600,
-  "yaw": 0
- },
  "armchair_blue": {
-  "src": "/Users/kalinovdameus/Developer/city3-downloads/int-chair-wicker/model.glb",
   "budget": 1200,
+  "src": "/Users/kalinovdameus/Developer/city3-downloads/int-chair-wicker/model.glb",
   "yaw": 0
  },
- "floor_lamp": {
-  "src": "/Users/kalinovdameus/Developer/city3-downloads/int-floor-lamp/model.glb",
-  "budget": 4000,
+ "booth_2m": {
+  "_why": "procedural (hq_props.py); 552 tris vs the 16-tri box, same 2.0 x 1.05 x 0.95 envelope; anchor back: the booth is wall-anchored (z range -1.05..0), so its back face must stay at the wall",
+  "anchor": "front",
+  "budget": 600,
+  "src": "/Users/kalinovdameus/Developer/aiverse/tools/city3/out/hq-src/booth_2m.glb",
   "yaw": 0
  },
  "chair_wood": {
   "_why": "0.44 x 0.43 x 1.05 source vs 0.40 x 0.40 x 0.95 pin; 382 instances so 256 tris. yaw -90: front view was the backrest (+90 showed the chair's back), contract front is -Y -> +Z",
-  "src": "/Users/kalinovdameus/Developer/aiverse/apps/console/public/assets/world-city3-library.glb",
-  "node": "LIB_ChairCushioned",
   "budget": 256,
+  "node": "LIB_ChairCushioned",
+  "src": "/Users/kalinovdameus/Developer/aiverse/apps/console/public/assets/world-city3-library.glb",
   "yaw": -90
+ },
+ "counter_2m": {
+  "_why": "procedural (hq_props.py); 1.998 m instead of the shipped 2.1 m lip so neighbours on the 2.0 m pitch stop overlapping 0.10 m with coincident tops",
+  "budget": 600,
+  "dims": [
+   1.998,
+   1.14,
+   1.12
+  ],
+  "src": "/Users/kalinovdameus/Developer/aiverse/tools/city3/out/hq-src/counter_2m.glb",
+  "yaw": 0
+ },
+ "floor_lamp": {
+  "budget": 4000,
+  "src": "/Users/kalinovdameus/Developer/city3-downloads/int-floor-lamp/model.glb",
+  "yaw": 0
+ },
+ "lantern_hang": {
+  "_why": "procedural (hq_props.py); 318 tris vs 28, cord + cap + 8-sided drum. yaw 0: authored front -Y like the library contract; anchor top: the library lantern origin is the ceiling attachment (height range -1.25..0)",
+  "anchor": "top",
+  "budget": 400,
+  "src": "/Users/kalinovdameus/Developer/aiverse/tools/city3/out/hq-src/lantern_hang.glb",
+  "yaw": 0
+ },
+ "stool_wood": {
+  "budget": 600,
+  "src": "/Users/kalinovdameus/Developer/city3-downloads/int-bar-stool/model.glb",
+  "yaw": 0
  }
 }

@@ -8,6 +8,7 @@ out/*.blend
 out/*.png
 out/gate_render/
 out/world-gate.json
+out/hq-src/
 assets/polyhaven/
 assets/quaternius/
 tex_m/
