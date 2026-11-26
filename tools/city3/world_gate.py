@@ -67,6 +67,8 @@ def main(argv):
         ("placement", [py, f"{HERE}/placement_audit.py"] + STRICT, None),
         ("clips", [py, f"{HERE}/clip_audit.py",
                    f"--baseline={HERE}/out/clips-baseline.json"], None),
+        ("stalls", [py, f"{HERE}/stall_audit.py", "--check",
+                    f"--baseline={HERE}/out/stall-baseline.json"], None),
     ]
     if "--fast" not in argv:
         gates.append(("images", [py, f"{HERE}/unpack_sheet.py",

@@ -1,0 +1,128 @@
+{
+ "glb": "../../apps/console/public/assets/world-city3.glb",
+ "stalls": 80,
+ "model_nodes": 80,
+ "procedural_positions": 0,
+ "distinct_stall_meshes": 2,
+ "mesh_instances": {
+  "STALL_A": 36,
+  "STALL_B": 44
+ },
+ "findings": [
+  {
+   "type": "bench_overlap",
+   "position": [
+    -53,
+    -54
+   ],
+   "bench": "SK_med_bench.008",
+   "facing": "N",
+   "overlap_m": [
+    1.08,
+    0.81
+   ],
+   "why": "a bench/crate stands inside the stall counter (pre-existing: same overlap on the pre-edit GLB)"
+  },
+  {
+   "type": "bench_overlap",
+   "position": [
+    -53,
+    54
+   ],
+   "bench": "SK_med_bench.009",
+   "facing": "S",
+   "overlap_m": [
+    1.08,
+    0.81
+   ],
+   "why": "a bench/crate stands inside the stall counter (pre-existing: same overlap on the pre-edit GLB)"
+  },
+  {
+   "type": "bench_overlap",
+   "position": [
+    -26,
+    -54
+   ],
+   "bench": "SK_med_bench.016",
+   "facing": "N",
+   "overlap_m": [
+    2.19,
+    0.83
+   ],
+   "why": "a bench/crate stands inside the stall counter (pre-existing: same overlap on the pre-edit GLB)"
+  },
+  {
+   "type": "bench_overlap",
+   "position": [
+    -26,
+    54
+   ],
+   "bench": "SK_med_bench.017",
+   "facing": "S",
+   "overlap_m": [
+    2.19,
+    0.83
+   ],
+   "why": "a bench/crate stands inside the stall counter (pre-existing: same overlap on the pre-edit GLB)"
+  },
+  {
+   "type": "bench_overlap",
+   "position": [
+    26,
+    -54
+   ],
+   "bench": "SK_med_bench.028",
+   "facing": "N",
+   "overlap_m": [
+    2.19,
+    0.83
+   ],
+   "why": "a bench/crate stands inside the stall counter (pre-existing: same overlap on the pre-edit GLB)"
+  },
+  {
+   "type": "bench_overlap",
+   "position": [
+    26,
+    54
+   ],
+   "bench": "SK_med_bench.029",
+   "facing": "S",
+   "overlap_m": [
+    2.19,
+    0.83
+   ],
+   "why": "a bench/crate stands inside the stall counter (pre-existing: same overlap on the pre-edit GLB)"
+  },
+  {
+   "type": "bench_overlap",
+   "position": [
+    53,
+    -54
+   ],
+   "bench": "SK_med_bench.036",
+   "facing": "N",
+   "overlap_m": [
+    1.08,
+    0.81
+   ],
+   "why": "a bench/crate stands inside the stall counter (pre-existing: same overlap on the pre-edit GLB)"
+  },
+  {
+   "type": "bench_overlap",
+   "position": [
+    53,
+    54
+   ],
+   "bench": "SK_med_bench.037",
+   "facing": "S",
+   "overlap_m": [
+    1.08,
+    0.81
+   ],
+   "why": "a bench/crate stands inside the stall counter (pre-existing: same overlap on the pre-edit GLB)"
+  }
+ ],
+ "counts": {
+  "bench_overlap": 8
+ }
+}

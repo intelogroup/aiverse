@@ -1,0 +1,21 @@
+{
+ "_note": "Two bazaar stall variants replacing the single 600-tri LIB_sk_med_stall mesh (80 instances, 33 of them bare procedural frames). Source: Sketchfab 'Medieval Market Stall Asset' set by Ugur Yakisik, CC-BY 4.0 -- see ASSETS.md and out/asset-credits.json. Downloads live in ~/Developer/city3-downloads/sketchfab and are not committed; rebuild with `blender -b --factory-startup --python tools/city3/stall_assets.py`. budget = triangles after decimation, sized so 40 stalls of each variant stay under ~5% of the 2.65M-tri world. height = metres, uniform scale (proportions kept). yaw = degrees to face the aisle (+Z in the glTF contract); 0 was checked on a render, not assumed. Height is set by the hanging lanterns: 136 SK_lantern nodes stand over stalls with their top at y=2.82, and the shipped stall roof was at 2.957. A 2.45 m stall put the roof at 2.65 and the lanterns poked through by 0.17 m -- measured, then raised to 2.72/2.66 (roofs 2.92/2.86).",
+ "a": {
+  "src": "/Users/kalinovdameus/Developer/city3-downloads/sketchfab/stall1of4/scene.gltf",
+  "budget": 2600,
+  "height": 2.72,
+  "yaw": 0,
+  "drop_materials": [
+   "Ground"
+  ]
+ },
+ "b": {
+  "src": "/Users/kalinovdameus/Developer/city3-downloads/sketchfab/stall4of4/scene.gltf",
+  "budget": 1700,
+  "height": 2.66,
+  "yaw": 0,
+  "drop_materials": [
+   "Ground"
+  ]
+ }
+}

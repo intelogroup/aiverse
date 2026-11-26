@@ -275,3 +275,16 @@ the source lid fitted over the rim.
   [White Plaster 02](https://polyhaven.com/a/white_plaster_02) CC0 color and normal
   maps already vendored for the Bazaar facades.
 - Clock tower island paving uses Poly Haven’s [Marble Mosaic Tiles](https://polyhaven.com/a/marble_mosaic_tiles) CC0 color and normal maps from the existing floor library.
+
+### Bazaar stalls
+
+Two market stalls replace the single low-poly stall mesh (80 instances) in the bazaar
+plaza. Both are by **Uğur Yakışık**, CC-BY 4.0, from the *Medieval Market Stall Asset*
+set; geometry is decimated (2,599 and 1,700 tris), the embedded ground plane and the
+normal/roughness maps are dropped, and base colour is capped at 256 px by
+`tools/city3/stall_assets.py`. See `docs/procedural-city/29-bazaar-stalls.md`.
+
+| variant | asset | source | licence |
+|---|---|---|---|
+| A (cloth canopy, produce trays) | Medieval Market Stall Asset Model 1/4 | https://sketchfab.com/3d-models/ee541c999b8a419ebc540d9461b2f693 | CC-BY 4.0 |
+| B (wooden counter, pottery) | Medieval Market Stall Asset 4/4 | https://sketchfab.com/3d-models/cb20f7fb78f84347a1bb3b72403c9944 | CC-BY 4.0 |
