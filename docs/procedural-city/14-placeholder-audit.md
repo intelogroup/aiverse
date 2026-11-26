@@ -114,6 +114,6 @@ Visual meshes only, run after `bridge_bazaar.py`; refuses to run twice (`extras.
 - 33 procedural stalls (flat awning sliver, box counter, floating baskets) become `SK_med_stall` nodes; their baked counter, posts and awning are removed.
 - Baked hex barrels and cuboid crate stacks beside all 80 stalls become `SK_med_crate` nodes (20 + the 33 new stalls).
 - 56 `SK_pot` ground pots dropped (goods already put pots on the tables).
-- `egg-bazaar-03` moved to the new table top (y 1.4008); the old counter top was 1.2.
+- `egg-bazaar-03` moved to the new table top (y 1.4008); the old counter top was 1.2. After the 2026-11-26 stall swap it sits on the orange crate top (y 1.285).
 - Not changed: `world-city3-collision.glb` still has the old counter boxes and pot boxes (invisible blockers), and navmesh is untouched.
 Verify by rendering fixed cameras with real textures (a small three.js page with KTX2Loader); Blender shows KTX2 as pink.
