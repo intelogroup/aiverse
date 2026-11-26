@@ -204,3 +204,17 @@ A low, chamfered stone plinth anchors the clock tower. Its outline follows a
 Blender survey of the scan at y=1.10–1.36 m and leaves at least one metre of
 clearance to the island coping. Mosaic paving covers the lower scan skirt and
 sits 2.5 cm above the existing fountain collision height. The island is visual only.
+
+## Walk-in ring and plot houses
+
+Maple, Birch, Cedar, Elm, Oak, Willow, Aspen, Linden, Hazel and Rowan use the
+original furnished models. The `O` placements in `houses.sh` run
+`open_house.py` through `blender_lock.sh` to remove the front door leaf and
+generate collision boxes for the interior. Prepare the model's `slim.glb`
+first. Use `open_house.py --doors` to inspect candidate door geometry before
+choosing the cut bounds.
+
+The placements share a visual and far GLB per model across yaws. Their
+collision files are yaw-specific. After changing a doorway or its collision
+boxes, rebake the City 3 navmesh and rebuild the tiles. The reachability sweep
+checks both `go_to` and `enter`, including that the agent passes the door line.
