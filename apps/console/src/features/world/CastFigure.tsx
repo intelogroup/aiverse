@@ -1,3 +1,4 @@
+import { APPLE_CARRY_ROTATIONS, type appleMotion } from "./appleGrip";
 import { useEffect, useMemo, useRef, type RefObject } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
@@ -110,7 +111,9 @@ export function CastFigure({
   playingClipRef,
   renderedReadyRef,
   dissolve,
+  applePose,
 }: {
+  applePose?: () => { motion: ReturnType<typeof appleMotion>; held: boolean };
   /**
    * Dissolve (dissolve.ts): when the driver supplies one (RemoteCast, for
    * server bodies), this figure's materials are cloned per figure and
@@ -179,6 +182,11 @@ export function CastFigure({
     s.scale.setScalar(bodyScale);
     return s;
   }, [gltf, bodyScale]);
+
+  const carryBones = useMemo(() => body.id === "remy" ? Object.entries(APPLE_CARRY_ROTATIONS).flatMap(([name, q]) => {
+    const bone = scene.getObjectByName(name);
+    return bone ? [{ bone, rotation: new THREE.Quaternion(...q) }] : [];
+  }) : [], [body.id, scene]);
 
   // Paint this figure in its agent color. Materials are shared across
   // clones, so every tinted material is cloned first. Body parts take the
@@ -651,7 +659,16 @@ export function CastFigure({
     }
     // The walker clamps its step to 0.1 s; a gait-driven figure's clips advance by the same clamped dt so the
     // cycle stays in step with the travel on slow frames (feet do not run ahead of the body on a hitch).
+    const prop = applePose?.();
+    const activeProp = prop?.motion && testActionRef.current?.getClip().name === prop.motion.clip ? prop.motion : null;
+    if (activeProp && testActionRef.current) {
+      testActionRef.current.paused = true;
+      testActionRef.current.time = Math.min(activeProp.time, testActionRef.current.getClip().duration);
+    }
     mixer.update(gaitOn ? Math.min(delta, 0.1) : delta);
+    if (prop?.held && !activeProp) {
+      for (const { bone, rotation } of carryBones) bone.quaternion.copy(rotation);
+    }
     if (renderedReadyRef) renderedReadyRef.current = true;
     if (playingClipRef) {
       const action = testActionRef.current;
@@ -705,6 +722,7 @@ export function CastFigure({
       }
       grp.position.y = baseY - drop;
     }
+    if (activeProp) grp.position.y = baseY - fit.lift + activeProp.ground * bodyScale;
     // Foot lock (footLock.ts), last of the leg edits: only the City 3 walker's gait path, never while a sit override,
     // a tester clip or the body controller owns the pose (their feet are not travelling over the ground).
     if (gaitOn && f && footLock.usable && footLockEnabled()) {

@@ -313,3 +313,7 @@ Sketchfab downloads, normalised by `trees_normalise.py`, rebuilt by `trees_kit.p
 | sakura_tree_01_low_poly_mode_114.glb | Sakura Tree 01 - Low Poly Model | thejogoss9 | CC Attribution | https://sketchfab.com/3d-models/147ae7d0d332456a99ec6195e9b0cd4f |
 | spruce_tree_98.glb | Spruce tree | intice184 | CC Attribution | https://sketchfab.com/3d-models/7a5db417827244d98827459bce0cc944 |
 | willow_125.glb | Willow | evolveduk | CC Attribution | https://sketchfab.com/3d-models/422de2372f3d46dfb314a0cd5da512fe |
+
+### Movable apple pilot
+
+- `apps/console/public/assets/props/market-apple.glb` — [Food Apple 01](https://polyhaven.com/a/food_apple_01) by Oliver Harries, CC0. Packed from the 1k glTF with its original textures, centred at the grip model origin and sized to 44 mm on the source rig. The runtime scales it with Remy’s cast scale.

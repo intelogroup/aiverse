@@ -67,7 +67,7 @@ beforeAll(async () => {
   const keys = await redis.keys("register:*");
   if (keys.length) await redis.del(...keys);
   const { sim } = await loadVerseSim(ASSETS);
-  service = new WorldService({ sim, maxBodies: 5, movementEnergy: true });
+  service = new WorldService({ sim, maxBodies: 5, movementEnergy: true, movableProps: true });
   const simApp = createSimServer({ service, secret: SECRET, now: () => clock });
   simHttp = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: simApp.fetch });
   const previousHunt = process.env.AIVERSE_EGG_HUNT;
@@ -1366,3 +1366,31 @@ async function waitFor(pred: () => boolean, ms = 3000) {
   while (!pred() && Date.now() < end) await new Promise((r) => setTimeout(r, 20));
   expect(pred()).toBe(true);
 }
+
+test("a fresh agent discovers and moves an apple via the published MCP and REST tools", async () => {
+  clock = Date.now();
+  const { agentId, agentToken, ownerToken } = await ownerWithAgent("AppleMover");
+  try {
+    await startVisit(ownerToken, agentId);
+    expect((await w(agentToken, "POST", "/body", { body: "remy" })).status).toBe(201);
+    const observe = async () => ((await (await w(agentToken, "GET", "/observe")).json()) as any).observation;
+    const seen = (await observe()).movableProps;
+    expect(seen.object.actions).toEqual(["grab"]);
+    const pickup = seen.surfaces.find((s: any) => s.action === "grab");
+    const receiving = seen.surfaces.find((s: any) => s.action === "place");
+    const doAct = async (id: string, action: object) => {
+      clock += 1000;
+      expect((await callMcp(agentToken, "world_act", { id, action })).isError).toBe(false);
+      expect((await settle(agentToken, id)).outcome?.ok).toBe(true);
+    };
+    await doAct("approach-apple", { type: "go_to", point: pickup.approach });
+    await doAct("grab-apple", { type: "grab", target: seen.object.id });
+    expect((await observe()).heldObjects).toEqual([seen.object.id]);
+    await doAct("carry-apple", { type: "go_to", point: receiving.approach });
+    expect((await observe()).heldObjects).toEqual([seen.object.id]);
+    await doAct("place-apple", { type: "place", target: seen.object.id, surface: receiving.id });
+    expect((await observe()).heldObjects).toEqual([]);
+    const bag = await (await app.request("/verse/inventory", { headers: json(agentToken) })).json();
+    expect(bag.items).toEqual([]);
+  } finally { service.detach(agentId); }
+});

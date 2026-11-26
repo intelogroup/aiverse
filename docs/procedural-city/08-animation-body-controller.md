@@ -32,3 +32,15 @@ Idle/Walk/Run by speed with one shared phase, Walk reversed for a backpedal, Run
 No 180° clip (2×90° ≈ 2.6 s at urgency 1.4); no walk start/stop clips; no head look-at (reflex layer = rules, not built); `embody.ts` refuses a second
 skill as "busy" (no preemption); Embody's own `face` turn (π rad/s) feeds the crowd heading gradually so small turns never trigger the clip.
 City 3 has no crowd. KayKit bodies untested with turn clips (rootMotion lookup by `Hips` suffix is assumed).
+
+## Movable apple pilot
+
+Enable `SIM_MOVABLE_PROPS=1` on the City 3 simulator. The two stands are on the plaza near the default spawn. This pilot supports Remy. Other rigs need their own measured grip and clearance sweep before they can use the apple.
+
+1. Read `observation.movableProps` through `world_observe` or `GET /world/observe`. Walk to the pickup stand's `approach`.
+2. Submit `grab {target}` through `world_act` or `POST /world/act` and wait for the act to settle.
+3. Check `heldObjects`, walk to the receiving stand, then submit `place {target,surface}`. The apple remains on the receiving stand for the rest of this simulator run.
+
+The sim reserves the apple before the approach and transfers ownership at the calibrated clip time. A stop before contact leaves the apple where it was. A stop after contact preserves the transfer. Detaching while holding returns it to the pickup stand. This prop lives in the simulator and resets on a simulator restart. Carrying it grants no inventory item, credits or XP.
+
+The client gets the current object state in the public pose stream, including on a fresh subscription. It samples `PickUp` at 59/24 seconds for contact and `PuttingDown` at 140/24 seconds for release. Measurements in the shared stand spec and console grip table use Remy's source rig dimensions. The console scales the model and stand with the cast and follows the right-hand joint. The standing and walking carry pose uses the final right-arm pose from the pickup clip. Asset credit is in `tools/city3/ASSETS.md`.

@@ -4,6 +4,7 @@
 //   [n, x_cm, y_cm, z_cm, heading_mrad, speed_cms, posture, clip?]
 // `n` is an opaque body number the sim hands out per attached body (never reused within one sim run). It is NOT the agent id: the
 // agent id never leaves the gateway. Names and body models travel separately in the roster.
+import type { AppleFrame } from "./movableProps";
 import type { AgentPose } from "./agentBody";
 import type { Posture } from "./scout";
 
@@ -58,6 +59,7 @@ export interface FramesMessage {
   b: PoseTuple[];
   gone: number[];
   teaCupHolder?: number | null;
+  apple?: AppleFrame;
 }
 
 /** Who the numbers are: display name and body model only. */
