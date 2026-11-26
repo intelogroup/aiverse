@@ -199,6 +199,48 @@ Collision and visuals were both re-imported in Blender afterwards (4,060 world m
 92 benches; 293 collision meshes) and `stall_audit` is now clean with the baseline pinned
 empty, so any future overlap fails the gate.
 
+## Browser capture: the only place the textures appear
+
+Blender renders City 3 geometry-only (106 of 429 images are KTX2 and its importer cannot
+decode them), and `harness/city.html` — the standalone three.js viewer — has no
+`KTX2Loader` either, so it is geometry-only too. **The only fully textured view of the
+world is the console app itself.** It also already exposes everything needed to frame a
+shot without walking there:
+
+| hook | where | use |
+|---|---|---|
+| `?spawn=x,z,faceX,faceZ` | `GlbWorld.tsx` `spawnFromUrl()` | drop the walker at a point, facing a target |
+| `?walk=1` | `GlbWorld.tsx` | first-person mode (WASD HUD, follow cam) |
+| `?walkDebug=1` | `CityWalker.tsx` | `window.__walk` = `{teleport, put, pitch, state, ground, script}` |
+| `harness/rooms_check.mjs` | docs harness | the pattern: chromium + SwiftShader flags, screenshot after a wait |
+| `harness/stallshots.mjs` | **added here** | the bazaar stations below, one command |
+
+```bash
+cd apps/console && ./node_modules/.bin/vite --port 5183 --strictPort &
+cd docs/procedural-city/harness
+node stallshots.mjs "http://localhost:5183/?world=city3&walk=1&walkDebug=1" /tmp/stalls
+```
+
+Four things that cost time and are worth keeping:
+
+- **Playwright's bundled browser may not be the one on disk.** It wanted build 1255; the
+  cache had 1234. `stallshots.mjs` scans `~/Library/Caches/ms-playwright` for whatever
+  executable exists (`CHROME_EXE` overrides) instead of downloading 150 MB.
+- **Screenshots time out at 30 s by default** and the world renders continuously, so
+  `page.screenshot` must pass `timeout: 180000` — otherwise it fails with
+  `page.screenshot: Timeout 30000ms exceeded` after "fonts loaded".
+- **Heading 0 is −z, not +z.** The stall at (17, 54) is only in frame at heading π. This
+  was measured, not assumed: shoot four headings, count cloth-red pixels, and the right
+  one carries ~3× the others (`h180` 3.04% vs `h0` 0.84%, `h90` 0.93%, `h270` 1.84%).
+  `stallshots.mjs` keeps that body of evidence in mind — a frame with no red is pointed
+  the wrong way.
+- **SwiftShader is slow**: roughly 2–5 minutes per screenshot at 960×600, and two
+  browser runs at once will stall each other. Run one at a time and background it.
+
+The captures land at `/tmp/bazaar_browser/final/{canopy,counter,wide,corner}.png`. They
+are the first images in this whole effort that show the stalls with their textures
+decoded, i.e. the check that Blender and `city.html` structurally could not do.
+
 ## Left open
 
 - **Textures are unverified in a browser.** Everything above is Workbench or numeric.
