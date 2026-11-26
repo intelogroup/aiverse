@@ -16,6 +16,10 @@ export interface DoorLeafSpec {
   yaw: number;
   hinge?: "left" | "right";
   leaf?: string;
+  /** A bi-parting sliding pair instead of a hinged leaf: two copies of `leaf` (each `leafWidth` wide, overlapping at the middle when
+   * `2 * leafWidth > width`) that step inward and slide apart along the wall. The controller, zone and blocker are the same. */
+  slide?: boolean;
+  leafWidth?: number;
 }
 
 export const DOOR_KEY_PREFIX = "door:";
@@ -42,6 +46,13 @@ export function doorLocal(d: DoorLeafSpec, x: number, z: number): [number, numbe
 export function doorHinge(d: DoorLeafSpec): { x: number; z: number; sign: 1 | -1 } {
   const lx = d.hinge === "right" ? d.width / 2 : -d.width / 2, c = Math.cos(rad(d)), s = Math.sin(rad(d));
   return { x: d.x + lx * c, z: d.z - lx * s, sign: d.hinge === "right" ? -1 : 1 };
+}
+
+/** A sliding pair's panels at `openness`, in the door frame from the left jamb: [x of the panel's left edge, z]. Over the first 15 %
+ * both step 7 cm inward (the right panel rides 5 cm behind the left so their overlap never z-fights), then slide one leaf width apart. */
+export function slidePanels(d: DoorLeafSpec, openness: number): [number, number][] {
+  const lw = d.leafWidth ?? d.width / 2, step = Math.min(1, openness / 0.15), apart = Math.max(0, (openness - 0.15) / 0.85) * lw;
+  return [[-apart, -0.07 * step], [d.width - lw + apart, -0.05 - 0.07 * step]];
 }
 
 type Position = { x?: number; y?: number; z?: number };

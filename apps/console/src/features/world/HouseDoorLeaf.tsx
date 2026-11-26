@@ -6,7 +6,7 @@ import { assetUrl } from "../../lib/assetUrl";
 import { boxesMesh } from "./capsuleWorld";
 import type { City3Room } from "./city3";
 import { extendGltf } from "./gltfExtensions";
-import { doorBox, doorHinge, doorKey, HouseDoor, type DoorLeafSpec } from "./houseDoor";
+import { doorBox, doorHinge, doorKey, HouseDoor, slidePanels, type DoorLeafSpec } from "./houseDoor";
 import type { WalkColliders } from "./walkColliders";
 import type { WalkFrameInfo } from "./walkOverride";
 
@@ -83,26 +83,39 @@ function HouseDoorLeaf({ room, spec, walk, frame, walking }: {
     return () => canvas.removeEventListener("pointerdown", openOnPress);
   }, [camera, gl, walking]);
 
+  const panels = [useRef<Group>(null), useRef<Group>(null)];
   useFrame((_, dt) => {
     const door = controller.current;
     if (!door || !swing.current) return;
     const walker = walking ? frame.current : null;
     door.tick(dt, walker ? [walker] : []);
-    swing.current.rotation.y = hinge.sign * door.openness * Math.PI / 2;
+    if (!spec.slide) swing.current.rotation.y = hinge.sign * door.openness * Math.PI / 2;
+    else slidePanels(spec, door.openness).forEach(([x, z], i) => panels[i]!.current?.position.set(x, 0, z));
   });
 
+  const leaf = (width: number) => spec.leaf ? (
+    <Suspense fallback={<Slab spec={spec} width={width} />}>
+      <LeafModel url={spec.leaf} />
+    </Suspense>
+  ) : <Slab spec={spec} width={width} />;
+  const yaw: [number, number, number] = [0, (spec.yaw * Math.PI) / 180, 0];
+  if (spec.slide) {
+    // a sliding pair hangs from the left jamb; `swing` is just the raycast target for click-to-open
+    const left = doorHinge({ ...spec, hinge: "left" }), lw = spec.leafWidth ?? spec.width / 2;
+    return (
+      <group position={[left.x, spec.y, left.z]} rotation={yaw}>
+        <group ref={swing} name={`${room}-front-door`}>
+          {slidePanels(spec, 0).map(([x, z], i) => <group key={i} ref={panels[i]} position={[x, 0, z]}>{leaf(lw)}</group>)}
+        </group>
+      </group>
+    );
+  }
   // The leaf is authored from its left jamb (x 0..width); a right-hinged door pivots on the other jamb, so shift it back by the width.
   const offset = spec.hinge === "right" ? -spec.width : 0;
   return (
-    <group position={[hinge.x, spec.y, hinge.z]} rotation={[0, (spec.yaw * Math.PI) / 180, 0]}>
+    <group position={[hinge.x, spec.y, hinge.z]} rotation={yaw}>
       <group ref={swing} name={`${room}-front-door`}>
-        <group position={[offset, 0, 0]}>
-          {spec.leaf ? (
-            <Suspense fallback={<Slab spec={spec} />}>
-              <LeafModel url={spec.leaf} />
-            </Suspense>
-          ) : <Slab spec={spec} />}
-        </group>
+        <group position={[offset, 0, 0]}>{leaf(spec.width)}</group>
       </group>
     </group>
   );
@@ -119,10 +132,10 @@ function LeafModel({ url }: { url: string }) {
   return <primitive object={leaf} />;
 }
 
-function Slab({ spec }: { spec: DoorLeafSpec }) {
+function Slab({ spec, width }: { spec: DoorLeafSpec; width: number }) {
   return (
-    <mesh position={[spec.width / 2, spec.height / 2, 0]} castShadow receiveShadow>
-      <boxGeometry args={[spec.width - 0.025, spec.height - 0.025, spec.thick ?? 0.075]} />
+    <mesh position={[width / 2, spec.height / 2, 0]} castShadow receiveShadow>
+      <boxGeometry args={[width - 0.025, spec.height - 0.025, spec.thick ?? 0.075]} />
       <meshStandardMaterial color="#9d7a56" roughness={0.8} />
     </mesh>
   );

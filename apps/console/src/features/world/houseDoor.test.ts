@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { doorBox, doorHinge, doorLocal, HouseDoor, type DoorLeafSpec } from "./houseDoor";
+import { doorBox, doorHinge, doorLocal, HouseDoor, slidePanels, type DoorLeafSpec } from "./houseDoor";
 import { boxesMesh, createCapsuleWorld } from "./capsuleWorld";
 
 // Scandi Hawk's surveyed door: the first spec, unchanged behaviour from the old HawkDoor.
@@ -48,4 +48,18 @@ it("the closed box stops a capsule crossing the threshold of a turned door", () 
   const world = createCapsuleWorld(() => [mesh]);
   expect(world.blocked([1, 0.5, 0], [-1, 0.5, 0], 0.4)).not.toBeNull();
   expect(world.blocked([1, 0.5, 2], [-1, 0.5, 2], 0.4)).toBeNull();
+});
+
+it("a sliding pair closes the whole opening, steps inward, then parts clear of it", () => {
+  // Stone Cabin: a 2.4 m opening, two 1.56 m panes overlapping 0.72 m at the middle
+  const cabin: DoorLeafSpec = { x: -17.2, y: 0.48, z: 86.35, width: 2.4, height: 2.775, yaw: 0, slide: true, leafWidth: 1.56 };
+  const shut = slidePanels(cabin, 0);
+  expect(shut[0]![0]).toBeCloseTo(0, 6);
+  expect(shut[1]![0]).toBeCloseTo(0.84, 6);   // right pane's left edge: its right edge sits on the right jamb
+  expect(shut[1]![1]).toBeLessThan(shut[0]![1] + 1e-9);   // rides behind the left one
+  const open = slidePanels(cabin, 1);
+  expect(open[0]![0] + 1.56).toBeCloseTo(0, 6);   // left pane wholly past the left jamb
+  expect(open[1]![0]).toBeCloseTo(2.4, 6);   // right pane wholly past the right jamb
+  expect(open.every(([, z]) => z <= -0.07 + 1e-9)).toBe(true);
+  expect(slidePanels(cabin, 0.1).every(([x], i) => x === shut[i]![0])).toBe(true);   // inward step first, no slide yet
 });
