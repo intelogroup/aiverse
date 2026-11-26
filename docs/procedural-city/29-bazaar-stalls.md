@@ -156,11 +156,43 @@ Only the two new stalls carry decodable textures under EEVEE; the other 106 imag
 the world are KTX2 and render grey. That is expected and is the reason the browser
 preview remains the final texture check.
 
+## The eight bench overlaps (fixed)
+
+The last finding from the audit was `bench_overlap 8`: half a bench standing inside a
+stall counter. Cause: `build_city.py`'s plaza-rim loop pulls each bench 3.2 m inward to
+face the square, so eight land at (|x| = 26 or 52, z = ±53.8) inside the outer stall row
+at z = ±54 — overlap **1.04 × 0.54 m**.
+
+Fixed in three places, which have to agree or the walker bumps into air:
+
+| where | what |
+|---|---|
+| `build_city.py` | de-conflicts `BENCHES` against `P["stalls"]` right after the rim loop, before the props and colliders are built from it |
+| `world-city3.glb` | 8 `SK_med_bench*` node translations, slid along x toward the square to 23.61 / 50.61 |
+| `world-city3-collision.glb` | the eight oriented boxes inside the merged `col_props` mesh, translated by the same delta |
+
+The rule is "clear the stall by 0.15 m along x, toward the square", which parks a bench in
+the gap between stalls rather than in front of a counter. Clearance after the move is
+0.15–0.31 m depending on stall variant; the collider boxes land exactly under their bench
+nodes (8/8, centres within 2 cm).
+
+Two details worth keeping:
+
+- **The bridge uses the authored 1.55 × 0.90 m stall envelope, not the measured mesh.**
+  Measured halves are 1.39 or 1.50 depending on variant, which put the shipped result
+  0.15 m away from what a regeneration would produce. Same constants in both places.
+- **`rewrite_accessor` has the same meshopt flaw as `rewrite_indices`.** It always writes
+  an `EXT_meshopt_compression` block, and `col_props`' position view is plain float32, so
+  the first attempt produced a collision GLB that Blender rejected with
+  `KeyError: 'buffer'` — the second time this trap bit in two commits. `write_positions`
+  now branches, exactly like `set_indices`.
+
+Collision and visuals were both re-imported in Blender afterwards (4,060 world meshes,
+92 benches; 293 collision meshes) and `stall_audit` is now clean with the baseline pinned
+empty, so any future overlap fails the gate.
+
 ## Left open
 
-- **The 8 bench overlaps.** Half a bench sits inside the counter at eight positions
-  (overlap 1.04 × 0.54 m). Identical on the pre-edit GLB, so this work did not introduce
-  it; fixing it means changing the generator's `BENCHES` list.
 - **Textures are unverified in a browser.** Everything above is Workbench or numeric.
   The stalls use 256 px PNG/JPEG base colour while the rest of the world is KTX2, so the
   Vercel preview is where that reads correctly or not.
