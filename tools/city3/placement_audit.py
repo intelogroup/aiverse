@@ -43,7 +43,11 @@ import glb as G  # noqa: E402
 ROOT = os.path.abspath(f"{HERE}/../..")
 DEFAULT_INDEX = f"{HERE}/out/interiors/index.json"
 DEFAULT_LAYOUTS = f"{HERE}/out/interiors"
-DEFAULT_LIB = f"{ROOT}/apps/console/public/assets/world-city3-library.glb"
+BASE_LIB = f"{ROOT}/apps/console/public/assets/world-city3-library.glb"
+HQ_LIB = f"{ROOT}/apps/console/public/assets/world-city3-hq.glb"
+# Judge what ships: the HQ override is indexed first (first-wins), exactly as the
+# runtime does, so the audit measures the geometry the player actually sees.
+DEFAULT_LIB = f"{HQ_LIB},{BASE_LIB}" if os.path.exists(HQ_LIB) else BASE_LIB
 DEFAULT_BASELINE = f"{HERE}/out/placement-baseline.json"
 
 
@@ -156,6 +160,9 @@ def audit_room(room, props, dims, wall, pen, room_id=None):
                                    detail=f"{a['key']} twice at y={a['y0']:.2f}"))
                 continue
             if abs(a["y0"] - b["y0"]) > 0.02:            # different support level
+                continue
+            # A rug or mat is a floor covering, not an obstacle: furniture stands on it.
+            if min(a["y1"] - a["y0"], b["y1"] - b["y0"]) <= 0.06:
                 continue
             depth = sat_depth((a["x"], a["z"], a["hx"], a["hz"], a["rot"]),
                               (b["x"], b["z"], b["hx"], b["hz"], b["rot"]))

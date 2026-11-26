@@ -227,18 +227,40 @@ NODE=LIB_floor_lamp ENGINE=BLENDER_WORKBENCH blender -b --factory-startup \
 
 
 
-The counter (47), booth/plant (16) and paper-stack (1) classes are fixed at source above; the
-following remain and are pinned in `out/placement-baseline.json`:
+## Closing the remaining findings: a layout bridge, not a rebuild
 
-- `shelf_goods_a/b x wooden_bookshelf_worn` 0.39 m (16 pairs) — the shop template puts shelving
-  at `D-0.42` while the library template puts bookcases at `D-0.62`; a room that gets both
-  overlaps. Needs a template decision, not a nudge.
-- `potted_plant_02 x shelf_bottles_*` (13 pairs) — the far cafe plant at `(W-0.9, D-1.0)` meets
-  the shelving run along the back wall.
-- `press_desk/machine x ink_barrel` (6), `books_c x vintage_grandfather_clock_01` (2),
-  `tea_table x rug_6x4` (2), `brass_goblets x tea_service` (1).
-- 18 unmapped triangles in `LIB_cabinet_modern` (decimation artifacts, under the 1% threshold).
-- No browser/KTX2 gate on this box: texture review still needs the three.js harness.
+The 63 findings left after the HQ overrides were pure layout classes (a lone bookcase
+buried in the workshop's shelf run, cafe plants inside the back-wall shelving, ink barrels
+standing in desks, paper stacks 0.5 m apart). Their source fixes live in `rooms.py` /
+`press.py`, but those only reach the shipped JSONs on a generator run this box cannot do
+(no Poly Haven sources). `bridge_layout_props.py` applies the same decisions to the
+committed layouts:
+
+- a plant never pushes a counter: the collision victim is the prop with the **smaller
+  footprint**, and if both are fixtures the layout is left alone;
+- the victim moves to the nearest free spot from a ring search (0.1 m steps, 8 directions,
+  2 m limit) instead of being guessed, and is dropped only if nothing fits;
+- 53 moves across 30 rooms, **0 drops**; the diff is 30 files × one line; idempotent.
+
+`placement_audit` also learned the rule the tea room exposed: **a rug is a floor covering,
+not an obstacle** (furniture stands on it), so pairs where either prop is ≤ 6 cm tall are
+not collisions.
+
+Result with the shipping library set (`hq` indexed first, exactly as the runtime does):
+
+| state | findings |
+|---|---|
+| before any fix | 110 (47 counters, 16 booth/plant, 16 shelf/bookcase, 13 plant/shelving, …) |
+| + HQ override (counter 1.998 m) | 63 |
+| + layout bridge, + rug rule | **0** |
+
+`check_anchors.py` still reports 77 rooms / 1,064 anchors / **0 issues** after the moves, and
+the placement baseline is now empty (0 pinned), so `world_gate.py --strict` is green.
+
+Still open, and not placement: 18 unmapped triangles in `LIB_cabinet_modern` (decimation
+artifacts, under the 1% threshold), and no browser/KTX2 gate on this box — texture review
+still needs the three.js harness.
+
 
 ## Run
 
