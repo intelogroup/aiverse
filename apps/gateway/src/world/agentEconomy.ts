@@ -328,6 +328,14 @@ export async function claimStipends(agentId: string, now: Date = new Date()): Pr
     if (!first) {
       await tx.insert(verseProgressEvents).values({
         agentId, kind: "stipend", source: "first-login", credits: rates.firstCredits, xp: rates.firstXp,
+        // Stamp the claim's own logical time, not the DB wall clock: the
+        // day comparison below reads this createdAt back, and the two
+        // must share one clock. In production `now` IS the wall clock,
+        // so this changes nothing live — but a caller passing an
+        // explicit `now` (the test suite) otherwise gets rows stamped
+        // with real time and day math that only agrees on the calendar
+        // day the fixture was written (the Nov 25 time-bomb).
+        createdAt: now,
       }).onConflictDoNothing();
       return { granted: "first_login", credits: rates.firstCredits, xp: rates.firstXp } as StipendClaim;
     }
@@ -338,6 +346,7 @@ export async function claimStipends(agentId: string, now: Date = new Date()): Pr
     }
     const [daily] = await tx.insert(verseProgressEvents).values({
       agentId, kind: "stipend", source: `daily:${day}`, credits: rates.dailyCredits, xp: rates.dailyXp,
+      createdAt: now,
     }).onConflictDoNothing().returning({ source: verseProgressEvents.source });
     return daily
       ? { granted: "daily", credits: rates.dailyCredits, xp: rates.dailyXp } as StipendClaim
