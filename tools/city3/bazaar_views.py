@@ -34,7 +34,7 @@ for a in _pos:                       # first positional may be the GLB, then the
         OUT = a
 WANT = [a for a in ARGS if a in ("aisle", "hero", "close", "top", "lanterns")]
 if not WANT:
-    WANT = ["hero", "close", "pair", "aisle", "quad", "wide", "lanterns"]
+    WANT = ["hero", "close", "aisle", "top", "lanterns"]
 ENGINE = os.environ.get("ENGINE", "BLENDER_EEVEE")
 RESX = int(os.environ.get("RESX", 1280))
 RESY = int(os.environ.get("RESY", 800))
@@ -51,9 +51,9 @@ VIEWS = {
     "aisle": ((13.4, 1.65, 50.0), (20.0, 1.35, 22.0), 24),
     # 3.6 m three-quarter on one stall: the composition the probe liked best (stall 56
     # of 209 cells at 3.5-5.8 m, no tree or pot inside 3 m)
-    "hero": ((13.9, 1.65, 57.4), (17.3, 1.15, 53.9), 32),
+    "hero": ((12.9, 1.70, 59.4), (17.2, 1.50, 54.0), 28),
     # right at one stall's counter
-    "close": ((15.4, 1.55, 57.2), (17.3, 1.00, 53.8), 30),
+    "close": ((15.2, 1.60, 56.4), (17.2, 1.30, 53.9), 26),
     # above the south-east quadrant, 45 degrees down
     "top": ((26.0, 46.0, 42.0), (26.01, 0.0, 42.01), 50),
     # looking up at the lanterns under a canopy
@@ -111,6 +111,41 @@ def probe(views):
                   f"  hit y {min(ys):4.2f}..{max(ys):4.2f}")
 
 
+def heights(views, cols=96, rows=27):
+    """Print each camera's frame as a height-band map: the text version of a picture.
+
+    This is what caught the framing fault in the first `hero` camera: aimed at 1.15 m
+    from 1.65 m, a 2.72 m stall at 3.6 m needs 19.4 deg of half-FOV and got pitched
+    down 8 deg, so the canopy was clipped at row 0 and the bottom two thirds of the
+    frame was empty plaza. Reading the map shows that in one screen; a thumbnail shows
+    'a grey stall somewhere'.
+    """
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    s = bpy.context.scene
+    band = [(2.30, "^"), (1.55, "="), (0.75, "-"), (0.30, ".")]
+    for name in views:
+        loc, tgt, lens = VIEWS[name]
+        cam = to_blender(*loc)
+        rot = (to_blender(*tgt) - cam).to_track_quat("-Z", "Y")
+        hx = 18.0 / lens
+        hy = hx * (RESY / RESX)
+        right, up, fwd = rot @ Vector((1, 0, 0)), rot @ Vector((0, 1, 0)), rot @ Vector((0, 0, -1))
+        print(f"\n=== {name}  {loc} -> {tgt}  {lens}mm")
+        for j in range(rows):
+            line = ""
+            for i in range(cols):
+                u = (i / (cols - 1) * 2 - 1) * hx
+                v = (1 - j / (rows - 1) * 2) * hy
+                hit, p, _n, _i, _o, _m = s.ray_cast(depsgraph, cam,
+                                                    (fwd + right * u + up * v).normalized())
+                if not hit:
+                    line += " "
+                    continue
+                line += next((ch for lim, ch in band if p.z > lim), ",")
+            print(f"{j:3d} {line}")
+    print("    legend  ^ >2.3 m   = 1.55-2.3   - 0.75-1.55   . 0.3-0.75   , ground   space sky")
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -118,6 +153,10 @@ def main():
     if "--probe" in ARGS or os.environ.get("PROBE"):
         bpy.context.view_layer.update()
         probe(WANT)
+        return
+    if "--heights" in ARGS or os.environ.get("HEIGHTS"):
+        bpy.context.view_layer.update()
+        heights(WANT)
         return
     s = bpy.context.scene
     s.render.engine = ENGINE

@@ -120,26 +120,34 @@ deletes triangles should use it instead of calling `rewrite_indices` directly.
 
 ## Looking at them: camera placement
 
-`bazaar_views.py` holds the cameras, and `--probe` prints what each one actually frames
-so a view can be judged without trusting a thumbnail:
+`bazaar_views.py` holds the cameras; `--probe` prints what each one actually frames and
+`--heights` prints the frame as a height-band map, so a view can be judged without
+trusting a thumbnail:
 
 ```bash
 blender -b --python tools/city3/bazaar_views.py -- /tmp/shots hero close
-blender -b --python tools/city3/bazaar_views.py -- --probe          # hit census
+blender -b --python tools/city3/bazaar_views.py -- --probe          # what is in frame
+blender -b --python tools/city3/bazaar_views.py -- --heights        # frame as a map
 ```
 
 ![Bazaar stall views](previews/29-stall-views.png)
 
 | view | camera (glTF m) | lens | what the ray census says |
 |---|---|---|---|
-| `hero` | (13.9, 1.65, 57.4) → (17.3, 1.15, 53.9) | 32 mm | stall fills 56 of 209 cells at 3.5–5.8 m, no tree inside 4 m |
-| `close` | (15.4, 1.55, 57.2) → (17.3, 1.0, 53.8) | 30 mm | stall fills 68 cells at 2.6–4.8 m: counter and goods |
+| `hero` | (12.9, 1.70, 59.4) → (17.2, 1.50, 54.0) | 28 mm | stall 21 cells at 5.7–7.9 m inside the plaza and tree rows: context |
+| `close` | (15.2, 1.60, 56.4) → (17.2, 1.30, 53.9) | 26 mm | stall **81 of 209 cells** at 1.9–4.2 m: canopy, posts, counter, goods |
 | `aisle` | (13.4, 1.65, 50.0) → (20.0, 1.35, 22.0) | 24 mm | one stall at 8–9.5 m down the row; 61 cells of tree canopy |
 | `top` | (26, 46, 42) straight down | 50 mm | three stalls at 45.8–46.4 m, seen past the canopies |
 | `lanterns` | (17, 1.3, 55.4) → (17, 2.7, 53.4) | 22 mm | stall fills 129 cells at 1.3–2.6 m: canopy underside |
 
-Two things the search for these cameras settled, both measured rather than assumed:
+Three things the search for these cameras settled, all measured rather than assumed:
 
+- **A stall does not fit at 3.6 m with a 32 mm lens.** Aimed at 1.15 m from an eye height
+  of 1.65 m the camera pitches down 8°, and a 2.72 m stall then needs ~27° of half-FOV
+  against the 19.4° it has: the canopy clipped at the top edge and the bottom two thirds
+  of the frame was empty plaza. `--heights` shows it instantly — row 0 opens with `^`
+  (geometry above 2.3 m touching the frame edge). Re-aimed at 1.50 m and pulled back to
+  6.9 m, the sky sits above the canopy and nothing clips.
 - **No ground-level wide shot of the bazaar is possible.** The plaza is treed on the
   same 9 m grid as the stalls; every camera further than ~6 m from a stall ends up
   mostly tree canopy (the `wide` and `pair` candidates at 2.4–3.2 m eye height came back
