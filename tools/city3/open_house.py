@@ -1,7 +1,7 @@
 """Open a solid-placed prebuilt house: cut its front door leaf out and derive interior collision (walls + furniture) from the mesh itself.
 
   tools/city3/blender_lock.sh -b --python tools/city3/open_house.py -- SRC.glb OUT_DIR --scale=1 [--cut=x0,x1,y0,y1,z0,z1[;...]]
-      [--clear=x0,x1,z0,z1[;...]] [--floor=auto|metres] [--res=0.1] [--slices=0.35,1.0,1.6] [--selftest]
+      [--clear=x0,x1,z0,z1[;...]] [--doors] [--floor=auto|metres] [--res=0.1] [--slices=0.35,1.0,1.6] [--selftest]
 
 Frame (what place_house.mjs builds, before its floor sink): metres, footprint centre at x/z 0, lowest point y 0, glTF axes (y up, +z = front).
 Writes OUT_DIR/open.glb (the model in that frame at scale 1, door leaves removed: feed it to place_house.mjs with --scale=1) and
@@ -126,6 +126,36 @@ for o in meshes:
     o.data.transform(__import__("mathutils").Matrix.Translation(shift))
     o.data.update()
 W, D, H = (hi - lo)
+if "doors" in opt:   # list door-leaf-sized loose parts (thin, 1.7-2.6 m tall, 0.6-1.6 m wide) with a padded --cut box each, front-most first
+    found = []
+    for o in meshes:
+        bm = bmesh.new()
+        bm.from_mesh(o.data)
+        seen = set()
+        for v in bm.verts:
+            if v.index in seen:
+                continue
+            part, stack = [], [v]
+            seen.add(v.index)
+            while stack:
+                u = stack.pop()
+                part.append(u.co.copy())
+                for e in u.link_edges:
+                    w = e.other_vert(u)
+                    if w.index not in seen:
+                        seen.add(w.index)
+                        stack.append(w)
+            p = np.array([(c.x, c.z, -c.y) for c in part])   # glTF frame
+            a, b = p.min(0), p.max(0)
+            dx, dy, dz = b - a
+            if 1.7 <= dy <= 2.6 and a[1] < 1.5 and min(dx, dz) < 0.2 and 0.6 <= max(dx, dz) <= 1.6:
+                found.append((b[2], o.name, a, b))
+        bm.free()
+    for _, name, a, b in sorted(found, key=lambda t: -t[0]):
+        print(f"DOOR {name}: x {a[0]:.2f}..{b[0]:.2f} y {a[1]:.2f}..{b[1]:.2f} z {a[2]:.2f}..{b[2]:.2f}  "
+              f"--cut={a[0]-.05:.2f},{b[0]+.05:.2f},{a[1]-.05:.2f},{b[1]+.05:.2f},{a[2]-.1:.2f},{b[2]+.1:.2f}")
+    print(f"FRAME {W:.2f} x {D:.2f} x {H:.2f} m, {len(found)} door candidates")
+    sys.exit(0)
 # --cut boxes are given in the glTF frame (x, y up, z front); Blender is (x, -z, y)
 removed = 0
 for spec in [c for c in opt.get("cut", "").split(";") if c]:
