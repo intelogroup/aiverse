@@ -20,6 +20,8 @@ import { loadVerseSim, NAVMESH_BIN } from "@aiverse/world-sim/node/loadWorld";
 import type { VerseSim } from "@aiverse/world-sim/verseSim";
 import { WorldService } from "@aiverse/world-sim/worldService";
 import { roomAt, type ScoutAction, type ScoutOutcome } from "@aiverse/world-sim/scout";
+import { createCapsuleWorld } from "@aiverse/world-sim/capsuleWorld";
+import { DOOR_KEY_PREFIX } from "@aiverse/world-sim/houseDoor";
 
 const ASSETS = new URL("../public/assets/", import.meta.url).pathname;
 const steps = JSON.parse(readFileSync(new URL("./fixtures/verse-sim-scenarios.json", import.meta.url), "utf8")) as { name: string; action: ScoutAction; maxS: number }[];
@@ -176,6 +178,13 @@ describe("planning does not block the tick", () => {
     expect(fails).toEqual([]);
   }, 300_000);
 
+  it("every walk-in house has a shut front door blocking its doorway (the enter sweep above walks through each)", () => {
+    const doors = sim.rooms.filter((r) => r.doorLeaf);
+    sim.tick(3);   // let a door the sweep just used swing shut
+    expect(doors.length).toBeGreaterThanOrEqual(11);
+    for (const r of doors) expect(sim.houseDoors.get(r.id)?.openness === 0 && sim.walk.has(`door:${r.id}`), r.id).toBe(true);
+  });
+
   it("opens Scandi Hawk's blocked door for an agent entering and exiting", async () => {
     const id = "hawk-walker";
     const roomId = "house-ring-35-0";
@@ -321,9 +330,12 @@ describe("planning does not block the tick", () => {
       expect(roomAt(sim.rooms, hawk.snap.x, hawk.snap.z)?.id).toBe("house-ring-35-0");
       const porch = await run(sim, id, { type: "go_to", place: "hawk-lane-neighbor-porch" }, 75);
       expect(porch.out?.status).toBe("arrived");
-      // the American house next door is walk-in (Cedar House): sunk to the hero-shop floor (slab + lift + 0.28) and its doorway open
+      // the American house next door is walk-in (Cedar House): sunk to the hero-shop floor (slab + lift + 0.28); its doorway is open
+      // behind a swinging door, which blocks while shut and is ignored by route planning
       expect(porch.snap.y).toBeCloseTo(0.53, 2);
-      expect(sim.world.blocked([41.74, 0.53, -143], [41.74, 0.53, -144.6], 0.4)).toBeNull();
+      expect(sim.walk.has("door:house-ring-35-1")).toBe(true);
+      expect(sim.world.blocked([41.74, 0.53, -143], [41.74, 0.53, -144.6], 0.4)).not.toBeNull();
+      expect(createCapsuleWorld(() => sim.walk.listWithoutPrefix(DOOR_KEY_PREFIX)).blocked([41.74, 0.53, -143], [41.74, 0.53, -144.6], 0.4)).toBeNull();
       const commons = await run(sim, id, { type: "go_to", place: "hawk-lane-commons" }, 75);
       expect(commons.out?.status).toBe("arrived");
       const sit = await run(sim, id, { type: "sit", sittable: "hawk-lane-bench" }, 20);
