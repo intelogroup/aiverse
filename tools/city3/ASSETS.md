@@ -288,3 +288,28 @@ normal/roughness maps are dropped, and base colour is capped at 256 px by
 |---|---|---|---|
 | A (cloth canopy, produce trays) | Medieval Market Stall Asset Model 1/4 | https://sketchfab.com/3d-models/ee541c999b8a419ebc540d9461b2f693 | CC-BY 4.0 |
 | B (wooden counter, pottery) | Medieval Market Stall Asset 4/4 | https://sketchfab.com/3d-models/cb20f7fb78f84347a1bb3b72403c9944 | CC-BY 4.0 |
+
+## Real trees (tools/city3/assets/trees, bridge_real_trees.py)
+
+Sketchfab downloads, normalised by `trees_normalise.py`, rebuilt by `trees_kit.py` (base colour only, KTX2 512 px). CC-BY: credit kept here.
+
+| Kit file | Title | Author | License | Source |
+|---|---|---|---|---|
+| birch_11.glb | Birch | augro77 | CC Attribution | https://sketchfab.com/3d-models/b9b77a4301d4412db5182340972468e0 |
+| birch_tree_4.glb | Birch tree | evolveduk | CC Attribution | https://sketchfab.com/3d-models/aa842dffd9654d33b8b91170ce83c172 |
+| elm_tree_25.glb | Elm tree | evolveduk | CC Attribution | https://sketchfab.com/3d-models/f36443d3e59946bfa38b3f5cb90ea5fa |
+| elm_tree_29.glb | Elm Tree | mhuang97 | CC Attribution | https://sketchfab.com/3d-models/cf70c356a8a54df8a007ec74be0241ab |
+| fir_tree_99.glb | Fir tree | intice184 | CC Attribution | https://sketchfab.com/3d-models/0965de5def1342cd8b8b1a0fa5643e27 |
+| japanese_cherry_tree_low_pol_13.glb | Japanese Cherry Tree (low-Poly) | Sereib | CC Attribution | https://sketchfab.com/3d-models/7c9e7c4e971f4953b06faf300cbb1209 |
+| japanese_cherry_tree_medium__14.glb | Japanese Cherry Tree (medium-Poly) | Sereib | CC Attribution | https://sketchfab.com/3d-models/e0306a4402b44fa08f55aa58518dcb9c |
+| larch_tree_101.glb | Larch tree | intice184 | CC Attribution | https://sketchfab.com/3d-models/d027dae8c92544d79b946edcea98deca |
+| oak_tree_66.glb | Oak tree | greg-l | CC Attribution | https://sketchfab.com/3d-models/3dc59560f2d24345bdbe65c44636453b |
+| poplar_tree_hight_texture_lo_106.glb | POPLAR TREE - HIGHT TEXTURE LOW-POLY MODEL | evseevdaniil0011 | CC Attribution | https://sketchfab.com/3d-models/ec7c1d301bbc43dca5fe5f0650148d13 |
+| realistic_hd_blue_jacaranda__40.glb | Realistic HD Blue jacaranda (21/40) | PlantCatalog | CC Attribution | https://sketchfab.com/3d-models/be7c522d859a4ba4b28b64dc2715b976 |
+| realistic_hd_blue_jacaranda__41.glb | Realistic HD Blue jacaranda (6/40) | PlantCatalog | CC Attribution | https://sketchfab.com/3d-models/f2c237c1669f4af1bd32ff6986942946 |
+| realistic_hd_blue_jacaranda__44.glb | Realistic HD Blue jacaranda (26/40) | PlantCatalog | CC Attribution | https://sketchfab.com/3d-models/ed24ef4783964f62b161d765b0955375 |
+| realistic_hd_blue_jacaranda__46.glb | Realistic HD Blue jacaranda (11/40) | PlantCatalog | CC Attribution | https://sketchfab.com/3d-models/9c3af078d6c54ed4818ac11fec5b34b1 |
+| sakura_121.glb | Sakura | CubeModeller | CC Attribution | https://sketchfab.com/3d-models/1c11b84612a247d59af523ef86c96d52 |
+| sakura_tree_01_low_poly_mode_114.glb | Sakura Tree 01 - Low Poly Model | thejogoss9 | CC Attribution | https://sketchfab.com/3d-models/147ae7d0d332456a99ec6195e9b0cd4f |
+| spruce_tree_98.glb | Spruce tree | intice184 | CC Attribution | https://sketchfab.com/3d-models/7a5db417827244d98827459bce0cc944 |
+| willow_125.glb | Willow | evolveduk | CC Attribution | https://sketchfab.com/3d-models/422de2372f3d46dfb314a0cd5da512fe |
