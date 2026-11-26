@@ -184,6 +184,11 @@ hq,base` drops from **110 to 63 findings**: the 47 counter pairs disappear becau
 1.998 m on a 2.0 m pitch (the 63 that remain are the booth/plant, shelf/bookcase and barrel
 classes, which are layout fixes not yet built).
 
+![Prop replacements: shipped library vs override](previews/28-hq-props.png)
+
+![The same rooms with and without the override](previews/28-hq-rooms.png)
+
+
 The three procedural ones come from `hq_props.py` (authored at the pinned dims, front −Y), because
 every scanned candidate for them is a whole scene. Detail, not tessellation: a counter reads
 better with a plinth and panel run than with 5,000 triangles of flat box.
