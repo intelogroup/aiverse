@@ -19,6 +19,7 @@
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@gltf-transform/cli": "^4.5.1",
     "@gltf-transform/core": "^4.5.1",
     "@gltf-transform/extensions": "^4.5.1",
     "@gltf-transform/functions": "^4.5.1",

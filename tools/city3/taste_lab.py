@@ -9,7 +9,7 @@ materials, the light, and the furniture. Everything is metric: the room is 7.2 x
 The source textures are Poly Haven CC0 sets under ~/Developer/city3-downloads/polyhaven-tex (2k).
 """
 import bpy, glob, math, os, sys
-from mathutils import Vector
+from mathutils import Euler, Matrix, Vector
 
 TEX = os.path.expanduser("~/Developer/city3-downloads/polyhaven-tex")
 SF = os.path.expanduser("~/Developer/city3-downloads/sketchfab")
@@ -156,10 +156,21 @@ def decorate():
         c = plane(f"curtain_{sx}", 0.85, 2.35, (sx * (W / 2 - 0.62), -D / 2 + 0.16, 1.42), (math.radians(90), 0, 0), cur_mat, uv_scale=0.9)
         c.rotation_euler = (math.radians(90), math.radians(sx * 4), 0)
 
+    # the last blank surface gets real content (defect 6): an authored abstract print,
+    # muted to the room palette; flat fallback only if the file is missing
+    art_path = os.path.expanduser(os.environ.get(
+        "TASTE_ART", "~/Developer/city3-downloads/art/abstract_loft_01.png"))
     canvas = bpy.data.materials.new("art_canvas")
     canvas.use_nodes = True
-    canvas.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.55, 0.47, 0.40, 1)
-    canvas.node_tree.nodes["Principled BSDF"].inputs["Roughness"].default_value = 0.85
+    nt_c = canvas.node_tree
+    _cb = nt_c.nodes["Principled BSDF"]
+    _cb.inputs["Roughness"].default_value = 0.85
+    if os.path.exists(art_path):
+        _tx = nt_c.nodes.new("ShaderNodeTexImage")
+        _tx.image = bpy.data.images.load(art_path, check_existing=True)
+        nt_c.links.new(_tx.outputs["Color"], _cb.inputs["Base Color"])
+    else:
+        _cb.inputs["Base Color"].default_value = (0.55, 0.47, 0.40, 1)
     frame = bpy.data.materials.new("art_frame")
     frame.use_nodes = True
     frame.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.06, 0.06, 0.06, 1)
@@ -214,27 +225,77 @@ def decorate():
 
 
 def import_gltf(path, target_width, loc, rot_z=0.0, name="sofa"):
+    """Import furniture fitted per-axis to its placed bbox, floor-anchored at loc[2].
+
+    The Sketchfab sources arrive with embedded node rotations the importer does not flatten:
+    measured 2026-11-25, the L-sectional stood 2.6 m tall through the floor (MEASURE dz=2.600,
+    floor_z=-1.227) because the scale was computed against axes the model's own nodes rotate away.
+    So: right a tipped import first, scale the longest horizontal axis to target_width, shrink
+    further if seat+back height or depth exceeds sane caps, then measure the bbox AFTER scale and
+    rotation and recentre on it - the floor lands on loc[2] by construction, whatever the source
+    rotates. tools/city3/taste_lab.py -- --measure prints the placed extents for verification.
+    """
     before = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=path)
     new = [o for o in bpy.data.objects if o not in before and o.type == "MESH"]
     if not new:
         return None
-    pts = [o.matrix_world @ Vector(c) for o in new for c in o.bound_box]
-    lo = Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts)))
-    hi = Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
-    s = target_width / max(hi.x - lo.x, hi.y - lo.y)
-    # a sectional scaled by its widest span would stand 1.6 m tall; clamp to furniture height instead
-    if (hi.z - lo.z) * s > 1.05:
-        s = 1.05 / max(hi.z - lo.z, 1e-6)
     root = bpy.data.objects.new(name, None)
     bpy.context.scene.collection.objects.link(root)
     for o in new:
+        # re-parent WITHOUT dropping the world transform: `o.parent = root` alone leaves
+        # matrix_parent_inverse at identity, so the placed piece uses local-space semantics
+        # (measured 2026-11-25: the sofa rendered upright-but-unrotated and 0.17 m through
+        # the back wall; the original tipped-through-floor bug is the same trap)
+        mw = o.matrix_world.copy()
         o.parent = root
+        o.matrix_parent_inverse = root.matrix_world.inverted()
+        o.matrix_basis = mw
+
+    def bbox():
+        bpy.context.view_layer.update()
+        pts = [o.matrix_world @ Vector(c) for o in root.children if o.type == "MESH" for c in o.bound_box]
+        lo = Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts)))
+        hi = Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
+        return lo, hi
+
+    # raw bbox read straight off the fresh import - matrix_world is reliable pre-transform;
+    # post-transform reads lag the depsgraph (measured: three placement passes all read stale)
+    lo, hi = bbox()
+    dx, dy, dz = hi.x - lo.x, hi.y - lo.y, hi.z - lo.z
+    # a genuinely tipped import: vertical extent largest overall AND > 1.6 m (no piece of this
+    # kit stands taller than a wardrobe); plain tall furniture (plants, tables) must not fire
+    rx = math.radians(90.0) if (dz > max(dx, dy) and dz > 1.6) else 0.0
+    s = target_width / max(dx, dy)
+    if dz * s > 1.05:
+        s = 1.05 / dz          # seat + back height
+    if min(dx, dy) * s > 2.4:
+        s = 2.4 / min(dx, dy)  # full L-section bbox cap (the chaise arm belongs); catches runaways
     root.scale = (s, s, s)
-    bpy.context.view_layer.update()
-    pts = [root.matrix_world @ Vector((0, 0, 0))]
-    root.location = (loc[0] - ((lo.x + hi.x) / 2) * s, loc[1] - ((lo.y + hi.y) / 2) * s, loc[2] - lo.z * s)
-    root.rotation_euler = (0, 0, rot_z)
+    root.rotation_euler = (rx, 0.0, rot_z)
+    # analytic placement: transform the raw corners by R.S once - no depsgraph reads anywhere.
+    # world = T . R . S . basis (parent_inverse is identity), so the placed box is exact.
+    M0 = Euler((rx, 0.0, rot_z), "XYZ").to_matrix() @ Matrix.Diagonal((s, s, s))
+    corners = [Vector((x, y, z)) for x in (lo.x, hi.x) for y in (lo.y, hi.y) for z in (lo.z, hi.z)]
+    placed = [M0 @ c for c in corners]
+    plo = Vector((min(p.x for p in placed), min(p.y for p in placed), min(p.z for p in placed)))
+    phi = Vector((max(p.x for p in placed), max(p.y for p in placed), max(p.z for p in placed)))
+    print(f"RAW {name}: lo=({lo.x:.3f},{lo.y:.3f},{lo.z:.3f}) hi=({hi.x:.3f},{hi.y:.3f},{hi.z:.3f})")
+    print(f"FIT {name}: {phi.x - plo.x:.2f} x {phi.y - plo.y:.2f} x {phi.z - plo.z:.2f} m (s={s:.4f})")
+    root.location = (loc[0] - (plo.x + phi.x) / 2, loc[1] - (plo.y + phi.y) / 2, loc[2] - plo.z)
+    print(f"PLACE {name}: placed_center=({(plo.x + phi.x) / 2:.3f},{(plo.y + phi.y) / 2:.3f},{(plo.z + phi.z) / 2:.3f})"
+          f" -> location=({root.location.x:.3f},{root.location.y:.3f},{root.location.z:.3f})")
+    # wall clamp, analytic on the same corners (2 cm air; a sofa may kiss the wall, not sink
+    # 0.17 m into it - which is exactly what the stale-read placement did)
+    idx = {"x": 0, "y": 1}
+    for axis, half in (("x", W / 2), ("y", D / 2)):
+        i = idx[axis]
+        hi_v = phi[i] + root.location[i]
+        lo_v = plo[i] + root.location[i]
+        if hi_v > half - 0.02:
+            root.location[i] -= hi_v - (half - 0.02)
+        if lo_v < -half + 0.02:
+            root.location[i] += (-half + 0.02) - lo_v
     return root
 
 
@@ -257,18 +318,45 @@ def main():
     decorate()
 
     # furniture: the high-poly modern sofa set, a coffee table, plant, mirror, tv
+    placed = {}
     sofa_src = o.get("--sofa") or (glob.glob(os.path.expanduser("~/Developer/city3-downloads/sketchfab/sofa_modern_a/**/*.gltf"), recursive=True) + [None])[0]
     if sofa_src:
-        import_gltf(sofa_src, 2.6, (W / 2 - 1.35, 1.05, 0.0), rot_z=math.radians(-90), name="sofa")
+        root = import_gltf(sofa_src, 2.4, (W / 2 - 1.35, 1.05, 0.0), rot_z=math.radians(-90), name="sofa")
+        if root:
+            placed["sofa"] = root   # the gltf itself carries a node named "sofa"; measure must use the placed root
     kit = os.path.expanduser("~/Developer/city3-downloads/polyhaven-models")
     for key, src_id, w, loc, rz in (
-            ("coffee_table", "coffee_table_round_01", 1.05, (W / 2 - 2.0, 0.6, 0), 0),
+            ("coffee_table", "coffee_table_round_01", 1.05, (0.75, -0.85, 0), 0),
             ("plant", "potted_plant_04", 0.6, (-W / 2 + 0.7, -D / 2 + 0.75, 0), 0),
             
             ("side_table", "side_table_01", 0.5, (W / 2 - 0.6, 2.0, 0), 0)):
         src = (glob.glob(os.path.join(kit, src_id, "*.gltf")) + [None])[0]
         if src:
-            import_gltf(src, w, loc, rot_z=rz, name=key)
+            root = import_gltf(src, w, loc, rot_z=rz, name=key)
+            if root:
+                placed[key] = root
+
+    # --measure: print the placed furniture's real-world footprint, no render (per-axis-fit evidence)
+    if "--measure" in argv:
+        bpy.context.view_layer.update()   # location is assigned last in import_gltf; force settled matrices
+        for name_, root in placed.items():
+            # world composed from authoritative properties (T.R.S.basis) - matrix_world reads
+            # lag the depsgraph for freshly re-parented nodes, the properties do not
+            M = (Matrix.Translation(root.location) @ Euler(root.rotation_euler).to_matrix().to_4x4()
+                 @ Matrix.Diagonal(root.scale).to_4x4())
+            pts, stack = [], [root]
+            while stack:
+                ob = stack.pop()
+                stack += list(ob.children)
+                if ob.type == "MESH":
+                    m = M @ ob.matrix_basis
+                    pts += [m @ Vector(c) for c in ob.bound_box]
+            lo = Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts)))
+            hi = Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
+            print(f"MEASURE {name_}: dx={hi.x - lo.x:.3f} dy={hi.y - lo.y:.3f} dz={hi.z - lo.z:.3f} "
+                  f"floor_z={lo.z:.3f} at ({root.location.x:.3f},{root.location.y:.3f}) "
+                  f"bbox lo=({lo.x:.3f},{lo.y:.3f}) hi=({hi.x:.3f},{hi.y:.3f})")
+        return
 
     # lighting: sky through the glazing, sun raking in, soft fill from the room's open side
     sc = bpy.context.scene
@@ -320,6 +408,12 @@ def main():
     if "--windowview" in argv:
         cam.location = Vector((-W / 2 + 0.9, D / 2 - 0.7, 1.45))
         cam.rotation_euler = (Vector((0, -D / 2, 1.0)) - cam.location).to_track_quat("-Z", "Y").to_euler()
+    if "--detail" in argv:
+        # sofa-group close-up: the second judging angle of the pair (rounds of the taste lab)
+        cam_data.lens = 30
+        cam_data.shift_y = 0.0
+        cam.location = Vector((0.2, 2.3, 1.2))
+        cam.rotation_euler = (Vector((2.3, 0.5, 0.55)) - cam.location).to_track_quat("-Z", "Y").to_euler()
     sc.camera = cam
 
     sc.render.engine = "CYCLES"
