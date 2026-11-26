@@ -23,6 +23,7 @@ cp <repo>/docs/procedural-city/harness/* .
 | `ts_resolve.mjs` | Node loader hook: extensionless relative imports resolve to `.ts` (footLock.ts -> grounding.ts). `node --experimental-strip-types --import ./ts_resolve.mjs gait_full.mjs ...` |
 | `gait_probe.html` | Filmstrip of 7 gait phases, side view, red floor line, lowest vertex per frame. Copy into `apps/console/`, serve with vite, `/gait_probe.html?body=summer&mode=before&v=1.3` (`&ik=1` = with the foot lock) (`&idle=Idle` for the old clip) |
 | `walkshots.cjs` | Real console City 3 walker: follow-cam screenshot sequences of idle/walk/run/strafe/backward (`NODE_PATH=/opt/node22/lib/node_modules node walkshots.cjs <vite port> <outdir> [phase,...]`) |
+| `stallshots.mjs` | Real console, bazaar stalls **with textures** (the only path that decodes the world's KTX2 images): teleports the walker via `?walkDebug=1` and shoots canopy/counter/wide/corner stations. Run `node stallshots.mjs "http://localhost:5183/?world=city3&walk=1&walkDebug=1" /tmp/stalls` after `vite --port 5183`; it picks whatever Chromium exists in `~/Library/Caches/ms-playwright`. Heading PI faces +z |
 
 Inspect a GLB's JSON in Python:
 ```python

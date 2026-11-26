@@ -1,0 +1,198 @@
+{
+ "world": [
+  {
+   "bench": "SK_med_bench.008",
+   "old_x": -52,
+   "new_x": -50.606,
+   "z": 53.8,
+   "stall": "SK_med_stall.003",
+   "stall_x": -53,
+   "dx_before": 1,
+   "dx_after": 2.394,
+   "required": 2.234
+  },
+  {
+   "bench": "SK_med_bench.009",
+   "old_x": -52,
+   "new_x": -50.606,
+   "z": -53.8,
+   "stall": "SK_med_stall.011",
+   "stall_x": -53,
+   "dx_before": 1,
+   "dx_after": 2.394,
+   "required": 2.234
+  },
+  {
+   "bench": "SK_med_bench.016",
+   "old_x": -26,
+   "new_x": -23.606,
+   "z": 53.8,
+   "stall": "SK_med_stall",
+   "stall_x": -26,
+   "dx_before": 0,
+   "dx_after": 2.394,
+   "required": 2.343
+  },
+  {
+   "bench": "SK_med_bench.017",
+   "old_x": -26,
+   "new_x": -23.606,
+   "z": -53.8,
+   "stall": "SK_med_stall.007",
+   "stall_x": -26,
+   "dx_before": 0,
+   "dx_after": 2.394,
+   "required": 2.343
+  },
+  {
+   "bench": "SK_med_bench.028",
+   "old_x": 26,
+   "new_x": 23.606,
+   "z": 53.8,
+   "stall": "SK_med_stall_BazaarPass_47",
+   "stall_x": 26,
+   "dx_before": 0,
+   "dx_after": 2.394,
+   "required": 2.343
+  },
+  {
+   "bench": "SK_med_bench.029",
+   "old_x": 26,
+   "new_x": 23.606,
+   "z": -53.8,
+   "stall": "SK_med_stall_BazaarFix_26_-54",
+   "stall_x": 26,
+   "dx_before": 0,
+   "dx_after": 2.394,
+   "required": 2.343
+  },
+  {
+   "bench": "SK_med_bench.036",
+   "old_x": 52,
+   "new_x": 50.606,
+   "z": 53.8,
+   "stall": "SK_med_stall_BazaarFix_53_54",
+   "stall_x": 53,
+   "dx_before": 1,
+   "dx_after": 2.394,
+   "required": 2.234
+  },
+  {
+   "bench": "SK_med_bench.037",
+   "old_x": 52,
+   "new_x": 50.606,
+   "z": -53.8,
+   "stall": "SK_med_stall.020",
+   "stall_x": 53,
+   "dx_before": 1,
+   "dx_after": 2.394,
+   "required": 2.234
+  }
+ ],
+ "collision": [
+  {
+   "bench": "SK_med_bench.008",
+   "old_x": -52,
+   "new_x": -50.606,
+   "z": 53.8,
+   "stall": "SK_med_stall.003",
+   "stall_x": -53,
+   "dx_before": 1,
+   "dx_after": 2.394,
+   "required": 2.234,
+   "collider_verts": 8,
+   "shift": 1.394
+  },
+  {
+   "bench": "SK_med_bench.009",
+   "old_x": -52,
+   "new_x": -50.606,
+   "z": -53.8,
+   "stall": "SK_med_stall.011",
+   "stall_x": -53,
+   "dx_before": 1,
+   "dx_after": 2.394,
+   "required": 2.234,
+   "collider_verts": 8,
+   "shift": 1.394
+  },
+  {
+   "bench": "SK_med_bench.016",
+   "old_x": -26,
+   "new_x": -23.606,
+   "z": 53.8,
+   "stall": "SK_med_stall",
+   "stall_x": -26,
+   "dx_before": 0,
+   "dx_after": 2.394,
+   "required": 2.343,
+   "collider_verts": 8,
+   "shift": 2.394
+  },
+  {
+   "bench": "SK_med_bench.017",
+   "old_x": -26,
+   "new_x": -23.606,
+   "z": -53.8,
+   "stall": "SK_med_stall.007",
+   "stall_x": -26,
+   "dx_before": 0,
+   "dx_after": 2.394,
+   "required": 2.343,
+   "collider_verts": 8,
+   "shift": 2.394
+  },
+  {
+   "bench": "SK_med_bench.028",
+   "old_x": 26,
+   "new_x": 23.606,
+   "z": 53.8,
+   "stall": "SK_med_stall_BazaarPass_47",
+   "stall_x": 26,
+   "dx_before": 0,
+   "dx_after": 2.394,
+   "required": 2.343,
+   "collider_verts": 8,
+   "shift": -2.394
+  },
+  {
+   "bench": "SK_med_bench.029",
+   "old_x": 26,
+   "new_x": 23.606,
+   "z": -53.8,
+   "stall": "SK_med_stall_BazaarFix_26_-54",
+   "stall_x": 26,
+   "dx_before": 0,
+   "dx_after": 2.394,
+   "required": 2.343,
+   "collider_verts": 8,
+   "shift": -2.394
+  },
+  {
+   "bench": "SK_med_bench.036",
+   "old_x": 52,
+   "new_x": 50.606,
+   "z": 53.8,
+   "stall": "SK_med_stall_BazaarFix_53_54",
+   "stall_x": 53,
+   "dx_before": 1,
+   "dx_after": 2.394,
+   "required": 2.234,
+   "collider_verts": 8,
+   "shift": -1.394
+  },
+  {
+   "bench": "SK_med_bench.037",
+   "old_x": 52,
+   "new_x": 50.606,
+   "z": -53.8,
+   "stall": "SK_med_stall.020",
+   "stall_x": 53,
+   "dx_before": 1,
+   "dx_after": 2.394,
+   "required": 2.234,
+   "collider_verts": 8,
+   "shift": -1.394
+  }
+ ]
+}

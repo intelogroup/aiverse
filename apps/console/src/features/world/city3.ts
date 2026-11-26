@@ -37,6 +37,13 @@ export const CITY3_INDEX_URL = "/assets/interiors/index.json";
 export const CITY3_LIBRARY_URL = assetUrl("/assets/world-city3-library.glb");
 /** The modern interiors kit (tools/city3/kit_interiors.py): its keys never collide with the library above. */
 export const INTERIOR_KIT_URL = assetUrl("/assets/interior-kit.glb");
+/**
+ * High-poly replacements for the low-poly library props (tools/city3/hq_library.py).
+ * Indexed BEFORE the library because indexLibrary keeps the first node per key, so the
+ * keys here (stool_wood x126, armchair_blue x21, floor_lamp x11) shadow the box versions
+ * with no layout change. ~0.6 MB; every dim matches the pinned library dims.
+ */
+export const CITY3_HQ_URL = assetUrl("/assets/world-city3-hq.glb");
 
 /** Open (cut away) the nearest room within HIDE_WITHIN m; close it again past SHOW_BEYOND m. */
 export const HIDE_WITHIN = 48;

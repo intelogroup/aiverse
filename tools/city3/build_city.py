@@ -430,6 +430,21 @@ for t_ in range(-52,53,13):                                                  # p
         if abs(t_)<8: continue
         planter(x,y,Z,rng,big=True)
         BENCHES.append((x+(3.2 if not al else 0),y+(3.2 if al and y<0 else (-3.2 if al else 0)),al))
+# The rim loop pulls each bench 3.2 m inward to face the square, which lands eight of them
+# at (|x| = 26 or 52, z = +/-53.8) inside the outer stall row at z = +/-54: measured on the
+# shipped GLB as 1.04 x 0.54 m of overlap, half a bench inside a counter. Slide such a bench
+# along x toward the square until it clears the stall by 0.15 m, parking it in the gap
+# between stalls instead of in front of a counter. tools/city3/bridge_bench_clearance.py
+# applies the identical rule to the shipped world GLB and its collision boxes.
+BENCH_HALF=(0.695,0.27)                      # SK med_bench footprint at its 1.12 scale
+for _bi in range(len(BENCHES)):
+    _bx,_by,_al=BENCHES[_bi]
+    for _s in P["stalls"]:
+        _cx,_cy=_s["c"]; _hx=max(_s["size"][0]/2,1.55); _hy=max(_s["size"][1]/2,0.90)
+        if abs(_bx-_cx)<_hx+BENCH_HALF[0] and abs(_by-_cy)<_hy+BENCH_HALF[1]:
+            _sgn=-1.0 if _bx>0 else 1.0
+            _bx=_cx+_sgn*(_hx+BENCH_HALF[0]+0.15)
+    BENCHES[_bi]=(_bx,_by,_al)
 rng.setstate(_rng_state)    # tree placement drew only from _trng; keep every later rng draw identical to the blob build
 # café sets out front of the hero + a few elsewhere handled in hero
 if "tea" in HERO_INFO:
