@@ -35,6 +35,11 @@
   font-size: 14px;
   color: var(--hud-dim);
 }
+/* .world-root resets button backgrounds and borders; the two floating buttons are panels. */
+.world-root .hud button.hud-panel {
+  background: var(--hud-panel);
+  border: 1px solid var(--hud-edge);
+}
 .world-root .hud button:focus-visible,
 .world-root .hud input:focus-visible {
   outline: 2px solid var(--hud-xp);
@@ -82,6 +87,8 @@
 .world-root .hud .hud-party {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  width: 100%;
   gap: 4px;
   padding: 4px 0;
   text-align: left;
@@ -229,7 +236,7 @@
 .hud-tool {
   position: relative;
   min-height: 52px;
-  width: 128px;
+  width: 118px;
 }
 .hud-tool:last-of-type {
   width: 96px;
@@ -277,6 +284,11 @@
 .hud.hud-walking > .hud-bar-row,
 .hud.hud-walking > .hud-menu-btn {
   display: none;
+}
+
+/* The walk panel sits under the asset credit link without this. */
+.world-root.w-hud .w-walk-panel {
+  bottom: 44px;
 }
 
 .hud-menu-back {

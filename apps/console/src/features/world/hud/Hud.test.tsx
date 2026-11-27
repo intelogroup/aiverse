@@ -22,10 +22,10 @@ const actions = { follow: vi.fn(), toggleFollow: vi.fn(), walk: vi.fn(), root: {
 const account = { email: "o@example.test", unverified: false, resendVerification: vi.fn(), manageAgents: vi.fn(), readKeys: vi.fn(), connectedClients: vi.fn(), changePassword: vi.fn(), logoutAll: vi.fn(), logout: vi.fn() };
 const threads = { groups: [], title: () => "", selected: null, select: vi.fn(), messages: [], nameOf: (id: string) => id, searchQ: "", setSearchQ: vi.fn(), searchHits: null, runSearch: vi.fn() };
 
-function show(over: Partial<HudProps> = {}) {
+function show(over: Partial<HudProps> = {}, client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   const props: HudProps = { agents: [agent("a1", "Ada"), agent("a2", "Bo")], authed: true, liveEvents: [], online: 2, feedDown: false, onRetry: vi.fn(), onSignIn: vi.fn(), threads, account, modalOpen: false, ...over };
   return render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    <QueryClientProvider client={client}>
       <Hud {...props} />
     </QueryClientProvider>,
   );
@@ -53,6 +53,16 @@ describe("Hud", () => {
     expect(apiMock.listVerseInventory.mock.calls.map((c) => c[0])).toEqual(["a1"]);
     expect(screen.getByText("Away")).toBeTruthy();
     expect(document.body.textContent).not.toMatch(/XP|credits|Level/);
+  });
+
+  it("keeps the last energy and says when it is from once the gateway stops answering", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    show({}, client);
+    await screen.findByText("30/100 Tired");
+    apiMock.listVerseInventory.mockRejectedValue(new Error("down"));
+    await client.refetchQueries();
+    await screen.findByText(/Can't refresh. Values from /);
+    expect(screen.getByText("30/100 Tired")).toBeTruthy();
   });
 
   it("signed out: makes no owner request and shows no owner text", () => {
