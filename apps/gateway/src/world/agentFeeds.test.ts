@@ -7,7 +7,9 @@ import {
   parseFeedItems,
   pushRadioLine,
   radioOff,
+  readNewsPool,
   radioOn,
+  fairNewsOrder,
   replaceNewsPool,
   stationListeners,
   topicsFor,
@@ -170,5 +172,48 @@ describe("news", () => {
     await newsOff("agent-a", s);
     const off = await drainFeeds("agent-a", s);
     expect(off.news).toBeNull();
+  });
+});
+
+describe("news pool source fairness", () => {
+  const item = (source: string, n: number): NewsItem => ({
+    id: `${source}-${n}`,
+    title: `title-${source}-${n}`,
+    summary: "",
+    source,
+    url: `https://example.com/${source}/${n}`,
+    publishedMs: 1000 + n,
+    topics: [],
+  });
+
+  test("fairNewsOrder interleaves sources round-robin, preserving in-source order", () => {
+    const items = [item("A", 1), item("A", 2), item("A", 3), item("B", 1), item("C", 1), item("C", 2)];
+    expect(fairNewsOrder(items).map((i) => i.id)).toEqual(["A-1", "B-1", "C-1", "A-2", "C-2", "A-3"]);
+  });
+
+  test("one huge wire cannot crowd the others out of the capped pool", async () => {
+    const s = new FakeStore();
+    const fetched = [
+      ...Array.from({ length: 250 }, (_, i) => item("WireBig", i)),
+      ...Array.from({ length: 30 }, (_, i) => item("WireB", i)),
+      ...Array.from({ length: 30 }, (_, i) => item("WireC", i)),
+    ];
+    await replaceNewsPool(fetched, s);
+    const pool = await readNewsPool(s);
+    expect(pool.length).toBe(300);
+    expect(pool.filter((i) => i.source === "WireB").length).toBe(30);
+    expect(pool.filter((i) => i.source === "WireC").length).toBe(30);
+    expect(pool.filter((i) => i.source === "WireBig").length).toBe(240);
+  });
+
+  test("single-source pool keeps newest-first order and cap", async () => {
+    // dedupeNews sorts newest-first by publishedMs before ordering, so the
+    // pool head is the newest item and the cap drops the oldest.
+    const s = new FakeStore();
+    await replaceNewsPool(Array.from({ length: 350 }, (_, i) => item("Only", i)), s);
+    const pool = await readNewsPool(s);
+    expect(pool.length).toBe(300);
+    expect(pool[0].id).toBe("Only-349");
+    expect(pool[299].id).toBe("Only-50");
   });
 });

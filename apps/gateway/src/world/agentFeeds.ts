@@ -316,11 +316,39 @@ export function parseFeedItems(xml: string, sourceName: string): NewsItem[] {
   return items;
 }
 
+// Round-robin interleave across sources, preserving in-source order. The
+// pool merge used to be first-writer-wins under POOL_CAP: callers pass
+// [...fetched, ...existing] with fetched concatenated in wire order, so one
+// source returning 300+ items in a single cycle would have filled the
+// entire pool and crowded the other wires out completely (2026-11-26
+// wave-2 note). Interleaving guarantees every source present in the input
+// keeps a proportional share of the capped pool.
+export function fairNewsOrder(items: NewsItem[]): NewsItem[] {
+  const bySource = new Map<string, NewsItem[]>();
+  for (const item of items) {
+    const list = bySource.get(item.source) ?? [];
+    list.push(item);
+    bySource.set(item.source, list);
+  }
+  const queues = [...bySource.values()];
+  const out: NewsItem[] = [];
+  for (let i = 0; ; i++) {
+    let any = false;
+    for (const q of queues) {
+      if (i < q.length) {
+        out.push(q[i]);
+        any = true;
+      }
+    }
+    if (!any) return out;
+  }
+}
+
 export async function replaceNewsPool(
   items: NewsItem[],
   s: FeedStore = store(),
 ): Promise<void> {
-  const pool = dedupeNews(items).slice(0, POOL_CAP);
+  const pool = fairNewsOrder(dedupeNews(items)).slice(0, POOL_CAP);
   await s.del(NEWS_POOL_KEY);
   for (const item of pool) await s.rpush(NEWS_POOL_KEY, JSON.stringify(item));
   await s.expire(NEWS_POOL_KEY, POOL_TTL_SEC);
