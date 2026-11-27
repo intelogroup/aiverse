@@ -1,3 +1,6 @@
+import { appleBody } from "@aiverse/world-sim/movableProps";
+import { appleMotion, appleVisual } from "./appleGrip";
+import { RemoteApple } from "./RemoteApple";
 // RemoteCast — draws the agents whose bodies live on the server (apps/sim), from the viewer stream. The figure, its animation, foot
 // lock and scale are the same CastFigure everything else uses; only the driver differs: instead of a local walker it is fed
 // AgentFrames interpolated from the server's poses (remoteFrames.ts). Each body also registers as a mover so the human walker
@@ -53,6 +56,7 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
   const figures = useRef(new Map<number, Figure>());
   /** What React renders: live bodies plus bodies still dissolving out. */
   const [cast, setCast] = useState<{ n: number; body: string }[]>([]);
+  const [showApple, setShowApple] = useState(false);
   const publishAt = useRef(0);
   const teaCup = useRef<THREE.Group>(null);
   /** Body number -> the line over its head (null when none). Changes only when a line starts or expires. */
@@ -62,6 +66,7 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
     const nowS = performance.now() / 1000;
     const dt = Math.min(delta, 0.1);
     let castChanged = false;
+    if (showApple !== !!bodies.apple) setShowApple(!!bodies.apple);
 
     // Sync the figure set with the stream. Appearing bodies materialize
     // (their Dissolve starts at 1 and damps to 0); dropped bodies are marked
@@ -129,7 +134,9 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
       if (fig.group) fig.group.position.y = p.y;
       fig.bubble?.position.set(p.x, 2.1, p.z); // the parent group already sits at p.y
       // Remote locomotion comes from the rendered pose stream.
-      const clip = p.clip === "Walk" || p.clip === "Run" ? null : p.clip;
+      const propRun = bodies.apple?.motion?.n === b.n;
+      const clip = propRun ? appleMotion(bodies.apple, b.n, t)?.clip ?? null
+        : p.clip === "Walk" || p.clip === "Run" ? null : p.clip;
       if (clip !== fig.lastClip) {
         fig.lastClip = clip;
         if (clip) fig.clips.fire(clip); else fig.clips.clear();
@@ -174,6 +181,14 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
           <meshStandardMaterial color="#52796a" roughness={0.45} />
         </mesh>
       </group>
+      {showApple ? (
+        <Suspense fallback={null}>
+          <RemoteApple bodies={bodies} findHand={(n) => {
+            const body = cast.find((c) => c.n === n)?.body, hand = figures.current.get(n)?.group?.getObjectByName("mixamorigRightHand");
+            return body && hand && appleBody(body) ? { hand, body } : undefined;
+          }} />
+        </Suspense>
+      ) : null}
       {cast.map(({ n, body }) => {
         const fig = figures.current.get(n);
         if (!fig) return null;
@@ -186,7 +201,14 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
             <Suspense fallback={null}>
               {body === "car"
                 ? <RemoteCar framesRef={frames} index={n} />
-                : <CastFigure framesRef={frames} index={n} baseY={0} home={[0, 0, 0]} body={BODIES[body] ?? BODY_REMY} clipTester={fig.clips} dissolve={fig.dissolve} />}
+                : <CastFigure framesRef={frames} index={n} baseY={0} home={[0, 0, 0]} body={BODIES[body] ?? BODY_REMY} clipTester={fig.clips} dissolve={fig.dissolve}
+                    applePose={appleBody(body) ? () => {
+                      const t = bodies.renderTime(performance.now() / 1000) ?? -Infinity;
+                      return {
+                        motion: appleMotion(bodies.apple, n, t),
+                        held: !!bodies.apple && appleVisual(bodies.apple, t).holder === n,
+                      };
+                    } : undefined} />}
             </Suspense>
             <group ref={(g) => { fig.bubble = g; }}>
               {said[n] ? <Html center><span className="w-said" data-testid="remote-said">{said[n]}</span></Html> : null}

@@ -1,4 +1,5 @@
 import type { CupAction } from "./teaCup";
+import type { DoorLeafSpec } from "./houseDoor";
 // scout.ts — Phase 0 of the City 3 free-exploration agent experiment: the
 // pure core of the "Scout" harness (see .build-tmp/agent-experiment/PLAN.md).
 //
@@ -59,6 +60,8 @@ export interface ScoutRoomShape {
   center: Vec2;
   /** Authored walking points through the staircase, ordered from the lower floor to the upper floor. */
   stairs?: { lowerY: number; upperY: number; points: Vec2[] };
+  /** The front door leaf, when the room has a swinging door (houseDoor.ts). */
+  doorLeaf?: DoorLeafSpec;
 }
 
 export interface ScoutDistrict {
@@ -285,7 +288,9 @@ export function oracleScene(
 export { SOCIAL_CLIPS };
 
 export type ScoutAction =
-  | { type: "go_to"; place?: string; point?: Vec2; body?: string }
+  | { type: "go_to"; place?: string; point?: Vec2; body?: string; precise?: true }
+  | { type: "grab"; target: string }
+  | { type: "place"; target: string; surface: string }
   | { type: "run_to"; place?: string; point?: Vec2; body?: string }
   | { type: "enter"; place: string }
   | { type: "face"; point?: Vec2; headingDeg?: number; body?: string }
@@ -511,6 +516,8 @@ export class ScoutExecutor {
       return Promise.resolve({ ok: false, status: "rejected", detail: "busy" });
     }
     switch (action.type) {
+      case "grab": case "place":
+        return Promise.resolve({ ok: false, status: "unavailable", detail: "movable props are handled by the world service" });
       case "finish":
         this.finished = true;
         return Promise.resolve({ ok: true, status: "done" });
@@ -872,10 +879,11 @@ export class ScoutExecutor {
         const stairPoint = stairs?.points[0];
         const target = stairPoint ?? p.target!;
         const direct = stairs !== undefined && !stairs.approach;
-        const arriveR = stairPoint || (direct && stairs?.ascending) ? STAIR_ARRIVE_M
+        const precise = p.action.type === "go_to" && p.action.precise;
+        const arriveR = precise ? 0.025 : stairPoint || (direct && stairs?.ascending) ? STAIR_ARRIVE_M
           : p.phase === "to-approach" || p.phase === "to-stand" ? 0.25 : 0.45;
         const propApproach = p.action.type === "interact" && Math.hypot(target[0] - state.x, target[1] - state.z) > arriveR;
-        const routed = !direct && !!this.deps.plan && (p.action.type === "go_to" || p.action.type === "run_to" ||
+        const routed = !precise && !direct && !!this.deps.plan && (p.action.type === "go_to" || p.action.type === "run_to" ||
           p.action.type === "enter" || p.action.type === "sit" || propApproach);
         if (routed && !p.route) {
           const route = this.deps.plan!(state, target);
@@ -934,7 +942,7 @@ export class ScoutExecutor {
           p.staleFor = 0;
           return;
         }
-        if (!stairPoint && (arrived || dist <= arriveR + (direct ? 0 : 0.1))) {
+        if (!stairPoint && (arrived || dist <= arriveR + (direct || precise ? 0 : 0.1))) {
           if (p.action.type === "sit" && p.phase === "to-approach") {
             if (p.sittable!.kind === "bed" && Math.abs(state.y - p.sittable!.floorY) > FLOOR_TOLERANCE_M) {
               this.settle({ ok: false, status: "blocked", detail: "bedside floor not reached", target: p.targetId });

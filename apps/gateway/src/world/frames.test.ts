@@ -1,3 +1,4 @@
+import type { AppleFrame } from "@aiverse/world-sim/movableProps";
 import { afterAll, afterEach, beforeAll, describe, expect, test } from "bun:test";
 import { loadVerseSim } from "@aiverse/world-sim/node/loadWorld";
 import { WorldService } from "@aiverse/world-sim/worldService";
@@ -24,12 +25,12 @@ function fakeSocket(buffered = 0) {
 
 /** A scripted sim: `/frames` and `/roster` answer from mutable state, or fail on demand. */
 function fakeSim() {
-  const st = { epoch: "e1", t: 0, rev: 1, b: [[1, 100, 0, 200, 0, 0, 0]] as any[], bodies: [{ n: 1, agentId: "11111111-aaaa-bbbb-cccc-000000000001", body: "remy" }], fail: false, calls: 0, teaCupHolder: undefined as number | null | undefined };
+  const st = { epoch: "e1", t: 0, rev: 1, b: [[1, 100, 0, 200, 0, 0, 0]] as any[], bodies: [{ n: 1, agentId: "11111111-aaaa-bbbb-cccc-000000000001", body: "remy" }], fail: false, calls: 0, apple: undefined as AppleFrame | undefined, teaCupHolder: undefined as number | null | undefined };
   const client: SimClient = {
     call: async (_m, path) => {
       st.calls++;
       if (st.fail) return new Response("{}", { status: 503 });
-      if (path === "/frames") return Response.json({ epoch: st.epoch, t: st.t, rosterRev: st.rev, b: st.b, teaCupHolder: st.teaCupHolder });
+      if (path === "/frames") return Response.json({ epoch: st.epoch, t: st.t, rosterRev: st.rev, b: st.b, teaCupHolder: st.teaCupHolder, apple: st.apple });
       if (path === "/roster") return Response.json({ epoch: st.epoch, rev: st.rev, bodies: st.bodies });
       return new Response("{}", { status: 404 });
     },
@@ -42,6 +43,22 @@ let stream: ReturnType<typeof createWorldStream> | undefined;
 afterEach(() => { stream?.stop(); stream = undefined; });
 
 describe("world stream (gateway half)", () => {
+  test("publishes ownership changes even with a stationary pose and includes them on reconnect", async () => {
+    const sim = fakeSim();
+    sim.st.apple = { stand: "apple-stand-01", holder: null, motion: null };
+    stream = createWorldStream({ sim: sim.client, names, intervalMs: 5 });
+    const first = fakeSocket();
+    stream.subscribe("first", first);
+    await wait(() => first.messages("world_frames").some((f) => f.apple?.holder === null));
+    sim.st.apple = { ...sim.st.apple, holder: 1 };
+    await wait(() => first.messages("world_frames").some((f) => f.apple?.holder === 1 && !f.key));
+    const reconnect = fakeSocket();
+    stream.subscribe("reconnect", reconnect);
+    expect(reconnect.messages("world_frames").at(-1)?.apple?.holder).toBe(1);
+    sim.st.apple = { stand: "apple-stand-02", holder: null, motion: null };
+    await wait(() => reconnect.messages("world_frames").at(-1)?.apple?.stand === "apple-stand-02");
+  });
+
   test("relays cup ownership changes without pose changes and includes it for new viewers", async () => {
     const sim = fakeSim();
     sim.st.teaCupHolder = null;

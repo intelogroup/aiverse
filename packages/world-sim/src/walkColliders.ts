@@ -68,6 +68,9 @@ export class WalkColliders {
   /** Planning may traverse the operable door link; physics retains the actual blocker. */
   listWithout = (...keys: string[]): THREE.Mesh[] => [...this.sets.entries()].filter(([k]) => !keys.includes(k)).flatMap(([, meshes]) => meshes);
 
+  /** Every set except those whose key starts with `prefix` (route planning ignores all door blockers: doors open on the way). */
+  listWithoutPrefix = (prefix: string): THREE.Mesh[] => [...this.sets.entries()].filter(([k]) => !k.startsWith(prefix)).flatMap(([, meshes]) => meshes);
+
   list = (): THREE.Mesh[] => (this.flat ??= [...this.sets.values()].flat());
 
   stats(): WalkCollidersStats {

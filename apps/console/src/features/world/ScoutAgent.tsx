@@ -79,6 +79,7 @@ import { emitMoment, fetchEvents, fetchPassport, getIdentity, reportEvent, setId
 import { toyKindOf, toyPhrase } from "./toys";
 import { COSMETICS, isCosmetic } from "@aiverse/shared/events";
 import { LOOK_EYE_M } from "@aiverse/world-sim/look";
+import { DOOR_KEY_PREFIX } from "@aiverse/world-sim/houseDoor";
 
 const SCOUT_ACTOR = "scout";
 import { clipFor, findSpawn, makeWalker, WALK_CONFIG, type WalkerState } from "./walker";
@@ -163,7 +164,7 @@ export function ScoutAgent({
 
   const staticWorld = useWalkWorld(getMeshes, walk);
   const world = useMemo(() => walk?.actors.wrapWorld(staticWorld, actorId, 1.7) ?? staticWorld, [staticWorld, walk, actorId]);
-  const planningWorld = useMemo(() => walk ? createCapsuleWorld(() => walk.listWithout("door:tea")) : staticWorld, [walk, staticWorld]);
+  const planningWorld = useMemo(() => walk ? createCapsuleWorld(() => walk.listWithoutPrefix(DOOR_KEY_PREFIX)) : staticWorld, [walk, staticWorld]);
   const session = useRef(crypto.randomUUID());
   const visibleMovers = (): ActorBody[] => {
     const s = state.current;
