@@ -36,11 +36,15 @@ export function Hud({ agents, authed, liveEvents, online, feedDown, onRetry, onS
   const { walking, following, followName, present, says } = stage;
   const mine = authed ? (agents.find((a) => a.name === followName) ?? agents[0] ?? null) : null;
 
-  const manage = authed ? account.manageAgents : onSignIn;
+  const manage = () => (authed ? account.manageAgents() : onSignIn());
   const run = (action: HudAction) => {
     if (action === "follow") actions?.toggleFollow();
     else if (action === "walk") actions?.walk();
     else if (action === "agents") manage();
+    else if (action === "bag") {
+      if (authed) account.manageAgents("Bag");
+      else onSignIn();
+    }
     else if (action === "record") recordRef.current?.querySelector("button")?.click();
     else if (action === "map") setBigMap((m) => !m);
     else if (action === "hide") setHidden((h) => !h);
@@ -106,6 +110,7 @@ export function Hud({ agents, authed, liveEvents, online, feedDown, onRetry, onS
         {slot("follow", "F", "Follow", following, !followName)}
         {slot("walk", "T", "Walk")}
         {slot("map", "M", "Map", bigMap)}
+        {slot("bag", "B", "Bag")}
         {slot("agents", "G", "Agents")}
         <div className="hud-tool" ref={recordRef}>
           <kbd>R</kbd>

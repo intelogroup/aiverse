@@ -1,0 +1,76 @@
+/* Character sheet. Solid, not translucent: it is for reading. */
+.world-root .hud-sheet-back {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 8, 18, 0.55);
+}
+.world-root .hud-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(560px, calc(100% - 24px));
+  height: min(640px, calc(100% - 24px));
+  padding: 16px;
+  background: var(--hud-solid);
+  color: var(--hud-text);
+  border: 1px solid var(--hud-edge);
+  border-radius: var(--hud-radius);
+  box-shadow: var(--hud-shadow);
+  font-size: 15px;
+}
+.hud-sheet header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+}
+.hud-sheet nav,
+.hud-sheet [role="tablist"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.world-root .hud-sheet button,
+.world-root .hud-sheet select,
+.world-root .hud-sheet input {
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid var(--hud-edge);
+  border-radius: var(--hud-radius-button);
+  background: var(--hud-well);
+  color: var(--hud-text);
+  font-size: 14px;
+}
+.world-root .hud-sheet button[aria-pressed="true"],
+.world-root .hud-sheet button[aria-selected="true"] {
+  color: var(--hud-xp);
+  border-color: var(--hud-xp);
+}
+.world-root .hud-sheet :focus-visible {
+  outline: 2px solid var(--hud-xp);
+  outline-offset: 2px;
+}
+.world-root .hud-sheet button:disabled {
+  opacity: 0.5;
+}
+.world-root .hud-sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.hud-sheet-body > * {
+  flex: none;
+}
+.hud-sheet h3 {
+  margin: 8px 0 0;
+  font-size: 15px;
+}
+.hud-sheet code {
+  display: block;
+  overflow-wrap: anywhere;
+}

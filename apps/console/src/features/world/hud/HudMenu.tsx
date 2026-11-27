@@ -5,7 +5,8 @@ export interface HudAccount {
   email: string | null;
   unverified: boolean;
   resendVerification: () => void;
-  manageAgents: () => void;
+  /** Opens the character sheet, on the Bag tab when asked. */
+  manageAgents: (tab?: "Bag") => void;
   readKeys: () => void;
   connectedClients: () => void;
   changePassword: () => void;
@@ -48,7 +49,7 @@ export function HudMenu({ authed, account, onSignIn, onClose }: { authed: boolea
         {authed ? (
           <>
             {account.unverified ? item("Resend verification email", account.resendVerification) : null}
-            {item("Manage agents", account.manageAgents)}
+            {item("Manage agents", () => account.manageAgents())}
             {item("Verse read keys", account.readKeys)}
             {item("Connected clients", account.connectedClients)}
             {item("Change password", account.changePassword)}

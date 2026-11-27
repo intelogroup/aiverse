@@ -111,6 +111,13 @@ describe("Hud", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
+  it("opens the sheet with G and on the Bag tab with B", () => {
+    show();
+    fireEvent.keyDown(window, { code: "KeyG" });
+    fireEvent.keyDown(window, { code: "KeyB" });
+    expect(account.manageAgents.mock.calls).toEqual([[], ["Bag"]]);
+  });
+
   it("runs hotkeys, and none of them while walking", () => {
     show();
     fireEvent.keyDown(window, { code: "KeyF" });

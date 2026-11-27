@@ -24,6 +24,8 @@ import { EmptyState } from "../../components/EmptyState";
 import { Scene3D } from "./Scene3D";
 import { GlbWorld } from "./GlbWorld";
 import { ManageAgentsModal } from "./ManageAgentsModal";
+import { CharacterSheet, type SheetTab } from "./hud/CharacterSheet";
+import { hudBridge } from "./hud/hudBridge";
 import { ReadKeysModal } from "./ReadKeysModal";
 import { ConnectedClientsModal } from "./ConnectedClientsModal";
 import { ChangePasswordModal } from "../auth/ChangePasswordModal";
@@ -109,6 +111,7 @@ export function WorldView({
 
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showManageAgents, setShowManageAgents] = useState(false);
+  const [sheetTab, setSheetTab] = useState<SheetTab>("Agent");
   const [showReadKeys, setShowReadKeys] = useState(false);
   const [showConnectedClients, setShowConnectedClients] = useState(false);
 
@@ -469,7 +472,10 @@ export function WorldView({
             email: authed ? getOwnerEmail() : null,
             unverified: emailVerified === false,
             resendVerification,
-            manageAgents: () => setShowManageAgents(true),
+            manageAgents: (tab) => {
+              setSheetTab(tab ?? "Agent");
+              setShowManageAgents(true);
+            },
             readKeys: () => setShowReadKeys(true),
             connectedClients: () => setShowConnectedClients(true),
             changePassword: () => setShowChangePassword(true),
@@ -479,7 +485,12 @@ export function WorldView({
         />
       )}
       {showChangePassword && <ChangePasswordModal onClose={() => setShowChangePassword(false)} />}
-      {showManageAgents && <ManageAgentsModal agents={agents} onClose={() => setShowManageAgents(false)} />}
+      {showManageAgents &&
+        (hudOn ? (
+          <CharacterSheet agents={agents} initialName={hudBridge.getSnapshot().stage.followName} initialTab={sheetTab} onClose={() => setShowManageAgents(false)} />
+        ) : (
+          <ManageAgentsModal agents={agents} onClose={() => setShowManageAgents(false)} />
+        ))}
       {showReadKeys && <ReadKeysModal onClose={() => setShowReadKeys(false)} />}
       {showConnectedClients && <ConnectedClientsModal onClose={() => setShowConnectedClients(false)} />}
 
