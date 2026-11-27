@@ -234,3 +234,19 @@ The uploaded Sketchfab export splits one continuous colored surface into four ch
   Wait for the real texture before binding the fill, or the canopy will
   retain the gray placeholder even after the diffuse map loads.
 - `Glb.acc_raw` returns float64. Writing its array straight into a 5126 (float32) accessor scrambled 9615 tree triangles (degenerate gate caught it). Cast with `np.ascontiguousarray(arr, "<f4")` and round-trip assert after `add_accessor` (bridge_real_trees.py `append_kit`).
+
+## Stall goods declutter and scanned swap (2026-11-27)
+
+- `stall_goods_audit.support()` used negative numpy slice ends, which wrap, so goods
+  off the counter counted as supported (170 floating pieces passed). Clamp both ends.
+- Footprints must include instance yaw (`footprint_half`), shared by audit and bridge,
+  or decluttered trays overlap.
+- The audit accepts a piece with 6 of 9 footprint samples on the counter, so heaps
+  hung off edges and it passed. The bridge now places with all 9 (`need=9`). Only a
+  render showed it.
+- Order matters: swap templates first (`bridge_market_templates.py --kit
+  assets/stall_scanned/kit.glb`), then declutter. Footprints decide seating.
+- Rebuild: `bridge_stall_goods.py --glb KITTED --all --max-pieces 4 --gap 0.06
+  --remove r_basket --remove rollpile --out OUT --apply`. Boards under the usable
+  apple and water bottle are pinned (`PINNED`).
+- Decimating the bottle scans to 600 triangles mangles the labels; 2000 holds.
