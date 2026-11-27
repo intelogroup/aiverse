@@ -182,6 +182,8 @@ export class WorldService {
   private readonly addressedSpeech = new WeakMap<ActRecord, { id: string; session: Session }>();
   private readonly maxBodies: number;
   private readonly movementEnergy: boolean;
+  // shortcut: in memory, so a sim restart still refills; persist if that is abused.
+  private readonly parked = new Map<string, { energy: number; exhausted: boolean; at: number }>();
   private readonly leaseS: number;
   private readonly keepRecords: number;
   private readonly ambient: AmbientWorld | null;
@@ -251,7 +253,11 @@ export class WorldService {
     } catch (e) {
       throw new WorldError("spawn_failed", e instanceof Error ? e.message : String(e));
     }
-    this.sessions.set(agentId, { n: this.nextN++, figure: def.id, body, energy: 100, exhausted: false, records: new Map(), last: null, lastSeen: this.sim.t, salt: randomBytes(16), heard: [] });
+    // Leaving is not a refill: the time away counts only as standing rest.
+    const left = this.parked.get(agentId);
+    const energy = left ? Math.min(100, left.energy + this.sim.t - left.at) : 100;
+    this.parked.delete(agentId);
+    this.sessions.set(agentId, { n: this.nextN++, figure: def.id, body, energy, exhausted: !!left?.exhausted && energy < 10, records: new Map(), last: null, lastSeen: this.sim.t, salt: randomBytes(16), heard: [] });
     this.rosterRev++;
     return this.observe(agentId);
   }
@@ -287,6 +293,7 @@ export class WorldService {
     if (this.cupHolder === agentId) this.cupHolder = null;
     this.cancelStall(agentId);
     this.sim.removeBody(agentId);
+    if (this.movementEnergy) this.parked.set(agentId, { energy: s.energy, exhausted: s.exhausted, at: this.sim.t });
     this.sessions.delete(agentId);
     this.rosterRev++;
     return true;
