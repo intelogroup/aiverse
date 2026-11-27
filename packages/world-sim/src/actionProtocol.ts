@@ -33,6 +33,8 @@ export const ACTION_TYPES = {
   go_to: "{place}, {point:[x,z]} or {body: handle}: stop 1.2 m in front of someone you see", run_to: "{place} or {point:[x,z]}", enter: "{place} (lot or room id): walk inside",
   face: "{headingDeg}, {point:[x,z]} or {body: handle}", wait: "{seconds} 0-30", sit: "{sittable?}", stand: "{}",
   play: "{clip, seconds?} (GET /world/clips)", interact: "{target, verb?}: tea-cup supports take, drink and put_down", stop: "{}",
+  grab: "{target}: pick up a nearby movable prop from observe.movableProps",
+  place: "{target,surface}: set a held prop on a compatible surface from observe.movableProps",
   ride_elevator: "{target: elevator marker ID from observation.landmarks, floor: G | L1 | L2 | L3}",
   gaze: `{yawDeg?: -${GAZE_YAW_MAX_DEG}..${GAZE_YAW_MAX_DEG} (+ right), pitchDeg?: ${GAZE_PITCH_MIN_DEG}..${GAZE_PITCH_MAX_DEG} (+ up)} or {reset:true}: turn your head, not your body; look and see follow it`,
   enter_vehicle: "{vehicle?: car id from observe.scene (kind vehicle)}: get into a car within 3 m (nearest if no id). Walking past a car does nothing; you must choose this",
@@ -57,6 +59,10 @@ export function explainAction(a: unknown): string | null {
   const point = (x: unknown) => Array.isArray(x) && x.length === 2 && x.every((n) => num(n, -2000, 2000));
   switch (v.type) {
     case "stop": case "stand": return extra();
+    case "grab":
+      return !name(v.target) ? "grab needs a target from observe.movableProps" : extra("target");
+    case "place":
+      return !name(v.target) || !name(v.surface) ? "place needs target and surface IDs from observe.movableProps" : extra("target", "surface");
     case "play":
       if (!resolveSocialClip(v.clip)) return `unknown clip ${JSON.stringify(v.clip)}; playable: ${SOCIAL_CLIPS.join(", ")} (aliases like "wave", "laugh", "nod" work too)`;
       if (v.seconds !== undefined && !num(v.seconds, 0, 30, true)) return "seconds must be > 0 and <= 30";

@@ -1,3 +1,6 @@
+import type { AppleBody } from "@aiverse/world-sim/movableProps";
+import { APPLE_CARRY_ROTATIONS, appleGripOffset, type appleMotion } from "./appleGrip";
+import { ArmReach, dipWithLegs, reachWeight } from "./armReach";
 import { useEffect, useMemo, useRef, type RefObject } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
@@ -11,7 +14,7 @@ import { BODY_CAST, sitClipForPhase, type BodyDef } from "./bodies";
 import { CLIP_CATALOG, clipDef, clipTesterYield, type ClipTestState } from "./clips";
 import { approach, cycleRateFor, gaitTargets, runTimeForWalkPhase, type GaitSpec } from "./gait";
 import { clipMinClearance, contactPoints, groundingOffset, rootMotionDelta, soleClearance } from "./grounding";
-import { FootLock, footLockEnabled } from "./footLock";
+import { FootLock, findLegs, footLockEnabled } from "./footLock";
 import { createFootContactShadows } from "./contactShadow";
 import { applyDissolve, createDissolveDepthMaterial, type Dissolve } from "./dissolve";
 
@@ -110,7 +113,9 @@ export function CastFigure({
   playingClipRef,
   renderedReadyRef,
   dissolve,
+  applePose,
 }: {
+  applePose?: () => { motion: ReturnType<typeof appleMotion>; held: boolean };
   /**
    * Dissolve (dissolve.ts): when the driver supplies one (RemoteCast, for
    * server bodies), this figure's materials are cloned per figure and
@@ -179,6 +184,13 @@ export function CastFigure({
     s.scale.setScalar(bodyScale);
     return s;
   }, [gltf, bodyScale]);
+
+  const armReach = useMemo(() => ArmReach.find(scene), [scene]);
+  const reachLegs = useMemo(() => findLegs(scene, contactPoints(scene)), [scene]);
+  const carryBones = useMemo(() => body.id === "remy" ? Object.entries(APPLE_CARRY_ROTATIONS).flatMap(([name, q]) => {
+    const bone = scene.getObjectByName(name);
+    return bone ? [{ bone, rotation: new THREE.Quaternion(...q) }] : [];
+  }) : [], [body.id, scene]);
 
   // Paint this figure in its agent color. Materials are shared across
   // clones, so every tinted material is cloned first. Body parts take the
@@ -295,6 +307,9 @@ export function CastFigure({
   useEffect(() => () => contactShadows.dispose(), [contactShadows]);
   const rmDelta = useRef(new THREE.Vector3());
   const hipsWorldTmp = useRef(new THREE.Vector3());
+  const reachGrip = useRef(new THREE.Vector3());
+  const reachTarget = useRef(new THREE.Vector3());
+  const reachPole = useRef(new THREE.Vector3());
 
   // The head bone, for the first-person camera stream (see the
   // headPoseRef prop). Matched by name suffix: Summer's Mixamo rig
@@ -651,7 +666,16 @@ export function CastFigure({
     }
     // The walker clamps its step to 0.1 s; a gait-driven figure's clips advance by the same clamped dt so the
     // cycle stays in step with the travel on slow frames (feet do not run ahead of the body on a hitch).
+    const prop = applePose?.();
+    const activeProp = prop?.motion && testActionRef.current?.getClip().name === prop.motion.clip ? prop.motion : null;
+    if (activeProp && testActionRef.current) {
+      testActionRef.current.paused = true;
+      testActionRef.current.time = Math.min(activeProp.time, testActionRef.current.getClip().duration);
+    }
     mixer.update(gaitOn ? Math.min(delta, 0.1) : delta);
+    if (prop?.held && !activeProp) {
+      for (const { bone, rotation } of carryBones) bone.quaternion.copy(rotation);
+    }
     if (renderedReadyRef) renderedReadyRef.current = true;
     if (playingClipRef) {
       const action = testActionRef.current;
@@ -704,6 +728,19 @@ export function CastFigure({
         drop = drop * seated + ground * (1 - seated);
       }
       grp.position.y = baseY - drop;
+    }
+    // The ground curve is Remy's; other measured bodies ground on their live sole clearance.
+    if (activeProp && body.id === "remy") grp.position.y = baseY - fit.lift + activeProp.ground * bodyScale;
+    else if (activeProp && contacts.length > 0) grp.position.y = baseY - groundingOffset(soleClearance(contacts, scene), runMin, 0) * bodyScale;
+    // Close the last centimetres between the clip's hand and the apple around contact (each body's reach differs).
+    const reachW = activeProp && armReach ? reachWeight(activeProp.time, activeProp.contact) : 0;
+    if (activeProp && armReach && reachW > 0) {
+      grp.updateMatrixWorld(true);
+      const grip = appleGripOffset(body.id as AppleBody, armReach.handWorldScale(), reachGrip.current);
+      const target = reachTarget.current.set(...activeProp.target);
+      // A body whose clip hand stops short of the apple bends its knees for the rest, feet planted.
+      dipWithLegs(grp, reachLegs, armReach.dipNeeded(grip, target) * reachW, reachPole.current.set(0, 0, 1).applyQuaternion(grp.quaternion));
+      armReach.update(grip, target, reachW, reachPole.current.set(0, 0, -1).applyQuaternion(grp.quaternion));
     }
     // Foot lock (footLock.ts), last of the leg edits: only the City 3 walker's gait path, never while a sit override,
     // a tester clip or the body controller owns the pose (their feet are not travelling over the ground).

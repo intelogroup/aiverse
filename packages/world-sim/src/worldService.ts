@@ -1,3 +1,4 @@
+import { APPLE_APPROACH, APPLE_GRIPS, APPLE_ID, APPLE_PICKUP, APPLE_RECEIVING, APPLE_STANDS, appleBody, appleCenter, appleStance, type AppleFrame, type AppleStand } from "./movableProps";
 import { TEA_CUP, type CupAction } from "./teaCup";
 // worldService.ts — the agent-facing surface of the server sim: attach a body, send actions, read senses.
 //
@@ -78,6 +79,11 @@ export interface Observation extends TeaWayfinding {
   insideRoom: string | null;
   scene: OracleObject[];
   teaCup?: { id: string; approach: [number, number]; position: [number, number, number]; state: "table" | "held" | "yours"; actions: CupAction[] };
+  movableProps?: {
+    object: { id: string; name: string; state: "stand" | "reserved" | "held" | "yours"; actions: ("grab" | "place")[] };
+    surfaces: { id: AppleStand; name: string; approach: readonly [number, number]; distance: number; action: "grab" | "place" }[];
+  };
+  heldObjects?: string[];
   /** Your car's state while you drive (null on foot). */
   vehicle: VehicleView | null;
   /** The latest action record (running or settled), so a poller needs one call. */
@@ -105,6 +111,7 @@ export interface WorldServiceOpts {
   sim: VerseSim;
   /** Bodies allowed at once (platform cost cap). */
   maxBodies?: number;
+  movableProps?: boolean;
   movementEnergy?: boolean;
   /** A body whose agent has not touched it for this many SIMULATION seconds is told to stop (the agent went away). */
   leaseS?: number;
@@ -172,6 +179,10 @@ export class WorldService {
   readonly fleet = new Fleet();
   private readonly nowS: () => number;
   private readonly drives = new Map<string, DriveRun>();
+  private readonly appleEnabled: boolean;
+  private appleHolder: string | null = null;
+  private appleStand: AppleStand = APPLE_PICKUP;
+  private appleRun?: { id: string; rec: ActRecord; stand: AppleStand; startedAt?: number; transferred: boolean };
   private cupHolder: string | null = null;
   private nextN = 1;
   private rosterRev = 0;
@@ -182,6 +193,7 @@ export class WorldService {
 
   constructor(opts: WorldServiceOpts) {
     this.sim = opts.sim;
+    this.appleEnabled = opts.movableProps ?? false;
     this.maxBodies = opts.maxBodies ?? 200;
     this.movementEnergy = opts.movementEnergy ?? false;
     this.leaseS = opts.leaseS ?? 30;
@@ -253,6 +265,11 @@ export class WorldService {
     const car = this.fleet.byDriver(agentId);
     if (car) { car.driver = null; car.v.speed = 0; car.v.steer = 0; }
     this.drives.delete(agentId);
+    if (this.appleRun?.id === agentId) this.cancelApple(s);
+    if (this.appleHolder === agentId) {
+      this.appleHolder = null;
+      this.appleStand = APPLE_PICKUP;
+    }
     if (this.cupHolder === agentId) this.cupHolder = null;
     this.sim.removeBody(agentId);
     this.sessions.delete(agentId);
@@ -310,6 +327,12 @@ export class WorldService {
       this.remember(s, id, rec);
       return rec;
     }
+    if (type === "stop" && this.appleRun?.id === agentId) this.cancelApple(s);
+    if (rec.action.type === "grab" || rec.action.type === "place") {
+      this.appleAct(agentId, s, rec, rec.action);
+      this.remember(s, id, rec);
+      return rec;
+    }
     if (rec.action.type === "interact" && rec.action.target === TEA_CUP.id) {
       this.cupAct(agentId, s, rec, rec.action.verb!);
       this.remember(s, id, rec);
@@ -340,6 +363,93 @@ export class WorldService {
     return rec;
   }
 
+  private cancelApple(s: Session): void {
+    const run = this.appleRun;
+    if (!run) return;
+    this.appleRun = undefined;
+    if (run.startedAt !== undefined) s.body.clips.clear();
+    this.settle(run.rec, { ok: false, status: "rejected", target: APPLE_ID, detail: "cancelled" });
+  }
+
+  private appleAct(id: string, s: Session, rec: ActRecord, a: Extract<ScoutAction, { type: "grab" | "place" }>): void {
+    const refuse = (detail: string) => this.settle(rec, { ok: false, status: "unavailable", target: a.target, detail });
+    if (!this.appleEnabled || a.target !== APPLE_ID) return refuse("unknown movable prop: use the object ID from observe.movableProps");
+    const figure = s.figure;
+    if (!appleBody(figure)) return refuse(`unsupported_grip: this apple is fitted to ${Object.keys(APPLE_GRIPS).join(", ")}`);
+    if (this.appleRun) return refuse("object_busy: an apple interaction is in progress");
+    if (s.body.busy || s.body.snapshot().posture !== "standing") return refuse("stand still and finish or stop your current action first");
+    if (a.type === "grab" && (this.appleHolder !== null || this.cupHolder === id)) return refuse("hand_occupied: the apple is held or your hand is occupied");
+    if (a.type === "grab" && this.appleStand !== APPLE_PICKUP) return refuse("unsupported_surface: this pilot grabs from the pickup stand");
+    if (a.type === "place" && this.appleHolder !== id) return refuse("not_held: grab the apple first");
+    if (a.type === "place" && a.surface !== APPLE_RECEIVING) return refuse("unsupported_surface: use the apple receiving stand");
+    const stand = a.type === "grab" ? APPLE_PICKUP : APPLE_RECEIVING;
+    const { clip } = APPLE_STANDS[stand];
+    const stance = appleStance(stand, figure);
+    const st = s.body.state;
+    const distance = Math.hypot(st.x - stance[0], st.z - stance[1]);
+    if (distance > APPLE_APPROACH || Math.abs(st.y - appleCenter(stand)[1]) > 0.45) {
+      return refuse(`out_of_reach: come within ${APPLE_APPROACH} m of the stand on its floor (go_to {point:[${stance.join(",")}]}), then ask again`);
+    }
+    if (this.movementEnergy && s.exhausted && distance > 0.025) return refuse("exhausted: rest before approaching the stand");
+    const run: NonNullable<WorldService["appleRun"]> = { id, rec, stand, transferred: false };
+    this.appleRun = run;
+    const duration = clipDef(clip)!.duration;
+    const perform = async () => {
+      // The sim walks the body in: a routed walk for the distance, then the precise last steps onto the fitted stance.
+      if (distance > 1) {
+        const near = await s.body.act({ type: "go_to", point: [...stance] });
+        if (this.appleRun !== run) return;
+        if (!near.ok) return this.finishApple(s, near);
+      }
+      const approach = await s.body.act({ type: "go_to", point: [...stance], precise: true });
+      if (this.appleRun !== run) return;
+      if (!approach.ok) return this.finishApple(s, approach);
+      const face = await s.body.act({ type: "face", headingDeg: 0 });
+      if (this.appleRun !== run) return;
+      if (!face.ok) return this.finishApple(s, face);
+      if (Math.hypot(st.x - stance[0], st.z - stance[1]) > 0.04) {
+        return this.finishApple(s, { ok: false, status: "blocked", detail: "could not reach the fitted stance" });
+      }
+      // Complete the last centimetres of the authored stance only after the walk
+      // and turn settle and the short capsule sweep is clear.
+      if (this.sim.world.blocked([st.x, st.y, st.z], [stance[0], st.y, stance[1]], 0.32)) {
+        return this.finishApple(s, { ok: false, status: "blocked", detail: "the fitted stance is obstructed" });
+      }
+      st.x = stance[0]; st.z = stance[1]; st.heading = st.body = 0;
+      run.startedAt = this.sim.t;
+      s.body.clips.fire(clip);
+      const outcome = await s.body.act({ type: "wait", seconds: duration });
+      if (this.appleRun === run) this.finishApple(s, outcome);
+    };
+    void perform();
+  }
+
+  private finishApple(s: Session, outcome: ScoutOutcome): void {
+    const run = this.appleRun;
+    if (!run) return;
+    this.appleRun = undefined;
+    s.body.clips.clear();
+    this.settle(run.rec, { ...outcome, target: APPLE_ID });
+  }
+
+  private appleObservation(id: string, s: Session): Pick<Observation, "movableProps" | "heldObjects"> {
+    if (!this.appleEnabled) return {};
+    const { x, z } = s.body.state;
+    const surfaces = ([APPLE_PICKUP, APPLE_RECEIVING] as const).flatMap((stand) => {
+      const { name, verb } = APPLE_STANDS[stand];
+      const stance = appleBody(s.figure) ? appleStance(stand, s.figure) : APPLE_STANDS[stand].stance;
+      const distance = Math.hypot(x - stance[0], z - stance[1]);
+      return distance > 12 ? [] : [{ id: stand, name, approach: stance, distance: round(distance, 2), action: verb }];
+    });
+    const yours = this.appleHolder === id;
+    const heldObjects = yours ? [APPLE_ID] : [];
+    if (!yours && !surfaces.some((surface) => surface.id === this.appleStand)) return { heldObjects };
+    const state = yours ? "yours" : this.appleHolder ? "held" : this.appleRun ? "reserved" : "stand";
+    const actions = !appleBody(s.figure) || this.appleRun ? []
+      : yours ? ["place" as const] : state === "stand" && this.appleStand === APPLE_PICKUP ? ["grab" as const] : [];
+    return { heldObjects, movableProps: { object: { id: APPLE_ID, name: "Apple", state, actions }, surfaces } };
+  }
+
   private atCupTable(s: Session): boolean {
     const { x, y, z } = s.body.state;
     return roomAt(this.sim.rooms, x, z)?.id === "tea" &&
@@ -352,6 +462,7 @@ export class WorldService {
     if (s.body.busy) return refuse("finish or stop your current action first");
     if (s.body.snapshot().posture !== "standing") return refuse("stand first to use the cup");
     if (verb === "take") {
+      if (this.appleHolder === agentId) return refuse("place the apple before taking the cup");
       if (!this.atCupTable(s)) return refuse("move within reach of the Tea House lounge table");
       if (this.cupHolder !== null) return refuse("the cup is already held");
       this.cupHolder = agentId;
@@ -381,6 +492,7 @@ export class WorldService {
     const st = s.body.state;
     const car = this.fleet.byDriver(agentId);
     if (a.type === "enter_vehicle") {
+      if (this.appleHolder === agentId) return this.settle(rec, { ok: false, status: "rejected", detail: "place the apple before driving" });
       if (this.cupHolder === agentId) return this.settle(rec, { ok: false, status: "rejected", detail: "put the Tea House cup down before driving" });
       if (car) return this.settle(rec, { ok: false, status: "rejected", detail: `you are already in ${car.id}` });
       const target = a.vehicle !== undefined ? this.fleet.byId(a.vehicle) : this.fleet.nearest(st.x, st.z)?.car;
@@ -647,6 +759,7 @@ export class WorldService {
           actions: this.cupHolder === agentId ? ["drink", "put_down"] : this.cupHolder === null ? ["take"] : [],
         },
       } : {}),
+      ...this.appleObservation(agentId, s),
       ...teaLandmarks(st, eye, this.sim.world, st.body + yawDeg * Math.PI / 180,
         this.sim.door.state, this.sim.elevator, this.sim.teaFloors),
       scene: [...oracleScene(this.sim.places, this.sim.rooms, { x: st.x, z: st.z, heading: st.body }, {}, interactables, seats), ...this.seenBodies(agentId, s), ...this.seenVehicles(agentId, st)]
@@ -686,13 +799,20 @@ export class WorldService {
   }
 
   /** Every body's pose this instant, quantised for the viewer stream. Not agent-scoped: it is the public picture of the world. */
-  frames(): { epoch: string; t: number; rosterRev: number; b: PoseTuple[]; say: SayEvent[]; teaCupHolder: number | null } {
+  frames(): { epoch: string; t: number; rosterRev: number; b: PoseTuple[]; say: SayEvent[]; teaCupHolder: number | null; apple?: AppleFrame } {
     const b: PoseTuple[] = [];
     for (const [id, s] of this.sessions) if (!this.fleet.byDriver(id)) b.push(encodePose(s.n, s.body.pose()));   // a driver is the car
     b.push(...this.fleet.poses());
     if (this.ambient) b.push(...this.ambient.poses());
     const say = this.says.filter((e) => this.sim.t - e.t <= SAY_STREAM_TTL_S).map((e) => ({ ...e, text: e.text.slice(0, 140) }));
-    return { epoch: this.epoch, t: round(this.sim.t, 3), rosterRev: this.rosterRev, b, say, teaCupHolder: this.cupHolder ? this.sessions.get(this.cupHolder)?.n ?? null : null };
+    const run = this.appleRun;
+    const n = run && this.sessions.get(run.id)?.n;
+    const apple: AppleFrame | undefined = this.appleEnabled ? {
+      stand: this.appleStand,
+      holder: this.appleHolder === null ? null : this.sessions.get(this.appleHolder)?.n ?? null,
+      motion: run?.startedAt !== undefined && n !== undefined ? { n, stand: run.stand, startedAt: run.startedAt } : null,
+    } : undefined;
+    return { epoch: this.epoch, t: round(this.sim.t, 3), rosterRev: this.rosterRev, b, say, apple, teaCupHolder: this.cupHolder ? this.sessions.get(this.cupHolder)?.n ?? null : null };
   }
 
   /** Body number -> agent id (gateway-side only: it turns this into a display name) and the body model to draw. */
@@ -825,6 +945,12 @@ export class WorldService {
       running: s.body.snapshot().clip === "Run" || s.last?.action.type === "run_to" && s.last.state === "running",
     })) : [];
     this.sim.tick(dt);
+    const run = this.appleRun;
+    if (run?.startedAt !== undefined && !run.transferred && this.sim.t >= run.startedAt + APPLE_STANDS[run.stand].contact) {
+      run.transferred = true;
+      this.appleHolder = run.stand === APPLE_PICKUP ? run.id : null;
+      this.appleStand = run.stand;
+    }
     this.driveCars(dt);
     for (const { id, s, x, z, driving, running } of before) {
       const distance = Math.hypot(s.body.state.x - x, s.body.state.z - z);
@@ -857,6 +983,7 @@ export class WorldService {
     }
     for (const [id, s] of this.sessions) {
       if (this.sim.t - s.lastSeen > this.leaseS && s.body.busy) {
+        if (this.appleRun?.id === id) this.cancelApple(s);
         void s.body.act({ type: "stop" });
         s.lastSeen = this.sim.t; // one stop per lease period, not one per tick
       }

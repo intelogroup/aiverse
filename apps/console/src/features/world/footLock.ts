@@ -111,7 +111,7 @@ export function solveTwoBone(
 }
 
 /** Rotate `bone` (world-space shortest arc) so the direction pivot -> `from` points at pivot -> `to`; matrices must be current. */
-function aim(bone: THREE.Object3D, pivot: THREE.Vector3, from: THREE.Vector3, to: THREE.Vector3): void {
+export function aim(bone: THREE.Object3D, pivot: THREE.Vector3, from: THREE.Vector3, to: THREE.Vector3): void {
   const u = tmpV.copy(from).sub(pivot).normalize();
   const v = new THREE.Vector3().copy(to).sub(pivot).normalize();
   tmpQ.setFromUnitVectors(u, v);
@@ -120,7 +120,7 @@ function aim(bone: THREE.Object3D, pivot: THREE.Vector3, from: THREE.Vector3, to
   setWorldQuaternion(bone, tmpQ2);
 }
 
-function setWorldQuaternion(bone: THREE.Object3D, world: THREE.Quaternion): void {
+export function setWorldQuaternion(bone: THREE.Object3D, world: THREE.Quaternion): void {
   const parent = bone.parent;
   if (parent) {
     parent.getWorldQuaternion(tmpQ);
