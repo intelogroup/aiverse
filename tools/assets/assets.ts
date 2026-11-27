@@ -3,7 +3,7 @@
  *
  *   bun tools/assets/assets.ts lock                    rewrite the lock from the tracked GLBs
  *   bun tools/assets/assets.ts check [--remote]        files (and R2 objects) match the lock
- *   bun tools/assets/assets.ts pull [--force] [--root DIR]
+ *   bun tools/assets/assets.ts pull [--force] [--keep-local] [--only GLOB] [--root DIR]
  *   bun tools/assets/assets.ts missing                 "path<TAB>key" for each file R2 lacks
  *
  * Keys are `glbs/<sha256[0:16]>/<basename>`, the same ones the R2 release workflow uploads. They come
@@ -46,13 +46,25 @@ async function request(url: string, method: "GET" | "HEAD"): Promise<{ res: Resp
   }
 }
 
-export async function pull(lock: Lock, root: string, base: string, force = false) {
-  const done = { fetched: 0, skipped: 0, failed: [] as string[] };
+/** The part of the lock a build needs. A glob that matches nothing is a typo, not an empty build. */
+export function only(lock: Lock, glob: string): Lock {
+  const match = new Bun.Glob(glob);
+  const part = Object.fromEntries(Object.entries(lock).filter(([path]) => match.match(path)));
+  if (!Object.keys(part).length) throw new Error(`--only ${glob} matches nothing in the lock`);
+  return part;
+}
+
+// shortcut: keepLocal trusts a differing file while the GLBs are still in git; remove it once they are untracked.
+export async function pull(lock: Lock, root: string, base: string, force = false, keepLocal = false) {
+  const done = { fetched: 0, skipped: 0, kept: [] as string[], failed: [] as string[] };
   await pool(Object.entries(lock), 5, async ([path, want]) => {
     const file = join(root, path);
     const have = localHash(file);
     if (have === want.sha256) return void done.skipped++;
-    if (have && !force) return void done.failed.push(`${path}: local file differs from the lock (--force overwrites it)`);
+    if (have && !force) {
+      if (keepLocal) return void done.kept.push(path);
+      return void done.failed.push(`${path}: local file differs from the lock (assets:lock records it; --force discards it)`);
+    }
     try {
       const { res, body } = await request(`${base}/${keyFor(path, want.sha256)}`, "GET");
       if (!res.ok) return void done.failed.push(`${path}: HTTP ${res.status}`);
@@ -65,6 +77,7 @@ export async function pull(lock: Lock, root: string, base: string, force = false
       done.failed.push(`${path}: ${error instanceof Error ? error.message : error}`);
     }
   });
+  done.kept.sort();
   done.failed.sort();
   return done;
 }
@@ -130,15 +143,21 @@ async function main(argv: string[]) {
     for (const line of await missing(lock, BASE)) console.log(line);
     return;
   }
-  if (command !== "check" && command !== "pull") throw new Error("usage: assets.ts lock | missing | check [--remote] | pull [--force] [--root DIR]");
-  const lock: Lock = JSON.parse(readFileSync(LOCK, "utf8"));
+  if (command !== "check" && command !== "pull") throw new Error("usage: assets.ts lock | missing | check [--remote] | pull [--force] [--keep-local] [--only GLOB] [--root DIR]");
+  let lock: Lock = JSON.parse(readFileSync(LOCK, "utf8"));
   const at = argv.indexOf("--root");
   if (at >= 0 && !argv[at + 1]) throw new Error("--root needs a directory");
   const root = at >= 0 ? resolve(argv[at + 1]) : REPO;
   let failed: string[];
   if (command === "pull") {
-    const done = await pull(lock, root, BASE, flag("--force"));
-    console.log(`fetched ${done.fetched}, already correct ${done.skipped}, failed ${done.failed.length}`);
+    const glob = argv.indexOf("--only");
+    if (glob >= 0) {
+      if (!argv[glob + 1]) throw new Error("--only needs a glob");
+      lock = only(lock, argv[glob + 1]);
+    }
+    const done = await pull(lock, root, BASE, flag("--force"), flag("--keep-local"));
+    for (const path of done.kept) console.warn(`warning: kept ${path}, it differs from the lock`);
+    console.log(`fetched ${done.fetched}, already correct ${done.skipped}, kept ${done.kept.length}, failed ${done.failed.length}`);
     failed = done.failed;
   } else {
     failed = await check(lock, root, flag("--remote") ? BASE : undefined);

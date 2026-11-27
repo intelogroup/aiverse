@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { check, keyFor, missing, pull, type Lock } from "./assets";
+import { check, keyFor, missing, only, pull, type Lock } from "./assets";
 
 const entry = (text: string) => ({ sha256: createHash("sha256").update(text).digest("hex"), size: text.length });
 const served = new Map<string, string>();
@@ -55,4 +55,20 @@ test("check reports local and remote problems", async () => {
 test("missing lists only what the store answers 404 for", async () => {
   const want = [`a/gone.glb\t${keyFor("a/gone.glb", lock["a/gone.glb"].sha256)}`];
   expect(await missing({ "a/good.glb": lock["a/good.glb"], "a/gone.glb": lock["a/gone.glb"] }, base)).toEqual(want);
+});
+
+test("--only takes the matching part and rejects a glob that matches nothing", () => {
+  const all: Lock = { "p/world-x-collision.glb": entry("1"), "p/interiors/a.glb": entry("2"), "p/world-x.glb": entry("3") };
+  expect(Object.keys(only(all, "p/{world-*-collision.glb,interiors/*.glb}"))).toEqual(["p/world-x-collision.glb", "p/interiors/a.glb"]);
+  expect(() => only(all, "p/nope/*")).toThrow("matches nothing");
+});
+
+test("keep-local leaves a differing file and still fetches a missing one", async () => {
+  writeFileSync(join(root, "a/good.glb"), "edited");
+  const kept = await pull({ "a/good.glb": lock["a/good.glb"] }, root, base, false, true);
+  expect(kept.kept).toEqual(["a/good.glb"]);
+  expect(kept.failed).toEqual([]);
+  expect(readFileSync(join(root, "a/good.glb"), "utf8")).toBe("edited");
+  rmSync(join(root, "a/good.glb"));
+  expect((await pull({ "a/good.glb": lock["a/good.glb"] }, root, base, false, true)).fetched).toBe(1);
 });

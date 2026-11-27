@@ -43,6 +43,10 @@ jobs:
         with:
           bun-version: 1.4.0
       - run: bun install --frozen-lockfile
+      - name: Fetch world GLBs
+        run: bun tools/assets/assets.ts pull --keep-local
+      - name: Asset tool tests
+        run: bun test ./tools/assets/
 
       - name: Run Verse experiment regressions
         run: |
