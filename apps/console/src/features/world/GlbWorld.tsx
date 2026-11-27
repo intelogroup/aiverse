@@ -26,6 +26,7 @@ import { RemoteCast } from "./RemoteCast";
 import { OwnerFollowCam } from "./OwnerFollowCam";
 import { pickOwnBody, type RosterBody } from "./ownerFollow";
 import { RemoteBodies } from "./remoteFrames";
+import { hudBridge } from "./hud/hudBridge";
 import { WalkClipOverride, type WalkFrameInfo } from "./walkOverride";
 import { SoundDirector } from "./soundDirector";
 import { VOICE_BARTENDER, benchPhonon, phononWarmth, synthLine, warmPhonon } from "./phononTts";
@@ -100,7 +101,7 @@ function spawnFromUrl(): WalkSpawnRequest | null {
   return { x, z, faceX: Number.isFinite(fx) ? fx : x, faceZ: Number.isFinite(fz) ? fz : z - 2 };
 }
 
-export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner's agents (empty for a visitor). With one in the world, the camera lands on it. */ ownerAgentNames?: readonly string[] } = {}) {
+export function GlbWorld({ ownerAgentNames, hud = false }: { /** Names of the signed-in owner's agents (empty for a visitor). With one in the world, the camera lands on it. */ ownerAgentNames?: readonly string[]; /** Field HUD on: publish to hudBridge and hide the chrome the HUD replaces. */ hud?: boolean } = {}) {
   // City 3 is the only world: the Agora was deleted 2026-11-08 (Jim's
   // order — a planned lobby will bring back world navigation later).
   // Any ?world= value, stale or current, lands here.
@@ -190,19 +191,23 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
   // The stream's state lives here (RemoteCast draws from it, OwnerFollowCam reads it) so the owner's body can be found by name.
   const remoteBodies = useMemo(() => new RemoteBodies(), []);
   const [ownBody, setOwnBody] = useState<RosterBody | null>(null);
+  // The owned agent picked from the HUD party list; null (or gone from the stream) falls back to the newest.
+  const [followName, setFollowName] = useState<string | null>(null);
   useEffect(() => {
     if (!streamOn || ownerNames.length === 0) {
       setOwnBody(null);
       return;
     }
     const look = () => {
-      const b = pickOwnBody(remoteBodies.list(), ownerNames);
+      const bodies = remoteBodies.list();
+      const picked = followName && ownerNames.includes(followName) ? pickOwnBody(bodies, [followName]) : null;
+      const b = picked ?? pickOwnBody(bodies, ownerNames);
       setOwnBody((prev) => (prev?.n === b?.n && prev?.name === b?.name ? prev : b));
     };
     look();
     const id = window.setInterval(look, 400);
     return () => window.clearInterval(id);
-  }, [streamOn, ownerNames, remoteBodies]);
+  }, [streamOn, ownerNames, remoteBodies, followName]);
   // Follow the owner's agent (third person). Lands there once per visit, unless the user already moved the camera or came by a
   // walk/agent deep link; any drag/pinch/wheel on the world hands the camera back (OwnerFollowCam fires onTakeOver).
   const [following, setFollowing] = useState(false);
@@ -310,6 +315,37 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
     return () => window.clearInterval(id);
   }, []);
   const walking = camMode !== "wide";
+  useEffect(() => {
+    if (!hud) return;
+    return hudBridge.register({
+      follow: (name) => {
+        followAuto.current = false;
+        setFollowName(name);
+        setCamMode("wide");
+        setFollowing(true);
+      },
+      toggleFollow: () => {
+        followAuto.current = false;
+        setFollowing((f) => !f);
+      },
+      walk: () => setCamMode("ride"),
+      root: rootRef,
+    });
+  }, [hud]);
+  useEffect(() => {
+    if (!hud) return;
+    const publish = () =>
+      hudBridge.publish({
+        walking,
+        following,
+        followName: ownBody?.name ?? null,
+        present: remoteBodies.list().map((b) => b.name),
+        says: remoteBodies.says,
+      });
+    publish();
+    const id = window.setInterval(publish, 400);
+    return () => window.clearInterval(id);
+  }, [hud, walking, following, ownBody, remoteBodies]);
   // Mobile Phase 2: register this world's Places with the shell bridge
   // while City 3 is on stage (WorldView's Places sheet reads them),
   // and tell the shell when a touch walk owns the screen so the tab
@@ -606,7 +642,7 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
       onPointerDownCapture={(e) => { if (e.target instanceof HTMLCanvasElement) followAuto.current = false; }}
       onWheelCapture={(e) => { if (e.target instanceof HTMLCanvasElement) followAuto.current = false; }}
     >
-      {ownBody && !agentOn && !walking ? (
+      {!hud && ownBody && !agentOn && !walking ? (
         <button
           type="button"
           className={following ? "w-follow-chip active" : "w-follow-chip"}
@@ -617,13 +653,15 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
         </button>
       ) : null}
       {/* One stack, top-right: Share and Record no longer sit on top of each other or the phone tab bar. */}
-      <div className="w-tools">
-        <VerseRecorder root={rootRef} />
-        <VerseShare root={rootRef} />
-        <button type="button" className="w-fullview-btn" data-testid="full-view" onClick={() => setFullView((v) => !v)}>
-          {fullView ? "Exit full view" : "Full view"}
-        </button>
-      </div>
+      {hud ? null : (
+        <div className="w-tools">
+          <VerseRecorder root={rootRef} />
+          <VerseShare root={rootRef} />
+          <button type="button" className="w-fullview-btn" data-testid="full-view" onClick={() => setFullView((v) => !v)}>
+            {fullView ? "Exit full view" : "Full view"}
+          </button>
+        </div>
+      )}
       {perfOn ? <PerfOverlay /> : null}
       <TeaElevatorHud controller={elevator} frame={walkFrameRef} walking={walking} walk={walkColliders} />
       {glSupported ? (
@@ -737,7 +775,7 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
             <ScoutAgent getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} door={teaDoorRef.current} positionRef={scoutPosRef} interact={interactRef.current} spawn={agentPair ? [-22.9, -68, 0] : undefined} />
           ) : null}
           {streamOn ? <RemoteCast walk={walkColliders} bodies={remoteBodies} /> : null}
-          {following && ownBody ? <OwnerFollowCam bodies={remoteBodies} n={ownBody.n} onTakeOver={takeOver} /> : null}
+          {following && ownBody ? <OwnerFollowCam key={ownBody.n} bodies={remoteBodies} n={ownBody.n} onTakeOver={takeOver} /> : null}
           {agentPair ? (
             <ScoutAgent actorId="scout-peer" primary={false} spawn={[-22.9, -64, Math.PI]}
               getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} door={teaDoorRef.current} interact={interactRef.current} />
@@ -827,7 +865,7 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
           </div>
         </div>
       ) : null}
-      {!(walking && touchUi) ? (
+      {!(walking && touchUi) && !(hud && !walking) ? (
         <div className="w-glb-toggle w-glb-walk" role="group" aria-label="Walk City 3">
           {walking ? (
             <>
