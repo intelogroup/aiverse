@@ -1,9 +1,10 @@
-// Fits every finger-rigged agent body's apple grip and writes packages/world-sim/src/appleFits.generated.ts.
+// Fits every agent body's apple grip and writes packages/world-sim/src/appleFits.generated.ts.
 // Run from apps/console after changing a cast GLB, APPLE_SIZE or a stand:  bun scripts/fit-apple-grips.ts
 //
 // Remy's grip is the Blender calibration (REMY_APPLE_GRIP) and the reference. Every other body's grip is searched on a 4 mm grid
 // around it so that, at each stand's contact frame, the gap from each hand part (palm, thumb, fingers) to the apple's skin matches
-// Remy's gap for that part. The apple is a sphere for the search; tests/apple-grip-bodies.test.ts re-checks against its real mesh.
+// Remy's gap for that part. Mitten rigs (elf, jim: a palm and one fingers bone) match the parts they have, with a light pull
+// toward Remy's grip so the apple stays on the palm side. The apple is a sphere for the search; tests/apple-grip-bodies.test.ts re-checks against its real mesh.
 import { readFileSync, writeFileSync } from "node:fs";
 import { AnimationMixer, LoopOnce, type Matrix4, type Object3D, SkinnedMesh, Texture, Vector3 } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -16,6 +17,7 @@ const PARTS = ["Palm", "Thumb", "Index", "Middle", "Ring", "Pinky"];
 const APPLE_RADIUS = 0.029 * APPLE_SIZE; // m, the sphere standing in for the apple during the search
 const STEP = 0.004 / REMY_HAND_WORLD_SCALE; // 4 mm, in Remy hand units
 const REACH = 14; // grid steps each way
+const PULL = 0.01; // mitten rigs: 3 cm off Remy's grip costs about as much as a 3 mm gap error on one part
 
 export const assetUrl = (path: string) => new URL(`../public${path}`, import.meta.url);
 
@@ -42,7 +44,7 @@ export function handVertices(scene: Object3D): [string, Vector3][] {
   return out;
 }
 
-/** A rig the finger fit applies to: thumb, index, middle, ring and pinky, three joints each, on the right hand. */
+/** Thumb, index, middle, ring and pinky, three joints each, on the right hand. Other rigs get the mitten fit. */
 export const fingerRig = (boneNames: string[]) => boneNames.filter((n) => /^mixamorigRightHand(Thumb|Index|Middle|Ring|Pinky)[1-3]$/.test(n)).length === 15;
 
 interface Pose { stand: AppleStand; hand: Matrix4; units: number; pts: [string, Vector3][] }
@@ -76,19 +78,21 @@ function gapProfile(p: Pose, grip: Vector3): Record<string, number> {
   return best;
 }
 
-function fitGrip(poses: Pose[], ref: Record<string, Record<string, number>>): Vector3 {
+/** `pull`: cost per m² of moving off Remy's grip; 0 for finger rigs, whose five parts pin the grip on their own. */
+function fitGrip(poses: Pose[], ref: Record<string, Record<string, number>>, pull: number): Vector3 {
+  const base = new Vector3(...REMY_APPLE_GRIP);
   const cost = (grip: Vector3) => {
-    let c = 0;
+    let c = pull * (grip.distanceTo(base) * REMY_HAND_WORLD_SCALE) ** 2;
     for (const p of poses) {
       const gaps = gapProfile(p, grip);
       for (const part of PARTS) {
-        const gap = gaps[part] ?? 0, want = ref[p.stand][part] ?? 0;
+        const gap = gaps[part], want = ref[p.stand][part];
+        if (gap === undefined || want === undefined) continue;
         c += (gap - want) ** 2 + (gap < -0.003 ? 100 * (gap + 0.003) ** 2 : 0); // sinking a part into the apple costs extra
       }
     }
     return c;
   };
-  const base = new Vector3(...REMY_APPLE_GRIP);
   let best = base, bestCost = Infinity;
   for (let x = -REACH; x <= REACH; x++) for (let y = -REACH; y <= REACH; y++) for (let z = -REACH; z <= REACH; z++) {
     const grip = new Vector3(x, y, z).multiplyScalar(STEP).add(base), c = cost(grip);
@@ -106,8 +110,8 @@ async function main() {
   const fits: Record<string, unknown> = {};
   for (const body of Object.values(BODIES).filter((b) => b.agentBody !== false)) {
     const { poses, bones } = body.id === "remy" ? remy : await contactPoses(body);
-    if (!poses.length || !fingerRig(bones)) { console.log(`${body.id}: skipped (${poses.length ? "no finger rig" : "no PickUp/PuttingDown"})`); continue; }
-    const grip = body.id === "remy" ? remyGrip : fitGrip(poses, ref);
+    if (!poses.length) { console.log(`${body.id}: skipped (no PickUp/PuttingDown)`); continue; }
+    const grip = body.id === "remy" ? remyGrip : fitGrip(poses, ref, fingerRig(bones) ? 0 : PULL);
     const entry: Record<string, unknown> = { scale: body.scale, grip: body.id === "remy" ? [...REMY_APPLE_GRIP] : grip.toArray().map(round) };
     for (const p of poses) {
       const g = worldGrip(p, grip), { offset } = APPLE_STANDS[p.stand];

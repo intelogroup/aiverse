@@ -35,7 +35,7 @@ City 3 has no crowd. KayKit bodies untested with turn clips (rootMotion lookup b
 
 ## Movable apple pilot
 
-Enable `SIM_MOVABLE_PROPS=1` on the City 3 simulator. The two stands are on the plaza near the default spawn. This pilot supports Remy, Eve and Cipher. The apple and stands stay fixed in the world; each body gets its own stance from `APPLE_GRIPS` in `movableProps.ts` (grip x/z at the contact frame, sampled from its GLB), and observe returns that stance as `surface.approach`. Other rigs need their own measured grip before they can use the apple.
+Enable `SIM_MOVABLE_PROPS=1` on the City 3 simulator. The two stands are on the plaza near the default spawn. Every agent body can use it. The apple and stands stay fixed in the world; each body gets its own grip and stance from `APPLE_GRIPS` (`packages/world-sim/src/appleFits.generated.ts`, written by `apps/console/scripts/fit-apple-grips.ts`), and observe returns that stance as `surface.approach`. A new or re-baked body needs the script rerun; `tests/apple-grip-bodies.test.ts` fails until it is.
 
 1. Read `observation.movableProps` through `world_observe` or `GET /world/observe`. Come within 6 m of the pickup stand (its `approach` is the exact spot); the sim walks the body the rest of the way, routed, then precise.
 2. Submit `grab {target}` through `world_act` or `POST /world/act` and wait for the act to settle.

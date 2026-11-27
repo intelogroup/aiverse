@@ -62,8 +62,6 @@ test("stop before contact releases the reservation and a stopped carry remains h
   const world = new WorldService({ sim, movableProps: true });
   try {
     world.attach("a", { x: 8, z: 12 });
-    world.attach("unmeasured", { x: 8, z: 11 }, "elf");
-    expect(world.act("unmeasured", "try", grab).outcome?.detail).toContain("unsupported_grip");
     const first = world.act("a", "first", grab);
     await advance(world, 1);
     world.act("a", "stop1", { type: "stop" });

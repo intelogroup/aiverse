@@ -1,4 +1,4 @@
-import { APPLE_APPROACH, APPLE_ID, APPLE_PICKUP, APPLE_RECEIVING, APPLE_STANDS, appleBody, appleCenter, appleStance, type AppleFrame, type AppleStand } from "./movableProps";
+import { APPLE_APPROACH, APPLE_GRIPS, APPLE_ID, APPLE_PICKUP, APPLE_RECEIVING, APPLE_STANDS, appleBody, appleCenter, appleStance, type AppleFrame, type AppleStand } from "./movableProps";
 import { TEA_CUP, type CupAction } from "./teaCup";
 // worldService.ts — the agent-facing surface of the server sim: attach a body, send actions, read senses.
 //
@@ -375,7 +375,7 @@ export class WorldService {
     const refuse = (detail: string) => this.settle(rec, { ok: false, status: "unavailable", target: a.target, detail });
     if (!this.appleEnabled || a.target !== APPLE_ID) return refuse("unknown movable prop: use the object ID from observe.movableProps");
     const figure = s.figure;
-    if (!appleBody(figure)) return refuse("unsupported_grip: this apple is fitted to Remy, Eve and Cipher");
+    if (!appleBody(figure)) return refuse(`unsupported_grip: this apple is fitted to ${Object.keys(APPLE_GRIPS).join(", ")}`);
     if (this.appleRun) return refuse("object_busy: an apple interaction is in progress");
     if (s.body.busy || s.body.snapshot().posture !== "standing") return refuse("stand still and finish or stop your current action first");
     if (a.type === "grab" && (this.appleHolder !== null || this.cupHolder === id)) return refuse("hand_occupied: the apple is held or your hand is occupied");

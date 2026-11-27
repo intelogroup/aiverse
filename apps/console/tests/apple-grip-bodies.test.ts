@@ -1,22 +1,14 @@
 // @vitest-environment node
-import { readFileSync } from "node:fs";
-import { AnimationMixer, LoopOnce, PropertyBinding, Quaternion, SkinnedMesh, Vector3 } from "three";
+import { AnimationMixer, LoopOnce, Quaternion, SkinnedMesh, Vector3 } from "three";
 import { expect, test } from "vitest";
 import { agentBodies, BODIES, SCALE_REMY } from "@aiverse/world-sim/bodies";
 import { APPLE_GRIPS, APPLE_STANDS, type AppleBody, type AppleStand } from "@aiverse/world-sim/movableProps";
 import { APPLE_GRIP_ROTATION, APPLE_SIZE, appleGripOffset } from "../src/features/world/appleGrip";
-import { assetUrl, CLIPS, fingerRig, handVertices, load } from "../scripts/fit-apple-grips";
+import { assetUrl, CLIPS, handVertices, load } from "../scripts/fit-apple-grips";
 
-/** Bone names straight from the GLB's JSON chunk: enough to tell a finger rig without loading the meshes. */
-const glbBones = (url: URL) => {
-  const b = readFileSync(url), j = JSON.parse(b.subarray(20, 20 + b.readUInt32LE(12)).toString());
-  return (j.skins?.[0]?.joints ?? []).map((i: number): string => PropertyBinding.sanitizeNodeName(j.nodes[i].name)); // GLTFLoader names bones the same way
-};
-
-// A new finger-rigged agent body must be fitted (bun scripts/fit-apple-grips.ts) before it ships.
-test("every finger-rigged agent body has an apple fit", () => {
-  const rigged = agentBodies().filter((b) => fingerRig(glbBones(assetUrl(b.url)))).map((b) => b.id).sort();
-  expect(Object.keys(APPLE_GRIPS).sort()).toEqual(rigged);
+// A new agent body must be fitted (bun scripts/fit-apple-grips.ts) before it ships.
+test("every agent body has an apple fit", () => {
+  expect(Object.keys(APPLE_GRIPS).sort()).toEqual(agentBodies().map((b) => b.id).sort());
 });
 
 // At each stand's contact frame, with the body's own grip:
