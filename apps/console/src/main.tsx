@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import './index.css'
 import App from './App.tsx'
+import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import { queryClient } from './lib/queryClient.ts'
 import { persistOptions } from './lib/queryPersist.ts'
 import { initTelemetry } from './lib/telemetry/index.ts'
@@ -24,7 +25,7 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
-      <Suspense fallback={null}><App /></Suspense>
+      <Suspense fallback={null}><ErrorBoundary><App /></ErrorBoundary></Suspense>
     </PersistQueryClientProvider>
   </StrictMode>,
 )
