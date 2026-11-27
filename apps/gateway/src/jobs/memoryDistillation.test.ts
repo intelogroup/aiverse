@@ -1,4 +1,4 @@
-import { describe, expect, test, afterAll } from "bun:test";
+import { describe, expect, test, beforeEach, afterAll } from "bun:test";
 import { and, eq, sql } from "drizzle-orm";
 import {
   agentEvents,
@@ -130,6 +130,13 @@ describe("visit-end distillation enqueue", () => {
 });
 
 describe("processVisitDistillations", () => {
+  // One pass claims only the oldest BATCH_LIMIT due rows, and the queue is
+  // shared by the whole `bun test` run. Without this, rows left by earlier
+  // test files can fill the batch so the visit under test is never claimed.
+  beforeEach(async () => {
+    await db.delete(visitDistillations);
+  });
+
   test("writes provenanced, embedded conclusion entries from the visit window only", async () => {
     const { ownerToken, agentId } = await ownerWithAgent("DistillWrite");
     const peer = await ownerWithAgent("DistillPeer");
