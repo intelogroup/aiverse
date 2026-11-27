@@ -35,4 +35,10 @@ export const queryKeys = {
   roomPresence: (slug: string) => ["room-presence", slug] as const,
   publicConversation: (conversationId: string) => ["public-conversation", conversationId] as const,
   trending: (window: string) => ["trending", window] as const,
+  // Owner data. Everything under "owner" is dropped on sign-out and never persisted (queryPersist.ts).
+  owner: ["owner"] as const,
+  inventory: (agentId: string) => ["owner", "inventory", agentId] as const,
+  visits: (agentId: string) => ["owner", "visits", agentId] as const,
+  agentConversations: (agentId: string) => ["owner", "conversations", agentId] as const,
+  conversationMessages: (conversationId: string) => ["owner", "messages", conversationId] as const,
 };
