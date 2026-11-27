@@ -1,0 +1,133 @@
+// Top left: the followed agent's plate and the owner's other agents. Energy comes from the
+// owner inventory read; XP, level and credits are a later phase and are not drawn.
+import type { Agent, Visit } from "../../../lib/api";
+import { useAgentInventoryQuery, useAgentVisitsQuery } from "../../../lib/queries";
+
+/** Presence visits last 3 minutes and renew themselves, so a countdown is only shown for longer ones. */
+const LONG_VISIT_MS = 5 * 60_000;
+
+export function energyState(energy: number): { word: string | null; tone: "ok" | "low" | "out" } {
+  if (energy <= 0) return { word: "Exhausted", tone: "out" };
+  if (energy <= 35) return { word: "Tired", tone: "low" };
+  return { word: null, tone: "ok" };
+}
+
+export function openLongVisit(visits: readonly Visit[], now: number): Visit | null {
+  return visits.find((v) => !v.endedAt && Date.parse(v.endsAt) > now && Date.parse(v.endsAt) - Date.parse(v.startedAt) > LONG_VISIT_MS) ?? null;
+}
+
+const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+function EnergyBar({ energy, label }: { energy: number; label: string }) {
+  const { word, tone } = energyState(energy);
+  return (
+    <div className={`hud-energy ${tone}`}>
+      <div className="hud-bar" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={energy}>
+        <i style={{ width: `${Math.max(0, Math.min(100, energy))}%` }} />
+      </div>
+      <span>
+        {energy}/100{word ? ` ${word}` : ""}
+      </span>
+    </div>
+  );
+}
+
+function Plate({ agent, inWorld }: { agent: Agent; inWorld: boolean }) {
+  const inventory = useAgentInventoryQuery(agent.id, inWorld);
+  const visits = useAgentVisitsQuery(agent.id, inWorld);
+  const energy = inventory.data?.energy;
+  const visit = inWorld && visits.data ? openLongVisit(visits.data.visits, visits.dataUpdatedAt) : null;
+  return (
+    <>
+      <b className="hud-name">{agent.name}</b>
+      <small>{inWorld ? "In the world" : "Not in the world"}</small>
+      {inWorld && energy !== undefined ? <EnergyBar energy={energy} label={`${agent.name} energy`} /> : null}
+      {inWorld && inventory.isError ? (
+        <small className="hud-stale">{inventory.data ? `Can't refresh. Values from ${clock(inventory.dataUpdatedAt)}.` : "Energy unavailable"}</small>
+      ) : null}
+      {visit ? (
+        <small>
+          Visit: {Math.ceil((Date.parse(visit.endsAt) - visits.dataUpdatedAt) / 60_000)} min left, {visit.actionsUsed}/{visit.maxActions} actions
+        </small>
+      ) : null}
+    </>
+  );
+}
+
+function PartyFrame({ agent, inWorld, onFollow }: { agent: Agent; inWorld: boolean; onFollow: () => void }) {
+  const inventory = useAgentInventoryQuery(agent.id, inWorld);
+  const energy = inventory.data?.energy;
+  return (
+    <button type="button" className={inWorld ? "hud-party" : "hud-party out"} disabled={!inWorld} onClick={onFollow} title={inWorld ? `Follow ${agent.name}` : `${agent.name} is not in the world`}>
+      <b>{agent.name}</b>
+      {inWorld ? energy !== undefined ? <EnergyBar energy={energy} label={`${agent.name} energy`} /> : null : <small>Away</small>}
+    </button>
+  );
+}
+
+export function HudAgents({
+  agents,
+  authed,
+  followName,
+  present,
+  compact,
+  onFollow,
+  onSignIn,
+  onManage,
+}: {
+  agents: Agent[];
+  authed: boolean;
+  followName: string | null;
+  present: readonly string[];
+  /** Walk mode: plate only. */
+  compact: boolean;
+  onFollow: (name: string) => void;
+  onSignIn: () => void;
+  onManage: () => void;
+}) {
+  const here = new Set(present);
+  const main = agents.find((a) => a.name === followName) ?? agents.find((a) => here.has(a.name)) ?? agents[0];
+  const others = agents.filter((a) => a !== main);
+  const anyHere = agents.some((a) => here.has(a.name));
+  return (
+    <div className="hud-agents">
+      <section className="hud-panel hud-plate" aria-label="Agent">
+        {!authed ? (
+          <>
+            <b className="hud-name">Spectating</b>
+            <small>Sign in to look after your own agents.</small>
+            <button type="button" className="hud-btn" onClick={onSignIn}>
+              Sign in
+            </button>
+          </>
+        ) : !main ? (
+          <>
+            <b className="hud-name">No agents yet</b>
+            <button type="button" className="hud-btn" onClick={onManage}>
+              Add an agent
+            </button>
+          </>
+        ) : (
+          <>
+            <Plate agent={main} inWorld={here.has(main.name)} />
+            {!anyHere ? (
+              <>
+                <small>Nobody of yours is here.</small>
+                <button type="button" className="hud-btn" onClick={onManage}>
+                  Send in
+                </button>
+              </>
+            ) : null}
+          </>
+        )}
+      </section>
+      {authed && !compact && others.length > 0 ? (
+        <section className="hud-panel hud-parties" aria-label="Your other agents">
+          {others.map((a) => (
+            <PartyFrame key={a.id} agent={a} inWorld={here.has(a.name)} onFollow={() => onFollow(a.name)} />
+          ))}
+        </section>
+      ) : null}
+    </div>
+  );
+}

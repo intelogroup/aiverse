@@ -33,7 +33,8 @@ never carried by colour alone.
 - Top centre: location and toasts. Top right: minimap.
 - Bottom left: read-only chat (Nearby, Threads, Mine, Log).
 - Bottom centre: hotbar. Bottom right: menu (Esc) and goals.
-- In walk mode, the first Esc releases the pointer or closes the elevator panel.
+- Walk mode owns the keyboard: Esc releases a locked pointer, else closes the
+  elevator panel, else leaves walk mode. It never opens the menu.
 
 ## Motion
 One short response to a real event (bar fill, toast). No loops, no idle

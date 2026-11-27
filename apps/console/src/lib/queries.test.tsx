@@ -18,12 +18,16 @@ const apiMock = vi.hoisted(() => ({
   roomPresence: vi.fn(),
   trending: vi.fn(),
   me: vi.fn(),
+  listVerseInventory: vi.fn(),
+  agentConversations: vi.fn(),
 }));
 vi.mock("./api", () => ({ api: apiMock }));
 
 import {
   patchAgentStatus,
   prependLiveEvent,
+  useAgentConversationsQuery,
+  useAgentInventoryQuery,
   usePublicActivityQuery,
   usePublicConversationQuery,
 } from "./queries";
@@ -185,5 +189,20 @@ describe("WS patch helpers", () => {
     expect(after).toHaveLength(200);
     expect(after?.[0].id).toBe("new");
     expect(after?.[199].id).toBe("old-198");
+  });
+});
+
+describe("owner reads", () => {
+  const wrapped = (client: QueryClient) => ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+
+  it("asks for nothing when disabled, and files owner data under the owner key", async () => {
+    apiMock.listVerseInventory.mockResolvedValue({ items: [], energy: 40 });
+    const client = new QueryClient();
+    renderHook(() => useAgentConversationsQuery("a1", false), { wrapper: wrapped(client) });
+    const inv = renderHook(() => useAgentInventoryQuery("a1", true), { wrapper: wrapped(client) });
+    await waitFor(() => expect(inv.result.current.data?.energy).toBe(40));
+    expect(apiMock.agentConversations).not.toHaveBeenCalled();
+    client.removeQueries({ queryKey: queryKeys.owner });
+    expect(client.getQueryData(queryKeys.inventory("a1"))).toBeUndefined();
   });
 });

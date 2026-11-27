@@ -117,6 +117,7 @@ export default function App() {
     setOwnerEmail(null);
     setAuthed(false);
     queryClient.setQueryData(queryKeys.agents, { agents: [] });
+    queryClient.removeQueries({ queryKey: queryKeys.owner });
   }
 
   if (view === "verse") {

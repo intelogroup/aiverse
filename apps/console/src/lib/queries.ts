@@ -153,3 +153,42 @@ export function patchAgentStatus(
       : prev,
   );
 }
+
+// Owner reads for the HUD. The agent plate must follow the gateway within 15 s, so inventory (energy) polls at 10 s.
+export const INVENTORY_POLL_MS = 10_000;
+
+export function useAgentInventoryQuery(agentId: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.inventory(agentId ?? ""),
+    queryFn: () => api.listVerseInventory(agentId!),
+    enabled: enabled && !!agentId,
+    refetchInterval: INVENTORY_POLL_MS,
+  });
+}
+
+export function useAgentVisitsQuery(agentId: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.visits(agentId ?? ""),
+    queryFn: () => api.listVisits(agentId!),
+    enabled: enabled && !!agentId,
+    refetchInterval: 15_000,
+  });
+}
+
+export function useAgentConversationsQuery(agentId: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.agentConversations(agentId ?? ""),
+    queryFn: () => api.agentConversations(agentId!),
+    enabled: enabled && !!agentId,
+    refetchInterval: 15_000,
+  });
+}
+
+export function useConversationMessagesQuery(conversationId: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.conversationMessages(conversationId ?? ""),
+    queryFn: () => api.conversationMessages(conversationId!),
+    enabled: enabled && !!conversationId,
+    refetchInterval: 8_000,
+  });
+}

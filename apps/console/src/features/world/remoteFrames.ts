@@ -12,6 +12,10 @@ export const BUBBLE_MS = 5000;
 /** Above this speed (m/s) the figure plays Walk. */
 const WALK_SPEED = 0.05;
 
+/** Lines kept for the HUD's Nearby tab; bubbles expire, this does not. */
+export const SAY_LOG_MAX = 50;
+export interface SayLine { id: number; name: string; text: string; at: number }
+
 interface Sample { t: number; pose: RemotePose }
 
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
@@ -36,9 +40,16 @@ export class RemoteBodies {
   /** Speech bubbles: body number -> the line and the local time (ms) it stops showing. */
   private said = new Map<number, { text: string; until: number }>();
 
+  /** Recent lines, oldest first. A new array on every change, so a reference check is enough. Survives reconnects. */
+  says: readonly SayLine[] = [];
+  private sayId = 0;
+
   /** A spoken line: it shows over the speaker for BUBBLE_MS. A newer line replaces an older one. */
   applySay(m: SayMessage, nowMs: number): void {
     for (const e of m.say) this.said.set(e.n, { text: e.text.slice(0, 140), until: nowMs + BUBBLE_MS });
+    const at = Date.now();
+    const lines = m.say.map((e) => ({ id: ++this.sayId, name: this.info.get(e.n)?.name ?? "Someone", text: e.text.slice(0, 140), at }));
+    if (lines.length) this.says = [...this.says, ...lines].slice(-SAY_LOG_MAX);
   }
 
   /** The bubble text for body `n` now, or null. */
