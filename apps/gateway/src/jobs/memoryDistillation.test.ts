@@ -83,13 +83,11 @@ async function distilledMemories(agentId: string, visitId: string) {
   });
 }
 
-// A distiller that only ever answers for one agent's visits, so a pass
-// over the shared queue (other test files end visits too) can't leak
-// foreign entries into this file's assertions or vice versa.
+// The fake also checks which agent's record reached the distiller.
 function scopedDistiller(agentId: string, entries: string[] | Error, seen?: VisitRecord[]): Distiller {
   return {
     async distill(record: VisitRecord) {
-      if (record.agentId !== agentId) return [];
+      expect(record.agentId).toBe(agentId);
       if (seen) seen.push(record);
       if (entries instanceof Error) throw entries;
       return entries;
@@ -130,6 +128,39 @@ describe("visit-end distillation enqueue", () => {
 });
 
 describe("processVisitDistillations", () => {
+
+  test("a visit can be tested without claiming another agent's queued jobs", async () => {
+    const older = await ownerWithAgent("DistillBacklog");
+    const past = new Date("2000-01-01T00:00:00Z");
+    const oldVisits = await db.insert(agentVisits).values(Array.from({ length: 10 }, () => ({
+      agentId: older.agentId,
+      startedAt: past,
+      endsAt: past,
+      endedAt: past,
+      maxActions: 10,
+    }))).returning({ id: agentVisits.id });
+    await db.insert(visitDistillations).values(oldVisits.map(({ id }) => ({
+      visitId: id, agentId: older.agentId, createdAt: past,
+    })));
+
+    const { ownerToken, agentId } = await ownerWithAgent("DistillScoped");
+    const visit = await startVisit(ownerToken, agentId);
+    await stopVisit(ownerToken, agentId, visit.id);
+
+    const deps = {
+      visitId: visit.id,
+      distiller: scopedDistiller(agentId, ["I visited the market."]),
+      embedder: new FakeEmbedder(),
+    };
+    await processVisitDistillations(deps);
+    expect((await distillationRow(visit.id))?.status).toBe("done");
+    expect(await distilledMemories(agentId, visit.id)).toHaveLength(1);
+    const backlog = await db.query.visitDistillations.findMany({ where: eq(visitDistillations.agentId, older.agentId) });
+    expect(backlog).toHaveLength(10);
+    expect(backlog.every(row => row.status === "pending" && row.attempts === 0)).toBe(true);
+    await db.delete(visitDistillations).where(eq(visitDistillations.agentId, older.agentId));
+  });
+
   test("writes provenanced, embedded conclusion entries from the visit window only", async () => {
     const { ownerToken, agentId } = await ownerWithAgent("DistillWrite");
     const peer = await ownerWithAgent("DistillPeer");
@@ -163,7 +194,7 @@ describe("processVisitDistillations", () => {
 
     const seen: VisitRecord[] = [];
     const entries = ["I learned the tea house is on Lantern Street.", "I promised to bring jasmine tea next time."];
-    await processVisitDistillations({ distiller: scopedDistiller(agentId, entries, seen), embedder: new FakeEmbedder() });
+    await processVisitDistillations({ visitId: visit.id, distiller: scopedDistiller(agentId, entries, seen), embedder: new FakeEmbedder() });
 
     // The record the distiller saw: in-window messages from both
     // directions, the pre-visit message excluded, the event included.
@@ -196,7 +227,7 @@ describe("processVisitDistillations", () => {
     const visit = await startVisit(ownerToken, agentId);
     await stopVisit(ownerToken, agentId, visit.id);
     const entries = ["I met the keeper of the lantern archive."];
-    const deps = { distiller: scopedDistiller(agentId, entries), embedder: new FakeEmbedder() };
+    const deps = { visitId: visit.id, distiller: scopedDistiller(agentId, entries), embedder: new FakeEmbedder() };
 
     await processVisitDistillations(deps);
     expect((await distilledMemories(agentId, visit.id)).length).toBe(1);
@@ -225,6 +256,7 @@ describe("processVisitDistillations", () => {
     await stopVisit(ownerToken, agentId, visit.id);
 
     await processVisitDistillations({
+      visitId: visit.id,
       distiller: scopedDistiller(agentId, new Error("provider down")),
       embedder: new FakeEmbedder(),
     });
@@ -238,6 +270,7 @@ describe("processVisitDistillations", () => {
     expect((await distilledMemories(agentId, visit.id)).length).toBe(0);
 
     await processVisitDistillations({
+      visitId: visit.id,
       distiller: scopedDistiller(agentId, ["I recovered and remembered this."]),
       embedder: new FakeEmbedder(),
     });
@@ -251,7 +284,7 @@ describe("processVisitDistillations", () => {
     const { ownerToken, agentId } = await ownerWithAgent("DistillCap");
     const visit = await startVisit(ownerToken, agentId);
     await stopVisit(ownerToken, agentId, visit.id);
-    const deps = { distiller: scopedDistiller(agentId, new Error("always down")), embedder: new FakeEmbedder() };
+    const deps = { visitId: visit.id, distiller: scopedDistiller(agentId, new Error("always down")), embedder: new FakeEmbedder() };
     for (let i = 0; i < MAX_DISTILLATION_ATTEMPTS + 2; i++) {
       await processVisitDistillations(deps);
     }
@@ -274,6 +307,7 @@ describe("processVisitDistillations", () => {
     // the agent's records): the ended visit still distills into the
     // agent's permanent memory rows.
     await processVisitDistillations({
+      visitId: visit.id,
       distiller: scopedDistiller(agentId, ["I visited the archive before I was killed."]),
       embedder: new FakeEmbedder(),
     });
@@ -287,6 +321,7 @@ describe("processVisitDistillations", () => {
     const visit = await startVisit(ownerToken, agentId);
     await stopVisit(ownerToken, agentId, visit.id);
     await processVisitDistillations({
+      visitId: visit.id,
       distiller: scopedDistiller(agentId, ["I remember this without a vector."]),
       embedder: null,
     });

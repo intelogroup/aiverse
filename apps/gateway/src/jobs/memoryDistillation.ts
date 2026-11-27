@@ -27,6 +27,8 @@ const STALE_PROCESSING_MS = 10 * 60_000;
 const BATCH_LIMIT = 10;
 
 export interface DistillationDeps {
+  // Scope explicit runs to one visit. The scheduled worker sweeps the whole queue.
+  visitId?: string;
   distiller?: Distiller;
   // Pass null to force "no embedder" (entries written with NULL
   // embeddings); omit to use the env-configured production selection.
@@ -40,11 +42,14 @@ export async function processVisitDistillations(
   const distiller = deps.distiller ?? new LlmDistiller(selectLLMProvider());
   const embedder = deps.embedder !== undefined ? deps.embedder : selectEmbedder();
   const staleBefore = new Date(Date.now() - STALE_PROCESSING_MS);
-  const due = or(
+  const eligible = or(
     eq(visitDistillations.status, "pending"),
     and(eq(visitDistillations.status, "failed"), lt(visitDistillations.attempts, MAX_DISTILLATION_ATTEMPTS)),
     and(eq(visitDistillations.status, "processing"), lt(visitDistillations.updatedAt, staleBefore)),
   );
+  const due = deps.visitId
+    ? and(eligible, eq(visitDistillations.visitId, deps.visitId))
+    : eligible;
   const candidates = await db.query.visitDistillations.findMany({
     where: due,
     orderBy: asc(visitDistillations.createdAt),
