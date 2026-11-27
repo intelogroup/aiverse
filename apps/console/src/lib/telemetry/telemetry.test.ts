@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Blackbox } from "./blackbox";
 import { deriveDistrict, FALLBACK_DISTRICTS } from "./context";
-import { classifyAsset } from "./index";
+import { classifyAsset, formatLogArgs } from "./index";
 import { sentryEnvironment } from "./sentry";
 
 describe("Blackbox ring buffer", () => {
@@ -81,5 +81,27 @@ describe("sentryEnvironment", () => {
   it("falls back to MODE elsewhere (local dev stays development)", () => {
     expect(sentryEnvironment({ MODE: "development" }, "localhost")).toBe("development");
     expect(sentryEnvironment({}, undefined)).toBe("production");
+  });
+});
+
+describe("formatLogArgs", () => {
+  it("joins strings and plain values on one line", () => {
+    expect(formatLogArgs(["load failed", 42, true])).toBe("load failed 42 true");
+  });
+
+  it("formats Errors as name: message", () => {
+    expect(formatLogArgs([new TypeError("bad pose")])).toBe("TypeError: bad pose");
+  });
+
+  it("serializes objects and survives circular ones", () => {
+    expect(formatLogArgs([{ a: 1 }])).toBe('{"a":1}');
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    expect(() => formatLogArgs([circular])).not.toThrow();
+  });
+
+  it("caps very long output", () => {
+    const out = formatLogArgs(["x".repeat(5000)]);
+    expect(out.length).toBeLessThanOrEqual(1201);
   });
 });
