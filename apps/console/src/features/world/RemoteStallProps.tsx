@@ -6,7 +6,8 @@ import { SCALE_REMY } from "@aiverse/world-sim/bodies";
 import { APPLE_ASSET, type AppleBody } from "@aiverse/world-sim/movableProps";
 import { STALL_CONSUMABLES, STALL_MOUTH_S, STALL_PICKUP_S, STALL_RETURN_S, bottleTilt, type StallConsumableId } from "@aiverse/world-sim/stallConsumables";
 import { assetUrl } from "../../lib/assetUrl";
-import { APPLE_SIZE, appleGripOffset } from "./appleGrip";
+import { APPLE_GRIP_ROTATION, APPLE_SIZE } from "./appleGrip";
+import { stallBottleAxis, stallGripOffset } from "./stallHandGrip";
 import { extendGltf } from "./gltfExtensions";
 import type { RemoteBodies } from "./remoteFrames";
 
@@ -14,6 +15,10 @@ type FindHand = (n: number) => { hand: THREE.Object3D; body: AppleBody } | undef
 const BOTTLE_PROFILE = [[0, -0.1], [0.027, -0.1], [0.031, -0.096], [0.032, -0.085], [0.032, 0.036],
   [0.028, 0.056], [0.016, 0.072], [0.012, 0.079], [0.012, 0.11], [0.009, 0.11], [0.009, 0.092]];
 const handScale = new THREE.Vector3();
+const bottleUp = new THREE.Vector3(0, 1, 0);
+const bottleAxis = new THREE.Vector3();
+const handRotation = new THREE.Quaternion();
+const appleRotation = new THREE.Quaternion(...APPLE_GRIP_ROTATION);
 
 export function RemoteStallProps({ bodies, findHand }: { bodies: RemoteBodies; findHand: FindHand }) {
   const gl = useThree((state) => state.gl);
@@ -47,8 +52,16 @@ export function RemoteStallProps({ bodies, findHand }: { bodies: RemoteBodies; f
       const grip = findHand(state.motion.n);
       prop.visible = !!grip;
       if (!grip) return;
-      grip.hand.localToWorld(appleGripOffset(grip.body, grip.hand.getWorldScale(handScale).x, prop.position));
-      prop.rotation.set(bottleTilt(elapsed) * Number(!isFruit), 0, 0);
+      grip.hand.localToWorld(stallGripOffset(id, grip.body, grip.hand.getWorldScale(handScale).x, prop.position));
+      const localAxis = stallBottleAxis(grip.body);
+      if (isFruit && localAxis) {
+        prop.quaternion.copy(grip.hand.getWorldQuaternion(handRotation)).multiply(appleRotation);
+      } else if (!isFruit && localAxis) {
+        bottleAxis.copy(localAxis).applyQuaternion(grip.hand.getWorldQuaternion(handRotation));
+        prop.quaternion.setFromUnitVectors(bottleUp, bottleAxis);
+      } else {
+        prop.rotation.set(isFruit ? 0 : bottleTilt(elapsed), 0, 0);
+      }
     };
     draw(fruit.current, "stall-apple");
     draw(bottle.current, "stall-water");

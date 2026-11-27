@@ -41,6 +41,18 @@ describe("arm reach", () => {
     }
   });
 
+  test("carries a fitted axis with the hand while keeping the grip on target", () => {
+    const localAxis = new THREE.Vector3(0.8, -0.56, -0.22).normalize();
+    for (const tilt of [0, -0.8, -1.74, -0.8, 0]) {
+      const { hand, reach } = arm();
+      const worldAxis = new THREE.Vector3(0, Math.cos(tilt), Math.sin(tilt));
+      const target = new THREE.Vector3(0.28, 1.05, 0.26);
+      reach.followGrip(grip, target, 1, pole, { localAxis, worldAxis });
+      expect(hand.localToWorld(grip.clone()).distanceTo(target)).toBeLessThan(0.001);
+      expect(localAxis.clone().transformDirection(hand.matrixWorld).angleTo(worldAxis)).toBeLessThan(0.001);
+    }
+  });
+
   test("weight 0 leaves the clip pose alone", () => {
     const { hand, reach } = arm();
     const at = hand.localToWorld(grip.clone());

@@ -2,6 +2,7 @@ import type { AppleBody } from "@aiverse/world-sim/movableProps";
 import { STALL_BOTTLE_LIP, STALL_CONSUMABLES, STALL_FINISH_S, STALL_LOWER_S, STALL_MOUTH_S, STALL_PICKUP_S, STALL_RETURN_S, bottleTilt, stallEase, type StallConsumableId } from "@aiverse/world-sim/stallConsumables";
 import { APPLE_CARRY_ROTATIONS, appleGripOffset, type appleMotion } from "./appleGrip";
 import { ArmReach, dipWithLegs, reachWeight } from "./armReach";
+import { makeStallHandGrip, stallBottleAxis, stallGripOffset, stallTableReach } from "./stallHandGrip";
 import { useEffect, useMemo, useRef, type RefObject } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
@@ -189,6 +190,13 @@ export function CastFigure({
   }, [gltf, bodyScale]);
 
   const armReach = useMemo(() => ArmReach.find(scene), [scene]);
+  const hasStallPose = Boolean(stallPose);
+  const stallHand = useMemo(() => hasStallPose ? makeStallHandGrip(scene, gltf.animations, body.id as AppleBody, body.clips.idle) : null,
+    [hasStallPose, scene, gltf.animations, body.id, body.clips.idle]);
+  const bottleAim = useMemo(() => {
+    const localAxis = stallBottleAxis(body.id as AppleBody);
+    return localAxis && { localAxis, worldAxis: new THREE.Vector3() };
+  }, [body.id]);
   const reachLegs = useMemo(() => findLegs(scene, contactPoints(scene)), [scene]);
   const carryBones = useMemo(() => body.id === "remy" ? Object.entries(APPLE_CARRY_ROTATIONS).flatMap(([name, q]) => {
     const bone = scene.getObjectByName(name);
@@ -756,26 +764,34 @@ export function CastFigure({
         : fruit && time > lowerAt ? 1 - stallEase((time - lowerAt) / 0.8)
         : 1 - afterReturn;
       if (weight > 0) {
-        for (const { bone, rotation } of carryBones) {
-          if (bone.name.startsWith("mixamorigRightHand")) bone.quaternion.slerp(rotation, weight);
-        }
+        stallHand?.(id, time);
         grp.updateMatrixWorld(true);
-        const grip = appleGripOffset(body.id as AppleBody, armReach.handWorldScale(), reachGrip.current);
+        const grip = stallGripOffset(id, body.id as AppleBody, armReach.handWorldScale(), reachGrip.current);
         const mouth = headBone.getWorldPosition(stallMouth.current);
         // The head joint is at the base of the skull. Aim for the front of the lips in the body's frame.
         mouth.y += fruit ? -0.008 : 0.009;
         mouth.z += fruit ? 0.145 : 0.096;
+        const orientation = fruit ? undefined : bottleAim;
         if (!fruit) {
           const tilt = bottleTilt(time);
-          mouth.y -= STALL_BOTTLE_LIP * Math.cos(tilt);
-          mouth.z -= STALL_BOTTLE_LIP * Math.sin(tilt);
+          const y = Math.cos(tilt), z = Math.sin(tilt);
+          orientation?.worldAxis.set(0, y, z);
+          mouth.y -= STALL_BOTTLE_LIP * y;
+          mouth.z -= STALL_BOTTLE_LIP * z;
         }
         const raised = stallEase((time - STALL_PICKUP_S) / (STALL_MOUTH_S - STALL_PICKUP_S));
         const lowered = fruit ? 0 : stallEase((time - lowerAt) / (STALL_RETURN_S - lowerAt));
         const [x, y, z] = STALL_CONSUMABLES[id].position;
-        const target = reachTarget.current.set(x, y, z).lerp(mouth, raised * (1 - lowered));
+        const lift = raised * (1 - lowered);
+        const target = reachTarget.current.set(x, y, z).lerp(mouth, lift);
+        const tableReach = stallTableReach(id, body.id as AppleBody);
+        if (tableReach) {
+          const [dip, lean] = tableReach;
+          const atTable = weight * (1 - lift) ** 2;
+          dipWithLegs(grp, reachLegs, dip * atTable, reachPole.current.set(0, 0, 1), lean * atTable);
+        }
         // Keep the elbow below the wrist for a standing bite or sip. The idle clip can seed a backward bend.
-        armReach.followGrip(grip, target, weight, reachPole.current.set(-0.42, -1, 0.12).normalize());
+        armReach.followGrip(grip, target, weight, reachPole.current.set(-0.42, -1, 0.12).normalize(), orientation);
       }
     }
     // Foot lock (footLock.ts), last of the leg edits: only the City 3 walker's gait path, never while a sit override,
