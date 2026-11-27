@@ -213,7 +213,11 @@ export async function pushRadioLine(
   s: FeedStore = store(),
 ): Promise<number> {
   const listeners = await stationListeners(line.station, s);
-  const payload = JSON.stringify(line);
+  // Cap the line at the same 280 chars news summaries are held to: a
+  // transcript chunk is one utterance, and an unbounded line is an
+  // unbounded perception payload in every listener's observe.
+  const capped = line.text.length > 280 ? { ...line, text: line.text.slice(0, 280) } : line;
+  const payload = JSON.stringify(capped);
   for (const agentId of listeners) {
     await s.rpush(bufKey(agentId), payload);
     await s.ltrim(bufKey(agentId), -BUF_CAP, -1);
