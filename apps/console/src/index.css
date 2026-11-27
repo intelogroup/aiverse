@@ -37,6 +37,23 @@
   --space-4: 16px;
   --space-6: 24px;
   --space-8: 32px;
+  /* Field HUD tokens (DESIGN.md). Panels sit over a bright 3D city, so they
+     are near-opaque; hudTokens.test.ts holds text colours to 4.5:1. */
+  --hud-panel: rgba(15, 21, 40, 0.9);
+  --hud-solid: #0f1528;
+  --hud-well: #070b17;
+  --hud-edge: rgba(242, 231, 203, 0.34);
+  --hud-shadow: 0 4px 0 rgba(5, 8, 18, 0.45);
+  --hud-radius: 12px;
+  --hud-radius-button: 10px;
+  --hud-radius-bar: 7px;
+  --hud-text: #fbf7ec;
+  --hud-dim: #c3cadf;
+  --hud-energy: #5ee07a;
+  --hud-energy-low: #ffb53d;
+  --hud-energy-out: #ff6b5e;
+  --hud-xp: #ffd23f;
+  --hud-other: #8fbcff;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   color-scheme: dark;
 }

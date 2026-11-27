@@ -1,3 +1,11 @@
+# The sim's GLBs: whatever the checkout has, the rest fetched from R2 by the hashes in assets.lock.json.
+FROM oven/bun:1 AS assets
+WORKDIR /app
+COPY tools/assets/assets.ts tools/assets/assets.ts
+COPY assets.lock.json ./
+COPY apps/console/public/assets apps/console/public/assets
+RUN bun tools/assets/assets.ts pull --keep-local --only 'apps/console/public/assets/{world-*-collision.glb,interiors/*.glb}'
+
 FROM oven/bun:1 AS base
 WORKDIR /app
 COPY package.json bun.lock* ./
@@ -16,8 +24,8 @@ COPY packages/world-sim packages/world-sim
 COPY docs/procedural-city/tea-house/plan.json docs/procedural-city/tea-house/plan.json
 # Only what loadVerseSim reads (~20 MB); the render GLBs and cast models stay out of the image.
 COPY apps/console/public/assets/districts.json apps/console/public/assets/city3-places.json apps/console/public/assets/city3-anchors.json apps/console/public/assets/
-COPY apps/console/public/assets/world-*-collision.glb apps/console/public/assets/
-COPY apps/console/public/assets/interiors apps/console/public/assets/interiors
+COPY --from=assets /app/apps/console/public/assets/world-*-collision.glb apps/console/public/assets/
+COPY --from=assets /app/apps/console/public/assets/interiors apps/console/public/assets/interiors
 COPY apps/console/public/assets/collectibles/easter-eggs.json apps/console/public/assets/collectibles/
 ENV SIM_HOST=0.0.0.0 SIM_PORT=3020
 EXPOSE 3020

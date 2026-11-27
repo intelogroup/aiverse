@@ -1,0 +1,502 @@
+{
+  "apps/console/public/assets/car-npc.glb": {
+    "sha256": "50de17b5c6979ec39d8150a7aedb30306dcf51816dc853f40a18e7070acc4941",
+    "size": 1889220
+  },
+  "apps/console/public/assets/cast-barbarian.glb": {
+    "sha256": "0097500d9cd6499d735e8ef723904906e948f0ec284f7ec36b438069368d98d8",
+    "size": 4715528
+  },
+  "apps/console/public/assets/cast-bodyblock.glb": {
+    "sha256": "f9a9817c5bfdb9e6c1cc0da9c683d653e96d7576c9c880e443eb3993ef805715",
+    "size": 12390320
+  },
+  "apps/console/public/assets/cast-business.glb": {
+    "sha256": "98be3e3df21765297d5fdd53ecf6fc42cf607318a8f88823774791f6ffc387d4",
+    "size": 4533200
+  },
+  "apps/console/public/assets/cast-cipher.glb": {
+    "sha256": "b77d96716dd357ff4df022c604a0e663fea4b3a958a1b475281e29af992a29c4",
+    "size": 11824960
+  },
+  "apps/console/public/assets/cast-elf.glb": {
+    "sha256": "430daa43df65c33438efcbf94d4135edc77919dd2686b0b1709c597d764aeda5",
+    "size": 10197568
+  },
+  "apps/console/public/assets/cast-eve.glb": {
+    "sha256": "f1c8bc50bfb343e81ccc3b66a8c30884da943214fd9749890ffe6dc84ef1d79e",
+    "size": 12103352
+  },
+  "apps/console/public/assets/cast-jim.glb": {
+    "sha256": "01f66653e4fdb5f68bb0e5d86cbd1f031e2ef74048df06365e0f5694fc8f07fd",
+    "size": 9325620
+  },
+  "apps/console/public/assets/cast-knight.glb": {
+    "sha256": "e063c72985425f826c55792fa8e2d7991fb24c37361aa722224df88c43a60806",
+    "size": 4712764
+  },
+  "apps/console/public/assets/cast-mage.glb": {
+    "sha256": "6f59dc94cfce4d865208483afdee567a696b7dbbf9e17b4091d323bbbf5e2c79",
+    "size": 4691356
+  },
+  "apps/console/public/assets/cast-remy.glb": {
+    "sha256": "c1d7b3af92f97b14d8be3b13f50274d4784cbd4f9268366ea7428304156b4202",
+    "size": 10159488
+  },
+  "apps/console/public/assets/cast-skeleton-warrior.glb": {
+    "sha256": "18df8b0435427328d67d736e2597c76dca4843baec09bca23be81c059700c8cc",
+    "size": 4829612
+  },
+  "apps/console/public/assets/catalog/ch42.glb": {
+    "sha256": "26f2b7169451b719f256dc66675d7b470510e5a05eefe9c2577be53bc8fc6f42",
+    "size": 7499276
+  },
+  "apps/console/public/assets/catalog/character-1.glb": {
+    "sha256": "a028714769b73144023313eddb0ce49a2dfbb598fcb437fff9175d0c76bc1a93",
+    "size": 8494468
+  },
+  "apps/console/public/assets/catalog/character-2.glb": {
+    "sha256": "1979f741b9eaaf9fd76e589fca79f116fb5146ba09bed58685a317cf9ceaa67e",
+    "size": 9164104
+  },
+  "apps/console/public/assets/catalog/humano-business.glb": {
+    "sha256": "8f08c7eaf056703d5636fb2f7d107f6437ed258fc89fa791b8efdddc6c9f1aaa",
+    "size": 5162388
+  },
+  "apps/console/public/assets/catalog/patrol-drone.glb": {
+    "sha256": "f1a2e2f93debe3e7ba0efb91846a5a5aa5c6a6cfc79ad743ddf3a99ef65649c4",
+    "size": 2625860
+  },
+  "apps/console/public/assets/catalog/tea-house-table.glb": {
+    "sha256": "6b4521c4c90f96afbedf6d1bc944ce18b46367b747fb12ca1d1632fd04d9240b",
+    "size": 552368
+  },
+  "apps/console/public/assets/catalog/tea-house-tavern-chairs.glb": {
+    "sha256": "4321857cb8bc27f63907d3d19b1eb17a3420816ea40876770dba8cd28aaa8f4e",
+    "size": 2867104
+  },
+  "apps/console/public/assets/collectibles/scifi-easter-egg.glb": {
+    "sha256": "c330348cdc14669bedf19aea285fcddd2631d82f483094bc5b6572ab1e6cb596",
+    "size": 281620
+  },
+  "apps/console/public/assets/doors/american-house.glb": {
+    "sha256": "c6f48572e49762d092dbea0eb6b987e3fa659f3ff9fd3e443aba51187b9a4c2a",
+    "size": 87216
+  },
+  "apps/console/public/assets/doors/residence-wsg.glb": {
+    "sha256": "ebd6d466247f6a6c481dff6d0e99e23fec9d9f82e213ea156fae9fdb6b31c348",
+    "size": 138044
+  },
+  "apps/console/public/assets/doors/stone-cabin.glb": {
+    "sha256": "73418f37af6180ea26eeaaada40c35265ffb4e3059e77f1936f03f70555db5cb",
+    "size": 55220
+  },
+  "apps/console/public/assets/doors/suburban-bogdan.glb": {
+    "sha256": "ce4c8e51baa113d8e248bbc80809b98cbc46cd97dcd52366336ba80ad286350a",
+    "size": 12632
+  },
+  "apps/console/public/assets/doors/zen-tea-house.glb": {
+    "sha256": "19687d55d31b6471804e09e54564b16e673e1d39049f1280315c5976781e387a",
+    "size": 32276
+  },
+  "apps/console/public/assets/fountain-architecture.glb": {
+    "sha256": "e94f8147ead43d98582ec8238cf9f479c234fe379a03a33acd33c822dd58983c",
+    "size": 676292
+  },
+  "apps/console/public/assets/houses/american-ring-35-1.col.glb": {
+    "sha256": "479ea424f8ea3edf9e36c09ae39910f620bf06436b132b76fd04fc166fb2047b",
+    "size": 6632
+  },
+  "apps/console/public/assets/houses/american-y0.col.glb": {
+    "sha256": "cb0f46850d02b39c2467b9ac3a46f1bab2ca204171d744c3d5c16c1289c9429b",
+    "size": 79836
+  },
+  "apps/console/public/assets/houses/american-y270.col.glb": {
+    "sha256": "39275df98d0b8224a0839ef389208ef7312f1add51e6d42f556c1961d6da732e",
+    "size": 79836
+  },
+  "apps/console/public/assets/houses/american.far.glb": {
+    "sha256": "7a47dfb7cbcee3bdb901aebc798096e93090222c63b907e5757e2f224845fce6",
+    "size": 534180
+  },
+  "apps/console/public/assets/houses/american.glb": {
+    "sha256": "4c124ed8eed285e1fe75e27acf4f0d16536a228693cbfd6e7b851eb21d32cfac",
+    "size": 6890784
+  },
+  "apps/console/public/assets/houses/cabin-y0.col.glb": {
+    "sha256": "b54c803d32bc718a7043254765dba6d20bf3154be2cd46b9801b0468a5ecc1ba",
+    "size": 7104
+  },
+  "apps/console/public/assets/houses/cabin-y90.col.glb": {
+    "sha256": "348fc97b9eaa47627108d328c2fb4e8ed20a68db23043c724a374e586f75ec6b",
+    "size": 7120
+  },
+  "apps/console/public/assets/houses/cabin-y90.far.glb": {
+    "sha256": "2ba941b6157bb4245b6cafe958b8abd718789b438e2f8fe0f6cb209356e24845",
+    "size": 4168820
+  },
+  "apps/console/public/assets/houses/cabin-y90.glb": {
+    "sha256": "a5638a7cb141f168895865afb781e0220c17ab1f0b4da2d5cbdd1e5a5079a278",
+    "size": 18847972
+  },
+  "apps/console/public/assets/houses/clock-tower-y0.col.glb": {
+    "sha256": "3fe35fae599d3acdad6a3e903df20f2d0d6a76a7fdf588967cc4a8b65cfb0c84",
+    "size": 1040
+  },
+  "apps/console/public/assets/houses/clock-tower.far.glb": {
+    "sha256": "a84fe6c82501cc8aa6c37e3b64ead124e6212710b8f9fd5f20fcb346b562a8cd",
+    "size": 230196
+  },
+  "apps/console/public/assets/houses/clock-tower.glb": {
+    "sha256": "950fc7409fc17594f58cbb6a968acb10ccda31af4c2f7f8d73cc60a76ed10d23",
+    "size": 4915160
+  },
+  "apps/console/public/assets/houses/colonial-american-y0.col.glb": {
+    "sha256": "fa7c9f31d5619a2c7e47767127e71c5682b233404294433c997af1fb4deeb653",
+    "size": 1044
+  },
+  "apps/console/public/assets/houses/colonial-american-y0.far.glb": {
+    "sha256": "c3d00bb7c3ab59ca5c462af6141df4223f44d4e6b1fbeec4797af6446dd59690",
+    "size": 162248
+  },
+  "apps/console/public/assets/houses/colonial-american-y0.glb": {
+    "sha256": "815cab8b6840850772df9f281297fefcc0e9940f41ed5944bc14dd6ac5d31c00",
+    "size": 851860
+  },
+  "apps/console/public/assets/houses/cozy-cottage-y0.col.glb": {
+    "sha256": "b6a712c3c0257c1d7b939fe229407331b420d64d74d9230f4a99ea449642bba6",
+    "size": 1040
+  },
+  "apps/console/public/assets/houses/cozy-cottage-y270.col.glb": {
+    "sha256": "135d93303ce7f024ac881bda97286c4122a57956f3752fc77559a9a3e95791b8",
+    "size": 1040
+  },
+  "apps/console/public/assets/houses/cozy-cottage-y270.far.glb": {
+    "sha256": "e1dd1ebedac51e77de4b55da32bff900af62fa5edf85a2be872a27ff835f5fed",
+    "size": 2590364
+  },
+  "apps/console/public/assets/houses/cozy-cottage-y270.glb": {
+    "sha256": "64b40b6f8730ca241c70af4bf5171a16c5fb76171ca6d134818a8472d8b3ad23",
+    "size": 19589212
+  },
+  "apps/console/public/assets/houses/finnish-cottage-y0.col.glb": {
+    "sha256": "f5009a5006c2f2842f672d0de90dc34e8ed674aa51741c6feaed624af3024392",
+    "size": 1040
+  },
+  "apps/console/public/assets/houses/finnish-cottage-y0.far.glb": {
+    "sha256": "e2ec4539df5022720f525d2b624756535a2879de2eadb0462ac10fcdba3c2b3d",
+    "size": 183588
+  },
+  "apps/console/public/assets/houses/finnish-cottage-y0.glb": {
+    "sha256": "4a5cff7ab4bc401b636cbd4d2915573bd86b02e1c0b8ba696cb4a0c6d2caa6ef",
+    "size": 1275384
+  },
+  "apps/console/public/assets/houses/kruglov-house-y180.col.glb": {
+    "sha256": "e8e352d56c0a323f493535a566b3d8d9aa1370be0754d47f126fb393f8b978fb",
+    "size": 1040
+  },
+  "apps/console/public/assets/houses/kruglov-house-y180.far.glb": {
+    "sha256": "f648b15747c04466df525d3e109415329ca5aa9d0f9e278232b734fafc294ba5",
+    "size": 299260
+  },
+  "apps/console/public/assets/houses/kruglov-house-y180.glb": {
+    "sha256": "fcdf20db12950e369ebcfbd5cb65b89e84f8febbd0d835ab527520148d06097a",
+    "size": 1694696
+  },
+  "apps/console/public/assets/houses/kruglov-house-y90.col.glb": {
+    "sha256": "f2ecf13a63e52b5d2843f476e3e969e3d35e8be4288b6776e0e3228e5de7f25c",
+    "size": 1040
+  },
+  "apps/console/public/assets/houses/log-cabin-y90.col.glb": {
+    "sha256": "ad4125d0b2b93a0eced7b2309448b7a768885a7e60d619e1dac7d84bf60d28a7",
+    "size": 1036
+  },
+  "apps/console/public/assets/houses/log-cabin-y90.far.glb": {
+    "sha256": "0e3ff3e4c0911d5e344d81fb6519a57dc403f2956b6d5c270fc2ea15e73ea2b4",
+    "size": 472748
+  },
+  "apps/console/public/assets/houses/log-cabin-y90.glb": {
+    "sha256": "0c809c4d19b447eb4ec8827741240b5217eb3ff7a08f0043c3e7ee996d434bfb",
+    "size": 5623700
+  },
+  "apps/console/public/assets/houses/medieval-rx-y180.col.glb": {
+    "sha256": "a59049ebcdfc523cbde41e1e274b8cc148a4709bf481a1bbee1ff4bacc7bcfd8",
+    "size": 1040
+  },
+  "apps/console/public/assets/houses/medieval-rx-y180.far.glb": {
+    "sha256": "1f19342b99c86217350494e979800f17f0e65be0c516777265cbf32eacff9b3c",
+    "size": 82476
+  },
+  "apps/console/public/assets/houses/medieval-rx-y180.glb": {
+    "sha256": "994ad954d11f1e024ee9393eab2feb6aaa28dc3b17ea152d585a577845d2bf14",
+    "size": 921200
+  },
+  "apps/console/public/assets/houses/medieval-rx-y90.col.glb": {
+    "sha256": "bf802236c29d7eeccf3f1e3b689a6d35e9fb00922a1d227ed98aaa29a54e62c2",
+    "size": 1040
+  },
+  "apps/console/public/assets/houses/residence-wsg-y180.col.glb": {
+    "sha256": "cd9ebd293163e868d804d3b445742bd111dd4d629ce6b02bfd11cd92b12f0ab5",
+    "size": 58844
+  },
+  "apps/console/public/assets/houses/residence-wsg-y270.col.glb": {
+    "sha256": "3b5ef8759587c2654e76a4ec92ddfcce8bf92cdb33608b746110ad3e45be6a73",
+    "size": 58844
+  },
+  "apps/console/public/assets/houses/residence-wsg.far.glb": {
+    "sha256": "c87b0e8e0523db68e02ce8fc333153a834ffcf810c6690c46df908787bf24c32",
+    "size": 624616
+  },
+  "apps/console/public/assets/houses/residence-wsg.glb": {
+    "sha256": "d4354bdfa001873f22d140e09a0cb37d4294bf798f2ae0314862ccac505b69cd",
+    "size": 6399384
+  },
+  "apps/console/public/assets/houses/scandi-hawk-y0.col.glb": {
+    "sha256": "ddc50fc20a6caaeaea6e806a8562c506189454584a8a8a2e84c26366b25665cb",
+    "size": 6512
+  },
+  "apps/console/public/assets/houses/scandi-hawk-y0.far.glb": {
+    "sha256": "0e176059f677be3cc0f79d2c19817213f74e02d1df6355af911c91ceee39cab4",
+    "size": 480576
+  },
+  "apps/console/public/assets/houses/scandi-hawk-y0.glb": {
+    "sha256": "8fd944688370e3929d7d59c33a928f8b1d78634b16a3812048129792fc458bed",
+    "size": 2291972
+  },
+  "apps/console/public/assets/houses/shirakawago-y0.col.glb": {
+    "sha256": "b0a1e4282d5ea8d428e0a66da5942c835267481192b7a6238a16c34bb1350cf2",
+    "size": 1036
+  },
+  "apps/console/public/assets/houses/shirakawago-y0.far.glb": {
+    "sha256": "e99681b7abbd76c2301783b63178793c1ca4bf5474cfa19f06fe84731a75d5a3",
+    "size": 502752
+  },
+  "apps/console/public/assets/houses/shirakawago-y0.glb": {
+    "sha256": "9de66e0370d278ac4df3c50e2846f37a08839dda7828ec8567f5d7c5d8d4ef4e",
+    "size": 5492192
+  },
+  "apps/console/public/assets/houses/small-brick-y180.col.glb": {
+    "sha256": "f3bbfbd119d099ecd68a8db8a64296d8696375473a12dff97be77b0cfe4205dc",
+    "size": 1040
+  },
+  "apps/console/public/assets/houses/small-brick-y180.far.glb": {
+    "sha256": "00f52c701d942830be28f3c88695f0e9dae69f5dd2acb6d3e7e5a80094fe29ee",
+    "size": 250812
+  },
+  "apps/console/public/assets/houses/small-brick-y180.glb": {
+    "sha256": "7280a9f945cf5bb95333b56a86e7ceee4ebd3c1e5e6fa584bdc71ea561e5c754",
+    "size": 2794676
+  },
+  "apps/console/public/assets/houses/small-brick-y90.col.glb": {
+    "sha256": "f662d64c8cde31c53277d119f49ea11d5fd35559438d19bb972d8863fd42a27e",
+    "size": 1036
+  },
+  "apps/console/public/assets/houses/suburban-blue-y0.col.glb": {
+    "sha256": "db8c8a69c2f544ae2c145f2ea683588f0171369d44cc45d3a754318d8e9e3c27",
+    "size": 1040
+  },
+  "apps/console/public/assets/houses/suburban-blue-y0.far.glb": {
+    "sha256": "a8f6e1d2e7455d4f9f0bf63623b89cfa026b0e59466ce69e5142b0087032aca7",
+    "size": 176280
+  },
+  "apps/console/public/assets/houses/suburban-blue-y0.glb": {
+    "sha256": "404a49043ea0148ce403eff72c90e07ac1a28115e1e26fdb586f181fa5340659",
+    "size": 1443896
+  },
+  "apps/console/public/assets/houses/suburban-blue-y90.col.glb": {
+    "sha256": "2494581a1a91c15d22cd6a479ca8ba78d46177687db7e40f12fdac43e2726096",
+    "size": 1040
+  },
+  "apps/console/public/assets/houses/suburban-bogdan-y180.col.glb": {
+    "sha256": "9fc344059f2fb7833565e8c8f9ac0b0ef12b231bda0b2358bf287c5e30cf742d",
+    "size": 144696
+  },
+  "apps/console/public/assets/houses/suburban-bogdan-y180.far.glb": {
+    "sha256": "6b9f8cf88794aab88c83c850adad0974c30b7f916bc8b9df1dc9ff6ffbe17ce6",
+    "size": 268824
+  },
+  "apps/console/public/assets/houses/suburban-bogdan-y180.glb": {
+    "sha256": "951f814d513ac3c4b9b0d9399981c2810298df5ac3061def45aea63d8a6b5b30",
+    "size": 2834156
+  },
+  "apps/console/public/assets/houses/suburban-bogdan-y270.col.glb": {
+    "sha256": "d1a3e79df284c46573612d95e85f4964f39431aca294ce6a6bf3f1b368289dae",
+    "size": 1044
+  },
+  "apps/console/public/assets/houses/suburban-bogdan.far.glb": {
+    "sha256": "a544edbb684d22f207898fa7dd9cf30ab6690993c71f30f069548420ad1d0688",
+    "size": 307812
+  },
+  "apps/console/public/assets/houses/suburban-bogdan.glb": {
+    "sha256": "367f400a8fb6cce0df7566a0fac74540cdb09a2f8c7b0d5752bcd8889323e1eb",
+    "size": 2662780
+  },
+  "apps/console/public/assets/houses/victorian-green-y270.col.glb": {
+    "sha256": "32da62f689e85d29db98d775586637e540cfca5d31af360a91a1891763930144",
+    "size": 1032
+  },
+  "apps/console/public/assets/houses/victorian-green-y90.col.glb": {
+    "sha256": "6f98e93d781cf80b5721d52df02c905b2024201af1165a3c0fdba389c59a8aff",
+    "size": 1028
+  },
+  "apps/console/public/assets/houses/victorian-green-y90.far.glb": {
+    "sha256": "98976f91e5cbf540012efc9f64e9f413256d93979ef1fd2643028be975b88431",
+    "size": 1054696
+  },
+  "apps/console/public/assets/houses/victorian-green-y90.glb": {
+    "sha256": "8c68e355e98730870bbb71ee51053c7bb690269dab3aed7218fe4f82f7eb4ef9",
+    "size": 9107844
+  },
+  "apps/console/public/assets/houses/villa-c-y0.col.glb": {
+    "sha256": "84eef5c95437a91286d5441c58b937994948009c8a00d114eb3af909770601c4",
+    "size": 1004
+  },
+  "apps/console/public/assets/houses/villa-c-y0.far.glb": {
+    "sha256": "bad54ce563fa2ba3f903fe5a5f98acf783ba95d66ea8dc145b65a5e3899b5706",
+    "size": 105600
+  },
+  "apps/console/public/assets/houses/villa-c-y0.glb": {
+    "sha256": "10e22df96d3959a901bb200b6826871622e9e334af22b3a6c7f958986c96c7d3",
+    "size": 365460
+  },
+  "apps/console/public/assets/houses/villa-pool-y0.col.glb": {
+    "sha256": "096e378b7505fe214a05dcc9bbc851d49017b5f19f5b8fafd389f2a7a530ae9a",
+    "size": 1040
+  },
+  "apps/console/public/assets/houses/villa-pool-y0.far.glb": {
+    "sha256": "3d86736b3d61f00d1f275822414b9e372720fde480c2d7708ce60c1b8afe192f",
+    "size": 171732
+  },
+  "apps/console/public/assets/houses/villa-pool-y0.glb": {
+    "sha256": "bfd7e8932fbcc28dcbf310790d374c993b91de6e1f57c007c2e90d1c09a553ce",
+    "size": 673596
+  },
+  "apps/console/public/assets/houses/zen-pavilion-y270.col.glb": {
+    "sha256": "dd88731510658b659d854113e0fcf7d414d08fc4729b83483da979d46a7c6a87",
+    "size": 7224
+  },
+  "apps/console/public/assets/houses/zen-pavilion-y270.far.glb": {
+    "sha256": "023cd3d1f17b996288cbc6cd4a33f30aae51bcc23b9ab328459a644085bd4bca",
+    "size": 174216
+  },
+  "apps/console/public/assets/houses/zen-pavilion-y270.glb": {
+    "sha256": "6d2de3ceb5dfec39a698c2a2933fd85c122e94f2a42a5572d60c8b029f74652c",
+    "size": 1322764
+  },
+  "apps/console/public/assets/interior-kit.glb": {
+    "sha256": "f3e98d5352a53e6d54e102cc33b5c5848bd15439e91c0cb3946a13962c7c43f0",
+    "size": 9292884
+  },
+  "apps/console/public/assets/interiors/market-hall-interior.glb": {
+    "sha256": "62d364a2abe22b0b2f6ee70ba19c67a568c059d543328414cf2618b548666c68",
+    "size": 3268024
+  },
+  "apps/console/public/assets/interiors/modern-loft-interior.glb": {
+    "sha256": "fb7bdb10b0213bfe5af7cd40f04685728870c06b837ab287a248070a842ef2f4",
+    "size": 5458784
+  },
+  "apps/console/public/assets/interiors/scandi-hawk-interior.glb": {
+    "sha256": "096ab25ef191a93a07f2a6cc7bd5d3b268eb97caa05d449e6e6dbafc32c83a1e",
+    "size": 12375380
+  },
+  "apps/console/public/assets/kaykit-knight.glb": {
+    "sha256": "60428e3abc09ba83e595d256e3af8c5c976b46cdae599f0802fc82b4a3445168",
+    "size": 3659532
+  },
+  "apps/console/public/assets/props/hawk-lane-commons.col.glb": {
+    "sha256": "ad7e53d0838b3632f140132368b942cbd6c80dd3cb8f725bfb7dcb5472d65944",
+    "size": 2988
+  },
+  "apps/console/public/assets/props/hawk-lane-commons.glb": {
+    "sha256": "37fb3a74e3defb8ae2bdc6473ef0617a4ffad9b791b58ff7c434a6f17992ad7d",
+    "size": 248060
+  },
+  "apps/console/public/assets/props/hawk-lane-finish.col.glb": {
+    "sha256": "e472e4e2911288c1b75b8ca684d4994c901faf121cbaa8de0c747b744b8c5902",
+    "size": 988
+  },
+  "apps/console/public/assets/props/hawk-lane-finish.glb": {
+    "sha256": "000f4172af06ff90b370bd8575fcd4a14781e6287a2a3c60ff7909494e87b7d8",
+    "size": 7243208
+  },
+  "apps/console/public/assets/props/hawk-lane-overlook.col.glb": {
+    "sha256": "2e6cb57136afc3367f1543acc92816e81b29b8d0a3fcc2c5e1c71ecbe55fc486",
+    "size": 2312
+  },
+  "apps/console/public/assets/props/hawk-lane-overlook.glb": {
+    "sha256": "175ae2e1e7650090003e15f1f1f0a8e9b4dc3ec06481b414b1d662d1a14ad96a",
+    "size": 3113396
+  },
+  "apps/console/public/assets/props/lido-terrace.col.glb": {
+    "sha256": "6bb8066e527852332d0794481548b7de927d7fde497bdb8b7f3429838f8abb0f",
+    "size": 5616
+  },
+  "apps/console/public/assets/props/lido-terrace.glb": {
+    "sha256": "ec60baa6168cda903d51ec3e771d2a06810f0936e6b40af0e8f4ffbc15583368",
+    "size": 314156
+  },
+  "apps/console/public/assets/props/lido.col.glb": {
+    "sha256": "6262bf215b8a94b4b34091383bced04b3c27b9d9a70bdfac7035b93b71090fea",
+    "size": 29224
+  },
+  "apps/console/public/assets/props/lido.glb": {
+    "sha256": "21d7fca7950de9a1a0db3d5b992b017687cade76a193771ea259fd9caea0cd1b",
+    "size": 2841916
+  },
+  "apps/console/public/assets/props/market-apple.glb": {
+    "sha256": "22749c0218841ddd620b6154bbd02ce232ff7fa720f06c1dbc4c5d38b9456a3b",
+    "size": 615340
+  },
+  "apps/console/public/assets/residents/mira-maid.glb": {
+    "sha256": "97e6d1e8e0b835175ef98931762a8d3c7c8f804ab87315c0afadb214a93110f8",
+    "size": 3319756
+  },
+  "apps/console/public/assets/villa-bridge.glb": {
+    "sha256": "552e84411c33abb064ccb4ae17a11db61a2b53af6e1dc3d249576901272b0492",
+    "size": 637564
+  },
+  "apps/console/public/assets/villa.glb": {
+    "sha256": "e5cbddd66e12c391163e4d12e01a1368f2d392cc58f607683236011f69dece9b",
+    "size": 31024848
+  },
+  "apps/console/public/assets/world-city3-collision.glb": {
+    "sha256": "3bf4a19d899c3ffa980fe0ffc04c5c5d0f60a505512338bfd21052def38f0aff",
+    "size": 9348476
+  },
+  "apps/console/public/assets/world-city3-hq.glb": {
+    "sha256": "0568a3e9de91bc05e51f86e085766adfe870b1e1e421045706b2098f6646b1f3",
+    "size": 664764
+  },
+  "apps/console/public/assets/world-city3-library.glb": {
+    "sha256": "45697c8d193016d42a2f88df0d2e01cebc13f27ce843f4dec1770c04e3d8827b",
+    "size": 8055844
+  },
+  "apps/console/public/assets/world-city3.glb": {
+    "sha256": "cf71939f2c1805cf057c0bfde3c7c8c940ce24efe589709932b7b161567fd05f",
+    "size": 69817600
+  },
+  "apps/console/public/assets/world-links-collision.glb": {
+    "sha256": "931802ee7a6d6b7362dfa9cedd685c25b8d98542dd0309673d9f95baf5b00550",
+    "size": 13436
+  },
+  "apps/console/public/assets/world-links.glb": {
+    "sha256": "98b8985e14d1a42fd48be51123c06c559e01681d31c005fd0ea37c20d2969825",
+    "size": 695020
+  },
+  "apps/console/public/assets/world-roadmarks.glb": {
+    "sha256": "bf684ed6d5008271c87df67e6a0a7dff27de5fc1915bfdb3d63a5598bfc228e3",
+    "size": 384448
+  },
+  "apps/console/public/assets/world-roadsigns.glb": {
+    "sha256": "d0e4b15379c8a02baceb1f3a614c380341fe58788958fe96a6d845128c8a87f7",
+    "size": 294488
+  },
+  "apps/console/public/assets/world-shell.glb": {
+    "sha256": "a7fb222d03d91f246271b1cfbeb7fbb03ec8a7e58b668387ff078934f7d50f2e",
+    "size": 3070804
+  },
+  "apps/console/public/assets/world-signals.glb": {
+    "sha256": "03f818e8d87d09402f7ea6ac462a1dbabea12127837662062c7b2bcd7c5d1c8f",
+    "size": 209064
+  }
+}

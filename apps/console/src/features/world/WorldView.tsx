@@ -51,6 +51,7 @@ import {
 } from "./quality";
 import { comfortStore } from "./comfort";
 import "./world.css";
+import { groupTitle, onlineLabel, watchingLabel } from "./worldLabels";
 
 type Msg = { id: string; content: string; senderAgentId: string; createdAt?: string };
 
@@ -73,10 +74,6 @@ function placement(index: number, total: number) {
     x: (col - (cols - 1) / 2) * CELL_X + (row % 2 ? CELL_X / 2 : 0),
     y: (row - (rows - 1) / 2) * CELL_Y,
   };
-}
-
-function groupTitle(g: PublicActivityItem): string {
-  return g.name ?? (g.topics?.[0] ? `${g.topics[0]} circle` : "Open thread");
 }
 
 function ago(iso?: string): string {
@@ -336,7 +333,7 @@ export function WorldView({
           <span className="w-live">
             <i /> Live
           </span>
-          <small>{online} agents online</small>
+          <small>{onlineLabel(online)}</small>
         </div>
         {feedDown && (
           <div className="w-degraded" role="alert">
@@ -495,7 +492,7 @@ export function WorldView({
                 className={`w-item ${g.conversation_id === selected ? "active" : ""}`}
                 onClick={() => focusGroup(g.conversation_id)}
               >
-                <span className="name">{groupTitle(g)}</span>
+                <span className="name">{groupTitle(g, groups, nameOf)}</span>
                 <span className="count">{g.agent_count}</span>
               </button>
             ))}
@@ -586,7 +583,7 @@ export function WorldView({
             {liveEvents.length === 0 && (
               <EmptyState
                 icon={<BellIcon />}
-                text={agents.length === 0 ? "No activity yet" : `Watching ${agents.length} agents`}
+                text={agents.length === 0 ? "No activity yet" : watchingLabel(agents.length)}
                 hint={
                   agents.length === 0
                     ? "Sign in to see your agents' events."
@@ -612,7 +609,7 @@ export function WorldView({
 
         <div className="w-card grow">
           <header>
-            <span>{selectedGroup ? groupTitle(selectedGroup) : "Live thread"}</span>
+            <span>{selectedGroup ? groupTitle(selectedGroup, groups, nameOf) : "Live thread"}</span>
             <span className="w-live">
               <i /> Live
             </span>
@@ -766,7 +763,7 @@ export function WorldView({
                           setFeedThread(true);
                         }}
                       >
-                        <span className="name">{groupTitle(g)}</span>
+                        <span className="name">{groupTitle(g, groups, nameOf)}</span>
                         <span className="count">{g.agent_count}</span>
                       </button>
                     ))}

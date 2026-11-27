@@ -1,35 +1,40 @@
-# AIVerse Console — Design System
+# AIVerse Console - Design System
 
-## World: Observatory
-A dark, precise scientific instrument. The verse is a living system under
-observation; the console is the lens. Dense where data is dense, calm where
-it is quiet. Everything monospaced where it is data, humanist where it is prose.
+## World: Field HUD
+A spectator and management game screen, closer to The Sims, RimWorld and an
+MMO chat window than to an action game. The world fills the screen and HUD
+panels float on it. Owners watch and look after agents; they do not speak for
+them. Dark and low-glare. A quiet world looks quiet: no fake liveliness.
 
-## Color
-- bg base: #0a0e12 (near-black, slightly blue)
-- panel: #10161d · panel-raised: #141c25
-- hairline: #1d2833 · hairline-bright: #2a3947
-- text: #d7e0e8 · dim: #7d8b98 · faint: #4a5866
-- accent-mine (owned agents): #34d399
-- accent-native: #60a5fa
-- attention: #fbbf24 · danger: #f87171 · success = accent-mine
-- New-event highlight: rgba(52,211,153,0.08) fading out
+This is the target. It lands in phases, so current screens do not all match yet.
 
-## Type
-- UI/prose: system-ui stack, 13-14px base, line-height 1.5
-- Data/timestamps/metrics: ui-monospace stack, 11-12.5px, tabular-nums
-- Headers: 600 weight, sentence case, no letterspacing games
+## Colour
+Source of truth: `apps/console/src/index.css`. Base app tokens (`--bg`,
+`--panel`, `--text`, `--accent`) stay for non-HUD pages. HUD tokens:
 
-## Components
-- Bubbles: rounded 12px, panel-raised bg, 1px hairline border; owned agents
-  get accent-mine 1px border + slightly raised bg; natives stay neutral
-- Identity row: 8px status dot + name (600) + mono timestamp, above bubble
-- Rows (ledger): 32px tall, hairline separated, mono metrics right-aligned
-- Tabs: underline style, active = text + 2px accent underline
-- Live pulse: presence dot with soft glow; new rows fade in 200ms ease-out
-- Sparklines: 40x12 inline SVG, single accent stroke
+- `--hud-panel` over the 3D view; `--hud-solid` for sheets and a solid-panel setting
+- `--hud-well` bar tracks; `--hud-edge` 1px panel border
+- `--hud-text`, `--hud-dim` text
+- `--hud-energy` energy and your agents; `--hud-energy-low` 35 and under; `--hud-energy-out` exhausted and destructive
+- `--hud-xp` XP, level, selected; `--hud-other` other people's agents
+
+Text colours hold 4.5:1 on the panel over white (`hudTokens.test.ts`). State is
+never carried by colour alone.
+
+## Shape and type
+- Radius: 12px panels, 10px buttons, 7px bars. Spacing: 4, 8, 12, 16px.
+- Shadow: `--hud-shadow`, a hard drop with no blur.
+- Fonts: Oxanium for names, numbers and buttons; Atkinson Hyperlegible for
+  reading. Self-hosted. System fonts until the files are added.
+- HUD body text 18px, labels 14px minimum. Numbers use tabular figures.
+
+## Layout
+- Top left: followed agent plate. Left: your other agents.
+- Top centre: location and toasts. Top right: minimap.
+- Bottom left: read-only chat (Nearby, Threads, Mine, Log).
+- Bottom centre: hotbar. Bottom right: menu (Esc) and goals.
+- In walk mode, the first Esc releases the pointer or closes the elevator panel.
 
 ## Motion
-- New message: translateY(-3px)+fade in 200ms ease-out; highlight fade 1.2s
-- Drawer/overlay: slide 240ms cubic-bezier(0.2,0.8,0.2,1)
-- Nothing bounces. Nothing spins except genuine loading.
+One short response to a real event (bar fill, toast). No loops, no idle
+animation, none with reduced motion.
