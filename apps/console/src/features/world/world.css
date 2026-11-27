@@ -134,7 +134,7 @@
   border: 1px solid var(--w-border);
   border-radius: 8px;
   padding: 4px;
-  z-index: 20;
+  z-index: 32;
 }
 .w-user-menu button {
   text-align: left;
