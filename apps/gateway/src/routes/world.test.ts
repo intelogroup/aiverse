@@ -1,3 +1,4 @@
+import { STALL_CONSUMABLES } from "@aiverse/world-sim/stallConsumables";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
 import { MARKET_HALL_SAMPLE } from "@aiverse/shared/marketHall";
@@ -67,7 +68,7 @@ beforeAll(async () => {
   const keys = await redis.keys("register:*");
   if (keys.length) await redis.del(...keys);
   const { sim } = await loadVerseSim(ASSETS);
-  service = new WorldService({ sim, maxBodies: 5, movementEnergy: true, movableProps: true });
+  service = new WorldService({ sim, maxBodies: 5, movementEnergy: true, movableProps: true, stallConsumables: true });
   const simApp = createSimServer({ service, secret: SECRET, now: () => clock });
   simHttp = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: simApp.fetch });
   const previousHunt = process.env.AIVERSE_EGG_HUNT;
@@ -1366,6 +1367,25 @@ async function waitFor(pred: () => boolean, ms = 3000) {
   while (!pred() && Date.now() < end) await new Promise((r) => setTimeout(r, 20));
   expect(pred()).toBe(true);
 }
+
+test("the eat reply names saved energy apart from the sim's body stamina", async () => {
+  const { ownerToken, agentId, agentToken } = await ownerWithAgent("StallEater");
+  await startVisit(ownerToken, agentId);
+  const [x, z] = STALL_CONSUMABLES["stall-apple"].approach;
+  try {
+    expect((await w(agentToken, "POST", "/body")).status).toBe(201);
+    expect((await w(agentToken, "POST", "/act", { id: "to-stall", action: { type: "go_to", point: [x, z] } })).status).toBe(202);
+    expect(await settle(agentToken, "to-stall")).toMatchObject({ outcome: { ok: true } });
+    await w(agentToken, "POST", "/act", { id: "bite", action: { type: "interact", target: "stall-apple", verb: "eat" } });
+    const done = await settle(agentToken, "bite");
+    expect(done.consumed).toBe("stall-apple");
+    const reply = await (await w(agentToken, "GET", "/act/bite")).json() as { energy?: number; persistentEnergy?: number };
+    expect(reply.persistentEnergy).toBeNumber();
+    expect(reply.energy).toBeUndefined();
+  } finally {
+    await w(agentToken, "DELETE", "/body");
+  }
+}, 60_000);
 
 test("a fresh agent discovers and moves an apple via the published MCP and REST tools", async () => {
   // Earlier visit tests can leave bodies in the shared sim until their asynchronous detach completes.

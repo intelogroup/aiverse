@@ -142,7 +142,8 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
     const act = data.act;
     if (act?.id !== id || !isStallUse(act.action) || act.consumed !== act.action.target) return response;
     const energy = await creditStallConsumption(agentId, visitId, id);
-    return Response.json({ ...data, energy }, { status: response.status });
+    // Saved (database) energy, not the sim stamina that observe calls `energy`.
+    return Response.json({ ...data, persistentEnergy: energy }, { status: response.status });
   }
 
   async function awardDiscovery(agentId: string, response: Response) {
