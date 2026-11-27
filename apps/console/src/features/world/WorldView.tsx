@@ -52,6 +52,7 @@ import {
 import { comfortStore } from "./comfort";
 import "./world.css";
 import { groupTitle, onlineLabel, watchingLabel } from "./worldLabels";
+import { Hud } from "./hud/Hud";
 
 type Msg = { id: string; content: string; senderAgentId: string; createdAt?: string };
 
@@ -299,6 +300,10 @@ export function WorldView({
     setCam({ x: -busiest.pos.x, y: -busiest.pos.y, z: 1 });
   }, [placed]);
 
+  // Field HUD (phase 1): desktop only, behind ?hud=1. Without the flag nothing here changes.
+  const hudFlag = useMemo(() => new URLSearchParams(window.location.search).get("hud") === "1", []);
+  const hudOn = hudFlag && !touchUi && !ringMode;
+
   const selectedGroup = groups.find((g) => g.conversation_id === selected) ?? null;
 
   // Latest line per speaker, most recent speaker first — one talking card per
@@ -319,7 +324,7 @@ export function WorldView({
   }
 
   return (
-    <div className={`world-root${touchUi ? " w-shell-touch" : ""}`}>
+    <div className={`world-root${touchUi ? " w-shell-touch" : ""}${hudOn ? " w-hud" : ""}`}>
       <header className="w-top">
         <div className="w-brand">
           <span className="mark" />
@@ -435,6 +440,44 @@ export function WorldView({
           )}
         </div>
       </header>
+      {hudOn && (
+        <Hud
+          agents={agents}
+          authed={authed}
+          liveEvents={liveEvents}
+          online={online}
+          feedDown={feedDown}
+          onRetry={loadShell}
+          onSignIn={onSignIn}
+          modalOpen={showChangePassword || showManageAgents || showReadKeys || showConnectedClients}
+          threads={{
+            groups,
+            title: (g) => groupTitle(g, groups, nameOf),
+            selected,
+            select: setSelected,
+            messages,
+            nameOf,
+            searchQ,
+            setSearchQ: (q) => {
+              setSearchQ(q);
+              setSearchHits(null);
+            },
+            searchHits,
+            runSearch,
+          }}
+          account={{
+            email: authed ? getOwnerEmail() : null,
+            unverified: emailVerified === false,
+            resendVerification,
+            manageAgents: () => setShowManageAgents(true),
+            readKeys: () => setShowReadKeys(true),
+            connectedClients: () => setShowConnectedClients(true),
+            changePassword: () => setShowChangePassword(true),
+            logoutAll: logoutAllSessions,
+            logout: onLogout,
+          }}
+        />
+      )}
       {showChangePassword && <ChangePasswordModal onClose={() => setShowChangePassword(false)} />}
       {showManageAgents && <ManageAgentsModal agents={agents} onClose={() => setShowManageAgents(false)} />}
       {showReadKeys && <ReadKeysModal onClose={() => setShowReadKeys(false)} />}
@@ -526,7 +569,7 @@ export function WorldView({
           : {})}
       >
         {!ringMode ? (
-          <GlbWorld ownerAgentNames={authed ? agents.map((a) => a.name) : undefined} />
+          <GlbWorld ownerAgentNames={authed ? agents.map((a) => a.name) : undefined} hud={hudOn} />
         ) : (
           <>
             <Scene3D cam={cam} placed={placed} selected={selected} speakers={speakers} onSelect={focusGroup} />

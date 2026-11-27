@@ -1,0 +1,298 @@
+/* Field HUD. Tokens in index.css; layout and rules in DESIGN.md. */
+.world-root.w-hud {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+.world-root.w-hud > .w-top,
+.world-root.w-hud > .w-rail {
+  display: none;
+}
+
+.hud {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  color: var(--hud-text);
+  font-size: 15px;
+}
+.hud > *,
+.hud-menu-back {
+  pointer-events: auto;
+}
+.hud-panel {
+  background: var(--hud-panel);
+  border: 1px solid var(--hud-edge);
+  border-radius: var(--hud-radius);
+  box-shadow: var(--hud-shadow);
+}
+.hud small {
+  color: var(--hud-dim);
+  font-size: 14px;
+}
+.hud kbd {
+  font: inherit;
+  font-size: 14px;
+  color: var(--hud-dim);
+}
+.world-root .hud button:focus-visible,
+.world-root .hud input:focus-visible {
+  outline: 2px solid var(--hud-xp);
+  outline-offset: 2px;
+}
+.world-root .hud button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.world-root .hud .hud-btn {
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid var(--hud-edge);
+  border-radius: var(--hud-radius-button);
+}
+.world-root .hud .hud-stale {
+  color: var(--hud-energy-low);
+}
+.hud-name {
+  font-size: 18px;
+}
+
+/* top left */
+.hud-agents {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 280px;
+  max-height: calc(100% - 380px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.hud-plate,
+.hud-parties {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+}
+.hud-parties {
+  min-height: 0;
+  overflow-y: auto;
+}
+.world-root .hud .hud-party {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0;
+  text-align: left;
+}
+.hud-energy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+}
+.hud-energy .hud-bar {
+  flex: 1;
+  height: 10px;
+  border-radius: var(--hud-radius-bar);
+  background: var(--hud-well);
+  overflow: hidden;
+}
+.hud-energy i {
+  display: block;
+  height: 100%;
+  background: var(--hud-energy);
+  transition: width 0.4s;
+}
+.hud-energy.low i {
+  background: var(--hud-energy-low);
+}
+.hud-energy.low span {
+  color: var(--hud-energy-low);
+}
+.hud-energy.out span {
+  color: var(--hud-energy-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hud-energy i {
+    transition: none;
+  }
+}
+
+/* top centre */
+.hud-strip {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 14px;
+  white-space: nowrap;
+}
+
+/* bottom left */
+.hud-chat {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  width: 320px;
+  height: 300px;
+  display: flex;
+  flex-direction: column;
+}
+.hud-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+}
+.world-root .hud .hud-tabs button {
+  flex: 1;
+  min-height: 32px;
+  border-radius: var(--hud-radius-button);
+}
+.world-root .hud .hud-tabs button[aria-selected="true"] {
+  background: var(--hud-well);
+  color: var(--hud-xp);
+  text-decoration: underline;
+}
+.hud-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column-reverse;
+  padding: 0 12px;
+}
+.hud-scroll > div {
+  margin-bottom: auto;
+}
+.hud-scroll input {
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--hud-edge);
+  border-radius: var(--hud-radius-button);
+  background: var(--hud-well);
+  color: var(--hud-text);
+}
+.hud-line {
+  margin: 0 0 6px;
+  overflow-wrap: anywhere;
+}
+.hud-quiet {
+  color: var(--hud-dim);
+}
+.world-root .hud .hud-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 0;
+  text-align: left;
+}
+.hud-chat footer {
+  padding: 8px 12px;
+  color: var(--hud-dim);
+  font-size: 14px;
+}
+
+/* bottom centre */
+.hud-bar-row {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  padding: 6px;
+}
+.world-root .hud .hud-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 62px;
+  min-height: 52px;
+  border: 1px solid var(--hud-edge);
+  border-radius: var(--hud-radius-button);
+}
+.world-root .hud .hud-slot[aria-pressed="true"] {
+  color: var(--hud-xp);
+  border-color: var(--hud-xp);
+}
+/* Record and Share keep their own panels; these slots let them grow upward without widening the bar. */
+.hud-tool {
+  position: relative;
+  min-height: 52px;
+  width: 128px;
+}
+.hud-tool:last-of-type {
+  width: 96px;
+}
+.hud-tool > kbd {
+  position: absolute;
+  top: -2px;
+  right: 4px;
+  z-index: 1;
+  pointer-events: none;
+}
+.hud-tool > div {
+  position: absolute;
+  left: 0;
+  bottom: 4px;
+  width: max-content;
+  max-width: 300px;
+}
+
+/* bottom right, above the asset credit */
+.world-root .hud .hud-menu-btn {
+  position: absolute;
+  right: 12px;
+  bottom: 48px;
+  min-height: 44px;
+  padding: 6px 14px;
+}
+.world-root .hud .hud-show {
+  display: none;
+  position: absolute;
+  right: 12px;
+  bottom: 48px;
+  min-height: 44px;
+  padding: 6px 14px;
+}
+
+/* hidden, and walk mode (walk controls own the bottom of the screen) */
+.hud.hud-off > :not(.hud-show):not(.hud-menu-back) {
+  display: none;
+}
+.world-root .hud.hud-off .hud-show {
+  display: block;
+}
+.hud.hud-walking > .hud-chat,
+.hud.hud-walking > .hud-bar-row,
+.hud.hud-walking > .hud-menu-btn {
+  display: none;
+}
+
+.hud-menu-back {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 8, 18, 0.55);
+}
+.hud-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 300px;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  padding: 16px;
+}
