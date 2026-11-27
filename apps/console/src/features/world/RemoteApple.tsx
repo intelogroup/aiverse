@@ -4,7 +4,7 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { SCALE_REMY } from "@aiverse/world-sim/bodies";
 import { APPLE_ASSET, APPLE_GROUND, APPLE_STANDS, appleCenter, type AppleStand } from "@aiverse/world-sim/movableProps";
-import { APPLE_GRIP_POSITION, APPLE_GRIP_ROTATION, REMY_HAND_WORLD_SCALE, appleVisual } from "./appleGrip";
+import { APPLE_GRIP_POSITION, APPLE_GRIP_ROTATION, APPLE_HALF_HEIGHT, APPLE_SIZE, REMY_HAND_WORLD_SCALE, appleVisual } from "./appleGrip";
 import { assetUrl } from "../../lib/assetUrl";
 import { extendGltf } from "./gltfExtensions";
 import type { RemoteBodies } from "./remoteFrames";
@@ -39,10 +39,11 @@ export function RemoteApple({ bodies, findHand }: { bodies: RemoteBodies; findHa
 
   return (
     <>
-      <group ref={apple} name="market-apple-01" visible={false} scale={SCALE_REMY}><primitive object={model} /></group>
+      <group ref={apple} name="market-apple-01" visible={false} scale={SCALE_REMY * APPLE_SIZE}><primitive object={model} /></group>
       {stands.map((stand) => {
         const [x, , z] = appleCenter(stand);
-        const h = APPLE_STANDS[stand].height * SCALE_REMY;
+        // Authored for the size-1 apple; the bigger apple's bottom sits lower, so the stand is shorter by the difference.
+        const h = (APPLE_STANDS[stand].height - APPLE_HALF_HEIGHT * (APPLE_SIZE - 1)) * SCALE_REMY;
         return (
           <mesh key={stand} name={stand} position={[x, APPLE_GROUND + h / 2, z]} castShadow receiveShadow>
             <cylinderGeometry args={[0.006 * SCALE_REMY, 0.036 * SCALE_REMY, h, 32]} />

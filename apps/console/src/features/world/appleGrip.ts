@@ -5,6 +5,10 @@ import { APPLE_STANDS, appleCenter, type AppleFrame } from "@aiverse/world-sim/m
 
 export const APPLE_GRIP_POSITION = [4.8683313, 26.1374677, 10.8832469] as const;
 export const APPLE_GRIP_ROTATION = [-0.8744955, -0.1513037, 0.3225398, 0.3291386] as const;
+/** Visual scale over the authored apple GLB. At 1 it was ~6 cm across, small for the cast's hands (fingers 1-3 cm off its skin). */
+export const APPLE_SIZE = 1.25;
+/** Authored apple half-height (rig units, size 1): each stand's top sits this times APPLE_SIZE below the apple centre. */
+export const APPLE_HALF_HEIGHT = 0.0191;
 /** Remy's right-hand world scale in the scene. Other rigs' hand units differ: scale the grip offset by this over their hand's world scale. */
 export const REMY_HAND_WORLD_SCALE = 3.43539e-3 * SCALE_REMY;
 export const APPLE_CARRY_ROTATIONS = {
