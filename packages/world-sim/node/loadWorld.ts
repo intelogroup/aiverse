@@ -17,7 +17,7 @@ import type { TeaFloorPlan } from "../src/teaLandmarks";
 import { VerseSim } from "../src/verseSim";
 
 interface DistrictRow { id: string; center: [number, number]; origin?: [number, number]; resident?: boolean; collisionUrl?: string }
-interface RoomRow { id: string; name?: string; door?: [number, number]; rect?: [number, number, number, number]; center?: [number, number]; layout?: string; collision?: string; interactables?: InteractableDef[]; stairs?: ScoutRoomShape["stairs"] }
+interface RoomRow { id: string; name?: string; door?: [number, number]; rect?: [number, number, number, number]; center?: [number, number]; layout?: string; collision?: string; interactables?: InteractableDef[]; stairs?: ScoutRoomShape["stairs"]; doorLeaf?: ScoutRoomShape["doorLeaf"] }
 
 export interface LoadStats {
   collisionSets: string[];
@@ -91,7 +91,7 @@ export async function loadVerseSim(assetsDir: string, opts: { navBin?: string | 
 
   const places = await readJson<ScoutPlace[]>(at(assetsDir, "/assets/city3-places.json"));
   const sittables = await readJson<Sittable[]>(at(assetsDir, "/assets/city3-anchors.json"));
-  const shapes: ScoutRoomShape[] = rooms.flatMap((r) => (r.door && r.rect && r.center ? [{ id: r.id, name: r.name ?? r.id, door: r.door, rect: r.rect, center: r.center, stairs: r.stairs }] : []));
+  const shapes: ScoutRoomShape[] = rooms.flatMap((r) => (r.door && r.rect && r.center ? [{ id: r.id, name: r.name ?? r.id, door: r.door, rect: r.rect, center: r.center, stairs: r.stairs, doorLeaf: r.doorLeaf }] : []));
   const teaPlan = new URL("../../../docs/procedural-city/tea-house/plan.json", import.meta.url);
   const { levels: teaFloors } = await readJson<{ levels: TeaFloorPlan[] }>(teaPlan);
   sim.setData({ places, sittables, rooms: shapes, teaFloors }, rooms.flatMap((r) => r.interactables ?? []));

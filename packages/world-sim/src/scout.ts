@@ -1,4 +1,5 @@
 import type { CupAction } from "./teaCup";
+import type { DoorLeafSpec } from "./houseDoor";
 // scout.ts — Phase 0 of the City 3 free-exploration agent experiment: the
 // pure core of the "Scout" harness (see .build-tmp/agent-experiment/PLAN.md).
 //
@@ -59,6 +60,8 @@ export interface ScoutRoomShape {
   center: Vec2;
   /** Authored walking points through the staircase, ordered from the lower floor to the upper floor. */
   stairs?: { lowerY: number; upperY: number; points: Vec2[] };
+  /** The front door leaf, when the room has a swinging door (houseDoor.ts). */
+  doorLeaf?: DoorLeafSpec;
 }
 
 export interface ScoutDistrict {

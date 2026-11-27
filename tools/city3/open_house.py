@@ -158,6 +158,9 @@ if "doors" in opt:   # list door-leaf-sized loose parts (thin, 1.7-2.6 m tall, 0
     sys.exit(0)
 # --cut boxes are given in the glTF frame (x, y up, z front); Blender is (x, -z, y)
 removed = 0
+LEAF = "leaf" in opt   # keep only what --cut takes (the door leaf) and write it as leaf.glb with its hinge at the origin, instead of open.glb
+if LEAF:
+    keep_pts, rest_pts = [], []
 for spec in [c for c in opt.get("cut", "").split(";") if c]:
     x0, x1, y0, y1, z0, z1 = map(float, spec.split(","))
     for o in meshes:
@@ -178,14 +181,39 @@ for spec in [c for c in opt.get("cut", "").split(";") if c]:
                     if w.index not in seen:
                         seen.add(w.index)
                         stack.append(w)
-            if all(x0 <= p.co.x <= x1 and y0 <= p.co.z <= y1 and z0 <= -p.co.y <= z1 for p in part):
+            inside = all(x0 <= p.co.x <= x1 and y0 <= p.co.z <= y1 and z0 <= -p.co.y <= z1 for p in part)
+            if inside != LEAF:
                 kill.extend(part)
+            elif LEAF:
+                keep_pts.extend(p.co.copy() for p in part)
+            if LEAF and not inside:
+                rest_pts.extend(p.co.copy() for p in part)
         if kill:
             removed += len(kill)
             bmesh.ops.delete(bm, geom=kill, context="VERTS")
             bm.to_mesh(o.data)
         bm.free()
 print(f"CUT removed {removed} vertices")
+if LEAF:   # several --cut boxes would be several leaves; this mode expects one
+    # open.glb is re-centred on what the cut leaves (see RECENTRE below): give the leaf bounds in that same frame
+    r = np.array([(c.x, c.z, -c.y) for c in rest_pts])
+    rl, rh = r.min(0), r.max(0)
+    re_g = np.array([-(rl[0] + rh[0]) / 2, -rl[1], -(rl[2] + rh[2]) / 2])
+    if not np.linalg.norm(re_g) > 0.005:
+        re_g[:] = 0
+    p = np.array([(c.x, c.z, -c.y) for c in keep_pts]) + re_g
+    a, b = p.min(0), p.max(0)
+    assert len(p) and (b - a)[0] > 0.4 and (b - a)[1] > 1.5, f"leaf too small: {b - a}"
+    hinge = Vector((a[0] - re_g[0], -((a[2] + b[2]) / 2 - re_g[2]), a[1] - re_g[1]))   # Blender coords (pre-shift): left jamb (-x), slab middle, bottom
+    for o in [o for o in meshes if len(o.data.vertices)]:
+        o.data.transform(__import__("mathutils").Matrix.Translation(-hinge))
+    for o in [o for o in meshes if not len(o.data.vertices)]:
+        bpy.data.objects.remove(o)
+    bpy.ops.export_scene.gltf(filepath=f"{out}/leaf.glb", export_format="GLB", export_yup=True, export_apply=True)
+    json.dump(dict(min=[r for r in a.round(3).tolist()], max=b.round(3).tolist(), width=round(float(b[0] - a[0]), 3),
+                   height=round(float(b[1] - a[1]), 3), thick=round(float(b[2] - a[2]), 3)), open(f"{out}/leaf.json", "w"))
+    print(f"LEAF {b[0]-a[0]:.2f} x {b[1]-a[1]:.2f} x {b[2]-a[2]:.2f} m, x {a[0]:.2f}..{b[0]:.2f} y {a[1]:.2f}..{b[1]:.2f} z {a[2]:.2f}..{b[2]:.2f}")
+    sys.exit(0)
 # place_house.mjs centres on the bounds of open.glb, i.e. after the cut: re-centre if the cut took an extreme part, or every box would shift
 pts = np.array([v.co[:] for o in meshes for v in o.data.vertices])
 lo, hi = pts.min(0), pts.max(0)

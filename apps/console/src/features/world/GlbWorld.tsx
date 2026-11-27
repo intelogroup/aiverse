@@ -44,8 +44,7 @@ import { WalkColliders } from "./walkColliders";
 import { TEA_BLOCKER_BOX, TeaDoorController } from "./teaDoor";
 import { InteractController } from "./interactables";
 import { InteractTicker } from "./InteractTicker";
-import { HawkDoorLeaf } from "./HawkDoorLeaf";
-import { HAWK_ROOM } from "@aiverse/world-sim/hawkDoor";
+import { HouseDoors } from "./HouseDoorLeaf";
 import { TeaDoorLeaf, TeaDoorTicker } from "./TeaDoorLeaf";
 import { TEA_FLOORS } from "./teaBuilding";
 import { ClipCutaway, InteriorStreamer, useCity3Rooms } from "./glbInteriors";
@@ -669,7 +668,7 @@ export function GlbWorld({ ownerAgentNames }: { /** Names of the signed-in owner
               <TeaElevator controller={elevator} walk={walkColliders} url={CITY3_URL} frame={walkFrameRef} getDirector={() => soundRef.current} />
               <ClipCutaway rooms={city3Rooms} focus={heroFocus} teaFloor={teaFloor} walking={walking} />
               <InteriorStreamer rooms={city3Rooms} walk={walkColliders} interact={interactRef.current} />
-              {city3Rooms.some((room) => room.id === HAWK_ROOM) && <HawkDoorLeaf walk={walkColliders} frame={walkFrameRef} walking={walking} />}
+              <HouseDoors rooms={city3Rooms} walk={walkColliders} frame={walkFrameRef} walking={walking} />
               <TeaDoorLeaf controller={teaDoorRef.current} />
               {!agentOn ? <TeaDoorTicker controller={teaDoorRef.current} /> : null}
               {!agentOn ? <InteractTicker controller={interactRef.current} /> : null}
