@@ -16,13 +16,14 @@ const la = new THREE.Vector3(), lb = new THREE.Vector3(), lc = new THREE.Vector3
 const lq = new THREE.Quaternion();
 
 /**
- * Lower `group` by `dip` (m) and bend each leg so its foot stays where the clip planted it (two-bone solve per leg,
+ * Lower `group` by `dip` (m), shift it forward by `lean`, and keep the clip’s feet planted (two-bone solve per leg,
  * knee toward `pole`). World matrices must be current.
  */
-export function dipWithLegs(group: THREE.Object3D, legs: readonly LegBones[], dip: number, pole: THREE.Vector3): void {
+export function dipWithLegs(group: THREE.Object3D, legs: readonly LegBones[], dip: number, pole: THREE.Vector3, lean = 0): void {
   if (dip <= 0) return;
   const feet = legs.map((l) => ({ p: l.foot.getWorldPosition(new THREE.Vector3()), q: l.foot.getWorldQuaternion(new THREE.Quaternion()) }));
   group.position.y -= dip;
+  group.translateZ(lean);
   group.updateMatrixWorld(true);
   legs.forEach((l, i) => {
     l.thigh.getWorldPosition(la); l.shin.getWorldPosition(lb); l.foot.getWorldPosition(lc);
@@ -51,6 +52,12 @@ export class ArmReach {
   private readonly wrist = new THREE.Vector3();
   private readonly pole = new THREE.Vector3();
   private readonly handQ = new THREE.Quaternion();
+  private readonly swing = new THREE.Quaternion();
+  private readonly upperRest = new THREE.Quaternion();
+  private readonly foreRest = new THREE.Quaternion();
+  private readonly handRest = new THREE.Quaternion();
+  private readonly rollFrom = new THREE.Vector3();
+  private readonly rollTo = new THREE.Vector3();
 
   private readonly upper: THREE.Object3D;
   private readonly fore: THREE.Object3D;
@@ -96,5 +103,66 @@ export class ArmReach {
     this.hand.getWorldPosition(this.c);
     aim(this.fore, this.b, this.c, this.wrist);
     setWorldQuaternion(this.hand, this.handQ);
+  }
+
+  /**
+   * Follow a held prop without hinging the wrist. Solve to the grip point
+   * with the hand as an extension of the forearm, then place the wrist
+   * back along that segment at its own bone length.
+   */
+  followGrip(
+    gripLocal: THREE.Vector3, target: THREE.Vector3, weight: number, elbowPole: THREE.Vector3,
+    orientation?: { localAxis: THREE.Vector3; worldAxis: THREE.Vector3 },
+  ): void {
+    if (weight <= 0) return;
+    this.upper.getWorldPosition(this.a);
+    this.fore.getWorldPosition(this.b);
+    this.hand.getWorldPosition(this.c);
+    const foreLength = this.b.distanceTo(this.c);
+    const handLength = this.hand.localToWorld(this.grip.copy(gripLocal)).distanceTo(this.c);
+    if (!foreLength || !handLength) return;
+    this.upperRest.copy(this.upper.quaternion);
+    this.foreRest.copy(this.fore.quaternion);
+    this.handRest.copy(this.hand.quaternion);
+
+    const reach = foreLength + handLength;
+    this.t.copy(this.c).sub(this.b).normalize().multiplyScalar(reach).add(this.b);
+    solveTwoBone(this.a, this.b, this.t, target, elbowPole, this.elbow, this.wrist, 1);
+    this.wrist.lerp(this.elbow, handLength / reach);
+    aim(this.upper, this.a, this.b, this.elbow);
+    this.fore.getWorldPosition(this.b);
+    this.hand.getWorldPosition(this.c);
+    aim(this.fore, this.b, this.c, this.wrist);
+
+    // Aim the grip along the solved forearm, keeping the roll carried by
+    // the forearm itself as the hand lifts and lowers.
+    this.hand.getWorldQuaternion(this.handQ);
+    this.grip.copy(gripLocal).normalize().applyQuaternion(this.handQ);
+    this.t.copy(this.wrist).sub(this.elbow).normalize();
+    this.swing.setFromUnitVectors(this.grip, this.t);
+    this.handQ.premultiply(this.swing);
+
+    if (orientation) {
+      const { localAxis, worldAxis } = orientation;
+      // Roll around the solved forearm first, then use the shortest wrist
+      // adjustment to meet the prop axis. Re-solve position with that wrist.
+      this.grip.copy(localAxis).applyQuaternion(this.handQ);
+      this.rollFrom.copy(this.grip).projectOnPlane(this.t).normalize();
+      this.rollTo.copy(worldAxis).projectOnPlane(this.t).normalize();
+      const cosine = this.rollFrom.dot(this.rollTo);
+      const angle = Math.atan2(this.rollFrom.cross(this.rollTo).dot(this.t), cosine);
+      this.handQ.premultiply(this.swing.setFromAxisAngle(this.t, angle));
+      this.grip.copy(localAxis).applyQuaternion(this.handQ);
+      this.handQ.premultiply(this.swing.setFromUnitVectors(this.grip, worldAxis));
+    }
+    setWorldQuaternion(this.hand, this.handQ);
+    if (orientation) this.update(gripLocal, target, 1, elbowPole);
+
+    if (weight < 1) {
+      this.upper.quaternion.slerp(this.upperRest, 1 - weight);
+      this.fore.quaternion.slerp(this.foreRest, 1 - weight);
+      this.hand.quaternion.slerp(this.handRest, 1 - weight);
+      this.upper.updateMatrixWorld(true);
+    }
   }
 }

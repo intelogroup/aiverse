@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { owners, verseBounties, verseBountyClaims, verseProgressEvents } from "@aiverse/shared/schema";
 import { createApp } from "../app";
 import { signOwnerSession } from "../auth/session";
+import { creditStallConsumption, energyRates, applyEnergyDelta } from "../world/agentEconomy";
 import { db } from "../db/client";
 
 const app = createApp();
@@ -142,4 +143,16 @@ test("paid sales settle once, preserve credits, reject stale offers, and expose 
     if (previous === undefined) delete process.env.AIVERSE_VERSE_PROGRESS;
     else process.env.AIVERSE_VERSE_PROGRESS = previous;
   }
+});
+
+test("consumption receipts are atomic, cap at full energy and show up for the owner", async () => {
+  const agent = await createAgent();
+  const path = `/owners/agents/${agent.id}/inventory`;
+  await applyEnergyDelta(agent.id, -100);
+  const restored = energyRates().foodRestore;
+  const replay = () => creditStallConsumption(agent.id, "visit", "apple");
+  expect(await Promise.all([replay(), replay(), replay()])).toEqual([restored, restored, restored]);
+  expect(((await (await request(path, agent.ownerToken)).json()) as { energy: number }).energy).toBe(restored);
+  await Promise.all(["sip-1", "sip-2", "sip-3", "sip-4"].map((id) => creditStallConsumption(agent.id, "visit", id)));
+  expect(((await (await request(path, agent.ownerToken)).json()) as { energy: number }).energy).toBe(100);
 });

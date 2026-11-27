@@ -73,6 +73,16 @@ function AgentInventory({ agentId }: { agentId: string }) {
   const [items, setItems] = useState<Awaited<ReturnType<typeof api.listVerseInventory>>["items"] | null>(null);
   const [receipts, setReceipts] = useState<Awaited<ReturnType<typeof api.listVerseInventory>>["receipts"]>();
   const [after, setAfter] = useState<string>();
+  const [energy, setEnergy] = useState<number>();
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    const timer = setInterval(() => {
+      void api.listVerseInventory(agentId).then((data) => { if (active) setEnergy(data.energy); }).catch(() => {});
+    }, 5000);
+    return () => { active = false; clearInterval(timer); };
+  }, [agentId, open]);
   const [progress, setProgress] = useState<{ credits: number; xp: number }>();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -81,9 +91,10 @@ function AgentInventory({ agentId }: { agentId: string }) {
     setLoading(true);
     setError(null);
     try {
-      const { items: page, progress, receipts } = await api.listVerseInventory(agentId, cursor);
+      const { items: page, progress, receipts, energy } = await api.listVerseInventory(agentId, cursor);
       if (!cursor) setReceipts(receipts);
       setProgress(progress);
+      setEnergy(energy);
       setItems((previous) => cursor ? [...(previous ?? []), ...page] : page);
       setAfter(page.length === 100 ? page.at(-1)?.id : undefined);
     } catch (err) {
@@ -94,11 +105,15 @@ function AgentInventory({ agentId }: { agentId: string }) {
   }
 
   return (
-    <details onToggle={(event) => { if (event.currentTarget.open) void load(); }}>
+    <details onToggle={(event) => {
+      setOpen(event.currentTarget.open);
+      if (event.currentTarget.open) void load();
+    }}>
       <summary>Verse inventory</summary>
       <button type="button" disabled={loading} onClick={() => void load()}>Refresh inventory</button>
       {loading && <p role="status">Loading inventory…</p>}
       {error && <p role="alert">{error}</p>}
+      {energy !== undefined && <p>Energy <progress aria-label="Energy" max={100} value={energy} /> {energy}/100</p>}
       {progress && <p>{progress.credits} credits · {progress.xp} XP</p>}
       {items?.length === 0 && <p>No items yet.</p>}
       {!!items?.length && <ul>{items.map((item) => <li key={item.id}>{item.name}</li>)}</ul>}

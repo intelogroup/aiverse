@@ -78,6 +78,7 @@ describe("ManageAgentsModal lifecycle controls", () => {
   it("fetches inventory on demand and displays the item, credits, and receipt", async () => {
     apiMock.listVerseInventory.mockResolvedValue({
       items: [{ id: "item-1", name: "Ceramic token" }],
+      energy: 67,
       progress: { credits: 3, xp: 5 },
       receipts: [{ id: "sale-1", itemName: "Ceramic token", price: 2, side: "bought" }],
     });
@@ -87,6 +88,7 @@ describe("ManageAgentsModal lifecycle controls", () => {
     section.open = true;
     fireEvent(section, new Event("toggle"));
     expect(await screen.findByText("Ceramic token")).toBeTruthy();
+    expect(screen.getByRole("progressbar", { name: /Energy/ }).getAttribute("value")).toBe("67");
     expect(screen.getByText("3 credits · 5 XP")).toBeTruthy();
     expect(screen.getByText("Bought Ceramic token for 2 credits")).toBeTruthy();
     expect(apiMock.listVerseInventory).toHaveBeenCalledWith("agent-1", undefined);

@@ -7,6 +7,7 @@
 import { resolveSocialClip, SOCIAL_CLIPS } from "./clips";
 import { GAZE_PITCH_MAX_DEG, GAZE_PITCH_MIN_DEG, GAZE_YAW_MAX_DEG } from "./scout";
 
+import { isStallConsumable, STALL_CONSUMABLES } from "./stallConsumables";
 import { CUP_ACTIONS, TEA_CUP } from "./teaCup";
 
 const ID_RE = /^[a-zA-Z0-9-]{1,80}$/;
@@ -32,7 +33,7 @@ export function validRequestId(id: unknown): id is string { return typeof id ===
 export const ACTION_TYPES = {
   go_to: "{place}, {point:[x,z]} or {body: handle}: stop 1.2 m in front of someone you see", run_to: "{place} or {point:[x,z]}", enter: "{place} (lot or room id): walk inside",
   face: "{headingDeg}, {point:[x,z]} or {body: handle}", wait: "{seconds} 0-30", sit: "{sittable?}", stand: "{}",
-  play: "{clip, seconds?} (GET /world/clips)", interact: "{target, verb?}: tea-cup supports take, drink and put_down", stop: "{}",
+  play: "{clip, seconds?} (GET /world/clips)", interact: "{target, verb?}: tea-cup supports take, drink and put_down; stallConsumables use eat or drink", stop: "{}",
   grab: "{target}: pick up a nearby movable prop from observe.movableProps",
   place: "{target,surface}: set a held prop on a compatible surface from observe.movableProps",
   ride_elevator: "{target: elevator marker ID from observation.landmarks, floor: G | L1 | L2 | L3}",
@@ -96,6 +97,10 @@ export function explainAction(a: unknown): string | null {
       return extra("gas", "brake", "steer", "seconds", "reverse", "heading", "speed", "turn", "to");
     }
     case "interact":
+      if (isStallConsumable(v.target)) {
+        const { verb } = STALL_CONSUMABLES[v.target];
+        return v.verb === verb ? extra("target", "verb") : `this stall consumable needs verb: ${verb}`;
+      }
       if (v.target === TEA_CUP.id) {
         return CUP_ACTIONS.some((verb) => verb === v.verb) ? extra("target", "verb") : "tea-cup needs verb: take, drink, or put_down";
       }

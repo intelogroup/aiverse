@@ -15,7 +15,7 @@ console.log(JSON.stringify({ event: "sim_loaded", ...stats }));
 // SIM_AMBIENT=0 turns the resident cars and pedestrians off.
 const maxBodies = Number(process.env.SIM_MAX_BODIES ?? 200);
 const TICK_MS = 50;
-const service = new WorldService({ sim, maxBodies, movableProps: process.env.SIM_MOVABLE_PROPS === "1", movementEnergy: process.env.SIM_MOVEMENT_ENERGY === "1", ambient: process.env.SIM_AMBIENT === "0" ? undefined : new AmbientWorld() });
+const service = new WorldService({ sim, maxBodies, movableProps: process.env.SIM_MOVABLE_PROPS === "1", stallConsumables: process.env.SIM_STALL_CONSUMABLES === "1", movementEnergy: process.env.SIM_MOVEMENT_ENERGY === "1", ambient: process.env.SIM_AMBIENT === "0" ? undefined : new AmbientWorld() });
 const app = createSimServer({ service, secret, maxBodies, tickMs: TICK_MS });
 
 const server = Bun.serve({ hostname: process.env.SIM_HOST ?? "127.0.0.1", port: Number(process.env.SIM_PORT ?? 3020), fetch: app.fetch });

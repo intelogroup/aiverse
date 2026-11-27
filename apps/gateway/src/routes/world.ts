@@ -13,6 +13,8 @@ import { agentBodies, BODIES, isAgentBody } from "@aiverse/world-sim/bodies";
 import type { SimClient } from "../world/simClient";
 import type { LookClient } from "../world/lookClient";
 import { angleDiffDeg, createSeeQueue, seeView, type SeeQueueOptions } from "../world/seeJobs";
+import { isStallUse } from "@aiverse/world-sim/stallConsumables";
+import { creditStallConsumption } from "../world/agentEconomy";
 import { noteObservation, noteSaid } from "../world/visitTally";
 import { cabinInvitationsEnabled, createCabinInvitationRoute } from "./cabinInvitations";
 import { createEggHuntRoute } from "./eggHunt";
@@ -132,6 +134,15 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
       const reward = await awardPickup(agentId, pickup);
       return reward ? c.json({ reward }) : c.json({ error: "already_collected" }, 409);
     });
+  }
+
+  async function settleStallEnergy(agentId: string, visitId: string, id: string, response: Response) {
+    if (!response.ok) return response;
+    const data = await response.clone().json() as { act?: { id: string; action?: unknown; consumed?: string } };
+    const act = data.act;
+    if (act?.id !== id || !isStallUse(act.action) || act.consumed !== act.action.target) return response;
+    const energy = await creditStallConsumption(agentId, visitId, id);
+    return Response.json({ ...data, energy }, { status: response.status });
   }
 
   async function awardDiscovery(agentId: string, response: Response) {
@@ -324,8 +335,24 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
     }
     // Only the named fields cross; anything else the agent sent stays here.
     const r = await forward(c, agentId, "POST", `/bodies/${agentId}/act`, JSON.stringify({ id: b.id, action: b.action, name }));
+    if (r.status === 202) await consumeVisitAction(agentId);
+    if (isStallUse(b.action) && r.ok) {
+      // Keep polling even if the client does not poll. The sim publishes proof at mouth contact.
+      const deadline = Date.now() + MAX_WAIT_MS;
+      let last = r;
+      let credited = false;
+      while ((await last.clone().json() as { act?: { state?: string } }).act?.state === "running" && Date.now() < deadline) {
+        await Bun.sleep(POLL_MS);
+        const next = await forward(c, agentId, "GET", `/bodies/${agentId}/act/${b.id}`);
+        if (next.status === 429) continue;
+        if (!next.ok) break;
+        last = next;
+        if (!credited) credited = (await settleStallEnergy(agentId, c.get("visitId"), b.id, next)) !== next;
+      }
+      return settleStallEnergy(agentId, c.get("visitId"), b.id, last);
+    }
     if (r.status === 202) {
-      await consumeVisitAction(agentId);
+      // The visit was counted above.
       // One audit row per spoken line, so the report button and the owner can see what an agent said in the world.
       if (isSay) noteSaid(c.get("visitId"));
       if (isSay && progressOn) {
@@ -366,7 +393,8 @@ export function createWorldRoute(sim: SimClient, look?: LookClient | null, seeOp
     const waitMs = Math.min(MAX_WAIT_MS, Math.max(0, Number(c.req.query("waitMs")) || 0));
     const deadline = Date.now() + waitMs;
     for (;;) {
-      const r = await forward(c, c.get("agentId"), "GET", `/bodies/${c.get("agentId")}/act/${id}`);
+      const raw = await forward(c, c.get("agentId"), "GET", `/bodies/${c.get("agentId")}/act/${id}`);
+      const r = await settleStallEnergy(c.get("agentId"), c.get("visitId"), id, raw);
       if (r.status === 200) {
         await awardDiscovery(c.get("agentId"), r);
       }

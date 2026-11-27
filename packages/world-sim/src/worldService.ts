@@ -1,4 +1,5 @@
 import { APPLE_APPROACH, APPLE_GRIPS, APPLE_ID, APPLE_PICKUP, APPLE_RECEIVING, APPLE_STANDS, appleBody, appleCenter, appleStance, type AppleFrame, type AppleStand } from "./movableProps";
+import { isStallConsumable, STALL_CONSUMABLES, STALL_FINISH_S, STALL_MOUTH_S, STALL_PICKUP_S, STALL_REACH, STALL_RETURN_S, type StallConsumableId, type StallFrame } from "./stallConsumables";
 import { TEA_CUP, type CupAction } from "./teaCup";
 // worldService.ts — the agent-facing surface of the server sim: attach a body, send actions, read senses.
 //
@@ -30,6 +31,8 @@ export class WorldError extends Error {
 }
 
 export interface ActRecord {
+  /** Set by the sim once the prop reaches the mouth, including if lowering is cancelled. */
+  consumed?: StallConsumableId;
   id: string;
   action: ScoutAction;
   state: "running" | "settled";
@@ -84,6 +87,7 @@ export interface Observation extends TeaWayfinding {
     surfaces: { id: AppleStand; name: string; approach: readonly [number, number]; distance: number; action: "grab" | "place" }[];
   };
   heldObjects?: string[];
+  stallConsumables?: { id: StallConsumableId; name: string; verb: "eat" | "drink"; approach: readonly [number, number]; available: boolean }[];
   /** Your car's state while you drive (null on foot). */
   vehicle: VehicleView | null;
   /** The latest action record (running or settled), so a poller needs one call. */
@@ -112,6 +116,7 @@ export interface WorldServiceOpts {
   /** Bodies allowed at once (platform cost cap). */
   maxBodies?: number;
   movableProps?: boolean;
+  stallConsumables?: boolean;
   movementEnergy?: boolean;
   /** A body whose agent has not touched it for this many SIMULATION seconds is told to stop (the agent went away). */
   leaseS?: number;
@@ -122,6 +127,10 @@ export interface WorldServiceOpts {
   /** Resident cars and pedestrians published to viewers beside the agent bodies (they are not agents: no session, no budget). */
   ambient?: AmbientWorld;
 }
+
+type StallRun = { agentId: string; rec: ActRecord; startedAt?: number };
+type StallStock = { portions: number; refillAt: number; run?: StallRun };
+const STALL_IDS = Object.keys(STALL_CONSUMABLES) as StallConsumableId[];
 
 interface Session {
   /** Opaque body number for the viewer stream (never reused within one run, never the agent id). */
@@ -183,6 +192,7 @@ export class WorldService {
   private appleHolder: string | null = null;
   private appleStand: AppleStand = APPLE_PICKUP;
   private appleRun?: { id: string; rec: ActRecord; stand: AppleStand; startedAt?: number; transferred: boolean };
+  private readonly stallStock?: Record<StallConsumableId, StallStock>;
   private cupHolder: string | null = null;
   private nextN = 1;
   private rosterRev = 0;
@@ -194,6 +204,10 @@ export class WorldService {
   constructor(opts: WorldServiceOpts) {
     this.sim = opts.sim;
     this.appleEnabled = opts.movableProps ?? false;
+    if (opts.stallConsumables) this.stallStock = {
+      "stall-apple": { portions: STALL_CONSUMABLES["stall-apple"].portions, refillAt: Infinity },
+      "stall-water": { portions: STALL_CONSUMABLES["stall-water"].portions, refillAt: Infinity },
+    };
     this.maxBodies = opts.maxBodies ?? 200;
     this.movementEnergy = opts.movementEnergy ?? false;
     this.leaseS = opts.leaseS ?? 30;
@@ -271,6 +285,7 @@ export class WorldService {
       this.appleStand = APPLE_PICKUP;
     }
     if (this.cupHolder === agentId) this.cupHolder = null;
+    this.cancelStall(agentId);
     this.sim.removeBody(agentId);
     this.sessions.delete(agentId);
     this.rosterRev++;
@@ -312,6 +327,14 @@ export class WorldService {
       return rec;
     }
 
+    if (this.stallForAgent(agentId)) {
+      if (type === "stop") this.cancelStall(agentId);
+      else if (type !== "gaze") {
+        this.settle(rec, { ok: false, status: "rejected", detail: "finish or stop your stall action first" });
+        this.remember(s, id, rec);
+        return rec;
+      }
+    }
     if (type === "enter_vehicle" || type === "exit_vehicle" || type === "drive") {
       this.vehicleAct(agentId, s, rec);
       this.remember(s, id, rec);
@@ -330,6 +353,11 @@ export class WorldService {
     if (type === "stop" && this.appleRun?.id === agentId) this.cancelApple(s);
     if (rec.action.type === "grab" || rec.action.type === "place") {
       this.appleAct(agentId, s, rec, rec.action);
+      this.remember(s, id, rec);
+      return rec;
+    }
+    if (rec.action.type === "interact" && isStallConsumable(rec.action.target)) {
+      this.useStall(agentId, s, rec, rec.action.target);
       this.remember(s, id, rec);
       return rec;
     }
@@ -361,6 +389,116 @@ export class WorldService {
     }
     this.remember(s, id, rec);
     return rec;
+  }
+
+  private stallForAgent(agentId: string) {
+    return this.stallStock && STALL_IDS.find((id) => this.stallStock![id].run?.agentId === agentId);
+  }
+
+  private cancelStall(agentId: string): void {
+    const id = this.stallForAgent(agentId);
+    if (!id) return;
+    const stock = this.stallStock![id];
+    this.settle(stock.run!.rec, { ok: false, status: "rejected", target: id, detail: "cancelled" });
+    stock.run = undefined;
+  }
+
+  private useStall(agentId: string, s: Session, rec: ActRecord, id: StallConsumableId): void {
+    const stock = this.stallStock?.[id];
+    const spec = STALL_CONSUMABLES[id];
+    const { approach: [x, z], position } = spec;
+    const st = s.body.state;
+    const distance = Math.hypot(st.x - x, st.z - z);
+    const refuse = (detail: string) => this.settle(rec, { ok: false, status: "unavailable", target: id, detail });
+    if (!stock || !stock.portions) return refuse("out_of_stock: this item is unavailable");
+    if (stock.run) return refuse("object_busy: someone is using this item");
+    if (!appleBody(s.figure)) return refuse("unsupported_grip: use a body with a fitted right hand");
+    if (s.body.busy || s.body.snapshot().posture !== "standing" || this.appleHolder === agentId || this.cupHolder === agentId || this.appleRun?.id === agentId) {
+      return refuse("stand still with an empty hand before using the stall");
+    }
+    if (distance > STALL_REACH || Math.abs(st.y - (position[1] - 0.9)) > 0.25) {
+      return refuse(`out_of_reach: go_to {point:[${x},${z}]} first`);
+    }
+    if (this.movementEnergy && s.exhausted && distance > 0.025) return refuse("rest before approaching the stall");
+    const run: StallRun = { agentId, rec };
+    stock.run = run;
+    const perform = async () => {
+      const approach = await s.body.act({ type: "go_to", point: [x, z], precise: true });
+      if (stock.run !== run) return;
+      const ready = approach.ok && !this.sim.world.blocked([st.x, st.y, st.z], [x, st.y, z], 0.32)
+        && Math.hypot(st.x - x, st.z - z) <= 0.04;
+      if (ready) {
+        const face = await s.body.act({ type: "face", headingDeg: 0 });
+        if (stock.run !== run) return;
+        if (face.ok) {
+          st.x = x;
+          st.z = z;
+          run.startedAt = this.sim.t;
+          const outcome = await s.body.act({ type: "wait", seconds: STALL_FINISH_S });
+          if (stock.run !== run) return;
+          stock.run = undefined;
+          this.settle(rec, { ...outcome, target: id, detail: outcome.ok ? spec.verb : outcome.detail });
+          return;
+        }
+      }
+      stock.run = undefined;
+      refuse("blocked: could not reach the counter stance");
+    };
+    void perform();
+  }
+
+  private tickStalls(): void {
+    if (!this.stallStock) return;
+    for (const id of STALL_IDS) {
+      const stock = this.stallStock[id];
+      if (!stock.run && this.sim.t >= stock.refillAt) {
+        stock.portions = STALL_CONSUMABLES[id].portions;
+        stock.refillAt = Infinity;
+      }
+      const run = stock.run;
+      if (run?.startedAt === undefined || run.rec.consumed || this.sim.t < run.startedAt + STALL_MOUTH_S) continue;
+      const s = this.sessions.get(run.agentId);
+      if (!s) continue;
+      run.rec.consumed = id;
+      stock.portions--;
+      if (!stock.portions) stock.refillAt = this.sim.t + STALL_CONSUMABLES[id].refillS;
+      if (this.movementEnergy) {
+        s.energy = Math.min(100, s.energy + 25);
+        if (s.energy >= 10) s.exhausted = false;
+      }
+    }
+  }
+
+  private stallObservation(agentId: string, s: Session): Pick<Observation, "heldObjects" | "stallConsumables"> {
+    const stocks = this.stallStock;
+    if (!stocks) return {};
+    const { x, y, z } = s.body.state;
+    const stallConsumables = STALL_IDS.flatMap((id) => {
+      const { name, verb, approach, position } = STALL_CONSUMABLES[id];
+      const stock = stocks[id];
+      return Math.hypot(x - approach[0], z - approach[1]) <= 16 && Math.abs(y - position[1]) < 1.2
+        ? [{ id, name, verb, approach, available: appleBody(s.figure) && stock.portions > 0 && !stock.run }]
+        : [];
+    });
+    const id = this.stallForAgent(agentId);
+    if (!id) return { stallConsumables };
+    const startedAt = stocks[id].run?.startedAt;
+    const elapsed = startedAt === undefined ? -1 : this.sim.t - startedAt;
+    const held = elapsed >= STALL_PICKUP_S && elapsed < (id === "stall-apple" ? STALL_MOUTH_S : STALL_RETURN_S);
+    return { stallConsumables, heldObjects: held ? [id] : [] };
+  }
+
+  private stallFrames(): StallFrame | undefined {
+    if (!this.stallStock) return;
+    const frame = (id: StallConsumableId) => {
+      const { run, portions } = this.stallStock![id];
+      const n = run && this.sessions.get(run.agentId)?.n;
+      return {
+        visible: id === "stall-water" || portions > 0,
+        ...(run?.startedAt !== undefined && n !== undefined ? { motion: { n, startedAt: run.startedAt } } : {}),
+      };
+    };
+    return { "stall-apple": frame("stall-apple"), "stall-water": frame("stall-water") };
   }
 
   private cancelApple(s: Session): void {
@@ -760,6 +898,7 @@ export class WorldService {
         },
       } : {}),
       ...this.appleObservation(agentId, s),
+      ...this.stallObservation(agentId, s),
       ...teaLandmarks(st, eye, this.sim.world, st.body + yawDeg * Math.PI / 180,
         this.sim.door.state, this.sim.elevator, this.sim.teaFloors),
       scene: [...oracleScene(this.sim.places, this.sim.rooms, { x: st.x, z: st.z, heading: st.body }, {}, interactables, seats), ...this.seenBodies(agentId, s), ...this.seenVehicles(agentId, st)]
@@ -799,7 +938,7 @@ export class WorldService {
   }
 
   /** Every body's pose this instant, quantised for the viewer stream. Not agent-scoped: it is the public picture of the world. */
-  frames(): { epoch: string; t: number; rosterRev: number; b: PoseTuple[]; say: SayEvent[]; teaCupHolder: number | null; apple?: AppleFrame } {
+  frames(): { epoch: string; t: number; rosterRev: number; b: PoseTuple[]; say: SayEvent[]; teaCupHolder: number | null; apple?: AppleFrame; stallProps?: StallFrame } {
     const b: PoseTuple[] = [];
     for (const [id, s] of this.sessions) if (!this.fleet.byDriver(id)) b.push(encodePose(s.n, s.body.pose()));   // a driver is the car
     b.push(...this.fleet.poses());
@@ -812,7 +951,7 @@ export class WorldService {
       holder: this.appleHolder === null ? null : this.sessions.get(this.appleHolder)?.n ?? null,
       motion: run?.startedAt !== undefined && n !== undefined ? { n, stand: run.stand, startedAt: run.startedAt } : null,
     } : undefined;
-    return { epoch: this.epoch, t: round(this.sim.t, 3), rosterRev: this.rosterRev, b, say, apple, teaCupHolder: this.cupHolder ? this.sessions.get(this.cupHolder)?.n ?? null : null };
+    return { epoch: this.epoch, t: round(this.sim.t, 3), rosterRev: this.rosterRev, b, say, apple, stallProps: this.stallFrames(), teaCupHolder: this.cupHolder ? this.sessions.get(this.cupHolder)?.n ?? null : null };
   }
 
   /** Body number -> agent id (gateway-side only: it turns this into a display name) and the body model to draw. */
@@ -945,6 +1084,7 @@ export class WorldService {
       running: s.body.snapshot().clip === "Run" || s.last?.action.type === "run_to" && s.last.state === "running",
     })) : [];
     this.sim.tick(dt);
+    this.tickStalls();
     const run = this.appleRun;
     if (run?.startedAt !== undefined && !run.transferred && this.sim.t >= run.startedAt + APPLE_STANDS[run.stand].contact) {
       run.transferred = true;
@@ -984,6 +1124,7 @@ export class WorldService {
     for (const [id, s] of this.sessions) {
       if (this.sim.t - s.lastSeen > this.leaseS && s.body.busy) {
         if (this.appleRun?.id === id) this.cancelApple(s);
+        this.cancelStall(id);
         void s.body.act({ type: "stop" });
         s.lastSeen = this.sim.t; // one stop per lease period, not one per tick
       }

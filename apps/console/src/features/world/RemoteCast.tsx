@@ -1,3 +1,5 @@
+import { STALL_CONSUMABLES, type StallConsumableId } from "@aiverse/world-sim/stallConsumables";
+import { RemoteStallProps } from "./RemoteStallProps";
 import { appleBody } from "@aiverse/world-sim/movableProps";
 import { appleMotion, appleVisual } from "./appleGrip";
 import { RemoteApple } from "./RemoteApple";
@@ -57,6 +59,7 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
   /** What React renders: live bodies plus bodies still dissolving out. */
   const [cast, setCast] = useState<{ n: number; body: string }[]>([]);
   const [showApple, setShowApple] = useState(false);
+  const [showStalls, setShowStalls] = useState(false);
   const publishAt = useRef(0);
   const teaCup = useRef<THREE.Group>(null);
   /** Body number -> the line over its head (null when none). Changes only when a line starts or expires. */
@@ -67,6 +70,7 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
     const dt = Math.min(delta, 0.1);
     let castChanged = false;
     if (showApple !== !!bodies.apple) setShowApple(!!bodies.apple);
+    if (showStalls !== !!bodies.stallProps) setShowStalls(!!bodies.stallProps);
 
     // Sync the figure set with the stream. Appearing bodies materialize
     // (their Dissolve starts at 1 and damps to 0); dropped bodies are marked
@@ -169,6 +173,12 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
     }
   }, 0);
 
+  const findHand = (n: number) => {
+    const body = figures.current.get(n)?.body;
+    const hand = figures.current.get(n)?.group?.getObjectByName("mixamorigRightHand");
+    return body && hand && appleBody(body) ? { hand, body } : undefined;
+  };
+
   return (
     <>
       <group ref={teaCup} visible={false}>
@@ -183,10 +193,7 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
       </group>
       {showApple ? (
         <Suspense fallback={null}>
-          <RemoteApple bodies={bodies} findHand={(n) => {
-            const body = cast.find((c) => c.n === n)?.body, hand = figures.current.get(n)?.group?.getObjectByName("mixamorigRightHand");
-            return body && hand && appleBody(body) ? { hand, body } : undefined;
-          }} />
+          <RemoteApple bodies={bodies} findHand={findHand} />
         </Suspense>
       ) : null}
       {cast.map(({ n, body }) => {
@@ -202,6 +209,14 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
               {body === "car"
                 ? <RemoteCar framesRef={frames} index={n} />
                 : <CastFigure framesRef={frames} index={n} baseY={0} home={[0, 0, 0]} body={BODIES[body] ?? BODY_REMY} clipTester={fig.clips} dissolve={fig.dissolve}
+                    stallPose={showStalls && appleBody(body) ? () => {
+                      const t = bodies.renderTime(performance.now() / 1000) ?? -Infinity;
+                      for (const id of Object.keys(STALL_CONSUMABLES) as StallConsumableId[]) {
+                        const run = bodies.stallProps?.[id].motion;
+                        if (run?.n === n && t >= run.startedAt) return { id, time: t - run.startedAt };
+                      }
+                      return null;
+                    } : undefined}
                     applePose={appleBody(body) ? () => {
                       const t = bodies.renderTime(performance.now() / 1000) ?? -Infinity;
                       return {
@@ -216,6 +231,7 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
           </group>
         );
       })}
+      {showStalls && <Suspense fallback={null}><RemoteStallProps bodies={bodies} findHand={findHand} /></Suspense>}
     </>
   );
 }

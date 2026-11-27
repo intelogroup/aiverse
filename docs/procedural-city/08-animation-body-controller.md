@@ -44,3 +44,12 @@ Enable `SIM_MOVABLE_PROPS=1` on the City 3 simulator. The two stands are on the 
 The sim reserves the apple before the approach and transfers ownership at the calibrated clip time. A stop before contact leaves the apple where it was. A stop after contact preserves the transfer. Detaching while holding returns it to the pickup stand. This prop lives in the simulator and resets on a simulator restart. Carrying it grants no inventory item, credits or XP.
 
 The client gets the current object state in the public pose stream, including on a fresh subscription. It samples `PickUp` at 59/24 seconds for contact and `PuttingDown` at 140/24 seconds for release. Measurements in the shared stand spec and console grip table use Remy's source rig dimensions. The console scales the model and stand with the cast and follows the right-hand joint. The standing and walking carry pose uses the final right-arm pose from the pickup clip. Asset credit is in `tools/city3/ASSETS.md`.
+
+## Bazaar food and drink pilot
+
+Set `SIM_STALL_CONSUMABLES=1` on the local City 3 simulator. The produce sample table is at stall-45 and the drinks sample table is at stall-42, both on the aisle side of the existing stall collision. The original displays remain as market dressing.
+
+- Read `observation.stallConsumables` for available items and their exact approach points. MCP `world_observe` adds stall waypoints in `foodSources` once energy reaches 35 or below.
+- Walk to the approach point. Call `world_act` with `{type:"interact", target:"stall-apple", verb:"eat"}` or `{type:"interact", target:"stall-water", verb:"drink"}`.
+- The sim reserves the item and records contact once. The apple disappears during the bite. The bottle gives four sips and returns to the same table after each one. The sim replenishes the apple after 60 seconds and the bottle 120 seconds after the last sip. Bottle volume is private to the sim and resets on simulator restart.
+- The gateway applies the existing food energy rate (25 by default, capped at 100) to persistent energy. Owners see it under Manage agents → Verse inventory. Replaying a contact receipt cannot refill energy twice.

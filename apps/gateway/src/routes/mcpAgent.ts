@@ -17,6 +17,7 @@ import {
 } from "../auth/resolveAgent";
 import { oauthIssuer } from "../auth/oauthCore";
 import { log, logError } from "../util/log";
+import { isStallUse, STALL_CONSUMABLES } from "@aiverse/world-sim/stallConsumables";
 import { actionClassFor, awardMoveXp, awardPlaceXp, claimStipends, clearWants, exhaustionFor, getAgentEconomyState, getWants, restEnergy, setWants, spendEnergyForAction, useBagItem, wantMatches } from "../world/agentEconomy";
 import { buyFromStall, nearbyStalls } from "../world/agentStalls";
 import { buyListingForWant, listOpenSaleOffers } from "../world/agentSales";
@@ -330,7 +331,7 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
 
   register(
     "world_observe",
-    "Observe the world from your body's senses (GET /world/observe): position, current floor where mapped, visible landmarks with distance in metres and bearing relative to your body, nearby objects, and heard speech. At the Tea House, teaRoom identifies the current interior area and teaDoors gives visible door labels and states. The self block is YOU as a living agent: energy is your body (0–100; acting will spend it and resting restores it), credits are your money (spendable and tradable), xp is your lifetime growth and level is derived from it (never spent, never lost), wants lists what you are after and the most you will pay, and bag is what you are carrying. The stalls field lists bazaar stalls and bars within sight, with stock and prices — buy from them with world_buy. Loading in claims your stipend automatically (1,000 credits the first time, 200 a day after). The feeds block carries your real-world feeds: if your radio is on (world_radio_on), the lines you heard since your last observe; if your news is on (world_news_on), the fresh headlines. Feeds are delivered once — an observe you skip is hearing you missed. Needs an attached body. Requires the world:observe scope for OAuth tokens.",
+    "Observe the world from your body's senses (GET /world/observe): position, current floor where mapped, visible landmarks with distance in metres and bearing relative to your body, nearby objects, and heard speech. At the Tea House, teaRoom identifies the current interior area and teaDoors gives visible door labels and states. The self block is YOU as a living agent: energy is your body (0–100; acting will spend it and resting restores it), credits are your money (spendable and tradable), xp is your lifetime growth and level is derived from it (never spent, never lost), wants lists what you are after and the most you will pay, and bag is what you are carrying. The stalls field lists shop stock and prices for world_buy. When energy is low, check foodSources for stall waypoints. stallConsumables lists nearby food and drink with an approach point and verb. Walk there, then world_act interact with that ID and verb. Loading in claims your stipend automatically (1,000 credits the first time, 200 a day after). The feeds block carries your real-world feeds: if your radio is on (world_radio_on), the lines you heard since your last observe; if your news is on (world_news_on), the fresh headlines. Feeds are delivered once — an observe you skip is hearing you missed. Needs an attached body. Requires the world:observe scope for OAuth tokens.",
     { agent_id: agentIdArg },
     async ({ agent_id }, call) => {
       const gate = scopeGate(caller, "world:observe", "world_observe");
@@ -371,7 +372,10 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
         // block, delivered once. A feeds failure must never break an
         // observe, so it degrades to null like the XP award above.
         const feeds = await drainFeeds(agentId).catch(() => null);
-        return okJson({ ...data, self, stalls, feeds });
+        const foodSources = self.energy <= 35 && Array.isArray(obs.stallConsumables)
+          ? Object.values(STALL_CONSUMABLES).map(({ name, place, verb }) => ({ name, place, verb }))
+          : undefined;
+        return okJson({ ...data, self, stalls, feeds, ...(foodSources ? { foodSources } : {}) });
       });
     },
   );
@@ -492,7 +496,7 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
     "world_act",
     "Act in the world (POST /world/act): one flat action object, passed through untouched — {type:\"go_to\"|\"run_to\"|\"enter\"|\"face\"|\"wait\"|\"sit\"|\"stand\"|\"play\"|\"interact\"|\"gaze\"|\"say\"|\"stop\"|\"enter_vehicle\"|\"drive\"|\"exit_vehicle\", ...fields} (see the guide resource or GET /world/clips for the play vocabulary). Needs an attached body. The sim accepts or refuses in its own words, returned verbatim. Acting spends your ENERGY: walking (go_to) costs least, then driving, then running costs most; small acts and speaking cost a little; sitting or waiting refills a little instead. The result carries your energy after the act. At zero energy, draining actions are refused with outcome \"exhausted\" — rest where you stand (world_rest), sit/wait, or eat from your bag (world_use) to recover. An optional id makes the act idempotent (a retry with the same id and action replays the first record); one is generated when omitted. Requires the world:act scope for OAuth tokens.",
     {
-      action: z.any().describe("A flat world action as an OBJECT (not a string of JSON), for example {\"type\":\"go_to\",\"place\":\"shop-102\"}. For a usable elevator in world_observe.landmarks, use {\"type\":\"ride_elevator\",\"target\":\"<marker id>\",\"floor\":\"L2\"}. For a movable prop in world_observe.movableProps, approach the listed approach point and use grab {target} or place {target,surface}. Read heldObjects for your grip state. For a cup in world_observe.teaCup use interact with its target ID and verb take, drink, or put_down. Poll world_observe for the result."),
+      action: z.any().describe("A flat world action as an OBJECT (not a string of JSON), for example {\"type\":\"go_to\",\"place\":\"shop-102\"}. For a usable elevator in world_observe.landmarks, use {\"type\":\"ride_elevator\",\"target\":\"<marker id>\",\"floor\":\"L2\"}. For a movable prop in world_observe.movableProps, approach the listed approach point and use grab {target} or place {target,surface}. Read heldObjects for your grip state. For a cup in world_observe.teaCup use interact with its target ID and verb take, drink, or put_down. For a stallConsumables item, go to its approach point, then interact {target, verb: eat or drink}. Poll world_observe for the result."),
       id: z
         .string()
         .min(1)
@@ -520,6 +524,7 @@ function buildServer(caller: AgentCaller, call: Call, token: string): McpServer 
           body: { id: actId, action },
         });
         if (!res.ok) return fail(res.text);
+        if (isStallUse(action)) return okJson(res.data);
         // Charge only a NEW accepted act: the sim answers 202 for one and
         // 200 for an idempotent replay of the same id (which must not
         // double-charge). A drive is the exception — the gateway holds a

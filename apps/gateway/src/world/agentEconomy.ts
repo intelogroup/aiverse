@@ -2,6 +2,7 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import { verseAgentState, verseInventory, verseProgressEvents } from "@aiverse/shared/schema";
 import type { VerseWant } from "@aiverse/shared/schema";
 import { db } from "../db/client";
+import { isStallUse } from "@aiverse/world-sim/stallConsumables";
 import { progress } from "./verseProgress";
 
 // Agent-economy Phase 1 (Nov 25 2026): the agent's own living-economy
@@ -102,6 +103,7 @@ const CLASS_BY_TYPE: Record<string, EnergyActionClass> = {
 
 export function actionClassFor(action: unknown): EnergyActionClass {
   if (!action || typeof action !== "object") return "none";
+  if (isStallUse(action)) return "none";
   const type = (action as { type?: unknown }).type;
   return typeof type === "string" ? (CLASS_BY_TYPE[type] ?? "none") : "none";
 }
@@ -165,16 +167,24 @@ async function currentEnergy(agentId: string, store: WriteStore): Promise<number
 
 /** Apply a signed delta, clamped to 0–100 in whole points. Returns the new energy. */
 export async function applyEnergyDelta(agentId: string, delta: number, store: WriteStore = db): Promise<number> {
-  const before = await currentEnergy(agentId, store);
   // A fractional drain (converse 0.5) still costs a whole point; fractional
   // regen rounds to the nearest point.
   const effective = delta < 0 && delta > -1 ? -1 : Math.round(delta);
-  const after = Math.max(0, Math.min(100, before + effective));
-  if (after !== before) {
-    await store.update(verseAgentState).set({ energy: after, updatedAt: sql`now()` })
-      .where(eq(verseAgentState.agentId, agentId));
-  }
-  return after;
+  if (!effective) return currentEnergy(agentId, store);
+  await store.insert(verseAgentState).values({ agentId }).onConflictDoNothing();
+  const [row] = await store.update(verseAgentState).set({
+    energy: sql`greatest(0, least(100, ${verseAgentState.energy} + ${effective}))`, updatedAt: sql`now()`,
+  }).where(eq(verseAgentState.agentId, agentId)).returning({ energy: verseAgentState.energy });
+  return row!.energy;
+}
+
+export function creditStallConsumption(agentId: string, visitId: string, actId: string): Promise<number> {
+  return db.transaction(async (tx) => {
+    const [receipt] = await tx.insert(verseProgressEvents).values({
+      agentId, kind: "stall-consumption", source: `${visitId}:${actId}`,
+    }).onConflictDoNothing().returning({ source: verseProgressEvents.source });
+    return receipt ? applyEnergyDelta(agentId, energyRates().foodRestore, tx) : currentEnergy(agentId, tx);
+  });
 }
 
 /** Holding the Kettle of Rest (a bag item whose name says so) doubles regen. */

@@ -10,7 +10,7 @@ function arm() {
   hand.quaternion.setFromEuler(new THREE.Euler(0.4, 0.2, -0.3));
   root.add(upper); upper.add(fore); fore.add(hand);
   root.updateMatrixWorld(true);
-  return { root, hand, reach: ArmReach.find(root)! };
+  return { root, fore, hand, reach: ArmReach.find(root)! };
 }
 const grip = new THREE.Vector3(0.02, -0.08, 0.05);
 const pole = new THREE.Vector3(0, 0, -1);
@@ -23,6 +23,34 @@ describe("arm reach", () => {
     reach.update(grip, target, 1, pole);
     expect(hand.localToWorld(grip.clone()).distanceTo(target)).toBeLessThan(0.01);
     expect(hand.getWorldQuaternion(new THREE.Quaternion()).angleTo(before)).toBeLessThan(1e-4);
+  });
+
+  test("holds a neutral wrist and keeps the grip on target during a lift and return", () => {
+    const table = new THREE.Vector3(0.05, 1, 0.42);
+    const mouth = new THREE.Vector3(0.02, 1.48, 0.14);
+    const elbow = new THREE.Vector3(0.4, -1, 0.15).normalize();
+    for (const step of [0, 0.25, 0.5, 0.75, 1, 0.75, 0.5, 0.25, 0]) {
+      const { fore, hand, reach } = arm();
+      const target = table.clone().lerp(mouth, step);
+      reach.followGrip(grip, target, 1, elbow);
+      const wrist = hand.getWorldPosition(new THREE.Vector3());
+      const armLine = wrist.clone().sub(fore.getWorldPosition(new THREE.Vector3()));
+      const gripPoint = hand.localToWorld(grip.clone());
+      expect(gripPoint.distanceTo(target)).toBeLessThan(0.001);
+      expect(armLine.angleTo(gripPoint.sub(wrist))).toBeLessThan(0.01);
+    }
+  });
+
+  test("carries a fitted axis with the hand while keeping the grip on target", () => {
+    const localAxis = new THREE.Vector3(0.8, -0.56, -0.22).normalize();
+    for (const tilt of [0, -0.8, -1.74, -0.8, 0]) {
+      const { hand, reach } = arm();
+      const worldAxis = new THREE.Vector3(0, Math.cos(tilt), Math.sin(tilt));
+      const target = new THREE.Vector3(0.28, 1.05, 0.26);
+      reach.followGrip(grip, target, 1, pole, { localAxis, worldAxis });
+      expect(hand.localToWorld(grip.clone()).distanceTo(target)).toBeLessThan(0.001);
+      expect(localAxis.clone().transformDirection(hand.matrixWorld).angleTo(worldAxis)).toBeLessThan(0.001);
+    }
   });
 
   test("weight 0 leaves the clip pose alone", () => {
