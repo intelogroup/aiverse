@@ -1,5 +1,5 @@
 import { APPLE_CARRY_ROTATIONS, APPLE_GRIP_POSITION, REMY_HAND_WORLD_SCALE, type appleMotion } from "./appleGrip";
-import { ArmReach, reachWeight } from "./armReach";
+import { ArmReach, dipWithLegs, reachWeight } from "./armReach";
 import { useEffect, useMemo, useRef, type RefObject } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
@@ -13,7 +13,7 @@ import { BODY_CAST, sitClipForPhase, type BodyDef } from "./bodies";
 import { CLIP_CATALOG, clipDef, clipTesterYield, type ClipTestState } from "./clips";
 import { approach, cycleRateFor, gaitTargets, runTimeForWalkPhase, type GaitSpec } from "./gait";
 import { clipMinClearance, contactPoints, groundingOffset, rootMotionDelta, soleClearance } from "./grounding";
-import { FootLock, footLockEnabled } from "./footLock";
+import { FootLock, findLegs, footLockEnabled } from "./footLock";
 import { createFootContactShadows } from "./contactShadow";
 import { applyDissolve, createDissolveDepthMaterial, type Dissolve } from "./dissolve";
 
@@ -185,6 +185,7 @@ export function CastFigure({
   }, [gltf, bodyScale]);
 
   const armReach = useMemo(() => ArmReach.find(scene), [scene]);
+  const reachLegs = useMemo(() => findLegs(scene, contactPoints(scene)), [scene]);
   const carryBones = useMemo(() => body.id === "remy" ? Object.entries(APPLE_CARRY_ROTATIONS).flatMap(([name, q]) => {
     const bone = scene.getObjectByName(name);
     return bone ? [{ bone, rotation: new THREE.Quaternion(...q) }] : [];
@@ -734,9 +735,11 @@ export function CastFigure({
     const reachW = activeProp && armReach ? reachWeight(activeProp.time, activeProp.contact) : 0;
     if (activeProp && armReach && reachW > 0) {
       grp.updateMatrixWorld(true);
-      const handScale = armReach.handWorldScale();
-      armReach.update(reachGrip.current.set(...APPLE_GRIP_POSITION).multiplyScalar(REMY_HAND_WORLD_SCALE / handScale),
-        reachTarget.current.set(...activeProp.target), reachW, reachPole.current.set(0, 0, -1).applyQuaternion(grp.quaternion));
+      const grip = reachGrip.current.set(...APPLE_GRIP_POSITION).multiplyScalar(REMY_HAND_WORLD_SCALE / armReach.handWorldScale());
+      const target = reachTarget.current.set(...activeProp.target);
+      // A body whose clip hand stops short of the apple bends its knees for the rest, feet planted.
+      dipWithLegs(grp, reachLegs, armReach.dipNeeded(grip, target) * reachW, reachPole.current.set(0, 0, 1).applyQuaternion(grp.quaternion));
+      armReach.update(grip, target, reachW, reachPole.current.set(0, 0, -1).applyQuaternion(grp.quaternion));
     }
     // Foot lock (footLock.ts), last of the leg edits: only the City 3 walker's gait path, never while a sit override,
     // a tester clip or the body controller owns the pose (their feet are not travelling over the ground).
