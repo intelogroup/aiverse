@@ -23,6 +23,8 @@ import { ClipTestState } from "./clips";
 import { createDissolve, type Dissolve } from "./dissolve";
 import type { AgentFrame } from "./locomotion";
 import { RemoteCar } from "./RemoteCar";
+import { NamePlate } from "./NamePlate";
+import { plateFor } from "./namePlates";
 import { RemoteBodies, writeRemoteFrame } from "./remoteFrames";
 import { registerRemoteFigure, unregisterRemoteFigure } from "./remoteFigures";
 import { useWorldStream } from "./useWorldStream";
@@ -39,6 +41,9 @@ interface Figure {
   clips: ClipTestState;
   /** The last clip the server reported, so a one-shot that expired locally is not re-fired while the server still says it. */
   lastClip: string | null;
+  name: string;
+  /** The nameplate text last rendered, so React re-renders only when it changes. */
+  plate: string;
   /** The body key this figure wears — kept on the figure so a leaving body still renders after the stream drops it. */
   body: string;
   /** This body's materialize/dissolve ramp (dissolve.ts). Never shared between figures. */
@@ -49,7 +54,7 @@ interface Figure {
   bubble: THREE.Group | null;
 }
 
-export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /** Lets the page read the same stream (the owner follow camera); default: own instance. */ bodies?: RemoteBodies }) {
+export function RemoteCast({ walk, bodies: shared, plates }: { walk?: WalkColliders; /** Lets the page read the same stream (the owner follow camera); default: own instance. */ bodies?: RemoteBodies; /** Draw nameplates; the set is the viewer's own agent names. */ plates?: ReadonlySet<string> }) {
   const own = useMemo(() => new RemoteBodies(), []);
   const bodies = shared ?? own;
   useWorldStream(true, bodies);
@@ -57,7 +62,7 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
   const frames = useRef<AgentFrame[]>([]);
   const figures = useRef(new Map<number, Figure>());
   /** What React renders: live bodies plus bodies still dissolving out. */
-  const [cast, setCast] = useState<{ n: number; body: string }[]>([]);
+  const [cast, setCast] = useState<{ n: number; body: string; name: string; leaving: boolean }[]>([]);
   const [showApple, setShowApple] = useState(false);
   const [showStalls, setShowStalls] = useState(false);
   const publishAt = useRef(0);
@@ -77,8 +82,8 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
     // leaving, lose their mover at once (a dissolving ghost does not
     // collide), settle to Idle, and unmount when the ramp completes. A body
     // that reappears mid-leave cancels it.
-    const live = new Map(bodies.list().map((b) => [b.n, b.body] as const));
-    for (const [n, bodyKey] of live) {
+    const live = new Map(bodies.list().map((b) => [b.n, b] as const));
+    for (const [n, { body: bodyKey, name }] of live) {
       let fig = figures.current.get(n);
       if (fig && fig.body !== bodyKey) {
         // The stream reused the slot for a different body: retire the old figure whole.
@@ -88,7 +93,7 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
         castChanged = true;
       }
       if (!fig) {
-        fig = { group: null, clips: new ClipTestState(), lastClip: null, body: bodyKey, dissolve: createDissolve(), leaving: false, bubble: null };
+        fig = { name, plate: "", group: null, clips: new ClipTestState(), lastClip: null, body: bodyKey, dissolve: createDissolve(), leaving: false, bubble: null };
         figures.current.set(n, fig);
         const p = bodies.sample(n, Infinity)!; // draw the first frame where it is, not at the origin
         frames.current[n] = writeRemoteFrame(newWalkerFrame(p.x, p.z, p.heading), p);
@@ -96,11 +101,19 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
       } else if (fig.leaving) {
         fig.leaving = false;
         fig.dissolve.arrive();
+        castChanged = true;
+      }
+      const plate = (plates && plateFor(name, plates)?.text) || "";
+      if (fig.name !== name || fig.plate !== plate) {
+        fig.name = name;
+        fig.plate = plate;
+        castChanged = true;
       }
     }
     for (const [n, fig] of figures.current) {
       if (!live.has(n) && !fig.leaving) {
         fig.leaving = true;
+        castChanged = true; // its nameplate goes at once
         fig.dissolve.leave();
         walk?.actors.remove(`remote-${n}`);
         const f = frames.current[n];
@@ -117,7 +130,7 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
         castChanged = true;
       }
     }
-    if (castChanged) setCast([...figures.current].map(([n, f]) => ({ n, body: f.body })));
+    if (castChanged) setCast([...figures.current].map(([n, f]) => ({ n, body: f.body, name: f.name, leaving: f.leaving })));
 
     const nowMs = nowS * 1000, next: Record<number, string> = {};
     for (const n of figures.current.keys()) { const line = bodies.bubble(n, nowMs); if (line) next[n] = line; }
@@ -196,9 +209,10 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
           <RemoteApple bodies={bodies} findHand={findHand} />
         </Suspense>
       ) : null}
-      {cast.map(({ n, body }) => {
+      {cast.map(({ n, body, name, leaving }) => {
         const fig = figures.current.get(n);
         if (!fig) return null;
+        const label = plates && !leaving ? plateFor(name, plates) : null;
         return (
           <group key={n} ref={(g) => {
             fig.group = g;
@@ -226,7 +240,8 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
                     } : undefined} />}
             </Suspense>
             <group ref={(g) => { fig.bubble = g; }}>
-              {said[n] ? <Html center><span className="w-said" data-testid="remote-said">{said[n]}</span></Html> : null}
+              {label ? <NamePlate {...label} /> : null}
+              {said[n] ? <group position={[0, plates ? 0.45 : 0, 0]}><Html center><span className="w-said" data-testid="remote-said">{said[n]}</span></Html></group> : null}
             </group>
           </group>
         );

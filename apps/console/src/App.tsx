@@ -98,6 +98,7 @@ export default function App() {
   useConsoleWs(authed ? token : null, {
     onConsoleEvent: (event) => prependLiveEvent(queryClient, event),
     onAgentStatusChanged: (payload) => patchAgentStatus(queryClient, payload),
+    onAgentVitals: ({ agent_id }) => void queryClient.invalidateQueries({ queryKey: queryKeys.inventory(agent_id) }),
   });
 
   function goWorld() {

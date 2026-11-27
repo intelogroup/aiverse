@@ -4,6 +4,7 @@ import { MARKET_HALL_SAMPLE } from "@aiverse/shared/marketHall";
 import { db } from "../db/client";
 import { progress } from "./verseProgress";
 import { satisfyWant } from "./agentEconomy";
+import { vitalsChanged } from "./vitalsPush";
 
 // Agent-economy Phase 3 (Nov 25 2026): bazaar stalls and bars as world
 // fixtures with stock + prices, and the world_buy purchase path.
@@ -161,6 +162,7 @@ export async function buyFromStall(agentId: string, stallRef: string, itemRef: s
       events.push({ agentId: stall.ownerAgentId, kind: "stall_sale", source: item.id, credits: line.price });
     }
     await tx.insert(verseProgressEvents).values(events);
+    for (const e of events) vitalsChanged(e.agentId);
     const credits = (await progress(agentId, tx)).credits;
     return {
       ok: true,

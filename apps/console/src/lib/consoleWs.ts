@@ -10,6 +10,8 @@ export interface AgentStatusChangedPayload {
 type Handler = {
   onConsoleEvent?: (event: ConsoleEvent) => void;
   onAgentStatusChanged?: (payload: AgentStatusChangedPayload) => void;
+  /** An owned agent's energy, XP or credits changed. Carries no values; refetch. */
+  onAgentVitals?: (payload: { agent_id: string }) => void;
 };
 
 export function useConsoleWs(token: string | null, handlers: Handler) {
@@ -59,6 +61,7 @@ export function useConsoleWs(token: string | null, handlers: Handler) {
         if (event.type === "console_event") handlersRef.current.onConsoleEvent?.(event.payload);
         if (event.type === "agent_status_changed")
           handlersRef.current.onAgentStatusChanged?.(event.payload);
+        if (event.type === "agent_vitals") handlersRef.current.onAgentVitals?.(event.payload);
       };
     })();
 

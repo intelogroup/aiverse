@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { owners, verseBounties, verseBountyClaims, verseProgressEvents } from "@aiverse/shared/schema";
 import { createApp } from "../app";
 import { signOwnerSession } from "../auth/session";
-import { creditStallConsumption, energyRates, applyEnergyDelta } from "../world/agentEconomy";
+import { creditStallConsumption, energyRates, applyEnergyDelta, levelForXp, xpForLevel } from "../world/agentEconomy";
 import { db } from "../db/client";
 
 const app = createApp();
@@ -139,6 +139,30 @@ test("paid sales settle once, preserve credits, reject stale offers, and expose 
     const spending = await Promise.all(offersForOneBuyer.map((row) => buy(loser, row.id)));
     expect(spending.map((r) => r.status).sort()).toEqual([200, 409]);
     expect((await inventory(loser)).progress.credits).toBe(1);
+  } finally {
+    if (previous === undefined) delete process.env.AIVERSE_VERSE_PROGRESS;
+    else process.env.AIVERSE_VERSE_PROGRESS = previous;
+  }
+});
+
+test("owner inventory carries the level derived from lifetime XP, only with the progress flag", async () => {
+  const previous = process.env.AIVERSE_VERSE_PROGRESS;
+  try {
+    const agent = await createAgent();
+    const read = async () => (await (await request(`/owners/agents/${agent.id}/inventory`, agent.ownerToken)).json()) as
+      { progress?: { credits: number; xp: number; level: number; nextLevelXp: number } };
+    process.env.AIVERSE_VERSE_PROGRESS = "1";
+    let total = 0;
+    for (const xp of [0, 99, 100, 400]) {
+      if (xp > total) {
+        await db.insert(verseProgressEvents).values({ agentId: agent.id, kind: "pickup", source: `level-${xp}`, xp: xp - total });
+        total = xp;
+      }
+      const level = levelForXp(xp);
+      expect((await read()).progress).toEqual({ credits: 0, xp, level, nextLevelXp: xpForLevel(level + 1) });
+    }
+    delete process.env.AIVERSE_VERSE_PROGRESS;
+    expect((await read()).progress).toBeUndefined();
   } finally {
     if (previous === undefined) delete process.env.AIVERSE_VERSE_PROGRESS;
     else process.env.AIVERSE_VERSE_PROGRESS = previous;

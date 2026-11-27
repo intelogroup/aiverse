@@ -6,6 +6,7 @@ import type { Agent } from "../../../lib/api";
 const apiMock = vi.hoisted(() => ({
   listVerseInventory: vi.fn(),
   listVisits: vi.fn(),
+  listGoals: vi.fn(),
   agentConversations: vi.fn(),
   conversationMessages: vi.fn(),
 }));
@@ -18,7 +19,7 @@ import { openLongVisit } from "./HudAgents";
 import { IDLE_STAGE, hudBridge } from "./hudBridge";
 
 const agent = (id: string, name: string) => ({ id, name }) as Agent;
-const actions = { follow: vi.fn(), toggleFollow: vi.fn(), walk: vi.fn(), root: { current: null } };
+const actions = { follow: vi.fn(), toggleFollow: vi.fn(), walk: vi.fn(), bodies: vi.fn(() => [{ name: "Ada", x: 35, z: -74 }, { name: "Zed", x: 0, z: 0 }]), focus: vi.fn(() => null), root: { current: null } };
 const account = { email: "o@example.test", unverified: false, resendVerification: vi.fn(), manageAgents: vi.fn(), readKeys: vi.fn(), connectedClients: vi.fn(), changePassword: vi.fn(), logoutAll: vi.fn(), logout: vi.fn() };
 const threads = { groups: [], title: () => "", selected: null, select: vi.fn(), messages: [], nameOf: (id: string) => id, searchQ: "", setSearchQ: vi.fn(), searchHits: null, runSearch: vi.fn() };
 
@@ -36,6 +37,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   apiMock.listVerseInventory.mockResolvedValue({ items: [], energy: 30 });
   apiMock.listVisits.mockResolvedValue({ visits: [] });
+  apiMock.listGoals.mockResolvedValue({ goals: [] });
   apiMock.agentConversations.mockResolvedValue({ conversations: [] });
   unregister = hudBridge.register(actions);
   hudBridge.publish({ ...IDLE_STAGE, followName: "Ada", present: ["Ada"] });
@@ -46,13 +48,53 @@ afterEach(() => {
 });
 
 describe("Hud", () => {
-  it("shows energy for agents in the world only, with the state in words, and no XP or credits", async () => {
+  it("tracks the followed agent's open goals only", async () => {
+    apiMock.listGoals.mockResolvedValue({
+      goals: [
+        { id: "g1", agentId: "a1", status: "synthesized", objective: "Map the market" },
+        { id: "g2", agentId: "a1", status: "accepted", objective: "Old one" },
+        { id: "g3", agentId: "a1", status: "open", objective: "Next" },
+        { id: "g4", agentId: "a2", status: "open", objective: "Someone else's" },
+      ],
+    });
+    show();
+    expect((await screen.findByText(/Map the market/)).textContent).toBe("Goal ready for your verdict: Map the market (+1 more)");
+  });
+
+  it("shows energy for agents in the world only, with the state in words", async () => {
     show();
     await waitFor(() => expect(screen.getByRole("progressbar", { name: "Ada energy" }).getAttribute("aria-valuenow")).toBe("30"));
     expect(screen.getByText("30/100 Tired")).toBeTruthy();
     expect(apiMock.listVerseInventory.mock.calls.map((c) => c[0])).toEqual(["a1"]);
     expect(screen.getByText("Away")).toBeTruthy();
-    expect(document.body.textContent).not.toMatch(/XP|credits|Level/);
+  });
+
+  it("flag off: says progress is not tracked and draws no XP bar, level or credits", async () => {
+    show();
+    await screen.findByText("XP and credits are not tracked here.");
+    expect(screen.queryByRole("progressbar", { name: "Ada XP" })).toBeNull();
+    expect(document.body.textContent).not.toMatch(/Level \d|\d credits|\d XP/);
+  });
+
+  it("shows level, lifetime XP and credits, and toasts only when a later value is higher", async () => {
+    const progress = { credits: 4, xp: 120, level: 2, nextLevelXp: 400 };
+    apiMock.listVerseInventory.mockResolvedValue({ items: [], energy: 80, progress });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    show({}, client);
+    const bar = await screen.findByRole("progressbar", { name: "Ada XP" });
+    expect([bar.getAttribute("aria-valuenow"), bar.getAttribute("aria-valuemax")]).toEqual(["120", "400"]);
+    expect(screen.getByText("120 of 400 XP")).toBeTruthy();
+    expect(screen.getByText("Level 2")).toBeTruthy();
+    expect(screen.getByText("4 credits")).toBeTruthy();
+    const toasts = screen.getByRole("log", { name: "Gains" });
+    expect(toasts.textContent).toBe("");
+    apiMock.listVerseInventory.mockResolvedValue({ items: [], energy: 80, progress: { ...progress, credits: 1 } });
+    await client.refetchQueries();
+    await screen.findByText("1 credits");
+    expect(toasts.textContent).toBe("");
+    apiMock.listVerseInventory.mockResolvedValue({ items: [], energy: 80, progress: { credits: 4, xp: 400, level: 3, nextLevelXp: 900 } });
+    await client.refetchQueries();
+    await waitFor(() => expect(toasts.textContent).toBe("Ada: +280 XP, +3 credits, level 3"));
   });
 
   it("keeps the last energy and says when it is from once the gateway stops answering", async () => {
@@ -84,6 +126,13 @@ describe("Hud", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
+  it("opens the sheet with G and on the Bag tab with B", () => {
+    show();
+    fireEvent.keyDown(window, { code: "KeyG" });
+    fireEvent.keyDown(window, { code: "KeyB" });
+    expect(account.manageAgents.mock.calls).toEqual([[], ["Bag"]]);
+  });
+
   it("runs hotkeys, and none of them while walking", () => {
     show();
     fireEvent.keyDown(window, { code: "KeyF" });
@@ -94,6 +143,60 @@ describe("Hud", () => {
     fireEvent.keyDown(window, { code: "KeyF" });
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(actions.toggleFollow).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Hud on a phone", () => {
+  it("has an action bar and ticker instead of the hotbar and party frames", async () => {
+    hudBridge.publish({ ...IDLE_STAGE, followName: "Ada", present: ["Ada"], says: [{ id: 1, name: "Zed", text: "Fresh bread", at: 0 }] });
+    show({ touch: true });
+    for (const name of ["Follow", "Chat", "Bag", "Agents", "Menu"]) expect(screen.getByRole("button", { name })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Walk/ })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Your other agents" })).toBeNull();
+    const ticker = screen.getByRole("button", { name: "Chat ticker" });
+    expect(ticker.textContent).toBe("Zed: Fresh bread");
+    fireEvent.click(ticker);
+    expect(ticker.getAttribute("aria-expanded")).toBe("true");
+    expect(document.querySelector(".hud.hud-chat-open")).toBeTruthy();
+  });
+
+  it("keeps Places and display settings reachable from the menu", () => {
+    const places = vi.fn();
+    const settings = vi.fn();
+    show({ touch: true, account: { ...account, places, settings } });
+    fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+    fireEvent.click(screen.getByRole("button", { name: "Places" }));
+    expect(places).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+    fireEvent.click(screen.getByRole("button", { name: "Display settings" }));
+    expect(settings).toHaveBeenCalled();
+  });
+});
+
+describe("HudMap", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => ({
+      ok: true,
+      json: async () => (url.includes("places") ? [{ id: "hall-0", name: "Market Hall", pos: [35, -76.5] }, { id: "stall-0", name: "stall-0", pos: [35, -74] }] : []),
+    })));
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("names the nearest place to the followed agent and marks own dots apart from others", async () => {
+    hudBridge.publish({ ...IDLE_STAGE, following: true, followName: "Ada", present: ["Ada", "Zed"] });
+    show();
+    await screen.findByText("near Market Hall");
+    expect(document.querySelector('circle[data-name="Ada"]')?.getAttribute("class")).toBe("mine");
+    expect(document.querySelector('circle[data-name="Zed"]')?.getAttribute("class")).toBe("other");
+  });
+
+  it("follows positions within one poll, and M enlarges the map", async () => {
+    show();
+    actions.bodies.mockReturnValue([{ name: "Ada", x: -50, z: 60 }]);
+    await waitFor(() => expect(document.querySelector('circle[data-name="Ada"]')?.getAttribute("cx")).toBe("-50"), { timeout: 900 });
+    expect(document.querySelector('circle[data-name="Zed"]')).toBeNull();
+    fireEvent.keyDown(window, { code: "KeyM" });
+    expect(screen.getByRole("button", { name: "Shrink map" })).toBeTruthy();
   });
 });
 

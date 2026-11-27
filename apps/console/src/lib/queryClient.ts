@@ -39,6 +39,7 @@ export const queryKeys = {
   owner: ["owner"] as const,
   inventory: (agentId: string) => ["owner", "inventory", agentId] as const,
   visits: (agentId: string) => ["owner", "visits", agentId] as const,
+  goals: ["owner", "goals"] as const,
   agentConversations: (agentId: string) => ["owner", "conversations", agentId] as const,
   conversationMessages: (conversationId: string) => ["owner", "messages", conversationId] as const,
 };

@@ -24,6 +24,7 @@ import { InteractHighlight, TouchTapPicker, TouchWalkLayer, useTouchUi, type Tap
 import { ScoutAgent } from "./ScoutAgent";
 import { RemoteCast } from "./RemoteCast";
 import { OwnerFollowCam } from "./OwnerFollowCam";
+import { CameraFocus } from "./CameraFocus";
 import { pickOwnBody, type RosterBody } from "./ownerFollow";
 import { RemoteBodies } from "./remoteFrames";
 import { hudBridge } from "./hud/hudBridge";
@@ -315,6 +316,9 @@ export function GlbWorld({ ownerAgentNames, hud = false }: { /** Names of the si
     return () => window.clearInterval(id);
   }, []);
   const walking = camMode !== "wide";
+  const focusRef = useRef<{ x: number; z: number } | null>(null);
+  const setFocus = useCallback((p: { x: number; z: number }) => { focusRef.current = p; }, []);
+  const plates = useMemo(() => new Set(ownerNames), [ownerNames]);
   useEffect(() => {
     if (!hud) return;
     return hudBridge.register({
@@ -329,9 +333,18 @@ export function GlbWorld({ ownerAgentNames, hud = false }: { /** Names of the si
         setFollowing((f) => !f);
       },
       walk: () => setCamMode("ride"),
+      bodies: () => {
+        const t = remoteBodies.renderTime(performance.now() / 1000);
+        if (t === null) return [];
+        return remoteBodies.list().flatMap((b) => {
+          const p = remoteBodies.sample(b.n, t);
+          return p ? [{ name: b.name, x: p.x, z: p.z }] : [];
+        });
+      },
+      focus: () => focusRef.current,
       root: rootRef,
     });
-  }, [hud]);
+  }, [hud, remoteBodies]);
   useEffect(() => {
     if (!hud) return;
     const publish = () =>
@@ -653,13 +666,16 @@ export function GlbWorld({ ownerAgentNames, hud = false }: { /** Names of the si
         </button>
       ) : null}
       {/* One stack, top-right: Share and Record no longer sit on top of each other or the phone tab bar. */}
-      {hud ? null : (
+      {/* The desktop HUD has Record and Share in its hotbar; the phone layout keeps this stack. */}
+      {hud && !touchUi ? null : (
         <div className="w-tools">
           <VerseRecorder root={rootRef} />
           <VerseShare root={rootRef} />
-          <button type="button" className="w-fullview-btn" data-testid="full-view" onClick={() => setFullView((v) => !v)}>
-            {fullView ? "Exit full view" : "Full view"}
-          </button>
+          {hud ? null : (
+            <button type="button" className="w-fullview-btn" data-testid="full-view" onClick={() => setFullView((v) => !v)}>
+              {fullView ? "Exit full view" : "Full view"}
+            </button>
+          )}
         </div>
       )}
       {perfOn ? <PerfOverlay /> : null}
@@ -774,7 +790,8 @@ export function GlbWorld({ ownerAgentNames, hud = false }: { /** Names of the si
           {agentOn ? (
             <ScoutAgent getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} door={teaDoorRef.current} positionRef={scoutPosRef} interact={interactRef.current} spawn={agentPair ? [-22.9, -68, 0] : undefined} />
           ) : null}
-          {streamOn ? <RemoteCast walk={walkColliders} bodies={remoteBodies} /> : null}
+          {streamOn ? <RemoteCast walk={walkColliders} bodies={remoteBodies} plates={hud && !agentOn ? plates : undefined} /> : null}
+          {hud ? <CameraFocus onFocus={setFocus} /> : null}
           {following && ownBody ? <OwnerFollowCam key={ownBody.n} bodies={remoteBodies} n={ownBody.n} onTakeOver={takeOver} /> : null}
           {agentPair ? (
             <ScoutAgent actorId="scout-peer" primary={false} spawn={[-22.9, -64, Math.PI]}
@@ -865,7 +882,7 @@ export function GlbWorld({ ownerAgentNames, hud = false }: { /** Names of the si
           </div>
         </div>
       ) : null}
-      {!(walking && touchUi) && !(hud && !walking) ? (
+      {!(walking && touchUi) && !(hud && !walking && !touchUi) ? (
         <div className="w-glb-toggle w-glb-walk" role="group" aria-label="Walk City 3">
           {walking ? (
             <>

@@ -24,6 +24,8 @@ import { EmptyState } from "../../components/EmptyState";
 import { Scene3D } from "./Scene3D";
 import { GlbWorld } from "./GlbWorld";
 import { ManageAgentsModal } from "./ManageAgentsModal";
+import { CharacterSheet, type SheetTab } from "./hud/CharacterSheet";
+import { hudBridge } from "./hud/hudBridge";
 import { ReadKeysModal } from "./ReadKeysModal";
 import { ConnectedClientsModal } from "./ConnectedClientsModal";
 import { ChangePasswordModal } from "../auth/ChangePasswordModal";
@@ -109,6 +111,7 @@ export function WorldView({
 
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showManageAgents, setShowManageAgents] = useState(false);
+  const [sheetTab, setSheetTab] = useState<SheetTab>("Agent");
   const [showReadKeys, setShowReadKeys] = useState(false);
   const [showConnectedClients, setShowConnectedClients] = useState(false);
 
@@ -300,9 +303,9 @@ export function WorldView({
     setCam({ x: -busiest.pos.x, y: -busiest.pos.y, z: 1 });
   }, [placed]);
 
-  // Field HUD (phase 1): desktop only, behind ?hud=1. Without the flag nothing here changes.
+  // Field HUD: behind ?hud=1, desktop and phone. Without the flag nothing here changes.
   const hudFlag = useMemo(() => new URLSearchParams(window.location.search).get("hud") === "1", []);
-  const hudOn = hudFlag && !touchUi && !ringMode;
+  const hudOn = hudFlag && !ringMode;
 
   const selectedGroup = groups.find((g) => g.conversation_id === selected) ?? null;
 
@@ -449,6 +452,7 @@ export function WorldView({
           feedDown={feedDown}
           onRetry={loadShell}
           onSignIn={onSignIn}
+          touch={touchUi}
           modalOpen={showChangePassword || showManageAgents || showReadKeys || showConnectedClients}
           threads={{
             groups,
@@ -469,17 +473,27 @@ export function WorldView({
             email: authed ? getOwnerEmail() : null,
             unverified: emailVerified === false,
             resendVerification,
-            manageAgents: () => setShowManageAgents(true),
+            manageAgents: (tab) => {
+              setSheetTab(tab ?? "Agent");
+              setShowManageAgents(true);
+            },
             readKeys: () => setShowReadKeys(true),
             connectedClients: () => setShowConnectedClients(true),
             changePassword: () => setShowChangePassword(true),
             logoutAll: logoutAllSessions,
             logout: onLogout,
+            places: touchUi ? () => setMobileTab("places") : undefined,
+            settings: touchUi ? () => setMobileTab("you") : undefined,
           }}
         />
       )}
       {showChangePassword && <ChangePasswordModal onClose={() => setShowChangePassword(false)} />}
-      {showManageAgents && <ManageAgentsModal agents={agents} onClose={() => setShowManageAgents(false)} />}
+      {showManageAgents &&
+        (hudOn ? (
+          <CharacterSheet agents={agents} initialName={hudBridge.getSnapshot().stage.followName} initialTab={sheetTab} onClose={() => setShowManageAgents(false)} />
+        ) : (
+          <ManageAgentsModal agents={agents} onClose={() => setShowManageAgents(false)} />
+        ))}
       {showReadKeys && <ReadKeysModal onClose={() => setShowReadKeys(false)} />}
       {showConnectedClients && <ConnectedClientsModal onClose={() => setShowConnectedClients(false)} />}
 
@@ -1004,6 +1018,7 @@ export function WorldView({
               </div>
             </section>
           )}
+          {hudOn ? null : (
           <nav className="w-tabbar" aria-label="Verse sections">
             <button
               type="button"
@@ -1045,6 +1060,7 @@ export function WorldView({
               <span>You</span>
             </button>
           </nav>
+          )}
         </>
       )}
     </div>

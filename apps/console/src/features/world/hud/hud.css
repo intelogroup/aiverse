@@ -16,7 +16,7 @@
   color: var(--hud-text);
   font-size: 15px;
 }
-.hud > *,
+.hud > :not(.hud-gains),
 .hud-menu-back {
   pointer-events: auto;
 }
@@ -142,6 +142,106 @@
   gap: 12px;
   padding: 6px 14px;
   white-space: nowrap;
+}
+
+/* toasts, under the location strip */
+.hud-goal {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.hud-gains {
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+}
+.hud-gains p {
+  margin: 0;
+  padding: 6px 14px;
+  color: var(--hud-xp);
+  white-space: nowrap;
+}
+
+/* agent plate: initials in a ring that fills toward the next level */
+.hud-who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.hud-who > div {
+  display: flex;
+  flex-direction: column;
+}
+.hud-ring {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+}
+.hud-ring > span {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--hud-solid);
+  font-weight: 700;
+}
+.hud .hud-level {
+  color: var(--hud-xp);
+}
+.hud-energy.xp i {
+  background: var(--hud-xp);
+}
+
+/* top right */
+.hud-map {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px;
+  width: 168px;
+}
+.hud-map.large {
+  width: 300px;
+}
+.world-root .hud .hud-map button {
+  display: block;
+  width: 100%;
+  padding: 0;
+}
+.hud-map svg {
+  display: block;
+  width: 100%;
+  border-radius: var(--hud-radius-bar);
+  background: var(--hud-well);
+}
+.hud-map .room {
+  fill: var(--hud-dim);
+  opacity: 0.55;
+}
+.hud-map .stall {
+  fill: var(--hud-dim);
+  opacity: 0.3;
+}
+.hud-map .mine {
+  fill: var(--hud-energy);
+}
+.hud-map .other {
+  fill: var(--hud-other);
 }
 
 /* bottom left */
@@ -289,7 +389,148 @@
 }
 .hud.hud-walking > .hud-chat,
 .hud.hud-walking > .hud-bar-row,
+.hud.hud-walking > .hud-map,
 .hud.hud-walking > .hud-menu-btn {
+  display: none;
+}
+
+/* Phone: top is the compact plate; bottom, upward, the action bar, then WALK and the asset
+   credit, then the chat ticker. Walking hides it all (the touch walk layer owns the screen). */
+.hud.hud-touch.hud-walking {
+  display: none;
+}
+.hud.hud-touch .hud-agents {
+  width: 200px;
+  max-height: none;
+}
+.hud.hud-touch .hud-plate small:not(.hud-level):not(.hud-stale) {
+  display: none;
+}
+.world-root .hud.hud-touch button {
+  min-width: 44px;
+  min-height: 44px;
+}
+.hud.hud-touch .hud-strip {
+  top: auto;
+  bottom: calc(176px + env(safe-area-inset-bottom));
+  left: 12px;
+  transform: none;
+  font-size: 14px;
+}
+.hud.hud-touch .hud-gains {
+  top: auto;
+  bottom: calc(224px + env(safe-area-inset-bottom));
+}
+.hud.hud-touch .hud-map {
+  display: none;
+}
+.hud.hud-touch .hud-map.large {
+  display: flex;
+  top: 150px;
+  bottom: calc(124px + env(safe-area-inset-bottom));
+  width: min(300px, calc(100% - 24px));
+  z-index: 2;
+  background: var(--hud-solid);
+}
+.world-root .hud.hud-touch .hud-map.large button {
+  flex: 1;
+  min-height: 0;
+}
+.hud.hud-touch .hud-map.large svg {
+  height: 100%;
+}
+/* An open panel takes the space of the location strip (and the map, of the ticker). */
+.hud.hud-touch.hud-chat-open .hud-strip,
+.hud.hud-touch.hud-map-open .hud-strip,
+.world-root .hud.hud-touch.hud-map-open .hud-ticker {
+  display: none;
+}
+.world-root .hud.hud-touch a.hud-btn {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+.world-root .hud.hud-touch .hud-ticker {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(124px + env(safe-area-inset-bottom));
+  padding: 8px 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: left;
+  background: var(--hud-panel);
+  border: 1px solid var(--hud-edge);
+}
+.hud.hud-touch .hud-chat {
+  display: none;
+}
+.hud.hud-touch.hud-chat-open .hud-chat {
+  display: flex;
+  z-index: 2;
+  right: 12px;
+  width: auto;
+  bottom: calc(176px + env(safe-area-inset-bottom));
+  height: min(420px, calc(100% - 340px));
+  background: var(--hud-solid);
+}
+.hud-actions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+  border-radius: var(--hud-radius) var(--hud-radius) 0 0;
+}
+.world-root .hud .hud-actions button {
+  flex: 1;
+  min-height: 56px;
+  border-radius: var(--hud-radius-button);
+}
+.world-root .hud .hud-actions button[aria-pressed="true"] {
+  color: var(--hud-xp);
+}
+.world-root.w-hud.w-shell-touch .w-glb-walk {
+  bottom: calc(72px + env(safe-area-inset-bottom));
+}
+.world-root.w-hud.w-shell-touch .w-glb-walk button,
+.world-root.w-hud.w-shell-touch .w-tools button {
+  min-height: 44px;
+  min-width: 44px;
+}
+.world-root.w-hud.w-shell-touch:not(:has(.hud-walking)) .w-asset-credit {
+  right: 12px;
+  bottom: calc(72px + env(safe-area-inset-bottom));
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.world-root.w-hud.w-shell-touch .w-sheet {
+  bottom: calc(66px + env(safe-area-inset-bottom));
+  z-index: 41;
+}
+.world-root.w-hud.w-shell-touch .w-sheet-backdrop {
+  z-index: 40;
+}
+
+/* VerseShare styles its buttons inline. */
+.world-root.w-hud.w-shell-touch .w-verse-share button {
+  min-height: 44px !important;
+  min-width: 44px;
+}
+/* The long-press tip would cover WALK and the credit link; it sits under the plate instead. */
+.world-root.w-hud.w-shell-touch:not(:has(.hud-walking)) .w-coach-pill {
+  top: 136px;
+  bottom: auto;
+}
+.world-root.w-hud.w-shell-touch .w-coach-pill button {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.world-root:has(.hud-chat-open, .hud-map-open) .w-coach-pill {
   display: none;
 }
 
