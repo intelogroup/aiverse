@@ -11,6 +11,9 @@
     "dev": "bun run --cwd apps/gateway dev",
     "typecheck": "bunx tsc --noEmit -p tsconfig.ci.json",
     "test": "bun test",
+    "assets:lock": "bun tools/assets/assets.ts lock",
+    "assets:check": "bun tools/assets/assets.ts check",
+    "assets:pull": "bun tools/assets/assets.ts pull",
     "db:migrate": "bun run --cwd apps/gateway db:migrate",
     "db:generate": "bun run --cwd apps/gateway db:generate"
   },
