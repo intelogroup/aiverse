@@ -3,6 +3,7 @@ import { EGGS } from "@aiverse/shared/eggs";
 import { MARKET_HALL_SAMPLE } from "@aiverse/shared/marketHall";
 import { verseInventory, versePickupClaims, verseProgressEvents } from "@aiverse/shared/schema";
 import { db } from "../db/client";
+import { vitalsChanged } from "./vitalsPush";
 
 export const PILOT_PICKUP = {
   id: "garden-keepsake",
@@ -60,6 +61,7 @@ export async function progress(agentId: string, store: Pick<typeof db, "select">
 type LedgerWriter = Pick<typeof db, "insert">;
 export async function awardXp(tx: LedgerWriter, agentId: string, kind: string, source: string, xp: number) {
   await tx.insert(verseProgressEvents).values({ agentId, kind, source, xp }).onConflictDoNothing();
+  vitalsChanged(agentId);
 }
 
 export async function awardConversationXp(agentId: string, source: string) {
@@ -94,6 +96,7 @@ export async function awardPickup(agentId: string, pickup: Pickup = PILOT_PICKUP
     await tx.insert(verseProgressEvents).values({
       agentId, kind: "pickup", source: pickup.id, credits: pickup.credits, xp: pickup.xp,
     });
+    vitalsChanged(agentId);
     return { itemId: item.id, credits: pickup.credits, xp: pickup.xp };
   });
 }

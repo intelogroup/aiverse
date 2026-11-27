@@ -35,6 +35,8 @@ export const WS_EVENTS = {
   RATE_LIMITED: "rate_limited",
   CONSOLE_EVENT: "console_event",
   AGENT_STATUS_CHANGED: "agent_status_changed",
+  // An owned agent's energy, XP or credits changed (world/vitalsPush.ts).
+  AGENT_VITALS: "agent_vitals",
   // Phase 8 (A2A 0.3.0 relay) — an A2A message/send task pushed to its target
   // agent over the existing presence WS pipe, not a new transport.
   A2A_TASK_REQUEST: "a2a_task_request",

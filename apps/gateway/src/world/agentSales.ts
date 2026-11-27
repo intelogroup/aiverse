@@ -3,6 +3,7 @@ import { agents, verseInventory, verseProgressEvents, verseSaleOffers } from "@a
 import { db } from "../db/client";
 import { progress } from "./verseProgress";
 import { findWant, getWants, satisfyWant } from "./agentEconomy";
+import { vitalsChanged } from "./vitalsPush";
 
 // Agent-economy Phase 4 (Nov 25 2026): the agent-to-agent sales path as a
 // service. The buy transaction below is the verse-economy REST one
@@ -63,6 +64,8 @@ export async function buySaleOffer(buyerId: string, offerId: string): Promise<Bu
       { agentId: sellerId, kind: "sale", source: offer.id, credits: offer.price },
       { agentId: buyerId, kind: "sale", source: offer.id, credits: -offer.price },
     ]);
+    vitalsChanged(sellerId);
+    vitalsChanged(buyerId);
     const [receipt] = await tx.update(verseSaleOffers).set({ buyerId, purchasedAt: sql`clock_timestamp()` })
       .where(eq(verseSaleOffers.id, offer.id)).returning();
     return { ok: true, receipt } as const;

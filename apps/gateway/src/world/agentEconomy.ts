@@ -4,6 +4,7 @@ import type { VerseWant } from "@aiverse/shared/schema";
 import { db } from "../db/client";
 import { isStallUse } from "@aiverse/world-sim/stallConsumables";
 import { progress } from "./verseProgress";
+import { vitalsChanged } from "./vitalsPush";
 
 // Agent-economy Phase 1 (Nov 25 2026): the agent's own living-economy
 // properties, read-only. Canonical ontology (owner, Nov 24 2026):
@@ -175,10 +176,12 @@ export async function applyEnergyDelta(agentId: string, delta: number, store: Wr
   // regen rounds to the nearest point.
   const effective = delta < 0 && delta > -1 ? -1 : Math.round(delta);
   if (!effective) return currentEnergy(agentId, store);
-  await store.insert(verseAgentState).values({ agentId }).onConflictDoNothing();
+  const before = await currentEnergy(agentId, store);
   const [row] = await store.update(verseAgentState).set({
     energy: sql`greatest(0, least(100, ${verseAgentState.energy} + ${effective}))`, updatedAt: sql`now()`,
   }).where(eq(verseAgentState.agentId, agentId)).returning({ energy: verseAgentState.energy });
+  // Resting at 100 or draining at 0 changes nothing, so it pushes nothing.
+  if (row!.energy !== before) vitalsChanged(agentId);
   return row!.energy;
 }
 
@@ -351,6 +354,7 @@ export async function claimStipends(agentId: string, now: Date = new Date()): Pr
         // day the fixture was written (the Nov 25 time-bomb).
         createdAt: now,
       }).onConflictDoNothing();
+      vitalsChanged(agentId);
       return { granted: "first_login", credits: rates.firstCredits, xp: rates.firstXp } as StipendClaim;
     }
     // The first-login day pays no daily grant on top (its createdAt is the
@@ -362,6 +366,7 @@ export async function claimStipends(agentId: string, now: Date = new Date()): Pr
       agentId, kind: "stipend", source: `daily:${day}`, credits: rates.dailyCredits, xp: rates.dailyXp,
       createdAt: now,
     }).onConflictDoNothing().returning({ source: verseProgressEvents.source });
+    if (daily) vitalsChanged(agentId);
     return daily
       ? { granted: "daily", credits: rates.dailyCredits, xp: rates.dailyXp } as StipendClaim
       : { granted: null, credits: 0, xp: 0 } as StipendClaim;
@@ -396,6 +401,7 @@ export async function awardPlaceXp(agentId: string, placeId: string, visitKey: s
       await tx.insert(verseProgressEvents).values({
         agentId, kind: "place", source: `${placeId}@${visitKey}`, xp,
       }).onConflictDoNothing();
+      vitalsChanged(agentId);
     }
     return { xp, visits: visits + 1 };
   });
@@ -409,6 +415,7 @@ export async function awardMoveXp(agentId: string, actId: string): Promise<numbe
   const [row] = await db.insert(verseProgressEvents).values({
     agentId, kind: "move", source: `act:${actId}`, xp: 1,
   }).onConflictDoNothing().returning({ xp: verseProgressEvents.xp });
+  if (row) vitalsChanged(agentId);
   return row ? 1 : 0;
 }
 
