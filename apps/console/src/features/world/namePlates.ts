@@ -11,7 +11,9 @@ export const plateLevels = {
 
 export interface Plate { text: string; mine: boolean }
 
-export function plateFor(name: string, owned: ReadonlySet<string>): Plate {
+/** Null for the unnamed street bodies: they get no plate. */
+export function plateFor(name: string, owned: ReadonlySet<string>): Plate | null {
+  if (!name) return null;
   const mine = owned.has(name);
   const level = mine ? levels.get(name) : undefined;
   return { text: level ? `${name} · Lv ${level}` : name, mine };

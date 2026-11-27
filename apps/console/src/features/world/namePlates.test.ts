@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import { plateFor, plateLevels } from "./namePlates";
 
 describe("plateFor", () => {
+  it("draws nothing over an unnamed street body", () => {
+    expect(plateFor("", new Set(["Ada"]))).toBeNull();
+  });
+
   it("gives level to your own agents only", () => {
     plateLevels.set("Ada", 3);
     plateLevels.set("Zed", 9);

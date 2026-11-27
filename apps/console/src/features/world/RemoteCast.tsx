@@ -103,7 +103,7 @@ export function RemoteCast({ walk, bodies: shared, plates }: { walk?: WalkCollid
         fig.dissolve.arrive();
         castChanged = true;
       }
-      const plate = plates ? plateFor(name, plates).text : "";
+      const plate = (plates && plateFor(name, plates)?.text) || "";
       if (fig.name !== name || fig.plate !== plate) {
         fig.name = name;
         fig.plate = plate;
@@ -212,6 +212,7 @@ export function RemoteCast({ walk, bodies: shared, plates }: { walk?: WalkCollid
       {cast.map(({ n, body, name, leaving }) => {
         const fig = figures.current.get(n);
         if (!fig) return null;
+        const label = plates && !leaving ? plateFor(name, plates) : null;
         return (
           <group key={n} ref={(g) => {
             fig.group = g;
@@ -239,7 +240,7 @@ export function RemoteCast({ walk, bodies: shared, plates }: { walk?: WalkCollid
                     } : undefined} />}
             </Suspense>
             <group ref={(g) => { fig.bubble = g; }}>
-              {plates && !leaving ? <NamePlate {...plateFor(name, plates)} /> : null}
+              {label ? <NamePlate {...label} /> : null}
               {said[n] ? <group position={[0, plates ? 0.45 : 0, 0]}><Html center><span className="w-said" data-testid="remote-said">{said[n]}</span></Html></group> : null}
             </group>
           </group>
