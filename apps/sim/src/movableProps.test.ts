@@ -93,13 +93,13 @@ test("the sim walks the body in from a few metres; farther than the approach ran
   } finally { for (const id of world.agentIds()) world.detach(id); }
 });
 
-test("eve grabs and places from her own measured stance, not remy's", async () => {
+test.each(["eve", "cipher"] as const)("%s grabs and places from its own measured stance, not remy's", async (figure) => {
   const world = new WorldService({ sim, movableProps: true });
   try {
-    const eve = appleStance(APPLE_PICKUP, "eve");
+    const eve = appleStance(APPLE_PICKUP, figure);
     expect(Math.hypot(eve[0] - APPLE_STANDS[APPLE_PICKUP].stance[0], eve[1] - APPLE_STANDS[APPLE_PICKUP].stance[1])).toBeGreaterThan(0.02);
     appleStance(APPLE_PICKUP, "remy").forEach((v, i) => expect(v).toBeCloseTo(APPLE_STANDS[APPLE_PICKUP].stance[i], 6));
-    const seen = world.attach("e", { x: 8, z: 11 }, "eve");
+    const seen = world.attach("e", { x: 8, z: 11 }, figure);
     expect(seen.movableProps?.object.actions).toEqual(["grab"]);
     expect(seen.movableProps?.surfaces.find((s) => s.id === APPLE_PICKUP)?.approach).toEqual(eve);
     const got = world.act("e", "g", grab);
@@ -110,7 +110,7 @@ test("eve grabs and places from her own measured stance, not remy's", async () =
     const put = world.act("e", "p", place);
     await advance(world, 22);
     expect(put.outcome?.ok).toBe(true);
-    expect([world.body("e").x, world.body("e").z]).toEqual(appleStance(APPLE_RECEIVING, "eve"));
+    expect([world.body("e").x, world.body("e").z]).toEqual(appleStance(APPLE_RECEIVING, figure));
     expect(world.frames().apple?.stand).toBe(APPLE_RECEIVING);
   } finally { for (const id of world.agentIds()) world.detach(id); }
 });
