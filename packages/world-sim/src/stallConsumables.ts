@@ -1,7 +1,7 @@
-// Front edge of the 1.033 m counters on BazaarPass_45 and BazaarPass_42.
+// Front edge of BazaarPass_45 and _42: 1.033 m counters plus a 30 mm goods board, so props rest at 1.063.
 export const STALL_CONSUMABLES = {
-  "stall-apple": { name: "Stall apple", place: "stall-45", verb: "eat", position: [26.15, 1.066, 29.38], approach: [26.31, 28.81], portions: 1, refillS: 60 },
-  "stall-water": { name: "Water bottle", place: "stall-42", verb: "drink", position: [17.39, 1.133, 41.38], approach: [17.55, 40.81], portions: 4, refillS: 120 },
+  "stall-apple": { name: "Stall apple", place: "stall-45", verb: "eat", position: [26.15, 1.096, 29.38], approach: [26.31, 28.81], portions: 1, refillS: 60 },
+  "stall-water": { name: "Water bottle", place: "stall-42", verb: "drink", position: [17.39, 1.163, 41.38], approach: [17.55, 40.81], portions: 4, refillS: 120 },
 } as const;
 export type StallConsumableId = keyof typeof STALL_CONSUMABLES;
 export function isStallConsumable(id: unknown): id is StallConsumableId {

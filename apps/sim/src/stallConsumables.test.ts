@@ -93,3 +93,10 @@ test("stopping before contact returns the untouched item and releases the reserv
     expect(world.observe("a").stallConsumables?.find(prop => prop.id === id)?.available).toBe(true);
   } finally { world.detach("a"); }
 });
+
+// The goods boards on the 1.033 m counters are 30 mm thick; props rest on the board, not inside it.
+test("usable stall props rest on the top of their goods board", () => {
+  const boardTop = 1.063;
+  expect(STALL_CONSUMABLES["stall-apple"].position[1] - 0.033).toBeCloseTo(boardTop, 3);
+  expect(STALL_CONSUMABLES["stall-water"].position[1] - 0.1).toBeCloseTo(boardTop, 3);
+});
