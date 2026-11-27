@@ -1368,6 +1368,9 @@ async function waitFor(pred: () => boolean, ms = 3000) {
 }
 
 test("a fresh agent discovers and moves an apple via the published MCP and REST tools", async () => {
+  // Earlier visit tests can leave bodies in the shared sim until their asynchronous detach completes.
+  // Start this route from the same empty plaza as the fresh-agent scenario.
+  for (const id of service.agentIds()) service.detach(id);
   clock = Date.now();
   const { agentId, agentToken, ownerToken } = await ownerWithAgent("AppleMover");
   try {
@@ -1381,7 +1384,8 @@ test("a fresh agent discovers and moves an apple via the published MCP and REST 
     const doAct = async (id: string, action: object) => {
       clock += 1000;
       expect((await callMcp(agentToken, "world_act", { id, action })).isError).toBe(false);
-      expect((await settle(agentToken, id)).outcome?.ok).toBe(true);
+      const { outcome } = await settle(agentToken, id);
+      expect(outcome, id).toMatchObject({ ok: true });
     };
     await doAct("approach-apple", { type: "go_to", point: pickup.approach });
     await doAct("grab-apple", { type: "grab", target: seen.object.id });
