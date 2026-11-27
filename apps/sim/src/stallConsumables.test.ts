@@ -94,6 +94,13 @@ test("stopping before contact returns the untouched item and releases the reserv
   } finally { world.detach("a"); }
 });
 
+// The goods boards on the 1.033 m counters are 30 mm thick; props rest on the board, not inside it.
+test("usable stall props rest on the top of their goods board", () => {
+  const boardTop = 1.063;
+  expect(STALL_CONSUMABLES["stall-apple"].position[1] - 0.033).toBeCloseTo(boardTop, 3);
+  expect(STALL_CONSUMABLES["stall-water"].position[1] - 0.1).toBeCloseTo(boardTop, 3);
+});
+
 test("leaving and re-attaching keeps stamina, plus standing recovery for the time away", async () => {
   const world = new WorldService({ sim, movementEnergy: true });
   const [x, z] = STALL_CONSUMABLES["stall-apple"].approach;

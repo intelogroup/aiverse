@@ -138,6 +138,15 @@ def _norm(vals, acc):
 
 
 # ---------------------------------------------------------------- stall counters
+def footprint_half(half, q, w_inv):
+    """Half extents in the stall frame of a piece yawed by quaternion q (x, y, z, w)."""
+    yaw = 2 * np.arctan2(q[1], q[3])
+    ax = w_inv[:3, :3] @ (np.cos(yaw), 0.0, -np.sin(yaw))        # piece X, then Z
+    az = w_inv[:3, :3] @ (np.sin(yaw), 0.0, np.cos(yaw))
+    return (abs(ax[0]) * half[0] + abs(az[0]) * half[1],
+            abs(ax[2]) * half[0] + abs(az[2]) * half[1])
+
+
 def support(hmap, origin, lx, lz, half, tol=2, need=6):
     """Datum under a piece's footprint, or None when it is not resting on a counter.
 
@@ -157,7 +166,7 @@ def support(hmap, origin, lx, lz, half, tol=2, need=6):
                    (-1, -1), (1, -1), (-1, 1), (1, 1)):
         gi = int((lx + sx * half[0] - x0) / cell)
         gj = int((lz + sz * half[1] - z0) / cell)
-        win = hmap[max(0, gi - tol):gi + tol + 1, max(0, gj - tol):gj + tol + 1]
+        win = hmap[max(0, gi - tol):max(0, gi + tol + 1), max(0, gj - tol):max(0, gj + tol + 1)]
         if np.isfinite(win).any():
             hits += 1
             ys.append(float(np.nanmax(win)))
@@ -165,7 +174,7 @@ def support(hmap, origin, lx, lz, half, tol=2, need=6):
         return None
     gi = int((lx - x0) / cell)
     gj = int((lz - z0) / cell)
-    centre = hmap[max(0, gi - tol):gi + tol + 1, max(0, gj - tol):gj + tol + 1]
+    centre = hmap[max(0, gi - tol):max(0, gi + tol + 1), max(0, gj - tol):max(0, gj + tol + 1)]
     if not np.isfinite(centre).any():
         return None
     return max(ys)
@@ -183,7 +192,7 @@ def occupied_hit(cmap, origin, lx, lz, half, level, margin=0.05):
     hz = max(1, int(round(max(half[1], 0.08) / cell)))
     gi = int((lx - x0) / cell)
     gj = int((lz - z0) / cell)
-    win = cmap[max(0, gi - hx):gi + hx + 1, max(0, gj - hz):gj + hz + 1]
+    win = cmap[max(0, gi - hx):max(0, gi + hx + 1), max(0, gj - hz):max(0, gj + hz + 1)]
     return bool(np.isfinite(win).any() and np.nanmax(win) > level + margin)
 
 
@@ -346,14 +355,17 @@ def audit(path=GLB, verbose=True, only_stall=None):
         S, _ = meshopt_decode(g, ext["attributes"]["SCALE"])
         if S is None or len(S) != len(T):
             S = np.ones((len(T), 3))
+        Q, _ = meshopt_decode(g, ext["attributes"]["ROTATION"])
+        if Q is None or len(Q) != len(T):
+            Q = np.tile((0.0, 0.0, 0.0, 1.0), (len(T), 1))
         W = world[i] if world[i] is not None else np.eye(4)
         node_scale = float(np.linalg.norm(W[:3, 1]))
-        for t, s in zip(T, S):
+        for t, s, q in zip(T, S, Q):
             p = (W @ np.array([t[0], t[1], t[2], 1.0]))[:3]
             # the instance's own SCALE multiplies the node's: a basket at 1.15 is
             # 0.37 m tall, not 0.32, and its underside is 15% further down
             sx, sy, sz = node_scale * s[0], node_scale * s[1], node_scale * s[2]
-            rows.append(dict(key=name[len(GOODS_PREFIX):], p=p,
+            rows.append(dict(key=name[len(GOODS_PREFIX):], p=p, q=q,
                              ymin=box[0][1] * sy, ymax=box[1][1] * sy,
                              hidden=bool(abs(sx) < 1e-6 or abs(sy) < 1e-6
                                          or abs(sz) < 1e-6),
@@ -392,6 +404,7 @@ def audit(path=GLB, verbose=True, only_stall=None):
         hmap = maps[s["mesh"]]
         loc = (s["W_inv"] @ np.array([r["p"][0], r["p"][1], r["p"][2], 1.0]))[:3]
         gi, gj = int((loc[0] - sx0) / cell), int((loc[2] - sz0) / cell)
+        r["half"] = footprint_half(r["half"], r["q"], s["W_inv"])
         # judged against the counter under the piece's own footprint, never against
         # the highest surface under the point (that is the canopy at 2.17-2.72 m,
         # which reads as a 1.4 m sink)

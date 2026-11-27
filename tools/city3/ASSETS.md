@@ -317,3 +317,14 @@ Sketchfab downloads, normalised by `trees_normalise.py`, rebuilt by `trees_kit.p
 ### Movable apple pilot
 
 - `apps/console/public/assets/props/market-apple.glb` — [Food Apple 01](https://polyhaven.com/a/food_apple_01) by Oliver Harries, CC0. Packed from the 1k glTF with its original textures, centred at the grip model origin and sized to 44 mm on the source rig. The runtime scales it with Remy’s cast scale.
+
+### Stall bottles and fruit (scanned, CC0)
+
+Built into `tools/city3/assets/stall_scanned/kit.glb` by `tools/city3/stall_scanned_kit.py`.
+
+| Asset | Source | Licence | Used as |
+|---|---|---|---|
+| wine_bottles_01 | https://polyhaven.com/a/wine_bottles_01 | CC0 | `inst_goods_bottles_*` |
+| food_pears_asian_01 | https://polyhaven.com/a/food_pears_asian_01 | CC0 | `inst_goods_mound_pears` |
+| food_pomegranate_01 | https://polyhaven.com/a/food_pomegranate_01 | CC0 | `inst_goods_mound_plums` |
+| bananas | https://polyhaven.com/a/bananas | CC0 | `inst_goods_mound_lemons` |
