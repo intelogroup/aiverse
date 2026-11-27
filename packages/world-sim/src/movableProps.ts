@@ -33,8 +33,8 @@ export function appleCenter(stand: AppleStand): [number, number, number] {
  */
 export const APPLE_GRIPS = {
   remy: { scale: SCALE_REMY, "apple-stand-01": [0.02516887, 0.33147556], "apple-stand-02": [0.06238428, 0.37773874] },
-  eve: { scale: SCALE_EVE, "apple-stand-01": [0.0463, 0.3516], "apple-stand-02": [0.0788, 0.4035] },
-  cipher: { scale: SCALE_CIPHER, "apple-stand-01": [0.0482, 0.3933], "apple-stand-02": [0.0885, 0.4529] },
+  eve: { scale: SCALE_EVE, "apple-stand-01": [0.0062, 0.356], "apple-stand-02": [0.0407, 0.4153] },
+  cipher: { scale: SCALE_CIPHER, "apple-stand-01": [0.0432, 0.3925], "apple-stand-02": [0.0835, 0.453] },
 } as const;
 export type AppleBody = keyof typeof APPLE_GRIPS;
 export const appleBody = (figure: string): figure is AppleBody => Object.hasOwn(APPLE_GRIPS, figure);

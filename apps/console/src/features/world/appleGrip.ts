@@ -1,9 +1,18 @@
 // Remy calibration measured from the shipped Mixamo clips and the Blender pickup/placement previews.
 // Position and rotation are relative to the glTF right-hand joint. Ground samples are at 24 Hz.
 import { SCALE_REMY } from "@aiverse/world-sim/bodies";
-import { APPLE_STANDS, appleCenter, type AppleFrame } from "@aiverse/world-sim/movableProps";
+import { APPLE_STANDS, appleCenter, type AppleBody, type AppleFrame } from "@aiverse/world-sim/movableProps";
 
-export const APPLE_GRIP_POSITION = [4.8683313, 26.1374677, 10.8832469] as const;
+/**
+ * Apple centre in each body's right-hand frame, Remy hand units (see appleGripOffset). Remy's is the Blender calibration;
+ * Eve's and Cipher's are fitted so their fingers sit on the apple's skin like Remy's do (tests/apple-grip-bodies.test.ts).
+ * Changing one moves that body's contact point: re-measure APPLE_GRIPS (world-sim) with it.
+ */
+export const APPLE_GRIP_POSITIONS = {
+  remy: [4.8683313, 26.1374677, 10.8832469],
+  eve: [-3.5264, 16.9033, 10.8832469],
+  cipher: [4.0289, 24.4585, 10.8832469],
+} as const satisfies Record<AppleBody, readonly [number, number, number]>;
 export const APPLE_GRIP_ROTATION = [-0.8744955, -0.1513037, 0.3225398, 0.3291386] as const;
 /** Visual scale over the authored apple GLB. At 1 it was ~6 cm across, small for the cast's hands (fingers 1-3 cm off its skin). */
 export const APPLE_SIZE = 1.25;
@@ -11,6 +20,12 @@ export const APPLE_SIZE = 1.25;
 export const APPLE_HALF_HEIGHT = 0.0191;
 /** Remy's right-hand world scale in the scene. Other rigs' hand units differ: scale the grip offset by this over their hand's world scale. */
 export const REMY_HAND_WORLD_SCALE = 3.43539e-3 * SCALE_REMY;
+
+/** This body's grip as a hand-local offset, in the units of a hand whose world scale is `handWorldScale`. */
+export function appleGripOffset<V extends { set(x: number, y: number, z: number): V; multiplyScalar(s: number): V }>(body: AppleBody, handWorldScale: number, out: V): V {
+  const [x, y, z] = APPLE_GRIP_POSITIONS[body];
+  return out.set(x, y, z).multiplyScalar(REMY_HAND_WORLD_SCALE / handWorldScale);
+}
 export const APPLE_CARRY_ROTATIONS = {
   "mixamorigRightArm": [
     0.32241,

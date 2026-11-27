@@ -183,7 +183,10 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
       </group>
       {showApple ? (
         <Suspense fallback={null}>
-          <RemoteApple bodies={bodies} findHand={(n) => figures.current.get(n)?.group?.getObjectByName("mixamorigRightHand")} />
+          <RemoteApple bodies={bodies} findHand={(n) => {
+            const body = cast.find((c) => c.n === n)?.body, hand = figures.current.get(n)?.group?.getObjectByName("mixamorigRightHand");
+            return body && hand && appleBody(body) ? { hand, body } : undefined;
+          }} />
         </Suspense>
       ) : null}
       {cast.map(({ n, body }) => {

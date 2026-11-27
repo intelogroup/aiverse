@@ -4,17 +4,17 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { SCALE_REMY } from "@aiverse/world-sim/bodies";
 import { APPLE_ASSET, APPLE_GROUND, APPLE_STANDS, appleCenter, type AppleStand } from "@aiverse/world-sim/movableProps";
-import { APPLE_GRIP_POSITION, APPLE_GRIP_ROTATION, APPLE_HALF_HEIGHT, APPLE_SIZE, REMY_HAND_WORLD_SCALE, appleVisual } from "./appleGrip";
+import { type AppleBody } from "@aiverse/world-sim/movableProps";
+import { APPLE_GRIP_ROTATION, APPLE_HALF_HEIGHT, APPLE_SIZE, appleGripOffset, appleVisual } from "./appleGrip";
 import { assetUrl } from "../../lib/assetUrl";
 import { extendGltf } from "./gltfExtensions";
 import type { RemoteBodies } from "./remoteFrames";
 
 const stands = Object.keys(APPLE_STANDS) as AppleStand[];
-const gripPosition = new THREE.Vector3(...APPLE_GRIP_POSITION);
 const gripRotation = new THREE.Quaternion(...APPLE_GRIP_ROTATION);
 const handScale = new THREE.Vector3();
 
-export function RemoteApple({ bodies, findHand }: { bodies: RemoteBodies; findHand: (n: number) => THREE.Object3D | undefined }) {
+export function RemoteApple({ bodies, findHand }: { bodies: RemoteBodies; findHand: (n: number) => { hand: THREE.Object3D; body: AppleBody } | undefined }) {
   const gl = useThree((state) => state.gl);
   const { scene } = useGLTF(assetUrl(APPLE_ASSET), true, true, extendGltf(gl));
   const model = useMemo(() => scene.clone(), [scene]);
@@ -30,10 +30,11 @@ export function RemoteApple({ bodies, findHand }: { bodies: RemoteBodies; findHa
       mesh.visible = true;
       return;
     }
-    const hand = findHand(visual.holder);
-    mesh.visible = !!hand;
-    if (!hand) return;
-    hand.localToWorld(mesh.position.copy(gripPosition).multiplyScalar(REMY_HAND_WORLD_SCALE / hand.getWorldScale(handScale).x));
+    const holder = findHand(visual.holder);
+    mesh.visible = !!holder;
+    if (!holder) return;
+    const { hand, body } = holder;
+    hand.localToWorld(appleGripOffset(body, hand.getWorldScale(handScale).x, mesh.position));
     hand.getWorldQuaternion(mesh.quaternion).multiply(gripRotation);
   });
 

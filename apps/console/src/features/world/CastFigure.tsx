@@ -1,4 +1,5 @@
-import { APPLE_CARRY_ROTATIONS, APPLE_GRIP_POSITION, REMY_HAND_WORLD_SCALE, type appleMotion } from "./appleGrip";
+import type { AppleBody } from "@aiverse/world-sim/movableProps";
+import { APPLE_CARRY_ROTATIONS, appleGripOffset, type appleMotion } from "./appleGrip";
 import { ArmReach, dipWithLegs, reachWeight } from "./armReach";
 import { useEffect, useMemo, useRef, type RefObject } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
@@ -735,7 +736,7 @@ export function CastFigure({
     const reachW = activeProp && armReach ? reachWeight(activeProp.time, activeProp.contact) : 0;
     if (activeProp && armReach && reachW > 0) {
       grp.updateMatrixWorld(true);
-      const grip = reachGrip.current.set(...APPLE_GRIP_POSITION).multiplyScalar(REMY_HAND_WORLD_SCALE / armReach.handWorldScale());
+      const grip = appleGripOffset(body.id as AppleBody, armReach.handWorldScale(), reachGrip.current);
       const target = reachTarget.current.set(...activeProp.target);
       // A body whose clip hand stops short of the apple bends its knees for the rest, feet planted.
       dipWithLegs(grp, reachLegs, armReach.dipNeeded(grip, target) * reachW, reachPole.current.set(0, 0, 1).applyQuaternion(grp.quaternion));
