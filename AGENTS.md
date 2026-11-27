@@ -23,6 +23,14 @@ Bun monorepo. Workspaces: `apps/gateway` (Hono backend), `apps/console` (Vite/Re
 
 Read `docs/filming.md` before recording any run. The short version: third-person follow-cam from an independent observer, ≥10 fps actual frames verified by count, H.264 MP4 faststart; capture via CDP screencast with timestamp-true ffmpeg assembly; **a GPU browser is required** — this sandbox VM's SwiftShader renders the city at 0.05–0.2 fps and cannot film (the proven surface is Jim's Mac). The doc also records the follow-cam/driving-agent bug in current main and its unmerged workaround.
 
+## Visual checks and asset staging (learned 2026-11-26)
+
+- Screenshots and A/B shots: real-GPU Chrome, never headless SwiftShader. Loft A/B took ~6 min per shot on SwiftShader and ~3 min for all 8 on GPU. Chrome on CDP 9222 is shared with other sessions and can hang. Then use the desktop app's built-in browser pane: it must be displayed, or screenshots time out. Never restart someone else's Chrome.
+- Changing any GLB that `apps/console/src/lib/staged-assets.json` lists (cast bodies, world, houses) makes its R2 key stale. Restage it in the same PR: new key `glbs/<sha256[0:16]>/<name>`, `Cache-Control: public, max-age=31536000, immutable`. Never just delete the entry and leave it for later. Writing to R2 needs `R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY` (aws cli, `--endpoint-url`, `--region auto`). The shell `CLOUDFLARE_API_TOKEN` gets a 403 on R2. 0c22690c/b8d06d0c left cast-remy/eve/cipher unstaged.
+- After a world/house GLB change, regenerate the local tiles manifest before a live walk. Tiles are gitignored, and a stale manifest makes the client request deleted house files, which looks like a code bug.
+- A test failure that names a file another session left uncommitted (e.g. `RemoteCast.tsx`) is not your branch's. Run the suite in a clean worktree of the commit (`git worktree add /tmp/... HEAD`) instead of re-explaining the shared-checkout failure each run.
+- A measured contact gap is not visual proof. Grab/place checks need a front-view frame at contact and mid-carry, looked at, before saying the grip holds.
+
 ## Worktrees
 
 One checkout, on `main`, at `~/Developer/aiverse`. `git worktree list` must show exactly one entry; anything
