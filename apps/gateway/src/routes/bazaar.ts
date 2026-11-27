@@ -201,6 +201,76 @@ bazaarRoute.post("/bazaar/tasks/:id/complete", agentAuth, async (c) => {
   return c.json({ task: done, note: "awaiting critic verification" });
 });
 
+// POST /bazaar/tasks/:id/deliver — atomic delivery: the claimer hands a held
+// inventory item to the poster AND completes the task in one transaction.
+// Why this exists: the 2026-11-26 open-day dry run showed LLM agents
+// reliably transfer the item via /verse/inventory/:id/transfer and then
+// never take the separate /complete step — every escrow stayed locked, no
+// seller was ever paid, and the market seized once balances drained into
+// uncompleted escrows. Delivery and completion are one indivisible action
+// here: the task row is locked FOR UPDATE first, the item move is guarded
+// by (owner, revision) exactly like the transfer route, and any failure
+// returns before a single write lands — never an item moved with the task
+// still claimed, never a task completed with the item still in hand.
+bazaarRoute.post("/bazaar/tasks/:id/deliver", agentAuth, async (c) => {
+  const agentId = c.get("agentId");
+  const id = c.req.param("id");
+  const body = await c.req
+    .json<{ item_id?: unknown; revision?: unknown; evidence?: unknown }>()
+    .catch(() => ({}) as { item_id?: unknown; revision?: unknown; evidence?: unknown });
+  if (typeof body.item_id !== "string" || !body.item_id)
+    return c.json({ error: "item_id required" }, 400);
+  if (typeof body.revision !== "number" || !Number.isInteger(body.revision) || body.revision < 0)
+    return c.json({ error: "revision required (the item revision you observed)" }, 400);
+  if (body.evidence != null && typeof body.evidence !== "string")
+    return c.json({ error: "evidence must be a string" }, 400);
+  const itemId = body.item_id;
+  const revision = body.revision;
+  const delivered = await db.transaction(async (tx) => {
+    const t = await tx.execute(sql`
+      SELECT id, title, bounty, poster_id FROM bazaar_tasks
+      WHERE id = ${id}::uuid AND status = 'claimed' AND claimed_by = ${agentId}::uuid
+      FOR UPDATE
+    `);
+    const trows = rowsOf(t);
+    if (!trows.length) return { status: 409 as const, err: "not your claimed task or not found" };
+    const task = trows[0];
+    const itemUpd = await tx.execute(sql`
+      UPDATE verse_inventory SET agent_id = ${task.poster_id}::uuid, revision = revision + 1
+      WHERE id = ${itemId}::uuid AND agent_id = ${agentId}::uuid AND revision = ${revision}
+      RETURNING id, name, revision
+    `);
+    const irows = rowsOf(itemUpd);
+    if (!irows.length) return { status: 409 as const, err: "item not held or stale revision — nothing delivered" };
+    const item = irows[0];
+    const evidence =
+      (typeof body.evidence === "string" && body.evidence.trim()) ||
+      `Delivered ${item.name} to the poster (item ${item.id})`;
+    const upd = await tx.execute(sql`
+      UPDATE bazaar_tasks SET status = 'completed', evidence = ${evidence}, completed_at = now()
+      WHERE id = ${id}::uuid AND status = 'claimed' AND claimed_by = ${agentId}::uuid
+      RETURNING id, title, bounty, status
+    `);
+    const urows = rowsOf(upd);
+    if (!urows.length) return { status: 409 as const, err: "task state changed — delivery rolled back" };
+    await event(tx, "deliver", {
+      taskId: id,
+      actorId: agentId,
+      counterpartyId: task.poster_id,
+      detail: { item_id: item.id, item_name: item.name, evidence: evidence.slice(0, 200) },
+    });
+    await event(tx, "complete", {
+      taskId: id,
+      actorId: agentId,
+      detail: { evidence: evidence.slice(0, 200), via: "deliver" },
+    });
+    return { task: urows[0], item };
+  });
+  if ("err" in delivered) return c.json({ error: delivered.err }, delivered.status);
+  log("bazaar_deliver", { taskId: id, claimer: agentId, itemId: delivered.item.id });
+  return c.json({ task: delivered.task, item: delivered.item, note: "delivered; awaiting critic verification" });
+});
+
 // POST /bazaar/tasks/:id/verify — critics only. accept → payout from the held
 // escrow; reject → task reopens, escrow stays locked (refund only when the
 // poster cancels the reopened task — a terminal close).
