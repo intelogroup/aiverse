@@ -388,6 +388,106 @@
   display: none;
 }
 
+/* Phone: top is the compact plate; bottom, upward, the action bar, then WALK and the asset
+   credit, then the chat ticker. Walking hides it all (the touch walk layer owns the screen). */
+.hud.hud-touch.hud-walking {
+  display: none;
+}
+.hud.hud-touch .hud-agents {
+  width: 200px;
+  max-height: none;
+}
+.hud.hud-touch .hud-plate small:not(.hud-level):not(.hud-stale) {
+  display: none;
+}
+.world-root .hud.hud-touch button {
+  min-width: 44px;
+  min-height: 44px;
+}
+.hud.hud-touch .hud-strip {
+  top: auto;
+  bottom: calc(176px + env(safe-area-inset-bottom));
+  left: 12px;
+  transform: none;
+  font-size: 14px;
+}
+.hud.hud-touch .hud-gains {
+  top: auto;
+  bottom: calc(224px + env(safe-area-inset-bottom));
+}
+.hud.hud-touch .hud-map {
+  display: none;
+}
+.hud.hud-touch .hud-map.large {
+  display: flex;
+  top: 150px;
+  width: min(300px, calc(100% - 24px));
+}
+.world-root .hud.hud-touch .hud-ticker {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(124px + env(safe-area-inset-bottom));
+  padding: 8px 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: left;
+  background: var(--hud-panel);
+  border: 1px solid var(--hud-edge);
+}
+.hud.hud-touch .hud-chat {
+  display: none;
+}
+.hud.hud-touch.hud-chat-open .hud-chat {
+  display: flex;
+  z-index: 2;
+  right: 12px;
+  width: auto;
+  bottom: calc(176px + env(safe-area-inset-bottom));
+  height: min(420px, calc(100% - 340px));
+  background: var(--hud-solid);
+}
+.hud-actions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+  border-radius: var(--hud-radius) var(--hud-radius) 0 0;
+}
+.world-root .hud .hud-actions button {
+  flex: 1;
+  min-height: 56px;
+  border-radius: var(--hud-radius-button);
+}
+.world-root .hud .hud-actions button[aria-pressed="true"] {
+  color: var(--hud-xp);
+}
+.world-root.w-hud.w-shell-touch .w-glb-walk {
+  bottom: calc(72px + env(safe-area-inset-bottom));
+}
+.world-root.w-hud.w-shell-touch .w-glb-walk button,
+.world-root.w-hud.w-shell-touch .w-tools button {
+  min-height: 44px;
+  min-width: 44px;
+}
+.world-root.w-hud.w-shell-touch .w-asset-credit {
+  right: 12px;
+  bottom: calc(72px + env(safe-area-inset-bottom));
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.world-root.w-hud.w-shell-touch .w-sheet {
+  bottom: calc(66px + env(safe-area-inset-bottom));
+  z-index: 41;
+}
+.world-root.w-hud.w-shell-touch .w-sheet-backdrop {
+  z-index: 40;
+}
+
 /* The walk panel sits under the asset credit link without this. */
 .world-root.w-hud .w-walk-panel {
   bottom: 44px;

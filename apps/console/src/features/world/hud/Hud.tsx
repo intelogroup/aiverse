@@ -1,4 +1,4 @@
-// Field HUD shell (DESIGN.md), desktop only, behind ?hud=1. World state arrives over
+// Field HUD shell (DESIGN.md), behind ?hud=1. World state arrives over
 // hudBridge; shell data arrives as props from WorldView.
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Agent, ConsoleEvent } from "../../../lib/api";
@@ -25,13 +25,16 @@ export interface HudProps {
   account: HudAccount;
   /** A WorldView modal is open: the HUD takes no keys. */
   modalOpen: boolean;
+  /** Phone layout: compact plate, chat ticker and an action bar instead of the hotbar. */
+  touch?: boolean;
 }
 
-export function Hud({ agents, authed, liveEvents, online, feedDown, onRetry, onSignIn, threads, account, modalOpen }: HudProps) {
+export function Hud({ agents, authed, liveEvents, online, feedDown, onRetry, onSignIn, threads, account, modalOpen, touch = false }: HudProps) {
   const { stage, actions } = useSyncExternalStore(hudBridge.subscribe, hudBridge.getSnapshot);
   const [hidden, setHidden] = useState(false);
   const [menu, setMenu] = useState(false);
   const [bigMap, setBigMap] = useState(false);
+  const [chat, setChat] = useState(false);
   const recordRef = useRef<HTMLDivElement>(null);
   const { walking, following, followName, present, says } = stage;
   const mine = authed ? (agents.find((a) => a.name === followName) ?? agents[0] ?? null) : null;
@@ -81,13 +84,13 @@ export function Hud({ agents, authed, liveEvents, online, feedDown, onRetry, onS
 
   // Hidden with CSS, not unmounted: a running recording and the open chat tab survive.
   return (
-    <div className={`hud${hidden ? " hud-off" : ""}${walking ? " hud-walking" : ""}`}>
+    <div className={`hud${touch ? " hud-touch" : ""}${chat ? " hud-chat-open" : ""}${hidden ? " hud-off" : ""}${walking ? " hud-walking" : ""}`}>
       <HudAgents
         agents={agents}
         authed={authed}
         followName={followName}
         present={present}
-        compact={walking}
+        compact={walking || touch}
         onFollow={(name) => actions?.follow(name)}
         onSignIn={onSignIn}
         onManage={manage}
@@ -106,6 +109,31 @@ export function Hud({ agents, authed, liveEvents, online, feedDown, onRetry, onS
       />
       {authed ? <HudGains agents={agents} present={present} /> : null}
       <HudChat says={says} threads={threads} authed={authed} mine={mine} liveEvents={liveEvents} />
+      {touch ? (
+        <>
+          <button type="button" className="hud-panel hud-ticker" aria-expanded={chat} aria-label="Chat ticker" onClick={() => setChat((c) => !c)}>
+            {chat ? "Close chat" : says.length ? `${says[says.length - 1].name}: ${says[says.length - 1].text}` : "Nobody has spoken nearby yet."}
+          </button>
+          <div className="hud-panel hud-actions" role="toolbar" aria-label="Actions">
+            <button type="button" aria-pressed={following} disabled={!followName} onClick={() => run("follow")}>
+              Follow
+            </button>
+            <button type="button" aria-pressed={chat} onClick={() => setChat((c) => !c)}>
+              Chat
+            </button>
+            <button type="button" onClick={() => run("bag")}>
+              Bag
+            </button>
+            <button type="button" onClick={() => run("agents")}>
+              Agents
+            </button>
+            <button type="button" aria-haspopup="dialog" onClick={() => setMenu(true)}>
+              Menu
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
       <div className="hud-panel hud-bar-row" role="toolbar" aria-label="Actions">
         {slot("follow", "F", "Follow", following, !followName)}
         {slot("walk", "T", "Walk")}
@@ -132,12 +160,14 @@ export function Hud({ agents, authed, liveEvents, online, feedDown, onRetry, onS
       <button type="button" className="hud-panel hud-menu-btn" aria-haspopup="dialog" onClick={() => setMenu(true)}>
         Menu <kbd>Esc</kbd>
       </button>
+        </>
+      )}
       {hidden ? (
         <button type="button" className="hud-panel hud-show" onClick={() => setHidden(false)}>
           Show HUD <kbd>H</kbd>
         </button>
       ) : null}
-      {menu ? <HudMenu authed={authed} account={account} onSignIn={onSignIn} onClose={() => setMenu(false)} /> : null}
+      {menu ? <HudMenu authed={authed} onMap={touch ? () => setBigMap((m) => !m) : undefined} mapShown={bigMap} account={account} onSignIn={onSignIn} onClose={() => setMenu(false)} /> : null}
     </div>
   );
 }

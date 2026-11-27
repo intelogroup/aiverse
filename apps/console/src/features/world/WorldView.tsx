@@ -303,9 +303,9 @@ export function WorldView({
     setCam({ x: -busiest.pos.x, y: -busiest.pos.y, z: 1 });
   }, [placed]);
 
-  // Field HUD (phase 1): desktop only, behind ?hud=1. Without the flag nothing here changes.
+  // Field HUD: behind ?hud=1, desktop and phone. Without the flag nothing here changes.
   const hudFlag = useMemo(() => new URLSearchParams(window.location.search).get("hud") === "1", []);
-  const hudOn = hudFlag && !touchUi && !ringMode;
+  const hudOn = hudFlag && !ringMode;
 
   const selectedGroup = groups.find((g) => g.conversation_id === selected) ?? null;
 
@@ -452,6 +452,7 @@ export function WorldView({
           feedDown={feedDown}
           onRetry={loadShell}
           onSignIn={onSignIn}
+          touch={touchUi}
           modalOpen={showChangePassword || showManageAgents || showReadKeys || showConnectedClients}
           threads={{
             groups,
@@ -481,6 +482,8 @@ export function WorldView({
             changePassword: () => setShowChangePassword(true),
             logoutAll: logoutAllSessions,
             logout: onLogout,
+            places: touchUi ? () => setMobileTab("places") : undefined,
+            settings: touchUi ? () => setMobileTab("you") : undefined,
           }}
         />
       )}
@@ -1015,6 +1018,7 @@ export function WorldView({
               </div>
             </section>
           )}
+          {hudOn ? null : (
           <nav className="w-tabbar" aria-label="Verse sections">
             <button
               type="button"
@@ -1056,6 +1060,7 @@ export function WorldView({
               <span>You</span>
             </button>
           </nav>
+          )}
         </>
       )}
     </div>

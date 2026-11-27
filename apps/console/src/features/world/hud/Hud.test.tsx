@@ -131,6 +131,33 @@ describe("Hud", () => {
   });
 });
 
+describe("Hud on a phone", () => {
+  it("has an action bar and ticker instead of the hotbar and party frames", async () => {
+    hudBridge.publish({ ...IDLE_STAGE, followName: "Ada", present: ["Ada"], says: [{ id: 1, name: "Zed", text: "Fresh bread", at: 0 }] });
+    show({ touch: true });
+    for (const name of ["Follow", "Chat", "Bag", "Agents", "Menu"]) expect(screen.getByRole("button", { name })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Walk/ })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Your other agents" })).toBeNull();
+    const ticker = screen.getByRole("button", { name: "Chat ticker" });
+    expect(ticker.textContent).toBe("Zed: Fresh bread");
+    fireEvent.click(ticker);
+    expect(ticker.getAttribute("aria-expanded")).toBe("true");
+    expect(document.querySelector(".hud.hud-chat-open")).toBeTruthy();
+  });
+
+  it("keeps Places and display settings reachable from the menu", () => {
+    const places = vi.fn();
+    const settings = vi.fn();
+    show({ touch: true, account: { ...account, places, settings } });
+    fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+    fireEvent.click(screen.getByRole("button", { name: "Places" }));
+    expect(places).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+    fireEvent.click(screen.getByRole("button", { name: "Display settings" }));
+    expect(settings).toHaveBeenCalled();
+  });
+});
+
 describe("HudMap", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn(async (url: string) => ({

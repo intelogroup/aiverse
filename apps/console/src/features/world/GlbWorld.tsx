@@ -666,13 +666,16 @@ export function GlbWorld({ ownerAgentNames, hud = false }: { /** Names of the si
         </button>
       ) : null}
       {/* One stack, top-right: Share and Record no longer sit on top of each other or the phone tab bar. */}
-      {hud ? null : (
+      {/* The desktop HUD has Record and Share in its hotbar; the phone layout keeps this stack. */}
+      {hud && !touchUi ? null : (
         <div className="w-tools">
           <VerseRecorder root={rootRef} />
           <VerseShare root={rootRef} />
-          <button type="button" className="w-fullview-btn" data-testid="full-view" onClick={() => setFullView((v) => !v)}>
-            {fullView ? "Exit full view" : "Full view"}
-          </button>
+          {hud ? null : (
+            <button type="button" className="w-fullview-btn" data-testid="full-view" onClick={() => setFullView((v) => !v)}>
+              {fullView ? "Exit full view" : "Full view"}
+            </button>
+          )}
         </div>
       )}
       {perfOn ? <PerfOverlay /> : null}
@@ -879,7 +882,7 @@ export function GlbWorld({ ownerAgentNames, hud = false }: { /** Names of the si
           </div>
         </div>
       ) : null}
-      {!(walking && touchUi) && !(hud && !walking) ? (
+      {!(walking && touchUi) && !(hud && !walking && !touchUi) ? (
         <div className="w-glb-toggle w-glb-walk" role="group" aria-label="Walk City 3">
           {walking ? (
             <>
