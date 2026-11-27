@@ -1390,7 +1390,7 @@ test("a fresh agent discovers and moves an apple via the published MCP and REST 
     expect((await observe()).heldObjects).toEqual([seen.object.id]);
     await doAct("place-apple", { type: "place", target: seen.object.id, surface: receiving.id });
     expect((await observe()).heldObjects).toEqual([]);
-    const bag = await (await app.request("/verse/inventory", { headers: json(agentToken) })).json();
+    const bag = await (await app.request("/verse/inventory", { headers: json(agentToken) })).json() as { items: unknown[] };
     expect(bag.items).toEqual([]);
   } finally { service.detach(agentId); }
 });
