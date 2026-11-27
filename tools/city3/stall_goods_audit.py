@@ -157,7 +157,7 @@ def support(hmap, origin, lx, lz, half, tol=2, need=6):
                    (-1, -1), (1, -1), (-1, 1), (1, 1)):
         gi = int((lx + sx * half[0] - x0) / cell)
         gj = int((lz + sz * half[1] - z0) / cell)
-        win = hmap[max(0, gi - tol):gi + tol + 1, max(0, gj - tol):gj + tol + 1]
+        win = hmap[max(0, gi - tol):max(0, gi + tol + 1), max(0, gj - tol):max(0, gj + tol + 1)]
         if np.isfinite(win).any():
             hits += 1
             ys.append(float(np.nanmax(win)))
@@ -165,7 +165,7 @@ def support(hmap, origin, lx, lz, half, tol=2, need=6):
         return None
     gi = int((lx - x0) / cell)
     gj = int((lz - z0) / cell)
-    centre = hmap[max(0, gi - tol):gi + tol + 1, max(0, gj - tol):gj + tol + 1]
+    centre = hmap[max(0, gi - tol):max(0, gi + tol + 1), max(0, gj - tol):max(0, gj + tol + 1)]
     if not np.isfinite(centre).any():
         return None
     return max(ys)
@@ -183,7 +183,7 @@ def occupied_hit(cmap, origin, lx, lz, half, level, margin=0.05):
     hz = max(1, int(round(max(half[1], 0.08) / cell)))
     gi = int((lx - x0) / cell)
     gj = int((lz - z0) / cell)
-    win = cmap[max(0, gi - hx):gi + hx + 1, max(0, gj - hz):gj + hz + 1]
+    win = cmap[max(0, gi - hx):max(0, gi + hx + 1), max(0, gj - hz):max(0, gj + hz + 1)]
     return bool(np.isfinite(win).any() and np.nanmax(win) > level + margin)
 
 
