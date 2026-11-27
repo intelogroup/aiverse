@@ -15,16 +15,21 @@ const buildSha = process.env.VITE_BUILD_SHA || process.env.VERCEL_GIT_COMMIT_SHA
 const tilesDefault = !process.env.VITEST && existsSync(new URL("./public/assets/tiles/districts.json", import.meta.url));
 
 // Tile mode: ask for the core tile, its textures and the KTX2 transcoder from index.html (first byte), not from the JS (worldPreload.ts).
+// Emitted as a file, not inline: the CSP (vercel.json) is script-src 'self', and an inline script's hash changes with every tile build.
+const WORLD_PRELOAD_FILE = "world-preload.js";
 function worldPreload(): Plugin {
+  let script = "";
   return {
     name: "aiverse-world-preload",
     apply: "build",
-    transformIndexHtml() {
+    buildStart() {
+      script = "";
       if (!tilesDefault) return;
-      let manifest: WorldManifestLike | null = null;
-      try { manifest = JSON.parse(readFileSync(new URL("./public/assets/tiles/districts.json", import.meta.url), "utf8")); } catch { return; }
-      const script = worldPreloadScript(manifest);
-      return script ? [{ tag: "script", children: script, injectTo: "head-prepend" }] : undefined;
+      try { script = worldPreloadScript(JSON.parse(readFileSync(new URL("./public/assets/tiles/districts.json", import.meta.url), "utf8")) as WorldManifestLike); } catch { return; }
+      if (script) this.emitFile({ type: "asset", fileName: WORLD_PRELOAD_FILE, source: script });
+    },
+    transformIndexHtml() {
+      return script ? [{ tag: "script", attrs: { src: `/${WORLD_PRELOAD_FILE}` }, injectTo: "head-prepend" }] : undefined;
     },
   };
 }
