@@ -77,6 +77,7 @@ describe("Hud", () => {
     show();
     fireEvent.keyDown(window, { code: "Escape" });
     for (const name of ["Manage agents", "Verse read keys", "Connected clients", "Change password", "Log out all devices", "Log out"]) expect(screen.getByRole("button", { name })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Docs" }).getAttribute("href")).toBe("/docs");
     fireEvent.keyDown(window, { code: "KeyF" });
     expect(actions.toggleFollow).not.toHaveBeenCalled();
     fireEvent.keyDown(window, { code: "Escape" });

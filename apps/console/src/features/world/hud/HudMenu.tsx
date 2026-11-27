@@ -41,6 +41,10 @@ export function HudMenu({ authed, account, onSignIn, onClose }: { authed: boolea
         <button type="button" className="hud-btn" onClick={onClose}>
           Resume (Esc)
         </button>
+        {/* Same relative path the claim and consent pages use. */}
+        <a className="hud-btn" href="/docs" target="_blank" rel="noreferrer">
+          Docs
+        </a>
         {authed ? (
           <>
             {account.unverified ? item("Resend verification email", account.resendVerification) : null}
