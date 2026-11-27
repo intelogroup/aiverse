@@ -93,3 +93,23 @@ test("stopping before contact returns the untouched item and releases the reserv
     expect(world.observe("a").stallConsumables?.find(prop => prop.id === id)?.available).toBe(true);
   } finally { world.detach("a"); }
 });
+
+test("leaving and re-attaching keeps stamina, plus standing recovery for the time away", async () => {
+  const world = new WorldService({ sim, movementEnergy: true });
+  const [x, z] = STALL_CONSUMABLES["stall-apple"].approach;
+  try {
+    world.attach("tired", { x, z: z - 6 });
+    world.act("tired", "walk", { type: "go_to", point: [x, z - 0.7] });
+    await advance(world, 2);
+    world.act("tired", "halt", { type: "stop" });
+    await advance(world, 0.05);
+    const before = world.observe("tired").energy!.current;
+    expect(before).toBeLessThan(100);
+    world.detach("tired");
+    expect(world.attach("tired", { x, z }).energy!.current).toBeCloseTo(before, 1);
+    world.detach("tired");
+    await advance(world, 0.5);
+    const back = world.attach("tired", { x, z }).energy!.current;
+    expect(back).toBeCloseTo(Math.min(100, before + 0.5), 1);
+  } finally { world.detach("tired"); }
+});
