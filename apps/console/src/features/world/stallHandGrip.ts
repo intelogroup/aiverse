@@ -24,18 +24,18 @@ type Fit = { apple: Grip; bottle: Grip; bottleAxis: Vector3 };
 // The bottle lies across the palm. Its axis is fixed while the wrist tips it.
 const FITS: Partial<Record<AppleBody, Fit>> = {
   eve: {
-    apple: { center: [-0.0088, 0.09254, 0.04786], curl: [1, 1, 0.5, 0.2, 0.9], tableReach: [0.10, 0.15] },
-    bottle: { center: [-0.0368, 0.10054, 0.05186], curl: [0.7, 1, 0.5, 0, 0.6], tableReach: [0.075, 0.10] },
+    apple: { center: [-0.0088, 0.09254, 0.04786], curl: [1, 1, 0.5, 0.2, 0.9], tableReach: [0.10, 0.24] },
+    bottle: { center: [-0.0368, 0.10054, 0.05186], curl: [0.7, 1, 0.5, 0, 0.6], tableReach: [0.075, 0.19] },
     bottleAxis: new Vector3(0.92, -0.31, -0.20).normalize(),
   },
   cipher: {
-    apple: { center: [-0.0008, 0.12454, 0.04786], curl: [0.2, 1, 0, 0, 1], tableReach: [0.075, 0.105] },
-    bottle: { center: [0.0032, 0.12454, 0.05586], curl: [1, 1, 0.5, 0, 0.5], tableReach: [0.04, 0.07] },
+    apple: { center: [-0.0008, 0.12454, 0.04786], curl: [0.2, 1, 0, 0, 1], tableReach: [0.075, 0.195] },
+    bottle: { center: [0.0032, 0.12454, 0.05586], curl: [1, 1, 0.5, 0, 0.5], tableReach: [0.04, 0.16] },
     bottleAxis: new Vector3(0.80, -0.56, -0.22).normalize(),
   },
   remy: {
-    apple: { center: [0.0032, 0.12454, 0.04786], curl: [0.4, 1, 0.6, 0.6, 1], tableReach: [0.10, 0.13] },
-    bottle: { center: [0.0192, 0.14454, 0.05986], curl: [1, 0.6, 0.2, 0, 0.8], tableReach: [0.065, 0.08] },
+    apple: { center: [0.0032, 0.12454, 0.04786], curl: [0.4, 1, 0.6, 0.6, 1], tableReach: [0.10, 0.22] },
+    bottle: { center: [0.0192, 0.14454, 0.05986], curl: [1, 0.6, 0.2, 0, 0.8], tableReach: [0.065, 0.17] },
     bottleAxis: new Vector3(0.80, -0.56, -0.22).normalize(),
   },
 };

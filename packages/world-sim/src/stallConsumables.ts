@@ -1,7 +1,7 @@
-// Sample tables at the aisle edges of BazaarPass_45 and BazaarPass_42.
+// Front edge of the 1.033 m counters on BazaarPass_45 and BazaarPass_42.
 export const STALL_CONSUMABLES = {
-  "stall-apple": { name: "Stall apple", place: "stall-45", verb: "eat", position: [26.52, 1.066, 28.24], approach: [26.68, 27.76], portions: 1, refillS: 60 },
-  "stall-water": { name: "Water bottle", place: "stall-42", verb: "drink", position: [17.52, 1.133, 40.24], approach: [17.68, 39.76], portions: 4, refillS: 120 },
+  "stall-apple": { name: "Stall apple", place: "stall-45", verb: "eat", position: [26.15, 1.066, 29.38], approach: [26.31, 28.81], portions: 1, refillS: 60 },
+  "stall-water": { name: "Water bottle", place: "stall-42", verb: "drink", position: [17.39, 1.133, 41.38], approach: [17.55, 40.81], portions: 4, refillS: 120 },
 } as const;
 export type StallConsumableId = keyof typeof STALL_CONSUMABLES;
 export function isStallConsumable(id: unknown): id is StallConsumableId {

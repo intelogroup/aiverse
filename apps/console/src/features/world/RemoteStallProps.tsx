@@ -68,24 +68,6 @@ export function RemoteStallProps({ bodies, findHand }: { bodies: RemoteBodies; f
   });
 
   return <>
-    {Object.entries(STALL_CONSUMABLES).map(([id, { position: [x, , z] }]) => (
-      <group key={id} position={[x, 0.2, z + 0.08]}>
-        <mesh position={[0, 0.805, 0]} castShadow receiveShadow>
-          <boxGeometry args={[0.86, 0.056, 0.46]} />
-          <meshStandardMaterial color="#65422b" roughness={0.77} />
-        </mesh>
-        <mesh position={[0, 0.735, 0]} castShadow receiveShadow>
-          <boxGeometry args={[0.77, 0.1, 0.39]} />
-          <meshStandardMaterial color="#4c3021" roughness={0.85} />
-        </mesh>
-        {[-0.34, 0.34].flatMap((legX) => [-0.15, 0.15].map((legZ) => (
-          <mesh key={`${legX}:${legZ}`} position={[legX, 0.367, legZ]} castShadow>
-            <boxGeometry args={[0.06, 0.734, 0.06]} />
-            <meshStandardMaterial color="#543726" roughness={0.83} />
-          </mesh>
-        )))}
-      </group>
-    ))}
     <group ref={fruit} name="stall-apple" visible={false} scale={SCALE_REMY * APPLE_SIZE}><primitive object={apple} /></group>
     <group ref={bottle} name="stall-water" visible={false}>
       <mesh castShadow receiveShadow>

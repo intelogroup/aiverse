@@ -69,6 +69,7 @@ def main(argv):
                    f"--baseline={HERE}/out/clips-baseline.json"], None),
         ("stalls", [py, f"{HERE}/stall_audit.py", "--check",
                     f"--baseline={HERE}/out/stall-baseline.json"], None),
+        ("goods", [py, f"{HERE}/stall_goods_audit.py", "--check"], None),
         ("degenerate", [py, f"{HERE}/bridge_drop_degenerate.py",
                         f"{ASSETS}/world-city3.glb", "-", "--check"], None),
         ("eaves", [py, f"{HERE}/bridge_eaves.py",
