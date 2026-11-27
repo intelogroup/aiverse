@@ -93,9 +93,9 @@ export const DISTRICT_BUDGETS: Record<string, DistrictBudget> = {
     measured: { glbBytes: 18_862_208, collisionBytes: 14_224, triangles: 766_467 },
     budget: { glbBytes: 23_577_760, collisionBytes: 19_914, triangles: 900_000 },
   },
-  "/assets/houses/clock-tower-y0.glb": {
-    measured: { glbBytes: 1_216_140, collisionBytes: 1_040, triangles: 84_487 },
-    budget: { glbBytes: 1_520_175, collisionBytes: 2_000, triangles: 105_609 },
+  "/assets/houses/clock-tower.glb": {
+    measured: { glbBytes: 4_915_160, collisionBytes: 1_040, triangles: 54_443 },
+    budget: { glbBytes: 6_143_950, collisionBytes: 2_000, triangles: 68_054 },
   },
   "/assets/houses/colonial-american-y0.glb": {
     measured: { glbBytes: 851_860, collisionBytes: 1_044, triangles: 78_716 },

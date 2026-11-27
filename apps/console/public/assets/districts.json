@@ -154,7 +154,7 @@
   {
    "id": "house-clock-tower-1",
    "name": "clock-tower-1",
-   "url": "/assets/houses/clock-tower-y0.glb",
+   "url": "/assets/houses/clock-tower.glb",
    "collisionUrl": "/assets/houses/clock-tower-y0.col.glb",
    "center": [
     0,
@@ -166,7 +166,7 @@
     0
    ],
    "theme": "bazaar",
-   "farUrl": "/assets/houses/clock-tower-y0.far.glb"
+   "farUrl": "/assets/houses/clock-tower.far.glb"
   },
   {
    "id": "house-ring-01-0",
