@@ -1,18 +1,25 @@
 import * as THREE from "three";
 import { KTX2Loader } from "three/addons/loaders/KTX2Loader.js";
+import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { TILES } from "./tilesMode";
 import { deferTextures } from "./deferTextures";
 
-// world-city3.glb ships KHR_texture_basisu (KTX2) textures. three's GLTFLoader fails on
-// them unless a KTX2Loader is attached, and a KTX2Loader throws unless detectSupport()
-// has run against the live renderer first — so every console GLTF load routes through
-// here (drei useGLTF via extendGltf, DistrictWorld's streaming loader directly), the
-// same discipline the meshopt decoder follows (guarded by tests/meshopt-decoder.test.ts).
+// world-city3.glb ships KHR_texture_basisu (KTX2) textures AND EXT_meshopt_compression
+// geometry. three's GLTFLoader fails on the textures unless a KTX2Loader is attached
+// (and a KTX2Loader throws unless detectSupport() has run against the live renderer
+// first), and it throws at parse time on the geometry unless setMeshoptDecoder() was
+// called — so every console GLTF load routes through here (drei useGLTF via extendGltf,
+// DistrictWorld's streaming loader directly) and this is the one place both are
+// attached (guarded by tests/meshopt-decoder.test.ts). The drei fleet loaded through
+// extendGltf alone carried no meshopt decoder until this was fixed (AIVERSE-2).
 // The transcoder itself is served from /basis/ (three's basis_transcoder.js/.wasm).
 // The loader param is a structural method type: drei's extendLoader speaks
 // three-stdlib's GLTFLoader while DistrictWorld builds three/addons' — method
 // bivariance lets both satisfy this shape without importing either loader class.
-type GltfLoaderLike = { setKTX2Loader(loader: KTX2Loader): unknown };
+type GltfLoaderLike = {
+  setKTX2Loader(loader: KTX2Loader): unknown;
+  setMeshoptDecoder(decoder: typeof MeshoptDecoder): unknown;
+};
 let ktx2: KTX2Loader | null = null;
 let primed = false;
 
@@ -26,6 +33,7 @@ export function configureGltfLoader(loader: GltfLoaderLike, renderer?: THREE.Web
     primed = true;
   }
   loader.setKTX2Loader(ktx2);
+  loader.setMeshoptDecoder(MeshoptDecoder);
   if (TILES) deferTextures(loader, ktx2); // tile mode: textures stream in after the geometry has mounted (deferTextures.ts)
 }
 
