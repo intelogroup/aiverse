@@ -340,7 +340,10 @@ export function initTelemetry(): void {
             e.type.startsWith("console.") ||
             e.type === "csp.violation" ||
             e.type === "resource.error" ||
-            e.type === "asset.error",
+            e.type === "asset.error" ||
+            e.type === "api.error" ||
+            e.type === "react.error" ||
+            e.type.startsWith("ws."),
         )
         .slice(-n),
     dump: () => blackbox.toJSONL(),
@@ -373,6 +376,7 @@ export function initTelemetry(): void {
     recordWorldEvent("error", {
       message: err.message,
       name: err.name,
+      stack: (err.stack ?? "").slice(0, 800),
       district: currentDistrict(),
       source: "window.error",
     });
@@ -385,6 +389,7 @@ export function initTelemetry(): void {
     recordWorldEvent("error", {
       message: reason.message,
       name: reason.name,
+      stack: (reason.stack ?? "").slice(0, 800),
       district: currentDistrict(),
       source: "unhandledrejection",
     });
