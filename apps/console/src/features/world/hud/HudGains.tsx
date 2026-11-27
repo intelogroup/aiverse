@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Agent } from "../../../lib/api";
 import { useAgentInventoryQuery } from "../../../lib/queries";
+import { plateLevels } from "../namePlates";
 
 const TOAST_MS = 4000;
 
@@ -21,6 +22,7 @@ function Watch({ agent, inWorld, onGain }: { agent: Agent; inWorld: boolean; onG
   const prev = useRef<Progress | null>(null);
   useEffect(() => {
     if (!progress) return;
+    if (progress.level) plateLevels.set(agent.name, progress.level);
     const text = prev.current ? gainText(prev.current, progress) : null;
     prev.current = progress;
     if (text) onGain(`${agent.name}: ${text}`);

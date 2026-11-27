@@ -318,6 +318,7 @@ export function GlbWorld({ ownerAgentNames, hud = false }: { /** Names of the si
   const walking = camMode !== "wide";
   const focusRef = useRef<{ x: number; z: number } | null>(null);
   const setFocus = useCallback((p: { x: number; z: number }) => { focusRef.current = p; }, []);
+  const plates = useMemo(() => new Set(ownerNames), [ownerNames]);
   useEffect(() => {
     if (!hud) return;
     return hudBridge.register({
@@ -786,7 +787,7 @@ export function GlbWorld({ ownerAgentNames, hud = false }: { /** Names of the si
           {agentOn ? (
             <ScoutAgent getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} door={teaDoorRef.current} positionRef={scoutPosRef} interact={interactRef.current} spawn={agentPair ? [-22.9, -68, 0] : undefined} />
           ) : null}
-          {streamOn ? <RemoteCast walk={walkColliders} bodies={remoteBodies} /> : null}
+          {streamOn ? <RemoteCast walk={walkColliders} bodies={remoteBodies} plates={hud && !agentOn ? plates : undefined} /> : null}
           {hud ? <CameraFocus onFocus={setFocus} /> : null}
           {following && ownBody ? <OwnerFollowCam key={ownBody.n} bodies={remoteBodies} n={ownBody.n} onTakeOver={takeOver} /> : null}
           {agentPair ? (

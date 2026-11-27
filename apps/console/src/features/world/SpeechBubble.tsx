@@ -47,13 +47,13 @@ function roundRect(g: CanvasRenderingContext2D, x: number, y: number, w: number,
   g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
 }
 
-function drawName(name: string): HTMLCanvasElement {
+export function drawName(name: string, color = "#fff"): HTMLCanvasElement {
   const c = document.createElement("canvas"); c.width = 512; c.height = 96;
   const g = c.getContext("2d")!;
   g.font = "600 44px system-ui, sans-serif";
   const w = Math.min(496, g.measureText(name).width + 48);
   g.fillStyle = "rgba(10,14,26,0.72)"; roundRect(g, (512 - w) / 2, 12, w, 72, 36); g.fill();
-  g.fillStyle = "#fff"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(name, 256, 49, 470);
+  g.fillStyle = color; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(name, 256, 49, 470);
   return c;
 }
 
