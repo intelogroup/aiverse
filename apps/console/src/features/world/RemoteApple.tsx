@@ -25,7 +25,7 @@ export function RemoteApple({ bodies, findHand }: { bodies: RemoteBodies; findHa
     const visual = appleVisual(state, t ?? -Infinity);
     if (visual.holder === null) {
       mesh.position.set(...appleCenter(visual.stand));
-      mesh.quaternion.set(...APPLE_STANDS[visual.stand].rotation);
+      mesh.quaternion.fromArray(APPLE_STANDS[visual.stand].rotation);
       mesh.visible = true;
       return;
     }
