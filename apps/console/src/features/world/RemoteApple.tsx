@@ -4,7 +4,7 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { SCALE_REMY } from "@aiverse/world-sim/bodies";
 import { APPLE_ASSET, APPLE_GROUND, APPLE_STANDS, appleCenter, type AppleStand } from "@aiverse/world-sim/movableProps";
-import { APPLE_GRIP_POSITION, APPLE_GRIP_ROTATION, appleVisual } from "./appleGrip";
+import { APPLE_GRIP_POSITION, APPLE_GRIP_ROTATION, REMY_HAND_WORLD_SCALE, appleVisual } from "./appleGrip";
 import { assetUrl } from "../../lib/assetUrl";
 import { extendGltf } from "./gltfExtensions";
 import type { RemoteBodies } from "./remoteFrames";
@@ -12,6 +12,7 @@ import type { RemoteBodies } from "./remoteFrames";
 const stands = Object.keys(APPLE_STANDS) as AppleStand[];
 const gripPosition = new THREE.Vector3(...APPLE_GRIP_POSITION);
 const gripRotation = new THREE.Quaternion(...APPLE_GRIP_ROTATION);
+const handScale = new THREE.Vector3();
 
 export function RemoteApple({ bodies, findHand }: { bodies: RemoteBodies; findHand: (n: number) => THREE.Object3D | undefined }) {
   const gl = useThree((state) => state.gl);
@@ -32,7 +33,7 @@ export function RemoteApple({ bodies, findHand }: { bodies: RemoteBodies; findHa
     const hand = findHand(visual.holder);
     mesh.visible = !!hand;
     if (!hand) return;
-    hand.localToWorld(mesh.position.copy(gripPosition));
+    hand.localToWorld(mesh.position.copy(gripPosition).multiplyScalar(REMY_HAND_WORLD_SCALE / hand.getWorldScale(handScale).x));
     hand.getWorldQuaternion(mesh.quaternion).multiply(gripRotation);
   });
 

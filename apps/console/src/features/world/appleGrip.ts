@@ -1,9 +1,12 @@
 // Remy calibration measured from the shipped Mixamo clips and the Blender pickup/placement previews.
 // Position and rotation are relative to the glTF right-hand joint. Ground samples are at 24 Hz.
+import { SCALE_REMY } from "@aiverse/world-sim/bodies";
 import { APPLE_STANDS, type AppleFrame } from "@aiverse/world-sim/movableProps";
 
 export const APPLE_GRIP_POSITION = [4.8683313, 26.1374677, 10.8832469] as const;
 export const APPLE_GRIP_ROTATION = [-0.8744955, -0.1513037, 0.3225398, 0.3291386] as const;
+/** Remy's right-hand world scale in the scene. Other rigs' hand units differ: scale the grip offset by this over their hand's world scale. */
+export const REMY_HAND_WORLD_SCALE = 3.43539e-3 * SCALE_REMY;
 export const APPLE_CARRY_ROTATIONS = {
   "mixamorigRightArm": [
     0.32241,

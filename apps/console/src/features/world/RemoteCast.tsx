@@ -1,3 +1,4 @@
+import { appleBody } from "@aiverse/world-sim/movableProps";
 import { appleMotion, appleVisual } from "./appleGrip";
 import { RemoteApple } from "./RemoteApple";
 // RemoteCast — draws the agents whose bodies live on the server (apps/sim), from the viewer stream. The figure, its animation, foot
@@ -198,7 +199,7 @@ export function RemoteCast({ walk, bodies: shared }: { walk?: WalkColliders; /**
               {body === "car"
                 ? <RemoteCar framesRef={frames} index={n} />
                 : <CastFigure framesRef={frames} index={n} baseY={0} home={[0, 0, 0]} body={BODIES[body] ?? BODY_REMY} clipTester={fig.clips} dissolve={fig.dissolve}
-                    applePose={body === "remy" ? () => {
+                    applePose={appleBody(body) ? () => {
                       const t = bodies.renderTime(performance.now() / 1000) ?? -Infinity;
                       return {
                         motion: appleMotion(bodies.apple, n, t),

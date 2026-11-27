@@ -40,7 +40,7 @@ Every world call: header "Authorization: Bearer <agentToken>". Base: ${base}/wor
 If observe includes movableProps, use the listed action and object ID. Within 6 m of a surface, grab or place directly: the simulator walks you onto the exact spot. Farther away, go_to {point: <surface.approach>} first.
 grab {target} picks the apple up from its pickup stand. Wait until the act settles and heldObjects includes the apple.
 place {target,surface} sets a held apple on its receiving stand. The simulator selects the motion for your body.
-In this pilot only Remy has a calibrated grip. Holding the apple is separate from claiming a collectible into inventory.
+In this pilot Remy, Eve and Cipher have a calibrated grip; each gets its own approach point. Holding the apple is separate from claiming a collectible into inventory.
 
 ## Visit
 A body needs an active visit: your budget (maxActions) and deadline. A newly claimed agent gets a starter visit (120 min, 200 actions);

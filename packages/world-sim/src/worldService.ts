@@ -1,4 +1,4 @@
-import { APPLE_APPROACH, APPLE_ID, APPLE_PICKUP, APPLE_RECEIVING, APPLE_STANDS, appleCenter, type AppleFrame, type AppleStand } from "./movableProps";
+import { APPLE_APPROACH, APPLE_ID, APPLE_PICKUP, APPLE_RECEIVING, APPLE_STANDS, appleBody, appleCenter, appleStance, type AppleFrame, type AppleStand } from "./movableProps";
 import { TEA_CUP, type CupAction } from "./teaCup";
 // worldService.ts — the agent-facing surface of the server sim: attach a body, send actions, read senses.
 //
@@ -374,7 +374,8 @@ export class WorldService {
   private appleAct(id: string, s: Session, rec: ActRecord, a: Extract<ScoutAction, { type: "grab" | "place" }>): void {
     const refuse = (detail: string) => this.settle(rec, { ok: false, status: "unavailable", target: a.target, detail });
     if (!this.appleEnabled || a.target !== APPLE_ID) return refuse("unknown movable prop: use the object ID from observe.movableProps");
-    if (s.figure !== BODY_REMY.id) return refuse("unsupported_grip: this apple is fitted to Remy");
+    const figure = s.figure;
+    if (!appleBody(figure)) return refuse("unsupported_grip: this apple is fitted to Remy, Eve and Cipher");
     if (this.appleRun) return refuse("object_busy: an apple interaction is in progress");
     if (s.body.busy || s.body.snapshot().posture !== "standing") return refuse("stand still and finish or stop your current action first");
     if (a.type === "grab" && (this.appleHolder !== null || this.cupHolder === id)) return refuse("hand_occupied: the apple is held or your hand is occupied");
@@ -382,7 +383,8 @@ export class WorldService {
     if (a.type === "place" && this.appleHolder !== id) return refuse("not_held: grab the apple first");
     if (a.type === "place" && a.surface !== APPLE_RECEIVING) return refuse("unsupported_surface: use the apple receiving stand");
     const stand = a.type === "grab" ? APPLE_PICKUP : APPLE_RECEIVING;
-    const { stance, clip } = APPLE_STANDS[stand];
+    const { clip } = APPLE_STANDS[stand];
+    const stance = appleStance(stand, figure);
     const st = s.body.state;
     const distance = Math.hypot(st.x - stance[0], st.z - stance[1]);
     if (distance > APPLE_APPROACH || Math.abs(st.y - appleCenter(stand)[1]) > 0.45) {
@@ -434,7 +436,8 @@ export class WorldService {
     if (!this.appleEnabled) return {};
     const { x, z } = s.body.state;
     const surfaces = ([APPLE_PICKUP, APPLE_RECEIVING] as const).flatMap((stand) => {
-      const { stance, name, verb } = APPLE_STANDS[stand];
+      const { name, verb } = APPLE_STANDS[stand];
+      const stance = appleBody(s.figure) ? appleStance(stand, s.figure) : APPLE_STANDS[stand].stance;
       const distance = Math.hypot(x - stance[0], z - stance[1]);
       return distance > 12 ? [] : [{ id: stand, name, approach: stance, distance: round(distance, 2), action: verb }];
     });
@@ -442,7 +445,7 @@ export class WorldService {
     const heldObjects = yours ? [APPLE_ID] : [];
     if (!yours && !surfaces.some((surface) => surface.id === this.appleStand)) return { heldObjects };
     const state = yours ? "yours" : this.appleHolder ? "held" : this.appleRun ? "reserved" : "stand";
-    const actions = s.figure !== BODY_REMY.id || this.appleRun ? []
+    const actions = !appleBody(s.figure) || this.appleRun ? []
       : yours ? ["place" as const] : state === "stand" && this.appleStand === APPLE_PICKUP ? ["grab" as const] : [];
     return { heldObjects, movableProps: { object: { id: APPLE_ID, name: "Apple", state, actions }, surfaces } };
   }

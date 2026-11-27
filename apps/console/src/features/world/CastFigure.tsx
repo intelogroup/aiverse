@@ -722,7 +722,9 @@ export function CastFigure({
       }
       grp.position.y = baseY - drop;
     }
-    if (activeProp) grp.position.y = baseY - fit.lift + activeProp.ground * bodyScale;
+    // The ground curve is Remy's; other measured bodies ground on their live sole clearance.
+    if (activeProp && body.id === "remy") grp.position.y = baseY - fit.lift + activeProp.ground * bodyScale;
+    else if (activeProp && contacts.length > 0) grp.position.y = baseY - groundingOffset(soleClearance(contacts, scene), runMin, 0) * bodyScale;
     // Foot lock (footLock.ts), last of the leg edits: only the City 3 walker's gait path, never while a sit override,
     // a tester clip or the body controller owns the pose (their feet are not travelling over the ground).
     if (gaitOn && f && footLock.usable && footLockEnabled()) {

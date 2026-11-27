@@ -1,7 +1,7 @@
 import { beforeAll, expect, test } from "bun:test";
 import { loadVerseSim } from "@aiverse/world-sim/node/loadWorld";
 import { validAction } from "@aiverse/world-sim/actionProtocol";
-import { APPLE_APPROACH, APPLE_ID, APPLE_PICKUP, APPLE_RECEIVING, APPLE_STANDS } from "@aiverse/world-sim/movableProps";
+import { APPLE_APPROACH, APPLE_ID, APPLE_PICKUP, APPLE_RECEIVING, APPLE_STANDS, appleStance } from "@aiverse/world-sim/movableProps";
 import { WorldService } from "@aiverse/world-sim/worldService";
 
 const assets = new URL("../../console/public/assets/", import.meta.url).pathname;
@@ -62,8 +62,8 @@ test("stop before contact releases the reservation and a stopped carry remains h
   const world = new WorldService({ sim, movableProps: true });
   try {
     world.attach("a", { x: 8, z: 12 });
-    world.attach("unsupported", { x: 8, z: 11 }, "eve");
-    expect(world.act("unsupported", "try", grab).outcome?.detail).toContain("unsupported_grip");
+    world.attach("unmeasured", { x: 8, z: 11 }, "elf");
+    expect(world.act("unmeasured", "try", grab).outcome?.detail).toContain("unsupported_grip");
     const first = world.act("a", "first", grab);
     await advance(world, 1);
     world.act("a", "stop1", { type: "stop" });
@@ -90,5 +90,27 @@ test("the sim walks the body in from a few metres; farther than the approach ran
     await advance(world, 22);
     expect(record.outcome?.ok).toBe(true);
     expect(world.observe("a").heldObjects).toEqual([APPLE_ID]);
+  } finally { for (const id of world.agentIds()) world.detach(id); }
+});
+
+test("eve grabs and places from her own measured stance, not remy's", async () => {
+  const world = new WorldService({ sim, movableProps: true });
+  try {
+    const eve = appleStance(APPLE_PICKUP, "eve");
+    expect(Math.hypot(eve[0] - APPLE_STANDS[APPLE_PICKUP].stance[0], eve[1] - APPLE_STANDS[APPLE_PICKUP].stance[1])).toBeGreaterThan(0.02);
+    appleStance(APPLE_PICKUP, "remy").forEach((v, i) => expect(v).toBeCloseTo(APPLE_STANDS[APPLE_PICKUP].stance[i], 6));
+    const seen = world.attach("e", { x: 8, z: 11 }, "eve");
+    expect(seen.movableProps?.object.actions).toEqual(["grab"]);
+    expect(seen.movableProps?.surfaces.find((s) => s.id === APPLE_PICKUP)?.approach).toEqual(eve);
+    const got = world.act("e", "g", grab);
+    await advance(world, 16);
+    expect(got.outcome?.ok).toBe(true);
+    const at = world.body("e");
+    expect([at.x, at.z]).toEqual(eve);
+    const put = world.act("e", "p", place);
+    await advance(world, 22);
+    expect(put.outcome?.ok).toBe(true);
+    expect([world.body("e").x, world.body("e").z]).toEqual(appleStance(APPLE_RECEIVING, "eve"));
+    expect(world.frames().apple?.stand).toBe(APPLE_RECEIVING);
   } finally { for (const id of world.agentIds()) world.detach(id); }
 });
