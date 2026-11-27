@@ -27,6 +27,12 @@ export function levelForXp(xp: number): number {
   return 1 + Math.floor(Math.sqrt(xp / 100));
 }
 
+/** Level fields for a lifetime XP total, shared by every surface that shows them. */
+export function levelInfo(totalXp: number) {
+  const level = levelForXp(totalXp);
+  return { level, nextLevelXp: xpForLevel(level + 1) };
+}
+
 export interface AgentEconomyState {
   energy: number;
   credits: number;
@@ -59,13 +65,11 @@ export async function getAgentEconomyState(
       .limit(100),
   ]);
   const xp = Math.max(0, Math.trunc(totals?.xp ?? 0));
-  const level = levelForXp(xp);
   return {
     energy: state?.energy ?? 100,
     credits: Math.max(0, Math.trunc(totals?.credits ?? 0)),
     xp,
-    level,
-    nextLevelXp: xpForLevel(level + 1),
+    ...levelInfo(xp),
     wants: state?.wants ?? [],
     bag,
   };
