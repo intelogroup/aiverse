@@ -4,7 +4,7 @@ import { AnimationMixer, LoopOnce, SkinnedMesh, Texture } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { expect, it } from "vitest";
 
-it.each(["remy", "cipher", "eve"])("%s plays the Texting pinky bake on its skinned cast", async (name) => {
+it.each(["remy", "cipher", "eve"])("%s binds its face and neck and plays the Texting finger bake", async (name) => {
   const file = readFileSync(new URL(`../public/assets/cast-${name}.glb`, import.meta.url));
   const bytes = Uint8Array.from(file).buffer;
   const loader = new GLTFLoader();
@@ -17,6 +17,15 @@ it.each(["remy", "cipher", "eve"])("%s plays the Texting pinky bake on its skinn
   mixer.clipAction(clip).setLoop(LoopOnce, 1).play();
   const skins = scene.getObjectsByProperty("isSkinnedMesh", true)
     .filter((object): object is SkinnedMesh => object instanceof SkinnedMesh);
+
+  for (const [joint, parent] of [
+    ["Neck1", "Neck"], ["Head", "Neck1"], ["Jaw", "Head"],
+    ["LeftEye", "Head"], ["RightEye", "Head"],
+  ]) {
+    const bone = scene.getObjectByName(`mixamorig${joint}`);
+    expect(bone?.parent?.name).toBe(`mixamorig${parent}`);
+    expect(skins.some((skin) => skin.skeleton.bones.some((candidate) => candidate === bone))).toBe(true);
+  }
 
   for (const side of ["Left", "Right"]) {
     const bone = scene.getObjectByName(`mixamorig${side}HandPinky2`);
