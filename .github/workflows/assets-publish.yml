@@ -1,0 +1,43 @@
+# Uploads every GLB in assets.lock.json that R2 does not have yet. Keys are content hashes, so this only
+# adds objects: nothing is overwritten or deleted, and the app keeps loading what staged-assets.json names.
+# Run it by pushing a branch named assets-publish/<anything>.
+name: Publish locked assets to R2
+on:
+  push:
+    branches: ['assets-publish/**']
+permissions:
+  contents: read
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: oven-sh/setup-bun@v2
+      - name: Files match the lock
+        run: bun tools/assets/assets.ts check
+      - name: Upload and verify missing files
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          AWS_DEFAULT_REGION: auto
+          AWS_PAGER: ''
+        run: |
+          set -euo pipefail
+          test -n "$AWS_ACCESS_KEY_ID" && test -n "$AWS_SECRET_ACCESS_KEY"
+          test "$R2_BUCKET" = verse-assets
+          bun tools/assets/assets.ts missing > "$RUNNER_TEMP/missing.tsv"
+          echo "to upload: $(wc -l < "$RUNNER_TEMP/missing.tsv")"
+          while IFS=$'\t' read -r file key; do
+            [[ "$file" == apps/console/public/assets/*.glb && -f "$file" ]]
+            digest=$(sha256sum "$file" | cut -d' ' -f1)
+            [[ "$key" == "glbs/${digest:0:16}/${file##*/}" ]]
+            aws --endpoint-url "$R2_ENDPOINT" s3api put-object --bucket "$R2_BUCKET" --key "$key" --body "$file" --content-type model/gltf-binary --cache-control 'public, max-age=31536000, immutable' > /dev/null
+            served=$(curl -fsS --retry 4 --retry-all-errors --max-time 120 -H 'Origin: https://aiverse.network' "https://assets.aiverse.network/$key" | sha256sum | cut -d' ' -f1)
+            test "$digest" = "$served"
+            printf '%s  %s\n' "$digest" "$key"
+          done < "$RUNNER_TEMP/missing.tsv"
+      - name: Every locked file is on R2
+        run: bun tools/assets/assets.ts check --remote

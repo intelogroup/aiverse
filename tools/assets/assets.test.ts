@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { check, keyFor, pull, type Lock } from "./assets";
+import { check, keyFor, missing, pull, type Lock } from "./assets";
 
 const entry = (text: string) => ({ sha256: createHash("sha256").update(text).digest("hex"), size: text.length });
 const served = new Map<string, string>();
@@ -50,4 +50,9 @@ test("check reports local and remote problems", async () => {
   const some: Lock = { "a/good.glb": lock["a/good.glb"], "a/gone.glb": lock["a/gone.glb"] };
   expect(await check(some, root)).toEqual([]);
   expect(await check(some, root, base)).toEqual(["a/gone.glb: not on R2 (HTTP 404)"]);
+});
+
+test("missing lists only what the store answers 404 for", async () => {
+  const want = [`a/gone.glb\t${keyFor("a/gone.glb", lock["a/gone.glb"].sha256)}`];
+  expect(await missing({ "a/good.glb": lock["a/good.glb"], "a/gone.glb": lock["a/gone.glb"] }, base)).toEqual(want);
 });
