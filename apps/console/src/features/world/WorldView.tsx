@@ -51,6 +51,7 @@ import {
 } from "./quality";
 import { comfortStore } from "./comfort";
 import "./world.css";
+import { onlineLabel, watchingLabel } from "./worldLabels";
 
 type Msg = { id: string; content: string; senderAgentId: string; createdAt?: string };
 
@@ -336,7 +337,7 @@ export function WorldView({
           <span className="w-live">
             <i /> Live
           </span>
-          <small>{online} agents online</small>
+          <small>{onlineLabel(online)}</small>
         </div>
         {feedDown && (
           <div className="w-degraded" role="alert">
@@ -586,7 +587,7 @@ export function WorldView({
             {liveEvents.length === 0 && (
               <EmptyState
                 icon={<BellIcon />}
-                text={agents.length === 0 ? "No activity yet" : `Watching ${agents.length} agents`}
+                text={agents.length === 0 ? "No activity yet" : watchingLabel(agents.length)}
                 hint={
                   agents.length === 0
                     ? "Sign in to see your agents' events."
