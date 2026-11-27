@@ -61,6 +61,85 @@ function shortUrl(url: string): string {
   }
 }
 
+/** Format one console call's arguments into a single bounded line for
+ *  the black box. Errors keep name + message; objects are JSON with a
+ *  circular guard; the result is length-capped so a runaway log call
+ *  cannot bloat the ring buffer. */
+export function formatLogArgs(args: unknown[]): string {
+  const parts = args.map((a) => {
+    if (typeof a === "string") return a;
+    if (a instanceof Error) return `${a.name}: ${a.message}`;
+    try {
+      return JSON.stringify(a) ?? String(a);
+    } catch {
+      return String(a);
+    }
+  });
+  const joined = parts.join(" ");
+  return joined.length > 1200 ? `${joined.slice(0, 1200)}\u2026` : joined;
+}
+
+const CONSOLE_CAPTURE_CAP = 100;
+const CSP_CAPTURE_CAP = 5;
+
+/** Console + policy capture, so a CDP/DevTools session can read the
+ *  page's failures out of the black box (window.__aiverseTelemetry)
+ *  instead of scraping the console panel: console.error/warn calls,
+ *  CSP violations, and resource load failures are recorded next to the
+ *  world events. The wrappers record, then call through — original
+ *  console behavior is untouched — and capture is capped per kind so a
+ *  log flood cannot evict the world recording. The first few CSP
+ *  violations also go to Sentry: a policy that breaks the world (the
+ *  2026-11-27 wasm block) should page us, not just sit in a buffer. */
+function installConsoleCapture(): void {
+  let errorCount = 0;
+  let warnCount = 0;
+  const origError = console.error.bind(console);
+  const origWarn = console.warn.bind(console);
+  console.error = (...args: unknown[]) => {
+    if (errorCount < CONSOLE_CAPTURE_CAP) {
+      errorCount += 1;
+      recordWorldEvent("console.error", { message: formatLogArgs(args), district: currentDistrict() });
+    }
+    origError(...args);
+  };
+  console.warn = (...args: unknown[]) => {
+    if (warnCount < CONSOLE_CAPTURE_CAP) {
+      warnCount += 1;
+      recordWorldEvent("console.warn", { message: formatLogArgs(args), district: currentDistrict() });
+    }
+    origWarn(...args);
+  };
+
+  let cspSent = 0;
+  window.addEventListener("securitypolicyviolation", (ev) => {
+    const data = {
+      directive: ev.violatedDirective,
+      blockedURI: ev.blockedURI,
+      sample: (ev.sample ?? "").slice(0, 200),
+    };
+    recordWorldEvent("csp.violation", data);
+    if (cspSent < CSP_CAPTURE_CAP) {
+      cspSent += 1;
+      captureConsoleMessage(`CSP violation: ${ev.violatedDirective} blocked ${ev.blockedURI}`, "csp.violation", data);
+    }
+  });
+
+  // Resource load failures (img/script/link) surface as error events on
+  // the element itself, never as window.onerror — the capture phase
+  // listener is what sees them.
+  window.addEventListener(
+    "error",
+    (ev) => {
+      const target = ev.target as (HTMLElement & { src?: string; href?: string }) | null;
+      if (!target || ev.error || typeof target.tagName !== "string") return;
+      const url = target.src ?? target.href ?? "";
+      if (url) recordWorldEvent("resource.error", { tag: target.tagName.toLowerCase(), url: shortUrl(url) });
+    },
+    true,
+  );
+}
+
 /** Per-asset load+parse timings via the shared LoadingManager. Handlers
  *  are chained, never replaced: drei's useProgress keeps working, and
  *  event-based items mean the district-streaming loader composes with
@@ -251,6 +330,23 @@ export function initTelemetry(): void {
       noteErrorKind("manual");
       captureConsoleError(err, "manual");
     },
+    // CDP one-liners: __aiverseTelemetry.errors() / .dump()
+    errors: (n = 50) =>
+      blackbox
+        .all()
+        .filter(
+          (e) =>
+            e.type === "error" ||
+            e.type.startsWith("console.") ||
+            e.type === "csp.violation" ||
+            e.type === "resource.error" ||
+            e.type === "asset.error" ||
+            e.type === "api.error" ||
+            e.type === "react.error" ||
+            e.type.startsWith("ws."),
+        )
+        .slice(-n),
+    dump: () => blackbox.toJSONL(),
   };
   const meta = document.createElement("meta");
   meta.name = "aiverse-build-sha";
@@ -280,6 +376,7 @@ export function initTelemetry(): void {
     recordWorldEvent("error", {
       message: err.message,
       name: err.name,
+      stack: (err.stack ?? "").slice(0, 800),
       district: currentDistrict(),
       source: "window.error",
     });
@@ -292,12 +389,14 @@ export function initTelemetry(): void {
     recordWorldEvent("error", {
       message: reason.message,
       name: reason.name,
+      stack: (reason.stack ?? "").slice(0, 800),
       district: currentDistrict(),
       source: "unhandledrejection",
     });
     noteErrorKind("unhandledrejection");
   });
 
+  installConsoleCapture();
   instrumentAssetLoading();
   startFpsSampler();
   startCameraWatcher();

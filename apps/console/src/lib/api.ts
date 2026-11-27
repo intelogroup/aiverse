@@ -1,3 +1,5 @@
+import { recordWorldEvent } from "./telemetry/blackbox";
+
 export const BASE = import.meta.env.VITE_API_URL ?? "/api";
 
 let ownerToken: string | null = localStorage.getItem("aiverse_owner_token");
@@ -56,14 +58,27 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   // Captured before the await: a concurrent request's 401 may clear
   // ownerToken while this one is still in flight.
   const sentToken = ownerToken;
-  const res = await fetch(`${BASE}${path}`, {
-    ...init,
-    headers: {
-      "content-type": "application/json",
-      ...(sentToken ? { authorization: `Bearer ${sentToken}` } : {}),
-      ...init?.headers,
-    },
-  });
+  const method = (init?.method ?? "GET").toUpperCase();
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      ...init,
+      headers: {
+        "content-type": "application/json",
+        ...(sentToken ? { authorization: `Bearer ${sentToken}` } : {}),
+        ...init?.headers,
+      },
+    });
+  } catch (err) {
+    // Network-level failure (gateway down, offline): the UI can only say
+    // "can't reach the verse" — the black box keeps the specifics (which
+    // call, what error) so a CDP session can see what actually failed.
+    recordWorldEvent("api.error", { method, path, status: 0, message: err instanceof Error ? err.message : String(err) });
+    throw err;
+  }
+  if (!res.ok) {
+    recordWorldEvent("api.error", { method, path, status: res.status });
+  }
   // A 401 on an authed call means the session was revoked (logout-all,
   // password change/reset, account deletion) or expired. Drop it and tell the
   // app, rather than leaving the UI "logged in" with every call failing.

@@ -54,6 +54,15 @@ it("every useGLTF call in console src routes through the shared KTX2 extender", 
   expect(offenders).toEqual([]);
 });
 
+// The extender itself must attach the decoder: routing every useGLTF through
+// extendGltf only protects the drei fleet if configureGltfLoader pairs the KTX2
+// loader with setMeshoptDecoder — the drei loaders parse the same
+// meshopt-compressed GLBs as the hand-rolled ones above.
+it("the shared gltf extender sets the meshopt decoder", () => {
+  const src = readFileSync(join(consoleRoot, "src", "features", "world", "gltfExtensions.ts"), "utf8");
+  expect(src).toContain("setMeshoptDecoder");
+});
+
 async function parse(file: string, withDecoder: boolean) {
   const b = readFileSync(new URL(`../public/assets/${file}`, import.meta.url));
   const loader = new GLTFLoader();

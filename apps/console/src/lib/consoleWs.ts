@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { ConsoleEvent } from "./api";
+import { recordWorldEvent } from "./telemetry/blackbox";
 
 export interface AgentStatusChangedPayload {
   agent_id: string;
@@ -27,14 +28,31 @@ export function useConsoleWs(token: string | null, handlers: Handler) {
     // REST call, then open the socket with a 60s single-use credential — the
     // long-lived token never appears in a query string / access log.
     (async () => {
-      const res = await fetch(`${httpBase}/owners/ws-ticket`, {
-        method: "POST",
-        headers: { authorization: `Bearer ${token}` },
-      });
-      if (!res.ok || cancelled) return;
+      let res: Response;
+      try {
+        res = await fetch(`${httpBase}/owners/ws-ticket`, {
+          method: "POST",
+          headers: { authorization: `Bearer ${token}` },
+        });
+      } catch {
+        // Ticket exchange failed at the network level — previously an
+        // unhandled rejection and a silently dead socket.
+        if (!cancelled) recordWorldEvent("ws.ticket_error", { status: 0 });
+        return;
+      }
+      if (!res.ok || cancelled) {
+        if (!res.ok && !cancelled) recordWorldEvent("ws.ticket_error", { status: res.status });
+        return;
+      }
       const { ticket } = await res.json();
       if (cancelled) return;
       ws = new WebSocket(`${base}/console/ws?ticket=${ticket}`);
+      ws.onerror = () => recordWorldEvent("ws.error", {});
+      ws.onclose = (ev) => {
+        // Cleanup closes with `cancelled` set first, so only unexpected
+        // drops (gateway restart, network loss) are recorded.
+        if (!cancelled) recordWorldEvent("ws.close", { code: ev.code });
+      };
 
       ws.onmessage = (msg) => {
         const event = JSON.parse(String(msg.data));
