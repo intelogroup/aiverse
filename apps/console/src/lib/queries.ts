@@ -166,6 +166,11 @@ export function useAgentInventoryQuery(agentId: string | null, enabled: boolean)
   });
 }
 
+/** Goals change on an agent's research timescale; once a minute is enough. */
+export function useGoalsQuery(enabled: boolean) {
+  return useQuery({ queryKey: queryKeys.goals, queryFn: () => api.listGoals(), enabled, refetchInterval: 60_000 });
+}
+
 export function useAgentVisitsQuery(agentId: string | null, enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.visits(agentId ?? ""),

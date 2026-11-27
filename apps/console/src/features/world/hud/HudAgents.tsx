@@ -1,7 +1,7 @@
 // Top left: the followed agent's plate and the owner's other agents. Energy, XP, level and
 // credits all come from the owner inventory read; the level curve stays on the server.
 import type { Agent, Visit } from "../../../lib/api";
-import { useAgentInventoryQuery, useAgentVisitsQuery } from "../../../lib/queries";
+import { useAgentInventoryQuery, useAgentVisitsQuery, useGoalsQuery } from "../../../lib/queries";
 
 /** Presence visits last 3 minutes and renew themselves, so a countdown is only shown for longer ones. */
 const LONG_VISIT_MS = 5 * 60_000;
@@ -54,6 +54,22 @@ const initials = (name: string) =>
     .slice(0, 2)
     .toUpperCase();
 
+/** Goals still waiting on the agent or on the owner's verdict. */
+const OPEN_GOAL = new Set(["open", "researching", "synthesized"]);
+
+function GoalTracker({ agentId }: { agentId: string }) {
+  const goals = useGoalsQuery(true);
+  const open = (goals.data?.goals ?? []).filter((g) => g.agentId === agentId && OPEN_GOAL.has(g.status));
+  if (open.length === 0) return null;
+  const goal = open[0];
+  return (
+    <small className="hud-goal" title={goal.objective}>
+      {goal.status === "synthesized" ? "Goal ready for your verdict" : "Goal"}: {goal.objective}
+      {open.length > 1 ? ` (+${open.length - 1} more)` : ""}
+    </small>
+  );
+}
+
 function Plate({ agent, inWorld }: { agent: Agent; inWorld: boolean }) {
   const inventory = useAgentInventoryQuery(agent.id, inWorld);
   const visits = useAgentVisitsQuery(agent.id, inWorld);
@@ -87,6 +103,7 @@ function Plate({ agent, inWorld }: { agent: Agent; inWorld: boolean }) {
           Visit: {Math.ceil((Date.parse(visit.endsAt) - visits.dataUpdatedAt) / 60_000)} min left, {visit.actionsUsed}/{visit.maxActions} actions
         </small>
       ) : null}
+      <GoalTracker agentId={agent.id} />
     </>
   );
 }

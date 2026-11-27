@@ -145,6 +145,12 @@
 }
 
 /* toasts, under the location strip */
+.hud-goal {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .hud-gains {
   position: absolute;
   top: 60px;

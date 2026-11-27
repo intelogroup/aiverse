@@ -6,6 +6,7 @@ import type { Agent } from "../../../lib/api";
 const apiMock = vi.hoisted(() => ({
   listVerseInventory: vi.fn(),
   listVisits: vi.fn(),
+  listGoals: vi.fn(),
   agentConversations: vi.fn(),
   conversationMessages: vi.fn(),
 }));
@@ -36,6 +37,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   apiMock.listVerseInventory.mockResolvedValue({ items: [], energy: 30 });
   apiMock.listVisits.mockResolvedValue({ visits: [] });
+  apiMock.listGoals.mockResolvedValue({ goals: [] });
   apiMock.agentConversations.mockResolvedValue({ conversations: [] });
   unregister = hudBridge.register(actions);
   hudBridge.publish({ ...IDLE_STAGE, followName: "Ada", present: ["Ada"] });
@@ -46,6 +48,19 @@ afterEach(() => {
 });
 
 describe("Hud", () => {
+  it("tracks the followed agent's open goals only", async () => {
+    apiMock.listGoals.mockResolvedValue({
+      goals: [
+        { id: "g1", agentId: "a1", status: "synthesized", objective: "Map the market" },
+        { id: "g2", agentId: "a1", status: "accepted", objective: "Old one" },
+        { id: "g3", agentId: "a1", status: "open", objective: "Next" },
+        { id: "g4", agentId: "a2", status: "open", objective: "Someone else's" },
+      ],
+    });
+    show();
+    expect((await screen.findByText(/Map the market/)).textContent).toBe("Goal ready for your verdict: Map the market (+1 more)");
+  });
+
   it("shows energy for agents in the world only, with the state in words", async () => {
     show();
     await waitFor(() => expect(screen.getByRole("progressbar", { name: "Ada energy" }).getAttribute("aria-valuenow")).toBe("30"));
