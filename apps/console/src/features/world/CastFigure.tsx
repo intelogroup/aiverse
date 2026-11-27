@@ -1,4 +1,5 @@
-import { APPLE_CARRY_ROTATIONS, type appleMotion } from "./appleGrip";
+import { APPLE_CARRY_ROTATIONS, APPLE_GRIP_POSITION, REMY_HAND_WORLD_SCALE, type appleMotion } from "./appleGrip";
+import { ArmReach, reachWeight } from "./armReach";
 import { useEffect, useMemo, useRef, type RefObject } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
@@ -183,6 +184,7 @@ export function CastFigure({
     return s;
   }, [gltf, bodyScale]);
 
+  const armReach = useMemo(() => ArmReach.find(scene), [scene]);
   const carryBones = useMemo(() => body.id === "remy" ? Object.entries(APPLE_CARRY_ROTATIONS).flatMap(([name, q]) => {
     const bone = scene.getObjectByName(name);
     return bone ? [{ bone, rotation: new THREE.Quaternion(...q) }] : [];
@@ -303,6 +305,9 @@ export function CastFigure({
   useEffect(() => () => contactShadows.dispose(), [contactShadows]);
   const rmDelta = useRef(new THREE.Vector3());
   const hipsWorldTmp = useRef(new THREE.Vector3());
+  const reachGrip = useRef(new THREE.Vector3());
+  const reachTarget = useRef(new THREE.Vector3());
+  const reachPole = useRef(new THREE.Vector3());
 
   // The head bone, for the first-person camera stream (see the
   // headPoseRef prop). Matched by name suffix: Summer's Mixamo rig
@@ -725,6 +730,14 @@ export function CastFigure({
     // The ground curve is Remy's; other measured bodies ground on their live sole clearance.
     if (activeProp && body.id === "remy") grp.position.y = baseY - fit.lift + activeProp.ground * bodyScale;
     else if (activeProp && contacts.length > 0) grp.position.y = baseY - groundingOffset(soleClearance(contacts, scene), runMin, 0) * bodyScale;
+    // Close the last centimetres between the clip's hand and the apple around contact (each body's reach differs).
+    const reachW = activeProp && armReach ? reachWeight(activeProp.time, activeProp.contact) : 0;
+    if (activeProp && armReach && reachW > 0) {
+      grp.updateMatrixWorld(true);
+      const handScale = armReach.handWorldScale();
+      armReach.update(reachGrip.current.set(...APPLE_GRIP_POSITION).multiplyScalar(REMY_HAND_WORLD_SCALE / handScale),
+        reachTarget.current.set(...activeProp.target), reachW, reachPole.current.set(0, 0, -1).applyQuaternion(grp.quaternion));
+    }
     // Foot lock (footLock.ts), last of the leg edits: only the City 3 walker's gait path, never while a sit override,
     // a tester clip or the body controller owns the pose (their feet are not travelling over the ground).
     if (gaitOn && f && footLock.usable && footLockEnabled()) {

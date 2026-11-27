@@ -1,7 +1,7 @@
 // Remy calibration measured from the shipped Mixamo clips and the Blender pickup/placement previews.
 // Position and rotation are relative to the glTF right-hand joint. Ground samples are at 24 Hz.
 import { SCALE_REMY } from "@aiverse/world-sim/bodies";
-import { APPLE_STANDS, type AppleFrame } from "@aiverse/world-sim/movableProps";
+import { APPLE_STANDS, appleCenter, type AppleFrame } from "@aiverse/world-sim/movableProps";
 
 export const APPLE_GRIP_POSITION = [4.8683313, 26.1374677, 10.8832469] as const;
 export const APPLE_GRIP_ROTATION = [-0.8744955, -0.1513037, 0.3225398, 0.3291386] as const;
@@ -210,5 +210,5 @@ export function appleMotion(frame: AppleFrame | undefined, n: number, t: number)
   const i = Math.min(time * 24, curve.length - 1);
   const lower = Math.floor(i);
   const ground = curve[lower] + (curve[Math.ceil(i)] - curve[lower]) * (i - lower);
-  return { clip: spec.clip, time, ground };
+  return { clip: spec.clip, time, ground, contact: spec.contact, target: appleCenter(run.stand) };
 }
