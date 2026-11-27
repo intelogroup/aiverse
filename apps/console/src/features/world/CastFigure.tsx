@@ -1,4 +1,5 @@
 import type { AppleBody } from "@aiverse/world-sim/movableProps";
+import { STALL_BOTTLE_LIP, STALL_CONSUMABLES, STALL_FINISH_S, STALL_LOWER_S, STALL_MOUTH_S, STALL_PICKUP_S, STALL_RETURN_S, bottleTilt, stallEase, type StallConsumableId } from "@aiverse/world-sim/stallConsumables";
 import { APPLE_CARRY_ROTATIONS, appleGripOffset, type appleMotion } from "./appleGrip";
 import { ArmReach, dipWithLegs, reachWeight } from "./armReach";
 import { useEffect, useMemo, useRef, type RefObject } from "react";
@@ -114,7 +115,9 @@ export function CastFigure({
   renderedReadyRef,
   dissolve,
   applePose,
+  stallPose,
 }: {
+  stallPose?: () => { id: StallConsumableId; time: number } | null;
   applePose?: () => { motion: ReturnType<typeof appleMotion>; held: boolean };
   /**
    * Dissolve (dissolve.ts): when the driver supplies one (RemoteCast, for
@@ -310,6 +313,7 @@ export function CastFigure({
   const reachGrip = useRef(new THREE.Vector3());
   const reachTarget = useRef(new THREE.Vector3());
   const reachPole = useRef(new THREE.Vector3());
+  const stallMouth = useRef(new THREE.Vector3());
 
   // The head bone, for the first-person camera stream (see the
   // headPoseRef prop). Matched by name suffix: Summer's Mixamo rig
@@ -317,13 +321,13 @@ export function CastFigure({
   // `mixamorig:HeadTop_End` (the scalp terminus above it) must NOT
   // match, hence the exact-suffix test rather than a substring.
   const headBone = useMemo(() => {
-    if (!headPoseRef) return null;
+    if (!headPoseRef && !stallPose) return null;
     const matches: THREE.Object3D[] = [];
     scene.traverse((o) => {
       if (o.name.endsWith("Head")) matches.push(o);
     });
     return matches[0] ?? null;
-  }, [scene, headPoseRef]);
+  }, [scene, headPoseRef, !!stallPose]);
   const headWorldTmp = useRef(new THREE.Vector3());
 
   const mixer = useMemo(() => new THREE.AnimationMixer(scene), [scene]);
@@ -741,6 +745,38 @@ export function CastFigure({
       // A body whose clip hand stops short of the apple bends its knees for the rest, feet planted.
       dipWithLegs(grp, reachLegs, armReach.dipNeeded(grip, target) * reachW, reachPole.current.set(0, 0, 1).applyQuaternion(grp.quaternion));
       armReach.update(grip, target, reachW, reachPole.current.set(0, 0, -1).applyQuaternion(grp.quaternion));
+    }
+    const stall = stallPose?.();
+    if (stall && armReach && headBone) {
+      const { id, time } = stall;
+      const fruit = id === "stall-apple";
+      const lowerAt = fruit ? STALL_MOUTH_S + 0.13 : STALL_LOWER_S;
+      const afterReturn = fruit ? 0 : stallEase((time - STALL_RETURN_S) / (STALL_FINISH_S - STALL_RETURN_S));
+      const weight = time < STALL_PICKUP_S ? stallEase(time / STALL_PICKUP_S)
+        : fruit && time > lowerAt ? 1 - stallEase((time - lowerAt) / 0.8)
+        : 1 - afterReturn;
+      if (weight > 0) {
+        for (const { bone, rotation } of carryBones) {
+          if (bone.name.startsWith("mixamorigRightHand")) bone.quaternion.slerp(rotation, weight);
+        }
+        grp.updateMatrixWorld(true);
+        const grip = appleGripOffset(body.id as AppleBody, armReach.handWorldScale(), reachGrip.current);
+        const mouth = headBone.getWorldPosition(stallMouth.current);
+        // The head joint is at the base of the skull. Aim for the front of the lips in the body's frame.
+        mouth.y += fruit ? -0.008 : 0.009;
+        mouth.z += fruit ? 0.145 : 0.096;
+        if (!fruit) {
+          const tilt = bottleTilt(time);
+          mouth.y -= STALL_BOTTLE_LIP * Math.cos(tilt);
+          mouth.z -= STALL_BOTTLE_LIP * Math.sin(tilt);
+        }
+        const raised = stallEase((time - STALL_PICKUP_S) / (STALL_MOUTH_S - STALL_PICKUP_S));
+        const lowered = fruit ? 0 : stallEase((time - lowerAt) / (STALL_RETURN_S - lowerAt));
+        const [x, y, z] = STALL_CONSUMABLES[id].position;
+        const target = reachTarget.current.set(x, y, z).lerp(mouth, raised * (1 - lowered));
+        // Keep the elbow below the wrist for a standing bite or sip. The idle clip can seed a backward bend.
+        armReach.followGrip(grip, target, weight, reachPole.current.set(-0.42, -1, 0.12).normalize());
+      }
     }
     // Foot lock (footLock.ts), last of the leg edits: only the City 3 walker's gait path, never while a sit override,
     // a tester clip or the body controller owns the pose (their feet are not travelling over the ground).

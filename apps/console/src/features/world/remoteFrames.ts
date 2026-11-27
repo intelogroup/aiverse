@@ -31,6 +31,7 @@ export class RemoteBodies {
   /** Bumped whenever the set of bodies or names changes, so React re-renders only then. */
   rev = 0;
   apple: FramesMessage["apple"];
+  stallProps: FramesMessage["stallProps"];
   teaCupHolder: number | null | undefined;
   /** Speech bubbles: body number -> the line and the local time (ms) it stops showing. */
   private said = new Map<number, { text: string; until: number }>();
@@ -63,6 +64,7 @@ export class RemoteBodies {
     if (m.epoch !== this.epoch || (m.key && this.offset !== null && m.t < this.lastT())) { this.samples.clear(); this.offset = null; this.epoch = m.epoch; }
     this.teaCupHolder = m.teaCupHolder;
     this.apple = m.apple;
+    this.stallProps = m.stallProps;
     const est = m.t - localS;
     this.offset = this.offset === null ? est : lerp(this.offset, est, 0.1);
     if (m.key) {
@@ -79,7 +81,7 @@ export class RemoteBodies {
     }
   }
 
-  clear(): void { this.samples.clear(); this.info.clear(); this.said.clear(); this.teaCupHolder = undefined; this.apple = undefined; this.offset = null; this.rev++; }
+  clear(): void { this.samples.clear(); this.info.clear(); this.said.clear(); this.teaCupHolder = undefined; this.apple = undefined; this.stallProps = undefined; this.offset = null; this.rev++; }
 
   private lastT(): number {
     let t = -Infinity;

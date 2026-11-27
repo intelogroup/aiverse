@@ -89,6 +89,7 @@ export function solveTwoBone(
   fallbackPole: THREE.Vector3,
   outKnee: THREE.Vector3,
   outAnkle: THREE.Vector3,
+  poleBias = 0,
 ): number {
   const l1 = a.distanceTo(b);
   const l2 = b.distanceTo(c);
@@ -99,6 +100,7 @@ export function solveTwoBone(
   const d = at.length();
   const dir = d > 1e-9 ? at.divideScalar(d) : acN.clone();
   if (pole.lengthSq() < 1e-8) pole.copy(fallbackPole);
+  else if (poleBias > 0) pole.normalize().lerp(fallbackPole, poleBias);
   pole.addScaledVector(dir, -pole.dot(dir));
   if (pole.lengthSq() < 1e-12) pole.set(0, 0, 1).addScaledVector(dir, -dir.z);
   pole.normalize();

@@ -2,7 +2,7 @@ import { randomInt } from "node:crypto";
 import { and, asc, desc, eq, gt, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
-import { agents, agentVisits, verseBounties, verseBountyClaims, verseInventory, verseProgressEvents, verseSaleOffers } from "@aiverse/shared/schema";
+import { agents, agentVisits, verseBounties, verseBountyClaims, verseInventory, verseAgentState, verseProgressEvents, verseSaleOffers } from "@aiverse/shared/schema";
 import { db } from "../db/client";
 import { adminAuth } from "../middleware/adminAuth";
 import { agentAuth } from "../middleware/agentAuth";
@@ -51,9 +51,10 @@ verseEconomyRoute.get("/owners/agents/:id/inventory", ownerAuth, async (c) => {
   const agent = await loadOwnedAgent(c.get("ownerId"), id.data);
   if (!agent) return c.json({ error: "not_found" }, 404);
   const enabled = salesEnabled();
-  const [items, totals, receipts] = await Promise.all([listInventory(agent.id, after.data),
-    enabled ? progress(agent.id) : null, enabled && !after.data ? listReceipts(agent.id) : null]);
-  return c.json({ items, ...(totals ? { progress: totals } : {}), ...(receipts ? { receipts } : {}) });
+  const [items, totals, receipts, [state]] = await Promise.all([listInventory(agent.id, after.data),
+    enabled ? progress(agent.id) : null, enabled && !after.data ? listReceipts(agent.id) : null,
+    db.select({ energy: verseAgentState.energy }).from(verseAgentState).where(eq(verseAgentState.agentId, agent.id))]);
+  return c.json({ items, energy: state?.energy ?? 100, ...(totals ? { progress: totals } : {}), ...(receipts ? { receipts } : {}) });
 });
 
 verseEconomyRoute.post("/admin/verse/inventory", adminAuth, async (c) => {

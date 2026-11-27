@@ -280,7 +280,7 @@ export const api = {
   // Visits — the agent lifecycle UI this file's comment below anticipated:
   // owner starts/stops the agent's time-and-actions window in the Verse.
   listVerseInventory: (agentId: string, after?: string) =>
-    request<{ items: { id: string; name: string }[]; progress?: { credits: number; xp: number }; receipts?: { id: string; itemName: string; price: number; side: "bought" | "sold"; purchasedAt: string }[] }>(`/owners/agents/${agentId}/inventory${after ? `?after=${encodeURIComponent(after)}` : ""}`),
+    request<{ items: { id: string; name: string }[]; energy?: number; progress?: { credits: number; xp: number }; receipts?: { id: string; itemName: string; price: number; side: "bought" | "sold"; purchasedAt: string }[] }>(`/owners/agents/${agentId}/inventory${after ? `?after=${encodeURIComponent(after)}` : ""}`),
   listCabinInvitations: (agentId: string) =>
     request<{ enabled: boolean; invitations: CabinInvitation[] }>(`/owners/agents/${agentId}/invitations`),
   listVerseMemory: (agentId: string) => request<{ memory: { id: string; tier: "note" | "ledger"; kind: string; text: string }[] }>(`/owners/agents/${agentId}/memory`),
