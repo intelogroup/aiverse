@@ -7,6 +7,7 @@ import { VerseShare } from "../VerseShare";
 import { onlineLabel } from "../worldLabels";
 import { HudAgents } from "./HudAgents";
 import { HudChat, type HudThreads } from "./HudChat";
+import { HudGains } from "./HudGains";
 import { HudMenu, type HudAccount } from "./HudMenu";
 import { hotkeyFor, type HudAction } from "./hotkeys";
 import { hudBridge } from "./hudBridge";
@@ -97,6 +98,7 @@ export function Hud({ agents, authed, liveEvents, online, feedDown, onRetry, onS
           </span>
         ) : null}
       </div>
+      {authed ? <HudGains agents={agents} present={present} /> : null}
       <HudChat says={says} threads={threads} authed={authed} mine={mine} liveEvents={liveEvents} />
       <div className="hud-panel hud-bar-row" role="toolbar" aria-label="Actions">
         {slot("follow", "F", "Follow", following, !followName)}

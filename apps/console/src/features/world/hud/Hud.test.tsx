@@ -46,13 +46,40 @@ afterEach(() => {
 });
 
 describe("Hud", () => {
-  it("shows energy for agents in the world only, with the state in words, and no XP or credits", async () => {
+  it("shows energy for agents in the world only, with the state in words", async () => {
     show();
     await waitFor(() => expect(screen.getByRole("progressbar", { name: "Ada energy" }).getAttribute("aria-valuenow")).toBe("30"));
     expect(screen.getByText("30/100 Tired")).toBeTruthy();
     expect(apiMock.listVerseInventory.mock.calls.map((c) => c[0])).toEqual(["a1"]);
     expect(screen.getByText("Away")).toBeTruthy();
-    expect(document.body.textContent).not.toMatch(/XP|credits|Level/);
+  });
+
+  it("flag off: says progress is not tracked and draws no XP bar, level or credits", async () => {
+    show();
+    await screen.findByText("XP and credits are not tracked here.");
+    expect(screen.queryByRole("progressbar", { name: "Ada XP" })).toBeNull();
+    expect(document.body.textContent).not.toMatch(/Level \d|\d credits|\d XP/);
+  });
+
+  it("shows level, lifetime XP and credits, and toasts only when a later value is higher", async () => {
+    const progress = { credits: 4, xp: 120, level: 2, nextLevelXp: 400 };
+    apiMock.listVerseInventory.mockResolvedValue({ items: [], energy: 80, progress });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    show({}, client);
+    const bar = await screen.findByRole("progressbar", { name: "Ada XP" });
+    expect([bar.getAttribute("aria-valuenow"), bar.getAttribute("aria-valuemax")]).toEqual(["120", "400"]);
+    expect(screen.getByText("120 of 400 XP")).toBeTruthy();
+    expect(screen.getByText("Level 2")).toBeTruthy();
+    expect(screen.getByText("4 credits")).toBeTruthy();
+    const toasts = screen.getByRole("log", { name: "Gains" });
+    expect(toasts.textContent).toBe("");
+    apiMock.listVerseInventory.mockResolvedValue({ items: [], energy: 80, progress: { ...progress, credits: 1 } });
+    await client.refetchQueries();
+    await screen.findByText("1 credits");
+    expect(toasts.textContent).toBe("");
+    apiMock.listVerseInventory.mockResolvedValue({ items: [], energy: 80, progress: { credits: 4, xp: 400, level: 3, nextLevelXp: 900 } });
+    await client.refetchQueries();
+    await waitFor(() => expect(toasts.textContent).toBe("Ada: +280 XP, +3 credits, level 3"));
   });
 
   it("keeps the last energy and says when it is from once the gateway stops answering", async () => {
