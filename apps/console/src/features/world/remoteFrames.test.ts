@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FramesMessage, PoseTuple } from "@aiverse/world-sim/streamProtocol";
-import { RENDER_DELAY_S, RemoteBodies, writeRemoteFrame } from "./remoteFrames";
+import { RENDER_DELAY_S, RemoteBodies, SAY_LOG_MAX, writeRemoteFrame } from "./remoteFrames";
 import { newWalkerFrame } from "./walkerBody";
 
 const tup = (n: number, xm: number, zm = 0, h = 0, s = 0, p = 0): PoseTuple => [n, Math.round(xm * 100), 0, Math.round(zm * 100), Math.round(h * 1000), Math.round(s * 100), p];
@@ -116,5 +116,22 @@ describe("writeRemoteFrame", () => {
     r.applyFrames(msg(10.2, [], { gone: [1] }), 100.2);
     expect(r.list()).toEqual([]);
     expect(r.sample(1, 10.2)).toBeNull();
+  });
+});
+
+describe("say log", () => {
+  it("keeps lines after the bubble expires, names the speaker, and caps the length", () => {
+    const r = new RemoteBodies();
+    r.applyRoster(roster);
+    r.applySay({ say: [{ n: 1, text: "hello" }, { n: 9, text: "who" }] } as never, 0);
+    expect(r.bubble(1, 60_000)).toBeNull();
+    expect(r.says.map((l) => [l.name, l.text])).toEqual([["Wanderer", "hello"], ["Someone", "who"]]);
+    const before = r.says;
+    for (let i = 0; i < SAY_LOG_MAX; i++) r.applySay({ say: [{ n: 1, text: `line ${i}` }] } as never, 0);
+    expect(r.says).not.toBe(before);
+    expect(r.says).toHaveLength(SAY_LOG_MAX);
+    expect(r.says[0].text).toBe("line 0");
+    r.clear();
+    expect(r.says).toHaveLength(SAY_LOG_MAX);
   });
 });
