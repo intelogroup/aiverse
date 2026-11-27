@@ -52,6 +52,8 @@ from bridge_wave1 import Glb, save_glb                             # noqa: E402
 GLB = f"{HERE}/../../apps/console/public/assets/world-city3.glb"
 GOODS_PREFIX = "inst_goods_"
 STALL_PREFIX = "SK_med_stall"
+# world x/z of STALL_CONSUMABLES (packages/world-sim/src/stallConsumables.ts)
+PINNED = ((26.15, 29.38), (17.39, 41.38))
 
 
 def adapter(g):
@@ -87,7 +89,8 @@ def stall_state(g, name):
 
 def datum(st, lx, lz, half):
     """Datum under a footprint -- the audit's `support()`, so both agree by construction."""
-    return audit_mod.support(st["counter"], st["origin"], lx, lz, half)
+    # all nine samples: a placed piece may not hang over the counter edge
+    return audit_mod.support(st["counter"], st["origin"], lx, lz, half, need=9)
 
 
 
@@ -99,6 +102,10 @@ def occupied(st, lx, lz, half, level, margin=0.05):
     """
     return audit_mod.occupied_hit(st["clutter"], st["origin"], lx, lz, half, level, margin)
 
+
+
+def pinned(t):
+    return any(math.hypot(t[0] - x, t[2] - z) < 0.3 for x, z in PINNED)
 
 
 def clash(a, b, margin=0.02):
@@ -156,7 +163,7 @@ def target_states(g, names):
     return out
 
 
-def place(g, targets, reach, step):
+def place(g, targets, reach, step, max_pieces=None, gap=0.0, remove=()):
     """Plan the new instance transforms for every target stall in one pass.
 
     One pass, not one run per stall: each goods accessor is rewritten once, which
@@ -178,9 +185,32 @@ def place(g, targets, reach, step):
                         keys={})
                for nm, st in targets.items()}
     taken = {nm: [] for nm in targets}      # (lx, lz, hx, hz) placed by this run
-
-
-    for ni, n in enumerate(doc["nodes"]):
+    # reserve each pinned board's real footprint first: nothing may land on one
+    for n in doc["nodes"]:
+        name = n.get("name") or ""
+        ext = (n.get("extensions") or {}).get("EXT_mesh_gpu_instancing")
+        if not name.startswith(GOODS_PREFIX) or not ext or "mesh" not in n:
+            continue
+        T, _ = audit_mod.meshopt_decode(ad, ext["attributes"]["TRANSLATION"])
+        R, _ = audit_mod.meshopt_decode(ad, ext["attributes"]["ROTATION"])
+        S, _ = audit_mod.meshopt_decode(ad, ext["attributes"]["SCALE"])
+        box = glb.mesh_aabb(doc, n["mesh"])
+        for t, q, sc in zip(T, R, S):
+            if box is None or min(abs(float(v)) for v in sc) < 1e-6 or not pinned(t):
+                continue
+            owner = min(all_stalls, key=lambda s: (s["T"][0] - t[0]) ** 2
+                        + (s["T"][2] - t[2]) ** 2)["node"]
+            if owner in targets:
+                w_inv = targets[owner]["W_inv"]
+                lx, _, lz = (w_inv @ np.array([t[0], t[1], t[2], 1.0]))[:3]
+                half = audit_mod.footprint_half(
+                    ((box[1][0] - box[0][0]) * sc[0] / 2,
+                     (box[1][2] - box[0][2]) * sc[2] / 2), q, w_inv)
+                taken[owner].append((lx, lz, half[0], half[1]))
+    # food and bottles claim counter room first, so the cap drops props, not goods
+    first = tuple(GOODS_PREFIX + p for p in ("bottles", "crate", "mound", "pyr"))
+    for ni, n in sorted(enumerate(doc["nodes"]),
+                        key=lambda e: not (e[1].get("name") or "").startswith(first)):
         name = n.get("name") or ""
         ext = (n.get("extensions") or {}).get("EXT_mesh_gpu_instancing")
         if not name.startswith(GOODS_PREFIX) or not ext or "mesh" not in n:
@@ -213,6 +243,10 @@ def place(g, targets, reach, step):
                 # moving it would only produce a corrected transform for nothing
                 rep["pieces"]["hidden"] += 1
                 continue
+            # the board a usable apple/bottle rests on stays exactly where it is
+            if pinned(t):
+                rep["pieces"]["kept"] += 1
+                continue
             if t[1] > ground + audit_mod.HANG_Y:
                 rep["pieces"]["hanging"] += 1
                 continue
@@ -226,18 +260,20 @@ def place(g, targets, reach, step):
                 rep["pieces"]["skipped_tilted"] += 1
                 continue
             loc = (st["W_inv"] @ np.array([t[0], t[1], t[2], 1.0]))[:3]
-            half = (max(box[1][0] - box[0][0], 0.05) * S[k][0] / 2,
-                    max(box[1][2] - box[0][2], 0.05) * S[k][2] / 2)
+            half = audit_mod.footprint_half(
+                (max(box[1][0] - box[0][0], 0.05) * S[k][0] / 2,
+                 max(box[1][2] - box[0][2], 0.05) * S[k][2] / 2), q, st["W_inv"])
             d0 = datum(st, loc[0], loc[2], (0.0, 0.0))
             rec = dict(key=key, instance=k, old_y=round(float(t[1]), 3),
                        old_gap=None if d0 is None else round(bottom - (ground + d0), 3))
             spot = None
-            for dx, dz in candidates(reach, step):
+            full = key in remove or (max_pieces is not None and len(taken[owner]) >= max_pieces)
+            for dx, dz in [] if full else candidates(reach, step):
                 lx, lz = loc[0] + dx, loc[2] + dz
                 d = datum(st, lx, lz, half)
                 if d is None or occupied(st, lx, lz, half, d):
                     continue
-                if any(clash((lx, lz, half[0], half[1]), t2) for t2 in taken[owner]):
+                if any(clash((lx, lz, half[0], half[1]), t2, 0.02 - gap) for t2 in taken[owner]):
                     continue
                 spot = (lx, lz, d, dx, dz)
                 break
@@ -405,6 +441,9 @@ def main():
     ap.add_argument("--reach", type=float, default=0.75,
                     help="max nudge along the counter, m (the back row starts 0.3 m off it)")
     ap.add_argument("--step", type=float, default=0.04)
+    ap.add_argument("--max-pieces", type=int, help="declutter: counter pieces kept per stall")
+    ap.add_argument("--gap", type=float, default=0.0, help="declutter: free space between pieces, m")
+    ap.add_argument("--remove", action="append", default=[], help="declutter: goods key to hide everywhere")
     ap.add_argument("--verbose", action="store_true", help="one line per piece")
     ap.add_argument("--collision", help="collision GLB to clean alongside the visual")
     ap.add_argument("--collision-out", help="collision output path for --apply")
@@ -418,7 +457,7 @@ def main():
     targets = target_states(g, names)
     print(f"{len(targets)} stall(s); variants "
           f"{sorted({st['mesh_name'] for st in targets.values()})}")
-    plan, reports = place(g, targets, a.reach, a.step)
+    plan, reports = place(g, targets, a.reach, a.step, a.max_pieces, a.gap, set(a.remove))
     crates = floor_crates(g, targets)
     print(f"ground shipping crates: {len(crates)}")
     if a.collision:
