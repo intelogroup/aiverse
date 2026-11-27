@@ -84,7 +84,7 @@ export function Hud({ agents, authed, liveEvents, online, feedDown, onRetry, onS
 
   // Hidden with CSS, not unmounted: a running recording and the open chat tab survive.
   return (
-    <div className={`hud${touch ? " hud-touch" : ""}${chat ? " hud-chat-open" : ""}${hidden ? " hud-off" : ""}${walking ? " hud-walking" : ""}`}>
+    <div className={`hud${touch ? " hud-touch" : ""}${chat ? " hud-chat-open" : ""}${bigMap ? " hud-map-open" : ""}${hidden ? " hud-off" : ""}${walking ? " hud-walking" : ""}`}>
       <HudAgents
         agents={agents}
         authed={authed}

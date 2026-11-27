@@ -427,7 +427,28 @@
 .hud.hud-touch .hud-map.large {
   display: flex;
   top: 150px;
+  bottom: calc(124px + env(safe-area-inset-bottom));
   width: min(300px, calc(100% - 24px));
+  z-index: 2;
+  background: var(--hud-solid);
+}
+.world-root .hud.hud-touch .hud-map.large button {
+  flex: 1;
+  min-height: 0;
+}
+.hud.hud-touch .hud-map.large svg {
+  height: 100%;
+}
+/* An open panel takes the space of the location strip (and the map, of the ticker). */
+.hud.hud-touch.hud-chat-open .hud-strip,
+.hud.hud-touch.hud-map-open .hud-strip,
+.world-root .hud.hud-touch.hud-map-open .hud-ticker {
+  display: none;
+}
+.world-root .hud.hud-touch a.hud-btn {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
 }
 .world-root .hud.hud-touch .hud-ticker {
   position: absolute;
@@ -479,7 +500,7 @@
   min-height: 44px;
   min-width: 44px;
 }
-.world-root.w-hud.w-shell-touch .w-asset-credit {
+.world-root.w-hud.w-shell-touch:not(:has(.hud-walking)) .w-asset-credit {
   right: 12px;
   bottom: calc(72px + env(safe-area-inset-bottom));
   min-height: 44px;
@@ -492,6 +513,25 @@
 }
 .world-root.w-hud.w-shell-touch .w-sheet-backdrop {
   z-index: 40;
+}
+
+/* VerseShare styles its buttons inline. */
+.world-root.w-hud.w-shell-touch .w-verse-share button {
+  min-height: 44px !important;
+  min-width: 44px;
+}
+/* The long-press tip would cover WALK and the credit link; it sits under the plate instead. */
+.world-root.w-hud.w-shell-touch:not(:has(.hud-walking)) .w-coach-pill {
+  top: 136px;
+  bottom: auto;
+}
+.world-root.w-hud.w-shell-touch .w-coach-pill button {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.world-root:has(.hud-chat-open, .hud-map-open) .w-coach-pill {
+  display: none;
 }
 
 /* The walk panel sits under the asset credit link without this. */
