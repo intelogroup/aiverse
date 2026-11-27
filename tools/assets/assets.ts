@@ -4,10 +4,11 @@
  *   bun tools/assets/assets.ts lock                    rewrite the lock from the tracked GLBs
  *   bun tools/assets/assets.ts check [--remote]        files (and R2 objects) match the lock
  *   bun tools/assets/assets.ts pull [--force] [--root DIR]
+ *   bun tools/assets/assets.ts missing                 "path<TAB>key" for each file R2 lacks
  *
  * Keys are `glbs/<sha256[0:16]>/<basename>`, the same ones the R2 release workflow uploads. They come
  * from the lock's own hash, never from staged-assets.json, which can name older bytes.
- * Downloads are anonymous. Nothing here uploads.
+ * Downloads are anonymous. Nothing here uploads; .github/workflows/assets-publish.yml does.
  */
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
@@ -85,6 +86,17 @@ export async function check(lock: Lock, root: string, base?: string) {
   return failed.sort();
 }
 
+/** What an upload has to send. Only a 404 counts as absent; any other answer stops the run. */
+export async function missing(lock: Lock, base: string) {
+  const out: string[] = [];
+  await pool(Object.entries(lock), 8, async ([path, want]) => {
+    const { res } = await request(`${base}/${keyFor(path, want.sha256)}`, "HEAD");
+    if (res.status === 404) out.push(`${path}\t${keyFor(path, want.sha256)}`);
+    else if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`);
+  });
+  return out.sort();
+}
+
 function tracked(): string[] {
   const git = Bun.spawnSync(["git", "ls-files", "-z", "--", TRACKED], { cwd: REPO });
   if (git.exitCode !== 0) throw new Error("git ls-files failed");
@@ -113,7 +125,12 @@ async function main(argv: string[]) {
   const [command] = argv;
   const flag = (name: string) => argv.includes(name);
   if (command === "lock") return writeLock();
-  if (command !== "check" && command !== "pull") throw new Error("usage: assets.ts lock | check [--remote] | pull [--force] [--root DIR]");
+  if (command === "missing") {
+    const lock: Lock = JSON.parse(readFileSync(LOCK, "utf8"));
+    for (const line of await missing(lock, BASE)) console.log(line);
+    return;
+  }
+  if (command !== "check" && command !== "pull") throw new Error("usage: assets.ts lock | missing | check [--remote] | pull [--force] [--root DIR]");
   const lock: Lock = JSON.parse(readFileSync(LOCK, "utf8"));
   const at = argv.indexOf("--root");
   if (at >= 0 && !argv[at + 1]) throw new Error("--root needs a directory");
