@@ -8,6 +8,7 @@ import { SoundDirector } from "./soundDirector";
 import { PLAYER, TeaDoorController } from "./teaDoor";
 import { InteractController } from "./interactables";
 import { loadPercent, worldLoadPhase } from "./worldLoad";
+import { doorChipClip } from "./walkTouch";
 
 /** Fires once when the Suspense subtree it sits in actually mounts —
  * the "the world is on screen" signal the loading overlay waits for. */
@@ -144,9 +145,11 @@ export function soundDebugSurface(sound: SoundDirector) {
 }
 
 /**
- * Walk-mode clip HUD (City 3, shown while walking, ride and follow
- * alike): Jim's test buttons for the clips speed alone cannot reach on
- * the walk bot — the Run loop (the bot's walk pace never crosses the
+ * Walk-mode panel (City 3, shown while walking, ride and follow
+ * alike): the sound consent/mute row, the Tea House door action when in
+ * range, and the door / E-prompt status. With `?debug=1` it also shows
+ * the test buttons for the clips speed alone cannot reach on the walk
+ * bot — the Run loop (the bot's walk pace never crosses the
  * run threshold) and the two door one-shots the door work performs
  * with. The buttons drive a WalkClipOverride (walkOverride.ts); the
  * bot's CastFigure consumes it as its clip tester, the same
@@ -184,46 +187,69 @@ export function WalkHudPanel({
   const fr = frameRef.current;
   const doorStatus = door?.status() ?? null;
   const interactStatus = interact?.status(PLAYER) ?? null;
+  const debug = new URLSearchParams(window.location.search).get("debug") === "1";
+  // The only desktop way to open the Tea House door: same range check as the touch chip.
+  const doorClip =
+    door && fr && fr.x !== undefined && fr.z !== undefined ? doorChipClip(fr.x, fr.z, door.state, door.phase) : null;
+  const soundRow = !!sound && (sound.consent === "unknown" || sound.consent === "granted");
+  if (!debug && !doorClip && !soundRow && !doorStatus && !interactStatus) return null;
   // The PA banner no longer renders here (F1): it moved to the shell
   // (ShellPaBanner in GlbWorld) so spectators in the wide view see
   // platform announcements too, not only walkers.
   return (
     <div className="w-embody-panel w-walk-panel">
-      <div className="w-embody-title">Walk clips — test</div>
-      <div className="w-embody-row" role="group" aria-label="Walk clip tests">
-        <button
-          type="button"
-          className={override.runHeld ? "active" : ""}
-          onClick={() => {
-            override.toggleRun();
-            bump();
-          }}
-        >
-          Run
-        </button>
-        <button
-          type="button"
-          className={override.doorClip === "OpenDoorInwards" ? "active" : ""}
-          onClick={() => {
-            if (door) door.request("OpenDoorInwards");
-            else override.fireDoor("OpenDoorInwards");
-            bump();
-          }}
-        >
-          Open door in
-        </button>
-        <button
-          type="button"
-          className={override.doorClip === "OpenDoorOutwards" ? "active" : ""}
-          onClick={() => {
-            if (door) door.request("OpenDoorOutwards");
-            else override.fireDoor("OpenDoorOutwards");
-            bump();
-          }}
-        >
-          Open door out
-        </button>
-      </div>
+      {debug ? (
+        <>
+          <div className="w-embody-title">Walk clips — test</div>
+          <div className="w-embody-row" role="group" aria-label="Walk clip tests">
+            <button
+              type="button"
+              className={override.runHeld ? "active" : ""}
+              onClick={() => {
+                override.toggleRun();
+                bump();
+              }}
+            >
+              Run
+            </button>
+            <button
+              type="button"
+              className={override.doorClip === "OpenDoorInwards" ? "active" : ""}
+              onClick={() => {
+                if (door) door.request("OpenDoorInwards");
+                else override.fireDoor("OpenDoorInwards");
+                bump();
+              }}
+            >
+              Open door in
+            </button>
+            <button
+              type="button"
+              className={override.doorClip === "OpenDoorOutwards" ? "active" : ""}
+              onClick={() => {
+                if (door) door.request("OpenDoorOutwards");
+                else override.fireDoor("OpenDoorOutwards");
+                bump();
+              }}
+            >
+              Open door out
+            </button>
+          </div>
+        </>
+      ) : null}
+      {!debug && doorClip ? (
+        <div className="w-embody-row">
+          <button
+            type="button"
+            onClick={() => {
+              door?.request(doorClip);
+              bump();
+            }}
+          >
+            Open the Tea House door
+          </button>
+        </div>
+      ) : null}
       {sound && sound.consent === "unknown" ? (
         <div className="w-embody-row" role="group" aria-label="Sound permission">
           <span className="w-sound-ask">Hear the verse on this device?</span>
@@ -265,18 +291,22 @@ export function WalkHudPanel({
           </button>
         </div>
       ) : null}
-      <div className="w-embody-status">
-        {fr
-          ? `anim ${override.displayClip(fr.state)} · ${fr.speed.toFixed(2)} m/s`
-          : "anim — · no frame yet"}
-        {override.doorPlaying
-          ? " · door one-shot — bot standing"
-          : override.runHeld
-            ? " · Run held"
-            : ""}
-        {doorStatus ? ` · ${doorStatus}` : ""}
-        {interactStatus ? ` · ${interactStatus}` : ""}
-      </div>
+      {debug ? (
+        <div className="w-embody-status">
+          {fr
+            ? `anim ${override.displayClip(fr.state)} · ${fr.speed.toFixed(2)} m/s`
+            : "anim — · no frame yet"}
+          {override.doorPlaying
+            ? " · door one-shot — bot standing"
+            : override.runHeld
+              ? " · Run held"
+              : ""}
+          {doorStatus ? ` · ${doorStatus}` : ""}
+          {interactStatus ? ` · ${interactStatus}` : ""}
+        </div>
+      ) : doorStatus || interactStatus ? (
+        <div className="w-embody-status">{[doorStatus, interactStatus].filter(Boolean).join(" · ")}</div>
+      ) : null}
     </div>
   );
 }
