@@ -197,6 +197,47 @@
   background: var(--hud-xp);
 }
 
+/* top right */
+.hud-map {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px;
+  width: 168px;
+}
+.hud-map.large {
+  width: 300px;
+}
+.world-root .hud .hud-map button {
+  display: block;
+  width: 100%;
+  padding: 0;
+}
+.hud-map svg {
+  display: block;
+  width: 100%;
+  border-radius: var(--hud-radius-bar);
+  background: var(--hud-well);
+}
+.hud-map .room {
+  fill: var(--hud-dim);
+  opacity: 0.55;
+}
+.hud-map .stall {
+  fill: var(--hud-dim);
+  opacity: 0.3;
+}
+.hud-map .mine {
+  fill: var(--hud-energy);
+}
+.hud-map .other {
+  fill: var(--hud-other);
+}
+
 /* bottom left */
 .hud-chat {
   position: absolute;
@@ -342,6 +383,7 @@
 }
 .hud.hud-walking > .hud-chat,
 .hud.hud-walking > .hud-bar-row,
+.hud.hud-walking > .hud-map,
 .hud.hud-walking > .hud-menu-btn {
   display: none;
 }

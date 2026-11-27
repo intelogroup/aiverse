@@ -16,6 +16,10 @@ export interface HudActions {
   follow: (name: string) => void;
   toggleFollow: () => void;
   walk: () => void;
+  /** Where every streamed body is now, in world metres. */
+  bodies: () => { name: string; x: number; z: number }[];
+  /** The ground point the camera looks at. */
+  focus: () => { x: number; z: number } | null;
   /** The GlbWorld element holding the canvas (Record and Share read it). */
   root: { current: HTMLDivElement | null };
 }

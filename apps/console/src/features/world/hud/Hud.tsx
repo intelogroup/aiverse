@@ -4,10 +4,10 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Agent, ConsoleEvent } from "../../../lib/api";
 import { VerseRecorder } from "../VerseRecorder";
 import { VerseShare } from "../VerseShare";
-import { onlineLabel } from "../worldLabels";
 import { HudAgents } from "./HudAgents";
 import { HudChat, type HudThreads } from "./HudChat";
 import { HudGains } from "./HudGains";
+import { HudMap } from "./HudMap";
 import { HudMenu, type HudAccount } from "./HudMenu";
 import { hotkeyFor, type HudAction } from "./hotkeys";
 import { hudBridge } from "./hudBridge";
@@ -31,6 +31,7 @@ export function Hud({ agents, authed, liveEvents, online, feedDown, onRetry, onS
   const { stage, actions } = useSyncExternalStore(hudBridge.subscribe, hudBridge.getSnapshot);
   const [hidden, setHidden] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [bigMap, setBigMap] = useState(false);
   const recordRef = useRef<HTMLDivElement>(null);
   const { walking, following, followName, present, says } = stage;
   const mine = authed ? (agents.find((a) => a.name === followName) ?? agents[0] ?? null) : null;
@@ -41,6 +42,7 @@ export function Hud({ agents, authed, liveEvents, online, feedDown, onRetry, onS
     else if (action === "walk") actions?.walk();
     else if (action === "agents") manage();
     else if (action === "record") recordRef.current?.querySelector("button")?.click();
+    else if (action === "map") setBigMap((m) => !m);
     else if (action === "hide") setHidden((h) => !h);
     else setMenu(true);
   };
@@ -86,23 +88,24 @@ export function Hud({ agents, authed, liveEvents, online, feedDown, onRetry, onS
         onSignIn={onSignIn}
         onManage={manage}
       />
-      <div className="hud-panel hud-strip" role="status">
-        <span>{walking ? "Walking" : following && followName ? `Following ${followName}` : "Overview"}</span>
-        <small>{onlineLabel(online)}</small>
-        {feedDown ? (
-          <span className="hud-stale">
-            Can't reach the verse{" "}
-            <button type="button" className="hud-btn" onClick={onRetry}>
-              Retry now
-            </button>
-          </span>
-        ) : null}
-      </div>
+      <HudMap
+        actions={actions}
+        owned={new Set(authed ? agents.map((x) => x.name) : [])}
+        followName={followName}
+        following={following}
+        walking={walking}
+        online={online}
+        feedDown={feedDown}
+        onRetry={onRetry}
+        large={bigMap}
+        onToggle={() => setBigMap((m) => !m)}
+      />
       {authed ? <HudGains agents={agents} present={present} /> : null}
       <HudChat says={says} threads={threads} authed={authed} mine={mine} liveEvents={liveEvents} />
       <div className="hud-panel hud-bar-row" role="toolbar" aria-label="Actions">
         {slot("follow", "F", "Follow", following, !followName)}
         {slot("walk", "T", "Walk")}
+        {slot("map", "M", "Map", bigMap)}
         {slot("agents", "G", "Agents")}
         <div className="hud-tool" ref={recordRef}>
           <kbd>R</kbd>

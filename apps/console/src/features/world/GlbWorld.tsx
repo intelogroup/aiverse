@@ -24,6 +24,7 @@ import { InteractHighlight, TouchTapPicker, TouchWalkLayer, useTouchUi, type Tap
 import { ScoutAgent } from "./ScoutAgent";
 import { RemoteCast } from "./RemoteCast";
 import { OwnerFollowCam } from "./OwnerFollowCam";
+import { CameraFocus } from "./CameraFocus";
 import { pickOwnBody, type RosterBody } from "./ownerFollow";
 import { RemoteBodies } from "./remoteFrames";
 import { hudBridge } from "./hud/hudBridge";
@@ -315,6 +316,8 @@ export function GlbWorld({ ownerAgentNames, hud = false }: { /** Names of the si
     return () => window.clearInterval(id);
   }, []);
   const walking = camMode !== "wide";
+  const focusRef = useRef<{ x: number; z: number } | null>(null);
+  const setFocus = useCallback((p: { x: number; z: number }) => { focusRef.current = p; }, []);
   useEffect(() => {
     if (!hud) return;
     return hudBridge.register({
@@ -329,9 +332,18 @@ export function GlbWorld({ ownerAgentNames, hud = false }: { /** Names of the si
         setFollowing((f) => !f);
       },
       walk: () => setCamMode("ride"),
+      bodies: () => {
+        const t = remoteBodies.renderTime(performance.now() / 1000);
+        if (t === null) return [];
+        return remoteBodies.list().flatMap((b) => {
+          const p = remoteBodies.sample(b.n, t);
+          return p ? [{ name: b.name, x: p.x, z: p.z }] : [];
+        });
+      },
+      focus: () => focusRef.current,
       root: rootRef,
     });
-  }, [hud]);
+  }, [hud, remoteBodies]);
   useEffect(() => {
     if (!hud) return;
     const publish = () =>
@@ -775,6 +787,7 @@ export function GlbWorld({ ownerAgentNames, hud = false }: { /** Names of the si
             <ScoutAgent getMeshes={getColliderMeshes} walk={walkColliders} rooms={city3Rooms} door={teaDoorRef.current} positionRef={scoutPosRef} interact={interactRef.current} spawn={agentPair ? [-22.9, -68, 0] : undefined} />
           ) : null}
           {streamOn ? <RemoteCast walk={walkColliders} bodies={remoteBodies} /> : null}
+          {hud ? <CameraFocus onFocus={setFocus} /> : null}
           {following && ownBody ? <OwnerFollowCam key={ownBody.n} bodies={remoteBodies} n={ownBody.n} onTakeOver={takeOver} /> : null}
           {agentPair ? (
             <ScoutAgent actorId="scout-peer" primary={false} spawn={[-22.9, -64, Math.PI]}

@@ -18,7 +18,7 @@ import { openLongVisit } from "./HudAgents";
 import { IDLE_STAGE, hudBridge } from "./hudBridge";
 
 const agent = (id: string, name: string) => ({ id, name }) as Agent;
-const actions = { follow: vi.fn(), toggleFollow: vi.fn(), walk: vi.fn(), root: { current: null } };
+const actions = { follow: vi.fn(), toggleFollow: vi.fn(), walk: vi.fn(), bodies: vi.fn(() => [{ name: "Ada", x: 35, z: -74 }, { name: "Zed", x: 0, z: 0 }]), focus: vi.fn(() => null), root: { current: null } };
 const account = { email: "o@example.test", unverified: false, resendVerification: vi.fn(), manageAgents: vi.fn(), readKeys: vi.fn(), connectedClients: vi.fn(), changePassword: vi.fn(), logoutAll: vi.fn(), logout: vi.fn() };
 const threads = { groups: [], title: () => "", selected: null, select: vi.fn(), messages: [], nameOf: (id: string) => id, searchQ: "", setSearchQ: vi.fn(), searchHits: null, runSearch: vi.fn() };
 
@@ -121,6 +121,33 @@ describe("Hud", () => {
     fireEvent.keyDown(window, { code: "KeyF" });
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(actions.toggleFollow).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("HudMap", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => ({
+      ok: true,
+      json: async () => (url.includes("places") ? [{ id: "hall-0", name: "Market Hall", pos: [35, -76.5] }, { id: "stall-0", name: "stall-0", pos: [35, -74] }] : []),
+    })));
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("names the nearest place to the followed agent and marks own dots apart from others", async () => {
+    hudBridge.publish({ ...IDLE_STAGE, following: true, followName: "Ada", present: ["Ada", "Zed"] });
+    show();
+    await screen.findByText("near Market Hall");
+    expect(document.querySelector('circle[data-name="Ada"]')?.getAttribute("class")).toBe("mine");
+    expect(document.querySelector('circle[data-name="Zed"]')?.getAttribute("class")).toBe("other");
+  });
+
+  it("follows positions within one poll, and M enlarges the map", async () => {
+    show();
+    actions.bodies.mockReturnValue([{ name: "Ada", x: -50, z: 60 }]);
+    await waitFor(() => expect(document.querySelector('circle[data-name="Ada"]')?.getAttribute("cx")).toBe("-50"), { timeout: 900 });
+    expect(document.querySelector('circle[data-name="Zed"]')).toBeNull();
+    fireEvent.keyDown(window, { code: "KeyM" });
+    expect(screen.getByRole("button", { name: "Shrink map" })).toBeTruthy();
   });
 });
 
