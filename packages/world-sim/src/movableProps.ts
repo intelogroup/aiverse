@@ -3,7 +3,8 @@ import { SCALE_REMY } from "./bodies";
 /** One authored City 3 pilot. Stance, contact centre and times come from Remy's Blender sweep. */
 export const APPLE_ID = "market-apple-01";
 export const APPLE_ASSET = "/assets/props/market-apple.glb";
-export const APPLE_REACH = 0.9;
+/** grab/place are accepted this far (m) from the fitted stance; the sim walks the body the rest of the way. */
+export const APPLE_APPROACH = 6;
 export const APPLE_GROUND = 0.2;
 export const APPLE_STANDS = {
   "apple-stand-01": {

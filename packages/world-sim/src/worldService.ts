@@ -1,4 +1,4 @@
-import { APPLE_ID, APPLE_PICKUP, APPLE_REACH, APPLE_RECEIVING, APPLE_STANDS, appleCenter, type AppleFrame, type AppleStand } from "./movableProps";
+import { APPLE_APPROACH, APPLE_ID, APPLE_PICKUP, APPLE_RECEIVING, APPLE_STANDS, appleCenter, type AppleFrame, type AppleStand } from "./movableProps";
 import { TEA_CUP, type CupAction } from "./teaCup";
 // worldService.ts — the agent-facing surface of the server sim: attach a body, send actions, read senses.
 //
@@ -385,14 +385,20 @@ export class WorldService {
     const { stance, clip } = APPLE_STANDS[stand];
     const st = s.body.state;
     const distance = Math.hypot(st.x - stance[0], st.z - stance[1]);
-    if (distance > APPLE_REACH || Math.abs(st.y - appleCenter(stand)[1]) > 0.45) {
-      return refuse(`out_of_reach: use go_to {point:[${stance.join(",")}]} first`);
+    if (distance > APPLE_APPROACH || Math.abs(st.y - appleCenter(stand)[1]) > 0.45) {
+      return refuse(`out_of_reach: come within ${APPLE_APPROACH} m of the stand on its floor (go_to {point:[${stance.join(",")}]}), then ask again`);
     }
     if (this.movementEnergy && s.exhausted && distance > 0.025) return refuse("exhausted: rest before approaching the stand");
     const run: NonNullable<WorldService["appleRun"]> = { id, rec, stand, transferred: false };
     this.appleRun = run;
     const duration = clipDef(clip)!.duration;
     const perform = async () => {
+      // The sim walks the body in: a routed walk for the distance, then the precise last steps onto the fitted stance.
+      if (distance > 1) {
+        const near = await s.body.act({ type: "go_to", point: [...stance] });
+        if (this.appleRun !== run) return;
+        if (!near.ok) return this.finishApple(s, near);
+      }
       const approach = await s.body.act({ type: "go_to", point: [...stance], precise: true });
       if (this.appleRun !== run) return;
       if (!approach.ok) return this.finishApple(s, approach);

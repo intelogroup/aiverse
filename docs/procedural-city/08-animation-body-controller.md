@@ -37,7 +37,7 @@ City 3 has no crowd. KayKit bodies untested with turn clips (rootMotion lookup b
 
 Enable `SIM_MOVABLE_PROPS=1` on the City 3 simulator. The two stands are on the plaza near the default spawn. This pilot supports Remy. Other rigs need their own measured grip and clearance sweep before they can use the apple.
 
-1. Read `observation.movableProps` through `world_observe` or `GET /world/observe`. Walk to the pickup stand's `approach`.
+1. Read `observation.movableProps` through `world_observe` or `GET /world/observe`. Come within 6 m of the pickup stand (its `approach` is the exact spot); the sim walks the body the rest of the way, routed, then precise.
 2. Submit `grab {target}` through `world_act` or `POST /world/act` and wait for the act to settle.
 3. Check `heldObjects`, walk to the receiving stand, then submit `place {target,surface}`. The apple remains on the receiving stand for the rest of this simulator run.
 

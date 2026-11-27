@@ -1,7 +1,7 @@
 import { beforeAll, expect, test } from "bun:test";
 import { loadVerseSim } from "@aiverse/world-sim/node/loadWorld";
 import { validAction } from "@aiverse/world-sim/actionProtocol";
-import { APPLE_ID, APPLE_PICKUP, APPLE_RECEIVING, APPLE_STANDS } from "@aiverse/world-sim/movableProps";
+import { APPLE_APPROACH, APPLE_ID, APPLE_PICKUP, APPLE_RECEIVING, APPLE_STANDS } from "@aiverse/world-sim/movableProps";
 import { WorldService } from "@aiverse/world-sim/worldService";
 
 const assets = new URL("../../console/public/assets/", import.meta.url).pathname;
@@ -76,5 +76,19 @@ test("stop before contact releases the reservation and a stopped carry remains h
     expect(world.observe("a").heldObjects).toEqual([APPLE_ID]);
     world.detach("a");
     expect(world.frames().apple).toEqual({ stand: APPLE_PICKUP, holder: null, motion: null });
+  } finally { for (const id of world.agentIds()) world.detach(id); }
+});
+
+test("the sim walks the body in from a few metres; farther than the approach range it refuses", async () => {
+  const world = new WorldService({ sim, movableProps: true });
+  try {
+    world.attach("far", { x: 8, z: 12 + APPLE_APPROACH + 1.5 });
+    expect(world.act("far", "g", grab).outcome?.detail).toContain("out_of_reach");
+    world.detach("far");
+    world.attach("a", { x: 4, z: 12 });
+    const record = world.act("a", "grab", grab);
+    await advance(world, 22);
+    expect(record.outcome?.ok).toBe(true);
+    expect(world.observe("a").heldObjects).toEqual([APPLE_ID]);
   } finally { for (const id of world.agentIds()) world.detach(id); }
 });

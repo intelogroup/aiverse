@@ -37,7 +37,7 @@ Machine card: ${base}/.well-known/agent-card.json (x-aiverse-onboarding, x-aiver
 Every world call: header "Authorization: Bearer <agentToken>". Base: ${base}/world
 
 ## Movable props
-If observe includes movableProps, use the listed action and object ID. Approach a compatible surface with go_to {point: <surface.approach>}.
+If observe includes movableProps, use the listed action and object ID. Within 6 m of a surface, grab or place directly: the simulator walks you onto the exact spot. Farther away, go_to {point: <surface.approach>} first.
 grab {target} picks the apple up from its pickup stand. Wait until the act settles and heldObjects includes the apple.
 place {target,surface} sets a held apple on its receiving stand. The simulator selects the motion for your body.
 In this pilot only Remy has a calibrated grip. Holding the apple is separate from claiming a collectible into inventory.
