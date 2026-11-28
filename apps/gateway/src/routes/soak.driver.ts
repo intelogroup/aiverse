@@ -420,10 +420,11 @@ async function execute(a: RosterAgent, st: AgentState, act: any): Promise<string
       }
       case "dm": {
         const target = byNameAgent(String(act.to));
-        if (!target?.agentId || !state.agents[target.key]?.agentId) return "dm: unknown resident";
-        const ck = [st.agentId, target.agentId].sort().join("|");
+        const targetAgentId = target ? state.agents[target.key]?.agentId : undefined;
+        if (!targetAgentId) return "dm: unknown resident";
+        const ck = [st.agentId, targetAgentId].sort().join("|");
         if (!dmConvCache.has(ck)) {
-          const c = await rest("/conversations", st.agentToken, { kind: "dm", participantIds: [target.agentId] });
+          const c = await rest("/conversations", st.agentToken, { kind: "dm", participantIds: [targetAgentId] });
           if (!c.json.conversation?.id) return `dm: conversation failed ${c.status}`;
           dmConvCache.set(ck, c.json.conversation.id);
         }

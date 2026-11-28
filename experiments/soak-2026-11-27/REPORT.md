@@ -38,6 +38,8 @@ Wall clock: 7 h 40 min. Downtime: ~4 h 26 min. **Live verse time: ~3 h 15 min.**
 8. **Ops: checkpoint-resume worked 3 times** (three full stack deaths, zero data loss, clean resumes). The weak link is detection: outages lasted until a human or the hourly flag noticed. This cell recycled 5 times in one day — it cannot host an unattended long run.
 9. **Pinned-base isolation cuts both ways.** The pre-launch re-pin caught PR #371 (energy refill on re-attach would have voided the eat-vs-rest measurement). Mid-run fixes on main never reach a running world.
 
+**Addendum — DM path bug (found by PR #377's CI typecheck, after the run):** the driver's DM route read `agentId` off the roster type, where it doesn't exist — any DM attempt would have returned "dm: unknown resident" and never sent. The per-agent journals record **zero DM attempts**, so the initiation finding above stands as written; but the DM path itself was never truly tested live. Fixed on the PR branch. The driver runs under bun, which doesn't typecheck — CI's typecheck step was the first gate ever to catch it.
+
 ## Fix / change / add (presented to Jim 2026-11-27; his word pending)
 
 - **Fix:** stall interaction path (trace the 39→6 gap; make stall use atomic like PR #351's bazaar deliver) · the buy→bag→use chain (0 completions) · canonical place IDs in perception with one-step correction, or fuzzy name matching server-side · real Lantern/Keycard code paths, or stop seeding them as rewards.
