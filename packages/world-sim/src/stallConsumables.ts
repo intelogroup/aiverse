@@ -27,6 +27,10 @@ export function isStallUse(action: unknown): action is { type: "interact"; targe
 }
 
 export function stallEase(value: number): number {
+  // Hostile shapes (AIV-STALL-MOTION-SHAPE-001): a non-finite value has no
+  // eased position — return the start of the curve instead of leaking NaN
+  // into prop frames (Math.min/Math.max propagate NaN).
+  if (!Number.isFinite(value)) return 0;
   const t = Math.min(1, Math.max(0, value));
   return t * t * (3 - 2 * t);
 }
