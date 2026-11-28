@@ -1,0 +1,289 @@
+{"event":"soak_config","mode":"run","gateway":"http://127.0.0.1:4101","db":"postgres://postgres@127.0.0.1:5432/aiverse_soak","dir":"/home/hatch/workspace/goals/aiverse-production-optimization/hidden_files/soak-2026-11-27","runMinutes":600}
+{"event":"soak_carry_from_pilot","totalUsd":0.013792,"agentsCarried":124}
+{"event":"soak_start","mode":"run","runId":"soak-2026-11-27-run","endsAt":"2026-11-28T05:20:43.851Z","rosterAgents":124}
+{"event":"soak_agent_up","key":"p-trader-1","name":"Tomas Venn","archetype":"trader","model":"openai","wave":1,"figure":"elf"}
+{"event":"soak_agent_up","key":"p-trader-2","name":"Ilya Venn","archetype":"trader","model":"agnes","wave":1,"figure":"jim"}
+{"event":"soak_agent_up","key":"p-trader-3","name":"June Venn","archetype":"trader","model":"openai","wave":1,"figure":"remy"}
+{"event":"soak_agent_up","key":"p-trader-4","name":"Petra Venn","archetype":"trader","model":"agnes","wave":1,"figure":"cipher"}
+{"event":"soak_agent_up","key":"p-trader-5","name":"Osei Venn","archetype":"trader","model":"openai","wave":1,"figure":"eve"}
+{"event":"soak_agent_up","key":"p-trader-6","name":"Nia Venn","archetype":"trader","model":"agnes","wave":1,"figure":"elf"}
+{"event":"soak_agent_up","key":"p-trader-7","name":"Kofi Venn","archetype":"trader","model":"openai","wave":1,"figure":"jim"}
+{"event":"soak_agent_up","key":"p-trader-8","name":"Lena Venn","archetype":"trader","model":"agnes","wave":1,"figure":"remy"}
+{"event":"soak_agent_up","key":"p-trader-9","name":"Ravi Venn","archetype":"trader","model":"openai","wave":1,"figure":"cipher"}
+{"event":"soak_agent_up","key":"p-bounty-0","name":"Sana Venn","archetype":"bounty","model":"openai","wave":1,"figure":"elf"}
+{"event":"soak_agent_up","key":"p-bounty-1","name":"Dario Venn","archetype":"bounty","model":"agnes","wave":1,"figure":"jim"}
+{"event":"soak_agent_up","key":"p-bounty-2","name":"Elif Venn","archetype":"bounty","model":"openai","wave":1,"figure":"remy"}
+{"event":"soak_agent_up","key":"p-bounty-3","name":"Mateo Venn","archetype":"bounty","model":"agnes","wave":1,"figure":"cipher"}
+{"event":"soak_agent_up","key":"p-bounty-4","name":"Ines Venn","archetype":"bounty","model":"openai","wave":1,"figure":"eve"}
+{"event":"soak_agent_up","key":"p-bounty-5","name":"Yuki Venn","archetype":"bounty","model":"agnes","wave":1,"figure":"elf"}
+{"event":"soak_round","round":20,"due":20,"totalUsd":0.0262,"counters":{"agents_set_up":20,"unparsed":6,"stall_buys":2}}
+{"event":"soak_oracle","violations":[]}
+{"event":"soak_config","mode":"run","gateway":"http://127.0.0.1:4101","db":"postgres://postgres@127.0.0.1:5432/aiverse_soak","dir":"/home/hatch/workspace/goals/aiverse-production-optimization/hidden_files/soak-2026-11-27","runMinutes":600}
+{"event":"soak_resume","runId":"soak-2026-11-27-run","rounds":20,"totalUsd":0.0262244}
+{"event":"soak_start","mode":"run","runId":"soak-2026-11-27-run","endsAt":"2026-11-28T05:20:43.851Z","rosterAgents":124}
+{"event":"soak_round","round":21,"due":20,"totalUsd":0.039,"counters":{"agents_set_up":20,"unparsed":6,"stall_buys":2}}
+{"event":"soak_oracle","violations":[]}
+{"event":"soak_round","round":22,"due":1,"totalUsd":0.0399,"counters":{"agents_set_up":20,"unparsed":6,"stall_buys":2}}
+{"event":"soak_round","round":23,"due":10,"totalUsd":0.0473,"counters":{"agents_set_up":20,"unparsed":6,"stall_buys":2,"stall_use_attempts":2,"stall_consumptions":1}}
+{"event":"soak_round","round":24,"due":4,"totalUsd":0.05,"counters":{"agents_set_up":20,"unparsed":6,"stall_buys":2,"stall_use_attempts":3,"stall_consumptions":1}}
+{"event":"soak_round","round":25,"due":3,"totalUsd":0.0515,"counters":{"agents_set_up":20,"unparsed":6,"stall_buys":2,"stall_use_attempts":3,"stall_consumptions":1}}
+{"event":"soak_round","round":26,"due":1,"totalUsd":0.0519,"counters":{"agents_set_up":20,"unparsed":6,"stall_buys":2,"stall_use_attempts":3,"stall_consumptions":1}}
+{"event":"soak_agent_up","key":"p-bounty-6","name":"Omar Venn","archetype":"bounty","model":"openai","wave":2,"figure":"jim"}
+{"event":"soak_agent_up","key":"p-bounty-7","name":"Freya Venn","archetype":"bounty","model":"agnes","wave":2,"figure":"remy"}
+{"event":"soak_agent_up","key":"p-bounty-8","name":"Casimir Venn","archetype":"bounty","model":"openai","wave":2,"figure":"cipher"}
+{"event":"soak_agent_up","key":"p-bounty-9","name":"Alba Venn","archetype":"bounty","model":"agnes","wave":2,"figure":"eve"}
+{"event":"soak_agent_up","key":"p-socializer-0","name":"Noor Venn","archetype":"socializer","model":"agnes","wave":2,"figure":"eve"}
+{"event":"soak_agent_up","key":"p-socializer-1","name":"Stellan Venn","archetype":"socializer","model":"openai","wave":2,"figure":"elf"}
+{"event":"soak_agent_up","key":"p-socializer-2","name":"Priya Venn","archetype":"socializer","model":"agnes","wave":2,"figure":"jim"}
+{"event":"soak_agent_up","key":"p-socializer-3","name":"Henrik Venn","archetype":"socializer","model":"openai","wave":2,"figure":"remy"}
+{"event":"soak_agent_up","key":"p-socializer-4","name":"Zola Venn","archetype":"socializer","model":"agnes","wave":2,"figure":"cipher"}
+{"event":"soak_agent_up","key":"p-socializer-5","name":"Amara Venn","archetype":"socializer","model":"openai","wave":2,"figure":"eve"}
+{"event":"soak_agent_up","key":"p-socializer-6","name":"Boris Venn","archetype":"socializer","model":"agnes","wave":2,"figure":"elf"}
+{"event":"soak_agent_up","key":"p-socializer-7","name":"Cleo Venn","archetype":"socializer","model":"openai","wave":2,"figure":"jim"}
+{"event":"soak_agent_up","key":"p-socializer-8","name":"Dante Venn","archetype":"socializer","model":"agnes","wave":2,"figure":"remy"}
+{"event":"soak_agent_up","key":"p-socializer-9","name":"Esme Venn","archetype":"socializer","model":"openai","wave":2,"figure":"cipher"}
+{"event":"soak_agent_up","key":"p-explorer-0","name":"Farid Venn","archetype":"explorer","model":"openai","wave":2,"figure":"cipher"}
+{"event":"soak_agent_up","key":"p-explorer-2","name":"Hassan Venn","archetype":"explorer","model":"openai","wave":2,"figure":"elf"}
+{"event":"soak_agent_up","key":"p-explorer-3","name":"Iris Venn","archetype":"explorer","model":"agnes","wave":2,"figure":"jim"}
+{"event":"soak_agent_up","key":"p-explorer-4","name":"Jonas Venn","archetype":"explorer","model":"openai","wave":2,"figure":"remy"}
+{"event":"soak_agent_up","key":"p-explorer-5","name":"Kira Venn","archetype":"explorer","model":"agnes","wave":2,"figure":"cipher"}
+{"event":"soak_agent_up","key":"p-explorer-6","name":"Lars Venn","archetype":"explorer","model":"openai","wave":2,"figure":"eve"}
+{"event":"soak_agent_up","key":"p-explorer-7","name":"Mina Venn","archetype":"explorer","model":"agnes","wave":2,"figure":"elf"}
+{"event":"soak_agent_up","key":"p-explorer-8","name":"Nils Venn","archetype":"explorer","model":"openai","wave":2,"figure":"jim"}
+{"event":"soak_agent_up","key":"p-explorer-9","name":"Odile Venn","archetype":"explorer","model":"agnes","wave":2,"figure":"remy"}
+{"event":"soak_agent_up","key":"p-collector-0","name":"Pavel Venn","archetype":"collector","model":"agnes","wave":2,"figure":"eve"}
+{"event":"soak_agent_up","key":"p-collector-1","name":"Runa Venn","archetype":"collector","model":"openai","wave":2,"figure":"elf"}
+{"event":"soak_agent_up","key":"p-collector-2","name":"Silas Venn","archetype":"collector","model":"agnes","wave":2,"figure":"jim"}
+{"event":"soak_agent_up","key":"p-collector-3","name":"Tara Venn","archetype":"collector","model":"openai","wave":2,"figure":"remy"}
+{"event":"soak_agent_up","key":"p-collector-4","name":"Umar Venn","archetype":"collector","model":"agnes","wave":2,"figure":"cipher"}
+{"event":"soak_agent_up","key":"p-collector-5","name":"Vera Venn","archetype":"collector","model":"openai","wave":2,"figure":"eve"}
+{"event":"soak_agent_up","key":"p-collector-6","name":"Wendell Venn","archetype":"collector","model":"agnes","wave":2,"figure":"elf"}
+{"event":"soak_agent_up","key":"f-trader-0","name":"Pavel Okafor","archetype":"trader","model":"openrouter","wave":2,"figure":"eve"}
+{"event":"soak_agent_up","key":"f-trader-1","name":"Runa Okafor","archetype":"trader","model":"openrouter","wave":2,"figure":"elf"}
+{"event":"soak_agent_up","key":"f-trader-2","name":"Silas Okafor","archetype":"trader","model":"openrouter","wave":2,"figure":"jim"}
+{"event":"soak_agent_up","key":"f-bounty-0","name":"Tara Okafor","archetype":"bounty","model":"openrouter","wave":2,"figure":"elf"}
+{"event":"soak_agent_up","key":"f-bounty-1","name":"Umar Okafor","archetype":"bounty","model":"openrouter","wave":2,"figure":"jim"}
+{"event":"soak_agent_up","key":"f-bounty-2","name":"Vera Okafor","archetype":"bounty","model":"openrouter","wave":2,"figure":"remy"}
+{"event":"soak_agent_up","key":"f-socializer-1","name":"Ximena Okafor","archetype":"socializer","model":"openrouter","wave":2,"figure":"elf"}
+{"event":"soak_agent_up","key":"f-socializer-2","name":"Yorick Okafor","archetype":"socializer","model":"openrouter","wave":2,"figure":"jim"}
+{"event":"soak_agent_up","key":"f-explorer-0","name":"Zainab Okafor","archetype":"explorer","model":"openrouter","wave":2,"figure":"cipher"}
+{"event":"soak_agent_up","key":"f-explorer-1","name":"Anders Okafor","archetype":"explorer","model":"openrouter","wave":2,"figure":"eve"}
+{"event":"soak_agent_up","key":"f-explorer-2","name":"Bianca Okafor","archetype":"explorer","model":"openrouter","wave":2,"figure":"elf"}
+{"event":"soak_round","round":27,"due":41,"totalUsd":0.0716,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":3,"stall_consumptions":1}}
+{"event":"soak_round","round":28,"due":1,"totalUsd":0.0716,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":3,"stall_consumptions":1}}
+{"event":"soak_round","round":29,"due":4,"totalUsd":0.0749,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":3,"stall_consumptions":1,"rests":1}}
+{"event":"soak_round","round":30,"due":1,"totalUsd":0.0753,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":3,"stall_consumptions":1,"rests":1}}
+{"event":"soak_round","round":31,"due":3,"totalUsd":0.0767,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":3,"stall_consumptions":1,"rests":1}}
+{"event":"soak_round","round":32,"due":3,"totalUsd":0.0786,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":3,"stall_consumptions":1,"rests":1}}
+{"event":"soak_round","round":33,"due":2,"totalUsd":0.0805,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":3,"stall_consumptions":1,"rests":1}}
+{"event":"soak_round","round":34,"due":1,"totalUsd":0.081,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":3,"stall_consumptions":1,"rests":1}}
+{"event":"soak_round","round":35,"due":1,"totalUsd":0.0819,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":4,"stall_consumptions":1,"rests":1}}
+{"event":"soak_round","round":36,"due":2,"totalUsd":0.0838,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":4,"stall_consumptions":1,"rests":1}}
+{"event":"soak_round","round":37,"due":1,"totalUsd":0.0843,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":4,"stall_consumptions":1,"rests":1}}
+{"event":"soak_round","round":38,"due":1,"totalUsd":0.0847,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":4,"stall_consumptions":1,"rests":1}}
+{"event":"soak_round","round":39,"due":1,"totalUsd":0.0856,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":4,"stall_consumptions":1,"rests":1}}
+{"event":"soak_round","round":40,"due":2,"totalUsd":0.087,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":4,"stall_consumptions":1,"rests":2}}
+{"event":"soak_round","round":41,"due":1,"totalUsd":0.0879,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":4,"stall_consumptions":1,"rests":3}}
+{"event":"soak_round","round":42,"due":1,"totalUsd":0.0888,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":5,"stall_consumptions":1,"rests":3}}
+{"event":"soak_round","round":43,"due":1,"totalUsd":0.0897,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":5,"stall_consumptions":1,"rests":3}}
+{"event":"soak_round","round":44,"due":6,"totalUsd":0.0934,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":5,"stall_consumptions":1,"rests":3,"says":1}}
+{"event":"soak_round","round":45,"due":4,"totalUsd":0.0961,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":5,"stall_consumptions":1,"rests":3,"says":1}}
+{"event":"soak_round","round":46,"due":5,"totalUsd":0.0989,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":5,"stall_consumptions":1,"rests":3,"says":1}}
+{"event":"soak_round","round":47,"due":5,"totalUsd":0.1031,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":3,"says":1}}
+{"event":"soak_round","round":48,"due":3,"totalUsd":0.1045,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":3,"says":1}}
+{"event":"soak_round","round":49,"due":1,"totalUsd":0.1055,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":3,"says":1}}
+{"event":"soak_round","round":50,"due":1,"totalUsd":0.1064,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":3,"says":1}}
+{"event":"soak_round","round":51,"due":1,"totalUsd":0.1073,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":4,"says":1}}
+{"event":"soak_round","round":52,"due":1,"totalUsd":0.1078,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":4,"says":1}}
+{"event":"soak_round","round":53,"due":2,"totalUsd":0.1092,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":4,"says":1}}
+{"event":"soak_round","round":54,"due":4,"totalUsd":0.1116,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":4,"says":1}}
+{"event":"soak_round","round":55,"due":2,"totalUsd":0.1125,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":4,"says":1}}
+{"event":"soak_round","round":56,"due":2,"totalUsd":0.1143,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":4,"says":1}}
+{"event":"soak_round","round":57,"due":5,"totalUsd":0.1162,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":5,"says":1}}
+{"event":"soak_round","round":58,"due":7,"totalUsd":0.1208,"counters":{"agents_set_up":61,"unparsed":11,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":5,"says":1}}
+{"event":"soak_round","round":59,"due":7,"totalUsd":0.1235,"counters":{"agents_set_up":61,"unparsed":12,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":5,"says":1}}
+{"event":"soak_round","round":60,"due":6,"totalUsd":0.1268,"counters":{"agents_set_up":61,"unparsed":12,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":5,"says":1}}
+{"event":"soak_round","round":61,"due":3,"totalUsd":0.1277,"counters":{"agents_set_up":61,"unparsed":14,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":6,"says":1}}
+{"event":"soak_round","round":62,"due":9,"totalUsd":0.1328,"counters":{"agents_set_up":61,"unparsed":14,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":6,"says":3}}
+{"event":"soak_round","round":63,"due":12,"totalUsd":0.1406,"counters":{"agents_set_up":61,"unparsed":14,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":6,"says":3}}
+{"event":"soak_round","round":64,"due":1,"totalUsd":0.1411,"counters":{"agents_set_up":61,"unparsed":14,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":6,"says":3}}
+{"event":"soak_round","round":65,"due":1,"totalUsd":0.1416,"counters":{"agents_set_up":61,"unparsed":14,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":6,"says":3}}
+{"event":"soak_round","round":66,"due":1,"totalUsd":0.1426,"counters":{"agents_set_up":61,"unparsed":14,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":6,"says":3}}
+{"event":"soak_round","round":67,"due":1,"totalUsd":0.1435,"counters":{"agents_set_up":61,"unparsed":14,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":6,"says":3}}
+{"event":"soak_round","round":68,"due":1,"totalUsd":0.144,"counters":{"agents_set_up":61,"unparsed":14,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":6,"says":3}}
+{"event":"soak_round","round":69,"due":1,"totalUsd":0.1445,"counters":{"agents_set_up":61,"unparsed":14,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":6,"says":3}}
+{"event":"soak_round","round":70,"due":1,"totalUsd":0.1449,"counters":{"agents_set_up":61,"unparsed":14,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":6,"says":3}}
+{"event":"soak_round","round":71,"due":2,"totalUsd":0.1459,"counters":{"agents_set_up":61,"unparsed":14,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":6,"says":3}}
+{"event":"soak_oracle","violations":[]}
+{"event":"soak_round","round":72,"due":2,"totalUsd":0.1478,"counters":{"agents_set_up":61,"unparsed":14,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":6,"says":3}}
+{"event":"soak_round","round":73,"due":1,"totalUsd":0.1482,"counters":{"agents_set_up":61,"unparsed":14,"stall_buys":2,"stall_use_attempts":6,"stall_consumptions":1,"rests":6,"says":3}}
+{"event":"soak_round","round":74,"due":2,"totalUsd":0.1497,"counters":{"agents_set_up":61,"unparsed":14,"stall_buys":2,"stall_use_attempts":7,"stall_consumptions":1,"rests":6,"says":3}}
+{"event":"soak_round","round":75,"due":1,"totalUsd":0.1502,"counters":{"agents_set_up":61,"unparsed":14,"stall_buys":2,"stall_use_attempts":7,"stall_consumptions":1,"rests":6,"says":3}}
+{"event":"soak_round","round":76,"due":3,"totalUsd":0.1526,"counters":{"agents_set_up":61,"unparsed":14,"stall_buys":2,"stall_use_attempts":8,"stall_consumptions":2,"rests":7,"says":3}}
+{"event":"soak_round","round":77,"due":2,"totalUsd":0.154,"counters":{"agents_set_up":61,"unparsed":14,"stall_buys":2,"stall_use_attempts":8,"stall_consumptions":2,"rests":7,"says":3}}
+{"event":"soak_round","round":78,"due":1,"totalUsd":0.1544,"counters":{"agents_set_up":61,"unparsed":14,"stall_buys":2,"stall_use_attempts":8,"stall_consumptions":2,"rests":7,"says":3}}
+{"event":"soak_round","round":79,"due":2,"totalUsd":0.1562,"counters":{"agents_set_up":61,"unparsed":14,"stall_buys":2,"stall_use_attempts":8,"stall_consumptions":2,"rests":7,"says":3}}
+{"event":"soak_round","round":80,"due":3,"totalUsd":0.1585,"counters":{"agents_set_up":61,"unparsed":14,"stall_buys":2,"stall_use_attempts":8,"stall_consumptions":2,"rests":7,"says":3}}
+{"event":"soak_round","round":81,"due":1,"totalUsd":0.1594,"counters":{"agents_set_up":61,"unparsed":14,"stall_buys":2,"stall_use_attempts":8,"stall_consumptions":2,"rests":7,"says":3}}
+{"event":"soak_round","round":82,"due":1,"totalUsd":0.1599,"counters":{"agents_set_up":61,"unparsed":14,"stall_buys":2,"stall_use_attempts":8,"stall_consumptions":2,"rests":7,"says":3}}
+{"event":"soak_round","round":83,"due":3,"totalUsd":0.1622,"counters":{"agents_set_up":61,"unparsed":14,"stall_buys":2,"stall_use_attempts":8,"stall_consumptions":2,"rests":7,"says":3}}
+{"event":"soak_round","round":84,"due":3,"totalUsd":0.1645,"counters":{"agents_set_up":61,"unparsed":14,"stall_buys":2,"stall_use_attempts":8,"stall_consumptions":2,"rests":7,"says":3}}
+{"event":"soak_round","round":85,"due":2,"totalUsd":0.1659,"counters":{"agents_set_up":61,"unparsed":14,"stall_buys":2,"stall_use_attempts":8,"stall_consumptions":2,"rests":7,"says":3}}
+{"event":"soak_round","round":86,"due":4,"totalUsd":0.1692,"counters":{"agents_set_up":61,"unparsed":15,"stall_buys":2,"stall_use_attempts":8,"stall_consumptions":2,"rests":7,"says":3}}
+{"event":"soak_round","round":87,"due":2,"totalUsd":0.1707,"counters":{"agents_set_up":61,"unparsed":15,"stall_buys":2,"stall_use_attempts":8,"stall_consumptions":2,"rests":7,"says":3}}
+{"event":"soak_round","round":88,"due":3,"totalUsd":0.172,"counters":{"agents_set_up":61,"unparsed":16,"stall_buys":2,"stall_use_attempts":8,"stall_consumptions":2,"rests":7,"says":3}}
+{"event":"soak_round","round":89,"due":2,"totalUsd":0.1734,"counters":{"agents_set_up":61,"unparsed":16,"stall_buys":2,"stall_use_attempts":8,"stall_consumptions":2,"rests":7,"says":3}}
+{"event":"soak_round","round":90,"due":4,"totalUsd":0.1748,"counters":{"agents_set_up":61,"unparsed":17,"stall_buys":2,"stall_use_attempts":8,"stall_consumptions":2,"rests":7,"says":3}}
+{"event":"soak_round","round":91,"due":2,"totalUsd":0.1758,"counters":{"agents_set_up":61,"unparsed":17,"stall_buys":2,"stall_use_attempts":8,"stall_consumptions":2,"rests":7,"says":4}}
+{"event":"soak_round","round":92,"due":1,"totalUsd":0.1767,"counters":{"agents_set_up":61,"unparsed":17,"stall_buys":2,"stall_use_attempts":8,"stall_consumptions":2,"rests":7,"says":4}}
+{"event":"soak_round","round":93,"due":1,"totalUsd":0.1777,"counters":{"agents_set_up":61,"unparsed":17,"stall_buys":2,"stall_use_attempts":9,"stall_consumptions":2,"rests":7,"says":4}}
+{"event":"soak_round","round":94,"due":2,"totalUsd":0.1782,"counters":{"agents_set_up":61,"unparsed":18,"stall_buys":2,"stall_use_attempts":9,"stall_consumptions":2,"rests":7,"says":4}}
+{"event":"soak_round","round":95,"due":6,"totalUsd":0.1797,"counters":{"agents_set_up":61,"unparsed":20,"stall_buys":2,"stall_use_attempts":9,"stall_consumptions":2,"rests":7,"says":4}}
+{"event":"soak_round","round":96,"due":3,"totalUsd":0.1811,"counters":{"agents_set_up":61,"unparsed":20,"stall_buys":2,"stall_use_attempts":9,"stall_consumptions":2,"rests":7,"says":4}}
+{"event":"soak_agent_up","key":"p-collector-7","name":"Ximena Venn","archetype":"collector","model":"openai","wave":3,"figure":"jim"}
+{"event":"soak_agent_up","key":"p-collector-8","name":"Yorick Venn","archetype":"collector","model":"agnes","wave":3,"figure":"remy"}
+{"event":"soak_agent_up","key":"p-collector-9","name":"Zainab Venn","archetype":"collector","model":"openai","wave":3,"figure":"cipher"}
+{"event":"soak_agent_up","key":"p-foodie-1","name":"Bianca Venn","archetype":"foodie","model":"agnes","wave":3,"figure":"cipher"}
+{"event":"soak_agent_up","key":"p-foodie-2","name":"Cyrus Venn","archetype":"foodie","model":"openai","wave":3,"figure":"eve"}
+{"event":"soak_agent_up","key":"p-foodie-3","name":"Delia Venn","archetype":"foodie","model":"agnes","wave":3,"figure":"elf"}
+{"event":"soak_agent_up","key":"p-foodie-4","name":"Emil Venn","archetype":"foodie","model":"openai","wave":3,"figure":"jim"}
+{"event":"soak_agent_up","key":"p-foodie-5","name":"Fatima Venn","archetype":"foodie","model":"agnes","wave":3,"figure":"remy"}
+{"event":"soak_agent_up","key":"p-foodie-6","name":"Gustav Venn","archetype":"foodie","model":"openai","wave":3,"figure":"cipher"}
+{"event":"soak_agent_up","key":"p-foodie-7","name":"Hana Venn","archetype":"foodie","model":"agnes","wave":3,"figure":"eve"}
+{"event":"soak_agent_up","key":"p-foodie-8","name":"Idris Venn","archetype":"foodie","model":"openai","wave":3,"figure":"elf"}
+{"event":"soak_agent_up","key":"p-foodie-9","name":"Jana Venn","archetype":"foodie","model":"agnes","wave":3,"figure":"jim"}
+{"event":"soak_agent_up","key":"p-miser-0","name":"Mara Okafor","archetype":"miser","model":"agnes","wave":3,"figure":"jim"}
+{"event":"soak_agent_up","key":"p-miser-2","name":"Ilya Okafor","archetype":"miser","model":"agnes","wave":3,"figure":"cipher"}
+{"event":"soak_agent_up","key":"p-miser-3","name":"June Okafor","archetype":"miser","model":"openai","wave":3,"figure":"eve"}
+{"event":"soak_agent_up","key":"p-miser-4","name":"Petra Okafor","archetype":"miser","model":"agnes","wave":3,"figure":"elf"}
+{"event":"soak_agent_up","key":"p-miser-5","name":"Osei Okafor","archetype":"miser","model":"openai","wave":3,"figure":"jim"}
+{"event":"soak_agent_up","key":"p-miser-6","name":"Nia Okafor","archetype":"miser","model":"agnes","wave":3,"figure":"remy"}
+{"event":"soak_agent_up","key":"p-miser-7","name":"Kofi Okafor","archetype":"miser","model":"openai","wave":3,"figure":"cipher"}
+{"event":"soak_agent_up","key":"p-miser-8","name":"Lena Okafor","archetype":"miser","model":"agnes","wave":3,"figure":"eve"}
+{"event":"soak_agent_up","key":"p-miser-9","name":"Ravi Okafor","archetype":"miser","model":"openai","wave":3,"figure":"elf"}
+{"event":"soak_agent_up","key":"p-helper-0","name":"Sana Okafor","archetype":"helper","model":"openai","wave":3,"figure":"remy"}
+{"event":"soak_agent_up","key":"p-helper-1","name":"Dario Okafor","archetype":"helper","model":"agnes","wave":3,"figure":"cipher"}
+{"event":"soak_agent_up","key":"p-helper-2","name":"Elif Okafor","archetype":"helper","model":"openai","wave":3,"figure":"eve"}
+{"event":"soak_agent_up","key":"p-helper-3","name":"Mateo Okafor","archetype":"helper","model":"agnes","wave":3,"figure":"elf"}
+{"event":"soak_agent_up","key":"p-helper-4","name":"Ines Okafor","archetype":"helper","model":"openai","wave":3,"figure":"jim"}
+{"event":"soak_agent_up","key":"p-helper-5","name":"Yuki Okafor","archetype":"helper","model":"agnes","wave":3,"figure":"remy"}
+{"event":"soak_agent_up","key":"p-helper-6","name":"Omar Okafor","archetype":"helper","model":"openai","wave":3,"figure":"cipher"}
+{"event":"soak_agent_up","key":"p-helper-7","name":"Freya Okafor","archetype":"helper","model":"agnes","wave":3,"figure":"eve"}
+{"event":"soak_agent_up","key":"p-helper-8","name":"Casimir Okafor","archetype":"helper","model":"openai","wave":3,"figure":"elf"}
+{"event":"soak_agent_up","key":"p-helper-9","name":"Alba Okafor","archetype":"helper","model":"agnes","wave":3,"figure":"jim"}
+{"event":"soak_agent_up","key":"p-idler-0","name":"Noor Okafor","archetype":"idler","model":"agnes","wave":3,"figure":"elf"}
+{"event":"soak_agent_up","key":"p-idler-1","name":"Stellan Okafor","archetype":"idler","model":"openai","wave":3,"figure":"jim"}
+{"event":"soak_agent_up","key":"p-idler-2","name":"Priya Okafor","archetype":"idler","model":"agnes","wave":3,"figure":"remy"}
+{"event":"soak_agent_up","key":"p-idler-3","name":"Henrik Okafor","archetype":"idler","model":"openai","wave":3,"figure":"cipher"}
+{"event":"soak_agent_up","key":"p-idler-4","name":"Zola Okafor","archetype":"idler","model":"agnes","wave":3,"figure":"eve"}
+{"event":"soak_agent_up","key":"p-idler-5","name":"Amara Okafor","archetype":"idler","model":"openai","wave":3,"figure":"elf"}
+{"event":"soak_agent_up","key":"p-idler-6","name":"Boris Okafor","archetype":"idler","model":"agnes","wave":3,"figure":"jim"}
+{"event":"soak_agent_up","key":"p-idler-7","name":"Cleo Okafor","archetype":"idler","model":"openai","wave":3,"figure":"remy"}
+{"event":"soak_agent_up","key":"p-idler-8","name":"Dante Okafor","archetype":"idler","model":"agnes","wave":3,"figure":"cipher"}
+{"event":"soak_agent_up","key":"p-idler-9","name":"Esme Okafor","archetype":"idler","model":"openai","wave":3,"figure":"eve"}
+{"event":"soak_agent_up","key":"p-rival-0","name":"Farid Okafor","archetype":"rival","model":"openai","wave":3,"figure":"eve"}
+{"event":"soak_agent_up","key":"p-rival-1","name":"Greta Okafor","archetype":"rival","model":"agnes","wave":3,"figure":"elf"}
+{"event":"soak_agent_up","key":"p-rival-2","name":"Hassan Okafor","archetype":"rival","model":"openai","wave":3,"figure":"jim"}
+{"event":"soak_agent_up","key":"p-rival-3","name":"Iris Okafor","archetype":"rival","model":"agnes","wave":3,"figure":"remy"}
+{"event":"soak_agent_up","key":"p-rival-4","name":"Jonas Okafor","archetype":"rival","model":"openai","wave":3,"figure":"cipher"}
+{"event":"soak_agent_up","key":"p-rival-5","name":"Kira Okafor","archetype":"rival","model":"agnes","wave":3,"figure":"eve"}
+{"event":"soak_agent_up","key":"p-rival-6","name":"Lars Okafor","archetype":"rival","model":"openai","wave":3,"figure":"elf"}
+{"event":"soak_agent_up","key":"p-rival-7","name":"Mina Okafor","archetype":"rival","model":"agnes","wave":3,"figure":"jim"}
+{"event":"soak_agent_up","key":"p-rival-8","name":"Nils Okafor","archetype":"rival","model":"openai","wave":3,"figure":"remy"}
+{"event":"soak_agent_up","key":"p-rival-9","name":"Odile Okafor","archetype":"rival","model":"agnes","wave":3,"figure":"cipher"}
+{"event":"soak_agent_up","key":"f-collector-0","name":"Cyrus Okafor","archetype":"collector","model":"openrouter","wave":3,"figure":"eve"}
+{"event":"soak_agent_up","key":"f-collector-1","name":"Delia Okafor","archetype":"collector","model":"openrouter","wave":3,"figure":"elf"}
+{"event":"soak_agent_up","key":"f-collector-2","name":"Emil Okafor","archetype":"collector","model":"openrouter","wave":3,"figure":"jim"}
+{"event":"soak_agent_up","key":"f-foodie-0","name":"Fatima Okafor","archetype":"foodie","model":"openrouter","wave":3,"figure":"remy"}
+{"event":"soak_agent_up","key":"f-foodie-1","name":"Gustav Okafor","archetype":"foodie","model":"openrouter","wave":3,"figure":"cipher"}
+{"event":"soak_agent_up","key":"f-miser-0","name":"Hana Okafor","archetype":"miser","model":"openrouter","wave":3,"figure":"jim"}
+{"event":"soak_agent_up","key":"f-miser-1","name":"Idris Okafor","archetype":"miser","model":"openrouter","wave":3,"figure":"remy"}
+{"event":"soak_agent_up","key":"f-helper-0","name":"Jana Okafor","archetype":"helper","model":"openrouter","wave":3,"figure":"remy"}
+{"event":"soak_agent_up","key":"f-helper-1","name":"Mara Reyes","archetype":"helper","model":"openrouter","wave":3,"figure":"cipher"}
+{"event":"soak_agent_up","key":"f-idler-0","name":"Tomas Reyes","archetype":"idler","model":"openrouter","wave":3,"figure":"elf"}
+{"event":"soak_agent_up","key":"f-rival-0","name":"Ilya Reyes","archetype":"rival","model":"openrouter","wave":3,"figure":"eve"}
+{"event":"soak_agent_up","key":"f-rival-1","name":"June Reyes","archetype":"rival","model":"openrouter","wave":3,"figure":"elf"}
+{"event":"soak_config","mode":"run","gateway":"http://127.0.0.1:4101","db":"postgres://postgres@127.0.0.1:5432/aiverse_soak","dir":"/home/hatch/workspace/goals/aiverse-production-optimization/hidden_files/soak-2026-11-27","runMinutes":600}
+{"event":"soak_resume","runId":"soak-2026-11-27-run","rounds":97,"totalUsd":0.22171680000000016}
+{"event":"soak_start","mode":"run","runId":"soak-2026-11-27-run","endsAt":"2026-11-28T05:20:43.851Z","rosterAgents":124}
+{"event":"soak_config","mode":"run","gateway":"http://127.0.0.1:4101","db":"postgres://postgres@127.0.0.1:5432/aiverse_soak","dir":"/home/hatch/workspace/goals/aiverse-production-optimization/hidden_files/soak-2026-11-27","runMinutes":600}
+{"event":"soak_resume","runId":"soak-2026-11-27-run","rounds":98,"totalUsd":0.24096040000000005}
+{"event":"soak_start","mode":"run","runId":"soak-2026-11-27-run","endsAt":"2026-11-28T08:20:43.851Z","rosterAgents":124}
+{"event":"soak_round","round":99,"due":101,"totalUsd":0.2927,"counters":{"agents_set_up":124,"unparsed":42,"stall_buys":2,"stall_use_attempts":9,"stall_consumptions":2,"rests":10,"says":4}}
+{"event":"soak_oracle","violations":[]}
+{"event":"soak_round","round":100,"due":9,"totalUsd":0.2992,"counters":{"agents_set_up":124,"unparsed":42,"stall_buys":2,"stall_use_attempts":10,"stall_consumptions":2,"rests":10,"says":4}}
+{"event":"soak_round","round":101,"due":10,"totalUsd":0.3066,"counters":{"agents_set_up":124,"unparsed":42,"stall_buys":2,"stall_use_attempts":13,"stall_consumptions":3,"rests":10,"says":4}}
+{"event":"soak_round","round":102,"due":19,"totalUsd":0.3198,"counters":{"agents_set_up":124,"unparsed":42,"stall_buys":2,"stall_use_attempts":15,"stall_consumptions":3,"rests":12,"says":4}}
+{"event":"soak_round","round":103,"due":11,"totalUsd":0.3271,"counters":{"agents_set_up":124,"unparsed":42,"stall_buys":2,"stall_use_attempts":15,"stall_consumptions":3,"rests":14,"says":4}}
+{"event":"soak_round","round":104,"due":8,"totalUsd":0.3336,"counters":{"agents_set_up":124,"unparsed":42,"stall_buys":2,"stall_use_attempts":15,"stall_consumptions":3,"rests":14,"says":4}}
+{"event":"soak_round","round":105,"due":12,"totalUsd":0.3418,"counters":{"agents_set_up":124,"unparsed":42,"stall_buys":2,"stall_use_attempts":15,"stall_consumptions":3,"rests":15,"says":4}}
+{"event":"soak_round","round":106,"due":9,"totalUsd":0.3489,"counters":{"agents_set_up":124,"unparsed":42,"stall_buys":2,"stall_use_attempts":15,"stall_consumptions":3,"rests":16,"says":4}}
+{"event":"soak_round","round":107,"due":11,"totalUsd":0.3549,"counters":{"agents_set_up":124,"unparsed":42,"stall_buys":2,"stall_use_attempts":15,"stall_consumptions":3,"rests":16,"says":4}}
+{"event":"soak_round","round":108,"due":5,"totalUsd":0.3577,"counters":{"agents_set_up":124,"unparsed":42,"stall_buys":2,"stall_use_attempts":15,"stall_consumptions":3,"rests":16,"says":4}}
+{"event":"soak_round","round":109,"due":1,"totalUsd":0.3586,"counters":{"agents_set_up":124,"unparsed":42,"stall_buys":2,"stall_use_attempts":15,"stall_consumptions":3,"rests":16,"says":4}}
+{"event":"soak_round","round":110,"due":3,"totalUsd":0.3604,"counters":{"agents_set_up":124,"unparsed":42,"stall_buys":2,"stall_use_attempts":15,"stall_consumptions":3,"rests":16,"says":4}}
+{"event":"soak_round","round":111,"due":3,"totalUsd":0.3627,"counters":{"agents_set_up":124,"unparsed":42,"stall_buys":2,"stall_use_attempts":15,"stall_consumptions":3,"rests":16,"says":4}}
+{"event":"soak_round","round":112,"due":6,"totalUsd":0.3683,"counters":{"agents_set_up":124,"unparsed":42,"stall_buys":2,"stall_use_attempts":16,"stall_consumptions":3,"rests":17,"says":4}}
+{"event":"soak_round","round":113,"due":4,"totalUsd":0.3708,"counters":{"agents_set_up":124,"unparsed":42,"stall_buys":2,"stall_use_attempts":17,"stall_consumptions":3,"rests":17,"says":4}}
+{"event":"soak_round","round":114,"due":5,"totalUsd":0.3736,"counters":{"agents_set_up":124,"unparsed":42,"stall_buys":2,"stall_use_attempts":17,"stall_consumptions":3,"rests":17,"says":4}}
+{"event":"soak_round","round":115,"due":9,"totalUsd":0.3797,"counters":{"agents_set_up":124,"unparsed":42,"stall_buys":2,"stall_use_attempts":18,"stall_consumptions":3,"rests":17,"says":4}}
+{"event":"soak_round","round":116,"due":9,"totalUsd":0.3863,"counters":{"agents_set_up":124,"unparsed":42,"stall_buys":2,"stall_use_attempts":18,"stall_consumptions":3,"rests":18,"says":4}}
+{"event":"soak_round","round":117,"due":8,"totalUsd":0.39,"counters":{"agents_set_up":124,"unparsed":42,"stall_buys":2,"stall_use_attempts":18,"stall_consumptions":3,"rests":19,"says":6}}
+{"event":"soak_round","round":118,"due":10,"totalUsd":0.3956,"counters":{"agents_set_up":124,"unparsed":42,"stall_buys":2,"stall_use_attempts":18,"stall_consumptions":3,"rests":20,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":119,"due":17,"totalUsd":0.4037,"counters":{"agents_set_up":124,"unparsed":44,"stall_buys":2,"stall_use_attempts":19,"stall_consumptions":3,"rests":21,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":120,"due":29,"totalUsd":0.4137,"counters":{"agents_set_up":124,"unparsed":48,"stall_buys":3,"stall_use_attempts":21,"stall_consumptions":3,"rests":22,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":121,"due":20,"totalUsd":0.4272,"counters":{"agents_set_up":124,"unparsed":50,"stall_buys":3,"stall_use_attempts":21,"stall_consumptions":3,"rests":23,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":122,"due":5,"totalUsd":0.43,"counters":{"agents_set_up":124,"unparsed":50,"stall_buys":3,"stall_use_attempts":21,"stall_consumptions":3,"rests":23,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":123,"due":3,"totalUsd":0.4327,"counters":{"agents_set_up":124,"unparsed":50,"stall_buys":3,"stall_use_attempts":21,"stall_consumptions":3,"rests":24,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":124,"due":3,"totalUsd":0.435,"counters":{"agents_set_up":124,"unparsed":50,"stall_buys":3,"stall_use_attempts":22,"stall_consumptions":4,"rests":24,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":125,"due":3,"totalUsd":0.438,"counters":{"agents_set_up":124,"unparsed":50,"stall_buys":3,"stall_use_attempts":22,"stall_consumptions":4,"rests":25,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":126,"due":3,"totalUsd":0.4394,"counters":{"agents_set_up":124,"unparsed":50,"stall_buys":3,"stall_use_attempts":22,"stall_consumptions":4,"rests":25,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":127,"due":1,"totalUsd":0.4399,"counters":{"agents_set_up":124,"unparsed":50,"stall_buys":3,"stall_use_attempts":22,"stall_consumptions":4,"rests":25,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":128,"due":3,"totalUsd":0.4414,"counters":{"agents_set_up":124,"unparsed":50,"stall_buys":3,"stall_use_attempts":24,"stall_consumptions":5,"rests":25,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":129,"due":3,"totalUsd":0.4428,"counters":{"agents_set_up":124,"unparsed":50,"stall_buys":3,"stall_use_attempts":25,"stall_consumptions":5,"rests":25,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":130,"due":4,"totalUsd":0.4465,"counters":{"agents_set_up":124,"unparsed":50,"stall_buys":3,"stall_use_attempts":25,"stall_consumptions":5,"rests":26,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":131,"due":10,"totalUsd":0.4534,"counters":{"agents_set_up":124,"unparsed":50,"stall_buys":3,"stall_use_attempts":26,"stall_consumptions":5,"rests":27,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":132,"due":10,"totalUsd":0.4609,"counters":{"agents_set_up":124,"unparsed":50,"stall_buys":3,"stall_use_attempts":27,"stall_consumptions":5,"rests":28,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":133,"due":3,"totalUsd":0.4631,"counters":{"agents_set_up":124,"unparsed":50,"stall_buys":3,"stall_use_attempts":27,"stall_consumptions":5,"rests":29,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":134,"due":2,"totalUsd":0.4645,"counters":{"agents_set_up":124,"unparsed":50,"stall_buys":3,"stall_use_attempts":27,"stall_consumptions":5,"rests":29,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":135,"due":1,"totalUsd":0.4654,"counters":{"agents_set_up":124,"unparsed":50,"stall_buys":3,"stall_use_attempts":27,"stall_consumptions":5,"rests":29,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":136,"due":6,"totalUsd":0.4691,"counters":{"agents_set_up":124,"unparsed":50,"stall_buys":3,"stall_use_attempts":27,"stall_consumptions":5,"rests":29,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":137,"due":2,"totalUsd":0.4705,"counters":{"agents_set_up":124,"unparsed":50,"stall_buys":3,"stall_use_attempts":27,"stall_consumptions":5,"rests":29,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":138,"due":8,"totalUsd":0.4764,"counters":{"agents_set_up":124,"unparsed":50,"stall_buys":3,"stall_use_attempts":27,"stall_consumptions":5,"rests":30,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":139,"due":3,"totalUsd":0.4783,"counters":{"agents_set_up":124,"unparsed":50,"stall_buys":3,"stall_use_attempts":27,"stall_consumptions":5,"rests":30,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":140,"due":6,"totalUsd":0.4819,"counters":{"agents_set_up":124,"unparsed":50,"stall_buys":3,"stall_use_attempts":27,"stall_consumptions":5,"rests":30,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":141,"due":16,"totalUsd":0.4919,"counters":{"agents_set_up":124,"unparsed":51,"stall_buys":3,"stall_use_attempts":27,"stall_consumptions":5,"rests":30,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":142,"due":9,"totalUsd":0.4988,"counters":{"agents_set_up":124,"unparsed":51,"stall_buys":3,"stall_use_attempts":27,"stall_consumptions":5,"rests":31,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":143,"due":6,"totalUsd":0.502,"counters":{"agents_set_up":124,"unparsed":52,"stall_buys":3,"stall_use_attempts":27,"stall_consumptions":5,"rests":31,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":144,"due":4,"totalUsd":0.5044,"counters":{"agents_set_up":124,"unparsed":52,"stall_buys":3,"stall_use_attempts":27,"stall_consumptions":5,"rests":31,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":145,"due":4,"totalUsd":0.5067,"counters":{"agents_set_up":124,"unparsed":52,"stall_buys":3,"stall_use_attempts":27,"stall_consumptions":5,"rests":31,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":146,"due":4,"totalUsd":0.5077,"counters":{"agents_set_up":124,"unparsed":52,"stall_buys":3,"stall_use_attempts":27,"stall_consumptions":5,"rests":31,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":147,"due":10,"totalUsd":0.5139,"counters":{"agents_set_up":124,"unparsed":53,"stall_buys":4,"stall_use_attempts":28,"stall_consumptions":5,"rests":31,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":148,"due":12,"totalUsd":0.5181,"counters":{"agents_set_up":124,"unparsed":54,"stall_buys":4,"stall_use_attempts":29,"stall_consumptions":5,"rests":31,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":149,"due":19,"totalUsd":0.5274,"counters":{"agents_set_up":124,"unparsed":56,"stall_buys":4,"stall_use_attempts":29,"stall_consumptions":5,"rests":32,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":150,"due":18,"totalUsd":0.537,"counters":{"agents_set_up":124,"unparsed":58,"stall_buys":4,"stall_use_attempts":30,"stall_consumptions":5,"rests":32,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":151,"due":15,"totalUsd":0.5467,"counters":{"agents_set_up":124,"unparsed":58,"stall_buys":4,"stall_use_attempts":31,"stall_consumptions":6,"rests":33,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":152,"due":12,"totalUsd":0.5541,"counters":{"agents_set_up":124,"unparsed":58,"stall_buys":4,"stall_use_attempts":31,"stall_consumptions":6,"rests":34,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_oracle","violations":[]}
+{"event":"soak_round","round":153,"due":11,"totalUsd":0.5624,"counters":{"agents_set_up":124,"unparsed":58,"stall_buys":4,"stall_use_attempts":33,"stall_consumptions":6,"rests":35,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":154,"due":10,"totalUsd":0.5698,"counters":{"agents_set_up":124,"unparsed":59,"stall_buys":5,"stall_use_attempts":34,"stall_consumptions":6,"rests":36,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":155,"due":4,"totalUsd":0.5725,"counters":{"agents_set_up":124,"unparsed":59,"stall_buys":5,"stall_use_attempts":35,"stall_consumptions":6,"rests":36,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":156,"due":7,"totalUsd":0.5773,"counters":{"agents_set_up":124,"unparsed":59,"stall_buys":6,"stall_use_attempts":36,"stall_consumptions":6,"rests":36,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":157,"due":3,"totalUsd":0.5792,"counters":{"agents_set_up":124,"unparsed":59,"stall_buys":6,"stall_use_attempts":36,"stall_consumptions":6,"rests":36,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":158,"due":2,"totalUsd":0.5807,"counters":{"agents_set_up":124,"unparsed":59,"stall_buys":6,"stall_use_attempts":36,"stall_consumptions":6,"rests":36,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":159,"due":3,"totalUsd":0.5826,"counters":{"agents_set_up":124,"unparsed":59,"stall_buys":6,"stall_use_attempts":36,"stall_consumptions":6,"rests":36,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":160,"due":3,"totalUsd":0.5845,"counters":{"agents_set_up":124,"unparsed":59,"stall_buys":6,"stall_use_attempts":36,"stall_consumptions":6,"rests":36,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":161,"due":7,"totalUsd":0.5888,"counters":{"agents_set_up":124,"unparsed":59,"stall_buys":6,"stall_use_attempts":37,"stall_consumptions":6,"rests":36,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":162,"due":3,"totalUsd":0.5907,"counters":{"agents_set_up":124,"unparsed":59,"stall_buys":6,"stall_use_attempts":37,"stall_consumptions":6,"rests":36,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":163,"due":2,"totalUsd":0.5926,"counters":{"agents_set_up":124,"unparsed":59,"stall_buys":6,"stall_use_attempts":38,"stall_consumptions":6,"rests":36,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":164,"due":2,"totalUsd":0.5944,"counters":{"agents_set_up":124,"unparsed":59,"stall_buys":6,"stall_use_attempts":38,"stall_consumptions":6,"rests":36,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":165,"due":5,"totalUsd":0.5977,"counters":{"agents_set_up":124,"unparsed":59,"stall_buys":6,"stall_use_attempts":39,"stall_consumptions":6,"rests":36,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":166,"due":2,"totalUsd":0.5986,"counters":{"agents_set_up":124,"unparsed":60,"stall_buys":6,"stall_use_attempts":39,"stall_consumptions":6,"rests":36,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":167,"due":1,"totalUsd":0.5991,"counters":{"agents_set_up":124,"unparsed":60,"stall_buys":6,"stall_use_attempts":39,"stall_consumptions":6,"rests":36,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":168,"due":2,"totalUsd":0.6009,"counters":{"agents_set_up":124,"unparsed":60,"stall_buys":6,"stall_use_attempts":39,"stall_consumptions":6,"rests":37,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":169,"due":1,"totalUsd":0.6014,"counters":{"agents_set_up":124,"unparsed":60,"stall_buys":6,"stall_use_attempts":39,"stall_consumptions":6,"rests":37,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":170,"due":5,"totalUsd":0.6047,"counters":{"agents_set_up":124,"unparsed":60,"stall_buys":6,"stall_use_attempts":39,"stall_consumptions":6,"rests":37,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_round","round":171,"due":23,"totalUsd":0.6177,"counters":{"agents_set_up":124,"unparsed":60,"stall_buys":6,"stall_use_attempts":39,"stall_consumptions":6,"rests":39,"says":6,"pickups_claimed":1,"pickup:stone-cabin-tea-jar":1}}
+{"event":"soak_config","mode":"run","gateway":"http://127.0.0.1:4101","db":"postgres://postgres@127.0.0.1:5432/aiverse_soak","dir":"/home/hatch/workspace/goals/aiverse-production-optimization/hidden_files/soak-2026-11-27","runMinutes":600}
+{"event":"soak_resume","runId":"soak-2026-11-27-run","rounds":172,"totalUsd":0.6228120000000004}
+{"event":"soak_start","mode":"run","runId":"soak-2026-11-27-run","endsAt":"2026-11-28T08:20:43.851Z","rosterAgents":124}
