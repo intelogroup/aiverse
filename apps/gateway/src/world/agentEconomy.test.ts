@@ -33,6 +33,15 @@ describe("levelForXp", () => {
     }
   });
 
+  test("xpForLevel hostile shapes return a finite non-negative integer (AIV-LEVEL-CURVE-SHAPE-001)", () => {
+    for (const v of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, -5, 0, 2.5, 1e12]) {
+      const r = xpForLevel(v);
+      expect(Number.isFinite(r) && Number.isInteger(r) && r >= 0).toBe(true);
+    }
+    expect(xpForLevel(Number.NaN)).toBe(0);
+    expect(xpForLevel(Number.POSITIVE_INFINITY)).toBe(0);
+  });
+
   test("degenerate inputs stay at level 1 and never go backwards", () => {
     expect(levelForXp(-50)).toBe(1);
     expect(levelForXp(Number.NaN)).toBe(1);
