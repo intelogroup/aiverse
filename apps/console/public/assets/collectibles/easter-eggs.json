@@ -75,54 +75,6 @@
       "rotationY": 5.7166,
       "scale": 0.8,
       "hint": "Along the western market lane"
-    },
-    {
-      "id": "egg-soak-01",
-      "district": "bazaar",
-      "position": [
-        -17,
-        0.48,
-        82
-      ],
-      "rotationY": 1.2,
-      "scale": 1,
-      "hint": "On the Stone Cabin porch"
-    },
-    {
-      "id": "egg-soak-02",
-      "district": "bazaar",
-      "position": [
-        -98,
-        0.2,
-        66
-      ],
-      "rotationY": 2.9,
-      "scale": 1.1,
-      "hint": "In the far south-west grass"
-    },
-    {
-      "id": "egg-soak-03",
-      "district": "bazaar",
-      "position": [
-        48,
-        0.2,
-        16
-      ],
-      "rotationY": 0.6,
-      "scale": 1,
-      "hint": "Past the eastern plaza bell"
-    },
-    {
-      "id": "egg-soak-04",
-      "district": "bazaar",
-      "position": [
-        -36,
-        0.2,
-        76
-      ],
-      "rotationY": 2.1,
-      "scale": 1,
-      "hint": "In the north-west lane"
     }
   ]
 }
