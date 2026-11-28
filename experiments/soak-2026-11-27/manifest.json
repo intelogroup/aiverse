@@ -1,0 +1,1759 @@
+{
+ "run": "soak-2026-11-27",
+ "baseMain": "0bb5567df1ad09df0803710359aa0c145b6387e3",
+ "branch": "tmp/soak-2026-11-27 (local only)",
+ "caps": {
+  "totalUsd": 3,
+  "perModelUsd": 1.5,
+  "perAgentCalls": 45,
+  "estimatedHaltUsd": 2.7,
+  "prices": {
+   "openai": {
+    "in": 0.4,
+    "out": 1.6,
+    "estimated": false
+   },
+   "agnes": {
+    "in": 0.8,
+    "out": 1.6,
+    "estimated": true
+   },
+   "openrouter": {
+    "in": 0,
+    "out": 0,
+    "estimated": false
+   }
+  }
+ },
+ "startEnergy": 55,
+ "energyRates": {
+  "walk": 4,
+  "drive": 6,
+  "run": 8,
+  "act": 1,
+  "enter": 2,
+  "converse": 1,
+  "regenSeatedPer4s": 3.5,
+  "foodRestore": 25,
+  "kettleMultiplier": 2
+ },
+ "gatewayEnv": {
+  "AIVERSE_BAZAAR_MODE": "1",
+  "AIVERSE_VERSE_PROGRESS": "1",
+  "AIVERSE_WORLD_MODE": "1",
+  "AIVERSE_DISABLE_NATIVES": "1",
+  "feeds": "off"
+ },
+ "simEnv": {
+  "SIM_STALL_CONSUMABLES": "1",
+  "SIM_MOVABLE_PROPS": "1",
+  "SIM_MOVEMENT_ENERGY": "0 (gateway ledger is the single energy story)",
+  "SIM_AMBIENT": "0"
+ },
+ "roster": [
+  {
+   "key": "p-trader-0",
+   "name": "Mara Venn",
+   "owner": "owner-p0-0",
+   "archetype": "trader",
+   "model": "agnes",
+   "wave": 0,
+   "paid": true,
+   "critic": true,
+   "holds": "Brass Lantern"
+  },
+  {
+   "key": "p-trader-1",
+   "name": "Tomas Venn",
+   "owner": "owner-p0-0",
+   "archetype": "trader",
+   "model": "openai",
+   "wave": 1,
+   "paid": true,
+   "critic": false,
+   "holds": "Copper Kettle"
+  },
+  {
+   "key": "p-trader-2",
+   "name": "Ilya Venn",
+   "owner": "owner-p0-1",
+   "archetype": "trader",
+   "model": "agnes",
+   "wave": 1,
+   "paid": true,
+   "critic": false,
+   "holds": "Tin Flute"
+  },
+  {
+   "key": "p-trader-3",
+   "name": "June Venn",
+   "owner": "owner-p0-1",
+   "archetype": "trader",
+   "model": "openai",
+   "wave": 1,
+   "paid": true,
+   "critic": false,
+   "holds": "Wool Scarf"
+  },
+  {
+   "key": "p-trader-4",
+   "name": "Petra Venn",
+   "owner": "owner-p0-s4",
+   "archetype": "trader",
+   "model": "agnes",
+   "wave": 1,
+   "paid": true,
+   "critic": false,
+   "holds": "Glass Vial"
+  },
+  {
+   "key": "p-trader-5",
+   "name": "Osei Venn",
+   "owner": "owner-p0-s5",
+   "archetype": "trader",
+   "model": "openai",
+   "wave": 1,
+   "paid": true,
+   "critic": true,
+   "holds": "Wooden Flute"
+  },
+  {
+   "key": "p-trader-6",
+   "name": "Nia Venn",
+   "owner": "owner-p0-s6",
+   "archetype": "trader",
+   "model": "agnes",
+   "wave": 1,
+   "paid": true,
+   "critic": false,
+   "holds": "Silver Bell"
+  },
+  {
+   "key": "p-trader-7",
+   "name": "Kofi Venn",
+   "owner": "owner-p0-s7",
+   "archetype": "trader",
+   "model": "openai",
+   "wave": 1,
+   "paid": true,
+   "critic": false,
+   "holds": "Linen Satchel"
+  },
+  {
+   "key": "p-trader-8",
+   "name": "Lena Venn",
+   "owner": "owner-p0-s8",
+   "archetype": "trader",
+   "model": "agnes",
+   "wave": 1,
+   "paid": true,
+   "critic": false,
+   "holds": "Clay Pot"
+  },
+  {
+   "key": "p-trader-9",
+   "name": "Ravi Venn",
+   "owner": "owner-p0-s9",
+   "archetype": "trader",
+   "model": "openai",
+   "wave": 1,
+   "paid": true,
+   "critic": false,
+   "holds": "Iron Key"
+  },
+  {
+   "key": "p-bounty-0",
+   "name": "Sana Venn",
+   "owner": "owner-p1-0",
+   "archetype": "bounty",
+   "model": "openai",
+   "wave": 1,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-bounty-1",
+   "name": "Dario Venn",
+   "owner": "owner-p1-0",
+   "archetype": "bounty",
+   "model": "agnes",
+   "wave": 1,
+   "paid": true,
+   "critic": true,
+   "holds": null
+  },
+  {
+   "key": "p-bounty-2",
+   "name": "Elif Venn",
+   "owner": "owner-p1-1",
+   "archetype": "bounty",
+   "model": "openai",
+   "wave": 1,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-bounty-3",
+   "name": "Mateo Venn",
+   "owner": "owner-p1-1",
+   "archetype": "bounty",
+   "model": "agnes",
+   "wave": 1,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-bounty-4",
+   "name": "Ines Venn",
+   "owner": "owner-p1-s4",
+   "archetype": "bounty",
+   "model": "openai",
+   "wave": 1,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-bounty-5",
+   "name": "Yuki Venn",
+   "owner": "owner-p1-s5",
+   "archetype": "bounty",
+   "model": "agnes",
+   "wave": 1,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-bounty-6",
+   "name": "Omar Venn",
+   "owner": "owner-p1-s6",
+   "archetype": "bounty",
+   "model": "openai",
+   "wave": 2,
+   "paid": true,
+   "critic": true,
+   "holds": null
+  },
+  {
+   "key": "p-bounty-7",
+   "name": "Freya Venn",
+   "owner": "owner-p1-s7",
+   "archetype": "bounty",
+   "model": "agnes",
+   "wave": 2,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-bounty-8",
+   "name": "Casimir Venn",
+   "owner": "owner-p1-s8",
+   "archetype": "bounty",
+   "model": "openai",
+   "wave": 2,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-bounty-9",
+   "name": "Alba Venn",
+   "owner": "owner-p1-s9",
+   "archetype": "bounty",
+   "model": "agnes",
+   "wave": 2,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-socializer-0",
+   "name": "Noor Venn",
+   "owner": "owner-p2-0",
+   "archetype": "socializer",
+   "model": "agnes",
+   "wave": 2,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-socializer-1",
+   "name": "Stellan Venn",
+   "owner": "owner-p2-0",
+   "archetype": "socializer",
+   "model": "openai",
+   "wave": 2,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-socializer-2",
+   "name": "Priya Venn",
+   "owner": "owner-p2-1",
+   "archetype": "socializer",
+   "model": "agnes",
+   "wave": 2,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-socializer-3",
+   "name": "Henrik Venn",
+   "owner": "owner-p2-1",
+   "archetype": "socializer",
+   "model": "openai",
+   "wave": 2,
+   "paid": true,
+   "critic": true,
+   "holds": null
+  },
+  {
+   "key": "p-socializer-4",
+   "name": "Zola Venn",
+   "owner": "owner-p2-s4",
+   "archetype": "socializer",
+   "model": "agnes",
+   "wave": 2,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-socializer-5",
+   "name": "Amara Venn",
+   "owner": "owner-p2-s5",
+   "archetype": "socializer",
+   "model": "openai",
+   "wave": 2,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-socializer-6",
+   "name": "Boris Venn",
+   "owner": "owner-p2-s6",
+   "archetype": "socializer",
+   "model": "agnes",
+   "wave": 2,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-socializer-7",
+   "name": "Cleo Venn",
+   "owner": "owner-p2-s7",
+   "archetype": "socializer",
+   "model": "openai",
+   "wave": 2,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-socializer-8",
+   "name": "Dante Venn",
+   "owner": "owner-p2-s8",
+   "archetype": "socializer",
+   "model": "agnes",
+   "wave": 2,
+   "paid": true,
+   "critic": true,
+   "holds": null
+  },
+  {
+   "key": "p-socializer-9",
+   "name": "Esme Venn",
+   "owner": "owner-p2-s9",
+   "archetype": "socializer",
+   "model": "openai",
+   "wave": 2,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-explorer-0",
+   "name": "Farid Venn",
+   "owner": "owner-p3-0",
+   "archetype": "explorer",
+   "model": "openai",
+   "wave": 2,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-explorer-1",
+   "name": "Greta Venn",
+   "owner": "owner-p3-0",
+   "archetype": "explorer",
+   "model": "agnes",
+   "wave": 0,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-explorer-2",
+   "name": "Hassan Venn",
+   "owner": "owner-p3-1",
+   "archetype": "explorer",
+   "model": "openai",
+   "wave": 2,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-explorer-3",
+   "name": "Iris Venn",
+   "owner": "owner-p3-1",
+   "archetype": "explorer",
+   "model": "agnes",
+   "wave": 2,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-explorer-4",
+   "name": "Jonas Venn",
+   "owner": "owner-p3-s4",
+   "archetype": "explorer",
+   "model": "openai",
+   "wave": 2,
+   "paid": true,
+   "critic": true,
+   "holds": null
+  },
+  {
+   "key": "p-explorer-5",
+   "name": "Kira Venn",
+   "owner": "owner-p3-s5",
+   "archetype": "explorer",
+   "model": "agnes",
+   "wave": 2,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-explorer-6",
+   "name": "Lars Venn",
+   "owner": "owner-p3-s6",
+   "archetype": "explorer",
+   "model": "openai",
+   "wave": 2,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-explorer-7",
+   "name": "Mina Venn",
+   "owner": "owner-p3-s7",
+   "archetype": "explorer",
+   "model": "agnes",
+   "wave": 2,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-explorer-8",
+   "name": "Nils Venn",
+   "owner": "owner-p3-s8",
+   "archetype": "explorer",
+   "model": "openai",
+   "wave": 2,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-explorer-9",
+   "name": "Odile Venn",
+   "owner": "owner-p3-s9",
+   "archetype": "explorer",
+   "model": "agnes",
+   "wave": 2,
+   "paid": true,
+   "critic": true,
+   "holds": null
+  },
+  {
+   "key": "p-collector-0",
+   "name": "Pavel Venn",
+   "owner": "owner-p4-0",
+   "archetype": "collector",
+   "model": "agnes",
+   "wave": 2,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-collector-1",
+   "name": "Runa Venn",
+   "owner": "owner-p4-0",
+   "archetype": "collector",
+   "model": "openai",
+   "wave": 2,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-collector-2",
+   "name": "Silas Venn",
+   "owner": "owner-p4-1",
+   "archetype": "collector",
+   "model": "agnes",
+   "wave": 2,
+   "paid": true,
+   "critic": true,
+   "holds": null
+  },
+  {
+   "key": "p-collector-3",
+   "name": "Tara Venn",
+   "owner": "owner-p4-1",
+   "archetype": "collector",
+   "model": "openai",
+   "wave": 2,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-collector-4",
+   "name": "Umar Venn",
+   "owner": "owner-p4-s4",
+   "archetype": "collector",
+   "model": "agnes",
+   "wave": 2,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-collector-5",
+   "name": "Vera Venn",
+   "owner": "owner-p4-s5",
+   "archetype": "collector",
+   "model": "openai",
+   "wave": 2,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-collector-6",
+   "name": "Wendell Venn",
+   "owner": "owner-p4-s6",
+   "archetype": "collector",
+   "model": "agnes",
+   "wave": 2,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-collector-7",
+   "name": "Ximena Venn",
+   "owner": "owner-p4-s7",
+   "archetype": "collector",
+   "model": "openai",
+   "wave": 3,
+   "paid": true,
+   "critic": true,
+   "holds": null
+  },
+  {
+   "key": "p-collector-8",
+   "name": "Yorick Venn",
+   "owner": "owner-p4-s8",
+   "archetype": "collector",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-collector-9",
+   "name": "Zainab Venn",
+   "owner": "owner-p4-s9",
+   "archetype": "collector",
+   "model": "openai",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-foodie-0",
+   "name": "Anders Venn",
+   "owner": "owner-p5-0",
+   "archetype": "foodie",
+   "model": "openai",
+   "wave": 0,
+   "paid": true,
+   "critic": true,
+   "holds": null
+  },
+  {
+   "key": "p-foodie-1",
+   "name": "Bianca Venn",
+   "owner": "owner-p5-0",
+   "archetype": "foodie",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-foodie-2",
+   "name": "Cyrus Venn",
+   "owner": "owner-p5-1",
+   "archetype": "foodie",
+   "model": "openai",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-foodie-3",
+   "name": "Delia Venn",
+   "owner": "owner-p5-1",
+   "archetype": "foodie",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-foodie-4",
+   "name": "Emil Venn",
+   "owner": "owner-p5-s4",
+   "archetype": "foodie",
+   "model": "openai",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-foodie-5",
+   "name": "Fatima Venn",
+   "owner": "owner-p5-s5",
+   "archetype": "foodie",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-foodie-6",
+   "name": "Gustav Venn",
+   "owner": "owner-p5-s6",
+   "archetype": "foodie",
+   "model": "openai",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-foodie-7",
+   "name": "Hana Venn",
+   "owner": "owner-p5-s7",
+   "archetype": "foodie",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-foodie-8",
+   "name": "Idris Venn",
+   "owner": "owner-p5-s8",
+   "archetype": "foodie",
+   "model": "openai",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-foodie-9",
+   "name": "Jana Venn",
+   "owner": "owner-p5-s9",
+   "archetype": "foodie",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-miser-0",
+   "name": "Mara Okafor",
+   "owner": "owner-p6-0",
+   "archetype": "miser",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-miser-1",
+   "name": "Tomas Okafor",
+   "owner": "owner-p6-0",
+   "archetype": "miser",
+   "model": "openai",
+   "wave": 0,
+   "paid": true,
+   "critic": true,
+   "holds": null
+  },
+  {
+   "key": "p-miser-2",
+   "name": "Ilya Okafor",
+   "owner": "owner-p6-1",
+   "archetype": "miser",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-miser-3",
+   "name": "June Okafor",
+   "owner": "owner-p6-1",
+   "archetype": "miser",
+   "model": "openai",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-miser-4",
+   "name": "Petra Okafor",
+   "owner": "owner-p6-s4",
+   "archetype": "miser",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-miser-5",
+   "name": "Osei Okafor",
+   "owner": "owner-p6-s5",
+   "archetype": "miser",
+   "model": "openai",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-miser-6",
+   "name": "Nia Okafor",
+   "owner": "owner-p6-s6",
+   "archetype": "miser",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-miser-7",
+   "name": "Kofi Okafor",
+   "owner": "owner-p6-s7",
+   "archetype": "miser",
+   "model": "openai",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-miser-8",
+   "name": "Lena Okafor",
+   "owner": "owner-p6-s8",
+   "archetype": "miser",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-miser-9",
+   "name": "Ravi Okafor",
+   "owner": "owner-p6-s9",
+   "archetype": "miser",
+   "model": "openai",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-helper-0",
+   "name": "Sana Okafor",
+   "owner": "owner-p7-0",
+   "archetype": "helper",
+   "model": "openai",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-helper-1",
+   "name": "Dario Okafor",
+   "owner": "owner-p7-0",
+   "archetype": "helper",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-helper-2",
+   "name": "Elif Okafor",
+   "owner": "owner-p7-1",
+   "archetype": "helper",
+   "model": "openai",
+   "wave": 3,
+   "paid": true,
+   "critic": true,
+   "holds": null
+  },
+  {
+   "key": "p-helper-3",
+   "name": "Mateo Okafor",
+   "owner": "owner-p7-1",
+   "archetype": "helper",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-helper-4",
+   "name": "Ines Okafor",
+   "owner": "owner-p7-s4",
+   "archetype": "helper",
+   "model": "openai",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-helper-5",
+   "name": "Yuki Okafor",
+   "owner": "owner-p7-s5",
+   "archetype": "helper",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-helper-6",
+   "name": "Omar Okafor",
+   "owner": "owner-p7-s6",
+   "archetype": "helper",
+   "model": "openai",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-helper-7",
+   "name": "Freya Okafor",
+   "owner": "owner-p7-s7",
+   "archetype": "helper",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-helper-8",
+   "name": "Casimir Okafor",
+   "owner": "owner-p7-s8",
+   "archetype": "helper",
+   "model": "openai",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-helper-9",
+   "name": "Alba Okafor",
+   "owner": "owner-p7-s9",
+   "archetype": "helper",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-idler-0",
+   "name": "Noor Okafor",
+   "owner": "owner-p8-0",
+   "archetype": "idler",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-idler-1",
+   "name": "Stellan Okafor",
+   "owner": "owner-p8-0",
+   "archetype": "idler",
+   "model": "openai",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-idler-2",
+   "name": "Priya Okafor",
+   "owner": "owner-p8-1",
+   "archetype": "idler",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-idler-3",
+   "name": "Henrik Okafor",
+   "owner": "owner-p8-1",
+   "archetype": "idler",
+   "model": "openai",
+   "wave": 3,
+   "paid": true,
+   "critic": true,
+   "holds": null
+  },
+  {
+   "key": "p-idler-4",
+   "name": "Zola Okafor",
+   "owner": "owner-p8-s4",
+   "archetype": "idler",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-idler-5",
+   "name": "Amara Okafor",
+   "owner": "owner-p8-s5",
+   "archetype": "idler",
+   "model": "openai",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-idler-6",
+   "name": "Boris Okafor",
+   "owner": "owner-p8-s6",
+   "archetype": "idler",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-idler-7",
+   "name": "Cleo Okafor",
+   "owner": "owner-p8-s7",
+   "archetype": "idler",
+   "model": "openai",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-idler-8",
+   "name": "Dante Okafor",
+   "owner": "owner-p8-s8",
+   "archetype": "idler",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-idler-9",
+   "name": "Esme Okafor",
+   "owner": "owner-p8-s9",
+   "archetype": "idler",
+   "model": "openai",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-rival-0",
+   "name": "Farid Okafor",
+   "owner": "owner-p9-0",
+   "archetype": "rival",
+   "model": "openai",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-rival-1",
+   "name": "Greta Okafor",
+   "owner": "owner-p9-0",
+   "archetype": "rival",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-rival-2",
+   "name": "Hassan Okafor",
+   "owner": "owner-p9-1",
+   "archetype": "rival",
+   "model": "openai",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-rival-3",
+   "name": "Iris Okafor",
+   "owner": "owner-p9-1",
+   "archetype": "rival",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-rival-4",
+   "name": "Jonas Okafor",
+   "owner": "owner-p9-s4",
+   "archetype": "rival",
+   "model": "openai",
+   "wave": 3,
+   "paid": true,
+   "critic": true,
+   "holds": null
+  },
+  {
+   "key": "p-rival-5",
+   "name": "Kira Okafor",
+   "owner": "owner-p9-s5",
+   "archetype": "rival",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-rival-6",
+   "name": "Lars Okafor",
+   "owner": "owner-p9-s6",
+   "archetype": "rival",
+   "model": "openai",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-rival-7",
+   "name": "Mina Okafor",
+   "owner": "owner-p9-s7",
+   "archetype": "rival",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-rival-8",
+   "name": "Nils Okafor",
+   "owner": "owner-p9-s8",
+   "archetype": "rival",
+   "model": "openai",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "p-rival-9",
+   "name": "Odile Okafor",
+   "owner": "owner-p9-s9",
+   "archetype": "rival",
+   "model": "agnes",
+   "wave": 3,
+   "paid": true,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "f-trader-0",
+   "name": "Pavel Okafor",
+   "owner": "owner-f-trader-pair",
+   "archetype": "trader",
+   "model": "openrouter",
+   "wave": 2,
+   "paid": false,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "f-trader-1",
+   "name": "Runa Okafor",
+   "owner": "owner-f-trader-pair",
+   "archetype": "trader",
+   "model": "openrouter",
+   "wave": 2,
+   "paid": false,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "f-trader-2",
+   "name": "Silas Okafor",
+   "owner": "owner-f-trader-s2",
+   "archetype": "trader",
+   "model": "openrouter",
+   "wave": 2,
+   "paid": false,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "f-bounty-0",
+   "name": "Tara Okafor",
+   "owner": "owner-f-bounty-pair",
+   "archetype": "bounty",
+   "model": "openrouter",
+   "wave": 2,
+   "paid": false,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "f-bounty-1",
+   "name": "Umar Okafor",
+   "owner": "owner-f-bounty-pair",
+   "archetype": "bounty",
+   "model": "openrouter",
+   "wave": 2,
+   "paid": false,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "f-bounty-2",
+   "name": "Vera Okafor",
+   "owner": "owner-f-bounty-s2",
+   "archetype": "bounty",
+   "model": "openrouter",
+   "wave": 2,
+   "paid": false,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "f-socializer-0",
+   "name": "Wendell Okafor",
+   "owner": "owner-f-socializer-pair",
+   "archetype": "socializer",
+   "model": "openrouter",
+   "wave": 0,
+   "paid": false,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "f-socializer-1",
+   "name": "Ximena Okafor",
+   "owner": "owner-f-socializer-pair",
+   "archetype": "socializer",
+   "model": "openrouter",
+   "wave": 2,
+   "paid": false,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "f-socializer-2",
+   "name": "Yorick Okafor",
+   "owner": "owner-f-socializer-s2",
+   "archetype": "socializer",
+   "model": "openrouter",
+   "wave": 2,
+   "paid": false,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "f-explorer-0",
+   "name": "Zainab Okafor",
+   "owner": "owner-f-explorer-pair",
+   "archetype": "explorer",
+   "model": "openrouter",
+   "wave": 2,
+   "paid": false,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "f-explorer-1",
+   "name": "Anders Okafor",
+   "owner": "owner-f-explorer-pair",
+   "archetype": "explorer",
+   "model": "openrouter",
+   "wave": 2,
+   "paid": false,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "f-explorer-2",
+   "name": "Bianca Okafor",
+   "owner": "owner-f-explorer-s2",
+   "archetype": "explorer",
+   "model": "openrouter",
+   "wave": 2,
+   "paid": false,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "f-collector-0",
+   "name": "Cyrus Okafor",
+   "owner": "owner-f-collector-s0",
+   "archetype": "collector",
+   "model": "openrouter",
+   "wave": 3,
+   "paid": false,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "f-collector-1",
+   "name": "Delia Okafor",
+   "owner": "owner-f-collector-s1",
+   "archetype": "collector",
+   "model": "openrouter",
+   "wave": 3,
+   "paid": false,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "f-collector-2",
+   "name": "Emil Okafor",
+   "owner": "owner-f-collector-s2",
+   "archetype": "collector",
+   "model": "openrouter",
+   "wave": 3,
+   "paid": false,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "f-foodie-0",
+   "name": "Fatima Okafor",
+   "owner": "owner-f-foodie-s0",
+   "archetype": "foodie",
+   "model": "openrouter",
+   "wave": 3,
+   "paid": false,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "f-foodie-1",
+   "name": "Gustav Okafor",
+   "owner": "owner-f-foodie-s1",
+   "archetype": "foodie",
+   "model": "openrouter",
+   "wave": 3,
+   "paid": false,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "f-miser-0",
+   "name": "Hana Okafor",
+   "owner": "owner-f-miser-s0",
+   "archetype": "miser",
+   "model": "openrouter",
+   "wave": 3,
+   "paid": false,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "f-miser-1",
+   "name": "Idris Okafor",
+   "owner": "owner-f-miser-s1",
+   "archetype": "miser",
+   "model": "openrouter",
+   "wave": 3,
+   "paid": false,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "f-helper-0",
+   "name": "Jana Okafor",
+   "owner": "owner-f-helper-s0",
+   "archetype": "helper",
+   "model": "openrouter",
+   "wave": 3,
+   "paid": false,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "f-helper-1",
+   "name": "Mara Reyes",
+   "owner": "owner-f-helper-s1",
+   "archetype": "helper",
+   "model": "openrouter",
+   "wave": 3,
+   "paid": false,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "f-idler-0",
+   "name": "Tomas Reyes",
+   "owner": "owner-f-idler-s0",
+   "archetype": "idler",
+   "model": "openrouter",
+   "wave": 3,
+   "paid": false,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "f-rival-0",
+   "name": "Ilya Reyes",
+   "owner": "owner-f-rival-s0",
+   "archetype": "rival",
+   "model": "openrouter",
+   "wave": 3,
+   "paid": false,
+   "critic": false,
+   "holds": null
+  },
+  {
+   "key": "f-rival-1",
+   "name": "June Reyes",
+   "owner": "owner-f-rival-s1",
+   "archetype": "rival",
+   "model": "openrouter",
+   "wave": 3,
+   "paid": false,
+   "critic": false,
+   "holds": null
+  }
+ ],
+ "hidden": {
+  "note": "OPERATOR DATA \u2014 never exposed to agents. Agents get area-level rumors only.",
+  "pickups": [
+   {
+    "id": "garden-keepsake",
+    "name": "Tea House garden keepsake",
+    "target": "egg-bazaar-02",
+    "credits": 3,
+    "xp": 5,
+    "perAgent": false,
+    "position": [
+     -30.1,
+     0.2,
+     -70.5
+    ]
+   },
+   {
+    "id": "stone-cabin-tea-jar",
+    "name": "Stone Cabin tea jar",
+    "target": "stone-cabin-tea-jar",
+    "credits": 3,
+    "xp": 5,
+    "perAgent": false,
+    "position": [
+     -19,
+     0.48,
+     84
+    ]
+   },
+   {
+    "id": "market-hall-bakery-sample",
+    "name": "Market Hall bakery sample",
+    "target": "market-hall-bakery-sample",
+    "credits": 1,
+    "xp": 2,
+    "perAgent": true,
+    "position": [
+     42.8,
+     0.2,
+     -90.65
+    ]
+   },
+   {
+    "id": "shard-sun",
+    "name": "Sun Shard",
+    "target": "egg-bazaar-05",
+    "credits": 15,
+    "xp": 10,
+    "perAgent": false,
+    "position": [
+     42,
+     0.2,
+     10
+    ]
+   },
+   {
+    "id": "shard-leaf",
+    "name": "Leaf Shard",
+    "target": "egg-bazaar-06",
+    "credits": 15,
+    "xp": 10,
+    "perAgent": false,
+    "position": [
+     -100,
+     0.2,
+     -68.5
+    ]
+   },
+   {
+    "id": "shard-ember",
+    "name": "Ember Shard",
+    "target": "egg-bazaar-04",
+    "credits": 15,
+    "xp": 10,
+    "perAgent": false,
+    "position": [
+     -30.2,
+     0.2,
+     70.9
+    ]
+   },
+   {
+    "id": "shard-star",
+    "name": "Star Shard",
+    "target": "egg-bazaar-01",
+    "credits": 15,
+    "xp": 10,
+    "perAgent": false,
+    "position": [
+     -12.6,
+     0.2,
+     1
+    ]
+   },
+   {
+    "id": "shard-moon",
+    "name": "Moon Shard",
+    "target": "egg-soak-03",
+    "credits": 15,
+    "xp": 10,
+    "perAgent": false,
+    "position": [
+     48,
+     0.2,
+     16
+    ]
+   },
+   {
+    "id": "seeker-lantern",
+    "name": "Seeker Lantern",
+    "target": "egg-soak-04",
+    "credits": 20,
+    "xp": 15,
+    "perAgent": false,
+    "position": [
+     -36,
+     0.2,
+     76
+    ]
+   },
+   {
+    "id": "kettle-of-rest",
+    "name": "Kettle of Rest",
+    "target": "tea-radio",
+    "credits": 20,
+    "xp": 15,
+    "perAgent": false,
+    "position": [
+     -21.04,
+     0.48,
+     -75.9
+    ]
+   },
+   {
+    "id": "terminal-keycard",
+    "name": "Terminal Keycard",
+    "target": "egg-soak-01",
+    "credits": 25,
+    "xp": 20,
+    "perAgent": false,
+    "position": [
+     -17,
+     0.48,
+     82
+    ]
+   },
+   {
+    "id": "golden-egg",
+    "name": "Golden Egg",
+    "target": "egg-soak-02",
+    "credits": 50,
+    "xp": 25,
+    "perAgent": false,
+    "position": [
+     -98,
+     0.2,
+     66
+    ]
+   },
+   {
+    "id": "credit-cache",
+    "name": "Credit cache",
+    "target": "egg-bazaar-03",
+    "credits": 10,
+    "xp": 5,
+    "perAgent": true,
+    "position": [
+     -28.65,
+     0.2,
+     -41.6
+    ]
+   },
+   {
+    "id": "xp-cache",
+    "name": "Verse XP cache",
+    "target": "egg-bazaar-02",
+    "credits": 0,
+    "xp": 15,
+    "perAgent": true,
+    "position": [
+     -30.1,
+     0.2,
+     -70.5
+    ]
+   }
+  ],
+  "eggs": [
+   {
+    "id": "egg-bazaar-01",
+    "position": [
+     -12.6,
+     0.2,
+     1
+    ],
+    "payload": {
+     "kind": "lore",
+     "text": "The fountain remembers every coin that was never thrown."
+    }
+   },
+   {
+    "id": "egg-bazaar-02",
+    "position": [
+     -30.1,
+     0.2,
+     -70.5
+    ],
+    "payload": {
+     "kind": "lore",
+     "text": "Stall owners swear the fruit here ripens when someone laughs."
+    }
+   },
+   {
+    "id": "egg-bazaar-03",
+    "position": [
+     -28.65,
+     0.2,
+     -41.6
+    ],
+    "payload": {
+     "kind": "lore",
+     "text": "Tea House stairs count back from nine. Nobody knows why."
+    }
+   },
+   {
+    "id": "egg-bazaar-04",
+    "position": [
+     -30.2,
+     0.2,
+     70.9
+    ],
+    "payload": {
+     "kind": "lore",
+     "text": "Kronikler Press printed one page that wrote itself."
+    }
+   },
+   {
+    "id": "egg-bazaar-05",
+    "position": [
+     42,
+     0.2,
+     10
+    ],
+    "payload": {
+     "kind": "lore",
+     "text": "The eastern plaza bell rings only for newcomers."
+    }
+   },
+   {
+    "id": "egg-bazaar-06",
+    "position": [
+     -100,
+     0.2,
+     -68.5
+    ],
+    "payload": {
+     "kind": "lore",
+     "text": "Market lanes run west because the first cart did."
+    }
+   },
+   {
+    "id": "egg-soak-01",
+    "position": [
+     -17,
+     0.48,
+     82
+    ],
+    "payload": {
+     "kind": "lore",
+     "text": "A note in careful script: 'One key opens the terminal, and it sleeps where the tea jar watches the valley. What is worth two sleeps in the far south-west grass.'"
+    }
+   },
+   {
+    "id": "egg-soak-02",
+    "position": [
+     -98,
+     0.2,
+     66
+    ],
+    "payload": {
+     "kind": "lore",
+     "text": "Scratched inside the shell: 'GOLD HIDES HERE \u2014 LOOK CLOSER. THE KEY SLEEPS BY THE TEA JAR. THE MOON KEEPS THE EASTERN PLAZA. A LANTERN BURNS IN THE NORTH-WEST LANE.'"
+    }
+   },
+   {
+    "id": "egg-soak-03",
+    "position": [
+     48,
+     0.2,
+     16
+    ],
+    "payload": {
+     "kind": "lore",
+     "text": "A tide chart for a sea that isn't here. Someone underlined the moonrise column twice."
+    }
+   },
+   {
+    "id": "egg-soak-04",
+    "position": [
+     -36,
+     0.2,
+     76
+    ],
+    "payload": {
+     "kind": "lore",
+     "text": "A lamplighter's chalk mark: 'This corner first. The dark notices if you skip it.'"
+    }
+   }
+  ],
+  "seededCollectibleCredits": "uniques 190cr max once each (shards 15x5, lantern 20, kettle 20, keycard 25, golden egg 50 = 2x top standard); caches per-agent (credit-cache 10cr, xp-cache 0cr); pre-existing: keepsake 3, tea jar 3, market sample 1/agent",
+  "notSeeded": "Lantern reveal-power and Terminal Keycard terminal-unlock have NO live code path on current main (checked gateway + world-sim): both are seeded as ordinary collectible pickups (bag items with credit/XP value) and their special powers are NOT faked. Kettle of Rest DOES have a live path (hasKettle x2 regen). Golden Egg 'double value' is data-level: 50cr = 2x the 25cr top standard award. INTERIOR FINDING (probe + quickcheck 2026-11-27): the Zen Pavilion loft (loft-shelf / loft-tv) is NOT reachable by agent navigation on current main \u2014 go_to blocked by house-zen-pavilion-1-dining_chair-3, enter + interact still 'no safe route'. Moon Shard + Seeker Lantern were re-anchored pre-launch to new outdoor eggs egg-soak-03 (eastern plaza) and egg-soak-04 (north-west lane). Tea House interior (tea-radio, Kettle anchor) IS reachable \u2014 verified live."
+ },
+ "oracle": {
+  "bazaar": "SUM(bazaar_balances) + SUM(bounty of open/claimed/completed tasks) == 100 x seeded agents",
+  "verse": "every verse_progress_events kind must be in the documented set",
+  "documentedKinds": [
+   "stipend",
+   "pickup",
+   "stall_purchase",
+   "stall_sale",
+   "stall-consumption",
+   "conversation",
+   "discovery",
+   "place",
+   "move",
+   "sale",
+   "purchase",
+   "bounty",
+   "hunt",
+   "memory",
+   "visit_summary"
+  ]
+ },
+ "rePin": {
+  "from": "f945e4242bf897de300028c5fdf77c370f2ad4bb",
+  "to": "0bb5567df1ad09df0803710359aa0c145b6387e3",
+  "at": "2026-11-27T18:47Z",
+  "tree": "~/workspace/aiverse-soak-run (branch tmp/soak-2026-11-27)",
+  "migrations": "identical set+contents f945..0bb5 (62 files); DB journal at 62 \u2014 no migrate run needed",
+  "seedingReverified": "soak.verify.ts on new base: 14/14 pickups claim-tested with exact credit/XP (incl. Terminal Keycard 25/20, Golden Egg 50/25, Moon Shard 15/10, Seeker Lantern 20/15, Kettle of Rest 20/15); zero re-anchoring needed after #364 GLB swap; verify agent footprint deleted UUID-scoped, verse_pickup_claims back to 0"
+ }
+}

@@ -12,6 +12,13 @@ export const EGGS: Record<string, { position: [number, number, number]; payload:
   "egg-bazaar-04": { position: [-30.2, 0.2, 70.9], payload: { kind: "lore", text: "Kronikler Press printed one page that wrote itself." } },
   "egg-bazaar-05": { position: [42, 0.2, 10], payload: { kind: "lore", text: "The eastern plaza bell rings only for newcomers." } },
   "egg-bazaar-06": { position: [-100, 0.2, -68.5], payload: { kind: "lore", text: "Market lanes run west because the first cart did." } },
+  // Soak 2026-11-27 seeding (local run branch only): the two special-payload
+  // eggs. Their lore carries the run's cross-hints; the prizes themselves
+  // live in the pickup system (verseProgress.ts), never in the payload.
+  "egg-soak-01": { position: [-17, 0.48, 82], payload: { kind: "lore", text: "A note in careful script: 'One key opens the terminal, and it sleeps where the tea jar watches the valley. What is worth two sleeps in the far south-west grass.'" } },
+  "egg-soak-02": { position: [-98, 0.2, 66], payload: { kind: "lore", text: "Scratched inside the shell: 'GOLD HIDES HERE — LOOK CLOSER. THE KEY SLEEPS BY THE TEA JAR. THE MOON KEEPS THE EASTERN PLAZA. A LANTERN BURNS IN THE NORTH-WEST LANE.'" } },
+  "egg-soak-03": { position: [48, 0.2, 16], payload: { kind: "lore", text: "A tide chart for a sea that isn't here. Someone underlined the moonrise column twice." } },
+  "egg-soak-04": { position: [-36, 0.2, 76], payload: { kind: "lore", text: "A lamplighter's chalk mark: 'This corner first. The dark notices if you skip it.'" } },
 };
 
 export type EggClaimResult =
