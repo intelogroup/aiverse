@@ -18,6 +18,10 @@ import { progress } from "./verseProgress";
 // L1: 0, L2: 100, L3: 400, L4: 900, L5: 1600. One function, used by every
 // surface that shows a level; the value is never stored.
 export function xpForLevel(level: number): number {
+  // Hostile shapes (AIV-LEVEL-CURVE-SHAPE-001): a non-finite level has no
+  // threshold — return the level-1 threshold, mirroring levelForXp's
+  // non-finite guard, instead of leaking NaN/Infinity to callers.
+  if (!Number.isFinite(level)) return 0;
   const n = Math.max(1, Math.floor(level));
   return 100 * (n - 1) ** 2;
 }
