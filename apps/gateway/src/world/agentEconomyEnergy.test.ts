@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { agents, owners, verseAgentState, verseInventory } from "@aiverse/shared/schema";
 import { db } from "../db/client";
 import {
+  applyEnergyDelta,
   drainForAction,
   energyRates,
   exhaustionFor,
@@ -223,5 +224,26 @@ describe("useBagItem", () => {
     const used = await useBagItem(agent.id, "Market Hall bakery sample");
     expect(used.ok).toBe(false);
     if (!used.ok) expect(used.error).toBe("item_not_in_bag");
+  });
+});
+
+// ── hostile delta shapes (AIV-ENERGY-DELTA-SHAPE-001) ──────────────────
+
+describe("applyEnergyDelta hostile shapes", () => {
+  test("non-finite and out-of-range deltas never throw and never corrupt energy", async () => {
+    for (const d of [NaN, Infinity, -Infinity, 1e12, -1e12]) {
+      const agent = await createAgentRow();
+      await setEnergy(agent.id, 50);
+      await applyEnergyDelta(agent.id, d);
+      const e = await energyOf(agent.id);
+      expect(Number.isInteger(e) && e >= 0 && e <= 100).toBe(true);
+    }
+  });
+
+  test("huge finite deltas saturate at the clamp bounds", async () => {
+    const agent = await createAgentRow();
+    await setEnergy(agent.id, 50);
+    expect(await applyEnergyDelta(agent.id, 1e12)).toBe(100);
+    expect(await applyEnergyDelta(agent.id, -1e12)).toBe(0);
   });
 });

@@ -169,8 +169,13 @@ async function currentEnergy(agentId: string, store: WriteStore): Promise<number
 export async function applyEnergyDelta(agentId: string, delta: number, store: WriteStore = db): Promise<number> {
   // A fractional drain (converse 0.5) still costs a whole point; fractional
   // regen rounds to the nearest point.
-  const effective = delta < 0 && delta > -1 ? -1 : Math.round(delta);
-  if (!effective) return currentEnergy(agentId, store);
+  const rounded = delta < 0 && delta > -1 ? -1 : Math.round(delta);
+  // Hostile shapes (AIV-ENERGY-DELTA-SHAPE-001): a non-finite delta is a
+  // no-op, and the effective delta is clamped to the energy range itself —
+  // energy is clamped to 0–100 anyway, so a larger delta can only overflow
+  // the int column, never change the settled value.
+  if (!Number.isFinite(rounded) || !rounded) return currentEnergy(agentId, store);
+  const effective = Math.max(-100, Math.min(100, rounded));
   await store.insert(verseAgentState).values({ agentId }).onConflictDoNothing();
   const [row] = await store.update(verseAgentState).set({
     energy: sql`greatest(0, least(100, ${verseAgentState.energy} + ${effective}))`, updatedAt: sql`now()`,
